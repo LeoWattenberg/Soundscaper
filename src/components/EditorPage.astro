@@ -1,0 +1,15 @@
+---
+import AudioEditor from './tools/AudioEditor.astro';
+import SoundscaperLayout from '../layouts/SoundscaperLayout.astro';
+
+interface Props {
+	locale: 'de' | 'en';
+	embedded?: boolean;
+}
+
+const { locale, embedded = false } = Astro.props;
+---
+
+<SoundscaperLayout locale={locale} embedded={embedded}>
+	<AudioEditor locale={locale} audioEditorV2={true} />
+</SoundscaperLayout>

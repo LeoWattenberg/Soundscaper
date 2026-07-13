@@ -1,0 +1,125 @@
+---
+interface Props {
+	locale: 'de' | 'en';
+}
+
+const { locale } = Astro.props;
+const otherLocale = locale === 'de' ? 'en' : 'de';
+const copy = locale === 'de'
+	? {
+		label: 'Soundscaper-Navigation',
+		editor: 'Audio-Editor',
+		tools: 'Weitere kw.media Tools',
+		guides: 'Audacity-Ratgeber',
+		legal: 'Datenschutz & Impressum',
+		theme: 'Farbschema wechseln',
+		light: 'Hell',
+		dark: 'Dunkel',
+		language: 'English',
+	}
+	: {
+		label: 'Soundscaper navigation',
+		editor: 'Audio editor',
+		tools: 'More kw.media tools',
+		guides: 'Audacity guides',
+		legal: 'Privacy & legal notice',
+		theme: 'Switch color theme',
+		light: 'Light',
+		dark: 'Dark',
+		language: 'Deutsch',
+	};
+---
+
+<aside class="site-sidebar" aria-label={copy.label}>
+	<a class="brand" href={`/${locale}/`} aria-label="Soundscaper by kw.media">
+		<img class="logo-light logo-wide" src="/logo/logo-schwarz.svg" alt="kw.media" width="230" height="91" />
+		<img class="logo-dark logo-wide" src="/logo/logo-weiß.svg" alt="kw.media" width="230" height="91" />
+		<img class="logo-light logo-small" src="/logo/logo-klein-schwarz.svg" alt="" width="48" height="48" />
+		<img class="logo-dark logo-small" src="/logo/logo-klein-weiß.svg" alt="" width="48" height="48" />
+		<strong>Soundscaper</strong>
+	</a>
+
+	<nav class="sidebar-nav" aria-label={copy.label}>
+		<a class="sidebar-link is-active" href={`/${locale}/`} aria-current="page">{copy.editor}</a>
+		<a class="sidebar-link" href={`https://kw.media/${locale}/tools/`}>{copy.tools}</a>
+		<a class="sidebar-link" href={locale === 'de' ? 'https://kw.media/de/audacity/' : 'https://kw.media/en/audacity/'}>{copy.guides}</a>
+		<a class="sidebar-link" href="https://kw.media/de/legal/">{copy.legal}</a>
+	</nav>
+
+	<div class="sidebar-actions">
+		<button class="theme-toggle" type="button" data-theme-toggle data-light={copy.light} data-dark={copy.dark} aria-label={copy.theme} aria-pressed="false">
+			<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
+			<span data-theme-label>{copy.light}</span>
+		</button>
+		<a class="language-link" href={`/${otherLocale}/`}>{copy.language}</a>
+	</div>
+</aside>
+
+<script>
+	const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+	if (toggle) {
+		const label = toggle.querySelector<HTMLElement>('[data-theme-label]');
+		const apply = (theme: 'light' | 'dark') => {
+			document.documentElement.dataset.theme = theme;
+			document.documentElement.style.colorScheme = theme;
+			localStorage.setItem('soundscaper_theme', theme);
+			toggle.setAttribute('aria-pressed', String(theme === 'dark'));
+			if (label) label.textContent = theme === 'dark' ? toggle.dataset.dark || 'Dark' : toggle.dataset.light || 'Light';
+		};
+		toggle.addEventListener('click', () => apply(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+	}
+</script>
+
+<style>
+	.site-sidebar {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		width: 260px;
+		height: 100vh;
+		padding: 28px 20px;
+		background: var(--color-surface-raised);
+		border-right: 1px solid var(--color-line);
+	}
+	.brand { display: grid; gap: 8px; color: var(--color-ink); text-decoration: none; }
+	.brand img { width: min(190px, 100%); height: auto; }
+	.brand strong { color: var(--color-accent-dark); font-size: 1.05rem; letter-spacing: 0.02em; }
+	.logo-dark, .logo-small { display: none; }
+	:global(:root[data-theme='dark']) .logo-light { display: none; }
+	:global(:root[data-theme='dark']) .logo-dark.logo-wide { display: block; }
+	.sidebar-nav { display: grid; gap: 4px; margin-top: 34px; }
+	.sidebar-link, .language-link { padding: 10px 12px; color: var(--color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
+	.sidebar-link:hover, .sidebar-link.is-active { color: var(--color-accent-dark); background: var(--color-surface-alt); }
+	.sidebar-actions { display: grid; gap: 8px; margin-top: auto; }
+	.theme-toggle, .language-link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 42px;
+		padding: 8px 12px;
+		color: var(--color-ink);
+		background: var(--color-control-surface);
+		border: 1px solid var(--color-line);
+		border-radius: 6px;
+		font: inherit;
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.language-link { justify-content: center; }
+	.theme-toggle-track { display: inline-flex; width: 38px; height: 22px; padding: 3px; background: var(--color-surface-alt); border: 1px solid var(--color-line); border-radius: 999px; }
+	.theme-toggle-thumb { width: 14px; height: 14px; background: var(--color-accent); border-radius: 50%; transition: transform 160ms ease; }
+	.theme-toggle[aria-pressed='true'] .theme-toggle-thumb { transform: translateX(16px); }
+	@media (max-width: 900px) {
+		.site-sidebar { position: relative; width: 100%; height: auto; padding: 14px 16px; border-right: 0; border-bottom: 1px solid var(--color-line); }
+		.brand { grid-template-columns: auto 1fr; align-items: center; }
+		.brand .logo-wide { display: none !important; }
+		.brand .logo-light.logo-small { display: block; width: 42px; }
+		:global(:root[data-theme='dark']) .brand .logo-light.logo-small { display: none; }
+		:global(:root[data-theme='dark']) .brand .logo-dark.logo-small { display: block; width: 42px; }
+		.sidebar-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
+		.sidebar-link { flex: 0 0 auto; }
+		.sidebar-actions { grid-template-columns: 1fr 1fr; margin-top: 10px; }
+	}
+</style>

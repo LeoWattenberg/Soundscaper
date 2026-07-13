@@ -1,0 +1,41 @@
+{
+	"name": "soundscaper",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"license": "AGPL-3.0-only",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build && node scripts/check-cloudflare-assets.mjs",
+		"preview": "astro preview",
+		"test": "node --test",
+		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/lib/tools/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
+		"pretest:browser": "npm run build",
+		"test:browser": "playwright test",
+		"build:staffpad": "node scripts/build-staffpad-wasm.mjs",
+		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
+		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
+		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
+		"deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name soundscaper",
+		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
+	},
+	"dependencies": {
+		"@astrojs/react": "6.0.1",
+		"@dilsonspickles/components": "0.9.0",
+		"@ffmpeg/core": "0.12.10",
+		"@ffmpeg/ffmpeg": "0.12.15",
+		"@sqlite.org/sqlite-wasm": "3.53.0-build1",
+		"astro": "^7.0.7",
+		"fflate": "0.8.3",
+		"react": "19.2.7",
+		"react-dom": "19.2.7",
+		"sql.js": "1.14.1"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "4.12.1",
+		"@playwright/test": "^1.61.1",
+		"@types/react": "19.2.17",
+		"@types/react-dom": "19.2.3",
+		"postcss": "8.5.19"
+	}
+}

@@ -1,0 +1,145 @@
+const LOCK_PREFIX = 'kw-media-audio-editor-lock:';
+const LEASE_DURATION_MS = 15_000;
+const HEARTBEAT_MS = 5_000;
+
+/**
+ * Acquire a single-writer project lease. Navigator Locks is authoritative;
+ * localStorage plus BroadcastChannel is the compatibility fallback.
+ */
+export async function acquireProjectLock(projectId, options = {}) {
+	if (!projectId) throw new Error('A project id is required.');
+	const navigatorObject = options.navigator ?? globalThis.navigator;
+	if (navigatorObject?.locks?.request) {
+		return acquireNavigatorLock(projectId, navigatorObject.locks);
+	}
+	return acquireLease(projectId, options);
+}
+
+async function acquireNavigatorLock(projectId, locks) {
+	let releaseHold;
+	let resolveAcquired;
+	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
+	const hold = new Promise((resolve) => { releaseHold = resolve; });
+	const finished = locks.request(`${LOCK_PREFIX}${projectId}`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
+		resolveAcquired(Boolean(lock));
+		if (lock) await hold;
+	}).catch(() => resolveAcquired(false));
+	const writable = await acquired;
+	let released = false;
+	return {
+		readOnly: !writable,
+		method: 'navigator-locks',
+		release() {
+			if (released) return;
+			released = true;
+			releaseHold();
+		},
+		finished,
+	};
+}
+
+async function acquireLease(projectId, options) {
+	const storage = options.localStorage ?? safeLocalStorage();
+	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
+	const now = options.now ?? (() => Date.now());
+	const setIntervalFn = options.setInterval ?? globalThis.setInterval;
+	const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;
+	const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout;
+	const key = `${LOCK_PREFIX}${projectId}`;
+	const owner = createOwner();
+	let channel = null;
+	let heartbeat = 0;
+	let released = false;
+
+	if (!storage) return { readOnly: false, method: 'unavailable', release() {} };
+	const existing = readLease(storage, key);
+	if (existing && existing.expiresAt > now()) {
+		return { readOnly: true, method: 'lease', release() {} };
+	}
+
+	writeLease(storage, key, owner, now());
+	const verified = readLease(storage, key);
+	if (verified?.owner !== owner) {
+		return { readOnly: true, method: 'lease', release() {} };
+	}
+
+	const claimants = new Set([owner]);
+	try {
+		channel = BroadcastChannelClass ? new BroadcastChannelClass(key) : null;
+		if (channel) channel.onmessage = ({ data = {} }) => {
+			if (data.type === 'claimed' && data.owner) claimants.add(data.owner);
+		};
+		channel?.postMessage({ type: 'claimed', owner });
+	} catch {
+		channel = null;
+	}
+	if (channel && typeof setTimeoutFn === 'function') {
+		await new Promise((resolve) => setTimeoutFn(resolve, 60));
+		const current = readLease(storage, key);
+		if (current?.expiresAt > now()) claimants.add(current.owner);
+		const winner = [...claimants].sort()[0];
+		if (winner !== owner) {
+			if (current?.owner === owner) storage.removeItem(key);
+			channel.close();
+			return { readOnly: true, method: 'lease', release() {} };
+		}
+		writeLease(storage, key, owner, now());
+	}
+
+	if (typeof setIntervalFn === 'function') {
+		heartbeat = setIntervalFn(() => {
+			if (released) return;
+			const current = readLease(storage, key);
+			if (current?.owner !== owner) {
+				released = true;
+				if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
+				channel?.close();
+				return;
+			}
+			writeLease(storage, key, owner, now());
+		}, HEARTBEAT_MS);
+	}
+
+	return {
+		readOnly: false,
+		method: 'lease',
+		release() {
+			if (released) return;
+			released = true;
+			if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
+			const current = readLease(storage, key);
+			if (current?.owner === owner) storage.removeItem(key);
+			channel?.postMessage({ type: 'released', owner });
+			channel?.close();
+		},
+	};
+}
+
+function writeLease(storage, key, owner, timestamp) {
+	try {
+		storage.setItem(key, JSON.stringify({ owner, expiresAt: timestamp + LEASE_DURATION_MS }));
+	} catch {
+		// A failed refresh will naturally expire and never mutates the project.
+	}
+}
+
+function readLease(storage, key) {
+	try {
+		const parsed = JSON.parse(storage.getItem(key) || 'null');
+		return parsed && typeof parsed.owner === 'string' && Number.isFinite(parsed.expiresAt) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+function safeLocalStorage() {
+	try {
+		return globalThis.localStorage ?? null;
+	} catch {
+		return null;
+	}
+}
+
+function createOwner() {
+	return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}

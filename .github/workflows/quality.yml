@@ -1,0 +1,29 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      - run: npm test
+      - run: npm run audit:staffpad
+      - run: npm run build
+        env:
+          PUBLIC_AUDIO_EDITOR_V2: 'true'
+          PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10

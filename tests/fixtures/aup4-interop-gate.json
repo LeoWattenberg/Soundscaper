@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 1,
+	"audacityCommit": "908ad0a526e5bfdab68de780e893cebe172d27eb",
+	"fixtureCodecInterop": {
+		"status": "automated",
+		"command": "npm run audit:aup4-interop",
+		"fixturePath": "src/trackedit/tests/data/testClipboard.aup4",
+		"fixtureSha256": "a8279b4573862579647b3826250d366af134ab9684fa20f409a03fd7227dba59",
+		"expectedBrowserSnapshotSha256": "6f1129a79fb9f0b9d99ea1ca323c2b014f035ea7e003dddc395bf78a8aad5b0c",
+		"expectedBrowserSnapshotByteLength": 253952,
+		"expectedSampleBlock": {
+			"samplesSha256": "9379743d5c98d7a075ee3814f97b4b67737087b097de33a2b2cdd6c8539d3264",
+			"summary256Sha256": "cc9ccfb1f2f777b59c8223bda69f0e7ea8e0b39b73d94924a684a7c7f7e194ac",
+			"summary64kSha256": "15ec7bf0b50732b49f8228e07d24365338f9e3ab994b00af08e5a3bffe55fd8b"
+		},
+		"fixtureCreatedByPinnedAudacity": true,
+		"compiledNativeCodeExecuted": false,
+		"pipeline": [
+			"verify-audacity-created-fixture",
+			"browser-decode",
+			"browser-write",
+			"browser-reopen"
+		]
+	},
+	"compiledNativeLoaderInterop": {
+		"status": "pending",
+		"requiredForV2Release": true,
+		"enforcementCommand": "npm run audit:aup4-interop:release",
+		"compiledNativeCodeExecuted": false,
+		"availableEvidence": null,
+		"blockedReason": "No executable built from the pinned Audacity commit is checked in or available to this repository's test environment.",
+		"requiredEvidence": [
+			"The runner identifies its source revision as 908ad0a526e5bfdab68de780e893cebe172d27eb.",
+			"The pinned native loader opens the browser-authored rich-project snapshot.",
+			"The pinned native writer saves that loaded project to a new AUP4 snapshot.",
+			"The browser reopens the native-writer snapshot with matching sample hashes, summaries, labels, envelopes, effects, pitch/stretch state, opaque nodes, autosave, and history."
+		]
+	}
+}

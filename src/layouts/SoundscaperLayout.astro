@@ -1,0 +1,92 @@
+---
+import BrandSidebar from '../components/BrandSidebar.astro';
+
+interface Props {
+	locale: 'de' | 'en';
+	embedded?: boolean;
+}
+
+const { locale, embedded = false } = Astro.props;
+const title = 'Soundscaper';
+const description = locale === 'de'
+	? 'Lokaler Mehrspur-Audio-Editor im Browser.'
+	: 'Local-first multitrack audio editor in your browser.';
+const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org');
+---
+
+<!doctype html>
+<html lang={locale} data-embedded={embedded ? 'true' : undefined}>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		<link rel="alternate" hreflang="de" href="https://soundscaper.org/de/" />
+		<link rel="alternate" hreflang="en" href="https://soundscaper.org/en/" />
+		<script>
+			(() => {
+				try {
+					const stored = localStorage.getItem('soundscaper_theme');
+					const theme = stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					document.documentElement.dataset.theme = theme;
+					document.documentElement.style.colorScheme = theme;
+				} catch {}
+			})();
+		</script>
+		<title>{title}</title>
+	</head>
+	<body>
+		<div class:list={['site-shell', { embedded }]}>
+			{!embedded && <BrandSidebar locale={locale} />}
+			<main><slot /></main>
+		</div>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: light;
+		--color-text: #241913;
+		--color-ink: #241913;
+		--color-muted: #6f6258;
+		--color-surface: #ffffff;
+		--color-surface-raised: #ffffff;
+		--color-surface-alt: #fff6ed;
+		--color-control-surface: #ffffff;
+		--color-line: #ead8c8;
+		--color-accent: #ff6900;
+		--color-accent-dark: #b84b00;
+		--color-accent-soft: #fff1e4;
+		--font-body: Ubuntu, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	}
+	:root[data-theme='dark'] {
+		color-scheme: dark;
+		--color-text: #f8efe8;
+		--color-ink: #f8efe8;
+		--color-muted: #c3b3a8;
+		--color-surface: #14100d;
+		--color-surface-raised: #1b1511;
+		--color-surface-alt: #241b16;
+		--color-control-surface: #211813;
+		--color-line: #47362c;
+		--color-accent: #ff7a1a;
+		--color-accent-dark: #ffb36b;
+		--color-accent-soft: #3b2414;
+	}
+	* { box-sizing: border-box; }
+	html, body { margin: 0; min-height: 100%; color: var(--color-ink); background: var(--color-surface); font-family: var(--font-body); line-height: 1.5; }
+	.site-shell { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 100vh; }
+	.site-shell > main { min-width: 0; }
+	.site-shell.embedded { display: block; }
+	.container { width: min(1120px, calc(100% - 32px)); margin-inline: auto; }
+	.tool-intro { padding-block: clamp(34px, 6vw, 68px); background: var(--color-surface-alt); border-bottom: 1px solid var(--color-line); }
+	.tool-intro h1 { max-width: 780px; margin: 0; font-size: clamp(2.6rem, 7vw, 5.6rem); line-height: 0.96; }
+	.tool-lede, .tool-note { max-width: 760px; margin: 18px 0 0; color: var(--color-muted); }
+	.tool-note { font-size: 0.98rem; font-weight: 700; }
+	.eyebrow { margin: 0 0 14px; color: var(--color-accent-dark); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+	.audio-editor-section { padding-block: 20px 48px; background: var(--color-surface-raised); }
+	:root[data-embedded='true'] .tool-intro { display: none; }
+	:root[data-embedded='true'] .audio-editor-section { min-height: 100vh; padding-block: 0; }
+	@media (max-width: 900px) { .site-shell { display: block; } }
+</style>

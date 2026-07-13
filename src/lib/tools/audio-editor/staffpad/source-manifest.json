@@ -1,0 +1,98 @@
+{
+	"schemaVersion": 1,
+	"audacity": {
+		"repository": "https://github.com/audacity/audacity.git",
+		"revision": "908ad0a526e5bfdab68de780e893cebe172d27eb",
+		"license": "GPL-2.0-or-later (GPL-3.0 selected for this distribution)"
+	},
+	"pffft": {
+		"repository": "https://bitbucket.org/jpommier/pffft.git",
+		"revision": "09796885cd5b",
+		"archive": "https://bitbucket.org/jpommier/pffft/get/09796885cd5b.tar.gz",
+		"archiveSha256": "fdc80563de8c31d6380886bc1ba0ffb897abde58611707ac94eb8edab850cbb",
+		"museDepsRevision": "adcefed921921cb090110b4a71a91966c1306889",
+		"patch": "https://raw.githubusercontent.com/musescore/muse_deps/adcefed921921cb090110b4a71a91966c1306889/recipes/pffft/patch/0001-audacity-fork.patch",
+		"patchSha256": "e1e44efe52192f9ae919442a8a282b32679ed94d8a6351b084f7a3a4d07e613c",
+		"license": "UCAR/NCAR permissive license"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"sourceDateEpoch": "1719792000"
+	},
+	"licenseFiles": [
+		{ "path": "licenses/COMPILER_RT.txt", "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d" },
+		{ "path": "licenses/EMSCRIPTEN.txt", "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86" },
+		{ "path": "licenses/LIBCXX.txt", "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b" },
+		{ "path": "licenses/LIBCXXABI.txt", "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c" },
+		{ "path": "licenses/MUSL.txt", "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af" },
+		{ "path": "licenses/PFFFT.txt", "sha256": "c648f88f2bc8985abafb776a27659dc9e16a84c16450056be90458158ca0b36d" }
+	],
+	"sourceFiles": [
+		{ "path": "FormantShifter.cpp", "sha256": "f9b627a7d4cfce70b4ef32d0fa5d6b5f9656d8efde06197ec56ac1f61b2af5de", "origin": "audacity-adapted" },
+		{ "path": "FormantShifter.h", "sha256": "f739eb92f76c1ee4789d563b029e3ade05ced2cf28dd6a85f0d599e645119ccf", "origin": "audacity-adapted" },
+		{ "path": "StaffPad/CircularSampleBuffer.h", "sha256": "7da7c5066cd5937265cfefdf7444a30cbf6fe8ee7348c867444f6a185877c64f", "origin": "audacity" },
+		{ "path": "StaffPad/FourierTransform_pffft.cpp", "sha256": "7227257e4d9664693c7b672e3edb74a4521024da63889f55570e59c15248bb2a", "origin": "audacity" },
+		{ "path": "StaffPad/FourierTransform_pffft.h", "sha256": "ca2d51a3adcdafd471f845f907725d0df871eb9a08fbf1de5032531a02f5ba2a", "origin": "audacity" },
+		{ "path": "StaffPad/SamplesFloat.h", "sha256": "b9b0701a31a401ad1852af069280a23d1967c98d4c3e259d726e728ebf92b3cc", "origin": "audacity" },
+		{ "path": "StaffPad/SimdTypes.h", "sha256": "1ff5ddaad7f2f8f86d00a3903e187f25c47b844aaf5ee2af0bd5eca4f924f38b", "origin": "audacity-adapted" },
+		{ "path": "StaffPad/SimdTypes_scalar.h", "sha256": "e63c0ee3ba4ce62485bf3909742379c7921d625b3e18c41458ea19aba47cc828", "origin": "audacity" },
+		{ "path": "StaffPad/TimeAndPitch.cpp", "sha256": "7c8d8b00861c7d7455d4e6551a0cf8e9e1a456c870734da009e8970afac35110", "origin": "audacity" },
+		{ "path": "StaffPad/TimeAndPitch.h", "sha256": "abf1a57690b09cca4fe4c67d408101c224141b0457c0033b4074a75bd6d41be7", "origin": "audacity" },
+		{ "path": "StaffPad/VectorOps.h", "sha256": "c6fc9e459287edd59a8c8ea2c865ced6bc25241f20c0a303e52cd7d4eb58359e", "origin": "audacity" },
+		{ "path": "pffft/pffft.c", "sha256": "b77a9a88c2aa62ed9f2f4e9e26d31a1e40988df3a1065339be7d503143011ea2", "origin": "pffft-patched" },
+		{ "path": "pffft/pffft.h", "sha256": "12db7a666833f3b96bddd709b37e84d66d07dab0740648bff006e179beec83a6", "origin": "pffft-patched" },
+		{ "path": "pffft/pfsimd_macros.h", "sha256": "a4fa4b495b2471e74d27e7ccd7c86f5439b9304c6e1c0eac94dc5c291e173d04", "origin": "pffft-patched" },
+		{ "path": "staffpad_wasm.cpp", "sha256": "e59671f162f574b23eddfa951db9f18b34a32aaa1d9049788a027e6b72253caf", "origin": "kw-media-bridge" },
+		{ "path": "utility/MapToPositiveHalfIndex.h", "sha256": "0bc89155f4a294d625bfed82694238400e8fb43cf66f6ed96c1c068bfc45fc70", "origin": "audacity" },
+		{ "path": "utility/MathApprox.h", "sha256": "0b684c6002abe847236259fc92353a640753624d2e8b2219c6ca8041ffc41042", "origin": "audacity" }
+	],
+	"compiledSources": [
+		"pffft/pffft.c",
+		"StaffPad/FourierTransform_pffft.cpp",
+		"StaffPad/TimeAndPitch.cpp",
+		"FormantShifter.cpp",
+		"staffpad_wasm.cpp"
+	],
+	"forbiddenSourceTokens": [
+		"SBSMS",
+		"SoundTouch",
+		"soundtouch/",
+		"SoX",
+		"sox_",
+		"soxr_"
+	],
+	"wasm": {
+		"path": "staffpad.wasm",
+		"sha256": "6b7e3fa86ddd90ddd6c358cf431742bd890fb76354509aa5732e4d3686791b7b",
+		"maximumBytes": 2097152,
+		"initialMemoryBytes": 16777216,
+		"maximumMemoryBytes": 67108864,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"sp_abi_version",
+			"sp_maximum_block_size",
+			"sp_create",
+			"sp_destroy",
+			"sp_reset",
+			"sp_fft_size",
+			"sp_set_parameters",
+			"sp_required_input",
+			"sp_available_output",
+			"sp_latency",
+			"sp_input_pointer",
+			"sp_output_pointer",
+			"sp_feed",
+			"sp_read"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"env.abort",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_write",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.proc_exit"
+		]
+	}
+}
