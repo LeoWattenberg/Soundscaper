@@ -392,7 +392,9 @@ export default function AudioEditorTimeline({
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
 		if (!clipElement) {
-			if (lane.dataset.trackId) run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
+			if (lane.dataset.trackId && lane.dataset.rulerInteraction === undefined) {
+				run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
+			}
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
 			setSelectionPreview({ startFrame, endFrame: startFrame });

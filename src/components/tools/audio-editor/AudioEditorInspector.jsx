@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
+	DialogFooter,
 	DialogHeader,
 	Dropdown,
+	EffectHeader,
 	EffectsPanel,
 	Knob,
 	LabeledCheckbox,
 	ProgressBar,
+	Separator,
 	TextInput,
 } from '@dilsonspickles/components';
 import {
@@ -34,6 +37,7 @@ import {
 } from '../../../lib/tools/audio-editor/project.js';
 import { boundedCanvasDimensions } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-export.js';
+import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
 import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
 
 /**
@@ -45,6 +49,7 @@ import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
 function ControlledDialog({
 	isOpen,
 	title,
+	headerTitle = title,
 	onClose,
 	children,
 	className = '',
@@ -52,6 +57,8 @@ function ControlledDialog({
 	closeOnEscape = true,
 	closeOnOutside = true,
 	dataAttributes = {},
+	headerSlot = null,
+	footer = null,
 }) {
 	const panelRef = useRef(null);
 	const onCloseRef = useRef(onClose);
@@ -118,13 +125,58 @@ function ControlledDialog({
 				style={{ width: `min(${typeof width === 'number' ? `${width}px` : width}, calc(100vw - 32px))` }}
 				{...dataAttributes}
 			>
-				<DialogHeader title={title} os="windows" onClose={onClose} />
+				<DialogHeader title={headerTitle} os="windows" onClose={onClose} />
+				{headerSlot}
 				<div className="kw-audio-editor-dialog__body audio-editor-controlled-dialog__body">
 					{children}
 				</div>
+				{footer}
 			</section>
 		</div>
 	);
+}
+
+function AudacityEffectHeader({ locale, automationEnabled, ...props }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		const root = wrapperRef.current;
+		if (!root) return;
+		const german = locale === 'de';
+		const automation = root.querySelector('.effect-header__left button');
+		if (automation && !props.isDestructive) {
+			const label = automationEnabled
+				? german ? 'Effekt deaktivieren' : 'Disable effect'
+				: german ? 'Effekt aktivieren' : 'Enable effect';
+			automation.setAttribute('aria-label', label);
+			automation.setAttribute('title', label);
+		}
+		const preset = root.querySelector('.effect-header__preset .dropdown__trigger');
+		preset?.setAttribute('aria-label', german ? 'Voreinstellung' : 'Preset');
+		const actionLabels = german
+			? ['Voreinstellung speichern', 'Rückgängig', 'Voreinstellung löschen', 'Weitere Optionen']
+			: ['Save preset', 'Undo', 'Delete preset', 'More options'];
+		root.querySelectorAll('.effect-header__right .effect-header__icon-button').forEach((button, index) => {
+			const label = actionLabels[index];
+			if (!label) return;
+			button.setAttribute('aria-label', label);
+			button.setAttribute('title', label);
+		});
+	}, [automationEnabled, locale, props.isDestructive]);
+	return <div ref={wrapperRef}><EffectHeader automationEnabled={automationEnabled} {...props} /></div>;
+}
+
+function effectPresetChoices(presets, emptyLabel) {
+	const labels = new Set([emptyLabel]);
+	return (presets || []).map((preset) => {
+		let label = preset.name;
+		let suffix = 2;
+		while (labels.has(label)) {
+			label = `${preset.name} (${suffix})`;
+			suffix += 1;
+		}
+		labels.add(label);
+		return { id: preset.id, label, preset };
+	});
 }
 
 export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClose }) {
@@ -136,6 +188,12 @@ export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClo
 			width={720}
 			className="audio-editor-clip-properties-dialog"
 			dataAttributes={{ 'data-clip-properties-dialog': '' }}
+			footer={(
+				<DialogFooter
+					className="audio-editor-dialog-footer"
+					rightContent={<Button variant="primary" onClick={onClose}>{copy.done}</Button>}
+				/>
+			)}
 		>
 			<ClipProperties controller={controller} snapshot={snapshot} copy={copy} />
 		</ControlledDialog>
@@ -202,36 +260,40 @@ function ClipProperties({ controller, snapshot, copy }) {
 	return (
 		<div className="audio-editor-clip-inspector">
 			{!clip && <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
-			<div className="audio-editor-field-grid" data-clip-fields aria-disabled={disabled}>
-				<CommitField label={copy.clipName} name="name" value={source?.name || copy.clip} disabled readOnly onCommit={commitField} />
-				<CommitField label={copy.clipStart} name="start" value={clip ? framesToSecondsText(clip.timelineStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-				<CommitField label={copy.clipIn} name="sourceIn" value={clip ? framesToSecondsText(clip.sourceStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-				<CommitField label={copy.clipDuration} name="duration" value={clip ? framesToSecondsText(clip.durationFrames, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.clipStart} (${copy.frames})`} name="startFrame" value={clip?.timelineStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.clipIn} (${copy.frames})`} name="sourceInFrame" value={clip?.sourceStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.clipDuration} (${copy.frames})`} name="durationFrame" value={clip?.durationFrames ?? 1} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.fadeIn} (s)`} name="fadeIn" value={clip ? framesToSecondsText(clip.fadeInFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={`${copy.fadeOut} (s)`} name="fadeOut" value={clip ? framesToSecondsText(clip.fadeOutFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={copy.clipPitchCents} name="pitchCents" value={clip?.pitchCents ?? 0} type="number" disabled={disabled} onCommit={commitField} />
-				<CommitField label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1} type="number" disabled={disabled} onCommit={commitField} />
+			<div className="audio-editor-clip-properties" data-clip-fields aria-disabled={disabled}>
+				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
+					<h3>{copy.clip}</h3>
+					<CommitField label={copy.clipName} name="name" value={source?.name || copy.clip} disabled readOnly onCommit={commitField} />
+				</section>
+				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
+					<h3>{copy.clipStart} / {copy.clipDuration}</h3>
+					<div className="audio-editor-clip-properties__time-grid">
+						<CommitField label={`${copy.clipStart} (s)`} name="start" value={clip ? framesToSecondsText(clip.timelineStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.clipStart} (${copy.frames})`} name="startFrame" value={clip?.timelineStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.clipIn} (s)`} name="sourceIn" value={clip ? framesToSecondsText(clip.sourceStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.clipIn} (${copy.frames})`} name="sourceInFrame" value={clip?.sourceStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.clipDuration} (s)`} name="duration" value={clip ? framesToSecondsText(clip.durationFrames, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.clipDuration} (${copy.frames})`} name="durationFrame" value={clip?.durationFrames ?? 1} type="number" disabled={disabled} onCommit={commitField} />
+					</div>
+				</section>
+				<section className="audio-editor-clip-properties__card">
+					<h3>{copy.fading}</h3>
+					<div className="audio-editor-clip-properties__stack">
+						<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.fadeIn} (s)`} name="fadeIn" value={clip ? framesToSecondsText(clip.fadeInFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
+						<CommitField label={`${copy.fadeOut} (s)`} name="fadeOut" value={clip ? framesToSecondsText(clip.fadeOutFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
+					</div>
+				</section>
+				<section className="audio-editor-clip-properties__card">
+					<h3>{copy.pitchTempo}</h3>
+					<div className="audio-editor-clip-properties__stack">
+						<CommitField label={copy.clipPitchCents} name="pitchCents" value={clip?.pitchCents ?? 0} type="number" disabled={disabled} onCommit={commitField} />
+						<CommitField label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1} type="number" disabled={disabled} onCommit={commitField} />
+						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked })} /></div>
+						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)} /></div>
+					</div>
+				</section>
 			</div>
-			<label className="audio-editor-field" data-clip-field="preserveFormants">
-				<span><input
-					type="checkbox"
-					checked={Boolean(clip?.preserveFormants)}
-					disabled={disabled}
-					onChange={(event) => controller.actions.clip.setTimePitch(clip.id, { preserveFormants: event.currentTarget.checked })}
-				/> {copy.preserveFormants}</span>
-			</label>
-			<label className="audio-editor-field" data-clip-field="stretchToTempo">
-				<span><input
-					type="checkbox"
-					checked={Boolean(clip?.stretchToTempo)}
-					disabled={disabled}
-					onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)}
-				/> {copy.stretchToTempo}</span>
-			</label>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			<div className="audio-editor-panel-actions">
 				<ActionHook hook="reverse"><Button disabled={disabled} onClick={() => run(controller.actions.clip.reverse)}>{copy.reverse}</Button></ActionHook>
@@ -260,6 +322,7 @@ export function AudioEditorEffectsOverlay({
 	const blocked = !snapshot.ready || !project || editingBlocked(snapshot);
 	const [picker, setPicker] = useState(null);
 	const [selectedEffect, setSelectedEffect] = useState(null);
+	const [rackPresetId, setRackPresetId] = useState('');
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -267,6 +330,10 @@ export function AudioEditorEffectsOverlay({
 		const rack = selectedEffect.scope === 'master' ? masterEffects : trackEffects;
 		if (!rack.some((effect) => effect.id === selectedEffect.id)) setSelectedEffect(null);
 	}, [masterEffects, selectedEffect, trackEffects]);
+
+	useEffect(() => {
+		setRackPresetId('');
+	}, [selectedEffect?.id]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -355,6 +422,25 @@ export function AudioEditorEffectsOverlay({
 	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : trackEffects;
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
 	const effectScope = selectedEffect?.scope || 'track';
+	const rackPresets = effect ? controller.actions.effects.presets.list(effect.type) : [];
+	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset);
+	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
+	const applyRackPreset = (value) => {
+		if (!effect || blocked) return;
+		if (value === copy.noEffectPreset) {
+			setRackPresetId('');
+			return;
+		}
+		const choice = rackPresetChoices.find((candidate) => candidate.label === value);
+		if (!choice) return;
+		setRackPresetId(choice.id);
+		run(() => controller.actions.effects.update(
+			effectScope,
+			selectedTrack?.id || null,
+			effect.id,
+			{ params: choice.preset.params },
+		));
+	};
 
 	return (
 		<>
@@ -403,6 +489,20 @@ export function AudioEditorEffectsOverlay({
 					width={620}
 					className="audio-editor-effect-settings-dialog"
 					dataAttributes={{ 'data-effect': effect.id }}
+					headerSlot={(
+						<div className="audio-editor-rack-effect-header">
+							<AudacityEffectHeader
+								locale={locale}
+								automationEnabled={effect.enabled}
+								onToggleAutomation={(enabled) => {
+									if (!blocked) controller.actions.effects.update(effectScope, selectedTrack?.id || null, effect.id, { enabled });
+								}}
+								presetName={selectedRackPreset?.label || copy.noEffectPreset}
+								presets={[copy.noEffectPreset, ...rackPresetChoices.map((choice) => choice.label)]}
+								onPresetChange={applyRackPreset}
+							/>
+						</div>
+					)}
 				>
 					<section className="audio-editor-effect-settings">
 						<EffectParameterEditor
@@ -473,6 +573,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 	const [message, setMessage] = useState('');
 	const [selectedPresetId, setSelectedPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
+	const [presetsExpanded, setPresetsExpanded] = useState(false);
 	const presetFileRef = useRef(null);
 
 	useEffect(() => {
@@ -481,7 +582,10 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		setSelectionType(nextType);
 		setSelectionParams(snapshot.effects.selectionParams || audacityEffectDefaults(nextType));
 		setControlTrackId(snapshot.effects.controlTrackId || '');
-		if (!snapshot.effects.presets?.some((preset) => preset.id === selectedPresetId)) setSelectedPresetId('');
+		if (!snapshot.effects.presets?.some((preset) => preset.id === selectedPresetId && preset.effectType === nextType)) {
+			setSelectedPresetId('');
+			setPresetName('');
+		}
 	}, [snapshot.effects]);
 
 	const run = (work) => {
@@ -495,6 +599,8 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		const params = audacityEffectDefaults(type);
 		setSelectionType(type);
 		setSelectionParams(params);
+		setSelectedPresetId('');
+		setPresetName('');
 		controller.actions.effects.setSelectionType(type);
 		controller.actions.effects.setSelectionParams(params, { replace: true });
 	};
@@ -504,9 +610,11 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 	};
 	const selectionDefinition = AUDACITY_EFFECT_DEFINITIONS[selectionType];
 	const selectionControlTracks = (project?.tracks || []).filter((track) => track.id !== selectedTrack?.id);
-	const effectPresets = snapshot.effects?.presets || [];
-	const applyPreset = () => run(() => {
-		const preset = controller.actions.effects.presets.apply(selectedPresetId);
+	const effectPresets = (snapshot.effects?.presets || []).filter((preset) => preset.effectType === selectionType);
+	const applyPreset = (id = selectedPresetId) => run(() => {
+		if (!id) return;
+		const preset = controller.actions.effects.presets.apply(id);
+		setSelectedPresetId(preset.id);
 		setSelectionType(preset.effectType);
 		setSelectionParams(preset.params);
 		setPresetName(preset.name);
@@ -536,11 +644,19 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		anchor.click();
 		setTimeout(() => URL.revokeObjectURL(url), 0);
 	});
+	const deletePreset = () => run(async () => {
+		await controller.actions.effects.presets.delete(selectedPresetId);
+		setSelectedPresetId('');
+		setPresetName('');
+	});
+	const presetChoices = effectPresetChoices(effectPresets, copy.noEffectPreset);
+	const selectedPresetChoice = presetChoices.find((choice) => choice.id === selectedPresetId);
 
 	return (
 		<ControlledDialog
 			isOpen={isOpen}
 			title={copy.selectionEffects || copy.audacityEffectsTitle}
+			headerTitle={audacityEffectLabel(selectionType, locale)}
 			onClose={() => {
 				controller.actions.effects.cancelPreview();
 				onClose?.();
@@ -548,49 +664,110 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 			width={720}
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
+			headerSlot={(
+				<div className="audio-editor-effect-preset-header" data-effect-presets>
+					<AudacityEffectHeader
+						locale={locale}
+						isDestructive
+						presetName={selectedPresetChoice?.label || copy.noEffectPreset}
+						presets={[copy.noEffectPreset, ...presetChoices.map((choice) => choice.label)]}
+						onPresetChange={(value) => {
+							if (blocked) return;
+							if (value === copy.noEffectPreset) {
+								setSelectedPresetId('');
+								setPresetName('');
+								return;
+							}
+							const choice = presetChoices.find((candidate) => candidate.label === value);
+							if (choice) applyPreset(choice.id);
+						}}
+						onSavePreset={() => {
+							if (blocked) return;
+							if (presetName.trim()) savePreset(selectedPresetId || null);
+							else setPresetsExpanded(true);
+						}}
+						canDelete={Boolean(selectedPresetId) && !blocked}
+						onDeletePreset={deletePreset}
+						onMoreOptions={() => setPresetsExpanded((current) => !current)}
+					/>
+					{presetsExpanded && (
+						<div className="audio-editor-effect-preset-drawer">
+							<label className="audio-editor-field">
+								<span>{copy.effectPresetName}</span>
+								<TextInput value={presetName} onChange={setPresetName} disabled={blocked} width="100%" />
+							</label>
+							<div className="audio-editor-panel-actions">
+								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={() => applyPreset()}>{copy.applyEffectPreset}</Button>
+								<Button variant="secondary" disabled={blocked || !selectedPresetId || !presetName.trim()} onClick={() => savePreset(selectedPresetId)}>{copy.saveEffectPreset}</Button>
+								<Button variant="secondary" disabled={blocked || !presetName.trim()} onClick={() => savePreset()}>{copy.saveEffectPresetAs}</Button>
+								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={deletePreset}>{copy.deleteEffectPreset}</Button>
+								<Button variant="secondary" disabled={blocked} onClick={() => presetFileRef.current?.click()}>{copy.importEffectPreset}</Button>
+								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={exportPreset}>{copy.exportEffectPreset}</Button>
+								<input ref={presetFileRef} type="file" accept="application/json,.json" hidden onChange={(event) => importPreset(event.currentTarget.files?.[0])} />
+							</div>
+						</div>
+					)}
+				</div>
+			)}
+			footer={(
+				<DialogFooter
+					className="audio-editor-dialog-footer"
+					leftContent={(
+						<span data-preview-audacity-effect>
+							<Button
+								variant="secondary"
+								disabled={blocked || !selectedTrack}
+								onClick={() => run(() => snapshot.effects?.previewing
+									? controller.actions.effects.cancelPreview()
+									: controller.actions.effects.previewSelection({
+										type: selectionType,
+										params: selectionParams,
+										controlTrackId: controlTrackId || null,
+									}))}
+							>{snapshot.effects?.previewing ? copy.stopPreview : copy.previewEffect}</Button>
+						</span>
+					)}
+					rightContent={(
+						<>
+							<Button variant="secondary" onClick={() => {
+								controller.actions.effects.cancelPreview();
+								onClose?.();
+							}}>{copy.cancel}</Button>
+							<span data-apply-audacity-effect>
+								<Button
+									variant="primary"
+									disabled={blocked || !selectedTrack}
+									onClick={() => run(async () => {
+										await controller.actions.effects.applySelection({
+											type: selectionType,
+											params: selectionParams,
+											controlTrackId: controlTrackId || null,
+										});
+										onClose?.();
+									})}
+								>{copy.applyAudacityEffect}</Button>
+							</span>
+						</>
+					)}
+				/>
+			)}
 		>
 			<section className="audio-editor-selection-effects" data-audacity-effect-panel>
-				<h3>{copy.audacityEffectsTitle}</h3>
-				<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
-				<LabeledDropdown
-					label={copy.chooseAudacityEffect}
-					value={selectionType}
-					options={audacityEffectTypes().map((type) => ({ value: type, label: audacityEffectLabel(type, locale) }))}
-					onChange={chooseSelectionType}
-					disabled={blocked}
-					hook="audacity-effect-type"
-				/>
-				<fieldset className="audio-editor-effect-presets" data-effect-presets>
-					<legend>{copy.effectPresets}</legend>
-					<label>
-						<span>{copy.chooseEffectPreset}</span>
-						<select value={selectedPresetId} onChange={(event) => {
-							const id = event.currentTarget.value;
-							setSelectedPresetId(id);
-							setPresetName(effectPresets.find((preset) => preset.id === id)?.name || '');
-						}} disabled={blocked || !effectPresets.length}>
-							<option value="">{copy.noEffectPreset}</option>
-							{effectPresets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
-						</select>
-					</label>
-					<label>
-						<span>{copy.effectPresetName}</span>
-						<input value={presetName} onChange={(event) => setPresetName(event.currentTarget.value)} disabled={blocked} />
-					</label>
-					<div className="audio-editor-panel-actions">
-						<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={applyPreset}>{copy.applyEffectPreset}</Button>
-						<Button variant="secondary" disabled={blocked || !selectedPresetId || !presetName.trim()} onClick={() => savePreset(selectedPresetId)}>{copy.saveEffectPreset}</Button>
-						<Button variant="secondary" disabled={blocked || !presetName.trim()} onClick={() => savePreset()}>{copy.saveEffectPresetAs}</Button>
-						<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={() => run(async () => {
-							await controller.actions.effects.presets.delete(selectedPresetId);
-							setSelectedPresetId('');
-							setPresetName('');
-						})}>{copy.deleteEffectPreset}</Button>
-						<Button variant="secondary" disabled={blocked} onClick={() => presetFileRef.current?.click()}>{copy.importEffectPreset}</Button>
-						<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={exportPreset}>{copy.exportEffectPreset}</Button>
-						<input ref={presetFileRef} type="file" accept="application/json,.json" hidden onChange={(event) => importPreset(event.currentTarget.files?.[0])} />
+				<div className="audio-editor-effect-choice">
+					<div>
+						<h3>{audacityEffectLabel(selectionType, locale)}</h3>
+						<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
 					</div>
-				</fieldset>
+					<LabeledDropdown
+						label={copy.chooseAudacityEffect}
+						value={selectionType}
+						options={audacityEffectTypes().map((type) => ({ value: type, label: audacityEffectLabel(type, locale) }))}
+						onChange={chooseSelectionType}
+						disabled={blocked}
+						hook="audacity-effect-type"
+					/>
+				</div>
+				<Separator />
 				{selectionDefinition?.requiresControlTrack && (
 					<LabeledDropdown
 						label={copy.controlTrack}
@@ -605,56 +782,25 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 					/>
 				)}
 				<EffectParameterEditor
-					effect={{ type: selectionType, params: selectionParams, context: null }}
+					effect={{
+						type: selectionType,
+						params: selectionParams,
+						context: { noiseProfile: Boolean(snapshot.effects?.noiseProfileReady) },
+					}}
 					locale={locale}
 					copy={copy}
 					disabled={blocked}
 					tracks={project?.tracks || []}
 					targetTrackId={selectedTrack?.id || null}
+					captureNoiseProfile={selectionType === 'audacity-noise-reduction'
+						? () => run(controller.actions.effects.captureNoiseProfile)
+						: null}
+					noiseProfileLabel={snapshot.effects?.noiseProfileReady ? copy.noiseProfileReady : copy.getNoiseProfile}
+					hideControlTrack
 					onChange={(changes) => changes.params && updateSelectionParams(changes.params)}
 				/>
 				<p className="audio-editor-panel-hint" data-audacity-effect-hint>{copy.audacitySelectionHint}</p>
 				{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
-				<div className="audio-editor-panel-actions">
-					{selectionType === 'audacity-noise-reduction' && (
-						<span data-audacity-noise-profile>
-							<Button disabled={blocked} onClick={() => run(controller.actions.effects.captureNoiseProfile)}>
-								{snapshot.effects?.noiseProfileReady ? copy.noiseProfileReady : copy.getNoiseProfile}
-							</Button>
-						</span>
-					)}
-					<span data-preview-audacity-effect>
-						<Button
-							variant="secondary"
-							disabled={blocked || !selectedTrack}
-							onClick={() => run(() => snapshot.effects?.previewing
-								? controller.actions.effects.cancelPreview()
-								: controller.actions.effects.previewSelection({
-									type: selectionType,
-									params: selectionParams,
-									controlTrackId: controlTrackId || null,
-								}))}
-						>{snapshot.effects?.previewing ? copy.stopPreview : copy.previewEffect}</Button>
-					</span>
-					<Button variant="secondary" onClick={() => {
-						controller.actions.effects.cancelPreview();
-						onClose?.();
-					}}>{copy.cancel}</Button>
-					<span data-apply-audacity-effect>
-						<Button
-							variant="primary"
-							disabled={blocked || !selectedTrack}
-							onClick={() => run(async () => {
-								await controller.actions.effects.applySelection({
-									type: selectionType,
-									params: selectionParams,
-									controlTrackId: controlTrackId || null,
-								});
-								onClose?.();
-							})}
-						>{copy.applyAudacityEffect}</Button>
-					</span>
-				</div>
 			</section>
 		</ControlledDialog>
 	);
@@ -699,6 +845,7 @@ function EffectParameterEditor({
 	targetTrackId,
 	captureNoiseProfile,
 	noiseProfileLabel,
+	hideControlTrack = false,
 	onChange,
 }) {
 	const [error, setError] = useState('');
@@ -712,69 +859,121 @@ function EffectParameterEditor({
 	const updateParam = (name, value) => update({ params: { [name]: value } });
 
 	if (!definition) {
-		if (effect.type === 'eq') {
-			return (
-				<div className="audio-editor-effect-parameters" data-effect-parameters>
-					{(effect.params.bands || []).flatMap((band, index) => [
-						<ParameterNumber key={`${index}-frequency`} label={`B${index + 1} Hz`} value={band.frequency} range={[10, 24_000]} step={1} copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />,
-						<ParameterNumber key={`${index}-gain`} label={`B${index + 1} dB`} value={band.gain} range={[-24, 24]} step={0.1} copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />,
-						<ParameterNumber key={`${index}-q`} label={`B${index + 1} Q`} value={band.q} range={[0.1, 30]} step={0.1} copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />,
-					])}
-					{error && <p role="alert">{error}</p>}
-				</div>
-			);
-		}
 		const ranges = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges || {};
+		const parameterNames = effect.type === 'eq'
+			? ['bands']
+			: Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
+		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
+		const renderNativeParameter = (name) => {
+			if (name === 'bands') {
+				return (
+					<div className="audio-editor-native-eq-bands" data-effect-param="bands">
+						{(effect.params.bands || []).map((band, index) => (
+							<section className="audio-editor-native-eq-band" key={index}>
+								<h4>{dialogText(locale, `Band ${index + 1}`, `Band ${index + 1}`)}</h4>
+								<ParameterNumber label="Hz" value={band.frequency} range={[10, 24_000]} step={1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />
+								<ParameterNumber label="dB" value={band.gain} range={[-24, 24]} step={0.1} presentation="slider" copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />
+								<ParameterNumber label="Q" value={band.q} range={[0.1, 30]} step={0.1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />
+							</section>
+						))}
+					</div>
+				);
+			}
+			return (
+				<ParameterNumber
+					label={effectParameterLabel(name, copy)}
+					value={effect.params?.[name]}
+					range={ranges[name]}
+					copy={copy}
+					disabled={disabled}
+					hook={name}
+					onCommit={(next) => updateParam(name, next)}
+				/>
+			);
+		};
 		return (
 			<div className="audio-editor-effect-parameters" data-effect-parameters>
-				{Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name, value]) => (
-					<ParameterNumber key={name} label={effectParameterLabel(name, copy)} value={value} range={ranges[name]} copy={copy} disabled={disabled} hook={name} onCommit={(next) => updateParam(name, next)} />
-				))}
-				{error && <p role="alert">{error}</p>}
+				<AudacityEffectLayout
+					effectType={effect.type}
+					definition={nativeDefinition}
+					parameters={effect.params}
+					locale={locale}
+					renderParameter={renderNativeParameter}
+					after={error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+				/>
 			</div>
 		);
 	}
 
 	const candidates = tracks.filter((track) => track.id !== targetTrackId);
+	const renderParameter = (name) => (
+		audacityParameterVisible(effect, name) ? (
+			<AudacityParameter
+				name={name}
+				effectType={effect.type}
+				descriptor={definition.params[name]}
+				value={effect.params?.[name]}
+				effectParams={effect.params}
+				locale={locale}
+				copy={copy}
+				disabled={disabled}
+				onCommit={(value) => updateParam(name, value)}
+			/>
+		) : null
+	);
+	const contextControls = (
+		<>
+			{definition.requiresControlTrack && !hideControlTrack && (
+				<section className="audio-editor-audacity-layout__context-card">
+					<h3>{copy.controlTrack}</h3>
+					<LabeledDropdown
+						label={copy.controlTrack}
+						value={effect.context?.controlTrackId || ''}
+						options={candidates.map((track) => ({ value: track.id, label: track.name }))}
+						onChange={(controlTrackId) => update({ context: { controlTrackId: controlTrackId || null } })}
+						disabled={disabled || candidates.length === 0}
+						hook="effect-context-controlTrackId"
+					/>
+				</section>
+			)}
+			{definition.requiresNoiseProfile && (
+				<section className="audio-editor-audacity-layout__context-card audio-editor-audacity-layout__context-card--profile">
+					<div>
+						<h3>{dialogText(locale, 'Step 1 · Noise profile', 'Schritt 1 · Rauschprofil')}</h3>
+						{!effect.context?.noiseProfile && <p className="audio-editor-panel-hint">{copy.rackNoiseProfileMissing}</p>}
+					</div>
+					{captureNoiseProfile && (
+						<span data-effect-noise-profile data-audacity-noise-profile>
+							<Button disabled={disabled} onClick={captureNoiseProfile}>{noiseProfileLabel}</Button>
+						</span>
+					)}
+				</section>
+			)}
+		</>
+	);
 	return (
 		<div className="audio-editor-effect-parameters" data-effect-parameters>
-			{definition.requiresControlTrack && (
-				<LabeledDropdown
-					label={copy.controlTrack}
-					value={effect.context?.controlTrackId || ''}
-					options={candidates.map((track) => ({ value: track.id, label: track.name }))}
-					onChange={(controlTrackId) => update({ context: { controlTrackId: controlTrackId || null } })}
-					disabled={disabled || candidates.length === 0}
-					hook="effect-context-controlTrackId"
-				/>
-			)}
-			{Object.entries(definition.params).map(([name, descriptor]) => (
-				<AudacityParameter
-					key={name}
-						name={name}
-						effectType={effect.type}
-						descriptor={descriptor}
-					value={effect.params?.[name]}
-					locale={locale}
-					copy={copy}
-					disabled={disabled}
-					onCommit={(value) => updateParam(name, value)}
-				/>
-			))}
-			{definition.requiresNoiseProfile && !effect.context?.noiseProfile && (
-				<p className="audio-editor-panel-hint">{copy.rackNoiseProfileMissing}</p>
-			)}
-			{definition.requiresNoiseProfile && captureNoiseProfile && (
-				<span data-effect-noise-profile>
-					<Button disabled={disabled} onClick={captureNoiseProfile}>{noiseProfileLabel}</Button>
-				</span>
-			)}
-			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+			<AudacityEffectLayout
+				effectType={effect.type}
+				definition={definition}
+				parameters={effect.params}
+				locale={locale}
+				renderParameter={renderParameter}
+				before={contextControls}
+				after={(
+					<>
+						{Object.keys(definition.params).length === 0 && (
+							<p className="audio-editor-audacity-layout__empty">{dialogText(locale, 'This effect has no adjustable settings.', 'Dieser Effekt hat keine einstellbaren Optionen.')}</p>
+						)}
+						{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+					</>
+				)}
+			/>
 		</div>
 	);
 }
 
-function AudacityParameter({ name, effectType, descriptor, value, locale, copy, disabled, onCommit }) {
+function AudacityParameter({ name, effectType, descriptor, value, effectParams, locale, copy, disabled, onCommit }) {
 	const label = localized(descriptor.label, locale);
 	if (descriptor.kind === 'boolean') {
 		return (
@@ -797,38 +996,67 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 	}
 	if (descriptor.kind === 'curve') {
 		return (
-			<CommitField
-				label={label}
-				name={name}
-				value={formatAudacityCurve(value)}
-				disabled={disabled}
-				multiline
-				hookName="effect-param"
-				onCommit={(_field, next) => onCommit(parseAudacityCurve(next))}
-			/>
+			<div className="audio-editor-filter-curve" data-effect-param={name}>
+				<svg viewBox="0 0 640 220" preserveAspectRatio="none" role="img" aria-label={label}>
+					<g className="audio-editor-filter-curve__grid">
+						<path d="M16 16 H624 M16 63 H624 M16 110 H624 M16 157 H624 M16 204 H624" />
+						<path d="M16 16 V204 M117 16 V204 M218 16 V204 M320 16 V204 M421 16 V204 M522 16 V204 M624 16 V204" />
+					</g>
+					<polyline className="audio-editor-filter-curve__line" points={audacityCurvePolyline(value, Boolean(effectParams?.linearFrequencyScale))} />
+				</svg>
+				<details>
+					<summary>{label}</summary>
+					<CommitField
+						label={label}
+						name={name}
+						value={formatAudacityCurve(value)}
+						disabled={disabled}
+						multiline
+						hookName="effect-param"
+						onCommit={(_field, next) => onCommit(parseAudacityCurve(next))}
+					/>
+				</details>
+				<div className="audio-editor-panel-actions audio-editor-filter-curve__actions">
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit([{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }])}>{dialogText(locale, 'Reset', 'Zurücksetzen')}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || []).map((point) => ({ ...point, gain: -point.gain })))}>{dialogText(locale, 'Invert', 'Invertieren')}</Button>
+				</div>
+			</div>
 		);
 	}
 	if (descriptor.kind === 'bands') {
 		return (
-			<fieldset className="audio-editor-effect-bands">
+			<fieldset className="audio-editor-graphic-eq">
 				<legend>{label}</legend>
-				{descriptor.frequencies.map((frequency, index) => (
-					<ParameterNumber
-						key={frequency}
-						label={`${frequency} Hz`}
-						value={value?.[index] ?? 0}
-						range={[descriptor.minimum, descriptor.maximum]}
-						step={descriptor.step}
-						copy={copy}
-						disabled={disabled}
-						hook={`${name}.${index}`}
-						onCommit={(next) => {
-							const values = [...value];
-							values[index] = next;
-							onCommit(values);
-						}}
-					/>
-				))}
+				<div className="audio-editor-graphic-eq__faders">
+					{descriptor.frequencies.map((frequency, index) => {
+						const gain = value?.[index] ?? 0;
+						return (
+							<div className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${index}`} key={frequency}>
+								<output>{Number(gain).toFixed(1)}</output>
+								<div className="audio-editor-graphic-eq__slider">
+									<SteppedSlider
+										value={gain}
+										min={descriptor.minimum}
+										max={descriptor.maximum}
+										step={descriptor.step}
+										ariaLabel={`${frequency} Hz`}
+										disabled={disabled}
+										onChange={(next) => {
+											const values = Array.isArray(value) ? [...value] : [...descriptor.default];
+											values[index] = Math.round(next / descriptor.step) * descriptor.step;
+											onCommit(values);
+										}}
+									/>
+								</div>
+								<span>{frequency >= 1_000 ? `${frequency / 1_000}k` : frequency}</span>
+							</div>
+						);
+					})}
+				</div>
+				<div className="audio-editor-panel-actions audio-editor-graphic-eq__actions">
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit(descriptor.frequencies.map(() => 0))}>{dialogText(locale, 'Reset', 'Zurücksetzen')}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || descriptor.default).map((gain) => -gain))}>{dialogText(locale, 'Invert', 'Invertieren')}</Button>
+				</div>
 			</fieldset>
 		);
 	}
@@ -839,6 +1067,7 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 			value={value}
 			range={range}
 			step={descriptor.step}
+			presentation={audacityParameterPresentation(effectType, name)}
 			copy={copy}
 			disabled={disabled}
 			hook={name}
@@ -847,7 +1076,7 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 	);
 }
 
-function ParameterNumber({ label, value, range, step, copy, disabled, hook, onCommit }) {
+function ParameterNumber({ label, value, range, step, presentation = 'knob', copy, disabled, hook, onCommit }) {
 	const knobRange = Array.isArray(range) && range.length === 2 && range.every(Number.isFinite) ? range : null;
 	const knobStep = Number.isFinite(step) && step > 0
 		? step
@@ -862,10 +1091,16 @@ function ParameterNumber({ label, value, range, step, copy, disabled, hook, onCo
 		}
 		onCommit(next);
 	};
+	const commitSlider = (next) => {
+		const snapped = knobStep > 0
+			? Math.round((next - knobRange[0]) / knobStep) * knobStep + knobRange[0]
+			: next;
+		onCommit(Number(snapped.toFixed(8)));
+	};
 	return (
-		<div className="audio-editor-effect-number" data-effect-param={hook} role="group" aria-label={label}>
+		<div className={`audio-editor-effect-number audio-editor-effect-number--${presentation}`} data-effect-param={hook} role="group" aria-label={label}>
 			<span>{label}</span>
-			{knobRange && <Knob
+			{knobRange && presentation === 'knob' && <Knob
 				value={Number(value) || 0}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -874,6 +1109,15 @@ function ParameterNumber({ label, value, range, step, copy, disabled, hook, onCo
 				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
 				disabled={disabled}
 				onChange={onCommit}
+			/>}
+			{knobRange && presentation === 'slider' && <SteppedSlider
+				value={Number(value) || 0}
+				min={knobRange[0]}
+				max={knobRange[1]}
+				step={knobStep}
+				ariaLabel={label}
+				disabled={disabled}
+				onChange={commitSlider}
 			/>}
 			<CommitField
 				label={label}
@@ -885,6 +1129,38 @@ function ParameterNumber({ label, value, range, step, copy, disabled, hook, onCo
 				visuallyHiddenLabel
 				onCommit={(_name, raw) => commit(raw)}
 			/>
+		</div>
+	);
+}
+
+// v0.9.0's Slider parses values as integers and does not expose a step prop.
+// Preserve its DOM/CSS contract while keeping Audacity's fractional parameters.
+function SteppedSlider({ value, min, max, step, ariaLabel, disabled, onChange }) {
+	const clampedValue = Math.max(min, Math.min(max, Number(value) || 0));
+	const percentage = max === min ? 0 : (clampedValue - min) / (max - min) * 100;
+	return (
+		<div
+			className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`}
+			style={{
+				'--slider-track-bg': 'var(--kw-editor-line)',
+				'--slider-fill-bg': 'var(--kw-editor-accent)',
+				'--slider-handle-bg': 'var(--kw-editor-panel)',
+				'--slider-handle-border': 'var(--kw-editor-accent-strong)',
+			}}
+		>
+			<input
+				type="range"
+				className="slider__input"
+				value={clampedValue}
+				min={min}
+				max={max}
+				step={step}
+				aria-label={ariaLabel}
+				disabled={disabled}
+				onChange={(event) => onChange(Number(event.currentTarget.value))}
+			/>
+			<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
+			<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 		</div>
 	);
 }
@@ -1147,6 +1423,7 @@ function effectHasEditableSettings(type) {
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClose }) {
 	const telemetry = useAudioEditorTelemetry(controller);
+	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [settings, setSettings] = useState({
 		mode: 'mix',
 		range: 'project',
@@ -1184,6 +1461,10 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 	useEffect(() => {
 		if (!hasSelection && settings.range === 'selection') setSettings((current) => ({ ...current, range: 'project' }));
 	}, [hasSelection, settings.range]);
+
+	useEffect(() => {
+		if (!isOpen) setMetadataOpen(false);
+	}, [isOpen]);
 
 	useEffect(() => {
 		const descriptor = MEDIA_EXPORT_FORMATS[settings.format];
@@ -1256,8 +1537,64 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 	const pcmFormat = Boolean(formatDescriptor?.sampleFormats?.length);
 	const bitrateFormat = ['mp3', 'opus', 'mp2', 'aac-m4a'].includes(settings.format);
 	const requestClose = () => {
+		if (metadataOpen) {
+			setMetadataOpen(false);
+			return;
+		}
 		if (!exporting) onClose?.();
 	};
+	const metadataFields = [
+		['metadataTitle', copy.metadataTitle],
+		['metadataArtist', copy.metadataArtist],
+		['metadataAlbum', copy.metadataAlbum],
+		['metadataTrack', copy.metadataTrack],
+		['metadataYear', copy.metadataYear],
+		['metadataGenre', copy.metadataGenre],
+		['metadataComments', copy.metadataComments],
+		['metadataCopyright', copy.metadataCopyright],
+	];
+
+	if (metadataOpen) {
+		return (
+			<ControlledDialog
+				isOpen={isOpen}
+				title={copy.metadata}
+				onClose={() => setMetadataOpen(false)}
+				width={760}
+				className="audio-editor-metadata-dialog"
+				dataAttributes={{ 'data-export-metadata-dialog': '' }}
+				footer={(
+					<DialogFooter
+						className="audio-editor-dialog-footer"
+						rightContent={<Button variant="primary" onClick={() => setMetadataOpen(false)}>{copy.done}</Button>}
+					/>
+				)}
+			>
+				<section className="audio-editor-metadata-editor">
+					<p className="audio-editor-panel-hint">{dialogText(locale, 'Tags are written to formats that support metadata.', 'Tags werden in Formate geschrieben, die Metadaten unterstützen.')}</p>
+					<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
+						<div className="audio-editor-metadata-table__header" role="row">
+							<span role="columnheader">{dialogText(locale, 'Tag', 'Tag')}</span>
+							<span role="columnheader">{dialogText(locale, 'Value', 'Wert')}</span>
+						</div>
+						{metadataFields.map(([name, label]) => (
+							<label className="audio-editor-metadata-table__row" role="row" key={name}>
+								<span role="cell">{label}</span>
+								<span role="cell"><TextInput multiline={name === 'metadataComments'} value={settings[name]} onChange={(value) => set(name, value)} width="100%" /></span>
+							</label>
+						))}
+					</div>
+					<details className="audio-editor-export-details">
+						<summary>{copy.customMetadata}</summary>
+						<label className="audio-editor-field">
+							<span>{copy.customMetadata}</span>
+							<TextInput multiline value={settings.metadataCustom} onChange={(value) => set('metadataCustom', value)} width="100%" />
+						</label>
+					</details>
+				</section>
+			</ControlledDialog>
+		);
+	}
 
 	return (
 		<ControlledDialog
@@ -1266,14 +1603,33 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 			onClose={requestClose}
 			closeOnEscape={!exporting}
 			closeOnOutside={!exporting}
-			width={760}
+			width={640}
 			className="audio-editor-export-dialog"
 			dataAttributes={{ 'data-export-dialog': '' }}
+			footer={(
+				<DialogFooter
+					className="audio-editor-dialog-footer"
+					leftContent={<Button variant="secondary" disabled={exporting} onClick={() => setMetadataOpen(true)}>{copy.metadata}</Button>}
+					rightContent={exporting ? (
+						<span data-export-action="cancel"><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
+					) : (
+						<>
+							<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
+							<span data-export-action="start"><Button variant="primary" disabled={blocked} onClick={start}>{copy.startExport}</Button></span>
+						</>
+					)}
+				/>
+			)}
 		>
 			<div className="audio-editor-export-dialog__body">
-				<div className="audio-editor-export-grid">
+				<section className="audio-editor-export-section">
+					<h3>{dialogText(locale, 'Export', 'Exportieren')}</h3>
 					<LabeledDropdown label={copy.exportMode} hook="mode" value={settings.mode} onChange={(value) => set('mode', value)} disabled={exporting} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
 					<LabeledDropdown label={copy.exportRange} hook="range" value={settings.range} onChange={(value) => set('range', value)} disabled={exporting} options={[{ value: 'project', label: copy.entireProject }, { value: 'selection', label: copy.currentSelection, disabled: !hasSelection }, { value: 'loop', label: copy.loopRegion, disabled: !hasLoop }]} />
+				</section>
+				<Separator />
+				<section className="audio-editor-export-section">
+					<h3>{dialogText(locale, 'Audio options', 'Audiooptionen')}</h3>
 					<LabeledDropdown label={copy.format} hook="format" value={settings.format} onChange={setFormat} disabled={exporting} options={Object.values(MEDIA_EXPORT_FORMATS).map((descriptor) => ({
 						value: descriptor.id,
 						label: descriptor.id === 'custom-ffmpeg' ? copy.customFfmpeg : descriptor.label,
@@ -1296,37 +1652,35 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 					<label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>
 					<LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />
 					{pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
-				</div>
-				<div className="audio-editor-export-grid">
-					{settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} /><small>{copy.customChannelMappingHint}</small></label>}
-					<label className="audio-editor-field"><span>{copy.metadataTitle}</span><TextInput value={settings.metadataTitle} disabled={exporting} onChange={(value) => set('metadataTitle', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataArtist}</span><TextInput value={settings.metadataArtist} disabled={exporting} onChange={(value) => set('metadataArtist', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataAlbum}</span><TextInput value={settings.metadataAlbum} disabled={exporting} onChange={(value) => set('metadataAlbum', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataTrack}</span><TextInput value={settings.metadataTrack} disabled={exporting} onChange={(value) => set('metadataTrack', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataYear}</span><TextInput value={settings.metadataYear} disabled={exporting} onChange={(value) => set('metadataYear', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataGenre}</span><TextInput value={settings.metadataGenre} disabled={exporting} onChange={(value) => set('metadataGenre', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataComments}</span><TextInput multiline value={settings.metadataComments} disabled={exporting} onChange={(value) => set('metadataComments', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.metadataCopyright}</span><TextInput value={settings.metadataCopyright} disabled={exporting} onChange={(value) => set('metadataCopyright', value)} /></label>
-					<label className="audio-editor-field"><span>{copy.customMetadata}</span><TextInput multiline value={settings.metadataCustom} disabled={exporting} onChange={(value) => set('metadataCustom', value)} /></label>
-					{settings.format === 'custom-ffmpeg' && <>
-						<label className="audio-editor-field"><span>{copy.customExtension}</span><TextInput value={settings.customExtension} disabled={exporting} onChange={(value) => set('customExtension', value)} /></label>
-						<label className="audio-editor-field"><span>{copy.customMimeType}</span><TextInput value={settings.customMimeType} disabled={exporting} onChange={(value) => set('customMimeType', value)} /></label>
-						<label className="audio-editor-field"><span>{copy.customArguments}</span><TextInput multiline value={settings.customArguments} disabled={exporting} onChange={(value) => set('customArguments', value)} /></label>
-					</>}
-				</div>
-				<div data-export-field="tails">
-					<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting} onChange={(checked) => set('includeTail', checked)} />
-				</div>
+					{settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
+				</section>
+				<Separator />
+				<section className="audio-editor-export-section">
+					<h3>{dialogText(locale, 'Rendering', 'Rendern')}</h3>
+					<div className="audio-editor-export-check" data-export-field="tails">
+						<span aria-hidden="true" />
+						<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting} onChange={(checked) => set('includeTail', checked)} />
+					</div>
+				</section>
+				{settings.format === 'custom-ffmpeg' && (
+					<>
+						<Separator />
+						<details className="audio-editor-export-details" open>
+							<summary>{dialogText(locale, 'Advanced options', 'Erweiterte Optionen')}</summary>
+							<div className="audio-editor-export-section">
+								<label className="audio-editor-field"><span>{copy.customExtension}</span><TextInput value={settings.customExtension} disabled={exporting} onChange={(value) => set('customExtension', value)} width="100%" /></label>
+								<label className="audio-editor-field"><span>{copy.customMimeType}</span><TextInput value={settings.customMimeType} disabled={exporting} onChange={(value) => set('customMimeType', value)} width="100%" /></label>
+								<label className="audio-editor-field"><span>{copy.customArguments}</span><TextInput multiline value={settings.customArguments} disabled={exporting} onChange={(value) => set('customArguments', value)} width="100%" /></label>
+							</div>
+						</details>
+					</>
+				)}
 				<p className="audio-editor-panel-hint">{copy.exportHint}</p>
 				<div className="audio-editor-export-progress" data-export-progress aria-live="polite" hidden={!exporting}>
 					<ProgressBar value={progress} width="100%" />
 					<output>{progress}%</output>
 				</div>
 				{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
-				<div className="audio-editor-panel-actions">
-					<span data-export-action="start" hidden={exporting}><Button variant="primary" disabled={blocked || exporting} onClick={start}>{copy.startExport}</Button></span>
-					<span data-export-action="cancel" hidden={!exporting}><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
-				</div>
 				<a
 					className="audio-editor-export-download"
 					data-export-download
@@ -1448,6 +1802,10 @@ function compactFields(value) {
 	return Object.fromEntries(Object.entries(value).filter(([, item]) => item != null && String(item) !== ''));
 }
 
+function dialogText(locale, english, german) {
+	return locale === 'de' ? german : english;
+}
+
 function resolveSupportedEffectType(candidate, locale) {
 	const normalized = String(candidate || '').trim().toLocaleLowerCase(locale === 'de' ? 'de-DE' : 'en-US');
 	return audioEffectTypes().find((type) => {
@@ -1484,6 +1842,63 @@ function audioEffectParamRangeFromDescriptor(descriptor) {
 	return Number.isFinite(descriptor.minimum) && Number.isFinite(descriptor.maximum)
 		? [descriptor.minimum, descriptor.maximum]
 		: null;
+}
+
+function audacityCurvePolyline(points, linearFrequencyScale = false) {
+	const values = Array.isArray(points) && points.length
+		? points
+		: [{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }];
+	return values.map((point) => {
+		const frequency = Math.max(20, Math.min(20_000, Number(point.frequency) || 20));
+		const gain = Math.max(-30, Math.min(30, Number(point.gain) || 0));
+		const x = linearFrequencyScale
+			? 16 + (frequency - 20) / (20_000 - 20) * 608
+			: 16 + Math.log10(frequency / 20) / 3 * 608;
+		const y = 110 - gain / 30 * 94;
+		return `${x.toFixed(2)},${y.toFixed(2)}`;
+	}).join(' ');
+}
+
+function audacityParameterVisible(effect, name) {
+	if (effect.type === 'audacity-loudness-normalization') {
+		if (name === 'targetLufs') return effect.params?.mode === 'lufs';
+		if (name === 'targetRmsDb') return effect.params?.mode === 'rms';
+	}
+	if (effect.type === 'audacity-normalize' && name === 'peakDb') return Boolean(effect.params?.applyGain);
+	if (effect.type === 'audacity-truncate-silence') {
+		if (name === 'truncateTo') return effect.params?.action === 'truncate';
+		if (name === 'compressPercent') return effect.params?.action === 'compress';
+	}
+	if (effect.type === 'audacity-classic-filters') {
+		if (name === 'passbandRippleDb') return effect.params?.family === 'chebyshev-i';
+		if (name === 'stopbandAttenuationDb') return effect.params?.family === 'chebyshev-ii';
+	}
+	return true;
+}
+
+function audacityParameterPresentation(effectType, name) {
+	const sliderParameters = {
+		'audacity-amplify': ['gainDb'],
+		'audacity-click-removal': ['threshold', 'maximumWidth'],
+		'audacity-change-pitch': ['semitones'],
+		'audacity-change-tempo': ['tempoPercent'],
+		'audacity-change-speed-pitch': ['speedPercent'],
+		'audacity-sliding-stretch': ['startTempoPercent', 'endTempoPercent', 'startPitchSemitones', 'endPitchSemitones'],
+		'audacity-noise-reduction': ['reductionDb', 'sensitivity', 'frequencySmoothingBands'],
+		'audacity-normalize': ['peakDb'],
+	};
+	if (sliderParameters[effectType]?.includes(name)) return 'slider';
+	if ([
+		'audacity-bass-treble',
+		'audacity-compressor',
+		'audacity-legacy-compressor',
+		'audacity-distortion',
+		'audacity-limiter',
+		'audacity-phaser',
+		'audacity-reverb',
+		'audacity-wahwah',
+	].includes(effectType)) return 'knob';
+	return 'number';
 }
 
 function secondsInputToFrames(value, copy, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) {

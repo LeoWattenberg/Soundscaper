@@ -2,9 +2,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
 	Button,
 	DialogHeader,
+	DialogSideNav,
+	Dropdown,
+	Knob,
+	LabeledCheckbox,
+	LabeledRadio,
 	MasterMeter,
 	NumberStepper,
+	PreferencePanel,
+	PreferenceThumbnail,
 	SelectionToolbar,
+	Separator,
 	TimeCode,
 	TextInput,
 	ToggleToolButton,
@@ -100,6 +108,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [showArmControls, setShowArmControls] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
 	const [analysisMode, setAnalysisMode] = useState('levels');
+	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
 	const importInputRef = useRef(null);
 	const labelInputRef = useRef(null);
 	const aup4InputRef = useRef(null);
@@ -192,8 +201,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
 
-	const openSurface = useCallback((surface) => {
+	const openSurface = useCallback((surface, options = {}) => {
 		setEffectsOverlay(null);
+		if (surface === 'preferences') {
+			const requestedSection = options?.section;
+			setPreferencesPage(requestedSection === 'workspace'
+				? 'workspace'
+				: requestedSection === 'snap' || requestedSection === 'editing'
+					? 'editing'
+					: 'shortcuts');
+		}
 		setActiveSurface(surface);
 	}, []);
 
@@ -287,7 +304,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			if (payload.surface === 'selection-effect' && payload.type) {
 				run(() => controller.actions.effects.setSelectionType(payload.type));
 			}
-			openSurface(payload.surface || null);
+			openSurface(payload.surface || null, payload);
 		} else if (request.type === 'open-external') openExternal(payload.url);
 		else if (request.type === 'toggle-fullscreen') toggleFullscreen();
 		else if (request.type === 'choose-audio-files') importInputRef.current?.click();
@@ -795,6 +812,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						type={generatorType}
 						controller={controller}
 						copy={copy}
+						locale={locale}
 						run={run}
 						onClose={() => setActiveSurface(null)}
 					/>
@@ -817,11 +835,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 					<WorkspacePreferencesDialog
 						isOpen
 						controller={controller}
-							snapshot={snapshot}
-							copy={copy}
-							locale={locale}
-							menus={applicationMenus}
-							run={run}
+						snapshot={snapshot}
+						copy={copy}
+						locale={locale}
+						menus={applicationMenus}
+						run={run}
+						initialPage={preferencesPage}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -1539,14 +1558,46 @@ function MetadataEditorField({ name, label, value, disabled, onCommit }) {
 	);
 }
 
-function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus, run, onClose }) {
+function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus, run, initialPage = 'shortcuts', onClose }) {
 	const panelRef = useRef(null);
+	const sideNavRef = useRef(null);
+	const [selectedPage, setSelectedPage] = useState(initialPage);
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
 	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale }), [locale, menus]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
+	const pages = [
+		{ id: 'appearance', label: copy.appearance, icon: '\uF444' },
+		{ id: 'editing', label: preferenceText(locale, 'Editing', 'Bearbeiten'), icon: '\uF43E' },
+		{ id: 'workspace', label: copy.workspace, icon: '\uEF55' },
+		{ id: 'toolbars', label: copy.toolbarsMenu, icon: '\uF43C' },
+		{ id: 'panels', label: copy.panels, icon: '\uF440' },
+		{ id: 'shortcuts', label: copy.shortcuts, icon: '\uF441' },
+	];
+	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
+	const appearanceTheme = preferences.appearance.theme;
+	const highContrastTheme = appearanceTheme.startsWith('high-contrast');
+	const darkAppearanceTheme = appearanceTheme.endsWith('dark');
+	const setAppearanceTheme = (theme) => run(() => controller.actions.preferences.setTheme(theme));
+	const renderedThemeIsDark = () => darkAppearanceTheme
+		|| (appearanceTheme === 'system' && document.documentElement.dataset.theme === 'dark');
+	useEffect(() => setSelectedPage(initialPage), [initialPage]);
+	const handleSideNavKeyDown = (event) => {
+		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const currentIndex = Math.max(0, pages.findIndex((page) => page.id === selectedPage));
+		const nextIndex = event.key === 'Home'
+			? 0
+			: event.key === 'End'
+				? pages.length - 1
+				: (currentIndex + (['ArrowDown', 'ArrowRight'].includes(event.key) ? 1 : -1) + pages.length) % pages.length;
+		const nextPage = pages[nextIndex];
+		setSelectedPage(nextPage.id);
+		queueMicrotask(() => sideNavRef.current?.querySelector(`[aria-controls="dialog-panel-${nextPage.id}"]`)?.focus());
+	};
 
 	useEffect(() => {
 		const previous = document.activeElement;
@@ -1561,70 +1612,277 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 		};
 	}, [onClose]);
 
+	useEffect(() => {
+		sideNavRef.current?.querySelectorAll('[role="tab"]').forEach((tab) => {
+			tab.tabIndex = tab.getAttribute('aria-controls') === `dialog-panel-${selectedPage}` ? 0 : -1;
+		});
+	}, [selectedPage]);
+
 	return (
 		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
 			<section ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog kw-audio-editor-preferences" role="dialog" aria-modal="true" aria-label={copy.preferencesTitle}>
 				<DialogHeader title={copy.preferencesTitle} os="windows" onClose={onClose} />
 				<div className="kw-audio-editor-preferences__body">
-					<section>
-						<h3>{copy.appearance}</h3>
-						<div className="kw-audio-editor-preferences__grid">
-							<label><span>{copy.theme}</span><select value={preferences.appearance.theme} onChange={(event) => run(() => controller.actions.preferences.setTheme(event.currentTarget.value))}>
-								<option value="system">{copy.themeSystem}</option><option value="light">{copy.themeLight}</option><option value="dark">{copy.themeDark}</option><option value="high-contrast-light">{copy.themeHighContrastLight}</option><option value="high-contrast-dark">{copy.themeHighContrastDark}</option>
-							</select></label>
-							<label><span>{copy.clipStyle}</span><select value={preferences.appearance.clipStyle} onChange={(event) => run(() => controller.actions.preferences.setClipStyle(event.currentTarget.value))}>
-								<option value="colorful">{copy.clipStyleColorful}</option><option value="classic">{copy.clipStyleClassic}</option>
-							</select></label>
-						</div>
-					</section>
+					<div ref={sideNavRef} className="kw-audio-editor-preferences__sidebar-adapter" onKeyDownCapture={handleSideNavKeyDown}>
+						<DialogSideNav
+							items={pages}
+							selectedId={selectedPage}
+							onSelectId={setSelectedPage}
+							ariaLabel={copy.preferencesTitle}
+							className="kw-audio-editor-preferences__sidebar"
+						/>
+					</div>
+					<main
+						className="kw-audio-editor-preferences__page"
+						role="tabpanel"
+						id={`dialog-panel-${selectedPage}`}
+						aria-label={selectedPageLabel}
+					>
+						{selectedPage === 'appearance' && (
+							<div className="kw-audio-editor-preferences__appearance">
+								<PreferencePanel title={highContrastTheme ? preferenceText(locale, 'High-contrast theme', 'Kontrastreiches Design') : copy.theme}>
+									<div className="kw-audio-editor-preferences__thumbnails">
+										<PreferenceChoice
+											locale={locale}
+											src={preferencePreview(highContrastTheme ? 'high-contrast-light' : 'light')}
+											alt={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
+											label={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
+											checked={appearanceTheme === (highContrastTheme ? 'high-contrast-light' : 'light')}
+											onChange={(checked) => checked && setAppearanceTheme(highContrastTheme ? 'high-contrast-light' : 'light')}
+											name="audio-editor-theme"
+											value={highContrastTheme ? 'high-contrast-light' : 'light'}
+										/>
+										<PreferenceChoice
+											locale={locale}
+											src={preferencePreview(highContrastTheme ? 'high-contrast-dark' : 'dark')}
+											alt={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
+											label={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
+											checked={appearanceTheme === (highContrastTheme ? 'high-contrast-dark' : 'dark')}
+											onChange={(checked) => checked && setAppearanceTheme(highContrastTheme ? 'high-contrast-dark' : 'dark')}
+											name="audio-editor-theme"
+											value={highContrastTheme ? 'high-contrast-dark' : 'dark'}
+										/>
+									</div>
+									<div className="kw-audio-editor-preferences__appearance-checks">
+										<PreferenceCheckbox
+											label={preferenceText(locale, 'Follow system theme', 'Systemdesign verwenden')}
+											checked={appearanceTheme === 'system'}
+											onChange={(checked) => setAppearanceTheme(checked ? 'system' : renderedThemeIsDark() ? 'dark' : 'light')}
+										/>
+										<PreferenceCheckbox
+											label={preferenceText(locale, 'Enable high-contrast', 'Hohen Kontrast aktivieren')}
+											checked={highContrastTheme}
+											onChange={(checked) => setAppearanceTheme(checked
+												? renderedThemeIsDark() ? 'high-contrast-dark' : 'high-contrast-light'
+												: renderedThemeIsDark() ? 'dark' : 'light')}
+										/>
+									</div>
+								</PreferencePanel>
+								<Separator />
+								<PreferencePanel title={copy.clipStyle}>
+									<div className="kw-audio-editor-preferences__thumbnails">
+										<PreferenceChoice
+											locale={locale}
+											src={preferencePreview('colorful')}
+											alt={copy.clipStyleColorful}
+											label={copy.clipStyleColorful}
+											checked={preferences.appearance.clipStyle === 'colorful'}
+											onChange={(checked) => checked && run(() => controller.actions.preferences.setClipStyle('colorful'))}
+											name="audio-editor-clip-style"
+											value="colorful"
+										/>
+										<PreferenceChoice
+											locale={locale}
+											src={preferencePreview('classic')}
+											alt={copy.clipStyleClassic}
+											label={copy.clipStyleClassic}
+											checked={preferences.appearance.clipStyle === 'classic'}
+											onChange={(checked) => checked && run(() => controller.actions.preferences.setClipStyle('classic'))}
+											name="audio-editor-clip-style"
+											value="classic"
+										/>
+									</div>
+								</PreferencePanel>
+							</div>
+						)}
 
-					<section>
-						<h3>{copy.workspace}</h3>
-						<label className="kw-audio-editor-preferences__wide"><span>{copy.workspacePreset}</span><select value={preferences.workspace.activeId} onChange={(event) => run(() => controller.actions.preferences.setWorkspace(event.currentTarget.value))}>
-							<option value="modern">{copy.workspaceModern}</option><option value="music">{copy.workspaceMusic}</option><option value="classic">{copy.workspaceClassic}</option>
-							{preferences.workspace.custom.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
-						</select></label>
-						<div className="kw-audio-editor__custom-workspace-actions">
-							<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => setWorkspaceName(event.currentTarget.value)} />
-							<Button variant="secondary" disabled={!workspaceName.trim()} onClick={() => {
-								run(() => controller.actions.preferences.createWorkspace(workspaceName.trim()));
-								setWorkspaceName('');
-							}}>{copy.workspaceCreate}</Button>
-							<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
-							<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
-						</div>
-					</section>
+						{selectedPage === 'workspace' && (
+							<PreferencePanel title={copy.workspace}>
+								<PreferenceDropdownField
+									label={copy.workspacePreset}
+									value={preferences.workspace.activeId}
+									onChange={(value) => run(() => controller.actions.preferences.setWorkspace(value))}
+									options={[
+										{ value: 'modern', label: copy.workspaceModern },
+										{ value: 'music', label: copy.workspaceMusic },
+										{ value: 'classic', label: copy.workspaceClassic },
+										...preferences.workspace.custom.map((workspace) => ({ value: workspace.id, label: workspace.name })),
+									]}
+								/>
+								<label className="kw-audio-editor-preferences__workspace-name">
+									<span>{copy.workspaceName}</span>
+									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => setWorkspaceName(event.currentTarget.value)} />
+								</label>
+								<div className="kw-audio-editor__custom-workspace-actions">
+									<Button variant="secondary" disabled={!workspaceName.trim()} onClick={() => {
+										run(() => controller.actions.preferences.createWorkspace(workspaceName.trim()));
+										setWorkspaceName('');
+									}}>{copy.workspaceCreate}</Button>
+									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
+									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
+								</div>
+							</PreferencePanel>
+						)}
 
-					<section>
-						<h3>{copy.toolbarsMenu}</h3>
-						<div className="kw-audio-editor-preferences__checks">
-							{WORKSPACE_TOOLBAR_IDS.map((toolbarId) => <label key={toolbarId}><input type="checkbox" checked={preferences.workspace.toolbars[toolbarId]?.visible !== false} onChange={() => run(() => controller.actions.preferences.toggleToolbar(toolbarId))} /> {workspaceToolbarLabel(copy, toolbarId)}</label>)}
-						</div>
-					</section>
+						{selectedPage === 'editing' && (
+							<PreferencePanel title={preferenceText(locale, 'Editing', 'Bearbeiten')}>
+								<div className="kw-audio-editor-preferences__grid">
+									<PreferenceDropdownField
+										label={preferenceText(locale, 'Ripple editing', 'Ripple-Bearbeitung')}
+										value={preferences.editing.rippleMode}
+										onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
+										options={[
+											{ value: 'off', label: preferenceText(locale, 'Off', 'Aus') },
+											{ value: 'per-track', label: preferenceText(locale, 'Per track', 'Pro Spur') },
+											{ value: 'all-tracks', label: preferenceText(locale, 'All tracks', 'Alle Spuren') },
+										]}
+									/>
+								</div>
+								<div className="kw-audio-editor-preferences__checks">
+									<PreferenceCheckbox
+										label={preferenceText(locale, 'Snap selections to zero crossings', 'Auswahl an Nulldurchgängen einrasten')}
+										checked={preferences.editing.snapToZeroCrossings}
+										onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
+									/>
+								</div>
+							</PreferencePanel>
+						)}
 
-					<section>
-						<h3>{copy.panels}</h3>
-						<div className="kw-audio-editor-preferences__panel-list">
-							{WORKSPACE_PANEL_IDS.map((panelId) => {
-								const panel = preferences.workspace.panels[panelId];
-								return <div key={panelId}><label><input type="checkbox" checked={panel.visible} onChange={() => run(() => controller.actions.preferences.togglePanel(panelId))} /> {workspacePanelLabel(copy, panelId)}</label><select aria-label={`${workspacePanelLabel(copy, panelId)}: ${copy.panelDock}`} value={panel.dock} onChange={(event) => run(() => controller.actions.preferences.setPanel(panelId, { dock: event.currentTarget.value }))}>{WORKSPACE_DOCK_IDS.map((dockId) => <option key={dockId} value={dockId}>{workspaceDockLabel(copy, dockId)}</option>)}</select></div>;
-							})}
-						</div>
-					</section>
+						{selectedPage === 'toolbars' && (
+							<PreferencePanel title={copy.toolbarsMenu}>
+								<div className="kw-audio-editor-preferences__checks">
+									{WORKSPACE_TOOLBAR_IDS.map((toolbarId) => (
+										<PreferenceCheckbox
+											key={toolbarId}
+											label={workspaceToolbarLabel(copy, toolbarId)}
+											checked={preferences.workspace.toolbars[toolbarId]?.visible !== false}
+											onChange={() => run(() => controller.actions.preferences.toggleToolbar(toolbarId))}
+										/>
+									))}
+								</div>
+							</PreferencePanel>
+						)}
 
-					<section className="kw-audio-editor-preferences__shortcuts">
-						<h3>{copy.shortcuts}</h3>
-						<input type="search" value={shortcutSearch} onChange={(event) => setShortcutSearch(event.currentTarget.value)} placeholder={copy.shortcutSearch} aria-label={copy.shortcutSearch} />
-						<div className="kw-audio-editor-preferences__shortcut-list">
-							{visibleCommands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
-						</div>
-						<Button variant="secondary" onClick={() => run(() => controller.actions.preferences.resetShortcuts())}>{copy.shortcutsReset}</Button>
-					</section>
+						{selectedPage === 'panels' && (
+							<PreferencePanel title={copy.panels}>
+								<div className="kw-audio-editor-preferences__panel-list">
+									{WORKSPACE_PANEL_IDS.map((panelId) => {
+										const panel = preferences.workspace.panels[panelId];
+										const label = workspacePanelLabel(copy, panelId);
+										return (
+											<div key={panelId}>
+												<PreferenceCheckbox label={label} checked={panel.visible} onChange={() => run(() => controller.actions.preferences.togglePanel(panelId))} />
+												<PreferenceDropdownField
+													label={`${label}: ${copy.panelDock}`}
+													visuallyHiddenLabel
+													value={panel.dock}
+													onChange={(value) => run(() => controller.actions.preferences.setPanel(panelId, { dock: value }))}
+													options={WORKSPACE_DOCK_IDS.map((dockId) => ({ value: dockId, label: workspaceDockLabel(copy, dockId) }))}
+												/>
+											</div>
+										);
+									})}
+								</div>
+							</PreferencePanel>
+						)}
+
+						{selectedPage === 'shortcuts' && (
+							<PreferencePanel title={copy.shortcuts} className="kw-audio-editor-preferences__shortcuts">
+								<label className="kw-audio-editor-preferences__search">
+									<span className="kw-audio-editor-sr-only">{copy.shortcutSearch}</span>
+									<input type="search" value={shortcutSearch} onChange={(event) => setShortcutSearch(event.currentTarget.value)} placeholder={copy.shortcutSearch} aria-label={copy.shortcutSearch} />
+								</label>
+								<div className="kw-audio-editor-preferences__shortcut-header" aria-hidden="true">
+									<span>{preferenceText(locale, 'Command', 'Befehl')}</span>
+									<span>{preferenceText(locale, 'Shortcut', 'Tastenkürzel')}</span>
+									<span>{preferenceText(locale, 'Action', 'Aktion')}</span>
+								</div>
+								<div className="kw-audio-editor-preferences__shortcut-list">
+									{visibleCommands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
+								</div>
+								<Button variant="secondary" onClick={() => run(() => controller.actions.preferences.resetShortcuts())}>{copy.shortcutsReset}</Button>
+							</PreferencePanel>
+						)}
+					</main>
 				</div>
 				<div className="kw-audio-editor-dialog__actions kw-audio-editor-preferences__footer"><Button onClick={onClose}>{copy.close}</Button></div>
 			</section>
 		</div>
 	);
+}
+
+function PreferenceDropdownField({ label, options, value, visuallyHiddenLabel = false, onChange }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		wrapperRef.current?.querySelector('.dropdown__trigger')?.setAttribute('aria-label', label);
+	}, [label]);
+	return (
+		<div ref={wrapperRef} className="kw-audio-editor-preferences__field" role="group" aria-label={label}>
+			<span className={visuallyHiddenLabel ? 'kw-audio-editor-sr-only' : undefined}>{label}</span>
+			<Dropdown options={options} value={value} onChange={onChange} width="100%" />
+		</div>
+	);
+}
+
+function PreferenceCheckbox({ label, checked, onChange }) {
+	const pendingValue = useRef(null);
+	const handleChange = (next) => {
+		if (pendingValue.current === next) return;
+		pendingValue.current = next;
+		queueMicrotask(() => { pendingValue.current = null; });
+		onChange(next);
+	};
+	return <LabeledCheckbox label={label} checked={checked} onChange={handleChange} />;
+}
+
+function PreferenceChoice({ locale, label, ...props }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		wrapperRef.current?.querySelector('.preference-thumbnail__image-button')?.setAttribute(
+			'aria-label',
+			`${preferenceText(locale, 'Select', 'Auswählen')}: ${label}`,
+		);
+	}, [label, locale]);
+	return <div ref={wrapperRef}><PreferenceThumbnail label={label} {...props} /></div>;
+}
+
+function preferenceText(locale, english, german) {
+	return String(locale).toLowerCase().startsWith('de') ? german : english;
+}
+
+function preferencePreview(kind) {
+	const dark = kind.includes('dark') || ['colorful', 'classic'].includes(kind);
+	const contrast = kind.startsWith('high-contrast');
+	const background = contrast ? dark ? '#000000' : '#ffffff' : dark ? '#202126' : '#f5f5f7';
+	const surface = contrast ? dark ? '#111111' : '#ffffff' : dark ? '#303139' : '#ffffff';
+	const line = contrast ? dark ? '#ffffff' : '#000000' : dark ? '#555861' : '#c9cbd2';
+	const text = contrast ? dark ? '#ffffff' : '#000000' : dark ? '#e4e5e7' : '#25262b';
+	const colorful = kind === 'colorful';
+	const classic = kind === 'classic';
+	const firstClip = colorful ? '#7c68ee' : classic ? '#6f737d' : '#6577df';
+	const secondClip = colorful ? '#d65b91' : classic ? '#858995' : '#56a3a6';
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 188 106">
+		<rect width="188" height="106" rx="4" fill="${background}"/>
+		<rect x="6" y="6" width="176" height="16" rx="2" fill="${surface}" stroke="${line}"/>
+		<circle cx="15" cy="14" r="3" fill="${firstClip}"/><path d="M24 14h45m8 0h25" stroke="${text}" stroke-width="2" opacity=".7"/>
+		<rect x="6" y="28" width="34" height="70" rx="2" fill="${surface}" stroke="${line}"/>
+		<path d="M13 39h20M13 49h14M13 78h20M13 88h16" stroke="${text}" opacity=".55"/>
+		<rect x="46" y="28" width="136" height="32" rx="3" fill="${firstClip}" opacity=".88"/>
+		<rect x="64" y="65" width="102" height="33" rx="3" fill="${secondClip}" opacity=".88"/>
+		<path d="M50 44l5-7 5 15 5-11 5 6 5-13 5 18 5-11 5 5 5-9 5 13 5-7 5 3 5-10 5 15 5-9 5 4 5-6 5 8 5-5 5 2 5-6 5 9" fill="none" stroke="${text}" stroke-width="1" opacity=".85"/>
+		<path d="M68 82l5-5 5 11 5-8 5 4 5-10 5 15 5-8 5 3 5-6 5 9 5-5 5 2 5-7 5 11 5-6 5 3 5-5 5 7" fill="none" stroke="${text}" stroke-width="1" opacity=".85"/>
+	</svg>`;
+	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
@@ -1682,55 +1940,184 @@ function historyCommandLabel(copy, entry) {
 	return copy.historyCommand?.replace('{command}', type).replace('{count}', String(entry.commandCount || 1)) || type;
 }
 
-function GeneratorDialog({ type, controller, copy, run, onClose }) {
+function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	const [params, setParams] = useState(() => generatorDefaults(type));
 	useEffect(() => setParams(generatorDefaults(type)), [type]);
 	const update = (name, value) => setParams((current) => ({ ...current, [name]: value }));
+	const labels = generatorLayoutLabels(locale);
+	const dtmfTiming = generatorDtmfTiming(params);
 	const numberField = (name, label, options = {}) => (
-		<label className="kw-audio-editor-dialog__field">
-			<span>{label}</span>
-			<NumberStepper
-				value={String(params[name])}
-				min={options.min}
-				max={options.max}
-				step={options.step ?? 0.01}
-				width="100%"
-				onChange={(value) => update(name, Number(value))}
-			/>
-		</label>
+		<GeneratorNumberField
+			name={name}
+			label={label}
+			ariaLabel={options.ariaLabel}
+			value={params[name]}
+			min={options.min}
+			max={options.max}
+			step={options.step ?? 0.01}
+			onChange={(value) => update(name, value)}
+		/>
 	);
+	const updateDtmfTiming = ({ totalSeconds, dutyPercent }) => {
+		setParams((current) => {
+			const currentTiming = generatorDtmfTiming(current);
+			const next = generatorDtmfDurations(
+				totalSeconds ?? currentTiming.totalSeconds,
+				dutyPercent ?? currentTiming.dutyPercent,
+				currentTiming.symbolCount,
+			);
+			return {
+				...current,
+				durationSeconds: next.totalSeconds,
+				toneSeconds: next.toneSeconds,
+				silenceSeconds: next.silenceSeconds,
+			};
+		});
+	};
+	const updateDtmfSequence = (sequence) => {
+		setParams((current) => {
+			const currentTiming = generatorDtmfTiming(current);
+			const next = generatorDtmfDurations(
+				currentTiming.totalSeconds,
+				currentTiming.dutyPercent,
+				generatorDtmfSymbolCount(sequence),
+			);
+			return {
+				...current,
+				sequence,
+				durationSeconds: next.totalSeconds,
+				toneSeconds: next.toneSeconds,
+				silenceSeconds: next.silenceSeconds,
+			};
+		});
+	};
 	return (
 		<div className="kw-audio-editor-dialog-layer" data-open="true">
-			<section className="kw-audio-editor-dialog kw-audio-editor-dialog--generator" role="dialog" aria-modal="true" aria-labelledby="audio-editor-generator-title">
-				<DialogHeader id="audio-editor-generator-title" title={generatorLabel(type, copy)} onClose={onClose} />
-				<form onSubmit={(event) => {
+			<section className="kw-audio-editor-dialog kw-audio-editor-dialog--generator" role="dialog" aria-modal="true" aria-label={generatorLabel(type, copy)} data-generator-type={type}>
+				<DialogHeader title={generatorLabel(type, copy)} onClose={onClose} />
+				<form className="kw-audio-editor-generator" onSubmit={(event) => {
 					event.preventDefault();
-					run(() => controller.actions.generators.generate(type, params));
+					const options = type === 'dtmf'
+						? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
+						: params;
+					run(() => controller.actions.generators.generate(type, options));
 					onClose();
 				}}>
-					{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
-					{type !== 'silence' && numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
-					{type === 'tone' && <>
-						{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
-						<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={[
-							['sine', copy.generatorSine], ['square', copy.generatorSquare], ['sawtooth', copy.generatorSawtooth],
-						]} />
-					</>}
-					{type === 'chirp' && <>
-						{numberField('startFrequency', copy.generatorStartFrequency, { min: 0.01, max: 96_000, step: 1 })}
-						{numberField('endFrequency', copy.generatorEndFrequency, { min: 0.01, max: 96_000, step: 1 })}
-						<GeneratorSelect label={copy.generatorInterpolation} value={params.interpolation} onChange={(value) => update('interpolation', value)} options={[
-							['linear', copy.linear], ['logarithmic', copy.logarithmic],
-						]} />
-					</>}
-					{type === 'noise' && <GeneratorSelect label={copy.generatorNoiseColor} value={params.color} onChange={(value) => update('color', value)} options={[
-						['white', copy.generatorWhite], ['pink', copy.generatorPink], ['brown', copy.generatorBrown],
-					]} />}
-					{type === 'dtmf' && <>
-						<label className="kw-audio-editor-dialog__field"><span>{copy.generatorSequence}</span><TextInput value={params.sequence} onChange={(value) => update('sequence', value)} /></label>
-						{numberField('toneSeconds', copy.generatorToneDuration, { min: 0.001, max: 60, step: 0.01 })}
-						{numberField('silenceSeconds', copy.generatorSilenceDuration, { min: 0, max: 60, step: 0.01 })}
-					</>}
+					<div className="kw-audio-editor-generator__content">
+						{type === 'tone' && (
+							<div className="kw-audio-editor-generator__standard-grid" data-generator-layout="tone">
+								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={[
+									['sine', copy.generatorSine], ['square', copy.generatorSquare], ['sawtooth', copy.generatorSawtooth],
+								]} />
+								{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
+								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
+								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+							</div>
+						)}
+
+						{type === 'chirp' && (
+							<div className="kw-audio-editor-generator__chirp" data-generator-layout="chirp">
+								<GeneratorSelect
+									label={copy.generatorWaveform}
+									value="sine"
+									disabled
+									onChange={() => {}}
+									options={[['sine', copy.generatorSine]]}
+								/>
+								<div role="group" aria-label={labels.frequencySweep}>
+									<PreferencePanel title={labels.frequencySweep} className="kw-audio-editor-generator__card">
+										<GeneratorRadioGroup
+											label={copy.generatorInterpolation}
+											value={params.interpolation}
+											onChange={(value) => update('interpolation', value)}
+											options={[
+												['linear', copy.linear],
+												['logarithmic', copy.logarithmic],
+											]}
+										/>
+										<Separator />
+										<div className="kw-audio-editor-generator__pair">
+											{numberField('startFrequency', copy.generatorStartFrequency, { min: 0.01, max: 96_000, step: 1 })}
+											{numberField('endFrequency', copy.generatorEndFrequency, { min: 0.01, max: 96_000, step: 1 })}
+										</div>
+									</PreferencePanel>
+								</div>
+								<div role="group" aria-label={labels.amplitudeSweep}>
+									<PreferencePanel title={labels.amplitudeSweep} className="kw-audio-editor-generator__card">
+										{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
+										<p className="kw-audio-editor-generator__explanation">{labels.amplitudeExplanation}</p>
+									</PreferencePanel>
+								</div>
+								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+							</div>
+						)}
+
+						{type === 'noise' && (
+							<div className="kw-audio-editor-generator__standard-grid" data-generator-layout="noise">
+								<GeneratorSelect label={copy.generatorNoiseColor} value={params.color} onChange={(value) => update('color', value)} options={[
+									['white', copy.generatorWhite], ['pink', copy.generatorPink], ['brown', copy.generatorBrown],
+								]} />
+								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
+								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+							</div>
+						)}
+
+						{type === 'silence' && (
+							<div className="kw-audio-editor-generator__standard-grid kw-audio-editor-generator__standard-grid--single" data-generator-layout="silence">
+								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+							</div>
+						)}
+
+						{type === 'dtmf' && (
+							<div className="kw-audio-editor-generator__dtmf" data-generator-layout="dtmf">
+								<div role="group" aria-label={generatorLabel(type, copy)}>
+									<PreferencePanel className="kw-audio-editor-generator__card kw-audio-editor-generator__dtmf-fields">
+										<label className="kw-audio-editor-dialog__field" data-generator-field="sequence">
+											<span>{copy.generatorSequence}</span>
+											<TextInput value={params.sequence} onChange={updateDtmfSequence} />
+										</label>
+										<p className="kw-audio-editor-generator__explanation">{labels.dtmfExplanation}</p>
+										{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
+										<GeneratorNumberField
+											name="durationSeconds"
+											label={copy.generatorDuration}
+											value={dtmfTiming.totalSeconds}
+											min={0.001}
+											max={86_400}
+											step={0.01}
+											onChange={(value) => updateDtmfTiming({ totalSeconds: value })}
+										/>
+									</PreferencePanel>
+								</div>
+								<div role="group" aria-label={labels.toneSilenceRatio}>
+									<PreferencePanel title={labels.toneSilenceRatio} className="kw-audio-editor-generator__card kw-audio-editor-generator__ratio-card">
+										<div className="kw-audio-editor-generator__ratio-control">
+											<GeneratorKnob
+												value={dtmfTiming.dutyPercent}
+												label={labels.dutyCycle}
+												onChange={(value) => updateDtmfTiming({ dutyPercent: value })}
+											/>
+											<GeneratorNumberField
+												name="dutyPercent"
+												label={labels.dutyCycle}
+												value={dtmfTiming.dutyPercent}
+												min={1}
+												max={100}
+												step={1}
+												onChange={(value) => updateDtmfTiming({ dutyPercent: value })}
+											/>
+										</div>
+										<Separator />
+										<dl className="kw-audio-editor-generator__timing-summary">
+											<div><dt>{labels.dutyCycle}</dt><dd>{formatGeneratorNumber(dtmfTiming.dutyPercent, locale)}%</dd></div>
+											<div><dt>{copy.generatorToneDuration}</dt><dd>{formatGeneratorNumber(dtmfTiming.toneSeconds, locale)} s</dd></div>
+											<div><dt>{copy.generatorSilenceDuration}</dt><dd>{formatGeneratorNumber(dtmfTiming.silenceSeconds, locale)} s</dd></div>
+										</dl>
+									</PreferencePanel>
+								</div>
+							</div>
+						)}
+					</div>
 					<div className="kw-audio-editor-dialog__actions">
 						<Button type="button" variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 						<Button type="submit">{copy.generate}</Button>
@@ -1741,8 +2128,191 @@ function GeneratorDialog({ type, controller, copy, run, onClose }) {
 	);
 }
 
-function GeneratorSelect({ label, value, onChange, options }) {
-	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.currentTarget.value)}>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>;
+function GeneratorNumberField({ name, label, ariaLabel = label, value, min, max, step, onChange }) {
+	const inputRef = useRef(null);
+	const valueRef = useRef(value);
+	const [draft, setDraft] = useState(() => String(value));
+	valueRef.current = value;
+	useEffect(() => {
+		const input = inputRef.current;
+		if (!input) return undefined;
+		input.setAttribute('aria-label', ariaLabel);
+		const handleBlur = () => {
+			setDraft((current) => current.trim() && Number.isFinite(Number(current)) ? current : String(valueRef.current));
+		};
+		input.addEventListener('blur', handleBlur);
+		return () => input.removeEventListener('blur', handleBlur);
+	}, [ariaLabel]);
+	useEffect(() => {
+		if (document.activeElement !== inputRef.current) setDraft(String(value));
+	}, [value]);
+	return (
+		<label className="kw-audio-editor-dialog__field" data-generator-field={name}>
+			<span>{label}</span>
+			<NumberStepper
+				ref={inputRef}
+				value={draft}
+				min={min}
+				max={max}
+				step={step}
+				width="100%"
+				onChange={(next) => {
+					setDraft(next);
+					if (next.trim() && Number.isFinite(Number(next))) onChange(Number(next));
+				}}
+			/>
+		</label>
+	);
+}
+
+function GeneratorSelect({ label, value, disabled = false, onChange, options }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		wrapperRef.current?.querySelector('.dropdown__trigger')?.setAttribute('aria-label', label);
+	}, [label]);
+	return (
+		<div ref={wrapperRef} className="kw-audio-editor-dialog__field" data-generator-field={label} role="group" aria-label={label}>
+			<span>{label}</span>
+			<Dropdown
+				disabled={disabled}
+				value={value}
+				onChange={onChange}
+				options={options.map(([id, text]) => ({ value: id, label: text }))}
+				width="100%"
+			/>
+		</div>
+	);
+}
+
+function GeneratorRadioGroup({ label, value, onChange, options }) {
+	const groupRef = useRef(null);
+	useEffect(() => {
+		const radios = [...(groupRef.current?.querySelectorAll('[role="radio"]') || [])];
+		radios.forEach((radio, index) => {
+			radio.setAttribute('aria-label', options[index][1]);
+			radio.setAttribute('tabindex', options[index][0] === value ? '0' : '-1');
+		});
+	}, [options, value]);
+	const selectAndFocus = (nextValue) => {
+		onChange(nextValue);
+		queueMicrotask(() => groupRef.current?.querySelector(`[data-generator-radio-value="${nextValue}"] [role="radio"]`)?.focus());
+	};
+	return (
+		<div
+			ref={groupRef}
+			className="kw-audio-editor-generator__radio-group"
+			role="radiogroup"
+			aria-label={label}
+			onKeyDown={(event) => {
+				if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+				event.preventDefault();
+				const currentIndex = Math.max(0, options.findIndex(([id]) => id === value));
+				const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
+				const nextIndex = (currentIndex + direction + options.length) % options.length;
+				selectAndFocus(options[nextIndex][0]);
+			}}
+		>
+			{options.map(([id, text]) => (
+				<div
+					key={id}
+					className="kw-audio-editor-generator__radio-option"
+					data-generator-radio-value={id}
+					onClick={(event) => {
+						if (!event.target.closest('[role="radio"]')) selectAndFocus(id);
+					}}
+				>
+					<LabeledRadio label={text} name="generator-interpolation" value={id} checked={value === id} tabIndex={value === id ? 0 : -1} onChange={() => onChange(id)} />
+				</div>
+			))}
+		</div>
+	);
+}
+
+function GeneratorKnob({ value, label, onChange }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		const knob = wrapperRef.current?.querySelector('.knob');
+		if (!knob) return undefined;
+		knob.setAttribute('type', 'button');
+		const handleKeyDown = (event) => {
+			if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+			event.preventDefault();
+			if (event.key === 'Home') onChange(1);
+			else if (event.key === 'End') onChange(100);
+			else onChange(Math.max(1, Math.min(100, value + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1))));
+		};
+		knob.addEventListener('keydown', handleKeyDown);
+		return () => knob.removeEventListener('keydown', handleKeyDown);
+	}, [onChange, value]);
+	return (
+		<div ref={wrapperRef} className="kw-audio-editor-generator__knob">
+			<Knob value={value} min={1} max={100} step={1} label={label} mode="unipolar" onChange={onChange} />
+		</div>
+	);
+}
+
+function generatorDtmfTiming(params) {
+	const symbolCount = generatorDtmfSymbolCount(params.sequence);
+	const toneSeconds = Number(params.toneSeconds) || 0;
+	const silenceSeconds = Number(params.silenceSeconds) || 0;
+	const dutyPercent = toneSeconds + silenceSeconds > 0
+		? toneSeconds / (toneSeconds + silenceSeconds) * 100
+		: 100;
+	const totalSeconds = Number(params.durationSeconds) > 0 ? Number(params.durationSeconds) : 1;
+	const durations = generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount);
+	return {
+		symbolCount,
+		...durations,
+		dutyPercent: roundGeneratorNumber(dutyPercent),
+	};
+}
+
+function generatorDtmfSymbolCount(sequence) {
+	const normalized = String(sequence ?? '').toUpperCase().replace(/[\s,-]+/g, '');
+	return Math.max(1, normalized.length);
+}
+
+function generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount) {
+	const total = Number(totalSeconds);
+	const duty = Math.max(1, Math.min(100, Number(dutyPercent))) / 100;
+	const gaps = Math.max(0, symbolCount - 1);
+	const denominator = symbolCount + gaps * (1 - duty) / duty;
+	const toneSeconds = total / denominator;
+	const silenceSeconds = duty === 1 ? 0 : toneSeconds * (1 - duty) / duty;
+	return {
+		totalSeconds: roundGeneratorNumber(total),
+		toneSeconds: roundGeneratorNumber(toneSeconds),
+		silenceSeconds: roundGeneratorNumber(silenceSeconds),
+	};
+}
+
+function roundGeneratorNumber(value) {
+	return Number(Number(value).toFixed(6));
+}
+
+function formatGeneratorNumber(value, locale) {
+	return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
+}
+
+function generatorLayoutLabels(locale) {
+	if (String(locale).toLowerCase().startsWith('de')) {
+		return {
+			frequencySweep: 'Frequenzverlauf',
+			amplitudeSweep: 'Amplitudenverlauf',
+			amplitudeExplanation: 'Das aktuelle Generatormodell verwendet eine gemeinsame Amplitude für Start und Ende des Verlaufs.',
+			toneSilenceRatio: 'Ton-/Pausenverhältnis',
+			dutyCycle: 'Tonanteil',
+			dtmfExplanation: 'Ziffern 0–9, Buchstaben A–D, * oder # eingeben. Leerzeichen, Kommas und Bindestriche werden ignoriert.',
+		};
+	}
+	return {
+		frequencySweep: 'Frequency sweep',
+		amplitudeSweep: 'Amplitude sweep',
+		amplitudeExplanation: 'The current generator model uses one shared amplitude for the start and end of the sweep.',
+		toneSilenceRatio: 'Tone/silence ratio',
+		dutyCycle: 'Duty cycle',
+		dtmfExplanation: 'Enter digits 0–9, letters A–D, * or #. Spaces, commas and hyphens are ignored.',
+	};
 }
 
 function generatorDefaults(type) {
@@ -1750,7 +2320,10 @@ function generatorDefaults(type) {
 	if (type === 'tone') return { ...common, frequency: 440, waveform: 'sine' };
 	if (type === 'chirp') return { ...common, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic' };
 	if (type === 'noise') return { ...common, color: 'white' };
-	if (type === 'dtmf') return { ...common, sequence: '123', toneSeconds: 0.1, silenceSeconds: 0.05 };
+	if (type === 'dtmf') {
+		const durations = generatorDtmfDurations(1, 2 / 3 * 100, 3);
+		return { ...common, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
+	}
 	return { durationSeconds: 1 };
 }
 

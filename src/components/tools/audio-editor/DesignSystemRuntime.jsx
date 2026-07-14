@@ -225,9 +225,12 @@ function handlePortalKeyDown(event) {
 	if (!menu) return;
 	const options = [...menu.querySelectorAll('[role="option"]')];
 	if (!options.length) return;
+	const triggers = [...document.querySelectorAll('#kw-audio-editor-design-system .dropdown__trigger[aria-expanded="true"]')];
+	const trigger = nearestDropdownTrigger(menu, triggers);
 	const currentIndex = Math.max(0, options.findIndex((option) => option.classList.contains('dropdown__option--hover')));
 	if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 		event.preventDefault();
+		event.stopPropagation();
 		const offset = event.key === 'ArrowDown' ? 1 : -1;
 		const nextIndex = Math.max(0, Math.min(options.length - 1, currentIndex + offset));
 		options.forEach((option, index) => option.classList.toggle('dropdown__option--hover', index === nextIndex));
@@ -237,14 +240,33 @@ function handlePortalKeyDown(event) {
 	}
 	if (event.key === 'Enter' || event.key === ' ') {
 		event.preventDefault();
+		event.stopPropagation();
 		options[currentIndex].click();
 		return;
 	}
 	if (event.key === 'Escape') {
 		event.preventDefault();
-		const trigger = document.querySelector('#kw-audio-editor-design-system .dropdown__trigger[aria-expanded="true"]');
+		event.stopPropagation();
 		trigger?.click();
 		trigger?.focus();
+		return;
+	}
+	if (event.key === 'Tab' && trigger) {
+		event.preventDefault();
+		event.stopPropagation();
+		const dialog = trigger.closest('[role="dialog"]');
+		const editor = trigger.closest('#kw-audio-editor-design-system');
+		const focusScope = dialog || editor;
+		const focusable = focusScope ? [...focusScope.querySelectorAll(
+			'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+		)].filter((element) => element.getClientRects().length > 0) : [];
+		const triggerIndex = focusable.indexOf(trigger);
+		const offset = event.shiftKey ? -1 : 1;
+		const nextIndex = focusable.length
+			? (Math.max(0, triggerIndex) + offset + focusable.length) % focusable.length
+			: -1;
+		trigger.click();
+		if (nextIndex >= 0 && focusable[nextIndex] !== trigger) focusable[nextIndex].focus();
 	}
 }
 
