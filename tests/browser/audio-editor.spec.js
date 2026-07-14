@@ -169,6 +169,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tooltip).toBeVisible();
 		await expect(tooltip).toHaveAttribute('role', 'tooltip');
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
+		await expect(tooltip).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
 		await page.mouse.move(0, 0);
 		await expect(tooltip).toHaveCount(0);
@@ -498,6 +499,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		const backup = getMenuItem(fileMenu, 'Backup project');
 		await expect(backup).toHaveAttribute('aria-disabled', 'true');
 		await expect(backup.locator('[data-disabled-reason]')).toHaveAttribute('title', /disabled placeholder/);
+	});
+
+	test('keeps the Record and Effect menus clear of clicked-button tooltips', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
+
+		for (const name of ['Record', 'Effect']) {
+			await menubar.getByRole('menuitem', { name, exact: true }).click();
+			await expect(editor.locator('.kw-audio-editor__application-menu')).toBeVisible();
+			await expect(editor.locator('.kw-audio-editor__button-tooltip')).toHaveCount(0);
+			await page.keyboard.press('Escape');
+		}
 	});
 
 	test('hydrates once, dispatches one action, exposes the Audacity command surface, and follows live theme changes', async ({ page }) => {

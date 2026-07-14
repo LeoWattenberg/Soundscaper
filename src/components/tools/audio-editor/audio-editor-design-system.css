@@ -123,8 +123,17 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__button-tooltip {
+	/* The package's Flyout selector is scoped as an adjacent sibling during the
+	 * Astro build, while this tooltip lives inside the editor. Keep it out of
+	 * the editor's flex layout so it can honour its viewport coordinates. */
+	position: fixed;
 	z-index: 10010;
 	pointer-events: none;
+	background: var(--flyout-bg, var(--kw-editor-bg));
+	border: 1px solid var(--flyout-border, var(--kw-editor-line));
+	border-radius: 4px;
+	box-shadow: var(--kw-editor-shadow);
+	overflow: visible;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__button-tooltip .flyout__content {

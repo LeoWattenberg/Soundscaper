@@ -45,6 +45,10 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 			const button = editorButton(event.target, root);
 			if (button && !button.contains(event.relatedTarget)) hide(button);
 		};
+		const onPointerDown = (event) => {
+			const button = editorButton(event.target, root);
+			if (button) hide(button);
+		};
 		const onViewportChange = () => setTooltip((current) => {
 			if (!current?.button?.isConnected) return null;
 			const rect = current.button.getBoundingClientRect();
@@ -61,11 +65,13 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 
 		root.addEventListener('pointerover', onPointerOver, true);
 		root.addEventListener('pointerout', onPointerOut, true);
+		root.addEventListener('pointerdown', onPointerDown, true);
 		window.addEventListener('resize', onViewportChange);
 		window.addEventListener('scroll', onViewportChange, true);
 		return () => {
 			root.removeEventListener('pointerover', onPointerOver, true);
 			root.removeEventListener('pointerout', onPointerOut, true);
+			root.removeEventListener('pointerdown', onPointerDown, true);
 			window.removeEventListener('resize', onViewportChange);
 			window.removeEventListener('scroll', onViewportChange, true);
 		};
