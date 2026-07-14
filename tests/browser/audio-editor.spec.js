@@ -65,6 +65,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto('/en/');
 		await expect(page.locator('.site-sidebar')).toBeVisible();
 		await expect(page.locator('.brand')).toContainText('Soundscaper');
+		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-schwarz.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: light)');
+		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-weiß.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: dark)');
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.site-sidebar')).toHaveCount(0);

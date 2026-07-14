@@ -21,6 +21,8 @@ const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org'
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="light dark" />
 		<meta name="description" content={description} />
+		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-schwarz.svg" media="(prefers-color-scheme: light)" />
+		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" />
 		<link rel="canonical" href={canonical} />
 		<link rel="alternate" hreflang="de" href="https://soundscaper.org/de/" />
 		<link rel="alternate" hreflang="en" href="https://soundscaper.org/en/" />
