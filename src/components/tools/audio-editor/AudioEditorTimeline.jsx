@@ -1665,6 +1665,7 @@ function LabelTrackRow({
 	onMenu,
 }) {
 	const trackHeight = trackVisualHeight(track);
+	const [editingName, setEditingName] = useState(false);
 	const addLabel = () => {
 		if (blocked) return;
 		const startFrame = selection?.startFrame ?? 0;
@@ -1688,7 +1689,24 @@ function LabelTrackRow({
 			<div className="audio-editor-label-track-controls" style={{ width: panelWidth }}>
 				<div className="audio-editor-label-track-title">
 					<span aria-hidden="true">T</span>
-					<TrackNameEditor track={track} label={copy.trackName} blocked={blocked} controller={controller} run={run} />
+					{editingName ? (
+						<TrackNameEditor
+							track={track}
+							label={copy.trackName}
+							blocked={blocked}
+							controller={controller}
+							run={run}
+							onClose={() => setEditingName(false)}
+						/>
+					) : (
+						<span
+							data-track-name
+							className="track-control-panel__track-name-text"
+							onDoubleClick={() => !blocked && setEditingName(true)}
+						>
+							{track.name}
+						</span>
+					)}
 				</div>
 				<div className="audio-editor-label-track-actions">
 					<Button variant="secondary" disabled={blocked} onClick={addLabel}>{copy.addLabel || '+'}</Button>
