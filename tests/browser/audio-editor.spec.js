@@ -72,6 +72,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
 	});
 
+	test('persists sidebar collapse and synchronizes the initial dark-mode toggle state', async ({ page }) => {
+		await page.addInitScript(() => localStorage.setItem('soundscaper_theme', 'dark'));
+		await page.goto('/en/');
+
+		const sidebar = page.locator('[data-sidebar]');
+		const themeToggle = page.getByRole('button', { name: 'Switch color theme', exact: true });
+		await expect(themeToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(themeToggle).toContainText('Dark');
+
+		const collapse = page.getByRole('button', { name: 'Collapse navigation', exact: true });
+		await collapse.click();
+		await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+		await expect(sidebar.locator('[data-sidebar-collapse]')).toHaveAttribute('aria-expanded', 'false');
+		await expect(page.getByRole('button', { name: 'Expand navigation', exact: true })).toBeVisible();
+
+		await page.reload();
+		await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+	});
+
 	for (const locale of AUDIO_EDITOR_PATHS) {
 		test(`${locale.path} hydrates one writable editor without asset or client errors`, async ({ page }) => {
 			const errors = collectClientErrors(page);

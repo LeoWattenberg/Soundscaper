@@ -360,7 +360,11 @@
 	min-width: 0;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__transport [data-transport='record'] .transport-button {
+#kw-audio-editor-design-system .kw-audio-editor__transport > :first-child .transport-button__icon {
+	color: #218739;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__transport [data-transport='record'] .transport-button__icon {
 	color: #c52920;
 }
 
