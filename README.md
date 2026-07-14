@@ -36,34 +36,73 @@ included in `dist/`.
 
 ## Cloudflare production setup
 
-The deployment workflow publishes `soundscaper.org` to the Cloudflare Pages
-project `soundscaper` and uploads FFmpeg 0.12.10 to the R2 bucket configured by
-the `SOUNDSCAPER_R2_BUCKET` repository variable.
+Cloudflare Pages can build and deploy Soundscaper directly from GitHub. The
+repository therefore does not need a GitHub Actions deployment workflow,
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, or an R2 bucket variable.
 
-Create these Cloudflare resources once:
+### 1. Publish the FFmpeg runtime to R2
+
+Create an R2 Standard bucket named `soundscaper-assets`. Give it the custom
+domain `assets.soundscaper.org` and public read access.
+
+FFmpeg 0.12.10 is versioned and only needs to be uploaded once. The simplest
+option is to authenticate Wrangler on a trusted local machine and run:
+
+```sh
+npx wrangler login
+npm run deploy:runtime
+```
+
+The script uploads `ffmpeg-core.js` and `ffmpeg-core.wasm` under
+`runtime/ffmpeg/0.12.10/` and applies `r2-cors.json`. No long-lived Cloudflare
+credential needs to be stored in GitHub or in the Pages project.
+
+Alternatively, upload those two files from
+`node_modules/@ffmpeg/core/dist/esm/` in the R2 dashboard, preserving the same
+object path, and add the CORS policy in R2 → `soundscaper-assets` → Settings.
+
+### 2. Connect Cloudflare Pages to GitHub
 
 1. Add `soundscaper.org` as a Cloudflare zone and point the registrar's
-   nameservers to Cloudflare; an apex Pages domain requires the zone to be in
-   the same account. Create a Pages project named `soundscaper`, then attach
-   `soundscaper.org` as its production custom domain.
-2. An R2 Standard bucket named `soundscaper-assets`.
-3. The R2 custom domain `assets.soundscaper.org`, with public read access and a
-   cache rule for versioned runtime assets. The deployment workflow applies
-   `r2-cors.json` after uploading the runtime.
-4. A Cloudflare API token scoped to this account with **Cloudflare Pages: Edit**
-   and **Workers R2 Storage: Edit**.
+   nameservers to Cloudflare. An apex Pages domain must be in the same
+   Cloudflare account.
+2. In Workers & Pages, choose **Create application → Pages → Connect to Git**.
+3. Authorize the Cloudflare GitHub app for `LeoWattenberg/Soundscaper` and select
+   that repository.
+4. Use production branch `main`, the Astro framework preset, build command
+   `npm run build`, and output directory `dist`. Leave the root directory empty.
+5. Attach `soundscaper.org` under the Pages project's custom domains.
 
-Configure the GitHub repository at **Settings → Secrets and variables → Actions**:
+Cloudflare will build and deploy every push to `main` and create preview
+deployments for other selected branches.
 
-- Secret `CLOUDFLARE_API_TOKEN`: the scoped Cloudflare API token.
-- Secret `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
-- Secret `PACKAGES_TOKEN`: a GitHub PAT with `read:packages`, used only to
-  install the restricted `@dilsonspickles/components` package.
-- Variable `SOUNDSCAPER_R2_BUCKET`: `soundscaper-assets`.
+### 3. Configure Pages build variables
 
-No R2 access-key pair is required because Wrangler uses the scoped Cloudflare API
-token. The workflow pins the public runtime URL at build time and deploys only
-after unit checks pass.
+In the Pages project, open **Settings → Variables and Secrets**. Add these to
+both Production and Preview unless noted otherwise:
+
+- `ASTRO_SITE` = `https://soundscaper.org`
+- `PUBLIC_AUDIO_EDITOR_V2` = `true`
+- `PUBLIC_FFMPEG_CORE_BASE_URL` =
+  `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10`
+- `NODE_VERSION` = `22`
+- Encrypted secret `NODE_AUTH_TOKEN` = a GitHub personal access token (classic)
+  with `read:packages` and read access to the Audacity Design System package.
+
+The last secret is currently required because the Audacity Design System React
+components are distributed as the authenticated GitHub Packages package
+`@dilsonspickles/components`. Soundscaper imports its controls, theme and
+accessibility providers, and stylesheet directly. The package name is the
+publisher scope; it is the Audacity Design System component package, not a
+different design system.
+
+GitHub Packages requires authentication even for public npm packages. To remove
+this final build secret, publish the component package to an anonymously
+readable npm registry or vendor/build it as part of this repository.
+
+The optional GitHub Actions quality workflow also needs a repository secret
+named `PACKAGES_TOKEN` with the same package-read permission. It is not used for
+deployment and can be omitted if that workflow is disabled.
 
 ## Embedding and storage migration
 
