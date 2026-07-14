@@ -1776,6 +1776,7 @@ function TrackControls({
 }) {
 	const telemetry = useAudioEditorTelemetry(controller);
 	const controlsRef = useRef(null);
+	const [editingName, setEditingName] = useState(false);
 	const meter = telemetry.meters?.tracks?.[track.id];
 	const meterVolume = meterPercent(meter?.dbfs);
 	const focusAdapterControl = (last = false) => focusCandidate(
@@ -1792,7 +1793,10 @@ function TrackControls({
 	}, [blocked, isFlatNavigation, track.id]);
 
 	return (
-		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header style={{ width: panelWidth }}>
+		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header style={{ width: panelWidth }} onDoubleClick={(event) => {
+			if (blocked || !(event.target instanceof Element) || !event.target.closest('.track-control-panel__track-name-text')) return;
+			setEditingName(true);
+		}}>
 			<TrackControlPanel
 				trackName={track.name}
 				trackType="stereo"
@@ -1842,7 +1846,14 @@ function TrackControls({
 					onTabOut?.();
 				}
 			}}>
-				<TrackNameEditor track={track} label={copy.trackName} blocked={blocked} controller={controller} run={run} />
+				{editingName && <TrackNameEditor
+					track={track}
+					label={copy.trackName}
+					blocked={blocked}
+					controller={controller}
+					run={run}
+					onClose={() => setEditingName(false)}
+				/>}
 				{showArmControls && (
 					<span data-track-action="arm">
 						<ToggleToolButton
@@ -1859,26 +1870,34 @@ function TrackControls({
 	);
 }
 
-function TrackNameEditor({ track, label, blocked, controller, run }) {
+function TrackNameEditor({ track, label, blocked, controller, run, onClose }) {
+	const editorRef = useRef(null);
 	const [name, setName] = useState(track.name);
 	useEffect(() => setName(track.name), [track.name]);
+	useEffect(() => {
+		const input = editorRef.current?.querySelector('input');
+		input?.focus();
+		input?.select();
+	}, []);
 	const commit = () => {
 		const nextName = name.trim();
 		if (!nextName) {
 			setName(track.name);
+			onClose();
 			return;
 		}
 		if (nextName !== track.name) run(() => controller.actions.track.update(track.id, { name: nextName }));
+		onClose();
 	};
 	return (
-		<label data-track-name onBlur={commit} onKeyDown={(event) => {
+		<label ref={editorRef} data-track-name onBlur={commit} onKeyDown={(event) => {
 			if (event.key === 'Enter') {
 				event.preventDefault();
-				commit();
 				event.currentTarget.querySelector('input')?.blur();
 			} else if (event.key === 'Escape') {
+				event.preventDefault();
 				setName(track.name);
-				event.currentTarget.querySelector('input')?.blur();
+				onClose();
 			}
 		}}>
 			<span className="kw-audio-editor-sr-only">{label}: {track.name}</span>

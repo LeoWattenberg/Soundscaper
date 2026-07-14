@@ -100,13 +100,29 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor.locator('[data-project-name]')).toHaveText(locale.projectName);
 			await expect(editor.locator('[data-status]')).toHaveText(locale.status);
 			await expect(editor.locator('[data-track-row]')).toHaveCount(1);
-			await expect(trackNameInput(editor).first()).toHaveValue(locale.trackName);
+			await expect(trackNameText(editor).first()).toHaveText(locale.trackName);
 			await expect(editor.getByRole('button', { name: new RegExp(`^${escapeRegex(locale.arm)}:`) })).toHaveCount(0);
 			await expect(editor.getByRole('button', { name: locale.fullscreen, exact: true })).toBeVisible();
 			await expect(page.locator('body')).toHaveClass(/kw-audio-editor-design-system-mounted/);
 			expect(errors).toEqual([]);
 		});
 	}
+
+	test('opens the custom track name editor only after double-clicking the native name', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const name = trackNameText(editor).first();
+		await expect(name).toHaveText('Track 1');
+		await expect(editor.locator('[data-track-name] input')).toHaveCount(0);
+
+		await name.dblclick();
+		const input = editor.locator('[data-track-name] input');
+		await expect(input).toBeFocused();
+		await input.fill('Renamed track');
+		await input.press('Enter');
+
+		await expect(editor.locator('[data-track-name] input')).toHaveCount(0);
+		await expect(name).toHaveText('Renamed track');
+	});
 
 	test('discards invalid legacy accessibility profiles and preserves valid preferences', async ({ page }) => {
 		await page.addInitScript(() => {
@@ -590,7 +606,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		}]);
 		await expect(editor.locator('[data-status]')).toContainText('Imported AUP3 tracks, clips, labels, and settings.');
 		await expect(editor).toHaveAttribute('data-track-count', '1');
-		await expect(trackNameInput(editor).nth(0)).toHaveValue('Fixture track');
+		await expect(trackNameText(editor).nth(0)).toHaveText('Fixture track');
 		await expect(clipByName(editor, 'Audio 1')).toHaveCount(1);
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Audio 1'));
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('4');
@@ -1428,8 +1444,8 @@ async function importFiles(editor, files) {
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 }
 
-function trackNameInput(editor) {
-	return editor.locator('[data-track-name] input');
+function trackNameText(editor) {
+	return editor.locator('.track-control-panel__track-name-text');
 }
 
 function clipByName(editor, name) {

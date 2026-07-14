@@ -1007,10 +1007,6 @@
 	padding-inline: 6px;
 }
 
-#kw-audio-editor-design-system .audio-editor-track-controls .track-control-panel__track-name-text {
-	visibility: hidden;
-}
-
 #kw-audio-editor-design-system .audio-editor-track-adapters {
 	position: absolute;
 	z-index: 5;
