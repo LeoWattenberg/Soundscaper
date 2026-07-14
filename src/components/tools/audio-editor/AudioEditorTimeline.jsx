@@ -41,6 +41,7 @@ const COMPACT_TRACK_PANEL_WIDTH = 164;
 const TRACK_HEIGHT = 114;
 const COLLAPSED_TRACK_HEIGHT = 54;
 const VERTICAL_RULER_WIDTH = 40;
+const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_TIMELINE_SECONDS = 10;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 
@@ -83,7 +84,16 @@ export default function AudioEditorTimeline({
 	const trackBaseTabIndex = useTabOrder('tracks');
 	const addTrackTabIndex = useTabOrder('add-track');
 	const panelWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
-	const verticalRulerWidth = snapshot.timeline?.showVerticalRulers === false ? 0 : VERTICAL_RULER_WIDTH;
+	const timelineView = snapshot.timeline?.view;
+	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
+		&& project.tracks.some((track) => {
+			if (track.type === 'label') return false;
+			const mode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
+			return mode === 'spectrogram' || mode === 'multiview';
+		});
+	const verticalRulerWidth = snapshot.timeline?.showVerticalRulers === false
+		? 0
+		: (hasFrequencyRuler ? SPECTROGRAM_RULER_WIDTH : VERTICAL_RULER_WIDTH);
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 	const sampleRate = project?.sampleRate || 48_000;
