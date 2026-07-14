@@ -104,6 +104,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
+	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
 	const isCompact = useMediaQuery('(max-width: 900px)');
 	const project = snapshot.project;
@@ -153,6 +154,23 @@ function AudioEditorWorkspace({ locale, copy }) {
 			return undefined;
 		}
 	}, [onError]);
+	const zoomProject = useCallback((direction) => run(() => (
+		direction === 'in'
+			? controller.actions.timeline.zoomIn()
+			: controller.actions.timeline.zoomOut()
+	)), [controller, run]);
+
+	useEffect(() => {
+		const editor = editorRef.current;
+		if (!editor) return undefined;
+		const onWheel = (event) => {
+			if (event.altKey || (!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return;
+			event.preventDefault();
+			zoomProject(event.deltaY < 0 ? 'in' : 'out');
+		};
+		editor.addEventListener('wheel', onWheel, { passive: false });
+		return () => editor.removeEventListener('wheel', onWheel);
+	}, [zoomProject]);
 
 	const toggleFullscreen = useCallback(() => {
 		setIsFullscreen((current) => !current);
@@ -471,6 +489,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 	return (
 		<div
+			ref={editorRef}
 			id="kw-audio-editor-design-system"
 			className={`kw-audio-editor ${isCompact ? 'kw-audio-editor--compact' : ''}${isFullscreen ? ' kw-audio-editor--viewport-fullscreen' : ''}`}
 			data-audio-editor
@@ -2538,6 +2557,15 @@ function createApplicationMenus({
 
 function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
 	if (event.defaultPrevented) return;
+	const zoomActionId = projectZoomShortcut(event);
+	if (zoomActionId) {
+		const handler = resolveAudioEditorShortcutHandler(zoomActionId, registry);
+		if (handler) {
+			run(handler);
+			event.preventDefault();
+		}
+		return;
+	}
 	if (event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
 	const shortcutAction = matchAudioEditorShortcut(event, snapshot.preferences?.shortcuts || {});
 	const handler = shortcutAction ? resolveAudioEditorShortcutHandler(shortcutAction, registry) : null;
@@ -2545,6 +2573,13 @@ function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
 		run(handler);
 		event.preventDefault();
 	}
+}
+
+function projectZoomShortcut(event) {
+	if (event.altKey || (!event.ctrlKey && !event.metaKey)) return null;
+	if (event.key === '+' || event.key === '=') return 'zoom-in';
+	if (event.key === '-' || event.key === '_') return 'zoom-out';
+	return null;
 }
 
 function matchAudioEditorShortcut(event, shortcuts) {

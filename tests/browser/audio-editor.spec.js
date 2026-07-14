@@ -124,6 +124,32 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(name).toHaveText('Renamed track');
 	});
 
+	test('routes browser zoom gestures to the project timeline', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('[data-timeline]');
+		const timelinePanel = editor.locator('.audio-editor-timeline-panel');
+		const normalWidth = await timeline.evaluate((element) => element.scrollWidth);
+
+		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
+		await page.keyboard.down('Control');
+		await page.keyboard.press('=');
+		await page.keyboard.up('Control');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
+
+		await page.keyboard.down('Control');
+		await page.keyboard.press('-');
+		await page.keyboard.up('Control');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
+
+		await timeline.hover();
+		await page.keyboard.down('Control');
+		await page.mouse.wheel(0, -120);
+		await page.keyboard.up('Control');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
+		expect(errors).toEqual([]);
+	});
+
 	test('discards invalid legacy accessibility profiles and preserves valid preferences', async ({ page }) => {
 		await page.addInitScript(() => {
 			if (sessionStorage.getItem('kw-accessibility-test-initialized')) return;
