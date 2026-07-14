@@ -6,6 +6,7 @@ const ProcessorBase = globalThis.AudioWorkletProcessor || class {
 const MIN_INPUT_GAIN = 0;
 const MAX_INPUT_GAIN = 2;
 const DEFAULT_INPUT_GAIN = 1;
+const MAX_CHANNEL_COUNT = 32;
 
 /**
  * Copies microphone input into bounded transferable chunks. The main thread is
@@ -15,7 +16,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 	constructor(options = {}) {
 		super();
 		const processorOptions = options.processorOptions || {};
-		this.channelCount = clampInteger(processorOptions.channelCount, 1, 2, 1);
+		this.channelCount = clampInteger(processorOptions.channelCount, 1, MAX_CHANNEL_COUNT, 1);
 		this.chunkFrames = clampInteger(processorOptions.chunkFrames, 128, 16384, 4096);
 		this.monitor = Boolean(processorOptions.monitor);
 		this.inputGain = clampInputGain(processorOptions.inputGain, DEFAULT_INPUT_GAIN);
@@ -49,7 +50,11 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			} else outputChannel.fill(0);
 		}
 
-		if (!this.recording || this.paused || !input.length) return true;
+		if (!this.recording || this.paused) return true;
+		if (!input.length) {
+			if (globalFrame + blockLength >= this.stopFrame) this.#finish();
+			return true;
+		}
 		const firstIndex = Math.max(0, this.startFrame - globalFrame);
 		const lastIndex = Math.min(blockLength, this.stopFrame - globalFrame);
 		if (lastIndex <= firstIndex) {

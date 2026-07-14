@@ -8,7 +8,13 @@ import {
 	createChunkStreamAudioNode,
 } from './chunk-stream-client.js';
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from './chunk-stream.js';
-export { createRecordingController, requestMicrophone } from './recording.js';
+export {
+	createRecordingCapturePool,
+	createRecordingController,
+	requestDisplayInput,
+	requestHardwareInput,
+	requestMicrophone,
+} from './recording.js';
 
 const DEFAULT_SAMPLE_RATE = 48000;
 const DEFAULT_METER_INTERVAL = 50;

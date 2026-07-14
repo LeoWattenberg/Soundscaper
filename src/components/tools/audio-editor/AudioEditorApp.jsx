@@ -61,6 +61,7 @@ import {
 	useAudioEditorThemeVariables,
 } from './DesignSystemRuntime.jsx';
 import AudioEditorButtonTooltips from './AudioEditorButtonTooltips.jsx';
+import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
 
 export default function AudioEditorApp(props) {
@@ -109,6 +110,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [effectsOverlay, setEffectsOverlay] = useState(null);
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
+	const [dialogSourceKey, setDialogSourceKey] = useState('global');
 	const [localError, setLocalError] = useState('');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [showArmControls, setShowArmControls] = useState(false);
@@ -449,8 +451,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 			stop: () => run(() => controller.actions.transport.stop()),
 			playPause: () => run(() => controller.actions.transport.playPause()),
 			toggleMonitoring: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
+			requestInputAccess: () => run(() => controller.actions.recording.requestInputAccess()),
+			refreshInputs: () => run(() => controller.actions.recording.refreshInputs()),
+			releaseInputs: () => run(() => controller.actions.recording.releaseInputs()),
 			openRecordingOffset: () => {
 				setDialogValue(String(snapshot.monitor?.latencyOffsetMs ?? 0));
+				setDialogSourceKey('global');
 				setDialog('recording-offset');
 			},
 			addTrack: () => run(() => controller.actions.track.add()),
@@ -672,6 +678,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
+					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
 				/>
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
@@ -705,6 +712,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
+					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
 				/>
 				</div>}
@@ -714,6 +722,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
+					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
 				/>
 				<WorkspacePanelDock
@@ -722,6 +731,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
+					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
 				/>
 
@@ -861,6 +871,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					type={dialog}
 					value={dialogValue}
 					onValueChange={setDialogValue}
+					sourceKey={dialogSourceKey}
+					onSourceKeyChange={setDialogSourceKey}
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
@@ -1348,7 +1360,7 @@ const WORKSPACE_PANEL_IDS = Object.freeze(['history', 'labels', 'metadata', 'eff
 const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
 const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
 
-function WorkspacePanelDock({ dock, controller, snapshot, copy, run, onOpenEffects }) {
+function WorkspacePanelDock({ dock, controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
 	const panels = WORKSPACE_PANEL_IDS
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([, panel]) => panel?.visible && panel.dock === dock)
@@ -1389,6 +1401,7 @@ function WorkspacePanelDock({ dock, controller, snapshot, copy, run, onOpenEffec
 							snapshot={snapshot}
 							copy={copy}
 							run={run}
+							showArmControls={showArmControls}
 							onOpenEffects={onOpenEffects}
 						/>
 					</div>
@@ -1398,7 +1411,7 @@ function WorkspacePanelDock({ dock, controller, snapshot, copy, run, onOpenEffec
 	);
 }
 
-function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpenEffects }) {
+function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
 	const project = snapshot.project;
 	if (panelId === 'history') {
 		const undoEntries = snapshot.history?.undoEntries || [];
@@ -1501,7 +1514,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 		);
 	}
 	if (panelId === 'mixer') {
-		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} onOpenEffects={onOpenEffects} />;
+		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} onOpenEffects={onOpenEffects} />;
 	}
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label') || null;
 	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
@@ -1562,7 +1575,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 	);
 }
 
-function AudioEditorMixerPanel({ controller, snapshot, copy, run, onOpenEffects }) {
+function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
 	const telemetry = useAudioEditorTelemetry(controller);
 	const project = snapshot.project;
 	const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
@@ -1604,7 +1617,22 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, onOpenEffects 
 			onPanChange: (value) => run(() => update({ pan: Math.max(-1, Math.min(1, Number(value) / 100)) })),
 			onMuteToggle: () => run(() => update({ mute: !channel.mute })),
 			onSoloToggle: () => run(() => update({ solo: !channel.solo })),
-			...(isTrack ? { onAddEffect: () => onOpenEffects(targetId) } : {}),
+			...(isTrack ? {
+				onAddEffect: () => onOpenEffects(targetId),
+				...(showArmControls ? {
+					inputControls: (
+						<RecordingInputSelectors
+							controller={controller}
+							recordingInputs={snapshot.recordingInputs}
+							track={channel}
+							copy={copy}
+							run={run}
+							disabled={snapshot.readOnly || snapshot.recording || snapshot.recordingStarting}
+							surface="mixer"
+						/>
+					),
+				} : {}),
+			} : {}),
 		};
 	};
 	const channels = [
@@ -1619,6 +1647,18 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, onOpenEffects 
 		<div className="kw-audio-editor__mixer" data-mixer-panel>
 			<div className="kw-audio-editor__mixer-toolbar">
 				<strong>{copy.mixerRouting}</strong>
+				{showArmControls && <Button
+					variant="secondary"
+					disabled={snapshot.recording || snapshot.recordingStarting || typeof controller.actions.recording.requestInputAccess !== 'function'}
+					onClick={() => run(() => snapshot.recordingInputs?.hasOpenInputs
+						? controller.actions.recording.refreshInputs()
+						: controller.actions.recording.requestInputAccess())}
+				>{snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs}</Button>}
+				{snapshot.recordingInputs?.hasOpenInputs && <Button
+					variant="secondary"
+					disabled={snapshot.recording || snapshot.recordingStarting}
+					onClick={() => run(() => controller.actions.recording.releaseInputs())}
+				>{copy.recordingReleaseInputs}</Button>}
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
 			</div>
@@ -1944,27 +1984,40 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 						)}
 
 						{selectedPage === 'editing' && (
-							<PreferencePanel title={copy.preferencesEditing}>
-								<div className="kw-audio-editor-preferences__grid">
-									<PreferenceDropdownField
-										label={copy.rippleEditing}
-										value={preferences.editing.rippleMode}
-										onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
-										options={[
-											{ value: 'off', label: copy.preferenceOff },
-											{ value: 'per-track', label: copy.preferencePerTrack },
-											{ value: 'all-tracks', label: copy.allTracks },
-										]}
-									/>
-								</div>
-								<div className="kw-audio-editor-preferences__checks">
-									<PreferenceCheckbox
-										label={copy.snapZeroCrossings}
-										checked={preferences.editing.snapToZeroCrossings}
-										onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
-									/>
-								</div>
-							</PreferencePanel>
+							<>
+								<PreferencePanel title={copy.preferencesEditing}>
+									<div className="kw-audio-editor-preferences__grid">
+										<PreferenceDropdownField
+											label={copy.rippleEditing}
+											value={preferences.editing.rippleMode}
+											onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
+											options={[
+												{ value: 'off', label: copy.preferenceOff },
+												{ value: 'per-track', label: copy.preferencePerTrack },
+												{ value: 'all-tracks', label: copy.allTracks },
+											]}
+										/>
+									</div>
+									<div className="kw-audio-editor-preferences__checks">
+										<PreferenceCheckbox
+											label={copy.snapZeroCrossings}
+											checked={preferences.editing.snapToZeroCrossings}
+											onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
+										/>
+									</div>
+								</PreferencePanel>
+								<Separator />
+								<PreferencePanel title={copy.recordingPreferences}>
+									<div className="kw-audio-editor-preferences__checks kw-audio-editor-preferences__recording">
+										<PreferenceCheckbox
+											label={copy.recordingKeepInputsOpen}
+											checked={snapshot.recordingInputs?.retainInputs ?? preferences.recording?.retainInputs ?? true}
+											onChange={(checked) => run(() => controller.actions.recording.setRetainInputs(checked))}
+										/>
+										<small>{copy.recordingKeepInputsOpenDescription}</small>
+									</div>
+								</PreferencePanel>
+							</>
 						)}
 
 						{selectedPage === 'toolbars' && (
@@ -2526,12 +2579,12 @@ function generatorLabel(type, copy) {
 	return { silence: copy.silenceGenerator, tone: copy.toneGenerator, chirp: copy.chirpGenerator, noise: copy.noiseGenerator, dtmf: copy.dtmfGenerator }[type] || copy.generateMenu;
 }
 
-function EditorDialog({ type, value, onValueChange, controller, snapshot, copy, locale, run, onClose }) {
+function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, locale, run, onClose }) {
 	const panelRef = useRef(null);
 	useEffect(() => {
 		const previouslyFocused = document.activeElement;
 		const panel = panelRef.current;
-		const focusableSelector = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
+		const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 		const focusInitial = () => {
 			const initial = ['rename', 'track-rename'].includes(type) ? panel?.querySelector('input') : panel?.querySelector(focusableSelector);
 			(initial || panel)?.focus();
@@ -2584,6 +2637,7 @@ function EditorDialog({ type, value, onValueChange, controller, snapshot, copy, 
 			: type === 'clear'
 				? copy.clearData
 				: copy.deleteTitle;
+	const offsetSources = recordingOffsetSources(snapshot, copy);
 	return (
 		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
 			<section ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={title}>
@@ -2644,9 +2698,23 @@ function EditorDialog({ type, value, onValueChange, controller, snapshot, copy, 
 					{type === 'recording-offset' && (
 						<form onSubmit={(event) => {
 							event.preventDefault();
-							run(() => controller.actions.recording.setLatencyOffset(value));
+							run(() => sourceKey === 'global'
+								? controller.actions.recording.setLatencyOffset(value)
+								: controller.actions.recording.setSourceOffset(sourceKey, value));
 							onClose();
 						}}>
+							<label className="kw-audio-editor-dialog__field">
+								<span>{copy.recordingOffsetSource}</span>
+								<select value={sourceKey} onChange={(event) => {
+									const nextSourceKey = event.currentTarget.value;
+									onSourceKeyChange?.(nextSourceKey);
+									onValueChange(String(nextSourceKey === 'global'
+										? snapshot.monitor?.latencyOffsetMs ?? 0
+										: snapshot.recordingInputs?.offsets?.[nextSourceKey] ?? 0));
+								}}>
+									{offsetSources.map((source) => <option key={source.key} value={source.key}>{source.label}</option>)}
+								</select>
+							</label>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.latencyOffset}</span>
 								<NumberStepper
@@ -2724,6 +2792,27 @@ function EditorDialog({ type, value, onValueChange, controller, snapshot, copy, 
 			</section>
 		</div>
 	);
+}
+
+function recordingOffsetSources(snapshot, copy) {
+	const inputs = snapshot.recordingInputs || {};
+	const sources = new Map([['global', copy.recordingDefaultInput]]);
+	for (const [index, device] of (inputs.devices || []).entries()) {
+		sources.set(`device:${device.deviceId}`, device.label || copy.recordingInputUnnamedDevice.replace('{number}', String(index + 1)));
+	}
+	for (const route of Object.values(inputs.routes || {})) {
+		if (route?.kind === 'display') sources.set('display', route.label || copy.recordingDesktopAudio);
+		else if (route?.kind === 'device' && route.deviceId) sources.set(`device:${route.deviceId}`, route.deviceLabel || copy.recordingInputUnknownDevice);
+	}
+	for (const source of inputs.sources || []) {
+		const key = source.key || source.sourceKey;
+		if (!key || sources.has(key)) continue;
+		sources.set(key, source.label || (key === 'display' ? copy.recordingDesktopAudio : copy.recordingInputUnknownDevice));
+	}
+	for (const key of Object.keys(inputs.offsets || {})) {
+		if (!sources.has(key)) sources.set(key, key === 'display' ? copy.recordingDesktopAudio : copy.recordingInputUnknownDevice);
+	}
+	return [...sources].map(([key, label]) => ({ key, label }));
 }
 
 function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
@@ -3154,6 +3243,19 @@ function createApplicationMenus({
 				{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting, onClick: actions.recordNewTrack },
 				{ id: 'stop', label: copy.stop, onClick: actions.stop },
 				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },
+				divider(),
+				{
+					id: 'recording-input-access',
+					label: snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs,
+					disabled: snapshot.recording || snapshot.recordingStarting,
+					onClick: snapshot.recordingInputs?.hasOpenInputs ? actions.refreshInputs : actions.requestInputAccess,
+				},
+				...(snapshot.recordingInputs?.hasOpenInputs ? [{
+					id: 'recording-release-inputs',
+					label: copy.recordingReleaseInputs,
+					disabled: snapshot.recording || snapshot.recordingStarting,
+					onClick: actions.releaseInputs,
+				}] : []),
 				divider(),
 				{ id: 'monitor-input', label: copy.monitor, checked: Boolean(snapshot.monitor?.enabled), disabled: snapshot.recordingStarting, onClick: actions.toggleMonitoring },
 				{ id: 'recording-offset', label: copy.recordingOffset, onClick: actions.openRecordingOffset },

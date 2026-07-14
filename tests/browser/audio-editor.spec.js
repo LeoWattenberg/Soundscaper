@@ -385,6 +385,61 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps pinned recording routes synchronized between track and mixer selectors', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		await stubDisplayCapture(page);
+		let editor = await bootEditor(page, '/embed/en/');
+
+		await expect(editor.locator('[data-recording-input-selectors]')).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+
+		const trackSelectors = editor.locator('.kw-recording-input-selectors--track').first();
+		const trackSource = trackSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
+		const trackChannel = trackSelectors.getByRole('combobox', { name: 'Channel: Track 1', exact: true });
+		await expect(trackSource).toBeVisible();
+		await expect(trackChannel).toBeDisabled();
+
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		let mixer = editor.locator('[data-mixer-panel]');
+		const mixerSelectors = mixer.locator('.kw-recording-input-selectors--mixer').first();
+		const mixerSource = mixerSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
+		const mixerChannel = mixerSelectors.getByRole('combobox', { name: 'Channel: Track 1', exact: true });
+		await expect(mixerSource).toHaveValue('');
+
+		// The selectors are native comboboxes, so the complete routing workflow is
+		// available from a keyboard without opening a custom pointer-only surface.
+		await trackSource.focus();
+		await expect(trackSource).toBeFocused();
+		await trackSource.press('ArrowDown');
+		await trackSource.press('Enter');
+		await expect(trackSource).toHaveValue('display');
+		await expect(mixerSource).toHaveValue('display');
+		await expect(trackChannel).toHaveValue('0');
+		await expect(mixerChannel).toHaveValue('0');
+		await expect.poll(() => page.evaluate(() => globalThis.__soundscaperDisplayCaptureRequests)).toBe(1);
+
+		const releaseInputs = mixer.getByRole('button', { name: 'Release inputs', exact: true });
+		await expect(releaseInputs).toBeVisible();
+		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'open');
+		await releaseInputs.click();
+		await expect(releaseInputs).toHaveCount(0);
+		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'unavailable');
+
+		await page.reload();
+		editor = await waitForEditor(page);
+		await expect(editor.locator('[data-recording-input-selectors]')).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+		await expect(editor.locator('.kw-recording-input-selectors--track').first()
+			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
+
+		mixer = editor.locator('[data-mixer-panel]');
+		if (!await mixer.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await expect(mixer.locator('.kw-recording-input-selectors--mixer').first()
+			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
+		await expect(mixer.getByRole('button', { name: 'Release inputs', exact: true })).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('uses a full-height sidebar behind track controls', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const sidebar = editor.locator('.audio-editor-track-list');
@@ -858,7 +913,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondImportedTrack.getByRole('button', { name: /^Arm for recording:/ }).click();
 		await expect(secondImportedTrack.getByRole('button', { name: 'Mute' })).toHaveAttribute('aria-pressed', 'true');
 		await expect(secondImportedTrack.getByRole('button', { name: 'Solo' })).toHaveAttribute('aria-pressed', 'true');
-		await expect(editor.locator('button[aria-label^="Arm for recording:"][aria-pressed="true"]')).toHaveCount(1);
+		await expect(editor.locator('button[aria-label^="Arm for recording:"][aria-pressed="true"]')).toHaveCount(2);
 
 		const effectsPanel = await openEffectsForTrack(editor, 2);
 		await commitInput(effectsPanel.locator('[data-master-gain] input'), '-3');
@@ -1442,7 +1497,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const effectDialog = await openSelectionEffectDialog(page, editor);
-		await chooseDropdown(page, effectDialog.locator('[data-audacity-effect-type]'), 'Invert');
+		await expect(effectDialog.getByRole('heading', { name: 'Invert', exact: true })).toBeVisible();
 		await effectDialog.getByRole('button', { name: 'Preview', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Playing effect preview.', { timeout: 20_000 });
 		await effectDialog.getByRole('button', { name: 'Stop preview' }).click();
@@ -1521,7 +1576,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [monoTone]);
 		const effectDialog = await openSelectionEffectDialog(page, editor);
-		await chooseDropdown(page, effectDialog.locator('[data-audacity-effect-type]'), 'Invert');
+		await expect(effectDialog.getByRole('heading', { name: 'Invert', exact: true })).toBeVisible();
 		await effectDialog.getByRole('button', { name: 'Apply to selection' }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(effectDialog).toBeHidden();
@@ -2003,6 +2058,40 @@ async function disableOfflineAudio(page) {
 	await page.addInitScript(() => {
 		Object.defineProperty(globalThis, 'OfflineAudioContext', { configurable: true, value: undefined });
 		Object.defineProperty(globalThis, 'webkitOfflineAudioContext', { configurable: true, value: undefined });
+	});
+}
+
+async function stubDisplayCapture(page) {
+	await page.addInitScript(() => {
+		globalThis.__soundscaperDisplayCaptureRequests = 0;
+		const createTrack = (kind) => {
+			const target = new EventTarget();
+			let readyState = 'live';
+			Object.defineProperties(target, {
+				kind: { value: kind },
+				readyState: { get: () => readyState },
+				getSettings: { value: () => kind === 'audio' ? { channelCount: 2 } : {} },
+				stop: { value: () => {
+					if (readyState === 'ended') return;
+					readyState = 'ended';
+					target.dispatchEvent(new Event('ended'));
+				} },
+			});
+			return target;
+		};
+		Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
+			configurable: true,
+			value: async () => {
+				globalThis.__soundscaperDisplayCaptureRequests += 1;
+				const audioTrack = createTrack('audio');
+				const videoTrack = createTrack('video');
+				return {
+					getAudioTracks: () => [audioTrack],
+					getVideoTracks: () => [videoTrack],
+					getTracks: () => [audioTrack, videoTrack],
+				};
+			},
+		});
 	});
 }
 

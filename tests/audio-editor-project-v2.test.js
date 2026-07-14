@@ -188,6 +188,19 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	assert.deepEqual(loadAudioEditorProjectV2(project), { project, readOnly: false, reason: null });
 });
 
+test('V1 migration and V2 validation preserve multiple armed audio tracks', () => {
+	const legacy = v1Fixture();
+	legacy.tracks.push({
+		...legacy.tracks[0],
+		id: 'track-2',
+		name: 'Room',
+		clipIds: [],
+	});
+	const migrated = migrateAudioEditorProjectV1ToV2(legacy);
+	assert.deepEqual(migrated.tracks.map((track) => track.armed), [true, true]);
+	assert.equal(validateAudioEditorProjectV2(migrated), true);
+});
+
 test('V2 validation rejects broken references, overlapping clips, and invalid typed state', () => {
 	const project = richV2Fixture();
 	assert.throws(() => validateAudioEditorProjectV2({
@@ -222,6 +235,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.appearance.theme, 'system');
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
 	assert.equal(preferences.import.detectTempo, true);
+	assert.equal(preferences.recording.retainInputs, true);
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
 	assert.deepEqual(loadAudioEditorPreferencesV1(preferences), { preferences, readOnly: false, reason: null });
@@ -229,6 +243,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	const custom = createAudioEditorPreferencesV1({
 		appearance: { theme: 'high-contrast-dark', clipStyle: 'classic' },
 		editing: { rippleMode: 'all-tracks', snapToZeroCrossings: true },
+		recording: { retainInputs: false },
 		shortcuts: { 'clip.split': ['S', 'Shift+S'] },
 		workspace: {
 			activeId: 'podcast',
@@ -238,6 +253,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	});
 	assert.equal(custom.workspace.panels.history.visible, true);
 	assert.equal(custom.workspace.panels.history.dock, 'left');
+	assert.equal(custom.recording.retainInputs, false);
 	assert.deepEqual(custom.shortcuts['clip.split'], ['S', 'Shift+S']);
 	assert.throws(() => createAudioEditorPreferencesV1({ audioDevice: 'usb-mic' }), /not an editor preference/);
 	assert.throws(() => createAudioEditorPreferencesV1({ cloud: { account: 'ignored' } }), /not an editor preference/);
@@ -245,6 +261,13 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.deepEqual(loadAudioEditorPreferencesV1({ ...preferences, schemaVersion: 2 }), {
 		preferences: { ...preferences, schemaVersion: 2 }, readOnly: true, reason: 'newer-schema',
 	});
+	const legacyPreferences = structuredClone(preferences);
+	delete legacyPreferences.recording;
+	assert.equal(loadAudioEditorPreferencesV1(legacyPreferences).preferences.recording.retainInputs, true);
+	assert.equal(updateAudioEditorPreferencesV1(preferences, { recording: { retainInputs: false } }).recording.retainInputs, false);
+	assert.throws(() => validateAudioEditorPreferencesV1({
+		...preferences, recording: { retainInputs: 'yes' },
+	}), /recording\.retainInputs must be boolean/);
 });
 
 test('workspace presets and custom workspace CRUD retain editor-only layout state', () => {

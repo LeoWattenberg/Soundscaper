@@ -285,7 +285,6 @@ export function validateAudioEditorProject(project) {
 	const sourceIds = new Set(project.sources.map((source) => source.id));
 	const clipIds = new Set(project.clips.map((clip) => clip.id));
 	const referencedClipIds = new Set();
-	let armedTracks = 0;
 
 	for (const source of project.sources) createAudioSource(source);
 	for (const clip of project.clips) {
@@ -299,7 +298,6 @@ export function validateAudioEditorProject(project) {
 
 	for (const track of project.tracks) {
 		createAudioTrack(track);
-		if (track.armed) armedTracks += 1;
 		if (!Array.isArray(track.clipIds)) throw new TypeError(`Track ${track.id} must contain clip IDs.`);
 		const trackClips = [];
 		for (const clipId of track.clipIds) {
@@ -317,7 +315,6 @@ export function validateAudioEditorProject(project) {
 	}
 
 	if (referencedClipIds.size !== project.clips.length) throw new RangeError('Every clip must belong to exactly one track.');
-	if (armedTracks > 1) throw new RangeError('Only one track can be armed at a time.');
 	finiteInRange(project.master?.gain, 0, 4, 'master.gain');
 	if (!Array.isArray(project.master?.effects)) throw new TypeError('Master effects must be an array.');
 	validateMixerV2Shape(project);
@@ -379,7 +376,6 @@ function validateProjectV2Shape(project) {
 	const sourceIds = new Set(project.sources.map((source) => source.id));
 	const clipIds = new Set(project.clips.map((clip) => clip.id));
 	const assignedClipIds = new Set();
-	let armedTracks = 0;
 	for (const source of project.sources) {
 		assertPositiveFrame(source.frameCount, `source ${source.id}.frameCount`);
 		assertPositiveFrame(source.sampleRate, `source ${source.id}.sampleRate`);
@@ -408,7 +404,6 @@ function validateProjectV2Shape(project) {
 		}
 		if (track.type !== 'audio') throw new RangeError(`Unsupported track type: ${track.type}.`);
 		if (!Array.isArray(track.clipIds)) throw new TypeError(`Track ${track.id} must contain clip IDs.`);
-		if (track.armed) armedTracks += 1;
 		const trackClips = [];
 		for (const clipId of track.clipIds) {
 			if (!clipIds.has(clipId)) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
@@ -422,7 +417,6 @@ function validateProjectV2Shape(project) {
 		}
 	}
 	if (assignedClipIds.size !== project.clips.length) throw new RangeError('Every clip must belong to exactly one audio track.');
-	if (armedTracks > 1) throw new RangeError('Only one audio track can be armed at a time.');
 	finiteInRange(project.master?.gain, 0, 4, 'master.gain');
 	if (!Array.isArray(project.master?.effects)) throw new TypeError('Master effects must be an array.');
 	validateMixerV2Shape(project);

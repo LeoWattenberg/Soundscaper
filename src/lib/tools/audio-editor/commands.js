@@ -292,7 +292,6 @@ function addTrack(project, value, requestedIndex) {
 		if (effectIds.has(effect.id)) throw new RangeError(`Duplicate effect ID: ${effect.id}.`);
 		effectIds.add(effect.id);
 	}
-	if (track.armed) for (const other of project.tracks) other.armed = false;
 	const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
 	project.tracks.splice(index, 0, track);
 }
@@ -339,7 +338,6 @@ function updateTrack(project, trackId, changes = {}) {
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);
-	if (track.armed) for (const other of project.tracks) if (other.id !== track.id) other.armed = false;
 }
 
 function reorderTrack(project, trackId, requestedIndex) {

@@ -650,3 +650,115 @@ index f545ddd..2b7487d 100644
    useWelcomeDialog
  };
 +export { Flyout } from "./chunk-FLYOUT.mjs";
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+index cb32667..64b9859 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+@@ -395,2 +395,17 @@
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+index e71b997..6df5797 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+@@ -71,2 +71,6 @@ interface MixerChannelProps {
+     onSoloToggle?: () => void;
++    /**
++     * Optional input-routing controls rendered in a compact section above the effects.
++     */
++    inputControls?: React__default.ReactNode;
+     /**
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+index e71b997..6df5797 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+@@ -71,2 +71,6 @@ interface MixerChannelProps {
+     onSoloToggle?: () => void;
++    /**
++     * Optional input-routing controls rendered in a compact section above the effects.
++     */
++    inputControls?: React__default.ReactNode;
+     /**
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.css b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+index 2b0af1c..6af68e3 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+@@ -395,2 +395,17 @@
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+index 14e3972..0fc07a4 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+@@ -34,2 +34,3 @@ var MixerChannel = ({
+   onSoloToggle,
++  inputControls,
+   effects = [],
+@@ -60,2 +61,3 @@ var MixerChannel = ({
+   return /* @__PURE__ */ jsxs("div", { className: `mixer-channel ${className}`, style, children: [
++    inputControls != null && /* @__PURE__ */ jsx("div", { className: "mixer-channel__input-controls", children: inputControls }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__effect-slot", children: [
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+index 4fd5a29..e13d8b3 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+@@ -34,2 +34,3 @@ var MixerChannel = ({
+   onSoloToggle,
++  inputControls,
+   effects = [],
+@@ -60,2 +61,3 @@ var MixerChannel = ({
+   return /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: `mixer-channel ${className}`, style, children: [
++    inputControls != null && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__input-controls", children: inputControls }),
+     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__effect-slot", children: [
+diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
+index 3e98d91..3c03155 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.css
++++ b/node_modules/@dilsonspickles/components/dist/index.css
+@@ -1031,2 +1031,17 @@
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {

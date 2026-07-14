@@ -35,11 +35,13 @@ import {
 import { projectDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
+import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 
 const DESKTOP_TRACK_PANEL_WIDTH = 268;
 const COMPACT_TRACK_PANEL_WIDTH = 164;
 const TRACK_HEIGHT = 114;
 const COLLAPSED_TRACK_HEIGHT = 54;
+const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_TIMELINE_SECONDS = 10;
@@ -97,11 +99,13 @@ export default function AudioEditorTimeline({
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 	const sampleRate = project?.sampleRate || 48_000;
-	const recordingPreview = snapshot.recordingPreview;
+	const recordingPreviews = snapshot.recordingPreviews?.length
+		? snapshot.recordingPreviews
+		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
 	const durationFrames = Math.max(
 		sampleRate * MINIMUM_TIMELINE_SECONDS,
 		project ? projectDurationFrames(project) : 0,
-		recordingPreview ? recordingPreview.startFrame + recordingPreview.durationFrames : 0,
+		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
 	);
 	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
@@ -114,7 +118,7 @@ export default function AudioEditorTimeline({
 			endTime: framesToSeconds(documentSelection.endFrame, { sampleRate }),
 		}
 		: null;
-	const totalTrackHeight = project?.tracks.reduce((total, track) => total + trackVisualHeight(track), 0) || TRACK_HEIGHT;
+	const totalTrackHeight = project?.tracks.reduce((total, track) => total + trackVisualHeight(track, showArmControls), 0) || TRACK_HEIGHT;
 	const splitToolActive = Boolean(splitToolEnabled || splitToolHeld);
 
 	useEffect(() => {
@@ -779,11 +783,12 @@ export default function AudioEditorTimeline({
 								timelineView={snapshot.timeline?.view}
 								showRms={Boolean(snapshot.timeline?.showRms)}
 								clipStyle={snapshot.preferences?.appearance?.clipStyle}
-								recordingPreview={recordingPreview?.trackId === track.id ? recordingPreview : null}
+								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipId={draggingClipId}
 								clipDragPreview={clipDragPreview}
 								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
 								showArmControls={showArmControls}
+								recordingInputs={snapshot.recordingInputs}
 								copy={copy}
 								run={run}
 								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
@@ -1065,6 +1070,7 @@ function TrackRow({
 	clipDragPreview,
 	blocked,
 	showArmControls,
+	recordingInputs,
 	copy,
 	run,
 	onMenu,
@@ -1078,7 +1084,7 @@ function TrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
-	const trackHeight = trackVisualHeight(track);
+	const trackHeight = trackVisualHeight(track, showArmControls);
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
 	const spectrogramScale = normalizeSpectrogramScale(track.spectrogram?.scale);
 	const clipLookup = useMemo(() => new Map(project.clips.map((clip) => [clip.id, clip])), [project.clips]);
@@ -1287,6 +1293,7 @@ function TrackRow({
 				selected={selectedTrackId === track.id}
 				blocked={blocked}
 				showArmControls={showArmControls}
+				recordingInputs={recordingInputs}
 				isFlatNavigation={isFlatNavigation}
 				copy={copy}
 				run={run}
@@ -1835,6 +1842,7 @@ function TrackControls({
 	selected,
 	blocked,
 	showArmControls,
+	recordingInputs,
 	isFlatNavigation,
 	copy,
 	run,
@@ -1849,18 +1857,35 @@ function TrackControls({
 	const [editingName, setEditingName] = useState(false);
 	const meter = telemetry.meters?.tracks?.[track.id];
 	const meterVolume = meterPercent(meter?.dbfs);
+	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
-		controlsRef.current?.querySelector('.audio-editor-track-adapters'),
-		'input:not([disabled]), button:not([disabled])',
+		controlsRef.current,
+		adapterSelector,
 		last,
 	);
+	const handleAdapterTab = (event) => {
+		if (event.key !== 'Tab') return;
+		const adapters = [...controlsRef.current.querySelectorAll(adapterSelector)];
+		const currentIndex = adapters.indexOf(document.activeElement);
+		if (currentIndex < 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (event.shiftKey) {
+			if (currentIndex > 0) focusFirst(adapters[currentIndex - 1]);
+			else if (!focusPanelControl(controlsRef.current?.querySelector('.track-control-panel'), true)) onShiftTabOut?.();
+		} else if (currentIndex < adapters.length - 1) {
+			focusFirst(adapters[currentIndex + 1]);
+		} else {
+			onTabOut?.();
+		}
+	};
 
 	useEffect(() => {
 		const adapters = controlsRef.current?.querySelectorAll(
-			'.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled])',
+			'.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])',
 		);
 		for (const adapter of adapters || []) adapter.tabIndex = isFlatNavigation ? 0 : -1;
-	}, [blocked, isFlatNavigation, track.id]);
+	}, [blocked, isFlatNavigation, recordingInputs, showArmControls, track.id]);
 
 	return (
 		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header style={{ width: panelWidth }} onDoubleClick={(event) => {
@@ -1900,22 +1925,7 @@ function TrackControls({
 				onMenuClick={(event) => onMenu(event.currentTarget)}
 				onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
 			/>
-			<div className="audio-editor-track-adapters" onKeyDownCapture={(event) => {
-				if (event.key !== 'Tab') return;
-				const adapters = [...event.currentTarget.querySelectorAll('input:not([disabled]), button:not([disabled])')];
-				const currentIndex = adapters.indexOf(document.activeElement);
-				if (currentIndex < 0) return;
-				event.preventDefault();
-				event.stopPropagation();
-				if (event.shiftKey) {
-					if (currentIndex > 0) focusFirst(adapters[currentIndex - 1]);
-					else if (!focusPanelControl(controlsRef.current?.querySelector('.track-control-panel'), true)) onShiftTabOut?.();
-				} else if (currentIndex < adapters.length - 1) {
-					focusFirst(adapters[currentIndex + 1]);
-				} else {
-					onTabOut?.();
-				}
-			}}>
+			<div className="audio-editor-track-adapters" onKeyDownCapture={handleAdapterTab}>
 				{editingName && <TrackNameEditor
 					track={track}
 					label={copy.trackName}
@@ -1936,6 +1946,19 @@ function TrackControls({
 					</span>
 				)}
 			</div>
+			{showArmControls && (
+				<div className="audio-editor-track-input" onKeyDownCapture={handleAdapterTab}>
+					<RecordingInputSelectors
+						controller={controller}
+						recordingInputs={recordingInputs}
+						track={track}
+						copy={copy}
+						run={run}
+						disabled={blocked}
+						surface="track"
+					/>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -2218,8 +2241,12 @@ function secondsDeltaToFrames(seconds, sampleRate = 48_000) {
 	return secondsToFrames(Math.abs(value), { sampleRate }) * Math.sign(value);
 }
 
-function trackVisualHeight(track) {
-	return track?.collapsed ? COLLAPSED_TRACK_HEIGHT : TRACK_HEIGHT;
+function trackVisualHeight(track, showArmControls = false) {
+	const baseHeight = track?.collapsed ? COLLAPSED_TRACK_HEIGHT : TRACK_HEIGHT;
+	if (!showArmControls || track?.type === 'label') return baseHeight;
+	return track?.collapsed
+		? Math.min(70, baseHeight + RECORDING_INPUT_CONTROLS_HEIGHT)
+		: baseHeight + RECORDING_INPUT_CONTROLS_HEIGHT;
 }
 
 function linearToDb(value) {

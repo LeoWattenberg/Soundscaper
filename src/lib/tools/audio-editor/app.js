@@ -104,9 +104,22 @@ import {
 } from './audacity-selection.js';
 import {
 	createAudioEditorEngine,
-	createRecordingController,
-	requestMicrophone,
 } from './engine.js';
+import {
+	RECORDING_CHANNEL_COUNT_MAXIMUM,
+	createRecordingCapturePool,
+	createRecordingController,
+	requestDisplayInput,
+	requestHardwareInput,
+} from './recording.js';
+import {
+	RECORDING_DEFAULT_DEVICE_ID,
+	normalizeRecordingRouting,
+	recordingRouteSourceKey,
+	recordingRoutingSettingKey,
+	setRecordingSourceOffset,
+	setRecordingTrackRoute,
+} from './recording-routing.js';
 import { createEditorFfmpeg } from './ffmpeg.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
@@ -182,6 +195,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingWriter: null,
 		recordingStream: null,
 		recordingStarting: false,
+		recordingStartGeneration: 0,
+		recordingStartPromise: null,
 		recordingPaused: false,
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		leadInRecording: false,
@@ -193,9 +208,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingSelection: null,
 		recordingResampler: null,
 		recordingPreview: null,
+		recordingPreviews: [],
+		recordingEntries: null,
 		recordingPreviewLastPublishedAt: 0,
 		recordingCleanup: null,
 		recordingFinishing: false,
+		recordingFinalizePromise: null,
+		recordingFatalError: null,
+		recordingReleaseAfterStop: false,
+		recordingRouting: normalizeRecordingRouting(),
+		recordingDevices: [],
+		recordingEnumeratedDeviceIds: new Set(),
+		recordingRouteHealth: {},
+		recordingPoolSources: [],
+		inputMeters: {},
 		playbackCacheAbort: null,
 		playbackCacheGeneration: 0,
 		exportAbort: null,
@@ -248,6 +274,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		inputMeterDb: -60,
 		disposed: false,
 	};
+	const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
+	const recordingCapturePool = options.recordingCapturePool || createRecordingCapturePool({
+		requestHardwareInput: (captureOptions) => requestHardwareInput({
+			...captureOptions,
+			deviceId: captureOptions.deviceId === RECORDING_DEFAULT_DEVICE_ID ? undefined : captureOptions.deviceId,
+			mediaDevices,
+		}),
+		requestDisplayInput: (captureOptions) => requestDisplayInput({ ...captureOptions, mediaDevices }),
+		onChange: handleRecordingPoolChange,
+	});
+	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
 	let project = null;
 
 	const ready = bootstrap()
@@ -279,6 +316,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		async dispose() {
 			if (state.disposed) return;
 			state.disposed = true;
+			cancelRecordingStart();
 			state.phase = 'disposed';
 			publishDocumentSnapshot();
 			globalThis.clearTimeout(state.autosaveTimer);
@@ -292,6 +330,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.spectralWorker?.terminate();
 			state.spectralWorker = null;
 			await stopRecording().catch(() => undefined);
+			await Promise.resolve(recordingCapturePool.dispose?.());
 			state.projectLock?.release();
 			state.projectLock = null;
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
@@ -373,6 +412,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recordingStarting: state.recordingStarting,
 			recording: Boolean(state.recorder),
 			recordingPreview: recordingPreviewSnapshot(state.recordingPreview),
+			recordingPreviews: Object.freeze(state.recordingPreviews
+				.map(recordingPreviewSnapshot)
+				.filter(Boolean)),
+			recordingInputs: Object.freeze({
+				devices: Object.freeze(state.recordingDevices),
+				routes: state.recordingRouting.routes,
+				offsets: state.recordingRouting.offsets,
+				health: Object.freeze({ ...state.recordingRouteHealth }),
+				sources: Object.freeze(state.recordingPoolSources),
+				retainInputs: state.preferences.recording.retainInputs,
+				hasOpenInputs: state.recordingPoolSources.length > 0,
+			}),
 			processingEffect: state.audacityEffectProcessing,
 			exporting: Boolean(state.exportAbort),
 			timeline: Object.freeze({
@@ -438,6 +489,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recording: Boolean(state.recorder),
 			meters: state.meters,
 			inputMeterDb: state.inputMeterDb,
+			inputMeters: Object.freeze({ ...state.inputMeters }),
 			exportProgress: state.exportProgress,
 		});
 	}
@@ -563,6 +615,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setMonitoring,
 				setLevel: setRecordingInputGain,
 				setLatencyOffset,
+				requestInputAccess,
+				refreshInputs: refreshRecordingInputs,
+				setTrackInput: setRecordingTrackInput,
+				clearTrackInput: (trackId) => setRecordingTrackInput(trackId, null),
+				setSourceOffset: setRecordingSourceLatency,
+				setRetainInputs,
+				releaseInputs,
 			}),
 			timeline: Object.freeze({
 				selectTrack,
@@ -924,6 +983,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function performProjectSwitch(nextProject, options = {}) {
+		cancelRecordingStart();
 		state.exportAbort?.abort();
 		state.exportAbort = null;
 		state.sampleEditAbort?.abort();
@@ -970,6 +1030,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		});
 		state.history = sessionController.getProjectHistory(nextProject.id);
 		project = state.history.present;
+		await loadRecordingRouting(project);
 		const tabMetadata = sessionTab(nextProject.id)?.metadata || {};
 		state.selectedTrackId = findTrack(project, tabMetadata.selectedTrackId)?.id
 			?? project.tracks.find((track) => track.type !== 'label')?.id
@@ -1264,6 +1325,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		await saveNow();
 		const title = String(requestedTitle || `${project.title} ${copy.projectCopySuffix}`).trim();
 		const duplicated = await store.duplicateProject(project.id, { title });
+		await store.saveSetting(recordingRoutingSettingKey(duplicated.id), state.recordingRouting);
 		await openProject(duplicated);
 		return duplicated;
 	}
@@ -1275,6 +1337,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.projectLock?.release();
 		state.projectLock = null;
 		await store.deleteProject(id);
+		await store.saveSetting(recordingRoutingSettingKey(id), null);
 		sessionController.closeProject(id, { force: true });
 		state.history = null;
 		project = null;
@@ -2932,6 +2995,223 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return Math.max(1, chunkIndices.size) * source.chunkFrames * source.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	}
 
+	async function loadRecordingRouting(currentProject = project) {
+		if (!currentProject) {
+			state.recordingRouting = normalizeRecordingRouting();
+			state.recordingDevices = [];
+			state.recordingRouteHealth = {};
+			return state.recordingRouting;
+		}
+		let saved = null;
+		try {
+			saved = await store.loadSetting(recordingRoutingSettingKey(currentProject.id), null);
+		} catch {
+			// Local routing is optional and must never prevent a project from opening.
+		}
+		state.recordingRouting = normalizeRecordingRouting(saved || {}, currentProject.tracks);
+		state.recordingRouteHealth = Object.fromEntries(Object.keys(state.recordingRouting.routes)
+			.map((trackId) => [trackId, 'unavailable']));
+		updateRecordingDeviceRows();
+		syncRecordingPoolSnapshot();
+		return state.recordingRouting;
+	}
+
+	function persistRecordingRouting() {
+		if (!project) return Promise.resolve(state.recordingRouting);
+		return Promise.resolve(store.saveSetting(recordingRoutingSettingKey(project.id), state.recordingRouting))
+			.then(() => state.recordingRouting)
+			.catch((error) => {
+				handleError(error);
+				throw error;
+			});
+	}
+
+	async function requestInputAccess() {
+		if (!mediaDevices?.getUserMedia) throw new Error('Hardware audio recording is not supported in this browser.');
+		const sampleRate = projectSampleRate();
+		const opened = [];
+		const failures = [];
+		try {
+			await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM, sampleRate });
+			opened.push(RECORDING_DEFAULT_DEVICE_ID);
+		} catch (error) {
+			failures.push(error);
+		}
+		await refreshRecordingInputs({ probe: false });
+		const deviceIds = state.recordingDevices
+			.map((device) => device.deviceId)
+			.filter((deviceId) => deviceId && deviceId !== RECORDING_DEFAULT_DEVICE_ID);
+		const results = await Promise.allSettled(deviceIds.map((deviceId) => (
+			recordingCapturePool.acquireHardware(deviceId, { channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM, sampleRate })
+		)));
+		for (let index = 0; index < results.length; index += 1) {
+			if (results[index].status === 'fulfilled') opened.push(deviceIds[index]);
+			else failures.push(results[index].reason);
+		}
+		syncRecordingPoolSnapshot();
+		await refreshRecordingInputs({ probe: false });
+		if (!state.preferences.recording.retainInputs && !state.recorder) recordingCapturePool.releaseAll();
+		syncRecordingPoolSnapshot();
+		publishDocumentSnapshot();
+		if (!opened.length && failures[0]) throw failures[0];
+		return state.recordingDevices;
+	}
+
+	async function refreshRecordingInputs({ probe = true } = {}) {
+		const discovered = [];
+		if (mediaDevices?.enumerateDevices) {
+			const devices = await mediaDevices.enumerateDevices();
+			for (const device of devices || []) {
+				if (device?.kind !== 'audioinput' || !device.deviceId) continue;
+				discovered.push({
+					deviceId: String(device.deviceId),
+					label: String(device.label || ''),
+				});
+			}
+		}
+		state.recordingEnumeratedDeviceIds = new Set(discovered.map((device) => device.deviceId));
+		updateRecordingDeviceRows(discovered);
+		if (probe) {
+			await Promise.allSettled(discovered.map((device) => recordingCapturePool.acquireHardware(device.deviceId, {
+				channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM,
+				sampleRate: projectSampleRate(),
+			})));
+			syncRecordingPoolSnapshot();
+			if (!state.preferences.recording.retainInputs && !state.recorder) recordingCapturePool.releaseAll();
+			syncRecordingPoolSnapshot();
+		}
+		publishDocumentSnapshot();
+		return state.recordingDevices;
+	}
+
+	function updateRecordingDeviceRows(discovered = state.recordingDevices) {
+		const rows = new Map();
+		for (const device of discovered || []) {
+			if (!device?.deviceId) continue;
+			rows.set(device.deviceId, { ...device });
+		}
+		for (const route of Object.values(state.recordingRouting.routes || {})) {
+			if (route.kind !== 'device' || rows.has(route.deviceId)) continue;
+			rows.set(route.deviceId, {
+				deviceId: route.deviceId,
+				label: route.deviceLabel || (route.deviceId === RECORDING_DEFAULT_DEVICE_ID ? 'Default audio input' : 'Missing audio input'),
+			});
+		}
+		for (const source of state.recordingPoolSources) {
+			if (source.kind !== 'device') continue;
+			const existing = rows.get(source.deviceId) || { deviceId: source.deviceId, label: '' };
+			rows.set(source.deviceId, { ...existing, channelCount: source.channelCount });
+		}
+		state.recordingDevices = Object.freeze([...rows.values()].map((device) => Object.freeze({
+			deviceId: device.deviceId,
+			label: device.label || (device.deviceId === RECORDING_DEFAULT_DEVICE_ID ? 'Default audio input' : 'Audio input'),
+			channelCount: Math.max(0, Number(device.channelCount) || 0),
+			status: state.recordingPoolSources.some((source) => source.key === `device:${device.deviceId}`)
+				? 'open'
+				: state.recordingEnumeratedDeviceIds.has(device.deviceId) || device.deviceId === RECORDING_DEFAULT_DEVICE_ID
+					? 'available'
+					: 'unavailable',
+		})));
+	}
+
+	async function setRecordingTrackInput(trackId, route) {
+		const track = findTrack(project, trackId);
+		state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, route);
+		if (route == null) delete state.recordingRouteHealth[trackId];
+		else state.recordingRouteHealth[trackId] = 'unavailable';
+		updateRecordingDeviceRows();
+		publishDocumentSnapshot();
+		const persist = persistRecordingRouting();
+		const normalized = state.recordingRouting.routes[trackId];
+		if (!normalized) {
+			await persist;
+			return null;
+		}
+		try {
+			const stream = normalized.kind === 'display'
+				? await recordingCapturePool.acquireDisplay()
+				: await recordingCapturePool.acquireHardware(normalized.deviceId, {
+					channelCount: normalized.channelStart + normalized.channelCount,
+					sampleRate: projectSampleRate(),
+				});
+			const availableChannels = streamAudioChannelCount(stream);
+			state.recordingRouteHealth[trackId] = normalized.kind === 'display'
+				|| normalized.channelStart + normalized.channelCount <= availableChannels
+				? 'open'
+				: 'unavailable';
+			syncRecordingPoolSnapshot();
+			if (!state.preferences.recording.retainInputs && !state.recorder) {
+				if (normalized.kind === 'display') recordingCapturePool.releaseDisplay();
+				else recordingCapturePool.releaseHardware(normalized.deviceId);
+				syncRecordingPoolSnapshot();
+			}
+		} catch {
+			// The pin is intentionally retained so a missing or denied source remains visible.
+			state.recordingRouteHealth[trackId] = 'unavailable';
+		}
+		await persist;
+		updateRecordingDeviceRows();
+		publishDocumentSnapshot();
+		return normalized;
+	}
+
+	async function setRecordingSourceLatency(sourceKey, value) {
+		state.recordingRouting = setRecordingSourceOffset(state.recordingRouting, sourceKey, value);
+		publishDocumentSnapshot();
+		await persistRecordingRouting();
+		return state.recordingRouting.offsets[sourceKey];
+	}
+
+	async function setRetainInputs(enabled) {
+		const retainInputs = Boolean(enabled);
+		await updatePreferences({ recording: { retainInputs } });
+		if (retainInputs) state.recordingReleaseAfterStop = false;
+		else if (state.recorder || state.recordingStarting) state.recordingReleaseAfterStop = true;
+		else recordingCapturePool.releaseAll();
+		syncRecordingPoolSnapshot();
+		publishDocumentSnapshot();
+		return retainInputs;
+	}
+
+	function releaseInputs() {
+		if (state.recorder || state.recordingStarting || state.recordingFinishing) return false;
+		const released = recordingCapturePool.releaseAll();
+		syncRecordingPoolSnapshot();
+		publishDocumentSnapshot();
+		return released;
+	}
+
+	function syncRecordingPoolSnapshot() {
+		state.recordingPoolSources = Object.freeze(recordingCapturePool.getSnapshot?.() || []);
+		if (!state.recorder) {
+			const open = new Map(state.recordingPoolSources.map((source) => [source.key, source]));
+			for (const [trackId, route] of Object.entries(state.recordingRouting.routes || {})) {
+				const previous = state.recordingRouteHealth[trackId];
+				const source = open.get(recordingRouteSourceKey(route));
+				state.recordingRouteHealth[trackId] = source
+					? route.kind === 'display' || route.channelStart + route.channelCount <= source.channelCount ? 'open' : 'skipped'
+					: previous === 'disconnected' ? 'disconnected' : 'unavailable';
+			}
+		}
+		updateRecordingDeviceRows();
+	}
+
+	function handleRecordingPoolChange(sources) {
+		state.recordingPoolSources = Object.freeze(sources || []);
+		if (!state.recorder) {
+			const open = new Map(state.recordingPoolSources.map((source) => [source.key, source]));
+			for (const [trackId, route] of Object.entries(state.recordingRouting.routes || {})) {
+				const previous = state.recordingRouteHealth[trackId];
+				const source = open.get(recordingRouteSourceKey(route));
+				state.recordingRouteHealth[trackId] = source
+					? route.kind === 'display' || route.channelStart + route.channelCount <= source.channelCount ? 'open' : 'skipped'
+					: previous === 'disconnected' ? 'disconnected' : 'unavailable';
+			}
+		}
+		updateRecordingDeviceRows();
+		if (!state.disposed) publishDocumentSnapshot();
+	}
+
 	function setMonitoring(enabled) {
 		state.monitoring = Boolean(enabled);
 		state.recorder?.setMonitoring(state.monitoring);
@@ -2968,6 +3248,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function projectChanged() {
 		compactLiveSourceState(true);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
+		const normalizedRouting = normalizeRecordingRouting(state.recordingRouting, project.tracks);
+		if (JSON.stringify(normalizedRouting) !== JSON.stringify(state.recordingRouting)) {
+			state.recordingRouting = normalizedRouting;
+			for (const trackId of Object.keys(state.recordingRouteHealth)) {
+				if (!normalizedRouting.routes[trackId]) delete state.recordingRouteHealth[trackId];
+			}
+			void persistRecordingRouting();
+		}
 		const selectedClipExists = state.selectedClipId && findClip(project, state.selectedClipId);
 		if (!selectedClipExists) state.selectedClipId = null;
 		if (state.selectedTrackId && !findTrack(project, state.selectedTrackId)) state.selectedTrackId = project.tracks[0]?.id ?? null;
@@ -4510,29 +4798,71 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return state.leadInRecording;
 	}
 
-	async function startRecording(options = {}) {
+	function cancelRecordingStart() {
+		if (!state.recordingStarting && !state.recordingStartPromise) return false;
+		state.recordingStartGeneration += 1;
+		state.recordingStarting = false;
+		if (!state.recorder && !state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+		return true;
+	}
+
+	function assertRecordingStartActive(token) {
+		if (!token
+			|| state.disposed
+			|| token.generation !== state.recordingStartGeneration
+			|| token.projectId !== project?.id) {
+			throw abortError();
+		}
+	}
+
+	function startRecording(options = {}) {
+		if (state.readOnly || state.recordingStarting || state.recordingStartPromise || state.recorder) return;
+		const token = Object.freeze({
+			generation: ++state.recordingStartGeneration,
+			projectId: project?.id,
+		});
+		const operation = options.trackId
+			? startLegacyRecording(options, token)
+			: startRoutedRecording(options, token);
+		const tracked = Promise.resolve(operation).finally(() => {
+			if (state.recordingStartPromise === tracked) state.recordingStartPromise = null;
+		});
+		state.recordingStartPromise = tracked;
+		return tracked;
+	}
+
+	async function startLegacyRecording(options = {}, token) {
 		if (state.readOnly || state.recordingStarting || state.recorder) return;
 		const track = options.trackId
 			? findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed);
 		if (!track) throw new Error(copy.armTrackForRecording);
 		state.recordingStarting = true;
+		state.recordingFatalError = null;
 		publishDocumentSnapshot();
 		let stream = null;
 		let writer = null;
 		let recorder = null;
 		try {
+			assertRecordingStartActive(token);
 			const sampleRate = projectSampleRate();
-			// Request the microphone while still inside the user-initiated record
-			// action. This prompts only when permission is not already granted and
-			// avoids delaying the prompt behind storage or playback preparation.
-			stream = await requestMicrophone({ audio: { channelCount: { ideal: 2, max: 2 }, sampleRate: { ideal: sampleRate }, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+			// The legacy path still records the active/explicit track from the
+			// default input, but reuses that input between takes when retention is on.
+			stream = recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID)
+				|| await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
+			assertRecordingStartActive(token);
+			syncRecordingPoolSnapshot();
 			await preflightStorage(sampleRate * 2 * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
+			assertRecordingStartActive(token);
 			await beginPlaybackCachePreparation(project);
+			assertRecordingStartActive(token);
 			const context = await engine.getAudioContext();
+			assertRecordingStartActive(token);
 			await context.resume();
+			assertRecordingStartActive(token);
 			const sourceId = createStableId('recording');
 			writer = await store.beginSourceWrite(sourceId, { name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`, mimeType: 'audio/wav' });
+			assertRecordingStartActive(token);
 			const inputTrack = stream.getAudioTracks()[0];
 			const trackSettings = inputTrack?.getSettings?.() || {};
 			const channelCount = Math.min(2, trackSettings.channelCount || 1);
@@ -4543,24 +4873,25 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const automaticLatency = (context.baseLatency || 0) + (context.outputLatency || 0) + (Number(trackSettings.latency) || 0);
 			const manualLatency = state.latencyOffsetMs / 1000;
 			const latencyFrames = Math.max(0, Math.round((automaticLatency + manualLatency) * sampleRate));
-			state.recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
-			state.recordingSourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
-			state.recordingPreview = createRecordingPreview({
+			const recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
+			const recordingSourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+			const preview = createRecordingPreview({
 				trackId: track.id,
-				startFrame: state.recordingStartFrame,
+				startFrame: recordingStartFrame,
 				channelCount,
-				framesToSkip: state.recordingSourceOffsetFrames,
+				framesToSkip: recordingSourceOffsetFrames,
 			});
-			recorder = await createRecordingController({
+			recorder = await recordingControllerFactory({
 				context,
 				stream,
 				channelCount,
+				discreteChannels: false,
 				monitor: state.monitoring,
 				inputGain: state.recordingInputGain,
 				onChunk: async ({ channels }) => {
 					const canonicalChannels = resampler.push(channels);
 					if (canonicalChannels[0]?.length) await writer.write(canonicalChannels);
-					appendRecordingPreview(state.recordingPreview, canonicalChannels);
+					appendRecordingPreview(preview, canonicalChannels);
 					publishRecordingPreview();
 					let peak = 0;
 					for (const channel of channels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
@@ -4568,11 +4899,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 					state.inputMeterDb = Math.max(-60, db);
 					publishTelemetrySnapshot();
 				},
-				onError: handleError,
+				onError: (error) => {
+					state.recordingFatalError = error;
+					handleError(error);
+					if (state.recorder && !state.recordingFinishing) void stopRecording().catch(handleError);
+				},
 				onState: (recordingState) => {
 					if (recordingState === 'stopped' && state.recorder && !state.recordingFinishing) void finalizeRecording();
 				},
 			});
+			assertRecordingStartActive(token);
+			state.recordingStartFrame = recordingStartFrame;
+			state.recordingSourceOffsetFrames = recordingSourceOffsetFrames;
+			state.recordingPreview = preview;
+			state.recordingPreviews = [preview];
 			state.recordingWriter = writer;
 			state.recordingStream = stream;
 			state.recordingSourceId = sourceId;
@@ -4603,45 +4943,560 @@ export function createAudioEditorController(_root = null, options = {}) {
 			engine.setLoop(false);
 			engine.seek(requestedStartFrame - availableLeadInFrames);
 			await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+			assertRecordingStartActive(token);
 			recorder.start({ startFrame: currentContextFrame, stopFrame });
 			state.recordingPaused = false;
 			setStatus(copy.recording);
 			updateTransportState('recording');
 		} catch (error) {
-			state.recordingCleanup?.();
-			state.recordingCleanup = null;
-			await recorder?.dispose?.().catch(() => undefined);
-			await writer?.abort?.().catch(() => undefined);
-			for (const mediaTrack of stream?.getTracks?.() || []) mediaTrack.stop();
-			state.recorder = null;
-			state.recordingWriter = null;
-			state.recordingStream = null;
-			state.recordingResampler = null;
-			state.recordingPreview = null;
-			state.recordingPreviewLastPublishedAt = 0;
-			state.recordingPaused = false;
+			const ownsStart = token.generation === state.recordingStartGeneration;
+			const handedOff = Boolean(!ownsStart && recorder && state.recorder === recorder);
+			if (ownsStart) {
+				state.recordingCleanup?.();
+				state.recordingCleanup = null;
+			}
+			if (!handedOff) {
+				await recorder?.dispose?.({ stopTracks: false }).catch(() => undefined);
+				await writer?.abort?.().catch(() => undefined);
+			}
+			if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseHardware(RECORDING_DEFAULT_DEVICE_ID);
+			if (ownsStart) {
+				syncRecordingPoolSnapshot();
+				state.recorder = null;
+				state.recordingWriter = null;
+				state.recordingStream = null;
+				state.recordingResampler = null;
+				state.recordingPreview = null;
+				state.recordingPreviews = [];
+				state.recordingPreviewLastPublishedAt = 0;
+				state.recordingPaused = false;
+			}
+			if (error?.name === 'AbortError') return;
 			throw error;
 		} finally {
-			state.recordingStarting = false;
+			if (token.generation === state.recordingStartGeneration) {
+				state.recordingStarting = false;
+				publishDocumentSnapshot();
+			}
+		}
+	}
+
+	async function startRoutedRecording(_options = {}, token) {
+		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
+		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
+		const routedTracks = [];
+		for (const track of armedTracks) {
+			const route = state.recordingRouting.routes[track.id];
+			if (route) routedTracks.push({ track, route, sourceKey: recordingRouteSourceKey(route) });
+			else state.recordingRouteHealth[track.id] = 'skipped';
+		}
+		if (!routedTracks.length) throw new Error('Assign an input to at least one armed track before recording.');
+
+		state.recordingStarting = true;
+		state.recordingFatalError = null;
+		publishDocumentSnapshot();
+		const entries = [];
+		const sourceSessions = [];
+		let routedRecorder = null;
+		const maybeFinalizeDisconnectedSession = () => {
+			if (state.recorder === routedRecorder
+				&& routedRecorder?.state !== 'ready'
+				&& sourceSessions.length
+				&& sourceSessions.every((source) => source.stopped)
+				&& !state.recordingFinishing) void finalizeRecording();
+		};
+		const disconnectSession = (session) => {
+			if (session.disconnected) return;
+			session.disconnected = true;
+			for (const { track } of session.routes) state.recordingRouteHealth[track.id] = 'disconnected';
+			if (token.generation === state.recordingStartGeneration) publishDocumentSnapshot();
+			if (!session.controller || session.controller.state === 'ready') {
+				session.stopped = true;
+				maybeFinalizeDisconnectedSession();
+				return;
+			}
+			Promise.resolve(session.controller.stop()).catch(() => undefined).finally(() => {
+				session.stopped = true;
+				maybeFinalizeDisconnectedSession();
+			});
+		};
+		const dropFailedSourceSessions = async () => {
+			for (const session of [...sourceSessions]) {
+				if (!session.disconnected && !session.failed) continue;
+				for (const remove of session.listeners) remove();
+				await Promise.resolve(session.controller?.dispose?.({ stopTracks: false })).catch(() => undefined);
+				for (const entry of session.entries) await entry.writer?.abort?.().catch(() => undefined);
+				for (let index = entries.length - 1; index >= 0; index -= 1) {
+					if (session.entries.includes(entries[index])) entries.splice(index, 1);
+				}
+				sourceSessions.splice(sourceSessions.indexOf(session), 1);
+			}
+		};
+		try {
+			assertRecordingStartActive(token);
+			const sampleRate = projectSampleRate();
+			const groups = new Map();
+			for (const routed of routedTracks) {
+				if (!groups.has(routed.sourceKey)) groups.set(routed.sourceKey, []);
+				groups.get(routed.sourceKey).push(routed);
+				state.recordingRouteHealth[routed.track.id] = 'open';
+			}
+			const orderedGroups = [...groups.entries()].sort(([left], [right]) => (
+				left === 'display' ? -1 : right === 'display' ? 1 : 0
+			));
+			// Start every permission request directly from the record action. Display
+			// capture is requested first so its transient user activation is retained.
+			const acquisitions = orderedGroups.map(([sourceKey, routes]) => {
+				const firstRoute = routes[0].route;
+				const requiredChannels = Math.max(...routes.map(({ route }) => route.channelStart + route.channelCount));
+				const promise = firstRoute.kind === 'display'
+					? recordingCapturePool.acquireDisplay()
+					: recordingCapturePool.acquireHardware(firstRoute.deviceId, { channelCount: requiredChannels, sampleRate });
+				return { sourceKey, routes, promise };
+			});
+			const settled = await Promise.allSettled(acquisitions.map(({ promise }) => promise));
+			assertRecordingStartActive(token);
+			for (let index = 0; index < acquisitions.length; index += 1) {
+				const acquisition = acquisitions[index];
+				const result = settled[index];
+				if (result.status === 'rejected') {
+					for (const { track } of acquisition.routes) state.recordingRouteHealth[track.id] = 'unavailable';
+					continue;
+				}
+				const stream = result.value;
+				const inputTrack = stream.getAudioTracks?.()[0];
+				const availableChannels = streamAudioChannelCount(stream);
+				const survivingRoutes = acquisition.routes.filter(({ track, route }) => {
+					const valid = route.kind === 'display' || route.channelStart + route.channelCount <= availableChannels;
+					if (!valid) state.recordingRouteHealth[track.id] = 'skipped';
+					return valid;
+				});
+				if (!survivingRoutes.length) continue;
+				const session = {
+					sourceKey: acquisition.sourceKey,
+					kind: survivingRoutes[0].route.kind,
+					stream,
+					inputTrack,
+					channelCount: availableChannels,
+					routes: survivingRoutes,
+					entries: [],
+					controller: null,
+					stopped: false,
+					disconnected: false,
+					listeners: [],
+				};
+				sourceSessions.push(session);
+				for (const mediaTrack of session.stream.getTracks?.() || []) {
+					const disconnect = () => disconnectSession(session);
+					mediaTrack.addEventListener?.('ended', disconnect, { once: true });
+					session.listeners.push(() => mediaTrack.removeEventListener?.('ended', disconnect));
+				}
+				if (!recordingStreamIsLive(session.stream, session.kind)) disconnectSession(session);
+			}
+			await dropFailedSourceSessions();
+			syncRecordingPoolSnapshot();
+			if (!sourceSessions.length) {
+				if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+				throw new Error('None of the assigned recording inputs are available.');
+			}
+
+			const routedChannelCount = sourceSessions.reduce((total, session) => (
+				total + session.routes.reduce((sum, item) => sum + item.route.channelCount, 0)
+			), 0);
+			await preflightStorage(sampleRate * routedChannelCount * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
+			assertRecordingStartActive(token);
+			await beginPlaybackCachePreparation(project);
+			assertRecordingStartActive(token);
+			const context = await engine.getAudioContext();
+			assertRecordingStartActive(token);
+			await context.resume();
+			assertRecordingStartActive(token);
+			await dropFailedSourceSessions();
+			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+			const selection = activeSelection();
+			const requestedStartFrame = selection?.startFrame ?? engine.getPositionFrames();
+			for (const session of sourceSessions) {
+				if (session.disconnected) continue;
+				const trackSettings = session.inputTrack?.getSettings?.() || {};
+				const automaticLatency = (context.baseLatency || 0) + (context.outputLatency || 0) + (Number(trackSettings.latency) || 0);
+				const manualLatencyMs = state.recordingRouting.offsets[session.sourceKey] ?? state.latencyOffsetMs;
+				const latencyFrames = Math.max(0, Math.round((automaticLatency + manualLatencyMs / 1000) * sampleRate));
+				session.latencyFrames = latencyFrames;
+				session.recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
+				session.sourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+				for (const { track, route } of session.routes) {
+					const sourceId = createStableId('recording');
+					const writer = await store.beginSourceWrite(sourceId, {
+						name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
+						mimeType: 'audio/wav',
+						channelCount: route.channelCount,
+					});
+					const preview = createRecordingPreview({
+						trackId: track.id,
+						startFrame: session.recordingStartFrame,
+						channelCount: route.channelCount,
+						framesToSkip: session.sourceOffsetFrames,
+					});
+					const entry = {
+						trackId: track.id,
+						route,
+						sourceKey: session.sourceKey,
+						sourceId,
+						writer,
+						resampler: createStreamingWindowedSincResampler(context.sampleRate || sampleRate, sampleRate, route.channelCount),
+						preview,
+						selection: selection ? { ...selection } : null,
+						recordingStartFrame: session.recordingStartFrame,
+						sourceOffsetFrames: session.sourceOffsetFrames,
+						committed: false,
+					};
+					entries.push(entry);
+					session.entries.push(entry);
+					assertRecordingStartActive(token);
+				}
+			}
+			await dropFailedSourceSessions();
+			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+
+			const handleFatalRecordingError = (error) => {
+				state.recordingFatalError = error;
+				handleError(error);
+				if (state.recorder && !state.recordingFinishing) void stopRecording().catch(handleError);
+			};
+			for (const session of sourceSessions) {
+				try {
+					session.controller = await recordingControllerFactory({
+					context,
+					stream: session.stream,
+					channelCount: session.channelCount,
+					monitor: session.kind === 'device' && state.monitoring,
+					inputGain: session.kind === 'device' ? state.recordingInputGain : 1,
+					onChunk: async ({ channels }) => {
+						let sourcePeak = 0;
+						const writes = await Promise.allSettled(session.entries.map(async (entry) => {
+							const routedChannels = Array.from({ length: entry.route.channelCount }, (_, channelIndex) => (
+								channels[entry.route.channelStart + channelIndex]
+								|| (session.kind === 'display' ? channels[0] : null)
+								|| new Float32Array(channels[0]?.length || 0)
+							));
+							const canonicalChannels = entry.resampler.push(routedChannels);
+							if (canonicalChannels[0]?.length) await entry.writer.write(canonicalChannels);
+							appendRecordingPreview(entry.preview, canonicalChannels);
+							let peak = 0;
+							for (const channel of routedChannels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
+							sourcePeak = Math.max(sourcePeak, peak);
+							state.inputMeters[entry.trackId] = peak > 0 ? Math.max(-60, 20 * Math.log10(peak)) : -60;
+						}));
+						const failedWrite = writes.find((result) => result.status === 'rejected');
+						if (failedWrite) throw failedWrite.reason;
+						state.inputMeterDb = sourcePeak > 0 ? Math.max(-60, 20 * Math.log10(sourcePeak)) : -60;
+						publishRecordingPreview();
+						publishTelemetrySnapshot();
+					},
+					onError: handleFatalRecordingError,
+					onState: (recordingState) => {
+						if (recordingState !== 'stopped') return;
+						session.stopped = true;
+						if (state.recorder === routedRecorder && sourceSessions.every((source) => source.stopped) && !state.recordingFinishing) {
+							void finalizeRecording();
+						}
+					},
+					});
+					assertRecordingStartActive(token);
+					if (!recordingStreamIsLive(session.stream, session.kind)) disconnectSession(session);
+				} catch (error) {
+					if (error?.name === 'AbortError') throw error;
+					session.failed = true;
+					const health = recordingStreamIsLive(session.stream, session.kind) ? 'unavailable' : 'disconnected';
+					for (const { track } of session.routes) state.recordingRouteHealth[track.id] = health;
+				}
+			}
+			await dropFailedSourceSessions();
+			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+
+			routedRecorder = createRoutedRecordingController(sourceSessions);
+			state.recordingEntries = entries;
+			state.recordingPreviews = entries.map((entry) => entry.preview);
+			state.recordingPreview = state.recordingPreviews[0] || null;
+			state.recordingSelection = selection ? { ...selection } : null;
+			state.recorder = routedRecorder;
+			const scheduledTime = context.currentTime + 0.08;
+			const leadInFrames = state.leadInRecording
+				? Math.round(sampleRate * 60 / Math.max(1, Number(project.tempo?.bpm) || 120)
+					* Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4))
+				: 0;
+			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
+			const recordingDelaySeconds = availableLeadInFrames / sampleRate;
+			const currentContextFrame = Math.ceil((scheduledTime + recordingDelaySeconds) * context.sampleRate);
+			for (const session of sourceSessions) {
+				const selectionProjectFrames = selection ? selection.endFrame - selection.startFrame + session.sourceOffsetFrames : 0;
+				session.startFrame = currentContextFrame;
+				session.stopFrame = selection
+					? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
+					: undefined;
+				for (const entry of session.entries) state.recordingRouteHealth[entry.trackId] = 'recording';
+			}
+			const contextStateChange = () => {
+				if (context.state === 'suspended' && state.recorder) void stopRecording().catch(handleError);
+			};
+			context.addEventListener?.('statechange', contextStateChange);
+			state.recordingCleanup = () => {
+				for (const session of sourceSessions) for (const remove of session.listeners) remove();
+				context.removeEventListener?.('statechange', contextStateChange);
+			};
+			engine.setLoop(false);
+			engine.seek(requestedStartFrame - availableLeadInFrames);
+			await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+			assertRecordingStartActive(token);
+			await dropFailedSourceSessions();
+			assertRecordingStartActive(token);
+			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+			state.recordingPreviews = entries.map((entry) => entry.preview);
+			state.recordingPreview = state.recordingPreviews[0] || null;
+			routedRecorder.start();
+			state.recordingPaused = false;
+			setStatus(copy.recording);
+			updateTransportState('recording');
+		} catch (error) {
+			const ownsStart = token.generation === state.recordingStartGeneration;
+			const handedOff = Boolean(!ownsStart && routedRecorder && state.recorder === routedRecorder);
+			if (ownsStart) {
+				engine.pause();
+				state.recordingCleanup?.();
+				state.recordingCleanup = null;
+			}
+			if (!handedOff) {
+				for (const session of sourceSessions) for (const remove of session.listeners) remove();
+				await routedRecorder?.dispose?.({ stopTracks: false }).catch(() => undefined);
+				for (const session of sourceSessions) await session.controller?.dispose?.({ stopTracks: false }).catch(() => undefined);
+				for (const entry of entries) await entry.writer?.abort?.().catch(() => undefined);
+			}
+			if (ownsStart) {
+				state.recorder = null;
+				state.recordingEntries = null;
+				state.recordingPreviews = [];
+				state.recordingPreview = null;
+				state.recordingSelection = null;
+				state.recordingPaused = false;
+				state.inputMeters = {};
+				state.inputMeterDb = -60;
+				state.recordingFatalError = null;
+				if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+				syncRecordingPoolSnapshot();
+			}
+			if (!ownsStart && !state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+			if (error?.name === 'AbortError') return;
+			throw error;
+		} finally {
+			if (token.generation === state.recordingStartGeneration) {
+				state.recordingStarting = false;
+				publishDocumentSnapshot();
+			}
+		}
+	}
+
+	function createRoutedRecordingController(sourceSessions) {
+		let controllerState = 'ready';
+		return {
+			get state() { return controllerState; },
+			start() {
+				controllerState = 'recording';
+				for (const session of sourceSessions) {
+					if (session.disconnected) {
+						session.stopped = true;
+						continue;
+					}
+					session.controller.start({
+						startFrame: session.startFrame,
+						stopFrame: session.stopFrame,
+					});
+				}
+			},
+			pause() {
+				if (controllerState !== 'recording') return false;
+				controllerState = 'paused';
+				for (const session of sourceSessions) if (!session.stopped) session.controller.pause();
+				return true;
+			},
+			resume() {
+				if (controllerState !== 'paused') return false;
+				controllerState = 'recording';
+				for (const session of sourceSessions) if (!session.stopped) session.controller.resume();
+				return true;
+			},
+			async stop() {
+				if (controllerState === 'stopped' || controllerState === 'disposed') return;
+				controllerState = 'stopping';
+				await Promise.allSettled(sourceSessions.map((session) => session.stopped ? null : session.controller.stop()));
+				for (const session of sourceSessions) session.stopped = true;
+				controllerState = 'stopped';
+			},
+			setMonitoring(enabled) {
+				for (const session of sourceSessions) if (session.kind === 'device') session.controller.setMonitoring(enabled);
+			},
+			setInputGain(value) {
+				for (const session of sourceSessions) if (session.kind === 'device') session.controller.setInputGain(value);
+			},
+			async dispose() {
+				await Promise.allSettled(sourceSessions.map((session) => session.controller.dispose({ stopTracks: false })));
+				controllerState = 'disposed';
+			},
+		};
+	}
+
+	async function stopRecording() {
+		if (state.recordingStarting) {
+			cancelRecordingStart();
+			publishDocumentSnapshot();
+		}
+		if (state.recordingFinalizePromise) return state.recordingFinalizePromise;
+		if (!state.recorder) return;
+		let stopError = null;
+		try {
+			await state.recorder.stop();
+		} catch (error) {
+			stopError = error;
+		}
+		await finalizeRecording();
+		if (stopError) throw stopError;
+	}
+
+	async function finalizeRoutedRecording() {
+		if (!state.recorder || !state.recordingEntries || state.recordingFinishing) return;
+		state.recordingFinishing = true;
+		const recorder = state.recorder;
+		const entries = state.recordingEntries;
+		const committedEntries = [];
+		try {
+			engine.pause();
+			await recorder.dispose({ stopTracks: false });
+			if (state.recordingFatalError) throw state.recordingFatalError;
+			for (const entry of entries) {
+				const finalChannels = entry.resampler?.finish?.();
+				if (finalChannels?.[0]?.length) await entry.writer.write(finalChannels);
+			}
+			const sampleRate = projectSampleRate();
+			const commands = [];
+			const clipIds = [];
+			for (const entry of entries) {
+				const frames = entry.writer.framesWritten;
+				if (frames <= entry.sourceOffsetFrames) {
+					await entry.writer.abort();
+					state.recordingRouteHealth[entry.trackId] = 'skipped';
+					continue;
+				}
+				const metadata = await entry.writer.commit({ sampleRate, channelCount: entry.route.channelCount });
+				entry.committed = true;
+				committedEntries.push(entry);
+				const sourceCommand = createAddSourceCommand({
+					schemaVersion: 2,
+					sampleRate,
+					originalSampleRate: sampleRate,
+					sampleFormat: 'float32',
+					chunkFrames: SOURCE_CHUNK_FRAMES,
+					id: entry.sourceId,
+					storageKey: entry.sourceId,
+					name: metadata.name,
+					mimeType: 'audio/wav',
+					frameCount: frames,
+					channelCount: metadata.channelCount || entry.route.channelCount,
+				});
+				const buffer = await readStoredAudioBuffer(store, {
+					id: entry.sourceId,
+					frameCount: frames,
+					channelCount: metadata.channelCount || entry.route.channelCount,
+				}, await engine.getAudioContext());
+				sourceBuffers.set(entry.sourceId, buffer);
+				const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
+				sourcePeaks.set(entry.sourceId, peaks);
+				await store.saveAnalysis(peakCacheKey(entry.sourceId), peaks);
+				const sourceStartFrame = Math.min(entry.sourceOffsetFrames, Math.max(0, frames - 1));
+				const availableFrames = frames - sourceStartFrame;
+				const durationFrames = entry.selection
+					? Math.min(availableFrames, entry.selection.endFrame - entry.selection.startFrame)
+					: availableFrames;
+				if (durationFrames <= 0) continue;
+				const clipId = createStableId('clip');
+				const clipCommand = preparePunchCommand(project, {
+					trackId: entry.trackId,
+					startFrame: entry.recordingStartFrame,
+					endFrame: entry.recordingStartFrame + durationFrames,
+					sourceId: entry.sourceId,
+					sourceStartFrame,
+					clipId,
+				});
+				commands.push(sourceCommand, clipCommand);
+				clipIds.push(clipId);
+			}
+			if (commands.length) {
+				commit({ type: 'batch', commands }, {
+					selectTrackId: entries.find((entry) => entry.committed)?.trackId,
+					selectClipId: clipIds[0],
+				});
+				setStatus(copy.done, 'success');
+			}
+		} catch (error) {
+			for (const entry of entries) await entry.writer?.abort?.().catch(() => undefined);
+			for (const entry of committedEntries) {
+				sourceBuffers.delete(entry.sourceId);
+				sourcePeaks.delete(entry.sourceId);
+				await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(entry.sourceId))).catch(() => undefined);
+				await store.deleteSource(entry.sourceId).catch(() => undefined);
+			}
+			handleError(error);
+		} finally {
+			state.recordingCleanup?.();
+			state.recordingCleanup = null;
+			state.recorder = null;
+			state.recordingEntries = null;
+			state.recordingWriter = null;
+			state.recordingStream = null;
+			state.recordingSourceId = null;
+			state.recordingTrackId = null;
+			state.recordingSelection = null;
+			state.recordingResampler = null;
+			state.recordingPreview = null;
+			state.recordingPreviews = [];
+			state.recordingPreviewLastPublishedAt = 0;
+			state.recordingPaused = false;
+			state.recordingSourceOffsetFrames = 0;
+			state.recordingFinishing = false;
+			state.recordingFatalError = null;
+			state.inputMeterDb = -60;
+			state.inputMeters = {};
+			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
+				recordingCapturePool.releaseAll();
+				state.recordingReleaseAfterStop = false;
+			}
+			syncRecordingPoolSnapshot();
+			publishTelemetrySnapshot();
+			updateTransportState(engine.getState().state);
 			publishDocumentSnapshot();
 		}
 	}
 
-	async function stopRecording() {
-		if (!state.recorder) return;
-		await state.recorder.stop();
-		if (!state.recordingFinishing) await finalizeRecording();
+	function finalizeRecording() {
+		if (state.recordingFinalizePromise) return state.recordingFinalizePromise;
+		if (!state.recorder || state.recordingFinishing) return Promise.resolve();
+		const operation = performFinalizeRecording();
+		const tracked = operation.finally(() => {
+			if (state.recordingFinalizePromise === tracked) state.recordingFinalizePromise = null;
+		});
+		state.recordingFinalizePromise = tracked;
+		return tracked;
 	}
 
-	async function finalizeRecording() {
+	async function performFinalizeRecording() {
 		if (!state.recorder || state.recordingFinishing) return;
+		if (state.recordingEntries) return finalizeRoutedRecording();
 		state.recordingFinishing = true;
 		const recorder = state.recorder;
 		const writer = state.recordingWriter;
 		let sourceCommitted = false;
 		try {
 			engine.pause();
-			await recorder.dispose();
+			await recorder.dispose({ stopTracks: false });
+			if (state.recordingFatalError) throw state.recordingFatalError;
 			const finalChannels = state.recordingResampler?.finish?.();
 			if (finalChannels?.[0]?.length) await writer.write(finalChannels);
 			const frames = writer.framesWritten;
@@ -4702,11 +5557,19 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingSelection = null;
 			state.recordingResampler = null;
 			state.recordingPreview = null;
+			state.recordingPreviews = [];
 			state.recordingPreviewLastPublishedAt = 0;
 			state.recordingPaused = false;
 			state.recordingSourceOffsetFrames = 0;
 			state.recordingFinishing = false;
+			state.recordingFatalError = null;
 			state.inputMeterDb = -60;
+			state.inputMeters = {};
+			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
+				recordingCapturePool.releaseAll();
+				state.recordingReleaseAfterStop = false;
+			}
+			syncRecordingPoolSnapshot();
 			publishTelemetrySnapshot();
 			updateTransportState(engine.getState().state);
 			publishDocumentSnapshot();
@@ -5269,6 +6132,20 @@ function classifyMobile() {
 
 function normalizeLatencyOffset(value) {
 	return Math.max(-500, Math.min(500, Number(value) || 0));
+}
+
+function streamAudioChannelCount(stream) {
+	let channelCount = 1;
+	for (const track of stream?.getAudioTracks?.() || []) {
+		channelCount = Math.max(channelCount, Math.max(1, Math.min(RECORDING_CHANNEL_COUNT_MAXIMUM, Number(track.getSettings?.().channelCount) || 1)));
+	}
+	return channelCount;
+}
+
+function recordingStreamIsLive(stream, kind) {
+	const audioLive = stream?.getAudioTracks?.().some((track) => track?.readyState !== 'ended');
+	if (!audioLive) return false;
+	return kind !== 'display' || stream?.getVideoTracks?.().some((track) => track?.readyState !== 'ended');
 }
 
 function createRecordingPreview({ trackId, startFrame, channelCount, framesToSkip = 0 }) {

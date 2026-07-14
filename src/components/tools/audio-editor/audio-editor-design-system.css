@@ -746,6 +746,7 @@
 #kw-audio-editor-design-system .kw-audio-editor__mixer-toolbar {
 	display: flex;
 	min-height: 40px;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	padding: 6px 10px;
@@ -1231,6 +1232,100 @@
 #kw-audio-editor-design-system .audio-editor-track-adapters [data-track-action='arm'] {
 	flex: 0 0 auto;
 	pointer-events: auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-input {
+	position: absolute;
+	z-index: 6;
+	right: 9px;
+	bottom: 3px;
+	left: 9px;
+	pointer-events: auto;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors {
+	display: grid;
+	min-width: 0;
+	align-items: center;
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors--track {
+	grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr) 8px;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors--mixer {
+	grid-template-columns: minmax(0, 1fr) 8px;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors label {
+	display: block;
+	min-width: 0;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors--mixer label {
+	grid-column: 1;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors select {
+	display: block;
+	width: 100%;
+	min-width: 0;
+	height: 23px;
+	padding: 2px 16px 2px 5px;
+	overflow: hidden;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+	font: 650 9px/1.15 system-ui, sans-serif;
+	text-overflow: ellipsis;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors--track select {
+	height: 20px;
+	padding-block: 1px;
+	font-size: 8px;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors select:focus-visible {
+	outline: 2px solid var(--kw-editor-accent);
+	outline-offset: 1px;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors__health {
+	display: block;
+	width: 7px;
+	height: 7px;
+	background: var(--kw-editor-muted);
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors--mixer .kw-recording-input-selectors__health {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	align-self: center;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors[data-recording-input-health='available'] .kw-recording-input-selectors__health {
+	background: var(--kw-editor-accent);
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors:is([data-recording-input-health='open'], [data-recording-input-health='recording']) .kw-recording-input-selectors__health {
+	background: #2a9d61;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors[data-recording-input-health='recording'] .kw-recording-input-selectors__health {
+	box-shadow: 0 0 0 3px color-mix(in srgb, #2a9d61 22%, transparent);
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors:is([data-recording-input-health='opening'], [data-recording-input-health='skipped']) .kw-recording-input-selectors__health {
+	background: #c68125;
+}
+
+#kw-audio-editor-design-system .kw-recording-input-selectors:is([data-recording-input-health='unavailable'], [data-recording-input-health='disconnected'], [data-recording-input-health='ended']) .kw-recording-input-selectors__health {
+	background: #c44f59;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-lane {
@@ -2327,7 +2422,7 @@
 	font-weight: 700;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-dialog__field input {
+#kw-audio-editor-design-system .kw-audio-editor-dialog__field :is(input, select) {
 	width: 100%;
 	min-height: 38px;
 	padding: 7px 10px;
@@ -2631,6 +2726,17 @@
 	background: var(--kw-editor-control);
 	border: 1px solid var(--kw-editor-line);
 	border-radius: 4px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__recording {
+	grid-template-columns: 1fr;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__recording small {
+	display: block;
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+	line-height: 1.45;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-preferences__panel-list {

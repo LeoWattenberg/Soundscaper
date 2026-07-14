@@ -547,7 +547,6 @@ export function validateAudioEditorProjectV2(project) {
 		if (!track || track.type !== 'audio') throw new ReferenceError(`Mixer route references missing audio track ${trackId}.`);
 	}
 	const assignedClipIds = new Set();
-	let armedTracks = 0;
 
 	for (const clip of normalized.clips) {
 		const source = sourceById.get(clip.sourceId);
@@ -565,7 +564,6 @@ export function validateAudioEditorProjectV2(project) {
 
 	for (const track of normalized.tracks) {
 		if (track.type === 'label') continue;
-		if (track.armed) armedTracks += 1;
 		const trackClips = [];
 		for (const clipId of track.clipIds) {
 			const clip = clipById.get(clipId);
@@ -582,7 +580,6 @@ export function validateAudioEditorProjectV2(project) {
 		}
 	}
 	if (assignedClipIds.size !== normalized.clips.length) throw new RangeError('Every clip must belong to exactly one audio track.');
-	if (armedTracks > 1) throw new RangeError('Only one audio track can be armed at a time.');
 
 	for (const trackId of [...normalized.selection.trackIds, ...normalized.view.selectedTrackIds]) {
 		if (!trackIds.has(trackId)) throw new ReferenceError(`Project state references missing track ${trackId}.`);

@@ -34,6 +34,7 @@ export * from './resample.js';
 export * from './sample-edit.js';
 export * from './engine.js';
 export * from './recording.js';
+export * from './recording-routing.js';
 export * from './retention.js';
 export * from './session.js';
 export * from './snap-grid.js';

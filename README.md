@@ -267,7 +267,9 @@ locale as exposed rather than pending.
 ## Embedding and storage migration
 
 kw.media embeds the locale-specific `/embed/` route and delegates microphone,
-clipboard, and fullscreen permissions to it. Because browser IndexedDB and OPFS
+display capture, clipboard, and fullscreen permissions to it. The embedding
+iframe must include both `microphone` and `display-capture` in its `allow`
+attribute. Because browser IndexedDB and OPFS
 are isolated by origin, projects previously stored under `https://kw.media`
 cannot be read automatically from `https://soundscaper.org`. Users should export
 important projects before the hosting switch; a future explicit migration bridge

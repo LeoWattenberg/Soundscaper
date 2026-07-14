@@ -138,6 +138,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
+ * @property {{retainInputs: boolean}} recording
  */
 
 function clone(value) {
@@ -203,6 +204,7 @@ function mergePreferences(preferences, patch = {}) {
 		},
 		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
 		import: { ...preferences.import, ...patch.import },
+		recording: { ...preferences.recording, ...patch.recording },
 	};
 }
 
@@ -335,6 +337,9 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		import: {
 			detectTempo: options.import?.detectTempo !== false,
 		},
+		recording: {
+			retainInputs: options.recording?.retainInputs !== false,
+		},
 	};
 }
 
@@ -461,6 +466,14 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		throw new TypeError('editing.snapToZeroCrossings must be boolean.');
 	}
 	if (typeof preferences.import.detectTempo !== 'boolean') throw new TypeError('import.detectTempo must be boolean.');
+	if (preferences.recording !== undefined) {
+		if (!preferences.recording || typeof preferences.recording !== 'object' || Array.isArray(preferences.recording)) {
+			throw new TypeError('preferences.recording must be an object.');
+		}
+		if (typeof preferences.recording.retainInputs !== 'boolean') {
+			throw new TypeError('recording.retainInputs must be boolean.');
+		}
+	}
 	createAudioEditorPreferencesV1(preferences);
 	return true;
 }
@@ -471,5 +484,9 @@ export function loadAudioEditorPreferencesV1(value) {
 		return { preferences: clone(value), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorPreferencesV1(value);
-	return { preferences: clone(value), readOnly: false, reason: null };
+	return {
+		preferences: { ...clone(value), recording: createAudioEditorPreferencesV1(value).recording },
+		readOnly: false,
+		reason: null,
+	};
 }

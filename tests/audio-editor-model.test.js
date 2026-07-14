@@ -378,7 +378,7 @@ test('range replacements reject zero output, reused IDs, and incomplete replay c
 	assert.deepEqual(project, before);
 });
 
-test('effect racks validate their core studio parameters and track arming is exclusive', () => {
+test('effect racks validate their core studio parameters and audio tracks can be armed independently', () => {
 	let project = createFixture();
 	const compressor = createEffect('compressor', { id: 'compressor-1' });
 	assert.equal(compressor.params.threshold, -24);
@@ -393,7 +393,9 @@ test('effect racks validate their core studio parameters and track arming is exc
 
 	project = apply(project, { type: 'track/update', trackId: 'track-1', changes: { armed: true } });
 	project = apply(project, { type: 'track/update', trackId: 'track-2', changes: { armed: true } });
-	assert.deepEqual(project.tracks.map((track) => track.armed), [false, true]);
+	project = apply(project, { type: 'track/add', track: { id: 'track-3', name: 'Room', armed: true } });
+	assert.deepEqual(project.tracks.map((track) => track.armed), [true, true, true]);
+	assert.equal(validateAudioEditorProject(project), true);
 });
 
 test('mixer group and send buses persist validated routing and clean up removed buses', () => {
