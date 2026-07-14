@@ -204,9 +204,12 @@ test.describe('audio editor React/design-system workflows', () => {
 			page.viewportSize().width,
 			page.viewportSize().height,
 		]);
+		const projectTabs = editor.getByRole('tablist', { name: 'Project tabs' });
+		await expect(projectTabs).toBeVisible();
+		expect((await projectTabs.boundingBox()).y).toBeGreaterThanOrEqual(56);
 		const toolbar = editor.getByRole('toolbar', { name: 'Tool toolbar' });
 		await expect(toolbar).toBeVisible();
-		expect((await toolbar.boundingBox()).y).toBeGreaterThanOrEqual(56);
+		expect((await toolbar.boundingBox()).y).toBeGreaterThanOrEqual((await projectTabs.boundingBox()).y + (await projectTabs.boundingBox()).height);
 		await fullscreen.click();
 		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/);
 	});
