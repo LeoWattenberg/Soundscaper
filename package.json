@@ -12,6 +12,7 @@
 		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/lib/tools/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
+		"postinstall": "patch-package",
 		"build:staffpad": "node scripts/build-staffpad-wasm.mjs",
 		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
@@ -36,6 +37,7 @@
 		"@playwright/test": "^1.61.1",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
+		"patch-package": "^8.0.1",
 		"postcss": "8.5.19"
 	}
 }
