@@ -24,3 +24,35 @@ index 3cffc08..b1e4adc 100644
 +  const index = Math.round(Math.max(0, Math.min(1, intensity)) * 255) * 6;
 +  return `#${roseus.slice(index, index + 6)}`;
  }
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+index 52b59db..47f366e 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+@@ -21,7 +21,8 @@ var Knob = ({
+ }) => {
+   const { theme } = useTheme();
+   const knobRef = useRef(null);
+   const [isDragging, setIsDragging] = useState(false);
++  const dragStartXRef = useRef(0);
+   const dragStartYRef = useRef(0);
+   const dragStartValueRef = useRef(0);
+   const clampedValue = Math.max(min, Math.min(max, value));
+@@ -60,6 +61,7 @@ var Knob = ({
+     if (disabled || !onChange) return;
+     e.preventDefault();
+     setIsDragging(true);
++    dragStartXRef.current = e.clientX;
+     dragStartYRef.current = e.clientY;
+     dragStartValueRef.current = clampedValue;
+   };
+@@ -69,8 +71,9 @@ var Knob = ({
+     if (!isDragging) return;
+     const handleMouseMove = (e) => {
+       if (!onChange) return;
++      const deltaX = e.clientX - dragStartXRef.current;
+       const deltaY = dragStartYRef.current - e.clientY;
+       const sensitivity = (max - min) / 200;
+-      const deltaValue = deltaY * sensitivity;
++      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
+       let newValue = dragStartValueRef.current + deltaValue;
+       newValue = Math.round(newValue / step) * step;
