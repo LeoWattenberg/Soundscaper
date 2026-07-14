@@ -159,6 +159,21 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('button', { name: 'Vollbild', exact: true })).toBeVisible();
 	});
 
+	test('shows localized Flyout tooltips only while an editor button is hovered', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const play = editor.getByRole('button', { name: 'Play', exact: true });
+		const tooltip = editor.locator('.kw-audio-editor__button-tooltip');
+
+		await expect(tooltip).toHaveCount(0);
+		await play.hover();
+		await expect(tooltip).toBeVisible();
+		await expect(tooltip).toHaveAttribute('role', 'tooltip');
+		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
+
+		await page.mouse.move(0, 0);
+		await expect(tooltip).toHaveCount(0);
+	});
+
 	test('standalone locale selector only navigates to committed eligible routes', async ({ page }) => {
 		await serveTranslationFixture(page, {
 			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture' } },

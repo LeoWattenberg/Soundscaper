@@ -57,6 +57,7 @@ import {
 	useAudioEditorTelemetry,
 	useAudioEditorThemeVariables,
 } from './DesignSystemRuntime.jsx';
+import AudioEditorButtonTooltips from './AudioEditorButtonTooltips.jsx';
 import './audio-editor-design-system.css';
 
 export default function AudioEditorApp(props) {
@@ -863,6 +864,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onClose={() => setDialog(null)}
 				/>
 			)}
+			<AudioEditorButtonTooltips rootRef={editorRef} />
 		</div>
 	);
 }

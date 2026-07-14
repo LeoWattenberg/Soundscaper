@@ -593,16 +593,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 			setMessage(cause instanceof Error ? cause.message : String(cause));
 		});
 	};
-	const chooseSelectionType = (type) => {
-		if (!AUDACITY_EFFECT_DEFINITIONS[type]) return;
-		const params = audacityEffectDefaults(type);
-		setSelectionType(type);
-		setSelectionParams(params);
-		setSelectedPresetId('');
-		setPresetName('');
-		controller.actions.effects.setSelectionType(type);
-		controller.actions.effects.setSelectionParams(params, { replace: true });
-	};
 	const updateSelectionParams = (changes) => {
 		setSelectionParams((current) => ({ ...current, ...changes }));
 		controller.actions.effects.setSelectionParams(changes);
@@ -752,19 +742,9 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 			)}
 		>
 			<section className="audio-editor-selection-effects" data-audacity-effect-panel>
-				<div className="audio-editor-effect-choice">
-					<div>
-						<h3>{audacityEffectLabel(selectionType, copy)}</h3>
-						<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
-					</div>
-					<LabeledDropdown
-						label={copy.chooseAudacityEffect}
-						value={selectionType}
-						options={audacityEffectTypes().map((type) => ({ value: type, label: audacityEffectLabel(type, copy) }))}
-						onChange={chooseSelectionType}
-						disabled={blocked}
-						hook="audacity-effect-type"
-					/>
+				<div>
+					<h3>{audacityEffectLabel(selectionType, copy)}</h3>
+					<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
 				</div>
 				<Separator />
 				{selectionDefinition?.requiresControlTrack && (

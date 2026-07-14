@@ -86,7 +86,7 @@ export default function AudioEditorTimeline({
 	const panelWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
 	const timelineView = snapshot.timeline?.view;
 	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
-		&& project.tracks.some((track) => {
+		&& project?.tracks.some((track) => {
 			if (track.type === 'label') return false;
 			const mode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
 			return mode === 'spectrogram' || mode === 'multiview';
