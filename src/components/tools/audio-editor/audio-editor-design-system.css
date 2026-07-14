@@ -905,6 +905,19 @@
 #kw-audio-editor-design-system .audio-editor-track-list {
 	position: relative;
 	min-height: calc(100% - 34px);
+	isolation: isolate;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-list::before {
+	position: absolute;
+	z-index: -1;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: var(--audio-editor-track-sidebar-width);
+	background: var(--kw-editor-stage-raised);
+	border-right: 1px solid var(--kw-editor-stage-line);
+	content: '';
 }
 
 #kw-audio-editor-design-system .audio-editor-track-row {

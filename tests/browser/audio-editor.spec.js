@@ -214,6 +214,23 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/);
 	});
 
+	test('uses a full-height sidebar behind track controls', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const sidebar = editor.locator('.audio-editor-track-list');
+		await expect(sidebar).toBeVisible();
+		const dimensions = await sidebar.evaluate((element) => {
+			const backing = getComputedStyle(element, '::before');
+			return {
+				backingHeight: Number.parseFloat(backing.height),
+				listHeight: element.getBoundingClientRect().height,
+				backingWidth: Number.parseFloat(backing.width),
+				panelWidth: element.querySelector('[data-track-header]')?.getBoundingClientRect().width || 0,
+			};
+		});
+		expect(dimensions.backingHeight).toBeCloseTo(dimensions.listHeight, 0);
+		expect(dimensions.backingWidth).toBeCloseTo(dimensions.panelWidth, 0);
+	});
+
 	test('matches the Audacity menubar and AU4 keyboard navigation model', async ({ page }) => {
 		await page.addInitScript(() => {
 			localStorage.setItem('audacity-accessibility-profile', 'au4-tab-groups');

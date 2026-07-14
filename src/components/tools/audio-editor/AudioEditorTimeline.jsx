@@ -649,7 +649,10 @@ export default function AudioEditorTimeline({
 					if (files.length) run(() => controller.actions.project.importFiles(files));
 				}}
 			>
-				<div className="audio-editor-timeline-inner" style={{ width: panelWidth + timelineWidth + verticalRulerWidth }}>
+				<div className="audio-editor-timeline-inner" style={{
+					width: panelWidth + timelineWidth + verticalRulerWidth,
+					'--audio-editor-track-sidebar-width': `${panelWidth}px`,
+				}}>
 					<div className="audio-editor-ruler-row">
 						<div className="audio-editor-ruler-corner" style={{ width: panelWidth }}>
 							<span>{copy.tracks}</span>
