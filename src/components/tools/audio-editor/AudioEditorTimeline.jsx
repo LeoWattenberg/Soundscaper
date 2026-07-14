@@ -313,11 +313,21 @@ export default function AudioEditorTimeline({
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {
-			run(() => controller.actions.clip.overwrite(
-				clip.id,
-				dragPreview?.trackId || trackAtClientY(event.clientY, session.trackId),
-				{ timelineStartFrame: dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames) },
-			));
+			const trackId = dragPreview?.trackId || trackAtClientY(event.clientY, session.trackId);
+			const timelineStartFrame = dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames);
+			const targetTrack = project.tracks.find((track) => track.id === trackId);
+			const overlaps = targetTrack?.clipIds.some((clipId) => {
+				if (clipId === clip.id) return false;
+				const inactiveClip = project.clips.find((item) => item.id === clipId);
+				return inactiveClip
+					&& timelineStartFrame < inactiveClip.timelineStartFrame + inactiveClip.durationFrames
+					&& inactiveClip.timelineStartFrame < timelineStartFrame + clip.durationFrames;
+			});
+			if (overlaps) {
+				run(() => controller.actions.clip.overwrite(clip.id, trackId, { timelineStartFrame }));
+			} else {
+				run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame));
+			}
 		} else if (session.kind === 'stretch-left') {
 			const change = Math.max(
 				-session.original.timelineStartFrame,

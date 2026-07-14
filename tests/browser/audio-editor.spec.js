@@ -486,6 +486,30 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps a split clip at its released position on its original track', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const splitButton = editor.getByRole('button', { name: 'Split tool', exact: true });
+		await splitButton.click();
+		await clickClipInterior(page, clipByName(editor, toneA.name), 0.35);
+		await splitButton.click();
+
+		const clips = editor.locator('[data-track-row]').nth(1).locator('[data-clip-id]');
+		await expect(clips).toHaveCount(2);
+		const rightClip = clips.nth(1);
+		const clipBox = await rightClip.boundingBox();
+		expect(clipBox).not.toBeNull();
+
+		await page.mouse.move(clipBox.x + 10, clipBox.y + 12);
+		await page.mouse.down();
+		await page.mouse.move(clipBox.x + 35, clipBox.y + 12, { steps: 4 });
+		await page.mouse.up();
+
+		await expect.poll(async () => (await rightClip.boundingBox())?.x || 0).toBeGreaterThan(clipBox.x + 15);
+		expect(errors).toEqual([]);
+	});
+
 	for (const locale of [
 		{
 			path: '/embed/en/',
