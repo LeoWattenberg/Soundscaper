@@ -112,6 +112,8 @@ import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
 import { decodeAup3File } from '../aup3-browser.js';
+import { ENGLISH_COPY } from '../../../i18n/catalogs.js';
+import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 
 const MIN_TIMELINE_SECONDS = 10;
 const DEFAULT_PIXELS_PER_SECOND = 120;
@@ -124,8 +126,8 @@ const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 
 export function createAudioEditorController(_root = null, options = {}) {
-	const copy = options.copy || {};
-	const locale = options.locale === 'de' ? 'de' : 'en';
+	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
+	const locale = normalizeBcp47Locale(options.locale);
 	const documentListeners = new Set();
 	const telemetryListeners = new Set();
 	let documentSnapshot = null;
@@ -216,7 +218,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		phase: 'loading',
 		projects: [],
 		recentProjectIds: [],
-		status: { message: copy.ready || '', state: 'info' },
+		status: { message: copy.ready, state: 'info' },
 		saveState: 'saved',
 		storageEstimate: { usage: null, quota: null },
 		analysisResult: null,
@@ -403,8 +405,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			analysisProcessing: state.analysisProcessing,
 			export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 			effects: Object.freeze({
-				rackTypes: Object.freeze(audioEffectTypes().map((type) => Object.freeze({ type, label: audioEffectLabel(type, locale) }))),
-				selectionTypes: Object.freeze(audacityEffectTypes().map((type) => Object.freeze({ type, label: audacityEffectLabel(type, locale) }))),
+				rackTypes: Object.freeze(audioEffectTypes().map((type) => Object.freeze({ type, label: audioEffectLabel(type, copy) }))),
+				selectionTypes: Object.freeze(audacityEffectTypes().map((type) => Object.freeze({ type, label: audacityEffectLabel(type, copy) }))),
 				selectionType: state.audacityEffectType,
 				selectionParams: currentAudacityEffectParams(),
 				selectionDefinition: AUDACITY_EFFECT_DEFINITIONS[state.audacityEffectType] || null,
@@ -793,7 +795,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const conflict = findAudioEditorShortcutConflicts(shortcuts)
 			.find((entry) => entry.actionIds.includes(actionId));
 		if (conflict) {
-			const message = copy.shortcutConflict || 'Shortcut {binding} is already assigned to {action}.';
+			const message = copy.shortcutConflict;
 			throw new RangeError(message
 				.replace('{binding}', conflict.binding)
 				.replace('{action}', conflict.actionIds.find((id) => id !== actionId) || actionId));
@@ -1611,7 +1613,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
 		if (!['int16', 'int24', 'int32', 'float32', 'float64'].includes(sampleFormat)) {
-			throw new RangeError(copy.sampleFormat || 'Unsupported sample format.');
+			throw new RangeError(copy.unsupportedSampleFormat);
 		}
 		return commit({ type: 'track/update', trackId: track.id, changes: { sampleFormat } }, { selectTrackId: track.id });
 	}
@@ -1734,7 +1736,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const replacements = new Map();
 			for (const source of sources) {
 				const channels = await sourceChannelsForEdit(source);
-				const record = await persistDerivedSource(source, [channels[1], channels[0]], `${source.name} — ${copy.channelsSwapped || 'channels swapped'}`, 'swapped-source');
+				const record = await persistDerivedSource(source, [channels[1], channels[0]], `${source.name} — ${copy.channelsSwapped}`, 'swapped-source');
 				derived.push(record);
 				replacements.set(source.id, record.source);
 			}
@@ -1772,9 +1774,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const sourcePairs = new Map();
 			for (const source of sources) {
 				const channels = await sourceChannelsForEdit(source);
-				const left = await persistDerivedSource(source, [channels[0]], `${source.name} — ${copy.leftChannel || 'left'}`, 'left-source');
+				const left = await persistDerivedSource(source, [channels[0]], `${source.name} — ${copy.leftChannel}`, 'left-source');
 				derived.push(left);
-				const right = await persistDerivedSource(source, [channels[1] || channels[0]], `${source.name} — ${copy.rightChannel || 'right'}`, 'right-source');
+				const right = await persistDerivedSource(source, [channels[1] || channels[0]], `${source.name} — ${copy.rightChannel}`, 'right-source');
 				derived.push(right);
 				sourcePairs.set(source.id, { left: left.source, right: right.source });
 			}
@@ -1782,7 +1784,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const leftTrack = {
 				...track,
 				clipIds: [],
-				name: `${track.name} — ${copy.leftChannel || 'Left'}`,
+				name: `${track.name} — ${copy.leftChannel}`,
 				channelCount: 1,
 				channelLayout: 'mono',
 				pan: panChannels ? -1 : 0,
@@ -1791,7 +1793,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				...track,
 				id: rightTrackId,
 				clipIds: [],
-				name: `${track.name} — ${copy.rightChannel || 'Right'}`,
+				name: `${track.name} — ${copy.rightChannel}`,
 				channelCount: 1,
 				channelLayout: 'mono',
 				pan: panChannels ? 1 : 0,
@@ -1813,7 +1815,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 						...clip,
 						id: createStableId('clip'),
 						sourceId: pair.right.id,
-						title: `${clip.title} — ${copy.rightChannel || 'Right'}`,
+						title: `${clip.title} — ${copy.rightChannel}`,
 					}),
 				);
 			}
@@ -1873,7 +1875,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				...template,
 				sampleRate: projectSampleRate(),
 				originalSampleRate: template.originalSampleRate || template.sampleRate || projectSampleRate(),
-			}, [leftChannels[0], rightChannels[0]], `${track.name} — ${copy.stereo || 'Stereo'}`, 'stereo-source');
+			}, [leftChannels[0], rightChannels[0]], `${track.name} — ${copy.stereo}`, 'stereo-source');
 			derived.push(stereo);
 			const insertIndex = Math.min(trackIndex, partnerIndex);
 			const stereoTrack = { ...track, clipIds: [], channelCount: 2, channelLayout: 'stereo', pan: 0 };
@@ -2791,7 +2793,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function setSampleEditMode(mode = null) {
 		if (mode != null && mode !== 'pencil') throw new RangeError('Unsupported sample-edit mode.');
-		if (mode && !sampleEditingAvailable()) throw new Error(copy.sampleEditZoomRequired || 'Zoom to at least one pixel per sample.');
+		if (mode && !sampleEditingAvailable()) throw new Error(copy.sampleEditZoomRequired);
 		state.sampleEditMode = mode;
 		publishDocumentSnapshot();
 		return state.sampleEditMode;
@@ -2835,7 +2837,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function applyImmutableSampleEdit({ clip, source, edits = null, smooth = null, radius = 2 }) {
 		if (editingBlocked()) return null;
-		if (!sampleEditingAvailable(clip.id)) throw new Error(copy.sampleEditZoomRequired || 'Zoom to at least one pixel per sample.');
+		if (!sampleEditingAvailable(clip.id)) throw new Error(copy.sampleEditZoomRequired);
 		const projectAtStart = project;
 		const sourceId = createStableId('sample-edit');
 		const abort = new AbortController();
@@ -2843,7 +2845,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.sampleEditAbort = abort;
 		state.sampleEditProcessing = true;
 		publishDocumentSnapshot();
-		setStatus(copy.sampleEditSaving || 'Saving sample edit…');
+		setStatus(copy.sampleEditSaving);
 		let persisted = null;
 		let published = false;
 		try {
@@ -2876,7 +2878,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				],
 			}, { selectTrackId: findClipTrack(project, clip.id)?.id, selectClipId: clip.id });
 			published = true;
-			setStatus(copy.sampleEditDone || 'Edited samples.', 'success');
+			setStatus(copy.sampleEditDone, 'success');
 			return persisted;
 		} catch (error) {
 			if (!published) {
@@ -2886,7 +2888,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				await persisted?.rollback().catch(() => undefined);
 			}
 			if (error?.name === 'AbortError') {
-				setStatus(copy.sampleEditCancelled || 'Sample editing cancelled.');
+				setStatus(copy.sampleEditCancelled);
 				return null;
 			}
 			throw error;
@@ -3098,10 +3100,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const pitchCents = changes.pitchCents == null ? clip.pitchCents : Number(changes.pitchCents);
 		const speedRatio = changes.speedRatio == null ? clip.speedRatio : Number(changes.speedRatio);
 		if (!Number.isFinite(pitchCents) || pitchCents < -1_200 || pitchCents > 1_200) {
-			throw new RangeError(copy.clipPitchRange || 'Clip pitch must be between -1200 and 1200 cents.');
+			throw new RangeError(copy.clipPitchRange);
 		}
 		if (!Number.isFinite(speedRatio) || speedRatio <= 0) {
-			throw new RangeError(copy.clipSpeedPositive || 'Clip speed must be finite and positive.');
+			throw new RangeError(copy.clipSpeedPositive);
 		}
 		const durationFrames = changes.speedRatio == null
 			? clip.durationFrames
@@ -3172,7 +3174,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const channels = audioBufferChannels(buffer).map((channel) => channel.slice());
 			await preflightStorage(buffer.length * buffer.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'effect');
 			renderedSourceId = createStableId('rendered-clip');
-			const name = `${source.name || clip.title || track.name} — ${copy.renderPitchSpeed || 'rendered'}`;
+			const name = `${source.name || clip.title || track.name} — ${copy.renderPitchSpeed}`;
 			const writer = await store.beginSourceWrite(renderedSourceId, {
 				name,
 				mimeType: 'audio/wav',
@@ -3626,16 +3628,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const nyquist = projectSampleRate() / 2;
 		const minimumFrequency = Number(options.minimumFrequency ?? track.spectrogram?.minimumFrequency ?? 0);
 		const maximumFrequency = Number(options.maximumFrequency ?? track.spectrogram?.maximumFrequency ?? nyquist);
-		const parameterRangeError = copy.parameterRangeError || '{label} must be between {minimum} and {maximum}.';
+		const parameterRangeError = copy.parameterRangeError;
 		if (!Number.isFinite(minimumFrequency) || minimumFrequency < 0 || minimumFrequency >= nyquist) {
 			throw new RangeError(copy.minimumFrequencyInvalid || parameterRangeError
-				.replace('{label}', copy.minimumFrequency || 'Minimum frequency')
+				.replace('{label}', copy.minimumFrequency)
 				.replace('{minimum}', '0')
 				.replace('{maximum}', String(nyquist)));
 		}
 		if (!Number.isFinite(maximumFrequency) || maximumFrequency <= minimumFrequency || maximumFrequency > nyquist) {
 			throw new RangeError(copy.maximumFrequencyInvalid || parameterRangeError
-				.replace('{label}', copy.maximumFrequency || 'Maximum frequency')
+				.replace('{label}', copy.maximumFrequency)
 				.replace('{minimum}', String(minimumFrequency))
 				.replace('{maximum}', String(nyquist)));
 		}
@@ -3655,7 +3657,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!target || !frequencyRange) throw new Error(copy.spectralSelectionRequired || copy.audacitySelectionHint);
 		const gainDb = Number(requestedGainDb);
 		if (gainDb !== -Infinity && (!Number.isFinite(gainDb) || gainDb > 120 || gainDb < -120)) {
-			throw new RangeError(copy.spectralGainInvalid || 'Spectral gain must be between -120 dB and 120 dB.');
+			throw new RangeError(copy.spectralGainInvalid);
 		}
 		const outputBytes = target.durationFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 		await preflightStorage(outputBytes, 'effect');
@@ -3957,7 +3959,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const context = await engine.getAudioContext({ resume: false });
 		const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
 		const sourceId = createStableId('audacity-effect');
-		const effectName = options.effectName || audacityEffectLabel(type, locale);
+		const effectName = options.effectName || audacityEffectLabel(type, copy);
 		const sourceName = `${target.track.name} — ${effectName}.wav`;
 		const writer = await store.beginSourceWrite(sourceId, { name: sourceName, mimeType: 'audio/wav' });
 		try {

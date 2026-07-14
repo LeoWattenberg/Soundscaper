@@ -1,21 +1,30 @@
 ---
 import BrandSidebar from '../components/BrandSidebar.astro';
+import { bundledCopyForLocale } from '../i18n/catalogs.js';
+import { getLocaleDescriptor, localePath, ROUTE_LOCALES } from '../i18n/locales.js';
 
 interface Props {
-	locale: 'de' | 'en';
+	locale: string;
 	embedded?: boolean;
 }
 
 const { locale, embedded = false } = Astro.props;
+const localeDescriptor = getLocaleDescriptor(locale);
+if (!localeDescriptor) throw new Error(`Unknown Soundscaper locale: ${locale}`);
 const title = 'Soundscaper';
-const description = locale === 'de'
-	? 'Lokaler Mehrspur-Audio-Editor im Browser.'
-	: 'Local-first multitrack audio editor in your browser.';
-const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org');
+const copy = bundledCopyForLocale(localeDescriptor.locale);
+const description = copy.metaDescription;
+const site = Astro.site ?? new URL('https://soundscaper.org');
+const canonical = new URL(localePath(localeDescriptor.locale, { embedded }), site);
+const alternateLocales = ROUTE_LOCALES.map((descriptor) => ({
+	...descriptor,
+	href: new URL(localePath(descriptor.locale, { embedded }), site),
+}));
+const xDefault = new URL(localePath('en', { embedded }), site);
 ---
 
 <!doctype html>
-<html lang={locale} data-embedded={embedded ? 'true' : undefined}>
+<html lang={localeDescriptor.locale} dir={localeDescriptor.direction} data-embedded={embedded ? 'true' : undefined}>
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,8 +33,8 @@ const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org'
 		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-schwarz.svg" media="(prefers-color-scheme: light)" />
 		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" />
 		<link rel="canonical" href={canonical} />
-		<link rel="alternate" hreflang="de" href="https://soundscaper.org/de/" />
-		<link rel="alternate" hreflang="en" href="https://soundscaper.org/en/" />
+		{alternateLocales.map(({ locale: alternateLocale, href }) => <link rel="alternate" hreflang={alternateLocale} href={href} />)}
+		<link rel="alternate" hreflang="x-default" href={xDefault} />
 		<script>
 			(() => {
 				try {
@@ -40,7 +49,7 @@ const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org'
 	</head>
 	<body>
 		<div class:list={['site-shell', { embedded }]}>
-			{!embedded && <BrandSidebar locale={locale} />}
+			{!embedded && <BrandSidebar locale={localeDescriptor.locale} />}
 			<main><slot /></main>
 		</div>
 	</body>
@@ -88,6 +97,7 @@ const canonical = new URL(`/${locale}/`, Astro.site ?? 'https://soundscaper.org'
 	.tool-note { font-size: 0.98rem; font-weight: 700; }
 	.eyebrow { margin: 0 0 14px; color: var(--color-accent-dark); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 	.audio-editor-section { padding-block: 20px 48px; background: var(--color-surface-raised); }
+	.audio-editor-timeline-scroll, [data-time-display] { direction: ltr; }
 	:root[data-embedded='true'] .tool-intro { display: none; }
 	:root[data-embedded='true'] .audio-editor-section { min-height: 100vh; padding-block: 0; }
 	@media (max-width: 900px) { .site-shell { display: block; } }

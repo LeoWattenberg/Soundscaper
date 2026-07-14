@@ -1,0 +1,181 @@
+name: Sync Audacity translations
+
+on:
+  schedule:
+    - cron: '37 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Publish the latest upstream artifact or promote an existing release
+        required: true
+        default: sync
+        type: choice
+        options:
+          - sync
+          - rollback
+      release_id:
+        description: Existing Audacity artifact ID to promote when operation is rollback
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacity-translation-publication
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event_name == 'schedule' || inputs.operation == 'sync'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      stage_artifact: ${{ steps.source.outputs.stage_artifact }}
+    steps:
+      - name: Check out the converter
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 22
+
+      - name: Install the public Qt parser only
+        run: npm install --prefix scripts --no-save --package-lock=false --ignore-scripts --no-audit --no-fund saxes@6.0.0 xmlchars@2.2.0
+
+      - name: Discover and verify the latest upstream artifact
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/manage-audacity-translation-release.mjs discover \
+            --output "$RUNNER_TEMP/audacity-source" \
+            --github-env "$GITHUB_ENV" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Snapshot the current public packs
+        run: >-
+          node scripts/manage-audacity-translation-release.mjs snapshot
+          --output "$RUNNER_TEMP/previous-release"
+
+      - name: Convert verified Qt TS catalogs
+        shell: bash
+        run: |
+          set -euo pipefail
+          exposed_locales="$(node --input-type=module -e "import { COMMITTED_LOCALE_TAGS } from './src/i18n/locales.js'; process.stdout.write(COMMITTED_LOCALE_TAGS.join(','));")"
+          tool_revision="$(git rev-parse HEAD)"
+          previous=()
+          if [[ -f "$RUNNER_TEMP/previous-release/latest.json" ]]; then
+            previous=(--previous-root "$RUNNER_TEMP/previous-release")
+          fi
+          node scripts/audacity-qt-translations.mjs prepare \
+            --archive "$RUNNER_TEMP/audacity-source/$AUDACITY_TRANSLATION_ARCHIVE_NAME" \
+            --output "$RUNNER_TEMP/staged-release" \
+            --artifact-id "$AUDACITY_TRANSLATION_ARTIFACT_ID" \
+            --source-run-id "$AUDACITY_TRANSLATION_RUN_ID" \
+            --source-head-sha "$AUDACITY_TRANSLATION_HEAD_SHA" \
+            --source-workflow-url "$AUDACITY_TRANSLATION_WORKFLOW_URL" \
+            --source-sha256 "$AUDACITY_TRANSLATION_ARCHIVE_SHA256" \
+            --source-byte-length "$AUDACITY_TRANSLATION_ARCHIVE_BYTE_LENGTH" \
+            --source-license "$RUNNER_TEMP/audacity-source/LICENSE.txt" \
+            --tool-revision "$tool_revision" \
+            --converted-at "$AUDACITY_TRANSLATION_CONVERTED_AT" \
+            --exposed-locales "$exposed_locales" \
+            "${previous[@]}"
+
+      - name: Independently verify the staged release
+        run: >-
+          node scripts/manage-audacity-translation-release.mjs verify-stage
+          --root "$RUNNER_TEMP/staged-release"
+
+      - name: Stage the verified release for the publication job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.source.outputs.stage_artifact }}
+          path: ${{ runner.temp }}/staged-release
+          if-no-files-found: error
+          include-hidden-files: false
+          compression-level: 0
+          retention-days: 1
+
+  publish:
+    if: needs.prepare.result == 'success'
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: translations-production
+    steps:
+      - name: Check out the publisher
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 22
+
+      - name: Download the prepared release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.prepare.outputs.stage_artifact }}
+          path: ${{ runner.temp }}/staged-release
+
+      - name: Install the public Qt parser only
+        run: npm install --prefix scripts --no-save --package-lock=false --ignore-scripts --no-audit --no-fund saxes@6.0.0 xmlchars@2.2.0
+
+      - name: Independently authenticate and reproduce the staged release
+        env:
+          PUBLIC_TRANSLATIONS_BASE_URL: https://translations.soundscaper.org/runtime/translations/audacity/4
+        run: >-
+          node scripts/manage-audacity-translation-release.mjs verify-publication
+          --root "$RUNNER_TEMP/staged-release"
+          --expected-tool-revision "$GITHUB_SHA"
+
+      - name: Restore a dependency-free publisher checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Publish verified immutable objects
+        env:
+          R2_TRANSLATIONS_ACCESS_KEY_ID: ${{ secrets.R2_TRANSLATIONS_ACCESS_KEY_ID }}
+          R2_TRANSLATIONS_SECRET_ACCESS_KEY: ${{ secrets.R2_TRANSLATIONS_SECRET_ACCESS_KEY }}
+          R2_TRANSLATIONS_ENDPOINT: ${{ vars.R2_TRANSLATIONS_ENDPOINT }}
+          R2_TRANSLATIONS_BUCKET: soundscaper-translations
+          PUBLIC_TRANSLATIONS_BASE_URL: https://translations.soundscaper.org/runtime/translations/audacity/4
+        run: >-
+          node scripts/manage-audacity-translation-release.mjs publish
+          --root "$RUNNER_TEMP/staged-release"
+
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: translations-production
+    steps:
+      - name: Check out the publisher
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 22
+
+      - name: Verify and promote the requested release
+        env:
+          R2_TRANSLATIONS_ACCESS_KEY_ID: ${{ secrets.R2_TRANSLATIONS_ACCESS_KEY_ID }}
+          R2_TRANSLATIONS_SECRET_ACCESS_KEY: ${{ secrets.R2_TRANSLATIONS_SECRET_ACCESS_KEY }}
+          R2_TRANSLATIONS_ENDPOINT: ${{ vars.R2_TRANSLATIONS_ENDPOINT }}
+          R2_TRANSLATIONS_BUCKET: soundscaper-translations
+          PUBLIC_TRANSLATIONS_BASE_URL: https://translations.soundscaper.org/runtime/translations/audacity/4
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: >-
+          node scripts/manage-audacity-translation-release.mjs rollback
+          --release-id "$RELEASE_ID"

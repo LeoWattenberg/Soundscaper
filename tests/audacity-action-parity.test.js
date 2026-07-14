@@ -300,5 +300,14 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 	assert.equal(insert.parityStatus, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(insert.disabled, true);
 	assert.match(insert.disabledReason, /noch keine nutzbare Aktion/);
+	const remote = new Map(collectAudacityShortcutCommands([], {
+		locale: 'fr',
+		copy: {
+			audacityParityLabelInsert: 'Insertion distante',
+			audacityParityReasonTodo: 'Commande distante indisponible.',
+		},
+	}).map((command) => [command.id, command]));
+	assert.equal(remote.get('insert').label, 'Insertion distante');
+	assert.equal(remote.get('insert').disabledReason, 'Commande distante indisponible.');
 	assert.throws(() => collectAudacityShortcutCommands(null), /menus must be an array/);
 });

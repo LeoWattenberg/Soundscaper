@@ -5,6 +5,7 @@ import {
 	useAccessibilityProfile,
 	useTheme,
 } from '@dilsonspickles/components';
+import { getLocaleDescriptor } from '../../../i18n/locales.js';
 import { withBase } from '../../../lib/url';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
@@ -28,6 +29,7 @@ export const AUDACITY_MENU_ORDER = Object.freeze([
 export default function AudioEditorMenuBar({
 	appName,
 	copy,
+	locale,
 	menus,
 	onFullscreen,
 	projectTabs,
@@ -45,6 +47,7 @@ export default function AudioEditorMenuBar({
 		.filter(Boolean), [menus]);
 	const flatNavigation = activeProfile.config.tabNavigation === 'sequential';
 	const menuTabIndex = activeProfile.config.tabOrder?.['file-menu'] ?? 0;
+	const horizontalRightDelta = getLocaleDescriptor(locale)?.direction === 'rtl' ? -1 : 1;
 
 	const closeMenu = useCallback((restoreFocus = true) => {
 		setOpenMenu((current) => {
@@ -112,10 +115,10 @@ export default function AudioEditorMenuBar({
 	const onTopLevelKeyDown = (event, index) => {
 		if (event.key === 'ArrowRight') {
 			event.preventDefault();
-			focusMenuButton(index + 1);
+			focusMenuButton(index + horizontalRightDelta);
 		} else if (event.key === 'ArrowLeft') {
 			event.preventDefault();
-			focusMenuButton(index - 1);
+			focusMenuButton(index - horizontalRightDelta);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
 			focusMenuButton(0);
@@ -142,11 +145,11 @@ export default function AudioEditorMenuBar({
 		if (!inSubmenu && !opensSubmenu && event.key === 'ArrowRight') {
 			event.preventDefault();
 			event.stopPropagation();
-			focusMenuButton(openMenu.index + 1, { open: true });
+			focusMenuButton(openMenu.index + horizontalRightDelta, { open: true });
 		} else if (!inSubmenu && event.key === 'ArrowLeft') {
 			event.preventDefault();
 			event.stopPropagation();
-			focusMenuButton(openMenu.index - 1, { open: true });
+			focusMenuButton(openMenu.index - horizontalRightDelta, { open: true });
 		} else if (event.key === 'Tab') {
 			event.preventDefault();
 			event.stopPropagation();

@@ -1,0 +1,19 @@
+{
+	"rules": [
+		{
+			"allowed": {
+				"origins": [
+					"https://soundscaper.org",
+					"https://soundscaper.pages.dev",
+					"https://kw.media",
+					"http://localhost:4321",
+					"http://127.0.0.1:4321"
+				],
+				"methods": ["GET", "HEAD"],
+				"headers": ["If-Modified-Since", "If-None-Match", "Range"]
+			},
+			"exposeHeaders": ["Cache-Control", "Content-Length", "Content-Range", "ETag"],
+			"maxAgeSeconds": 86400
+		}
+	]
+}

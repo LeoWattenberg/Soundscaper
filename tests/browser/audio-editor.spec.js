@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createAup3Fixture } from '../aup3-fixture.js';
 import { aup4NativeRichFixture } from '../fixtures/aup4-native-rich.js';
@@ -59,8 +60,18 @@ const toneA = createWavFixture({ name: 'browser-tone-a.wav', frequency: 330 });
 const toneB = createWavFixture({ name: 'browser-tone-b.wav', frequency: 660 });
 const monoTone = createWavFixture({ name: 'browser-mono-tone.wav', frequency: 440, channelCount: 1 });
 const longTone = createWavFixture({ name: 'browser-long-tone.wav', frequency: 220, duration: 8, channelCount: 1 });
+const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('audio editor React/design-system workflows', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: { 'Access-Control-Allow-Origin': '*' },
+			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+		}));
+	});
+
 	test('uses branded navigation standalone and a chrome-free embed surface', async ({ page }) => {
 		await page.goto('/en/');
 		await expect(page.locator('.site-sidebar')).toBeVisible();
@@ -91,6 +102,96 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await page.reload();
 		await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+	});
+
+	test('loads verified LTR and RTL catalogs before binding the editor', async ({ page }) => {
+		let releasePackResponse;
+		const packResponseGate = new Promise((resolve) => { releasePackResponse = resolve; });
+		await serveTranslationFixture(page, {
+			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture' } },
+			ar: { name: 'العربية', direction: 'rtl', messages: { play: 'تشغيل' } },
+		}, { waitForPack: () => packResponseGate });
+
+		await page.goto('/embed/fr/');
+		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
+		await expect(page.getByRole('status')).toHaveText('Loading project');
+		releasePackResponse();
+		let editor = await waitForEditor(page);
+		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+		await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+		await expect(editor.getByRole('button', { name: 'Lecture', exact: true })).toBeVisible();
+
+		editor = await bootEditor(page, '/embed/ar/');
+		await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+		await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+		await expect(editor.getByRole('button', { name: 'تشغيل', exact: true })).toBeVisible();
+		const fileMenu = editor.getByRole('menuitem', { name: 'File', exact: true });
+		const editMenu = editor.getByRole('menuitem', { name: 'Edit', exact: true });
+		const [fileBox, editBox] = await Promise.all([fileMenu.boundingBox(), editMenu.boundingBox()]);
+		expect(fileBox).not.toBeNull();
+		expect(editBox).not.toBeNull();
+		expect(fileBox.x).toBeGreaterThan(editBox.x);
+		await fileMenu.focus();
+		await fileMenu.press('ArrowLeft');
+		await expect(editMenu).toBeFocused();
+		await editMenu.press('Enter');
+		await expect(editMenu).toHaveAttribute('aria-expanded', 'true');
+		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: /^Undo\b/ });
+		await editLeaf.focus();
+		await editLeaf.press('ArrowRight');
+		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');
+		await expect(editor.locator('.audio-editor-timeline-scroll')).toHaveCSS('direction', 'ltr');
+		await expect(editor.locator('.audio-editor-track-controls').first()).toHaveCSS('direction', 'rtl');
+		await importFiles(editor, [monoTone]);
+		const playhead = editor.locator('[data-playhead]');
+		await playhead.focus();
+		await playhead.press('ArrowRight');
+		await expect(playhead).toHaveAttribute('aria-valuenow', '1');
+	});
+
+	test('overlays verified Audacity German copy on the complete bundled fallback', async ({ page }) => {
+		await serveTranslationFixture(page, {
+			de: { name: 'Deutsch', direction: 'ltr', messages: { play: 'Audacity-Wiedergabe' } },
+		});
+
+		const editor = await bootEditor(page, '/embed/de/');
+		await expect(editor.getByRole('button', { name: 'Audacity-Wiedergabe', exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: 'Vollbild', exact: true })).toBeVisible();
+	});
+
+	test('standalone locale selector only navigates to committed eligible routes', async ({ page }) => {
+		await serveTranslationFixture(page, {
+			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture' } },
+			ar: { name: 'العربية', direction: 'rtl', messages: { play: 'تشغيل' } },
+		});
+		await page.goto('/en/');
+		const selector = page.locator('[data-locale-select]');
+		await expect(selector.locator('option[value="fr"]')).toHaveText('Français');
+		await selector.selectOption('fr');
+		await page.waitForURL('**/fr/');
+		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
+	});
+
+	test('keeps the current committed locale selected when the translation manifest is unavailable', async ({ page }) => {
+		await bootEditor(page, '/ar/');
+		const selector = page.locator('[data-locale-select]');
+		await expect(selector).toHaveValue('ar');
+		await expect(selector.locator('option[value="ar"]')).toHaveText('العربية');
+	});
+
+	test('keeps persisted project names stable when the URL locale changes', async ({ page }) => {
+		await serveTranslationFixture(page, {
+			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture', untitledProject: 'Projet sans titre' } },
+		});
+		let editor = await bootEditor(page, '/embed/en/');
+		const trackName = trackNameText(editor).first();
+		await trackName.dblclick();
+		await editor.locator('[data-track-name] input').fill('Stable name');
+		await editor.locator('[data-track-name] input').press('Enter');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+
+		editor = await bootEditor(page, '/embed/fr/');
+		await expect(trackNameText(editor).first()).toHaveText('Stable name');
 	});
 
 	for (const locale of AUDIO_EDITOR_PATHS) {
@@ -361,14 +462,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		for (const [menuName, labels] of [
-			['File', ['Close project', 'Save project as…', 'Export selected audio…', 'Quit']],
+			['File', ['Close project', 'Save project as', 'Export selected audio', 'Quit']],
 			['View', ['Show piano roll']],
 			['Tracks', ['Sync-lock tracks', 'MIDI track']],
-			['Generate', ['Plugin manager…']],
-			['Effect', ['Plugin manager…']],
-			['Analyze', ['Plugin manager…']],
-			['Tools', ['Plugin manager…', 'Nyquist prompt…', 'Screenshot tools…', 'Run benchmark…']],
-			['Help', ['Diagnostics', 'Check for updates…']],
+			['Generate', ['Plugin manager']],
+			['Effect', ['Plugin manager']],
+			['Analyze', ['Plugin manager']],
+			['Tools', ['Plugin manager', 'Nyquist prompt', 'Screenshot tools', 'Run benchmark']],
+			['Help', ['Diagnostics', 'Check for updates']],
 		]) {
 			await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
 			const menu = page.getByRole('menu', { name: menuName, exact: true });
@@ -379,7 +480,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
-		const backup = getMenuItem(fileMenu, 'Backup project…');
+		const backup = getMenuItem(fileMenu, 'Backup project');
 		await expect(backup).toHaveAttribute('aria-disabled', 'true');
 		await expect(backup.locator('[data-disabled-reason]')).toHaveAttribute('title', /disabled placeholder/);
 	});
@@ -414,7 +515,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
-		await chooseCommandAction(page, editor, 'Effect', 'Add realtime effects…');
+		await chooseCommandAction(page, editor, 'Effect', 'Add realtime effects');
 		const commandEffects = editor.locator('[data-effects-overlay]');
 		await expect(commandEffects.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
 		await closeEffectsPanel(commandEffects);
@@ -543,7 +644,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('builds the shortcut command inventory from manifest actions and keeps disabled commands inert', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseCommandAction(page, editor, 'Edit', 'Preferences…');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
 
@@ -590,7 +691,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom normal']);
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
 
-		await chooseCommandAction(page, editor, 'Edit', 'Preferences…');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
 		await search.fill('Zoom toggle');
@@ -622,7 +723,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(recordingLevel).toHaveValue('1.37');
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Label track']);
-		await chooseCommandAction(page, editor, 'Edit', 'Edit labels…');
+		await chooseCommandAction(page, editor, 'Edit', 'Edit labels');
 		const labelsPanel = editor.locator('[data-workspace-panel="labels"]');
 		await expect(labelsPanel).toBeVisible();
 		await labelsPanel.getByRole('button', { name: 'New label', exact: true }).click();
@@ -636,14 +737,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
 		await expect(editor.locator('[data-label-track] [data-label-id] input')).toHaveValue('Verse');
 
-		await chooseCommandAction(page, editor, 'Edit', 'Metadata…');
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
 		await commitInput(metadataPanel.locator('input[name="title"]'), 'Browser parity project');
 		await commitInput(metadataPanel.locator('input[name="artist"]'), 'Audacity tester');
 		await metadataPanel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
 		await expect(metadataPanel).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'Edit', 'Metadata…');
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata');
 		await expect(editor.locator('[data-workspace-panel="metadata"] input[name="title"]')).toHaveValue('Browser parity project');
 		await expect(editor.locator('[data-workspace-panel="metadata"] input[name="artist"]')).toHaveValue('Audacity tester');
 		expect(errors).toEqual([]);
@@ -750,7 +851,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseFileAction(page, editor, 'Save as native AUP4…');
+		await chooseFileAction(page, editor, 'Save as native AUP4');
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
@@ -1125,7 +1226,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.down();
 		await page.mouse.move(rulerBox.x + 110, rulerBox.y + 24, { steps: 4 });
 		await page.mouse.up();
-		await editor.getByRole('button', { name: 'Select spectral frequency range…', exact: true }).click();
+		await editor.getByRole('button', { name: 'Select spectral frequency range', exact: true }).click();
 		const spectralDialog = page.getByRole('dialog', { name: 'Spectral selection', exact: true });
 		await expect(spectralDialog).toBeVisible();
 		await spectralDialog.getByRole('button', { name: 'Select range', exact: true }).click();
@@ -1595,6 +1696,44 @@ async function bootEditor(page, path) {
 	return editor;
 }
 
+async function serveTranslationFixture(page, locales, { waitForPack } = {}) {
+	await page.unroute(`${TRANSLATIONS_ROOT}/**`);
+	const packs = new Map();
+	const descriptors = {};
+	for (const [locale, fixture] of Object.entries(locales)) {
+		const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, locale, messages: fixture.messages }));
+		const sha256 = createHash('sha256').update(bytes).digest('hex');
+		const path = `packs/${sha256}.json`;
+		packs.set(path, bytes);
+		descriptors[locale] = {
+			name: fixture.name,
+			direction: fixture.direction,
+			eligible: true,
+			coverage: 1,
+			path,
+			sha256,
+			byteLength: bytes.byteLength,
+		};
+	}
+	const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, locales: descriptors }));
+	await page.route(`${TRANSLATIONS_ROOT}/**`, async (route) => {
+		const url = new URL(route.request().url());
+		const relativePath = url.pathname.slice(new URL(`${TRANSLATIONS_ROOT}/`).pathname.length);
+		const body = relativePath === 'latest.json' ? manifest : packs.get(relativePath);
+		if (!body) return route.fulfill({ status: 404, body: 'Not found' });
+		if (relativePath !== 'latest.json') await waitForPack?.(relativePath);
+		return route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: {
+				'Access-Control-Allow-Origin': '*',
+				'Content-Length': String(body.byteLength),
+			},
+			body,
+		});
+	});
+}
+
 async function waitForEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
@@ -1643,9 +1782,9 @@ async function openClipProperties(page, editor, clip) {
 	if (clip) {
 		await clip.click({ position: { x: 24, y: 10 } });
 		await clip.getByRole('button', { name: 'Clip menu' }).click();
-		await page.getByRole('menuitem', { name: 'Clip properties…', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
 	} else {
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties…']);
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
 	}
 	const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
 	await expect(dialog).toBeVisible();
@@ -1670,7 +1809,7 @@ async function openSelectionEffectDialog(page, editor) {
 }
 
 async function openAnalysisDialog(page, editor) {
-	await chooseCommandAction(page, editor, 'Analyze', 'Analysis…');
+	await chooseCommandAction(page, editor, 'Analyze', 'Analysis');
 	const dialog = page.getByRole('dialog', { name: 'Analysis', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="analysis"]')).toBeVisible();
@@ -1678,7 +1817,7 @@ async function openAnalysisDialog(page, editor) {
 }
 
 async function openExportDialog(page, editor) {
-	await chooseFileAction(page, editor, 'Export audio…');
+	await chooseFileAction(page, editor, 'Export audio');
 	const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="export"]')).toBeVisible();

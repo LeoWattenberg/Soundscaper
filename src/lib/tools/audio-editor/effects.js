@@ -9,6 +9,7 @@ import {
 	audacityLiveEffectCapability,
 	audacityLiveEffectTailFrames,
 } from './audacity-effects/live.js';
+import { canonicalCopyValue, effectNameCopyKey } from '../../../i18n/canonical-extras.js';
 
 const EQ_FREQUENCIES = [100, 500, 2_000, 8_000];
 
@@ -60,17 +61,6 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 	},
 });
 
-const AUDIO_EFFECT_LABELS = Object.freeze({
-	highpass: Object.freeze({ en: 'High-pass filter', de: 'Hochpass' }),
-	lowpass: Object.freeze({ en: 'Low-pass filter', de: 'Tiefpass' }),
-	eq: Object.freeze({ en: 'Four-band parametric EQ', de: 'Parametrischer 4-Band-EQ' }),
-	compressor: Object.freeze({ en: 'Compressor', de: 'Kompressor' }),
-	limiter: Object.freeze({ en: 'Limiter', de: 'Limiter' }),
-	gate: Object.freeze({ en: 'Gate', de: 'Gate' }),
-	reverb: Object.freeze({ en: 'Reverb', de: 'Hall' }),
-	delay: Object.freeze({ en: 'Delay', de: 'Delay' }),
-});
-
 /** Audacity effects whose business logic has a bounded live-streaming form. */
 export const AUDACITY_RACK_EFFECT_TYPES = Object.freeze([
 	'audacity-auto-duck',
@@ -105,11 +95,10 @@ export function isAudacityRackEffectType(type) {
 	return AUDACITY_RACK_EFFECT_TYPE_SET.has(type);
 }
 
-export function audioEffectLabel(type, locale = 'en') {
-	if (isAudacityRackEffectType(type)) return audacityEffectLabel(type, locale);
-	const labels = AUDIO_EFFECT_LABELS[type];
-	if (!labels) throw new RangeError(`Unsupported audio effect: ${type}.`);
-	return labels[locale === 'de' ? 'de' : 'en'];
+export function audioEffectLabel(type, copyOrLocale = 'en') {
+	if (isAudacityRackEffectType(type)) return audacityEffectLabel(type, copyOrLocale);
+	if (!AUDIO_EFFECT_DEFINITIONS[type]) throw new RangeError(`Unsupported audio effect: ${type}.`);
+	return canonicalCopyValue(effectNameCopyKey(type), copyOrLocale);
 }
 
 export function audioEffectParamRange(type, name) {

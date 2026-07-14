@@ -35,6 +35,44 @@ The action-parity manifest, native AUP4 codec/profile implementation, compatibil
 
 `tests/fixtures/aup4-native-empty.js`, `tests/fixtures/aup4-native-legacy.js`, `tests/fixtures/aup4-native-rich.js`, `tests/fixtures/aup4-binary-xml-oracle.js`, and `tests/fixtures/aup4-sampleblock-oracle.js` contain the compressed Audacity-created empty/legacy/rich projects and compact interoperability data derived from the pinned Audacity sources. The rich fixture exercises two tracks, five clips, group state, stretch-to-tempo state, Float32 block reuse, and byte-exact Audacity-created summaries through an Audacity-created fixture → browser decode → browser write → browser reopen cycle. That fixture-codec audit does not execute Audacity's compiled native loader or writer. The separate compiled-native round-trip release gate is recorded as pending, with its required evidence, in `tests/fixtures/aup4-interop-gate.json`; `npm run audit:aup4-interop:release` fails closed until that evidence is produced. The browser codec is a clean JavaScript adaptation with typed opaque-node preservation; no QML, wxWidgets, or other `au3/` UI code is included.
 
+## Audacity 4 translation catalogs
+
+Soundscaper can load selected user-interface translations from Audacity 4's Qt
+TS catalogs. The catalogs are maintained by Audacity's translators through
+Transifex and published by Audacity's translation workflow:
+
+- upstream repository and workflow:
+  <https://github.com/audacity/audacity/blob/master/.github/workflows/translate_tx_pull_to_s3.yml>
+- upstream license: GNU GPL version 3, preserved as `LICENSE.txt` beside every
+  published source artifact
+- selected GPL terms for this distribution:
+  [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)
+
+Each promoted release at
+`https://translations.soundscaper.org/runtime/translations/audacity/4/releases/`
+records the exact upstream workflow run, head commit, GitHub artifact ID, source
+archive byte length and SHA-256 digest, conversion revision and date. The
+verified original ZIP and its commit-specific Audacity license are mirrored
+beside that manifest as the preferred source for the translated material. The
+manifest itself also records the `GPL-3.0-only` SPDX identifier, upstream and
+Soundscaper project URLs, the commit-specific license URL, and a stable
+modification notice.
+
+Soundscaper modifies the catalogs by selecting reviewed source/context/comment
+mappings, excluding unfinished, vanished, obsolete, plural, fuzzy, ambiguous,
+or brand-inappropriate entries, adapting reviewed placeholders and mnemonics,
+and removing ellipsis punctuation from displayed translations. The resulting
+per-locale JSON packs contain only strings mapped to Soundscaper catalog keys;
+they are not complete Audacity catalogs. Audacity and its translators retain
+copyright in the upstream translations, and those derived packs remain under
+GPLv3. Soundscaper is not affiliated with or endorsed by Audacity or Muse Group.
+
+The credential-free conversion job uses `saxes` 6.0.0 (ISC) and its `xmlchars`
+2.2.0 dependency (MIT) to parse Qt TS XML. Both are development-time tools and
+are not included in the browser bundle. Their package sources and license texts
+are available from <https://github.com/lddubeau/saxes/tree/v6.0.0> and
+<https://github.com/lddubeau/xmlchars/tree/v2.2.0>.
+
 ## StaffPad time-and-pitch WebAssembly
 
 The committed scalar, single-threaded StaffPad module and its preferred source are in `src/lib/tools/audio-editor/staffpad/`:

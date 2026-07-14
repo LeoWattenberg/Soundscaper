@@ -47,6 +47,7 @@ const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 export default function AudioEditorTimeline({
 	controller,
 	snapshot,
+	locale,
 	copy,
 	mobile,
 	showArmControls,
@@ -572,8 +573,8 @@ export default function AudioEditorTimeline({
 		|| snapshot.recordingStarting
 		|| snapshot.exporting
 		|| snapshot.processingEffect;
-	const contextLocale = copy.fileMenu === 'Datei' ? 'de' : 'en';
-	const unavailableReason = copy.unavailable || (contextLocale === 'de' ? 'nicht verfügbar' : 'unavailable');
+	const contextLocale = locale;
+	const unavailableReason = copy.unavailable;
 	const trackMenuItems = menuTrack ? [
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
 			checked: showArmControls,
@@ -830,7 +831,7 @@ export default function AudioEditorTimeline({
 			>
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.properties}
-					label={copy.clipPropertiesCommand || (copy.fileMenu === 'Datei' ? 'Clip-Eigenschaften…' : 'Clip properties…')}
+					label={copy.clipPropertiesCommand}
 					disabled={!menuClip}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
@@ -1110,6 +1111,7 @@ function TrackRow({
 			pixelsPerSecond,
 			selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
 			sampleRate,
+			copy,
 			showRms,
 			displayMode === 'half-wave',
 		));
@@ -1711,7 +1713,7 @@ function LabelTrackRow({
 		const startFrame = selection?.startFrame ?? 0;
 		const endFrame = selection?.endFrame ?? startFrame;
 		run(() => controller.actions.labels.add(track.id, {
-			title: copy.newLabel || (copy.fileMenu === 'Datei' ? 'Neue Beschriftung' : 'New label'),
+			title: copy.newLabel,
 			startFrame,
 			endFrame,
 		}));
@@ -1749,7 +1751,7 @@ function LabelTrackRow({
 					)}
 				</div>
 				<div className="audio-editor-label-track-actions">
-					<Button variant="secondary" disabled={blocked} onClick={addLabel}>{copy.addLabel || '+'}</Button>
+					<Button variant="secondary" aria-label={copy.addLabel} disabled={blocked} onClick={addLabel}>+</Button>
 					<Button variant="tertiary" aria-label={copy.trackMenu || copy.tracksMenu} onClick={(event) => onMenu(event.currentTarget)}>⋯</Button>
 				</div>
 			</div>
@@ -1785,7 +1787,7 @@ function LabelTrackRow({
 						>
 							<input
 								key={`${label.id}-${label.title}`}
-								aria-label={`${copy.editLabels || 'Label'}: ${label.title}`}
+								aria-label={`${copy.editLabels}: ${label.title}`}
 								defaultValue={label.title}
 								disabled={blocked}
 								onBlur={(event) => {
@@ -1991,7 +1993,7 @@ function recordingPreviewId(trackId) {
 function toDesignRecordingPreview(clip, preview, overscanStartFrame, pixelsPerSecond, sampleRate, copy) {
 	const output = {
 		id: clip.id,
-		name: copy.recordingLabel || copy.recording || 'Recording',
+		name: copy.recordingLabel,
 		start: framesToSeconds(Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame), { sampleRate }),
 		duration: Math.max(
 			framesToSeconds(clip.waveformEndFrame - clip.waveformStartFrame, { sampleRate }),
@@ -2029,6 +2031,7 @@ function toDesignClip(
 	pixelsPerSecond,
 	selectedClipIds,
 	sampleRate,
+	copy,
 	showRms = false,
 	halfWave = false,
 ) {
@@ -2039,7 +2042,7 @@ function toDesignClip(
 		: selectedClipIds === clip.id;
 	const output = {
 		id: clip.id,
-		name: source?.name || 'Clip',
+		name: source?.name || copy.clip,
 		start: framesToSeconds(Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame), { sampleRate }),
 		duration: Math.max(
 			framesToSeconds(clip.waveformEndFrame - clip.waveformStartFrame, { sampleRate }),

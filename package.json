@@ -6,7 +6,7 @@
 	"license": "AGPL-3.0-only",
 	"scripts": {
 		"dev": "astro dev",
-		"build": "astro build && node scripts/check-cloudflare-assets.mjs",
+		"build": "astro build && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs",
 		"preview": "astro preview",
 		"test": "node --test",
 		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/lib/tools/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
@@ -38,6 +38,7 @@
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
 		"patch-package": "^8.0.1",
-		"postcss": "8.5.19"
+		"postcss": "8.5.19",
+		"saxes": "6.0.0"
 	}
 }

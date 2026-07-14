@@ -8,6 +8,14 @@
  * changing AUDACITY_ACTION_SOURCE.commit.
  */
 
+import {
+	AUDACITY_DISABLED_REASONS as DISABLED_REASONS,
+	AUDACITY_EXCLUDED_REASONS as EXCLUDED_REASONS,
+	localizedAudacityParityLabel,
+	localizedAudacityReason,
+} from '../../../i18n/action-parity.js';
+import { normalizeBcp47Locale } from '../../../i18n/locale.js';
+
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
 	version: '4.0.0-beta.2+',
 	commit: '908ad0a526e5bfdab68de780e893cebe172d27eb',
@@ -31,52 +39,6 @@ const UPSTREAM = Object.freeze({
 	effects: 'src/effects/effects_base/internal/effectsuiactions.cpp',
 	builtinEffects: 'src/effects/builtin_collection/internal/builtincollectionloader.cpp',
 	spectrogram: 'src/spectrogram/internal/spectrogramuiactions.cpp',
-});
-
-const DISABLED_REASONS = deepFreeze({
-	menu: {
-		en: 'This command is disabled in the pinned Audacity 4 menu.',
-		de: 'Dieser Befehl ist im festgelegten Audacity-4-Menü deaktiviert.',
-	},
-	todo: {
-		en: 'Audacity 4 declares this command but does not provide a usable handler yet.',
-		de: 'Audacity 4 deklariert diesen Befehl, stellt aber noch keine nutzbare Aktion bereit.',
-	},
-	local: {
-		en: 'This existing editor command remains available as a disabled placeholder.',
-		de: 'Dieser bestehende Editor-Befehl bleibt als deaktivierter Platzhalter erhalten.',
-	},
-	state: {
-		en: 'This command is unavailable in the current editor state.',
-		de: 'Dieser Befehl ist im aktuellen Editor-Zustand nicht verfügbar.',
-	},
-	pending: {
-		en: 'This Audacity 4 parity command is not connected in this build yet.',
-		de: 'Dieser Audacity-4-Paritätsbefehl ist in diesem Build noch nicht angebunden.',
-	},
-});
-
-const EXCLUDED_REASONS = deepFreeze({
-	cloud: {
-		en: 'Cloud, account, sharing, and audio.com features are outside the browser editor scope.',
-		de: 'Cloud-, Konto-, Freigabe- und audio.com-Funktionen gehören nicht zum Umfang des Browser-Editors.',
-	},
-	plugins: {
-		en: 'External plugin and Nyquist support is intentionally omitted.',
-		de: 'Externe Plugins und Nyquist-Unterstützung werden bewusst nicht übernommen.',
-	},
-	os: {
-		en: 'Operating-system audio, device, and application-lifecycle settings are intentionally omitted.',
-		de: 'Betriebssystem-, Audio-Geräte- und Anwendungsoptionen werden bewusst nicht übernommen.',
-	},
-	developer: {
-		en: 'Hidden Extra, diagnostic, benchmark, and developer scaffolding is intentionally omitted.',
-		de: 'Verborgene Extra-, Diagnose-, Benchmark- und Entwicklerfunktionen werden bewusst nicht übernommen.',
-	},
-	midi: {
-		en: 'MIDI tracks are outside the browser editor scope.',
-		de: 'MIDI-Spuren gehören nicht zum Umfang des Browser-Editors.',
-	},
 });
 
 const implemented = (id, label, locations, handler, options = {}) => actionDefinition({
@@ -123,23 +85,23 @@ const excluded = (id, label, locations, reason, options = {}) => actionDefinitio
 const definitions = [
 	// File and project lifecycle.
 	implemented('file-new', 'New', ['File'], 'project.create', { shortcut: 'Ctrl+N' }),
-	implemented('file-open', 'Open…', ['File'], 'project.open', { shortcut: 'Ctrl+O' }),
+	implemented('file-open', 'Open', ['File'], 'project.open', { shortcut: 'Ctrl+O' }),
 	implemented('file-open-recent', 'Open recent', ['File'], 'project.openRecent', { enableWhen: 'recent-projects' }),
 	implemented('clear-recent', 'Clear recent projects', ['File > Open recent'], 'project.clearRecent', { enableWhen: 'recent-projects' }),
-	implemented('project-import', 'Import audio…', ['File'], 'io.importAudio', { shortcut: 'Ctrl+I' }),
+	implemented('project-import', 'Import audio', ['File'], 'io.importAudio', { shortcut: 'Ctrl+I' }),
 	implemented('file-save', 'Save project', ['File'], 'project.save', { shortcut: 'Ctrl+S', enableWhen: 'project-writable' }),
-	implemented('file-save-as', 'Save project as…', ['File'], 'project.saveAs', { shortcut: 'Ctrl+Shift+S', enableWhen: 'project-opened' }),
-	implemented('export-audio', 'Export audio…', ['File'], 'io.exportAudio', { shortcut: 'Ctrl+Shift+E', enableWhen: 'project-opened' }),
-	implemented('export-labels', 'Export labels…', ['File > Export other'], 'labels.export', { enableWhen: 'label-track-present' }),
+	implemented('file-save-as', 'Save project as', ['File'], 'project.saveAs', { shortcut: 'Ctrl+Shift+S', enableWhen: 'project-opened' }),
+	implemented('export-audio', 'Export audio', ['File'], 'io.exportAudio', { shortcut: 'Ctrl+Shift+E', enableWhen: 'project-opened' }),
+	implemented('export-labels', 'Export labels', ['File > Export other'], 'labels.export', { enableWhen: 'label-track-present' }),
 	implemented('file-close', 'Close project', ['File'], 'session.closeProject', { shortcut: 'Ctrl+W', enableWhen: 'project-opened' }),
-	disabled('export-midi', 'Export MIDI…', ['File > Export other'], DISABLED_REASONS.menu, { source: UPSTREAM.menu }),
+	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.menu, { source: UPSTREAM.menu }),
 	disabled('insert', 'Insert', ['Command inventory'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('project-properties', 'Project properties…', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	disabled('project-properties', 'Project properties', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('revert-factory', 'Revert to factory settings', ['Help'], DISABLED_REASONS.todo, { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
 	implemented('toggle-tracks', 'Tracks panel', ['View > Panels'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
 	implemented('toggle-statusbar', 'Status bar', ['View'], 'workspace.toggleStatusbar', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
-	implemented('configure-workspaces', 'Configure workspaces…', ['View > Workspaces'], 'workspace.configure', { source: UPSTREAM.menu }),
+	implemented('configure-workspaces', 'Configure workspaces', ['View > Workspaces'], 'workspace.configure', { source: UPSTREAM.menu }),
 
 	// Edit menu and destructive/ripple variants.
 	implemented('action://trackedit/undo', 'Undo', ['Edit'], 'edit.undo', { shortcut: 'Ctrl+Z', enableWhen: 'history-can-undo', source: UPSTREAM.trackEdit }),
@@ -172,9 +134,9 @@ const definitions = [
 	implemented('trim-clip', 'Trim clip', ['Edit > Clip'], 'clip.trim', { enableWhen: 'clip-selected' }),
 	implemented('label-add', 'Add label', ['Edit > Label'], 'labels.add', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
 	implemented('paste-new-label', 'Paste text to new label', ['Edit > Label'], 'labels.pasteNew', { enableWhen: 'project-writable', source: UPSTREAM.project }),
-	implemented('open-label-editor', 'Manage labels…', ['Edit > Label', 'View'], 'panels.labels', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('open-metadata-editor', 'Metadata editor…', ['Edit', 'View'], 'panels.metadata', { enableWhen: 'project-opened' }),
-	implemented('preference-dialog', 'Preferences…', ['Edit'], 'preferences.open', { enableWhen: 'always' }),
+	implemented('open-label-editor', 'Manage labels', ['Edit > Label', 'View'], 'panels.labels', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('open-metadata-editor', 'Metadata editor', ['Edit', 'View'], 'panels.metadata', { enableWhen: 'project-opened' }),
+	implemented('preference-dialog', 'Preferences', ['Edit'], 'preferences.open', { enableWhen: 'always' }),
 
 	// Selection and looping.
 	implemented('select-all', 'Select all', ['Select'], 'selection.all', { shortcut: 'Ctrl+A', enableWhen: 'project-has-audio' }),
@@ -250,9 +212,9 @@ const definitions = [
 	implemented('action://record/level', 'Record level', ['Meter toolbar'], 'recording.setLevel', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-mic-metering', 'Show microphone metering', ['Meter toolbar'], 'recording.toggleMicMetering', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-input-monitoring', 'Input monitoring', ['Meter toolbar'], 'recording.toggleInputMonitoring', { enableWhen: 'project-opened', source: UPSTREAM.record }),
-	disabled('set-up-timed-recording', 'Set up timed recording…', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
+	disabled('set-up-timed-recording', 'Set up timed recording', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
 	disabled('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
-	disabled('set-sound-activation-level', 'Sound activation level…', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
+	disabled('set-sound-activation-level', 'Sound activation level', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
 
 	// Tracks and track context actions.
 	implemented('new-mono-track', 'New mono track', ['Tracks'], 'track.addMono', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
@@ -269,14 +231,14 @@ const definitions = [
 	implemented('track-swap-channels', 'Swap stereo channels', ['Track context'], 'track.swapChannels', { enableWhen: 'stereo-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('track-split-stereo-to-lr', 'Split stereo to L/R mono', ['Track context'], 'track.splitStereoLR', { enableWhen: 'stereo-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('track-split-stereo-to-center', 'Split stereo to center mono', ['Track context'], 'track.splitStereoCenter', { enableWhen: 'stereo-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-resample', 'Resample track…', ['Track context'], 'track.resample', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('track-resample', 'Resample track', ['Track context'], 'track.resample', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-waveform', 'Waveform', ['Track context > Display'], 'track.setWaveformView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-spectrogram', 'Spectrogram', ['Track context > Display'], 'track.setSpectrogramView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-multi', 'Multi-view', ['Track context > Display'], 'track.setMultiView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-change-rate-custom', 'Custom track sample rate…', ['Track context > Rate'], 'track.setCustomRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('track-change-rate-custom', 'Custom track sample rate', ['Track context > Rate'], 'track.setCustomRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track/change-rate?rate=%1', 'Track sample rate', ['Track context > Rate'], 'track.setRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery rate action' }),
 	implemented('action://trackedit/track/change-format?format=%1', 'Track sample format', ['Track context > Format'], 'track.setSampleFormat', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery format action' }),
-	implemented('track-spectrogram-settings', 'Spectrogram settings…', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
+	implemented('track-spectrogram-settings', 'Spectrogram settings', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
 	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Display'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
 	implemented('keep-tracks-synchronised', 'Keep tracks synchronized', ['Tracks'], 'preferences.toggleTrackSynchronization', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('track-view-item-move-left', 'Move item left', ['Keyboard navigation'], 'navigation.moveItemLeft', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
@@ -301,7 +263,7 @@ const definitions = [
 	implemented('track-view-extend-track-selection-prev', 'Extend track selection up', ['Keyboard navigation'], 'navigation.extendTrackSelectionUp', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-extend-track-selection-next', 'Extend track selection down', ['Keyboard navigation'], 'navigation.extendTrackSelectionDown', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-item-context-menu', 'Open item context menu', ['Keyboard navigation'], 'navigation.openContextMenu', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
-	disabled('mixdown-to', 'Mix-down to…', ['Tracks'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	disabled('mixdown-to', 'Mix-down to', ['Tracks'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('menu-align', 'Align content', ['Tracks'], DISABLED_REASONS.menu),
 	disabled('align-end-to-end', 'Align end to end', ['Tracks > Align content'], DISABLED_REASONS.menu),
 	disabled('align-together', 'Align together', ['Tracks > Align content'], DISABLED_REASONS.menu),
@@ -315,14 +277,14 @@ const definitions = [
 	disabled('sort-by-name', 'Sort by name', ['Tracks > Sort tracks'], DISABLED_REASONS.menu),
 
 	// Clip properties and spectral tools.
-	implemented('clip-properties', 'Clip properties…', ['Clip context'], 'clip.openProperties', { enableWhen: 'clip-selected', source: UPSTREAM.projectScene }),
+	implemented('clip-properties', 'Clip properties', ['Clip context'], 'clip.openProperties', { enableWhen: 'clip-selected', source: UPSTREAM.projectScene }),
 	implemented('split-tool', 'Split tool', ['Tools toolbar'], 'tools.toggleSplitTool', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('clip-gain', 'Clip gain', ['Clip context'], 'clip.setGain', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
-	implemented('clip-pitch-speed', 'Pitch and speed…', ['Clip context'], 'clip.openPitchSpeed', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
+	implemented('clip-pitch-speed', 'Pitch and speed', ['Clip context'], 'clip.openPitchSpeed', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
 	implemented('stretch-clip-to-match-tempo', 'Stretch with tempo changes', ['Clip context'], 'clip.toggleStretchToTempo', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
 	implemented('clip-render-pitch-speed', 'Render pitch and speed', ['Clip context'], 'clip.renderPitchSpeed', { enableWhen: 'editable-transformed-clip', source: UPSTREAM.trackEdit }),
 	implemented('clip-reset-pitch-speed', 'Reset pitch and speed', ['Clip context'], 'clip.resetPitchSpeed', { enableWhen: 'editable-transformed-clip', source: UPSTREAM.trackEdit }),
-	implemented('clip-export', 'Export clip…', ['Clip context'], 'io.exportClip', { enableWhen: 'clip-selected', source: UPSTREAM.trackEdit }),
+	implemented('clip-export', 'Export clip', ['Clip context'], 'io.exportClip', { enableWhen: 'clip-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/clip/change-color-auto', 'Follow track color', ['Clip context > Color'], 'clip.useTrackColor', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
 	implemented('action://trackedit/clip/change-color?colorindex=%1', 'Change clip color', ['Clip context > Color'], 'clip.setColor', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene, upstreamAction: 'dynamic ActionQuery clip-color action' }),
 	implemented('action://trackedit/track/change-color?colorindex=%1', 'Change track color', ['Track context > Color'], 'track.setColor', { enableWhen: 'editable-track-selected', source: UPSTREAM.projectScene, upstreamAction: 'dynamic ActionQuery track-color action' }),
@@ -347,37 +309,37 @@ const definitions = [
 	implemented('realtime-effect-move-up', 'Move realtime effect up', ['Realtime effect context'], 'effects.moveRealtimeUp', { enableWhen: 'realtime-effect-can-move-up', source: UPSTREAM.projectScene }),
 	implemented('realtime-effect-move-down', 'Move realtime effect down', ['Realtime effect context'], 'effects.moveRealtimeDown', { enableWhen: 'realtime-effect-can-move-down', source: UPSTREAM.projectScene }),
 	implemented('action://effects/presets/apply', 'Apply preset', ['Effect dialog > Presets'], 'effects.presets.apply', { enableWhen: 'effect-preset-selected', source: UPSTREAM.effects }),
-	implemented('action://effects/presets/save_as', 'Save preset as…', ['Effect dialog > Presets'], 'effects.presets.saveAs', { enableWhen: 'effect-opened', source: UPSTREAM.effects }),
+	implemented('action://effects/presets/save_as', 'Save preset as', ['Effect dialog > Presets'], 'effects.presets.saveAs', { enableWhen: 'effect-opened', source: UPSTREAM.effects }),
 	implemented('action://effects/presets/save', 'Save preset', ['Effect dialog > Presets'], 'effects.presets.save', { enableWhen: 'editable-effect-preset-selected', source: UPSTREAM.effects }),
 	implemented('action://effects/presets/delete', 'Delete preset', ['Effect dialog > Presets'], 'effects.presets.delete', { enableWhen: 'editable-effect-preset-selected', source: UPSTREAM.effects }),
-	implemented('action://effects/presets/import', 'Import preset…', ['Effect dialog > Presets'], 'effects.presets.import', { enableWhen: 'effect-opened', source: UPSTREAM.effects }),
-	implemented('action://effects/presets/export', 'Export preset…', ['Effect dialog > Presets'], 'effects.presets.export', { enableWhen: 'effect-preset-selected', source: UPSTREAM.effects }),
+	implemented('action://effects/presets/import', 'Import preset', ['Effect dialog > Presets'], 'effects.presets.import', { enableWhen: 'effect-opened', source: UPSTREAM.effects }),
+	implemented('action://effects/presets/export', 'Export preset', ['Effect dialog > Presets'], 'effects.presets.export', { enableWhen: 'effect-preset-selected', source: UPSTREAM.effects }),
 	implemented('action://effects/open?effectId=%1', 'Open effect', ['Generate', 'Effect', 'Analyze', 'Tools'], 'effects.openById', { enableWhen: 'project-opened', source: UPSTREAM.effects, upstreamAction: 'dynamic ActionQuery effect action' }),
 	implemented('action://effects/realtime-add?effectId=%1', 'Add realtime effect', ['Realtime effect rack'], 'effects.addRealtimeById', { enableWhen: 'audio-track-selected', source: UPSTREAM.effects, upstreamAction: 'dynamic ActionQuery realtime-add action' }),
 	implemented('action://effects/realtime-replace?effectId=%1', 'Replace realtime effect', ['Realtime effect context'], 'effects.replaceRealtimeById', { enableWhen: 'realtime-effect-selected', source: UPSTREAM.effects, upstreamAction: 'dynamic ActionQuery realtime-replace action' }),
-	implemented('effect://builtin/change-pitch', 'Change pitch…', ['Effect > Pitch and tempo'], 'effects.changePitch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Change Pitch effect action' }),
-	implemented('effect://builtin/change-tempo', 'Change tempo…', ['Effect > Pitch and tempo'], 'effects.changeTempo', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Tempo effect adapted to StaffPad' }),
-	implemented('effect://builtin/change-speed-pitch', 'Change speed and pitch…', ['Effect > Pitch and tempo'], 'effects.changeSpeedPitch', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Speed and Pitch effect adapted to StaffPad' }),
-	implemented('effect://builtin/sliding-stretch', 'Sliding stretch…', ['Effect > Pitch and tempo'], 'effects.slidingStretch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Sliding Stretch effect action' }),
-	implemented('generator://silence', 'Silence…', ['Generate'], 'generators.silence', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Silence effect action' }),
-	implemented('generator://tone', 'Tone…', ['Generate'], 'generators.tone', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Tone effect action' }),
-	implemented('generator://chirp', 'Chirp…', ['Generate'], 'generators.chirp', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Chirp effect action' }),
-	implemented('generator://dtmf', 'DTMF tones…', ['Generate'], 'generators.dtmf', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic DTMF effect action' }),
-	implemented('generator://noise', 'Noise…', ['Generate'], 'generators.noise', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Noise effect action' }),
-	implemented('contrast-analyzer', 'Contrast…', ['Analyze'], 'analysis.contrast', { enableWhen: 'audio-selection' }),
-	implemented('plot-spectrum', 'Plot spectrum…', ['Analyze'], 'analysis.plotSpectrum', { enableWhen: 'audio-selection' }),
-	implemented('find-clipping', 'Find clipping…', ['Analyze'], 'analysis.findClipping', { enableWhen: 'audio-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Find Clipping effect action' }),
+	implemented('effect://builtin/change-pitch', 'Change pitch', ['Effect > Pitch and tempo'], 'effects.changePitch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Change Pitch effect action' }),
+	implemented('effect://builtin/change-tempo', 'Change tempo', ['Effect > Pitch and tempo'], 'effects.changeTempo', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Tempo effect adapted to StaffPad' }),
+	implemented('effect://builtin/change-speed-pitch', 'Change speed and pitch', ['Effect > Pitch and tempo'], 'effects.changeSpeedPitch', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Speed and Pitch effect adapted to StaffPad' }),
+	implemented('effect://builtin/sliding-stretch', 'Sliding stretch', ['Effect > Pitch and tempo'], 'effects.slidingStretch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Sliding Stretch effect action' }),
+	implemented('generator://silence', 'Silence', ['Generate'], 'generators.silence', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Silence effect action' }),
+	implemented('generator://tone', 'Tone', ['Generate'], 'generators.tone', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Tone effect action' }),
+	implemented('generator://chirp', 'Chirp', ['Generate'], 'generators.chirp', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Chirp effect action' }),
+	implemented('generator://dtmf', 'DTMF tones', ['Generate'], 'generators.dtmf', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic DTMF effect action' }),
+	implemented('generator://noise', 'Noise', ['Generate'], 'generators.noise', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Noise effect action' }),
+	implemented('contrast-analyzer', 'Contrast', ['Analyze'], 'analysis.contrast', { enableWhen: 'audio-selection' }),
+	implemented('plot-spectrum', 'Plot spectrum', ['Analyze'], 'analysis.plotSpectrum', { enableWhen: 'audio-selection' }),
+	implemented('find-clipping', 'Find clipping', ['Analyze'], 'analysis.findClipping', { enableWhen: 'audio-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Find Clipping effect action' }),
 
 	// Upstream TODO commands retained as visible, inert entries.
 	disabled('favourite-effect-1', 'Favorite effect 1', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('favourite-effect-2', 'Favorite effect 2', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('favourite-effect-3', 'Favorite effect 3', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('manage-macros', 'Manage macros…', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
+	disabled('manage-macros', 'Manage macros', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
 	disabled('menu-macros', 'Macros', ['Tools'], DISABLED_REASONS.menu),
-	disabled('apply-macros-palette', 'Apply macro…', ['Tools > Macros'], DISABLED_REASONS.menu),
+	disabled('apply-macros-palette', 'Apply macro', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-fade-ends', 'Fade ends', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-mp3-conversion', 'MP3 conversion', ['Tools > Macros'], DISABLED_REASONS.menu),
-	disabled('raw-data-import', 'Import raw data…', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	disabled('raw-data-import', 'Import raw data', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 
 	// Help actions that translate naturally to a browser surface.
@@ -397,13 +359,13 @@ const definitions = [
 	disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-generator', 'Repeat last generator', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://rhythm-generator', 'Rhythm track…', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://pluck-generator', 'Pluck…', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://risset-generator', 'Risset drum…', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://rhythm-generator', 'Rhythm track', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://pluck-generator', 'Pluck', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://risset-generator', 'Risset drum', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://beat-finder', 'Beat finder…', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://silence-finder', 'Silence finder…', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://sound-finder', 'Sound finder…', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://beat-finder', 'Beat finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://silence-finder', 'Silence finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+	disabled('local://sound-finder', 'Sound finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 
 	// Explicit product exclusions. They remain in the audit inventory but never
 	// appear in generated or decorated menus.
@@ -596,9 +558,9 @@ export function audacityActionDefinition(id) {
 	return matchAudacityAction(id)?.definition || null;
 }
 
-export function audacityActionReason(id, locale = 'en') {
+export function audacityActionReason(id, copyOrLocale = 'en') {
 	const reason = audacityActionDefinition(id)?.reason;
-	return reason?.[locale === 'de' ? 'de' : 'en'] || null;
+	return localizedAudacityReason(reason, copyOrLocale);
 }
 
 /**
@@ -769,28 +731,31 @@ export function auditAudacityActionRuntime(actionRuntime) {
  */
 export function applyAudacityParityToMenus(menus, {
 	locale = 'en',
+	copy = null,
 	materializeDisabled = false,
 	actionRuntime = null,
 	actionContext,
 } = {}) {
 	if (!Array.isArray(menus)) throw new TypeError('menus must be an array.');
 	const completeMenus = materializeDisabled
-		? materializeAudacityDisabledMenuActions(menus, { locale })
+		? materializeAudacityDisabledMenuActions(menus, { locale, copy })
 		: menus;
+	const normalizedLocale = normalizeBcp47Locale(locale);
+	const localization = copy || normalizedLocale;
 	const resolvedContext = actionContext === undefined
 		? resolveRuntimeActionContext(actionRuntime)
 		: resolveActionContext(actionContext);
-	return cleanMenuItems(completeMenus.map((item) => decorateMenuItem(item, locale, actionRuntime, resolvedContext)).filter(Boolean));
+	return cleanMenuItems(completeMenus.map((item) => decorateMenuItem(item, localization, actionRuntime, resolvedContext)).filter(Boolean));
 }
 
-function decorateMenuItem(item, locale, actionRuntime, actionContext) {
+function decorateMenuItem(item, localization, actionRuntime, actionContext) {
 	if (!item || typeof item !== 'object') throw new TypeError('Each menu item must be an object.');
 	if (item.divider) return { ...item };
 	const definition = item.id ? audacityActionDefinition(item.id) : null;
 	if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED) return null;
 
 	const children = item.items
-		? cleanMenuItems(item.items.map((child) => decorateMenuItem(child, locale, actionRuntime, actionContext)).filter(Boolean))
+		? cleanMenuItems(item.items.map((child) => decorateMenuItem(child, localization, actionRuntime, actionContext)).filter(Boolean))
 		: undefined;
 	const result = { ...item };
 	if (children) result.items = children;
@@ -802,7 +767,7 @@ function decorateMenuItem(item, locale, actionRuntime, actionContext) {
 	if (definition?.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM) {
 		result.disabled = true;
 		result.onClick = undefined;
-		result.disabledReason = definition.reason[locale === 'de' ? 'de' : 'en'];
+		result.disabledReason = localizedAudacityReason(definition.reason, localization);
 	} else if (!children?.length && definition?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED) {
 		const hadHandler = typeof result.onClick === 'function';
 		const stateDisabled = result.disabled || (
@@ -811,22 +776,21 @@ function decorateMenuItem(item, locale, actionRuntime, actionContext) {
 		if (stateDisabled) {
 			result.disabled = true;
 			result.onClick = undefined;
-			result.disabledReason ||= (
-				actionContext === undefined && !hadHandler ? DISABLED_REASONS.pending : DISABLED_REASONS.state
-			)[locale === 'de' ? 'de' : 'en'];
+			const reason = actionContext === undefined && !hadHandler ? DISABLED_REASONS.pending : DISABLED_REASONS.state;
+			result.disabledReason ||= localizedAudacityReason(reason, localization);
 		} else if (typeof result.onClick !== 'function') {
 			const handler = resolveAudacityActionHandler(item.id, actionRuntime);
 			if (handler) result.onClick = handler;
 			else {
 				result.disabled = true;
 				result.onClick = undefined;
-				result.disabledReason = DISABLED_REASONS.pending[locale === 'de' ? 'de' : 'en'];
+				result.disabledReason = localizedAudacityReason(DISABLED_REASONS.pending, localization);
 			}
 		}
 	} else if (result.disabled) {
 		const hadHandler = typeof result.onClick === 'function';
 		result.onClick = undefined;
-		result.disabledReason ||= (hadHandler ? DISABLED_REASONS.state : DISABLED_REASONS.local)[locale === 'de' ? 'de' : 'en'];
+		result.disabledReason ||= localizedAudacityReason(hadHandler ? DISABLED_REASONS.state : DISABLED_REASONS.local, localization);
 	}
 	return result;
 }
@@ -920,44 +884,10 @@ const APPLICATION_MENU_IDS = Object.freeze({
 	Help: 'help',
 });
 
-const GERMAN_PARITY_LABELS = Object.freeze({
-	'Export other': 'Weitere Exporte',
-	'Export MIDI…': 'MIDI exportieren…',
-	'Audio clips': 'Audio-Clips',
-	'Previous clip boundary to cursor': 'Vorherige Clip-Grenze bis Cursor',
-	'Cursor to next clip boundary': 'Cursor bis nächste Clip-Grenze',
-	'Previous clip': 'Vorheriger Clip',
-	'Next clip': 'Nächster Clip',
-	Spectral: 'Spektral',
-	'Spectral selection': 'Spektralauswahl',
-	'Skip to': 'Springen zu',
-	'Selection start': 'Auswahlbeginn',
-	'Selection end': 'Auswahlende',
-	'Set up timed recording…': 'Zeitgesteuerte Aufnahme einrichten…',
-	'Sound activation level…': 'Aktivierungspegel…',
-	'Align content': 'Inhalt ausrichten',
-	'Align end to end': 'Ende an Ende ausrichten',
-	'Align together': 'Zusammen ausrichten',
-	'Align start to zero': 'Anfang an Null ausrichten',
-	'Align start to playhead': 'Anfang an Abspielposition ausrichten',
-	'Align start to selection end': 'Anfang am Auswahlende ausrichten',
-	'Align end to playhead': 'Ende an Abspielposition ausrichten',
-	'Align end to selection end': 'Ende am Auswahlende ausrichten',
-	'Sort tracks': 'Spuren sortieren',
-	'Sort by time': 'Nach Zeit sortieren',
-	'Sort by name': 'Nach Name sortieren',
-	Macros: 'Makros',
-	'Apply macro…': 'Makro anwenden…',
-	'Fade ends': 'Enden ausblenden',
-	'MP3 conversion': 'MP3-Konvertierung',
-	'Import raw data…': 'Rohdaten importieren…',
-	'Reset configuration': 'Konfiguration zurücksetzen',
-	Insert: 'Einfügen',
-});
-
 /** Materialize every pinned application-menu command that is intentionally disabled. */
-export function materializeAudacityDisabledMenuActions(menus, { locale = 'en' } = {}) {
+export function materializeAudacityDisabledMenuActions(menus, { locale = 'en', copy = null } = {}) {
 	const result = menus.map(cloneMenuTree);
+	const localization = copy || normalizeBcp47Locale(locale);
 	const definitions = Object.values(AUDACITY_ACTION_MANIFEST)
 		.filter((definition) => definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	for (const definition of definitions) {
@@ -977,7 +907,7 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en' } 
 				));
 				container = {
 					id: containerDefinition?.id || `parity-${slug(path.slice(0, path.indexOf(segment) + 1).join('-'))}`,
-					label: localizedParityLabel(segment, locale),
+					label: localizedParityLabel(segment, localization),
 					items: [],
 				};
 				children.push(container);
@@ -991,7 +921,7 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en' } 
 		)));
 		children.push({
 			id: definition.id,
-			label: localizedParityLabel(definition.label, locale),
+			label: localizedParityLabel(definition.label, localization),
 			disabled: true,
 			...(definition.shortcut ? { shortcut: definition.shortcut } : {}),
 			...(isContainer ? { items: [] } : {}),
@@ -1006,9 +936,10 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en' } 
  * Excluded actions never enter the inventory; disabled-upstream actions remain
  * visible and carry the reason the UI needs to keep their controls inert.
  */
-export function collectAudacityShortcutCommands(menus, { locale = 'en' } = {}) {
+export function collectAudacityShortcutCommands(menus, { locale = 'en', copy = null } = {}) {
 	if (!Array.isArray(menus)) throw new TypeError('menus must be an array.');
-	const normalizedLocale = locale === 'de' ? 'de' : 'en';
+	const normalizedLocale = normalizeBcp47Locale(locale);
+	const localization = copy || normalizedLocale;
 	const commands = new Map();
 
 	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
@@ -1017,11 +948,11 @@ export function collectAudacityShortcutCommands(menus, { locale = 'en' } = {}) {
 		commands.set(definition.id, {
 			id: definition.id,
 			preferenceId: definition.id,
-			label: localizedParityLabel(definition.label, normalizedLocale),
+			label: localizedParityLabel(definition.label, localization),
 			shortcut: definition.shortcut || '',
 			parityStatus: definition.status,
 			disabled,
-			disabledReason: disabled ? definition.reason[normalizedLocale] : null,
+			disabledReason: disabled ? localizedAudacityReason(definition.reason, localization) : null,
 		});
 	}
 
@@ -1049,7 +980,7 @@ export function collectAudacityShortcutCommands(menus, { locale = 'en' } = {}) {
 				parityStatus: definition?.status || null,
 				disabled,
 				disabledReason: disabled
-					? (item.disabledReason || definition?.reason?.[normalizedLocale] || null)
+					? (item.disabledReason || (definition?.reason ? localizedAudacityReason(definition.reason, localization) : null))
 					: null,
 			});
 		}
@@ -1081,8 +1012,8 @@ function cloneMenuTree(item) {
 		: item;
 }
 
-function localizedParityLabel(label, locale) {
-	return locale === 'de' ? GERMAN_PARITY_LABELS[label] || label : label;
+function localizedParityLabel(label, copyOrLocale) {
+	return localizedAudacityParityLabel(label, copyOrLocale);
 }
 
 function slug(value) {

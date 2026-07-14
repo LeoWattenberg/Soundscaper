@@ -13,11 +13,12 @@ const ACCESSIBILITY_PROFILE_IDS = new Set(['au4-tab-groups', 'wcag-flat']);
 let portalMountCount = 0;
 let portalObserver = null;
 let portalLayoutFrame = 0;
+let portalOptionsLabel = '';
 
-export function DesignSystemProviders({ children }) {
+export function DesignSystemProviders({ children, copy }) {
 	const theme = useSiteTheme();
 	const accessibilityProfile = useMemo(readAccessibilityProfile, []);
-	usePortalSentinel();
+	usePortalSentinel(copy.options);
 
 	return (
 		<AccessibilityProfileProvider initialProfileId={accessibilityProfile}>
@@ -129,7 +130,15 @@ function useSiteTheme() {
 	return theme;
 }
 
-function usePortalSentinel() {
+function usePortalSentinel(optionsLabel) {
+	useEffect(() => {
+		portalOptionsLabel = optionsLabel;
+		schedulePortalLayout();
+		return () => {
+			if (portalOptionsLabel === optionsLabel) portalOptionsLabel = '';
+		};
+	}, [optionsLabel]);
+
 	useEffect(() => {
 		portalMountCount += 1;
 		document.body.classList.add(PORTAL_BODY_CLASS);
@@ -200,7 +209,8 @@ function layoutDropdownPortals() {
 		menu.style.setProperty('width', `${Math.round(width)}px`, 'important');
 		menu.style.setProperty('max-height', `${Math.round(height)}px`, 'important');
 		menu.style.setProperty('overflow-y', 'auto', 'important');
-		menu.setAttribute('aria-label', trigger.getAttribute('aria-label') || 'Options');
+		const menuLabel = trigger.getAttribute('aria-label') || portalOptionsLabel;
+		if (menuLabel) menu.setAttribute('aria-label', menuLabel);
 		menu.querySelectorAll('[role="option"]').forEach((option, optionIndex) => {
 			if (!option.id) option.id = `kw-audio-editor-dropdown-${menuIndex}-${optionIndex}`;
 		});

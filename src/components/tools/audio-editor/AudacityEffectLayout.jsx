@@ -1,191 +1,140 @@
 import React from 'react';
-
-const CARD_TITLES = Object.freeze({
-	'Amplification': { en: 'Amplification', de: 'Verstärkung' },
-	'Ducking': { en: 'Ducking', de: 'Absenkung' },
-	'Fade down': { en: 'Fade down', de: 'Abblenden' },
-	'Fade up': { en: 'Fade up', de: 'Aufblenden' },
-	'Tone': { en: 'Tone', de: 'Klang' },
-	'Output': { en: 'Output', de: 'Ausgabe' },
-	'Click detection': { en: 'Click detection', de: 'Klickerkennung' },
-	'Pitch shift': { en: 'Pitch shift', de: 'Tonhöhenänderung' },
-	'Quality': { en: 'Quality', de: 'Qualität' },
-	'Tempo change': { en: 'Tempo change', de: 'Tempoänderung' },
-	'Speed and pitch': { en: 'Speed and pitch', de: 'Geschwindigkeit und Tonhöhe' },
-	'Initial tempo change': { en: 'Initial tempo change', de: 'Anfängliche Tempoänderung' },
-	'Final tempo change': { en: 'Final tempo change', de: 'Abschließende Tempoänderung' },
-	'Initial pitch shift': { en: 'Initial pitch shift', de: 'Anfängliche Tonhöhenänderung' },
-	'Final pitch shift': { en: 'Final pitch shift', de: 'Abschließende Tonhöhenänderung' },
-	'General': { en: 'General', de: 'Allgemein' },
-	'Timing': { en: 'Timing', de: 'Zeitverhalten' },
-	'Compression': { en: 'Compression', de: 'Kompression' },
-	'Response': { en: 'Response', de: 'Kennlinie' },
-	'Mode': { en: 'Mode', de: 'Modus' },
-	'Drive': { en: 'Drive', de: 'Ansteuerung' },
-	'Texture': { en: 'Texture', de: 'Textur' },
-	'Echo': { en: 'Echo', de: 'Echo' },
-	'Equalization curve': { en: 'Equalization curve', de: 'Equalizer-Kurve' },
-	'Display': { en: 'Display', de: 'Anzeige' },
-	'Filter': { en: 'Filter', de: 'Filter' },
-	'Third-octave bands': { en: 'Third-octave bands', de: 'Terzbänder' },
-	'Settings': { en: 'Settings', de: 'Einstellungen' },
-	'Level': { en: 'Level', de: 'Pegel' },
-	'Character': { en: 'Character', de: 'Charakter' },
-	'Target loudness': { en: 'Target loudness', de: 'Ziellautheit' },
-	'Channels': { en: 'Channels', de: 'Kanäle' },
-	'Step 2 · Noise reduction': { en: 'Step 2 · Noise reduction', de: 'Schritt 2 · Rauschverminderung' },
-	'Normalize': { en: 'Normalize', de: 'Normalisieren' },
-	'Stretch': { en: 'Stretch', de: 'Dehnung' },
-	'Resolution': { en: 'Resolution', de: 'Auflösung' },
-	'Sweep': { en: 'Sweep', de: 'Modulation' },
-	'Space': { en: 'Space', de: 'Raum' },
-	'Mix': { en: 'Mix', de: 'Mischung' },
-	'Repeat': { en: 'Repeat', de: 'Wiederholen' },
-	'Detect silence': { en: 'Detect silence', de: 'Stille erkennen' },
-	'Action': { en: 'Action', de: 'Aktion' },
-	'High-pass filter': { en: 'High-pass filter', de: 'Hochpassfilter' },
-	'Low-pass filter': { en: 'Low-pass filter', de: 'Tiefpassfilter' },
-	'Equalizer bands': { en: 'Equalizer bands', de: 'Equalizer-Bänder' },
-	'Limiter': { en: 'Limiter', de: 'Limiter' },
-	'Detection': { en: 'Detection', de: 'Erkennung' },
-	'Envelope': { en: 'Envelope', de: 'Hüllkurve' },
-	'Delay': { en: 'Delay', de: 'Verzögerung' },
-});
+import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 
 const EFFECT_LAYOUTS = Object.freeze({
 	'audacity-amplify': [
-		{ title: 'Amplification', names: ['gainDb', 'allowClipping'], wide: true },
+		{ titleKey: 'effectCardAmplification', names: ['gainDb', 'allowClipping'], wide: true },
 	],
 	'audacity-auto-duck': [
-		{ title: 'Ducking', names: ['duckAmountDb', 'thresholdDb', 'maximumPause'], wide: true },
-		{ title: 'Fade down', names: ['outerFadeDown', 'innerFadeDown'] },
-		{ title: 'Fade up', names: ['innerFadeUp', 'outerFadeUp'] },
+		{ titleKey: 'effectCardDucking', names: ['duckAmountDb', 'thresholdDb', 'maximumPause'], wide: true },
+		{ titleKey: 'effectCardFadeDown', names: ['outerFadeDown', 'innerFadeDown'] },
+		{ titleKey: 'effectCardFadeUp', names: ['innerFadeUp', 'outerFadeUp'] },
 	],
 	'audacity-bass-treble': [
-		{ title: 'Tone', names: ['bassDb', 'trebleDb'], knobs: true },
-		{ title: 'Output', names: ['volumeDb'], knobs: true },
+		{ titleKey: 'effectCardTone', names: ['bassDb', 'trebleDb'], knobs: true },
+		{ titleKey: 'effectCardOutput', names: ['volumeDb'], knobs: true },
 	],
 	'audacity-click-removal': [
-		{ title: 'Click detection', names: ['threshold', 'maximumWidth'], wide: true },
+		{ titleKey: 'effectCardClickDetection', names: ['threshold', 'maximumWidth'], wide: true },
 	],
 	'audacity-change-pitch': [
-		{ title: 'Pitch shift', names: ['semitones'], knobs: true },
-		{ title: 'Quality', names: ['preserveFormants'] },
+		{ titleKey: 'effectCardPitchShift', names: ['semitones'], knobs: true },
+		{ titleKey: 'effectCardQuality', names: ['preserveFormants'] },
 	],
 	'audacity-change-tempo': [
-		{ title: 'Tempo change', names: ['tempoPercent'], wide: true },
+		{ titleKey: 'effectCardTempoChange', names: ['tempoPercent'], wide: true },
 	],
 	'audacity-change-speed-pitch': [
-		{ title: 'Speed and pitch', names: ['speedPercent'], wide: true },
+		{ titleKey: 'effectCardSpeedAndPitch', names: ['speedPercent'], wide: true },
 	],
 	'audacity-sliding-stretch': [
-		{ title: 'Initial tempo change', names: ['startTempoPercent'] },
-		{ title: 'Final tempo change', names: ['endTempoPercent'] },
-		{ title: 'Initial pitch shift', names: ['startPitchSemitones'] },
-		{ title: 'Final pitch shift', names: ['endPitchSemitones'] },
-		{ title: 'General', names: ['preserveFormants'], wide: true },
+		{ titleKey: 'effectCardInitialTempoChange', names: ['startTempoPercent'] },
+		{ titleKey: 'effectCardFinalTempoChange', names: ['endTempoPercent'] },
+		{ titleKey: 'effectCardInitialPitchShift', names: ['startPitchSemitones'] },
+		{ titleKey: 'effectCardFinalPitchShift', names: ['endPitchSemitones'] },
+		{ titleKey: 'effectCardGeneral', names: ['preserveFormants'], wide: true },
 	],
 	'audacity-compressor': [
-		{ title: 'Timing', names: ['attackMs', 'releaseMs', 'lookaheadMs'], knobs: true },
-		{ title: 'Compression', names: ['thresholdDb', 'ratio', 'kneeWidthDb', 'makeupGainDb'], knobs: true },
-		{ title: 'Response', names: [], response: 'compressor', wide: true },
+		{ titleKey: 'effectCardTiming', names: ['attackMs', 'releaseMs', 'lookaheadMs'], knobs: true },
+		{ titleKey: 'effectCardCompression', names: ['thresholdDb', 'ratio', 'kneeWidthDb', 'makeupGainDb'], knobs: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'compressor', wide: true },
 	],
 	'audacity-legacy-compressor': [
-		{ title: 'Compression', names: ['thresholdDb', 'noiseFloorDb', 'ratio'], knobs: true },
-		{ title: 'Timing', names: ['attackSeconds', 'releaseSeconds'], knobs: true },
-		{ title: 'Output', names: ['normalize', 'usePeak'], wide: true },
-		{ title: 'Response', names: [], response: 'compressor', wide: true },
+		{ titleKey: 'effectCardCompression', names: ['thresholdDb', 'noiseFloorDb', 'ratio'], knobs: true },
+		{ titleKey: 'effectCardTiming', names: ['attackSeconds', 'releaseSeconds'], knobs: true },
+		{ titleKey: 'effectCardOutput', names: ['normalize', 'usePeak'], wide: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'compressor', wide: true },
 	],
 	'audacity-distortion': [
-		{ title: 'Mode', names: ['mode', 'dcBlock'], wide: true },
-		{ title: 'Drive', names: ['thresholdDb', 'noiseFloorDb', 'parameter1', 'parameter2'], knobs: true },
-		{ title: 'Texture', names: ['repeats'] },
+		{ titleKey: 'effectCardMode', names: ['mode', 'dcBlock'], wide: true },
+		{ titleKey: 'effectCardDrive', names: ['thresholdDb', 'noiseFloorDb', 'parameter1', 'parameter2'], knobs: true },
+		{ titleKey: 'effectCardTexture', names: ['repeats'] },
 	],
 	'audacity-echo': [
-		{ title: 'Echo', names: ['delaySeconds', 'decay'], knobs: true, wide: true },
+		{ titleKey: 'effectCardEcho', names: ['delaySeconds', 'decay'], knobs: true, wide: true },
 	],
 	'audacity-filter-curve-eq': [
-		{ title: 'Equalization curve', names: ['points'], wide: true },
-		{ title: 'Display', names: ['linearFrequencyScale'] },
-		{ title: 'Filter', names: ['filterLength'] },
+		{ titleKey: 'effectCardEqualizationCurve', names: ['points'], wide: true },
+		{ titleKey: 'effectCardDisplay', names: ['linearFrequencyScale'] },
+		{ titleKey: 'effectCardFilter', names: ['filterLength'] },
 	],
 	'audacity-graphic-eq': [
-		{ title: 'Third-octave bands', names: ['gains'], wide: true },
-		{ title: 'Settings', names: ['interpolation', 'filterLength'], wide: true },
+		{ titleKey: 'effectCardThirdOctaveBands', names: ['gains'], wide: true },
+		{ titleKey: 'effectCardSettings', names: ['interpolation', 'filterLength'], wide: true },
 	],
 	'audacity-limiter': [
-		{ title: 'Level', names: ['thresholdDb', 'makeupTargetDb'], knobs: true },
-		{ title: 'Character', names: ['lookaheadMs', 'kneeWidthDb', 'releaseMs'], knobs: true },
-		{ title: 'Response', names: [], response: 'limiter', wide: true },
+		{ titleKey: 'effectCardLevel', names: ['thresholdDb', 'makeupTargetDb'], knobs: true },
+		{ titleKey: 'effectCardCharacter', names: ['lookaheadMs', 'kneeWidthDb', 'releaseMs'], knobs: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'limiter', wide: true },
 	],
 	'audacity-loudness-normalization': [
-		{ title: 'Target loudness', names: ['mode', 'targetLufs', 'targetRmsDb'], wide: true },
-		{ title: 'Channels', names: ['stereoIndependent', 'dualMono'], wide: true },
+		{ titleKey: 'effectCardTargetLoudness', names: ['mode', 'targetLufs', 'targetRmsDb'], wide: true },
+		{ titleKey: 'effectCardChannels', names: ['stereoIndependent', 'dualMono'], wide: true },
 	],
 	'audacity-noise-reduction': [
-		{ title: 'Step 2 · Noise reduction', names: ['reductionDb', 'sensitivity', 'frequencySmoothingBands'], wide: true },
-		{ title: 'Output', names: ['output'], wide: true },
+		{ titleKey: 'effectCardStep2NoiseReduction', names: ['reductionDb', 'sensitivity', 'frequencySmoothingBands'], wide: true },
+		{ titleKey: 'effectCardOutput', names: ['output'], wide: true },
 	],
 	'audacity-normalize': [
-		{ title: 'Normalize', names: ['removeDc', 'applyGain', 'peakDb', 'stereoIndependent'], wide: true },
+		{ titleKey: 'effectCardNormalize', names: ['removeDc', 'applyGain', 'peakDb', 'stereoIndependent'], wide: true },
 	],
 	'audacity-paulstretch': [
-		{ title: 'Stretch', names: ['stretchFactor'] },
-		{ title: 'Resolution', names: ['timeResolution'] },
+		{ titleKey: 'effectCardStretch', names: ['stretchFactor'] },
+		{ titleKey: 'effectCardResolution', names: ['timeResolution'] },
 	],
 	'audacity-phaser': [
-		{ title: 'Sweep', names: ['stages', 'frequency', 'phaseDegrees', 'depth'], knobs: true },
-		{ title: 'Mix', names: ['dryWet', 'feedbackPercent', 'outputGainDb'], knobs: true },
+		{ titleKey: 'effectCardSweep', names: ['stages', 'frequency', 'phaseDegrees', 'depth'], knobs: true },
+		{ titleKey: 'effectCardMix', names: ['dryWet', 'feedbackPercent', 'outputGainDb'], knobs: true },
 	],
 	'audacity-reverb': [
-		{ title: 'Space', names: ['roomSize', 'stereoWidth'], knobs: true },
-		{ title: 'Tone', names: ['damping', 'reverberance'], knobs: true },
-		{ title: 'Mix', names: ['wetGainDb', 'dryGainDb', 'wetOnly'], knobs: true, wide: true },
+		{ titleKey: 'effectCardSpace', names: ['roomSize', 'stereoWidth'], knobs: true },
+		{ titleKey: 'effectCardTone', names: ['damping', 'reverberance'], knobs: true },
+		{ titleKey: 'effectCardMix', names: ['wetGainDb', 'dryGainDb', 'wetOnly'], knobs: true, wide: true },
 	],
 	'audacity-repeat': [
-		{ title: 'Repeat', names: ['count'], wide: true },
+		{ titleKey: 'effectCardRepeat', names: ['count'], wide: true },
 	],
 	'audacity-classic-filters': [
-		{ title: 'Filter', names: ['family', 'direction', 'order', 'cutoffHz'], wide: true },
-		{ title: 'Response', names: ['passbandRippleDb', 'stopbandAttenuationDb'], response: 'filter', wide: true },
+		{ titleKey: 'effectCardFilter', names: ['family', 'direction', 'order', 'cutoffHz'], wide: true },
+		{ titleKey: 'effectCardResponse', names: ['passbandRippleDb', 'stopbandAttenuationDb'], response: 'filter', wide: true },
 	],
 	'audacity-truncate-silence': [
-		{ title: 'Detect silence', names: ['thresholdDb', 'minimumSilence'], wide: true },
-		{ title: 'Action', names: ['action', 'truncateTo', 'compressPercent'], wide: true },
+		{ titleKey: 'effectCardDetectSilence', names: ['thresholdDb', 'minimumSilence'], wide: true },
+		{ titleKey: 'effectCardAction', names: ['action', 'truncateTo', 'compressPercent'], wide: true },
 	],
 	'audacity-wahwah': [
-		{ title: 'Sweep', names: ['frequency', 'phaseDegrees', 'depthPercent', 'frequencyOffsetPercent'], knobs: true },
-		{ title: 'Character', names: ['resonance', 'outputGainDb'], knobs: true },
+		{ titleKey: 'effectCardSweep', names: ['frequency', 'phaseDegrees', 'depthPercent', 'frequencyOffsetPercent'], knobs: true },
+		{ titleKey: 'effectCardCharacter', names: ['resonance', 'outputGainDb'], knobs: true },
 	],
 	highpass: [
-		{ title: 'High-pass filter', names: ['frequency', 'q'], response: 'highpass', wide: true },
+		{ titleKey: 'effectCardHighPassFilter', names: ['frequency', 'q'], response: 'highpass', wide: true },
 	],
 	lowpass: [
-		{ title: 'Low-pass filter', names: ['frequency', 'q'], response: 'lowpass', wide: true },
+		{ titleKey: 'effectCardLowPassFilter', names: ['frequency', 'q'], response: 'lowpass', wide: true },
 	],
 	eq: [
-		{ title: 'Equalizer bands', names: ['bands'], response: 'equalizer', wide: true },
+		{ titleKey: 'effectCardEqualizerBands', names: ['bands'], response: 'equalizer', wide: true },
 	],
 	compressor: [
-		{ title: 'Compression', names: ['threshold', 'knee', 'ratio', 'makeupGain'], knobs: true },
-		{ title: 'Timing', names: ['attack', 'release'], knobs: true },
-		{ title: 'Response', names: [], response: 'compressor', wide: true },
+		{ titleKey: 'effectCardCompression', names: ['threshold', 'knee', 'ratio', 'makeupGain'], knobs: true },
+		{ titleKey: 'effectCardTiming', names: ['attack', 'release'], knobs: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'compressor', wide: true },
 	],
 	limiter: [
-		{ title: 'Limiter', names: ['ceiling', 'lookahead', 'release'], knobs: true },
-		{ title: 'Response', names: [], response: 'limiter', wide: true },
+		{ titleKey: 'effectCardLimiter', names: ['ceiling', 'lookahead', 'release'], knobs: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'limiter', wide: true },
 	],
 	gate: [
-		{ title: 'Detection', names: ['threshold', 'rangeDb'], knobs: true },
-		{ title: 'Envelope', names: ['attack', 'hold', 'release'], knobs: true },
-		{ title: 'Response', names: [], response: 'gate', wide: true },
+		{ titleKey: 'effectCardDetection', names: ['threshold', 'rangeDb'], knobs: true },
+		{ titleKey: 'effectCardEnvelope', names: ['attack', 'hold', 'release'], knobs: true },
+		{ titleKey: 'effectCardResponse', names: [], response: 'gate', wide: true },
 	],
 	reverb: [
-		{ title: 'Space', names: ['decay', 'preDelay'], knobs: true },
-		{ title: 'Mix', names: ['mix'], knobs: true },
+		{ titleKey: 'effectCardSpace', names: ['decay', 'preDelay'], knobs: true },
+		{ titleKey: 'effectCardMix', names: ['mix'], knobs: true },
 	],
 	delay: [
-		{ title: 'Delay', names: ['time', 'feedback', 'mix'], knobs: true, wide: true },
+		{ titleKey: 'effectCardDelay', names: ['time', 'feedback', 'mix'], knobs: true, wide: true },
 	],
 });
 
@@ -284,13 +233,12 @@ function layoutGroups(effectType, parameterNames) {
 	}
 
 	const remaining = parameterNames.filter((name) => !assigned.has(name));
-	if (remaining.length) groups.push({ title: 'Settings', names: remaining, wide: true });
+	if (remaining.length) groups.push({ titleKey: 'effectCardSettings', names: remaining, wide: true });
 	return groups;
 }
 
-function localizedCardTitle(title, locale) {
-	const value = CARD_TITLES[title];
-	return value?.[locale === 'de' ? 'de' : 'en'] || value?.en || title;
+function localizedCardTitle(titleKey, copy) {
+	return canonicalCopyValue(titleKey, copy);
 }
 
 function ResponsePanel({ type, parameters }) {
@@ -327,7 +275,7 @@ export function AudacityEffectLayout({
 	renderParameter,
 	before = null,
 	after = null,
-	locale = 'en',
+	copy,
 }) {
 	const parameterNames = Object.keys(definition?.params || {});
 	const groups = layoutGroups(effectType, parameterNames);
@@ -347,9 +295,9 @@ export function AudacityEffectLayout({
 						group.knobs && 'audio-editor-audacity-layout__card--knobs',
 					].filter(Boolean).join(' ');
 					return (
-						<section className={className} key={`${group.title}-${groupIndex}`}>
+						<section className={className} key={`${group.titleKey}-${groupIndex}`}>
 							<h3 className="audio-editor-audacity-layout__heading">
-								{localizedCardTitle(group.title, locale)}
+								{localizedCardTitle(group.titleKey, copy)}
 							</h3>
 							{group.names.length > 0 && (
 								<div className="audio-editor-audacity-layout__parameters">

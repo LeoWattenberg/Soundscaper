@@ -4,6 +4,7 @@ import {
 	audacityActionReason,
 	resolveAudacityActionId,
 } from './audacity-action-parity.js';
+import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 
 export const AUDACITY_TRACK_CONTEXT_ACTION_IDS = Object.freeze({
 	showArmControls: 'local://show-arm-controls',
@@ -42,7 +43,7 @@ export function audacityContextMenuAction(actionId, options = {}) {
 	if (!definition && !canonicalId.startsWith('local://')) {
 		throw new RangeError(`Unknown Audacity context-menu action: ${canonicalId || '(empty)'}.`);
 	}
-	const locale = options.locale === 'de' ? 'de' : 'en';
+	const locale = normalizeBcp47Locale(options.locale);
 	const parityStatus = definition?.status || 'supplemental';
 	const manifestDisabled = parityStatus === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM;
 	const hidden = parityStatus === AUDACITY_ACTION_STATUS.EXCLUDED;

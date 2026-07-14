@@ -21,6 +21,37 @@
 	isolation: isolate;
 }
 
+/* The surrounding document mirrors editor chrome for RTL locales. Audio time
+ * and frequency surfaces deliberately keep their physical left-to-right axis. */
+:where(html[dir='rtl']) #kw-audio-editor-design-system :is(
+	.audio-editor-timeline-scroll,
+	.audio-editor-timeline-inner,
+	.selection-toolbar__timecodes,
+	.kw-audio-editor__timecode,
+	.audio-editor-audacity-layout__response,
+	.audio-editor-effect-bands
+) {
+	direction: ltr;
+}
+
+:where(html[dir='rtl']) #kw-audio-editor-design-system :is(
+	.audio-editor-ruler-corner,
+	.audio-editor-track-controls,
+	.audio-editor-label-track-controls
+) {
+	direction: rtl;
+}
+
+:where(html[dir='rtl']) #kw-audio-editor-design-system :is(
+	input[type='number'],
+	[data-technical-number],
+	.track-meter,
+	.master-meter
+) {
+	direction: ltr;
+	unicode-bidi: isolate;
+}
+
 #kw-audio-editor-design-system:fullscreen {
 	width: 100vw;
 	height: 100dvh;

@@ -169,6 +169,7 @@ test('rack labels keep studio collisions distinct from their Audacity implementa
 	assert.equal(audioEffectLabel('audacity-compressor', 'de'), 'Kompressor (Audacity)');
 	assert.equal(audioEffectLabel('limiter', 'en'), 'Limiter');
 	assert.equal(audioEffectLabel('audacity-limiter', 'en'), 'Limiter (Audacity)');
+	assert.equal(audioEffectLabel('compressor', { effectNameCompressor: 'Remote dynamics' }), 'Remote dynamics');
 	for (const type of EXPECTED_AUDACITY_RACK_TYPES) {
 		assert.equal(audioEffectLabel(type, 'en'), audacityEffectLabel(type, 'en'));
 		assert.equal(audioEffectLabel(type, 'de'), audacityEffectLabel(type, 'de'));

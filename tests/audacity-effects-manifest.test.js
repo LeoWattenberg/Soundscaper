@@ -10,6 +10,8 @@ import {
 	AUDACITY_EFFECT_UPSTREAM_FILES,
 	audacityEffectDefaults,
 	audacityEffectLabel,
+	audacityEffectOptionLabel,
+	audacityEffectParameterLabel,
 	audacityEffectTypes,
 	formatAudacityCurve,
 	normalizeAudacityEffectParams,
@@ -94,6 +96,15 @@ test('Audacity labels suffix only collisions and provide German names', () => {
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].collision, true);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-limiter'].collision, true);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-reverse'].collision, undefined);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].label, undefined);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].labelKey, 'effectNameAudacityCompressor');
+	assert.equal(audacityEffectLabel('audacity-compressor', { effectNameAudacityCompressor: 'Remote compressor' }), 'Remote compressor');
+	assert.equal(audacityEffectParameterLabel('audacity-distortion', 'mode', {
+		effectParamAudacityDistortionMode: 'Remote mode',
+	}), 'Remote mode');
+	assert.equal(audacityEffectOptionLabel('audacity-distortion', 'mode', 'soft-clipping', {
+		effectOptionAudacityDistortionModeSoftClipping: 'Remote soft clipping',
+	}), 'Remote soft clipping');
 });
 
 test('Audacity defaults and parameter normalization retain enum, boolean, curve, and band types', () => {

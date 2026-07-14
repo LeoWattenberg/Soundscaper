@@ -40,6 +40,7 @@ import {
 import { applyAudacityBrowserReverb } from './reverb.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
+	audacityEffectLabel,
 	audacityEffectDefaults,
 	normalizeAudacityEffectParams,
 } from './manifest.js';
@@ -90,7 +91,7 @@ export function applyAudacityEffect(type, channels, sampleRate, params = {}, con
 	if (isAudacityStaffPadEffect(type)) {
 		throw new AudacityStaffPadError(
 			'STAFFPAD_ASYNC_REQUIRED',
-			`${AUDACITY_EFFECT_DEFINITIONS[type].label.en} requires the asynchronous StaffPad WebAssembly dispatcher.`,
+			`${audacityEffectLabel(type, 'en')} requires the asynchronous StaffPad WebAssembly dispatcher.`,
 		);
 	}
 	let output;

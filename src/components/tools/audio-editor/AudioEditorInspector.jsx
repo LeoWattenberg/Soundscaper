@@ -12,6 +12,7 @@ import {
 	Separator,
 	TextInput,
 } from '@dilsonspickles/components';
+import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	audioEffectLabel,
@@ -23,9 +24,10 @@ import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectDefaults,
 	audacityEffectLabel,
+	audacityEffectOptionLabel,
+	audacityEffectParameterLabel,
 	audacityEffectTypes,
 	formatAudacityCurve,
-	localized,
 	parseAudacityCurve,
 } from '../../../lib/tools/audio-editor/audacity-effects/manifest.js';
 import {
@@ -136,32 +138,29 @@ function ControlledDialog({
 	);
 }
 
-function AudacityEffectHeader({ locale, automationEnabled, ...props }) {
+function AudacityEffectHeader({ copy, automationEnabled, ...props }) {
 	const wrapperRef = useRef(null);
 	useEffect(() => {
 		const root = wrapperRef.current;
 		if (!root) return;
-		const german = locale === 'de';
 		const automation = root.querySelector('.effect-header__left button');
 		if (automation && !props.isDestructive) {
 			const label = automationEnabled
-				? german ? 'Effekt deaktivieren' : 'Disable effect'
-				: german ? 'Effekt aktivieren' : 'Enable effect';
+				? copy.disableEffect
+				: copy.enableEffect;
 			automation.setAttribute('aria-label', label);
 			automation.setAttribute('title', label);
 		}
 		const preset = root.querySelector('.effect-header__preset .dropdown__trigger');
-		preset?.setAttribute('aria-label', german ? 'Voreinstellung' : 'Preset');
-		const actionLabels = german
-			? ['Voreinstellung speichern', 'Rückgängig', 'Voreinstellung löschen', 'Weitere Optionen']
-			: ['Save preset', 'Undo', 'Delete preset', 'More options'];
+		preset?.setAttribute('aria-label', copy.effectPreset);
+		const actionLabels = [copy.saveEffectPreset, copy.undo, copy.deleteEffectPreset, copy.moreOptions];
 		root.querySelectorAll('.effect-header__right .effect-header__icon-button').forEach((button, index) => {
 			const label = actionLabels[index];
 			if (!label) return;
 			button.setAttribute('aria-label', label);
 			button.setAttribute('title', label);
 		});
-	}, [automationEnabled, locale, props.isDestructive]);
+	}, [automationEnabled, copy, props.isDestructive]);
 	return <div ref={wrapperRef}><EffectHeader automationEnabled={automationEnabled} {...props} /></div>;
 }
 
@@ -357,7 +356,7 @@ export function AudioEditorEffectsOverlay({
 	};
 
 	const replaceFromRegistry = (scope, effect, candidate) => {
-		const type = resolveSupportedEffectType(candidate, locale);
+		const type = resolveSupportedEffectType(candidate, locale, copy);
 		if (!type) {
 			setMessage(copy.effectEngineUnsupported);
 			return;
@@ -387,7 +386,7 @@ export function AudioEditorEffectsOverlay({
 	const section = (scope, effects) => ({
 		effects: effects.map((effect) => ({
 			id: effect.id,
-			name: safeEffectLabel(effect.type, locale),
+			name: safeEffectLabel(effect.type, copy),
 			enabled: effect.enabled,
 		})),
 		allEnabled: effects.length > 0 && effects.every((effect) => effect.enabled),
@@ -484,7 +483,7 @@ export function AudioEditorEffectsOverlay({
 			{effect && (
 				<ControlledDialog
 					isOpen
-					title={safeEffectLabel(effect.type, locale)}
+					title={safeEffectLabel(effect.type, copy)}
 					onClose={() => setSelectedEffect(null)}
 					width={620}
 					className="audio-editor-effect-settings-dialog"
@@ -492,7 +491,7 @@ export function AudioEditorEffectsOverlay({
 					headerSlot={(
 						<div className="audio-editor-rack-effect-header">
 							<AudacityEffectHeader
-								locale={locale}
+								copy={copy}
 								automationEnabled={effect.enabled}
 								onToggleAutomation={(enabled) => {
 									if (!blocked) controller.actions.effects.update(effectScope, selectedTrack?.id || null, effect.id, { enabled });
@@ -656,7 +655,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		<ControlledDialog
 			isOpen={isOpen}
 			title={copy.selectionEffects || copy.audacityEffectsTitle}
-			headerTitle={audacityEffectLabel(selectionType, locale)}
+			headerTitle={audacityEffectLabel(selectionType, copy)}
 			onClose={() => {
 				controller.actions.effects.cancelPreview();
 				onClose?.();
@@ -667,7 +666,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 			headerSlot={(
 				<div className="audio-editor-effect-preset-header" data-effect-presets>
 					<AudacityEffectHeader
-						locale={locale}
+						copy={copy}
 						isDestructive
 						presetName={selectedPresetChoice?.label || copy.noEffectPreset}
 						presets={[copy.noEffectPreset, ...presetChoices.map((choice) => choice.label)]}
@@ -755,13 +754,13 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 			<section className="audio-editor-selection-effects" data-audacity-effect-panel>
 				<div className="audio-editor-effect-choice">
 					<div>
-						<h3>{audacityEffectLabel(selectionType, locale)}</h3>
+						<h3>{audacityEffectLabel(selectionType, copy)}</h3>
 						<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
 					</div>
 					<LabeledDropdown
 						label={copy.chooseAudacityEffect}
 						value={selectionType}
-						options={audacityEffectTypes().map((type) => ({ value: type, label: audacityEffectLabel(type, locale) }))}
+						options={audacityEffectTypes().map((type) => ({ value: type, label: audacityEffectLabel(type, copy) }))}
 						onChange={chooseSelectionType}
 						disabled={blocked}
 						hook="audacity-effect-type"
@@ -821,7 +820,7 @@ function EffectPicker({ copy, locale, disabled, onClose, onChoose }) {
 			<div className="audio-editor-local-dialog__body">
 				<LabeledDropdown
 					label={copy.chooseEffect}
-					options={types.map((value) => ({ value, label: safeEffectLabel(value, locale) }))}
+					options={types.map((value) => ({ value, label: safeEffectLabel(value, copy) }))}
 					value={type}
 					onChange={setType}
 					disabled={disabled}
@@ -870,7 +869,7 @@ function EffectParameterEditor({
 					<div className="audio-editor-native-eq-bands" data-effect-param="bands">
 						{(effect.params.bands || []).map((band, index) => (
 							<section className="audio-editor-native-eq-band" key={index}>
-								<h4>{dialogText(locale, `Band ${index + 1}`, `Band ${index + 1}`)}</h4>
+								<h4>{copy.bandNumber.replace('{number}', String(index + 1))}</h4>
 								<ParameterNumber label="Hz" value={band.frequency} range={[10, 24_000]} step={1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />
 								<ParameterNumber label="dB" value={band.gain} range={[-24, 24]} step={0.1} presentation="slider" copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />
 								<ParameterNumber label="Q" value={band.q} range={[0.1, 30]} step={0.1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />
@@ -897,7 +896,7 @@ function EffectParameterEditor({
 					effectType={effect.type}
 					definition={nativeDefinition}
 					parameters={effect.params}
-					locale={locale}
+					copy={copy}
 					renderParameter={renderNativeParameter}
 					after={error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 				/>
@@ -914,7 +913,6 @@ function EffectParameterEditor({
 				descriptor={definition.params[name]}
 				value={effect.params?.[name]}
 				effectParams={effect.params}
-				locale={locale}
 				copy={copy}
 				disabled={disabled}
 				onCommit={(value) => updateParam(name, value)}
@@ -939,7 +937,7 @@ function EffectParameterEditor({
 			{definition.requiresNoiseProfile && (
 				<section className="audio-editor-audacity-layout__context-card audio-editor-audacity-layout__context-card--profile">
 					<div>
-						<h3>{dialogText(locale, 'Step 1 · Noise profile', 'Schritt 1 · Rauschprofil')}</h3>
+						<h3>{copy.noiseProfileStep}</h3>
 						{!effect.context?.noiseProfile && <p className="audio-editor-panel-hint">{copy.rackNoiseProfileMissing}</p>}
 					</div>
 					{captureNoiseProfile && (
@@ -957,13 +955,13 @@ function EffectParameterEditor({
 				effectType={effect.type}
 				definition={definition}
 				parameters={effect.params}
-				locale={locale}
+				copy={copy}
 				renderParameter={renderParameter}
 				before={contextControls}
 				after={(
 					<>
 						{Object.keys(definition.params).length === 0 && (
-							<p className="audio-editor-audacity-layout__empty">{dialogText(locale, 'This effect has no adjustable settings.', 'Dieser Effekt hat keine einstellbaren Optionen.')}</p>
+							<p className="audio-editor-audacity-layout__empty">{copy.noAdjustableSettings}</p>
 						)}
 						{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 					</>
@@ -973,8 +971,8 @@ function EffectParameterEditor({
 	);
 }
 
-function AudacityParameter({ name, effectType, descriptor, value, effectParams, locale, copy, disabled, onCommit }) {
-	const label = localized(descriptor.label, locale);
+function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled, onCommit }) {
+	const label = audacityEffectParameterLabel(effectType, name, copy);
 	if (descriptor.kind === 'boolean') {
 		return (
 			<div data-effect-param={name}>
@@ -987,7 +985,10 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			<LabeledDropdown
 				label={label}
 				value={String(value)}
-				options={descriptor.options.map((option) => ({ value: String(option.value), label: localized(option.label, locale) }))}
+				options={descriptor.options.map((option) => ({
+					value: String(option.value),
+					label: audacityEffectOptionLabel(effectType, name, option.value, copy),
+				}))}
 				onChange={onCommit}
 				disabled={disabled}
 				hook={`effect-param-${name}`}
@@ -1017,8 +1018,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 					/>
 				</details>
 				<div className="audio-editor-panel-actions audio-editor-filter-curve__actions">
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit([{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }])}>{dialogText(locale, 'Reset', 'Zurücksetzen')}</Button>
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || []).map((point) => ({ ...point, gain: -point.gain })))}>{dialogText(locale, 'Invert', 'Invertieren')}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit([{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }])}>{copy.reset}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || []).map((point) => ({ ...point, gain: -point.gain })))}>{copy.invert}</Button>
 				</div>
 			</div>
 		);
@@ -1054,8 +1055,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 					})}
 				</div>
 				<div className="audio-editor-panel-actions audio-editor-graphic-eq__actions">
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit(descriptor.frequencies.map(() => 0))}>{dialogText(locale, 'Reset', 'Zurücksetzen')}</Button>
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || descriptor.default).map((gain) => -gain))}>{dialogText(locale, 'Invert', 'Invertieren')}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit(descriptor.frequencies.map(() => 0))}>{copy.reset}</Button>
+					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || descriptor.default).map((gain) => -gain))}>{copy.invert}</Button>
 				</div>
 			</fieldset>
 		);
@@ -1571,11 +1572,11 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 				)}
 			>
 				<section className="audio-editor-metadata-editor">
-					<p className="audio-editor-panel-hint">{dialogText(locale, 'Tags are written to formats that support metadata.', 'Tags werden in Formate geschrieben, die Metadaten unterstützen.')}</p>
+					<p className="audio-editor-panel-hint">{copy.metadataFormatHint}</p>
 					<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
 						<div className="audio-editor-metadata-table__header" role="row">
-							<span role="columnheader">{dialogText(locale, 'Tag', 'Tag')}</span>
-							<span role="columnheader">{dialogText(locale, 'Value', 'Wert')}</span>
+							<span role="columnheader">{copy.metadataTagColumn}</span>
+							<span role="columnheader">{copy.metadataValueColumn}</span>
 						</div>
 						{metadataFields.map(([name, label]) => (
 							<label className="audio-editor-metadata-table__row" role="row" key={name}>
@@ -1623,13 +1624,13 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 		>
 			<div className="audio-editor-export-dialog__body">
 				<section className="audio-editor-export-section">
-					<h3>{dialogText(locale, 'Export', 'Exportieren')}</h3>
+					<h3>{copy.exportSection}</h3>
 					<LabeledDropdown label={copy.exportMode} hook="mode" value={settings.mode} onChange={(value) => set('mode', value)} disabled={exporting} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
 					<LabeledDropdown label={copy.exportRange} hook="range" value={settings.range} onChange={(value) => set('range', value)} disabled={exporting} options={[{ value: 'project', label: copy.entireProject }, { value: 'selection', label: copy.currentSelection, disabled: !hasSelection }, { value: 'loop', label: copy.loopRegion, disabled: !hasLoop }]} />
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
-					<h3>{dialogText(locale, 'Audio options', 'Audiooptionen')}</h3>
+					<h3>{copy.audioOptionsSection}</h3>
 					<LabeledDropdown label={copy.format} hook="format" value={settings.format} onChange={setFormat} disabled={exporting} options={Object.values(MEDIA_EXPORT_FORMATS).map((descriptor) => ({
 						value: descriptor.id,
 						label: descriptor.id === 'custom-ffmpeg' ? copy.customFfmpeg : descriptor.label,
@@ -1656,7 +1657,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
-					<h3>{dialogText(locale, 'Rendering', 'Rendern')}</h3>
+					<h3>{copy.renderingSection}</h3>
 					<div className="audio-editor-export-check" data-export-field="tails">
 						<span aria-hidden="true" />
 						<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting} onChange={(checked) => set('includeTail', checked)} />
@@ -1666,7 +1667,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 					<>
 						<Separator />
 						<details className="audio-editor-export-details" open>
-							<summary>{dialogText(locale, 'Advanced options', 'Erweiterte Optionen')}</summary>
+							<summary>{copy.advancedOptions}</summary>
 							<div className="audio-editor-export-section">
 								<label className="audio-editor-field"><span>{copy.customExtension}</span><TextInput value={settings.customExtension} disabled={exporting} onChange={(value) => set('customExtension', value)} width="100%" /></label>
 								<label className="audio-editor-field"><span>{copy.customMimeType}</span><TextInput value={settings.customMimeType} disabled={exporting} onChange={(value) => set('customMimeType', value)} width="100%" /></label>
@@ -1802,21 +1803,18 @@ function compactFields(value) {
 	return Object.fromEntries(Object.entries(value).filter(([, item]) => item != null && String(item) !== ''));
 }
 
-function dialogText(locale, english, german) {
-	return locale === 'de' ? german : english;
-}
-
-function resolveSupportedEffectType(candidate, locale) {
-	const normalized = String(candidate || '').trim().toLocaleLowerCase(locale === 'de' ? 'de-DE' : 'en-US');
+function resolveSupportedEffectType(candidate, locale, copy) {
+	const normalizedLocale = normalizeBcp47Locale(locale);
+	const normalized = String(candidate || '').trim().toLocaleLowerCase(normalizedLocale);
 	return audioEffectTypes().find((type) => {
-		const labels = [type, safeEffectLabel(type, locale), safeEffectLabel(type, 'en'), safeEffectLabel(type, 'de')];
-		return labels.some((label) => String(label).trim().toLocaleLowerCase(locale === 'de' ? 'de-DE' : 'en-US') === normalized);
+		const labels = [type, safeEffectLabel(type, copy), safeEffectLabel(type, 'en'), safeEffectLabel(type, 'de')];
+		return labels.some((label) => String(label).trim().toLocaleLowerCase(normalizedLocale) === normalized);
 	}) || null;
 }
 
-function safeEffectLabel(type, locale) {
+function safeEffectLabel(type, copyOrLocale) {
 	try {
-		return audioEffectLabel(type, locale);
+		return audioEffectLabel(type, copyOrLocale);
 	} catch {
 		return String(type || '');
 	}

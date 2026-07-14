@@ -25,9 +25,11 @@ import {
 } from '@dilsonspickles/components';
 import '@dilsonspickles/components/style.css';
 
+import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import { createAudioEditorController } from '../../../lib/tools/audio-editor/app.js';
 import {
 	applyAudacityParityToMenus,
+	AUDACITY_ACTION_SOURCE,
 	audacityActionReason,
 	collectAudacityShortcutCommands,
 	resolveAudacityActionHandler,
@@ -60,7 +62,7 @@ import './audio-editor-design-system.css';
 export default function AudioEditorApp(props) {
 	return (
 		<AudioEditorErrorBoundary copy={props.copy}>
-			<DesignSystemProviders>
+			<DesignSystemProviders copy={props.copy}>
 				<AudioEditorWorkspace {...props} />
 			</DesignSystemProviders>
 		</AudioEditorErrorBoundary>
@@ -150,9 +152,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const uiFlags = parityUi.flags;
 
 	const onError = useCallback((error) => {
-		const message = error instanceof Error ? error.message : String(error || 'Unknown error');
+		const message = error instanceof Error ? error.message : String(error || copy.unknownError);
 		setLocalError(copy.genericError.replace('{message}', message));
-	}, [copy.genericError]);
+	}, [copy.genericError, copy.unknownError]);
 
 	const run = useCallback((action) => {
 		setLocalError('');
@@ -530,6 +532,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			<AudioEditorMenuBar
 				appName={copy.title}
 				copy={copy}
+				locale={locale}
 				menus={applicationMenus}
 				projectName={project?.title || copy.untitledProject}
 				saveState={snapshot.save?.state || 'saved'}
@@ -670,6 +673,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					<AudioEditorTimeline
 						controller={controller}
 						snapshot={snapshot}
+						locale={locale}
 						copy={copy}
 						mobile={isCompact}
 						showArmControls={showArmControls}
@@ -915,7 +919,7 @@ function EditorToolToolbar({
 		|| selectedTrack.displayMode === 'multiview'
 		|| snapshot.timeline?.view === 'spectrogram'
 	));
-	const spectralBrushReason = audacityActionReason('spectral-brush', locale);
+	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const masterMeter = telemetry.meters?.master;
 	const inputMeterDb = telemetry.inputMeterDb ?? -60;
 	return (
@@ -1046,7 +1050,7 @@ function EditorToolToolbar({
 							type="number"
 							min="1"
 							max="32"
-							aria-label={`${copy.timeSignature}: ${copy.numerator || 'numerator'}`}
+							aria-label={`${copy.timeSignature}: ${copy.numerator}`}
 							value={project?.tempo?.timeSignature?.numerator || 4}
 							disabled={snapshot.readOnly || snapshot.recording}
 							onChange={(event) => run(() => controller.actions.project.setTimeSignature(Number(event.currentTarget.value), project?.tempo?.timeSignature?.denominator || 4))}
@@ -1056,7 +1060,7 @@ function EditorToolToolbar({
 							type="number"
 							min="1"
 							max="32"
-							aria-label={`${copy.timeSignature}: ${copy.denominator || 'denominator'}`}
+							aria-label={`${copy.timeSignature}: ${copy.denominator}`}
 							value={project?.tempo?.timeSignature?.denominator || 4}
 							disabled={snapshot.readOnly || snapshot.recording}
 							onChange={(event) => run(() => controller.actions.project.setTimeSignature(project?.tempo?.timeSignature?.numerator || 4, Number(event.currentTarget.value)))}
@@ -1456,7 +1460,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 			>{copy.spectrogramView}</Button>
 			<label><span>{copy.spectrogramScale}</span>
 				<select aria-label={copy.spectrogramScale} disabled={snapshot.readOnly} value={spectrogram.scale} onChange={(event) => run(() => updateSpectrogram({ scale: event.currentTarget.value }))}>
-					<option value="mel">Mel</option><option value="linear">{copy.linear}</option><option value="log">{copy.logarithmic}</option>
+					<option value="mel">{copy.spectrogramMel}</option><option value="linear">{copy.linear}</option><option value="log">{copy.logarithmic}</option>
 				</select>
 			</label>
 			<label><span>{copy.minimumFrequency}</span><input aria-label={copy.minimumFrequency} disabled={snapshot.readOnly} type="number" min="0" max={Math.max(0, spectrogram.maximumFrequency - 1)} step="1" value={spectrogram.minimumFrequency} onChange={(event) => updateFrequency('minimumFrequency', event.currentTarget.value)} /></label>
@@ -1472,7 +1476,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 			</label>
 			<label><span>{copy.spectrogramWindowType}</span>
 				<select aria-label={copy.spectrogramWindowType} disabled={snapshot.readOnly} value={spectrogram.windowType} onChange={(event) => run(() => updateSpectrogram({ windowType: event.currentTarget.value }))}>
-					<option value="hann">Hann</option><option value="hamming">Hamming</option><option value="blackman">Blackman</option>
+					<option value="hann">{copy.spectrogramWindowHann}</option><option value="hamming">{copy.spectrogramWindowHamming}</option><option value="blackman">{copy.spectrogramWindowBlackman}</option>
 				</select>
 			</label>
 		</div>
@@ -1565,12 +1569,12 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
-	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale }), [locale, menus]);
+	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }), [copy, locale, menus]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	const pages = [
 		{ id: 'appearance', label: copy.appearance, icon: '\uF444' },
-		{ id: 'editing', label: preferenceText(locale, 'Editing', 'Bearbeiten'), icon: '\uF43E' },
+		{ id: 'editing', label: copy.preferencesEditing, icon: '\uF43E' },
 		{ id: 'workspace', label: copy.workspace, icon: '\uEF55' },
 		{ id: 'toolbars', label: copy.toolbarsMenu, icon: '\uF43C' },
 		{ id: 'panels', label: copy.panels, icon: '\uF440' },
@@ -1640,10 +1644,10 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 					>
 						{selectedPage === 'appearance' && (
 							<div className="kw-audio-editor-preferences__appearance">
-								<PreferencePanel title={highContrastTheme ? preferenceText(locale, 'High-contrast theme', 'Kontrastreiches Design') : copy.theme}>
+								<PreferencePanel title={highContrastTheme ? copy.highContrastTheme : copy.theme}>
 									<div className="kw-audio-editor-preferences__thumbnails">
 										<PreferenceChoice
-											locale={locale}
+											selectLabel={copy.selectPreference}
 											src={preferencePreview(highContrastTheme ? 'high-contrast-light' : 'light')}
 											alt={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
 											label={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
@@ -1653,7 +1657,7 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 											value={highContrastTheme ? 'high-contrast-light' : 'light'}
 										/>
 										<PreferenceChoice
-											locale={locale}
+											selectLabel={copy.selectPreference}
 											src={preferencePreview(highContrastTheme ? 'high-contrast-dark' : 'dark')}
 											alt={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
 											label={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
@@ -1665,12 +1669,12 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 									</div>
 									<div className="kw-audio-editor-preferences__appearance-checks">
 										<PreferenceCheckbox
-											label={preferenceText(locale, 'Follow system theme', 'Systemdesign verwenden')}
+											label={copy.followSystemTheme}
 											checked={appearanceTheme === 'system'}
 											onChange={(checked) => setAppearanceTheme(checked ? 'system' : renderedThemeIsDark() ? 'dark' : 'light')}
 										/>
 										<PreferenceCheckbox
-											label={preferenceText(locale, 'Enable high-contrast', 'Hohen Kontrast aktivieren')}
+											label={copy.enableHighContrast}
 											checked={highContrastTheme}
 											onChange={(checked) => setAppearanceTheme(checked
 												? renderedThemeIsDark() ? 'high-contrast-dark' : 'high-contrast-light'
@@ -1682,7 +1686,7 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 								<PreferencePanel title={copy.clipStyle}>
 									<div className="kw-audio-editor-preferences__thumbnails">
 										<PreferenceChoice
-											locale={locale}
+											selectLabel={copy.selectPreference}
 											src={preferencePreview('colorful')}
 											alt={copy.clipStyleColorful}
 											label={copy.clipStyleColorful}
@@ -1692,7 +1696,7 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 											value="colorful"
 										/>
 										<PreferenceChoice
-											locale={locale}
+											selectLabel={copy.selectPreference}
 											src={preferencePreview('classic')}
 											alt={copy.clipStyleClassic}
 											label={copy.clipStyleClassic}
@@ -1735,22 +1739,22 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 						)}
 
 						{selectedPage === 'editing' && (
-							<PreferencePanel title={preferenceText(locale, 'Editing', 'Bearbeiten')}>
+							<PreferencePanel title={copy.preferencesEditing}>
 								<div className="kw-audio-editor-preferences__grid">
 									<PreferenceDropdownField
-										label={preferenceText(locale, 'Ripple editing', 'Ripple-Bearbeitung')}
+										label={copy.rippleEditing}
 										value={preferences.editing.rippleMode}
 										onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
 										options={[
-											{ value: 'off', label: preferenceText(locale, 'Off', 'Aus') },
-											{ value: 'per-track', label: preferenceText(locale, 'Per track', 'Pro Spur') },
-											{ value: 'all-tracks', label: preferenceText(locale, 'All tracks', 'Alle Spuren') },
+											{ value: 'off', label: copy.preferenceOff },
+											{ value: 'per-track', label: copy.preferencePerTrack },
+											{ value: 'all-tracks', label: copy.allTracks },
 										]}
 									/>
 								</div>
 								<div className="kw-audio-editor-preferences__checks">
 									<PreferenceCheckbox
-										label={preferenceText(locale, 'Snap selections to zero crossings', 'Auswahl an Nulldurchgängen einrasten')}
+										label={copy.snapZeroCrossings}
 										checked={preferences.editing.snapToZeroCrossings}
 										onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
 									/>
@@ -1803,9 +1807,9 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 									<input type="search" value={shortcutSearch} onChange={(event) => setShortcutSearch(event.currentTarget.value)} placeholder={copy.shortcutSearch} aria-label={copy.shortcutSearch} />
 								</label>
 								<div className="kw-audio-editor-preferences__shortcut-header" aria-hidden="true">
-									<span>{preferenceText(locale, 'Command', 'Befehl')}</span>
-									<span>{preferenceText(locale, 'Shortcut', 'Tastenkürzel')}</span>
-									<span>{preferenceText(locale, 'Action', 'Aktion')}</span>
+									<span>{copy.commandColumn}</span>
+									<span>{copy.shortcutColumn}</span>
+									<span>{copy.actionColumn}</span>
 								</div>
 								<div className="kw-audio-editor-preferences__shortcut-list">
 									{visibleCommands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
@@ -1845,19 +1849,15 @@ function PreferenceCheckbox({ label, checked, onChange }) {
 	return <LabeledCheckbox label={label} checked={checked} onChange={handleChange} />;
 }
 
-function PreferenceChoice({ locale, label, ...props }) {
+function PreferenceChoice({ selectLabel, label, ...props }) {
 	const wrapperRef = useRef(null);
 	useEffect(() => {
 		wrapperRef.current?.querySelector('.preference-thumbnail__image-button')?.setAttribute(
 			'aria-label',
-			`${preferenceText(locale, 'Select', 'Auswählen')}: ${label}`,
+			`${selectLabel}: ${label}`,
 		);
-	}, [label, locale]);
+	}, [label, selectLabel]);
 	return <div ref={wrapperRef}><PreferenceThumbnail label={label} {...props} /></div>;
-}
-
-function preferenceText(locale, english, german) {
-	return String(locale).toLowerCase().startsWith('de') ? german : english;
 }
 
 function preferencePreview(kind) {
@@ -1944,7 +1944,7 @@ function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	const [params, setParams] = useState(() => generatorDefaults(type));
 	useEffect(() => setParams(generatorDefaults(type)), [type]);
 	const update = (name, value) => setParams((current) => ({ ...current, [name]: value }));
-	const labels = generatorLayoutLabels(locale);
+	const labels = generatorLayoutLabels(copy);
 	const dtmfTiming = generatorDtmfTiming(params);
 	const numberField = (name, label, options = {}) => (
 		<GeneratorNumberField
@@ -2294,24 +2294,14 @@ function formatGeneratorNumber(value, locale) {
 	return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
 }
 
-function generatorLayoutLabels(locale) {
-	if (String(locale).toLowerCase().startsWith('de')) {
-		return {
-			frequencySweep: 'Frequenzverlauf',
-			amplitudeSweep: 'Amplitudenverlauf',
-			amplitudeExplanation: 'Das aktuelle Generatormodell verwendet eine gemeinsame Amplitude für Start und Ende des Verlaufs.',
-			toneSilenceRatio: 'Ton-/Pausenverhältnis',
-			dutyCycle: 'Tonanteil',
-			dtmfExplanation: 'Ziffern 0–9, Buchstaben A–D, * oder # eingeben. Leerzeichen, Kommas und Bindestriche werden ignoriert.',
-		};
-	}
+function generatorLayoutLabels(copy) {
 	return {
-		frequencySweep: 'Frequency sweep',
-		amplitudeSweep: 'Amplitude sweep',
-		amplitudeExplanation: 'The current generator model uses one shared amplitude for the start and end of the sweep.',
-		toneSilenceRatio: 'Tone/silence ratio',
-		dutyCycle: 'Duty cycle',
-		dtmfExplanation: 'Enter digits 0–9, letters A–D, * or #. Spaces, commas and hyphens are ignored.',
+		frequencySweep: copy.generatorFrequencySweep,
+		amplitudeSweep: copy.generatorAmplitudeSweep,
+		amplitudeExplanation: copy.generatorAmplitudeExplanation,
+		toneSilenceRatio: copy.generatorToneSilenceRatio,
+		dutyCycle: copy.generatorDutyCycle,
+		dtmfExplanation: copy.generatorDtmfExplanation,
 	};
 }
 
@@ -2509,7 +2499,7 @@ function EditorDialog({ type, value, onValueChange, controller, snapshot, copy, 
 						<>
 							<p>{copy.intro}</p>
 							<p>{copy.privacy}</p>
-							<p><code>Audacity 4 parity: 908ad0a526e5bfdab68de780e893cebe172d27eb</code></p>
+							<p><code>{copy.audacityParityRevision.replace('{revision}', AUDACITY_ACTION_SOURCE.commit)}</code></p>
 							<div className="kw-audio-editor-dialog__actions"><Button onClick={onClose}>{copy.close}</Button></div>
 						</>
 					)}
@@ -2736,7 +2726,7 @@ function createApplicationMenus({
 				{
 					id: 'export-other',
 					label: copy.exportOther,
-					parityLabel: 'Export other',
+					parityLabel: copy.audacityParityMatchExportOther,
 					items: [
 						{
 							id: 'export-labels',
@@ -2948,7 +2938,7 @@ function createApplicationMenus({
 				{ id: 'action://playback/stop', label: copy.stop, onClick: actions.stop },
 				divider(),
 				{ id: 'toggle-loop-region', label: copy.loop, checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
-				{ id: 'metronome', label: copy.metronome || 'Metronome', checked: Boolean(snapshot.recordingOptions?.metronome), onClick: actions.toggleMetronome },
+				{ id: 'metronome', label: copy.metronome, checked: Boolean(snapshot.recordingOptions?.metronome), onClick: actions.toggleMetronome },
 			],
 		},
 		{
@@ -3014,16 +3004,16 @@ function createApplicationMenus({
 						label: `${sampleRate} Hz`,
 						checked: selectedAudioTrack?.sampleRate === sampleRate,
 						onClick: () => actions.setTrackRate(sampleRate),
-					})).concat([{ id: 'track-change-rate-custom', label: `${copy.sampleRate}…`, onClick: actions.openTrackRate }]),
+					})).concat([{ id: 'track-change-rate-custom', label: `${copy.sampleRate}`, onClick: actions.openTrackRate }]),
 				},
 				{
 					id: 'track-format',
 					label: copy.sampleFormat,
 					disabled: editBlocked || !selectedAudioTrack,
 					items: [
-						['int16', copy.sampleFormatPcm?.replace('{bits}', '16') || '16-bit PCM'],
-						['int24', copy.sampleFormatPcm?.replace('{bits}', '24') || '24-bit PCM'],
-						['float32', copy.sampleFormatFloat32 || '32-bit Float'],
+						['int16', copy.sampleFormatPcm.replace('{bits}', '16')],
+						['int24', copy.sampleFormatPcm.replace('{bits}', '24')],
+						['float32', copy.sampleFormatFloat32],
 					].map(([sampleFormat, label]) => ({
 						id: `action://trackedit/track/change-format?format=${sampleFormat}`,
 						label,
@@ -3129,7 +3119,7 @@ function createApplicationMenus({
 				{ id: 'about', label: copy.aboutEditor, onClick: actions.about },
 			],
 		},
-	], { locale, materializeDisabled: true, actionRuntime });
+	], { locale, copy, materializeDisabled: true, actionRuntime });
 }
 
 function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
@@ -3290,5 +3280,5 @@ function meterPercent(dbfs) {
 
 function formatDate(value, locale) {
 	const date = new Date(value);
-	return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US');
+	return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(normalizeBcp47Locale(locale));
 }

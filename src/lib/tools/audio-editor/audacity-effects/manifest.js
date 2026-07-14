@@ -9,6 +9,14 @@
  * otherwise noted. This JavaScript adaptation was created for kw.media in 2026.
  */
 
+import {
+	canonicalCopyValue,
+	effectNameCopyKey,
+	effectOptionCopyKey,
+	effectParameterCopyKey,
+} from '../../../../i18n/canonical-extras.js';
+import { localizedValue } from '../../../../i18n/locale.js';
+
 export const AUDACITY_EFFECT_SOURCE = Object.freeze({
 	version: '3.7.7',
 	commit: '5ef610ed23260d6d648175735bb16b32536eb30b',
@@ -103,310 +111,294 @@ const GRAPHIC_EQ_FREQUENCIES = Object.freeze([
 	8_000, 10_000, 12_500, 16_000, 20_000,
 ]);
 
-const label = (en, de) => ({ en, de });
-const number = (en, de, defaultValue, minimum, maximum, options = {}) => ({
-	kind: 'number', label: label(en, de), default: defaultValue, minimum, maximum, ...options,
+const number = (defaultValue, minimum, maximum, options = {}) => ({
+	kind: 'number', default: defaultValue, minimum, maximum, ...options,
 });
-const checkbox = (en, de, defaultValue = false) => ({
-	kind: 'boolean', label: label(en, de), default: defaultValue,
+const checkbox = (defaultValue = false) => ({
+	kind: 'boolean', default: defaultValue,
 });
-const select = (en, de, defaultValue, options) => ({
-	kind: 'enum', label: label(en, de), default: defaultValue, options,
+const select = (defaultValue, options) => ({
+	kind: 'enum', default: defaultValue, options,
 });
-const option = (value, en, de) => ({ value, label: label(en, de) });
+const option = (value) => ({ value });
 
 const definitions = {
 	'audacity-amplify': {
-		label: label('Amplify', 'Verstärken'),
 		category: 'volume',
 		params: {
-			gainDb: number('Amplification', 'Verstärkung', 0, -50, 50, { unit: 'dB', step: 0.1 }),
-			allowClipping: checkbox('Allow clipping', 'Übersteuerung erlauben'),
+			gainDb: number(0, -50, 50, { unit: 'dB', step: 0.1 }),
+			allowClipping: checkbox(),
 		},
 	},
 	'audacity-auto-duck': {
-		label: label('Auto Duck', 'Auto-Duck'),
 		category: 'volume',
 		requiresControlTrack: true,
 		params: {
-			duckAmountDb: number('Duck amount', 'Absenkung', -12, -24, 0, { unit: 'dB', step: 0.1 }),
-			innerFadeDown: number('Inner fade down', 'Innere Abblendzeit', 0, 0, 3, { unit: 's', step: 0.01 }),
-			innerFadeUp: number('Inner fade up', 'Innere Aufblendzeit', 0, 0, 3, { unit: 's', step: 0.01 }),
-			outerFadeDown: number('Outer fade down', 'Äußere Abblendzeit', 0.5, 0, 3, { unit: 's', step: 0.01 }),
-			outerFadeUp: number('Outer fade up', 'Äußere Aufblendzeit', 0.5, 0, 3, { unit: 's', step: 0.01 }),
-			thresholdDb: number('Threshold', 'Schwellwert', -30, -100, 0, { unit: 'dB', step: 0.1 }),
-			maximumPause: number('Maximum pause', 'Maximale Pause', 1, 0, Number.MAX_VALUE, { unit: 's', step: 0.01 }),
+			duckAmountDb: number(-12, -24, 0, { unit: 'dB', step: 0.1 }),
+			innerFadeDown: number(0, 0, 3, { unit: 's', step: 0.01 }),
+			innerFadeUp: number(0, 0, 3, { unit: 's', step: 0.01 }),
+			outerFadeDown: number(0.5, 0, 3, { unit: 's', step: 0.01 }),
+			outerFadeUp: number(0.5, 0, 3, { unit: 's', step: 0.01 }),
+			thresholdDb: number(-30, -100, 0, { unit: 'dB', step: 0.1 }),
+			maximumPause: number(1, 0, Number.MAX_VALUE, { unit: 's', step: 0.01 }),
 		},
 	},
 	'audacity-bass-treble': {
-		label: label('Bass and Treble', 'Bass und Höhen'),
 		category: 'eq',
 		params: {
-			bassDb: number('Bass', 'Bass', 0, -30, 30, { unit: 'dB', step: 0.1 }),
-			trebleDb: number('Treble', 'Höhen', 0, -30, 30, { unit: 'dB', step: 0.1 }),
-			volumeDb: number('Volume', 'Lautstärke', 0, -30, 30, { unit: 'dB', step: 0.1 }),
+			bassDb: number(0, -30, 30, { unit: 'dB', step: 0.1 }),
+			trebleDb: number(0, -30, 30, { unit: 'dB', step: 0.1 }),
+			volumeDb: number(0, -30, 30, { unit: 'dB', step: 0.1 }),
 		},
 	},
 	'audacity-click-removal': {
-		label: label('Click Removal', 'Klickentfernung'),
 		category: 'repair',
 		params: {
-			threshold: number('Threshold', 'Schwellwert', 200, 0, 900, { integer: true, step: 1 }),
-			maximumWidth: number('Maximum spike width', 'Maximale Klickbreite', 20, 0, 40, { unit: 'samples', integer: true, step: 1 }),
+			threshold: number(200, 0, 900, { integer: true, step: 1 }),
+			maximumWidth: number(20, 0, 40, { unit: 'samples', integer: true, step: 1 }),
 		},
 	},
 	'audacity-change-pitch': {
-		label: label('Change Pitch', 'Tonhöhe ändern'),
 		category: 'pitch-tempo',
 		requiresStaffPad: true,
 		params: {
-			semitones: number('Semitones', 'Halbtöne', 0, -12, 12, { unit: 'st', step: 0.01 }),
-			preserveFormants: checkbox('Preserve formants', 'Formanten beibehalten', true),
+			semitones: number(0, -12, 12, { unit: 'st', step: 0.01 }),
+			preserveFormants: checkbox(true),
 		},
 	},
 	'audacity-change-tempo': {
-		label: label('Change Tempo', 'Tempo ändern'),
 		category: 'pitch-tempo',
 		lengthChanging: true,
 		requiresStaffPad: true,
 		params: {
-			tempoPercent: number('Percent change', 'Änderung in Prozent', 0, -50, 100, { unit: '%', step: 0.1 }),
+			tempoPercent: number(0, -50, 100, { unit: '%', step: 0.1 }),
 		},
 	},
 	'audacity-change-speed-pitch': {
-		label: label('Change Speed and Pitch', 'Geschwindigkeit und Tonhöhe ändern'),
 		category: 'pitch-tempo',
 		lengthChanging: true,
 		requiresStaffPad: true,
 		params: {
-			speedPercent: number('Speed change', 'Geschwindigkeitsänderung', 0, -50, 100, { unit: '%', step: 0.1 }),
+			speedPercent: number(0, -50, 100, { unit: '%', step: 0.1 }),
 		},
 	},
 	'audacity-sliding-stretch': {
-		label: label('Sliding Stretch', 'Gleitende Dehnung'),
 		category: 'pitch-tempo',
 		lengthChanging: true,
 		requiresStaffPad: true,
 		params: {
-			startTempoPercent: number('Initial tempo change', 'Anfängliche Tempoänderung', 0, -50, 100, { unit: '%', step: 0.1 }),
-			endTempoPercent: number('Final tempo change', 'Abschließende Tempoänderung', 0, -50, 100, { unit: '%', step: 0.1 }),
-			startPitchSemitones: number('Initial pitch shift', 'Anfängliche Tonhöhenänderung', 0, -12, 12, { unit: 'st', step: 0.01 }),
-			endPitchSemitones: number('Final pitch shift', 'Abschließende Tonhöhenänderung', 0, -12, 12, { unit: 'st', step: 0.01 }),
-			preserveFormants: checkbox('Preserve formants', 'Formanten beibehalten', true),
+			startTempoPercent: number(0, -50, 100, { unit: '%', step: 0.1 }),
+			endTempoPercent: number(0, -50, 100, { unit: '%', step: 0.1 }),
+			startPitchSemitones: number(0, -12, 12, { unit: 'st', step: 0.01 }),
+			endPitchSemitones: number(0, -12, 12, { unit: 'st', step: 0.01 }),
+			preserveFormants: checkbox(true),
 		},
 	},
 	'audacity-compressor': {
-		label: label('Compressor (Audacity)', 'Kompressor (Audacity)'),
 		category: 'volume',
 		collision: true,
 		params: {
-			thresholdDb: number('Threshold', 'Schwellwert', -10, -60, 0, { unit: 'dB', step: 0.1 }),
-			makeupGainDb: number('Make-up gain', 'Aufholverstärkung', 0, -30, 30, { unit: 'dB', step: 0.1 }),
-			kneeWidthDb: number('Knee width', 'Kniebreite', 5, 0, 30, { unit: 'dB', step: 0.1 }),
-			ratio: number('Ratio', 'Verhältnis', 10, 1, 100, { step: 0.1 }),
-			lookaheadMs: number('Lookahead', 'Lookahead', 1, 0, 1_000, { unit: 'ms', step: 0.1 }),
-			attackMs: number('Attack', 'Ansprechzeit', 30, 0, 200, { unit: 'ms', step: 0.1 }),
-			releaseMs: number('Release', 'Abklingzeit', 150, 0, 1_000, { unit: 'ms', step: 0.1 }),
+			thresholdDb: number(-10, -60, 0, { unit: 'dB', step: 0.1 }),
+			makeupGainDb: number(0, -30, 30, { unit: 'dB', step: 0.1 }),
+			kneeWidthDb: number(5, 0, 30, { unit: 'dB', step: 0.1 }),
+			ratio: number(10, 1, 100, { step: 0.1 }),
+			lookaheadMs: number(1, 0, 1_000, { unit: 'ms', step: 0.1 }),
+			attackMs: number(30, 0, 200, { unit: 'ms', step: 0.1 }),
+			releaseMs: number(150, 0, 1_000, { unit: 'ms', step: 0.1 }),
 		},
 	},
 	'audacity-legacy-compressor': {
-		label: label('Legacy Compressor', 'Legacy-Kompressor'),
 		category: 'volume',
 		params: {
-			thresholdDb: number('Threshold', 'Schwellwert', -12, -60, -1, { unit: 'dB', step: 0.1 }),
-			noiseFloorDb: number('Noise floor', 'Grundrauschen', -40, -80, -20, { unit: 'dB', step: 0.1 }),
-			ratio: number('Ratio', 'Verhältnis', 2, 1.1, 10, { step: 0.1 }),
-			attackSeconds: number('Attack time', 'Ansprechzeit', 0.2, 0.1, 5, { unit: 's', step: 0.01 }),
-			releaseSeconds: number('Release time', 'Abklingzeit', 1, 1, 30, { unit: 's', step: 0.1 }),
-			normalize: checkbox('Make-up gain to 0 dB', 'Auf 0 dB anheben', true),
-			usePeak: checkbox('Compress based on peaks', 'Anhand von Spitzen komprimieren'),
+			thresholdDb: number(-12, -60, -1, { unit: 'dB', step: 0.1 }),
+			noiseFloorDb: number(-40, -80, -20, { unit: 'dB', step: 0.1 }),
+			ratio: number(2, 1.1, 10, { step: 0.1 }),
+			attackSeconds: number(0.2, 0.1, 5, { unit: 's', step: 0.01 }),
+			releaseSeconds: number(1, 1, 30, { unit: 's', step: 0.1 }),
+			normalize: checkbox(true),
+			usePeak: checkbox(),
 		},
 	},
 	'audacity-distortion': {
-		label: label('Distortion', 'Verzerrung'),
 		category: 'special',
 		params: {
-			mode: select('Distortion type', 'Verzerrungsart', 'hard-clipping', [
-				option('hard-clipping', 'Hard Clipping', 'Hartes Clipping'),
-				option('soft-clipping', 'Soft Clipping', 'Weiches Clipping'),
-				option('soft-overdrive', 'Soft Overdrive', 'Weicher Overdrive'),
-				option('medium-overdrive', 'Medium Overdrive', 'Mittlerer Overdrive'),
-				option('hard-overdrive', 'Hard Overdrive', 'Harter Overdrive'),
-				option('cubic', 'Cubic Curve (odd harmonics)', 'Kubische Kurve (ungerade Obertöne)'),
-				option('even-harmonics', 'Even Harmonics', 'Gerade Obertöne'),
-				option('expand-compress', 'Expand and Compress', 'Expandieren und komprimieren'),
-				option('leveller', 'Leveller', 'Pegelangleicher'),
-				option('rectifier', 'Rectifier Distortion', 'Gleichrichter-Verzerrung'),
-				option('hard-limiter', 'Hard Limiter 1413', 'Harter Limiter 1413'),
+			mode: select('hard-clipping', [
+				option('hard-clipping'),
+				option('soft-clipping'),
+				option('soft-overdrive'),
+				option('medium-overdrive'),
+				option('hard-overdrive'),
+				option('cubic'),
+				option('even-harmonics'),
+				option('expand-compress'),
+				option('leveller'),
+				option('rectifier'),
+				option('hard-limiter'),
 			]),
-			dcBlock: checkbox('DC block', 'Gleichspannung sperren'),
-			thresholdDb: number('Threshold', 'Schwellwert', -6, -100, 0, { unit: 'dB', step: 0.1 }),
-			noiseFloorDb: number('Noise floor', 'Grundrauschen', -70, -80, -20, { unit: 'dB', step: 0.1 }),
-			parameter1: number('Parameter 1', 'Parameter 1', 50, 0, 100, { unit: '%', step: 1 }),
-			parameter2: number('Parameter 2', 'Parameter 2', 50, 0, 100, { unit: '%', step: 1 }),
-			repeats: number('Repeats', 'Wiederholungen', 1, 0, 5, { integer: true, step: 1 }),
+			dcBlock: checkbox(),
+			thresholdDb: number(-6, -100, 0, { unit: 'dB', step: 0.1 }),
+			noiseFloorDb: number(-70, -80, -20, { unit: 'dB', step: 0.1 }),
+			parameter1: number(50, 0, 100, { unit: '%', step: 1 }),
+			parameter2: number(50, 0, 100, { unit: '%', step: 1 }),
+			repeats: number(1, 0, 5, { integer: true, step: 1 }),
 		},
 	},
 	'audacity-echo': {
-		label: label('Echo', 'Echo'),
 		category: 'delay',
 		params: {
-			delaySeconds: number('Delay time', 'Verzögerungszeit', 1, 0.001, FLOAT_MAX, { unit: 's', step: 0.001 }),
-			decay: number('Decay factor', 'Abklingfaktor', 0.5, 0, FLOAT_MAX, { step: 0.01 }),
+			delaySeconds: number(1, 0.001, FLOAT_MAX, { unit: 's', step: 0.001 }),
+			decay: number(0.5, 0, FLOAT_MAX, { step: 0.01 }),
 		},
 	},
-	'audacity-fade-in': { label: label('Fade In', 'Einblenden'), category: 'fades', params: {} },
-	'audacity-fade-out': { label: label('Fade Out', 'Ausblenden'), category: 'fades', params: {} },
+	'audacity-fade-in': { category: 'fades', params: {} },
+	'audacity-fade-out': { category: 'fades', params: {} },
 	'audacity-filter-curve-eq': {
-		label: label('Filter Curve EQ', 'Filterkurven-EQ'),
 		category: 'eq',
 		params: {
 			points: {
-				kind: 'curve', label: label('Curve points (Hz:dB)', 'Kurvenpunkte (Hz:dB)'),
-				default: [{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }],
+				kind: 'curve', default: [{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }],
 			},
-			linearFrequencyScale: checkbox('Linear frequency scale', 'Lineare Frequenzskala'),
-			filterLength: number('FIR filter length', 'FIR-Filterlänge', 8191, 21, 8191, { integer: true, odd: true, step: 2 }),
+			linearFrequencyScale: checkbox(),
+			filterLength: number(8191, 21, 8191, { integer: true, odd: true, step: 2 }),
 		},
 	},
 	'audacity-graphic-eq': {
-		label: label('Graphic EQ', 'Grafischer EQ'),
 		category: 'eq',
 		params: {
-			gains: { kind: 'bands', label: label('Third-octave bands', 'Terzbänder'), frequencies: GRAPHIC_EQ_FREQUENCIES, default: GRAPHIC_EQ_FREQUENCIES.map(() => 0), minimum: -20, maximum: 20, step: 0.5, unit: 'dB' },
-			interpolation: select('Interpolation', 'Interpolation', 'bspline', [
-				option('bspline', 'B-spline', 'B-Spline'), option('cosine', 'Cosine', 'Kosinus'), option('cubic', 'Cubic', 'Kubisch'),
+			gains: { kind: 'bands', frequencies: GRAPHIC_EQ_FREQUENCIES, default: GRAPHIC_EQ_FREQUENCIES.map(() => 0), minimum: -20, maximum: 20, step: 0.5, unit: 'dB' },
+			interpolation: select('bspline', [
+				option('bspline'), option('cosine'), option('cubic'),
 			]),
-			filterLength: number('FIR filter length', 'FIR-Filterlänge', 8191, 21, 8191, { integer: true, odd: true, step: 2 }),
+			filterLength: number(8191, 21, 8191, { integer: true, odd: true, step: 2 }),
 		},
 	},
-	'audacity-invert': { label: label('Invert', 'Invertieren'), category: 'special', params: {} },
+	'audacity-invert': { category: 'special', params: {} },
 	'audacity-limiter': {
-		label: label('Limiter (Audacity)', 'Limiter (Audacity)'),
 		category: 'volume',
 		collision: true,
 		params: {
-			thresholdDb: number('Threshold', 'Schwellwert', -5, -30, 0, { unit: 'dB', step: 0.1 }),
-			makeupTargetDb: number('Make-up target', 'Aufholziel', -1, -30, 0, { unit: 'dB', step: 0.1 }),
-			kneeWidthDb: number('Knee width', 'Kniebreite', 2, 0, 10, { unit: 'dB', step: 0.1 }),
-			lookaheadMs: number('Lookahead', 'Lookahead', 1, 0, 50, { unit: 'ms', step: 0.1 }),
-			releaseMs: number('Release', 'Abklingzeit', 20, 0, 1_000, { unit: 'ms', step: 0.1 }),
+			thresholdDb: number(-5, -30, 0, { unit: 'dB', step: 0.1 }),
+			makeupTargetDb: number(-1, -30, 0, { unit: 'dB', step: 0.1 }),
+			kneeWidthDb: number(2, 0, 10, { unit: 'dB', step: 0.1 }),
+			lookaheadMs: number(1, 0, 50, { unit: 'ms', step: 0.1 }),
+			releaseMs: number(20, 0, 1_000, { unit: 'ms', step: 0.1 }),
 		},
 	},
 	'audacity-loudness-normalization': {
-		label: label('Loudness Normalization', 'Lautheitsnormalisierung'),
 		category: 'volume',
 		params: {
-			mode: select('Normalize', 'Normalisieren', 'lufs', [option('lufs', 'Perceived loudness', 'Wahrgenommene Lautheit'), option('rms', 'RMS', 'RMS')]),
-			targetLufs: number('Target loudness', 'Ziellautheit', -23, -145, 0, { unit: 'LUFS', step: 0.1 }),
-			targetRmsDb: number('Target RMS', 'Ziel-RMS', -20, -145, 0, { unit: 'dB', step: 0.1 }),
-			stereoIndependent: checkbox('Normalize stereo channels independently', 'Stereokanäle getrennt normalisieren'),
-			dualMono: checkbox('Treat mono as dual-mono', 'Mono als Dual-Mono behandeln', true),
+			mode: select('lufs', [option('lufs'), option('rms')]),
+			targetLufs: number(-23, -145, 0, { unit: 'LUFS', step: 0.1 }),
+			targetRmsDb: number(-20, -145, 0, { unit: 'dB', step: 0.1 }),
+			stereoIndependent: checkbox(),
+			dualMono: checkbox(true),
 		},
 	},
 	'audacity-noise-reduction': {
-		label: label('Noise Reduction', 'Rauschverminderung'),
 		category: 'repair',
 		requiresNoiseProfile: true,
 		params: {
-			reductionDb: number('Noise reduction', 'Rauschverminderung', 6, 0, 48, { unit: 'dB', step: 0.1 }),
-			sensitivity: number('Sensitivity', 'Empfindlichkeit', 6, 0.01, 24, { step: 0.01 }),
-			frequencySmoothingBands: number('Frequency smoothing', 'Frequenzglättung', 6, 0, 12, { unit: 'bands', integer: true, step: 1 }),
-			output: select('Output', 'Ausgabe', 'reduce', [option('reduce', 'Reduce noise', 'Rauschen vermindern'), option('residue', 'Residue', 'Restrauschen')]),
+			reductionDb: number(6, 0, 48, { unit: 'dB', step: 0.1 }),
+			sensitivity: number(6, 0.01, 24, { step: 0.01 }),
+			frequencySmoothingBands: number(6, 0, 12, { unit: 'bands', integer: true, step: 1 }),
+			output: select('reduce', [option('reduce'), option('residue')]),
 		},
 	},
 	'audacity-normalize': {
-		label: label('Normalize', 'Normalisieren'),
 		category: 'volume',
 		params: {
-			peakDb: number('Peak amplitude', 'Spitzenamplitude', -1, -145, 0, { unit: 'dBFS', step: 0.1 }),
-			removeDc: checkbox('Remove DC offset', 'Gleichspannungsversatz entfernen', true),
-			applyGain: checkbox('Normalize peak amplitude', 'Spitzenamplitude normalisieren', true),
-			stereoIndependent: checkbox('Normalize stereo channels independently', 'Stereokanäle getrennt normalisieren'),
+			peakDb: number(-1, -145, 0, { unit: 'dBFS', step: 0.1 }),
+			removeDc: checkbox(true),
+			applyGain: checkbox(true),
+			stereoIndependent: checkbox(),
 		},
 	},
 	'audacity-paulstretch': {
-		label: label('Paulstretch', 'Paulstretch'),
 		category: 'special',
 		lengthChanging: true,
 		params: {
-			stretchFactor: number('Stretch factor', 'Streckfaktor', 10, 1, FLOAT_MAX, { step: 0.01 }),
-			timeResolution: number('Time resolution', 'Zeitauflösung', 0.25, 0.00099, FLOAT_MAX, { unit: 's', step: 0.001 }),
+			stretchFactor: number(10, 1, FLOAT_MAX, { step: 0.01 }),
+			timeResolution: number(0.25, 0.00099, FLOAT_MAX, { unit: 's', step: 0.001 }),
 		},
 	},
 	'audacity-phaser': {
-		label: label('Phaser', 'Phaser'),
 		category: 'modulation',
 		params: {
-			stages: number('Stages', 'Stufen', 2, 2, 24, { integer: true, even: true, step: 2 }),
-			dryWet: number('Dry/wet', 'Trocken/Nass', 128, 0, 255, { integer: true, step: 1 }),
-			frequency: number('LFO frequency', 'LFO-Frequenz', 0.4, 0.001, 4, { unit: 'Hz', step: 0.001 }),
-			phaseDegrees: number('Starting phase', 'Startphase', 0, 0, 360, { unit: '°', step: 0.1 }),
-			depth: number('Depth', 'Tiefe', 100, 0, 255, { integer: true, step: 1 }),
-			feedbackPercent: number('Feedback', 'Rückkopplung', 0, -100, 100, { unit: '%', integer: true, step: 1 }),
-			outputGainDb: number('Output gain', 'Ausgangsverstärkung', -6, -30, 30, { unit: 'dB', step: 0.1 }),
+			stages: number(2, 2, 24, { integer: true, even: true, step: 2 }),
+			dryWet: number(128, 0, 255, { integer: true, step: 1 }),
+			frequency: number(0.4, 0.001, 4, { unit: 'Hz', step: 0.001 }),
+			phaseDegrees: number(0, 0, 360, { unit: '°', step: 0.1 }),
+			depth: number(100, 0, 255, { integer: true, step: 1 }),
+			feedbackPercent: number(0, -100, 100, { unit: '%', integer: true, step: 1 }),
+			outputGainDb: number(-6, -30, 30, { unit: 'dB', step: 0.1 }),
 		},
 	},
-	'audacity-repair': { label: label('Repair', 'Reparieren'), category: 'repair', requiresContext: true, params: {} },
-	'audacity-remove-dc-offset': { label: label('Remove DC Offset', 'Gleichspannungsversatz entfernen'), category: 'repair', params: {} },
+	'audacity-repair': { category: 'repair', requiresContext: true, params: {} },
+	'audacity-remove-dc-offset': { category: 'repair', params: {} },
 	'audacity-reverb': {
-		label: label('Reverb', 'Hall'),
 		category: 'delay',
 		browserAdaptation: 'schroeder',
 		params: {
-			roomSize: number('Room size', 'Raumgröße', 75, 0, 100, { unit: '%', step: 1 }),
-			reverberance: number('Reverberance', 'Halligkeit', 50, 0, 100, { unit: '%', step: 1 }),
-			damping: number('Damping', 'Dämpfung', 50, 0, 100, { unit: '%', step: 1 }),
-			wetGainDb: number('Wet gain', 'Effektpegel', -6, -60, 12, { unit: 'dB', step: 0.1 }),
-			dryGainDb: number('Dry gain', 'Direktpegel', 0, -60, 12, { unit: 'dB', step: 0.1 }),
-			stereoWidth: number('Stereo width', 'Stereobreite', 100, 0, 100, { unit: '%', step: 1 }),
-			wetOnly: checkbox('Wet only', 'Nur Effekt'),
+			roomSize: number(75, 0, 100, { unit: '%', step: 1 }),
+			reverberance: number(50, 0, 100, { unit: '%', step: 1 }),
+			damping: number(50, 0, 100, { unit: '%', step: 1 }),
+			wetGainDb: number(-6, -60, 12, { unit: 'dB', step: 0.1 }),
+			dryGainDb: number(0, -60, 12, { unit: 'dB', step: 0.1 }),
+			stereoWidth: number(100, 0, 100, { unit: '%', step: 1 }),
+			wetOnly: checkbox(),
 		},
 	},
 	'audacity-repeat': {
-		label: label('Repeat', 'Wiederholen'), category: 'special', lengthChanging: true,
-		params: { count: number('Number of repeats', 'Anzahl Wiederholungen', 1, 1, 2_147_483_647, { integer: true, step: 1 }) },
+		category: 'special', lengthChanging: true,
+		params: { count: number(1, 1, 2_147_483_647, { integer: true, step: 1 }) },
 	},
-	'audacity-reverse': { label: label('Reverse', 'Rückwärts'), category: 'special', params: {} },
+	'audacity-reverse': { category: 'special', params: {} },
 	'audacity-classic-filters': {
-		label: label('Classic Filters', 'Klassische Filter'),
 		category: 'eq',
 		params: {
-			family: select('Filter family', 'Filterfamilie', 'butterworth', [option('butterworth', 'Butterworth', 'Butterworth'), option('chebyshev-i', 'Chebyshev Type I', 'Tschebyscheff Typ I'), option('chebyshev-ii', 'Chebyshev Type II', 'Tschebyscheff Typ II')]),
-			direction: select('Filter type', 'Filtertyp', 'lowpass', [option('lowpass', 'Low-pass', 'Tiefpass'), option('highpass', 'High-pass', 'Hochpass')]),
-			order: number('Order', 'Ordnung', 1, 1, 10, { integer: true, step: 1 }),
-			cutoffHz: number('Cutoff frequency', 'Grenzfrequenz', 1_000, 1, 23_999, { unit: 'Hz', step: 1 }),
-			passbandRippleDb: number('Passband ripple', 'Durchlasswelligkeit', 1, 0, 100, { unit: 'dB', step: 0.1 }),
-			stopbandAttenuationDb: number('Stopband attenuation', 'Sperrdämpfung', 30, 0, 100, { unit: 'dB', step: 0.1 }),
+			family: select('butterworth', [option('butterworth'), option('chebyshev-i'), option('chebyshev-ii')]),
+			direction: select('lowpass', [option('lowpass'), option('highpass')]),
+			order: number(1, 1, 10, { integer: true, step: 1 }),
+			cutoffHz: number(1_000, 1, 23_999, { unit: 'Hz', step: 1 }),
+			passbandRippleDb: number(1, 0, 100, { unit: 'dB', step: 0.1 }),
+			stopbandAttenuationDb: number(30, 0, 100, { unit: 'dB', step: 0.1 }),
 		},
 	},
 	'audacity-truncate-silence': {
-		label: label('Truncate Silence', 'Stille kürzen'),
 		category: 'special',
 		lengthChanging: true,
 		// Audacity's Independent setting coordinates processing across multiple
 		// selected tracks. Selection effects here target one track, making it inert.
 		params: {
-			thresholdDb: number('Threshold', 'Schwellwert', -20, -80, -20, { unit: 'dB', step: 0.1 }),
-			action: select('Action', 'Aktion', 'truncate', [option('truncate', 'Truncate detected silence', 'Erkannte Stille kürzen'), option('compress', 'Compress excess silence', 'Überschüssige Stille komprimieren')]),
-			minimumSilence: number('Minimum silence', 'Minimale Stille', 0.5, 0.001, 10_000, { unit: 's', step: 0.001 }),
-			truncateTo: number('Truncate to', 'Kürzen auf', 0.5, 0, 10_000, { unit: 's', step: 0.001 }),
-			compressPercent: number('Compress to', 'Komprimieren auf', 50, 0, 99.9, { unit: '%', step: 0.1 }),
+			thresholdDb: number(-20, -80, -20, { unit: 'dB', step: 0.1 }),
+			action: select('truncate', [option('truncate'), option('compress')]),
+			minimumSilence: number(0.5, 0.001, 10_000, { unit: 's', step: 0.001 }),
+			truncateTo: number(0.5, 0, 10_000, { unit: 's', step: 0.001 }),
+			compressPercent: number(50, 0, 99.9, { unit: '%', step: 0.1 }),
 		},
 	},
 	'audacity-wahwah': {
-		label: label('Wahwah', 'Wahwah'),
 		category: 'modulation',
 		params: {
-			frequency: number('LFO frequency', 'LFO-Frequenz', 1.5, 0.1, 4, { unit: 'Hz', step: 0.01 }),
-			phaseDegrees: number('Starting phase', 'Startphase', 0, 0, 360, { unit: '°', step: 0.1 }),
-			depthPercent: number('Depth', 'Tiefe', 70, 0, 100, { unit: '%', integer: true, step: 1 }),
-			resonance: number('Resonance', 'Resonanz', 2.5, 0.1, 10, { step: 0.1 }),
-			frequencyOffsetPercent: number('Frequency offset', 'Frequenzversatz', 30, 0, 100, { unit: '%', integer: true, step: 1 }),
-			outputGainDb: number('Output gain', 'Ausgangsverstärkung', -6, -30, 30, { unit: 'dB', step: 0.1 }),
+			frequency: number(1.5, 0.1, 4, { unit: 'Hz', step: 0.01 }),
+			phaseDegrees: number(0, 0, 360, { unit: '°', step: 0.1 }),
+			depthPercent: number(70, 0, 100, { unit: '%', integer: true, step: 1 }),
+			resonance: number(2.5, 0.1, 10, { step: 0.1 }),
+			frequencyOffsetPercent: number(30, 0, 100, { unit: '%', integer: true, step: 1 }),
+			outputGainDb: number(-6, -30, 30, { unit: 'dB', step: 0.1 }),
 		},
 	},
 };
+
+for (const [type, definition] of Object.entries(definitions)) {
+	definition.labelKey = effectNameCopyKey(type);
+	for (const [name, descriptor] of Object.entries(definition.params)) {
+		descriptor.labelKey = effectParameterCopyKey(type, name);
+		for (const item of descriptor.options || []) {
+			item.labelKey = effectOptionCopyKey(type, name, item.value);
+		}
+	}
+}
 
 export const AUDACITY_EFFECT_DEFINITIONS = deepFreeze(definitions);
 
@@ -429,9 +421,22 @@ export function audacityEffectTypes() {
 	return Object.keys(AUDACITY_EFFECT_DEFINITIONS);
 }
 
-export function audacityEffectLabel(type, locale = 'en') {
+export function audacityEffectLabel(type, copyOrLocale = 'en') {
 	const definition = requireDefinition(type);
-	return localized(definition.label, locale);
+	return canonicalCopyValue(definition.labelKey, copyOrLocale);
+}
+
+export function audacityEffectParameterLabel(type, name, copyOrLocale = 'en') {
+	const descriptor = requireDefinition(type).params[name];
+	if (!descriptor) throw new RangeError(`Unsupported Audacity effect parameter: ${type}.${name}.`);
+	return canonicalCopyValue(descriptor.labelKey, copyOrLocale);
+}
+
+export function audacityEffectOptionLabel(type, name, value, copyOrLocale = 'en') {
+	const descriptor = requireDefinition(type).params[name];
+	const item = descriptor?.options?.find((candidate) => String(candidate.value) === String(value));
+	if (!item) throw new RangeError(`Unsupported Audacity effect option: ${type}.${name}.${value}.`);
+	return canonicalCopyValue(item.labelKey, copyOrLocale);
 }
 
 export function audacityEffectDefaults(type) {
@@ -467,7 +472,7 @@ export function parseAudacityCurve(value) {
 }
 
 export function localized(value, locale = 'en') {
-	return value?.[locale === 'de' ? 'de' : 'en'] ?? value?.en ?? String(value ?? '');
+	return localizedValue(value, locale);
 }
 
 function requireDefinition(type) {
