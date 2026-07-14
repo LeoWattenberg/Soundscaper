@@ -4,6 +4,7 @@ import {
 	darkTheme,
 	lightTheme,
 	ThemeProvider,
+	useTheme,
 } from '@dilsonspickles/components';
 
 const PORTAL_BODY_CLASS = 'kw-audio-editor-design-system-mounted';
@@ -41,6 +42,43 @@ export function useAudioEditorTelemetry(controller) {
 		controller.getTelemetrySnapshot,
 		controller.getTelemetrySnapshot,
 	);
+}
+
+// The component package consumes its theme as JavaScript rather than exposing
+// a semantic CSS-variable sheet. Project the same active theme into the small
+// set of variables used by editor-owned surfaces (canvas, timeline, and
+// application layout), so those surfaces cannot drift into a second palette.
+export function useAudioEditorThemeVariables() {
+	const { theme } = useTheme();
+
+	return useMemo(() => ({
+		'--kw-editor-accent': theme.accent.primary,
+		'--kw-editor-accent-strong': theme.background.control.button.primary.active,
+		'--kw-editor-accent-soft': theme.semantic.info.backgroundSubtle,
+		'--kw-editor-bg': theme.background.surface.default,
+		'--kw-editor-panel': theme.background.surface.elevated,
+		'--kw-editor-control': theme.background.control.input.idle,
+		'--kw-editor-text': theme.foreground.text.primary,
+		'--kw-editor-muted': theme.foreground.text.secondary,
+		'--kw-editor-line': theme.border.onSurface,
+		'--kw-editor-stage': theme.background.canvas.default,
+		'--kw-editor-stage-raised': theme.background.surface.inset,
+		'--kw-editor-stage-hover': theme.background.surface.hover,
+		'--kw-editor-stage-line': theme.background.canvas.grid.major,
+		'--kw-editor-stage-grid-major': theme.background.canvas.grid.major,
+		'--kw-editor-stage-grid-minor': theme.background.canvas.grid.minor,
+		'--kw-editor-stage-text': theme.foreground.text.contrastPrimary,
+		'--kw-editor-stage-muted': theme.foreground.text.contrastSecondary,
+		'--kw-editor-danger': theme.semantic.error.text,
+		'--kw-editor-danger-bg': theme.semantic.error.backgroundSubtle,
+		'--kw-editor-danger-line': theme.semantic.error.border,
+		'--kw-editor-success': theme.semantic.success.text,
+		'--kw-editor-success-bg': theme.semantic.success.backgroundSubtle,
+		'--toolbar-bg': theme.background.toolbar,
+		'--toolbar-border': theme.border.default,
+		'--toolbar-divider': theme.border.divider,
+		colorScheme: theme === darkTheme ? 'dark' : 'light',
+	}), [theme]);
 }
 
 export function useElementSize() {

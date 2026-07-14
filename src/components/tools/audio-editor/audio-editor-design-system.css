@@ -1,31 +1,7 @@
 #kw-audio-editor-design-system {
-	--kw-editor-accent: #677ce4;
-	--kw-editor-accent-strong: #4f5ab8;
-	--kw-editor-accent-soft: #ebecf8;
-	--kw-editor-bg: #f8f8f9;
-	--kw-editor-panel: #e3e3e8;
-	--kw-editor-control: #fff;
-	--kw-editor-text: #14151a;
-	--kw-editor-muted: #5b5b5f;
-	--kw-editor-line: #e9e9e9;
-	--kw-editor-stage: #252837;
-	--kw-editor-stage-raised: #ebedf0;
-	--kw-editor-stage-hover: #f2f2f7;
-	--kw-editor-stage-line: #31354a;
-	--kw-editor-stage-grid: #31354a;
-	--kw-editor-stage-text: #f4f5f9;
-	--kw-editor-stage-muted: #c4c9d6;
-	--kw-editor-danger: #b3261e;
-	--kw-editor-danger-bg: #fce8e6;
-	--kw-editor-danger-line: #f1b8b4;
-	--kw-editor-success: #2e7d32;
-	--kw-editor-success-bg: #e8f5e9;
+	/* Values are projected from the active Audacity ThemeProvider in React. */
 	--kw-editor-shadow: 0 12px 32px rgb(20 21 26 / 18%);
-	--focus-color: #84b5ff;
 	--focus-ring-size: 2px;
-	--toolbar-bg: var(--kw-editor-panel);
-	--toolbar-border: var(--kw-editor-line);
-	--toolbar-divider: var(--kw-editor-line);
 	box-sizing: border-box;
 	position: relative;
 	z-index: 21;
@@ -77,37 +53,8 @@
 	margin-top: 56px;
 }
 
-:root[data-theme='dark'] #kw-audio-editor-design-system {
-	--kw-editor-bg: #25262b;
-	--kw-editor-panel: #2c2e33;
-	--kw-editor-control: #25262b;
-	--kw-editor-text: #e4e5e7;
-	--kw-editor-muted: #a9adb5;
-	--kw-editor-line: #434a50;
-	--kw-editor-stage: #171f25;
-	--kw-editor-stage-raised: #1f2024;
-	--kw-editor-stage-hover: #2e3035;
-	--kw-editor-stage-line: #2d2f34;
-	--kw-editor-stage-grid: #2d2f34;
-	--kw-editor-stage-muted: #c4c9d6;
-	--focus-color: #60a5fa;
-	color-scheme: dark;
-}
-
-#kw-audio-editor-design-system:is([data-editor-theme='dark'], [data-editor-theme='high-contrast-dark']) {
-	--kw-editor-bg: #25262b;
-	--kw-editor-panel: #2c2e33;
-	--kw-editor-control: #25262b;
-	--kw-editor-text: #e4e5e7;
-	--kw-editor-muted: #a9adb5;
-	--kw-editor-line: #434a50;
-	--toolbar-bg: var(--kw-editor-panel);
-	--toolbar-border: var(--kw-editor-line);
-	color-scheme: dark;
-}
-
 #kw-audio-editor-design-system:is([data-editor-theme='high-contrast-light'], [data-editor-theme='high-contrast-dark']) {
-	--kw-editor-accent: #0067df;
+	--kw-editor-accent: currentColor;
 	--kw-editor-line: currentColor;
 	--focus-ring-size: 3px;
 	box-shadow: none;
@@ -131,20 +78,6 @@
 	--kw-editor-muted: #eee;
 	--kw-editor-stage: #000;
 	--kw-editor-stage-raised: #000;
-}
-
-@media (prefers-color-scheme: dark) {
-	#kw-audio-editor-design-system[data-editor-theme='system'] {
-		--kw-editor-bg: #25262b;
-		--kw-editor-panel: #2c2e33;
-		--kw-editor-control: #25262b;
-		--kw-editor-text: #e4e5e7;
-		--kw-editor-muted: #a9adb5;
-		--kw-editor-line: #434a50;
-		--toolbar-bg: var(--kw-editor-panel);
-		--toolbar-border: var(--kw-editor-line);
-		color-scheme: dark;
-	}
 }
 
 #kw-audio-editor-design-system *,
@@ -388,7 +321,7 @@
 	display: grid;
 	min-width: 76px;
 	gap: 2px;
-	color: var(--kw-editor-muted);
+	color: var(--kw-editor-text);
 	font-size: 9px;
 	font-weight: 700;
 }
@@ -832,8 +765,8 @@
 	min-height: 100%;
 	background-color: var(--kw-editor-stage);
 	background-image:
-		linear-gradient(90deg, var(--kw-editor-stage-grid) 1px, transparent 1px),
-		linear-gradient(0deg, var(--kw-editor-stage-grid) 1px, transparent 1px);
+		linear-gradient(90deg, var(--kw-editor-stage-grid-major) 1px, transparent 1px),
+		linear-gradient(0deg, var(--kw-editor-stage-grid-minor) 1px, transparent 1px);
 	background-size: 120px 100%, 100% 36px;
 }
 
@@ -1059,8 +992,8 @@
 	overflow: hidden;
 	background-color: var(--kw-editor-stage);
 	background-image:
-		linear-gradient(90deg, var(--kw-editor-stage-grid) 1px, transparent 1px),
-		linear-gradient(0deg, var(--kw-editor-stage-grid) 1px, transparent 1px);
+		linear-gradient(90deg, var(--kw-editor-stage-grid-major) 1px, transparent 1px),
+		linear-gradient(0deg, var(--kw-editor-stage-grid-minor) 1px, transparent 1px);
 	background-size: 120px 100%, 100% 36px;
 	outline: none;
 }

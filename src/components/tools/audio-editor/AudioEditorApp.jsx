@@ -45,6 +45,7 @@ import {
 	DesignSystemProviders,
 	useAudioEditorSnapshot,
 	useAudioEditorTelemetry,
+	useAudioEditorThemeVariables,
 } from './DesignSystemRuntime.jsx';
 import './audio-editor-design-system.css';
 
@@ -81,6 +82,7 @@ class AudioEditorErrorBoundary extends React.Component {
 }
 
 function AudioEditorWorkspace({ locale, copy }) {
+	const editorThemeVariables = useAudioEditorThemeVariables();
 	const controller = useMemo(() => createAudioEditorController(null, {
 		headless: true,
 		locale,
@@ -491,6 +493,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		<div
 			ref={editorRef}
 			id="kw-audio-editor-design-system"
+			style={editorThemeVariables}
 			className={`kw-audio-editor ${isCompact ? 'kw-audio-editor--compact' : ''}${isFullscreen ? ' kw-audio-editor--viewport-fullscreen' : ''}`}
 			data-audio-editor
 			data-audio-editor-bound="true"
