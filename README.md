@@ -103,7 +103,6 @@ In the Pages project, open **Settings → Variables and Secrets**. Add these to
 both Production and Preview unless noted otherwise:
 
 - `ASTRO_SITE` = `https://soundscaper.org`
-- `PUBLIC_AUDIO_EDITOR_V2` = `true`
 - `PUBLIC_FFMPEG_CORE_BASE_URL` =
   `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10`
 - `NODE_VERSION` = `22`

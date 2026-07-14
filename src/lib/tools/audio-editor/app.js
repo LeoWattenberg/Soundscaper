@@ -25,7 +25,6 @@ import {
 	createAddLabelTrackCommand,
 	createAddSourceCommand,
 	createAddTrackCommand,
-	createAudioEditorProject,
 	createAudioEditorProjectV2,
 	convertStructuredAup3ToProjectV2,
 	createClipboardDescriptor,
@@ -49,7 +48,6 @@ import {
 	findAudioEditorShortcutConflicts,
 	findSource,
 	findTrack,
-	loadAudioEditorProject,
 	loadAudioEditorPreferencesV1,
 	loadStoredSourceChannels,
 	migrateAudioEditorProject,
@@ -125,7 +123,6 @@ const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
 export function createAudioEditorController(_root = null, options = {}) {
 	const copy = options.copy || {};
 	const locale = options.locale === 'de' ? 'de' : 'en';
-	const audioEditorV2 = options.audioEditorV2 !== false;
 	const documentListeners = new Set();
 	const telemetryListeners = new Set();
 	let documentSnapshot = null;
@@ -337,7 +334,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			: null;
 		return Object.freeze({
 			ready: state.phase === 'ready',
-			audioEditorV2,
 			phase: state.phase,
 			headless: true,
 			locale,
@@ -556,11 +552,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				selectTrack,
 				selectClip,
 				setSelection,
-				clearSelection: () => setSelection(0, 0, audioEditorV2 ? {
+				clearSelection: () => setSelection(0, 0, {
 					trackIds: [],
 					clipIds: [],
 					frequencyRange: null,
-				} : {}),
+				}),
 				selectAllTracks,
 				selectLeftOfPlayback: selectLeftOfPlaybackPosition,
 				selectRightOfPlayback: selectRightOfPlaybackPosition,
@@ -866,11 +862,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function newProject(options = {}) {
 		const title = String(options.title || copy.untitledProject).trim() || copy.untitledProject;
-		const nextProject = audioEditorV2
-			? createAudioEditorProjectV2({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) })
-			: createAudioEditorProject({ title });
+		const nextProject = createAudioEditorProjectV2({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) });
 		const track = createAddTrackCommand({
-			...(audioEditorV2 ? { schemaVersion: 2, type: 'audio', sampleRate: nextProject.sampleRate } : {}),
+			schemaVersion: 2,
+			type: 'audio',
+			sampleRate: nextProject.sampleRate,
 			name: `${copy.track} 1`,
 			armed: true,
 		});
@@ -879,7 +875,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function openProject(value) {
-		const loaded = audioEditorV2 ? migrateAudioEditorProject(value) : loadAudioEditorProject(value);
+		const loaded = migrateAudioEditorProject(value);
 		const readOnlyReason = loaded.readOnly ? copy.futureProjectReadOnly : null;
 		await switchProject(loaded.project, { readOnly: loaded.readOnly, readOnlyReason });
 	}
@@ -985,7 +981,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function openAup4(file) {
-		if (!audioEditorV2) throw new Error(copy.aup4RequiresV2);
 		if (!file || !/\.aup4$/i.test(String(file.name || ''))) throw new TypeError(copy.chooseAup4File);
 		if (editingBlocked()) return;
 		state.importing = true;
@@ -1064,7 +1059,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function saveAup4(options = {}) {
-		if (!audioEditorV2 || project?.schemaVersion !== 2) throw new Error(copy.aup4OnlyV2);
+		if (project?.schemaVersion !== 2) throw new Error(copy.aup4OnlyV2);
 		if (state.missingSourceIds.size) throw new Error(copy.missingSourcesPreventSave);
 		if (state.readOnly && !options.saveCopy) throw new Error(copy.projectReadOnly);
 		let fileHandle = options.fileHandle;
@@ -1359,32 +1354,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function importFile(file) {
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-		if (audioEditorV2 && isAup3File(file)) return importStructuredAudacityProject(file);
+		if (isAup3File(file)) return importStructuredAudacityProject(file);
 		const context = await engine.getAudioContext({ resume: false });
-		const aup3 = isAup3File(file);
 		let decoded;
-		let warnings = [];
-		if (aup3) {
-			setStatus(copy.aup3Importing);
-			const result = await decodeAup3File(file, { onProgress: updateAup3ImportProgress });
-			decoded = await bufferFromAup3Channels(result.channels, result.sampleRate, context, copy);
-			warnings = Array.isArray(result.warnings) ? result.warnings : [];
-		} else {
-			try {
-				decoded = await engine.decodeAudioData(await file.arrayBuffer());
-			} catch {
-				const fallback = await ffmpeg.decode(file, { sampleRate: projectSampleRate() });
-				decoded = await bufferFromChannels(fallback.channels, fallback.sampleRate, context, copy);
-			}
+		try {
+			decoded = await engine.decodeAudioData(await file.arrayBuffer());
+		} catch {
+			const fallback = await ffmpeg.decode(file, { sampleRate: projectSampleRate() });
+			decoded = await bufferFromChannels(fallback.channels, fallback.sampleRate, context, copy);
 		}
-		const canonical = await canonicalizeBuffer(decoded, context, audioEditorV2 ? null : AUDIO_EDITOR_SAMPLE_RATE, copy);
+		const canonical = await canonicalizeBuffer(decoded, context, null, copy);
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
 		const sourceId = createStableId('source');
 		const trackId = createStableId('track');
 		const clipId = createStableId('clip');
 		const trackName = stripExtension(file.name) || `${copy.track} ${project.tracks.length + 1}`;
-		const sourceName = aup3 ? `${trackName}.wav` : file.name;
-		const mimeType = aup3 ? 'audio/wav' : file.type || 'audio/wav';
+		const sourceName = file.name;
+		const mimeType = file.type || 'audio/wav';
 		const writer = await store.beginSourceWrite(sourceId, { name: sourceName, mimeType });
 		try {
 			await writeBuffer(writer, canonical);
@@ -1398,7 +1384,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			type: 'batch',
 			commands: [
 				createAddSourceCommand({
-					...(audioEditorV2 ? { schemaVersion: 2, sampleFormat: 'float32', chunkFrames: SOURCE_CHUNK_FRAMES } : {}),
+					schemaVersion: 2,
+					sampleFormat: 'float32',
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 					id: sourceId,
 					storageKey: sourceId,
 					name: sourceName,
@@ -1409,19 +1397,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 					originalSampleRate: decoded.sampleRate,
 				}),
 				createAddTrackCommand({
-					...(audioEditorV2 ? { schemaVersion: 2, type: 'audio', sampleRate: projectSampleRate(), channelCount: canonical.numberOfChannels } : {}),
+					schemaVersion: 2,
+					type: 'audio',
+					sampleRate: projectSampleRate(),
+					channelCount: canonical.numberOfChannels,
 					id: trackId,
 					name: trackName,
 				}),
 				createAddClipCommand(trackId, {
-					...(audioEditorV2 ? { schemaVersion: 2, title: trackName, sourceDurationFrames: canonical.length } : {}),
+					schemaVersion: 2,
+					title: trackName,
+					sourceDurationFrames: canonical.length,
 					id: clipId,
 					sourceId,
 					timelineStartFrame: 0,
 					sourceStartFrame: 0,
-					durationFrames: audioEditorV2
-						? Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate))
-						: canonical.length,
+					durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
 				}),
 			],
 		};
@@ -1438,15 +1429,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			throw error;
 		}
 		warnEnvelope();
-		if (aup3) {
-			const detail = warnings.map(formatAup3Warning).filter(Boolean).join(' ');
-			return { notice: detail ? `${copy.aup3Imported} ${detail}` : copy.aup3Imported };
-		}
 		return null;
 	}
 
 	async function importStructuredAudacityProject(file, legacyDataFiles = []) {
-		if (!audioEditorV2) throw new Error(copy.v2Required);
 		const legacy = isLegacyAupFile(file);
 		setStatus(legacy ? copy.aupImporting : copy.aup3Importing);
 		const structure = legacy
@@ -1527,7 +1513,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const trackId = options.id || createStableId('track');
 		const track = createAddTrackCommand({
 			...options,
-			...(audioEditorV2 ? { schemaVersion: 2, type: 'audio', sampleRate: projectSampleRate() } : {}),
+			schemaVersion: 2,
+			type: 'audio',
+			sampleRate: projectSampleRate(),
 			id: trackId,
 			name: String(options.name || `${copy.track} ${project.tracks.length + 1}`).trim() || copy.track,
 			armed: options.armed ?? project.tracks.length === 0,
@@ -1537,7 +1525,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function addLabelTrack(options = {}) {
-		if (!audioEditorV2 || editingBlocked()) return null;
+		if (editingBlocked()) return null;
 		const trackId = options.id || createStableId('label-track');
 		const command = createAddLabelTrackCommand({
 			...options,
@@ -1718,7 +1706,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function swapTrackChannels(trackId = state.selectedTrackId) {
 		if (editingBlocked()) return null;
-		if (!audioEditorV2 || project.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label' || track.channelCount !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
 		const clips = track.clipIds.map((clipId) => findClip(project, clipId)).filter(Boolean);
@@ -1756,7 +1744,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function splitStereoTrack(trackId = state.selectedTrackId, panChannels = true) {
 		if (editingBlocked()) return null;
-		if (!audioEditorV2 || project.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label' || track.channelCount !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
@@ -1830,7 +1818,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function makeStereoTrack(trackId = state.selectedTrackId, partnerTrackId = null) {
 		if (editingBlocked()) return null;
-		if (!audioEditorV2 || project.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label' || track.channelCount !== 1) throw new Error(copy.monoTrackRequired || copy.audioTrackRequired);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
@@ -1966,7 +1954,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function addLabel(trackId, labelOptions = {}) {
-		if (!audioEditorV2 || editingBlocked()) return null;
+		if (editingBlocked()) return null;
 		let target = trackId ? findTrack(project, trackId) : findTrack(project, state.selectedTrackId);
 		if (target?.type !== 'label') {
 			const createdTrackId = addLabelTrack();
@@ -1984,7 +1972,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function importLabelFile(file, importOptions = {}) {
-		if (!audioEditorV2) throw new Error(copy.labelsRequireV2);
 		if (!file || editingBlocked()) return null;
 		state.importing = true;
 		publishDocumentSnapshot();
@@ -2014,7 +2001,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function exportLabels(exportOptions = {}) {
-		if (!audioEditorV2) throw new Error(copy.labelsRequireV2);
 		const requestedIds = Array.isArray(exportOptions.trackIds) ? new Set(exportOptions.trackIds) : null;
 		let tracks = project.tracks.filter((track) => track.type === 'label' && (!requestedIds || requestedIds.has(track.id)));
 		const selected = tracks.find((track) => track.id === state.selectedTrackId);
@@ -2209,7 +2195,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const trackId = createStableId('track');
 				addedTrackCount += 1;
 				commands.push(createAddTrackCommand({
-					...(audioEditorV2 ? { schemaVersion: 2, type: 'audio', sampleRate: projectSampleRate() } : {}),
+					schemaVersion: 2,
+					type: 'audio',
+					sampleRate: projectSampleRate(),
 					id: trackId,
 					name: clipboardTrack.sourceTrackName || `${copy.track} ${project.tracks.length + addedTrackCount}`,
 				}));
@@ -2298,7 +2286,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await writeBuffer(writer, buffer);
 			await writer.commit({ sampleRate, channelCount });
 			const source = {
-				...(audioEditorV2 ? { schemaVersion: 2, sampleRate, sampleFormat: 'float32', chunkFrames: SOURCE_CHUNK_FRAMES } : {}),
+				schemaVersion: 2,
+				sampleRate,
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
 				id: sourceId,
 				storageKey: sourceId,
 				name,
@@ -2330,7 +2321,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 					command = { type: 'batch', commands: [
 						createAddSourceCommand(source),
 						createAddTrackCommand({
-							...(audioEditorV2 ? { schemaVersion: 2, type: 'audio', sampleRate, channelCount } : {}),
+							schemaVersion: 2,
+							type: 'audio',
+							sampleRate,
+							channelCount,
 							id: trackId,
 							name,
 						}),
@@ -2338,7 +2332,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				} else command = { type: 'batch', commands: [createAddSourceCommand(source)] };
 				selectedClipId = createStableId('clip');
 				command.commands.push(createAddClipCommand(targetTrack.id, {
-					...(audioEditorV2 ? { schemaVersion: 2, title: name, sourceDurationFrames: generated.frameCount } : {}),
+					schemaVersion: 2,
+					title: name,
+					sourceDurationFrames: generated.frameCount,
 					id: selectedClipId,
 					sourceId,
 					timelineStartFrame: startFrame,
@@ -2749,7 +2745,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function setSnapSettings(settings = {}) {
-		if (!audioEditorV2 || project?.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project?.schemaVersion !== 2) throw new Error(copy.v2Required);
 		return commit({ type: 'snap/set', settings });
 	}
 
@@ -2757,7 +2753,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
 		const rounded = Math.round(frame);
-		if (!audioEditorV2 || project?.schemaVersion !== 2) return Math.max(0, rounded);
+		if (project?.schemaVersion !== 2) return Math.max(0, rounded);
 		return snapAudioEditorFrameWithProject(rounded, project, { minimumFrame: 0, ...overrides });
 	}
 
@@ -2772,7 +2768,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function sampleEditingAvailable(clipId = state.selectedClipId) {
-		if (!audioEditorV2 || project?.schemaVersion !== 2 || !clipId) return false;
+		if (project?.schemaVersion !== 2 || !clipId) return false;
 		const clip = findClip(project, clipId);
 		const source = clip ? findSource(project, clip.sourceId) : null;
 		if (!clip || !source || !clip.durationFrames || !clip.sourceDurationFrames) return false;
@@ -3601,7 +3597,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function setSpectralBoxSelection(options = {}) {
 		if (editingBlocked()) return null;
-		if (!audioEditorV2 || project.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const selectedClip = state.selectedClipId ? findClip(project, state.selectedClipId) : null;
 		const clipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, state.selectedTrackId) || clipTrack;
@@ -3639,7 +3635,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function applySpectralSelection(requestedGainDb) {
 		if (editingBlocked()) return null;
-		if (!audioEditorV2 || project.schemaVersion !== 2) throw new Error(copy.v2Required);
+		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const selection = activeSelection();
 		const frequencyRange = selection?.frequencyRange;
 		const target = audacityEffectTarget();
@@ -4604,7 +4600,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceCommitted = true;
 			const sourceId = state.recordingSourceId;
 			const sourceCommand = createAddSourceCommand({
-				...(audioEditorV2 ? { schemaVersion: 2, sampleRate, originalSampleRate: sampleRate, sampleFormat: 'float32', chunkFrames: SOURCE_CHUNK_FRAMES } : {}),
+				schemaVersion: 2,
+				sampleRate,
+				originalSampleRate: sampleRate,
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
 				id: sourceId,
 				storageKey: sourceId,
 				name: metadata.name,

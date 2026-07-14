@@ -80,13 +80,12 @@ class AudioEditorErrorBoundary extends React.Component {
 	}
 }
 
-function AudioEditorWorkspace({ locale, copy, audioEditorV2 = true }) {
+function AudioEditorWorkspace({ locale, copy }) {
 	const controller = useMemo(() => createAudioEditorController(null, {
 		headless: true,
 		locale,
 		copy,
-		audioEditorV2,
-	}), [audioEditorV2, copy, locale]);
+	}), [copy, locale]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const snapshot = useAudioEditorSnapshot(controller);
@@ -869,7 +868,7 @@ function EditorToolToolbar({
 	const telemetry = useAudioEditorTelemetry(controller);
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label');
-	const spectralTrackSelected = Boolean(snapshot.audioEditorV2 && selectedTrack && (
+	const spectralTrackSelected = Boolean(selectedTrack && (
 		selectedTrack.displayMode === 'spectrogram'
 		|| selectedTrack.displayMode === 'multiview'
 		|| snapshot.timeline?.view === 'spectrogram'
@@ -2078,7 +2077,7 @@ function createApplicationMenus({
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
 	const selectedTrackIndex = selectedTrack ? project.tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
-	const compatibleMonoTracks = Boolean(snapshot.audioEditorV2 && selectedAudioTrack?.channelCount === 1 && project?.tracks.some((track) => (
+	const compatibleMonoTracks = Boolean(selectedAudioTrack?.channelCount === 1 && project?.tracks.some((track) => (
 		track.id !== selectedAudioTrack.id && track.type !== 'label' && track.channelCount === 1
 	)));
 	const selectedClipIds = project?.selection?.clipIds?.length
@@ -2087,7 +2086,7 @@ function createApplicationMenus({
 	const multipleSelectedClips = selectedClipIds.length > 1;
 	const groupedSelectedClips = selectedClipIds.some((clipId) => project?.clips.find((clip) => clip.id === clipId)?.groupId);
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
-	const spectralTrackSelected = Boolean(snapshot.audioEditorV2 && selectedAudioTrack && (
+	const spectralTrackSelected = Boolean(selectedAudioTrack && (
 		selectedAudioTrack.displayMode === 'spectrogram'
 		|| selectedAudioTrack.displayMode === 'multiview'
 		|| snapshot.timeline?.view === 'spectrogram'
@@ -2439,7 +2438,7 @@ function createApplicationMenus({
 				{
 					id: 'track-channels',
 					label: copy.trackChannels,
-					disabled: editBlocked || !snapshot.audioEditorV2 || !selectedAudioTrack,
+					disabled: editBlocked || !selectedAudioTrack,
 					items: [
 						{ id: 'track-make-stereo', label: copy.makeStereoTrack, disabled: !compatibleMonoTracks, onClick: actions.makeStereoTrack },
 						{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: selectedAudioTrack?.channelCount !== 2, onClick: actions.swapTrackChannels },

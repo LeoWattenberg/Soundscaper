@@ -12,7 +12,6 @@ import {
 	chooseRenderStrategy,
 	collectHistorySourceIds,
 	compactEditorHistorySourceMetadata,
-	createAudioEditorProject,
 	createClipboardDescriptor,
 	createEditorHistory,
 	createEffect,
@@ -21,7 +20,6 @@ import {
 	executeEditorCommand,
 	evictUnreferencedSourceCaches,
 	findClip,
-	loadAudioEditorProject,
 	preparePasteCommand,
 	preparePunchCommand,
 	prepareOverwriteClipCommand,
@@ -35,6 +33,7 @@ import {
 	undoEditorCommand,
 	validateAudioEditorProject,
 } from '../src/lib/tools/audio-editor/index.js';
+import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
 
 const NOW = '2026-07-12T10:00:00.000Z';
 
@@ -42,8 +41,23 @@ function apply(project, command) {
 	return applyEditorCommand(project, command, { now: NOW });
 }
 
+function coreClip(clip) {
+	if (!clip) return clip;
+	return {
+		id: clip.id,
+		sourceId: clip.sourceId,
+		timelineStartFrame: clip.timelineStartFrame,
+		sourceStartFrame: clip.sourceStartFrame,
+		durationFrames: clip.durationFrames,
+		gain: clip.gain,
+		fadeInFrames: clip.fadeInFrames,
+		fadeOutFrames: clip.fadeOutFrames,
+		reversed: clip.reversed,
+	};
+}
+
 function createFixture(options = {}) {
-	let project = createAudioEditorProject({ id: 'project-1', title: 'Studio Test', now: NOW });
+	let project = createAudioEditorProjectV2({ id: 'project-1', title: 'Studio Test', now: NOW });
 	project = apply(project, {
 		type: 'source/add',
 		source: {
@@ -56,21 +70,17 @@ function createFixture(options = {}) {
 	return project;
 }
 
-test('audio editor projects use a normalized, frame-accurate v1 document', () => {
+test('audio editor projects use a normalized, frame-accurate v2 document', () => {
 	const project = createFixture();
-	assert.equal(project.schemaVersion, 1);
+	assert.equal(project.schemaVersion, 2);
 	assert.equal(project.sampleRate, 48_000);
 	assert.equal(project.masterChannels, 2);
 	assert.deepEqual(project.tracks.map((track) => track.clipIds), [[], []]);
 	assert.equal(project.revision, 3);
 	assert.equal(validateAudioEditorProject(project), true);
-	assert.deepEqual(loadAudioEditorProject(project), { project, readOnly: false, reason: null });
-
-	const newer = { ...project, schemaVersion: 2 };
-	assert.deepEqual(loadAudioEditorProject(newer), { project: newer, readOnly: true, reason: 'newer-schema' });
 	assert.throws(() => apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'bad', sourceId: 'source-1', timelineStartFrame: 0.5, sourceStartFrame: 0, durationFrames: 100,
-	} }), /non-negative safe integer/);
+	} }), /safe integer greater than or equal to 0/);
 });
 
 test('clip commands reject collisions and preserve source bounds while moving and trimming', () => {
@@ -90,7 +100,7 @@ test('clip commands reject collisions and preserve source bounds while moving an
 	project = apply(project, {
 		type: 'clip/trim', clipId: 'clip-1', timelineStartFrame: 120, sourceStartFrame: 70, durationFrames: 300,
 	});
-	assert.deepEqual(findClip(project, 'clip-1'), {
+	assert.deepEqual(coreClip(findClip(project, 'clip-1')), {
 		id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 120, sourceStartFrame: 70,
 		durationFrames: 300, gain: 1, fadeInFrames: 20, fadeOutFrames: 30, reversed: false,
 	});
@@ -116,11 +126,11 @@ test('overwrite clip placement trims, splits, and removes inactive clips', () =>
 	assert.deepEqual(overwrite.splitClipIds, { backing: 'backing-right' });
 	project = apply(project, overwrite);
 	assert.deepEqual(project.tracks[0].clipIds, ['backing', 'active', 'backing-right']);
-	assert.deepEqual(findClip(project, 'backing'), {
+	assert.deepEqual(coreClip(findClip(project, 'backing')), {
 		id: 'backing', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 0, durationFrames: 200,
 		gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
 	});
-	assert.deepEqual(findClip(project, 'backing-right'), {
+	assert.deepEqual(coreClip(findClip(project, 'backing-right')), {
 		id: 'backing-right', sourceId: 'source-1', timelineStartFrame: 500, sourceStartFrame: 400, durationFrames: 400,
 		gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
 	});
@@ -144,11 +154,11 @@ test('splits preserve forward and reversed source regions with stable replay IDs
 	const split = prepareSplitCommand('forward', 250, () => 'forward-right');
 	assert.equal(JSON.parse(JSON.stringify(split)).rightClipId, 'forward-right');
 	project = apply(project, split);
-	assert.deepEqual(findClip(project, 'forward'), {
+	assert.deepEqual(coreClip(findClip(project, 'forward')), {
 		id: 'forward', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 50,
 		durationFrames: 150, gain: 1, fadeInFrames: 20, fadeOutFrames: 0, reversed: false,
 	});
-	assert.deepEqual(findClip(project, 'forward-right'), {
+	assert.deepEqual(coreClip(findClip(project, 'forward-right')), {
 		id: 'forward-right', sourceId: 'source-1', timelineStartFrame: 250, sourceStartFrame: 200,
 		durationFrames: 250, gain: 1, fadeInFrames: 0, fadeOutFrames: 30, reversed: false,
 	});
@@ -207,7 +217,7 @@ test('clipboard descriptors paste atomically and punch-in replaces only the sele
 	const clipboard = createClipboardDescriptor(project, { startFrame: 100, endFrame: 300, trackIds: ['track-1'] });
 	assert.deepEqual(clipboard.tracks[0].clips.map((clip) => [clip.offsetFrame, clip.sourceStartFrame, clip.durationFrames]), [[0, 100, 200]]);
 	project = apply(project, preparePasteCommand(clipboard, { atFrame: 1_200 }, () => 'pasted'));
-	assert.deepEqual(findClip(project, 'pasted'), {
+	assert.deepEqual(coreClip(findClip(project, 'pasted')), {
 		id: 'pasted', sourceId: 'source-1', timelineStartFrame: 1_200, sourceStartFrame: 100,
 		durationFrames: 200, gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
 	});

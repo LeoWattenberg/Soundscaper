@@ -12,9 +12,9 @@ import {
 	undoEditorCommand,
 } from '../src/lib/tools/audio-editor/history.js';
 import {
-	createAudioEditorProject,
 	findTrack,
 } from '../src/lib/tools/audio-editor/project.js';
+import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
 
 const NOW = '2026-07-13T12:00:00.000Z';
 
@@ -23,9 +23,9 @@ function apply(project, command) {
 }
 
 function createRackFixture() {
-	let project = createAudioEditorProject({ id: 'rack-project', now: NOW });
+	let project = createAudioEditorProjectV2({ id: 'rack-project', now: NOW });
 	for (const [id, name] of [['track-a', 'Target A'], ['track-b', 'Control'], ['track-c', 'Target C']]) {
-		project = apply(project, createAddTrackCommand({ id, name }));
+		project = apply(project, createAddTrackCommand({ schemaVersion: 2, type: 'audio', sampleRate: project.sampleRate, id, name }));
 	}
 	return project;
 }
@@ -117,7 +117,7 @@ test('track/add normalizes preconfigured racks and rejects effect ID collisions'
 			createEffect('audacity-invert', { id: 'same-effect' }),
 			createEffect('audacity-echo', { id: 'same-effect' }),
 		],
-	})), /Duplicate effect ID: same-effect/);
+	})), /Duplicate (?:track\.effects )?ID: same-effect/);
 
 	const rawContext = { controlTrackId: 'track-b', range: { startFrame: 0, endFrame: 100 } };
 	project = apply(project, createAddTrackCommand({

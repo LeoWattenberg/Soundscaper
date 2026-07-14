@@ -1,4 +1,4 @@
-export const AUDIO_EDITOR_SCHEMA_VERSION = 1;
+const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_MASTER_CHANNELS = 2;
 
@@ -120,29 +120,8 @@ export function normalizeFrameRange(startFrame, endFrame, name = 'range') {
 	return { startFrame, endFrame, durationFrames: endFrame - startFrame };
 }
 
-/** @returns {AudioEditorProjectV1} */
-export function createAudioEditorProject(options = {}) {
-	const timestamp = isoTimestamp(options.now);
-	return {
-		schemaVersion: AUDIO_EDITOR_SCHEMA_VERSION,
-		id: options.id || createStableId('project'),
-		title: String(options.title || 'Untitled project').trim() || 'Untitled project',
-		revision: 0,
-		createdAt: timestamp,
-		updatedAt: timestamp,
-		sampleRate: AUDIO_EDITOR_SAMPLE_RATE,
-		masterChannels: AUDIO_EDITOR_MASTER_CHANNELS,
-		selection: { startFrame: 0, endFrame: 0 },
-		loop: { enabled: false, startFrame: 0, endFrame: 0 },
-		sources: [],
-		clips: [],
-		tracks: [],
-		master: { gain: 1, effects: [] },
-	};
-}
-
 /** @returns {AudioEditorSourceV1} */
-export function createAudioSource(options = {}) {
+function createAudioSource(options = {}) {
 	const frameCount = assertPositiveFrame(options.frameCount, 'source.frameCount');
 	const channelCount = Number(options.channelCount);
 	if (channelCount !== 1 && channelCount !== 2) throw new RangeError('source.channelCount must be 1 or 2.');
@@ -162,7 +141,7 @@ export function createAudioSource(options = {}) {
 }
 
 /** @returns {AudioEditorTrackV1} */
-export function createAudioTrack(options = {}) {
+function createAudioTrack(options = {}) {
 	return {
 		id: options.id || createStableId('track'),
 		name: String(options.name || 'Track'),
@@ -177,7 +156,7 @@ export function createAudioTrack(options = {}) {
 }
 
 /** @returns {AudioEditorClipV1} */
-export function createAudioClip(options = {}) {
+function createAudioClip(options = {}) {
 	const durationFrames = assertPositiveFrame(options.durationFrames, 'clip.durationFrames');
 	const fadeInFrames = assertFrame(options.fadeInFrames ?? 0, 'clip.fadeInFrames');
 	const fadeOutFrames = assertFrame(options.fadeOutFrames ?? 0, 'clip.fadeOutFrames');
@@ -351,18 +330,6 @@ function assertUniqueIds(items, type) {
 		if (ids.has(item.id)) throw new RangeError(`Duplicate ${type} ID: ${item.id}.`);
 		ids.add(item.id);
 	}
-}
-
-export function loadAudioEditorProject(value) {
-	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
-	if (Number(value.schemaVersion) > 2) {
-		return { project: plainClone(value), readOnly: true, reason: 'newer-schema' };
-	}
-	if (Number(value.schemaVersion) === 2 && value.tracks?.some((track) => !track?.type)) {
-		return { project: plainClone(value), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProject(value);
-	return { project: cloneProject(value), readOnly: false, reason: null };
 }
 
 // Kept local rather than importing project-v2.js so the V2 factories can keep

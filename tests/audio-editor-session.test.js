@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { applyEditorCommand } from '../src/lib/tools/audio-editor/commands.js';
-import { createAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
 import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
 import {
 	AUDIO_EDITOR_SESSION_SCHEMA_VERSION,
@@ -14,38 +13,43 @@ const NOW = '2026-07-13T10:00:00.000Z';
 const LATER = '2026-07-13T11:00:00.000Z';
 
 function audioProject(id, sourceId, options = {}) {
-	let project = createAudioEditorProject({ id, title: options.title || id, now: NOW });
+	let project = createAudioEditorProjectV2({ id, title: options.title || id, now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'source/add',
 		source: {
+			schemaVersion: 2,
 			id: sourceId,
 			name: `${sourceId}.wav`,
 			storageKey: `pcm/${sourceId}`,
 			mimeType: 'audio/wav',
 			frameCount: options.frameCount || 2_000,
 			channelCount: options.channelCount || 1,
+			sampleRate: project.sampleRate,
+			sampleFormat: 'float32',
 		},
 	}, { now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'track/add',
-		track: { id: `${id}-track`, name: `${id} track` },
+		track: { schemaVersion: 2, type: 'audio', id: `${id}-track`, name: `${id} track`, sampleRate: project.sampleRate },
 	}, { now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'clip/add',
 		trackId: `${id}-track`,
 		clip: {
+			schemaVersion: 2,
 			id: `${id}-clip`,
 			sourceId,
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: options.durationFrames || 1_000,
+			sourceDurationFrames: options.durationFrames || 1_000,
 		},
 	}, { now: NOW });
 	return project;
 }
 
 function emptyProjectLike(project) {
-	return createAudioEditorProject({ id: project.id, title: project.title, now: project.createdAt });
+	return createAudioEditorProjectV2({ id: project.id, title: project.title, now: project.createdAt });
 }
 
 test('session tabs open once, preserve order, switch explicitly, and choose a deterministic close fallback', () => {

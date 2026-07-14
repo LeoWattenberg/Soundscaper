@@ -4,9 +4,6 @@ import {
 	clipEndFrame,
 	clipsOverlap,
 	commitProject,
-	createAudioClip,
-	createAudioSource,
-	createAudioTrack,
 	createStableId,
 	findClip,
 	findClipTrack,
@@ -50,6 +47,7 @@ import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
  * @returns {import('./project.js').AudioEditorProjectV1}
  */
 export function applyEditorCommand(project, command, options = {}) {
+	if (project?.schemaVersion !== 2) throw new RangeError('Editor commands require an AudioEditorProjectV2 project.');
 	if (!command || typeof command.type !== 'string') throw new TypeError('A serializable editor command is required.');
 	return commitProject(project, (draft) => mutateCommand(draft, command), options);
 }
@@ -189,7 +187,7 @@ function setSelection(project, command) {
 	const range = startFrame <= endFrame
 		? { startFrame, endFrame }
 		: { startFrame: endFrame, endFrame: startFrame };
-	if (project.schemaVersion !== 2 || !['trackIds', 'clipIds', 'frequencyRange'].some((key) => Object.hasOwn(command, key))) {
+	if (!['trackIds', 'clipIds', 'frequencyRange'].some((key) => Object.hasOwn(command, key))) {
 		project.selection = range;
 		return;
 	}
@@ -318,9 +316,7 @@ function updateTrack(project, trackId, changes = {}) {
 		return;
 	}
 	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed']);
-	if (project.schemaVersion === 2) {
-		for (const key of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat', 'displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
-	}
+	for (const key of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat', 'displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);
@@ -422,9 +418,7 @@ function updateClip(project, clipId, changes = {}) {
 	const clip = requireClip(project, clipId);
 	const track = requireClipTrack(project, clipId);
 	const allowed = new Set(['gain', 'fadeInFrames', 'fadeOutFrames', 'reversed']);
-	if (project.schemaVersion === 2) {
-		for (const key of ['title', 'envelope', 'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'renderCacheRevision']) allowed.add(key);
-	}
+	for (const key of ['title', 'envelope', 'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'renderCacheRevision']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Clip field cannot be updated: ${key}.`);
 	const updated = normalizeClipForProject(project, { ...clip, ...changes, id: clip.id });
 	assertClipSpace(project, track, updated, clip.id);
@@ -633,14 +627,10 @@ function joinClips(project, clipIds) {
 	const joined = normalizeClipForProject(project, {
 		...first,
 		durationFrames: joinedDurationFrames,
-		...(project.schemaVersion === 2 ? {
-			sourceDurationFrames: joinedSourceDurationFrames,
-			trimEndFrames: last.trimEndFrames,
-			fadeOutFrames: last.fadeOutFrames,
-			envelope: joinClipEnvelopes(clips),
-		} : {
-			fadeOutFrames: last.fadeOutFrames,
-		}),
+		sourceDurationFrames: joinedSourceDurationFrames,
+		trimEndFrames: last.trimEndFrames,
+		fadeOutFrames: last.fadeOutFrames,
+		envelope: joinClipEnvelopes(clips),
 		id: first.id,
 	});
 	const removedIds = new Set(clips.slice(1).map((clip) => clip.id));
@@ -813,20 +803,18 @@ export function createClipboardDescriptor(project, options = {}) {
 					fadeInFrames: segment.fadeInFrames,
 					fadeOutFrames: segment.fadeOutFrames,
 					reversed: segment.reversed,
-					...(project.schemaVersion === 2 ? {
-						title: segment.title,
-						sourceDurationFrames: segment.sourceDurationFrames,
-						trimStartFrames: segment.trimStartFrames,
-						trimEndFrames: segment.trimEndFrames,
-						envelope: segment.envelope,
-						groupId: segment.groupId,
-						color: segment.color,
-						pitchCents: segment.pitchCents,
-						speedRatio: segment.speedRatio,
-						preserveFormants: segment.preserveFormants,
-						stretchToTempo: segment.stretchToTempo,
-						renderCacheRevision: segment.renderCacheRevision,
-					} : {}),
+					title: segment.title,
+					sourceDurationFrames: segment.sourceDurationFrames,
+					trimStartFrames: segment.trimStartFrames,
+					trimEndFrames: segment.trimEndFrames,
+					envelope: segment.envelope,
+					groupId: segment.groupId,
+					color: segment.color,
+					pitchCents: segment.pitchCents,
+					speedRatio: segment.speedRatio,
+					preserveFormants: segment.preserveFormants,
+					stretchToTempo: segment.stretchToTempo,
+					renderCacheRevision: segment.renderCacheRevision,
 				}];
 			});
 			return { sourceTrackId: track.id, sourceTrackName: track.name, clips };
@@ -1143,7 +1131,6 @@ function allEffects(project) {
 }
 
 function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id) {
-	const isV2 = isV2Value(clip);
 	const offsetFrames = segmentStartFrame - clip.timelineStartFrame;
 	const durationFrames = segmentEndFrame - segmentStartFrame;
 	const sourceDuration = clip.sourceDurationFrames ?? clip.durationFrames;
@@ -1165,12 +1152,10 @@ function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFr
 		timelineStartFrame,
 		sourceStartFrame,
 		durationFrames,
-		...(isV2 ? {
-			sourceDurationFrames: segmentSourceDuration,
-			trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
-			trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
-			...(envelope ? { envelope } : {}),
-		} : {}),
+		sourceDurationFrames: segmentSourceDuration,
+		trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
+		trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
+		...(envelope ? { envelope } : {}),
 		fadeInFrames: segmentStartFrame === clip.timelineStartFrame ? Math.min(clip.fadeInFrames, durationFrames) : 0,
 		fadeOutFrames: segmentEndFrame === clipEndFrame(clip) ? Math.min(clip.fadeOutFrames, durationFrames) : 0,
 	});
@@ -1340,36 +1325,27 @@ export function createAddLabelCommand(trackId, options = {}) {
 	return { type: 'label/add', trackId, label: createLabelV2(options) };
 }
 
-function isV2Value(value) {
-	return value?.schemaVersion === 2
-		|| value?.type === 'audio'
-		|| value?.type === 'label'
-		|| value?.sourceDurationFrames != null
-		|| value?.sampleFormat != null
-		|| value?.chunkFrames != null;
-}
-
 function normalizeSourceValue(value) {
-	return isV2Value(value) ? createAudioSourceV2(value) : createAudioSource(value);
+	return createAudioSourceV2(value);
 }
 
 function normalizeTrackValue(value) {
 	if (value?.type === 'label') return createLabelTrackV2(value);
-	return isV2Value(value) ? createAudioTrackV2(value) : createAudioTrack(value);
+	return createAudioTrackV2(value);
 }
 
 function normalizeClipValue(value) {
-	return isV2Value(value) ? createAudioClipV2(value) : createAudioClip(value);
+	return createAudioClipV2(value);
 }
 
-function normalizeSourceForProject(project, value) {
-	return project.schemaVersion === 2 ? createAudioSourceV2(value) : createAudioSource(value);
+function normalizeSourceForProject(_project, value) {
+	return createAudioSourceV2(value);
 }
 
-function normalizeTrackForProject(project, value) {
-	return project.schemaVersion === 2 ? createAudioTrackV2(value) : createAudioTrack(value);
+function normalizeTrackForProject(_project, value) {
+	return createAudioTrackV2(value);
 }
 
-function normalizeClipForProject(project, value) {
-	return project.schemaVersion === 2 ? createAudioClipV2(value) : createAudioClip(value);
+function normalizeClipForProject(_project, value) {
+	return createAudioClipV2(value);
 }

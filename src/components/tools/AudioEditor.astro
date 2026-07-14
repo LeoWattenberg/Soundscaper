@@ -5,11 +5,9 @@ import ToolIntro from './shared/ToolIntro.astro';
 
 interface Props {
 	locale: Locale;
-	audioEditorV2?: boolean;
 }
 
-const configuredV2 = String(import.meta.env.PUBLIC_AUDIO_EDITOR_V2 ?? 'true').trim().toLowerCase();
-const { locale, audioEditorV2 = !['0', 'false', 'off', 'no'].includes(configuredV2) } = Astro.props;
+const { locale } = Astro.props;
 const copyByLocale = {
 	de: {
 		eyebrow: 'Mehrspur-Audio lokal bearbeiten',
@@ -71,7 +69,6 @@ const copyByLocale = {
 		labelsExported: '{count} Beschriftung(en) exportiert.',
 		labelsImportEmpty: 'Die Datei enthält keine lesbaren Beschriftungen.',
 		labelTrackMissing: 'Füge zuerst eine Beschriftungsspur hinzu.',
-		labelsRequireV2: 'Beschriftungsspuren benötigen Audio Editor V2.',
 		v2Required: 'Diese Funktion benötigt Audio Editor V2.',
 		localProject: 'Lokal auf diesem Gerät',
 		projectSaved: 'Alle Änderungen lokal gespeichert',
@@ -615,7 +612,6 @@ const copyByLocale = {
 		futureProjectReadOnly: 'Dieses Projekt stammt aus einer neueren Version und ist schreibgeschützt.',
 		projectOpenOtherTab: 'Das Projekt ist bereits in einem anderen Tab geöffnet.',
 		projectReadOnly: 'Dieses Projekt ist schreibgeschützt.',
-		aup4RequiresV2: 'Native AUP4-Projekte benötigen Audio Editor V2.',
 		chooseAup4File: 'Wähle eine Audacity-Projektdatei im Format .aup4.',
 		aup4Validating: 'Audacity-Projekt wird geprüft…',
 		newerAup4ReadOnly: 'Das neuere Audacity-Projekt ist schreibgeschützt.',
@@ -781,7 +777,6 @@ const copyByLocale = {
 		labelsExported: 'Exported {count} label(s).',
 		labelsImportEmpty: 'The file contains no readable labels.',
 		labelTrackMissing: 'Add a label track first.',
-		labelsRequireV2: 'Label tracks require Audio Editor V2.',
 		v2Required: 'This feature requires Audio Editor V2.',
 		localProject: 'Local to this device',
 		projectSaved: 'All changes saved locally',
@@ -1325,7 +1320,6 @@ const copyByLocale = {
 		futureProjectReadOnly: 'This project was created by a newer version and is read-only.',
 		projectOpenOtherTab: 'This project is already open in another tab.',
 		projectReadOnly: 'This project is read-only.',
-		aup4RequiresV2: 'Native AUP4 projects require Audio Editor V2.',
 		chooseAup4File: 'Choose an Audacity .aup4 project file.',
 		aup4Validating: 'Validating Audacity project…',
 		newerAup4ReadOnly: 'The newer Audacity project is read-only.',
@@ -1440,7 +1434,7 @@ const copy = copyByLocale[locale];
 
 <section class="section audio-editor-section tool-workspace">
 	<div class="container audio-editor-container">
-		<AudioEditorApp client:only="react" locale={locale} copy={copy} audioEditorV2={audioEditorV2}>
+		<AudioEditorApp client:only="react" locale={locale} copy={copy}>
 			<div slot="fallback" role="status" aria-live="polite">{copy.loading}</div>
 		</AudioEditorApp>
 	</div>
