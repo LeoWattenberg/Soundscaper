@@ -651,6 +651,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setTheme: (theme) => updatePreferences({ appearance: { theme } }),
 				setClipStyle: (clipStyle) => updatePreferences({ appearance: { clipStyle } }),
 				toggleToolbar: toggleToolbarPreference,
+				setToolbarButton: setToolbarButtonPreference,
 				togglePanel: togglePanelPreference,
 				setPanel: setPanelPreference,
 				setShortcut: setShortcutPreference,
@@ -769,6 +770,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const toolbar = state.preferences.workspace.toolbars[toolbarId];
 		if (!toolbar) throw new ReferenceError(`Toolbar ${toolbarId} does not exist.`);
 		return updatePreferences({ workspace: { toolbars: { [toolbarId]: { ...toolbar, visible: !toolbar.visible } } } });
+	}
+
+	function setToolbarButtonPreference(buttonId, visible) {
+		if (typeof buttonId !== 'string' || !buttonId.trim()) throw new TypeError('Toolbar button ID is required.');
+		if (typeof visible !== 'boolean') throw new TypeError('Toolbar button visibility must be boolean.');
+		return updatePreferences({ workspace: { toolbarButtons: { [buttonId]: visible } } });
 	}
 
 	function togglePanelPreference(panelId) {

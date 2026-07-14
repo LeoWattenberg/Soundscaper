@@ -339,6 +339,23 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/);
 	});
 
+	test('customizes toolbar button visibility from the toolbar gear', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const settings = editor.getByRole('button', { name: 'Customize toolbar', exact: true });
+		await settings.click();
+		const flyout = page.getByRole('dialog', { name: 'Customize toolbar', exact: true });
+		const playToggle = flyout.getByRole('checkbox', { name: 'Play', exact: true });
+		await expect(flyout).toBeVisible();
+		await expect(flyout).toHaveCSS('position', 'fixed');
+		await expect(flyout.locator('.musescore-icon').first()).toBeVisible();
+		await expect(playToggle).toHaveAttribute('aria-checked', 'true');
+		await playToggle.click();
+		await expect(playToggle).toHaveAttribute('aria-checked', 'false');
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
+		await playToggle.click();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+	});
+
 	test('uses a full-height sidebar behind track controls', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const sidebar = editor.locator('.audio-editor-track-list');

@@ -4,6 +4,8 @@ import {
 	DialogHeader,
 	DialogSideNav,
 	Dropdown,
+	Flyout,
+	Icon,
 	Knob,
 	LabeledCheckbox,
 	LabeledRadio,
@@ -124,6 +126,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const project = snapshot.project;
 	const preferences = snapshot.preferences;
 	const toolbarPreferences = preferences?.workspace?.toolbars || {};
+	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const blocked = Boolean(
 		snapshot.importing
 		|| snapshot.recordingStarting
@@ -647,6 +650,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					toggleRecording={toggleRecording}
 					run={run}
 					toolbars={toolbarPreferences}
+					toolbarButtons={toolbarButtonPreferences}
 					uiFlags={uiFlags}
 					actionRuntime={parityRuntime.actions}
 					onOpenSpectralSelection={openSpectralSelection}
@@ -909,6 +913,7 @@ function EditorToolToolbar({
 	toggleRecording,
 	run,
 	toolbars,
+	toolbarButtons,
 	uiFlags,
 	actionRuntime,
 	onOpenSpectralSelection,
@@ -924,6 +929,43 @@ function EditorToolToolbar({
 	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const masterMeter = telemetry.meters?.master;
 	const inputMeterDb = telemetry.inputMeterDb ?? -60;
+	const toolbarSettingsTriggerRef = useRef(null);
+	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
+	const setToolbarSettingsTrigger = useCallback((element) => {
+		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
+	}, []);
+	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
+	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
+	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
+		.some(isToolbarButtonVisible);
+	const viewButtonsVisible = ['split-tool', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
+		.some(isToolbarButtonVisible);
+	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
+	const toolbarButtonOptions = [
+		{ id: 'play', label: copy.play, icon: 'play' },
+		{ id: 'stop', label: copy.stop, icon: 'stop' },
+		{ id: 'record', label: recordLabel, icon: 'record' },
+		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
+		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
+		{ id: 'loop', label: copy.loop, icon: 'loop' },
+		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
+		{ id: 'waveform-view', label: copy.waveformView, icon: 'waveform' },
+		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
+		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
+		{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'spectrogram' },
+		{ id: 'zoom-in', label: copy.zoomIn, icon: 'zoom-in' },
+		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
+		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
+		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
+		{ id: 'timecode-format', label: copy.format, icon: 'caret-down' },
+		{ id: 'monitor', label: copy.monitor, icon: 'microphone' },
+		{ id: 'playback-volume', label: copy.playbackVolume, icon: 'volume' },
+	];
+	const openToolbarSettings = () => {
+		const rect = toolbarSettingsTriggerRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setToolbarSettingsPosition({ x: rect.left + rect.width / 2, y: rect.bottom });
+	};
 	return (
 		<div
 			data-editor-tool-toolbar
@@ -937,17 +979,25 @@ function EditorToolToolbar({
 				enableTabGroup
 				tabGroupId="tool-toolbar"
 				showGripper
+				rightContent={(
+					<ToolbarButtonGroup className="kw-audio-editor__toolbar-settings-trigger" gap={2}>
+						<span ref={setToolbarSettingsTrigger}>
+							<ToolButton icon="cog" ariaLabel={copy.toolbarCustomize} onClick={openToolbarSettings} />
+						</span>
+					</ToolbarButtonGroup>
+				)}
 			>
-				{toolbars.transport?.visible !== false && <ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
-					<TransportButton
+				{toolbars.transport?.visible !== false && transportButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
+					{isToolbarButtonVisible('play') && <TransportButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
 						ariaLabel={telemetry.transportState === 'playing' ? copy.pause : copy.play}
 						disabled={blocked && !snapshot.recording}
 						active={telemetry.transportState === 'playing'}
 						onClick={() => run(() => controller.actions.transport.playPause())}
 					/>
-					<TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />
-					<span data-transport="record">
+					}
+					{isToolbarButtonVisible('stop') && <TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />}
+					{isToolbarButtonVisible('record') && <span data-transport="record">
 						<AccessibleTransportButton
 							icon="record"
 							ariaLabel={recordLabel}
@@ -957,9 +1007,10 @@ function EditorToolToolbar({
 							onClick={toggleRecording}
 						/>
 					</span>
-					<TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpStart())} />
-					<TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpEnd())} />
-					<AccessibleTransportButton
+					}
+					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpStart())} />}
+					{isToolbarButtonVisible('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpEnd())} />}
+					{isToolbarButtonVisible('loop') && <AccessibleTransportButton
 						icon="loop"
 						ariaLabel={copy.loop}
 						active={Boolean(project?.loop?.enabled)}
@@ -967,12 +1018,13 @@ function EditorToolToolbar({
 						disabled={!selectionActive}
 						onClick={() => run(() => controller.actions.transport.toggleLoop())}
 					/>
+					}
 				</ToolbarButtonGroup>}
 
 				{toolbars.tools?.visible !== false && <>
-				<ToolbarDivider />
-				<ToolbarButtonGroup className="kw-audio-editor__view-actions" gap={2}>
-					<span data-action-id="split-tool">
+				{viewButtonsVisible && <ToolbarDivider />}
+				{viewButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__view-actions" gap={2}>
+					{isToolbarButtonVisible('split-tool') && <span data-action-id="split-tool">
 						<ToggleToolButton
 							icon="split"
 							isActive={uiFlags.splitTool}
@@ -980,9 +1032,10 @@ function EditorToolToolbar({
 							onClick={() => actionRuntime.tools.toggleSplitTool()}
 						/>
 					</span>
-					<ToggleToolButton icon="waveform" isActive={snapshot.timeline?.view === 'waveform'} ariaLabel={copy.waveformView} onClick={() => run(() => controller.actions.timeline.setView('waveform'))} />
-					<ToggleToolButton icon="spectrogram" isActive={snapshot.timeline?.view === 'spectrogram'} ariaLabel={copy.spectrogramView} onClick={() => run(() => controller.actions.timeline.setView('spectrogram'))} />
-					<span data-action-id="spectral-box-select">
+					}
+					{isToolbarButtonVisible('waveform-view') && <ToggleToolButton icon="waveform" isActive={snapshot.timeline?.view === 'waveform'} ariaLabel={copy.waveformView} onClick={() => run(() => controller.actions.timeline.setView('waveform'))} />}
+					{isToolbarButtonVisible('spectrogram-view') && <ToggleToolButton icon="spectrogram" isActive={snapshot.timeline?.view === 'spectrogram'} ariaLabel={copy.spectrogramView} onClick={() => run(() => controller.actions.timeline.setView('spectrogram'))} />}
+					{isToolbarButtonVisible('spectral-box-select') && <span data-action-id="spectral-box-select">
 						<ToolButton
 							icon="spectrogram"
 							ariaLabel={copy.spectralBoxSelect}
@@ -990,7 +1043,8 @@ function EditorToolToolbar({
 							onClick={onOpenSpectralSelection}
 						/>
 					</span>
-					<span
+					}
+					{isToolbarButtonVisible('spectral-brush') && <span
 						data-action-id="spectral-brush"
 						data-disabled-reason={spectralBrushReason}
 						aria-disabled="true"
@@ -1002,17 +1056,20 @@ function EditorToolToolbar({
 							disabled
 						/>
 					</span>
+					}
 				</ToolbarButtonGroup>
+				}
 
-				<ToolbarButtonGroup className="kw-audio-editor__zoom-actions" gap={2}>
-					<ToolButton icon="zoom-in" ariaLabel={copy.zoomIn} onClick={() => run(() => controller.actions.timeline.zoomIn())} />
-					<ToolButton icon="zoom-out" ariaLabel={copy.zoomOut} onClick={() => run(() => controller.actions.timeline.zoomOut())} />
-					<ToolButton icon="zoom-to-fit" ariaLabel={copy.zoomFit} onClick={() => run(() => controller.actions.timeline.zoomFit())} />
+				{zoomButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__zoom-actions" gap={2}>
+					{isToolbarButtonVisible('zoom-in') && <ToolButton icon="zoom-in" ariaLabel={copy.zoomIn} onClick={() => run(() => controller.actions.timeline.zoomIn())} />}
+					{isToolbarButtonVisible('zoom-out') && <ToolButton icon="zoom-out" ariaLabel={copy.zoomOut} onClick={() => run(() => controller.actions.timeline.zoomOut())} />}
+					{isToolbarButtonVisible('zoom-fit') && <ToolButton icon="zoom-to-fit" ariaLabel={copy.zoomFit} onClick={() => run(() => controller.actions.timeline.zoomFit())} />}
 				</ToolbarButtonGroup>
+				}
 				</>}
 
-				{toolbars.edit?.visible !== false && <ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
-					{editItems.map((item) => (
+				{toolbars.edit?.visible !== false && visibleEditItems.length > 0 && <ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
+					{visibleEditItems.map((item) => (
 						<span key={item.action} data-edit={item.action === 'rippleDelete' ? 'ripple-delete' : item.action}>
 							<ToolButton icon={item.icon} ariaLabel={item.label} disabled={item.disabled} onClick={() => executeEdit(item.action)} />
 						</span>
@@ -1025,7 +1082,7 @@ function EditorToolToolbar({
 						ariaLabel={`${copy.playhead}: ${copy.format}`}
 						value={framesToSeconds(telemetry.positionFrame || 0, { sampleRate: project?.sampleRate })}
 						sampleRate={project?.sampleRate || 48_000}
-						showFormatSelector={!isCompact}
+						showFormatSelector={!isCompact && isToolbarButtonVisible('timecode-format')}
 						disabled={snapshot.recording}
 						onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate: project?.sampleRate })))}
 					/>
@@ -1071,7 +1128,7 @@ function EditorToolToolbar({
 				</label>
 
 				{uiFlags.microphoneMetering && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
-					<span data-monitor-input>
+					{isToolbarButtonVisible('monitor') && <span data-monitor-input>
 						<ToggleToolButton
 							icon="microphone"
 							isActive={Boolean(snapshot.monitor?.enabled)}
@@ -1080,6 +1137,7 @@ function EditorToolToolbar({
 							onClick={() => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled))}
 						/>
 					</span>
+					}
 					<div
 						className="kw-audio-editor__input-meter"
 						data-input-meter
@@ -1106,7 +1164,7 @@ function EditorToolToolbar({
 				</ToolbarButtonGroup>}
 
 				{uiFlags.masterTrack && <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
-					<ToolButton
+					{isToolbarButtonVisible('playback-volume') && <ToolButton
 						icon="volume"
 						ariaLabel={copy.playbackVolume}
 						onClick={(event) => {
@@ -1114,6 +1172,7 @@ function EditorToolToolbar({
 							group?.querySelector('[role="slider"], input')?.focus?.();
 						}}
 					/>
+					}
 					<div className="kw-audio-editor__master-meter" aria-label={copy.metering}>
 						<MasterMeter
 							levelLeft={masterMeter?.dbfs ?? -60}
@@ -1130,6 +1189,31 @@ function EditorToolToolbar({
 				</ToolbarButtonGroup>}
 				</>}
 			</Toolbar>
+			<Flyout
+				isOpen={Boolean(toolbarSettingsPosition)}
+				onClose={() => setToolbarSettingsPosition(null)}
+				x={toolbarSettingsPosition?.x || 0}
+				y={toolbarSettingsPosition?.y || 0}
+				direction="down"
+				triggerRef={toolbarSettingsTriggerRef}
+				ariaLabel={copy.toolbarCustomize}
+				role="dialog"
+				className="kw-audio-editor__toolbar-settings"
+			>
+				<div className="kw-audio-editor__toolbar-settings-content">
+					<strong>{copy.toolbarButtons}</strong>
+					<div className="kw-audio-editor__toolbar-settings-list">
+						{toolbarButtonOptions.map((button) => <div key={button.id} className="kw-audio-editor__toolbar-settings-option">
+							<span aria-hidden="true"><Icon name={button.icon} size={16} /></span>
+							<PreferenceCheckbox
+								label={button.label}
+								checked={isToolbarButtonVisible(button.id)}
+								onChange={(visible) => run(() => controller.actions.preferences.setToolbarButton(button.id, visible))}
+							/>
+						</div>)}
+					</div>
+				</div>
+			</Flyout>
 		</div>
 	);
 }

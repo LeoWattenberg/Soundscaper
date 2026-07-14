@@ -53,6 +53,34 @@ const DEFAULT_TOOLBARS = Object.freeze({
 	meter: Object.freeze({ visible: true, order: 3 }),
 });
 
+const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
+	play: true,
+	stop: true,
+	record: true,
+	'jump-start': true,
+	'jump-end': true,
+	loop: true,
+	'split-tool': true,
+	'waveform-view': true,
+	'spectrogram-view': true,
+	'spectral-box-select': true,
+	'spectral-brush': true,
+	'zoom-in': true,
+	'zoom-out': true,
+	'zoom-fit': true,
+	undo: true,
+	redo: true,
+	cut: true,
+	copy: true,
+	paste: true,
+	split: true,
+	delete: true,
+	rippleDelete: true,
+	'timecode-format': true,
+	monitor: true,
+	'playback-volume': true,
+});
+
 const DEFAULT_PANELS = Object.freeze({
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
@@ -70,6 +98,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			edit: Object.freeze({ visible: true, order: 2 }),
 			meter: Object.freeze({ visible: true, order: 3 }),
 		}),
+		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: Object.freeze({
 			history: Object.freeze({ visible: true, dock: 'left', order: 0, size: 300 }),
 			labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
@@ -86,6 +115,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			edit: Object.freeze({ visible: true, order: 2 }),
 			meter: Object.freeze({ visible: true, order: 3 }),
 		}),
+		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: Object.freeze({
 			...DEFAULT_PANELS,
 			effects: Object.freeze({ visible: true, dock: 'right', order: 0, size: 360 }),
@@ -94,6 +124,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 	}),
 	modern: Object.freeze({
 		toolbars: DEFAULT_TOOLBARS,
+		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: DEFAULT_PANELS,
 	}),
 });
@@ -104,7 +135,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful'}} appearance
- * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, panels: Record<string, Object>}} workspace
+ * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
  */
@@ -167,6 +198,7 @@ function mergePreferences(preferences, patch = {}) {
 			...preferences.workspace,
 			...patch.workspace,
 			toolbars: { ...preferences.workspace?.toolbars, ...patch.workspace?.toolbars },
+			toolbarButtons: { ...preferences.workspace?.toolbarButtons, ...patch.workspace?.toolbarButtons },
 			panels: { ...preferences.workspace?.panels, ...patch.workspace?.panels },
 		},
 		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
@@ -198,6 +230,17 @@ function normalizeToolbarEntries(value = {}) {
 			visible: entry.visible !== false,
 			order: integer(entry.order ?? Object.keys(entries).length, 0, `workspace.toolbars.${id}.order`),
 		};
+	}
+	return entries;
+}
+
+function normalizeToolbarButtonEntries(value = {}) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.toolbarButtons must be an object.');
+	const entries = { ...DEFAULT_TOOLBAR_BUTTONS };
+	for (const [id, visible] of Object.entries(value)) {
+		nonEmptyString(id, 'toolbar button ID');
+		if (typeof visible !== 'boolean') throw new TypeError(`workspace.toolbarButtons.${id} must be boolean.`);
+		entries[id] = visible;
 	}
 	return entries;
 }
@@ -277,6 +320,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			activeId,
 			custom,
 			toolbars: normalizeToolbarEntries(options.workspace?.toolbars ?? layout.toolbars),
+			toolbarButtons: normalizeToolbarButtonEntries(options.workspace?.toolbarButtons ?? layout.toolbarButtons),
 			panels: normalizePanelEntries(options.workspace?.panels ?? layout.panels),
 		},
 		spectrogram: {
@@ -311,6 +355,7 @@ export function applyAudioEditorWorkspace(preferences, activeId) {
 		workspace: {
 			activeId,
 			toolbars: clone(layout.toolbars || DEFAULT_TOOLBARS),
+			toolbarButtons: clone(layout.toolbarButtons || DEFAULT_TOOLBAR_BUTTONS),
 			panels: clone(layout.panels || DEFAULT_PANELS),
 		},
 	}));
@@ -326,6 +371,7 @@ export function createCustomAudioEditorWorkspace(preferences, workspace) {
 	}
 	const layout = clone(workspace.layout || {
 		toolbars: preferences.workspace.toolbars,
+		toolbarButtons: preferences.workspace.toolbarButtons,
 		panels: preferences.workspace.panels,
 	});
 	return createAudioEditorPreferencesV1(mergePreferences(preferences, {
@@ -333,6 +379,7 @@ export function createCustomAudioEditorWorkspace(preferences, workspace) {
 			activeId: id,
 			custom: [...preferences.workspace.custom, { id, name, layout }],
 			toolbars: layout.toolbars,
+			toolbarButtons: layout.toolbarButtons,
 			panels: layout.panels,
 		},
 	}));
@@ -348,6 +395,7 @@ export function updateCustomAudioEditorWorkspace(preferences, workspaceId, chang
 		...(changes.name === undefined ? {} : { name: nonEmptyString(changes.name, 'custom workspace name') }),
 		layout: clone(changes.layout || {
 			toolbars: preferences.workspace.toolbars,
+			toolbarButtons: preferences.workspace.toolbarButtons,
 			panels: preferences.workspace.panels,
 		}),
 	};
