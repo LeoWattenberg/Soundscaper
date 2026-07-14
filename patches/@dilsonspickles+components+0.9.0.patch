@@ -1,9 +1,512 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.css b/node_modules/@dilsonspickles/components/dist/Flyout.css
+new file mode 100644
+index 0000000..ce8866d
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.css
+@@ -0,0 +1,63 @@
++.flyout {
++  position: fixed;
++  z-index: 10000;
++  background: var(--flyout-bg, #f8f8f9);
++  border: 1px solid var(--flyout-border, #d4d5d9);
++  border-radius: 4px;
++  box-shadow: 0 10px 30px rgba(20, 21, 26, 0.3);
++  overflow: visible;
++  animation: flyout-fade-in 0.15s ease-out;
++}
++
++@keyframes flyout-fade-in {
++  from {
++    opacity: 0;
++  }
++  to {
++    opacity: 1;
++  }
++}
++
++.flyout__content {
++  position: relative;
++  border-radius: inherit;
++}
++
++.flyout__arrow {
++  position: absolute;
++  width: 0;
++  height: 0;
++}
++
++.flyout--down .flyout__arrow {
++  top: -8px;
++  left: calc(var(--flyout-arrow-offset) - 8px);
++  border-right: 8px solid transparent;
++  border-bottom: 8px solid var(--flyout-bg, #f8f8f9);
++  border-left: 8px solid transparent;
++}
++
++.flyout--up .flyout__arrow {
++  bottom: -8px;
++  left: calc(var(--flyout-arrow-offset) - 8px);
++  border-top: 8px solid var(--flyout-bg, #f8f8f9);
++  border-right: 8px solid transparent;
++  border-left: 8px solid transparent;
++}
++
++.flyout--right .flyout__arrow {
++  top: calc(var(--flyout-arrow-offset) - 8px);
++  left: -8px;
++  border-top: 8px solid transparent;
++  border-right: 8px solid var(--flyout-bg, #f8f8f9);
++  border-bottom: 8px solid transparent;
++}
++
++.flyout--left .flyout__arrow {
++  top: calc(var(--flyout-arrow-offset) - 8px);
++  right: -8px;
++  border-top: 8px solid transparent;
++  border-bottom: 8px solid transparent;
++  border-left: 8px solid var(--flyout-bg, #f8f8f9);
++}
++
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.d.mts b/node_modules/@dilsonspickles/components/dist/Flyout.d.mts
+new file mode 100644
+index 0000000..d85468a
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.d.mts
+@@ -0,0 +1,44 @@
++import React from 'react';
++
++type FlyoutDirection = 'down' | 'up' | 'left' | 'right';
++interface FlyoutProps {
++    /** Whether the flyout is open. */
++    isOpen: boolean;
++    /** Called when the flyout should close. */
++    onClose: () => void;
++    /** Horizontal position of the anchor point, in viewport pixels. */
++    x: number;
++    /** Vertical position of the anchor point, in viewport pixels. */
++    y: number;
++    /** Edge from which the flyout expands. Defaults to downward. */
++    direction?: FlyoutDirection;
++    /** Arbitrary flyout content. */
++    children: React.ReactNode;
++    /** Whether to render an arrow that points to the anchor. */
++    showArrow?: boolean;
++    /** Whether a pointer press outside the flyout closes it. */
++    closeOnOutsideClick?: boolean;
++    /** Whether Escape closes the flyout. */
++    closeOnEscape?: boolean;
++    /** Whether to focus the first focusable child when the flyout opens. */
++    autoFocus?: boolean;
++    /** Trigger to restore focus to after pressing Escape. */
++    triggerRef?: React.RefObject<HTMLElement>;
++    /** Accessible name for the flyout. */
++    ariaLabel?: string;
++    /** ARIA role applied to the flyout container. */
++    role?: React.AriaRole;
++    /** Optional CSS class name. */
++    className?: string;
++    /** Optional inline styles. */
++    style?: React.CSSProperties;
++}
++/**
++ * A floating surface for arbitrary content, anchored to viewport coordinates.
++ * It supports all four expansion directions while keeping the surface inside
++ * the viewport where possible.
++ */
++declare const Flyout: React.FC<FlyoutProps>;
++
++export { Flyout, type FlyoutDirection, type FlyoutProps };
++
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.d.ts b/node_modules/@dilsonspickles/components/dist/Flyout.d.ts
+new file mode 100644
+index 0000000..d85468a
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.d.ts
+@@ -0,0 +1,44 @@
++import React from 'react';
++
++type FlyoutDirection = 'down' | 'up' | 'left' | 'right';
++interface FlyoutProps {
++    /** Whether the flyout is open. */
++    isOpen: boolean;
++    /** Called when the flyout should close. */
++    onClose: () => void;
++    /** Horizontal position of the anchor point, in viewport pixels. */
++    x: number;
++    /** Vertical position of the anchor point, in viewport pixels. */
++    y: number;
++    /** Edge from which the flyout expands. Defaults to downward. */
++    direction?: FlyoutDirection;
++    /** Arbitrary flyout content. */
++    children: React.ReactNode;
++    /** Whether to render an arrow that points to the anchor. */
++    showArrow?: boolean;
++    /** Whether a pointer press outside the flyout closes it. */
++    closeOnOutsideClick?: boolean;
++    /** Whether Escape closes the flyout. */
++    closeOnEscape?: boolean;
++    /** Whether to focus the first focusable child when the flyout opens. */
++    autoFocus?: boolean;
++    /** Trigger to restore focus to after pressing Escape. */
++    triggerRef?: React.RefObject<HTMLElement>;
++    /** Accessible name for the flyout. */
++    ariaLabel?: string;
++    /** ARIA role applied to the flyout container. */
++    role?: React.AriaRole;
++    /** Optional CSS class name. */
++    className?: string;
++    /** Optional inline styles. */
++    style?: React.CSSProperties;
++}
++/**
++ * A floating surface for arbitrary content, anchored to viewport coordinates.
++ * It supports all four expansion directions while keeping the surface inside
++ * the viewport where possible.
++ */
++declare const Flyout: React.FC<FlyoutProps>;
++
++export { Flyout, type FlyoutDirection, type FlyoutProps };
++
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.js b/node_modules/@dilsonspickles/components/dist/Flyout.js
+new file mode 100644
+index 0000000..151c283
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.js
+@@ -0,0 +1,6 @@
++/* attach-css-imports: managed */
++require('./Flyout.css');
++"use strict";Object.defineProperty(exports, "__esModule", {value: true});
++var _chunkFLYOUTjs = require('./chunk-FLYOUT.js');
++exports.Flyout = _chunkFLYOUTjs.Flyout;
++
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.mjs b/node_modules/@dilsonspickles/components/dist/Flyout.mjs
+new file mode 100644
+index 0000000..5c8c9f8
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.mjs
+@@ -0,0 +1,5 @@
++/* attach-css-imports: managed */
++import './Flyout.css';
++import { Flyout } from './chunk-FLYOUT.mjs';
++export { Flyout };
++
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.js b/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.js
+new file mode 100644
+index 0000000..c625443
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.js
+@@ -0,0 +1,137 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.Flyout = void 0;
++const jsx_runtime_1 = require("react/jsx-runtime");
++const react_1 = __importDefault(require("react"));
++const ThemeProvider_1 = require("./ThemeProvider.js");
++const ARROW_SIZE = 8;
++const VIEWPORT_MARGIN = 10;
++const FOCUSABLE_SELECTOR = [
++    'a[href]',
++    'button:not([disabled])',
++    'input:not([disabled])',
++    'select:not([disabled])',
++    'textarea:not([disabled])',
++    '[tabindex]:not([tabindex="-1"])',
++].join(', ');
++const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
++/**
++ * A floating surface for arbitrary content, anchored to viewport coordinates.
++ * It supports all four expansion directions while keeping the surface inside
++ * the viewport where possible.
++ */
++const Flyout = ({ isOpen, onClose, x, y, direction = 'down', children, showArrow = true, closeOnOutsideClick = true, closeOnEscape = true, autoFocus = false, triggerRef, ariaLabel = 'Flyout', role = 'dialog', className = '', style: externalStyle, }) => {
++    const { theme } = (0, ThemeProvider_1.useTheme)();
++    const flyoutRef = react_1.default.useRef(null);
++    const [position, setPosition] = react_1.default.useState(null);
++    const updatePosition = react_1.default.useCallback(() => {
++        const flyout = flyoutRef.current;
++        if (!flyout)
++            return;
++        const { width, height } = flyout.getBoundingClientRect();
++        let left = x;
++        let top = y;
++        switch (direction) {
++            case 'up':
++                left -= width / 2;
++                top -= height + ARROW_SIZE;
++                break;
++            case 'left':
++                left -= width + ARROW_SIZE;
++                top -= height / 2;
++                break;
++            case 'right':
++                left += ARROW_SIZE;
++                top -= height / 2;
++                break;
++            case 'down':
++                left -= width / 2;
++                top += ARROW_SIZE;
++                break;
++        }
++        const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN);
++        const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN);
++        const clampedLeft = clamp(left, VIEWPORT_MARGIN, maxLeft);
++        const clampedTop = clamp(top, VIEWPORT_MARGIN, maxTop);
++        const arrowOffset = direction === 'up' || direction === 'down'
++            ? clamp(x - clampedLeft, ARROW_SIZE, Math.max(ARROW_SIZE, width - ARROW_SIZE))
++            : clamp(y - clampedTop, ARROW_SIZE, Math.max(ARROW_SIZE, height - ARROW_SIZE));
++        setPosition(current => (current?.left === clampedLeft &&
++            current.top === clampedTop &&
++            current.arrowOffset === arrowOffset
++            ? current
++            : { left: clampedLeft, top: clampedTop, arrowOffset }));
++    }, [direction, x, y]);
++    react_1.default.useLayoutEffect(() => {
++        if (!isOpen) {
++            setPosition(null);
++            return;
++        }
++        updatePosition();
++        window.addEventListener('resize', updatePosition);
++        const resizeObserver = typeof ResizeObserver === 'undefined'
++            ? undefined
++            : new ResizeObserver(updatePosition);
++        if (resizeObserver && flyoutRef.current)
++            resizeObserver.observe(flyoutRef.current);
++        return () => {
++            window.removeEventListener('resize', updatePosition);
++            resizeObserver?.disconnect();
++        };
++    }, [children, isOpen, updatePosition]);
++    react_1.default.useEffect(() => {
++        if (!isOpen || !closeOnOutsideClick)
++            return;
++        const handlePointerDown = (event) => {
++            if (!flyoutRef.current?.contains(event.target))
++                onClose();
++        };
++        const timeout = window.setTimeout(() => {
++            document.addEventListener('pointerdown', handlePointerDown);
++        }, 0);
++        return () => {
++            window.clearTimeout(timeout);
++            document.removeEventListener('pointerdown', handlePointerDown);
++        };
++    }, [closeOnOutsideClick, isOpen, onClose]);
++    react_1.default.useEffect(() => {
++        if (!isOpen || !closeOnEscape)
++            return;
++        const handleKeyDown = (event) => {
++            if (event.key !== 'Escape')
++                return;
++            event.stopPropagation();
++            onClose();
++            window.setTimeout(() => triggerRef?.current?.focus(), 0);
++        };
++        document.addEventListener('keydown', handleKeyDown);
++        return () => document.removeEventListener('keydown', handleKeyDown);
++    }, [closeOnEscape, isOpen, onClose, triggerRef]);
++    react_1.default.useEffect(() => {
++        if (!isOpen || !autoFocus)
++            return;
++        const timeout = window.setTimeout(() => {
++            const firstFocusable = flyoutRef.current?.querySelector(FOCUSABLE_SELECTOR);
++            (firstFocusable ?? flyoutRef.current)?.focus();
++        }, 0);
++        return () => window.clearTimeout(timeout);
++    }, [autoFocus, isOpen]);
++    if (!isOpen)
++        return null;
++    const style = {
++        '--flyout-bg': theme.background.surface.default,
++        '--flyout-border': theme.border.default,
++        '--flyout-arrow-offset': `${position?.arrowOffset ?? 0}px`,
++        left: `${position?.left ?? x}px`,
++        top: `${position?.top ?? y}px`,
++        visibility: position ? undefined : 'hidden',
++        ...externalStyle,
++    };
++    return ((0, jsx_runtime_1.jsxs)("div", { ref: flyoutRef, className: `flyout flyout--${direction} ${className}`, "data-direction": direction, role: role, "aria-label": ariaLabel, tabIndex: autoFocus ? -1 : undefined, style: style, children: [showArrow && (0, jsx_runtime_1.jsx)("div", { className: "flyout__arrow", "aria-hidden": "true" }), (0, jsx_runtime_1.jsx)("div", { className: "flyout__content", children: children })] }));
++};
++exports.Flyout = Flyout;
++exports.default = exports.Flyout;
++
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.mjs b/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.mjs
+new file mode 100644
+index 0000000..e265568
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.mjs
+@@ -0,0 +1,130 @@
++import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
++import React from 'react';
++import { useTheme } from './ThemeProvider.mjs';
++const ARROW_SIZE = 8;
++const VIEWPORT_MARGIN = 10;
++const FOCUSABLE_SELECTOR = [
++    'a[href]',
++    'button:not([disabled])',
++    'input:not([disabled])',
++    'select:not([disabled])',
++    'textarea:not([disabled])',
++    '[tabindex]:not([tabindex="-1"])',
++].join(', ');
++const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
++/**
++ * A floating surface for arbitrary content, anchored to viewport coordinates.
++ * It supports all four expansion directions while keeping the surface inside
++ * the viewport where possible.
++ */
++export const Flyout = ({ isOpen, onClose, x, y, direction = 'down', children, showArrow = true, closeOnOutsideClick = true, closeOnEscape = true, autoFocus = false, triggerRef, ariaLabel = 'Flyout', role = 'dialog', className = '', style: externalStyle, }) => {
++    const { theme } = useTheme();
++    const flyoutRef = React.useRef(null);
++    const [position, setPosition] = React.useState(null);
++    const updatePosition = React.useCallback(() => {
++        const flyout = flyoutRef.current;
++        if (!flyout)
++            return;
++        const { width, height } = flyout.getBoundingClientRect();
++        let left = x;
++        let top = y;
++        switch (direction) {
++            case 'up':
++                left -= width / 2;
++                top -= height + ARROW_SIZE;
++                break;
++            case 'left':
++                left -= width + ARROW_SIZE;
++                top -= height / 2;
++                break;
++            case 'right':
++                left += ARROW_SIZE;
++                top -= height / 2;
++                break;
++            case 'down':
++                left -= width / 2;
++                top += ARROW_SIZE;
++                break;
++        }
++        const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN);
++        const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN);
++        const clampedLeft = clamp(left, VIEWPORT_MARGIN, maxLeft);
++        const clampedTop = clamp(top, VIEWPORT_MARGIN, maxTop);
++        const arrowOffset = direction === 'up' || direction === 'down'
++            ? clamp(x - clampedLeft, ARROW_SIZE, Math.max(ARROW_SIZE, width - ARROW_SIZE))
++            : clamp(y - clampedTop, ARROW_SIZE, Math.max(ARROW_SIZE, height - ARROW_SIZE));
++        setPosition(current => (current?.left === clampedLeft &&
++            current.top === clampedTop &&
++            current.arrowOffset === arrowOffset
++            ? current
++            : { left: clampedLeft, top: clampedTop, arrowOffset }));
++    }, [direction, x, y]);
++    React.useLayoutEffect(() => {
++        if (!isOpen) {
++            setPosition(null);
++            return;
++        }
++        updatePosition();
++        window.addEventListener('resize', updatePosition);
++        const resizeObserver = typeof ResizeObserver === 'undefined'
++            ? undefined
++            : new ResizeObserver(updatePosition);
++        if (resizeObserver && flyoutRef.current)
++            resizeObserver.observe(flyoutRef.current);
++        return () => {
++            window.removeEventListener('resize', updatePosition);
++            resizeObserver?.disconnect();
++        };
++    }, [children, isOpen, updatePosition]);
++    React.useEffect(() => {
++        if (!isOpen || !closeOnOutsideClick)
++            return;
++        const handlePointerDown = (event) => {
++            if (!flyoutRef.current?.contains(event.target))
++                onClose();
++        };
++        const timeout = window.setTimeout(() => {
++            document.addEventListener('pointerdown', handlePointerDown);
++        }, 0);
++        return () => {
++            window.clearTimeout(timeout);
++            document.removeEventListener('pointerdown', handlePointerDown);
++        };
++    }, [closeOnOutsideClick, isOpen, onClose]);
++    React.useEffect(() => {
++        if (!isOpen || !closeOnEscape)
++            return;
++        const handleKeyDown = (event) => {
++            if (event.key !== 'Escape')
++                return;
++            event.stopPropagation();
++            onClose();
++            window.setTimeout(() => triggerRef?.current?.focus(), 0);
++        };
++        document.addEventListener('keydown', handleKeyDown);
++        return () => document.removeEventListener('keydown', handleKeyDown);
++    }, [closeOnEscape, isOpen, onClose, triggerRef]);
++    React.useEffect(() => {
++        if (!isOpen || !autoFocus)
++            return;
++        const timeout = window.setTimeout(() => {
++            const firstFocusable = flyoutRef.current?.querySelector(FOCUSABLE_SELECTOR);
++            (firstFocusable ?? flyoutRef.current)?.focus();
++        }, 0);
++        return () => window.clearTimeout(timeout);
++    }, [autoFocus, isOpen]);
++    if (!isOpen)
++        return null;
++    const style = {
++        '--flyout-bg': theme.background.surface.default,
++        '--flyout-border': theme.border.default,
++        '--flyout-arrow-offset': `${position?.arrowOffset ?? 0}px`,
++        left: `${position?.left ?? x}px`,
++        top: `${position?.top ?? y}px`,
++        visibility: position ? undefined : 'hidden',
++        ...externalStyle,
++    };
++    return (_jsxs("div", { ref: flyoutRef, className: `flyout flyout--${direction} ${className}`, "data-direction": direction, role: role, "aria-label": ariaLabel, tabIndex: autoFocus ? -1 : undefined, style: style, children: [showArrow && _jsx("div", { className: "flyout__arrow", "aria-hidden": "true" }), _jsx("div", { className: "flyout__content", children: children })] }));
++};
++export default Flyout;
++
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+index 887716f..92d6ad0 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+@@ -22,6 +22,7 @@ var Knob = ({
+   const { theme } = useTheme();
+   const knobRef = useRef(null);
+   const [isDragging, setIsDragging] = useState(false);
++  const dragStartXRef = useRef(0);
+   const dragStartYRef = useRef(0);
+   const dragStartValueRef = useRef(0);
+   const clampedValue = Math.max(min, Math.min(max, value));
+@@ -60,6 +61,7 @@ var Knob = ({
+     if (disabled || !onChange) return;
+     e.preventDefault();
+     setIsDragging(true);
++    dragStartXRef.current = e.clientX;
+     dragStartYRef.current = e.clientY;
+     dragStartValueRef.current = clampedValue;
+   };
+@@ -67,9 +69,10 @@ var Knob = ({
+     if (!isDragging) return;
+     const handleMouseMove = (e) => {
+       if (!onChange) return;
++      const deltaX = e.clientX - dragStartXRef.current;
+       const deltaY = dragStartYRef.current - e.clientY;
+       const sensitivity = (max - min) / 200;
+-      const deltaValue = deltaY * sensitivity;
++      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
+       let newValue = dragStartValueRef.current + deltaValue;
+       newValue = Math.round(newValue / step) * step;
+       newValue = Math.max(min, Math.min(max, newValue));
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
-index 3cffc08..b1e4adc 100644
+index b4bc80a..7897dd4 100644
 --- a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
 +++ b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
-@@ -14,16 +14,9 @@ import {
- 
+@@ -15,18 +15,11 @@ import {
+
  // src/utils/spectrogram.ts
  function getSpectrogramColor(intensity) {
 -  let r, g, b;
@@ -24,35 +527,126 @@ index 3cffc08..b1e4adc 100644
 +  const index = Math.round(Math.max(0, Math.min(1, intensity)) * 255) * 6;
 +  return `#${roseus.slice(index, index + 6)}`;
  }
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
-index 52b59db..47f366e 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
-@@ -21,7 +21,8 @@ var Knob = ({
- }) => {
-   const { theme } = useTheme();
-   const knobRef = useRef(null);
-   const [isDragging, setIsDragging] = useState(false);
-+  const dragStartXRef = useRef(0);
-   const dragStartYRef = useRef(0);
-   const dragStartValueRef = useRef(0);
-   const clampedValue = Math.max(min, Math.min(max, value));
-@@ -60,6 +61,7 @@ var Knob = ({
-     if (disabled || !onChange) return;
-     e.preventDefault();
-     setIsDragging(true);
-+    dragStartXRef.current = e.clientX;
-     dragStartYRef.current = e.clientY;
-     dragStartValueRef.current = clampedValue;
-   };
-@@ -69,8 +71,9 @@ var Knob = ({
-     if (!isDragging) return;
-     const handleMouseMove = (e) => {
-       if (!onChange) return;
-+      const deltaX = e.clientX - dragStartXRef.current;
-       const deltaY = dragStartYRef.current - e.clientY;
-       const sensitivity = (max - min) / 200;
--      const deltaValue = deltaY * sensitivity;
-+      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
-       let newValue = dragStartValueRef.current + deltaValue;
-       newValue = Math.round(newValue / step) * step;
+ function renderMonoSpectrogram(ctx, waveformData, x, y, width, height, options = {}) {
+   const {
+diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
+index 0bcfe41..3e98d91 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.css
++++ b/node_modules/@dilsonspickles/components/dist/index.css
+@@ -9834,7 +9834,7 @@
+   user-select: none;
+ }
+ .selection-toolbar__timecodes {
+-  display: flex;
++   display: flex;
+   align-items: flex-start;
+   gap: 1px;
+   border-radius: var(--border-radius-borderradius-md, 3px);
+@@ -9842,3 +9842,65 @@
+ .selection-toolbar .timecode {
+   min-width: fit-content;
+ }
+++.flyout {
++  position: fixed;
++  z-index: 10000;
++  background: var(--flyout-bg, #f8f8f9);
++  border: 1px solid var(--flyout-border, #d4d5d9);
++  border-radius: 4px;
++  box-shadow: 0 10px 30px rgba(20, 21, 26, 0.3);
++  overflow: visible;
++  animation: flyout-fade-in 0.15s ease-out;
++}
++
++@keyframes flyout-fade-in {
++  from {
++    opacity: 0;
++  }
++  to {
++    opacity: 1;
++  }
++}
++
++.flyout__content {
++  position: relative;
++  border-radius: inherit;
++}
++
++.flyout__arrow {
++  position: absolute;
++  width: 0;
++  height: 0;
++}
++
++.flyout--down .flyout__arrow {
++  top: -8px;
++  left: calc(var(--flyout-arrow-offset) - 8px);
++  border-right: 8px solid transparent;
++  border-bottom: 8px solid var(--flyout-bg, #f8f8f9);
++  border-left: 8px solid transparent;
++}
++
++.flyout--up .flyout__arrow {
++  bottom: -8px;
++  left: calc(var(--flyout-arrow-offset) - 8px);
++  border-top: 8px solid var(--flyout-bg, #f8f8f9);
++  border-right: 8px solid transparent;
++  border-left: 8px solid transparent;
++}
++
++.flyout--right .flyout__arrow {
++  top: calc(var(--flyout-arrow-offset) - 8px);
++  left: -8px;
++  border-top: 8px solid transparent;
++  border-right: 8px solid var(--flyout-bg, #f8f8f9);
++  border-bottom: 8px solid transparent;
++}
++
++.flyout--left .flyout__arrow {
++  top: calc(var(--flyout-arrow-offset) - 8px);
++  right: -8px;
++  border-top: 8px solid transparent;
++  border-bottom: 8px solid transparent;
++  border-left: 8px solid var(--flyout-bg, #f8f8f9);
++}
+diff --git a/node_modules/@dilsonspickles/components/dist/index.d.mts b/node_modules/@dilsonspickles/components/dist/index.d.mts
+index 836cc57..870bdec 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/index.d.mts
+@@ -22,6 +22,7 @@ export { TransportButton, TransportButtonProps } from './TransportButton.mjs';
+ export { ContextMenu, ContextMenuProps } from './ContextMenu.mjs';
+ export { ContextMenuItem, ContextMenuItemProps } from './ContextMenuItem.mjs';
+ export { AddTrackFlyout, AddTrackFlyoutProps, TrackType, TrackTypeOption } from './AddTrackFlyout.mjs';
++export { Flyout, FlyoutDirection, FlyoutProps } from './Flyout.mjs';
+ export { RulerFlyout, RulerFlyoutProps, WaveformRulerFormat } from './RulerFlyout.mjs';
+ export { Toast, ToastAction, ToastContainer, ToastContainerProps, ToastProps, toast } from './Toast.mjs';
+ export { Dialog, DialogProps } from './Dialog.mjs';
+diff --git a/node_modules/@dilsonspickles/components/dist/index.d.ts b/node_modules/@dilsonspickles/components/dist/index.d.ts
+index 44a8549..bbc6aef 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/index.d.ts
+@@ -22,6 +22,7 @@ export { TransportButton, TransportButtonProps } from './TransportButton.js';
+ export { ContextMenu, ContextMenuProps } from './ContextMenu.js';
+ export { ContextMenuItem, ContextMenuItemProps } from './ContextMenuItem.js';
+ export { AddTrackFlyout, AddTrackFlyoutProps, TrackType, TrackTypeOption } from './AddTrackFlyout.js';
++export { Flyout, FlyoutDirection, FlyoutProps } from './Flyout.js';
+ export { RulerFlyout, RulerFlyoutProps, WaveformRulerFormat } from './RulerFlyout.js';
+ export { Toast, ToastAction, ToastContainer, ToastContainerProps, ToastProps, toast } from './Toast.js';
+ export { Dialog, DialogProps } from './Dialog.js';
+diff --git a/node_modules/@dilsonspickles/components/dist/index.js b/node_modules/@dilsonspickles/components/dist/index.js
+index a9f8093..4d741f7 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.js
++++ b/node_modules/@dilsonspickles/components/dist/index.js
+@@ -1290,3 +1290,4 @@ var TrackNew = _react2.default.memo(TrackNewComponent);
+
+
+ exports.AccessibilityProfileProvider = _chunk2FWK4WXJjs.AccessibilityProfileProvider; exports.AddTrackFlyout = _chunkCTCPMYLHjs.AddTrackFlyout; exports.AlertDialog = _chunk7LIZDVRRjs.AlertDialog; exports.AmplifyEffect = _chunkTY2ORSU7js.AmplifyEffect; exports.ApplicationHeader = _chunkGMOGDPRJjs.ApplicationHeader; exports.AudioFileThumbnail = _chunk3BG2FFRZjs.AudioFileThumbnail; exports.AutomationCurvePoint = _chunk6UBVVDCHjs.AutomationCurvePoint; exports.BLACK_KEY_CLASSES = _chunkISHZ7IK3js.BLACK_KEY_CLASSES; exports.BpmStepper = _chunk34LGA5TXjs.BpmStepper; exports.Button = _chunkXO4CHHO5js.Button; exports.CENTER_LINE_HOVER_WIDTH = _chunkE52TN7TDjs.CENTER_LINE_HOVER_WIDTH; exports.CENTER_LINE_WIDTH = _chunkE52TN7TDjs.CENTER_LINE_WIDTH; exports.CLIP_BOUNDARY_THRESHOLD = _chunkISHZ7IK3js.CLIP_BOUNDARY_THRESHOLD; exports.CLIP_CONTENT_OFFSET = _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET; exports.CLIP_STRIP_HEIGHT = _chunkISHZ7IK3js.CLIP_STRIP_HEIGHT; exports.CORNER_SIZE = _chunkE52TN7TDjs.CORNER_SIZE; exports.Carousel = _chunkLJ665GUQjs.Carousel; exports.ChannelMappingDialog = _chunkK4VDEUXTjs.ChannelMappingDialog; exports.Checkbox = _chunk55DGE5QQjs.Checkbox; exports.Clip = _chunk5YRHZ27Qjs.Clip; exports.ClipBody = _chunkZZDLP42Bjs.ClipBody; exports.ClipContextMenu = _chunk5452T763js.ClipContextMenu; exports.ClipHeader = _chunkIL542RVSjs.ClipHeader; exports.CloudProjectIndicator = _chunkB7GXYZQXjs.CloudProjectIndicator; exports.ContextMenu = _chunkQ5QF7X2Ijs.ContextMenu; exports.ContextMenuItem = _chunk36BYWJRBjs.ContextMenuItem; exports.CustomScrollbar = _chunkBUJXKWRAjs.CustomScrollbar; exports.DASH_LENGTH = _chunkE52TN7TDjs.DASH_LENGTH; exports.DEFAULT_PANEL_HEIGHT = _chunkISHZ7IK3js.DEFAULT_PANEL_HEIGHT; exports.DEFAULT_SCROLL_Y = _chunkISHZ7IK3js.DEFAULT_SCROLL_Y; exports.DEFAULT_VELOCITY = _chunkISHZ7IK3js.DEFAULT_VELOCITY; exports.DbRuler = _chunkICL3A42Sjs.DbRuler; exports.Dialog = _chunkDTENNTSGjs.Dialog; exports.DialogFooter = _chunkME74MOZTjs.DialogFooter; exports.DialogHeader = _chunkM6ZQFYMDjs.DialogHeader; exports.DialogSideNav = _chunkUM2GTOTPjs.DialogSideNav; exports.Dropdown = _chunkHGMTDC56js.Dropdown; exports.EDGE_THRESHOLD = _chunkE52TN7TDjs.EDGE_THRESHOLD; exports.EffectDialog = _chunkTY2ORSU7js.EffectDialog; exports.EffectDialogContextMenu = _chunkTY2ORSU7js.EffectDialogContextMenu; exports.EffectDialogFooter = _chunkTY2ORSU7js.EffectDialogFooter; exports.EffectHeader = _chunkTY2ORSU7js.EffectHeader; exports.EffectSlot = _chunkT4FPUYYHjs.EffectSlot; exports.EffectsPanel = _chunkT4FPUYYHjs.EffectsPanel; exports.EffectsPanelHeader = _chunkT4FPUYYHjs.EffectsPanelHeader; exports.EffectsStackHeader = _chunkT4FPUYYHjs.EffectsStackHeader; exports.EnvelopeCurve = _chunkNHJHZZZFjs.EnvelopeCurve; exports.EnvelopeInteractionLayer = _chunkO3UUG5ELjs.EnvelopeInteractionLayer; exports.EnvelopeOverlay = _chunkBEOG2EG6js.EnvelopeOverlay; exports.EnvelopePoint = _chunkGREC4ZBNjs.EnvelopePoint; exports.ExportModal = _chunkPGWJAM66js.ExportModal; exports.FilterChip = _chunkQ66YDP5Ajs.FilterChip; exports.Footer = _chunkME74MOZTjs.Footer; exports.FrequencyRuler = _chunkICL3A42Sjs.FrequencyRuler; exports.GhostButton = _chunkYA2G6WW2js.GhostButton; exports.HEADER_HEIGHT = _chunkISHZ7IK3js.HEADER_HEIGHT; exports.HomeTab = _chunkME3ICDUFjs.HomeTab; exports.Icon = _chunkG6LVJURDjs.Icon; exports.Knob = _chunkQUONGYVYjs.Knob; exports.LabelEditor = _chunk3N437MRVjs.LabelEditor; exports.LabelEditorHeader = _chunkDXB6UMEKjs.LabelEditorHeader; exports.LabelEditorTableHeader = _chunkWMJUXCYXjs.LabelEditorTableHeader; exports.LabelEditorTableRow = _chunkESDOGPDUjs.LabelEditorTableRow; exports.LabelMarker = _chunkOES6RPYNjs.LabelMarker; exports.LabelRectangle = _chunk4BMABSSQjs.LabelRectangle; exports.LabeledCheckbox = _chunk6Z6STMDUjs.LabeledCheckbox; exports.LabeledFormDivider = _chunkXYFKZGO5js.LabeledFormDivider; exports.LabeledInput = _chunkDJIOYQB4js.LabeledInput; exports.LabeledRadio = _chunk74GHBDKSjs.LabeledRadio; exports.MAX_PPS = _chunkISHZ7IK3js.MAX_PPS; exports.MIN_PANEL_HEIGHT = _chunkISHZ7IK3js.MIN_PANEL_HEIGHT; exports.MIN_PPS = _chunkISHZ7IK3js.MIN_PPS; exports.MacroManager = _chunk4RVARNV2js.MacroManager; exports.MasterMeter = _chunk5Y2EFQ5Hjs.MasterMeter; exports.MasterMeterVertical = _chunk6IQMTFCIjs.MasterMeterVertical; exports.Menu = _chunkEYTFCDE3js.Menu; exports.MidiClipBody = _chunk5YRHZ27Qjs.MidiClipBody; exports.MixerChannel = _chunkPXNZAQTDjs.MixerChannel; exports.MixerEffect = _chunk54HT3HD2js.MixerEffect; exports.MixerFader = _chunk5CVIISAVjs.MixerFader; exports.MixerFaderHandle = _chunkGJ7EDZGAjs.MixerFaderHandle; exports.MixerPanel = _chunkEPKPU5CGjs.MixerPanel; exports.NOTE_EDGE_THRESHOLD = _chunkISHZ7IK3js.NOTE_EDGE_THRESHOLD; exports.NOTE_HEIGHT = _chunkISHZ7IK3js.NOTE_HEIGHT; exports.NOTE_MOVE_THRESHOLD = _chunkISHZ7IK3js.NOTE_MOVE_THRESHOLD; exports.NOTE_NAMES = _chunkISHZ7IK3js.NOTE_NAMES; exports.NoteGrid = _chunkISHZ7IK3js.NoteGrid; exports.NoteGridCanvas = _chunkISHZ7IK3js.NoteGridCanvas; exports.NoteRect = _chunkFYE3CAWHjs.NoteRect; exports.NumberStepper = _chunkVH7S7WJMjs.NumberStepper; exports.PIANO_KEY_WIDTH = _chunkISHZ7IK3js.PIANO_KEY_WIDTH; exports.PanKnob = _chunkVWWGPE4Yjs.PanKnob; exports.PanelHeader = _chunkKNJHOGHKjs.PanelHeader; exports.PianoKeyboard = _chunkISHZ7IK3js.PianoKeyboard; exports.PianoRollClipStrip = _chunkISHZ7IK3js.PianoRollClipStrip; exports.PianoRollPanel = _chunkISHZ7IK3js.PianoRollPanel; exports.PianoRollRuler = _chunkISHZ7IK3js.PianoRollRuler; exports.PianoRollSidebar = _chunkISHZ7IK3js.PianoRollSidebar; exports.PlayheadCursor = _chunkLGTOB37Qjs.PlayheadCursor; exports.PluginBrowserDialog = _chunkY7XPXGVMjs.PluginBrowserDialog; exports.PluginCard = _chunkEGRKZ5CYjs.PluginCard; exports.PluginManagerDialog = _chunkKKV7EEFJjs.PluginManagerDialog; exports.PointLabel = _chunkV6N42HDHjs.PointLabel; exports.PreferencePanel = _chunkYEJ3PLNZjs.PreferencePanel; exports.PreferenceThumbnail = _chunk5Q4EFHIAjs.PreferenceThumbnail; exports.PreferencesModal = _chunkUM2GTOTPjs.PreferencesModal; exports.PreferencesProvider = _chunkYQTQXEC4js.PreferencesProvider; exports.ProgressBar = _chunkAYO6BYNAjs.ProgressBar; exports.ProjectThumbnail = _chunkYEL37QJ3js.ProjectThumbnail; exports.ProjectToolbar = _chunk5AKA5KLFjs.ProjectToolbar; exports.RULER_HEIGHT = _chunkISHZ7IK3js.RULER_HEIGHT; exports.Radio = _chunkMVQKCVPPjs.Radio; exports.RegionLabel = _chunkKKOL46MPjs.RegionLabel; exports.ResizablePanel = _chunkRP5KH64Wjs.ResizablePanel; exports.ReverbEffect = _chunkTY2ORSU7js.ReverbEffect; exports.RulerFlyout = _chunk2IZAVS7Vjs.RulerFlyout; exports.SCROLLBAR_WIDTH = _chunkISHZ7IK3js.SCROLLBAR_WIDTH; exports.SIDEBAR_WIDTH = _chunkISHZ7IK3js.SIDEBAR_WIDTH; exports.SaveProjectModal = _chunkNLLMQHNYjs.SaveProjectModal; exports.SearchField = _chunkSJUY72RKjs.SearchField; exports.SelectCommandDialog = _chunkZ6MD62P4js.SelectCommandDialog; exports.SelectionToolbar = _chunk4JT5DJJWjs.SelectionToolbar; exports.Separator = _chunkJMLDFTHAjs.Separator; exports.ShortcutTableHeader = _chunkM3BLX3JUjs.ShortcutTableHeader; exports.ShortcutTableRow = _chunk6ICT2BT7js.ShortcutTableRow; exports.SidePanel = _chunkTEPCBR7Ejs.SidePanel; exports.SignInActionBar = _chunkJQITFEPOjs.SignInActionBar; exports.Slider = _chunkBPC2DLWJjs.Slider; exports.SocialSignInButton = _chunkTFVKKVNRjs.SocialSignInButton; exports.SpectralSelectionCanvas = _chunkE52TN7TDjs.SpectralSelectionCanvas; exports.SpectralSelectionOverlay = _chunkE52TN7TDjs.SpectralSelectionOverlay; exports.Spinner = _chunkUA7D5UJTjs.Spinner; exports.SwipeyDots = _chunkIO3XBNUWjs.SwipeyDots; exports.TOTAL_GRID_HEIGHT = _chunkISHZ7IK3js.TOTAL_GRID_HEIGHT; exports.TOTAL_PITCHES = _chunkISHZ7IK3js.TOTAL_PITCHES; exports.Tab = _chunkSVK53QX7js.Tab; exports.TabItem = _chunkNOQ2FBTOjs.TabItem; exports.TabList = _chunk5SD5SHH5js.TabList; exports.Table = _chunkLHYKP7DPjs.Table; exports.TableBody = _chunkLHYKP7DPjs.TableBody; exports.TableCell = _chunkLHYKP7DPjs.TableCell; exports.TableHeader = _chunkLHYKP7DPjs.TableHeader; exports.TableHeaderCell = _chunkLHYKP7DPjs.TableHeaderCell; exports.TableRow = _chunkLHYKP7DPjs.TableRow; exports.TextInput = _chunkBEJPGZROjs.TextInput; exports.TextLink = _chunkIBW3AJZQjs.TextLink; exports.ThemeProvider = _chunkLGCLHYTPjs.ThemeProvider; exports.TimeCode = _chunkLCZWNXIEjs.TimeCode; exports.TimeCodeDigit = _chunkLCZWNXIEjs.TimeCodeDigit; exports.TimeCodeUnit = _chunkJHKJUSFPjs.TimeCodeUnit; exports.TimeSelectionCanvasOverlay = _chunkCRNLF3B5js.TimeSelectionCanvasOverlay; exports.TimeSelectionRulerOverlay = _chunkX5RJ5XZVjs.TimeSelectionRulerOverlay; exports.TimeSignatureSelector = _chunkDJBXSWEPjs.TimeSignatureSelector; exports.TimelineRuler = _chunkZG6PGBWJjs.TimelineRuler; exports.TimelineRulerContextMenu = _chunk67EZBSEHjs.TimelineRulerContextMenu; exports.Toast = _chunkV4Z6HIDLjs.Toast; exports.ToastContainer = _chunkV4Z6HIDLjs.ToastContainer; exports.ToggleButton = _chunkW4QTXKZCjs.ToggleButton; exports.ToggleToolButton = _chunkP6ZFN4X4js.ToggleToolButton; exports.ToolButton = _chunkULYXGKTWjs.ToolButton; exports.Toolbar = _chunkO74DM2DJjs.Toolbar; exports.ToolbarButtonGroup = _chunkO74DM2DJjs.ToolbarButtonGroup; exports.ToolbarDivider = _chunkO74DM2DJjs.ToolbarDivider; exports.ToolbarGroup = _chunkHBFFIH4Ojs.ToolbarGroup; exports.Tooltip = _chunkPXSEYRVSjs.Tooltip; exports.Track = _chunkI4P5XWICjs.Track; exports.TrackContextMenu = _chunkU6O7NMIMjs.TrackContextMenu; exports.TrackControlPanel = _chunkAI55CIMNjs.TrackControlPanel; exports.TrackControlSidePanel = _chunkMB2M76MBjs.TrackControlSidePanel; exports.TrackMeter = _chunkVV2RTWFEjs.TrackMeter; exports.TrackNew = TrackNew; exports.TransportButton = _chunkQTPXIIDBjs.TransportButton; exports.TransportToolbar = _chunkB7SOWOOYjs.TransportToolbar; exports.VSTEffectOptionsDialog = _chunkCMZO53CTjs.VSTEffectOptionsDialog; exports.VerticalRuler = _chunkICL3A42Sjs.VerticalRuler; exports.VerticalRulerPanel = _chunkICL3A42Sjs.VerticalRulerPanel; exports.VerticalSpectralRuler = _chunkICL3A42Sjs.VerticalSpectralRuler; exports.WaveformPreview = _chunk43ZUPQJ7js.WaveformPreview; exports.WelcomeDialog = _chunkCVBE4DSTjs.WelcomeDialog; exports.clearAllProjects = _chunkME3ICDUFjs.clearAllProjects; exports.darkTheme = _chunkLGCLHYTPjs.darkTheme; exports.deleteProject = _chunkME3ICDUFjs.deleteProject; exports.deleteProjects = _chunkME3ICDUFjs.deleteProjects; exports.detectCorner = _chunkE52TN7TDjs.detectCorner; exports.detectEdge = _chunkE52TN7TDjs.detectEdge; exports.drawBlackDashedLine = _chunkE52TN7TDjs.drawBlackDashedLine; exports.drawBlackMarqueeBorder = _chunkE52TN7TDjs.drawBlackMarqueeBorder; exports.drawCenterLine = _chunkE52TN7TDjs.drawCenterLine; exports.drawCornerHandles = _chunkE52TN7TDjs.drawCornerHandles; exports.drawDarkenedOverlays = _chunkE52TN7TDjs.drawDarkenedOverlays; exports.drawDashedLine = _chunkE52TN7TDjs.drawDashedLine; exports.drawMarqueeBorder = _chunkE52TN7TDjs.drawMarqueeBorder; exports.exportProjectsToFile = _chunkME3ICDUFjs.exportProjectsToFile; exports.frequencyToY = _chunkE52TN7TDjs.frequencyToY; exports.generateDecayingSineWave = _chunkME3ICDUFjs.generateDecayingSineWave; exports.generateSineWave = _chunkME3ICDUFjs.generateSineWave; exports.generateSpeechWaveform = _chunkME3ICDUFjs.generateSpeechWaveform; exports.getProject = _chunkME3ICDUFjs.getProject; exports.getProjects = _chunkME3ICDUFjs.getProjects; exports.getSelectionBounds = _chunkE52TN7TDjs.getSelectionBounds; exports.getSpectrogramColor = _chunkZZDLP42Bjs.getSpectrogramColor; exports.getStorageInfo = _chunkME3ICDUFjs.getStorageInfo; exports.importProjectsFromFile = _chunkME3ICDUFjs.importProjectsFromFile; exports.isHoveringCenterLine = _chunkE52TN7TDjs.isHoveringCenterLine; exports.isWithinSelection = _chunkE52TN7TDjs.isWithinSelection; exports.lightTheme = _chunkLGCLHYTPjs.lightTheme; exports.renderMonoSpectrogram = _chunkZZDLP42Bjs.renderMonoSpectrogram; exports.renderStereoSpectrogram = _chunkZZDLP42Bjs.renderStereoSpectrogram; exports.saveProject = _chunkME3ICDUFjs.saveProject; exports.scrollIntoViewIfNeeded = scrollIntoViewIfNeeded; exports.timeToX = _chunkE52TN7TDjs.timeToX; exports.toast = _chunkV4Z6HIDLjs.toast; exports.useAccessibilityProfile = _chunk2FWK4WXJjs.useAccessibilityProfile; exports.useAudioSelection = _chunkEQPPTXQIjs.useAudioSelection; exports.useClipSelection = _chunkEQPPTXQIjs.useClipSelection; exports.useContainerTabGroup = _chunkURVJBJH4js.useContainerTabGroup; exports.useFocusTrap = _chunkVA3E7QXAjs.useFocusTrap; exports.useLabelKeyboardHandling = _chunkEQPPTXQIjs.useLabelKeyboardHandling; exports.usePreferences = _chunkYQTQXEC4js.usePreferences; exports.useSpectralSelection = _chunkEQPPTXQIjs.useSpectralSelection; exports.useTabGroup = _chunkBUZ7SWYRjs.useTabGroup; exports.useTabOrder = _chunk6YEGNNJZjs.useTabOrder; exports.useTheme = _chunkLGCLHYTPjs.useTheme; exports.useTimeSelection = _chunkEQPPTXQIjs.useTimeSelection; exports.useTrackSelection = _chunkEQPPTXQIjs.useTrackSelection; exports.useWelcomeDialog = _chunkCVBE4DSTjs.useWelcomeDialog;
++exports.Flyout = require('./chunk-FLYOUT.js').Flyout;
+diff --git a/node_modules/@dilsonspickles/components/dist/index.mjs b/node_modules/@dilsonspickles/components/dist/index.mjs
+index f545ddd..2b7487d 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.mjs
++++ b/node_modules/@dilsonspickles/components/dist/index.mjs
+@@ -1290,3 +1290,4 @@ export {
+   useTrackSelection,
+   useWelcomeDialog
+ };
++export { Flyout } from "./chunk-FLYOUT.mjs";
