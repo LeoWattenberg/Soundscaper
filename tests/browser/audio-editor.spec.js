@@ -921,7 +921,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('moves the playhead when clicking timeline lanes and clips', async ({ page }) => {
+	test('moves the playhead without starting playback when clicking timeline lanes and clips', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -930,13 +930,14 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await emptyLane.click({ position: { x: 220, y: 48 } });
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
-		await editor.getByRole('button', { name: 'Stop' }).click();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await playhead.focus();
 		await page.keyboard.press('Home');
 
 		const clip = clipByName(editor, toneA.name);
 		await clip.click({ position: { x: 48, y: 24 } });
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 

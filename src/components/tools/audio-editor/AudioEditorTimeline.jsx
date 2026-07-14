@@ -285,7 +285,7 @@ export default function AudioEditorTimeline({
 			if (Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
 				run(() => controller.actions.transport.seek(endFrame));
 				run(() => controller.actions.timeline.clearSelection());
-				if (snapshot.timeline?.playbackOnRulerClick !== false && telemetry.transportState === 'stopped') {
+				if (session.lane.dataset.rulerInteraction !== undefined && snapshot.timeline?.playbackOnRulerClick !== false && telemetry.transportState === 'stopped') {
 					run(() => controller.actions.transport.playPause());
 				}
 			} else {
