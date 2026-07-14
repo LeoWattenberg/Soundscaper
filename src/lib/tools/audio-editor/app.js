@@ -367,6 +367,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			selectedTrackId: state.selectedTrackId,
 			selectedClipId: state.selectedClipId,
 			selection,
+			transportState: state.transportState,
 			readOnly: state.readOnly,
 			importing: state.importing,
 			recordingStarting: state.recordingStarting,
@@ -4522,11 +4523,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		let recorder = null;
 		try {
 			const sampleRate = projectSampleRate();
+			// Request the microphone while still inside the user-initiated record
+			// action. This prompts only when permission is not already granted and
+			// avoids delaying the prompt behind storage or playback preparation.
+			stream = await requestMicrophone({ audio: { channelCount: { ideal: 2, max: 2 }, sampleRate: { ideal: sampleRate }, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
 			await preflightStorage(sampleRate * 2 * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
 			await beginPlaybackCachePreparation(project);
 			const context = await engine.getAudioContext();
 			await context.resume();
-			stream = await requestMicrophone({ audio: { channelCount: { ideal: 2, max: 2 }, sampleRate: { ideal: sampleRate }, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
 			const sourceId = createStableId('recording');
 			writer = await store.beginSourceWrite(sourceId, { name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`, mimeType: 'audio/wav' });
 			const inputTrack = stream.getAudioTracks()[0];

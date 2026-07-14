@@ -930,6 +930,9 @@ function EditorToolToolbar({
 	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const masterMeter = telemetry.meters?.master;
 	const inputMeterDb = telemetry.inputMeterDb ?? -60;
+	const recordControlLabel = snapshot.readOnly
+		? `${recordLabel} — ${copy.projectReadOnly}`
+		: recordLabel;
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
 	const setToolbarSettingsTrigger = useCallback((element) => {
@@ -1001,10 +1004,10 @@ function EditorToolToolbar({
 					{isToolbarButtonVisible('record') && <span data-transport="record">
 						<AccessibleTransportButton
 							icon="record"
-							ariaLabel={recordLabel}
+							ariaLabel={recordControlLabel}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
-							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting}
+							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing'}
 							onClick={toggleRecording}
 						/>
 					</span>
@@ -3147,7 +3150,7 @@ function createApplicationMenus({
 			id: 'record',
 			label: copy.recordMenu,
 			items: [
-				{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting, onClick: actions.record },
+				{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing', disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
 				{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting, onClick: actions.recordNewTrack },
 				{ id: 'stop', label: copy.stop, onClick: actions.stop },
 				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },

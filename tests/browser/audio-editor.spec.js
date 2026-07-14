@@ -1610,6 +1610,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const addNewTrack = getMenuItem(tracksMenu, 'Add new track');
 		await addNewTrack.click();
 		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'Audio track')).toHaveAttribute('aria-disabled', 'true');
+		const readOnlyRecord = second.locator('[data-transport="record"] button');
+		await expect(readOnlyRecord).toBeDisabled();
+		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
 		await secondPage.close();
 	});
 
