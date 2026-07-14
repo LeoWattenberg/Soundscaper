@@ -8,7 +8,7 @@ interface Props {
 	audioEditorV2?: boolean;
 }
 
-const configuredV2 = String(import.meta.env.PUBLIC_AUDIO_EDITOR_V2 ?? 'false').trim().toLowerCase();
+const configuredV2 = String(import.meta.env.PUBLIC_AUDIO_EDITOR_V2 ?? 'true').trim().toLowerCase();
 const { locale, audioEditorV2 = !['0', 'false', 'off', 'no'].includes(configuredV2) } = Astro.props;
 const copyByLocale = {
 	de: {
