@@ -195,13 +195,11 @@ export default function AudioEditorTimeline({
 		navigationRootRef.current = node;
 	}, [timelineRef]);
 
-	useEffect(() => {
-		const element = scrollRef.current;
-		if (!element) return undefined;
-		const update = () => setScrollX(Math.max(0, element.scrollLeft));
-		update();
-		element.addEventListener('scroll', update, { passive: true });
-		return () => element.removeEventListener('scroll', update);
+	const handleTimelineScroll = useCallback((event) => {
+		const nextScrollX = Math.max(0, event.currentTarget.scrollLeft);
+		event.currentTarget.closest('.audio-editor-timeline-panel')?.style
+			.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
+		setScrollX(nextScrollX);
 	}, []);
 
 	useEffect(() => {
@@ -611,6 +609,7 @@ export default function AudioEditorTimeline({
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
 				'--timeline-viewport-width': `${viewportWidth}px`,
+				'--timeline-scroll-x': `${scrollX}px`,
 				'--vertical-ruler-width': `${verticalRulerWidth}px`,
 			}}
 		>
@@ -618,6 +617,7 @@ export default function AudioEditorTimeline({
 				className="audio-editor-timeline-scroll"
 				data-timeline
 				ref={scrollRef}
+				onScroll={handleTimelineScroll}
 				onPointerDownCapture={onPointerDown}
 				onPointerMove={onPointerMove}
 				onPointerUp={(event) => { finishTouch(event); finishPointerSession(event); }}

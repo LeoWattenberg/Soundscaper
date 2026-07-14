@@ -883,6 +883,7 @@
 	top: 0;
 	height: 34px;
 	flex: 0 0 auto;
+	transform: translateX(var(--timeline-scroll-x, 0));
 	background: var(--kw-editor-stage-raised);
 	border-bottom: 1px solid var(--kw-editor-stage-line);
 	border-left: 1px solid var(--kw-editor-stage-line);
@@ -1053,6 +1054,7 @@
 	bottom: 0;
 	left: var(--timeline-viewport-width, 1px);
 	width: var(--vertical-ruler-width, 40px);
+	transform: translateX(var(--timeline-scroll-x, 0));
 	overflow: hidden;
 	background: color-mix(in srgb, var(--kw-editor-stage-raised) 92%, transparent);
 	border-left: 1px solid var(--kw-editor-stage-line);

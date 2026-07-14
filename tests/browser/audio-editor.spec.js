@@ -150,6 +150,30 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps vertical rulers pinned while the timeline scrolls horizontally', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('[data-timeline]');
+		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
+		for (let step = 0; step < 4; step += 1) await zoomIn.click();
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+
+		const ruler = editor.locator('[data-track-ruler]').first();
+		const before = await ruler.boundingBox();
+		expect(before).not.toBeNull();
+		await timeline.evaluate((element) => {
+			element.scrollLeft = element.scrollWidth - element.clientWidth;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await expect.poll(() => ruler.evaluate((element) => getComputedStyle(element).transform)).not.toBe('matrix(1, 0, 0, 1, 0, 0)');
+		const after = await ruler.boundingBox();
+		expect(after).not.toBeNull();
+		expect(after.x).toBeCloseTo(before.x, 0);
+		const timelineRight = (await timeline.boundingBox()).x + await timeline.evaluate((element) => element.clientWidth);
+		expect(Math.abs(after.x + after.width - timelineRight)).toBeLessThanOrEqual(2);
+		expect(errors).toEqual([]);
+	});
+
 	test('discards invalid legacy accessibility profiles and preserves valid preferences', async ({ page }) => {
 		await page.addInitScript(() => {
 			if (sessionStorage.getItem('kw-accessibility-test-initialized')) return;
