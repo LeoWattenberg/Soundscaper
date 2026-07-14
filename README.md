@@ -69,19 +69,18 @@ accept the equivalent JSON:
 ```
 
 To use the included upload script instead, create a Cloudflare API token with
-**Workers R2 Storage: Edit** for the account containing the bucket, and run it
-from a trusted shell:
+**Workers R2 Storage: Edit** for the account containing the bucket. Put the
+credentials in a temporary, gitignored `.env` file:
 
-```sh
-CLOUDFLARE_ACCOUNT_ID=<account-id> \
-CLOUDFLARE_API_TOKEN=<api-token> \
-npm run deploy:runtime
+```dotenv
+CLOUDFLARE_ACCOUNT_ID=<account-id>
+CLOUDFLARE_API_TOKEN=<api-token>
 ```
 
-These credentials are only needed for that local command and do not need to be
-stored in GitHub or in the Pages project. A normal `wrangler login` OAuth token
-may not include R2 access; in that case Wrangler can misleadingly report an
-existing bucket as nonexistent.
+Run `npm run deploy:runtime`, then delete `.env`. These credentials are only
+needed for that local command and do not need to be stored in GitHub or in the
+Pages project. A normal `wrangler login` OAuth token may not include R2 access;
+in that case Wrangler can misleadingly report an existing bucket as nonexistent.
 
 ### 2. Connect Cloudflare Pages to GitHub
 
