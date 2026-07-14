@@ -356,6 +356,35 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 	});
 
+	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		const mixer = editor.locator('[data-mixer-panel]');
+		await expect(mixer).toBeVisible();
+		await expect(mixer.locator('.mixer-panel')).toBeVisible();
+		await expect(mixer.locator('.mixer-channel')).toHaveCount(2);
+
+		await mixer.getByRole('button', { name: 'Add group bus', exact: true }).click();
+		await mixer.getByRole('button', { name: 'Add send bus', exact: true }).click();
+		await expect(mixer.locator('[data-mixer-bus="group"]')).toContainText('Group bus 1');
+		await expect(mixer.locator('[data-mixer-bus="send"]')).toContainText('Send bus 1');
+		await expect(mixer.locator('.kw-audio-editor__mixer-channel--group')).toHaveCount(1);
+		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send')).toHaveCount(1);
+
+		const output = mixer.getByRole('combobox', { name: 'Output: Track 1', exact: true });
+		await output.selectOption({ label: 'Group bus 1' });
+		await expect(output).toHaveValue(/group-bus/);
+		const sendLevel = mixer.getByRole('slider', { name: 'Send level: Track 1 → Send bus 1', exact: true });
+		await sendLevel.fill('-12');
+		await expect(sendLevel).toHaveValue('-12');
+
+		const sendEffect = mixer.getByRole('combobox', { name: 'Add effect: Send bus 1', exact: true });
+		await sendEffect.selectOption({ label: 'Reverb' });
+		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send .mixer-effect--enabled')).toContainText('Reverb');
+		expect(errors).toEqual([]);
+	});
+
 	test('uses a full-height sidebar behind track controls', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const sidebar = editor.locator('.audio-editor-track-list');

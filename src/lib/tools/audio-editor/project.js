@@ -320,7 +320,37 @@ export function validateAudioEditorProject(project) {
 	if (armedTracks > 1) throw new RangeError('Only one track can be armed at a time.');
 	finiteInRange(project.master?.gain, 0, 4, 'master.gain');
 	if (!Array.isArray(project.master?.effects)) throw new TypeError('Master effects must be an array.');
+	validateMixerV2Shape(project);
 	return true;
+}
+
+function validateMixerV2Shape(project) {
+	if (project.mixer == null) return;
+	if (typeof project.mixer !== 'object' || Array.isArray(project.mixer)) throw new TypeError('project.mixer must be an object.');
+	const groups = project.mixer.groups || [];
+	const sends = project.mixer.sends || [];
+	if (!Array.isArray(groups) || !Array.isArray(sends)) throw new TypeError('Mixer groups and sends must be arrays.');
+	assertUniqueIds([...groups, ...sends], 'mixer bus');
+	for (const bus of [...groups, ...sends]) {
+		finiteInRange(bus.gain, 0, 4, `mixer bus ${bus.id}.gain`);
+		finiteInRange(bus.pan, -1, 1, `mixer bus ${bus.id}.pan`);
+		if (!Array.isArray(bus.effects)) throw new TypeError(`Mixer bus ${bus.id} effects must be an array.`);
+	}
+	const routes = project.mixer.routes || {};
+	if (typeof routes !== 'object' || Array.isArray(routes)) throw new TypeError('Mixer routes must be an object.');
+	const audioTrackIds = new Set(project.tracks.filter((track) => track.type === 'audio').map((track) => track.id));
+	const groupIds = new Set(groups.map((bus) => bus.id));
+	const sendIds = new Set(sends.map((bus) => bus.id));
+	for (const [trackId, route] of Object.entries(routes)) {
+		if (!audioTrackIds.has(trackId)) throw new ReferenceError(`Mixer route references missing audio track ${trackId}.`);
+		if (!route || typeof route !== 'object' || Array.isArray(route)) throw new TypeError(`Mixer route ${trackId} must be an object.`);
+		if (route.groupId != null && !groupIds.has(route.groupId)) throw new ReferenceError(`Mixer route references missing group bus ${route.groupId}.`);
+		if (route.sends != null && (typeof route.sends !== 'object' || Array.isArray(route.sends))) throw new TypeError(`Mixer route ${trackId} sends must be an object.`);
+		for (const [sendId, gain] of Object.entries(route.sends || {})) {
+			if (!sendIds.has(sendId)) throw new ReferenceError(`Mixer route references missing send bus ${sendId}.`);
+			finiteInRange(gain, 0, 4, `mixer route ${trackId} send ${sendId}`);
+		}
+	}
 }
 
 function assertUniqueIds(items, type) {
@@ -395,5 +425,6 @@ function validateProjectV2Shape(project) {
 	if (armedTracks > 1) throw new RangeError('Only one audio track can be armed at a time.');
 	finiteInRange(project.master?.gain, 0, 4, 'master.gain');
 	if (!Array.isArray(project.master?.effects)) throw new TypeError('Master effects must be an array.');
+	validateMixerV2Shape(project);
 	return true;
 }

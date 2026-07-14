@@ -114,6 +114,7 @@ const DISPLAY_MODE_SET = new Set(AUDIO_EDITOR_DISPLAY_MODES);
  * @property {AudioEditorClipV2[]} clips
  * @property {(AudioEditorAudioTrackV2|AudioEditorLabelTrackV2)[]} tracks
  * @property {Object} master
+ * @property {{groups: Object[], sends: Object[], routes: Record<string, Object>}} mixer
  * @property {*} opaqueExtensions
  */
 
@@ -194,6 +195,48 @@ function normalizeEffects(effects, name) {
 	});
 	assertUniqueIds(result, name);
 	return result;
+}
+
+export function createAudioMixerBusV2(value = {}, type = 'group', index = 0) {
+	if (type !== 'group' && type !== 'send') throw new RangeError(`Unsupported mixer bus type: ${type}.`);
+	const name = type === 'send' ? 'Send' : 'Group';
+	return {
+		id: value.id || createStableId(`${type}-bus`),
+		name: String(value.name || `${name} ${index + 1}`).trim() || `${name} ${index + 1}`,
+		color: nonEmptyString(value.color || (type === 'send' ? '#8c6fd1' : '#4f87c8'), `mixer.${type}.color`),
+		gain: finiteInRange(value.gain ?? 1, 0, 4, `mixer.${type}.gain`),
+		pan: finiteInRange(value.pan ?? 0, -1, 1, `mixer.${type}.pan`),
+		mute: Boolean(value.mute),
+		solo: Boolean(value.solo),
+		effects: normalizeEffects(value.effects || [], `mixer.${type}.effects`),
+	};
+}
+
+export function normalizeAudioMixerV2(value = {}) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('project.mixer must be an object.');
+	const groups = (value.groups || []).map((bus, index) => createAudioMixerBusV2(bus, 'group', index));
+	const sends = (value.sends || []).map((bus, index) => createAudioMixerBusV2(bus, 'send', index));
+	assertUniqueIds([...groups, ...sends], 'mixer bus');
+	const groupIds = new Set(groups.map((bus) => bus.id));
+	const sendIds = new Set(sends.map((bus) => bus.id));
+	const routes = {};
+	if (!value.routes || typeof value.routes !== 'object' || Array.isArray(value.routes)) {
+		if (value.routes != null) throw new TypeError('project.mixer.routes must be an object.');
+	} else for (const [trackId, route] of Object.entries(value.routes)) {
+		nonEmptyString(trackId, 'mixer route track ID');
+		if (!route || typeof route !== 'object' || Array.isArray(route)) throw new TypeError(`mixer.routes.${trackId} must be an object.`);
+		const groupId = route.groupId == null ? null : nonEmptyString(route.groupId, `mixer.routes.${trackId}.groupId`);
+		if (groupId && !groupIds.has(groupId)) throw new ReferenceError(`Mixer route references missing group bus ${groupId}.`);
+		const routeSends = {};
+		if (!route.sends || typeof route.sends !== 'object' || Array.isArray(route.sends)) {
+			if (route.sends != null) throw new TypeError(`mixer.routes.${trackId}.sends must be an object.`);
+		} else for (const [sendId, gain] of Object.entries(route.sends)) {
+			if (!sendIds.has(sendId)) throw new ReferenceError(`Mixer route references missing send bus ${sendId}.`);
+			routeSends[sendId] = finiteInRange(gain, 0, 4, `mixer.routes.${trackId}.sends.${sendId}`);
+		}
+		routes[trackId] = { groupId, sends: routeSends };
+	}
+	return { groups, sends, routes };
 }
 
 function defaultSpectrogram(sampleRate = AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE) {
@@ -452,8 +495,11 @@ export function createAudioEditorProjectV2(options = {}) {
 		master: {
 			gain: finiteInRange(options.master?.gain ?? 1, 0, 4, 'master.gain'),
 			pan: finiteInRange(options.master?.pan ?? 0, -1, 1, 'master.pan'),
+			mute: Boolean(options.master?.mute),
+			solo: Boolean(options.master?.solo),
 			effects: masterEffects,
 		},
+		mixer: normalizeAudioMixerV2(options.mixer || {}),
 		opaqueExtensions: plainClone(options.opaqueExtensions ?? {}),
 	};
 }
@@ -496,6 +542,10 @@ export function validateAudioEditorProjectV2(project) {
 	const sourceById = new Map(normalized.sources.map((source) => [source.id, source]));
 	const clipById = new Map(normalized.clips.map((clip) => [clip.id, clip]));
 	const trackIds = new Set(normalized.tracks.map((track) => track.id));
+	for (const trackId of Object.keys(normalized.mixer.routes)) {
+		const track = normalized.tracks.find((candidate) => candidate.id === trackId);
+		if (!track || track.type !== 'audio') throw new ReferenceError(`Mixer route references missing audio track ${trackId}.`);
+	}
 	const assignedClipIds = new Set();
 	let armedTracks = 0;
 

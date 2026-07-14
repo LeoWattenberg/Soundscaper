@@ -14,6 +14,7 @@ import {
 import { createEffect, normalizeEffect, updateEffect } from './effects.js';
 import {
 	createAudioClipV2,
+	createAudioMixerBusV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
 	createLabelTrackV2,
@@ -109,6 +110,18 @@ function mutateCommand(project, command) {
 			break;
 		case 'master/update':
 			updateMaster(project, command.changes);
+			break;
+		case 'mixer/bus-add':
+			addMixerBus(project, command);
+			break;
+		case 'mixer/bus-update':
+			updateMixerBus(project, command);
+			break;
+		case 'mixer/bus-remove':
+			removeMixerBus(project, command);
+			break;
+		case 'mixer/route-update':
+			updateMixerRoute(project, command);
 			break;
 		case 'clip/add':
 			addClip(project, command.trackId, command.clip);
@@ -290,11 +303,17 @@ function removeTrack(project, trackId) {
 	const clipIds = new Set(project.tracks[index].clipIds || []);
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
 	project.tracks.splice(index, 1);
+	if (project.mixer?.routes) delete project.mixer.routes[trackId];
 	disableAutoDuckForRemovedControlTrack(project, trackId);
 }
 
 function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
-	const racks = [project.master.effects, ...project.tracks.filter((track) => Array.isArray(track.effects)).map((track) => track.effects)];
+	const racks = [
+		project.master.effects,
+		...project.tracks.filter((track) => Array.isArray(track.effects)).map((track) => track.effects),
+		...(project.mixer?.groups || []).map((bus) => bus.effects),
+		...(project.mixer?.sends || []).map((bus) => bus.effects),
+	];
 	for (const rack of racks) {
 		for (let index = 0; index < rack.length; index += 1) {
 			const effect = rack[index];
@@ -362,10 +381,99 @@ function removeLabel(project, trackId, labelId) {
 
 function updateMaster(project, changes = {}) {
 	const keys = Object.keys(changes);
-	if (keys.some((key) => key !== 'gain')) throw new RangeError('Only master gain can be updated directly.');
-	const gain = Number(changes.gain);
-	if (!Number.isFinite(gain) || gain < 0 || gain > 4) throw new RangeError('Master gain must be between 0 and 4.');
-	project.master.gain = gain;
+	if (keys.some((key) => !['gain', 'pan', 'mute', 'solo'].includes(key))) throw new RangeError('Unsupported master mixer field.');
+	if (Object.hasOwn(changes, 'gain')) {
+		const gain = Number(changes.gain);
+		if (!Number.isFinite(gain) || gain < 0 || gain > 4) throw new RangeError('Master gain must be between 0 and 4.');
+		project.master.gain = gain;
+	}
+	if (Object.hasOwn(changes, 'pan')) {
+		const pan = Number(changes.pan);
+		if (!Number.isFinite(pan) || pan < -1 || pan > 1) throw new RangeError('Master pan must be between -1 and 1.');
+		project.master.pan = pan;
+	}
+	if (Object.hasOwn(changes, 'mute')) project.master.mute = Boolean(changes.mute);
+	if (Object.hasOwn(changes, 'solo')) project.master.solo = Boolean(changes.solo);
+}
+
+function ensureMixer(project) {
+	if (!project.mixer) project.mixer = { groups: [], sends: [], routes: {} };
+	project.mixer.groups ||= [];
+	project.mixer.sends ||= [];
+	project.mixer.routes ||= {};
+	return project.mixer;
+}
+
+function mixerBusCollection(project, type) {
+	const mixer = ensureMixer(project);
+	if (type === 'group') return mixer.groups;
+	if (type === 'send') return mixer.sends;
+	throw new RangeError('Mixer bus type must be group or send.');
+}
+
+function requireMixerBus(project, type, busId) {
+	const bus = mixerBusCollection(project, type).find((candidate) => candidate.id === busId);
+	if (!bus) throw new ReferenceError(`Unknown ${type} bus: ${busId}.`);
+	return bus;
+}
+
+function addMixerBus(project, command) {
+	const collection = mixerBusCollection(project, command.busType);
+	const bus = createAudioMixerBusV2(command.bus, command.busType, collection.length);
+	const allBuses = [...ensureMixer(project).groups, ...ensureMixer(project).sends];
+	if (allBuses.some((candidate) => candidate.id === bus.id)) throw new RangeError(`Duplicate mixer bus ID: ${bus.id}.`);
+	for (const effect of bus.effects) {
+		if (allEffects(project).some((candidate) => candidate.id === effect.id)) throw new RangeError(`Duplicate effect ID: ${effect.id}.`);
+	}
+	collection.push(bus);
+}
+
+function updateMixerBus(project, command) {
+	const bus = requireMixerBus(project, command.busType, command.busId);
+	const changes = command.changes || {};
+	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo']);
+	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer bus field cannot be updated: ${key}.`);
+	const collection = mixerBusCollection(project, command.busType);
+	const normalized = createAudioMixerBusV2({ ...bus, ...changes, effects: bus.effects }, command.busType, collection.indexOf(bus));
+	Object.assign(bus, normalized);
+}
+
+function removeMixerBus(project, command) {
+	const collection = mixerBusCollection(project, command.busType);
+	const index = collection.findIndex((candidate) => candidate.id === command.busId);
+	if (index < 0) throw new ReferenceError(`Unknown ${command.busType} bus: ${command.busId}.`);
+	collection.splice(index, 1);
+	for (const route of Object.values(ensureMixer(project).routes)) {
+		if (command.busType === 'group' && route.groupId === command.busId) route.groupId = null;
+		if (command.busType === 'send' && route.sends) delete route.sends[command.busId];
+	}
+}
+
+function updateMixerRoute(project, command) {
+	const track = requireTrack(project, command.trackId);
+	if (track.type !== 'audio') throw new RangeError('Only audio tracks can be routed through the mixer.');
+	const mixer = ensureMixer(project);
+	const current = mixer.routes[track.id] || { groupId: null, sends: {} };
+	const changes = command.changes || {};
+	const allowed = new Set(['groupId', 'sends']);
+	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer route field cannot be updated: ${key}.`);
+	let groupId = Object.hasOwn(changes, 'groupId') ? changes.groupId : current.groupId;
+	if (groupId === '') groupId = null;
+	if (groupId != null) requireMixerBus(project, 'group', groupId);
+	const sends = { ...(current.sends || {}) };
+	if (Object.hasOwn(changes, 'sends')) {
+		if (!changes.sends || typeof changes.sends !== 'object' || Array.isArray(changes.sends)) throw new TypeError('Mixer route sends must be an object.');
+		for (const [sendId, requestedGain] of Object.entries(changes.sends)) {
+			requireMixerBus(project, 'send', sendId);
+			if (requestedGain == null) delete sends[sendId];
+			else {
+				const gain = Number(requestedGain);
+				if (!Number.isFinite(gain) || gain < 0 || gain > 4) throw new RangeError('Mixer send gain must be between 0 and 4.');
+				sends[sendId] = gain;
+			}
+		}
+	}
+	mixer.routes[track.id] = { groupId, sends };
 }
 
 function updateMetadata(project, changes = {}) {
@@ -1123,11 +1231,19 @@ function reorderEffect(project, command) {
 function getRack(project, command) {
 	if (command.scope === 'master') return project.master.effects;
 	if (command.scope === 'track') return requireTrack(project, command.trackId).effects;
-	throw new RangeError('Effect scope must be track or master.');
+	if (command.scope === 'group' || command.scope === 'send') {
+		return requireMixerBus(project, command.scope, command.busId || command.trackId).effects;
+	}
+	throw new RangeError('Effect scope must be track, group, send, or master.');
 }
 
 function allEffects(project) {
-	return [...project.master.effects, ...project.tracks.flatMap((track) => track.effects || [])];
+	return [
+		...project.master.effects,
+		...project.tracks.flatMap((track) => track.effects || []),
+		...(project.mixer?.groups || []).flatMap((bus) => bus.effects || []),
+		...(project.mixer?.sends || []).flatMap((bus) => bus.effects || []),
+	];
 }
 
 function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id) {

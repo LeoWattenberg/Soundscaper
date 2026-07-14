@@ -396,6 +396,38 @@ test('effect racks validate their core studio parameters and track arming is exc
 	assert.deepEqual(project.tracks.map((track) => track.armed), [false, true]);
 });
 
+test('mixer group and send buses persist validated routing and clean up removed buses', () => {
+	let project = createFixture();
+	project = apply(project, {
+		type: 'mixer/bus-add', busType: 'group', bus: { id: 'group-vocals', name: 'Vocals', gain: 0.8 },
+	});
+	project = apply(project, {
+		type: 'mixer/bus-add', busType: 'send', bus: { id: 'send-reverb', name: 'Reverb' },
+	});
+	project = apply(project, {
+		type: 'mixer/route-update', trackId: 'track-1', changes: {
+			groupId: 'group-vocals', sends: { 'send-reverb': 0.25 },
+		},
+	});
+	project = apply(project, {
+		type: 'effect/add', scope: 'send', busId: 'send-reverb', effect: createEffect('reverb', { id: 'send-reverb-effect' }),
+	});
+	assert.deepEqual(project.mixer.routes['track-1'], {
+		groupId: 'group-vocals', sends: { 'send-reverb': 0.25 },
+	});
+	assert.equal(project.mixer.groups[0].gain, 0.8);
+	assert.equal(project.mixer.sends[0].effects[0].type, 'reverb');
+	assert.equal(validateAudioEditorProject(project), true);
+	assert.throws(() => apply(project, {
+		type: 'mixer/route-update', trackId: 'track-2', changes: { groupId: 'missing' },
+	}), /Unknown group bus/);
+
+	project = apply(project, { type: 'mixer/bus-remove', busType: 'group', busId: 'group-vocals' });
+	project = apply(project, { type: 'mixer/bus-remove', busType: 'send', busId: 'send-reverb' });
+	assert.deepEqual(project.mixer.routes['track-1'], { groupId: null, sends: {} });
+	assert.equal(validateAudioEditorProject(project), true);
+});
+
 test('session history caps snapshots, clears redo on edits, and keeps revisions monotonic', () => {
 	let history = createEditorHistory(createFixture());
 	for (let index = 0; index < AUDIO_EDITOR_HISTORY_LIMIT + 5; index += 1) {

@@ -638,7 +638,11 @@ export class WebAudioEditorEngine {
 		if (!this.graph || !this.meterListeners.size) return;
 		const tracks = {};
 		for (const [trackId, analyser] of this.graph.trackAnalysers) tracks[trackId] = readMeter(analyser);
-		const meter = { master: readMeter(this.graph.masterAnalyser), tracks };
+		const groups = {};
+		const sends = {};
+		for (const [busId, analyser] of this.graph.groupAnalysers || []) groups[busId] = readMeter(analyser);
+		for (const [busId, analyser] of this.graph.sendAnalysers || []) sends[busId] = readMeter(analyser);
+		const meter = { master: readMeter(this.graph.masterAnalyser), tracks, groups, sends };
 		for (const listener of this.meterListeners) listener(meter);
 	}
 
@@ -672,7 +676,11 @@ export function projectGraphLatencyFrames(project, {
 	const masterLatency = includeMaster
 		? effectRackLatencyFrames(project?.master?.effects || [], sampleRate)
 		: 0;
-	return trackLatency + masterLatency;
+	const busLatency = Math.max(0, ...[
+		...(project?.mixer?.groups || []),
+		...(project?.mixer?.sends || []),
+	].map((bus) => effectRackLatencyFrames(bus.effects || [], sampleRate)));
+	return trackLatency + busLatency + masterLatency;
 }
 
 /** Build track/master nodes and return the per-track clip inputs. */
@@ -687,7 +695,14 @@ export function buildProjectGraph(context, destination, project, {
 	const sources = new Set();
 	const trackInputs = new Map();
 	const trackAnalysers = new Map();
+	const groupAnalysers = new Map();
+	const sendAnalysers = new Map();
 	const tracks = Array.isArray(project?.tracks) ? project.tracks.filter((track) => track.type !== 'label') : [];
+	const mixer = project?.mixer || {};
+	const groups = Array.isArray(mixer.groups) ? mixer.groups : [];
+	const sends = Array.isArray(mixer.sends) ? mixer.sends : [];
+	const groupById = new Map(groups.map((bus) => [String(bus.id), bus]));
+	const sendById = new Map(sends.map((bus) => [String(bus.id), bus]));
 	// Every dry input exists before a rack is built so Auto Duck can route any
 	// other track into its second AudioWorklet input without graph-order races.
 	for (const [index, track] of tracks.entries()) {
@@ -701,7 +716,26 @@ export function buildProjectGraph(context, destination, project, {
 		effectRackLatencyFrames(track.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE),
 	), 0);
 	const masterInput = addNode(nodes, context.createGain());
-	const anySolo = respectMuteSolo && tracks.some((track) => track.solo);
+	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
+	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
+	const busLatencies = new Map([...groups, ...sends].map((bus) => [
+		String(bus.id), effectRackLatencyFrames(bus.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE),
+	]));
+	const maximumBusLatency = Math.max(0, ...busLatencies.values());
+	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
+	const connectCompensated = (output, latencyFrames = 0) => {
+		const compensationFrames = maximumBusLatency - latencyFrames;
+		if (compensationFrames <= 0) {
+			connect(output, masterInput);
+			return;
+		}
+		if (typeof context.createDelay !== 'function') throw new Error('This browser cannot compensate live effect latency between mixer buses.');
+		const compensationSeconds = compensationFrames / (context.sampleRate || DEFAULT_SAMPLE_RATE);
+		const delay = addNode(nodes, context.createDelay(Math.max(1, compensationSeconds)));
+		setParam(delay.delayTime, compensationSeconds, context.currentTime);
+		connect(output, delay);
+		connect(delay, masterInput);
+	};
 	for (const [index, track] of tracks.entries()) {
 		const trackId = String(track.id ?? index);
 		if (onlyTrackId != null && String(onlyTrackId) !== trackId) continue;
@@ -735,12 +769,50 @@ export function buildProjectGraph(context, destination, project, {
 			output = analyser;
 			trackAnalysers.set(trackId, analyser);
 		}
-		const mute = addNode(nodes, context.createGain());
-		const audible = !respectMuteSolo || (anySolo ? Boolean(track.solo) : !track.mute);
-		setParam(mute.gain, audible ? 1 : 0, context.currentTime);
-		connect(output, mute);
-		connect(mute, masterInput);
+		const route = mixer.routes?.[trackId] || {};
+		const group = route.groupId == null ? null : groupById.get(String(route.groupId));
+		const trackAudible = !respectMuteSolo || (!track.mute && (!anySolo || track.solo || group?.solo));
+		const directGate = addNode(nodes, context.createGain());
+		setParam(directGate.gain, trackAudible ? 1 : 0, context.currentTime);
+		connect(output, directGate);
+		if (group) connect(directGate, groupInputs.get(String(group.id)));
+		else connectCompensated(directGate, 0);
+		for (const [sendId, requestedGain] of Object.entries(route.sends || {})) {
+			const send = sendById.get(String(sendId));
+			if (!send || !(Number(requestedGain) > 0)) continue;
+			const sendAudible = !respectMuteSolo || (!track.mute && (!anySolo || track.solo || send.solo));
+			const sendGain = addNode(nodes, context.createGain());
+			setParam(sendGain.gain, sendAudible ? finite(requestedGain, 0) : 0, context.currentTime);
+			connect(output, sendGain);
+			connect(sendGain, sendInputs.get(String(send.id)));
+		}
 	}
+
+	const processBus = (bus, input, analysers) => {
+		let output = applyEffectRack(context, input, bus.effects || [], nodes, { sidechainInputs: trackInputs });
+		const gain = addNode(nodes, context.createGain());
+		setParam(gain.gain, finite(bus.gain, 1), context.currentTime);
+		connect(output, gain);
+		output = gain;
+		if (typeof context.createStereoPanner === 'function') {
+			const panner = addNode(nodes, context.createStereoPanner());
+			setParam(panner.pan, clamp(finite(bus.pan, 0), -1, 1), context.currentTime);
+			connect(output, panner);
+			output = panner;
+		}
+		const analyser = metering ? createAnalyser(context, nodes) : null;
+		if (analyser) {
+			connect(output, analyser);
+			output = analyser;
+			analysers.set(String(bus.id), analyser);
+		}
+		const mute = addNode(nodes, context.createGain());
+		setParam(mute.gain, !respectMuteSolo || !bus.mute ? 1 : 0, context.currentTime);
+		connect(output, mute);
+		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0);
+	};
+	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers);
+	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers);
 
 	const masterEffects = includeMaster ? project?.master?.effects || [] : [];
 	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
@@ -751,11 +823,24 @@ export function buildProjectGraph(context, destination, project, {
 	const masterGain = addNode(nodes, context.createGain());
 	setParam(masterGain.gain, includeMaster ? finite(project?.master?.gain, 1) : 1, context.currentTime);
 	connect(masterOutput, masterGain);
+	let finalOutput = masterGain;
+	if (includeMaster && finite(project?.master?.pan, 0) !== 0 && typeof context.createStereoPanner === 'function') {
+		const masterPanner = addNode(nodes, context.createStereoPanner());
+		setParam(masterPanner.pan, clamp(finite(project?.master?.pan, 0), -1, 1), context.currentTime);
+		connect(finalOutput, masterPanner);
+		finalOutput = masterPanner;
+	}
+	if (includeMaster && project?.master?.mute) {
+		const masterMute = addNode(nodes, context.createGain());
+		setParam(masterMute.gain, 0, context.currentTime);
+		connect(finalOutput, masterMute);
+		finalOutput = masterMute;
+	}
 	const masterAnalyser = metering ? createAnalyser(context, nodes) : null;
 	if (masterAnalyser) {
-		connect(masterGain, masterAnalyser);
+		connect(finalOutput, masterAnalyser);
 		connect(masterAnalyser, destination);
-	} else connect(masterGain, destination);
+	} else connect(finalOutput, destination);
 
 	return {
 		nodes,
@@ -763,8 +848,10 @@ export function buildProjectGraph(context, destination, project, {
 		abortController: new AbortController(),
 		trackInputs,
 		trackAnalysers,
+		groupAnalysers,
+		sendAnalysers,
 		masterAnalyser,
-		latencyFrames: maximumTrackLatency + masterLatency,
+		latencyFrames: maximumTrackLatency + maximumBusLatency + masterLatency,
 	};
 }
 

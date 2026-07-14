@@ -711,6 +711,22 @@ test('project graph meters pre-mute tracks and applies master processing', () =>
 	assert.equal(dryGraph.trackInputs.size, 1);
 });
 
+test('project graph builds metered group and send bus paths', () => {
+	const context = new MockAudioContext();
+	const project = createProject();
+	project.mixer = {
+		groups: [{ id: 'group-1', name: 'Group 1', gain: 0.8, pan: 0, mute: false, solo: false, effects: [] }],
+		sends: [{ id: 'send-1', name: 'Send 1', gain: 0.5, pan: 0.25, mute: false, solo: false, effects: [] }],
+		routes: { 'track-1': { groupId: 'group-1', sends: { 'send-1': 0.3 } } },
+	};
+	const graph = buildProjectGraph(context, context.destination, project, { metering: true });
+	assert.deepEqual([...graph.groupAnalysers.keys()], ['group-1']);
+	assert.deepEqual([...graph.sendAnalysers.keys()], ['send-1']);
+	assert.equal(graph.trackAnalysers.size, 1);
+	assert.ok(context.nodeKinds.filter((kind) => kind === 'analyser').length >= 4);
+	assert.ok(context.nodeKinds.includes('stereo-panner'));
+});
+
 test('engine loads and inserts Audacity worklets in track and master racks without bypassing them', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;

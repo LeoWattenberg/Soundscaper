@@ -86,7 +86,7 @@ const DEFAULT_PANELS = Object.freeze({
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
-	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 240 }),
+	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 	spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
 });
 
@@ -104,7 +104,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
-			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 240 }),
+			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 			spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
 		}),
 	}),
@@ -119,7 +119,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		panels: Object.freeze({
 			...DEFAULT_PANELS,
 			effects: Object.freeze({ visible: true, dock: 'right', order: 0, size: 360 }),
-			mixer: Object.freeze({ visible: true, dock: 'bottom', order: 0, size: 240 }),
+			mixer: Object.freeze({ visible: true, dock: 'bottom', order: 0, size: 460 }),
 		}),
 	}),
 	modern: Object.freeze({

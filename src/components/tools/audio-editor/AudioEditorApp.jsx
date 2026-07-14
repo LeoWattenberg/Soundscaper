@@ -10,6 +10,7 @@ import {
 	LabeledCheckbox,
 	LabeledRadio,
 	MasterMeter,
+	MixerPanel,
 	NumberStepper,
 	PreferencePanel,
 	PreferenceThumbnail,
@@ -671,7 +672,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
-					onOpenEffects={() => openEffects(snapshot.selectedTrackId)}
+					onOpenEffects={openEffects}
 				/>
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
 				<main className="kw-audio-editor__canvas">
@@ -704,7 +705,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
-					onOpenEffects={() => openEffects(snapshot.selectedTrackId)}
+					onOpenEffects={openEffects}
 				/>
 				</div>}
 				<WorkspacePanelDock
@@ -713,7 +714,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
-					onOpenEffects={() => openEffects(snapshot.selectedTrackId)}
+					onOpenEffects={openEffects}
 				/>
 				<WorkspacePanelDock
 					dock="floating"
@@ -721,7 +722,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					snapshot={snapshot}
 					copy={copy}
 					run={run}
-					onOpenEffects={() => openEffects(snapshot.selectedTrackId)}
+					onOpenEffects={openEffects}
 				/>
 
 				{effectsOverlay && effectsPosition && (
@@ -1491,24 +1492,13 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 		return (
 			<>
 				<p>{selectedTrack ? selectedTrack.name : copy.noAudioTrackSelected}</p>
-				<Button disabled={!selectedTrack} onClick={onOpenEffects}>{copy.trackMasterEffects}</Button>
+				<Button disabled={!selectedTrack} onClick={() => selectedTrack && onOpenEffects(selectedTrack.id)}>{copy.trackMasterEffects}</Button>
 				<Button variant="secondary" disabled={!selectedTrack} onClick={() => run(() => controller.actions.effects.applySelection())}>{copy.applyAudacityEffect}</Button>
 			</>
 		);
 	}
 	if (panelId === 'mixer') {
-		const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
-		return tracks.length ? (
-			<div className="kw-audio-editor__mixer-list">
-				{tracks.map((track) => (
-					<fieldset key={track.id} disabled={snapshot.readOnly}>
-						<legend>{track.name}</legend>
-						<label><span>{copy.gain}</span><input type="range" min="0" max="2" step="0.01" value={track.gain} onChange={(event) => run(() => controller.actions.track.update(track.id, { gain: Number(event.currentTarget.value) }))} /></label>
-						<label><span>{copy.pan}</span><input type="range" min="-1" max="1" step="0.01" value={track.pan} onChange={(event) => run(() => controller.actions.track.update(track.id, { pan: Number(event.currentTarget.value) }))} /></label>
-					</fieldset>
-				))}
-			</div>
-		) : <p className="kw-audio-editor__panel-empty">{copy.noAudioTrackSelected}</p>;
+		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} onOpenEffects={onOpenEffects} />;
 	}
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label') || null;
 	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
@@ -1567,6 +1557,132 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, onOpe
 			</label>
 		</div>
 	);
+}
+
+function AudioEditorMixerPanel({ controller, snapshot, copy, run, onOpenEffects }) {
+	const telemetry = useAudioEditorTelemetry(controller);
+	const project = snapshot.project;
+	const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
+	const groups = project?.mixer?.groups || [];
+	const sends = project?.mixer?.sends || [];
+	const routes = project?.mixer?.routes || {};
+	const effectLabels = new Map((snapshot.effects?.rackTypes || []).map(({ type, label }) => [type, label]));
+	const effectProps = (effects, scope, targetId) => (effects || []).map((effect) => ({
+		name: effectLabels.get(effect.type) || effect.type,
+		enabled: effect.enabled !== false && effect.bypassed !== true,
+		onToggle: () => run(() => controller.actions.effects.update(scope, targetId, effect.id, { enabled: effect.enabled === false })),
+		onRemoveEffect: () => run(() => controller.actions.effects.remove(scope, targetId, effect.id)),
+		...(scope === 'track' ? { onClick: () => onOpenEffects(targetId) } : {}),
+	}));
+	const channelProps = (channel, type) => {
+		const isTrack = type === 'track';
+		const isMaster = type === 'master';
+		const targetId = channel.id || 'master';
+		const scope = isTrack ? 'track' : type;
+		const meter = isMaster ? telemetry.meters?.master : telemetry.meters?.[`${type}s`]?.[targetId];
+		const update = (changes) => {
+			if (isTrack) return controller.actions.track.update(targetId, changes);
+			if (isMaster) return controller.actions.mixer.updateMaster(changes);
+			return controller.actions.mixer.updateBus(type, targetId, changes);
+		};
+		return {
+			className: `kw-audio-editor__mixer-channel kw-audio-editor__mixer-channel--${type}`,
+			trackName: isMaster ? copy.master : channel.name,
+			trackColor: mixerChannelColor(channel.color, type),
+			variant: isTrack && channel.channelCount === 1 ? 'mono' : 'stereo',
+			volume: linearMixerGainToDb(channel.gain),
+			pan: Math.round((channel.pan || 0) * 100),
+			muted: Boolean(channel.mute),
+			soloed: Boolean(channel.solo),
+			meterLeft: mixerMeterPercent(meter),
+			meterRight: mixerMeterPercent(meter),
+			effects: effectProps(channel.effects, scope, targetId),
+			onVolumeChange: (value) => run(() => update({ gain: mixerDbToLinearGain(value) })),
+			onPanChange: (value) => run(() => update({ pan: Math.max(-1, Math.min(1, Number(value) / 100)) })),
+			onMuteToggle: () => run(() => update({ mute: !channel.mute })),
+			onSoloToggle: () => run(() => update({ solo: !channel.solo })),
+			...(isTrack ? { onAddEffect: () => onOpenEffects(targetId) } : {}),
+		};
+	};
+	const channels = [
+		...tracks.map((track) => ({ id: track.id, channelProps: channelProps(track, 'track') })),
+		...groups.map((bus) => ({ id: bus.id, channelProps: channelProps(bus, 'group') })),
+		...sends.map((bus) => ({ id: bus.id, channelProps: channelProps(bus, 'send') })),
+	];
+	const addBus = (type) => run(() => controller.actions.mixer.addBus(type, {
+		name: `${type === 'group' ? copy.groupBus : copy.sendBus} ${(type === 'group' ? groups : sends).length + 1}`,
+	}));
+	return (
+		<div className="kw-audio-editor__mixer" data-mixer-panel>
+			<div className="kw-audio-editor__mixer-toolbar">
+				<strong>{copy.mixerRouting}</strong>
+				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
+				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
+			</div>
+			{(groups.length > 0 || sends.length > 0) && <div className="kw-audio-editor__mixer-routing" role="region" aria-label={copy.mixerRouting}>
+				<table>
+					<thead><tr><th>{copy.track}</th><th>{copy.output}</th>{sends.map((bus) => <th key={bus.id}>{bus.name}</th>)}</tr></thead>
+					<tbody>{tracks.map((track) => {
+						const route = routes[track.id] || { groupId: null, sends: {} };
+						return <tr key={track.id}>
+							<th scope="row">{track.name}</th>
+							<td><select aria-label={`${copy.output}: ${track.name}`} disabled={snapshot.readOnly} value={route.groupId || ''} onChange={(event) => run(() => controller.actions.mixer.setRoute(track.id, { groupId: event.currentTarget.value || null }))}>
+								<option value="">{copy.master}</option>
+								{groups.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
+							</select></td>
+							{sends.map((bus) => <td key={bus.id}><label>
+								<span className="kw-audio-editor-sr-only">{copy.sendLevel}: {track.name} → {bus.name}</span>
+								<input type="range" min="-61" max="12" step="1" disabled={snapshot.readOnly} value={linearMixerGainToDb(route.sends?.[bus.id] || 0, -61)} onChange={(event) => run(() => controller.actions.mixer.setSend(track.id, bus.id, mixerDbToLinearGain(Number(event.currentTarget.value), -61)))} />
+							</label></td>)}
+						</tr>;
+					})}</tbody>
+				</table>
+			</div>}
+			{[...groups.map((bus) => ['group', bus]), ...sends.map((bus) => ['send', bus])].length > 0 && <div className="kw-audio-editor__mixer-buses">
+				{[...groups.map((bus) => ['group', bus]), ...sends.map((bus) => ['send', bus])].map(([type, bus]) => <div key={bus.id} data-mixer-bus={type}>
+					<span className={`kw-audio-editor__mixer-bus-kind kw-audio-editor__mixer-bus-kind--${type}`}>{type === 'group' ? copy.groupBus : copy.sendBus}</span>
+					<strong>{bus.name}</strong>
+					<select aria-label={`${copy.addEffect}: ${bus.name}`} disabled={snapshot.readOnly} value="" onChange={(event) => {
+						const effectType = event.currentTarget.value;
+						if (effectType) run(() => controller.actions.effects.add({ scope: type, busId: bus.id, type: effectType }));
+					}}>
+						<option value="">{copy.addEffect}</option>
+						{(snapshot.effects?.rackTypes || []).map((effect) => <option key={effect.type} value={effect.type}>{effect.label}</option>)}
+					</select>
+					<button type="button" aria-label={`${copy.removeBus}: ${bus.name}`} disabled={snapshot.readOnly} onClick={() => run(() => controller.actions.mixer.removeBus(type, bus.id))}>×</button>
+				</div>)}
+			</div>}
+			{tracks.length || groups.length || sends.length ? <MixerPanel
+				hideHeader
+				className="kw-audio-editor__audacity-mixer"
+				channels={channels}
+				masterChannel={channelProps(project.master || {}, 'master')}
+			/> : <p className="kw-audio-editor__panel-empty">{copy.noAudioTrackSelected}</p>}
+		</div>
+	);
+}
+
+function linearMixerGainToDb(gain, floor = -60) {
+	const value = Number(gain);
+	return value > 0 ? Math.max(floor, Math.min(12, 20 * Math.log10(value))) : floor;
+}
+
+function mixerDbToLinearGain(db, offValue = Number.NEGATIVE_INFINITY) {
+	const value = Number(db);
+	return value <= offValue ? 0 : Math.min(4, 10 ** (value / 20));
+}
+
+function mixerMeterPercent(meter) {
+	const db = Number(meter?.dbfs);
+	return Number.isFinite(db) ? Math.max(0, Math.min(100, (db + 60) / 60 * 100)) : 0;
+}
+
+function mixerChannelColor(color, type) {
+	if (typeof color === 'string' && color.startsWith('#')) return color;
+	if (type === 'group') return '#4f87c8';
+	if (type === 'send') return '#8c6fd1';
+	if (type === 'master') return '#56606f';
+	return { red: '#c95d68', orange: '#ce7a43', yellow: '#b69a3f', green: '#4d9669', blue: '#4f87c8', purple: '#8c6fd1' }[color] || '#4f87c8';
 }
 
 function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run }) {

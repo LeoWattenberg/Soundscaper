@@ -632,6 +632,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 				duplicate: (trackId) => duplicateTrack(findTrack(project, trackId)),
 				remove: (trackId) => commit({ type: 'track/remove', trackId }),
 			}),
+			mixer: Object.freeze({
+				addBus: (busType, options = {}) => {
+					const id = options.id || createStableId(`${busType}-bus`);
+					commit({ type: 'mixer/bus-add', busType, bus: { ...options, id } });
+					return id;
+				},
+				updateBus: (busType, busId, changes) => commit({ type: 'mixer/bus-update', busType, busId, changes }),
+				removeBus: (busType, busId) => commit({ type: 'mixer/bus-remove', busType, busId }),
+				setRoute: (trackId, changes) => commit({ type: 'mixer/route-update', trackId, changes }),
+				setSend: (trackId, sendId, gain) => commit({
+					type: 'mixer/route-update', trackId, changes: { sends: { [sendId]: gain } },
+				}),
+				updateMaster: (changes) => commit({ type: 'master/update', changes }),
+			}),
 			generators: Object.freeze({
 				generate: generateSignal,
 			}),
@@ -690,9 +704,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			effects: Object.freeze({
 				add: addEffect,
-				update: (scope, trackId, effectId, changes) => commit({ type: 'effect/update', scope, trackId, effectId, changes }),
-				remove: (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, effectId }),
-				reorder: (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, effectId, toIndex }),
+				update: (scope, trackId, effectId, changes) => commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes }),
+				remove: (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId }),
+				reorder: (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex }),
 				setMasterGain: (gain) => commit({ type: 'master/update', changes: { gain: Math.max(0, Math.min(4, Number(gain))) } }),
 				setSelectionType: setAudacityEffectType,
 				setSelectionParams: setAudacityEffectParamsFromController,
@@ -3348,9 +3362,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function addEffect(request = {}) {
 		if (editingBlocked()) return;
 		if (!request.type) throw new TypeError(copy.effectTypeRequired);
-		const scope = request.scope === 'master' ? 'master' : 'track';
-		const trackId = request.trackId ?? state.selectedTrackId;
+		const scope = ['master', 'group', 'send'].includes(request.scope) ? request.scope : 'track';
+		const trackId = request.trackId ?? request.busId ?? state.selectedTrackId;
 		if (scope === 'track' && !trackId) return handleError(new Error(copy.selectTrackFirst));
+		if ((scope === 'group' || scope === 'send') && !trackId) throw new TypeError('A mixer bus ID is required.');
 		const type = request.type;
 		if (!audioEffectTypes().includes(type)) throw new Error(copy.effectUnsupported);
 		const effectOptions = { ...(request.options || {}) };
@@ -3373,7 +3388,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (!effectOptions.context.noiseProfile) effectOptions.enabled = false;
 		}
 		const effect = createEffect(type, effectOptions);
-		commit({ type: 'effect/add', scope, trackId, effect });
+		commit({ type: 'effect/add', scope, trackId, busId: trackId, effect });
 		if (type === 'audacity-noise-reduction' && !effectOptions.context.noiseProfile) {
 			setStatus(copy.noiseReductionAddedDisabled);
 		}
