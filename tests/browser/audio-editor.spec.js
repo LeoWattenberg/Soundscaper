@@ -1138,6 +1138,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseDropdown(page, page.getByRole('dialog', { name: 'Choose an effect' }).locator('[data-effect-type]'), 'Bass and Treble');
 		await page.getByRole('dialog', { name: 'Choose an effect' }).getByRole('button', { name: 'Add effect' }).click();
 		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Bass and Treble' })).toHaveCount(1);
+		await expect(effectsPanel.locator('[data-effect-param="bassDb"]').getByRole('slider', { name: /Bass \(dB\):/ })).toBeVisible();
 		await commitInput(effectsPanel.locator('[data-effect-param="bassDb"] input'), '7.5');
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });

@@ -4,6 +4,7 @@ import {
 	DialogHeader,
 	Dropdown,
 	EffectsPanel,
+	Knob,
 	LabeledCheckbox,
 	ProgressBar,
 	TextInput,
@@ -715,9 +716,9 @@ function EffectParameterEditor({
 			return (
 				<div className="audio-editor-effect-parameters" data-effect-parameters>
 					{(effect.params.bands || []).flatMap((band, index) => [
-						<ParameterNumber key={`${index}-frequency`} label={`B${index + 1} Hz`} value={band.frequency} range={[10, 24_000]} copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />,
-						<ParameterNumber key={`${index}-gain`} label={`B${index + 1} dB`} value={band.gain} range={[-24, 24]} copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />,
-						<ParameterNumber key={`${index}-q`} label={`B${index + 1} Q`} value={band.q} range={[0.1, 30]} copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />,
+						<ParameterNumber key={`${index}-frequency`} label={`B${index + 1} Hz`} value={band.frequency} range={[10, 24_000]} step={1} copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />,
+						<ParameterNumber key={`${index}-gain`} label={`B${index + 1} dB`} value={band.gain} range={[-24, 24]} step={0.1} copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />,
+						<ParameterNumber key={`${index}-q`} label={`B${index + 1} Q`} value={band.q} range={[0.1, 30]} step={0.1} copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />,
 					])}
 					{error && <p role="alert">{error}</p>}
 				</div>
@@ -817,6 +818,7 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 						label={`${frequency} Hz`}
 						value={value?.[index] ?? 0}
 						range={[descriptor.minimum, descriptor.maximum]}
+						step={descriptor.step}
 						copy={copy}
 						disabled={disabled}
 						hook={`${name}.${index}`}
@@ -836,6 +838,7 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 			label={`${label}${descriptor.unit ? ` (${descriptor.unit})` : ''}`}
 			value={value}
 			range={range}
+			step={descriptor.step}
 			copy={copy}
 			disabled={disabled}
 			hook={name}
@@ -844,26 +847,45 @@ function AudacityParameter({ name, effectType, descriptor, value, locale, copy, 
 	);
 }
 
-function ParameterNumber({ label, value, range, copy, disabled, hook, onCommit }) {
+function ParameterNumber({ label, value, range, step, copy, disabled, hook, onCommit }) {
+	const knobRange = Array.isArray(range) && range.length === 2 && range.every(Number.isFinite) ? range : null;
+	const knobStep = Number.isFinite(step) && step > 0
+		? step
+		: Number.isInteger(value) && knobRange?.every(Number.isInteger) ? 1 : 0.01;
+	const commit = (raw) => {
+		const next = Number(raw);
+		if (!Number.isFinite(next) || (range && (next < range[0] || next > range[1]))) {
+			throw new RangeError(copy.parameterRangeError
+				.replace('{label}', label)
+				.replace('{minimum}', String(range?.[0] ?? '−∞'))
+				.replace('{maximum}', String(range?.[1] ?? '∞')));
+		}
+		onCommit(next);
+	};
 	return (
-		<CommitField
-			label={label}
-			name={hook}
-			value={String(value ?? '')}
-			type="number"
-			disabled={disabled}
-			hookName="effect-param"
-			onCommit={(_name, raw) => {
-				const next = Number(raw);
-				if (!Number.isFinite(next) || (range && (next < range[0] || next > range[1]))) {
-					throw new RangeError(copy.parameterRangeError
-						.replace('{label}', label)
-						.replace('{minimum}', String(range?.[0] ?? '−∞'))
-						.replace('{maximum}', String(range?.[1] ?? '∞')));
-				}
-				onCommit(next);
-			}}
-		/>
+		<div className="audio-editor-effect-number" data-effect-param={hook} role="group" aria-label={label}>
+			<span>{label}</span>
+			{knobRange && <Knob
+				value={Number(value) || 0}
+				min={knobRange[0]}
+				max={knobRange[1]}
+				step={knobStep}
+				label={label}
+				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
+				disabled={disabled}
+				onChange={onCommit}
+			/>}
+			<CommitField
+				label={label}
+				name={hook}
+				value={String(value ?? '')}
+				type="number"
+				disabled={disabled}
+				hookName="effect-number-input"
+				visuallyHiddenLabel
+				onCommit={(_name, raw) => commit(raw)}
+			/>
+		</div>
 	);
 }
 
@@ -1317,7 +1339,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 	);
 }
 
-function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', onCommit }) {
+function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit }) {
 	const [draft, setDraft] = useState(String(value ?? ''));
 	const [error, setError] = useState(false);
 	useEffect(() => {
@@ -1336,7 +1358,7 @@ function CommitField({ label, name, value, type = 'text', disabled, readOnly, mu
 	const hook = { [`data-${hookName}`]: name };
 	return (
 		<label className="audio-editor-field" {...hook}>
-			<span>{label}</span>
+			<span className={visuallyHiddenLabel ? 'kw-audio-editor-sr-only' : undefined}>{label}</span>
 			<TextInput
 				value={draft}
 				type={type}
