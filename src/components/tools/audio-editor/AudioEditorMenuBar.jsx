@@ -199,7 +199,11 @@ export default function AudioEditorMenuBar({
 					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--dark" src={applicationMarkDarkSrc} alt="" aria-hidden="true" width="16" height="16" />
 					<span className="application-header__app-name">{projectName} — {appName}</span>
 				</div>
-				<button type="button" className="kw-audio-editor__fullscreen" onClick={onFullscreen}>{copy.fullscreen}</button>
+				<button type="button" className="kw-audio-editor__fullscreen" aria-label={copy.fullscreen} title={copy.fullscreen} onClick={onFullscreen}>
+					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+						<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />
+					</svg>
+				</button>
 				<span className="kw-audio-editor-sr-only" data-save-state data-state={saveState}>{saveText}</span>
 			</div>
 

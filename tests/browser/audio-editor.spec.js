@@ -191,7 +191,10 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('expands the editor to the full viewport from the application header', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await editor.getByRole('button', { name: 'Fullscreen', exact: true }).click();
+		const fullscreen = editor.getByRole('button', { name: 'Fullscreen', exact: true });
+		await expect(fullscreen).toHaveText('');
+		await expect(fullscreen.locator('svg')).toBeVisible();
+		await fullscreen.click();
 		await expect(editor).toHaveClass(/kw-audio-editor--viewport-fullscreen/);
 		expect(await editor.evaluate((element) => [element.clientWidth, element.clientHeight, innerWidth, innerHeight])).toEqual([
 			page.viewportSize().width,
@@ -202,7 +205,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const toolbar = editor.getByRole('toolbar', { name: 'Tool toolbar' });
 		await expect(toolbar).toBeVisible();
 		expect((await toolbar.boundingBox()).y).toBeGreaterThanOrEqual(56);
-		await editor.getByRole('button', { name: 'Fullscreen', exact: true }).click();
+		await fullscreen.click();
 		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/);
 	});
 

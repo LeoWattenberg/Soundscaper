@@ -258,9 +258,12 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__fullscreen {
+	display: grid;
+	width: 32px;
 	height: 100%;
+	place-items: center;
 	margin-right: 6px;
-	padding-inline: 10px;
+	padding: 0;
 	color: var(--header-text);
 	background: transparent;
 	border: 0;
@@ -269,6 +272,16 @@
 	font-size: 11px;
 	font-weight: 700;
 	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__fullscreen svg {
+	width: 16px;
+	height: 16px;
+	fill: none;
+	stroke: currentcolor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1.5;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__fullscreen:hover,
