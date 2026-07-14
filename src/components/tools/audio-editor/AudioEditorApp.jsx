@@ -518,14 +518,14 @@ function AudioEditorWorkspace({ locale, copy }) {
 				saveState={snapshot.save?.state || 'saved'}
 				saveText={saveText}
 				onFullscreen={() => run(toggleFullscreen)}
-			/>
-			<ProjectTabs
-				projects={snapshot.projectTabs || snapshot.projects || []}
-				activeProjectId={project?.id}
-				copy={copy}
-				disabled={blocked}
-				onSelect={(projectId) => run(() => controller.actions.project.openById(projectId))}
-				onNew={() => run(() => controller.actions.project.create())}
+				projectTabs={<ProjectTabs
+					projects={snapshot.projectTabs || snapshot.projects || []}
+					activeProjectId={project?.id}
+					copy={copy}
+					disabled={blocked}
+					onSelect={(projectId) => run(() => controller.actions.project.openById(projectId))}
+					onNew={() => run(() => controller.actions.project.create())}
+				/>}
 			/>
 
 			<input

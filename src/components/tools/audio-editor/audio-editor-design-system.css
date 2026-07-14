@@ -48,8 +48,7 @@
 	left: 0;
 }
 
-#kw-audio-editor-design-system.kw-audio-editor--viewport-fullscreen .kw-audio-editor__project-tabs {
-	z-index: 10001;
+#kw-audio-editor-design-system.kw-audio-editor--viewport-fullscreen .kw-audio-editor__toolbars {
 	margin-top: 56px;
 }
 
@@ -112,24 +111,27 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__project-tabs {
 	display: flex;
-	align-items: end;
+	min-width: 0;
+	height: 100%;
+	align-items: center;
+	flex: 1 1 auto;
 	gap: 0.25rem;
-	min-height: 2.25rem;
-	padding: 0.3rem 0.5rem 0;
+	padding: 0 0.5rem;
 	overflow-x: auto;
-	background: var(--kw-editor-bg);
-	border-bottom: 1px solid var(--kw-editor-line);
+	background: transparent;
+	border: 0;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-tabs [role='tablist'] {
 	display: flex;
+	min-width: max-content;
 	gap: 0.2rem;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-tabs [role='tab'],
 #kw-audio-editor-design-system .kw-audio-editor__project-tab-new {
-	min-height: 1.9rem;
-	padding: 0.3rem 0.75rem;
+	min-height: 1.6rem;
+	padding: 0.2rem 0.6rem;
 	white-space: nowrap;
 	color: inherit;
 	background: transparent;
@@ -139,9 +141,8 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-tabs [role='tab'][aria-selected='true'] {
-	background: var(--kw-editor-panel);
+	background: var(--header-menu-hover);
 	border-color: var(--kw-editor-line);
-	border-bottom-color: var(--kw-editor-panel);
 	font-weight: 650;
 }
 
@@ -183,6 +184,11 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__application-header .application-header__windows-title {
 	min-width: 0;
+	flex: 0 1 auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__application-header .application-header__windows-titlebar {
+	justify-content: initial;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__application-header .application-header__app-name {
@@ -192,6 +198,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__fullscreen {
 	display: grid;
+	flex: 0 0 auto;
 	width: 32px;
 	height: 100%;
 	place-items: center;
