@@ -304,6 +304,10 @@ export default function AudioEditorTimeline({
 			Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 			{ sampleRate },
 		) * Math.sign(event.clientX - session.startX);
+		if (Math.abs(deltaFrames) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
+			run(() => controller.actions.transport.seek(frameAtClientX(event.clientX, session.lane)));
+			return;
+		}
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {
@@ -376,7 +380,7 @@ export default function AudioEditorTimeline({
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
 		if (!clipElement) {
-			if (!event.target.closest('[data-ruler-interaction]')) return;
+			if (lane.dataset.trackId) run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
 			setSelectionPreview({ startFrame, endFrame: startFrame });

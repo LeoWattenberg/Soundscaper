@@ -877,6 +877,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('moves the playhead when clicking timeline lanes and clips', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const playhead = editor.getByRole('slider', { name: 'Playhead' });
+		const emptyLane = editor.locator('.audio-editor-track-row [data-track-lane]').first();
+
+		await emptyLane.click({ position: { x: 220, y: 48 } });
+		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await editor.getByRole('button', { name: 'Stop' }).click();
+		await playhead.focus();
+		await page.keyboard.press('Home');
+
+		const clip = clipByName(editor, toneA.name);
+		await clip.click({ position: { x: 48, y: 24 } });
+		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('uses bounded crisp canvases, spectrogram projection, track menus, and mobile pinch zoom', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await page.setViewportSize({ width: 390, height: 844 });
