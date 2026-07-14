@@ -46,20 +46,42 @@ Create an R2 Standard bucket named `soundscaper-assets`. Give it the custom
 domain `assets.soundscaper.org` and public read access.
 
 FFmpeg 0.12.10 is versioned and only needs to be uploaded once. The simplest
-option is to authenticate Wrangler on a trusted local machine and run:
+option is to upload these two files in the R2 dashboard:
+
+- `node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js`
+- `node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm`
+
+Store both objects under `runtime/ffmpeg/0.12.10/`, preserving their filenames,
+then add the CORS policy in R2 → `soundscaper-assets` → Settings. The policy in
+`r2-cors.json` uses Wrangler's configuration shape; the R2 dashboard can also
+accept the equivalent JSON:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://soundscaper.org", "https://kw.media"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["Range"],
+    "ExposeHeaders": ["Content-Length", "Content-Range", "ETag"],
+    "MaxAgeSeconds": 86400
+  }
+]
+```
+
+To use the included upload script instead, create a Cloudflare API token with
+**Workers R2 Storage: Edit** for the account containing the bucket, and run it
+from a trusted shell:
 
 ```sh
-npx wrangler login
+CLOUDFLARE_ACCOUNT_ID=<account-id> \
+CLOUDFLARE_API_TOKEN=<api-token> \
 npm run deploy:runtime
 ```
 
-The script uploads `ffmpeg-core.js` and `ffmpeg-core.wasm` under
-`runtime/ffmpeg/0.12.10/` and applies `r2-cors.json`. No long-lived Cloudflare
-credential needs to be stored in GitHub or in the Pages project.
-
-Alternatively, upload those two files from
-`node_modules/@ffmpeg/core/dist/esm/` in the R2 dashboard, preserving the same
-object path, and add the CORS policy in R2 → `soundscaper-assets` → Settings.
+These credentials are only needed for that local command and do not need to be
+stored in GitHub or in the Pages project. A normal `wrangler login` OAuth token
+may not include R2 access; in that case Wrangler can misleadingly report an
+existing bucket as nonexistent.
 
 ### 2. Connect Cloudflare Pages to GitHub
 
