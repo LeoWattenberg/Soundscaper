@@ -688,25 +688,38 @@
 	z-index: 30;
 	min-width: 0;
 	flex: 0 0 auto;
-	overflow-x: auto;
-	overflow-y: hidden;
+	overflow: hidden;
 	background: var(--kw-editor-panel);
-	scrollbar-width: thin;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__selection-surface .selection-toolbar {
 	width: 100%;
-	min-width: 900px;
+	min-width: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__selection-surface .selection-toolbar__left {
+	min-width: 0;
+	flex: 1 1 auto;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__selection-surface .selection-toolbar__status {
 	width: min(320px, 24vw);
-	min-width: 150px;
+	min-width: 0;
+	flex: 1 1 150px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__selection-surface .selection-toolbar__status-text {
+#kw-audio-editor-design-system .kw-audio-editor__selection-surface :is(.selection-toolbar__status-text, .selection-toolbar__instruction) {
+	min-width: 0;
+	flex: 1 1 auto;
+	justify-content: flex-start;
+	overflow: hidden;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__selection-surface :is(.selection-toolbar__status-text, .selection-toolbar__instruction-text) {
+	display: block;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__selection-surface [aria-disabled='true'] {
