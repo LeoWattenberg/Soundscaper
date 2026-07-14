@@ -86,9 +86,11 @@ export default function AudioEditorTimeline({
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 	const sampleRate = project?.sampleRate || 48_000;
+	const recordingPreview = snapshot.recordingPreview;
 	const durationFrames = Math.max(
 		sampleRate * MINIMUM_TIMELINE_SECONDS,
 		project ? projectDurationFrames(project) : 0,
+		recordingPreview ? recordingPreview.startFrame + recordingPreview.durationFrames : 0,
 	);
 	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
@@ -754,6 +756,7 @@ export default function AudioEditorTimeline({
 								timelineView={snapshot.timeline?.view}
 								showRms={Boolean(snapshot.timeline?.showRms)}
 								clipStyle={snapshot.preferences?.appearance?.clipStyle}
+								recordingPreview={recordingPreview?.trackId === track.id ? recordingPreview : null}
 								draggingClipId={draggingClipId}
 								clipDragPreview={clipDragPreview}
 								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
@@ -1034,6 +1037,7 @@ function TrackRow({
 	timelineView,
 	showRms,
 	clipStyle,
+	recordingPreview,
 	draggingClipId,
 	clipDragPreview,
 	blocked,
@@ -1058,17 +1062,24 @@ function TrackRow({
 	const selectedClipIdSet = useMemo(() => new Set(selectedClipIds || []), [selectedClipIds]);
 	const clips = useMemo(() => {
 		const trackClips = track.clipIds.map((clipId) => clipLookup.get(clipId)).filter(Boolean);
-		if (!clipDragPreview) return trackClips;
+		const withRecordingPreview = recordingPreview?.durationFrames > 0 ? [...trackClips, {
+			id: recordingPreviewId(track.id),
+			timelineStartFrame: recordingPreview.startFrame,
+			durationFrames: recordingPreview.durationFrames,
+			sourceDurationFrames: recordingPreview.durationFrames,
+			isRecordingPreview: true,
+		}] : trackClips;
+		if (!clipDragPreview) return withRecordingPreview;
 		const draggedClip = clipLookup.get(clipDragPreview.clipId);
-		if (!draggedClip) return trackClips;
+		if (!draggedClip) return withRecordingPreview;
 		if (track.id === clipDragPreview.trackId) {
 			const previewClip = { ...draggedClip, ...clipDragPreview };
-			return trackClips.some((clip) => clip.id === draggedClip.id)
-				? trackClips.map((clip) => (clip.id === draggedClip.id ? previewClip : clip))
-				: [...trackClips, previewClip];
+			return withRecordingPreview.some((clip) => clip.id === draggedClip.id)
+				? withRecordingPreview.map((clip) => (clip.id === draggedClip.id ? previewClip : clip))
+				: [...withRecordingPreview, previewClip];
 		}
-		return trackClips.filter((clip) => clip.id !== draggedClip.id);
-	}, [clipDragPreview, clipLookup, track.clipIds, track.id]);
+		return withRecordingPreview.filter((clip) => clip.id !== draggedClip.id);
+	}, [clipDragPreview, clipLookup, recordingPreview, track.clipIds, track.id]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame,
 		viewportDurationFrames,
@@ -1077,17 +1088,19 @@ function TrackRow({
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
-	const projectedClips = projection.clips.map((clip) => toDesignClip(
-		controller,
-		project,
-		clip,
-		projection.overscanStartFrame,
-		pixelsPerSecond,
-		selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
-		sampleRate,
-		showRms,
-		displayMode === 'half-wave',
-	));
+	const projectedClips = projection.clips.map((clip) => clip.isRecordingPreview
+		? toDesignRecordingPreview(clip, recordingPreview, projection.overscanStartFrame, pixelsPerSecond, sampleRate, copy)
+		: toDesignClip(
+			controller,
+			project,
+			clip,
+			projection.overscanStartFrame,
+			pixelsPerSecond,
+			selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
+			sampleRate,
+			showRms,
+			displayMode === 'half-wave',
+		));
 	const projectedSelection = selection ? {
 		startTime: selection.startTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
 		endTime: selection.endTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
@@ -1329,7 +1342,7 @@ function TrackRow({
 						isMuted={track.mute}
 						pixelsPerSecond={pixelsPerSecond}
 						width={windowWidth}
-						spectrogramMode={displayMode === 'spectrogram'}
+						spectrogramMode={displayMode === 'spectrogram' && !recordingPreview}
 						splitView={displayMode === 'multiview'}
 						spectrogramScale={spectrogramScale}
 						timeSelection={projectedSelection}
@@ -1957,6 +1970,43 @@ function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedC
 		timelineFrame,
 		value: Math.max(-1, Math.min(1, 1 - 2 * channelY / channelHeight)),
 	};
+}
+
+function recordingPreviewId(trackId) {
+	return `recording-preview-${trackId}`;
+}
+
+function toDesignRecordingPreview(clip, preview, overscanStartFrame, pixelsPerSecond, sampleRate, copy) {
+	const output = {
+		id: clip.id,
+		name: copy.recordingLabel || copy.recording || 'Recording',
+		start: framesToSeconds(Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame), { sampleRate }),
+		duration: Math.max(
+			framesToSeconds(clip.waveformEndFrame - clip.waveformStartFrame, { sampleRate }),
+			MINIMUM_VISIBLE_CLIP_PIXELS / pixelsPerSecond,
+		),
+		selected: false,
+		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
+		fullDuration: framesToSeconds(clip.durationFrames, { sampleRate }),
+		stretchFactor: 1,
+	};
+	if (!preview?.channels?.length || !clip.isVisible) return output;
+	const waveformChannels = preview.channels.map((channel) => recordingPreviewWaveformWindow(channel, clip));
+	if (waveformChannels.length > 1) {
+		output.waveformLeft = waveformChannels[0];
+		output.waveformRight = waveformChannels[1];
+	} else {
+		output.waveform = waveformChannels[0];
+	}
+	return output;
+}
+
+function recordingPreviewWaveformWindow(channel, clip) {
+	if (!channel?.length || !clip.durationFrames) return [];
+	const pairCount = Math.max(1, Math.floor(channel.length / 2));
+	const startPair = Math.max(0, Math.min(pairCount - 1, Math.floor(clip.waveformStartFrame / clip.durationFrames * pairCount)));
+	const endPair = Math.max(startPair + 1, Math.min(pairCount, Math.ceil(clip.waveformEndFrame / clip.durationFrames * pairCount)));
+	return [...channel.slice(startPair * 2, endPair * 2)];
 }
 
 function toDesignClip(

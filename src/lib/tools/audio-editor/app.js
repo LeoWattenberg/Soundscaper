@@ -119,6 +119,9 @@ const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_SAMPLE_RATE;
 const MAX_TIMELINE_PIXELS = 16_000_000;
 const SOURCE_CHUNK_FRAMES = 65_536;
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
+const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
+const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
+const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 
 export function createAudioEditorController(_root = null, options = {}) {
 	const copy = options.copy || {};
@@ -187,6 +190,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingTrackId: null,
 		recordingSelection: null,
 		recordingResampler: null,
+		recordingPreview: null,
+		recordingPreviewLastPublishedAt: 0,
 		recordingCleanup: null,
 		recordingFinishing: false,
 		playbackCacheAbort: null,
@@ -322,6 +327,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		for (const listener of [...documentListeners]) listener();
 	}
 
+	function publishRecordingPreview() {
+		const now = globalThis.performance?.now?.() ?? Date.now();
+		if (now - state.recordingPreviewLastPublishedAt < LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS) return;
+		state.recordingPreviewLastPublishedAt = now;
+		publishDocumentSnapshot();
+	}
+
 	function publishTelemetrySnapshot() {
 		telemetrySnapshot = buildTelemetrySnapshot();
 		for (const listener of [...telemetryListeners]) listener();
@@ -357,6 +369,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			importing: state.importing,
 			recordingStarting: state.recordingStarting,
 			recording: Boolean(state.recorder),
+			recordingPreview: recordingPreviewSnapshot(state.recordingPreview),
 			processingEffect: state.audacityEffectProcessing,
 			exporting: Boolean(state.exportAbort),
 			timeline: Object.freeze({
@@ -4504,15 +4517,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const latencyFrames = Math.max(0, Math.round((automaticLatency + manualLatency) * sampleRate));
 			state.recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
 			state.recordingSourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
-				recorder = await createRecordingController({
+			state.recordingPreview = createRecordingPreview({
+				trackId: track.id,
+				startFrame: state.recordingStartFrame,
+				channelCount,
+				framesToSkip: state.recordingSourceOffsetFrames,
+			});
+			recorder = await createRecordingController({
 				context,
 				stream,
 				channelCount,
-					monitor: state.monitoring,
-					inputGain: state.recordingInputGain,
+				monitor: state.monitoring,
+				inputGain: state.recordingInputGain,
 				onChunk: async ({ channels }) => {
 					const canonicalChannels = resampler.push(channels);
 					if (canonicalChannels[0]?.length) await writer.write(canonicalChannels);
+					appendRecordingPreview(state.recordingPreview, canonicalChannels);
+					publishRecordingPreview();
 					let peak = 0;
 					for (const channel of channels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
 					const db = peak > 0 ? 20 * Math.log10(peak) : -60;
@@ -4568,6 +4589,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingWriter = null;
 			state.recordingStream = null;
 			state.recordingResampler = null;
+			state.recordingPreview = null;
+			state.recordingPreviewLastPublishedAt = 0;
 			state.recordingPaused = false;
 			throw error;
 		} finally {
@@ -4650,6 +4673,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingTrackId = null;
 			state.recordingSelection = null;
 			state.recordingResampler = null;
+			state.recordingPreview = null;
+			state.recordingPreviewLastPublishedAt = 0;
 			state.recordingPaused = false;
 			state.recordingSourceOffsetFrames = 0;
 			state.recordingFinishing = false;
@@ -5216,6 +5241,86 @@ function classifyMobile() {
 
 function normalizeLatencyOffset(value) {
 	return Math.max(-500, Math.min(500, Number(value) || 0));
+}
+
+function createRecordingPreview({ trackId, startFrame, channelCount, framesToSkip = 0 }) {
+	const channels = Math.max(1, Math.min(2, Number(channelCount) || 1));
+	return {
+		trackId,
+		startFrame: Math.max(0, Math.floor(Number(startFrame) || 0)),
+		framesToSkip: Math.max(0, Math.floor(Number(framesToSkip) || 0)),
+		frames: 0,
+		framesPerBucket: LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES,
+		bucketFrames: 0,
+		minimums: Array.from({ length: channels }, () => 1),
+		maximums: Array.from({ length: channels }, () => -1),
+		buckets: Array.from({ length: channels }, () => []),
+	};
+}
+
+function appendRecordingPreview(preview, channels) {
+	if (!preview || !Array.isArray(channels) || !channels[0]?.length) return;
+	const frameCount = Math.max(0, ...channels.map((channel) => channel?.length || 0));
+	for (let frame = 0; frame < frameCount; frame += 1) {
+		if (preview.framesToSkip > 0) {
+			preview.framesToSkip -= 1;
+			continue;
+		}
+		for (let channel = 0; channel < preview.buckets.length; channel += 1) {
+			const value = Number(channels[channel]?.[frame]) || 0;
+			preview.minimums[channel] = Math.min(preview.minimums[channel], value);
+			preview.maximums[channel] = Math.max(preview.maximums[channel], value);
+		}
+		preview.frames += 1;
+		preview.bucketFrames += 1;
+		if (preview.bucketFrames < preview.framesPerBucket) continue;
+		for (let channel = 0; channel < preview.buckets.length; channel += 1) {
+			preview.buckets[channel].push(preview.minimums[channel], preview.maximums[channel]);
+			preview.minimums[channel] = 1;
+			preview.maximums[channel] = -1;
+		}
+		preview.bucketFrames = 0;
+		compactRecordingPreview(preview);
+	}
+}
+
+function compactRecordingPreview(preview) {
+	const bucketCount = Math.floor(preview.buckets[0]?.length / 2) || 0;
+	if (bucketCount < LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS) return;
+	for (const channel of preview.buckets) {
+		const compacted = [];
+		for (let bucket = 0; bucket < channel.length; bucket += 4) {
+			if (bucket + 3 >= channel.length) {
+				compacted.push(channel[bucket], channel[bucket + 1]);
+				continue;
+			}
+			compacted.push(
+				Math.min(channel[bucket], channel[bucket + 2]),
+				Math.max(channel[bucket + 1], channel[bucket + 3]),
+			);
+		}
+		channel.splice(0, channel.length, ...compacted);
+	}
+	preview.framesPerBucket *= 2;
+}
+
+function recordingPreviewSnapshot(preview) {
+	if (!preview || preview.frames <= 0) return null;
+	const channels = preview.buckets.map((buckets, index) => {
+		const output = new Float32Array(buckets.length + (preview.bucketFrames ? 2 : 0));
+		output.set(buckets);
+		if (preview.bucketFrames) {
+			output[output.length - 2] = preview.minimums[index];
+			output[output.length - 1] = preview.maximums[index];
+		}
+		return output;
+	});
+	return Object.freeze({
+		trackId: preview.trackId,
+		startFrame: preview.startFrame,
+		durationFrames: preview.frames,
+		channels: Object.freeze(channels),
+	});
 }
 
 function normalizeProjectSampleRate(value) {

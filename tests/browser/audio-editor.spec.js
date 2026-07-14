@@ -1435,9 +1435,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		const record = editor.getByRole('button', { name: 'Record onto the active track' });
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
+		const recordingPreview = tracks.nth(1).locator('[data-clip-id^="recording-preview-"]');
+		await expect(recordingPreview).toBeVisible({ timeout: 10_000 });
+		await expect(recordingPreview.locator('canvas').first()).toBeVisible();
 		await page.waitForTimeout(350);
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 10_000 });
+		await expect(recordingPreview).toHaveCount(0);
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(tracks.nth(0).locator('[data-clip-id]')).toHaveCount(0);
 		await expect(tracks.nth(1).locator('[data-clip-id]')).toHaveCount(1);
