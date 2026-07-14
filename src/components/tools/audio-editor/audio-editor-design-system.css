@@ -1,27 +1,27 @@
 #kw-audio-editor-design-system {
-	--kw-editor-accent: var(--color-accent, #ff6900);
-	--kw-editor-accent-strong: var(--color-accent-dark, #b84b00);
-	--kw-editor-accent-soft: var(--color-accent-soft, #fff1e4);
-	--kw-editor-bg: var(--color-surface-alt, #f4f5f7);
-	--kw-editor-panel: var(--color-surface-raised, #fff);
-	--kw-editor-control: var(--color-control-surface, #fff);
-	--kw-editor-text: var(--color-ink, #241913);
-	--kw-editor-muted: var(--color-muted, #6f6258);
-	--kw-editor-line: var(--color-line, #d4d5d9);
-	--kw-editor-stage: #17191f;
-	--kw-editor-stage-raised: #22252d;
-	--kw-editor-stage-hover: #2a2e38;
-	--kw-editor-stage-line: rgba(255, 255, 255, 0.12);
-	--kw-editor-stage-grid: rgba(255, 255, 255, 0.055);
+	--kw-editor-accent: #677ce4;
+	--kw-editor-accent-strong: #4f5ab8;
+	--kw-editor-accent-soft: #ebecf8;
+	--kw-editor-bg: #f8f8f9;
+	--kw-editor-panel: #e3e3e8;
+	--kw-editor-control: #fff;
+	--kw-editor-text: #14151a;
+	--kw-editor-muted: #5b5b5f;
+	--kw-editor-line: #e9e9e9;
+	--kw-editor-stage: #252837;
+	--kw-editor-stage-raised: #ebedf0;
+	--kw-editor-stage-hover: #f2f2f7;
+	--kw-editor-stage-line: #31354a;
+	--kw-editor-stage-grid: #31354a;
 	--kw-editor-stage-text: #f4f5f9;
-	--kw-editor-stage-muted: rgba(244, 245, 249, 0.68);
-	--kw-editor-danger: var(--color-status-negative-text, #8a2317);
-	--kw-editor-danger-bg: var(--color-status-negative-background, #fff0ed);
-	--kw-editor-danger-line: var(--color-status-negative-border, #efb6aa);
-	--kw-editor-success: var(--color-status-positive-text, #225d2d);
-	--kw-editor-success-bg: var(--color-status-positive-background, #edf8ef);
-	--kw-editor-shadow: var(--shadow-raised, 0 18px 60px rgba(36, 25, 19, 0.18));
-	--focus-color: var(--kw-editor-accent);
+	--kw-editor-stage-muted: #c4c9d6;
+	--kw-editor-danger: #b3261e;
+	--kw-editor-danger-bg: #fce8e6;
+	--kw-editor-danger-line: #f1b8b4;
+	--kw-editor-success: #2e7d32;
+	--kw-editor-success-bg: #e8f5e9;
+	--kw-editor-shadow: 0 12px 32px rgb(20 21 26 / 18%);
+	--focus-color: #84b5ff;
 	--focus-ring-size: 2px;
 	--toolbar-bg: var(--kw-editor-panel);
 	--toolbar-border: var(--kw-editor-line);
@@ -39,7 +39,7 @@
 	background: var(--kw-editor-bg);
 	border: 1px solid var(--kw-editor-line);
 	border-radius: 0;
-	box-shadow: var(--shadow-soft, 0 18px 60px rgba(36, 25, 19, 0.12));
+	box-shadow: var(--kw-editor-shadow);
 	color-scheme: light;
 	font-family: Inter, var(--font-body, system-ui, sans-serif);
 	isolation: isolate;
@@ -78,21 +78,29 @@
 }
 
 :root[data-theme='dark'] #kw-audio-editor-design-system {
-	--kw-editor-stage: #0e1015;
-	--kw-editor-stage-raised: #181b22;
-	--kw-editor-stage-hover: #222630;
-	--kw-editor-stage-line: rgba(255, 255, 255, 0.14);
-	--kw-editor-stage-grid: rgba(255, 255, 255, 0.065);
+	--kw-editor-bg: #25262b;
+	--kw-editor-panel: #2c2e33;
+	--kw-editor-control: #25262b;
+	--kw-editor-text: #e4e5e7;
+	--kw-editor-muted: #a9adb5;
+	--kw-editor-line: #434a50;
+	--kw-editor-stage: #171f25;
+	--kw-editor-stage-raised: #1f2024;
+	--kw-editor-stage-hover: #2e3035;
+	--kw-editor-stage-line: #2d2f34;
+	--kw-editor-stage-grid: #2d2f34;
+	--kw-editor-stage-muted: #c4c9d6;
+	--focus-color: #60a5fa;
 	color-scheme: dark;
 }
 
 #kw-audio-editor-design-system:is([data-editor-theme='dark'], [data-editor-theme='high-contrast-dark']) {
-	--kw-editor-bg: #15171c;
-	--kw-editor-panel: #20232a;
-	--kw-editor-control: #292d36;
-	--kw-editor-text: #f7f8fb;
-	--kw-editor-muted: #b6bdca;
-	--kw-editor-line: #4a505d;
+	--kw-editor-bg: #25262b;
+	--kw-editor-panel: #2c2e33;
+	--kw-editor-control: #25262b;
+	--kw-editor-text: #e4e5e7;
+	--kw-editor-muted: #a9adb5;
+	--kw-editor-line: #434a50;
 	--toolbar-bg: var(--kw-editor-panel);
 	--toolbar-border: var(--kw-editor-line);
 	color-scheme: dark;
@@ -127,12 +135,12 @@
 
 @media (prefers-color-scheme: dark) {
 	#kw-audio-editor-design-system[data-editor-theme='system'] {
-		--kw-editor-bg: #15171c;
-		--kw-editor-panel: #20232a;
-		--kw-editor-control: #292d36;
-		--kw-editor-text: #f7f8fb;
-		--kw-editor-muted: #b6bdca;
-		--kw-editor-line: #4a505d;
+		--kw-editor-bg: #25262b;
+		--kw-editor-panel: #2c2e33;
+		--kw-editor-control: #25262b;
+		--kw-editor-text: #e4e5e7;
+		--kw-editor-muted: #a9adb5;
+		--kw-editor-line: #434a50;
 		--toolbar-bg: var(--kw-editor-panel);
 		--toolbar-border: var(--kw-editor-line);
 		color-scheme: dark;
@@ -333,7 +341,12 @@
 }
 
 #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
-	color: #0b0c0e;
+	/* The component wires regular foreground text onto its primary fill. */
+	color: #14151a;
+}
+
+:root[data-theme='dark'] #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
+	color: #1a1b1e;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__toolbars {
@@ -350,22 +363,8 @@
 	min-width: 0;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__tool-toolbar.toolbar {
-	padding: 7px 12px;
-	background: var(--kw-editor-panel);
-	border-bottom-color: var(--kw-editor-line);
-}
-
 #kw-audio-editor-design-system .kw-audio-editor__tool-toolbar .toolbar__content {
 	min-width: 0;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__transport > :first-child .transport-button__icon {
-	color: #218739;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__transport [data-transport='record'] .transport-button__icon {
-	color: #c52920;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__timecode {
@@ -847,7 +846,7 @@
 	justify-content: space-between;
 	gap: 8px;
 	padding-inline: 11px;
-	color: var(--kw-editor-stage-muted);
+	color: var(--kw-editor-text);
 	background: var(--kw-editor-stage-raised);
 	border-right: 1px solid var(--kw-editor-stage-line);
 	font-size: 9px;
@@ -994,17 +993,6 @@
 #kw-audio-editor-design-system .audio-editor-track-controls .track-control-panel {
 	width: 100% !important;
 	height: 100%;
-	border-radius: 0;
-}
-
-#kw-audio-editor-design-system .audio-editor-track-controls .track-control-panel__main {
-	padding: 12px;
-	border-radius: 0;
-}
-
-#kw-audio-editor-design-system .audio-editor-track-controls .track-control-panel__meter {
-	width: 22px;
-	padding-inline: 6px;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-adapters {
@@ -1036,20 +1024,6 @@
 #kw-audio-editor-design-system .audio-editor-track-adapters [data-track-action='arm'] {
 	flex: 0 0 auto;
 	pointer-events: auto;
-}
-
-#kw-audio-editor-design-system .audio-editor-track-adapters [data-track-action='arm'] .toggle-tool-button {
-	width: 24px;
-	height: 24px;
-	color: #fff;
-	background: #70231f;
-	border: 1px solid rgba(255, 128, 118, 0.35);
-	border-radius: 4px;
-}
-
-#kw-audio-editor-design-system .audio-editor-track-adapters [data-track-action='arm'] .toggle-tool-button--on {
-	background: #cf3f34;
-	box-shadow: 0 0 0 2px rgba(239, 86, 72, 0.2);
 }
 
 #kw-audio-editor-design-system .audio-editor-track-lane {
