@@ -423,6 +423,14 @@ export default function AudioEditorTimeline({
 			if (event.pointerId > 0) event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
+		const clipEditHandle = event.target.closest('.clip-display__handle');
+		if (!event.target.closest('.clip-header') && !clipEditHandle) {
+			const startFrame = frameAtClientX(event.clientX, lane);
+			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
+			setSelectionPreview({ startFrame, endFrame: startFrame });
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		let kind = 'move';
 		if (event.target.closest('.clip-display__handle--trim-left')) kind = 'trim-left';
 		if (event.target.closest('.clip-display__handle--trim-right')) kind = 'trim-right';

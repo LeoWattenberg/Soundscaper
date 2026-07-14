@@ -739,6 +739,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		clipDialog = await openClipProperties(page, editor);
 		await expect.poll(async () => Number(await clipField(clipDialog, 'durationFrame').inputValue())).toBeLessThan(movedDuration);
 		await closeDialog(clipDialog);
+		const selectedClipBox = await clip.boundingBox();
+		expect(selectedClipBox).not.toBeNull();
+		await page.mouse.move(selectedClipBox.x + 32, selectedClipBox.y + 48);
+		await page.mouse.down();
+		await page.mouse.move(selectedClipBox.x + 80, selectedClipBox.y + 48, { steps: 4 });
+		await page.mouse.up();
+		await expect(editor.getByRole('button', { name: 'Loop selection' })).toBeEnabled();
+		await expect.poll(async () => (await clip.boundingBox())?.x || 0).toBeLessThan(selectedClipBox.x + 2);
 		expect(errors).toEqual([]);
 	});
 
