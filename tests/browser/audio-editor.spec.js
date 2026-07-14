@@ -231,6 +231,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(dimensions.backingWidth).toBeCloseTo(dimensions.panelWidth, 0);
 	});
 
+	test('suppresses the browser context menu across the editor', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await expect(editor.locator('.audio-editor-ruler-corner')).toBeVisible();
+		const prevented = await editor.evaluate((element) => {
+			const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+			element.querySelector('.audio-editor-ruler-corner')?.dispatchEvent(event);
+			return event.defaultPrevented;
+		});
+		expect(prevented).toBe(true);
+	});
+
 	test('matches the Audacity menubar and AU4 keyboard navigation model', async ({ page }) => {
 		await page.addInitScript(() => {
 			localStorage.setItem('audacity-accessibility-profile', 'au4-tab-groups');

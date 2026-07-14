@@ -505,6 +505,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 				actionRuntime: parityRuntime.actions,
 				menus: applicationMenus,
 			})}
+			onContextMenu={(event) => event.preventDefault()}
 		>
 			<AudioEditorMenuBar
 				appName={copy.title}
