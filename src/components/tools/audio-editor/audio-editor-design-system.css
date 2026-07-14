@@ -348,26 +348,16 @@
 
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
 	min-width: 0;
-	overflow-x: auto;
-	overflow-y: hidden;
-	scrollbar-width: none;
-}
-
-#kw-audio-editor-design-system [data-editor-tool-toolbar]::-webkit-scrollbar {
-	display: none;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__tool-toolbar.toolbar {
-	width: max-content;
-	min-width: 100%;
 	padding: 7px 12px;
 	background: var(--kw-editor-panel);
 	border-bottom-color: var(--kw-editor-line);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__tool-toolbar .toolbar__content {
-	min-width: max-content;
-	flex-wrap: nowrap;
+	min-width: 0;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__transport [data-transport='record'] .transport-button {
@@ -1810,11 +1800,6 @@
 		height: min(820px, calc(100dvh - 12px));
 		min-height: 680px;
 		border-radius: 0;
-	}
-
-	#kw-audio-editor-design-system .kw-audio-editor__toolbars .toolbar__content,
-	#kw-audio-editor-design-system .kw-audio-editor__toolbars .toolbar__right {
-		flex: 0 0 auto;
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor__tool-toolbar .toolbar__content {
