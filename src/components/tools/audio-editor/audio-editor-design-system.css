@@ -455,6 +455,36 @@
 	min-width: 0;
 }
 
+#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button, .toggle-tool-button) {
+	background-color: var(--kw-toolbar-button-bg) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--hover, .toggle-tool-button--off-hover) {
+	background-color: var(--kw-toolbar-button-hover) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--pressed, .toggle-tool-button--on, .toggle-tool-button--on-hover) {
+	background-color: var(--kw-toolbar-button-active) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--disabled, .toggle-tool-button--disabled) {
+	background-color: var(--kw-toolbar-button-bg) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .transport-button:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
+	background-color: var(--kw-toolbar-button-bg) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .transport-button--hover:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record),
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .transport-button--active.transport-button--hover:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
+	background-color: var(--kw-toolbar-button-hover) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .transport-button--pressed:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record),
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .transport-button--active:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
+	background-color: var(--kw-toolbar-button-active) !important;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__tool-toolbar .toolbar__content {
 	min-width: 0;
 }

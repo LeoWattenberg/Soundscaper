@@ -82,6 +82,9 @@ export function useAudioEditorThemeVariables() {
 		'--toolbar-bg': theme.background.toolbar,
 		'--toolbar-border': theme.border.default,
 		'--toolbar-divider': theme.border.divider,
+		'--kw-toolbar-button-bg': theme.background.control.button.secondary.idle,
+		'--kw-toolbar-button-hover': theme.background.control.button.secondary.hover,
+		'--kw-toolbar-button-active': theme.background.control.button.secondary.active,
 		colorScheme: theme === darkTheme ? 'dark' : 'light',
 	}), [theme]);
 }
