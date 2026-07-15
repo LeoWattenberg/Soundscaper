@@ -59,6 +59,7 @@ const COPY = Object.freeze({
 	stereoTrackRequired: 'Select a stereo track first.',
 	monoTrackRequired: 'Select a mono track first.',
 	compatibleMonoTrackRequired: 'Two mono tracks are required.',
+	effectMemoryTooLarge: 'This effect needs too much memory.',
 	done: 'Done.',
 });
 
@@ -87,7 +88,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 
 	assert.deepEqual(Object.keys(controller.actions), [
 		'project', 'edit', 'transport', 'recording', 'timeline', 'sampleEdit', 'spectral',
-		'track', 'mixer', 'generators', 'labels', 'metadata', 'preferences', 'clip', 'effects', 'analysis', 'export',
+		'track', 'mixer', 'generators', 'labels', 'metadata', 'preferences', 'clip', 'effects', 'macros', 'analysis', 'export',
 	]);
 	assert.equal(readySnapshot.preferences.workspace.activeId, 'modern');
 	assert.equal(readySnapshot.preferences.appearance.theme, 'system');
@@ -216,6 +217,300 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.ok(engine.appliedProjects.length >= 1);
 
 	await controller.dispose();
+});
+
+test('controller copies and atomically replaces realtime effect stacks across tracks', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	const sourceTrackId = controller.getSnapshot().project.tracks[0].id;
+	const destinationTrackId = controller.actions.track.add({ name: 'Destination' });
+	const emptyTrackId = controller.actions.track.add({ name: 'Empty' });
+	const highpassId = controller.actions.effects.add({
+		scope: 'track',
+		trackId: sourceTrackId,
+		type: 'highpass',
+		options: { params: { frequency: 240, q: 1.25 } },
+	});
+	const delayId = controller.actions.effects.add({
+		scope: 'track',
+		trackId: sourceTrackId,
+		type: 'delay',
+		options: { enabled: false, params: { time: 0.375, feedback: 0.45, mix: 0.3 } },
+	});
+	const replacedId = controller.actions.effects.add({
+		scope: 'track',
+		trackId: destinationTrackId,
+		type: 'compressor',
+		options: { params: { threshold: -18, knee: 12, ratio: 3, attack: 0.01, release: 0.2, makeupGain: 2 } },
+	});
+
+	const copied = controller.actions.effects.copyStack('track', sourceTrackId);
+	assert.equal(controller.getSnapshot().effects.hasStackClipboard, true);
+	assert.deepEqual(copied.map(({ id, type }) => ({ id, type })), [
+		{ id: highpassId, type: 'highpass' },
+		{ id: delayId, type: 'delay' },
+	]);
+	const historyBeforePaste = controller.getSnapshot().history.undoEntries.length;
+	controller.actions.effects.pasteStack('track', destinationTrackId);
+
+	let snapshot = controller.getSnapshot();
+	let destinationEffects = snapshot.project.tracks.find((track) => track.id === destinationTrackId).effects;
+	assert.deepEqual(destinationEffects.map(({ type, enabled, params }) => ({ type, enabled, params })), [
+		{ type: 'highpass', enabled: true, params: { frequency: 240, q: 1.25 } },
+		{ type: 'delay', enabled: false, params: { time: 0.375, feedback: 0.45, mix: 0.3 } },
+	]);
+	assert.ok(destinationEffects.every((effect) => ![highpassId, delayId, replacedId].includes(effect.id)));
+	assert.equal(snapshot.history.undoEntries.length, historyBeforePaste + 1);
+	assert.deepEqual(snapshot.history.undoEntries[0], {
+		type: 'batch',
+		commandCount: 3,
+		commands: ['effect/remove', 'effect/add', 'effect/add'],
+	});
+
+	controller.actions.edit.undo();
+	snapshot = controller.getSnapshot();
+	destinationEffects = snapshot.project.tracks.find((track) => track.id === destinationTrackId).effects;
+	assert.deepEqual(destinationEffects.map(({ id, type }) => ({ id, type })), [
+		{ id: replacedId, type: 'compressor' },
+	]);
+	controller.actions.edit.redo();
+	snapshot = controller.getSnapshot();
+	destinationEffects = snapshot.project.tracks.find((track) => track.id === destinationTrackId).effects;
+	assert.deepEqual(destinationEffects.map((effect) => effect.type), ['highpass', 'delay']);
+
+	assert.deepEqual(controller.actions.effects.copyStack('track', emptyTrackId), []);
+	const historyBeforeClear = controller.getSnapshot().history.undoEntries.length;
+	controller.actions.effects.pasteStack('track', destinationTrackId);
+	snapshot = controller.getSnapshot();
+	assert.deepEqual(snapshot.project.tracks.find((track) => track.id === destinationTrackId).effects, []);
+	assert.equal(snapshot.history.undoEntries.length, historyBeforeClear + 1);
+	assert.deepEqual(snapshot.history.undoEntries[0], {
+		type: 'batch',
+		commandCount: 2,
+		commands: ['effect/remove', 'effect/remove'],
+	});
+	controller.actions.edit.undo();
+	assert.deepEqual(
+		controller.getSnapshot().project.tracks.find((track) => track.id === destinationTrackId).effects.map((effect) => effect.type),
+		['highpass', 'delay'],
+	);
+	await controller.dispose();
+});
+
+test('controller renders a macro as an ordered isolated rack and persists one destructive history edit', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `controller-effect-macro-${Date.now()}-${Math.random()}`,
+	});
+	const sourceId = 'controller-macro-source';
+	const input = new Float32Array(64).fill(0.1);
+	const writer = await store.beginSourceWrite(sourceId, {
+		name: 'macro.wav', mimeType: 'audio/wav', sampleRate: 48_000, channelCount: 1,
+	});
+	await writer.write([input]);
+	await writer.commit({ sampleRate: 48_000, channelCount: 1 });
+	const project = createAudioEditorProjectV2({
+		id: 'controller-macro-project',
+		title: 'Macro project',
+		now: '2026-07-15T00:00:00.000Z',
+		sources: [{
+			id: sourceId,
+			name: 'macro.wav',
+			mimeType: 'audio/wav',
+			storageKey: sourceId,
+			frameCount: input.length,
+			channelCount: 1,
+			sampleRate: 48_000,
+			originalSampleRate: 48_000,
+			sampleFormat: 'float32',
+			chunkFrames: 65_536,
+		}],
+		tracks: [{ type: 'audio', id: 'controller-macro-track', name: 'Macro source', clipIds: ['controller-macro-clip'] }],
+		clips: [{
+			id: 'controller-macro-clip',
+			sourceId,
+			title: 'Macro source',
+			timelineStartFrame: 0,
+			sourceStartFrame: 0,
+			sourceDurationFrames: input.length,
+			durationFrames: input.length,
+		}],
+	});
+	await store.saveProject(project);
+	await store.saveSetting('last-project-id', project.id);
+	const renderCalls = [];
+	let failRender = false;
+	const output = new Float32Array(input.length).fill(0.75);
+	const renderSnapshot = async (snapshot, range) => {
+		renderCalls.push({ snapshot: structuredClone(snapshot), range: structuredClone(range) });
+		if (failRender) throw new Error('Macro render failed.');
+		return audioBuffer([output.slice()], snapshot.sampleRate);
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+		renderSnapshot,
+	});
+	try {
+		await controller.ready;
+		const existingRackEffectId = controller.actions.effects.add({
+			scope: 'track',
+			trackId: 'controller-macro-track',
+			type: 'reverb',
+			options: { params: { mix: 0.1, decay: 1.5, preDelay: 0.02 } },
+		});
+		controller.actions.timeline.selectTrack('controller-macro-track');
+		controller.actions.timeline.setSelection(0, input.length);
+		const historyBeforeRun = controller.getSnapshot().history.undoEntries.length;
+
+		const request = {
+			name: 'Voice polish',
+			trackId: 'controller-macro-track',
+			effects: [{
+				id: 'macro-delay',
+				type: 'delay',
+				enabled: true,
+				params: { time: 0.125, feedback: 0.2, mix: 0.4 },
+			}, {
+				id: 'macro-invert',
+				type: 'audacity-invert',
+				enabled: true,
+				params: {},
+			}],
+		};
+		const run = controller.actions.macros.run(request);
+		const duplicate = controller.actions.macros.run(request);
+		assert.equal(await duplicate, null);
+		const result = await run;
+		assert.equal(result, true);
+		assert.equal(renderCalls.length, 1);
+		const renderedTrack = renderCalls[0].snapshot.tracks.find((track) => track.id === 'controller-macro-track');
+		assert.deepEqual(renderedTrack.effects.map(({ type, enabled, params }) => ({ type, enabled, params })), [{
+			type: 'delay',
+			enabled: true,
+			params: { time: 0.125, feedback: 0.2, mix: 0.4 },
+		}, {
+			type: 'audacity-invert',
+			enabled: true,
+			params: {},
+		}]);
+		assert.ok(renderedTrack.effects.every((effect) => !['macro-delay', 'macro-invert'].includes(effect.id)));
+		assert.deepEqual(renderCalls[0].range, {
+			startFrame: 0,
+			endFrame: input.length,
+			trackId: 'controller-macro-track',
+			includeMaster: false,
+			includeTrackPan: false,
+			respectMuteSolo: false,
+			outputFrames: input.length,
+			preRollFrames: 0,
+		});
+		assert.deepEqual(renderCalls[0].snapshot.master.effects, []);
+		assert.equal(renderedTrack.gain, 1);
+		assert.equal(renderedTrack.pan, 0);
+
+		let snapshot = controller.getSnapshot();
+		const liveTrack = snapshot.project.tracks.find((track) => track.id === 'controller-macro-track');
+		assert.deepEqual(liveTrack.effects.map((effect) => effect.id), [existingRackEffectId]);
+		const replacementClip = snapshot.project.clips.find((clip) => liveTrack.clipIds.includes(clip.id));
+		assert.notEqual(replacementClip.sourceId, sourceId);
+		assert.equal(await storedSample(store, replacementClip.sourceId, 0), 0.75);
+		assert.equal(snapshot.history.undoEntries.length, historyBeforeRun + 1);
+		assert.deepEqual(snapshot.history.undoEntries[0], {
+			type: 'batch',
+			commandCount: 2,
+			commands: ['range/replace', 'selection/set'],
+		});
+
+		controller.actions.edit.undo();
+		snapshot = controller.getSnapshot();
+		const restoredTrack = snapshot.project.tracks.find((track) => track.id === 'controller-macro-track');
+		assert.deepEqual(restoredTrack.effects.map((effect) => effect.id), [existingRackEffectId]);
+		assert.deepEqual(restoredTrack.clipIds, ['controller-macro-clip']);
+		assert.equal(snapshot.project.clips.find((clip) => clip.id === 'controller-macro-clip').sourceId, sourceId);
+
+		failRender = true;
+		const historyBeforeFailure = snapshot.history.undoEntries.length;
+		await assert.rejects(controller.actions.macros.run(request), /Macro render failed/);
+		snapshot = controller.getSnapshot();
+		assert.equal(snapshot.processingEffect, false);
+		assert.equal(snapshot.status.state, 'error');
+		assert.match(snapshot.status.message, /Macro render failed/);
+		assert.equal(snapshot.history.undoEntries.length, historyBeforeFailure);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('controller rejects oversized macro renders before allocating or editing', async () => {
+	let renderCalls = 0;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+		renderSnapshot: async () => {
+			renderCalls += 1;
+			throw new Error('The oversized macro must not reach the renderer.');
+		},
+	});
+	try {
+		await controller.ready;
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		const frameCount = 48_000 * 60 * 20;
+		controller.actions.edit.commit({
+			type: 'batch',
+			commands: [{
+				type: 'source/add',
+				source: {
+					id: 'oversized-macro-source',
+					name: 'oversized.wav',
+					storageKey: 'oversized-macro-source',
+					mimeType: 'audio/wav',
+					frameCount,
+					channelCount: 2,
+				},
+			}, {
+				type: 'clip/add',
+				trackId,
+				clip: {
+					id: 'oversized-macro-clip',
+					sourceId: 'oversized-macro-source',
+					timelineStartFrame: 0,
+					sourceStartFrame: 0,
+					durationFrames: frameCount,
+				},
+			}],
+		});
+		controller.actions.timeline.selectTrack(trackId);
+		controller.actions.timeline.setSelection(0, frameCount);
+		const historyBeforeRun = controller.getSnapshot().history.undoEntries.length;
+		await assert.rejects(controller.actions.macros.run({
+			name: 'Oversized macro',
+			trackId,
+			effects: [{ type: 'audacity-invert', params: {} }],
+		}), /too much memory/i);
+		assert.equal(renderCalls, 0);
+		assert.equal(controller.getSnapshot().processingEffect, false);
+		assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeRun);
+	} finally {
+		await controller.dispose();
+	}
 });
 
 test('live project tabs retain independent history and cross-project clipboard source roots', async () => {

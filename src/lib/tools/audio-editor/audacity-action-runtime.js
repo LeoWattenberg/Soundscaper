@@ -499,6 +499,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			changeSpeedPitch: () => openEffect(STAFFPAD_EFFECT_TYPES.changeSpeedPitch),
 			slidingStretch: () => openEffect(STAFFPAD_EFFECT_TYPES.slidingStretch),
 		},
+		macros: {
+			...controllerActions.macros,
+			openManager: () => openSurface('macro-manager'),
+		},
 		generators: {
 			...controllerActions.generators,
 			silence: () => openGenerator('silence'),

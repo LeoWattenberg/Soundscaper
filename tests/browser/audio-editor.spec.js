@@ -1507,6 +1507,137 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('copies an ordered effect stack between tracks and exports it as an Audacity macro', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		let effectsPanel = await openEffectsForTrack(editor, 1);
+
+		await addRackEffect(page, effectsPanel, 'track', 'Invert');
+		await addRackEffect(page, effectsPanel, 'track', 'Echo');
+		const echoSettings = page.getByRole('dialog', { name: 'Echo', exact: true });
+		await expect(echoSettings).toBeVisible();
+		await commitInput(echoSettings.locator('[data-effect-param="delaySeconds"] input'), '0.75');
+		await closeDialog(echoSettings);
+
+		const sourceRack = effectsPanel.locator('[data-effect-rack]');
+		const sourceStackTrigger = sourceRack.getByRole('button', { name: 'Effect stack options', exact: true }).first();
+		await expect(sourceRack.getByRole('button', { name: 'Effect stack options', exact: true })).toHaveCount(2);
+		let stackMenu = await openEffectStackMenu(effectsPanel, 'track');
+		await expect(stackMenu.getByRole('menuitem', { name: 'Copy effects', exact: true })).toBeVisible();
+		await expect(stackMenu.getByRole('menuitem', { name: 'Paste effects', exact: true })).toHaveAttribute('aria-disabled', 'true');
+		await expect(stackMenu.getByRole('menuitem', { name: 'Export as macro', exact: true })).toBeVisible();
+		await stackMenu.getByRole('menuitem', { name: 'Copy effects', exact: true }).click();
+		await expect(sourceStackTrigger).toBeFocused();
+
+		await closeEffectsPanel(effectsPanel);
+		effectsPanel = await openEffectsForTrack(editor, 2);
+		const targetStackTrigger = effectsPanel.locator('[data-effect-rack]')
+			.getByRole('button', { name: 'Effect stack options', exact: true }).first();
+		stackMenu = await openEffectStackMenu(effectsPanel, 'track');
+		const paste = stackMenu.getByRole('menuitem', { name: 'Paste effects', exact: true });
+		await expect(paste).toHaveAttribute('aria-disabled', 'false');
+		await paste.click();
+		await expect(targetStackTrigger).toBeFocused();
+
+		const targetRack = effectsPanel.locator('[data-effect-rack]');
+		await expect(targetRack.locator('.effect-slot__name-text')).toHaveText(['Invert', 'Echo']);
+		await targetRack.getByRole('group', { name: 'Echo', exact: true })
+			.getByRole('button', { name: 'Select effect', exact: true }).click();
+		const pastedEchoSettings = page.getByRole('dialog', { name: 'Echo', exact: true });
+		await expect(pastedEchoSettings.locator('[data-effect-param="delaySeconds"] input')).toHaveValue('0.75');
+		await closeDialog(pastedEchoSettings);
+
+		stackMenu = await openEffectStackMenu(effectsPanel, 'track');
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			stackMenu.getByRole('menuitem', { name: 'Export as macro', exact: true }).click(),
+		]);
+		expect(download.suggestedFilename()).toMatch(/browser-tone-b.*\.txt$/i);
+		const downloadPath = await download.path();
+		expect(downloadPath).not.toBeNull();
+		await expect.poll(async () => readFile(downloadPath, 'utf8')).toBe(
+			'Invert:\nEcho:Delay="0.75" Decay="0.5"\n',
+		);
+		expect(errors).toEqual([]);
+	});
+
+	test('manages Audacity effect macros with add, file, and run actions in the footer', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await chooseCommandAction(page, editor, 'Tools', 'Manage macros');
+
+		let manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		await expect(manager).toBeVisible();
+		await expect(page.locator('[data-editor-surface="macro-manager"]')).toBeVisible();
+		const footer = manager.locator('.audio-editor-macro-manager__footer');
+		await expect(footer.getByRole('button', { name: 'Effects', exact: true })).toBeVisible();
+		await expect(footer.getByRole('button', { name: 'Import macro', exact: true }).locator('.icon[aria-hidden="true"]')).toHaveCount(1);
+		await expect(footer.getByRole('button', { name: 'Export macro', exact: true }).locator('.icon[aria-hidden="true"]')).toHaveCount(1);
+		await expect(footer.getByRole('button', { name: 'Run macro', exact: true })).toBeVisible();
+		await expect(manager.locator('.audio-editor-controlled-dialog__body').getByRole('button', { name: 'Effects', exact: true })).toHaveCount(0);
+
+		await footer.getByRole('button', { name: 'Effects', exact: true }).click();
+		const picker = page.getByRole('dialog', { name: 'Choose an effect', exact: true });
+		await chooseDropdown(page, picker.locator('[data-effect-type]'), 'Invert');
+		await picker.getByRole('button', { name: 'Add effect', exact: true }).click();
+		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		await expect(manager.locator('[data-macro-effect-stack]').getByRole('group', { name: 'Invert', exact: true })).toBeVisible();
+		await expect(manager.getByRole('button', { name: 'Disable effect', exact: true })).toHaveCount(0);
+
+		await manager.locator('input[type="file"]').setInputFiles({
+			name: 'browser-chain.txt',
+			mimeType: 'text/plain',
+			buffer: Buffer.from('Echo:Delay="0.4" Decay="0.65"\nInvert:\n'),
+		});
+		await expect(manager.getByRole('status')).toHaveText('Macro imported.');
+		await expect(manager.getByLabel('Macro name', { exact: true })).toHaveValue('browser-chain');
+		await expect(manager.locator('.effect-slot__name-text')).toHaveText(['Echo', 'Invert']);
+		await manager.getByLabel('Macro name', { exact: true }).focus();
+		await page.keyboard.press('Tab');
+		await expect(manager.getByRole('group', { name: 'Echo', exact: true })).toBeFocused();
+		await page.keyboard.press('ArrowDown');
+		await expect(manager.getByRole('group', { name: 'Invert', exact: true })).toBeFocused();
+
+		await manager.locator('input[type="file"]').setInputFiles({
+			name: 'oversized-chain.txt',
+			mimeType: 'text/plain',
+			buffer: Buffer.alloc((1024 * 1024) + 1, 0x49),
+		});
+		await expect(manager.getByRole('alert')).toContainText('The macro could not be imported:');
+		await expect(manager.locator('.effect-slot__name-text')).toHaveText(['Echo', 'Invert']);
+
+		await manager.getByRole('group', { name: 'Echo', exact: true })
+			.getByRole('button', { name: 'Select effect', exact: true }).click();
+		const echoSettings = page.getByRole('dialog', { name: 'Echo', exact: true });
+		await commitInput(echoSettings.locator('[data-effect-param="delaySeconds"] input'), '0.75');
+		await closeDialog(echoSettings);
+
+		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		await manager.getByLabel('Macro name', { exact: true }).fill('Browser chain');
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			manager.getByRole('button', { name: 'Export macro', exact: true }).click(),
+		]);
+		expect(download.suggestedFilename()).toBe('Browser-chain.txt');
+		const downloadPath = await download.path();
+		expect(downloadPath).not.toBeNull();
+		await expect.poll(async () => readFile(downloadPath, 'utf8')).toBe(
+			'Echo:Delay="0.75" Decay="0.65"\nInvert:\n',
+		);
+
+		const runButton = manager.getByRole('button', { name: 'Run macro', exact: true });
+		await runButton.click();
+		await expect(runButton).toBeDisabled();
+		await expect(manager.getByRole('status')).toHaveText('Macro applied.', { timeout: 20_000 });
+		await expect(editor.locator('[data-clip-id]')).toContainText('Browser chain');
+		await closeDialog(manager);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
+		expect(errors).toEqual([]);
+	});
+
 	test('captures and restores a rack Noise Reduction profile', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -2015,6 +2146,21 @@ async function openRackPicker(panel, scope) {
 	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Effects', exact: true });
 	await (scope === 'master' ? buttons.last() : buttons.first()).click();
 	await expect(panel.page().getByRole('dialog', { name: 'Choose an effect' })).toBeVisible();
+}
+
+async function addRackEffect(page, panel, scope, effectName) {
+	await openRackPicker(panel, scope);
+	const picker = page.getByRole('dialog', { name: 'Choose an effect', exact: true });
+	await chooseDropdown(page, picker.locator('[data-effect-type]'), effectName);
+	await picker.getByRole('button', { name: 'Add effect', exact: true }).click();
+}
+
+async function openEffectStackMenu(panel, scope) {
+	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Effect stack options', exact: true });
+	await (scope === 'master' ? buttons.last() : buttons.first()).click();
+	const menu = panel.page().locator('.audio-editor-effect-stack-menu');
+	await expect(menu).toBeVisible();
+	return menu;
 }
 
 async function chooseFileAction(page, editor, action) {

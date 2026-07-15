@@ -1,16 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
+	ContextMenu,
+	ContextMenuItem,
 	DialogFooter,
 	DialogHeader,
 	Dropdown,
 	EffectHeader,
+	EffectSlot,
 	EffectsPanel,
+	Icon,
 	Knob,
 	LabeledCheckbox,
 	ProgressBar,
 	Separator,
 	TextInput,
+	useContainerTabGroup,
 } from '@dilsonspickles/components';
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import {
@@ -20,6 +25,10 @@ import {
 	audioEffectTypes,
 	createEffect,
 } from '../../../lib/tools/audio-editor/effects.js';
+import {
+	parseAudacityEffectMacro,
+	serializeAudacityEffectMacro,
+} from '../../../lib/tools/audio-editor/effect-macros.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectDefaults,
@@ -41,6 +50,8 @@ import { boundedCanvasDimensions } from '../../../lib/tools/audio-editor/design-
 import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-export.js';
 import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
 import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
+
+const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
 
 /**
  * Controlled dialog adapter for editor-owned workflows. The design-system Dialog
@@ -311,11 +322,12 @@ export function AudioEditorEffectsOverlay({
 	snapshot,
 	copy,
 	locale,
+	trackId,
 	onClose,
 	position = {},
 }) {
 	const project = snapshot.project;
-	const selectedTrack = project ? findTrack(project, snapshot.selectedTrackId) : null;
+	const selectedTrack = project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
 	const trackEffects = selectedTrack?.effects || [];
 	const masterEffects = project?.master?.effects || [];
 	const blocked = !snapshot.ready || !project || editingBlocked(snapshot);
@@ -323,6 +335,9 @@ export function AudioEditorEffectsOverlay({
 	const [selectedEffect, setSelectedEffect] = useState(null);
 	const [rackPresetId, setRackPresetId] = useState('');
 	const [message, setMessage] = useState('');
+	const [stackMenu, setStackMenu] = useState(null);
+	const rackRef = useRef(null);
+	const stackMenuTriggerRef = useRef(null);
 
 	useEffect(() => {
 		if (!selectedEffect) return;
@@ -339,8 +354,17 @@ export function AudioEditorEffectsOverlay({
 			setPicker(null);
 			setSelectedEffect(null);
 			setMessage('');
+			setStackMenu(null);
+			stackMenuTriggerRef.current = null;
 		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		for (const button of rackRef.current?.querySelectorAll('.effects-stack-header__menu-button') || []) {
+			button.setAttribute('aria-label', copy.effectStackOptions);
+			button.setAttribute('title', copy.effectStackOptions);
+		}
+	}, [copy.effectStackOptions, isOpen, selectedTrack?.id]);
 
 	const run = (work) => {
 		setMessage('');
@@ -407,6 +431,17 @@ export function AudioEditorEffectsOverlay({
 			if (!blocked && effect) controller.actions.effects.reorder(scope, selectedTrack?.id || null, effect.id, toIndex);
 		},
 		onAddEffect: () => openPicker(scope),
+		onContextMenu: (event) => {
+			const rect = event?.currentTarget?.getBoundingClientRect?.();
+			if (event?.currentTarget instanceof HTMLElement) {
+				stackMenuTriggerRef.current = event.currentTarget;
+			}
+			setStackMenu({
+				scope,
+				x: rect?.right ?? event?.clientX ?? 0,
+				y: (rect?.bottom ?? event?.clientY ?? 0) + 4,
+			});
+		},
 		onRemoveEffect: (index) => {
 			const effect = effects[index];
 			if (!blocked && effect) controller.actions.effects.remove(scope, selectedTrack?.id || null, effect.id);
@@ -440,11 +475,40 @@ export function AudioEditorEffectsOverlay({
 			{ params: choice.preset.params },
 		));
 	};
+	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : trackEffects;
+	const menuTrackId = selectedTrack?.id || null;
+	const closeStackMenu = () => {
+		const trigger = stackMenuTriggerRef.current;
+		setStackMenu(null);
+		requestAnimationFrame(() => {
+			const active = document.activeElement;
+			if (isOpen && trigger?.isConnected && (!active || active === document.body)) {
+				trigger.focus({ preventScroll: true });
+			}
+		});
+	};
+	const copyStack = () => {
+		controller.actions.effects.copyStack(stackMenu.scope, menuTrackId);
+		setMessage(copy.effectsCopied);
+		closeStackMenu();
+	};
+	const pasteStack = () => run(() => {
+		controller.actions.effects.pasteStack(stackMenu.scope, menuTrackId);
+		setMessage(copy.effectsPasted);
+		closeStackMenu();
+	});
+	const exportStack = () => run(() => {
+		const encoded = serializeAudacityEffectMacro(menuEffects);
+		const name = stackMenu.scope === 'master' ? copy.master : selectedTrack?.name;
+		downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`);
+		setMessage(copy.macroExported);
+		closeStackMenu();
+	});
 
 	return (
 		<>
 			<div className="audio-editor-effects-overlay" data-open={isOpen ? 'true' : 'false'}>
-				<div data-effect-rack>
+				<div ref={rackRef} data-effect-rack>
 					<EffectsPanel
 						isOpen={isOpen}
 						resizable={false}
@@ -478,6 +542,18 @@ export function AudioEditorEffectsOverlay({
 						</div>
 					</div>
 				)}
+				<ContextMenu
+					isOpen={Boolean(stackMenu)}
+					x={stackMenu?.x || 0}
+					y={stackMenu?.y || 0}
+					onClose={closeStackMenu}
+					className="audio-editor-effect-stack-menu"
+				>
+					<ContextMenuItem label={copy.copyEffects} onClick={copyStack} />
+					<ContextMenuItem label={copy.pasteEffects} disabled={blocked || !snapshot.effects?.hasStackClipboard} onClick={pasteStack} />
+					<ContextMenuItem isDivider />
+					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled)} onClick={exportStack} />
+				</ContextMenu>
 			</div>
 
 			{effect && (
@@ -542,17 +618,297 @@ export function AudioEditorEffectsOverlay({
 							const current = rack.find((candidate) => candidate.id === picker.replaceId);
 							if (current) replaceFromRegistry(picker.scope, current, type);
 						} else {
-						const id = await controller.actions.effects.add({
-							scope: picker.scope,
-							trackId: selectedTrack?.id || null,
-							type,
-						});
-						if (id && effectHasEditableSettings(type)) {
-							setSelectedEffect({ scope: picker.scope, id });
-						}
+							const id = await controller.actions.effects.add({
+								scope: picker.scope,
+								trackId: selectedTrack?.id || null,
+								type,
+							});
+							if (id && effectHasEditableSettings(type)) {
+								setSelectedEffect({ scope: picker.scope, id });
+							}
 						}
 						setPicker(null);
 					})}
+				/>
+			)}
+		</>
+	);
+}
+
+export function AudioEditorMacroManagerDialog({
+	isOpen,
+	controller,
+	snapshot,
+	copy,
+	locale,
+	draft,
+	onDraftChange,
+	onClose,
+}) {
+	const project = snapshot.project;
+	const effects = draft?.effects || [];
+	const blocked = editingBlocked(snapshot);
+	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
+	const [picker, setPicker] = useState(null);
+	const [selectedEffectId, setSelectedEffectId] = useState(null);
+	const [draggedIndex, setDraggedIndex] = useState(null);
+	const [message, setMessage] = useState('');
+	const [messageState, setMessageState] = useState('info');
+	const [isRunning, setIsRunning] = useState(false);
+	const fileInputRef = useRef(null);
+	const macroStackRef = useRef(null);
+	const runningRef = useRef(false);
+	const selectedEffect = effects.find((effect) => effect.id === selectedEffectId) || null;
+	const macroTabGroup = useContainerTabGroup({
+		containerRef: macroStackRef,
+		groupId: 'effects-panel',
+		selector: '.effect-slot',
+		ariaLabel: copy.macroManager,
+		startTabIndex: 0,
+	});
+
+	useEffect(() => {
+		if (selectedEffectId && !selectedEffect) setSelectedEffectId(null);
+	}, [selectedEffect, selectedEffectId]);
+
+	useEffect(() => {
+		if (!isOpen) {
+			setPicker(null);
+			setSelectedEffectId(null);
+			setMessage('');
+		}
+	}, [isOpen]);
+
+	useEffect(() => {
+		if (isOpen && !selectedEffect && !picker) macroTabGroup.initTabIndices();
+	}, [effects, isOpen, macroTabGroup.initTabIndices, picker, selectedEffect]);
+
+	const setDraft = (updater) => onDraftChange?.((current) => {
+		const base = current || { name: copy.untitledMacro, effects: [] };
+		return typeof updater === 'function' ? updater(base) : updater;
+	});
+	const setEffects = (nextEffects) => setDraft((current) => ({
+		...current,
+		effects: typeof nextEffects === 'function' ? nextEffects(current.effects || []) : nextEffects,
+	}));
+	const showMessage = (value, state = 'info') => {
+		setMessage(value);
+		setMessageState(state);
+	};
+	const updateEffect = (effectId, changes) => setEffects((current) => current.map((effect) => {
+		if (effect.id !== effectId) return effect;
+		const type = changes.type || effect.type;
+		const preservedMetadata = changes.type ? {} : {
+			...(effect.context !== undefined ? { context: effect.context } : {}),
+			...(effect.state !== undefined ? { state: effect.state } : {}),
+		};
+		return createEffect(type, {
+			id: effect.id,
+			enabled: true,
+			...preservedMetadata,
+			params: changes.type
+				? changes.params
+				: { ...effect.params, ...(changes.params || {}) },
+		});
+	}));
+	const removeEffect = (effectId) => setEffects((current) => current.filter((effect) => effect.id !== effectId));
+	const reorderEffect = (fromIndex, toIndex) => {
+		if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= effects.length) return;
+		setEffects((current) => {
+			const next = [...current];
+			const [effect] = next.splice(fromIndex, 1);
+			next.splice(toIndex, 0, effect);
+			return next;
+		});
+	};
+	const replaceFromRegistry = (effect, candidate) => {
+		const type = resolveSupportedEffectType(candidate, locale, copy);
+		if (!type) {
+			showMessage(copy.effectEngineUnsupported, 'error');
+			return;
+		}
+		const replacement = createEffect(type, { id: effect.id });
+		updateEffect(effect.id, { type, params: replacement.params });
+	};
+	const importMacro = async (file) => {
+		if (!file) return;
+		try {
+			if (file.size > MAX_MACRO_IMPORT_BYTES) {
+				throw new RangeError('File exceeds the 1 MiB macro import limit.');
+			}
+			const parsed = parseAudacityEffectMacro(await file.text());
+			setDraft((current) => ({
+				...current,
+				name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
+				effects: [...parsed.effects],
+			}));
+			const warning = parsed.ignoredCommands.length
+				? ` ${copy.macroUnsupportedCommands.replace('{commands}', parsed.ignoredCommands.join(', '))}`
+				: '';
+			showMessage(`${copy.macroImported}${warning}`, parsed.ignoredCommands.length ? 'warning' : 'success');
+		} catch (cause) {
+			const detail = cause instanceof Error ? cause.message : String(cause);
+			showMessage(/no supported effects/i.test(detail)
+				? copy.macroImportEmpty
+				: copy.macroImportFailed.replace('{message}', detail), 'error');
+		} finally {
+			if (fileInputRef.current) fileInputRef.current.value = '';
+		}
+	};
+	const exportMacro = () => {
+		try {
+			const encoded = serializeAudacityEffectMacro(effects);
+			downloadTextFile(encoded, `${macroFileName(draft?.name || copy.untitledMacro)}.txt`);
+			showMessage(copy.macroExported, 'success');
+		} catch (cause) {
+			const detail = cause instanceof Error ? cause.message : String(cause);
+			showMessage(copy.macroExportFailed.replace('{message}', detail), 'error');
+		}
+	};
+	const runMacro = async () => {
+		if (runningRef.current) return;
+		runningRef.current = true;
+		setIsRunning(true);
+		showMessage(copy.macroProcessing);
+		try {
+			const applied = await controller.actions.macros.run({
+				name: draft?.name || copy.untitledMacro,
+				effects,
+			});
+			if (applied) showMessage(copy.macroApplied, 'success');
+		} catch (cause) {
+			const detail = cause instanceof Error ? cause.message : String(cause);
+			showMessage(copy.macroRunFailed.replace('{message}', detail), 'error');
+		} finally {
+			runningRef.current = false;
+			setIsRunning(false);
+		}
+	};
+
+	return (
+		<>
+			<ControlledDialog
+				isOpen={isOpen && !selectedEffect && !picker}
+				title={copy.macroManager}
+				onClose={onClose}
+				width={680}
+				className="audio-editor-macro-manager"
+				dataAttributes={{ 'data-macro-manager': '' }}
+				footer={(
+					<DialogFooter
+						className="audio-editor-dialog-footer audio-editor-macro-manager__footer"
+						leftContent={(
+							<Button
+								variant="secondary"
+								icon={<Icon name="plus" size={14} />}
+								onClick={() => setPicker({ replaceId: null })}
+							>{copy.effects}</Button>
+						)}
+						rightContent={(
+							<div className="audio-editor-macro-manager__footer-actions">
+								<div className="audio-editor-macro-manager__file-actions" role="group" aria-label={`${copy.importMacro} / ${copy.exportMacro}`}>
+									<button className="audio-editor-macro-manager__icon-button audio-editor-macro-manager__icon-button--import" type="button" aria-label={copy.importMacro} title={copy.importMacro} onClick={() => fileInputRef.current?.click()}>
+										<Icon name="export" size={16} />
+									</button>
+									<button className="audio-editor-macro-manager__icon-button" type="button" aria-label={copy.exportMacro} title={copy.exportMacro} disabled={!effects.length} onClick={exportMacro}>
+										<Icon name="export" size={16} />
+									</button>
+								</div>
+								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length} onClick={runMacro}>{copy.runMacro}</Button>
+							</div>
+						)}
+					/>
+				)}
+			>
+				<section className="audio-editor-macro-manager__content">
+					<label className="audio-editor-field audio-editor-macro-manager__name">
+						<span>{copy.macroName}</span>
+						<TextInput value={draft?.name || ''} onChange={(name) => setDraft((current) => ({ ...current, name }))} width="100%" />
+					</label>
+					<div
+						ref={macroStackRef}
+						className="audio-editor-macro-manager__stack"
+						{...macroTabGroup.containerProps}
+						aria-label={copy.macroManager}
+						onKeyDown={macroTabGroup.onKeyDown}
+						onBlur={macroTabGroup.onBlur}
+						onFocus={macroTabGroup.onFocus}
+						onClickCapture={macroTabGroup.onClickCapture}
+						data-macro-effect-stack
+					>
+						{effects.map((effect, index) => (
+							<EffectSlot
+								key={effect.id}
+								className="audio-editor-macro-manager__effect"
+								effectName={safeEffectLabel(effect.type, copy)}
+								enabled
+								isDragging={draggedIndex === index}
+								onSelectEffect={() => setSelectedEffectId(effect.id)}
+								onRemoveEffect={() => removeEffect(effect.id)}
+								onReplaceEffect={(candidate) => replaceFromRegistry(effect, candidate)}
+								onChangeEffect={() => setPicker({ replaceId: effect.id })}
+								onDragStart={(event) => {
+									setDraggedIndex(index);
+									event.dataTransfer.effectAllowed = 'move';
+								}}
+								onDragOver={(event) => {
+									event.preventDefault();
+									if (draggedIndex === null || draggedIndex === index) return;
+									reorderEffect(draggedIndex, index);
+									setDraggedIndex(index);
+								}}
+								onDragEnd={() => setDraggedIndex(null)}
+								onReorder={(direction) => reorderEffect(index, index + direction)}
+							/>
+						))}
+						{!effects.length && <p className="audio-editor-panel-hint" data-macro-empty>{copy.macroEmptyHint}</p>}
+					</div>
+					{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
+					{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
+					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden onChange={(event) => importMacro(event.currentTarget.files?.[0])} />
+				</section>
+			</ControlledDialog>
+
+			{selectedEffect && (
+				<ControlledDialog
+					isOpen
+					title={safeEffectLabel(selectedEffect.type, copy)}
+					onClose={() => setSelectedEffectId(null)}
+					width={620}
+					className="audio-editor-effect-settings-dialog audio-editor-macro-effect-settings-dialog"
+					dataAttributes={{ 'data-macro-effect': selectedEffect.id }}
+				>
+					<section className="audio-editor-effect-settings">
+						<EffectParameterEditor
+							effect={selectedEffect}
+							locale={locale}
+							copy={copy}
+							disabled={false}
+							tracks={project?.tracks || []}
+							targetTrackId={snapshot.selectedTrackId}
+							hideControlTrack
+							onChange={(changes) => updateEffect(selectedEffect.id, changes)}
+						/>
+					</section>
+				</ControlledDialog>
+			)}
+
+			{picker && (
+				<EffectPicker
+					copy={copy}
+					locale={locale}
+					disabled={false}
+					onClose={() => setPicker(null)}
+					onChoose={(type) => {
+						if (picker.replaceId) {
+							const effect = effects.find((candidate) => candidate.id === picker.replaceId);
+							if (effect) {
+								const replacement = createEffect(type, { id: effect.id });
+								updateEffect(effect.id, { type, params: replacement.params });
+							}
+						} else setEffects((current) => [...current, createEffect(type)]);
+						setPicker(null);
+					}}
 				/>
 			)}
 		</>
@@ -1790,6 +2146,24 @@ function resolveSupportedEffectType(candidate, locale, copy) {
 		const labels = [type, safeEffectLabel(type, copy), safeEffectLabel(type, 'en'), safeEffectLabel(type, 'de')];
 		return labels.some((label) => String(label).trim().toLocaleLowerCase(normalizedLocale) === normalized);
 	}) || null;
+}
+
+function macroFileName(value) {
+	return String(value || 'macro')
+		.trim()
+		.replace(/[^a-z0-9_-]+/gi, '-')
+		.replace(/^-+|-+$/g, '')
+		|| 'macro';
+}
+
+function downloadTextFile(text, name) {
+	const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+	anchor.href = url;
+	anchor.download = name;
+	anchor.click();
+	setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function safeEffectLabel(type, copyOrLocale) {

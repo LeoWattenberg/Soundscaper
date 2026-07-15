@@ -189,6 +189,50 @@ export function aup4NativeEffectId(type) {
 	return profile ? nativeEffectId(profile.symbol) : null;
 }
 
+/**
+ * Encode a browser Audacity rack effect's parameters with Audacity's stable
+ * CommandParameters names and values. This representation is shared by AUP4
+ * realtime effects and text macros.
+ */
+export function encodeAudacityRealtimeEffectParameters(type, params = {}) {
+	const profile = requireRealtimeEffectProfile(type);
+	const output = [];
+	for (const descriptor of profile.params) {
+		const raw = descriptor.constant ?? params[descriptor.model];
+		if (raw === undefined) continue;
+		output.push([
+			descriptor.native,
+			descriptor.encode ? descriptor.encode(raw) : stableNumberString(raw),
+		]);
+	}
+	appendEqualizationPoints(profile, params, output);
+	return Object.freeze(output.map((entry) => Object.freeze(entry)));
+}
+
+/**
+ * Decode Audacity CommandParameters into browser rack parameters. Unknown
+ * parameters are ignored here because AUP4 must preserve future parameters
+ * opaquely; callers parsing a stricter interchange format can reject them
+ * before calling this helper.
+ */
+export function decodeAudacityRealtimeEffectParameters(type, parameters) {
+	const profile = requireRealtimeEffectProfile(type);
+	const nativeParams = parameterEntries(parameters);
+	const params = {};
+	for (const descriptor of profile.params) {
+		if (!descriptor.model || !nativeParams.has(descriptor.native)) continue;
+		const value = descriptor.decode
+			? descriptor.decode(nativeParams.get(descriptor.native))
+			: nativeParams.get(descriptor.native);
+		if (value === undefined) {
+			throw new RangeError(`Invalid Audacity effect parameter: ${descriptor.native}.`);
+		}
+		params[descriptor.model] = value;
+	}
+	readEqualizationPoints(profile, nativeParams, params);
+	return params;
+}
+
 export function createAup4EffectsNode(effects = [], opaqueEffectsNode = null) {
 	const active = booleanAttribute(opaqueEffectsNode, 'active', true);
 	const content = [{ kind: 'attribute', name: 'active', type: 'bool', value: active }];
@@ -233,17 +277,8 @@ function decodeRealtimeEffectNode(effectNode, idFactory) {
 	if (!profile) return null;
 	const nativeParams = readNativeParameters(effectNode);
 	if (!nativeParams) return null;
-	const params = {};
-	for (const descriptor of profile.params) {
-		if (!descriptor.model || !nativeParams.has(descriptor.native)) continue;
-		const value = descriptor.decode
-			? descriptor.decode(nativeParams.get(descriptor.native))
-			: nativeParams.get(descriptor.native);
-		if (value === undefined) return null;
-		params[descriptor.model] = value;
-	}
-	readEqualizationPoints(profile, nativeParams, params);
 	try {
+		const params = decodeAudacityRealtimeEffectParameters(type, nativeParams);
 		const id = idFactory('effect');
 		if (typeof id !== 'string' || !id) return null;
 		const normalized = createEffect(type, {
@@ -285,13 +320,7 @@ function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
 		if (!effect?.type && opaqueNode) return cloneNode(opaqueNode);
 		return createBrowserEffectNode(effect, opaqueNode, rackIndex);
 	}
-	const parameters = [];
-	for (const descriptor of profile.params) {
-		const raw = descriptor.constant ?? effect.params?.[descriptor.model];
-		if (raw === undefined) continue;
-		parameters.push([descriptor.native, descriptor.encode ? descriptor.encode(raw) : stableNumberString(raw)]);
-	}
-	appendEqualizationPoints(profile, effect.params || {}, parameters);
+	const parameters = encodeAudacityRealtimeEffectParameters(effect.type, effect.params || {});
 	const opaqueParameters = audacityXmlChildren(opaqueNode, 'parameters')[0];
 	const knownNames = new Set(parameters.map(([name]) => name));
 	const parameterContent = parameters.map(([name, value]) => ({ kind: 'node', node: createAudacityXmlNode('parameter', [
@@ -409,6 +438,19 @@ function readEqualizationPoints(profile, nativeParams, params) {
 	}
 	if (profile.curve && points.length) params.points = points;
 	if (profile.bands && points.length === 31) params.gains = points.map((point) => point.gain);
+}
+
+function requireRealtimeEffectProfile(type) {
+	const profile = AUP4_REALTIME_EFFECT_PROFILES[type];
+	if (!profile) throw new RangeError(`Unsupported Audacity realtime effect: ${type}.`);
+	return profile;
+}
+
+function parameterEntries(value) {
+	if (value instanceof Map) return new Map(value);
+	if (Array.isArray(value)) return new Map(value);
+	if (value && typeof value === 'object') return new Map(Object.entries(value));
+	throw new TypeError('Audacity effect parameters must be a map, object, or entry list.');
 }
 
 function nativeEffectId(symbol) {

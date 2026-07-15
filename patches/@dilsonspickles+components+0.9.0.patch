@@ -762,3 +762,63 @@ index 3e98d91..3c03155 100644
 +  margin-top: 0;
 +}
  .mixer-channel__effect-slot {
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
+index 9a60fb3..7d16765 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
+@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
+   name,
+   allEnabled,
+   onToggleAll,
+-  onContextMenu: _onContextMenu,
++  onContextMenu,
+   onAddEffect,
+   addButtonLabel = "Effects",
+   isMaster = false,
+@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
+             className: "effects-stack-header__add-button",
+             children: addButtonLabel
+           }
++        ),
++        onContextMenu && /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
++          _chunkYA2G6WW2js.GhostButton,
++          {
++            icon: "menu",
++            size: "small",
++            onClick: onContextMenu,
++            ariaLabel: "Effect stack options",
++            className: "effects-stack-header__menu-button"
++          }
+         )
+       ]
+     }
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+index 84edc3f..4d187b5 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
+   name,
+   allEnabled,
+   onToggleAll,
+-  onContextMenu: _onContextMenu,
++  onContextMenu,
+   onAddEffect,
+   addButtonLabel = "Effects",
+   isMaster = false,
+@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
+             className: "effects-stack-header__add-button",
+             children: addButtonLabel
+           }
++        ),
++        onContextMenu && /* @__PURE__ */ jsx2(
++          GhostButton,
++          {
++            icon: "menu",
++            size: "small",
++            onClick: onContextMenu,
++            ariaLabel: "Effect stack options",
++            className: "effects-stack-header__menu-button"
++          }
+         )
+       ]
+     }

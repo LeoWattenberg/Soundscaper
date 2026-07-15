@@ -77,7 +77,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		'set-up-timed-recording',
 		'toggle-sound-activated-recording',
 		'set-sound-activation-level',
-		'manage-macros',
 		'menu-macros',
 		'raw-data-import',
 		'reset-configuration',

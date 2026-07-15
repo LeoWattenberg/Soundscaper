@@ -49,6 +49,7 @@ import { projectDurationFrames } from '../../../lib/tools/audio-editor/project.j
 import {
 	AnalysisDialog,
 	AudioEditorEffectsOverlay,
+	AudioEditorMacroManagerDialog,
 	ClipPropertiesDialog,
 	ExportDialog,
 	SelectionEffectsDialog,
@@ -109,6 +110,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useState(null);
 	const [effectsOverlay, setEffectsOverlay] = useState(null);
+	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');
@@ -503,6 +505,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 				if (track) run(() => controller.actions.track.update(track.id, { mute: !track.mute }));
 			},
 			openEffects: () => openEffects(snapshot.selectedTrackId),
+			openMacroManager: () => openSurface('macro-manager'),
 			openSelectionEffect,
 			repeatLastEffect: () => run(() => controller.actions.effects.repeatLast()),
 			openSpectralSelection,
@@ -777,6 +780,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 							snapshot={snapshot}
 							copy={copy}
 							locale={locale}
+							trackId={effectsOverlay.trackId}
 							onClose={closeEffects}
 							position={{
 								left: effectsPosition.left,
@@ -821,6 +825,20 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
+						onClose={() => setActiveSurface(null)}
+					/>
+				</div>
+			)}
+			{activeSurface === 'macro-manager' && (
+				<div data-editor-surface="macro-manager">
+					<AudioEditorMacroManagerDialog
+						isOpen
+						controller={controller}
+						snapshot={snapshot}
+						copy={copy}
+						locale={locale}
+						draft={macroDraft}
+						onDraftChange={setMacroDraft}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -3530,7 +3548,7 @@ function createApplicationMenus({
 			id: 'tools',
 			label: copy.toolsMenu,
 			items: [
-				unavailable('manage-macros', copy.macroManager),
+				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				unavailable('raw-data-import', copy.rawDataImport),
 				unavailable('reset-configuration', copy.resetConfiguration),
 			],

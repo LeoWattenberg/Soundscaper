@@ -5,6 +5,7 @@ export * from './audacity-action-parity.js';
 export * from './audacity-action-runtime.js';
 export * from './audacity-pinned-ui-inventory.js';
 export * from './effect-presets.js';
+export * from './effect-macros.js';
 export * from './audacity-binary-xml.js';
 export * from './audacity-effects/index.js';
 export * from './aup4-effects.js';

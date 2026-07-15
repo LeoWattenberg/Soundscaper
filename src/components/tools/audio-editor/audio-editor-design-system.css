@@ -2100,6 +2100,122 @@
 	border: 0;
 }
 
+#kw-audio-editor-design-system .audio-editor-effect-stack-menu {
+	pointer-events: auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager .audio-editor-controlled-dialog__body {
+	min-height: 330px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__content {
+	display: grid;
+	min-height: 300px;
+	grid-template-rows: auto minmax(210px, 1fr) auto;
+	gap: 12px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__name {
+	grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
+	align-items: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__stack {
+	min-height: 210px;
+	padding: 10px 12px;
+	overflow-y: auto;
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__effect {
+	min-height: 32px;
+	padding: 4px 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__effect .effect-slot__content > .toggle-button {
+	display: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__stack > .audio-editor-panel-hint {
+	display: grid;
+	min-height: 180px;
+	place-items: center;
+	padding: 18px;
+	text-align: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__footer-actions,
+#kw-audio-editor-design-system .audio-editor-macro-manager__file-actions {
+	display: flex;
+	align-items: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__footer-actions {
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__file-actions {
+	overflow: hidden;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button {
+	display: grid;
+	width: 30px;
+	height: 28px;
+	padding: 0;
+	place-items: center;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 0;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button + .audio-editor-macro-manager__icon-button {
+	border-left: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--kw-editor-control) 82%, var(--kw-editor-text));
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: -2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button--import .icon {
+	transform: rotate(180deg);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message {
+	margin: 0;
+	padding: 8px 10px;
+	color: var(--kw-editor-muted);
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message--error {
+	color: var(--kw-editor-danger);
+	background: var(--kw-editor-danger-bg);
+	border-color: var(--kw-editor-danger-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message--success {
+	color: var(--kw-editor-success, var(--kw-editor-text));
+}
+
 #kw-audio-editor-design-system .audio-editor-controlled-dialog__body {
 	display: grid;
 	min-height: 0;

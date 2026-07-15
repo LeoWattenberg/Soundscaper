@@ -49,6 +49,7 @@ import {
 	findAudioEditorShortcutConflicts,
 	findSource,
 	findTrack,
+	isAudacityRackEffectType,
 	loadAudioEditorPreferencesV1,
 	loadStoredSourceChannels,
 	migrateAudioEditorProject,
@@ -105,6 +106,7 @@ import {
 } from './audacity-selection.js';
 import {
 	createAudioEditorEngine,
+	effectRackLatencyFrames,
 } from './engine.js';
 import {
 	RECORDING_CHANNEL_COUNT_MAXIMUM,
@@ -182,6 +184,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		selectedTrackId: null,
 		selectedClipId: null,
 		clipboard: null,
+		effectClipboard: null,
 		pixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
 		mobile: classifyMobile(),
 		timelineWidth: MIN_TIMELINE_SECONDS * DEFAULT_PIXELS_PER_SECOND,
@@ -460,6 +463,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 			effects: Object.freeze({
 				rackTypes: Object.freeze(audioEffectTypes().map((type) => Object.freeze({ type, label: audioEffectLabel(type, copy) }))),
+				hasStackClipboard: state.effectClipboard !== null,
 				selectionTypes: Object.freeze(audacityEffectTypes().map((type) => Object.freeze({ type, label: audacityEffectLabel(type, copy) }))),
 				selectionType: state.audacityEffectType,
 				selectionParams: currentAudacityEffectParams(),
@@ -771,6 +775,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				update: (scope, trackId, effectId, changes) => commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes }),
 				remove: (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId }),
 				reorder: (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex }),
+				copyStack: copyEffectStack,
+				pasteStack: pasteEffectStack,
 				setMasterGain: (gain) => commit({ type: 'master/update', changes: { gain: Math.max(0, Math.min(4, Number(gain))) } }),
 				setSelectionType: setAudacityEffectType,
 				setSelectionParams: setAudacityEffectParamsFromController,
@@ -790,6 +796,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 					import: importEffectPresets,
 					export: exportEffectPreset,
 				}),
+			}),
+			macros: Object.freeze({
+				run: runEffectMacro,
 			}),
 			analysis: Object.freeze({
 				run: runAnalysis,
@@ -3689,6 +3698,138 @@ export function createAudioEditorController(_root = null, options = {}) {
 			setStatus(copy.noiseReductionAddedDisabled);
 		}
 		return effect.id;
+	}
+
+	function effectStack(scope, trackId, snapshot = project) {
+		if (scope === 'master') return snapshot?.master?.effects || [];
+		if (scope !== 'track') throw new RangeError('Effect stack scope must be track or master.');
+		const track = findTrack(snapshot, trackId);
+		if (!track || track.type === 'label') throw new Error(copy.audioTrackNotFound);
+		return track.effects || [];
+	}
+
+	function copyEffectStack(scope, trackId = state.selectedTrackId) {
+		const effects = effectStack(scope, trackId);
+		state.effectClipboard = effects.map((effect) => structuredClone(effect));
+		publishDocumentSnapshot();
+		return state.effectClipboard.map((effect) => structuredClone(effect));
+	}
+
+	function pasteEffectStack(scope, trackId = state.selectedTrackId) {
+		if (editingBlocked()) return null;
+		if (state.effectClipboard === null) throw new Error(copy.pasteEffects || copy.paste);
+		const current = effectStack(scope, trackId);
+		const effects = state.effectClipboard.map((effect) => materializeRackEffect(effect, scope, trackId));
+		const commands = [
+			...current.map((effect) => ({
+				type: 'effect/remove', scope, trackId, busId: trackId, effectId: effect.id,
+			})),
+			...effects.map((effect) => ({ type: 'effect/add', scope, trackId, busId: trackId, effect })),
+		];
+		if (commands.length) commit({ type: 'batch', commands });
+		return effects.map((effect) => structuredClone(effect));
+	}
+
+	function materializeRackEffect(effect, scope, trackId, options = {}) {
+		const effectOptions = {
+			enabled: options.forceEnabled ? true : effect.enabled !== false,
+			params: structuredClone(effect.params || {}),
+		};
+		if (effect.context !== undefined) effectOptions.context = structuredClone(effect.context);
+		if (effect.state !== undefined) effectOptions.state = structuredClone(effect.state);
+		if (effect.type === 'audacity-auto-duck') {
+			const requestedControlTrackId = effectOptions.context?.controlTrackId || state.audacityControlTrackId;
+			const candidates = project.tracks.filter((track) => (
+				track.type !== 'label' && (scope === 'master' || track.id !== trackId)
+			));
+			const controlTrackId = candidates.some((track) => track.id === requestedControlTrackId)
+				? requestedControlTrackId
+				: candidates[0]?.id;
+			if (!controlTrackId) throw new Error(copy.autoDuckOtherControlTrack);
+			effectOptions.context = { ...effectOptions.context, controlTrackId };
+		}
+		if (effect.type === 'audacity-noise-reduction') {
+			const noiseProfile = effectOptions.context?.noiseProfile || serializeAudacityNoiseProfile(state.audacityNoiseProfile);
+			if (!noiseProfile && options.requireNoiseProfile) throw new Error(copy.noiseProfileMissing);
+			if (noiseProfile) effectOptions.context = { ...effectOptions.context, noiseProfile };
+			else effectOptions.enabled = false;
+		}
+		return createEffect(effect.type, effectOptions);
+	}
+
+	async function runEffectMacro(request = {}) {
+		if (editingBlocked()) return null;
+		const target = audacityEffectTarget(request.trackId);
+		if (!target) throw new Error(copy.macroSelectionRequired || copy.audacitySelectionHint);
+		const requestedEffects = Array.isArray(request.effects) ? request.effects : [];
+		const enabledEffects = requestedEffects.filter((effect) => effect?.enabled !== false);
+		if (!enabledEffects.length) throw new Error(copy.macroEffectsRequired || copy.effectRackEmpty);
+		const effects = enabledEffects.map((effect) => materializeRackEffect(effect, 'track', target.track.id, {
+			forceEnabled: true,
+			requireNoiseProfile: true,
+		}));
+		const sampleRate = projectSampleRate();
+		const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
+		const outputBytes = target.durationFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
+		const processingFrames = target.durationFrames + preRollFrames;
+		const latencyFrames = effectRackLatencyFrames(effects, sampleRate);
+		const offlineBytes = (processingFrames + latencyFrames) * 2 * Float32Array.BYTES_PER_ELEMENT;
+		let estimatedPeakBytes = offlineBytes * 2 + outputBytes * 3;
+		for (const effect of effects) {
+			if (!isAudacityRackEffectType(effect.type)) continue;
+			estimatedPeakBytes = Math.max(estimatedPeakBytes, estimateAudacityEffectPeakBytes(
+				effect.type,
+				processingFrames,
+				effect.params,
+				{
+					channelCount: target.channelCount,
+					controlChannelCount: effect.type === 'audacity-auto-duck' ? 2 : undefined,
+					sampleRate,
+				},
+			));
+		}
+		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
+		// Claim the shared destructive-effect slot before the first await. This
+		// makes double activation and competing edits observe a blocked controller.
+		state.audacityEffectProcessing = true;
+		setStatus(copy.macroProcessing || copy.audacityProcessing);
+		publishDocumentSnapshot();
+		try {
+			await preflightStorage(outputBytes, 'effect');
+			const snapshot = cloneProject(project);
+			const snapshotTrack = findTrack(snapshot, target.track.id);
+			if (!snapshotTrack) throw new Error(copy.audioTrackNotFound);
+			snapshotTrack.effects = effects;
+			snapshotTrack.gain = 1;
+			snapshotTrack.pan = 0;
+			snapshotTrack.mute = false;
+			snapshotTrack.solo = false;
+			snapshot.master = { ...snapshot.master, gain: 1, pan: 0, mute: false, effects: [] };
+			snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+			const rendered = await renderSnapshot(snapshot, {
+				startFrame: target.startFrame,
+				endFrame: target.endFrame,
+				trackId: target.track.id,
+				includeMaster: false,
+				includeTrackPan: false,
+				respectMuteSolo: false,
+				outputFrames: target.durationFrames,
+				preRollFrames,
+			});
+			const channels = matchAudacitySelectionChannels(audioBufferChannels(rendered), target.channelCount);
+			const effectName = String(request.name || copy.untitledMacro || copy.macroManager).trim()
+				|| copy.untitledMacro
+				|| copy.macroManager;
+			await persistAudacityEffectResult(target, null, channels, { effectName });
+			setStatus(copy.macroApplied || copy.audacityApplied, 'success');
+			return true;
+		} catch (error) {
+			handleError(error);
+			throw error;
+		} finally {
+			state.audacityEffectProcessing = false;
+			publishDocumentSnapshot();
+		}
 	}
 
 	function currentAudacityEffectParams(type = state.audacityEffectType) {
