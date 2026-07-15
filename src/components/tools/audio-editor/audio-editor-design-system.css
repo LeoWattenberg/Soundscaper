@@ -21,6 +21,27 @@
 	isolation: isolate;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__transport-play {
+	background-color: #2f9e5b !important;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__transport-play:is(:hover, .transport-button--hover, .transport-button--pressed, .transport-button--active) {
+	background-color: #248149 !important;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__transport-play .transport-button__icon,
+#kw-audio-editor-design-system .kw-audio-editor__transport-record .transport-button__icon {
+	color: #fff !important;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__transport-record {
+	background-color: #d64545 !important;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__transport-record:is(:hover, .transport-button--hover, .transport-button--pressed, .transport-button--active) {
+	background-color: #b83232 !important;
+}
+
 /* The surrounding document mirrors editor chrome for RTL locales. Audio time
  * and frequency surfaces deliberately keep their physical left-to-right axis. */
 :where(html[dir='rtl']) #kw-audio-editor-design-system :is(

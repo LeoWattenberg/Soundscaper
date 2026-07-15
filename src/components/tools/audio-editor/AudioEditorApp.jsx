@@ -1054,6 +1054,7 @@ function EditorToolToolbar({
 				{toolbars.transport?.visible !== false && transportButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
 					{isToolbarButtonVisible('play') && <TransportButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
+						className="kw-audio-editor__transport-play"
 						ariaLabel={telemetry.transportState === 'playing' ? copy.pause : copy.play}
 						disabled={blocked && !snapshot.recording}
 						active={telemetry.transportState === 'playing'}
@@ -1064,6 +1065,7 @@ function EditorToolToolbar({
 					{isToolbarButtonVisible('record') && <span data-transport="record">
 						<AccessibleTransportButton
 							icon="record"
+							className="kw-audio-editor__transport-record"
 							ariaLabel={recordControlLabel}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
