@@ -463,17 +463,6 @@
 	display: contents;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__workspace-toolbar--dragging > * {
-	opacity: .5;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__toolbar-drag-handle {
-	width: 18px;
-	min-width: 18px;
-	height: 30px;
-	font-size: 11px;
-}
-
 #kw-audio-editor-design-system .kw-audio-editor__toolbar-settings.flyout {
 	position: fixed;
 	z-index: 1002;
@@ -724,8 +713,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__workspace-drag-handle,
-#kw-audio-editor-design-system .kw-audio-editor__workspace-resize-handle,
-#kw-audio-editor-design-system .kw-audio-editor__toolbar-drag-handle {
+#kw-audio-editor-design-system .kw-audio-editor__workspace-resize-handle {
 	display: inline-grid;
 	width: 25px;
 	height: 25px;
@@ -740,7 +728,7 @@
 	font-size: 13px;
 }
 
-#kw-audio-editor-design-system :is(.kw-audio-editor__workspace-drag-handle, .kw-audio-editor__toolbar-drag-handle):hover {
+#kw-audio-editor-design-system .kw-audio-editor__workspace-drag-handle:hover {
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-control);
 	border-color: var(--kw-editor-line);
@@ -756,11 +744,11 @@
 	border-color: var(--kw-editor-line);
 }
 
-#kw-audio-editor-design-system :is(.kw-audio-editor__workspace-drag-handle, .kw-audio-editor__toolbar-drag-handle):active {
+#kw-audio-editor-design-system .kw-audio-editor__workspace-drag-handle:active {
 	cursor: grabbing;
 }
 
-#kw-audio-editor-design-system :is(.kw-audio-editor__workspace-drag-handle, .kw-audio-editor__workspace-resize-handle, .kw-audio-editor__toolbar-drag-handle):focus-visible {
+#kw-audio-editor-design-system :is(.kw-audio-editor__workspace-drag-handle, .kw-audio-editor__workspace-resize-handle):focus-visible {
 	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
 	outline-offset: 1px;
 }
@@ -3349,10 +3337,6 @@
 }
 
 @media (max-width: 1180px) {
-	#kw-audio-editor-design-system .kw-audio-editor__toolbar-drag-handle {
-		display: none;
-	}
-
 	#kw-audio-editor-design-system .kw-audio-editor__master-meter {
 		width: 210px;
 	}

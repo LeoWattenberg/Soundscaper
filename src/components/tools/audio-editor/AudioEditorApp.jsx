@@ -623,7 +623,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 				else if (mode === 'clipping') run(() => controller.actions.analysis.findClipping(scope));
 			},
 			setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
-			toggleToolbar: (toolbarId) => run(() => controller.actions.preferences.toggleToolbar(toolbarId)),
 			togglePanel: (panelId) => run(() => controller.actions.preferences.togglePanel(panelId)),
 			quickHelp: () => workspaceRef.current?.querySelector('.kw-audio-editor__keyboard-help')?.focus?.(),
 			manual: () => openExternal('https://support.audacityteam.org/au4'),
@@ -1163,7 +1162,6 @@ function EditorToolToolbar({
 		: recordLabel;
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
-	const [draggedToolbarId, setDraggedToolbarId] = useState(null);
 	const setToolbarSettingsTrigger = useCallback((element) => {
 		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
 	}, []);
@@ -1201,41 +1199,9 @@ function EditorToolToolbar({
 		if (!rect) return;
 		setToolbarSettingsPosition({ x: rect.left + rect.width / 2, y: rect.bottom });
 	};
-	const orderedToolbarIds = WORKSPACE_TOOLBAR_IDS
-		.filter((toolbarId) => toolbars[toolbarId])
-		.sort((left, right) => toolbars[left].order - toolbars[right].order);
-	const moveToolbar = (toolbarId, index) => {
-		setDraggedToolbarId(null);
-		return run(() => controller.actions.preferences.moveToolbar(toolbarId, index));
-	};
-	const dropToolbarOn = (event, targetToolbarId) => {
-		if (!draggedToolbarId || draggedToolbarId === targetToolbarId) return;
-		event.preventDefault();
-		const remaining = orderedToolbarIds.filter((toolbarId) => toolbarId !== draggedToolbarId);
-		const targetIndex = remaining.indexOf(targetToolbarId);
-		const childBounds = [...event.currentTarget.children]
-			.map((element) => element.getBoundingClientRect())
-			.filter((bounds) => bounds.width || bounds.height);
-		const left = Math.min(...childBounds.map((bounds) => bounds.left));
-		const right = Math.max(...childBounds.map((bounds) => bounds.right));
-		const after = childBounds.length && event.clientX > left + (right - left) / 2;
-		moveToolbar(draggedToolbarId, targetIndex + (after ? 1 : 0));
-	};
 	const toolbarSectionProps = (toolbarId) => ({
 		toolbarId,
-		label: workspaceToolbarLabel(copy, toolbarId),
 		order: toolbars[toolbarId]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(toolbarId),
-		dragging: draggedToolbarId === toolbarId,
-		onDragStart: setDraggedToolbarId,
-		onDragEnd: () => setDraggedToolbarId(null),
-		onDragOver: (event) => {
-			if (!draggedToolbarId || draggedToolbarId === toolbarId) return;
-			event.preventDefault();
-			event.dataTransfer.dropEffect = 'move';
-		},
-		onDrop: (event) => dropToolbarOn(event, toolbarId),
-		onMove: (direction) => moveToolbar(toolbarId, orderedToolbarIds.indexOf(toolbarId) + direction),
-		copy,
 	});
 	return (
 		<div
@@ -1260,7 +1226,7 @@ function EditorToolToolbar({
 				)}
 			>
 				{[
-				toolbars.transport?.visible !== false && transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
+				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
 				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
 					{isToolbarButtonVisible('play') && <TransportButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
@@ -1323,7 +1289,7 @@ function EditorToolToolbar({
 				</ToolbarButtonGroup>
 				</WorkspaceToolbarSection>,
 
-				toolbars.tools?.visible !== false && <WorkspaceToolbarSection key="tools" {...toolbarSectionProps('tools')}>
+				<WorkspaceToolbarSection key="tools" {...toolbarSectionProps('tools')}>
 				{viewButtonsVisible && <ToolbarDivider />}
 				{viewButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__view-actions" gap={2}>
 					{isToolbarButtonVisible('split-tool') && <span data-action-id="split-tool">
@@ -1383,7 +1349,7 @@ function EditorToolToolbar({
 				}
 				</WorkspaceToolbarSection>,
 
-				toolbars.edit?.visible !== false && visibleEditItems.length > 0 && <WorkspaceToolbarSection key="edit" {...toolbarSectionProps('edit')}>
+				visibleEditItems.length > 0 && <WorkspaceToolbarSection key="edit" {...toolbarSectionProps('edit')}>
 				<ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
 					{visibleEditItems.map((item) => (
 						<span key={item.action} data-edit={item.action === 'rippleDelete' ? 'ripple-delete' : item.action}>
@@ -1393,7 +1359,7 @@ function EditorToolToolbar({
 				</ToolbarButtonGroup>
 				</WorkspaceToolbarSection>,
 
-				toolbars.meter?.visible !== false && <WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
+				<WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
 				{isToolbarButtonVisible('time-display') && <div className="kw-audio-editor__timecode" data-time-display>
 					<AccessibleTimeCode
 						ariaLabel={`${copy.playhead}: ${copy.format}`}
@@ -1536,43 +1502,14 @@ function EditorToolToolbar({
 
 function WorkspaceToolbarSection({
 	toolbarId,
-	label,
-	dragging,
-	onDragStart,
-	onDragEnd,
-	onDragOver,
-	onDrop,
-	onMove,
-	copy,
 	children,
 }) {
 	return (
 		<div
-			className={`kw-audio-editor__workspace-toolbar${dragging ? ' kw-audio-editor__workspace-toolbar--dragging' : ''}`}
+			className="kw-audio-editor__workspace-toolbar"
 			data-workspace-toolbar={toolbarId}
-			onDragOver={onDragOver}
-			onDrop={onDrop}
 		>
 			{children}
-			<button
-				type="button"
-				className="kw-audio-editor__toolbar-drag-handle"
-				data-workspace-toolbar-drag-handle={toolbarId}
-				draggable
-				aria-label={`${copy.workspaceMove}: ${label}`}
-				onClick={(event) => event.currentTarget.focus()}
-				onDragStart={(event) => {
-					event.dataTransfer.effectAllowed = 'move';
-					event.dataTransfer.setData('text/plain', toolbarId);
-					onDragStart(toolbarId);
-				}}
-				onDragEnd={onDragEnd}
-				onKeyDown={(event) => {
-					if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-					event.preventDefault();
-					onMove(event.key === 'ArrowLeft' ? -1 : 1);
-				}}
-			>⠿</button>
 		</div>
 	);
 }
@@ -2652,16 +2589,10 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }), [copy, locale, menus]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
-	const orderedPreferenceToolbars = [...WORKSPACE_TOOLBAR_IDS]
-		.sort((left, right) => (
-			(preferences.workspace.toolbars[left]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(left))
-			- (preferences.workspace.toolbars[right]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(right))
-		));
 	const pages = [
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
-		{ id: 'toolbars', label: copy.toolbarsMenu, icon: iconNameToChar('TOOLBAR_GRIP') },
 		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 	];
@@ -2872,39 +2803,6 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 									</div>
 								</PreferencePanel>
 							</>
-						)}
-
-						{selectedPage === 'toolbars' && (
-							<PreferencePanel title={copy.toolbarsMenu}>
-								<div className="kw-audio-editor-preferences__toolbar-list">
-									{orderedPreferenceToolbars.map((toolbarId, toolbarIndex) => {
-										const label = workspaceToolbarLabel(copy, toolbarId);
-										return <div key={toolbarId} data-preference-toolbar={toolbarId}>
-											<PreferenceCheckbox
-												label={label}
-												checked={preferences.workspace.toolbars[toolbarId]?.visible !== false}
-												onChange={() => run(() => controller.actions.preferences.toggleToolbar(toolbarId))}
-											/>
-											<div className="kw-audio-editor-preferences__toolbar-order-actions">
-												<AccessiblePreferenceButton
-													variant="secondary"
-													size="small"
-													disabled={toolbarIndex === 0}
-													ariaLabel={`${copy.workspaceMoveUp}: ${label}`}
-													onClick={() => run(() => controller.actions.preferences.moveToolbar(toolbarId, toolbarIndex - 1))}
-												>↑</AccessiblePreferenceButton>
-												<AccessiblePreferenceButton
-													variant="secondary"
-													size="small"
-													disabled={toolbarIndex === orderedPreferenceToolbars.length - 1}
-													ariaLabel={`${copy.workspaceMoveDown}: ${label}`}
-													onClick={() => run(() => controller.actions.preferences.moveToolbar(toolbarId, toolbarIndex + 1))}
-												>↓</AccessiblePreferenceButton>
-											</div>
-										</div>;
-									})}
-								</div>
-							</PreferencePanel>
 						)}
 
 						{selectedPage === 'panels' && (
@@ -4334,18 +4232,6 @@ function createApplicationMenus({
 			id: 'view',
 			label: copy.viewMenu,
 			items: [
-				{
-					id: 'toolbars',
-					label: copy.toolbarsMenu,
-					items: [
-						{ id: 'transport-toolbar', label: copy.toolbarTransport, checked: preferences.workspace.toolbars.transport.visible, onClick: () => actions.toggleToolbar('transport') },
-						{ id: 'tools-toolbar', label: copy.toolbarTools, checked: preferences.workspace.toolbars.tools.visible, onClick: () => actions.toggleToolbar('tools') },
-						{ id: 'edit-toolbar', label: copy.toolbarEdit, checked: preferences.workspace.toolbars.edit.visible, onClick: () => actions.toggleToolbar('edit') },
-						{ id: 'meter-toolbar', label: copy.toolbarMeter, checked: preferences.workspace.toolbars.meter.visible, onClick: () => actions.toggleToolbar('meter') },
-						{ id: 'selection-toolbar', label: copy.selectionToolbar, checked: uiFlags.selectionToolbar },
-						{ id: 'action://record/toggle-mic-metering', label: copy.microphoneMetering, checked: uiFlags.microphoneMetering },
-					],
-				},
 				{
 					id: 'panels',
 					label: copy.panels,

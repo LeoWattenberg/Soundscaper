@@ -1171,7 +1171,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(after.height).toBeCloseTo(before.height - 16, 0);
 	});
 
-	test('keeps compact side docks separate and exposes toolbar ordering without drag handles', async ({ page }) => {
+	test('keeps compact side docks separate without toolbar group controls', async ({ page }) => {
 		await page.setViewportSize({ width: 800, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
@@ -1195,22 +1195,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(mobileLeft.y + mobileLeft.height).toBeLessThanOrEqual(mobileRight.y + 1);
 
 		await page.setViewportSize({ width: 800, height: 900 });
-		await expect(editor.locator('[data-workspace-toolbar-drag-handle]').first()).toBeHidden();
+		await expect(editor.locator('[data-workspace-toolbar-drag-handle]')).toHaveCount(0);
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await preferences.getByRole('tab', { name: /Toolbars$/ }).click();
-		await preferences.getByRole('button', { name: 'Move up: Time and meters', exact: true }).click();
-		await expect.poll(() => preferences.locator('[data-preference-toolbar]').evaluateAll(
-			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.preferenceToolbar),
-		)).toEqual(['transport', 'tools', 'meter', 'edit']);
+		await expect(preferences.getByRole('tab', { name: /Toolbars$/ })).toHaveCount(0);
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(preferences).toBeHidden();
-		await expect.poll(() => editor.locator('[data-workspace-toolbar]').evaluateAll(
-			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.workspaceToolbar),
-		)).toEqual(['transport', 'tools', 'meter', 'edit']);
+		await expect(editor.locator('[data-workspace-toolbar]')).toHaveCount(4);
 	});
 
-	test('directly reorders toolbar groups and drags workspace panels between docks', async ({ page }) => {
+	test('drags workspace panels between docks without subgroup toolbar grabbers', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
@@ -1244,14 +1238,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await leftTarget.dispatchEvent('drop', { dataTransfer });
 		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="metadata"]')).toBeVisible();
 
-		const meterHandle = editor.locator('[data-workspace-toolbar-drag-handle="meter"]');
-		const transportToolbar = editor.locator('[data-workspace-toolbar="transport"]');
-		await meterHandle.dragTo(transportToolbar.getByRole('button', { name: 'Play', exact: true }), {
-			targetPosition: { x: 2, y: 12 },
-		});
-		await expect.poll(() => editor.locator('[data-workspace-toolbar]').evaluateAll(
-			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.workspaceToolbar),
-		)).toEqual(['meter', 'transport', 'tools', 'edit']);
+		await expect(editor.locator('[data-workspace-toolbar-drag-handle]')).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 
