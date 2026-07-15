@@ -786,7 +786,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		const automation = editor.getByRole('button', { name: 'Volume automation', exact: true });
+		const automation = editor.getByRole('button', { name: 'Clip gain', exact: true });
 		await automation.click();
 		await expect(automation).toHaveAttribute('aria-pressed', 'true');
 		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-automation-tool', 'true');

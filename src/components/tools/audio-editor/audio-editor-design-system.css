@@ -901,6 +901,10 @@
 	box-shadow: inset 3px 0 #56606f;
 }
 
+#kw-audio-editor-design-system .mixer-effect--empty .mixer-effect__dropdown {
+	display: flex;
+}
+
 #kw-audio-editor-design-system[data-clip-style='classic'] .audio-editor-track-window [data-clip-id] {
 	filter: saturate(0.15) hue-rotate(165deg) contrast(1.08);
 }
