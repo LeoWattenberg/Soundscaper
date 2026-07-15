@@ -1021,7 +1021,7 @@ function EditorToolToolbar({
 		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
 		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
-		{ id: 'timecode-format', label: copy.format, icon: 'caret-down' },
+		{ id: 'time-display', label: copy.playhead, icon: 'playhead' },
 		{ id: 'monitor', label: copy.monitor, icon: 'microphone' },
 		{ id: 'playback-volume', label: copy.playbackVolume, icon: 'volume' },
 	];
@@ -1156,16 +1156,16 @@ function EditorToolToolbar({
 				</ToolbarButtonGroup>}
 
 				{toolbars.meter?.visible !== false && <>
-				<div className="kw-audio-editor__timecode" data-time-display>
+				{isToolbarButtonVisible('time-display') && <div className="kw-audio-editor__timecode" data-time-display>
 					<AccessibleTimeCode
 						ariaLabel={`${copy.playhead}: ${copy.format}`}
 						value={framesToSeconds(telemetry.positionFrame || 0, { sampleRate: project?.sampleRate })}
 						sampleRate={project?.sampleRate || 48_000}
-						showFormatSelector={!isCompact && isToolbarButtonVisible('timecode-format')}
+						showFormatSelector={!isCompact}
 						disabled={snapshot.recording}
 						onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate: project?.sampleRate })))}
 					/>
-				</div>
+				</div>}
 				<label className="kw-audio-editor__tempo-control" data-action-id="playback-bpm">
 					<span>{copy.projectTempo}</span>
 					<input

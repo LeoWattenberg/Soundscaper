@@ -369,6 +369,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
 		await playToggle.click();
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		const timeDisplayToggle = flyout.getByRole('checkbox', { name: 'Playhead', exact: true });
+		await expect(timeDisplayToggle).toHaveAttribute('aria-checked', 'true');
+		await timeDisplayToggle.click();
+		await expect(editor.locator('[data-time-display]')).toHaveCount(0);
+		await timeDisplayToggle.click();
+		await expect(editor.locator('[data-time-display]')).toBeVisible();
 	});
 
 	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {

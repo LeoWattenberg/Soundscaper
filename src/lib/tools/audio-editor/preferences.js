@@ -76,7 +76,7 @@ const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	split: true,
 	delete: true,
 	rippleDelete: true,
-	'timecode-format': true,
+	'time-display': true,
 	monitor: true,
 	'playback-volume': true,
 });
@@ -240,6 +240,7 @@ function normalizeToolbarButtonEntries(value = {}) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.toolbarButtons must be an object.');
 	const entries = { ...DEFAULT_TOOLBAR_BUTTONS };
 	for (const [id, visible] of Object.entries(value)) {
+		if (id === 'timecode-format') continue;
 		nonEmptyString(id, 'toolbar button ID');
 		if (typeof visible !== 'boolean') throw new TypeError(`workspace.toolbarButtons.${id} must be boolean.`);
 		entries[id] = visible;
