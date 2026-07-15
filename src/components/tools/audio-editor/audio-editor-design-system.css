@@ -2116,6 +2116,14 @@
 	pointer-events: auto;
 }
 
+#kw-audio-editor-design-system .audio-editor-controlled-dialog--draggable .dialog-header {
+	cursor: move;
+}
+
+#kw-audio-editor-design-system .audio-editor-controlled-dialog--draggable .dialog-header :is(button, input, select, textarea, a) {
+	cursor: pointer;
+}
+
 #kw-audio-editor-design-system .audio-editor-effect-stack-menu {
 	pointer-events: auto;
 }

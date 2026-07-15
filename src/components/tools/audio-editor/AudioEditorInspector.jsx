@@ -68,6 +68,7 @@ function ControlledDialog({
 	className = '',
 	width = 640,
 	modal = true,
+	draggable = false,
 	closeOnEscape = true,
 	closeOnOutside = true,
 	dataAttributes = {},
@@ -76,7 +77,38 @@ function ControlledDialog({
 }) {
 	const panelRef = useRef(null);
 	const onCloseRef = useRef(onClose);
+	const dragRef = useRef(null);
+	const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 	onCloseRef.current = onClose;
+
+	const handleHeaderMouseDown = (event) => {
+		if (!draggable || event.button !== 0 || event.target.closest('button, input, select, textarea, a')) return;
+		e.preventDefault();
+		dragRef.current = {
+			startX: event.clientX,
+			startY: event.clientY,
+			startOffset: dragOffset,
+		};
+		const handleMouseMove = (moveEvent) => {
+			const drag = dragRef.current;
+			if (!drag) return;
+			setDragOffset({
+				x: drag.startOffset.x + moveEvent.clientX - drag.startX,
+				y: drag.startOffset.y + moveEvent.clientY - drag.startY,
+			});
+		};
+		const handleMouseUp = () => {
+			dragRef.current = null;
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+		};
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+	};
+
+	useEffect(() => {
+		if (!isOpen) setDragOffset({ x: 0, y: 0 });
+	}, [isOpen]);
 
 	useEffect(() => {
 		if (!isOpen) return undefined;
@@ -132,14 +164,17 @@ function ControlledDialog({
 			<section
 				ref={panelRef}
 				tabIndex={-1}
-				className={`kw-audio-editor-dialog audio-editor-controlled-dialog ${className}`}
+				className={`kw-audio-editor-dialog audio-editor-controlled-dialog${draggable ? ' audio-editor-controlled-dialog--draggable' : ''} ${className}`}
 				role="dialog"
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
-				style={{ width: `min(${typeof width === 'number' ? `${width}px` : width}, calc(100vw - 32px))` }}
+				style={{
+					width: `min(${typeof width === 'number' ? `${width}px` : width}, calc(100vw - 32px))`,
+					transform: draggable ? `translate(${dragOffset.x}px, ${dragOffset.y}px)` : undefined,
+				}}
 				{...dataAttributes}
 			>
-				<DialogHeader title={headerTitle} os="windows" onClose={onClose} />
+				<DialogHeader title={headerTitle} os="windows" onClose={onClose} onMouseDown={handleHeaderMouseDown} />
 				{headerSlot}
 				<div className="kw-audio-editor-dialog__body audio-editor-controlled-dialog__body">
 					{children}
@@ -572,6 +607,7 @@ export function AudioEditorEffectsOverlay({
 					onClose={() => setSelectedEffect(null)}
 					width={620}
 					modal={false}
+					draggable
 					className="audio-editor-effect-settings-dialog"
 					dataAttributes={{ 'data-effect': effect.id }}
 					headerSlot={(
