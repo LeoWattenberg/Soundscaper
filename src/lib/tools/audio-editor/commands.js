@@ -571,9 +571,15 @@ function overwriteClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const oldTrack = requireClipTrack(project, clip.id);
 	const targetTrack = requireTrack(project, command.trackId || oldTrack.id);
+	const requestedChanges = command.changes || {};
+	const timelineStartFrame = requestedChanges.timelineStartFrame ?? clip.timelineStartFrame;
+	const durationFrames = requestedChanges.durationFrames ?? clip.durationFrames;
 	const updated = normalizeClipForProject(project, {
 		...clip,
-		...(command.changes || {}),
+		...requestedChanges,
+		...(!Object.hasOwn(requestedChanges, 'envelope') && durationFrames !== clip.durationFrames ? {
+			envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
+		} : {}),
 		id: clip.id,
 	});
 	assertClipSourceBounds(project, updated);
@@ -645,11 +651,14 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 function trimClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const track = requireClipTrack(project, clip.id);
+	const timelineStartFrame = command.timelineStartFrame ?? clip.timelineStartFrame;
+	const durationFrames = command.durationFrames ?? clip.durationFrames;
 	const updated = normalizeClipForProject(project, {
 		...clip,
-		timelineStartFrame: command.timelineStartFrame ?? clip.timelineStartFrame,
+		timelineStartFrame,
 		sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
-		durationFrames: command.durationFrames ?? clip.durationFrames,
+		durationFrames,
+		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 		fadeInFrames: command.fadeInFrames ?? Math.min(clip.fadeInFrames, command.durationFrames ?? clip.durationFrames),
 		fadeOutFrames: command.fadeOutFrames ?? Math.min(clip.fadeOutFrames, command.durationFrames ?? clip.durationFrames),
 		id: clip.id,
@@ -1273,6 +1282,13 @@ function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFr
 		fadeInFrames: segmentStartFrame === clip.timelineStartFrame ? Math.min(clip.fadeInFrames, durationFrames) : 0,
 		fadeOutFrames: segmentEndFrame === clipEndFrame(clip) ? Math.min(clip.fadeOutFrames, durationFrames) : 0,
 	});
+}
+
+function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames) {
+	const offsetFrames = timelineStartFrame - clip.timelineStartFrame;
+	return (clip.envelope || [])
+		.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
+		.map((point) => ({ ...point, frame: point.frame - offsetFrames }));
 }
 
 function assertClipSourceBounds(project, clip) {

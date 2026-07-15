@@ -5,6 +5,7 @@ import {
 	ContextMenuItem,
 	FrequencyRuler,
 	Icon,
+	LabelMarker,
 	Menu,
 	PlayheadCursor,
 	TextInput,
@@ -27,6 +28,10 @@ import {
 	projectClipsToViewport,
 	secondsToFrames,
 } from '../../../lib/tools/audio-editor/design-system-adapters.js';
+import {
+	envelopeFramesToDesignPoints,
+	mergeDesignEnvelopePoints,
+} from '../../../lib/tools/audio-editor/automation.js';
 import {
 	AUDACITY_CLIP_CONTEXT_ACTION_IDS,
 	AUDACITY_TRACK_CONTEXT_ACTION_IDS,
@@ -55,6 +60,7 @@ export default function AudioEditorTimeline({
 	mobile,
 	showArmControls,
 	splitToolEnabled = false,
+	automationToolEnabled = false,
 	onToggleSplitTool,
 	onError,
 	onOpenEffects,
@@ -403,9 +409,11 @@ export default function AudioEditorTimeline({
 		if (event.button !== 0 || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting) return;
 		const interactiveControl = event.target.closest?.('button, input, textarea, select, [role="menuitem"]');
 		if (interactiveControl && !interactiveControl.classList.contains('clip-display__handle')) return;
+		if (event.target.closest?.('[data-label-id]')) return;
 		const clipElement = event.target.closest('[data-clip-id]');
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
+		if (automationToolEnabled && !lane.closest('[data-label-track]')) return;
 		if (!clipElement) {
 			if (lane.dataset.trackId && lane.dataset.rulerInteraction === undefined) {
 				run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
@@ -471,7 +479,7 @@ export default function AudioEditorTimeline({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [controller, frameAtClientX, pixelsPerSecond, project, run, snapshot.readOnly, snapshot.recording, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive]);
+	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, snapshot.readOnly, snapshot.recording, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
@@ -647,6 +655,7 @@ export default function AudioEditorTimeline({
 			ref={setTimelineNode}
 			data-sample-pencil={snapshot.sampleEdit?.mode === 'pencil' ? 'true' : 'false'}
 			data-split-tool={splitToolActive ? 'true' : 'false'}
+			data-automation-tool={automationToolEnabled ? 'true' : 'false'}
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
 				'--timeline-viewport-width': `${viewportWidth}px`,
@@ -786,6 +795,7 @@ export default function AudioEditorTimeline({
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipId={draggingClipId}
 								clipDragPreview={clipDragPreview}
+								automationToolEnabled={automationToolEnabled}
 								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
 								showArmControls={showArmControls}
 								recordingInputs={snapshot.recordingInputs}
@@ -1068,6 +1078,7 @@ function TrackRow({
 	recordingPreview,
 	draggingClipId,
 	clipDragPreview,
+	automationToolEnabled,
 	blocked,
 	showArmControls,
 	recordingInputs,
@@ -1084,6 +1095,8 @@ function TrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const envelopePreviewRef = useRef(new Map());
+	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
 	const trackHeight = trackVisualHeight(track, showArmControls);
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
 	const spectrogramScale = normalizeSpectrogramScale(track.spectrogram?.scale);
@@ -1130,7 +1143,10 @@ function TrackRow({
 			copy,
 			showRms,
 			displayMode === 'half-wave',
-		));
+		)).map((clip) => {
+			const preview = envelopePreviewRef.current.get(String(clip.id));
+			return preview ? { ...clip, envelopePoints: preview.designPoints } : clip;
+		});
 	const projectedSelection = selection ? {
 		startTime: selection.startTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
 		endTime: selection.endTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
@@ -1139,6 +1155,48 @@ function TrackRow({
 		? spectralSelection
 		: null;
 	const tabIndexFor = (offset) => isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4 + offset;
+
+	useEffect(() => {
+		const finishEnvelopeEdit = () => queueMicrotask(() => {
+			const previews = [...envelopePreviewRef.current.values()];
+			if (!previews.length) return;
+			envelopePreviewRef.current.clear();
+			setEnvelopePreviewRevision((revision) => revision + 1);
+			for (const preview of previews) {
+				run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
+			}
+		});
+		document.addEventListener('mouseup', finishEnvelopeEdit);
+		return () => document.removeEventListener('mouseup', finishEnvelopeEdit);
+	}, [controller, run]);
+
+	useEffect(() => {
+		if (automationToolEnabled) return;
+		envelopePreviewRef.current.clear();
+		setEnvelopePreviewRevision((revision) => revision + 1);
+	}, [automationToolEnabled]);
+
+	const updateEnvelope = (clipId, designPoints) => {
+		if (blocked || !automationToolEnabled) return;
+		const canonical = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
+		const projected = projection.clips.find((clip) => String(clip.id) === String(clipId));
+		if (!canonical || !projected) return;
+		const startFrame = projected.waveformStartFrame;
+		const endFrame = projected.waveformEndFrame;
+		envelopePreviewRef.current.set(String(canonical.id), {
+			clipId: canonical.id,
+			designPoints,
+			envelope: mergeDesignEnvelopePoints(
+				canonical.envelope,
+				designPoints,
+				sampleRate,
+				canonical.durationFrames,
+				{ startFrame, endFrame, maximumValue: 2 },
+			),
+		});
+		setEnvelopePreviewRevision((revision) => revision + 1);
+	};
+	void envelopePreviewRevision;
 
 	useEffect(() => {
 		const root = trackWindowRef.current;
@@ -1371,6 +1429,8 @@ function TrackRow({
 						trackIndex={trackIndex}
 						isSelected={selectedTrackId === track.id}
 						isMuted={track.mute}
+						envelopeMode={automationToolEnabled && !blocked}
+						onEnvelopePointsChange={updateEnvelope}
 						pixelsPerSecond={pixelsPerSecond}
 						width={windowWidth}
 						spectrogramMode={displayMode === 'spectrogram' && !recordingPreview}
@@ -1724,16 +1784,26 @@ function LabelTrackRow({
 	onMenu,
 }) {
 	const trackHeight = trackVisualHeight(track);
+	const laneRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
-	const addLabel = () => {
+	const [selectedLabelId, setSelectedLabelId] = useState(null);
+	const [editingLabelId, setEditingLabelId] = useState(null);
+	const addLabel = (event = null) => {
 		if (blocked) return;
-		const startFrame = selection?.startFrame ?? 0;
-		const endFrame = selection?.endFrame ?? startFrame;
-		run(() => controller.actions.labels.add(track.id, {
-			title: copy.newLabel,
+		const pointerFrame = event?.clientX != null && laneRef.current
+			? frameAtLabelClientX(event.clientX, laneRef.current, pixelsPerSecond, sampleRate)
+			: null;
+		const startFrame = pointerFrame ?? selection?.startFrame ?? 0;
+		const endFrame = pointerFrame ?? selection?.endFrame ?? startFrame;
+		const labelId = run(() => controller.actions.labels.add(track.id, {
+			title: '',
 			startFrame,
 			endFrame,
 		}));
+		if (labelId) {
+			setSelectedLabelId(labelId);
+			setEditingLabelId(labelId);
+		}
 	};
 	return (
 		<div
@@ -1768,11 +1838,12 @@ function LabelTrackRow({
 					)}
 				</div>
 				<div className="audio-editor-label-track-actions">
-					<Button variant="secondary" aria-label={copy.addLabel} disabled={blocked} onClick={addLabel}>+</Button>
+					<Button variant="secondary" aria-label={copy.addLabel} disabled={blocked} onClick={() => addLabel()}>+</Button>
 					<Button variant="tertiary" aria-label={copy.trackMenu || copy.tracksMenu} onClick={(event) => onMenu(event.currentTarget)}>⋯</Button>
 				</div>
 			</div>
 			<div
+				ref={laneRef}
 				className="audio-editor-track-lane audio-editor-label-lane"
 				data-track-lane
 				data-track-id={track.id}
@@ -1781,57 +1852,182 @@ function LabelTrackRow({
 				aria-label={track.name}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
 				onClick={(event) => {
-					if (!event.target.closest('[data-label-id]')) run(() => controller.actions.timeline.selectTrack(track.id));
+					if (!event.target.closest('[data-label-id]')) {
+						setSelectedLabelId(null);
+						run(() => controller.actions.timeline.selectTrack(track.id));
+					}
 				}}
-				onDoubleClick={addLabel}
+				onDoubleClick={(event) => {
+					if (!event.target.closest('[data-label-id]')) addLabel(event);
+				}}
 			>
 				{track.labels.map((label) => {
 					const startSeconds = framesToSeconds(label.startFrame, { sampleRate });
 					const endSeconds = framesToSeconds(label.endFrame, { sampleRate });
-					const width = Math.max(18, (endSeconds - startSeconds) * pixelsPerSecond);
 					return (
-						<div
+						<AudacityLabelMarker
 							key={label.id}
-							className="audio-editor-label"
-							data-label-id={label.id}
-							data-point-label={label.startFrame === label.endFrame ? 'true' : 'false'}
-							style={{ left: startSeconds * pixelsPerSecond, width }}
-							onClick={(event) => {
-								event.stopPropagation();
-								run(() => controller.actions.timeline.selectTrack(track.id));
-								run(() => controller.actions.timeline.setSelection(label.startFrame, label.endFrame));
+							controller={controller}
+							trackId={track.id}
+							label={label}
+							left={startSeconds * pixelsPerSecond}
+							trackHeight={trackHeight}
+							pixelsPerSecond={pixelsPerSecond}
+							sampleRate={sampleRate}
+							laneRef={laneRef}
+							selected={selectedLabelId === label.id}
+							editing={editingLabelId === label.id}
+							blocked={blocked}
+							copy={copy}
+							run={run}
+							onSelect={() => setSelectedLabelId(label.id)}
+							onEdit={() => setEditingLabelId(label.id)}
+							onFinishEdit={() => setEditingLabelId(null)}
+							onRemove={() => {
+								setSelectedLabelId(null);
+								setEditingLabelId(null);
+								run(() => controller.actions.labels.remove(track.id, label.id));
 							}}
-						>
-							<input
-								key={`${label.id}-${label.title}`}
-								aria-label={`${copy.editLabels}: ${label.title}`}
-								defaultValue={label.title}
-								disabled={blocked}
-								onBlur={(event) => {
-									const title = event.currentTarget.value;
-									if (title !== label.title) run(() => controller.actions.labels.update(track.id, label.id, { title }));
-								}}
-								onKeyDown={(event) => {
-									if (event.key === 'Enter') event.currentTarget.blur();
-									if (event.key === 'Delete' && (event.metaKey || event.ctrlKey)) run(() => controller.actions.labels.remove(track.id, label.id));
-								}}
-							/>
-							<button
-								type="button"
-								className="audio-editor-label-remove"
-								aria-label={`${copy.deleteLabel || copy.deleteTrack}: ${label.title}`}
-								disabled={blocked}
-								onClick={(event) => {
-									event.stopPropagation();
-									run(() => controller.actions.labels.remove(track.id, label.id));
-								}}
-							>×</button>
-						</div>
+						/>
 					);
 				})}
 			</div>
 		</div>
 	);
+}
+
+function AudacityLabelMarker({
+	controller,
+	trackId,
+	label,
+	left,
+	trackHeight,
+	pixelsPerSecond,
+	sampleRate,
+	laneRef,
+	selected,
+	editing,
+	blocked,
+	copy,
+	run,
+	onSelect,
+	onEdit,
+	onFinishEdit,
+	onRemove,
+}) {
+	const inputRef = useRef(null);
+	const baselineRef = useRef(label);
+	const pendingRef = useRef(null);
+	const [preview, setPreview] = useState(null);
+	const point = label.startFrame === label.endFrame;
+	const displayed = preview || label;
+	const displayedLeft = left + (displayed.startFrame - label.startFrame) / sampleRate * pixelsPerSecond;
+	const displayedWidth = Math.max(1, (displayed.endFrame - displayed.startFrame) / sampleRate * pixelsPerSecond);
+
+	useEffect(() => {
+		if (!editing) return;
+		inputRef.current?.focus();
+		inputRef.current?.select();
+	}, [editing]);
+
+	useEffect(() => {
+		const finishDrag = () => queueMicrotask(() => {
+			const pending = pendingRef.current;
+			if (!pending) return;
+			pendingRef.current = null;
+			setPreview(null);
+			run(() => controller.actions.labels.update(trackId, label.id, pending));
+		});
+		document.addEventListener('mouseup', finishDrag);
+		return () => document.removeEventListener('mouseup', finishDrag);
+	}, [controller, label.id, run, trackId]);
+
+	const previewRange = (startFrame, endFrame) => {
+		const changes = {
+			startFrame: Math.max(0, Math.min(startFrame, endFrame)),
+			endFrame: Math.max(0, Math.max(startFrame, endFrame)),
+		};
+		pendingRef.current = changes;
+		setPreview({ ...label, ...changes });
+	};
+	const select = () => {
+		onSelect();
+		baselineRef.current = preview || label;
+		run(() => controller.actions.timeline.selectTrack(trackId));
+		run(() => controller.actions.timeline.setSelection(label.startFrame, label.endFrame));
+	};
+	return (
+		<div
+			className="audio-editor-label-marker"
+			data-label-id={label.id}
+			data-point-label={point ? 'true' : 'false'}
+			style={{ left: displayedLeft, width: displayedWidth }}
+			role="group"
+			tabIndex={0}
+			aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}
+			onKeyDown={(event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					onEdit();
+				} else if ((event.key === 'Delete' || event.key === 'Backspace') && !editing && !blocked) {
+					event.preventDefault();
+					onRemove();
+				}
+			}}
+		>
+			<LabelMarker
+				text={label.title || copy.newLabel}
+				type={point ? 'point' : 'region'}
+				width={displayedWidth}
+				stalkHeight={Math.max(24, trackHeight - 18)}
+				selected={selected}
+				onClick={select}
+				onDoubleClick={() => !blocked && onEdit()}
+				onSelect={() => {
+					select();
+					baselineRef.current = preview || label;
+				}}
+				onLabelMove={blocked ? undefined : (deltaX) => {
+					const baseline = baselineRef.current || label;
+					const deltaFrames = Math.round(deltaX / pixelsPerSecond * sampleRate);
+					const duration = baseline.endFrame - baseline.startFrame;
+					const startFrame = Math.max(0, baseline.startFrame + deltaFrames);
+					previewRange(startFrame, startFrame + duration);
+				}}
+				onRegionResize={blocked ? undefined : ({ side, clientX }) => {
+					const frame = frameAtLabelClientX(clientX, laneRef.current, pixelsPerSecond, sampleRate);
+					if (side === 'left') previewRange(frame, label.endFrame);
+					else previewRange(label.startFrame, frame);
+				}}
+			/>
+			{editing && <input
+				ref={inputRef}
+				className="audio-editor-label-title-input"
+				defaultValue={label.title}
+				disabled={blocked}
+				aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}
+				onClick={(event) => event.stopPropagation()}
+				onBlur={(event) => {
+					const title = event.currentTarget.value;
+					if (title !== label.title) run(() => controller.actions.labels.update(trackId, label.id, { title }));
+					onFinishEdit();
+				}}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter') event.currentTarget.blur();
+					else if (event.key === 'Escape') {
+						event.currentTarget.value = label.title;
+						event.currentTarget.blur();
+					}
+				}}
+			/>}
+		</div>
+	);
+}
+
+function frameAtLabelClientX(clientX, lane, pixelsPerSecond, sampleRate) {
+	if (!lane) return 0;
+	const rect = lane.getBoundingClientRect();
+	return Math.max(0, Math.round(Math.max(0, clientX - rect.left) / pixelsPerSecond * sampleRate));
 }
 
 function TrackControls({
@@ -2085,6 +2281,10 @@ function toDesignClip(
 		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
 		fullDuration: framesToSeconds(clip.sourceDurationFrames || clip.durationFrames, { sampleRate }),
 		stretchFactor: clip.durationFrames / Math.max(1, clip.sourceDurationFrames || clip.durationFrames),
+		envelopePoints: envelopeFramesToDesignPoints(clip.envelope, sampleRate, {
+			startFrame: clip.waveformStartFrame,
+			endFrame: clip.waveformEndFrame,
+		}),
 	};
 	if (!visual?.buffer || !clip.isVisible) return output;
 	try {

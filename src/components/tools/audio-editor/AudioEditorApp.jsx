@@ -115,6 +115,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [localError, setLocalError] = useState('');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [showArmControls, setShowArmControls] = useState(false);
+	const [automationToolEnabled, setAutomationToolEnabled] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
 	const [analysisMode, setAnalysisMode] = useState('levels');
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
@@ -197,7 +198,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setIsFullscreen((current) => !current);
 	}, []);
 	const toggleSplitTool = useCallback(() => {
+		setAutomationToolEnabled(false);
 		return parityRuntime.actions.tools.toggleSplitTool();
+	}, [parityRuntime]);
+	const toggleAutomationTool = useCallback(() => {
+		setAutomationToolEnabled((enabled) => {
+			if (!enabled && parityRuntime.uiController.getSnapshot().flags.splitTool) {
+				parityRuntime.actions.tools.toggleSplitTool();
+			}
+			return !enabled;
+		});
 	}, [parityRuntime]);
 
 	const toggleRecording = useCallback(() => {
@@ -669,6 +679,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					toolbars={toolbarPreferences}
 					toolbarButtons={toolbarButtonPreferences}
 					uiFlags={uiFlags}
+					automationToolEnabled={automationToolEnabled}
+					onToggleAutomationTool={toggleAutomationTool}
 					actionRuntime={parityRuntime.actions}
 					onOpenSpectralSelection={openSpectralSelection}
 				/>
@@ -701,6 +713,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						mobile={isCompact}
 						showArmControls={showArmControls}
 						splitToolEnabled={uiFlags.splitTool}
+						automationToolEnabled={automationToolEnabled}
 						onToggleSplitTool={toggleSplitTool}
 						onError={onError}
 						onOpenEffects={openEffects}
@@ -938,6 +951,8 @@ function EditorToolToolbar({
 	toolbars,
 	toolbarButtons,
 	uiFlags,
+	automationToolEnabled,
+	onToggleAutomationTool,
 	actionRuntime,
 	onOpenSpectralSelection,
 }) {
@@ -964,7 +979,7 @@ function EditorToolToolbar({
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
-	const viewButtonsVisible = ['split-tool', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
+	const viewButtonsVisible = ['split-tool', 'volume-automation', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
 	const toolbarButtonOptions = [
@@ -975,6 +990,7 @@ function EditorToolToolbar({
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
+		{ id: 'volume-automation', label: copy.volumeAutomation, icon: 'envelope' },
 		{ id: 'waveform-view', label: copy.waveformView, icon: 'waveform' },
 		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
 		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
@@ -1055,7 +1071,20 @@ function EditorToolToolbar({
 							icon="split"
 							isActive={uiFlags.splitTool}
 							ariaLabel={copy.splitTool}
-							onClick={() => actionRuntime.tools.toggleSplitTool()}
+							onClick={() => {
+								if (automationToolEnabled) onToggleAutomationTool();
+								actionRuntime.tools.toggleSplitTool();
+							}}
+						/>
+					</span>
+					}
+					{isToolbarButtonVisible('volume-automation') && <span data-action-id="volume-automation">
+						<ToggleToolButton
+							icon="envelope"
+							isActive={automationToolEnabled}
+							ariaLabel={copy.volumeAutomation}
+							disabled={!selectedTrack || blocked}
+							onClick={onToggleAutomationTool}
 						/>
 					</span>
 					}

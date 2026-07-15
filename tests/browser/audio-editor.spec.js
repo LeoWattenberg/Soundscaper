@@ -748,6 +748,26 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('edits clip-glued volume automation with the Audacity envelope tool', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const automation = editor.getByRole('button', { name: 'Volume automation', exact: true });
+		await automation.click();
+		await expect(automation).toHaveAttribute('aria-pressed', 'true');
+		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-automation-tool', 'true');
+
+		const clip = clipByName(editor, toneA.name);
+		await expect(clip.locator('.envelope-overlay')).toBeVisible();
+		const box = await clip.boundingBox();
+		expect(box).toBeTruthy();
+		// Standard clips place the design-system's non-linear 0 dB line about
+		// 58 px below the top edge (20 px header plus the body curve offset).
+		await page.mouse.click(box.x + box.width * 0.5, box.y + 58);
+		await expect(clip.locator('.envelope-point')).toHaveCount(1);
+		expect(errors).toEqual([]);
+	});
+
 	for (const locale of [
 		{
 			path: '/embed/en/',
@@ -864,7 +884,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await commitInput(rangeInputs.nth(0), '0.125');
 		await expect(rangeInputs.nth(0)).toHaveValue('0.125');
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
-		await expect(editor.locator('[data-label-track] [data-label-id] input')).toHaveValue('Verse');
+		const timelineLabel = editor.locator('[data-label-track] [data-label-id]', { hasText: 'Verse' });
+		await expect(timelineLabel).toBeVisible();
+		await timelineLabel.dblclick();
+		await expect(timelineLabel.locator('input')).toHaveValue('Verse');
+		await page.keyboard.press('Escape');
 
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');

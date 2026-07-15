@@ -1,4 +1,5 @@
 import { rackTailFrames } from './effects.js';
+import { envelopeValueAtFrame } from './automation.js';
 import {
 	audacityLiveEffectCapability,
 	isAudacityLiveEffect,
@@ -1440,7 +1441,26 @@ async function readChunkSourceRange(source, startFrame, endFrame, signal) {
 }
 
 function scheduleClipGain(fadeInParam, fadeOutParam, clipGainParam, clip, segmentStart, segmentEnd, duration, startTime, sampleRate) {
-	setParam(clipGainParam, Math.max(0, finite(clip.gain, 1)), startTime);
+	const baseGain = Math.max(0, finite(clip.gain, 1));
+	const envelope = Array.isArray(clip.envelope) ? clip.envelope : [];
+	setParam(clipGainParam, baseGain * envelopeValueAtFrame(envelope, segmentStart, duration), startTime);
+	if (envelope.length) {
+		for (const point of envelope) {
+			if (point.frame <= segmentStart || point.frame >= segmentEnd) continue;
+			linearRamp(
+				clipGainParam,
+				baseGain * Math.max(0, finite(point.value, 1)),
+				startTime + (point.frame - segmentStart) / sampleRate,
+			);
+		}
+		if (segmentEnd > segmentStart) {
+			linearRamp(
+				clipGainParam,
+				baseGain * envelopeValueAtFrame(envelope, segmentEnd, duration),
+				startTime + (segmentEnd - segmentStart) / sampleRate,
+			);
+		}
+	}
 	const fadeIn = clampFrame(clip.fadeInFrames, 0, duration);
 	const fadeOut = clampFrame(clip.fadeOutFrames, 0, duration);
 	const fadeInAt = (frame) => fadeIn > 0 && frame < fadeIn ? Math.max(0, frame / fadeIn) : 1;

@@ -3427,6 +3427,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				durationFrames,
 				fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
 				fadeOutFrames: Math.min(clip.fadeOutFrames, durationFrames),
+				envelope: scaleClipEnvelope(clip, durationFrames),
 				renderCacheRevision: (clip.renderCacheRevision || 0) + 1,
 			},
 		});
@@ -3456,6 +3457,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				speedRatio,
 				fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
 				fadeOutFrames: Math.min(clip.fadeOutFrames, durationFrames),
+				envelope: scaleClipEnvelope(clip, durationFrames),
 				renderCacheRevision: (clip.renderCacheRevision || 0) + 1,
 			},
 		});
@@ -5907,6 +5909,13 @@ async function createAudioBuffer(channelCount, length, sampleRate, context, copy
 	return buffer;
 }
 function audioBufferChannels(buffer) { return Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel)); }
+function scaleClipEnvelope(clip, durationFrames) {
+	const ratio = durationFrames / Math.max(1, clip.durationFrames);
+	return (clip.envelope || []).map((point) => ({
+		...point,
+		frame: Math.max(0, Math.min(durationFrames, Math.round(point.frame * ratio))),
+	})).filter((point, index, points) => index === 0 || point.frame > points[index - 1].frame);
+}
 function serializeAudacityNoiseProfile(profile) {
 	if (!profile) return null;
 	return {

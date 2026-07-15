@@ -693,6 +693,28 @@ test('engine source resolver can schedule a committed nondestructive clip cache 
 	await engine.dispose();
 });
 
+test('engine schedules clip volume automation for live playback', async () => {
+	const context = new MockAudioContext();
+	const project = createProject();
+	project.clips[0].fadeInFrames = 0;
+	project.clips[0].fadeOutFrames = 0;
+	project.clips[0].envelope = [{ frame: 12_000, value: 0.5 }, { frame: 36_000, value: 0.25 }];
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context, meterInterval: 1_000 });
+	engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(1, 48_000, 48_000)]]));
+	await engine.play();
+	const fadeIn = context.bufferSources[0].connections[0];
+	const fadeOut = fadeIn.connections[0];
+	const clipGain = fadeOut.connections[0];
+	assert.deepEqual(clipGain.gain.events, [
+		['set', 0.8, 0],
+		['ramp', 0.4, 0.25],
+		['ramp', 0.2, 0.75],
+		['ramp', 0.2, 1],
+	]);
+	engine.stop();
+	await engine.dispose();
+});
+
 test('project graph meters pre-mute tracks and applies master processing', () => {
 	const context = new MockAudioContext();
 	const graph = buildProjectGraph(context, context.destination, createProject(), { metering: true });
