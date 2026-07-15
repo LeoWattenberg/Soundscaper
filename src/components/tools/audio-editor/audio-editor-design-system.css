@@ -1775,9 +1775,9 @@
 	width: min(430px, calc(100vw - 260px));
 	gap: 6px;
 	padding: 20px;
-	color: var(--kw-editor-stage-text);
-	background: color-mix(in srgb, var(--kw-editor-stage-raised) 88%, transparent);
-	border: 1px dashed color-mix(in srgb, var(--kw-editor-accent) 42%, var(--kw-editor-stage-line));
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+	border: 1px solid var(--kw-editor-line);
 	border-radius: 8px;
 	box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
 }
@@ -1788,7 +1788,7 @@
 
 #kw-audio-editor-design-system .audio-editor-empty-state p {
 	margin: 0;
-	color: var(--kw-editor-stage-muted);
+	color: var(--kw-editor-muted);
 	font-size: 12px;
 	line-height: 1.45;
 }
