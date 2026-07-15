@@ -127,4 +127,10 @@ Upstream does not provide separate font license metadata at that tag, so it is
 covered here by the package's declared MIT metadata under the project's chosen
 license-review policy.
 
+The browser editor also ports the MuseScore framework icon-code inventory from
+`framework/ui/view/iconcodes.h` at MuseScore framework commit
+`3e6bfd62701992303dc22f1bae6f81bde1670ef9` (GPL-3.0-only). The port retains the
+upstream notice and source hash in
+`src/lib/tools/audio-editor/audacity-iconcodes.js`.
+
 Except for identified third-party portions under compatible licenses, the repository is distributed under AGPL-3.0-only. Before deploying the FFmpeg core, the release process must archive the exact corresponding source and build configuration alongside the deployed version and verify the enabled codec libraries and their notices.
