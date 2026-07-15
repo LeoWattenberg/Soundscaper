@@ -16,7 +16,6 @@ export const AUDACITY_MENU_ORDER = Object.freeze([
 	'edit',
 	'select',
 	'view',
-	'record',
 	'tracks',
 	'generate',
 	'effect',

@@ -99,7 +99,7 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 function editorButton(target, root) {
 	if (!(target instanceof Element)) return null;
 	const button = target.closest(BUTTON_SELECTOR);
-	return button && root.contains(button) ? button : null;
+	return button && !button.hasAttribute('data-tooltip-ignore') && root.contains(button) ? button : null;
 }
 
 function buttonTooltipLabel(button) {

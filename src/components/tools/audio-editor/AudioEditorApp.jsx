@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
+	ContextMenuItem,
 	DialogHeader,
 	DialogSideNav,
 	Dropdown,
@@ -69,6 +70,7 @@ import {
 } from './DesignSystemRuntime.jsx';
 import AudioEditorButtonTooltips from './AudioEditorButtonTooltips.jsx';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
+import AudioEditorSplitButton from './AudioEditorSplitButton.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
 
@@ -303,6 +305,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setDialogValue(formatDateTimeLocalInput(startTimeMs));
 		setDialog('timed-recording');
 	}, [snapshot.scheduledRecording?.startTimeMs]);
+	const openRecordingOffset = useCallback(() => {
+		setDialogValue(String(snapshot.monitor?.latencyOffsetMs ?? 0));
+		setDialogSourceKey('global');
+		setDialog('recording-offset');
+	}, [snapshot.monitor?.latencyOffsetMs]);
 
 	const openProjects = useCallback(() => {
 		setDialog('projects');
@@ -473,6 +480,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		controller,
 		openExternal,
 		openSurface,
+		openRecordingOffset,
 		openTimedRecording,
 		openWorkspacePanel,
 		parityUi.request?.revision,
@@ -564,11 +572,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			requestInputAccess: () => run(() => controller.actions.recording.requestInputAccess()),
 			refreshInputs: () => run(() => controller.actions.recording.refreshInputs()),
 			releaseInputs: () => run(() => controller.actions.recording.releaseInputs()),
-			openRecordingOffset: () => {
-				setDialogValue(String(snapshot.monitor?.latencyOffsetMs ?? 0));
-				setDialogSourceKey('global');
-				setDialog('recording-offset');
-			},
+			openRecordingOffset,
 			addTrack: () => run(() => controller.actions.track.add()),
 			addAudioTrack: () => run(() => controller.actions.track.add()),
 			addMonoTrack: () => run(() => controller.actions.track.addMono()),
@@ -656,6 +660,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 			onToggleAutomationTool={toggleAutomationTool}
 			actionRuntime={parityRuntime.actions}
 			onOpenSpectralSelection={openSpectralSelection}
+			onOpenRecordingOffset={openRecordingOffset}
+			onOpenTimedRecording={openTimedRecording}
 			onGripperMouseDown={handleToolbarGripperMouseDown}
 		/>
 	);
@@ -1138,6 +1144,8 @@ function EditorToolToolbar({
 	onToggleAutomationTool,
 	actionRuntime,
 	onOpenSpectralSelection,
+	onOpenRecordingOffset,
+	onOpenTimedRecording,
 	onGripperMouseDown,
 }) {
 	const telemetry = useAudioEditorTelemetry(controller);
@@ -1151,12 +1159,6 @@ function EditorToolToolbar({
 	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const masterMeter = telemetry.meters?.master;
 	const inputMeterDb = telemetry.inputMeterDb ?? -60;
-	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
-	const playAtSpeedActive = telemetry.transportState === 'playing'
-		&& ['naive', 'staffpad'].includes(telemetry.playbackMode);
-	const playAtSpeedLabel = playAtSpeedPreparing
-		? copy.cancelPlayAtSpeed
-		: playAtSpeedActive ? copy.pausePlayAtSpeed : copy.playAtSpeed;
 	const recordControlLabel = snapshot.readOnly
 		? `${recordLabel} — ${copy.projectReadOnly}`
 		: recordLabel;
@@ -1167,14 +1169,13 @@ function EditorToolToolbar({
 	}, []);
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
-	const transportButtonsVisible = ['play', 'play-at-speed', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
+	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
-		{ id: 'play-at-speed', label: copy.playAtSpeed, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
 		{ id: 'record', label: recordLabel, icon: 'record' },
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
@@ -1228,51 +1229,41 @@ function EditorToolToolbar({
 				{[
 				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
 				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
-					{isToolbarButtonVisible('play') && <TransportButton
+					{isToolbarButtonVisible('play') && <AudioEditorSplitButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
-						className="kw-audio-editor__transport-play"
+						className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
 						ariaLabel={telemetry.transportState === 'playing' ? copy.pause : copy.play}
 						disabled={blocked && !snapshot.recording}
 						active={telemetry.transportState === 'playing'}
+						pressed={telemetry.transportState === 'playing'}
 						onClick={() => run(() => controller.actions.transport.playPause())}
-					/>
-					}
-					{isToolbarButtonVisible('play-at-speed') && <span className="kw-audio-editor__play-at-speed" data-play-at-speed>
-						<AccessibleTransportButton
-							icon={playAtSpeedPreparing ? 'stop' : playAtSpeedActive ? 'pause' : 'play'}
-							className="kw-audio-editor__transport-play"
-							ariaLabel={playAtSpeedLabel}
-							disabled={blocked && !playAtSpeedPreparing}
-							active={playAtSpeedActive || playAtSpeedPreparing}
-							pressed={playAtSpeedActive || playAtSpeedPreparing}
-							onClick={() => run(() => controller.actions.transport.playAtSpeed())}
-						/>
-						<label>
-							<span className="kw-audio-editor-sr-only">{copy.playbackSpeed}</span>
-							<input
-								type="range"
-								min="0.5"
-								max="2"
-								step="0.05"
-								value={snapshot.playbackOptions?.rate || 1}
-								aria-label={copy.playbackSpeed}
-								disabled={blocked || telemetry.transportState === 'playing'}
-								onChange={(event) => run(() => controller.actions.transport.setPlayAtSpeedRate(Number(event.currentTarget.value)))}
-							/>
-							<output aria-hidden="true">{formatPlaybackSpeed(snapshot.playbackOptions?.rate || 1)}×</output>
-						</label>
-					</span>}
+					>
+						{({ close }) => <PlaySpeedFlyout copy={copy} snapshot={snapshot} telemetry={telemetry} blocked={blocked} controller={controller} run={run} close={close} />}
+					</AudioEditorSplitButton>}
 					{isToolbarButtonVisible('stop') && <TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />}
 					{isToolbarButtonVisible('record') && <span data-transport="record">
-						<AccessibleTransportButton
+						<AudioEditorSplitButton
 							icon="record"
-							className="kw-audio-editor__transport-record"
+							className="kw-audio-editor__transport-record kw-audio-editor__transport-record-split"
 							ariaLabel={recordControlLabel}
+							optionsLabel={copy.recordMenu}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
 							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							onClick={toggleRecording}
-						/>
+						>
+							{({ close }) => <RecordFlyout
+								copy={copy}
+								snapshot={snapshot}
+								controller={controller}
+								recordLabel={recordLabel}
+								toggleRecording={toggleRecording}
+								run={run}
+								onOpenRecordingOffset={onOpenRecordingOffset}
+								onOpenTimedRecording={onOpenTimedRecording}
+								onClose={close}
+							/>}
+						</AudioEditorSplitButton>
 					</span>
 					}
 					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpStart())} />}
@@ -1512,6 +1503,127 @@ function WorkspaceToolbarSection({
 			{children}
 		</div>
 	);
+}
+
+function PlaySpeedFlyout({ copy, snapshot, telemetry, blocked, controller, run, close }) {
+	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
+	const playAtSpeedActive = telemetry.transportState === 'playing'
+		&& ['naive', 'staffpad'].includes(telemetry.playbackMode);
+	const playAtSpeedLabel = playAtSpeedPreparing
+		? copy.cancelPlayAtSpeed
+		: playAtSpeedActive ? copy.pausePlayAtSpeed : copy.playAtSpeed;
+	return (
+		<div className="kw-audio-editor__split-button-options" data-play-at-speed>
+			<ContextMenuItem
+				label={playAtSpeedLabel}
+				disabled={blocked && !playAtSpeedPreparing}
+				onClick={() => {
+					close();
+					run(() => controller.actions.transport.playAtSpeed());
+				}}
+			/>
+			<label className="kw-audio-editor__play-at-speed-slider">
+				<span>{copy.playbackSpeed}</span>
+				<input
+					type="range"
+					min="0.5"
+					max="2"
+					step="0.05"
+					value={snapshot.playbackOptions?.rate || 1}
+					aria-label={copy.playbackSpeed}
+					disabled={blocked || telemetry.transportState === 'playing'}
+					onChange={(event) => run(() => controller.actions.transport.setPlayAtSpeedRate(Number(event.currentTarget.value)))}
+				/>
+				<output aria-hidden="true">{formatPlaybackSpeed(snapshot.playbackOptions?.rate || 1)}×</output>
+			</label>
+		</div>
+	);
+}
+
+function RecordFlyout({
+	copy,
+	snapshot,
+	recordLabel,
+	toggleRecording,
+	controller,
+	run,
+	onOpenRecordingOffset,
+	onOpenTimedRecording,
+	onClose,
+}) {
+	const recordingInputBlocked = snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
+	const items = [
+		{
+			label: snapshot.recording ? copy.stopRecording : recordLabel,
+			shortcut: 'R',
+			disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording,
+			onClick: toggleRecording,
+		},
+		{
+			label: copy.recordNewTrack,
+			shortcut: 'Shift+R',
+			disabled: snapshot.readOnly || recordingInputBlocked,
+			onClick: () => run(() => controller.actions.recording.startNewTrack()),
+		},
+		{ label: copy.stop, onClick: () => run(() => controller.actions.transport.stop()) },
+		{
+			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
+			disabled: !snapshot.recording,
+			checked: Boolean(snapshot.recordingOptions?.paused),
+			onClick: () => run(() => controller.actions.recording.pause()),
+		},
+		{ divider: true },
+		{
+			label: snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs,
+			disabled: recordingInputBlocked,
+			onClick: () => run(() => snapshot.recordingInputs?.hasOpenInputs
+				? controller.actions.recording.refreshInputs()
+				: controller.actions.recording.requestInputAccess()),
+		},
+		...(snapshot.recordingInputs?.hasOpenInputs ? [{
+			label: copy.recordingReleaseInputs,
+			disabled: recordingInputBlocked,
+			onClick: () => run(() => controller.actions.recording.releaseInputs()),
+		}] : []),
+		{ divider: true },
+		{
+			label: copy.monitor,
+			checked: Boolean(snapshot.monitor?.enabled),
+			disabled: snapshot.recordingStarting,
+			onClick: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
+		},
+		{ label: copy.recordingOffset, onClick: onOpenRecordingOffset },
+		{
+			label: copy.leadInTime,
+			checked: Boolean(snapshot.recordingOptions?.leadIn),
+			disabled: recordingInputBlocked,
+			onClick: () => run(() => controller.actions.recording.toggleLeadIn()),
+		},
+		{
+			label: copy.timedRecording,
+			disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
+			onClick: onOpenTimedRecording,
+		},
+		{ label: copy.soundActivatedRecording, disabled: true },
+		{ label: copy.soundActivationLevel, disabled: true },
+	];
+	return <SplitButtonMenuItems items={items} onClose={onClose} />;
+}
+
+function SplitButtonMenuItems({ items, onClose }) {
+	return items.map((item, index) => item.divider
+		? <ContextMenuItem key={`divider-${index}`} isDivider />
+		: <ContextMenuItem
+			key={`${item.label}-${index}`}
+			label={item.label}
+			shortcut={item.shortcut}
+			disabled={item.disabled}
+			checked={item.checked}
+			onClick={item.disabled ? undefined : () => {
+				onClose();
+				item.onClick?.();
+			}}
+		/>);
 }
 
 function EditorActionBar({
@@ -4298,42 +4410,10 @@ function createApplicationMenus({
 			label: copy.transport,
 			items: [
 				{ id: 'action://playback/play', label: copy.play, shortcut: 'Space', onClick: actions.playPause },
-				{ id: 'local://play-at-speed', label: copy.playAtSpeed, disabled: blocked && !snapshot.playbackOptions?.preparing, onClick: actions.playAtSpeed },
 				{ id: 'action://playback/stop', label: copy.stop, onClick: actions.stop },
 				divider(),
 				{ id: 'toggle-loop-region', label: copy.loop, checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
 				{ id: 'metronome', label: copy.metronome, checked: Boolean(snapshot.recordingOptions?.metronome), onClick: actions.toggleMetronome },
-			],
-		},
-		{
-			id: 'record',
-			label: copy.recordMenu,
-			preserveLabel: true,
-			items: [
-					{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, preserveLabel: Boolean(snapshot.recording), shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording, disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
-					{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording, onClick: actions.recordNewTrack },
-				{ id: 'stop', label: copy.stop, onClick: actions.stop },
-				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, preserveLabel: true, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },
-				divider(),
-				{
-					id: 'recording-input-access',
-					label: snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs,
-						disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording,
-					onClick: snapshot.recordingInputs?.hasOpenInputs ? actions.refreshInputs : actions.requestInputAccess,
-				},
-				...(snapshot.recordingInputs?.hasOpenInputs ? [{
-					id: 'recording-release-inputs',
-					label: copy.recordingReleaseInputs,
-						disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording,
-					onClick: actions.releaseInputs,
-				}] : []),
-				divider(),
-				{ id: 'monitor-input', label: copy.monitor, checked: Boolean(snapshot.monitor?.enabled), disabled: snapshot.recordingStarting, onClick: actions.toggleMonitoring },
-				{ id: 'recording-offset', label: copy.recordingOffset, onClick: actions.openRecordingOffset },
-					{ id: 'lead-in-time', label: copy.leadInTime, checked: Boolean(snapshot.recordingOptions?.leadIn), disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording, onClick: actions.toggleLeadIn },
-					{ id: 'set-up-timed-recording', label: copy.timedRecording, disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling, onClick: actions.openTimedRecording },
-				unavailable('toggle-sound-activated-recording', copy.soundActivatedRecording),
-				unavailable('set-sound-activation-level', copy.soundActivationLevel),
 			],
 		},
 		{

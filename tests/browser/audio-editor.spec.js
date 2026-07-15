@@ -424,26 +424,22 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
+		const playOptions = editor.getByRole('button', { name: 'Play options', exact: true });
+		await playOptions.click();
 		const control = editor.locator('[data-play-at-speed]');
-		let playAtSpeed = control.getByRole('button', { name: 'Play at speed', exact: true });
-		await expect(playAtSpeed).toBeVisible();
-		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
+		await expect(control).toBeVisible();
 		const speed = control.getByRole('slider', { name: 'Playback speed', exact: true });
 		await speed.fill('1.5');
 		await expect(control.locator('output')).toHaveText('1.5×');
 		await importFiles(editor, [monoTone]);
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
-		await expect(playAtSpeed).toHaveAccessibleName('Play at speed');
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 
-		await playAtSpeed.click();
-		playAtSpeed = control.getByRole('button', { name: 'Pause play at speed', exact: true });
-		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'true');
-		await playAtSpeed.click();
-		playAtSpeed = control.getByRole('button', { name: 'Play at speed', exact: true });
-		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
+		await playOptions.click();
+		await editor.getByRole('menuitem', { name: 'Play at speed', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await editor.getByRole('button', { name: 'Pause', exact: true }).click();
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -585,7 +581,6 @@ test.describe('audio editor React/design-system workflows', () => {
 			'Edit',
 			'Select',
 			'View',
-			'Record',
 			'Tracks',
 			'Generate',
 			'Effect',
@@ -749,7 +744,8 @@ test.describe('audio editor React/design-system workflows', () => {
 			});
 		});
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseCommandAction(page, editor, 'Record', 'Set up timed recording');
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await editor.getByRole('menuitem', { name: 'Set up timed recording', exact: true }).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).toContainText('opens the recording input immediately');
@@ -762,7 +758,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-status]')).toContainText('Scheduled recording cancelled');
 		await page.evaluate(() => globalThis.__resolveTimedInput());
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputTrackStopped)).toBe(true);
-		await expect(editor.locator('[data-transport="record"] button')).toHaveAttribute('aria-pressed', 'false');
+		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button')).toHaveAttribute('aria-pressed', 'false');
 	});
 
 	test('runs the Nyquist prompt and a bundled Legacy processor through the production WASM boundary', async ({ page }) => {
@@ -860,11 +856,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps the Record and Effect menus clear of clicked-button tooltips', async ({ page }) => {
+	test('keeps the Record flyout and Effect menu clear of clicked-button tooltips', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 
-		for (const name of ['Record', 'Effect']) {
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await expect(editor.locator('.kw-audio-editor__button-tooltip')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		for (const name of ['Effect']) {
 			await menubar.getByRole('menuitem', { name, exact: true }).click();
 			await expect(editor.locator('.kw-audio-editor__application-menu')).toBeVisible();
 			await expect(editor.locator('.kw-audio-editor__button-tooltip')).toHaveCount(0);
@@ -886,9 +885,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('tab', { name: 'Untitled project' })).toHaveAttribute('aria-selected', 'true');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		await expect(menubar).toBeVisible();
-		for (const menu of ['File', 'Edit', 'Select', 'View', 'Record', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help']) {
+		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help']) {
 			await expect(menubar.getByRole('menuitem', { name: menu, exact: true })).toBeVisible();
 		}
+		await expect(menubar.getByRole('menuitem', { name: 'Record', exact: true })).toHaveCount(0);
 		await expect(menubar.getByRole('menuitem', { name: 'Extra', exact: true })).toHaveCount(0);
 		const selectionToolbar = editor.locator('[data-selection-toolbar]');
 		await expect(selectionToolbar.getByRole('toolbar', { name: 'Selection toolbar' })).toBeVisible();
@@ -2562,7 +2562,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const addNewTrack = getMenuItem(tracksMenu, 'Add new track');
 		await addNewTrack.click();
 		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'Audio track')).toHaveAttribute('aria-disabled', 'true');
-		const readOnlyRecord = second.locator('[data-transport="record"] button');
+		const readOnlyRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(readOnlyRecord).toBeDisabled();
 		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
 		await secondPage.close();

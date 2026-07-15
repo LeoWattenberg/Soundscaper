@@ -30,26 +30,78 @@
 	color: #d64545 !important;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__play-at-speed {
+#kw-audio-editor-design-system .kw-audio-editor__split-button {
 	display: inline-flex;
-	align-items: center;
-	gap: 0.3rem;
+	align-items: stretch;
+	vertical-align: middle;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__play-at-speed label {
+#kw-audio-editor-design-system .kw-audio-editor__split-button-main {
 	display: inline-flex;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-main .transport-button {
+	border-radius: 3px 0 0 3px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow {
+	width: 13px;
+	min-width: 13px;
+	height: 28px;
+	padding: 0;
+	color: var(--kw-editor-text);
+	background: var(--kw-toolbar-button-bg);
+	border: 0;
+	border-left: 1px solid color-mix(in srgb, var(--kw-editor-line) 70%, transparent);
+	border-radius: 0 3px 3px 0;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow:hover:not(:disabled),
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow[aria-expanded='true'] {
+	background: var(--kw-toolbar-button-hover);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow:disabled {
+	background: var(--kw-toolbar-button-bg);
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow:focus-visible {
+	outline: 2px solid var(--focus-color, var(--kw-editor-accent));
+	outline-offset: 2px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-flyout {
+	min-width: 220px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__split-button-options {
+	min-width: 220px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed-slider {
+	display: grid;
+	grid-template-columns: auto minmax(100px, 1fr) auto;
 	align-items: center;
-	gap: 0.25rem;
-	font-size: 0.72rem;
+	gap: 8px;
+	padding: 8px 12px;
+	color: var(--kw-editor-text);
+	font-size: 12px;
 	font-variant-numeric: tabular-nums;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__play-at-speed input[type='range'] {
-	width: 4.5rem;
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed-slider input[type='range'] {
+	width: 100%;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__play-at-speed output {
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed-slider output {
 	min-width: 2.35rem;
+	text-align: right;
 }
 
 /* The surrounding document mirrors editor chrome for RTL locales. Audio time
