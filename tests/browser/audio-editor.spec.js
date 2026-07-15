@@ -382,20 +382,23 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await mixer.getByRole('button', { name: 'Add group bus', exact: true }).click();
 		await mixer.getByRole('button', { name: 'Add send bus', exact: true }).click();
-		await expect(mixer.locator('[data-mixer-bus="group"]')).toContainText('Group bus 1');
-		await expect(mixer.locator('[data-mixer-bus="send"]')).toContainText('Send bus 1');
+		await expect(mixer.locator('[data-mixer-bus]')).toHaveCount(0);
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--group')).toHaveCount(1);
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send')).toHaveCount(1);
+		await expect(mixer.locator('.mixer-panel__row-label').filter({ hasText: 'Sends' })).toHaveCount(1);
 
 		const output = mixer.getByRole('combobox', { name: 'Output: Track 1', exact: true });
 		await output.selectOption({ label: 'Group bus 1' });
 		await expect(output).toHaveValue(/group-bus/);
 		const sendLevel = mixer.getByRole('slider', { name: 'Send level: Track 1 → Send bus 1', exact: true });
-		await sendLevel.fill('-12');
-		await expect(sendLevel).toHaveValue('-12');
+		await sendLevel.press('ArrowUp');
+		await expect(sendLevel).toHaveAttribute('aria-valuenow', '-59');
+		const sendTarget = mixer.getByRole('combobox', { name: 'Sends: Track 1', exact: true });
+		await expect(sendTarget).toHaveText('Send bus 1');
 
-		const sendEffect = mixer.getByRole('combobox', { name: 'Add effect: Send bus 1', exact: true });
-		await sendEffect.selectOption({ label: 'Reverb' });
+		await mixer.locator('.kw-audio-editor__mixer-channel--send .mixer-effect--empty .mixer-effect__dropdown').first().click();
+		const effectsPanel = page.locator('.audio-editor-effects-overlay');
+		await addRackEffect(page, effectsPanel, 'track', 'Reverb');
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send .mixer-effect--enabled')).toContainText('Reverb');
 		expect(errors).toEqual([]);
 	});

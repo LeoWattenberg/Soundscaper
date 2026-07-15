@@ -811,9 +811,9 @@
 	text-transform: uppercase;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__mixer-toolbar select,
 #kw-audio-editor-design-system .kw-audio-editor__mixer-routing select,
-#kw-audio-editor-design-system .kw-audio-editor__mixer-buses select,
-#kw-audio-editor-design-system .kw-audio-editor__mixer-buses button {
+#kw-audio-editor-design-system .kw-audio-editor__mixer-send-controls select {
 	height: 26px;
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-control);
@@ -822,52 +822,26 @@
 	font: inherit;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__mixer-routing input[type='range'] {
-	width: 92px;
-	accent-color: var(--kw-editor-accent);
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__mixer-buses {
-	display: flex;
-	flex: 0 0 auto;
-	gap: 6px;
-	overflow-x: auto;
-	padding: 6px 10px;
-	border-bottom: 1px solid var(--kw-editor-line);
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__mixer-buses > div {
+#kw-audio-editor-design-system .kw-audio-editor__mixer-send-controls {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	justify-content: center;
+	gap: 4px;
+	min-height: 40px;
 	padding: 4px 6px;
-	background: var(--kw-editor-control);
-	border: 1px solid var(--kw-editor-line);
-	border-radius: 5px;
-	white-space: nowrap;
+	box-sizing: border-box;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__mixer-bus-kind {
-	padding: 2px 5px;
-	color: white;
-	border-radius: 999px;
-	font-size: 9px;
-	font-weight: 800;
-	text-transform: uppercase;
+#kw-audio-editor-design-system .kw-audio-editor__mixer-send-controls select {
+	width: 66px;
+	min-width: 0;
+	padding-inline: 3px;
+	font-size: 10px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__mixer-bus-kind--group {
-	background: #3975ad;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__mixer-bus-kind--send {
-	background: #7854b8;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__mixer-buses button {
-	width: 26px;
-	padding: 0;
-	cursor: pointer;
+#kw-audio-editor-design-system .kw-audio-editor__mixer-send-knob .knob {
+	width: 28px;
+	height: 28px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__audacity-mixer {

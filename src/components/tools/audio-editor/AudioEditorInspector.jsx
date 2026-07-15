@@ -323,12 +323,20 @@ export function AudioEditorEffectsOverlay({
 	copy,
 	locale,
 	trackId,
+	scope = 'track',
 	onClose,
 	position = {},
 }) {
 	const project = snapshot.project;
-	const selectedTrack = project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
-	const trackEffects = selectedTrack?.effects || [];
+	const selectedTrack = scope === 'track' && project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
+	const selectedBus = scope === 'group'
+		? project?.mixer?.groups?.find((bus) => bus.id === trackId) || null
+		: scope === 'send'
+			? project?.mixer?.sends?.find((bus) => bus.id === trackId) || null
+			: null;
+	const channel = selectedTrack || selectedBus;
+	const channelEffects = channel?.effects || [];
+	const targetId = scope === 'master' ? null : channel?.id || null;
 	const masterEffects = project?.master?.effects || [];
 	const blocked = !snapshot.ready || !project || editingBlocked(snapshot);
 	const [picker, setPicker] = useState(null);
@@ -341,9 +349,9 @@ export function AudioEditorEffectsOverlay({
 
 	useEffect(() => {
 		if (!selectedEffect) return;
-		const rack = selectedEffect.scope === 'master' ? masterEffects : trackEffects;
+		const rack = selectedEffect.scope === 'master' ? masterEffects : channelEffects;
 		if (!rack.some((effect) => effect.id === selectedEffect.id)) setSelectedEffect(null);
-	}, [masterEffects, selectedEffect, trackEffects]);
+	}, [channelEffects, masterEffects, selectedEffect]);
 
 	useEffect(() => {
 		setRackPresetId('');
@@ -364,7 +372,7 @@ export function AudioEditorEffectsOverlay({
 			button.setAttribute('aria-label', copy.effectStackOptions);
 			button.setAttribute('title', copy.effectStackOptions);
 		}
-	}, [copy.effectStackOptions, isOpen, selectedTrack?.id]);
+	}, [copy.effectStackOptions, isOpen, channel?.id]);
 
 	const run = (work) => {
 		setMessage('');
@@ -374,7 +382,7 @@ export function AudioEditorEffectsOverlay({
 	};
 
 	const openPicker = (scope, replaceId = null) => {
-		if (blocked || (scope === 'track' && !selectedTrack)) return;
+		if (blocked || (scope !== 'master' && !channel)) return;
 		setPicker({ scope, replaceId });
 		setMessage('');
 	};
@@ -394,7 +402,7 @@ export function AudioEditorEffectsOverlay({
 		};
 		if (type === 'audacity-noise-reduction') changes.enabled = false;
 		if (type === 'audacity-auto-duck') {
-			const targetTrackId = scope === 'track' ? selectedTrack?.id : null;
+			const targetTrackId = scope === 'track' ? targetId : null;
 			const controlTrack = project?.tracks.find((track) => track.id !== targetTrackId);
 			if (!controlTrack) {
 				setMessage(copy.autoDuckSecondControlTrack);
@@ -402,7 +410,7 @@ export function AudioEditorEffectsOverlay({
 			}
 			changes.context = { controlTrackId: controlTrack.id };
 		}
-		controller.actions.effects.update(scope, selectedTrack?.id || null, effect.id, {
+		controller.actions.effects.update(scope, scope === 'master' ? null : targetId, effect.id, {
 			...changes,
 		});
 	};
@@ -416,11 +424,11 @@ export function AudioEditorEffectsOverlay({
 		allEnabled: effects.length > 0 && effects.every((effect) => effect.enabled),
 		onToggleAll: (enabled) => {
 			if (blocked) return;
-			for (const effect of effects) controller.actions.effects.update(scope, selectedTrack?.id || null, effect.id, { enabled });
+			for (const effect of effects) controller.actions.effects.update(scope, scope === 'master' ? null : targetId, effect.id, { enabled });
 		},
 		onEffectToggle: (index, enabled) => {
 			const effect = effects[index];
-			if (!blocked && effect) controller.actions.effects.update(scope, selectedTrack?.id || null, effect.id, { enabled });
+			if (!blocked && effect) controller.actions.effects.update(scope, scope === 'master' ? null : targetId, effect.id, { enabled });
 		},
 		onEffectChange: (index) => {
 			const effect = effects[index];
@@ -428,10 +436,10 @@ export function AudioEditorEffectsOverlay({
 		},
 		onEffectsReorder: (fromIndex, toIndex) => {
 			const effect = effects[fromIndex];
-			if (!blocked && effect) controller.actions.effects.reorder(scope, selectedTrack?.id || null, effect.id, toIndex);
+			if (!blocked && effect) controller.actions.effects.reorder(scope, scope === 'master' ? null : targetId, effect.id, toIndex);
 		},
 		onAddEffect: () => openPicker(scope),
-		onContextMenu: (event) => {
+		onContextMenu: (scope === 'track' || scope === 'master') ? (event) => {
 			const rect = event?.currentTarget?.getBoundingClientRect?.();
 			if (event?.currentTarget instanceof HTMLElement) {
 				stackMenuTriggerRef.current = event.currentTarget;
@@ -441,10 +449,10 @@ export function AudioEditorEffectsOverlay({
 				x: rect?.right ?? event?.clientX ?? 0,
 				y: (rect?.bottom ?? event?.clientY ?? 0) + 4,
 			});
-		},
+		} : undefined,
 		onRemoveEffect: (index) => {
 			const effect = effects[index];
-			if (!blocked && effect) controller.actions.effects.remove(scope, selectedTrack?.id || null, effect.id);
+			if (!blocked && effect) controller.actions.effects.remove(scope, scope === 'master' ? null : targetId, effect.id);
 		},
 		onReplaceEffect: (index, candidate) => {
 			const effect = effects[index];
@@ -453,9 +461,9 @@ export function AudioEditorEffectsOverlay({
 		onChangeEffect: (index) => openPicker(scope, effects[index]?.id || null),
 	});
 
-	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : trackEffects;
+	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : channelEffects;
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
-	const effectScope = selectedEffect?.scope || 'track';
+	const effectScope = selectedEffect?.scope || scope;
 	const rackPresets = effect ? controller.actions.effects.presets.list(effect.type) : [];
 	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset);
 	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
@@ -470,13 +478,13 @@ export function AudioEditorEffectsOverlay({
 		setRackPresetId(choice.id);
 		run(() => controller.actions.effects.update(
 			effectScope,
-			selectedTrack?.id || null,
+			effectScope === 'master' ? null : targetId,
 			effect.id,
 			{ params: choice.preset.params },
 		));
 	};
-	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : trackEffects;
-	const menuTrackId = selectedTrack?.id || null;
+	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : channelEffects;
+	const menuTrackId = stackMenu?.scope === 'master' ? null : targetId;
 	const closeStackMenu = () => {
 		const trigger = stackMenuTriggerRef.current;
 		setStackMenu(null);
@@ -499,7 +507,7 @@ export function AudioEditorEffectsOverlay({
 	});
 	const exportStack = () => run(() => {
 		const encoded = serializeAudacityEffectMacro(menuEffects);
-		const name = stackMenu.scope === 'master' ? copy.master : selectedTrack?.name;
+		const name = stackMenu.scope === 'master' ? copy.master : channel?.name;
 		downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`);
 		setMessage(copy.macroExported);
 		closeStackMenu();
@@ -518,15 +526,15 @@ export function AudioEditorEffectsOverlay({
 						width={position.width}
 						height={position.height}
 						onClose={onClose}
-						trackSection={selectedTrack ? { trackName: selectedTrack.name, ...section('track', trackEffects) } : undefined}
+						trackSection={channel ? { trackName: channel.name, ...section(scope, channelEffects) } : undefined}
 						masterSection={{ ...section('master', masterEffects) }}
 					/>
 				</div>
 
 				{isOpen && (
 					<div className="audio-editor-effects-overlay__adapters">
-						{!selectedTrack && <p className="audio-editor-panel-hint">{copy.audacitySelectionHint}</p>}
-						{trackEffects.length === 0 && masterEffects.length === 0 && (
+						{!channel && <p className="audio-editor-panel-hint">{copy.audacitySelectionHint}</p>}
+						{channelEffects.length === 0 && masterEffects.length === 0 && (
 							<p className="audio-editor-panel-hint" data-effect-empty>{copy.effectRackEmpty}</p>
 						)}
 						{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
@@ -570,7 +578,7 @@ export function AudioEditorEffectsOverlay({
 								copy={copy}
 								automationEnabled={effect.enabled}
 								onToggleAutomation={(enabled) => {
-									if (!blocked) controller.actions.effects.update(effectScope, selectedTrack?.id || null, effect.id, { enabled });
+									if (!blocked) controller.actions.effects.update(effectScope, effectScope === 'master' ? null : targetId, effect.id, { enabled });
 								}}
 								presetName={selectedRackPreset?.label || copy.noEffectPreset}
 								presets={[copy.noEffectPreset, ...rackPresetChoices.map((choice) => choice.label)]}
@@ -586,18 +594,18 @@ export function AudioEditorEffectsOverlay({
 							copy={copy}
 							disabled={blocked}
 							tracks={project?.tracks || []}
-							targetTrackId={effectScope === 'track' ? selectedTrack?.id : null}
+							targetTrackId={effectScope === 'track' ? targetId : null}
 							captureNoiseProfile={controller.actions.effects.captureRackNoiseProfile
 								? () => run(() => controller.actions.effects.captureRackNoiseProfile(
 									effectScope,
-									selectedTrack?.id || null,
+									effectScope === 'master' ? null : targetId,
 									effect.id,
 								))
 								: null}
 							noiseProfileLabel={effect.context?.noiseProfile ? copy.replaceNoiseProfile : copy.getNoiseProfile}
 							onChange={(changes) => run(() => controller.actions.effects.update(
 								effectScope,
-								selectedTrack?.id || null,
+								effectScope === 'master' ? null : targetId,
 								effect.id,
 								changes,
 							))}
@@ -614,13 +622,14 @@ export function AudioEditorEffectsOverlay({
 					onClose={() => setPicker(null)}
 					onChoose={(type) => run(async () => {
 						if (picker.replaceId) {
-							const rack = picker.scope === 'master' ? masterEffects : trackEffects;
+							const rack = picker.scope === 'master' ? masterEffects : channelEffects;
 							const current = rack.find((candidate) => candidate.id === picker.replaceId);
 							if (current) replaceFromRegistry(picker.scope, current, type);
 						} else {
 							const id = await controller.actions.effects.add({
 								scope: picker.scope,
-								trackId: selectedTrack?.id || null,
+								trackId: picker.scope === 'master' ? null : targetId,
+								busId: picker.scope === 'master' ? null : targetId,
 								type,
 							});
 							if (id && effectHasEditableSettings(type)) {

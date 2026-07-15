@@ -237,16 +237,17 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setActiveSurface(surface);
 	}, []);
 
-	const openEffects = useCallback((trackId, anchorRect = null) => {
-		if (!trackId) return;
+	const openEffects = useCallback((trackId, anchorRect = null, scope = 'track') => {
+		if (!trackId && scope !== 'master') return;
 		setActiveSurface(null);
 		setEffectsOverlay((current) => {
-			if (current?.trackId === trackId) {
+			if (current?.trackId === trackId && current.scope === scope) {
 				requestAnimationFrame(() => current.returnFocus?.focus?.({ preventScroll: true }));
 				return null;
 			}
 			return {
 				trackId,
+				scope,
 				anchorRect,
 				returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null,
 			};
@@ -781,6 +782,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 							copy={copy}
 							locale={locale}
 							trackId={effectsOverlay.trackId}
+							scope={effectsOverlay.scope}
 							onClose={closeEffects}
 							position={{
 								left: effectsPosition.left,
@@ -1699,13 +1701,17 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 	const groups = project?.mixer?.groups || [];
 	const sends = project?.mixer?.sends || [];
 	const routes = project?.mixer?.routes || {};
+	const mixerBuses = [
+		...groups.map((bus) => ({ type: 'group', bus })),
+		...sends.map((bus) => ({ type: 'send', bus })),
+	];
 	const effectLabels = new Map((snapshot.effects?.rackTypes || []).map(({ type, label }) => [type, label]));
 	const effectProps = (effects, scope, targetId) => (effects || []).map((effect) => ({
 		name: effectLabels.get(effect.type) || effect.type,
 		enabled: effect.enabled !== false && effect.bypassed !== true,
 		onToggle: () => run(() => controller.actions.effects.update(scope, targetId, effect.id, { enabled: effect.enabled === false })),
 		onRemoveEffect: () => run(() => controller.actions.effects.remove(scope, targetId, effect.id)),
-		...(scope === 'track' ? { onClick: () => onOpenEffects(targetId) } : {}),
+		...(scope !== 'master' ? { onClick: () => onOpenEffects(targetId, null, scope) } : {}),
 	}));
 	const channelProps = (channel, type) => {
 		const isTrack = type === 'track';
@@ -1735,7 +1741,17 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 			onMuteToggle: () => run(() => update({ mute: !channel.mute })),
 			onSoloToggle: () => run(() => update({ solo: !channel.solo })),
 			...(isTrack ? {
-				onAddEffect: () => onOpenEffects(targetId),
+				onAddEffect: () => onOpenEffects(targetId, null, scope),
+				...(sends.length ? {
+					effectFooter: <MixerSendControls
+						track={channel}
+						route={routes[targetId] || { sends: {} }}
+						sends={sends}
+						copy={copy}
+						disabled={snapshot.readOnly}
+						onChange={(sendId, gain) => run(() => controller.actions.mixer.setSend(targetId, sendId, gain))}
+					/>,
+				} : {}),
 				...(showArmControls ? {
 					inputControls: (
 						<RecordingInputSelectors
@@ -1749,13 +1765,14 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 						/>
 					),
 				} : {}),
+			} : !isMaster ? {
+				onAddEffect: () => onOpenEffects(targetId, null, scope),
 			} : {}),
 		};
 	};
 	const channels = [
 		...tracks.map((track) => ({ id: track.id, channelProps: channelProps(track, 'track') })),
-		...groups.map((bus) => ({ id: bus.id, channelProps: channelProps(bus, 'group') })),
-		...sends.map((bus) => ({ id: bus.id, channelProps: channelProps(bus, 'send') })),
+		...mixerBuses.map(({ type, bus }) => ({ id: bus.id, channelProps: channelProps(bus, type) })),
 	];
 	const addBus = (type) => run(() => controller.actions.mixer.addBus(type, {
 		name: `${type === 'group' ? copy.groupBus : copy.sendBus} ${(type === 'group' ? groups : sends).length + 1}`,
@@ -1778,10 +1795,17 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 				>{copy.recordingReleaseInputs}</Button>}
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
+				{mixerBuses.length > 0 && <select aria-label={copy.removeBus} disabled={snapshot.readOnly} value="" onChange={(event) => {
+					const selected = mixerBuses.find(({ type, bus }) => `${type}:${bus.id}` === event.currentTarget.value);
+					if (selected) run(() => controller.actions.mixer.removeBus(selected.type, selected.bus.id));
+				}}>
+					<option value="">{copy.removeBus}</option>
+					{mixerBuses.map(({ type, bus }) => <option key={bus.id} value={`${type}:${bus.id}`}>{type === 'group' ? copy.groupBus : copy.sendBus}: {bus.name}</option>)}
+				</select>}
 			</div>
-			{(groups.length > 0 || sends.length > 0) && <div className="kw-audio-editor__mixer-routing" role="region" aria-label={copy.mixerRouting}>
+			{groups.length > 0 && <div className="kw-audio-editor__mixer-routing" role="region" aria-label={copy.mixerRouting}>
 				<table>
-					<thead><tr><th>{copy.track}</th><th>{copy.output}</th>{sends.map((bus) => <th key={bus.id}>{bus.name}</th>)}</tr></thead>
+					<thead><tr><th>{copy.track}</th><th>{copy.output}</th></tr></thead>
 					<tbody>{tracks.map((track) => {
 						const route = routes[track.id] || { groupId: null, sends: {} };
 						return <tr key={track.id}>
@@ -1790,36 +1814,58 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 								<option value="">{copy.master}</option>
 								{groups.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
 							</select></td>
-							{sends.map((bus) => <td key={bus.id}><label>
-								<span className="kw-audio-editor-sr-only">{copy.sendLevel}: {track.name} → {bus.name}</span>
-								<input type="range" min="-61" max="12" step="1" disabled={snapshot.readOnly} value={linearMixerGainToDb(route.sends?.[bus.id] || 0, -61)} onChange={(event) => run(() => controller.actions.mixer.setSend(track.id, bus.id, mixerDbToLinearGain(Number(event.currentTarget.value), -61)))} />
-							</label></td>)}
 						</tr>;
 					})}</tbody>
 				</table>
-			</div>}
-			{[...groups.map((bus) => ['group', bus]), ...sends.map((bus) => ['send', bus])].length > 0 && <div className="kw-audio-editor__mixer-buses">
-				{[...groups.map((bus) => ['group', bus]), ...sends.map((bus) => ['send', bus])].map(([type, bus]) => <div key={bus.id} data-mixer-bus={type}>
-					<span className={`kw-audio-editor__mixer-bus-kind kw-audio-editor__mixer-bus-kind--${type}`}>{type === 'group' ? copy.groupBus : copy.sendBus}</span>
-					<strong>{bus.name}</strong>
-					<select aria-label={`${copy.addEffect}: ${bus.name}`} disabled={snapshot.readOnly} value="" onChange={(event) => {
-						const effectType = event.currentTarget.value;
-						if (effectType) run(() => controller.actions.effects.add({ scope: type, busId: bus.id, type: effectType }));
-					}}>
-						<option value="">{copy.addEffect}</option>
-						{(snapshot.effects?.rackTypes || []).map((effect) => <option key={effect.type} value={effect.type}>{effect.label}</option>)}
-					</select>
-					<button type="button" aria-label={`${copy.removeBus}: ${bus.name}`} disabled={snapshot.readOnly} onClick={() => run(() => controller.actions.mixer.removeBus(type, bus.id))}>×</button>
-				</div>)}
 			</div>}
 			{tracks.length || groups.length || sends.length ? <MixerPanel
 				hideHeader
 				className="kw-audio-editor__audacity-mixer"
 				channels={channels}
 				masterChannel={channelProps(project.master || {}, 'master')}
+				effectFooterLabel={sends.length ? copy.sends : undefined}
 			/> : <p className="kw-audio-editor__panel-empty">{copy.noAudioTrackSelected}</p>}
 		</div>
 	);
+}
+
+function MixerSendControls({ track, route, sends, copy, disabled, onChange }) {
+	const [sendId, setSendId] = useState(() => sends[0]?.id || '');
+	const selectedSend = sends.find((bus) => bus.id === sendId) || sends[0] || null;
+	useEffect(() => {
+		if (selectedSend?.id !== sendId) setSendId(selectedSend?.id || '');
+	}, [selectedSend?.id, sendId]);
+	if (!selectedSend) return null;
+	const label = `${copy.sendLevel}: ${track.name} → ${selectedSend.name}`;
+	const gain = linearMixerGainToDb(route.sends?.[selectedSend.id] || 0);
+	return (
+		<div className="kw-audio-editor__mixer-send-controls" data-mixer-sends={track.id}>
+			<MixerSendKnob label={label} value={gain} disabled={disabled} onChange={(value) => onChange(selectedSend.id, mixerDbToLinearGain(value))} />
+			<select aria-label={`${copy.sends}: ${track.name}`} disabled={disabled} value={selectedSend.id} onChange={(event) => setSendId(event.currentTarget.value)}>
+				{sends.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
+			</select>
+		</div>
+	);
+}
+
+function MixerSendKnob({ label, value, disabled, onChange }) {
+	const wrapperRef = useRef(null);
+	useEffect(() => {
+		const knob = wrapperRef.current?.querySelector('.knob');
+		if (!knob) return undefined;
+		knob.setAttribute('type', 'button');
+		knob.setAttribute('aria-label', label);
+		const handleKeyDown = (event) => {
+			if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+			event.preventDefault();
+			if (event.key === 'Home') onChange(-60);
+			else if (event.key === 'End') onChange(12);
+			else onChange(Math.max(-60, Math.min(12, value + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1))));
+		};
+		knob.addEventListener('keydown', handleKeyDown);
+		return () => knob.removeEventListener('keydown', handleKeyDown);
+	}, [label, onChange, value]);
+	return <div ref={wrapperRef} className="kw-audio-editor__mixer-send-knob"><Knob value={value} min={-60} max={12} step={1} label={label} mode="unipolar" disabled={disabled} onChange={onChange} /></div>;
 }
 
 function linearMixerGainToDb(gain, floor = -60) {

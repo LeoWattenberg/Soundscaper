@@ -822,3 +822,226 @@ index 84edc3f..4d187b5 100644
          )
        ]
      }
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+index 64b9859..fa15a2b 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+@@ -419,6 +419,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++	display: flex;
++	align-items: center;
++	width: 100%;
++	min-height: 40px;
++	box-sizing: border-box;
++	flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+index 6df5797..6ed0fc2 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+@@ -82,6 +82,10 @@ interface MixerChannelProps {
+      * Called when the empty effect slot dropdown is clicked (to add a new effect)
+      */
+     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
++    /** Optional controls rendered in a row below the effects stack. */
++    effectFooter?: React__default.ReactNode;
++    /** Reserve the effects-footer row even when this channel has no controls. */
++    effectFooterVisible?: boolean;
+     /**
+      * Total number of effect slots to display (including empty ones).
+      * Used to keep all channels the same height when one has more effects.
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+index 6df5797..6ed0fc2 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+@@ -82,6 +82,10 @@ interface MixerChannelProps {
+      * Called when the empty effect slot dropdown is clicked (to add a new effect)
+      */
+     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
++    /** Optional controls rendered in a row below the effects stack. */
++    effectFooter?: React__default.ReactNode;
++    /** Reserve the effects-footer row even when this channel has no controls. */
++    effectFooterVisible?: boolean;
+     /**
+      * Total number of effect slots to display (including empty ones).
+      * Used to keep all channels the same height when one has more effects.
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.css b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+index 6af68e3..0f18f0d 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+@@ -419,6 +419,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++	display: flex;
++	align-items: center;
++	width: 100%;
++	min-height: 40px;
++	box-sizing: border-box;
++	flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+index 09c14ea..847184f 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+@@ -36,6 +36,8 @@ interface MixerPanelProps {
+      * Track mixer channels to display
+      */
+     channels?: MixerPanelChannel[];
++    /** Label for an optional channel row below the effects stack. */
++    effectFooterLabel?: string;
+     /**
+      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
+      */
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
+index 86db20a..4f28d89 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
+@@ -36,6 +36,8 @@ interface MixerPanelProps {
+      * Track mixer channels to display
+      */
+     channels?: MixerPanelChannel[];
++    /** Label for an optional channel row below the effects stack. */
++    effectFooterLabel?: string;
+     /**
+      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
+      */
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+index 0fc07a4..ee77ebd 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+@@ -35,6 +35,8 @@ var MixerChannel = ({
+   inputControls,
+   effects = [],
+   onAddEffect,
++  effectFooter,
++  effectFooterVisible = false,
+   effectSlotCount = 1,
+   className = ""
+ }) => {
+@@ -77,6 +79,7 @@ var MixerChannel = ({
+       )),
+       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ jsx(MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
+     ] }),
++    effectFooterVisible && /* @__PURE__ */ jsx("div", { className: "mixer-channel__effect-footer", children: effectFooter }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__pan-row", children: [
+       /* @__PURE__ */ jsx(
+         Knob,
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+index f71fafb..5816952 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__body", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Pan" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Volume" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _react2.default.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _jsxruntime.Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" })
+       ] }) })
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+index 26f8e25..287275a 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ jsx("div", { className: "mixer-panel__body", children: /* @__PURE__ */ jsxs("div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ jsxs("div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ jsx("span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Pan" }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Volume" }) }),
+         /* @__PURE__ */ jsx("div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ jsxs(React.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ jsxs(Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" })
+       ] }) })
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+index e13d8b3..e46069f 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+@@ -35,6 +35,8 @@ var MixerChannel = ({
+   inputControls,
+   effects = [],
+   onAddEffect,
++  effectFooter,
++  effectFooterVisible = false,
+   effectSlotCount = 1,
+   className = ""
+ }) => {
+@@ -77,6 +79,7 @@ var MixerChannel = ({
+       )),
+       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk54HT3HD2js.MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
+     ] }),
++    effectFooterVisible && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__effect-footer", children: effectFooter }),
+     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__pan-row", children: [
+       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+         _chunkQUONGYVYjs.Knob,
+diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
+index 3c03155..9593984 100644
+--- a/node_modules/@dilsonspickles/components/dist/index.css
++++ b/node_modules/@dilsonspickles/components/dist/index.css
+@@ -1055,6 +1055,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++  display: flex;
++  align-items: center;
++  width: 100%;
++  min-height: 40px;
++  box-sizing: border-box;
++  flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
