@@ -723,11 +723,13 @@ export default function AudioEditorTimeline({
 	const contextLocale = locale;
 	const unavailableReason = copy.unavailable;
 	const trackMenuItems = menuTrack ? [
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
-			checked: showArmControls,
-			onClick: onToggleArmControls,
-		}, contextLocale, unavailableReason),
-		{ divider: true, label: '' },
+		...(menuTrack.type === 'label' ? [] : [
+			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
+				checked: showArmControls,
+				onClick: onToggleArmControls,
+			}, contextLocale, unavailableReason),
+			{ divider: true, label: '' },
+		]),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.duplicate, copy.duplicateTrack, {
 			disabled: snapshot.readOnly || menuTrack.type === 'label',
 			onClick: () => run(() => controller.actions.track.duplicate(menuTrack.id)),
