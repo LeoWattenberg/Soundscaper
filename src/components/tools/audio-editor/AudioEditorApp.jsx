@@ -63,6 +63,7 @@ import {
 	useAudioEditorThemeVariables,
 } from './DesignSystemRuntime.jsx';
 import AudioEditorButtonTooltips from './AudioEditorButtonTooltips.jsx';
+import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
 
@@ -2035,7 +2036,7 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 
 	return (
 		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-			<section ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog kw-audio-editor-preferences" role="dialog" aria-modal="true" aria-label={copy.preferencesTitle}>
+			<AudioEditorResizableSurface ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog kw-audio-editor-preferences" role="dialog" aria-modal="true" aria-label={copy.preferencesTitle} resizeLabel={`Resize: ${copy.preferencesTitle}`}>
 				<DialogHeader title={copy.preferencesTitle} os="windows" onClose={onClose} />
 				<div className="kw-audio-editor-preferences__body">
 					<div ref={sideNavRef} className="kw-audio-editor-preferences__sidebar-adapter" onKeyDownCapture={handleSideNavKeyDown}>
@@ -2244,7 +2245,7 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 					</main>
 				</div>
 				<div className="kw-audio-editor-dialog__actions kw-audio-editor-preferences__footer"><Button onClick={onClose}>{copy.close}</Button></div>
-			</section>
+			</AudioEditorResizableSurface>
 		</div>
 	);
 }
@@ -2417,7 +2418,7 @@ function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	};
 	return (
 		<div className="kw-audio-editor-dialog-layer" data-open="true">
-			<section className="kw-audio-editor-dialog kw-audio-editor-dialog--generator" role="dialog" aria-modal="true" aria-label={generatorLabel(type, copy)} data-generator-type={type}>
+			<AudioEditorResizableSurface className="kw-audio-editor-dialog kw-audio-editor-dialog--generator" role="dialog" aria-modal="true" aria-label={generatorLabel(type, copy)} resizeLabel={`Resize: ${generatorLabel(type, copy)}`} data-generator-type={type}>
 				<DialogHeader title={generatorLabel(type, copy)} onClose={onClose} />
 				<form className="kw-audio-editor-generator" onSubmit={(event) => {
 					event.preventDefault();
@@ -2547,7 +2548,7 @@ function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 						<Button type="submit">{copy.generate}</Button>
 					</div>
 				</form>
-			</section>
+			</AudioEditorResizableSurface>
 		</div>
 	);
 }
@@ -2806,7 +2807,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 	const offsetSources = recordingOffsetSources(snapshot, copy);
 	return (
 		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-			<section ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={title}>
+			<AudioEditorResizableSurface ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={title} resizeLabel={`Resize: ${title}`}>
 				<DialogHeader title={title} os="windows" onClose={onClose} />
 				<div className="kw-audio-editor-dialog__body">
 					{type === 'projects' && (
@@ -2955,7 +2956,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 						</>
 					)}
 				</div>
-			</section>
+			</AudioEditorResizableSurface>
 		</div>
 	);
 }
@@ -3026,7 +3027,7 @@ function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 
 	return (
 		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-			<section ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={copy.spectralSelection}>
+			<AudioEditorResizableSurface ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={copy.spectralSelection} resizeLabel={`Resize: ${copy.spectralSelection}`}>
 				<DialogHeader title={copy.spectralSelection} os="windows" onClose={onClose} />
 				<div className="kw-audio-editor-dialog__body">
 					<label className="kw-audio-editor-dialog__field">
@@ -3048,7 +3049,7 @@ function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 						<Button disabled={!validRange || !Number.isFinite(Number(gainDb))} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
 					</div>
 				</div>
-			</section>
+			</AudioEditorResizableSurface>
 		</div>
 	);
 }

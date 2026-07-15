@@ -49,6 +49,7 @@ import {
 import { boundedCanvasDimensions } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-export.js';
 import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
+import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
 
 const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
@@ -161,13 +162,14 @@ function ControlledDialog({
 				if (modal && closeOnOutside && event.target === event.currentTarget) onClose?.();
 			}}
 		>
-			<section
+			<AudioEditorResizableSurface
 				ref={panelRef}
 				tabIndex={-1}
 				className={`kw-audio-editor-dialog audio-editor-controlled-dialog${draggable ? ' audio-editor-controlled-dialog--draggable' : ''} ${className}`}
 				role="dialog"
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
+				resizeLabel={`Resize: ${title}`}
 				style={{
 					width: `min(${typeof width === 'number' ? `${width}px` : width}, calc(100vw - 32px))`,
 					transform: draggable ? `translate(${dragOffset.x}px, ${dragOffset.y}px)` : undefined,
@@ -180,7 +182,7 @@ function ControlledDialog({
 					{children}
 				</div>
 				{footer}
-			</section>
+			</AudioEditorResizableSurface>
 		</div>
 	);
 }

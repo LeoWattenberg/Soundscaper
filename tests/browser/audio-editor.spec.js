@@ -865,6 +865,36 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(preferences.locator('[data-shortcut-action="plugin-manager"]')).toHaveCount(0);
 	});
 
+	test('resizes docked panels, floating panels, and editor windows', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+
+		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
+		await expect(bottomDock).toHaveCSS('resize', 'vertical');
+		await expect(bottomDock.locator('[data-workspace-panel="mixer"]')).toHaveCSS('resize', 'horizontal');
+
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
+		await expect(metadataPanel).toBeVisible();
+		await metadataPanel.locator('.kw-audio-editor__panel-dock-picker select').selectOption('floating');
+		const floatingDock = editor.locator('[data-panel-dock="floating"]');
+		await expect(floatingDock).toHaveCSS('resize', 'both');
+		await expect(floatingDock.locator('[data-workspace-panel="metadata"]')).toHaveCSS('resize', 'both');
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		const resizeHandle = preferences.getByRole('button', { name: 'Resize: Editor preferences', exact: true });
+		await expect(resizeHandle).toBeVisible();
+		const before = await preferences.boundingBox();
+		await resizeHandle.focus();
+		await resizeHandle.press('ArrowLeft');
+		await resizeHandle.press('ArrowUp');
+		const after = await preferences.boundingBox();
+		expect(after.width).toBeCloseTo(before.width - 16, 0);
+		expect(after.height).toBeCloseTo(before.height - 16, 0);
+	});
+
 	test('exposes the complete zoom menu and executes custom shortcuts through the action registry', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
