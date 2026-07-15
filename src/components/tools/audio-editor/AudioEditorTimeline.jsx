@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
+	CLIP_CONTENT_OFFSET,
 	ContextMenu,
 	ContextMenuItem,
 	FrequencyRuler,
@@ -402,7 +403,7 @@ export default function AudioEditorTimeline({
 
 	const frameAtClientX = useCallback((clientX, lane) => {
 		const rect = lane.getBoundingClientRect();
-		return secondsToFrames(Math.max(0, (scrollX + clientX - rect.left) / pixelsPerSecond), {
+		return secondsToFrames(Math.max(0, (scrollX + clientX - rect.left - CLIP_CONTENT_OFFSET) / pixelsPerSecond), {
 			maximumFrame: durationFrames,
 			sampleRate,
 		});

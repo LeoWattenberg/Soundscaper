@@ -1922,9 +1922,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		const playhead = editor.getByRole('slider', { name: 'Playhead' });
 		const emptyLane = editor.locator('.audio-editor-track-row [data-track-lane]').first();
+		const emptyLaneBox = await emptyLane.boundingBox();
+		expect(emptyLaneBox).not.toBeNull();
+		const clickedX = emptyLaneBox.x + 48;
 
-		await emptyLane.click({ position: { x: 220, y: 48 } });
+		await page.mouse.click(clickedX, emptyLaneBox.y + 48);
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		const playheadLine = editor.locator('[data-playhead] .playhead-cursor__line');
+		const playheadLineBox = await playheadLine.boundingBox();
+		expect(playheadLineBox).not.toBeNull();
+		expect(Math.abs(playheadLineBox.x - clickedX)).toBeLessThanOrEqual(1);
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await playhead.focus();
 		await page.keyboard.press('Home');
