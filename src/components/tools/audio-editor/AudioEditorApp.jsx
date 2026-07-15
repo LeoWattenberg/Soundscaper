@@ -129,6 +129,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [nyquistTarget, setNyquistTarget] = useState(() => ({ prompt: true, pluginId: null }));
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
 	const [draggedWorkspacePanelId, setDraggedWorkspacePanelId] = useState(null);
+	const [toolbarDock, setToolbarDock] = useState('top');
+	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
+	const toolbarDragRef = useRef(null);
 	const importInputRef = useRef(null);
 	const labelInputRef = useRef(null);
 	const aup4InputRef = useRef(null);
@@ -168,6 +171,51 @@ function AudioEditorWorkspace({ locale, copy }) {
 			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
 		)),
 	);
+	const finishToolbarDrag = useCallback(() => {
+		toolbarDragRef.current = null;
+	}, []);
+	const handleToolbarGripperMouseDown = useCallback((event, toolbarRect) => {
+		if (event.button !== 0 || !editorRef.current) return;
+		event.preventDefault();
+		const editorRect = editorRef.current.getBoundingClientRect();
+		toolbarDragRef.current = {
+			startX: event.clientX,
+			startY: event.clientY,
+			offsetX: event.clientX - toolbarRect.left,
+			offsetY: event.clientY - toolbarRect.top,
+			moved: false,
+		};
+	}, []);
+	useEffect(() => {
+		const handleToolbarDrag = (event) => {
+			const drag = toolbarDragRef.current;
+			if (!drag || !editorRef.current) return;
+			const editorRect = editorRef.current.getBoundingClientRect();
+			const moved = drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4;
+			if (!moved) return;
+			drag.moved = true;
+			const edgeDistance = 56;
+			if (event.clientY - editorRect.top <= edgeDistance) {
+				setToolbarDock('top');
+				return;
+			}
+			if (editorRect.bottom - event.clientY <= edgeDistance) {
+				setToolbarDock('bottom');
+				return;
+			}
+			setToolbarDock('floating');
+			setFloatingToolbarPosition({
+				x: Math.max(0, event.clientX - editorRect.left - drag.offsetX),
+				y: Math.max(0, event.clientY - editorRect.top - drag.offsetY),
+			});
+		};
+		window.addEventListener('mousemove', handleToolbarDrag);
+		window.addEventListener('mouseup', finishToolbarDrag);
+		return () => {
+			window.removeEventListener('mousemove', handleToolbarDrag);
+			window.removeEventListener('mouseup', finishToolbarDrag);
+		};
+	}, [finishToolbarDrag]);
 
 	useEffect(() => {
 		setParityUi(parityRuntime.uiController.getSnapshot());
@@ -587,6 +635,31 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const effectsPosition = effectsOverlay
 		? resolveEffectsOverlayPosition(workspaceRef.current, effectsOverlay.anchorRect, isCompact)
 		: null;
+	const editorToolbar = (
+		<EditorToolToolbar
+			controller={controller}
+			snapshot={snapshot}
+			locale={locale}
+			copy={copy}
+			isCompact={isCompact}
+			blocked={blocked}
+			selectionActive={selectionActive}
+			durationFrames={durationFrames}
+			editItems={editItems}
+			executeEdit={executeEdit}
+			recordLabel={recordLabel}
+			toggleRecording={toggleRecording}
+			run={run}
+			toolbars={toolbarPreferences}
+			toolbarButtons={toolbarButtonPreferences}
+			uiFlags={uiFlags}
+			automationToolEnabled={automationToolEnabled}
+			onToggleAutomationTool={toggleAutomationTool}
+			actionRuntime={parityRuntime.actions}
+			onOpenSpectralSelection={openSpectralSelection}
+			onGripperMouseDown={handleToolbarGripperMouseDown}
+		/>
+	);
 
 	return (
 		<div
@@ -721,30 +794,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 				onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
 			/>
 
-			<div className="kw-audio-editor__toolbars">
-					<EditorToolToolbar
-						controller={controller}
-						snapshot={snapshot}
-						locale={locale}
-						copy={copy}
-					isCompact={isCompact}
-					blocked={blocked}
-					selectionActive={selectionActive}
-					durationFrames={durationFrames}
-					editItems={editItems}
-					executeEdit={executeEdit}
-					recordLabel={recordLabel}
-					toggleRecording={toggleRecording}
-					run={run}
-					toolbars={toolbarPreferences}
-					toolbarButtons={toolbarButtonPreferences}
-					uiFlags={uiFlags}
-					automationToolEnabled={automationToolEnabled}
-					onToggleAutomationTool={toggleAutomationTool}
-					actionRuntime={parityRuntime.actions}
-					onOpenSpectralSelection={openSpectralSelection}
-				/>
-			</div>
+			{toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
 
 			{snapshot.monitor?.enabled && (
 				<div className="kw-audio-editor__monitor-warning" role="alert">{copy.monitorWarning}</div>
@@ -886,6 +936,13 @@ function AudioEditorWorkspace({ locale, copy }) {
 					</div>
 				)}
 			</div>
+
+			{toolbarDock === 'bottom' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="bottom">{editorToolbar}</div>}
+			{toolbarDock === 'floating' && <div
+				className="kw-audio-editor__floating-toolbar"
+				data-toolbar-dock="floating"
+				style={{ left: `${floatingToolbarPosition.x}px`, top: `${floatingToolbarPosition.y}px` }}
+			>{editorToolbar}</div>}
 
 			{(uiFlags.selectionToolbar || uiFlags.statusbar) && <AccessibleSelectionToolbar
 				controller={controller}
@@ -1082,6 +1139,7 @@ function EditorToolToolbar({
 	onToggleAutomationTool,
 	actionRuntime,
 	onOpenSpectralSelection,
+	onGripperMouseDown,
 }) {
 	const telemetry = useAudioEditorTelemetry(controller);
 	const project = snapshot.project;
@@ -1192,6 +1250,7 @@ function EditorToolToolbar({
 				enableTabGroup
 				tabGroupId="tool-toolbar"
 				showGripper
+				onGripperMouseDown={onGripperMouseDown}
 				rightContent={(
 					<ToolbarButtonGroup className="kw-audio-editor__toolbar-settings-trigger" gap={2}>
 						<span ref={setToolbarSettingsTrigger}>

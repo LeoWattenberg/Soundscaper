@@ -394,6 +394,18 @@
 	background: var(--kw-editor-panel);
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__floating-toolbar {
+	position: absolute;
+	z-index: 80;
+	min-width: min(100%, 320px);
+	max-width: calc(100% - 16px);
+	box-shadow: var(--kw-editor-shadow);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__floating-toolbar .kw-audio-editor__tool-toolbar {
+	max-width: 100%;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__action-bar {
 	position: relative;
 	z-index: 20;
