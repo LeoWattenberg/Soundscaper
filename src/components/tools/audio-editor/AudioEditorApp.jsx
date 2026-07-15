@@ -1206,8 +1206,8 @@ function EditorToolToolbar({
 					</span>
 				</label>
 
-				{uiFlags.microphoneMetering && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
-					{isToolbarButtonVisible('monitor') && <span data-monitor-input>
+				{uiFlags.microphoneMetering && isToolbarButtonVisible('monitor') && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
+					<span data-monitor-input>
 						<ToggleToolButton
 							icon="microphone"
 							isActive={Boolean(snapshot.monitor?.enabled)}
@@ -1216,7 +1216,6 @@ function EditorToolToolbar({
 							onClick={() => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled))}
 						/>
 					</span>
-					}
 					<div
 						className="kw-audio-editor__input-meter"
 						data-input-meter
@@ -1242,8 +1241,8 @@ function EditorToolToolbar({
 					</label>
 				</ToolbarButtonGroup>}
 
-				{uiFlags.masterTrack && <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
-					{isToolbarButtonVisible('playback-volume') && <ToolButton
+				{uiFlags.masterTrack && isToolbarButtonVisible('playback-volume') && <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
+					<ToolButton
 						icon="volume"
 						ariaLabel={copy.playbackVolume}
 						onClick={(event) => {
@@ -1251,7 +1250,6 @@ function EditorToolToolbar({
 							group?.querySelector('[role="slider"], input')?.focus?.();
 						}}
 					/>
-					}
 					<div className="kw-audio-editor__master-meter" aria-label={copy.metering}>
 						<MasterMeter
 							levelLeft={masterMeter?.dbfs ?? -60}

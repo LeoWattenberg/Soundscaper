@@ -375,6 +375,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-time-display]')).toHaveCount(0);
 		await timeDisplayToggle.click();
 		await expect(editor.locator('[data-time-display]')).toBeVisible();
+		const monitorToggle = flyout.getByRole('checkbox', { name: 'Monitor input', exact: true });
+		await monitorToggle.click();
+		await expect(editor.locator('[data-input-meter]')).toHaveCount(0);
+		await monitorToggle.click();
+		await expect(editor.locator('[data-input-meter]')).toBeVisible();
+		const playbackVolumeToggle = flyout.getByRole('checkbox', { name: 'Playback volume', exact: true });
+		await playbackVolumeToggle.click();
+		await expect(editor.locator('.kw-audio-editor__master-meter')).toHaveCount(0);
+		await playbackVolumeToggle.click();
+		await expect(editor.locator('.kw-audio-editor__master-meter')).toBeVisible();
 	});
 
 	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {
