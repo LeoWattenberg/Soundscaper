@@ -185,6 +185,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
 		await expect(tooltip).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
+		await editor.locator('[data-action="mixer"] button').hover();
+		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Mixer');
+
 		await page.mouse.move(0, 0);
 		await expect(tooltip).toHaveCount(0);
 	});

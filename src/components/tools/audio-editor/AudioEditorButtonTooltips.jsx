@@ -111,9 +111,11 @@ function buttonTooltipLabel(button) {
 			.join(' ');
 		if (label) return label;
 	}
+	const textLabel = button.cloneNode(true);
+	textLabel.querySelectorAll('.musescore-icon, .button__icon, .tool-button__icon, .transport-button__icon').forEach((icon) => icon.remove());
 	return button.getAttribute('aria-label')?.trim()
 		|| button.closest('[title]')?.getAttribute('title')?.trim()
-		|| button.textContent?.trim()
+		|| textLabel.textContent?.trim()
 		|| '';
 }
 
