@@ -540,7 +540,8 @@ export default function AudioEditorTimeline({
 				return;
 			}
 		}
-		if (event.button !== 0 || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting) return;
+		if (event.button !== 0 || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting
+			|| snapshot.recordingScheduling || snapshot.scheduledRecording) return;
 		const interactiveControl = event.target.closest?.('button, input, textarea, select, [role="menuitem"]');
 		if (interactiveControl && !interactiveControl.classList.contains('clip-display__handle')) return;
 		if (event.target.closest?.('[data-label-id]')) return;
@@ -634,7 +635,7 @@ export default function AudioEditorTimeline({
 			run(() => controller.actions.timeline.selectClip(clip.id, { toggle: true }));
 		} else if (!selectedClipIds.includes(clip.id)) run(() => controller.actions.timeline.selectClip(clip.id));
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.readOnly, snapshot.recording, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
+	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.readOnly, snapshot.recording, snapshot.recordingScheduling, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, snapshot.scheduledRecording, splitToolActive, timelineView]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
@@ -780,6 +781,8 @@ export default function AudioEditorTimeline({
 		|| snapshot.importing
 		|| snapshot.recording
 		|| snapshot.recordingStarting
+		|| snapshot.recordingScheduling
+		|| snapshot.scheduledRecording
 		|| snapshot.exporting
 		|| snapshot.processingEffect;
 	const contextLocale = locale;
@@ -963,7 +966,7 @@ export default function AudioEditorTimeline({
 								sampleRate={sampleRate}
 								selection={documentSelection}
 								selected={snapshot.selectedTrackId === track.id}
-								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
+									blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || snapshot.exporting || snapshot.processingEffect}
 								copy={copy}
 								run={run}
 								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
@@ -998,7 +1001,7 @@ export default function AudioEditorTimeline({
 								draggingClipIds={draggingClipIds}
 								clipDragPreview={clipDragPreview}
 								automationToolEnabled={automationToolEnabled}
-								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
+									blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || snapshot.exporting || snapshot.processingEffect}
 								showArmControls={showArmControls}
 								recordingInputs={snapshot.recordingInputs}
 								copy={copy}
@@ -1222,6 +1225,29 @@ function TelemetryPlayhead({
 	run,
 }) {
 	const telemetry = useAudioEditorTelemetry(controller);
+	const scrubbingRef = useRef(false);
+	const scrubDragRef = useRef(null);
+	const finishScrub = useCallback(() => {
+		if (!scrubbingRef.current) return;
+		scrubbingRef.current = false;
+		scrubDragRef.current = null;
+		run(() => controller.actions.transport.endScrub?.());
+	}, [controller, run]);
+	const finishPointerScrub = useCallback((event) => {
+		if (event?.pointerId != null && scrubDragRef.current?.pointerId !== event.pointerId) return;
+		finishScrub();
+	}, [finishScrub]);
+	useEffect(() => {
+		globalThis.addEventListener('pointerup', finishPointerScrub);
+		globalThis.addEventListener('pointercancel', finishPointerScrub);
+		globalThis.addEventListener('blur', finishScrub);
+		return () => {
+			globalThis.removeEventListener('pointerup', finishPointerScrub);
+			globalThis.removeEventListener('pointercancel', finishPointerScrub);
+			globalThis.removeEventListener('blur', finishScrub);
+			finishScrub();
+		};
+	}, [finishPointerScrub, finishScrub]);
 	return (
 		<div
 			className="audio-editor-playhead-boundary"
@@ -1232,7 +1258,42 @@ function TelemetryPlayhead({
 			aria-valuemin={0}
 			aria-valuemax={durationFrames}
 			aria-valuenow={telemetry.positionFrame || 0}
-			style={{ left: panelWidth, width: viewportWidth }}
+			style={{ left: panelWidth, width: viewportWidth, touchAction: 'none' }}
+			onPointerDownCapture={(event) => {
+				if (event.button !== 0 || event.isPrimary === false || !event.target.closest?.('.playhead-cursor')) return;
+				event.preventDefault();
+				event.stopPropagation();
+				scrubDragRef.current = {
+					pointerId: event.pointerId,
+					clientX: event.clientX,
+					startFrame: telemetry.positionFrame || 0,
+				};
+				event.currentTarget.setPointerCapture?.(event.pointerId);
+				scrubbingRef.current = true;
+				// Resume Web Audio from the initiating gesture; later pointer moves
+				// are not consistently treated as activation by browsers.
+				run(() => controller.actions.transport.scrub(telemetry.positionFrame || 0));
+			}}
+			onPointerMoveCapture={(event) => {
+				const drag = scrubDragRef.current;
+				if (!drag || drag.pointerId !== event.pointerId) return;
+				event.preventDefault();
+				event.stopPropagation();
+				const frame = Math.max(0, Math.min(
+					durationFrames,
+					Math.round(drag.startFrame + (event.clientX - drag.clientX) / pixelsPerSecond * sampleRate),
+				));
+				run(() => controller.actions.transport.scrub(frame));
+			}}
+			onPointerUpCapture={(event) => {
+				if (scrubDragRef.current?.pointerId !== event.pointerId) return;
+				event.preventDefault();
+				event.stopPropagation();
+				event.currentTarget.releasePointerCapture?.(event.pointerId);
+				finishScrub();
+			}}
+				onPointerCancelCapture={finishPointerScrub}
+				onLostPointerCapture={finishPointerScrub}
 			onKeyDown={(event) => {
 				const amount = event.shiftKey ? Math.round(sampleRate / 10) : 1;
 				if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -1252,7 +1313,12 @@ function TelemetryPlayhead({
 				iconTopOffset={-17}
 				scrollX={scrollX}
 				minPosition={0}
-				onPositionChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate })))}
+				onPositionChange={(seconds) => {
+					const frame = secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate });
+					return run(() => scrubbingRef.current
+						? controller.actions.transport.scrub(frame)
+						: controller.actions.transport.seek(frame));
+				}}
 			/>
 		</div>
 	);

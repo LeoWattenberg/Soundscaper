@@ -16,7 +16,10 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
+const {
+	calculateAudioEditorMetronomeSchedule,
+	createAudioEditorController,
+} = await import('../src/lib/tools/audio-editor/app.js');
 const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
 const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
 
@@ -289,6 +292,96 @@ test('controller persists direct workspace panel and toolbar moves', async () =>
 		workspace.panels.mixer,
 	);
 	await controller.dispose();
+});
+
+test('controller persists play-at-speed pitch behavior and dispatches the selected mode', async () => {
+	const store = createMemoryStore();
+	const engine = createMemoryEngine();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	controller.actions.transport.setPlayAtSpeedRate(1.5);
+	await controller.actions.transport.playAtSpeed();
+	assert.equal(controller.getSnapshot().playbackOptions.rate, 1.5);
+	assert.equal(engine.playAtSpeedCalls[0].rate, 1.5);
+	assert.equal(engine.playAtSpeedCalls[0].options.preservePitch, false);
+	engine.stop();
+
+	await controller.actions.preferences.update({ playback: { playAtSpeedMode: 'staffpad' } });
+	await controller.actions.transport.playAtSpeed(0.75);
+	assert.equal(engine.playAtSpeedCalls[1].rate, 0.75);
+	assert.equal(engine.playAtSpeedCalls[1].options.preservePitch, true);
+	assert.equal(typeof engine.playAtSpeedCalls[1].options.pitchPreserver, 'function');
+	assert.equal(store.settings.get('audio-editor-preferences-v1').playback.playAtSpeedMode, 'staffpad');
+
+	await controller.dispose();
+});
+
+test('play-at-speed preparation is cancellable while transformed clip caches are pending', async () => {
+	const engine = createMemoryEngine();
+	const cache = createMemoryClipTimePitchCache();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+		clipTimePitchCache: cache,
+	});
+	await controller.ready;
+	const trackId = controller.project.tracks.find((track) => track.type === 'audio').id;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [
+			{ type: 'source/add', source: {
+				id: 'speed-source', storageKey: 'speed-source', name: 'speed.wav', mimeType: 'audio/wav',
+				frameCount: 48_000, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+			} },
+			{ type: 'clip/add', trackId, clip: {
+				id: 'speed-clip', sourceId: 'speed-source', title: 'Speed', timelineStartFrame: 0,
+				sourceStartFrame: 0, sourceDurationFrames: 48_000, durationFrames: 48_000,
+				pitchCents: 200, speedRatio: 1,
+			} },
+		],
+	});
+	const cacheGate = deferred();
+	cache.queuePlayback({ gate: cacheGate, stale: false, revision: 'pending-speed' });
+
+	const pending = controller.actions.transport.playAtSpeed(1.25);
+	await waitFor(() => cache.resolveCalls.length === 1);
+	assert.equal(controller.getSnapshot().playbackOptions.preparing, true);
+	assert.equal(cache.resolveCalls[0].signal.aborted, false);
+	assert.equal(await controller.actions.transport.playAtSpeed(), false);
+	assert.equal(cache.resolveCalls[0].signal.aborted, true);
+	assert.equal(await pending, false);
+	assert.equal(controller.getSnapshot().playbackOptions.preparing, false);
+	assert.equal(engine.playAtSpeedCalls.length, 0);
+	await controller.dispose();
+});
+
+test('metronome transport timing scales both the next click and beat interval by playback rate', () => {
+	const normal = calculateAudioEditorMetronomeSchedule({
+		bpm: 120,
+		sampleRate: 48_000,
+		positionFrame: 12_000,
+		playbackRate: 1,
+	});
+	const doubleSpeed = calculateAudioEditorMetronomeSchedule({
+		bpm: 120,
+		sampleRate: 48_000,
+		positionFrame: 12_000,
+		playbackRate: 2,
+	});
+	assert.deepEqual(normal, { beatIndex: 1, delaySeconds: 0.25, beatDurationSeconds: 0.5 });
+	assert.deepEqual(doubleSpeed, { beatIndex: 1, delaySeconds: 0.125, beatDurationSeconds: 0.25 });
 });
 
 test('controller splits selected and grouped clips at both selection boundaries in one undo step', async () => {
@@ -1491,12 +1584,14 @@ function createMemoryEngine() {
 		loadedProjects: [],
 		appliedProjects: [],
 		disposeCalls: 0,
+		playAtSpeedCalls: [],
 		loadProject(project) { this.loadedProjects.push(structuredClone(project)); },
 		async applyProject(project) { this.appliedProjects.push(structuredClone(project)); },
 		getPositionFrames() { return this.positionFrame; },
 		getState() { return { state: this.state, loop: { enabled: false } }; },
 		stop() { this.state = 'stopped'; },
 		play() { this.state = 'playing'; },
+		async playAtSpeed(rate, options) { this.playAtSpeedCalls.push({ rate, options }); this.state = 'playing'; },
 		pause() { this.state = 'paused'; },
 		seek(frame) { this.positionFrame = Math.max(0, Math.round(frame)); return this.positionFrame; },
 		setLoop() {},

@@ -145,7 +145,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const blocked = Boolean(
 		snapshot.importing
 		|| snapshot.recordingStarting
+		|| snapshot.recordingScheduling
+		|| snapshot.scheduledRecording
 		|| snapshot.recording
+		|| snapshot.playbackOptions?.preparing
 		|| snapshot.exporting
 		|| snapshot.processingEffect
 		|| snapshot.analysisProcessing
@@ -242,9 +245,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 	const toggleRecording = useCallback(() => {
 		if (snapshot.recording) return run(() => controller.actions.recording.stop());
+		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
 		const trackId = showArmControls ? undefined : snapshot.selectedTrackId || project?.tracks[0]?.id;
 		return run(() => controller.actions.recording.start({ trackId }));
-	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.selectedTrackId]);
+	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
+
+	const openTimedRecording = useCallback(() => {
+		const startTimeMs = snapshot.scheduledRecording?.startTimeMs ?? Date.now() + 5 * 60_000;
+		setDialogValue(formatDateTimeLocalInput(startTimeMs));
+		setDialog('timed-recording');
+	}, [snapshot.scheduledRecording?.startTimeMs]);
 
 	const openProjects = useCallback(() => {
 		setDialog('projects');
@@ -366,6 +376,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		else if (request.type === 'toggle-fullscreen') toggleFullscreen();
 		else if (request.type === 'choose-audio-files') importInputRef.current?.click();
 		else if (request.type === 'open-about') setDialog('about');
+		else if (request.type === 'open-timed-recording') openTimedRecording();
 		else if (request.type === 'close-project') run(() => controller.actions.project.close(payload.projectId, payload));
 		else if (request.type === 'set-custom-track-rate') {
 			setDialogValue(String(selectedAudioTrackRate));
@@ -414,6 +425,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		controller,
 		openExternal,
 		openSurface,
+		openTimedRecording,
 		openWorkspacePanel,
 		parityUi.request?.revision,
 		project?.sampleRate,
@@ -493,11 +505,13 @@ function AudioEditorWorkspace({ locale, copy }) {
 			record: toggleRecording,
 			recordNewTrack: () => run(() => controller.actions.recording.startNewTrack()),
 			pauseRecording: () => run(() => controller.actions.recording.pause()),
+			openTimedRecording,
 			toggleLeadIn: () => run(() => controller.actions.recording.toggleLeadIn()),
 			toggleMetronome: () => run(() => controller.actions.transport.toggleMetronome()),
 			toggleArmControls: () => setShowArmControls((current) => !current),
 			stop: () => run(() => controller.actions.transport.stop()),
 			playPause: () => run(() => controller.actions.transport.playPause()),
+			playAtSpeed: () => run(() => controller.actions.transport.playAtSpeed()),
 			toggleMonitoring: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
 			requestInputAccess: () => run(() => controller.actions.recording.requestInputAccess()),
 			refreshInputs: () => run(() => controller.actions.recording.refreshInputs()),
@@ -1013,6 +1027,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					copy={copy}
 					locale={locale}
 					run={run}
+					showArmControls={showArmControls}
 					onClose={() => setDialog(null)}
 				/>
 			)}
@@ -1079,6 +1094,12 @@ function EditorToolToolbar({
 	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const masterMeter = telemetry.meters?.master;
 	const inputMeterDb = telemetry.inputMeterDb ?? -60;
+	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
+	const playAtSpeedActive = telemetry.transportState === 'playing'
+		&& ['naive', 'staffpad'].includes(telemetry.playbackMode);
+	const playAtSpeedLabel = playAtSpeedPreparing
+		? copy.cancelPlayAtSpeed
+		: playAtSpeedActive ? copy.pausePlayAtSpeed : copy.playAtSpeed;
 	const recordControlLabel = snapshot.readOnly
 		? `${recordLabel} — ${copy.projectReadOnly}`
 		: recordLabel;
@@ -1090,13 +1111,14 @@ function EditorToolToolbar({
 	}, []);
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
-	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
+	const transportButtonsVisible = ['play', 'play-at-speed', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
+		{ id: 'play-at-speed', label: copy.playAtSpeed, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
 		{ id: 'record', label: recordLabel, icon: 'record' },
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
@@ -1190,6 +1212,31 @@ function EditorToolToolbar({
 						onClick={() => run(() => controller.actions.transport.playPause())}
 					/>
 					}
+					{isToolbarButtonVisible('play-at-speed') && <span className="kw-audio-editor__play-at-speed" data-play-at-speed>
+						<AccessibleTransportButton
+							icon={playAtSpeedPreparing ? 'stop' : playAtSpeedActive ? 'pause' : 'play'}
+							className="kw-audio-editor__transport-play"
+							ariaLabel={playAtSpeedLabel}
+							disabled={blocked && !playAtSpeedPreparing}
+							active={playAtSpeedActive || playAtSpeedPreparing}
+							pressed={playAtSpeedActive || playAtSpeedPreparing}
+							onClick={() => run(() => controller.actions.transport.playAtSpeed())}
+						/>
+						<label>
+							<span className="kw-audio-editor-sr-only">{copy.playbackSpeed}</span>
+							<input
+								type="range"
+								min="0.5"
+								max="2"
+								step="0.05"
+								value={snapshot.playbackOptions?.rate || 1}
+								aria-label={copy.playbackSpeed}
+								disabled={blocked || telemetry.transportState === 'playing'}
+								onChange={(event) => run(() => controller.actions.transport.setPlayAtSpeedRate(Number(event.currentTarget.value)))}
+							/>
+							<output aria-hidden="true">{formatPlaybackSpeed(snapshot.playbackOptions?.rate || 1)}×</output>
+						</label>
+					</span>}
 					{isToolbarButtonVisible('stop') && <TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />}
 					{isToolbarButtonVisible('record') && <span data-transport="record">
 						<AccessibleTransportButton
@@ -1198,7 +1245,7 @@ function EditorToolToolbar({
 							ariaLabel={recordControlLabel}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
-							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing'}
+							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							onClick={toggleRecording}
 						/>
 					</span>
@@ -2326,7 +2373,7 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 							track={channel}
 							copy={copy}
 							run={run}
-							disabled={snapshot.readOnly || snapshot.recording || snapshot.recordingStarting}
+								disabled={snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							surface="mixer"
 						/>
 					),
@@ -2349,14 +2396,14 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 				<strong>{copy.mixerRouting}</strong>
 				{showArmControls && <Button
 					variant="secondary"
-					disabled={snapshot.recording || snapshot.recordingStarting || typeof controller.actions.recording.requestInputAccess !== 'function'}
+					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || typeof controller.actions.recording.requestInputAccess !== 'function'}
 					onClick={() => run(() => snapshot.recordingInputs?.hasOpenInputs
 						? controller.actions.recording.refreshInputs()
 						: controller.actions.recording.requestInputAccess())}
 				>{snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs}</Button>}
 				{snapshot.recordingInputs?.hasOpenInputs && <Button
 					variant="secondary"
-					disabled={snapshot.recording || snapshot.recordingStarting}
+					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
 					onClick={() => run(() => controller.actions.recording.releaseInputs())}
 				>{copy.recordingReleaseInputs}</Button>}
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
@@ -2737,6 +2784,20 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 											label={copy.snapZeroCrossings}
 											checked={preferences.editing.snapToZeroCrossings}
 											onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
+										/>
+									</div>
+								</PreferencePanel>
+								<Separator />
+								<PreferencePanel title={copy.playAtSpeed}>
+									<div className="kw-audio-editor-preferences__grid">
+										<PreferenceDropdownField
+											label={copy.playAtSpeedMode}
+											value={preferences.playback?.playAtSpeedMode || 'naive'}
+											onChange={(value) => run(() => controller.actions.preferences.update({ playback: { playAtSpeedMode: value } }))}
+											options={[
+												{ value: 'naive', label: copy.playAtSpeedNaive },
+												{ value: 'staffpad', label: copy.playAtSpeedStaffPad },
+											]}
 										/>
 									</div>
 								</PreferencePanel>
@@ -3556,8 +3617,14 @@ function generatorLabel(type, copy) {
 	return { silence: copy.silenceGenerator, tone: copy.toneGenerator, chirp: copy.chirpGenerator, noise: copy.noiseGenerator, dtmf: copy.dtmfGenerator }[type] || copy.generateMenu;
 }
 
-function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, locale, run, onClose }) {
+function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, locale, run, showArmControls = false, onClose }) {
 	const panelRef = useRef(null);
+	const cancelTimedRecordingOnClose = useRef(false);
+	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
+	const closeDialog = () => {
+		if (cancelTimedRecordingOnClose.current) run(() => controller.actions.recording.cancelScheduled());
+		onClose();
+	};
 	useEffect(() => {
 		const previouslyFocused = document.activeElement;
 		const panel = panelRef.current;
@@ -3570,7 +3637,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 		const onKeyDown = (event) => {
 			if (event.key === 'Escape') {
 				event.preventDefault();
-				onClose();
+				closeDialog();
 				return;
 			}
 			if (event.key !== 'Tab' || !panel) return;
@@ -3597,28 +3664,22 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 		};
 	}, [type]);
 
-	const title = type === 'projects'
-		? copy.projectsTitle
-		: type === 'rename'
-			? copy.renameProject
-			: type === 'track-rename'
-				? copy.trackName
-			: type === 'recording-offset'
-				? copy.recordingOffset
-			: type === 'track-rate'
-				? copy.sampleRate
-			: type === 'resample'
-				? copy.resample
-			: type === 'about'
-				? copy.aboutEditor
-			: type === 'clear'
-				? copy.clearData
-				: copy.deleteTitle;
+	const title = {
+		projects: copy.projectsTitle,
+		rename: copy.renameProject,
+		'track-rename': copy.trackName,
+		'timed-recording': copy.timedRecording,
+		'recording-offset': copy.recordingOffset,
+		'track-rate': copy.sampleRate,
+		resample: copy.resample,
+		about: copy.aboutEditor,
+		clear: copy.clearData,
+	}[type] || copy.deleteTitle;
 	const offsetSources = recordingOffsetSources(snapshot, copy);
 	return (
-		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+		<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
 			<AudioEditorResizableSurface ref={panelRef} tabIndex={-1} className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={title} resizeLabel={`Resize: ${title}`}>
-				<DialogHeader title={title} os="windows" onClose={onClose} />
+				<DialogHeader title={title} os="windows" onClose={closeDialog} />
 				<div className="kw-audio-editor-dialog__body">
 					{type === 'projects' && (
 						<>
@@ -3669,6 +3730,46 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 							<div className="kw-audio-editor-dialog__actions">
 								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 								<Button type="submit" disabled={!value.trim()}>{copy.saveName}</Button>
+							</div>
+						</form>
+					)}
+					{type === 'timed-recording' && (
+						<form data-timed-recording-dialog onSubmit={(event) => {
+							event.preventDefault();
+							const startTimeMs = new Date(value).getTime();
+							if (!Number.isFinite(startTimeMs) || startTimeMs <= Date.now()) return;
+							const trackId = showArmControls
+								? undefined
+								: snapshot.project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label')?.id
+									|| snapshot.project?.tracks.find((track) => track.type !== 'label')?.id;
+							const operation = run(() => controller.actions.recording.schedule(startTimeMs, { trackId }));
+							if (operation && typeof operation.then === 'function') {
+								operation.then((scheduled) => { if (scheduled) onClose(); }, () => undefined);
+							} else if (operation !== undefined) onClose();
+						}}>
+							<p>{copy.timedRecordingDescription}</p>
+							<label className="kw-audio-editor-dialog__field">
+								<span>{copy.timedRecordingStartTime}</span>
+								<input
+									type="datetime-local"
+									step="1"
+									value={value}
+									onChange={(event) => onValueChange(event.currentTarget.value)}
+								/>
+							</label>
+							{snapshot.scheduledRecording && <p>{copy.timedRecordingCurrent.replace(
+								'{time}',
+								new Date(snapshot.scheduledRecording.startTimeMs).toLocaleString(locale),
+							)}</p>}
+							<div className="kw-audio-editor-dialog__actions">
+								{snapshot.scheduledRecording && <Button variant="secondary" onClick={() => {
+									run(() => controller.actions.recording.cancelScheduled());
+									onClose();
+								}}>{copy.timedRecordingCancel}</Button>}
+								<Button variant="secondary" onClick={closeDialog}>{copy.cancel}</Button>
+								<Button type="submit" disabled={Boolean(snapshot.scheduledRecording) || !Number.isFinite(new Date(value).getTime()) || new Date(value).getTime() <= Date.now()}>
+									{copy.timedRecordingSchedule}
+								</Button>
 							</div>
 						</form>
 					)}
@@ -4252,6 +4353,7 @@ function createApplicationMenus({
 			label: copy.transport,
 			items: [
 				{ id: 'action://playback/play', label: copy.play, shortcut: 'Space', onClick: actions.playPause },
+				{ id: 'local://play-at-speed', label: copy.playAtSpeed, disabled: blocked && !snapshot.playbackOptions?.preparing, onClick: actions.playAtSpeed },
 				{ id: 'action://playback/stop', label: copy.stop, onClick: actions.stop },
 				divider(),
 				{ id: 'toggle-loop-region', label: copy.loop, checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
@@ -4263,28 +4365,28 @@ function createApplicationMenus({
 			label: copy.recordMenu,
 			preserveLabel: true,
 			items: [
-				{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, preserveLabel: Boolean(snapshot.recording), shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing', disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
-				{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting, onClick: actions.recordNewTrack },
+					{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, preserveLabel: Boolean(snapshot.recording), shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording, disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
+					{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording, onClick: actions.recordNewTrack },
 				{ id: 'stop', label: copy.stop, onClick: actions.stop },
 				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, preserveLabel: true, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },
 				divider(),
 				{
 					id: 'recording-input-access',
 					label: snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs,
-					disabled: snapshot.recording || snapshot.recordingStarting,
+						disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording,
 					onClick: snapshot.recordingInputs?.hasOpenInputs ? actions.refreshInputs : actions.requestInputAccess,
 				},
 				...(snapshot.recordingInputs?.hasOpenInputs ? [{
 					id: 'recording-release-inputs',
 					label: copy.recordingReleaseInputs,
-					disabled: snapshot.recording || snapshot.recordingStarting,
+						disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording,
 					onClick: actions.releaseInputs,
 				}] : []),
 				divider(),
 				{ id: 'monitor-input', label: copy.monitor, checked: Boolean(snapshot.monitor?.enabled), disabled: snapshot.recordingStarting, onClick: actions.toggleMonitoring },
 				{ id: 'recording-offset', label: copy.recordingOffset, onClick: actions.openRecordingOffset },
-				{ id: 'lead-in-time', label: copy.leadInTime, checked: Boolean(snapshot.recordingOptions?.leadIn), disabled: snapshot.recording || snapshot.recordingStarting, onClick: actions.toggleLeadIn },
-				unavailable('set-up-timed-recording', copy.timedRecording),
+					{ id: 'lead-in-time', label: copy.leadInTime, checked: Boolean(snapshot.recordingOptions?.leadIn), disabled: snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording, onClick: actions.toggleLeadIn },
+					{ id: 'set-up-timed-recording', label: copy.timedRecording, disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling, onClick: actions.openTimedRecording },
 				unavailable('toggle-sound-activated-recording', copy.soundActivatedRecording),
 				unavailable('set-sound-activation-level', copy.soundActivationLevel),
 			],
@@ -4448,7 +4550,6 @@ function createApplicationMenus({
 			items: [
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
-				unavailable('raw-data-import', copy.rawDataImport),
 				unavailable('reset-configuration', copy.resetConfiguration),
 			],
 		},
@@ -4623,7 +4724,18 @@ function meterPercent(dbfs) {
 	return (Math.max(-60, Math.min(0, value)) + 60) / 60 * 100;
 }
 
+function formatPlaybackSpeed(rate) {
+	return Number(rate).toFixed(2).replace(/\.00$/u, '').replace(/(\.\d)0$/u, '$1');
+}
+
 function formatDate(value, locale) {
 	const date = new Date(value);
 	return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(normalizeBcp47Locale(locale));
+}
+
+function formatDateTimeLocalInput(value) {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return '';
+	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+	return local.toISOString().slice(0, 19);
 }

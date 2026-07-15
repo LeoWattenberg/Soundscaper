@@ -68,6 +68,7 @@ const disabled = (id, label, locations, reason = DISABLED_REASONS.menu, options 
 	upstreamSource: options.source === undefined ? UPSTREAM.menu : options.source,
 	origin: options.origin || 'upstream',
 	reason,
+	menuVisible: options.menuVisible !== false,
 });
 
 const excluded = (id, label, locations, reason, options = {}) => actionDefinition({
@@ -215,6 +216,7 @@ const definitions = [
 	implemented('action://record/pause', 'Pause recording', ['Record', 'Transport'], 'recording.pause', { enableWhen: 'recording', source: UPSTREAM.record }),
 	implemented('action://record/stop', 'Stop recording', ['Record', 'Transport'], 'recording.stop', { enableWhen: 'recording', source: UPSTREAM.record }),
 	implemented('action://playback/play', 'Play', ['Transport'], 'transport.playPause', { shortcut: 'Space', enableWhen: 'project-opened', source: UPSTREAM.playback }),
+	implemented('local://play-at-speed', 'Play at speed', ['Transport', 'Transport toolbar'], 'transport.playAtSpeed', { enableWhen: 'project-opened', source: null, origin: 'local' }),
 	implemented('action://playback/pause', 'Pause', ['Transport'], 'transport.pause', { enableWhen: 'playing', source: UPSTREAM.playback }),
 	implemented('action://playback/stop', 'Stop', ['Transport'], 'transport.stop', { enableWhen: 'playing-or-recording', source: UPSTREAM.playback }),
 	implemented('action://playback/rewind-start', 'Skip to start', ['Transport'], 'transport.jumpStart', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
@@ -229,7 +231,7 @@ const definitions = [
 	implemented('action://record/level', 'Record level', ['Meter toolbar'], 'recording.setLevel', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-mic-metering', 'Show microphone metering', ['Meter toolbar'], 'recording.toggleMicMetering', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-input-monitoring', 'Input monitoring', ['Meter toolbar'], 'recording.toggleInputMonitoring', { enableWhen: 'project-opened', source: UPSTREAM.record }),
-	disabled('set-up-timed-recording', 'Set up timed recording', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
+	implemented('set-up-timed-recording', 'Set up timed recording', ['Record'], 'recording.setupTimer', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
 	disabled('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
 	disabled('set-sound-activation-level', 'Sound activation level', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
 
@@ -356,7 +358,10 @@ const definitions = [
 	disabled('apply-macros-palette', 'Apply macro', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-fade-ends', 'Fade ends', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-mp3-conversion', 'MP3 conversion', ['Tools > Macros'], DISABLED_REASONS.menu),
-	disabled('raw-data-import', 'Import raw data', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	disabled('raw-data-import', 'Import raw data', ['Tools'], DISABLED_REASONS.todo, {
+		source: UPSTREAM.project,
+		menuVisible: false,
+	}),
 	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	implemented('nyquist-prompt', 'Nyquist prompt', ['Tools'], 'nyquist.openPrompt', {
 		enableWhen: 'project-opened',
@@ -567,7 +572,7 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	'extra-select': 'menu-extra',
 	'extra-tracks': 'menu-extra',
 	'extra-export': 'menu-extra',
-	'play-at-speed': 'menu-extra',
+	'play-at-speed': 'local://play-at-speed',
 });
 
 export function resolveAudacityActionId(id) {
@@ -778,7 +783,7 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 	if (!item || typeof item !== 'object') throw new TypeError('Each menu item must be an object.');
 	if (item.divider) return { ...item };
 	const definition = item.id ? audacityActionDefinition(item.id) : null;
-	if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED) return null;
+	if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED || definition?.menuVisible === false) return null;
 
 	const children = item.items
 		? cleanMenuItems(item.items.map((child) => decorateMenuItem(
@@ -930,7 +935,10 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en', c
 	const result = menus.map(cloneMenuTree);
 	const localization = copy || normalizeBcp47Locale(locale);
 	const definitions = Object.values(AUDACITY_ACTION_MANIFEST)
-		.filter((definition) => definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
+		.filter((definition) => (
+			definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM
+			&& definition.menuVisible !== false
+		));
 	for (const definition of definitions) {
 		const location = definition.locations.find((candidate) => APPLICATION_MENU_IDS[String(candidate).split(' > ')[0]]);
 		if (!location) continue;
@@ -1083,6 +1091,7 @@ function actionDefinition({
 	upstreamSource,
 	origin,
 	reason,
+	menuVisible,
 }) {
 	return {
 		id,
@@ -1096,6 +1105,7 @@ function actionDefinition({
 		upstreamSource,
 		origin,
 		...(reason ? { reason } : {}),
+		...(menuVisible === false ? { menuVisible: false } : {}),
 	};
 }
 

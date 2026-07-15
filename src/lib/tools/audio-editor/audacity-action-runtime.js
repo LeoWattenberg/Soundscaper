@@ -420,6 +420,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		recording: {
 			...controllerActions.recording,
 			startCurrentTrack: controllerActions.recording.start,
+			setupTimer: () => ui.issue('open-timed-recording'),
 			setLevel: (level = null) => level == null
 				? ui.issue('focus-recording-level')
 				: controllerActions.recording.setLevel(Number(level)),

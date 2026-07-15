@@ -73,7 +73,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		'menu-skip',
 		'menu-align',
 		'menu-sort',
-		'set-up-timed-recording',
 		'toggle-sound-activated-recording',
 		'set-sound-activation-level',
 		'menu-macros',
@@ -91,6 +90,21 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		assert.ok(audacityActionReason(id, 'en'));
 		assert.ok(audacityActionReason(id, 'de'));
 	}
+});
+
+test('raw and sample-data handling remain auditable without entering application menus', () => {
+	const rawImport = audacityActionDefinition('raw-data-import');
+	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
+	assert.equal(rawImport.menuVisible, false);
+
+	const menus = applyAudacityParityToMenus([{
+		id: 'tools',
+		label: 'Tools',
+		items: [{ id: 'raw-data-import', label: 'Import raw data' }],
+	}], { materializeDisabled: true });
+	const serialized = JSON.stringify(menus);
+	assert.doesNotMatch(serialized, /raw-data-import/);
+	assert.doesNotMatch(serialized, /sample-data-(?:import|export)/);
 });
 
 test('Audacity Mix-down to is a concrete destructive track action', () => {
@@ -141,6 +155,8 @@ test('legacy UI aliases resolve to stable upstream IDs and share one policy reco
 	assert.equal(audacityActionDefinition('effect-plugin-manager'), AUDACITY_ACTION_MANIFEST['plugin-manager']);
 	assert.equal(audacityActionDefinition('midi-track'), AUDACITY_ACTION_MANIFEST['local://midi-track']);
 	assert.equal(audacityActionDefinition('change-tempo'), AUDACITY_ACTION_MANIFEST['effect://builtin/change-tempo']);
+	assert.equal(resolveAudacityActionId('play-at-speed'), 'local://play-at-speed');
+	assert.equal(audacityActionDefinition('play-at-speed')?.handler, 'transport.playAtSpeed');
 	assert.equal(
 		audacityActionDefinition('action://trackedit/track/change-rate?rate=44100'),
 		AUDACITY_ACTION_MANIFEST['action://trackedit/track/change-rate?rate=%1'],

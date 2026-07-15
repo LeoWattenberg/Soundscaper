@@ -110,6 +110,7 @@ import {
 	matchAudacitySelectionChannels,
 } from './audacity-selection.js';
 import {
+	assertPlayAtSpeedStaffPadMemorySafe,
 	createAudioEditorEngine,
 	effectRackLatencyFrames,
 } from './engine.js';
@@ -146,6 +147,30 @@ const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
+const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
+
+export function calculateAudioEditorMetronomeSchedule({
+	bpm,
+	sampleRate,
+	positionFrame = 0,
+	playbackRate = 1,
+}) {
+	const normalizedBpm = Math.max(1, Number(bpm) || 120);
+	const normalizedSampleRate = Math.max(1, Number(sampleRate) || AUDIO_EDITOR_SAMPLE_RATE);
+	const normalizedPosition = Math.max(0, Number(positionFrame) || 0);
+	const requestedPlaybackRate = Number(playbackRate);
+	const normalizedPlaybackRate = Number.isFinite(requestedPlaybackRate) && requestedPlaybackRate > 0
+		? requestedPlaybackRate
+		: 1;
+	const beatFrames = normalizedSampleRate * 60 / normalizedBpm;
+	const beatIndex = Math.ceil(normalizedPosition / beatFrames);
+	const nextBeatFrame = beatIndex * beatFrames;
+	return Object.freeze({
+		beatIndex,
+		delaySeconds: Math.max(0, (nextBeatFrame - normalizedPosition) / (normalizedSampleRate * normalizedPlaybackRate)),
+		beatDurationSeconds: 60 / (normalizedBpm * normalizedPlaybackRate),
+	});
+}
 
 export function createAudioEditorController(_root = null, options = {}) {
 	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
@@ -159,6 +184,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
+	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
+	const scheduleTimer = typeof options.setTimeout === 'function' ? options.setTimeout : globalThis.setTimeout.bind(globalThis);
+	const clearScheduledTimer = typeof options.clearTimeout === 'function' ? options.clearTimeout : globalThis.clearTimeout.bind(globalThis);
 	let aup4Client = null;
 	let aup4Environment = null;
 	const engine = options.engine || createAudioEditorEngine({
@@ -187,6 +215,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const nyquistEvaluator = options.nyquistEvaluator || ((request, evaluateOptions) => (
 		nyquistClient.evaluate(request, evaluateOptions)
 	));
+	const playAtSpeedPitchPreserver = options.playAtSpeedPitchPreserver || (async (
+		channels,
+		sampleRate,
+		rate,
+		{ signal, onProgress } = {},
+	) => applyAudacityEffectAsync(
+		'audacity-change-tempo',
+		channels,
+		sampleRate,
+		{ tempoPercent: (rate - 1) * 100 },
+		{
+			isCancelled: () => Boolean(signal?.aborted),
+			onProgress,
+		},
+	));
 	const state = {
 		history: null,
 		preferences: createAudioEditorPreferencesV1(),
@@ -212,6 +255,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingStarting: false,
 		recordingStartGeneration: 0,
 		recordingStartPromise: null,
+		timedRecording: null,
+		timedRecordingTimer: null,
+		timedRecordingGeneration: 0,
+		timedRecordingPreparing: false,
+		timedRecordingCancelling: false,
 		recordingPaused: false,
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		leadInRecording: false,
@@ -231,6 +279,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingFinishing: false,
 		recordingFinalizePromise: null,
 		recordingFatalError: null,
+		recordingDiscardRequested: false,
 		recordingReleaseAfterStop: false,
 		recordingRouting: normalizeRecordingRouting(),
 		recordingDevices: [],
@@ -240,6 +289,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		inputMeters: {},
 		playbackCacheAbort: null,
 		playbackCacheGeneration: 0,
+		playAtSpeedRate: 1,
+		playAtSpeedAbort: null,
+		playAtSpeedGeneration: 0,
 		exportAbort: null,
 		exportGeneration: 0,
 		outputUrl: null,
@@ -335,12 +387,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		async dispose() {
 			if (state.disposed) return;
 			state.disposed = true;
+			cancelTimedRecording({ publish: false, status: false });
 			cancelRecordingStart();
 			state.phase = 'disposed';
 			publishDocumentSnapshot();
 			globalThis.clearTimeout(state.autosaveTimer);
 			globalThis.clearTimeout(state.sourceGcTimer);
 			cancelPlaybackCachePreparation();
+			cancelPlayAtSpeedPreparation();
 			state.sampleEditAbort?.abort();
 			stopMetronome();
 			state.audacityEffectWorker?.terminate();
@@ -429,10 +483,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 			selectedClipId: state.selectedClipId,
 			selection,
 			transportState: state.transportState,
+			playbackOptions: Object.freeze({
+				rate: state.playAtSpeedRate,
+				mode: state.preferences.playback?.playAtSpeedMode || 'naive',
+				preparing: Boolean(state.playAtSpeedAbort),
+			}),
 			readOnly: state.readOnly,
 			importing: state.importing,
 			recordingStarting: state.recordingStarting,
-			recording: Boolean(state.recorder),
+			recordingScheduling: state.timedRecordingPreparing,
+			scheduledRecording: state.timedRecording
+				? Object.freeze({
+					startTimeMs: state.timedRecording.startTimeMs,
+					startTime: new Date(state.timedRecording.startTimeMs).toISOString(),
+					trackId: state.timedRecording.options.trackId || null,
+				})
+				: null,
+			recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),
 			recordingPreview: recordingPreviewSnapshot(state.recordingPreview),
 			recordingPreviews: Object.freeze(state.recordingPreviews
 				.map(recordingPreviewSnapshot)
@@ -509,11 +576,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function buildTelemetrySnapshot() {
+		const playback = engine.getState?.() || {};
 		return Object.freeze({
 			positionFrame: state.positionFrame,
 			durationFrames: state.durationFrames,
 			transportState: state.transportState,
-			recording: Boolean(state.recorder),
+			playbackMode: playback.playbackMode || 'normal',
+			playbackRate: Number(playback.playbackRate) || 1,
+			recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),
 			meters: state.meters,
 			inputMeterDb: state.inputMeterDb,
 			inputMeters: Object.freeze({ ...state.inputMeters }),
@@ -619,8 +689,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			transport: Object.freeze({
 				playPause: () => handleTransport('play'),
+				playAtSpeed: (rate = state.playAtSpeedRate) => handlePlayAtSpeed(rate),
+				setPlayAtSpeedRate,
 				stop: () => handleTransport('stop'),
 				seek: (frame) => engine.seek(normalizeTimelineFrame(frame)),
+				scrub: (frame) => {
+					if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
+						return engine.getPositionFrames();
+					}
+					if (state.missingSourceIds.size) throw new Error(copy.localSourcesMissing);
+					cancelPlaybackCachePreparation();
+					const nextFrame = normalizeTimelineFrame(frame);
+					return typeof engine.scrub === 'function' ? engine.scrub(nextFrame) : engine.seek(nextFrame);
+				},
+				endScrub: () => engine.endScrub?.(),
 				jumpStart: () => handleTransport('jump-start'),
 				jumpEnd: () => handleTransport('jump-end'),
 				rewind: () => handleTransport('rewind'),
@@ -636,6 +718,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recording: Object.freeze({
 				start: startRecording,
 				startNewTrack: startRecordingOnNewTrack,
+				schedule: scheduleTimedRecording,
+				cancelScheduled: cancelTimedRecording,
 				pause: toggleRecordingPause,
 				stop: stopRecording,
 				toggleLeadIn: toggleLeadInRecording,
@@ -1064,6 +1148,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function performProjectSwitch(nextProject, options = {}) {
+		cancelTimedRecording({ publish: false, status: false });
 		cancelRecordingStart();
 		state.exportAbort?.abort();
 		state.exportAbort = null;
@@ -1071,6 +1156,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.sampleEditMode = null;
 		state.sampleEditAvailable = false;
 		cancelPlaybackCachePreparation();
+		cancelPlayAtSpeedPreparation();
 		await stopRecording().catch(() => undefined);
 		persistActiveSessionUiState();
 		if (!options.skipFlush && project && project.id !== nextProject.id && !state.readOnly) await saveNow();
@@ -2931,10 +3017,87 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 	}
 
+	function setPlayAtSpeedRate(value) {
+		const rate = Number(value);
+		if (!Number.isFinite(rate) || rate < 0.5 || rate > 2) {
+			throw new RangeError('Playback speed must be between 0.5 and 2.');
+		}
+		state.playAtSpeedRate = rate;
+		publishDocumentSnapshot();
+		return rate;
+	}
+
+	function cancelPlayAtSpeedPreparation({ status = false } = {}) {
+		const active = state.playAtSpeedAbort;
+		state.playAtSpeedGeneration += 1;
+		state.playAtSpeedAbort = null;
+		active?.abort();
+		if (active) {
+			if (status) setStatus(copy.ready);
+			else publishDocumentSnapshot();
+		}
+		return Boolean(active);
+	}
+
+	async function handlePlayAtSpeed(requestedRate = state.playAtSpeedRate) {
+		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
+		if (state.missingSourceIds.size) throw new Error(copy.localSourcesMissing);
+		const rate = setPlayAtSpeedRate(requestedRate);
+		const currentPlayback = engine.getState();
+		const playAtSpeedActive = currentPlayback.state === 'playing'
+			&& ['naive', 'staffpad'].includes(currentPlayback.playbackMode);
+		if (playAtSpeedActive) {
+			cancelPlaybackCachePreparation();
+			return engine.pause();
+		}
+		if (state.playAtSpeedAbort) {
+			cancelPlayAtSpeedPreparation({ status: true });
+			return false;
+		}
+		if (currentPlayback.state === 'playing') engine.pause();
+		const preservePitch = state.preferences.playback?.playAtSpeedMode === 'staffpad';
+		if (preservePitch) assertPlayAtSpeedStaffPadMemorySafe(
+			projectDurationFrames(project),
+			projectSampleRate(),
+			rate,
+		);
+		const snapshot = project;
+		const generation = ++state.playAtSpeedGeneration;
+		const abort = new AbortController();
+		state.playAtSpeedAbort = abort;
+		if (preservePitch) setStatus(copy.playAtSpeedPreparing);
+		else publishDocumentSnapshot();
+		try {
+			await beginPlaybackCachePreparation(snapshot, { abortController: abort });
+			throwIfAborted(abort.signal);
+			if (snapshot !== project) throw createAbortError();
+			if (typeof engine.playAtSpeed !== 'function') return engine.play();
+			await engine.playAtSpeed(rate, {
+				preservePitch,
+				pitchPreserver: playAtSpeedPitchPreserver,
+				signal: abort.signal,
+			});
+			if (generation === state.playAtSpeedGeneration && !abort.signal.aborted) {
+				setStatus(copy.playAtSpeedPlaying.replace('{rate}', formatPlaybackRate(rate)), 'success');
+			}
+			return true;
+		} catch (error) {
+			if (error?.name === 'AbortError' || abort.signal.aborted) return false;
+			throw error;
+		} finally {
+			if (generation === state.playAtSpeedGeneration) {
+				state.playAtSpeedAbort = null;
+				publishDocumentSnapshot();
+			}
+		}
+	}
+
 	async function handleTransport(action) {
-		if ((state.recordingStarting || state.recorder) && action !== 'stop' && action !== 'record') return;
+		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
+			&& action !== 'stop' && action !== 'record') return;
 		if (state.missingSourceIds.size && action === 'play') throw new Error(copy.localSourcesMissing);
 		if (action === 'play') {
+			cancelPlayAtSpeedPreparation();
 			if (engine.getState().state === 'playing') {
 				cancelPlaybackCachePreparation();
 				return engine.pause();
@@ -2950,6 +3113,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		if (action === 'stop') {
 			cancelPlaybackCachePreparation();
+			cancelPlayAtSpeedPreparation();
+			if (state.timedRecording || state.timedRecordingPreparing) return cancelTimedRecording();
 			return state.recorder ? stopRecording() : engine.stop();
 		}
 		if (action === 'jump-start') return engine.seek(0);
@@ -3044,11 +3209,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!state.metronomeEnabled || !['playing', 'recording'].includes(state.transportState) || state.disposed) return;
 		const bpm = Math.max(1, Number(project?.tempo?.bpm) || 120);
 		const sampleRate = projectSampleRate();
-		const beatFrames = sampleRate * 60 / bpm;
 		const position = Math.max(0, engine.getPositionFrames());
-		const beatIndex = Math.ceil(position / beatFrames);
-		const nextBeatFrame = beatIndex * beatFrames;
-		const delaySeconds = Math.max(0, (nextBeatFrame - position) / sampleRate);
+		const playbackRate = state.transportState === 'playing'
+			? Number(engine.getState?.().playbackRate) || 1
+			: 1;
+		const {
+			beatIndex,
+			delaySeconds,
+			beatDurationSeconds,
+		} = calculateAudioEditorMetronomeSchedule({ bpm, sampleRate, positionFrame: position, playbackRate });
 		try {
 			const context = await engine.getAudioContext?.({ resume: false });
 			if (context?.createOscillator && context?.createGain && context.destination) {
@@ -3072,7 +3241,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		} catch {
 			// A missing oscillator API must not interrupt transport or recording.
 		}
-		const delayMs = Math.max(10, (delaySeconds + 60 / bpm) * 1000);
+		const delayMs = Math.max(10, (delaySeconds + beatDurationSeconds) * 1000);
 		state.metronomeTimer = globalThis.setTimeout(() => {
 			state.metronomeTimer = 0;
 			void scheduleMetronomeClick();
@@ -3606,6 +3775,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function setRecordingTrackInput(trackId, route) {
+		if (state.timedRecordingPreparing || state.timedRecording) return state.recordingRouting.routes[trackId] || null;
 		const track = findTrack(project, trackId);
 		state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, route);
 		if (route == null) delete state.recordingRouteHealth[trackId];
@@ -3657,7 +3827,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const retainInputs = Boolean(enabled);
 		await updatePreferences({ recording: { retainInputs } });
 		if (retainInputs) state.recordingReleaseAfterStop = false;
-		else if (state.recorder || state.recordingStarting) state.recordingReleaseAfterStop = true;
+		else if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording) {
+			state.recordingReleaseAfterStop = true;
+		}
 		else recordingCapturePool.releaseAll();
 		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
@@ -3665,7 +3837,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function releaseInputs() {
-		if (state.recorder || state.recordingStarting || state.recordingFinishing) return false;
+		if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recordingFinishing) return false;
 		const released = recordingCapturePool.releaseAll();
 		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
@@ -3689,6 +3861,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function handleRecordingPoolChange(sources) {
 		state.recordingPoolSources = Object.freeze(sources || []);
+		const scheduled = state.timedRecording;
+		if (scheduled?.inputKeys?.length) {
+			const openKeys = new Set(state.recordingPoolSources.map((source) => source.key));
+			if (scheduled.inputKeys.some((key) => !openKeys.has(key))) {
+				cancelTimedRecording();
+				return;
+			}
+		}
 		if (!state.recorder) {
 			const open = new Map(state.recordingPoolSources.map((source) => [source.key, source]));
 			for (const [trackId, route] of Object.entries(state.recordingRouting.routes || {})) {
@@ -3753,9 +3933,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (engine.getState().state === 'playing' && projectHasTimePitchClips(project)) {
 			const snapshot = project;
 			void beginPlaybackCachePreparation(snapshot)
-				.then(() => snapshot === project && engine.applyProject(project, sourceBuffers))
+				.then(() => snapshot === project && applyProjectToPlaybackEngine(project))
 				.catch(handlePlaybackCacheError);
-		} else void engine.applyProject(project, sourceBuffers).catch(handleError);
+		} else void applyProjectToPlaybackEngine(project).catch(handleError);
 		publishProjectState();
 		scheduleAutosave();
 	}
@@ -4366,9 +4546,19 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return refreshes;
 	}
 
-	async function beginPlaybackCachePreparation(snapshot) {
+	async function applyProjectToPlaybackEngine(snapshot) {
+		const previousPlayback = engine.getState();
+		await engine.applyProject(snapshot, sourceBuffers);
+		if (previousPlayback.state === 'playing'
+			&& previousPlayback.playbackMode === 'staffpad'
+			&& engine.getState().state !== 'playing') {
+			setStatus(copy.ready);
+		}
+	}
+
+	async function beginPlaybackCachePreparation(snapshot, { abortController = null } = {}) {
 		cancelPlaybackCachePreparation();
-		const abort = new AbortController();
+		const abort = abortController || new AbortController();
 		const generation = ++state.playbackCacheGeneration;
 		state.playbackCacheAbort = abort;
 		let refreshes = [];
@@ -4382,7 +4572,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					.then(async () => {
 						if (abort.signal.aborted || generation !== state.playbackCacheGeneration || snapshot !== project) return;
 						if (!state.recorder && !state.recordingStarting && engine.getState().state === 'playing') {
-							await engine.applyProject(project, sourceBuffers);
+							await applyProjectToPlaybackEngine(project);
 						}
 					})
 					.catch(handlePlaybackCacheError)
@@ -6223,7 +6413,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function startRecordingOnNewTrack(options = {}) {
-		if (state.readOnly || state.recordingStarting || state.recorder) return null;
+		if (state.readOnly || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return null;
 		const trackId = addTrack({ armed: true });
 		if (!trackId) return null;
 		await startRecording({ ...options, trackId });
@@ -6252,11 +6442,226 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function toggleLeadInRecording() {
-		if (state.recorder || state.recordingStarting) return state.leadInRecording;
+		if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording) return state.leadInRecording;
 		state.leadInRecording = !state.leadInRecording;
 		void store.saveSetting('recording-lead-in', state.leadInRecording);
 		publishDocumentSnapshot();
 		return state.leadInRecording;
+	}
+
+	async function scheduleTimedRecording(startTime, options = {}) {
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		if (state.recordingStarting || state.recordingStartPromise || state.recorder) return null;
+		if (state.timedRecordingPreparing) return null;
+		const startTimeMs = normalizeTimedRecordingStart(startTime);
+		if (startTimeMs <= currentTimeMs()) throw new RangeError(copy.timedRecordingPast);
+		const recordingOptions = options.trackId
+			? Object.freeze({ trackId: String(options.trackId) })
+			: Object.freeze({});
+		if (state.timedRecording) cancelTimedRecording({ releaseInputs: false, status: false });
+		const generation = ++state.timedRecordingGeneration;
+		const projectId = project?.id;
+		state.timedRecordingPreparing = true;
+		state.timedRecordingCancelling = false;
+		setStatus(copy.timedRecordingPreparing);
+
+		// Start both operations from the confirming click. In particular, display
+		// capture must not be deferred until the timer fires because the browser's
+		// chooser and permission prompt require a live user activation.
+		const inputPromise = prepareTimedRecordingInputs(recordingOptions);
+		const contextPromise = Promise.resolve(engine.getAudioContext()).then(async (context) => {
+			await context.resume();
+			return context;
+		});
+		try {
+			const [preparedInputs] = await Promise.all([inputPromise, contextPromise]);
+			if (generation !== state.timedRecordingGeneration || state.disposed || projectId !== project?.id) {
+				throw abortError();
+			}
+			syncRecordingPoolSnapshot();
+			const scheduled = Object.freeze({
+				generation,
+				projectId,
+				startTimeMs,
+				options: recordingOptions,
+				inputKeys: Object.freeze(preparedInputs.inputKeys),
+			});
+			state.timedRecording = scheduled;
+			await startRecording({
+				...recordingOptions,
+				timedStartTimeMs: startTimeMs,
+				timedGeneration: generation,
+				reusePreparedInputsOnly: true,
+			});
+			if (generation !== state.timedRecordingGeneration || state.timedRecording !== scheduled || state.disposed) {
+				throw abortError();
+			}
+			if (!state.recorder) throw new Error(copy.timedRecordingMissed || copy.timedRecordingPast);
+			armTimedRecordingTimer(scheduled);
+			setStatus(copy.timedRecordingScheduled.replace(
+				'{time}',
+				new Date(startTimeMs).toLocaleString(locale),
+			), 'success');
+			return Object.freeze({
+				startTimeMs,
+				startTime: new Date(startTimeMs).toISOString(),
+				trackId: recordingOptions.trackId || null,
+			});
+		} catch (error) {
+			if (generation === state.timedRecordingGeneration) state.timedRecording = null;
+			if (generation === state.timedRecordingGeneration && !state.preferences.recording.retainInputs) {
+				recordingCapturePool.releaseAll();
+				syncRecordingPoolSnapshot();
+			}
+			if (generation !== state.timedRecordingGeneration || error?.name === 'AbortError') return null;
+			throw error;
+		} finally {
+			if (generation === state.timedRecordingGeneration) {
+				state.timedRecordingPreparing = false;
+				publishDocumentSnapshot();
+			}
+		}
+	}
+
+	async function prepareTimedRecordingInputs(options = {}) {
+		const sampleRate = projectSampleRate();
+		if (options.trackId) {
+			const track = findTrack(project, options.trackId);
+			if (!track || track.type === 'label') throw new Error(copy.armTrackForRecording);
+			const stream = await (recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID)
+				|| recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate }));
+			if (!recordingStreamIsLive(stream, 'device')) throw new Error('The recording input closed before the timer was armed.');
+			return Object.freeze({ inputKeys: Object.freeze([recordingRouteSourceKey({
+				kind: 'device',
+				deviceId: RECORDING_DEFAULT_DEVICE_ID,
+			})]) });
+		}
+
+		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
+		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
+		const groups = new Map();
+		for (const track of armedTracks) {
+			const route = state.recordingRouting.routes[track.id];
+			if (!route) {
+				state.recordingRouteHealth[track.id] = 'skipped';
+				continue;
+			}
+			const sourceKey = recordingRouteSourceKey(route);
+			if (!groups.has(sourceKey)) groups.set(sourceKey, []);
+			groups.get(sourceKey).push({ track, route });
+			state.recordingRouteHealth[track.id] = 'opening';
+		}
+		if (!groups.size) throw new Error('Assign an input to at least one armed track before recording.');
+		const orderedGroups = [...groups.entries()].sort(([left], [right]) => (
+			left === 'display' ? -1 : right === 'display' ? 1 : 0
+		));
+		const acquisitions = orderedGroups.map(([sourceKey, routes]) => {
+			const firstRoute = routes[0].route;
+			const requiredChannels = Math.max(...routes.map(({ route }) => route.channelStart + route.channelCount));
+			const promise = firstRoute.kind === 'display'
+				? recordingCapturePool.acquireDisplay()
+				: recordingCapturePool.acquireHardware(firstRoute.deviceId, { channelCount: requiredChannels, sampleRate });
+			return { sourceKey, routes, promise };
+		});
+		const settled = await Promise.allSettled(acquisitions.map(({ promise }) => promise));
+		let availableRoutes = 0;
+		let failedRoutes = 0;
+		for (let index = 0; index < acquisitions.length; index += 1) {
+			const { routes } = acquisitions[index];
+			const result = settled[index];
+			if (result.status === 'rejected') {
+				for (const { track } of routes) state.recordingRouteHealth[track.id] = 'unavailable';
+				failedRoutes += routes.length;
+				continue;
+			}
+			const availableChannels = streamAudioChannelCount(result.value);
+			for (const { track, route } of routes) {
+				const available = recordingStreamIsLive(result.value, route.kind)
+					&& (route.kind === 'display' || route.channelStart + route.channelCount <= availableChannels);
+				state.recordingRouteHealth[track.id] = available ? 'open' : 'skipped';
+				if (available) availableRoutes += 1;
+				else failedRoutes += 1;
+			}
+		}
+		if (!availableRoutes || failedRoutes) throw new Error('Every assigned recording input must remain available for timer recording.');
+		return Object.freeze({ inputKeys: Object.freeze(acquisitions.map(({ sourceKey }) => sourceKey)) });
+	}
+
+	function armTimedRecordingTimer(scheduled) {
+		if (state.timedRecording !== scheduled) return;
+		if (state.timedRecordingTimer !== null) clearScheduledTimer(state.timedRecordingTimer);
+		const delay = Math.max(0, Math.min(MAXIMUM_TIMER_DELAY_MS, scheduled.startTimeMs - currentTimeMs()));
+		state.timedRecordingTimer = scheduleTimer(() => {
+			state.timedRecordingTimer = null;
+			if (state.timedRecording !== scheduled) return null;
+			if (scheduled.startTimeMs > currentTimeMs()) {
+				armTimedRecordingTimer(scheduled);
+				return null;
+			}
+			return beginTimedRecording(scheduled);
+		}, delay);
+	}
+
+	async function beginTimedRecording(scheduled) {
+		if (state.timedRecording !== scheduled || scheduled.projectId !== project?.id || state.disposed) return null;
+		if (!state.recorder) {
+			cancelTimedRecording();
+			return null;
+		}
+		state.timedRecording = null;
+		state.timedRecordingTimer = null;
+		try {
+			for (const entry of state.recordingEntries || []) state.recordingRouteHealth[entry.trackId] = 'recording';
+			await engine.play();
+			setStatus(copy.recording);
+			updateTransportState('recording');
+			publishDocumentSnapshot();
+			return true;
+		} catch (error) {
+			handleError(error);
+			void discardPreparedTimedRecording();
+			return null;
+		}
+	}
+
+	function cancelTimedRecording(options = {}) {
+		const hadTimer = Boolean(state.timedRecording || state.timedRecordingPreparing || state.timedRecordingTimer !== null);
+		const hadPreparedRecorder = Boolean(hadTimer && state.recorder);
+		state.timedRecordingGeneration += 1;
+		if (state.timedRecordingTimer !== null) clearScheduledTimer(state.timedRecordingTimer);
+		state.timedRecordingTimer = null;
+		state.timedRecording = null;
+		state.timedRecordingPreparing = false;
+		state.timedRecordingCancelling = hadPreparedRecorder;
+		if (hadPreparedRecorder) state.recordingDiscardRequested = true;
+		if (state.recordingStarting) cancelRecordingStart();
+		if (hadPreparedRecorder) void discardPreparedTimedRecording();
+		if (hadTimer && options.releaseInputs !== false) {
+			recordingCapturePool.releaseAll();
+			state.recordingReleaseAfterStop = false;
+			syncRecordingPoolSnapshot();
+		}
+		if (options.status !== false && hadTimer) setStatus(copy.timedRecordingCancelled);
+		else if (options.publish !== false) publishDocumentSnapshot();
+		return hadTimer;
+	}
+
+	async function discardPreparedTimedRecording() {
+		const recorder = state.recorder;
+		try {
+			if (recorder && state.recorder === recorder) {
+				await recorder.stop?.();
+				await finalizeRecording();
+			}
+		} catch (error) {
+			handleError(error);
+		} finally {
+			state.timedRecordingCancelling = false;
+			if (!state.recorder) {
+				syncRecordingPoolSnapshot();
+				publishDocumentSnapshot();
+			}
+		}
 	}
 
 	function cancelRecordingStart() {
@@ -6277,7 +6682,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function startRecording(options = {}) {
-		if (state.readOnly || state.recordingStarting || state.recordingStartPromise || state.recorder) return;
+		const timedStart = Number.isFinite(Number(options.timedStartTimeMs))
+			&& state.timedRecording?.generation === options.timedGeneration;
+		if (state.readOnly || state.recordingStarting || state.recordingStartPromise || state.recorder
+			|| (!timedStart && (state.timedRecordingPreparing || state.timedRecording))) return;
 		const token = Object.freeze({
 			generation: ++state.recordingStartGeneration,
 			projectId: project?.id,
@@ -6294,12 +6702,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function startLegacyRecording(options = {}, token) {
 		if (state.readOnly || state.recordingStarting || state.recorder) return;
+		const timedStartTimeMs = Number(options.timedStartTimeMs);
+		const timedStart = Number.isFinite(timedStartTimeMs);
 		const track = options.trackId
 			? findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed);
 		if (!track) throw new Error(copy.armTrackForRecording);
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
+		state.recordingDiscardRequested = false;
 		publishDocumentSnapshot();
 		let stream = null;
 		let writer = null;
@@ -6309,11 +6720,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const sampleRate = projectSampleRate();
 			// The legacy path still records the active/explicit track from the
 			// default input, but reuses that input between takes when retention is on.
-			stream = recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID)
-				|| await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
+			stream = recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID);
+			if (!stream && options.reusePreparedInputsOnly) {
+				throw new Error('The prepared recording input closed before the timer was armed.');
+			}
+			stream ||= await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
 			assertRecordingStartActive(token);
 			syncRecordingPoolSnapshot();
-			await beginPlaybackCachePreparation(project);
+			if (!timedStart) await beginPlaybackCachePreparation(project);
 			assertRecordingStartActive(token);
 			const context = await engine.getAudioContext();
 			assertRecordingStartActive(token);
@@ -6391,8 +6805,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingResampler = previewResampler;
 			state.recordingSampleRate = captureSampleRate;
 			state.recorder = recorder;
-			const scheduledTime = context.currentTime + 0.08;
-			const leadInFrames = state.leadInRecording
+			const remainingSeconds = timedStart ? (timedStartTimeMs - currentTimeMs()) / 1000 : null;
+			if (timedStart && remainingSeconds <= 0) throw new RangeError(copy.timedRecordingPast);
+			const scheduledTime = timedStart ? context.currentTime + remainingSeconds : context.currentTime + 0.08;
+			const leadInFrames = !timedStart && state.leadInRecording
 				? Math.round(sampleRate * 60 / Math.max(1, Number(project.tempo?.bpm) || 120)
 					* Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4))
 				: 0;
@@ -6415,12 +6831,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 			};
 			engine.setLoop(false);
 			engine.seek(requestedStartFrame - availableLeadInFrames);
-			await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
-			assertRecordingStartActive(token);
-			recorder.start({ startFrame: currentContextFrame, stopFrame });
-			state.recordingPaused = false;
-			setStatus(copy.recording);
-			updateTransportState('recording');
+			if (timedStart) {
+				recorder.start({ startFrame: currentContextFrame, stopFrame });
+				assertRecordingStartActive(token);
+			} else {
+				await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+				assertRecordingStartActive(token);
+				recorder.start({ startFrame: currentContextFrame, stopFrame });
+				state.recordingPaused = false;
+				setStatus(copy.recording);
+				updateTransportState('recording');
+			}
 		} catch (error) {
 			const ownsStart = token.generation === state.recordingStartGeneration;
 			const handedOff = Boolean(!ownsStart && recorder && state.recorder === recorder);
@@ -6455,7 +6876,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 	}
 
-	async function startRoutedRecording(_options = {}, token) {
+	async function startRoutedRecording(options = {}, token) {
+		const timedStartTimeMs = Number(options.timedStartTimeMs);
+		const timedStart = Number.isFinite(timedStartTimeMs);
 		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
 		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
 		const routedTracks = [];
@@ -6468,6 +6891,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
+		state.recordingDiscardRequested = false;
 		publishDocumentSnapshot();
 		const entries = [];
 		const sourceSessions = [];
@@ -6523,9 +6947,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const acquisitions = orderedGroups.map(([sourceKey, routes]) => {
 				const firstRoute = routes[0].route;
 				const requiredChannels = Math.max(...routes.map(({ route }) => route.channelStart + route.channelCount));
-				const promise = firstRoute.kind === 'display'
-					? recordingCapturePool.acquireDisplay()
-					: recordingCapturePool.acquireHardware(firstRoute.deviceId, { channelCount: requiredChannels, sampleRate });
+				const retained = firstRoute.kind === 'display'
+					? recordingCapturePool.getDisplay?.()
+					: recordingCapturePool.getHardware?.(firstRoute.deviceId);
+				const promise = retained
+					? Promise.resolve(retained)
+					: options.reusePreparedInputsOnly
+						? Promise.reject(new Error('A prepared recording input closed before the timer was armed.'))
+						: firstRoute.kind === 'display'
+							? recordingCapturePool.acquireDisplay()
+							: recordingCapturePool.acquireHardware(firstRoute.deviceId, { channelCount: requiredChannels, sampleRate });
 				return { sourceKey, routes, promise };
 			});
 			const settled = await Promise.allSettled(acquisitions.map(({ promise }) => promise));
@@ -6577,7 +7008,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const routedChannelCount = sourceSessions.reduce((total, session) => (
 				total + session.routes.reduce((sum, item) => sum + item.route.channelCount, 0)
 			), 0);
-			await beginPlaybackCachePreparation(project);
+			if (!timedStart) await beginPlaybackCachePreparation(project);
 			assertRecordingStartActive(token);
 			const context = await engine.getAudioContext();
 			assertRecordingStartActive(token);
@@ -6702,8 +7133,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingPreview = state.recordingPreviews[0] || null;
 			state.recordingSelection = selection ? { ...selection } : null;
 			state.recorder = routedRecorder;
-			const scheduledTime = context.currentTime + 0.08;
-			const leadInFrames = state.leadInRecording
+			const remainingSeconds = timedStart ? (timedStartTimeMs - currentTimeMs()) / 1000 : null;
+			if (timedStart && remainingSeconds <= 0) throw new RangeError(copy.timedRecordingPast);
+			const scheduledTime = timedStart ? context.currentTime + remainingSeconds : context.currentTime + 0.08;
+			const leadInFrames = !timedStart && state.leadInRecording
 				? Math.round(sampleRate * 60 / Math.max(1, Number(project.tempo?.bpm) || 120)
 					* Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4))
 				: 0;
@@ -6718,7 +7151,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				session.stopFrame = selection
 					? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
 					: undefined;
-				for (const entry of session.entries) state.recordingRouteHealth[entry.trackId] = 'recording';
+				for (const entry of session.entries) state.recordingRouteHealth[entry.trackId] = timedStart ? 'open' : 'recording';
 			}
 			const contextStateChange = () => {
 				if (context.state === 'suspended' && state.recorder) void stopRecording().catch(handleError);
@@ -6730,17 +7163,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 			};
 			engine.setLoop(false);
 			engine.seek(requestedStartFrame - availableLeadInFrames);
-			await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
-			assertRecordingStartActive(token);
-			await dropFailedSourceSessions();
-			assertRecordingStartActive(token);
-			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
-			state.recordingPreviews = entries.map((entry) => entry.preview);
-			state.recordingPreview = state.recordingPreviews[0] || null;
-			routedRecorder.start();
-			state.recordingPaused = false;
-			setStatus(copy.recording);
-			updateTransportState('recording');
+			if (timedStart) {
+				routedRecorder.start();
+				assertRecordingStartActive(token);
+			} else {
+				await engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+				assertRecordingStartActive(token);
+				await dropFailedSourceSessions();
+				assertRecordingStartActive(token);
+				if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+				state.recordingPreviews = entries.map((entry) => entry.preview);
+				state.recordingPreview = state.recordingPreviews[0] || null;
+				routedRecorder.start();
+				state.recordingPaused = false;
+				setStatus(copy.recording);
+				updateTransportState('recording');
+			}
 		} catch (error) {
 			const ownsStart = token.generation === state.recordingStartGeneration;
 			const handedOff = Boolean(!ownsStart && routedRecorder && state.recorder === routedRecorder);
@@ -6829,6 +7267,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function stopRecording() {
+		if (state.timedRecording || state.timedRecordingPreparing) return cancelTimedRecording();
 		if (state.recordingStarting) {
 			cancelRecordingStart();
 			publishDocumentSnapshot();
@@ -6854,6 +7293,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		try {
 			engine.pause();
 			await recorder.dispose({ stopTracks: false });
+			if (state.recordingDiscardRequested) {
+				for (const entry of entries) await entry.writer?.abort?.().catch(() => undefined);
+				return;
+			}
 			if (state.recordingFatalError) throw state.recordingFatalError;
 			for (const entry of entries) {
 				appendRecordingPreview(entry.preview, entry.previewResampler?.finish?.());
@@ -6952,6 +7395,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingSourceOffsetFrames = 0;
 			state.recordingFinishing = false;
 			state.recordingFatalError = null;
+			state.recordingDiscardRequested = false;
 			state.inputMeterDb = -60;
 			state.inputMeters = {};
 			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
@@ -6986,6 +7430,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		try {
 			engine.pause();
 			await recorder.dispose({ stopTracks: false });
+			if (state.recordingDiscardRequested) {
+				await writer?.abort?.().catch(() => undefined);
+				return;
+			}
 			if (state.recordingFatalError) throw state.recordingFatalError;
 			appendRecordingPreview(state.recordingPreview, state.recordingResampler?.finish?.());
 			const frames = writer.framesWritten;
@@ -7066,6 +7514,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingSourceOffsetFrames = 0;
 			state.recordingFinishing = false;
 			state.recordingFatalError = null;
+			state.recordingDiscardRequested = false;
 			state.inputMeterDb = -60;
 			state.inputMeters = {};
 			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
@@ -7080,7 +7529,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function editingBlocked() {
-		return Boolean(state.readOnly || state.importing || state.recordingStarting || state.recorder || state.exportAbort || state.audacityEffectProcessing || state.sampleEditProcessing);
+		return Boolean(state.readOnly || state.importing || state.recordingStarting || state.timedRecordingPreparing
+			|| state.timedRecording || state.recorder || state.playAtSpeedAbort || state.exportAbort || state.audacityEffectProcessing || state.sampleEditProcessing);
 	}
 
 	function updatePlayhead(frame = 0, duration = project ? projectDurationFrames(project) : 0) {
@@ -7750,6 +8200,12 @@ function normalizeLatencyOffset(value) {
 	return Math.max(-500, Math.min(500, Number(value) || 0));
 }
 
+function normalizeTimedRecordingStart(value) {
+	const timestamp = value instanceof Date ? value.getTime() : typeof value === 'number' ? value : new Date(value).getTime();
+	if (!Number.isFinite(timestamp)) throw new TypeError('A valid timer recording start time is required.');
+	return Math.round(timestamp);
+}
+
 function scaleRecordingFrames(frameCount, inputSampleRate, outputSampleRate) {
 	const frames = Math.max(0, Math.floor(Number(frameCount) || 0));
 	const inputRate = Math.max(1, Math.floor(Number(inputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
@@ -7923,3 +8379,4 @@ async function saveLabelExport(result, customSaver) {
 }
 function abortError() { return typeof DOMException === 'function' ? new DOMException('Aborted', 'AbortError') : Object.assign(new Error('Aborted'), { name: 'AbortError' }); }
 function throwIfAborted(signal) { if (signal?.aborted) throw abortError(); }
+function formatPlaybackRate(rate) { return Number(rate).toFixed(2).replace(/\.00$/u, '').replace(/(\.\d)0$/u, '$1'); }

@@ -405,6 +405,42 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('.kw-audio-editor__master-meter')).toBeVisible();
 	});
 
+	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const control = editor.locator('[data-play-at-speed]');
+		let playAtSpeed = control.getByRole('button', { name: 'Play at speed', exact: true });
+		await expect(playAtSpeed).toBeVisible();
+		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
+		const speed = control.getByRole('slider', { name: 'Playback speed', exact: true });
+		await speed.fill('1.5');
+		await expect(control.locator('output')).toHaveText('1.5×');
+		await importFiles(editor, [monoTone]);
+
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
+		await expect(playAtSpeed).toHaveAccessibleName('Play at speed');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+
+		await playAtSpeed.click();
+		playAtSpeed = control.getByRole('button', { name: 'Pause play at speed', exact: true });
+		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'true');
+		await playAtSpeed.click();
+		playAtSpeed = control.getByRole('button', { name: 'Play at speed', exact: true });
+		await expect(playAtSpeed).toHaveAttribute('aria-pressed', 'false');
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Editing$/ }).click();
+		const mode = preferences.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true });
+		await chooseDropdown(page, mode, 'Preserve pitch with StaffPad');
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const reopened = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await reopened.getByRole('tab', { name: /Editing$/ }).click();
+		await expect(reopened.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true }).getByRole('button')).toContainText('Preserve pitch with StaffPad');
+	});
+
 	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -637,7 +673,14 @@ test.describe('audio editor React/design-system workflows', () => {
 			['Generate', ['Plugin manager']],
 			['Effect', ['Plugin manager']],
 			['Analyze', ['Plugin manager']],
-			['Tools', ['Plugin manager', 'Screenshot tools', 'Run benchmark']],
+			['Tools', [
+				'Plugin manager',
+				'Screenshot tools',
+				'Run benchmark',
+				'Import raw data',
+				'Sample data import',
+				'Sample data export',
+			]],
 			['Help', ['Diagnostics', 'Check for updates']],
 		]) {
 			await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
@@ -652,6 +695,57 @@ test.describe('audio editor React/design-system workflows', () => {
 		const backup = getMenuItem(fileMenu, 'Backup project');
 		await expect(backup).toHaveAttribute('aria-disabled', 'true');
 		await expect(backup.locator('[data-disabled-reason]')).toHaveAttribute('title', /disabled placeholder/);
+	});
+
+	test('opens timer recording as a reachable future-time workflow', async ({ page }) => {
+		await page.addInitScript(() => {
+			globalThis.__timedInputRequests = 0;
+			globalThis.__timedInputTrackStopped = false;
+			let readyState = 'live';
+			const track = new EventTarget();
+			Object.defineProperties(track, {
+				kind: { value: 'audio' },
+				readyState: { get: () => readyState },
+				getSettings: { value: () => ({ channelCount: 1, sampleRate: 48_000 }) },
+				stop: { value: () => {
+					if (readyState === 'ended') return;
+					readyState = 'ended';
+					globalThis.__timedInputTrackStopped = true;
+					track.dispatchEvent(new Event('ended'));
+				} },
+			});
+			const stream = {
+				getAudioTracks: () => [track],
+				getTracks: () => [track],
+			};
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: {
+					enumerateDevices: async () => [],
+					getUserMedia: () => {
+						globalThis.__timedInputRequests += 1;
+						return new Promise((resolve) => {
+							globalThis.__resolveTimedInput = () => resolve(stream);
+						});
+					},
+				},
+			});
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Record', 'Set up timed recording');
+		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).toContainText('opens the recording input immediately');
+		const start = dialog.locator('input[type="datetime-local"]');
+		await expect(start).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+		await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
+		await expect.poll(() => page.evaluate(() => globalThis.__timedInputRequests)).toBe(1);
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(dialog).toBeHidden();
+		await expect(editor.locator('[data-status]')).toContainText('Scheduled recording cancelled');
+		await page.evaluate(() => globalThis.__resolveTimedInput());
+		await expect.poll(() => page.evaluate(() => globalThis.__timedInputTrackStopped)).toBe(true);
+		await expect(editor.locator('[data-transport="record"] button')).toHaveAttribute('aria-pressed', 'false');
 	});
 
 	test('runs the Nyquist prompt and a bundled Legacy processor through the production WASM boundary', async ({ page }) => {

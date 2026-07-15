@@ -156,7 +156,7 @@ test('excluded menu actions disappear and disabled actions remain inert and expl
 
 	for (const id of AUDACITY_PINNED_APP_MENU_ACTIONS) {
 		const definition = audacityActionDefinition(id);
-		if (definition.status === AUDACITY_ACTION_STATUS.EXCLUDED) {
+		if (definition.status === AUDACITY_ACTION_STATUS.EXCLUDED || definition.menuVisible === false) {
 			assert.equal(output.has(id), false, id);
 		} else if (definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM) {
 			assert.equal(output.get(id)?.disabled, true, id);

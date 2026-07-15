@@ -289,6 +289,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
 	assert.equal(preferences.import.detectTempo, true);
 	assert.equal(preferences.recording.retainInputs, true);
+	assert.equal(preferences.playback.playAtSpeedMode, 'naive');
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
 	assert.deepEqual(loadAudioEditorPreferencesV1(preferences), { preferences, readOnly: false, reason: null });
@@ -297,6 +298,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		appearance: { theme: 'high-contrast-dark', clipStyle: 'classic' },
 		editing: { rippleMode: 'all-tracks', snapToZeroCrossings: true },
 		recording: { retainInputs: false },
+		playback: { playAtSpeedMode: 'staffpad' },
 		shortcuts: { 'clip.split': ['S', 'Shift+S'] },
 		workspace: {
 			activeId: 'podcast',
@@ -315,6 +317,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		{ visible: true, dock: 'floating', order: 0, size: 400, x: 36, y: 48, width: 440, height: 360 },
 	);
 	assert.equal(custom.recording.retainInputs, false);
+	assert.equal(custom.playback.playAtSpeedMode, 'staffpad');
 	assert.deepEqual(custom.shortcuts['clip.split'], ['S', 'Shift+S']);
 	assert.throws(() => createAudioEditorPreferencesV1({ audioDevice: 'usb-mic' }), /not an editor preference/);
 	assert.throws(() => createAudioEditorPreferencesV1({ cloud: { account: 'ignored' } }), /not an editor preference/);
@@ -324,6 +327,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	});
 	const legacyPreferences = structuredClone(preferences);
 	delete legacyPreferences.recording;
+	delete legacyPreferences.playback;
 	for (const panel of Object.values(legacyPreferences.workspace.panels)) {
 		delete panel.x;
 		delete panel.y;
@@ -332,6 +336,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	}
 	const loadedLegacyPreferences = loadAudioEditorPreferencesV1(legacyPreferences).preferences;
 	assert.equal(loadedLegacyPreferences.recording.retainInputs, true);
+	assert.equal(loadedLegacyPreferences.playback.playAtSpeedMode, 'naive');
 	assert.deepEqual(
 		Object.keys(loadedLegacyPreferences.workspace.panels.history).sort(),
 		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
@@ -340,6 +345,9 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, recording: { retainInputs: 'yes' },
 	}), /recording\.retainInputs must be boolean/);
+	assert.throws(() => validateAudioEditorPreferencesV1({
+		...preferences, playback: { playAtSpeedMode: 'phase-vocoder' },
+	}), /playback\.playAtSpeedMode has an unsupported value/);
 });
 
 test('workspace presets and custom workspace CRUD retain editor-only layout state', () => {

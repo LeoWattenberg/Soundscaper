@@ -30,6 +30,28 @@
 	color: #d64545 !important;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	font-size: 0.72rem;
+	font-variant-numeric: tabular-nums;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed input[type='range'] {
+	width: 4.5rem;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__play-at-speed output {
+	min-width: 2.35rem;
+}
+
 /* The surrounding document mirrors editor chrome for RTL locales. Audio time
  * and frequency surfaces deliberately keep their physical left-to-right axis. */
 :where(html[dir='rtl']) #kw-audio-editor-design-system :is(

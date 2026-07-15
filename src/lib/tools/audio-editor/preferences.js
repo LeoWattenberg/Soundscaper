@@ -15,6 +15,7 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 	'high-contrast-dark',
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
+export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
 
 export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze(Object.fromEntries(
 	Object.values(AUDACITY_ACTION_MANIFEST)
@@ -30,6 +31,7 @@ const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 const BUILT_IN_WORKSPACE_SET = new Set(AUDIO_EDITOR_BUILT_IN_WORKSPACES);
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
+const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
 const DOCK_SET = new Set(['left', 'right', 'bottom', 'floating']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
@@ -55,6 +57,7 @@ const DEFAULT_TOOLBARS = Object.freeze({
 
 const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	play: true,
+	'play-at-speed': true,
 	stop: true,
 	record: true,
 	'jump-start': true,
@@ -148,6 +151,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean}} recording
+ * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
  */
 
 function clone(value) {
@@ -214,6 +218,7 @@ function mergePreferences(preferences, patch = {}) {
 		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
 		import: { ...preferences.import, ...patch.import },
 		recording: { ...preferences.recording, ...patch.recording },
+		playback: { ...preferences.playback, ...patch.playback },
 	};
 }
 
@@ -360,6 +365,13 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		recording: {
 			retainInputs: options.recording?.retainInputs !== false,
 		},
+		playback: {
+			playAtSpeedMode: oneOf(
+				options.playback?.playAtSpeedMode ?? 'naive',
+				PLAY_AT_SPEED_MODE_SET,
+				'playback.playAtSpeedMode',
+			),
+		},
 	};
 }
 
@@ -494,6 +506,12 @@ export function validateAudioEditorPreferencesV1(preferences) {
 			throw new TypeError('recording.retainInputs must be boolean.');
 		}
 	}
+	if (preferences.playback !== undefined) {
+		if (!preferences.playback || typeof preferences.playback !== 'object' || Array.isArray(preferences.playback)) {
+			throw new TypeError('preferences.playback must be an object.');
+		}
+		oneOf(preferences.playback.playAtSpeedMode, PLAY_AT_SPEED_MODE_SET, 'playback.playAtSpeedMode');
+	}
 	createAudioEditorPreferencesV1(preferences);
 	return true;
 }
@@ -510,6 +528,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			...clone(value),
 			workspace: { ...clone(value.workspace), panels: normalized.workspace.panels },
 			recording: normalized.recording,
+			playback: normalized.playback,
 		},
 		readOnly: false,
 		reason: null,
