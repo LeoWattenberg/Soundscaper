@@ -269,8 +269,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
 
 	const editItems = [
-		{ action: 'undo', label: copy.undo, icon: 'undo', disabled: editBlocked || !snapshot.history?.canUndo },
-		{ action: 'redo', label: copy.redo, icon: 'redo', disabled: editBlocked || !snapshot.history?.canRedo },
 		{ action: 'cut', label: copy.cut, icon: 'cut', disabled: editBlocked || !selectionActive },
 		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !selectionActive },
 		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !snapshot.history?.hasClipboard },
@@ -639,6 +637,17 @@ function AudioEditorWorkspace({ locale, copy }) {
 					event.currentTarget.value = '';
 					if (file) run(() => controller.actions.labels.importFile(file));
 				}}
+			/>
+
+			<EditorActionBar
+				copy={copy}
+				snapshot={snapshot}
+				editBlocked={editBlocked}
+				blocked={blocked}
+				executeEdit={executeEdit}
+				onSaveAup4={() => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }))}
+				onExportAudio={() => openSurface('export')}
+				onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
 			/>
 
 			<div className="kw-audio-editor__toolbars">
@@ -1230,6 +1239,64 @@ function EditorToolToolbar({
 					</div>
 				</div>
 			</Flyout>
+		</div>
+	);
+}
+
+function EditorActionBar({
+	copy,
+	snapshot,
+	editBlocked,
+	blocked,
+	executeEdit,
+	onSaveAup4,
+	onExportAudio,
+	onToggleMixer,
+}) {
+	const canUndo = snapshot.history?.canUndo;
+	const canRedo = snapshot.history?.canRedo;
+	const mixerVisible = Boolean(snapshot.preferences?.workspace?.panels?.mixer?.visible);
+	return (
+		<div className="kw-audio-editor__action-bar" data-action-bar role="toolbar" aria-label={copy.actionBar}>
+			<div className="kw-audio-editor__action-bar-center">
+				<Button
+					variant="secondary"
+					size="small"
+					icon={<Icon name="save" size={14} />}
+					disabled={blocked}
+					onClick={onSaveAup4}
+				>
+					{copy.saveAup4}
+				</Button>
+				<Button
+					variant="secondary"
+					size="small"
+					icon={<Icon name="export" size={14} />}
+					disabled={blocked}
+					onClick={onExportAudio}
+				>
+					{copy.exportAudio}
+				</Button>
+				<span className="kw-audio-editor__action-bar-toggle" data-action="mixer">
+					<Button
+						variant={mixerVisible ? 'primary' : 'secondary'}
+						size="small"
+						icon={<Icon name="mixer" size={14} />}
+						aria-pressed={mixerVisible}
+						onClick={onToggleMixer}
+					>
+						{copy.panelMixer}
+					</Button>
+				</span>
+			</div>
+			<div className="kw-audio-editor__action-bar-right">
+				<span data-edit="undo">
+					<ToolButton icon="undo" ariaLabel={copy.undo} disabled={editBlocked || !canUndo} onClick={() => executeEdit('undo')} />
+				</span>
+				<span data-edit="redo">
+					<ToolButton icon="redo" ariaLabel={copy.redo} disabled={editBlocked || !canRedo} onClick={() => executeEdit('redo')} />
+				</span>
+			</div>
 		</div>
 	);
 }

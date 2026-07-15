@@ -81,8 +81,12 @@
 	left: 0;
 }
 
-#kw-audio-editor-design-system.kw-audio-editor--viewport-fullscreen .kw-audio-editor__toolbars {
+#kw-audio-editor-design-system.kw-audio-editor--viewport-fullscreen .kw-audio-editor__action-bar {
 	margin-top: 56px;
+}
+
+#kw-audio-editor-design-system.kw-audio-editor--viewport-fullscreen .kw-audio-editor__toolbars {
+	margin-top: 0;
 }
 
 #kw-audio-editor-design-system:is([data-editor-theme='high-contrast-light'], [data-editor-theme='high-contrast-dark']) {
@@ -366,6 +370,40 @@
 	flex: 0 0 auto;
 	flex-direction: column;
 	background: var(--kw-editor-panel);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__action-bar {
+	position: relative;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	min-width: 0;
+	height: 40px;
+	padding: 0 8px;
+	background: var(--toolbar-bg, var(--kw-editor-panel));
+	border-bottom: 1px solid var(--toolbar-border, var(--kw-editor-line));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-center {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-right {
+	position: absolute;
+	top: 50%;
+	right: 8px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	transform: translateY(-50%);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-toggle {
+	display: inline-flex;
 }
 
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
