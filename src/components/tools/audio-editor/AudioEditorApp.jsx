@@ -1012,7 +1012,7 @@ function EditorToolToolbar({
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
-		{ id: 'volume-automation', label: copy.volumeAutomation, icon: 'envelope' },
+		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
 		{ id: 'waveform-view', label: copy.waveformView, icon: 'waveform' },
 		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
 		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
@@ -1104,9 +1104,9 @@ function EditorToolToolbar({
 					}
 					{isToolbarButtonVisible('volume-automation') && <span data-action-id="volume-automation">
 						<ToggleToolButton
-							icon="envelope"
+							icon="automation"
 							isActive={automationToolEnabled}
-							ariaLabel={copy.volumeAutomation}
+							ariaLabel={copy.clipGain}
 							disabled={!selectedTrack || blocked}
 							onClick={onToggleAutomationTool}
 						/>
