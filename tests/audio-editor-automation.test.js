@@ -67,7 +67,7 @@ test('clip automation moves with clips and is trimmed in timeline coordinates', 
 		],
 	});
 	const track = createAudioTrackV2({
-		id: 'track', channelCount: 1, sampleRate: 48_000, clipIds: [clip.id],
+		id: 'track', clipIds: [clip.id],
 	});
 	let project = createAudioEditorProjectV2({
 		id: 'project', title: 'Automation', sources: [source], clips: [clip], tracks: [track],

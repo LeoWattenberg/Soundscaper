@@ -82,9 +82,12 @@ test('AUP4 project documents round-trip the browser model through typed binary X
 			durationFrames: 4, pitchCents: 100, stretchRatio: 1.25, groupId: 2,
 			envelope: [{ frame: 0, value: 0.5 }],
 		}],
+		sources: [{
+			id: 'source-1', frameCount: 4, channelCount: 2, sampleRate: 44_100,
+		}],
 		tracks: [{
-			id: 'track-1', kind: 'audio', name: 'Stereo', channelCount: 2, gain: 1, pan: 0,
-			mute: false, solo: false, sampleRate: 44_100, display: 'multiview', clipIds: ['clip-1'], effects: [],
+			id: 'track-1', kind: 'audio', name: 'Stereo', gain: 1, pan: 0,
+			mute: false, solo: false, display: 'multiview', clipIds: ['clip-1'], effects: [],
 		}, {
 			id: 'labels-1', type: 'label', name: 'Labels',
 			labels: [{ id: 'label-1', title: 'Marker', startFrame: 0, endFrame: 4410 }],

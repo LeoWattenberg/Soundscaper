@@ -30,7 +30,7 @@ function audioProject(id, sourceId, options = {}) {
 	}, { now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'track/add',
-		track: { schemaVersion: 2, type: 'audio', id: `${id}-track`, name: `${id} track`, sampleRate: project.sampleRate },
+		track: { schemaVersion: 2, type: 'audio', id: `${id}-track`, name: `${id} track` },
 	}, { now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'clip/add',

@@ -18,8 +18,8 @@ export default function RecordingInputSelectors({
 	const routes = inputs.routes || {};
 	const route = routes[track.id] || null;
 	const sourceKey = routeSourceKey(route);
-	const channelCount = track.channelCount === 1 ? 1 : 2;
-	const sourceOptions = buildSourceOptions({ devices, route, routes, track, copy });
+	const channelCount = route?.channelCount === 2 ? 2 : 1;
+	const sourceOptions = buildSourceOptions({ devices, route, routes, track, channelCount, copy });
 	const availableChannels = sourceChannelCount(sourceKey, devices, route, channelCount);
 	const channelOptions = sourceKey
 		? buildChannelOptions({ sourceKey, availableChannels, channelCount, routes, trackId: track.id, route })
@@ -68,6 +68,20 @@ export default function RecordingInputSelectors({
 		if (!route || !Number.isSafeInteger(channelStart)) return;
 		setRoute({ ...route, channelStart, channelCount });
 	};
+	const handleChannelCountChange = (event) => {
+		if (!route) return;
+		const nextChannelCount = Number(event.currentTarget.value) === 2 ? 2 : 1;
+		const nextOptions = buildChannelOptions({
+			sourceKey,
+			availableChannels: sourceChannelCount(sourceKey, devices, route, nextChannelCount),
+			channelCount: nextChannelCount,
+			routes,
+			trackId: track.id,
+			route,
+		});
+		const nextChannelStart = nextOptions.find((option) => !option.disabled)?.channelStart ?? 0;
+		setRoute({ ...route, channelStart: nextChannelStart, channelCount: nextChannelCount });
+	};
 	const stopTrackSelection = (event) => event.stopPropagation();
 
 	return (
@@ -90,6 +104,18 @@ export default function RecordingInputSelectors({
 					{sourceOptions.map((option) => (
 						<option key={option.value || 'unassigned'} value={option.value} disabled={option.disabled}>{option.label}</option>
 					))}
+				</select>
+			</label>
+			<label>
+				<span className="kw-audio-editor-sr-only">{copy.trackChannels}: {track.name}</span>
+				<select
+					aria-label={`${copy.trackChannels}: ${track.name}`}
+					disabled={controlsDisabled || !route}
+					value={channelCount}
+					onChange={handleChannelCountChange}
+				>
+					<option value="1">{copy.mono}</option>
+					<option value="2">{copy.stereo}</option>
 				</select>
 			</label>
 			<label>
@@ -119,7 +145,7 @@ export default function RecordingInputSelectors({
 	);
 }
 
-function buildSourceOptions({ devices, route, routes, track, copy }) {
+function buildSourceOptions({ devices, route, routes, track, channelCount, copy }) {
 	const options = [{ value: '', label: copy.recordingInputUnassigned, disabled: false }];
 	const currentSourceKey = routeSourceKey(route);
 	const displaySupported = typeof navigator === 'undefined'
@@ -127,7 +153,7 @@ function buildSourceOptions({ devices, route, routes, track, copy }) {
 	const displayChannels = buildChannelOptions({
 		sourceKey: DISPLAY_SOURCE_KEY,
 		availableChannels: 2,
-		channelCount: track.channelCount === 1 ? 1 : 2,
+		channelCount,
 		routes,
 		trackId: track.id,
 		route: currentSourceKey === DISPLAY_SOURCE_KEY ? route : null,
@@ -137,8 +163,8 @@ function buildSourceOptions({ devices, route, routes, track, copy }) {
 		const unavailable = ['unavailable', 'disconnected', 'ended'].includes(device.status);
 		const channels = buildChannelOptions({
 			sourceKey: key,
-			availableChannels: Math.max(track.channelCount === 1 ? 1 : 2, Number(device.channelCount) || 0),
-			channelCount: track.channelCount === 1 ? 1 : 2,
+			availableChannels: Math.max(channelCount, Number(device.channelCount) || 0),
+			channelCount,
 			routes,
 			trackId: track.id,
 			route: currentSourceKey === key ? route : null,

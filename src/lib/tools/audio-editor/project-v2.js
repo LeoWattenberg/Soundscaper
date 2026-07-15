@@ -64,10 +64,6 @@ const DISPLAY_MODE_SET = new Set(AUDIO_EDITOR_DISPLAY_MODES);
  * @property {boolean} mute
  * @property {boolean} solo
  * @property {boolean} armed
- * @property {number} channelCount
- * @property {string} channelLayout
- * @property {number} sampleRate
- * @property {string} sampleFormat
  * @property {'waveform'|'spectrogram'|'multiview'|'half-wave'} displayMode
  * @property {string} color
  * @property {Object} spectrogram
@@ -327,10 +323,14 @@ export function createAudioClipV2(options = {}) {
 	};
 }
 
-/** @returns {AudioEditorAudioTrackV2} */
-export function createAudioTrackV2(options = {}) {
-	const sampleRate = safeInteger(options.sampleRate ?? AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE, 1, 'track.sampleRate');
-	const channelCount = safeInteger(options.channelCount ?? 2, 1, 'track.channelCount');
+/**
+ * Audio tracks are mixer/display containers. Media layout and rate belong to
+ * the immutable sources referenced by their clips.
+ *
+ * @returns {AudioEditorAudioTrackV2}
+ */
+export function createAudioTrackV2(options = {}, projectSampleRate = AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE) {
+	const sampleRate = safeInteger(projectSampleRate, 1, 'project.sampleRate');
 	return {
 		type: 'audio',
 		id: options.id || createStableId('track'),
@@ -340,10 +340,6 @@ export function createAudioTrackV2(options = {}) {
 		mute: Boolean(options.mute),
 		solo: Boolean(options.solo),
 		armed: Boolean(options.armed),
-		channelCount,
-		channelLayout: nonEmptyString(options.channelLayout || (channelCount === 1 ? 'mono' : channelCount === 2 ? 'stereo' : 'custom'), 'track.channelLayout'),
-		sampleRate,
-		sampleFormat: oneOf(options.sampleFormat ?? 'float32', SAMPLE_FORMAT_SET, 'track.sampleFormat'),
 		displayMode: oneOf(options.displayMode ?? 'waveform', DISPLAY_MODE_SET, 'track.displayMode'),
 		color: nonEmptyString(options.color || 'auto', 'track.color'),
 		spectrogram: normalizeSpectrogram(options.spectrogram || {}, sampleRate, 'track.spectrogram'),
@@ -463,7 +459,7 @@ export function createAudioEditorProjectV2(options = {}) {
 	const sampleRate = safeInteger(options.sampleRate ?? AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE, 1, 'project.sampleRate');
 	const tracks = (options.tracks || []).map((track) => {
 		if (!track || !TRACK_TYPE_SET.has(track.type)) throw new RangeError(`Unsupported track type: ${track?.type}.`);
-		return track.type === 'label' ? createLabelTrackV2(track) : createAudioTrackV2(track);
+		return track.type === 'label' ? createLabelTrackV2(track) : createAudioTrackV2(track, sampleRate);
 	});
 	const masterEffects = normalizeEffects(options.master?.effects || [], 'master.effects');
 	return {
@@ -603,6 +599,22 @@ export function projectDurationFramesV2(project) {
 	return endFrame;
 }
 
+/**
+ * Resolve the widest source used by a track. Empty tracks have no media
+ * layout, so callers choose the fallback appropriate to their operation.
+ */
+export function audioTrackChannelCountV2(project, track, fallback = 0) {
+	if (!track || track.type === 'label') return fallback;
+	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
+	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
+	let channelCount = 0;
+	for (const clipId of track.clipIds || []) {
+		const source = sourceById.get(clipById.get(clipId)?.sourceId);
+		if (source) channelCount = Math.max(channelCount, Number(source.channelCount) || 0);
+	}
+	return channelCount || fallback;
+}
+
 function assertUniqueIds(items, type) {
 	const ids = new Set();
 	for (const item of items) {
@@ -619,5 +631,9 @@ export function loadAudioEditorProjectV2(value) {
 		return { project: plainClone(value), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorProjectV2(value);
-	return { project: cloneAudioEditorProjectV2(value), readOnly: false, reason: null };
+	return {
+		project: createAudioEditorProjectV2({ ...value, now: value.createdAt }),
+		readOnly: false,
+		reason: null,
+	};
 }

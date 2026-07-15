@@ -41,7 +41,6 @@ test('spectrogram settings are stored per track while preferences remain new-tra
 		schemaVersion: 2,
 		id: 'spectrogram-track',
 		name: 'Spectrogram track',
-		sampleRate: 48_000,
 		spectrogram: defaults.spectrogram,
 	}));
 	project = apply(project, {
@@ -98,7 +97,6 @@ test('time-frequency selections preserve independently adjustable frame and freq
 		schemaVersion: 2,
 		id: 'spectral-track',
 		name: 'Spectral track',
-		sampleRate: 48_000,
 	}));
 	project = apply(project, {
 		type: 'selection/set',

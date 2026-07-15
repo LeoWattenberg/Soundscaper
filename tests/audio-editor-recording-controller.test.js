@@ -61,6 +61,47 @@ test('legacy recording reuses a retained mono default input between takes', asyn
 	assert.equal(input.getAudioTracks()[0].stopCount, 1);
 });
 
+test('legacy recording stores context-rate PCM and scales latency into native source frames', async () => {
+	const store = createProjectStore({ databaseName: 'recording-controller-native-legacy' });
+	const engine = createRecordingEngine({ sampleRate: 96_000, baseLatency: 0.005 });
+	const input = createMockStream([createMockTrack('audio', { channelCount: 1, sampleRate: 44_100 })]);
+	const pool = createCapturePool({ hardware: { default: input } });
+	const createdControllers = [];
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(createdControllers),
+	});
+
+	try {
+		await controller.ready;
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.recording.start({ trackId });
+		const captured = Float32Array.from({ length: 1_440 }, (_, frame) => frame / 1_440);
+		await createdControllers[0].onChunk({ channels: [captured] });
+		await controller.actions.recording.stop();
+
+		const project = controller.getSnapshot().project;
+		const source = project.sources[0];
+		const clip = project.clips[0];
+		assert.equal(source.sampleRate, 96_000);
+		assert.equal(source.originalSampleRate, 96_000);
+		assert.equal(source.frameCount, 1_440);
+		assert.equal(clip.timelineStartFrame, 0);
+		assert.equal(clip.durationFrames, 480);
+		assert.equal(clip.sourceStartFrame, 480);
+		assert.equal(clip.sourceDurationFrames, 960);
+		assert.equal(clip.sourceStartFrame + clip.sourceDurationFrames, source.frameCount);
+		const stored = await store.readSourceChunk(source.id, 0);
+		assert.equal(stored.channels[0].length, captured.length);
+		assert.equal(stored.channels[0][500], captured[500]);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('routed recording starts surviving desktop audio when a hardware source is unavailable', async () => {
 	const store = createProjectStore();
 	const engine = createRecordingEngine();
@@ -119,6 +160,55 @@ test('routed recording starts surviving desktop audio when a hardware source is 
 	}
 
 	assert.equal(desktop.getTracks().every((track) => track.stopCount === 1), true);
+});
+
+test('routed recording stores context-rate channels while clips keep project-rate timing', async () => {
+	const store = createProjectStore({ databaseName: 'recording-controller-native-routed' });
+	const engine = createRecordingEngine({ sampleRate: 96_000 });
+	const desktop = createMockStream([
+		createMockTrack('audio', { channelCount: 2, sampleRate: 44_100 }),
+		createMockTrack('video'),
+	]);
+	const pool = createCapturePool({ display: desktop });
+	const createdControllers = [];
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(createdControllers),
+	});
+
+	try {
+		await controller.ready;
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.recording.setTrackInput(trackId, {
+			kind: 'display',
+			channelStart: 0,
+			channelCount: 2,
+		});
+		await controller.actions.recording.start();
+		const left = new Float32Array(960).fill(0.25);
+		const right = new Float32Array(960).fill(-0.5);
+		await createdControllers[0].onChunk({ channels: [left, right] });
+		await controller.actions.recording.stop();
+
+		const project = controller.getSnapshot().project;
+		const source = project.sources[0];
+		const clip = project.clips[0];
+		assert.equal(source.sampleRate, 96_000);
+		assert.equal(source.originalSampleRate, 96_000);
+		assert.equal(source.channelCount, 2);
+		assert.equal(source.frameCount, 960);
+		assert.equal(clip.durationFrames, 480);
+		assert.equal(clip.sourceStartFrame, 0);
+		assert.equal(clip.sourceDurationFrames, 960);
+		const stored = await store.readSourceChunk(source.id, 0);
+		assert.equal(stored.channels[0][100], 0.25);
+		assert.equal(stored.channels[1][100], -0.5);
+	} finally {
+		await controller.dispose();
+	}
 });
 
 function createCapturePool({ hardware = {}, display = null, hardwareFailures = new Set() } = {}) {
@@ -236,13 +326,13 @@ function createRecordingControllerFactory(created) {
 	};
 }
 
-function createRecordingEngine() {
+function createRecordingEngine(options = {}) {
 	const listeners = new Map();
 	const context = {
-		sampleRate: 48_000,
+		sampleRate: options.sampleRate || 48_000,
 		currentTime: 0,
-		baseLatency: 0,
-		outputLatency: 0,
+		baseLatency: options.baseLatency || 0,
+		outputLatency: options.outputLatency || 0,
 		state: 'running',
 		async resume() { this.state = 'running'; },
 		addEventListener(type, listener) { listeners.set(type, listener); },

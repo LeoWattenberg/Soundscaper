@@ -31,7 +31,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 		pitchCents: 200, speedRatio: 1, groupId: 'group-a',
 	});
 	const audioTrack = createAudioTrackV2({
-		id: 'track-1', name: 'Stereo', channelCount: 2, sampleRate: 44_100,
+		id: 'track-1', name: 'Stereo',
 		clipIds: [clip.id], displayMode: 'multiview',
 	});
 	const labelTrack = createLabelTrackV2({
@@ -67,6 +67,11 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	assert.equal(decoded.project.metadata.artist, 'kw.media');
 	assert.equal(decoded.project.tracks.filter((track) => track.type === 'audio').length, 1);
 	assert.equal(decoded.project.tracks.filter((track) => track.type === 'label').length, 1);
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(decoded.project.tracks.find((track) => track.type === 'audio'), field), false);
+	}
+	assert.equal(decoded.project.sources[0].channelCount, 2);
+	assert.equal(decoded.project.sources[0].sampleRate, 44_100);
 	assert.equal(decoded.project.tracks.find((track) => track.type === 'label').labels[0].title, 'Verse');
 	assert.equal(decoded.sources.length, 1);
 	assert.deepEqual(decoded.sources[0].channels[0], Float32Array.of(-1, -0.5, 0.5, 1));
@@ -216,7 +221,7 @@ test('AUP4 conversion keeps interleaved opaque attribute order, numeric widths, 
 	assert.deepEqual(audacityXmlChildren(reparsed, 'plugin-state')[0], opaqueNode);
 });
 
-test('AUP4 conversion preserves source offsets and stretched timing across different project and track rates', async () => {
+test('AUP4 conversion preserves source offsets and stretched timing across different project and source rates', async () => {
 	const source = createAudioSourceV2({
 		id: 'source-rate', storageKey: 'source-rate', name: 'Rate source', frameCount: 1_000,
 		channelCount: 1, sampleRate: 24_000, originalSampleRate: 24_000,
@@ -232,7 +237,7 @@ test('AUP4 conversion preserves source offsets and stretched timing across diffe
 		]) } },
 	});
 	const track = createAudioTrackV2({
-		id: 'track-rate', name: 'Different rate', channelCount: 1, sampleRate: 24_000,
+		id: 'track-rate', name: 'Different rate',
 		clipIds: [clip.id],
 	});
 	const project = createAudioEditorProjectV2({
@@ -260,4 +265,7 @@ test('AUP4 conversion preserves source offsets and stretched timing across diffe
 	assert.equal(decoded.project.clips[0].timelineStartFrame, 4_800);
 	assert.equal(decoded.project.clips[0].durationFrames, 960);
 	assert.deepEqual(decoded.project.clips[0].envelope, [{ frame: 480, value: 0.5 }]);
+	assert.equal(decoded.project.sources[0].channelCount, 1);
+	assert.equal(decoded.project.sources[0].sampleRate, 24_000);
+	assert.equal(Object.hasOwn(decoded.project.tracks[0], 'sampleRate'), false);
 });

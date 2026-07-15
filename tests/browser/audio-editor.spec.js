@@ -234,11 +234,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await addTrack.click();
 		const flyout = page.locator('.add-track-flyout');
 		await expect(flyout).toBeVisible();
-		await expect(flyout.getByRole('menuitem', { name: 'Mono', exact: true })).toBeVisible();
-		await expect(flyout.getByRole('menuitem', { name: 'Stereo', exact: true })).toBeVisible();
-		await expect(flyout.getByRole('menuitem', { name: 'Label', exact: true })).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Audio track', exact: true })).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Label track', exact: true })).toBeVisible();
 
-		await flyout.getByRole('menuitem', { name: 'Stereo', exact: true }).click();
+		await flyout.getByRole('menuitem', { name: 'Audio track', exact: true }).click();
 		await expect(flyout).toHaveCount(0);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
@@ -554,7 +553,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(addNewTrack).toBeFocused();
 		await page.keyboard.press('ArrowRight');
 		const trackSubmenu = addNewTrack.getByRole('menu');
-		const firstTrackType = getMenuItem(trackSubmenu, 'New mono track');
+		const firstTrackType = getMenuItem(trackSubmenu, 'Audio track');
 		await expect(trackSubmenu).toBeVisible();
 		await expect(firstTrackType).toBeFocused();
 		await page.keyboard.press('ArrowLeft');
@@ -657,7 +656,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectsDialog).toBeVisible();
 		await projectsDialog.getByRole('button', { name: 'Close' }).click();
 
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 		await chooseCommandAction(page, editor, 'Effect', 'Add track effects');
@@ -1129,7 +1128,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.setViewportSize({ width: 1440, height: 1200 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(3);
 
 		const sourceTrack = editor.locator('[data-track-row]').nth(1);
@@ -1692,7 +1691,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('opens the same project read-only in another tab', async ({ page, context }) => {
 		const first = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'New stereo track']);
+		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 
 		const secondPage = await context.newPage();
@@ -1704,7 +1703,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const tracksMenu = secondPage.getByRole('menu', { name: 'Tracks', exact: true });
 		const addNewTrack = getMenuItem(tracksMenu, 'Add new track');
 		await addNewTrack.click();
-		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'New stereo track')).toHaveAttribute('aria-disabled', 'true');
+		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'Audio track')).toHaveAttribute('aria-disabled', 'true');
 		const readOnlyRecord = second.locator('[data-transport="record"] button');
 		await expect(readOnlyRecord).toBeDisabled();
 		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
@@ -1733,7 +1732,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		const tracks = editor.locator('[data-track-row]');
 		await expect(tracks).toHaveCount(2);
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);

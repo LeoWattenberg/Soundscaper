@@ -15,6 +15,7 @@ import {
 	localizedAudacityReason,
 } from '../../../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
+import { audioTrackChannelCountV2 } from './project-v2.js';
 
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
 	version: '4.0.0-beta.2+',
@@ -651,9 +652,9 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'editable-track-selected': editable && Boolean(selectedTrack),
 		'audio-track-selected': Boolean(selectedAudioTrack),
 		'editable-audio-track-selected': editable && Boolean(selectedAudioTrack),
-		'stereo-track-selected': Boolean(selectedAudioTrack?.channelCount === 2),
-		'compatible-mono-tracks': editable && selectedAudioTrack?.channelCount === 1 && tracks.some((track) => (
-			track.id !== selectedAudioTrack.id && track.type !== 'label' && track.channelCount === 1
+		'stereo-track-selected': audioTrackChannelCountV2(project, selectedAudioTrack) === 2,
+		'compatible-mono-tracks': editable && audioTrackChannelCountV2(project, selectedAudioTrack) === 1 && tracks.some((track) => (
+			track.id !== selectedAudioTrack.id && track.type !== 'label' && audioTrackChannelCountV2(project, track) === 1
 		)),
 		'label-track-present': tracks.some((track) => track.type === 'label'),
 		'loop-region': Boolean(project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame),

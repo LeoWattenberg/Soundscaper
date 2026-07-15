@@ -44,8 +44,6 @@ test('V2 commands preserve arbitrary rates and nondestructive clip properties', 
 		schemaVersion: 2,
 		id: 'track',
 		name: 'Music',
-		channelCount: 2,
-		sampleRate: 44_100,
 	}));
 	project = apply(project, createAddClipCommand('track', {
 		schemaVersion: 2,
@@ -65,6 +63,10 @@ test('V2 commands preserve arbitrary rates and nondestructive clip properties', 
 
 	assert.equal(project.schemaVersion, 2);
 	assert.equal(project.sampleRate, 44_100);
+	assert.equal(project.sources[0].channelCount, 2);
+	assert.equal(project.sources[0].sampleRate, 48_000);
+	assert.equal(Object.hasOwn(project.tracks[0], 'channelCount'), false);
+	assert.equal(Object.hasOwn(project.tracks[0], 'sampleRate'), false);
 	assert.deepEqual(project.tracks[0].clipIds, ['clip', 'clip-right']);
 	assert.equal(project.clips[0].sourceDurationFrames, 24_000);
 	assert.equal(project.clips[1].sourceStartFrame, 28_000);
@@ -75,11 +77,20 @@ test('V2 commands preserve arbitrary rates and nondestructive clip properties', 
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
-test('V2 project tempo, time signature, and track format changes are replay-stable', () => {
+test('V2 project tempo, time signature, metadata, and source formats are replay-stable', () => {
 	let project = createAudioEditorProjectV2({ id: 'music-project', title: 'Music', sampleRate: 48_000 });
+	project = apply(project, createAddSourceCommand({
+		id: 'hires-source',
+		storageKey: 'hires-source',
+		name: 'Hi-res source',
+		frameCount: 96_000,
+		channelCount: 2,
+		sampleRate: 96_000,
+		originalSampleRate: 96_000,
+		sampleFormat: 'int24',
+	}));
 	project = apply(project, createAddTrackCommand({ schemaVersion: 2, id: 'track', name: 'Track' }));
 	project = apply(project, { type: 'tempo/set', bpm: 137.5, numerator: 7, denominator: 8 });
-	project = apply(project, { type: 'track/update', trackId: 'track', changes: { sampleRate: 96_000, sampleFormat: 'int24' } });
 	project = apply(project, {
 		type: 'metadata/update',
 		changes: { artist: 'Artist', year: 2026, tags: { ISRC: 'DE-KWM-26-00001' } },
@@ -87,8 +98,16 @@ test('V2 project tempo, time signature, and track format changes are replay-stab
 
 	assert.equal(project.tempo.bpm, 137.5);
 	assert.deepEqual(project.tempo.timeSignature, { numerator: 7, denominator: 8 });
-	assert.equal(project.tracks[0].sampleRate, 96_000);
-	assert.equal(project.tracks[0].sampleFormat, 'int24');
+	assert.equal(project.sources[0].sampleRate, 96_000);
+	assert.equal(project.sources[0].channelCount, 2);
+	assert.equal(project.sources[0].sampleFormat, 'int24');
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(project.tracks[0], field), false);
+	}
+	assert.throws(
+		() => apply(project, { type: 'track/update', trackId: 'track', changes: { sampleRate: 44_100 } }),
+		/Track field cannot be updated: sampleRate/,
+	);
 	assert.deepEqual(project.metadata, {
 		title: 'Music',
 		artist: 'Artist',
@@ -265,7 +284,7 @@ test('paste overlap and insert variants preserve collision regions with replay-s
 	project = apply(project, createAddSourceCommand({
 		schemaVersion: 2, id: 'source', storageKey: 'source', name: 'Source', frameCount: 4_000, channelCount: 1, sampleRate: 48_000,
 	}));
-	project = apply(project, createAddTrackCommand({ schemaVersion: 2, id: 'track', name: 'Track', channelCount: 1 }));
+	project = apply(project, createAddTrackCommand({ schemaVersion: 2, id: 'track', name: 'Track' }));
 	project = apply(project, createAddClipCommand('track', {
 		schemaVersion: 2, id: 'long', sourceId: 'source', timelineStartFrame: 0, sourceStartFrame: 0, durationFrames: 2_000,
 	}));
@@ -299,7 +318,7 @@ test('clipboard frame positions scale across arbitrary project sample rates', ()
 	sourceProject = apply(sourceProject, createAddSourceCommand({
 		schemaVersion: 2, id: 'shared-source', storageKey: 'shared-source', name: 'Shared', frameCount: 10_000, channelCount: 1, sampleRate: 48_000,
 	}));
-	sourceProject = apply(sourceProject, createAddTrackCommand({ schemaVersion: 2, id: 'source-track', name: 'Source', channelCount: 1 }));
+	sourceProject = apply(sourceProject, createAddTrackCommand({ schemaVersion: 2, id: 'source-track', name: 'Source' }));
 	sourceProject = apply(sourceProject, createAddClipCommand('source-track', {
 		schemaVersion: 2, id: 'source-clip', sourceId: 'shared-source', timelineStartFrame: 0, sourceStartFrame: 0, durationFrames: 1_000,
 	}));
@@ -309,7 +328,7 @@ test('clipboard frame positions scale across arbitrary project sample rates', ()
 	target = apply(target, createAddSourceCommand({
 		schemaVersion: 2, id: 'shared-source', storageKey: 'shared-source', name: 'Shared', frameCount: 10_000, channelCount: 1, sampleRate: 48_000,
 	}));
-	target = apply(target, createAddTrackCommand({ schemaVersion: 2, id: 'target-track', name: 'Target', channelCount: 1, sampleRate: 96_000 }));
+	target = apply(target, createAddTrackCommand({ schemaVersion: 2, id: 'target-track', name: 'Target' }));
 	target = apply(target, preparePasteCommand(clipboard, {
 		project: target,
 		atFrame: 2_000,

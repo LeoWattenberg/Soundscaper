@@ -87,6 +87,9 @@ function mutateCommand(project, command) {
 		case 'source/remove':
 			removeSource(project, command.sourceId);
 			break;
+		case 'source/update':
+			updateSource(project, command.sourceId, command.changes);
+			break;
 		case 'track/add':
 			addTrack(project, command.track, command.index);
 			break;
@@ -274,6 +277,14 @@ function removeSource(project, sourceId) {
 	project.sources.splice(index, 1);
 }
 
+function updateSource(project, sourceId, changes = {}) {
+	const index = project.sources.findIndex((source) => source.id === sourceId);
+	if (index < 0) throw new ReferenceError(`Unknown source: ${sourceId}.`);
+	const allowed = new Set(['name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions']);
+	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Source field cannot be updated: ${key}.`);
+	project.sources[index] = createAudioSourceV2({ ...project.sources[index], ...changes, id: sourceId });
+}
+
 function addTrack(project, value, requestedIndex) {
 	if (value?.type === 'label') {
 		if (project.schemaVersion !== 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 project.');
@@ -334,7 +345,7 @@ function updateTrack(project, trackId, changes = {}) {
 		return;
 	}
 	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed']);
-	for (const key of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat', 'displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
+	for (const key of ['displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);
@@ -1088,6 +1099,7 @@ export function preparePunchCommand(project, options = {}, idFactory = createSta
 		endFrame: options.endFrame,
 		sourceId: options.sourceId,
 		sourceStartFrame: options.sourceStartFrame ?? 0,
+		...(options.sourceDurationFrames == null ? {} : { sourceDurationFrames: options.sourceDurationFrames }),
 		clipId: options.clipId || idFactory('clip'),
 		splitClipIds: rangeCommand.splitClipIds,
 	};
@@ -1199,6 +1211,7 @@ function punchReplace(project, command) {
 		sourceId: command.sourceId,
 		timelineStartFrame: range.startFrame,
 		sourceStartFrame: command.sourceStartFrame ?? 0,
+		...(command.sourceDurationFrames == null ? {} : { sourceDurationFrames: command.sourceDurationFrames }),
 		durationFrames: range.durationFrames,
 	});
 }
@@ -1472,8 +1485,8 @@ function normalizeSourceForProject(_project, value) {
 	return createAudioSourceV2(value);
 }
 
-function normalizeTrackForProject(_project, value) {
-	return createAudioTrackV2(value);
+function normalizeTrackForProject(project, value) {
+	return createAudioTrackV2(value, project.sampleRate);
 }
 
 function normalizeClipForProject(_project, value) {

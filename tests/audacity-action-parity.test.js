@@ -147,11 +147,18 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 		snapshot: {
 			project: {
 				tracks: [
-					{ id: 'audio-1', type: 'audio', channelCount: 1, displayMode: 'spectrogram', clipIds: ['clip-1'], effects: [] },
-					{ id: 'audio-2', type: 'audio', channelCount: 1, displayMode: 'waveform', clipIds: [], effects: [] },
+					{ id: 'audio-1', type: 'audio', displayMode: 'spectrogram', clipIds: ['clip-1'], effects: [] },
+					{ id: 'audio-2', type: 'audio', displayMode: 'waveform', clipIds: ['clip-2'], effects: [] },
 					{ id: 'labels-1', type: 'label', labels: [] },
 				],
-				clips: [{ id: 'clip-1', groupId: 'group-1', pitchCents: 100, speedRatio: 1, stretchToTempo: false }],
+				clips: [
+					{ id: 'clip-1', sourceId: 'source-1', groupId: 'group-1', pitchCents: 100, speedRatio: 1, stretchToTempo: false },
+					{ id: 'clip-2', sourceId: 'source-2', pitchCents: 0, speedRatio: 1, stretchToTempo: false },
+				],
+				sources: [
+					{ id: 'source-1', channelCount: 1, sampleRate: 48_000 },
+					{ id: 'source-2', channelCount: 1, sampleRate: 44_100 },
+				],
 				selection: {
 					startFrame: 100,
 					endFrame: 200,

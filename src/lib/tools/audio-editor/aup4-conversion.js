@@ -45,6 +45,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 		const clipNodesByChannel = group.map((node) => audacityXmlChildren(node, 'waveclip'));
 		const clipCount = Math.max(0, ...clipNodesByChannel.map((items) => items.length));
 		const trackRate = positiveRate(audacityXmlAttribute(group[0], 'rate', projectRate));
+		const sourceSampleFormat = sampleFormatName(audacityXmlAttribute(group[0], 'sampleformat', 0));
 		if (group.some((node) => positiveRate(audacityXmlAttribute(node, 'rate', trackRate)) !== trackRate)) {
 			warn(state, `Linked channels in track ${trackIndex + 1} use different sample rates; the first channel rate was used.`);
 		}
@@ -92,7 +93,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 				channelCount: channels.length,
 				sampleRate: trackRate,
 				originalSampleRate: trackRate,
-				sampleFormat: 'float32',
+				sampleFormat: sourceSampleFormat,
 				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
@@ -131,10 +132,6 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 			pan: finiteInRange(audacityXmlAttribute(group[0], 'pan', 0), -1, 1, 0),
 			mute: Boolean(audacityXmlAttribute(group[0], 'mute', false)),
 			solo: Boolean(audacityXmlAttribute(group[0], 'solo', false)),
-			channelCount: group.length,
-			channelLayout: group.length === 1 ? 'mono' : group.length === 2 ? 'stereo' : 'custom',
-			sampleRate: trackRate,
-			sampleFormat: sampleFormatName(audacityXmlAttribute(group[0], 'sampleformat', 0)),
 			displayMode: displayMode(audacityXmlAttribute(group[0], 'trackViewType', 0)),
 			spectrogram: readSpectrogram(group[0], trackRate),
 			effects: readAup4EffectsNode(trackEffectsNode, { idFactory }),
@@ -147,7 +144,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 				// follower-channel rack onto the leader during a browser rewrite.
 				effects: group.map((node) => opaqueNode(audacityXmlChildren(node, 'effects')[0])),
 			},
-		}));
+		}, projectRate));
 	}
 
 	for (const [index, labelNode] of audacityXmlChildren(root, 'labeltrack').entries()) {

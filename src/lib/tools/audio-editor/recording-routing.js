@@ -14,11 +14,8 @@ export function recordingRouteSourceKey(route) {
 
 export function normalizeRecordingRoute(route, track = null) {
 	if (!route || typeof route !== 'object' || Array.isArray(route)) throw new TypeError('A recording route must be an object.');
-	const trackChannelCount = track?.channelCount == null ? null : normalizeRouteChannelCount(track.channelCount);
-	const channelCount = normalizeRouteChannelCount(route.channelCount ?? trackChannelCount ?? 1);
-	if (trackChannelCount != null && trackChannelCount !== channelCount) {
-		throw new RangeError('A recording route must match its track channel count.');
-	}
+	if (track != null && track.type === 'label') throw new TypeError('An audio track is required for recording input routing.');
+	const channelCount = normalizeRouteChannelCount(route.channelCount ?? 1);
 	if (route.kind === 'display') {
 		return Object.freeze({
 			kind: 'display',
@@ -108,7 +105,8 @@ export function assertRecordingRouteConflicts(routes = {}) {
 }
 
 export function recordingChannelOptions(track, availableChannels, routes = {}) {
-	const channelCount = normalizeRouteChannelCount(track?.channelCount ?? 1);
+	const current = routes?.[track?.id] ? normalizeRecordingRoute(routes[track.id]) : null;
+	const channelCount = current?.channelCount ?? 1;
 	const maximum = nonNegativeInteger(availableChannels ?? 0, 'available recording channels');
 	const occupied = new Set();
 	for (const [trackId, input] of Object.entries(routes || {})) {
@@ -118,7 +116,6 @@ export function recordingChannelOptions(track, availableChannels, routes = {}) {
 			occupied.add(`${recordingRouteSourceKey(route)}:${channel}`);
 		}
 	}
-	const current = routes?.[track?.id] ? normalizeRecordingRoute(routes[track.id]) : null;
 	const sourceKey = current ? recordingRouteSourceKey(current) : null;
 	const options = [];
 	for (let channelStart = 0; channelStart + channelCount <= maximum; channelStart += 1) {

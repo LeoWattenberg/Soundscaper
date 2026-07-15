@@ -108,11 +108,11 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		);
 		assert.equal(typeof setDynamicRate, 'function');
 		assert.notStrictEqual(setDynamicRate, runtime.actions.track.setRate);
-		setDynamicRate({ type: 'synthetic-click' });
+		await setDynamicRate({ type: 'synthetic-click' });
 		const duplicatedTrack = controller.getSnapshot().project.tracks.find((track) => (
 			track.id === controller.getSnapshot().selectedTrackId
 		));
-		assert.equal(duplicatedTrack.sampleRate, 44_100);
+		assert.equal(Object.hasOwn(duplicatedTrack, 'sampleRate'), false);
 		assert.equal(resolveAudacityActionHandler('action://trackedit/track/change-rate?rate=not-a-rate', runtime.actions), null);
 
 		const [stateMenu] = applyAudacityParityToMenus([{

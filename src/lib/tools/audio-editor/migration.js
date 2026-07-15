@@ -5,6 +5,7 @@ import {
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
+	loadAudioEditorProjectV2,
 	validateAudioEditorProjectV2,
 } from './project-v2.js';
 
@@ -24,7 +25,8 @@ const CLIP_V1_KEYS = new Set([
 ]);
 const TRACK_V1_KEYS = new Set([
 	'id', 'name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effects', 'clipIds', 'type', 'channelCount',
-	'channelLayout', 'sampleRate', 'sampleFormat', 'displayMode', 'spectrogram', 'envelope', 'collapsed', 'height',
+	'channelLayout', 'sampleRate', 'sampleFormat',
+	'displayMode', 'spectrogram', 'envelope', 'collapsed', 'height',
 	'opaqueExtensions',
 ]);
 
@@ -66,7 +68,6 @@ function sourceForClip(sourceById, clip) {
 export function migrateAudioEditorProjectV1ToV2(value) {
 	validateAudioEditorProject(value);
 	const sourceById = new Map(value.sources.map((source) => [source.id, source]));
-	const clipById = new Map(value.clips.map((clip) => [clip.id, clip]));
 	const sources = value.sources.map((source) => createAudioSourceV2({
 		...source,
 		sampleRate: source.sampleRate || value.sampleRate,
@@ -93,25 +94,16 @@ export function migrateAudioEditorProjectV1ToV2(value) {
 			opaqueExtensions: mergeOpaque(clip, CLIP_V1_KEYS),
 		});
 	});
-	const tracks = value.tracks.map((track) => {
-		const sourceChannelCounts = track.clipIds.map((clipId) => {
-			const clip = clipById.get(clipId);
-			return clip ? sourceForClip(sourceById, clip).channelCount : 0;
-		});
-		const channelCount = track.channelCount || (sourceChannelCounts.length ? Math.max(...sourceChannelCounts) : 2);
-		return createAudioTrackV2({
+	const tracks = value.tracks.map((track) => (
+		createAudioTrackV2({
 			...track,
 			type: 'audio',
-			channelCount,
-			channelLayout: track.channelLayout || (channelCount === 1 ? 'mono' : channelCount === 2 ? 'stereo' : 'custom'),
-			sampleRate: track.sampleRate || value.sampleRate,
-			sampleFormat: track.sampleFormat || 'float32',
 			displayMode: track.displayMode || 'waveform',
 			spectrogram: track.spectrogram || {},
 			envelope: track.envelope || [],
 			opaqueExtensions: mergeOpaque(track, TRACK_V1_KEYS),
-		});
-	});
+		}, value.sampleRate)
+	));
 	const project = createAudioEditorProjectV2({
 		id: value.id,
 		title: value.title,
@@ -167,10 +159,16 @@ export function migrateAudioEditorProject(value) {
 		};
 	}
 	if (schemaVersion === AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		validateAudioEditorProjectV2(value);
+		const loaded = loadAudioEditorProjectV2(value);
+		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
+			Object.hasOwn(track, 'channelCount')
+			|| Object.hasOwn(track, 'channelLayout')
+			|| Object.hasOwn(track, 'sampleRate')
+			|| Object.hasOwn(track, 'sampleFormat')
+		));
 		return {
-			project: clone(value),
-			migrated: false,
+			project: loaded.project,
+			migrated,
 			fromVersion: schemaVersion,
 			readOnly: false,
 			reason: null,

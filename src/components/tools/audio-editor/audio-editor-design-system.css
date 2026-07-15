@@ -1312,7 +1312,7 @@
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors--track {
-	grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr) 8px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.55fr) minmax(0, 0.8fr) 8px;
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors--mixer {
@@ -1365,7 +1365,7 @@
 
 #kw-audio-editor-design-system .kw-recording-input-selectors--mixer .kw-recording-input-selectors__health {
 	grid-column: 2;
-	grid-row: 1 / span 2;
+	grid-row: 1 / span 3;
 	align-self: center;
 }
 

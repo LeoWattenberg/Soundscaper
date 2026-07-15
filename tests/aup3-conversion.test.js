@@ -12,7 +12,8 @@ test('structured AUP3 conversion materializes audio and labels without a dry mix
 		selection: { startSeconds: 0.5, endSeconds: 1 },
 		metadata: { title: 'Legacy.AUP3' },
 		tracks: [{
-			type: 'audio', name: 'Stereo', rate: 48_000, channelCount: 2, channelLayout: 'stereo', gain: 0.5,
+			type: 'audio', name: 'Stereo', rate: 48_000, channelCount: 2, channelLayout: 'stereo',
+			sampleFormat: 0x0004000f, gain: 0.5,
 			clips: [{
 				name: 'Verse', channels: [Float32Array.of(0, 1, 0, -1), Float32Array.of(1, 0, -1, 0)],
 				sourceStart: 1, sourceEnd: 4, startSeconds: 1, stretch: 2, speedRatio: 1,
@@ -30,7 +31,12 @@ test('structured AUP3 conversion materializes audio and labels without a dry mix
 	assert.equal(converted.project.schemaVersion, 2);
 	assert.equal(converted.project.title, 'Legacy');
 	assert.equal(converted.project.sampleRate, 44_100);
-	assert.equal(converted.project.tracks[0].channelCount, 2);
+	assert.equal(converted.project.sources[0].sampleRate, 48_000);
+	assert.equal(converted.project.sources[0].channelCount, 2);
+	assert.equal(converted.project.sources[0].sampleFormat, 'float32');
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(converted.project.tracks[0], field), false);
+	}
 	assert.equal(converted.project.clips[0].sourceDurationFrames, 3);
 	assert.equal(converted.project.clips[0].speedRatio, 0.5);
 	assert.equal(converted.project.clips[0].pitchCents, 200);

@@ -25,7 +25,7 @@ function apply(project, command) {
 function createRackFixture() {
 	let project = createAudioEditorProjectV2({ id: 'rack-project', now: NOW });
 	for (const [id, name] of [['track-a', 'Target A'], ['track-b', 'Control'], ['track-c', 'Target C']]) {
-		project = apply(project, createAddTrackCommand({ schemaVersion: 2, type: 'audio', sampleRate: project.sampleRate, id, name }));
+		project = apply(project, createAddTrackCommand({ schemaVersion: 2, type: 'audio', id, name }));
 	}
 	return project;
 }

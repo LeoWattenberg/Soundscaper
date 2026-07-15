@@ -92,15 +92,11 @@ export function convertStructuredAup3ToProjectV2(structure, options = {}) {
 			pan: finiteInRange(inputTrack.pan, -1, 1, 0),
 			mute: Boolean(inputTrack.mute),
 			solo: Boolean(inputTrack.solo),
-			channelCount: Math.max(1, Number(inputTrack.channelCount) || sourceAudio.at(-1)?.channels.length || 1),
-			channelLayout: inputTrack.channelLayout || (Number(inputTrack.channelCount) === 2 ? 'stereo' : 'mono'),
-			sampleRate: trackRate,
-			sampleFormat: legacySampleFormat(inputTrack.sampleFormat),
 			displayMode: ['waveform', 'spectrogram', 'multiview'].includes(inputTrack.displayMode) ? inputTrack.displayMode : 'waveform',
 			spectrogram: inputTrack.spectrogram,
 			clipIds,
 			opaqueExtensions: inputTrack.opaqueExtensions || {},
-		}));
+		}, sampleRate));
 	}
 	const laneTracks = spreadLegacyOverlaps(tracks, clips, warnings);
 	const metadata = {

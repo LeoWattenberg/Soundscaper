@@ -123,7 +123,7 @@ export class WebAudioEditorEngine {
 		return context.decodeAudioData(arrayBuffer);
 	}
 
-	/** Return the editor-owned 48 kHz context; transport/recording opt into resume. */
+	/** Return the editor-owned device-rate context; transport/recording opt into resume. */
 	async getAudioContext({ resume = true } = {}) {
 		const context = await this.#getContext();
 		if (resume) await context.resume?.();
@@ -502,7 +502,7 @@ export class WebAudioEditorEngine {
 	async #getContext() {
 		if (this.context) return this.context;
 		if (!this.audioContextFactory) throw new Error('Web Audio is not supported in this browser.');
-		this.context = createRealtimeContext(this.audioContextFactory, this.sampleRate);
+		this.context = createRealtimeContext(this.audioContextFactory);
 		return this.context;
 	}
 
@@ -518,7 +518,7 @@ export class WebAudioEditorEngine {
 			metering: this.meterListeners.size > 0,
 			respectMuteSolo: true,
 		});
-		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / this.sampleRate;
+		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		const graph = this.graph;
 		let schedule;
 		try {
@@ -548,7 +548,7 @@ export class WebAudioEditorEngine {
 		}
 		if (this.graph !== graph) return;
 		scheduledTime = schedule.contextStartTime;
-		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / this.sampleRate;
+		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
 			this.loopScheduleTime = scheduledTime + (this.loop.endFrame - fromFrame) / this.sampleRate;
 			this.#scheduleLoopAhead();
@@ -1693,6 +1693,9 @@ function getOfflineAudioContextConstructor() {
 }
 
 function createRealtimeContext(factory, sampleRate) {
+	if (sampleRate == null) {
+		try { return new factory(); } catch { return factory(); }
+	}
 	try { return new factory({ sampleRate }); } catch { return factory({ sampleRate }); }
 }
 

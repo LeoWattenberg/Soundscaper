@@ -12,6 +12,7 @@ export * from './aup4-client.js';
 export * from './aup3-conversion.js';
 export * from './aup4-conversion.js';
 export * from './aup4-database.js';
+export * from './aup4-export.js';
 export * from './aup4-profile.js';
 export * from './aup4-sanitization.js';
 export * from './commands.js';

@@ -307,7 +307,7 @@ export function readAup4ProjectSummary(root) {
 
 function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, selectedTrackIds) {
 	const channelCount = trackChannelCount(project, track);
-	const trackRate = positiveRate(track.sampleRate || projectRate);
+	const trackRate = trackSampleRate(project, track, projectRate);
 	const opaqueTrack = track.opaqueExtensions?.aup4WaveTracks?.[channel]?.node;
 	const attributes = mergeAttributes([
 		attribute('name', 'string', String(track.name || 'Audio Track')),
@@ -591,15 +591,22 @@ function displayType(value) { return value === 'spectrogram' ? 1 : value === 'mu
 function inverseRatio(value) { const ratio = Number(value); return Number.isFinite(ratio) && ratio > 0 ? 1 / ratio : 1; }
 
 function trackChannelCount(project, track) {
-	const explicit = Number(track.channelCount);
-	if (Number.isSafeInteger(explicit) && explicit > 0) return Math.min(32, explicit);
-	let inferred = 1;
 	for (const clipId of track.clipIds || []) {
 		const clip = project.clips?.find((candidate) => candidate.id === clipId);
 		const source = project.sources?.find((candidate) => candidate.id === clip?.sourceId);
-		inferred = Math.max(inferred, Number(source?.channelCount || 1));
+		if (Number(source?.channelCount) > 1) return 2;
 	}
-	return Math.min(32, inferred);
+	return 1;
+}
+
+function trackSampleRate(project, track, projectRate) {
+	const rates = new Set();
+	for (const clipId of track.clipIds || []) {
+		const clip = project.clips?.find((candidate) => candidate.id === clipId);
+		const source = project.sources?.find((candidate) => candidate.id === clip?.sourceId);
+		if (source?.sampleRate != null) rates.add(positiveRate(source.sampleRate));
+	}
+	return rates.size === 1 ? rates.values().next().value : projectRate;
 }
 
 function groupNumber(project, groupId) {

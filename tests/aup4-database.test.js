@@ -271,7 +271,7 @@ test('browser AUP4 snapshot survives SQLite export and reopen with sample hashes
 				envelope: [{ frame: 0, value: 0.75 }, { frame: 4, value: 0.5 }],
 			}],
 			tracks: [{
-				id: 'track-1', type: 'audio', name: 'Stereo', channelCount: 2, sampleRate: 48_000,
+				id: 'track-1', type: 'audio', name: 'Stereo',
 				clipIds: ['clip-1'], effects: [{ opaqueAudacityNode: { kind: 'node', node: trackEffect } }],
 			}, {
 				id: 'labels-1', type: 'label', name: 'Labels', labels: [
@@ -719,10 +719,9 @@ function projectTreeWithBlocks(blocks) {
 			durationFrames: sampleCount, sourceDurationFrames: sampleCount,
 		}],
 		tracks: [{
-			id: 'track', type: 'audio', name: 'Audio', channelCount: 1,
-			sampleRate: 44_100, clipIds: ['clip'], effects: [],
+			id: 'track', type: 'audio', name: 'Audio', clipIds: ['clip'], effects: [],
 		}],
-		sources: [{ id: 'source', frameCount: sampleCount, channelCount: 1 }],
+		sources: [{ id: 'source', frameCount: sampleCount, channelCount: 1, sampleRate: 44_100 }],
 		master: { effects: [] },
 	}, new Map([['source:0', blocks]]));
 }

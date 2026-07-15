@@ -331,7 +331,7 @@ test('controller gates sample tools by zoom and commits pencil and smoothing as 
 			sampleFormat: 'float32',
 			chunkFrames: 65_536,
 		}],
-		tracks: [{ type: 'audio', id: 'controller-sample-track', name: 'Samples', channelCount: 1, clipIds: ['controller-sample-clip'] }],
+		tracks: [{ type: 'audio', id: 'controller-sample-track', name: 'Samples', clipIds: ['controller-sample-clip'] }],
 		clips: [{
 			id: 'controller-sample-clip',
 			sourceId,
@@ -469,10 +469,10 @@ test('V2 controller exposes model-backed track creation, ordering, display, and 
 	const monoId = controller.actions.track.addMono({ name: 'Mono' });
 	const stereoId = controller.actions.track.addStereo({ name: 'Stereo' });
 	let snapshot = controller.getSnapshot();
-	assert.equal(snapshot.project.tracks.find((track) => track.id === monoId).channelLayout, 'mono');
-	assert.equal(snapshot.project.tracks.find((track) => track.id === monoId).channelCount, 1);
-	assert.equal(snapshot.project.tracks.find((track) => track.id === stereoId).channelLayout, 'stereo');
-	assert.equal(snapshot.project.tracks.find((track) => track.id === stereoId).channelCount, 2);
+	assert.equal(Object.hasOwn(snapshot.project.tracks.find((track) => track.id === monoId), 'channelCount'), false);
+	assert.equal(Object.hasOwn(snapshot.project.tracks.find((track) => track.id === monoId), 'channelLayout'), false);
+	assert.equal(Object.hasOwn(snapshot.project.tracks.find((track) => track.id === stereoId), 'channelCount'), false);
+	assert.equal(Object.hasOwn(snapshot.project.tracks.find((track) => track.id === stereoId), 'channelLayout'), false);
 
 	controller.actions.track.moveTop(stereoId);
 	controller.actions.track.moveDown(stereoId);
@@ -521,7 +521,7 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 			sampleFormat: 'float32',
 			chunkFrames: 65_536,
 		}],
-		tracks: [{ type: 'audio', id: 'controller-stereo-track', name: 'Stereo', channelCount: 2, clipIds: ['controller-stereo-clip'] }],
+		tracks: [{ type: 'audio', id: 'controller-stereo-track', name: 'Stereo', clipIds: ['controller-stereo-clip'] }],
 		clips: [{
 			id: 'controller-stereo-clip',
 			sourceId,
@@ -541,7 +541,7 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 		if (!track || !clip || !buffer) throw new Error('Channel fixture audio is unavailable.');
 		const length = Math.max(1, Number(range.outputFrames) || Number(range.endFrame) - Number(range.startFrame));
 		const offset = Math.max(0, Number(range.startFrame) - clip.timelineStartFrame + clip.sourceStartFrame);
-		const channels = Array.from({ length: track.channelCount }, (_, channel) => (
+		const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => (
 			buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1)).slice(offset, offset + length)
 		));
 		return audioBuffer(channels, snapshot.sampleRate);
@@ -570,17 +570,19 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 		snapshot = controller.getSnapshot();
 		const leftTrack = snapshot.project.tracks.find((candidate) => candidate.id === split.leftTrackId);
 		const rightTrack = snapshot.project.tracks.find((candidate) => candidate.id === split.rightTrackId);
-		assert.deepEqual([leftTrack.channelCount, leftTrack.pan, rightTrack.channelCount, rightTrack.pan], [1, -1, 1, 1]);
+		assert.deepEqual([leftTrack.pan, rightTrack.pan], [-1, 1]);
 		const leftClip = snapshot.project.clips.find((candidate) => leftTrack.clipIds.includes(candidate.id));
 		const rightClip = snapshot.project.clips.find((candidate) => rightTrack.clipIds.includes(candidate.id));
+		assert.equal(snapshot.project.sources.find((source) => source.id === leftClip.sourceId).channelCount, 1);
+		assert.equal(snapshot.project.sources.find((source) => source.id === rightClip.sourceId).channelCount, 1);
 		assert.equal(await storedChannelSample(store, leftClip.sourceId, 0, 0), 0.25);
 		assert.equal(await storedChannelSample(store, rightClip.sourceId, 0, 0), -0.75);
 
 		await controller.actions.track.makeStereo(split.leftTrackId, split.rightTrackId);
 		snapshot = controller.getSnapshot();
 		assert.equal(snapshot.project.tracks.length, 1);
-		assert.equal(snapshot.project.tracks[0].channelCount, 2);
 		clip = snapshot.project.clips.find((candidate) => snapshot.project.tracks[0].clipIds.includes(candidate.id));
+		assert.equal(snapshot.project.sources.find((source) => source.id === clip.sourceId).channelCount, 2);
 		assert.equal(await storedChannelSample(store, clip.sourceId, 0, 0), 0.25);
 		assert.equal(await storedChannelSample(store, clip.sourceId, 1, 0), -0.75);
 	} finally {

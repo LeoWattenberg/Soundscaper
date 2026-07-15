@@ -146,6 +146,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const selectedClip = project?.clips.find((clip) => clip.id === snapshot.selectedClipId) || null;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
+	const selectedAudioTrackRate = trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000);
 
 	useEffect(() => {
 		setParityUi(parityRuntime.uiController.getSnapshot());
@@ -329,7 +330,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		else if (request.type === 'open-about') setDialog('about');
 		else if (request.type === 'close-project') run(() => controller.actions.project.close(payload.projectId, payload));
 		else if (request.type === 'set-custom-track-rate') {
-			setDialogValue(String(selectedAudioTrack?.sampleRate || project?.sampleRate || 48_000));
+			setDialogValue(String(selectedAudioTrackRate));
 			setDialog('track-rate');
 		} else if (request.type === 'rename-track') {
 			setDialogValue(selectedTrack?.name || '');
@@ -379,7 +380,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		parityUi.request?.revision,
 		project?.sampleRate,
 		run,
-		selectedAudioTrack?.sampleRate,
+		selectedAudioTrackRate,
 		selectedTrack?.name,
 		snapshot.timeline?.pixelsPerSecond,
 		toggleFullscreen,
@@ -469,6 +470,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 				setDialog('recording-offset');
 			},
 			addTrack: () => run(() => controller.actions.track.add()),
+			addAudioTrack: () => run(() => controller.actions.track.add()),
 			addMonoTrack: () => run(() => controller.actions.track.addMono()),
 			addStereoTrack: () => run(() => controller.actions.track.addStereo()),
 			addLabelTrack: () => run(() => controller.actions.track.addLabel()),
@@ -488,11 +490,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 			setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
 			setTrackSampleFormat: (sampleFormat) => snapshot.selectedTrackId && run(() => controller.actions.track.setSampleFormat(snapshot.selectedTrackId, sampleFormat)),
 			openTrackRate: () => {
-				setDialogValue(String(selectedAudioTrack?.sampleRate || project?.sampleRate || 48_000));
+				setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 				setDialog('track-rate');
 			},
 			openResample: () => {
-				setDialogValue(String(selectedAudioTrack?.sampleRate || project?.sampleRate || 48_000));
+				setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 				setDialog('resample');
 			},
 			zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
@@ -1615,7 +1617,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showA
 	}
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label') || null;
 	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
-	const nyquist = Math.max(1, (selectedTrack?.sampleRate || project?.sampleRate || 48_000) / 2);
+	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
 	const spectrogram = { ...defaultSpectrogram, ...(selectedTrack?.spectrogram || {}) };
 	const updateSpectrogram = (changes) => {
 		if (selectedTrack) {
@@ -1702,7 +1704,7 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 			className: `kw-audio-editor__mixer-channel kw-audio-editor__mixer-channel--${type}`,
 			trackName: isMaster ? copy.master : channel.name,
 			trackColor: mixerChannelColor(channel.color, type),
-			variant: isTrack && channel.channelCount === 1 ? 'mono' : 'stereo',
+			variant: 'stereo',
 			volume: linearMixerGainToDb(channel.gain),
 			pan: Math.round((channel.pan || 0) * 100),
 			muted: Boolean(channel.mute),
@@ -3032,6 +3034,25 @@ function createSnapMenu(copy, project, editBlocked, setSnap) {
 	};
 }
 
+function trackSources(project, track) {
+	if (!project || !track || track.type === 'label') return [];
+	const clipById = new Map((project.clips || []).map((clip) => [clip.id, clip]));
+	const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
+	return [...new Map((track.clipIds || []).map((clipId) => {
+		const source = sourceById.get(clipById.get(clipId)?.sourceId) || null;
+		return [source?.id, source];
+	}).filter(([, source]) => source)).values()];
+}
+
+function trackSourceChannelCount(project, track) {
+	return trackSources(project, track).reduce((maximum, source) => Math.max(maximum, Number(source.channelCount) || 0), 0);
+}
+
+function trackSourceRate(project, track, fallback) {
+	const rates = new Set(trackSources(project, track).map((source) => Number(source.sampleRate)).filter(Number.isFinite));
+	return rates.size === 1 ? [...rates][0] : fallback;
+}
+
 function createApplicationMenus({
 	locale,
 	copy,
@@ -3054,8 +3075,12 @@ function createApplicationMenus({
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
 	const selectedTrackIndex = selectedTrack ? project.tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
-	const compatibleMonoTracks = Boolean(selectedAudioTrack?.channelCount === 1 && project?.tracks.some((track) => (
-		track.id !== selectedAudioTrack.id && track.type !== 'label' && track.channelCount === 1
+	const selectedAudioChannelCount = trackSourceChannelCount(project, selectedAudioTrack);
+	const selectedAudioSources = trackSources(project, selectedAudioTrack);
+	const selectedAudioSampleRates = new Set(selectedAudioSources.map((source) => source.sampleRate));
+	const selectedAudioSampleFormats = new Set(selectedAudioSources.map((source) => source.sampleFormat));
+	const compatibleMonoTracks = Boolean(selectedAudioChannelCount === 1 && project?.tracks.some((track) => (
+		track.id !== selectedAudioTrack.id && track.type !== 'label' && trackSourceChannelCount(project, track) === 1
 	)));
 	const selectedClipIds = project?.selection?.clipIds?.length
 		? project.selection.clipIds
@@ -3371,8 +3396,7 @@ function createApplicationMenus({
 					id: 'add-new-track',
 					label: copy.addNewTrack,
 					items: [
-						{ id: 'new-mono-track', label: copy.newMonoTrack, disabled: editBlocked, onClick: actions.addMonoTrack },
-						{ id: 'new-stereo-track', label: copy.newStereoTrack, disabled: editBlocked, onClick: actions.addStereoTrack },
+						{ id: 'new-audio-track', label: copy.audioTrack, disabled: editBlocked, onClick: actions.addAudioTrack },
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
@@ -3406,7 +3430,7 @@ function createApplicationMenus({
 					items: [44_100, 48_000, 88_200, 96_000, 192_000].map((sampleRate) => ({
 						id: `action://trackedit/track/change-rate?rate=${sampleRate}`,
 						label: `${sampleRate} Hz`,
-						checked: selectedAudioTrack?.sampleRate === sampleRate,
+						checked: selectedAudioSampleRates.size === 1 && selectedAudioSampleRates.has(sampleRate),
 						onClick: () => actions.setTrackRate(sampleRate),
 					})).concat([{ id: 'track-change-rate-custom', label: `${copy.sampleRate}`, onClick: actions.openTrackRate }]),
 				},
@@ -3421,7 +3445,7 @@ function createApplicationMenus({
 					].map(([sampleFormat, label]) => ({
 						id: `action://trackedit/track/change-format?format=${sampleFormat}`,
 						label,
-						checked: selectedAudioTrack?.sampleFormat === sampleFormat,
+						checked: selectedAudioSampleFormats.size === 1 && selectedAudioSampleFormats.has(sampleFormat),
 						onClick: () => actions.setTrackSampleFormat(sampleFormat),
 					})),
 				},
@@ -3431,9 +3455,9 @@ function createApplicationMenus({
 					disabled: editBlocked || !selectedAudioTrack,
 					items: [
 						{ id: 'track-make-stereo', label: copy.makeStereoTrack, disabled: !compatibleMonoTracks, onClick: actions.makeStereoTrack },
-						{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: selectedAudioTrack?.channelCount !== 2, onClick: actions.swapTrackChannels },
-						{ id: 'track-split-stereo-to-lr', label: copy.splitStereoLr, disabled: selectedAudioTrack?.channelCount !== 2, onClick: actions.splitStereoLr },
-						{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: selectedAudioTrack?.channelCount !== 2, onClick: actions.splitStereoCenter },
+						{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: selectedAudioChannelCount !== 2, onClick: actions.swapTrackChannels },
+						{ id: 'track-split-stereo-to-lr', label: copy.splitStereoLr, disabled: selectedAudioChannelCount !== 2, onClick: actions.splitStereoLr },
+						{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: selectedAudioChannelCount !== 2, onClick: actions.splitStereoCenter },
 					],
 				},
 				divider(),

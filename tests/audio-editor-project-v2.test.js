@@ -118,11 +118,7 @@ function richV2Fixture() {
 	});
 	const audioTrack = createAudioTrackV2({
 		id: 'track-audio',
-		name: 'Six channels',
-		channelCount: 6,
-		channelLayout: '5.1',
-		sampleRate: 44_100,
-		sampleFormat: 'int24',
+		name: 'Hi-res clips',
 		displayMode: 'multiview',
 		clipIds: [clip.id],
 	});
@@ -179,8 +175,13 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	const project = richV2Fixture();
 	assert.equal(project.sampleRate, 96_000);
 	assert.equal(project.sources[0].sampleRate, 44_100);
+	assert.equal(project.sources[0].channelCount, 6);
+	assert.equal(project.sources[0].sampleFormat, 'int24');
 	assert.equal(project.sources[0].chunkFrames, AUDIO_EDITOR_SOURCE_CHUNK_FRAMES);
 	assert.deepEqual(project.tracks.map((track) => track.type), ['audio', 'label']);
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(project.tracks[0], field), false);
+	}
 	assert.equal(project.clips[0].pitchCents, 300);
 	assert.equal(project.selection.frequencyRange.maximumFrequency, 40_000);
 	assert.equal(projectDurationFramesV2(project), 2_400);
@@ -227,6 +228,58 @@ test('V2 validation rejects broken references, overlapping clips, and invalid ty
 	assert.equal(loaded.reason, 'newer-schema');
 	assert.deepEqual(loaded.project, future);
 	assert.notEqual(loaded.project, future);
+});
+
+test('one audio track accepts sequential clips backed by mixed-rate mono and stereo sources', () => {
+	const mono = createAudioSourceV2({
+		id: 'mono-44k',
+		name: 'mono.wav',
+		storageKey: 'pcm/mono-44k',
+		frameCount: 44_100,
+		channelCount: 1,
+		sampleRate: 44_100,
+		sampleFormat: 'int16',
+	});
+	const stereo = createAudioSourceV2({
+		id: 'stereo-96k',
+		name: 'stereo.wav',
+		storageKey: 'pcm/stereo-96k',
+		frameCount: 96_000,
+		channelCount: 2,
+		sampleRate: 96_000,
+		sampleFormat: 'float32',
+	});
+	const clips = [
+		createAudioClipV2({
+			id: 'mono-clip', sourceId: mono.id, timelineStartFrame: 0,
+			sourceStartFrame: 0, sourceDurationFrames: mono.frameCount, durationFrames: 48_000,
+		}),
+		createAudioClipV2({
+			id: 'stereo-clip', sourceId: stereo.id, timelineStartFrame: 48_000,
+			sourceStartFrame: 0, sourceDurationFrames: stereo.frameCount, durationFrames: 48_000,
+		}),
+	];
+	const track = createAudioTrackV2({
+		id: 'mixed-track', name: 'Mixed source formats', clipIds: clips.map((clip) => clip.id),
+	});
+	const project = createAudioEditorProjectV2({
+		id: 'mixed-source-project',
+		title: 'Mixed source formats',
+		now: CREATED_AT,
+		sampleRate: 48_000,
+		sources: [mono, stereo],
+		clips,
+		tracks: [track],
+	});
+
+	assert.equal(validateAudioEditorProjectV2(project), true);
+	assert.deepEqual(project.sources.map(({ sampleRate, channelCount }) => [sampleRate, channelCount]), [
+		[44_100, 1],
+		[96_000, 2],
+	]);
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(project.tracks[0], field), false);
+	}
 });
 
 test('editor preferences default to Modern/system/Colorful and exclude OS, cloud, and plugin state', () => {
@@ -320,7 +373,9 @@ test('V1 migration preserves identity, PCM roots, revisions, timestamps, racks, 
 	assert.equal(migrated.sources[0].sampleRate, 48_000);
 	assert.equal(migrated.sources[0].originalSampleRate, 44_100);
 	assert.equal(migrated.tracks[0].type, 'audio');
-	assert.equal(migrated.tracks[0].channelCount, 1);
+	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+		assert.equal(Object.hasOwn(migrated.tracks[0], field), false);
+	}
 	assert.deepEqual(migrated.tracks[0].clipIds, ['clip-1']);
 	assert.equal(migrated.clips[0].title, 'voice.wav');
 	assert.equal(migrated.clips[0].trimStartFrames, 200);
@@ -340,6 +395,35 @@ test('V1 migration preserves identity, PCM roots, revisions, timestamps, racks, 
 	const alreadyV2 = migrateAudioEditorProject(migrated);
 	assert.equal(alreadyV2.migrated, false);
 	assert.notEqual(alreadyV2.project, migrated);
+});
+
+test('legacy V2 track format fields are normalized without mutating the saved document', () => {
+	const legacy = richV2Fixture();
+	Object.assign(legacy.tracks[0], {
+		channelCount: 6,
+		channelLayout: '5.1',
+		sampleRate: 44_100,
+		sampleFormat: 'int24',
+	});
+	const rollback = structuredClone(legacy);
+
+	const loaded = loadAudioEditorProjectV2(legacy);
+	const migrated = migrateAudioEditorProject(legacy);
+
+	assert.deepEqual(legacy, rollback);
+	assert.equal(migrated.migrated, true);
+	assert.equal(migrated.fromVersion, 2);
+	assert.equal(migrated.readOnly, false);
+	for (const normalized of [loaded.project, migrated.project]) {
+		for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
+			assert.equal(Object.hasOwn(normalized.tracks[0], field), false);
+		}
+		assert.equal(normalized.sources[0].channelCount, 6);
+		assert.equal(normalized.sources[0].sampleRate, 44_100);
+		assert.equal(normalized.sources[0].sampleFormat, 'int24');
+		assert.deepEqual(normalized.opaqueExtensions, legacy.opaqueExtensions);
+		assert.equal(validateAudioEditorProjectV2(normalized), true);
+	}
 });
 
 test('history and state migration are atomic and future schemas stay intact and read-only', () => {

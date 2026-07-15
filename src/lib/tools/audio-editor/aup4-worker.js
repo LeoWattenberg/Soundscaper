@@ -17,6 +17,7 @@ import {
 	writeAup4Document,
 } from './aup4-database.js';
 import { decodeAup4ProjectTree } from './aup4-conversion.js';
+import { normalizeAup4ExportSnapshot } from './aup4-export.js';
 import {
 	AUP4_MAX_BLOCK_SAMPLES,
 	createAup4ProjectDocument,
@@ -326,7 +327,10 @@ function updateDocument(args, context) {
 function writeSnapshot(args, context) {
 	const entry = requireWritableProject(args.projectId);
 	if (!args.project || !Array.isArray(args.sources)) throw operationError('A project and its source channels are required.', 'INVALID_SNAPSHOT');
-	const estimatedBytes = estimateSnapshotBytes(args.sources);
+	context.checkCancelled();
+	const snapshot = normalizeAup4ExportSnapshot(args.project, args.sources);
+	context.checkCancelled();
+	const estimatedBytes = estimateSnapshotBytes(snapshot.sources);
 	const limit = portableLimit(args, Boolean(entry.pool));
 	entry.portableLimit = limit;
 	if (estimatedBytes > limit) throw operationError(
@@ -334,19 +338,19 @@ function writeSnapshot(args, context) {
 		'PROJECT_TOO_LARGE',
 		{ limit, size: estimatedBytes, phase: 'preflight' },
 	);
-	const sourceById = new Map(args.sources.map((source) => [source.sourceId, source]));
-	const expectedSources = new Set((args.project.sources || []).map((source) => source.id));
+	const sourceById = new Map(snapshot.sources.map((source) => [source.sourceId, source]));
+	const expectedSources = new Set((snapshot.project.sources || []).map((source) => source.id));
 	for (const sourceId of expectedSources) {
-		if (!sourceById.has(sourceId) && (args.project.clips || []).some((clip) => clip.sourceId === sourceId)) {
+		if (!sourceById.has(sourceId) && (snapshot.project.clips || []).some((clip) => clip.sourceId === sourceId)) {
 			throw operationError(`PCM for project source ${sourceId} is missing.`, 'MISSING_SOURCE');
 		}
 	}
-	const totalSamples = args.sources.reduce((total, source) => total + (source.channels || []).reduce((sum, channel) => sum + Number(channel?.length || 0), 0), 0);
+	const totalSamples = snapshot.sources.reduce((total, source) => total + (source.channels || []).reduce((sum, channel) => sum + Number(channel?.length || 0), 0), 0);
 	let completedSamples = 0;
 	const channelBlocks = new Map();
 	entry.database.exec('BEGIN IMMEDIATE');
 	try {
-		for (const source of args.sources) {
+		for (const source of snapshot.sources) {
 			if (!expectedSources.has(source.sourceId)) continue;
 			for (let channelIndex = 0; channelIndex < (source.channels || []).length; channelIndex += 1) {
 				const samples = normalizeFloat32(source.channels[channelIndex]);
@@ -362,7 +366,7 @@ function writeSnapshot(args, context) {
 				channelBlocks.set(`${source.sourceId}:${channelIndex}`, blocks);
 			}
 		}
-		const document = createAup4ProjectDocument(args.project, channelBlocks);
+		const document = createAup4ProjectDocument(snapshot.project, channelBlocks);
 		const encoded = encodeAudacityBinaryXml(document);
 		const result = writeAup4Document(entry.database, encoded, { autosave: args.autosave !== false });
 		entry.database.exec('COMMIT');

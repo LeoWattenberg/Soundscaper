@@ -6,6 +6,7 @@ import {
 	applyMediaChannelMapping,
 	applySpectralGain,
 	analyzeAudioChannels,
+	audioTrackChannelCountV2,
 	audioEffectLabel,
 	audioEffectTypes,
 	canEditAudioSamplesAtZoom,
@@ -204,6 +205,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingSourceId: null,
 		recordingStartFrame: 0,
 		recordingSourceOffsetFrames: 0,
+		recordingSampleRate: null,
 		recordingTrackId: null,
 		recordingSelection: null,
 		recordingResampler: null,
@@ -667,8 +669,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			track: Object.freeze({
 				add: addTrack,
-				addMono: (options = {}) => addTrack({ ...options, channelCount: 1, channelLayout: 'mono' }),
-				addStereo: (options = {}) => addTrack({ ...options, channelCount: 2, channelLayout: 'stereo' }),
+				// Compatibility aliases for Audacity's two add-track commands. The
+				// resulting browser track has no media layout until it contains clips.
+				addMono: addTrack,
+				addStereo: addTrack,
 				addLabel: addLabelTrack,
 				update: (trackId, changes) => commit({ type: 'track/update', trackId, changes }, { selectTrackId: trackId }),
 				reorder: reorderTrack,
@@ -962,7 +966,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const track = createAddTrackCommand({
 			schemaVersion: 2,
 			type: 'audio',
-			sampleRate: nextProject.sampleRate,
 			name: `${copy.track} 1`,
 			armed: true,
 		});
@@ -1499,8 +1502,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				createAddTrackCommand({
 					schemaVersion: 2,
 					type: 'audio',
-					sampleRate: projectSampleRate(),
-					channelCount: canonical.numberOfChannels,
 					id: trackId,
 					name: trackName,
 				}),
@@ -1615,7 +1616,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			...options,
 			schemaVersion: 2,
 			type: 'audio',
-			sampleRate: projectSampleRate(),
 			id: trackId,
 			name: String(options.name || `${copy.track} ${project.tracks.length + 1}`).trim() || copy.track,
 			armed: options.armed ?? project.tracks.length === 0,
@@ -1684,12 +1684,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function setTrackRate(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
-		if (editingBlocked()) return null;
-		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
-		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
-		const sampleRate = normalizeProjectSampleRate(requestedSampleRate);
-		return commit({ type: 'track/update', trackId: track.id, changes: { sampleRate } }, { selectTrackId: track.id });
+		return resampleTrack(trackId, requestedSampleRate);
 	}
 
 	function setTrackSampleFormat(trackId = state.selectedTrackId, sampleFormat = 'float32') {
@@ -1700,7 +1695,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!['int16', 'int24', 'int32', 'float32', 'float64'].includes(sampleFormat)) {
 			throw new RangeError(copy.unsupportedSampleFormat);
 		}
-		return commit({ type: 'track/update', trackId: track.id, changes: { sampleFormat } }, { selectTrackId: track.id });
+		const sourceIds = new Set(track.clipIds.map((clipId) => findClip(project, clipId)?.sourceId).filter(Boolean));
+		// Sample PCM is stored as Float32; this descriptor records the requested
+		// interchange format on each clip source rather than on its container.
+		const commands = [...sourceIds].map((sourceId) => ({
+			type: 'source/update',
+			sourceId,
+			changes: { sampleFormat },
+		}));
+		if (!commands.length) return track.id;
+		return commit({ type: 'batch', commands }, { selectTrackId: track.id });
 	}
 
 	async function resampleTrack(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
@@ -1709,13 +1713,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
 		const sampleRate = normalizeProjectSampleRate(requestedSampleRate);
-		if (sampleRate === track.sampleRate) return track.id;
 		const clips = track.clipIds.map((clipId) => findClip(project, clipId)).filter(Boolean);
 		const sources = [...new Map(clips.map((clip) => {
 			const source = findSource(project, clip.sourceId);
 			return [source?.id, source];
 		})).values()].filter(Boolean);
-		const estimatedBytes = sources.reduce((sum, source) => (
+		const sourcesToResample = sources.filter((source) => source.sampleRate !== sampleRate);
+		if (!sourcesToResample.length) return track.id;
+		const estimatedBytes = sourcesToResample.reduce((sum, source) => (
 			sum + Math.max(1, Math.round(source.frameCount * sampleRate / source.sampleRate))
 				* source.channelCount * Float32Array.BYTES_PER_ELEMENT
 		), 0);
@@ -1727,7 +1732,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const persistedSourceIds = [];
 		try {
 			const context = await engine.getAudioContext({ resume: false });
-			for (const source of sources) {
+			for (const source of sourcesToResample) {
 				const input = sourceBuffers.get(source.id)
 					? audioBufferChannels(sourceBuffers.get(source.id))
 					: await loadStoredSourceChannels(store, source);
@@ -1777,6 +1782,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				);
 				const requestedDuration = Math.max(1, Math.round((clip.sourceDurationFrames || clip.durationFrames) * ratio));
 				const sourceDurationFrames = Math.min(requestedDuration, replacement.source.frameCount - sourceStartFrame);
+				const trimStartFrames = Math.min(sourceStartFrame, Math.max(0, Math.round((clip.trimStartFrames || 0) * ratio)));
+				const trimEndFrames = Math.min(
+					replacement.source.frameCount - sourceStartFrame - sourceDurationFrames,
+					Math.max(0, Math.round((clip.trimEndFrames || 0) * ratio)),
+				);
 				commands.push(
 					{ type: 'clip/remove', clipId: clip.id },
 					createAddClipCommand(track.id, {
@@ -1784,10 +1794,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 						sourceId: replacement.source.id,
 						sourceStartFrame,
 						sourceDurationFrames,
+						trimStartFrames,
+						trimEndFrames,
 					}),
 				);
 			}
-			commands.push({ type: 'track/update', trackId: track.id, changes: { sampleRate } });
 			commit({ type: 'batch', commands }, { selectTrackId: track.id });
 			setStatus(copy.done, 'success');
 			return track.id;
@@ -1808,7 +1819,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label' || track.channelCount !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
+		if (!track || track.type === 'label' || audioTrackChannelCountV2(project, track) !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
 		const clips = track.clipIds.map((clipId) => findClip(project, clipId)).filter(Boolean);
 		const sources = uniqueClipSources(clips).filter((source) => source.channelCount > 1);
 		if (!sources.length) return track.id;
@@ -1846,7 +1857,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label' || track.channelCount !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
+		if (!track || track.type === 'label' || audioTrackChannelCountV2(project, track) !== 2) throw new Error(copy.stereoTrackRequired || copy.audioTrackRequired);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const clips = track.clipIds.map((clipId) => findClip(project, clipId)).filter(Boolean);
 		const sources = uniqueClipSources(clips);
@@ -1870,8 +1881,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				...track,
 				clipIds: [],
 				name: `${track.name} — ${copy.leftChannel}`,
-				channelCount: 1,
-				channelLayout: 'mono',
 				pan: panChannels ? -1 : 0,
 			};
 			const rightTrack = {
@@ -1879,8 +1888,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				id: rightTrackId,
 				clipIds: [],
 				name: `${track.name} — ${copy.rightChannel}`,
-				channelCount: 1,
-				channelLayout: 'mono',
 				pan: panChannels ? 1 : 0,
 				armed: false,
 				effects: (track.effects || []).map((effect) => ({ ...effect, id: createStableId('effect') })),
@@ -1920,11 +1927,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion !== 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label' || track.channelCount !== 1) throw new Error(copy.monoTrackRequired || copy.audioTrackRequired);
+		if (!track || track.type === 'label' || audioTrackChannelCountV2(project, track) !== 1) throw new Error(copy.monoTrackRequired || copy.audioTrackRequired);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const partner = findTrack(project, partnerTrackId) || project.tracks.find((candidate, index) => (
-			candidate.id !== track.id && candidate.type !== 'label' && candidate.channelCount === 1 && index > trackIndex
-		)) || project.tracks.find((candidate) => candidate.id !== track.id && candidate.type !== 'label' && candidate.channelCount === 1);
+			candidate.id !== track.id && candidate.type !== 'label' && audioTrackChannelCountV2(project, candidate) === 1 && index > trackIndex
+		)) || project.tracks.find((candidate) => candidate.id !== track.id && candidate.type !== 'label' && audioTrackChannelCountV2(project, candidate) === 1);
 		if (!partner) throw new Error(copy.compatibleMonoTrackRequired || copy.monoTrackRequired || copy.audioTrackRequired);
 		const partnerIndex = project.tracks.findIndex((candidate) => candidate.id === partner.id);
 		const clips = [...track.clipIds, ...partner.clipIds].map((clipId) => findClip(project, clipId)).filter(Boolean);
@@ -1932,7 +1939,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const endFrame = clips.length ? Math.max(...clips.map((clip) => clip.timelineStartFrame + clip.durationFrames)) : 0;
 		if (endFrame <= startFrame) {
 			return commit({ type: 'batch', commands: [
-				{ type: 'track/update', trackId: track.id, changes: { channelCount: 2, channelLayout: 'stereo', pan: 0 } },
+				{ type: 'track/update', trackId: track.id, changes: { pan: 0 } },
 				{ type: 'track/remove', trackId: partner.id },
 			] }, { selectTrackId: track.id });
 		}
@@ -1952,7 +1959,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				mimeType: 'audio/wav',
 				sampleRate: projectSampleRate(),
 				originalSampleRate: projectSampleRate(),
-				sampleFormat: track.sampleFormat || 'float32',
+				sampleFormat: 'float32',
 				chunkFrames: SOURCE_CHUNK_FRAMES,
 				opaqueExtensions: {},
 			};
@@ -1963,7 +1970,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}, [leftChannels[0], rightChannels[0]], `${track.name} — ${copy.stereo}`, 'stereo-source');
 			derived.push(stereo);
 			const insertIndex = Math.min(trackIndex, partnerIndex);
-			const stereoTrack = { ...track, clipIds: [], channelCount: 2, channelLayout: 'stereo', pan: 0 };
+			const stereoTrack = { ...track, clipIds: [], pan: 0 };
 			const clipId = createStableId('clip');
 			commit({ type: 'batch', commands: [
 				createAddSourceCommand(stereo.source),
@@ -2297,7 +2304,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				commands.push(createAddTrackCommand({
 					schemaVersion: 2,
 					type: 'audio',
-					sampleRate: projectSampleRate(),
 					id: trackId,
 					name: clipboardTrack.sourceTrackName || `${copy.track} ${project.tracks.length + addedTrackCount}`,
 				}));
@@ -2366,7 +2372,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const sampleRate = projectSampleRate();
 		const durationSeconds = generatorOptions.durationSeconds
 			?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 1);
-		const channelCount = Number(generatorOptions.channelCount || targetTrack?.channelCount || project.masterChannels || 2);
+		const channelCount = Number(generatorOptions.channelCount
+			|| audioTrackChannelCountV2(project, targetTrack, project.masterChannels || 2));
 		const generated = generateAudioEditorSignal(type, {
 			...generatorOptions,
 			durationSeconds,
@@ -2423,8 +2430,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 						createAddTrackCommand({
 							schemaVersion: 2,
 							type: 'audio',
-							sampleRate,
-							channelCount,
 							id: trackId,
 							name,
 						}),
@@ -4761,11 +4766,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function startRecordingOnNewTrack(options = {}) {
 		if (state.readOnly || state.recordingStarting || state.recorder) return null;
-		const trackId = addTrack({
-			channelCount: Math.max(1, Math.min(2, Number(options.channelCount || project.masterChannels || 2))),
-			channelLayout: Number(options.channelCount || project.masterChannels || 2) === 1 ? 'mono' : 'stereo',
-			armed: true,
-		});
+		const trackId = addTrack({ armed: true });
 		if (!trackId) return null;
 		await startRecording({ ...options, trackId });
 		return trackId;
@@ -4854,34 +4855,44 @@ export function createAudioEditorController(_root = null, options = {}) {
 				|| await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
 			assertRecordingStartActive(token);
 			syncRecordingPoolSnapshot();
-			await preflightStorage(sampleRate * 2 * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
-			assertRecordingStartActive(token);
 			await beginPlaybackCachePreparation(project);
 			assertRecordingStartActive(token);
 			const context = await engine.getAudioContext();
 			assertRecordingStartActive(token);
 			await context.resume();
 			assertRecordingStartActive(token);
-			const sourceId = createStableId('recording');
-			writer = await store.beginSourceWrite(sourceId, { name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`, mimeType: 'audio/wav' });
-			assertRecordingStartActive(token);
 			const inputTrack = stream.getAudioTracks()[0];
 			const trackSettings = inputTrack?.getSettings?.() || {};
 			const channelCount = Math.min(2, trackSettings.channelCount || 1);
-			const inputSampleRate = context.sampleRate || sampleRate;
-			const resampler = createStreamingWindowedSincResampler(inputSampleRate, sampleRate, channelCount);
+			const captureSampleRate = context.sampleRate || sampleRate;
+			await preflightStorage(captureSampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
+			assertRecordingStartActive(token);
+			const sourceId = createStableId('recording');
+			writer = await store.beginSourceWrite(sourceId, {
+				name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
+				mimeType: 'audio/wav',
+				sampleRate: captureSampleRate,
+				channelCount,
+			});
+			assertRecordingStartActive(token);
+			const previewResampler = createStreamingWindowedSincResampler(captureSampleRate, sampleRate, channelCount);
 			const selection = activeSelection();
 			const requestedStartFrame = selection?.startFrame ?? engine.getPositionFrames();
 			const automaticLatency = (context.baseLatency || 0) + (context.outputLatency || 0) + (Number(trackSettings.latency) || 0);
 			const manualLatency = state.latencyOffsetMs / 1000;
 			const latencyFrames = Math.max(0, Math.round((automaticLatency + manualLatency) * sampleRate));
 			const recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
-			const recordingSourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+			const recordingSourceOffsetProjectFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+			const recordingSourceOffsetFrames = scaleRecordingFrames(
+				recordingSourceOffsetProjectFrames,
+				sampleRate,
+				captureSampleRate,
+			);
 			const preview = createRecordingPreview({
 				trackId: track.id,
 				startFrame: recordingStartFrame,
 				channelCount,
-				framesToSkip: recordingSourceOffsetFrames,
+				framesToSkip: recordingSourceOffsetProjectFrames,
 			});
 			recorder = await recordingControllerFactory({
 				context,
@@ -4891,9 +4902,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				monitor: state.monitoring,
 				inputGain: state.recordingInputGain,
 				onChunk: async ({ channels }) => {
-					const canonicalChannels = resampler.push(channels);
-					if (canonicalChannels[0]?.length) await writer.write(canonicalChannels);
-					appendRecordingPreview(preview, canonicalChannels);
+					if (channels[0]?.length) await writer.write(channels);
+					appendRecordingPreview(preview, previewResampler.push(channels));
 					publishRecordingPreview();
 					let peak = 0;
 					for (const channel of channels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
@@ -4920,7 +4930,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingSourceId = sourceId;
 			state.recordingTrackId = track.id;
 			state.recordingSelection = selection ? { ...selection } : null;
-			state.recordingResampler = resampler;
+			state.recordingResampler = previewResampler;
+			state.recordingSampleRate = captureSampleRate;
 			state.recorder = recorder;
 			const scheduledTime = context.currentTime + 0.08;
 			const leadInFrames = state.leadInRecording
@@ -4930,7 +4941,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
 			const recordingDelaySeconds = availableLeadInFrames / sampleRate;
 			const currentContextFrame = Math.ceil((scheduledTime + recordingDelaySeconds) * context.sampleRate);
-			const selectionProjectFrames = selection ? selection.endFrame - selection.startFrame + state.recordingSourceOffsetFrames : 0;
+			const selectionProjectFrames = selection
+				? selection.endFrame - selection.startFrame + recordingSourceOffsetProjectFrames
+				: 0;
 			const stopFrame = selection
 				? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
 				: undefined;
@@ -4968,6 +4981,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				state.recordingWriter = null;
 				state.recordingStream = null;
 				state.recordingResampler = null;
+				state.recordingSampleRate = null;
 				state.recordingPreview = null;
 				state.recordingPreviews = [];
 				state.recordingPreviewLastPublishedAt = 0;
@@ -5105,8 +5119,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const routedChannelCount = sourceSessions.reduce((total, session) => (
 				total + session.routes.reduce((sum, item) => sum + item.route.channelCount, 0)
 			), 0);
-			await preflightStorage(sampleRate * routedChannelCount * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
-			assertRecordingStartActive(token);
 			await beginPlaybackCachePreparation(project);
 			assertRecordingStartActive(token);
 			const context = await engine.getAudioContext();
@@ -5115,6 +5127,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			assertRecordingStartActive(token);
 			await dropFailedSourceSessions();
 			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+			const captureSampleRate = context.sampleRate || sampleRate;
+			await preflightStorage(captureSampleRate * routedChannelCount * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
+			assertRecordingStartActive(token);
 			const selection = activeSelection();
 			const requestedStartFrame = selection?.startFrame ?? engine.getPositionFrames();
 			for (const session of sourceSessions) {
@@ -5125,19 +5140,25 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const latencyFrames = Math.max(0, Math.round((automaticLatency + manualLatencyMs / 1000) * sampleRate));
 				session.latencyFrames = latencyFrames;
 				session.recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
-				session.sourceOffsetFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+				session.sourceOffsetProjectFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+				session.sourceOffsetFrames = scaleRecordingFrames(
+					session.sourceOffsetProjectFrames,
+					sampleRate,
+					captureSampleRate,
+				);
 				for (const { track, route } of session.routes) {
 					const sourceId = createStableId('recording');
 					const writer = await store.beginSourceWrite(sourceId, {
 						name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
 						mimeType: 'audio/wav',
+						sampleRate: captureSampleRate,
 						channelCount: route.channelCount,
 					});
 					const preview = createRecordingPreview({
 						trackId: track.id,
 						startFrame: session.recordingStartFrame,
 						channelCount: route.channelCount,
-						framesToSkip: session.sourceOffsetFrames,
+						framesToSkip: session.sourceOffsetProjectFrames,
 					});
 					const entry = {
 						trackId: track.id,
@@ -5145,11 +5166,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 						sourceKey: session.sourceKey,
 						sourceId,
 						writer,
-						resampler: createStreamingWindowedSincResampler(context.sampleRate || sampleRate, sampleRate, route.channelCount),
+						previewResampler: createStreamingWindowedSincResampler(captureSampleRate, sampleRate, route.channelCount),
 						preview,
+						sampleRate: captureSampleRate,
 						selection: selection ? { ...selection } : null,
 						recordingStartFrame: session.recordingStartFrame,
 						sourceOffsetFrames: session.sourceOffsetFrames,
+						sourceOffsetProjectFrames: session.sourceOffsetProjectFrames,
 						committed: false,
 					};
 					entries.push(entry);
@@ -5181,9 +5204,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 								|| (session.kind === 'display' ? channels[0] : null)
 								|| new Float32Array(channels[0]?.length || 0)
 							));
-							const canonicalChannels = entry.resampler.push(routedChannels);
-							if (canonicalChannels[0]?.length) await entry.writer.write(canonicalChannels);
-							appendRecordingPreview(entry.preview, canonicalChannels);
+							if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
+							appendRecordingPreview(entry.preview, entry.previewResampler.push(routedChannels));
 							let peak = 0;
 							for (const channel of routedChannels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
 							sourcePeak = Math.max(sourcePeak, peak);
@@ -5231,7 +5253,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const recordingDelaySeconds = availableLeadInFrames / sampleRate;
 			const currentContextFrame = Math.ceil((scheduledTime + recordingDelaySeconds) * context.sampleRate);
 			for (const session of sourceSessions) {
-				const selectionProjectFrames = selection ? selection.endFrame - selection.startFrame + session.sourceOffsetFrames : 0;
+				const selectionProjectFrames = selection
+					? selection.endFrame - selection.startFrame + session.sourceOffsetProjectFrames
+					: 0;
 				session.startFrame = currentContextFrame;
 				session.stopFrame = selection
 					? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
@@ -5374,10 +5398,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await recorder.dispose({ stopTracks: false });
 			if (state.recordingFatalError) throw state.recordingFatalError;
 			for (const entry of entries) {
-				const finalChannels = entry.resampler?.finish?.();
-				if (finalChannels?.[0]?.length) await entry.writer.write(finalChannels);
+				appendRecordingPreview(entry.preview, entry.previewResampler?.finish?.());
 			}
-			const sampleRate = projectSampleRate();
+			const projectRate = projectSampleRate();
 			const commands = [];
 			const clipIds = [];
 			for (const entry of entries) {
@@ -5387,13 +5410,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 					state.recordingRouteHealth[entry.trackId] = 'skipped';
 					continue;
 				}
-				const metadata = await entry.writer.commit({ sampleRate, channelCount: entry.route.channelCount });
+				const metadata = await entry.writer.commit({ sampleRate: entry.sampleRate, channelCount: entry.route.channelCount });
 				entry.committed = true;
 				committedEntries.push(entry);
 				const sourceCommand = createAddSourceCommand({
 					schemaVersion: 2,
-					sampleRate,
-					originalSampleRate: sampleRate,
+					sampleRate: entry.sampleRate,
+					originalSampleRate: entry.sampleRate,
 					sampleFormat: 'float32',
 					chunkFrames: SOURCE_CHUNK_FRAMES,
 					id: entry.sourceId,
@@ -5407,6 +5430,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					id: entry.sourceId,
 					frameCount: frames,
 					channelCount: metadata.channelCount || entry.route.channelCount,
+					sampleRate: entry.sampleRate,
 				}, await engine.getAudioContext());
 				sourceBuffers.set(entry.sourceId, buffer);
 				const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
@@ -5414,10 +5438,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 				await store.saveAnalysis(peakCacheKey(entry.sourceId), peaks);
 				const sourceStartFrame = Math.min(entry.sourceOffsetFrames, Math.max(0, frames - 1));
 				const availableFrames = frames - sourceStartFrame;
+				const availableProjectFrames = Math.max(1, scaleRecordingFrames(availableFrames, entry.sampleRate, projectRate));
 				const durationFrames = entry.selection
-					? Math.min(availableFrames, entry.selection.endFrame - entry.selection.startFrame)
-					: availableFrames;
+					? Math.min(availableProjectFrames, entry.selection.endFrame - entry.selection.startFrame)
+					: availableProjectFrames;
 				if (durationFrames <= 0) continue;
+				const sourceDurationFrames = entry.selection
+					? Math.min(availableFrames, Math.max(1, scaleRecordingFrames(durationFrames, projectRate, entry.sampleRate)))
+					: availableFrames;
 				const clipId = createStableId('clip');
 				const clipCommand = preparePunchCommand(project, {
 					trackId: entry.trackId,
@@ -5425,6 +5453,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					endFrame: entry.recordingStartFrame + durationFrames,
 					sourceId: entry.sourceId,
 					sourceStartFrame,
+					sourceDurationFrames,
 					clipId,
 				});
 				commands.push(sourceCommand, clipCommand);
@@ -5457,6 +5486,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingTrackId = null;
 			state.recordingSelection = null;
 			state.recordingResampler = null;
+			state.recordingSampleRate = null;
 			state.recordingPreview = null;
 			state.recordingPreviews = [];
 			state.recordingPreviewLastPublishedAt = 0;
@@ -5499,11 +5529,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 			engine.pause();
 			await recorder.dispose({ stopTracks: false });
 			if (state.recordingFatalError) throw state.recordingFatalError;
-			const finalChannels = state.recordingResampler?.finish?.();
-			if (finalChannels?.[0]?.length) await writer.write(finalChannels);
+			appendRecordingPreview(state.recordingPreview, state.recordingResampler?.finish?.());
 			const frames = writer.framesWritten;
-			if (frames <= 0) { await writer.abort(); return; }
-			const sampleRate = projectSampleRate();
+			if (frames <= state.recordingSourceOffsetFrames) { await writer.abort(); return; }
+			const projectRate = projectSampleRate();
+			const sampleRate = state.recordingSampleRate || projectRate;
 			const metadata = await writer.commit({ sampleRate });
 			sourceCommitted = true;
 			const sourceId = state.recordingSourceId;
@@ -5520,7 +5550,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 				frameCount: frames,
 				channelCount: metadata.channelCount || 1,
 			});
-			const buffer = await readStoredAudioBuffer(store, { id: sourceId, frameCount: frames, channelCount: metadata.channelCount || 1 }, await engine.getAudioContext());
+			const buffer = await readStoredAudioBuffer(store, {
+				id: sourceId,
+				frameCount: frames,
+				channelCount: metadata.channelCount || 1,
+				sampleRate,
+			}, await engine.getAudioContext());
 			sourceBuffers.set(sourceId, buffer);
 			const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
 			sourcePeaks.set(sourceId, peaks);
@@ -5529,13 +5564,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const clipId = createStableId('clip');
 			const sourceStartFrame = Math.min(state.recordingSourceOffsetFrames, Math.max(0, frames - 1));
 			const availableFrames = frames - sourceStartFrame;
-			const durationFrames = selection ? Math.min(availableFrames, selection.endFrame - selection.startFrame) : availableFrames;
+			const availableProjectFrames = Math.max(1, scaleRecordingFrames(availableFrames, sampleRate, projectRate));
+			const durationFrames = selection
+				? Math.min(availableProjectFrames, selection.endFrame - selection.startFrame)
+				: availableProjectFrames;
+			const sourceDurationFrames = selection
+				? Math.min(availableFrames, Math.max(1, scaleRecordingFrames(durationFrames, projectRate, sampleRate)))
+				: availableFrames;
 			const clipCommand = preparePunchCommand(project, {
 				trackId: state.recordingTrackId,
 				startFrame: state.recordingStartFrame,
 				endFrame: state.recordingStartFrame + durationFrames,
 				sourceId,
 				sourceStartFrame,
+				sourceDurationFrames,
 				clipId,
 			});
 			commit({ type: 'batch', commands: [sourceCommand, clipCommand] }, { selectTrackId: state.recordingTrackId, selectClipId: clipId });
@@ -5558,6 +5600,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.recordingTrackId = null;
 			state.recordingSelection = null;
 			state.recordingResampler = null;
+			state.recordingSampleRate = null;
 			state.recordingPreview = null;
 			state.recordingPreviews = [];
 			state.recordingPreviewLastPublishedAt = 0;
@@ -5831,7 +5874,7 @@ async function generateStoredWaveformPeaksFallback(store, source) {
 async function canonicalizeBuffer(input, context, targetSampleRate = AUDIO_EDITOR_SAMPLE_RATE, copy) {
 	if (!input?.numberOfChannels || !input?.length) throw new Error(copy.decodedAudioEmpty);
 	let channels;
-	if (input.numberOfChannels <= 2 || targetSampleRate == null) {
+	if (input.numberOfChannels <= 2) {
 		channels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
 	} else {
 		const left = new Float32Array(input.length);
@@ -5850,7 +5893,7 @@ async function canonicalizeBuffer(input, context, targetSampleRate = AUDIO_EDITO
 		}
 		channels = [left, right];
 	}
-	if ((targetSampleRate == null || input.sampleRate === targetSampleRate) && (input.numberOfChannels <= 2 || targetSampleRate == null)) return input;
+	if ((targetSampleRate == null || input.sampleRate === targetSampleRate) && input.numberOfChannels <= 2) return input;
 	const downmixed = await bufferFromChannels(channels, input.sampleRate, context, copy);
 	return targetSampleRate == null || input.sampleRate === targetSampleRate
 		? downmixed
@@ -6141,6 +6184,13 @@ function classifyMobile() {
 
 function normalizeLatencyOffset(value) {
 	return Math.max(-500, Math.min(500, Number(value) || 0));
+}
+
+function scaleRecordingFrames(frameCount, inputSampleRate, outputSampleRate) {
+	const frames = Math.max(0, Math.floor(Number(frameCount) || 0));
+	const inputRate = Math.max(1, Math.floor(Number(inputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
+	const outputRate = Math.max(1, Math.floor(Number(outputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
+	return Math.max(0, Math.round(frames * outputRate / inputRate));
 }
 
 function streamAudioChannelCount(stream) {

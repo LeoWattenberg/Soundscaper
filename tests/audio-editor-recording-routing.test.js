@@ -14,8 +14,8 @@ import {
 	setRecordingTrackRoute,
 } from '../src/lib/tools/audio-editor/recording-routing.js';
 
-const MONO_TRACK = Object.freeze({ type: 'audio', id: 'mono', channelCount: 1 });
-const STEREO_TRACK = Object.freeze({ type: 'audio', id: 'stereo', channelCount: 2 });
+const MONO_TRACK = Object.freeze({ type: 'audio', id: 'mono' });
+const STEREO_TRACK = Object.freeze({ type: 'audio', id: 'stereo' });
 
 function deviceRoute(deviceId, channelStart, channelCount = 1) {
 	return { kind: 'device', deviceId, channelStart, channelCount };
@@ -72,7 +72,7 @@ test('normalizing local routes prunes deleted tracks, label tracks, malformed as
 	}, [
 		MONO_TRACK,
 		STEREO_TRACK,
-		{ type: 'audio', id: 'malformed', channelCount: 1 },
+		{ type: 'audio', id: 'malformed' },
 		{ type: 'label', id: 'labels' },
 	]);
 
@@ -85,20 +85,22 @@ test('normalizing local routes prunes deleted tracks, label tracks, malformed as
 	assert.deepEqual(afterDeletion.routes, {});
 });
 
-test('mono channel options expose every channel while stereo options expose only complete adjacent pairs', () => {
-	assert.deepEqual(recordingChannelOptions(MONO_TRACK, 5), [
+test('recording channel options use persisted route width instead of track format', () => {
+	const monoRoutes = { mono: deviceRoute('interface-a', 0, 1) };
+	const stereoRoutes = { stereo: deviceRoute('interface-a', 0, 2) };
+	assert.deepEqual(recordingChannelOptions(MONO_TRACK, 5, monoRoutes), [
 		{ channelStart: 0, channelCount: 1, disabled: false },
 		{ channelStart: 1, channelCount: 1, disabled: false },
 		{ channelStart: 2, channelCount: 1, disabled: false },
 		{ channelStart: 3, channelCount: 1, disabled: false },
 		{ channelStart: 4, channelCount: 1, disabled: false },
 	]);
-	assert.deepEqual(recordingChannelOptions(STEREO_TRACK, 5), [
+	assert.deepEqual(recordingChannelOptions(STEREO_TRACK, 5, stereoRoutes), [
 		{ channelStart: 0, channelCount: 2, disabled: false },
 		{ channelStart: 2, channelCount: 2, disabled: false },
 	]);
-	assert.deepEqual(recordingChannelOptions(STEREO_TRACK, 1), []);
-	assert.deepEqual(recordingChannelOptions(MONO_TRACK, 0), []);
+	assert.deepEqual(recordingChannelOptions(STEREO_TRACK, 1, stereoRoutes), []);
+	assert.deepEqual(recordingChannelOptions(MONO_TRACK, 0, monoRoutes), []);
 });
 
 test('channel options and route setters prevent overlap on one source without blocking another device', () => {

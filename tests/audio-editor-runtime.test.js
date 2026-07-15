@@ -560,6 +560,69 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	assert.equal(realtime.closed, true);
 });
 
+test('live playback keeps field-free track clips at native rates against the device-rate context', async () => {
+	const context = new MockAudioContext({ sampleRate: 32_000 });
+	const constructorArguments = [];
+	function DeviceAudioContext(...args) {
+		constructorArguments.push(args);
+		return context;
+	}
+	const mono = new MockAudioBuffer(1, 44_100, 44_100);
+	const stereo = new MockAudioBuffer(2, 96_000, 96_000);
+	const track = {
+		type: 'audio',
+		id: 'mixed-track',
+		clipIds: ['mono-clip', 'stereo-clip'],
+		gain: 1,
+		pan: 0,
+		mute: false,
+		solo: false,
+		effects: [],
+	};
+	const project = {
+		id: 'mixed-native-rate-project',
+		sampleRate: 48_000,
+		clips: [
+			{
+				id: 'mono-clip', sourceId: 'mono-source', timelineStartFrame: 0,
+				sourceStartFrame: 0, sourceDurationFrames: 44_100, durationFrames: 48_000,
+				gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
+			},
+			{
+				id: 'stereo-clip', sourceId: 'stereo-source', timelineStartFrame: 48_000,
+				sourceStartFrame: 0, sourceDurationFrames: 96_000, durationFrames: 48_000,
+				gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
+			},
+		],
+		tracks: [track],
+		master: { gain: 1, effects: [] },
+	};
+	const engine = createAudioEditorEngine({
+		audioContextFactory: DeviceAudioContext,
+		meterInterval: 1_000,
+	});
+
+	try {
+		engine.loadProject(project, new Map([
+			['mono-source', mono],
+			['stereo-source', stereo],
+		]));
+		await engine.play();
+		assert.deepEqual(constructorArguments, [[]], 'live playback does not request the project sample rate');
+		assert.equal(Object.hasOwn(track, 'sampleRate'), false);
+		assert.equal(Object.hasOwn(track, 'channelCount'), false);
+		assert.deepEqual(context.bufferSources.map((source) => source.buffer.sampleRate), [44_100, 96_000]);
+		assert.deepEqual(context.bufferSources.map((source) => source.buffer.numberOfChannels), [1, 2]);
+		assert.deepEqual(context.bufferSources.map((source) => source.started), [
+			[0, 0, 1],
+			[1, 0, 1],
+		]);
+		assert.deepEqual(context.bufferSources.map((source) => source.playbackRate.value), [1, 1]);
+	} finally {
+		await engine.dispose();
+	}
+});
+
 test('engine streams persisted long sources live and schedules bounded chunks through the same offline graph', async () => {
 	const realtime = new MockAudioContext();
 	const offlineContexts = [];
@@ -858,7 +921,7 @@ test('Auto Duck receives its selected control track from the dry second input', 
 test('project graph reports rack latency and delays lower-latency tracks to match', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;
-	const context = new MockAudioContext();
+	const context = new MockAudioContext({ sampleRate: 96_000 });
 	const project = createRackProject({
 		tracks: [
 			{
@@ -887,8 +950,8 @@ test('project graph reports rack latency and delays lower-latency tracks to matc
 		engine.loadProject(project, new Map([['source-1', source]]));
 		await engine.play();
 		assert.equal(projectGraphLatencyFrames(project), 720);
-		assert.equal(engine.graph.latencyFrames, 720);
-		assert.equal(engine.playbackStartTime, 720 / 48_000);
+		assert.equal(engine.graph.latencyFrames, 1_440);
+		assert.equal(engine.playbackStartTime, 1_440 / 96_000);
 		const compensation = context.createdDelays.find((delay) => Math.abs(delay.delayTime.value - 0.01) < 1e-12);
 		assert.ok(compensation, 'the dry track receives the limiter lookahead as compensation');
 		assert.ok(incomingConnections(engine.graph.nodes, compensation, 0).length > 0);
@@ -1196,6 +1259,7 @@ class MockAudioContext {
 	createBufferSource() {
 		const node = this.make('buffer-source', {
 			buffer: null,
+			playbackRate: new MockParam(1),
 			start: (when, offset, duration) => { node.started = [when, offset, duration]; },
 			stop: () => { node.stopped = true; },
 		});

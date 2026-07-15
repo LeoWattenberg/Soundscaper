@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-	AddTrackFlyout,
 	Button,
 	ContextMenu,
 	ContextMenuItem,
@@ -53,6 +52,108 @@ const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_TIMELINE_SECONDS = 10;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 
+function ContainerAddTrackFlyout({
+	isOpen,
+	onSelectTrackType,
+	onClose,
+	x,
+	y,
+	autoFocus,
+	triggerRef,
+	className = '',
+	copy,
+}) {
+	const flyoutRef = useRef(null);
+	const firstOptionRef = useRef(null);
+
+	useEffect(() => {
+		if (!isOpen) return undefined;
+		const handleClickOutside = (event) => {
+			if (flyoutRef.current && !flyoutRef.current.contains(event.target)) onClose();
+		};
+		const timer = window.setTimeout(() => document.addEventListener('mousedown', handleClickOutside), 0);
+		return () => {
+			window.clearTimeout(timer);
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, [isOpen, onClose]);
+
+	useEffect(() => {
+		if (!isOpen) return undefined;
+		const handleKeyDown = (event) => {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				onClose();
+				window.setTimeout(() => triggerRef?.current?.focus(), 0);
+				return;
+			}
+			if (event.key === 'Tab') {
+				onClose();
+				return;
+			}
+			if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
+			const options = [...(flyoutRef.current?.querySelectorAll('.add-track-flyout__option') || [])];
+			const currentIndex = options.indexOf(document.activeElement);
+			if (currentIndex < 0 || !options.length) return;
+			event.preventDefault();
+			const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+			const nextIndex = (currentIndex + direction + options.length) % options.length;
+			options[currentIndex].tabIndex = -1;
+			options[nextIndex].tabIndex = 0;
+			options[nextIndex].focus();
+		};
+		document.addEventListener('keydown', handleKeyDown);
+		return () => document.removeEventListener('keydown', handleKeyDown);
+	}, [isOpen, onClose, triggerRef]);
+
+	useEffect(() => {
+		if (!isOpen || !autoFocus) return undefined;
+		const timer = window.setTimeout(() => firstOptionRef.current?.focus(), 0);
+		return () => window.clearTimeout(timer);
+	}, [autoFocus, isOpen]);
+
+	useEffect(() => {
+		if (!isOpen || !flyoutRef.current) return;
+		const flyout = flyoutRef.current;
+		const rect = flyout.getBoundingClientRect();
+		const adjustedX = Math.max(10, Math.min(x, window.innerWidth - rect.width - 10));
+		const adjustedY = Math.max(10, Math.min(y, window.innerHeight - rect.height - 10));
+		flyout.style.left = `${adjustedX}px`;
+		flyout.style.top = `${adjustedY}px`;
+	}, [isOpen, x, y]);
+
+	if (!isOpen) return null;
+	const options = [
+		{ type: 'audio', label: copy.audioTrack, icon: 'microphone' },
+		{ type: 'label', label: copy.labelTrack, icon: 'label' },
+	];
+	return (
+		<div
+			ref={flyoutRef}
+			className={`add-track-flyout ${className}`}
+			style={{ position: 'fixed', left: `${x}px`, top: `${y}px`, zIndex: 10_000 }}
+		>
+			<div className="add-track-flyout__triangle" style={{ left: 88 }} />
+			<div className="add-track-flyout__body" role="menu" aria-label={copy.addTrack}>
+				{options.map((option, index) => (
+					<button
+						key={option.type}
+						ref={index === 0 ? firstOptionRef : undefined}
+						type="button"
+						className="add-track-flyout__option"
+						role="menuitem"
+						tabIndex={index === 0 ? 0 : -1}
+						onClick={() => onSelectTrackType(option.type)}
+					>
+						<Icon name={option.icon} size={16} />
+						<span className="add-track-flyout__option-label">{option.label}</span>
+					</button>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export default function AudioEditorTimeline({
 	controller,
 	snapshot,
@@ -86,6 +187,7 @@ export default function AudioEditorTimeline({
 	const [clipMenu, setClipMenu] = useState(null);
 	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
 	const addTrackTriggerRef = useRef(null);
+	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipId, setDraggingClipId] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
 	const telemetry = useAudioEditorTelemetry(controller);
@@ -268,8 +370,7 @@ export default function AudioEditorTimeline({
 
 	const addTrackFromFlyout = useCallback((type) => {
 		setAddTrackFlyout(null);
-		if (type === 'mono') return run(() => controller.actions.track.addMono());
-		if (type === 'stereo') return run(() => controller.actions.track.addStereo());
+		if (type === 'audio') return run(() => controller.actions.track.add());
 		if (type === 'label') return run(() => controller.actions.track.addLabel());
 		return undefined;
 	}, [controller, run]);
@@ -772,15 +873,16 @@ export default function AudioEditorTimeline({
 						/>}
 					</div>
 
-					<AddTrackFlyout
+					<ContainerAddTrackFlyout
 						isOpen={Boolean(addTrackFlyout)}
 						x={addTrackFlyout?.x || 0}
 						y={addTrackFlyout?.y || 0}
 						autoFocus={Boolean(addTrackFlyout?.autoFocus)}
 						triggerRef={addTrackTriggerRef}
 						className="kw-audio-editor__add-track-flyout"
+						copy={copy}
 						onSelectTrackType={addTrackFromFlyout}
-						onClose={() => setAddTrackFlyout(null)}
+						onClose={closeAddTrackFlyout}
 					/>
 
 					<div className="audio-editor-track-list" data-track-list>
