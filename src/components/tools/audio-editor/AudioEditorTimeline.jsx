@@ -37,7 +37,7 @@ import {
 	AUDACITY_TRACK_CONTEXT_ACTION_IDS,
 	audacityContextMenuAction,
 } from '../../../lib/tools/audio-editor/audacity-context-menu.js';
-import { projectDurationFrames } from '../../../lib/tools/audio-editor/project.js';
+import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
@@ -49,7 +49,6 @@ const COLLAPSED_TRACK_HEIGHT = 54;
 const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
-const MINIMUM_TIMELINE_SECONDS = 10;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 
 function ContainerAddTrackFlyout({
@@ -214,8 +213,7 @@ export default function AudioEditorTimeline({
 		? snapshot.recordingPreviews
 		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
 	const durationFrames = Math.max(
-		sampleRate * MINIMUM_TIMELINE_SECONDS,
-		project ? projectDurationFrames(project) : 0,
+		project ? editorTimelineDurationFrames(project, sampleRate) : sampleRate * 30,
 		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
 	);
 	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
@@ -1628,7 +1626,7 @@ function TrackRow({
 							overscanStartFrame={projection.overscanStartFrame}
 							pixelsPerSecond={pixelsPerSecond}
 							sampleRate={sampleRate}
-							maximumFrame={Math.max(projectDurationFrames(project), activeSpectralSelection.endFrame)}
+							maximumFrame={Math.max(editorTimelineDurationFrames(project, sampleRate), activeSpectralSelection.endFrame)}
 							disabled={blocked}
 							copy={copy}
 							onCommit={(next) => run(() => {

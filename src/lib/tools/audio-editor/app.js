@@ -49,6 +49,8 @@ import {
 	findAudioEditorShortcutConflicts,
 	findSource,
 	findTrack,
+	EDITOR_TIMELINE_MINIMUM_SECONDS,
+	editorTimelineDurationFrames,
 	isAudacityRackEffectType,
 	loadAudioEditorPreferencesV1,
 	loadStoredSourceChannels,
@@ -131,7 +133,6 @@ import { decodeAup3File } from '../aup3-browser.js';
 import { ENGLISH_COPY } from '../../../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 
-const MIN_TIMELINE_SECONDS = 10;
 const DEFAULT_PIXELS_PER_SECOND = 120;
 const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_SAMPLE_RATE;
 const MAX_TIMELINE_PIXELS = 16_000_000;
@@ -187,7 +188,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		effectClipboard: null,
 		pixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
 		mobile: classifyMobile(),
-		timelineWidth: MIN_TIMELINE_SECONDS * DEFAULT_PIXELS_PER_SECOND,
+	timelineWidth: EDITOR_TIMELINE_MINIMUM_SECONDS * DEFAULT_PIXELS_PER_SECOND,
 		timelineView: 'waveform',
 		readOnly: false,
 		projectLock: null,
@@ -2707,7 +2708,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			throw new TypeError(copy.selectionFramesFinite);
 		}
 		const maximumFrame = project.tracks.length
-			? Math.max(projectDurationFrames(project), Math.round(MIN_TIMELINE_SECONDS * projectSampleRate()))
+			? editorTimelineDurationFrames(project, projectSampleRate())
 			: projectDurationFrames(project);
 		const clampSelectionFrame = (value) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
 		const start = snapTimelineFrame(clampSelectionFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
@@ -2780,7 +2781,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!ranges.length && tracks.length) {
 			return {
 				startFrame: 0,
-				endFrame: Math.max(projectDurationFrames(project), Math.round(MIN_TIMELINE_SECONDS * projectSampleRate())),
+				endFrame: editorTimelineDurationFrames(project, projectSampleRate()),
 			};
 		}
 		if (!ranges.length) return null;
@@ -2881,7 +2882,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function setZoom(pixelsPerSecond) {
-		const durationSeconds = Math.max(MIN_TIMELINE_SECONDS, projectDurationFrames(project) / projectSampleRate());
+		const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 		const maximum = Math.min(MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS / durationSeconds);
 		state.pixelsPerSecond = Math.max(1, Math.min(maximum, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND));
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;
@@ -3381,7 +3382,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			return;
 		}
 		const duration = projectDurationFrames(project);
-		const durationSeconds = Math.max(MIN_TIMELINE_SECONDS, duration / projectSampleRate());
+		const timelineDuration = editorTimelineDurationFrames(project, projectSampleRate());
+		const durationSeconds = timelineDuration / projectSampleRate();
 		state.pixelsPerSecond = Math.min(state.pixelsPerSecond, MAX_TIMELINE_PIXELS / durationSeconds);
 		state.timelineWidth = Math.max(1, Math.round(durationSeconds * state.pixelsPerSecond));
 		updatePlayhead(engine.getPositionFrames(), duration);
@@ -5795,7 +5797,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function updateZoom(action, requestedViewportWidth) {
 		if (action === 'fit') {
 			const viewport = Math.max(320, Number(requestedViewportWidth) || 960);
-			state.pixelsPerSecond = Math.max(1, viewport / Math.max(MIN_TIMELINE_SECONDS, projectDurationFrames(project) / projectSampleRate()));
+			state.pixelsPerSecond = Math.max(1, viewport / (editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate()));
 		} else state.pixelsPerSecond = Math.max(1, Math.min(MAX_PIXELS_PER_SECOND, state.pixelsPerSecond * (action === 'in' ? 2 : 0.5)));
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;
 		publishProjectState();

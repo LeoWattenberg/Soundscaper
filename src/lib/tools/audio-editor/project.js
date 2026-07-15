@@ -1,6 +1,7 @@
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_MASTER_CHANNELS = 2;
+export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
 
 const ID_FALLBACK_RANDOM_LENGTH = 10;
 
@@ -218,6 +219,15 @@ export function projectDurationFrames(project) {
 		for (const label of track.labels || []) endFrame = Math.max(endFrame, label.endFrame);
 	}
 	return endFrame;
+}
+
+/** @param {AudioEditorProjectV1} project @param {number} [sampleRate] @returns {number} */
+export function editorTimelineDurationFrames(project, sampleRate = project.sampleRate) {
+	const rate = Number(sampleRate) > 0 ? Number(sampleRate) : AUDIO_EDITOR_SAMPLE_RATE;
+	return Math.max(
+		projectDurationFrames(project) * 2,
+		Math.round(rate * EDITOR_TIMELINE_MINIMUM_SECONDS),
+	);
 }
 
 /** @param {AudioEditorProjectV1} project @returns {number} */
