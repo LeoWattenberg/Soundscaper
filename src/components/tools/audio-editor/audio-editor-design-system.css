@@ -418,6 +418,17 @@
 	display: inline-flex;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-button {
+	--button-bg-idle: transparent !important;
+	--button-bg-hover: color-mix(in srgb, var(--kw-editor-accent) 16%, transparent) !important;
+	--button-bg-active: color-mix(in srgb, var(--kw-editor-accent) 24%, transparent) !important;
+	--button-bg-disabled: transparent !important;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-button[aria-pressed='true'] {
+	background-color: var(--button-bg-active) !important;
+}
+
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
 	min-width: 0;
 }

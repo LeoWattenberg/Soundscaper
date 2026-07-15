@@ -1316,6 +1316,7 @@ function EditorActionBar({
 				<Button
 					variant="secondary"
 					size="small"
+					className="kw-audio-editor__action-bar-button"
 					icon={<Icon name="save" size={14} />}
 					disabled={blocked}
 					onClick={onSaveAup4}
@@ -1325,6 +1326,7 @@ function EditorActionBar({
 				<Button
 					variant="secondary"
 					size="small"
+					className="kw-audio-editor__action-bar-button"
 					icon={<Icon name="export" size={14} />}
 					disabled={blocked}
 					onClick={onExportAudio}
@@ -1335,6 +1337,7 @@ function EditorActionBar({
 					<Button
 						variant={mixerVisible ? 'primary' : 'secondary'}
 						size="small"
+						className="kw-audio-editor__action-bar-button"
 						icon={iconNameToChar('MIXER')}
 						aria-pressed={mixerVisible}
 						onClick={onToggleMixer}
