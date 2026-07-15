@@ -2106,6 +2106,16 @@
 	border: 0;
 }
 
+#kw-audio-editor-design-system [data-effects-overlay] .audio-editor-controlled-dialog__backdrop--non-modal {
+	background: transparent;
+	backdrop-filter: none;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system [data-effects-overlay] .audio-editor-controlled-dialog__backdrop--non-modal .audio-editor-controlled-dialog {
+	pointer-events: auto;
+}
+
 #kw-audio-editor-design-system .audio-editor-effect-stack-menu {
 	pointer-events: auto;
 }

@@ -67,6 +67,7 @@ function ControlledDialog({
 	children,
 	className = '',
 	width = 640,
+	modal = true,
 	closeOnEscape = true,
 	closeOnOutside = true,
 	dataAttributes = {},
@@ -93,7 +94,7 @@ function ControlledDialog({
 				onCloseRef.current?.();
 				return;
 			}
-			if (event.key !== 'Tab' || !panel) return;
+			if (!modal || event.key !== 'Tab' || !panel) return;
 			const focusable = focusableElements();
 			if (!focusable.length) {
 				event.preventDefault();
@@ -118,14 +119,14 @@ function ControlledDialog({
 				previouslyFocused.focus({ preventScroll: true });
 			}
 		};
-	}, [closeOnEscape, isOpen]);
+	}, [closeOnEscape, isOpen, modal]);
 
 	if (!isOpen) return null;
 	return (
 		<div
-			className="kw-audio-editor-dialog-backdrop audio-editor-controlled-dialog__backdrop"
+			className={`kw-audio-editor-dialog-backdrop audio-editor-controlled-dialog__backdrop${modal ? '' : ' audio-editor-controlled-dialog__backdrop--non-modal'}`}
 			onMouseDown={(event) => {
-				if (closeOnOutside && event.target === event.currentTarget) onClose?.();
+				if (modal && closeOnOutside && event.target === event.currentTarget) onClose?.();
 			}}
 		>
 			<section
@@ -133,7 +134,7 @@ function ControlledDialog({
 				tabIndex={-1}
 				className={`kw-audio-editor-dialog audio-editor-controlled-dialog ${className}`}
 				role="dialog"
-				aria-modal="true"
+				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
 				style={{ width: `min(${typeof width === 'number' ? `${width}px` : width}, calc(100vw - 32px))` }}
 				{...dataAttributes}
@@ -570,6 +571,7 @@ export function AudioEditorEffectsOverlay({
 					title={safeEffectLabel(effect.type, copy)}
 					onClose={() => setSelectedEffect(null)}
 					width={620}
+					modal={false}
 					className="audio-editor-effect-settings-dialog"
 					dataAttributes={{ 'data-effect': effect.id }}
 					headerSlot={(
