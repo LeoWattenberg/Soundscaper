@@ -220,6 +220,11 @@ export default function AudioEditorTimeline({
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
 	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
 	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
+
+	useEffect(() => {
+		controller.actions.timeline.setViewportWidth(viewportWidth);
+	}, [controller, viewportWidth]);
+
 	const documentSelection = selectionPreview || snapshot.selection;
 	const timeSelection = documentSelection && documentSelection.endFrame > documentSelection.startFrame
 		? {

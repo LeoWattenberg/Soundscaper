@@ -187,6 +187,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		clipboard: null,
 		effectClipboard: null,
 		pixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
+		timelineViewportWidth: 0,
 		mobile: classifyMobile(),
 	timelineWidth: EDITOR_TIMELINE_MINIMUM_SECONDS * DEFAULT_PIXELS_PER_SECOND,
 		timelineView: 'waveform',
@@ -653,8 +654,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				toggleVerticalRulers,
 				toggleUpdateWhilePlaying,
 				togglePinnedPlayhead,
-				toggleRulerPlayback,
-				setZoom,
+			toggleRulerPlayback,
+			setViewportWidth: setTimelineViewportWidth,
+			setZoom,
 				zoomIn: () => updateZoom('in'),
 				zoomOut: () => updateZoom('out'),
 				zoomFit: (viewportWidth) => updateZoom('fit', viewportWidth),
@@ -2884,7 +2886,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function setZoom(pixelsPerSecond) {
 		const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 		const maximum = Math.min(MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS / durationSeconds);
-		state.pixelsPerSecond = Math.max(1, Math.min(maximum, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND));
+		const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
+		state.pixelsPerSecond = Math.max(minimum, Math.min(maximum, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND));
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;
 		updatePlayhead(engine.getPositionFrames());
 		publishDocumentSnapshot();
@@ -3384,6 +3387,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const duration = projectDurationFrames(project);
 		const timelineDuration = editorTimelineDurationFrames(project, projectSampleRate());
 		const durationSeconds = timelineDuration / projectSampleRate();
+		const minimumPixelsPerSecond = state.timelineViewportWidth > 0
+			? state.timelineViewportWidth / durationSeconds
+			: 1;
+		state.pixelsPerSecond = Math.max(minimumPixelsPerSecond, state.pixelsPerSecond);
 		state.pixelsPerSecond = Math.min(state.pixelsPerSecond, MAX_TIMELINE_PIXELS / durationSeconds);
 		state.timelineWidth = Math.max(1, Math.round(durationSeconds * state.pixelsPerSecond));
 		updatePlayhead(engine.getPositionFrames(), duration);
@@ -5796,11 +5803,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function updateZoom(action, requestedViewportWidth) {
 		if (action === 'fit') {
-			const viewport = Math.max(320, Number(requestedViewportWidth) || 960);
+			const viewport = Math.max(320, Number(requestedViewportWidth) || state.timelineViewportWidth || 960);
 			state.pixelsPerSecond = Math.max(1, viewport / (editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate()));
-		} else state.pixelsPerSecond = Math.max(1, Math.min(MAX_PIXELS_PER_SECOND, state.pixelsPerSecond * (action === 'in' ? 2 : 0.5)));
+		} else {
+			const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
+			const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
+			state.pixelsPerSecond = Math.max(minimum, Math.min(MAX_PIXELS_PER_SECOND, state.pixelsPerSecond * (action === 'in' ? 2 : 0.5)));
+		}
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;
 		publishProjectState();
+	}
+
+	function setTimelineViewportWidth(width) {
+		const nextWidth = Math.max(0, Number(width) || 0);
+		if (nextWidth === state.timelineViewportWidth) return nextWidth;
+		state.timelineViewportWidth = nextWidth;
+		publishProjectState();
+		return nextWidth;
 	}
 
 	function normalizeExportSettings(value = {}) {
