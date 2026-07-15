@@ -242,6 +242,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
 
+	test('keeps time selection available on empty tracks', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const lane = editor.locator('.audio-editor-track-row [data-track-lane]').first();
+		const box = await lane.boundingBox();
+		expect(box).not.toBeNull();
+
+		await page.mouse.move(box.x + 24, box.y + 48);
+		await page.mouse.down();
+		await page.mouse.move(box.x + 144, box.y + 48, { steps: 4 });
+		await page.mouse.up();
+		await expect(editor.getByRole('button', { name: 'Loop selection' })).toBeEnabled();
+		await expect(editor.locator('[data-selection-toolbar] .timecode')).toHaveCount(3);
+
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Audio track', exact: true }).click();
+		await expect(editor.locator('[data-selection-toolbar] .timecode')).toHaveCount(3);
+	});
+
 	test('opens the custom track name editor only after double-clicking the native name', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const name = trackNameText(editor).first();

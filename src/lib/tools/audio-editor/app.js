@@ -2706,9 +2706,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!Number.isFinite(Number(startFrame)) || !Number.isFinite(Number(endFrame))) {
 			throw new TypeError(copy.selectionFramesFinite);
 		}
-		const maximumFrame = projectDurationFrames(project);
-		const start = snapTimelineFrame(normalizeTimelineFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
-		const end = snapTimelineFrame(normalizeTimelineFrame(Math.max(Number(startFrame), Number(endFrame))), { maximumFrame });
+		const maximumFrame = project.tracks.length
+			? Math.max(projectDurationFrames(project), Math.round(MIN_TIMELINE_SECONDS * projectSampleRate()))
+			: projectDurationFrames(project);
+		const clampSelectionFrame = (value) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
+		const start = snapTimelineFrame(clampSelectionFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
+		const end = snapTimelineFrame(clampSelectionFrame(Math.max(Number(startFrame), Number(endFrame))), { maximumFrame });
 		return commit({ type: 'selection/set', startFrame: start, endFrame: end, ...details });
 	}
 
@@ -2773,6 +2776,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 					if (clip) ranges.push([clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames]);
 				}
 			}
+		}
+		if (!ranges.length && tracks.length) {
+			return {
+				startFrame: 0,
+				endFrame: Math.max(projectDurationFrames(project), Math.round(MIN_TIMELINE_SECONDS * projectSampleRate())),
+			};
 		}
 		if (!ranges.length) return null;
 		return {
