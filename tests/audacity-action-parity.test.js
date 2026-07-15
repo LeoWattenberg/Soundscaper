@@ -258,6 +258,7 @@ test('menu decoration removes exclusions and preserves disabled actions with loc
 	]);
 
 	const [disabledMidi, , pendingSave, , newProject] = decorated[0].items;
+	assert.equal(disabledMidi.label, 'MIDI exportieren');
 	assert.equal(disabledMidi.disabled, true);
 	assert.equal(disabledMidi.onClick, undefined);
 	assert.equal(disabledMidi.parityActionId, 'export-midi');
@@ -265,12 +266,33 @@ test('menu decoration removes exclusions and preserves disabled actions with loc
 	assert.match(disabledMidi.disabledReason, /deaktiviert/);
 	assert.match(pendingSave.disabledReason, /noch nicht angebunden/);
 	assert.equal(newProject.onClick, createProject);
+	assert.equal(newProject.label, 'Neu');
 	assert.equal(newProject.parityActionId, 'file-new');
 
 	assert.equal(menus.length, 2);
 	assert.equal(menus[0].items[2].onClick, exportMidi);
 	assert.equal(menus[0].items.at(-1).divider, true);
 	assert.throws(() => applyAudacityParityToMenus(null), /menus must be an array/);
+});
+
+test('menu decoration uses pinned Audacity labels instead of divergent English call-site copy', () => {
+	const onClick = () => {};
+	const [item] = applyAudacityParityToMenus([{
+		id: 'file-new',
+		label: 'Create a local project',
+		onClick,
+	}], { locale: 'en' });
+	assert.equal(item.label, 'New');
+	assert.equal(item.onClick, onClick);
+
+	const [stateful] = applyAudacityParityToMenus([{
+		id: 'record',
+		label: 'Stop recording',
+		preserveLabel: true,
+		onClick,
+	}], { locale: 'en' });
+	assert.equal(stateful.label, 'Stop recording');
+	assert.equal(Object.hasOwn(stateful, 'preserveLabel'), false);
 });
 
 test('shortcut command inventory consumes manifest actions while keeping disabled entries inert and exclusions absent', () => {

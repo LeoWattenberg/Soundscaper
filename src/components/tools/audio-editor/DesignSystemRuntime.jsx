@@ -48,7 +48,8 @@ export function useAudioEditorTelemetry(controller) {
 // The component package consumes its theme as JavaScript rather than exposing
 // a semantic CSS-variable sheet. Project the same active theme into the small
 // set of variables used by editor-owned surfaces (canvas, timeline, and
-// application layout), so those surfaces cannot drift into a second palette.
+// application layout) and targeted component fixes, so they cannot drift into
+// a second palette.
 export function useAudioEditorThemeVariables() {
 	const { theme } = useTheme();
 
@@ -60,6 +61,9 @@ export function useAudioEditorThemeVariables() {
 		'--kw-editor-panel': theme.background.surface.elevated,
 		'--kw-editor-control': theme.background.control.input.idle,
 		'--kw-editor-text': theme.foreground.text.primary,
+		'--kw-editor-primary-button-text': theme === darkTheme
+			? theme.foreground.text.inverse
+			: theme.foreground.text.primary,
 		'--kw-editor-muted': theme.foreground.text.secondary,
 		'--kw-editor-line': theme.border.onSurface,
 		'--kw-editor-stage': theme.background.canvas.default,

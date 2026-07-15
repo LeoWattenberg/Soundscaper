@@ -515,7 +515,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		let menu = page.getByRole('menu', { name: 'File', exact: true });
 		await expect(menu).toBeVisible();
 		await expect(file).toHaveAttribute('aria-expanded', 'true');
-		const newProject = getMenuItem(menu, 'New project');
+		const newProject = getMenuItem(menu, 'New');
 		const clearData = getMenuItem(menu, 'Clear all local editor data');
 		await expect(newProject).toBeFocused();
 		await page.keyboard.press('ArrowUp');
@@ -538,9 +538,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(addNewTrack).toBeFocused();
 		await page.keyboard.press('ArrowRight');
 		const trackSubmenu = addNewTrack.getByRole('menu');
-		const audioTrack = getMenuItem(trackSubmenu, 'Audio track');
+		const firstTrackType = getMenuItem(trackSubmenu, 'New mono track');
 		await expect(trackSubmenu).toBeVisible();
-		await expect(audioTrack).toBeFocused();
+		await expect(firstTrackType).toBeFocused();
 		await page.keyboard.press('ArrowLeft');
 		await expect(trackSubmenu).toBeHidden();
 		await expect(addNewTrack).toBeFocused();
@@ -636,15 +636,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(selectionToolbar.getByRole('toolbar', { name: 'Selection toolbar' })).toBeVisible();
 		await expect(selectionToolbar.locator('[data-status]')).toHaveText('Editor ready. Create a project or import audio.');
 
-		await chooseFileAction(page, editor, 'Open projects');
+		await chooseFileAction(page, editor, 'Open');
 		const projectsDialog = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projectsDialog).toBeVisible();
 		await projectsDialog.getByRole('button', { name: 'Close' }).click();
 
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
-		await chooseCommandAction(page, editor, 'Effect', 'Add realtime effects');
+		await chooseCommandAction(page, editor, 'Effect', 'Add track effects');
 		const commandEffects = editor.locator('[data-effects-overlay]');
 		await expect(commandEffects.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
 		await closeEffectsPanel(commandEffects);
@@ -813,7 +813,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 
-		await chooseCommandAction(page, editor, 'Select', 'All');
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await expect(editor.getByRole('button', { name: 'Loop selection', exact: true })).toBeEnabled();
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom to selection']);
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
@@ -851,8 +851,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'View', ['Toolbars', 'Show microphone metering']);
 		await expect(recordingLevel).toHaveValue('1.37');
 
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Label track']);
-		await chooseCommandAction(page, editor, 'Edit', 'Edit labels');
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
+		await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
 		const labelsPanel = editor.locator('[data-workspace-panel="labels"]');
 		await expect(labelsPanel).toBeVisible();
 		await labelsPanel.getByRole('button', { name: 'New label', exact: true }).click();
@@ -866,14 +866,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
 		await expect(editor.locator('[data-label-track] [data-label-id] input')).toHaveValue('Verse');
 
-		await chooseCommandAction(page, editor, 'Edit', 'Metadata');
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
 		await commitInput(metadataPanel.locator('input[name="title"]'), 'Browser parity project');
 		await commitInput(metadataPanel.locator('input[name="artist"]'), 'Audacity tester');
 		await metadataPanel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
 		await expect(metadataPanel).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'Edit', 'Metadata');
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		await expect(editor.locator('[data-workspace-panel="metadata"] input[name="title"]')).toHaveValue('Browser parity project');
 		await expect(editor.locator('[data-workspace-panel="metadata"] input[name="artist"]')).toHaveValue('Audacity tester');
 		expect(errors).toEqual([]);
@@ -980,7 +980,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseFileAction(page, editor, 'Save as native AUP4');
+		await chooseFileAction(page, editor, 'Save project as');
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
@@ -1089,7 +1089,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.setViewportSize({ width: 1440, height: 1200 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(3);
 
 		const sourceTrack = editor.locator('[data-track-row]').nth(1);
@@ -1392,7 +1392,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(confirm).not.toBeVisible();
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 
-		await chooseFileAction(page, editor, 'Open projects');
+		await chooseFileAction(page, editor, 'Open');
 		const projects = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projects).toBeVisible();
 		await expect(projects.locator('[data-project-list] li')).not.toHaveCount(0);
@@ -1535,7 +1535,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseCommandAction(page, editor, 'Select', 'All');
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await editor.getByRole('button', { name: 'Copy', exact: true }).click();
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await expect(editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab')).toHaveCount(2);
@@ -1652,7 +1652,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('opens the same project read-only in another tab', async ({ page, context }) => {
 		const first = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
+		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'New stereo track']);
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 
 		const secondPage = await context.newPage();
@@ -1664,7 +1664,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const tracksMenu = secondPage.getByRole('menu', { name: 'Tracks', exact: true });
 		const addNewTrack = getMenuItem(tracksMenu, 'Add new track');
 		await addNewTrack.click();
-		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'Audio track')).toHaveAttribute('aria-disabled', 'true');
+		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'New stereo track')).toHaveAttribute('aria-disabled', 'true');
 		const readOnlyRecord = second.locator('[data-transport="record"] button');
 		await expect(readOnlyRecord).toBeDisabled();
 		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
@@ -1693,7 +1693,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New stereo track']);
 		const tracks = editor.locator('[data-track-row]');
 		await expect(tracks).toHaveCount(2);
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);
@@ -1723,7 +1723,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(await flatHeadings.evaluateAll((items) => items.filter((item) => item.tabIndex === 0).length)).toBe(await flatHeadings.count());
 		await flatHeadings.filter({ hasText: /^File$/ }).focus();
 		await page.keyboard.press('ArrowDown');
-		await expect(getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'New project')).toBeFocused();
+		await expect(getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'New')).toBeFocused();
 		await page.keyboard.press('Tab');
 		await expect(flatHeadings.filter({ hasText: /^Edit$/ })).toBeFocused();
 		await expect(page.getByRole('menu', { name: 'File', exact: true })).toBeHidden();
@@ -1737,7 +1737,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'File', exact: true }).click();
 		await assertAccessibleBasics(page.locator('body'));
 		await assertNoSeriousAxeViolations(page);
-		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Open projects').click();
+		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Open').click();
 		await assertAccessibleBasics(page.getByRole('dialog', { name: 'Local projects' }));
 		await assertNoSeriousAxeViolations(page);
 		await page.getByRole('dialog', { name: 'Local projects' }).getByRole('button', { name: 'Close' }).click();

@@ -39,6 +39,7 @@ import {
 	resolveAudacityActionId,
 } from '../../../lib/tools/audio-editor/audacity-action-parity.js';
 import { createAudacityActionRuntime } from '../../../lib/tools/audio-editor/audacity-action-runtime.js';
+import { iconNameToChar } from '../../../lib/tools/audio-editor/audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import {
 	findAudioEditorShortcutConflicts,
@@ -977,7 +978,7 @@ function EditorToolToolbar({
 		{ id: 'waveform-view', label: copy.waveformView, icon: 'waveform' },
 		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
 		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
-		{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'spectrogram' },
+		{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'brush' },
 		{ id: 'zoom-in', label: copy.zoomIn, icon: 'zoom-in' },
 		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
@@ -1076,7 +1077,7 @@ function EditorToolToolbar({
 						title={spectralBrushReason}
 					>
 						<ToolButton
-							icon="spectrogram"
+							icon="brush"
 							ariaLabel={`${copy.spectralBrush}: ${spectralBrushReason}`}
 							disabled
 						/>
@@ -1885,12 +1886,12 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	const pages = [
-		{ id: 'appearance', label: copy.appearance, icon: '\uF444' },
-		{ id: 'editing', label: copy.preferencesEditing, icon: '\uF43E' },
-		{ id: 'workspace', label: copy.workspace, icon: '\uEF55' },
-		{ id: 'toolbars', label: copy.toolbarsMenu, icon: '\uF43C' },
-		{ id: 'panels', label: copy.panels, icon: '\uF440' },
-		{ id: 'shortcuts', label: copy.shortcuts, icon: '\uF441' },
+		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
+		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
+		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
+		{ id: 'toolbars', label: copy.toolbarsMenu, icon: iconNameToChar('TOOLBAR_GRIP') },
+		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
+		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	const appearanceTheme = preferences.appearance.theme;
@@ -3305,11 +3306,12 @@ function createApplicationMenus({
 		{
 			id: 'record',
 			label: copy.recordMenu,
+			preserveLabel: true,
 			items: [
-				{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing', disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
+				{ id: 'record', label: snapshot.recording ? copy.stopRecording : recordLabel, preserveLabel: Boolean(snapshot.recording), shortcut: 'R', disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing', disabledReason: snapshot.readOnly ? copy.projectReadOnly : undefined, onClick: actions.record },
 				{ id: 'record-new-track', label: copy.recordNewTrack, shortcut: 'Shift+R', disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting, onClick: actions.recordNewTrack },
 				{ id: 'stop', label: copy.stop, onClick: actions.stop },
-				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },
+				{ id: 'pause-recording', label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording, preserveLabel: true, disabled: !snapshot.recording, checked: Boolean(snapshot.recordingOptions?.paused), onClick: actions.pauseRecording },
 				divider(),
 				{
 					id: 'recording-input-access',
@@ -3340,7 +3342,6 @@ function createApplicationMenus({
 					id: 'add-new-track',
 					label: copy.addNewTrack,
 					items: [
-						{ id: 'audio-track', label: copy.audioTrack, disabled: editBlocked, onClick: actions.addTrack },
 						{ id: 'new-mono-track', label: copy.newMonoTrack, disabled: editBlocked, onClick: actions.addMonoTrack },
 						{ id: 'new-stereo-track', label: copy.newStereoTrack, disabled: editBlocked, onClick: actions.addStereoTrack },
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },

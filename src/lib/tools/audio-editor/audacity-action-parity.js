@@ -745,17 +745,29 @@ export function applyAudacityParityToMenus(menus, {
 	const resolvedContext = actionContext === undefined
 		? resolveRuntimeActionContext(actionRuntime)
 		: resolveActionContext(actionContext);
-	return cleanMenuItems(completeMenus.map((item) => decorateMenuItem(item, localization, actionRuntime, resolvedContext)).filter(Boolean));
+	return cleanMenuItems(completeMenus.map((item) => decorateMenuItem(
+		item,
+		localization,
+		actionRuntime,
+		resolvedContext,
+		normalizedLocale === 'en',
+	)).filter(Boolean));
 }
 
-function decorateMenuItem(item, localization, actionRuntime, actionContext) {
+function decorateMenuItem(item, localization, actionRuntime, actionContext, canonicalEnglish) {
 	if (!item || typeof item !== 'object') throw new TypeError('Each menu item must be an object.');
 	if (item.divider) return { ...item };
 	const definition = item.id ? audacityActionDefinition(item.id) : null;
 	if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED) return null;
 
 	const children = item.items
-		? cleanMenuItems(item.items.map((child) => decorateMenuItem(child, localization, actionRuntime, actionContext)).filter(Boolean))
+		? cleanMenuItems(item.items.map((child) => decorateMenuItem(
+			child,
+			localization,
+			actionRuntime,
+			actionContext,
+			canonicalEnglish,
+		)).filter(Boolean))
 		: undefined;
 	const result = { ...item };
 	if (children) result.items = children;
@@ -763,7 +775,16 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext) {
 	if (definition) {
 		result.parityActionId = definition.id;
 		result.parityStatus = definition.status;
+		// The reviewed parity manifest owns upstream command labels. Keeping a
+		// second label at every menu call site caused Audacity wording to drift.
+		// Value-bearing query actions (for example a concrete sample rate) and
+		// explicitly stateful controls retain their contextual label.
+		if (definition.origin === 'upstream' && !item.preserveLabel && !item.id.includes('?')) {
+			const canonicalLabel = localizedAudacityParityLabel(definition.label, localization);
+			if (canonicalEnglish || canonicalLabel !== definition.label) result.label = canonicalLabel;
+		}
 	}
+	delete result.preserveLabel;
 	if (definition?.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM) {
 		result.disabled = true;
 		result.onClick = undefined;

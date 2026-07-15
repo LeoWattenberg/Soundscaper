@@ -149,11 +149,6 @@
 	text-align: center;
 }
 
-#kw-audio-editor-design-system :is(button, input, textarea, select, a, [tabindex='0']):focus-visible {
-	outline: 2px solid var(--kw-editor-accent);
-	outline-offset: 2px;
-}
-
 #kw-audio-editor-design-system :is(.audio-editor-timeline-scroll, .audio-editor-effect-bands, .kw-audio-editor-project-list) {
 	scrollbar-color: color-mix(in srgb, var(--kw-editor-accent) 44%, var(--kw-editor-muted)) transparent;
 	scrollbar-width: thin;
@@ -354,12 +349,8 @@
 }
 
 #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
-	/* The component wires regular foreground text onto its primary fill. */
-	color: #14151a;
-}
-
-:root[data-theme='dark'] #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
-	color: #1a1b1e;
+	/* ADS Button uses the regular foreground token against its dark-theme blue fill. */
+	color: var(--kw-editor-primary-button-text);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__toolbars {
@@ -2089,12 +2080,6 @@
 	flex-direction: column;
 }
 
-#kw-audio-editor-design-system .audio-editor-dialog-footer {
-	color: var(--kw-editor-text);
-	background: var(--kw-editor-panel);
-	border-color: var(--kw-editor-line);
-}
-
 #kw-audio-editor-design-system .audio-editor-dialog-footer :is(.footer__left-group, .footer__button-group) {
 	align-items: center;
 }
@@ -2110,9 +2095,6 @@
 
 #kw-audio-editor-design-system :is(.audio-editor-effect-preset-header, .audio-editor-rack-effect-header) .effect-header {
 	min-height: 44px;
-	color: var(--kw-editor-text);
-	background: var(--kw-editor-bg);
-	border: 0;
 }
 
 #kw-audio-editor-design-system .audio-editor-rack-effect-header .effect-header__right {
@@ -2869,20 +2851,6 @@
 :root[data-theme='dark'] #kw-audio-editor-design-system .dropdown__trigger {
 	color: var(--kw-editor-text) !important;
 	background: var(--kw-editor-control) !important;
-}
-
-:root[data-theme='dark'] body.kw-audio-editor-design-system-mounted .dropdown__menu {
-	--dropdown-menu-bg: #202126 !important;
-	--dropdown-text: #e4e5e7 !important;
-	--dropdown-border: #373a40 !important;
-	--dropdown-option-hover-bg: #373a40 !important;
-	--dropdown-option-hover-outline: #60a5fa !important;
-	color-scheme: dark;
-}
-
-:root[data-theme='dark'] #kw-audio-editor-design-system [data-effect-rack] > .effects-panel,
-:root[data-theme='dark'] #kw-audio-editor-design-system [data-effect-rack] .side-panel__content {
-	background: var(--kw-editor-panel) !important;
 }
 
 @media (max-width: 1180px) {
