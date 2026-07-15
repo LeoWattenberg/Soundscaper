@@ -1926,6 +1926,32 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('shows time selections above clips and label tracks', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
+
+		const ruler = editor.locator('[data-ruler]');
+		const rulerBox = await ruler.boundingBox();
+		const labelLane = editor.locator('[data-label-track] [data-track-lane]');
+		const labelBox = await labelLane.boundingBox();
+		expect(rulerBox).not.toBeNull();
+		expect(labelBox).not.toBeNull();
+		await page.mouse.move(rulerBox.x + 22, rulerBox.y + 26);
+		await page.mouse.down();
+		await page.mouse.move(rulerBox.x + 82, rulerBox.y + 26, { steps: 4 });
+		await page.mouse.up();
+
+		const overlay = editor.locator('[data-time-selection-overlay]');
+		const overlayBox = await overlay.boundingBox();
+		expect(overlayBox).not.toBeNull();
+		expect(overlayBox.y).toBeLessThanOrEqual(labelBox.y);
+		expect(overlayBox.y + overlayBox.height).toBeGreaterThanOrEqual(labelBox.y + labelBox.height);
+		await expect(overlay).toHaveCSS('z-index', '50');
+		expect(errors).toEqual([]);
+	});
+
 	test('moves the playhead without starting playback when clicking timeline lanes and clips', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

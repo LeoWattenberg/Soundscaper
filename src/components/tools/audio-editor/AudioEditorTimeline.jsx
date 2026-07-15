@@ -1072,6 +1072,13 @@ export default function AudioEditorTimeline({
 						)}
 					</div>
 
+					<TimeSelectionOverlay
+						selection={timeSelection}
+						panelWidth={panelWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						height={totalTrackHeight}
+					/>
+
 					{project.tracks.length === 0 && project.clips.length === 0 && (
 						<div className="audio-editor-empty-state" style={{ left: panelWidth + 24 }}>
 							<strong>{copy.emptyTitle}</strong>
@@ -1369,6 +1376,22 @@ function TelemetryPlayhead({
 				}}
 			/>
 		</div>
+	);
+}
+
+function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, height }) {
+	if (!selection || selection.endTime <= selection.startTime) return null;
+	return (
+		<div
+			className="audio-editor-time-selection-overlay"
+			data-time-selection-overlay
+			aria-hidden="true"
+			style={{
+				left: panelWidth + CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond,
+				width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
+				height,
+			}}
+		/>
 	);
 }
 

@@ -1706,6 +1706,16 @@
 	cursor: ns-resize;
 }
 
+#kw-audio-editor-design-system .audio-editor-time-selection-overlay {
+	position: absolute;
+	top: 34px;
+	z-index: 50;
+	box-sizing: border-box;
+	background: color-mix(in srgb, var(--kw-editor-accent) 18%, transparent);
+	border-inline: 1px solid color-mix(in srgb, var(--kw-editor-accent) 78%, white);
+	pointer-events: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-playhead-boundary {
 	position: absolute;
 	z-index: 70;
