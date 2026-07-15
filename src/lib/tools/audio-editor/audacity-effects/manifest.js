@@ -367,14 +367,13 @@ const definitions = {
 	'audacity-truncate-silence': {
 		category: 'special',
 		lengthChanging: true,
-		// Audacity's Independent setting coordinates processing across multiple
-		// selected tracks. Selection effects here target one track, making it inert.
 		params: {
 			thresholdDb: number(-20, -80, -20, { unit: 'dB', step: 0.1 }),
 			action: select('truncate', [option('truncate'), option('compress')]),
 			minimumSilence: number(0.5, 0.001, 10_000, { unit: 's', step: 0.001 }),
 			truncateTo: number(0.5, 0, 10_000, { unit: 's', step: 0.001 }),
 			compressPercent: number(50, 0, 99.9, { unit: '%', step: 0.1 }),
+			independent: checkbox(false),
 		},
 	},
 	'audacity-wahwah': {

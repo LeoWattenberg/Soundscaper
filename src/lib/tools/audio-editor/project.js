@@ -414,16 +414,10 @@ function validateProjectV2Shape(project) {
 		}
 		if (track.type !== 'audio') throw new RangeError(`Unsupported track type: ${track.type}.`);
 		if (!Array.isArray(track.clipIds)) throw new TypeError(`Track ${track.id} must contain clip IDs.`);
-		const trackClips = [];
 		for (const clipId of track.clipIds) {
 			if (!clipIds.has(clipId)) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
 			if (assignedClipIds.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
 			assignedClipIds.add(clipId);
-			trackClips.push(project.clips.find((clip) => clip.id === clipId));
-		}
-		trackClips.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
-		for (let index = 1; index < trackClips.length; index += 1) {
-			if (clipsOverlap(trackClips[index - 1], trackClips[index])) throw new RangeError(`Clips overlap on track ${track.id}.`);
 		}
 	}
 	if (assignedClipIds.size !== project.clips.length) throw new RangeError('Every clip must belong to exactly one audio track.');

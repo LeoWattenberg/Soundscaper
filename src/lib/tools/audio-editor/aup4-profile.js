@@ -231,6 +231,8 @@ export function createAup4ProjectTree(project, channelBlocks = new Map()) {
 	const numerator = integerInRange(timeSignature.numerator, 1, 32, 4);
 	const denominator = [1, 2, 4, 8, 16, 32].includes(Number(timeSignature.denominator)) ? Number(timeSignature.denominator) : 4;
 	const selectedTrackIds = new Set(project.selection?.trackIds || []);
+	const selectedClipIds = new Set(project.selection?.clipIds || []);
+	const groupNumbers = createGroupNumberMap(project);
 	const rootAttributes = mergeAttributes([
 		attribute('xmlns', 'string', 'http://audacity.sourceforge.net/xml/'),
 		attribute('version', 'string', AUP4_BINARY_XML_VERSION),
@@ -258,7 +260,7 @@ export function createAup4ProjectTree(project, channelBlocks = new Map()) {
 	for (const track of project.tracks) {
 		if ((track.kind || track.type || 'audio') === 'label') content.push({ kind: 'node', node: createLabelTrackNode(track, sampleRate, selectedTrackIds) });
 		else for (let channel = 0; channel < trackChannelCount(project, track); channel += 1) {
-			content.push({ kind: 'node', node: createWaveTrackNode(project, track, channel, channelBlocks, sampleRate, selectedTrackIds) });
+			content.push({ kind: 'node', node: createWaveTrackNode(project, track, channel, channelBlocks, sampleRate, selectedTrackIds, selectedClipIds, groupNumbers) });
 		}
 	}
 	const opaqueMasterEffects = project.opaqueExtensions?.aup4MasterEffects;
@@ -305,7 +307,7 @@ export function readAup4ProjectSummary(root) {
 	};
 }
 
-function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, selectedTrackIds) {
+function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, selectedTrackIds, selectedClipIds, groupNumbers) {
 	const channelCount = trackChannelCount(project, track);
 	const trackRate = trackSampleRate(project, track, projectRate);
 	const opaqueTrack = track.opaqueExtensions?.aup4WaveTracks?.[channel]?.node;
@@ -351,13 +353,13 @@ function createWaveTrackNode(project, track, channel, channelBlocks, projectRate
 	}
 	for (const clipId of track.clipIds || []) {
 		const clip = project.clips.find((candidate) => candidate.id === clipId);
-		if (clip) content.push({ kind: 'node', node: createWaveClipNode(project, clip, channel, channelBlocks, trackRate, projectRate) });
+		if (clip) content.push({ kind: 'node', node: createWaveClipNode(project, clip, channel, channelBlocks, trackRate, projectRate, selectedClipIds, groupNumbers) });
 	}
 	appendOpaqueChildren(content, opaqueTrack, new Set(['effects', 'waveclip']));
 	return createAudacityXmlNode('wavetrack', [], content);
 }
 
-function createWaveClipNode(project, clip, channel, channelBlocks, rate, projectRate) {
+function createWaveClipNode(project, clip, channel, channelBlocks, rate, projectRate, selectedClipIds, groupNumbers) {
 	const blocks = channelBlocks.get(`${clip.id}:${channel}`)
 		|| channelBlocks.get(`${clip.sourceId}:${channel}`)
 		|| channelBlocks.get(clip.id)
@@ -418,11 +420,9 @@ function createWaveClipNode(project, clip, channel, channelBlocks, rate, project
 			? Boolean(audacityXmlAttribute(opaqueClip, 'clipStretchToMatchTempo', false))
 			: Boolean(clip.stretchToTempo)),
 		attribute('name', 'string', String(clip.name || clip.title || 'Audio')),
-		attribute('groupId', 'long', groupNumber(project, clip.groupId)),
+		attribute('groupId', 'long', groupNumbers.get(clip.groupId) ?? -1),
 		attribute('colorindex', 'int', colorIndex(clip.color, audacityXmlAttribute(opaqueClip, 'colorindex', 0))),
-		attribute('isSelected', 'bool', clip.selected == null
-			? Boolean(audacityXmlAttribute(opaqueClip, 'isSelected', false))
-			: Boolean(clip.selected)),
+		attribute('isSelected', 'bool', selectedClipIds.has(clip.id)),
 	];
 	if (clipTempo != null) clipAttributes.push(attribute('clipTempo', 'double', clipTempo, 8));
 	if (rawAudioTempo != null) clipAttributes.push(attribute('rawAudioTempo', 'double', rawAudioTempo, 8));
@@ -609,11 +609,40 @@ function trackSampleRate(project, track, projectRate) {
 	return rates.size === 1 ? rates.values().next().value : projectRate;
 }
 
-function groupNumber(project, groupId) {
-	if (Number.isSafeInteger(groupId)) return groupId;
-	if (groupId == null || groupId === '') return -1;
+function createGroupNumberMap(project) {
+	const groupIds = [...new Set((project.clips || [])
+		.map((clip) => clip.groupId)
+		.filter((groupId) => groupId != null && groupId !== '' && !(Number.isSafeInteger(groupId) && groupId < 0)))]
+		.sort(compareGroupIds);
+	const result = new Map();
+	const usedNumbers = new Set();
+	const generatedIds = [];
+	for (const groupId of groupIds) {
+		const importedNumber = importedGroupNumber(groupId);
+		if (importedNumber != null && !usedNumbers.has(importedNumber)) {
+			result.set(groupId, importedNumber);
+			usedNumbers.add(importedNumber);
+		} else generatedIds.push(groupId);
+	}
+	let candidate = 0;
+	for (const groupId of generatedIds) {
+		while (usedNumbers.has(candidate)) candidate += 1;
+		result.set(groupId, candidate);
+		usedNumbers.add(candidate);
+		candidate += 1;
+	}
+	return result;
+}
+
+function compareGroupIds(left, right) {
+	const leftKey = `${typeof left}:${String(left)}`;
+	const rightKey = `${typeof right}:${String(right)}`;
+	return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+}
+
+function importedGroupNumber(groupId) {
+	if (Number.isSafeInteger(groupId) && groupId >= 0) return groupId;
 	const imported = /^aup4-group-(\d+)$/.exec(String(groupId));
-	if (imported && Number.isSafeInteger(Number(imported[1]))) return Number(imported[1]);
-	const ids = [...new Set((project.clips || []).map((clip) => clip.groupId).filter((id) => id != null && id !== ''))];
-	return ids.indexOf(groupId);
+	const value = Number(imported?.[1]);
+	return imported && Number.isSafeInteger(value) ? value : null;
 }

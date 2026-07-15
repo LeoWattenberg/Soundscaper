@@ -778,6 +778,62 @@ test('engine schedules clip volume automation for live playback', async () => {
 	await engine.dispose();
 });
 
+test('engine schedules track automation in project time and composes it with static track gain', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext({ sampleRate: 8 });
+	const project = createTrackEnvelopeProject({
+		effects: [{ type: 'limiter', params: { lookahead: 0.25 } }],
+	});
+	const source = new MockAudioBuffer(1, 8, 8);
+	source.getChannelData(0).fill(1);
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context, meterInterval: 1_000 });
+	try {
+		engine.loadProject(project, new Map([['envelope-source', source]]));
+		engine.seek(2);
+		await engine.play();
+
+		const fadeIn = context.bufferSources[0].connections[0];
+		const fadeOut = fadeIn.connections[0];
+		const clipGain = fadeOut.connections[0];
+		const trackInput = clipGain.connections[0];
+		const limiter = trackInput.connections[0];
+		const trackGain = limiter.connections[0];
+		assert.equal(limiter.kind, 'audio-worklet');
+		assert.deepEqual(trackGain.gain.events, [
+			['set', 0.5, 0],
+			['set', 0.25, 0.25],
+			['ramp', 0, 0.5],
+			['ramp', 0.5, 1],
+		]);
+		engine.stop();
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('offline engine render bakes track automation into PCM across a cropped timeline range', async () => {
+	const project = createTrackEnvelopeProject();
+	const source = new MockAudioBuffer(1, 8, 8);
+	source.getChannelData(0).fill(1);
+	const engine = createAudioEditorEngine({
+		offlineAudioContextFactory: (options) => new MockGainRenderingOfflineAudioContext(options),
+	});
+	engine.loadProject(project, new Map([['envelope-source', source]]));
+	const rendered = await engine.renderMix({
+		startFrame: 2,
+		endFrame: 6,
+		includeMaster: false,
+		includeTrackPan: false,
+		respectMuteSolo: false,
+	});
+	assert.deepEqual(Array.from(rendered.getChannelData(0)), [0.25, 0.125, 0, 0.125]);
+	assert.deepEqual(rendered.getChannelData(1), rendered.getChannelData(0));
+	await engine.dispose();
+});
+
 test('project graph meters pre-mute tracks and applies master processing', () => {
 	const context = new MockAudioContext();
 	const graph = buildProjectGraph(context, context.destination, createProject(), { metering: true });
@@ -1105,6 +1161,29 @@ function createProject() {
 	};
 }
 
+function createTrackEnvelopeProject({ effects = [] } = {}) {
+	return {
+		id: 'track-envelope-project',
+		sampleRate: 8,
+		sources: [{
+			id: 'envelope-source', frameCount: 8, channelCount: 1, sampleRate: 8,
+		}],
+		clips: [{
+			id: 'envelope-clip', sourceId: 'envelope-source', timelineStartFrame: 0,
+			sourceStartFrame: 0, sourceDurationFrames: 8, durationFrames: 8,
+			gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false, envelope: [],
+		}],
+		tracks: [{
+			type: 'audio', id: 'envelope-track', name: 'Envelope', clipIds: ['envelope-clip'],
+			gain: 0.5, pan: 0, mute: false, solo: false,
+			envelope: [{ frame: 0, value: 1 }, { frame: 4, value: 0 }, { frame: 8, value: 1 }],
+			effects,
+		}],
+		mixer: { groups: [], sends: [], routes: {} },
+		master: { gain: 1, pan: 0, mute: false, effects: [] },
+	};
+}
+
 function createRackProject({ tracks, masterEffects = [] }) {
 	const clips = tracks.map((track, index) => ({
 		id: `clip-${index + 1}`,
@@ -1278,6 +1357,57 @@ class MockOfflineAudioContext extends MockAudioContext {
 		this.numberOfChannels = options.numberOfChannels;
 	}
 	async startRendering() { return new MockAudioBuffer(this.numberOfChannels, this.length, this.sampleRate); }
+}
+
+class MockGainRenderingOfflineAudioContext extends MockOfflineAudioContext {
+	async startRendering() {
+		const rendered = new MockAudioBuffer(this.numberOfChannels, this.length, this.sampleRate);
+		for (const source of this.bufferSources) {
+			if (!source.started || !source.buffer) continue;
+			const [when, offset, duration] = source.started;
+			for (let frame = 0; frame < rendered.length; frame += 1) {
+				const time = frame / this.sampleRate;
+				if (time < when || time >= when + duration) continue;
+				const playbackRate = mockParamValueAtTime(source.playbackRate, time);
+				const sourceFrame = Math.floor((offset + (time - when) * playbackRate) * source.buffer.sampleRate);
+				for (let channel = 0; channel < rendered.numberOfChannels; channel += 1) {
+					const sourceChannel = Math.min(channel, source.buffer.numberOfChannels - 1);
+					const value = source.buffer.getChannelData(sourceChannel)[sourceFrame] || 0;
+					propagateMockSample(source, value, time, rendered.getChannelData(channel), frame);
+				}
+			}
+		}
+		return rendered;
+	}
+}
+
+function propagateMockSample(node, value, time, output, frame) {
+	for (const connection of node.connections) {
+		if (connection.kind === 'destination') {
+			output[frame] += value;
+			continue;
+		}
+		const nextValue = connection.kind === 'gain'
+			? value * mockParamValueAtTime(connection.gain, time)
+			: value;
+		propagateMockSample(connection, nextValue, time, output, frame);
+	}
+}
+
+function mockParamValueAtTime(param, time) {
+	let previous = null;
+	for (const event of param?.events || []) {
+		const [type, value, eventTime] = event;
+		if (eventTime > time) {
+			if (type === 'ramp' && previous && eventTime > previous.time) {
+				const progress = (time - previous.time) / (eventTime - previous.time);
+				return previous.value + (value - previous.value) * progress;
+			}
+			return previous?.value ?? param.value;
+		}
+		previous = { value, time: eventTime };
+	}
+	return previous?.value ?? param?.value ?? 0;
 }
 
 class MockRampOfflineAudioContext extends MockOfflineAudioContext {

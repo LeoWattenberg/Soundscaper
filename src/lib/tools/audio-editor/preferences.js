@@ -90,6 +90,15 @@ const DEFAULT_PANELS = Object.freeze({
 	spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
 });
 
+const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
+	history: Object.freeze({ x: 24, y: 24, width: 360, height: 320 }),
+	labels: Object.freeze({ x: 48, y: 48, width: 360, height: 360 }),
+	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
+	effects: Object.freeze({ x: 96, y: 40, width: 400, height: 440 }),
+	mixer: Object.freeze({ x: 40, y: 96, width: 560, height: 360 }),
+	spectrogram: Object.freeze({ x: 120, y: 64, width: 400, height: 360 }),
+});
+
 export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 	classic: Object.freeze({
 		toolbars: Object.freeze({
@@ -255,6 +264,12 @@ function normalizePanelEntries(value = {}) {
 	for (const id of ids) {
 		nonEmptyString(id, 'panel ID');
 		const defaults = DEFAULT_PANELS[id] || { visible: false, dock: 'right', order: Object.keys(entries).length, size: 320 };
+		const floatingDefaults = DEFAULT_FLOATING_PANEL_GEOMETRY[id] || {
+			x: 24 + Object.keys(entries).length * 24,
+			y: 24 + Object.keys(entries).length * 24,
+			width: Math.max(240, defaults.size),
+			height: 320,
+		};
 		const entry = value[id] || {};
 		if (!entry || typeof entry !== 'object') throw new TypeError(`workspace.panels.${id} must be an object.`);
 		const visible = entry.visible ?? defaults.visible;
@@ -264,6 +279,10 @@ function normalizePanelEntries(value = {}) {
 			dock: oneOf(entry.dock ?? defaults.dock, DOCK_SET, `workspace.panels.${id}.dock`),
 			order: integer(entry.order ?? defaults.order, 0, `workspace.panels.${id}.order`),
 			size: finiteInRange(entry.size ?? defaults.size, 80, 4_096, `workspace.panels.${id}.size`),
+			x: finiteInRange(entry.x ?? floatingDefaults.x, 0, 1_000_000, `workspace.panels.${id}.x`),
+			y: finiteInRange(entry.y ?? floatingDefaults.y, 0, 1_000_000, `workspace.panels.${id}.y`),
+			width: finiteInRange(entry.width ?? entry.size ?? floatingDefaults.width, 80, 4_096, `workspace.panels.${id}.width`),
+			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
 		};
 	}
 	return entries;
@@ -485,8 +504,13 @@ export function loadAudioEditorPreferencesV1(value) {
 		return { preferences: clone(value), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorPreferencesV1(value);
+	const normalized = createAudioEditorPreferencesV1(value);
 	return {
-		preferences: { ...clone(value), recording: createAudioEditorPreferencesV1(value).recording },
+		preferences: {
+			...clone(value),
+			workspace: { ...clone(value.workspace), panels: normalized.workspace.panels },
+			recording: normalized.recording,
+		},
 		readOnly: false,
 		reason: null,
 	};

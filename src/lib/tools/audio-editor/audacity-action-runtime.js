@@ -212,17 +212,28 @@ export function createAudacityActionRuntime(controller, options = {}) {
 
 	function trimSelectedClip(edge, deltaFrames) {
 		const clip = selectedClip();
-		if (!clip) return null;
+		const source = project()?.sources?.find((candidate) => candidate.id === clip?.sourceId);
+		if (!clip || !source) return null;
+		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
 		if (edge === 'left') {
-			const delta = Math.max(-clip.sourceStartFrame, Math.min(clip.durationFrames - 1, deltaFrames));
+			const sourceExtension = clip.reversed
+				? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
+				: clip.sourceStartFrame;
+			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
+			const delta = Math.max(
+				-Math.min(clip.timelineStartFrame, timelineExtension),
+				Math.min(clip.durationFrames - 1, deltaFrames),
+			);
 			return controllerActions.clip.trim(clip.id, {
 				timelineStartFrame: clip.timelineStartFrame + delta,
-				sourceStartFrame: clip.sourceStartFrame + delta,
 				durationFrames: clip.durationFrames - delta,
 			});
 		}
-		const sourceFrames = clip.sourceDurationFrames || clip.durationFrames;
-		const maximumGrowth = Math.max(0, sourceFrames - clip.sourceStartFrame - clip.durationFrames);
+		const sourceExtension = clip.reversed
+			? clip.sourceStartFrame
+			: source.frameCount - clip.sourceStartFrame - sourceDurationFrames;
+		const maximumGrowth = Math.max(0, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
 		const delta = Math.max(-(clip.durationFrames - 1), Math.min(maximumGrowth, deltaFrames));
 		return controllerActions.clip.trim(clip.id, { durationFrames: clip.durationFrames + delta });
 	}

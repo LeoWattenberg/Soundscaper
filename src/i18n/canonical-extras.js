@@ -132,6 +132,7 @@ const COPY_ENTRIES = Object.freeze([
 	["effectParamAudacityPhaserOutputGainDb","Output gain","Ausgangsverstärkung"],
 	["effectNameAudacityRepair","Repair","Reparieren"],
 	["effectNameAudacityRemoveDcOffset","Remove DC Offset","Gleichspannungsversatz entfernen"],
+	["effectParamAudacityTruncateSilenceIndependent","Truncate tracks independently","Spuren unabhängig kürzen"],
 	["effectNameAudacityReverb","Reverb","Hall"],
 	["effectParamAudacityReverbRoomSize","Room size","Raumgröße"],
 	["effectParamAudacityReverbReverberance","Reverberance","Halligkeit"],

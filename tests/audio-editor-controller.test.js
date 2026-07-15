@@ -183,14 +183,37 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 		'clip-controller-second',
 	]);
 	assert.deepEqual(controller.getSnapshot().project.selection.trackIds, [originalTrackId, addedTrackId]);
+	controller.actions.clip.move('clip-controller-second', addedTrackId, 4_800);
+	let collectivelyEditedClips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(collectivelyEditedClips['clip-controller-test'].timelineStartFrame, 4_800);
+	assert.equal(collectivelyEditedClips['clip-controller-second'].timelineStartFrame, 4_800);
+	assert.deepEqual(controller.getSnapshot().project.selection, {
+		startFrame: 52_800,
+		endFrame: 100_800,
+		trackIds: [originalTrackId, addedTrackId],
+		clipIds: ['clip-controller-test', 'clip-controller-second'],
+		frequencyRange: null,
+	});
+	controller.actions.clip.trim('clip-controller-second', { durationFrames: 47_900 });
+	collectivelyEditedClips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(collectivelyEditedClips['clip-controller-test'].durationFrames, 143_900);
+	assert.equal(collectivelyEditedClips['clip-controller-second'].durationFrames, 47_900);
+	assert.equal(collectivelyEditedClips['clip-controller-test'].sourceDurationFrames, 143_900);
+	assert.equal(collectivelyEditedClips['clip-controller-second'].sourceDurationFrames, 47_900);
+	controller.actions.clip.stretch('clip-controller-second', { durationFrames: 95_800 });
+	collectivelyEditedClips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(collectivelyEditedClips['clip-controller-test'].durationFrames, 287_800);
+	assert.equal(collectivelyEditedClips['clip-controller-second'].durationFrames, 95_800);
+	assert.equal(collectivelyEditedClips['clip-controller-test'].speedRatio, 0.5);
+	assert.equal(collectivelyEditedClips['clip-controller-second'].speedRatio, 0.5);
 	controller.actions.timeline.selectClip('clip-controller-test', { toggle: true });
 	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, ['clip-controller-second']);
 	assert.equal(controller.getSnapshot().selectedClipId, 'clip-controller-second');
 	controller.actions.clip.stretch('clip-controller-second', { durationFrames: 96_000 });
 	const stretchedClip = controller.getSnapshot().project.clips.find((clip) => clip.id === 'clip-controller-second');
 	assert.equal(stretchedClip.durationFrames, 96_000);
-	assert.equal(stretchedClip.speedRatio, 0.5);
-	assert.equal(stretchedClip.renderCacheRevision, 1);
+	assert.equal(stretchedClip.speedRatio, 47_900 / 96_000);
+	assert.equal(stretchedClip.renderCacheRevision, 2);
 	controller.actions.timeline.clearSelection();
 	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, []);
 
@@ -216,6 +239,288 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(store.projects.get(changedSnapshot.project.id)?.sampleRate, 48_000);
 	assert.ok(engine.appliedProjects.length >= 1);
 
+	await controller.dispose();
+});
+
+test('controller persists direct workspace panel and toolbar moves', async () => {
+	const store = createMemoryStore();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	await controller.actions.preferences.setWorkspace('music');
+	await controller.actions.preferences.setPanel('history', { visible: false, dock: 'right', order: 0 });
+	await controller.actions.preferences.setPanel('labels', { visible: true, dock: 'right', order: 1 });
+	await controller.actions.preferences.setPanel('effects', { visible: true, dock: 'right', order: 2 });
+	await controller.actions.preferences.movePanel('mixer', 'right', 1);
+	let workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.mixer.dock, 'right');
+	assert.deepEqual(
+		Object.entries(workspace.panels)
+			.filter(([, panel]) => panel.visible && panel.dock === 'right')
+			.sort((left, right) => left[1].order - right[1].order)
+			.map(([id]) => id),
+		['labels', 'mixer', 'effects'],
+	);
+	await controller.actions.preferences.setPanel('mixer', {
+		dock: 'floating', size: 512, x: 44, y: 52, width: 512, height: 384,
+	});
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.deepEqual({
+		visible: workspace.panels.mixer.visible,
+		dock: workspace.panels.mixer.dock,
+		size: workspace.panels.mixer.size,
+		x: workspace.panels.mixer.x,
+		y: workspace.panels.mixer.y,
+		width: workspace.panels.mixer.width,
+		height: workspace.panels.mixer.height,
+	}, { visible: true, dock: 'floating', size: 512, x: 44, y: 52, width: 512, height: 384 });
+	await controller.actions.preferences.moveToolbar('meter', 0);
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.toolbars.meter.order, 0);
+	assert.equal(workspace.toolbars.transport.order, 1);
+	assert.deepEqual(
+		store.settings.get('audio-editor-preferences-v1').workspace.panels.mixer,
+		workspace.panels.mixer,
+	);
+	await controller.dispose();
+});
+
+test('controller splits selected and grouped clips at both selection boundaries in one undo step', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+	const secondTrackId = controller.actions.track.add({ name: 'Split companions' });
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [
+			{ type: 'source/add', source: {
+				id: 'split-source', storageKey: 'split-source', name: 'split.wav', mimeType: 'audio/wav',
+				frameCount: 4_000, channelCount: 1,
+			} },
+			{ type: 'clip/add', trackId: firstTrackId, clip: {
+				id: 'split-selected', sourceId: 'split-source', timelineStartFrame: 0,
+				sourceStartFrame: 0, durationFrames: 1_000,
+			} },
+			{ type: 'clip/add', trackId: secondTrackId, clip: {
+				id: 'split-grouped', sourceId: 'split-source', timelineStartFrame: 0,
+				sourceStartFrame: 1_000, durationFrames: 1_000,
+			} },
+			{ type: 'clip/add', trackId: secondTrackId, clip: {
+				id: 'split-also-selected', sourceId: 'split-source', timelineStartFrame: 0,
+				sourceStartFrame: 2_000, durationFrames: 1_000,
+			} },
+			{ type: 'clip/group', clipIds: ['split-selected', 'split-grouped'], groupId: 'split-group' },
+		],
+	});
+	controller.actions.timeline.setSelection(200, 800);
+	controller.actions.timeline.selectClip('split-selected');
+	controller.actions.timeline.selectClip('split-also-selected', { additive: true });
+
+	controller.actions.edit.split();
+	let project = controller.getSnapshot().project;
+	assert.equal(project.clips.length, 9);
+	assert.deepEqual(
+		project.tracks.find((track) => track.id === firstTrackId).clipIds
+			.map((clipId) => project.clips.find((clip) => clip.id === clipId).durationFrames),
+		[200, 600, 200],
+	);
+	assert.deepEqual(
+		project.tracks.find((track) => track.id === secondTrackId).clipIds
+			.map((clipId) => project.clips.find((clip) => clip.id === clipId).durationFrames),
+		[200, 200, 600, 600, 200, 200],
+	);
+	assert.equal(project.clips.filter((clip) => clip.groupId === 'split-group').length, 6);
+
+	controller.actions.edit.undo();
+	project = controller.getSnapshot().project;
+	assert.equal(project.clips.length, 3);
+	assert.ok(project.clips.some((clip) => clip.id === 'split-selected' && clip.durationFrames === 1_000));
+
+	controller.actions.timeline.setSelection(233, 777);
+	controller.actions.timeline.selectClip('split-selected');
+	controller.actions.timeline.selectClip('split-also-selected', { additive: true });
+	controller.actions.timeline.setSnap({ enabled: true, unit: 'seconds', mode: 'nearest' });
+	controller.actions.edit.split();
+	project = controller.getSnapshot().project;
+	assert.deepEqual(
+		project.tracks.find((track) => track.id === firstTrackId).clipIds
+			.map((clipId) => project.clips.find((clip) => clip.id === clipId).durationFrames),
+		[233, 544, 223],
+	);
+	controller.actions.edit.undo();
+	controller.actions.timeline.setSnap({ enabled: false, unit: 'seconds', mode: 'nearest' });
+
+	controller.actions.edit.splitAt(500, [firstTrackId]);
+	project = controller.getSnapshot().project;
+	assert.equal(project.tracks.find((track) => track.id === firstTrackId).clipIds.length, 2);
+	assert.equal(project.tracks.find((track) => track.id === secondTrackId).clipIds.length, 2);
+	await controller.dispose();
+});
+
+test('controller moves a selected clip set into newly created tracks in one undo step', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+	const secondTrackId = controller.actions.track.add({ name: 'Second' });
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				id: 'new-track-source', storageKey: 'new-track-source', name: 'move.wav', mimeType: 'audio/wav',
+				frameCount: 4_000, channelCount: 1,
+			},
+		}, {
+			type: 'clip/add',
+			trackId: firstTrackId,
+			clip: {
+				id: 'new-track-active', sourceId: 'new-track-source', timelineStartFrame: 100,
+				sourceStartFrame: 0, durationFrames: 1_000,
+			},
+		}, {
+			type: 'clip/add',
+			trackId: secondTrackId,
+			clip: {
+				id: 'new-track-companion', sourceId: 'new-track-source', timelineStartFrame: 200,
+				sourceStartFrame: 1_000, durationFrames: 1_000,
+			},
+		}],
+	});
+	controller.actions.timeline.setSelection(100, 500);
+	controller.actions.timeline.selectClip('new-track-active');
+	controller.actions.timeline.selectClip('new-track-companion', { additive: true });
+	const historyBefore = controller.getSnapshot().history.undoEntries.length;
+	const activeDestinationId = controller.actions.clip.moveToNewTrack('new-track-active', 250);
+
+	let snapshot = controller.getSnapshot();
+	const audioTracks = snapshot.project.tracks.filter((track) => track.type === 'audio');
+	assert.equal(audioTracks.length, 4);
+	assert.equal(audioTracks[2].id, activeDestinationId);
+	assert.deepEqual(audioTracks.map((track) => track.clipIds), [
+		[],
+		[],
+		['new-track-active'],
+		['new-track-companion'],
+	]);
+	assert.deepEqual(snapshot.project.clips.map(({ id, timelineStartFrame }) => ({ id, timelineStartFrame })), [
+		{ id: 'new-track-active', timelineStartFrame: 250 },
+		{ id: 'new-track-companion', timelineStartFrame: 350 },
+	]);
+	assert.deepEqual(snapshot.project.selection.trackIds, [audioTracks[2].id, audioTracks[3].id]);
+	assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
+
+	controller.actions.edit.undo();
+	snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.tracks.filter((track) => track.type === 'audio').length, 2);
+	assert.deepEqual(snapshot.project.clips.map(({ id, timelineStartFrame }) => ({ id, timelineStartFrame })), [
+		{ id: 'new-track-active', timelineStartFrame: 100 },
+		{ id: 'new-track-companion', timelineStartFrame: 200 },
+	]);
+	await controller.dispose();
+});
+
+test('controller trims forward, reversed, and stretched clips without changing playback rate', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				id: 'trim-source', name: 'trim.wav', storageKey: 'trim-source', mimeType: 'audio/wav',
+				frameCount: 1_000, channelCount: 1,
+			},
+		}, {
+			type: 'clip/add',
+			trackId,
+			clip: {
+				id: 'trim-forward', sourceId: 'trim-source', timelineStartFrame: 0,
+				sourceStartFrame: 100, sourceDurationFrames: 400, durationFrames: 200, speedRatio: 2,
+			},
+		}, {
+			type: 'clip/add',
+			trackId,
+			clip: {
+				id: 'trim-reversed', sourceId: 'trim-source', timelineStartFrame: 300,
+				sourceStartFrame: 200, sourceDurationFrames: 400, durationFrames: 200, speedRatio: 2, reversed: true,
+			},
+		}],
+	});
+
+	controller.actions.timeline.selectClip('trim-forward');
+	controller.actions.clip.trim('trim-forward', { sourceStartFrame: 120 });
+	let clip = controller.getSnapshot().project.clips.find((candidate) => candidate.id === 'trim-forward');
+	assert.deepEqual({
+		sourceStartFrame: clip.sourceStartFrame,
+		sourceDurationFrames: clip.sourceDurationFrames,
+		durationFrames: clip.durationFrames,
+		speedRatio: clip.speedRatio,
+	}, { sourceStartFrame: 120, sourceDurationFrames: 400, durationFrames: 200, speedRatio: 2 });
+	controller.actions.edit.undo();
+	controller.actions.clip.trim('trim-forward', { durationFrames: 150 });
+	clip = controller.getSnapshot().project.clips.find((candidate) => candidate.id === 'trim-forward');
+	assert.deepEqual({
+		sourceStartFrame: clip.sourceStartFrame,
+		sourceDurationFrames: clip.sourceDurationFrames,
+		durationFrames: clip.durationFrames,
+		trimEndFrames: clip.trimEndFrames,
+	}, { sourceStartFrame: 100, sourceDurationFrames: 300, durationFrames: 150, trimEndFrames: 100 });
+	assert.equal(clip.sourceDurationFrames / clip.durationFrames, 2);
+	controller.actions.edit.undo();
+	controller.actions.clip.trim('trim-forward', { timelineStartFrame: 50, durationFrames: 150 });
+	clip = controller.getSnapshot().project.clips.find((candidate) => candidate.id === 'trim-forward');
+	assert.deepEqual({
+		timelineStartFrame: clip.timelineStartFrame,
+		sourceStartFrame: clip.sourceStartFrame,
+		sourceDurationFrames: clip.sourceDurationFrames,
+		trimStartFrames: clip.trimStartFrames,
+	}, { timelineStartFrame: 50, sourceStartFrame: 200, sourceDurationFrames: 300, trimStartFrames: 100 });
+
+	controller.actions.timeline.selectClip('trim-reversed');
+	controller.actions.clip.trim('trim-reversed', { durationFrames: 150 });
+	clip = controller.getSnapshot().project.clips.find((candidate) => candidate.id === 'trim-reversed');
+	assert.deepEqual({
+		sourceStartFrame: clip.sourceStartFrame,
+		sourceDurationFrames: clip.sourceDurationFrames,
+		trimStartFrames: clip.trimStartFrames,
+	}, { sourceStartFrame: 300, sourceDurationFrames: 300, trimStartFrames: 100 });
+	controller.actions.edit.undo();
+	controller.actions.clip.trim('trim-reversed', { timelineStartFrame: 350, durationFrames: 150 });
+	clip = controller.getSnapshot().project.clips.find((candidate) => candidate.id === 'trim-reversed');
+	assert.deepEqual({
+		timelineStartFrame: clip.timelineStartFrame,
+		sourceStartFrame: clip.sourceStartFrame,
+		sourceDurationFrames: clip.sourceDurationFrames,
+		trimEndFrames: clip.trimEndFrames,
+	}, { timelineStartFrame: 350, sourceStartFrame: 200, sourceDurationFrames: 300, trimEndFrames: 100 });
 	await controller.dispose();
 });
 
@@ -653,7 +958,18 @@ test('controller gates sample tools by zoom and commits pencil and smoothing as 
 	assert.throws(() => controller.actions.sampleEdit.setMode('pencil'), /one pixel per sample/);
 	controller.actions.timeline.setZoom(48_000);
 	assert.equal(controller.getSnapshot().sampleEdit.available, true);
-	controller.actions.sampleEdit.setMode('pencil');
+	assert.equal(controller.getSnapshot().sampleEdit.mode, 'pencil');
+	controller.actions.sampleEdit.setMode(null);
+	assert.equal(controller.getSnapshot().sampleEdit.mode, null);
+	controller.actions.timeline.setZoom(100);
+	assert.equal(controller.getSnapshot().sampleEdit.available, false);
+	controller.actions.timeline.setZoom(48_000);
+	assert.equal(controller.getSnapshot().sampleEdit.mode, 'pencil');
+	controller.actions.track.setSpectrogramView('controller-sample-track');
+	assert.equal(controller.getSnapshot().sampleEdit.available, false);
+	assert.equal(controller.getSnapshot().sampleEdit.mode, null);
+	controller.actions.track.setWaveformView('controller-sample-track');
+	assert.equal(controller.getSnapshot().sampleEdit.available, true);
 	assert.equal(controller.getSnapshot().sampleEdit.mode, 'pencil');
 
 	const pencil = await controller.actions.sampleEdit.pencil({

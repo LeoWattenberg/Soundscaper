@@ -202,17 +202,17 @@ test('V1 migration and V2 validation preserve multiple armed audio tracks', () =
 	assert.equal(validateAudioEditorProjectV2(migrated), true);
 });
 
-test('V2 validation rejects broken references, overlapping clips, and invalid typed state', () => {
+test('V2 validation permits layered clips and rejects broken references and invalid typed state', () => {
 	const project = richV2Fixture();
 	assert.throws(() => validateAudioEditorProjectV2({
 		...project,
 		selection: { ...project.selection, trackIds: ['missing-track'] },
 	}), /missing track/);
-	assert.throws(() => validateAudioEditorProjectV2({
+	assert.equal(validateAudioEditorProjectV2({
 		...project,
 		clips: [...project.clips, { ...project.clips[0], id: 'overlap', timelineStartFrame: 1_000 }],
 		tracks: [{ ...project.tracks[0], clipIds: ['clip-hires', 'overlap'] }, project.tracks[1]],
-	}), /overlap/);
+	}), true);
 	assert.throws(() => validateAudioEditorProjectV2({
 		...project,
 		clips: [{ ...project.clips[0], trimEndFrames: 701 }],
@@ -301,11 +301,19 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		workspace: {
 			activeId: 'podcast',
 			custom: [{ id: 'podcast', name: 'Podcast', layout: { columns: 2 } }],
-			panels: { history: { visible: true, dock: 'left', size: 400 } },
+			panels: {
+				history: {
+					visible: true, dock: 'floating', size: 400,
+					x: 36, y: 48, width: 440, height: 360,
+				},
+			},
 		},
 	});
 	assert.equal(custom.workspace.panels.history.visible, true);
-	assert.equal(custom.workspace.panels.history.dock, 'left');
+	assert.deepEqual(
+		custom.workspace.panels.history,
+		{ visible: true, dock: 'floating', order: 0, size: 400, x: 36, y: 48, width: 440, height: 360 },
+	);
 	assert.equal(custom.recording.retainInputs, false);
 	assert.deepEqual(custom.shortcuts['clip.split'], ['S', 'Shift+S']);
 	assert.throws(() => createAudioEditorPreferencesV1({ audioDevice: 'usb-mic' }), /not an editor preference/);
@@ -316,7 +324,18 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	});
 	const legacyPreferences = structuredClone(preferences);
 	delete legacyPreferences.recording;
-	assert.equal(loadAudioEditorPreferencesV1(legacyPreferences).preferences.recording.retainInputs, true);
+	for (const panel of Object.values(legacyPreferences.workspace.panels)) {
+		delete panel.x;
+		delete panel.y;
+		delete panel.width;
+		delete panel.height;
+	}
+	const loadedLegacyPreferences = loadAudioEditorPreferencesV1(legacyPreferences).preferences;
+	assert.equal(loadedLegacyPreferences.recording.retainInputs, true);
+	assert.deepEqual(
+		Object.keys(loadedLegacyPreferences.workspace.panels.history).sort(),
+		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
+	);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { recording: { retainInputs: false } }).recording.retainInputs, false);
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, recording: { retainInputs: 'yes' },

@@ -141,6 +141,9 @@ function mutateCommand(project, command) {
 		case 'clip/move':
 			moveClip(project, command);
 			break;
+		case 'clip/transform-many':
+			transformClips(project, command);
+			break;
 		case 'clip/overwrite':
 			overwriteClip(project, command);
 			break;
@@ -578,6 +581,193 @@ function moveClip(project, command) {
 	sortTrack(project, targetTrack);
 }
 
+/**
+ * Returns the clips that participate when an edit begins on activeClipId.
+ * An existing multi-selection is honored only when it contains the active
+ * clip; grouped companions of every participating clip are then included.
+ */
+export function collectClipTransformIds(project, activeClipId) {
+	const activeClip = findClip(project, activeClipId);
+	if (!activeClip) return [];
+	const ids = new Set([activeClip.id]);
+	const selectedIds = project.selection?.clipIds || [];
+	if (selectedIds.includes(activeClip.id)) {
+		for (const clipId of selectedIds) if (findClip(project, clipId)) ids.add(clipId);
+	}
+	const groupIds = new Set([...ids]
+		.map((clipId) => findClip(project, clipId)?.groupId)
+		.filter(Boolean));
+	if (groupIds.size) {
+		for (const clip of project.clips) if (clip.groupId && groupIds.has(clip.groupId)) ids.add(clip.id);
+	}
+	return project.clips.filter((clip) => ids.has(clip.id)).map((clip) => clip.id);
+}
+
+/**
+ * Prepares an atomic transform for selected/grouped clips. When overwrite is
+ * enabled, stable IDs are reserved for any inactive clip that is split into
+ * multiple surviving segments.
+ */
+export function prepareTransformClipsCommand(project, transforms, options = {}, idFactory = createStableId) {
+	const state = buildClipTransformState(project, transforms);
+	const overwrite = Boolean(options.overwrite);
+	validateClipTransformState(project, state, overwrite);
+	const splitClipIds = {};
+	if (overwrite) {
+		const movingIds = new Set(state.map((item) => item.clip.id));
+		for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
+			const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
+			if (!activeClips.length) continue;
+			for (const clipId of track.clipIds) {
+				if (movingIds.has(clipId)) continue;
+				const clip = requireClip(project, clipId);
+				const ranges = remainingClipRanges(clip, activeClips);
+				if (ranges.length <= 1) continue;
+				splitClipIds[clip.id] = Array.from(
+					{ length: ranges.length - 1 },
+					() => idFactory('clip'),
+				);
+			}
+		}
+	}
+	return {
+		type: 'clip/transform-many',
+		transforms: state.map((item) => ({
+			clipId: item.clip.id,
+			trackId: item.track.id,
+			changes: { ...item.changes },
+		})),
+		overwrite,
+		splitClipIds,
+	};
+}
+
+function transformClips(project, command) {
+	const state = buildClipTransformState(project, command.transforms);
+	const overwrite = Boolean(command.overwrite);
+	validateClipTransformState(project, state, overwrite);
+	const movingIds = new Set(state.map((item) => item.clip.id));
+	const replacementsById = new Map();
+	const reservedIds = new Set();
+
+	if (overwrite) {
+		for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
+			const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
+			if (!activeClips.length) continue;
+			for (const clipId of track.clipIds) {
+				if (movingIds.has(clipId)) continue;
+				const clip = requireClip(project, clipId);
+				const ranges = remainingClipRanges(clip, activeClips);
+				if (ranges.length === 1 && ranges[0][0] === clip.timelineStartFrame && ranges[0][1] === clipEndFrame(clip)) continue;
+				const splitIds = command.splitClipIds?.[clip.id] || [];
+				if (!Array.isArray(splitIds) || splitIds.length !== Math.max(0, ranges.length - 1)) {
+					throw new TypeError(`Stable split clip IDs are required for ${clip.id}.`);
+				}
+				for (const splitId of splitIds) {
+					const stableId = requireStableCommandId(splitId, 'split clip');
+					reserveReplacementClipId(project, stableId, reservedIds);
+				}
+				const ids = [clip.id, ...splitIds];
+				replacementsById.set(clip.id, ranges.map(([startFrame, endFrame], index) => (
+					segmentOfClip(clip, startFrame, endFrame, startFrame, ids[index])
+				)));
+			}
+		}
+	}
+
+	const updatedById = new Map(state.map((item) => [item.clip.id, item.updated]));
+	project.clips = project.clips.flatMap((clip) => {
+		if (updatedById.has(clip.id)) return [updatedById.get(clip.id)];
+		if (replacementsById.has(clip.id)) return replacementsById.get(clip.id);
+		return [clip];
+	});
+
+	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
+		const clips = track.clipIds
+			.filter((clipId) => !movingIds.has(clipId))
+			.flatMap((clipId) => replacementsById.has(clipId)
+				? replacementsById.get(clipId)
+				: [requireClip(project, clipId)])
+			.concat(state.filter((item) => item.track.id === track.id).map((item) => item.updated))
+			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+		track.clipIds = clips.map((clip) => clip.id);
+	}
+}
+
+function buildClipTransformState(project, transforms) {
+	if (!Array.isArray(transforms) || !transforms.length) throw new TypeError('Clip transforms must be a non-empty array.');
+	const ids = normalizeCommandIds(transforms.map((transform) => transform?.clipId), 'transforms.clipIds');
+	const allowed = new Set([
+		'timelineStartFrame', 'sourceStartFrame', 'sourceDurationFrames', 'durationFrames',
+		'trimStartFrames', 'trimEndFrames', 'fadeInFrames', 'fadeOutFrames',
+		'envelope', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo',
+		'renderCacheRevision',
+	]);
+	return transforms.map((transform, index) => {
+		const clip = requireClip(project, ids[index]);
+		const oldTrack = requireClipTrack(project, clip.id);
+		const track = requireTrack(project, transform.trackId || oldTrack.id);
+		if (!Array.isArray(track.clipIds)) throw new RangeError(`Audio clips cannot be transformed onto track ${track.id}.`);
+		const changes = transform.changes || {};
+		if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Clip transform changes must be an object.');
+		for (const key of Object.keys(changes)) {
+			if (!allowed.has(key)) throw new RangeError(`Clip field cannot be transformed: ${key}.`);
+		}
+		const durationFrames = changes.durationFrames ?? clip.durationFrames;
+		const timelineStartFrame = changes.timelineStartFrame ?? clip.timelineStartFrame;
+		const updated = normalizeClipForProject(project, {
+			...clip,
+			...changes,
+			...(!Object.hasOwn(changes, 'envelope') && durationFrames !== clip.durationFrames ? {
+				envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
+			} : {}),
+			id: clip.id,
+		});
+		assertClipSourceBounds(project, updated);
+		return { clip, oldTrack, track, updated, changes: { ...changes } };
+	});
+}
+
+function validateClipTransformState(project, state, overwrite) {
+	if (project.schemaVersion === 2) return;
+	const movingIds = new Set(state.map((item) => item.clip.id));
+	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
+		const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
+		assertNonOverlappingClips(track.id, activeClips);
+		if (overwrite) continue;
+		const inactiveClips = track.clipIds
+			.filter((clipId) => !movingIds.has(clipId))
+			.map((clipId) => requireClip(project, clipId));
+		assertNonOverlappingClips(track.id, [...inactiveClips, ...activeClips]);
+	}
+}
+
+function assertNonOverlappingClips(trackId, clips) {
+	const ordered = [...clips].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+	for (let index = 1; index < ordered.length; index += 1) {
+		if (clipsOverlap(ordered[index - 1], ordered[index])) {
+			throw new RangeError(`Clip overlaps existing material on track ${trackId}.`);
+		}
+	}
+}
+
+function remainingClipRanges(clip, activeClips) {
+	let ranges = [[clip.timelineStartFrame, clipEndFrame(clip)]];
+	for (const activeClip of [...activeClips].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame)) {
+		const activeStart = activeClip.timelineStartFrame;
+		const activeEnd = clipEndFrame(activeClip);
+		ranges = ranges.flatMap(([startFrame, endFrame]) => {
+			if (activeEnd <= startFrame || activeStart >= endFrame) return [[startFrame, endFrame]];
+			const result = [];
+			if (startFrame < activeStart) result.push([startFrame, activeStart]);
+			if (endFrame > activeEnd) result.push([activeEnd, endFrame]);
+			return result;
+		});
+		if (!ranges.length) break;
+	}
+	return ranges;
+}
+
 function overwriteClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const oldTrack = requireClipTrack(project, clip.id);
@@ -664,11 +854,18 @@ function trimClip(project, command) {
 	const track = requireClipTrack(project, clip.id);
 	const timelineStartFrame = command.timelineStartFrame ?? clip.timelineStartFrame;
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
+	const sourceDurationFrames = command.sourceDurationFrames ?? Math.max(
+		1,
+		Math.round((clip.sourceDurationFrames ?? clip.durationFrames) * durationFrames / clip.durationFrames),
+	);
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		timelineStartFrame,
 		sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
+		sourceDurationFrames,
 		durationFrames,
+		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
+		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 		fadeInFrames: command.fadeInFrames ?? Math.min(clip.fadeInFrames, command.durationFrames ?? clip.durationFrames),
 		fadeOutFrames: command.fadeOutFrames ?? Math.min(clip.fadeOutFrames, command.durationFrames ?? clip.durationFrames),
@@ -990,7 +1187,7 @@ function pasteClipboard(project, command) {
 	for (const clipboardTrack of clipboard.tracks || []) {
 		targetTracks.add(requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId));
 	}
-	if (mode === 'overlap') {
+	if (mode === 'overlap' && project.schemaVersion !== 2) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
 		for (const track of targetTracks) processTrackRange(project, track, range, 'none', command.splitClipIds || {});
 	} else if (mode === 'insert-track' || mode === 'insert-all') {
@@ -1008,6 +1205,13 @@ function pasteClipboard(project, command) {
 			assertUnusedId(project.clips, id, 'clip');
 			const clip = normalizeClipForProject(project, scaleClipboardClip(descriptor, scale, atFrame, id));
 			assertClipSourceBounds(project, clip);
+			if (mode === 'reject') {
+				const existing = targetTrack.clipIds.map((clipId) => requireClip(project, clipId));
+				const pending = additions.filter((addition) => addition.track.id === targetTrack.id).map((addition) => addition.clip);
+				if ([...existing, ...pending].some((candidate) => clipsOverlap(candidate, clip))) {
+					throw new RangeError(`Clip overlaps existing material on track ${targetTrack.id}.`);
+				}
+			}
 			assertClipSpace(project, targetTrack, clip, null, additions.filter((addition) => addition.track.id === targetTrack.id).map((addition) => addition.clip));
 			additions.push({ track: targetTrack, clip });
 		}
@@ -1311,6 +1515,7 @@ function assertClipSourceBounds(project, clip) {
 }
 
 function assertClipSpace(project, track, candidate, excludedClipId = null, additionalClips = []) {
+	if (project.schemaVersion === 2) return;
 	const clips = track.clipIds
 		.filter((clipId) => clipId !== excludedClipId)
 		.map((clipId) => requireClip(project, clipId));
@@ -1326,10 +1531,8 @@ function validateTrackReplacement(project, track, deletedIds, clips) {
 		ids.add(clip.id);
 		assertClipSourceBounds(project, clip);
 	}
-	for (let index = 1; index < clips.length; index += 1) {
-		if (clipsOverlap(clips[index - 1], clips[index])) {
-			throw new RangeError(`Range replacement overlaps existing material on track ${track.id}.`);
-		}
+	if (project.schemaVersion !== 2) for (let index = 1; index < clips.length; index += 1) {
+		if (clipsOverlap(clips[index - 1], clips[index])) throw new RangeError(`Range replacement overlaps existing material on track ${track.id}.`);
 	}
 }
 

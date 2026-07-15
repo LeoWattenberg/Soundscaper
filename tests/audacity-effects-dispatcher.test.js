@@ -58,6 +58,23 @@ test('the dispatcher rejects unknown effects and invalid output estimates', () =
 	);
 });
 
+test('the async dispatcher limits a length-preserving effect to the selected frequency band', async () => {
+	const sampleRate = 8_192;
+	const input = Float32Array.from({ length: sampleRate }, (_, frame) => (
+		0.1 * Math.sin(2 * Math.PI * 512 * frame / sampleRate)
+		+ 0.1 * Math.sin(2 * Math.PI * 2_048 * frame / sampleRate)
+	));
+	const [output] = await applyAudacityEffectAsync(
+		'audacity-amplify',
+		[input],
+		sampleRate,
+		{ gainDb: 6.020599913, allowClipping: true },
+		{ spectralSelection: { minimumFrequency: 450, maximumFrequency: 575, windowSize: 1_024 } },
+	);
+	assert.ok(Math.abs(toneAmplitude(output, 512, sampleRate, 2_000, 6_000) - 0.2) < 0.02);
+	assert.ok(Math.abs(toneAmplitude(output, 2_048, sampleRate, 2_000, 6_000) - 0.1) < 0.02);
+});
+
 test('the dispatcher rejects non-finite DSP output before it can leave the worker boundary', () => {
 	const nearFloat32Maximum = Float32Array.of(3e38);
 	assert.throws(
@@ -77,6 +94,9 @@ test('peak-memory estimates include pipeline copies, contexts, and effect-specif
 	const frames = SAMPLE_RATE * 10;
 	const options = { channelCount: 2, sampleRate: SAMPLE_RATE };
 	const simple = estimateAudacityEffectPeakBytes('audacity-invert', frames, {}, options);
+	const spectral = estimateAudacityEffectPeakBytes('audacity-invert', frames, {}, {
+		...options, spectralWindowSize: 2_048,
+	});
 	const autoDuck = estimateAudacityEffectPeakBytes('audacity-auto-duck', frames, {}, options);
 	const repair = estimateAudacityEffectPeakBytes('audacity-repair', 128, {}, {
 		...options, beforeFrames: 128, afterFrames: 128,
@@ -93,6 +113,7 @@ test('peak-memory estimates include pipeline copies, contexts, and effect-specif
 	) * options.channelCount * Float32Array.BYTES_PER_ELEMENT;
 
 	assert.ok(simple > frames * options.channelCount * Float32Array.BYTES_PER_ELEMENT * 2);
+	assert.ok(spectral > simple, 'spectral selection includes overlap-add and FFT composition scratch');
 	assert.ok(autoDuck > simple, 'Auto Duck includes retained and transferred control audio');
 	assert.ok(repair > simpleRepairSize, 'Repair includes before/after context in both realms');
 	assert.ok(equalizer > simple, 'EQ includes convolution scratch');
@@ -107,6 +128,17 @@ test('peak-memory estimates include pipeline copies, contexts, and effect-specif
 		/channelCount must be a positive integer/,
 	);
 });
+
+function toneAmplitude(samples, frequency, sampleRate, start, end) {
+	let sine = 0;
+	let cosine = 0;
+	for (let frame = start; frame < end; frame += 1) {
+		const angle = 2 * Math.PI * frequency * frame / sampleRate;
+		sine += samples[frame] * Math.sin(angle);
+		cosine += samples[frame] * Math.cos(angle);
+	}
+	return 2 * Math.hypot(sine, cosine) / (end - start);
+}
 
 function testSignal(frameCount, amplitude = 0.25) {
 	return [0, Math.PI / 3].map((phase) => Float32Array.from(

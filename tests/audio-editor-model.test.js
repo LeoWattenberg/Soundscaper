@@ -10,6 +10,7 @@ import {
 	canRedo,
 	canUndo,
 	chooseRenderStrategy,
+	collectClipTransformIds,
 	collectHistorySourceIds,
 	compactEditorHistorySourceMetadata,
 	createClipboardDescriptor,
@@ -26,6 +27,7 @@ import {
 	prepareRangeDeleteCommand,
 	prepareRangeReplacementCommand,
 	prepareSplitCommand,
+	prepareTransformClipsCommand,
 	projectDurationFrames,
 	projectEnvelope,
 	redoEditorCommand,
@@ -83,7 +85,7 @@ test('audio editor projects use a normalized, frame-accurate v2 document', () =>
 	} }), /safe integer greater than or equal to 0/);
 });
 
-test('clip commands reject collisions and preserve source bounds while moving and trimming', () => {
+test('V2 clip commands preserve layered overlaps and source bounds while moving and trimming', () => {
 	let project = createFixture();
 	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 50,
@@ -92,10 +94,11 @@ test('clip commands reject collisions and preserve source bounds while moving an
 	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'clip-2', sourceId: 'source-1', timelineStartFrame: 600, sourceStartFrame: 500, durationFrames: 100,
 	} });
-	assert.throws(() => apply(project, {
+	project = apply(project, {
 		type: 'clip/move', clipId: 'clip-2', timelineStartFrame: 450,
-	}), /overlaps existing material/);
-	assert.equal(findClip(project, 'clip-2').timelineStartFrame, 600);
+	});
+	assert.equal(findClip(project, 'clip-2').timelineStartFrame, 450);
+	assert.equal(validateAudioEditorProject(project), true);
 
 	project = apply(project, {
 		type: 'clip/trim', clipId: 'clip-1', timelineStartFrame: 120, sourceStartFrame: 70, durationFrames: 300,
@@ -104,11 +107,66 @@ test('clip commands reject collisions and preserve source bounds while moving an
 		id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 120, sourceStartFrame: 70,
 		durationFrames: 300, gain: 1, fadeInFrames: 20, fadeOutFrames: 30, reversed: false,
 	});
+	assert.equal(findClip(project, 'clip-1').sourceDurationFrames, 300);
+	assert.equal(findClip(project, 'clip-1').sourceDurationFrames / findClip(project, 'clip-1').durationFrames, 1);
 	project = apply(project, { type: 'clip/move', clipId: 'clip-2', trackId: 'track-2', timelineStartFrame: 200 });
 	assert.deepEqual(project.tracks.map((track) => track.clipIds), [['clip-1'], ['clip-2']]);
 	assert.throws(() => apply(project, {
 		type: 'clip/trim', clipId: 'clip-1', sourceStartFrame: 4_700, durationFrames: 300,
 	}), /source bounds/);
+});
+
+test('selected and grouped clips layer atomically and can explicitly overwrite inactive material', () => {
+	let project = createFixture();
+	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
+		id: 'selected-a', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 0, durationFrames: 100,
+	} });
+	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
+		id: 'selected-b', sourceId: 'source-1', timelineStartFrame: 200, sourceStartFrame: 100, durationFrames: 100,
+	} });
+	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
+		id: 'inactive', sourceId: 'source-1', timelineStartFrame: 500, sourceStartFrame: 1_000, durationFrames: 400,
+	} });
+	project = apply(project, {
+		type: 'clip/group', clipIds: ['selected-a', 'selected-b'], groupId: 'selected-group',
+	});
+	project = apply(project, {
+		type: 'selection/set', startFrame: 100, endFrame: 300,
+		trackIds: ['track-1'], clipIds: ['selected-a'],
+	});
+	assert.deepEqual(collectClipTransformIds(project, 'selected-a'), ['selected-a', 'selected-b']);
+
+	const collision = {
+		type: 'clip/transform-many',
+		transforms: [
+			{ clipId: 'selected-a', trackId: 'track-1', changes: { timelineStartFrame: 450 } },
+			{ clipId: 'selected-b', trackId: 'track-1', changes: { timelineStartFrame: 550 } },
+		],
+	};
+	const layered = apply(project, collision);
+	assert.equal(findClip(layered, 'selected-a').timelineStartFrame, 450);
+	assert.equal(findClip(layered, 'selected-b').timelineStartFrame, 550);
+	assert.equal(validateAudioEditorProject(layered), true);
+
+	const overwrite = prepareTransformClipsCommand(project, [
+		{ clipId: 'selected-a', trackId: 'track-1', changes: { timelineStartFrame: 600 } },
+		{ clipId: 'selected-b', trackId: 'track-1', changes: { timelineStartFrame: 700 } },
+	], { overwrite: true }, () => 'inactive-right');
+	assert.deepEqual(overwrite.splitClipIds, { inactive: ['inactive-right'] });
+	project = apply(project, overwrite);
+	assert.deepEqual(project.tracks[0].clipIds, ['inactive', 'selected-a', 'selected-b', 'inactive-right']);
+	assert.deepEqual([
+		coreClip(findClip(project, 'inactive')),
+		coreClip(findClip(project, 'selected-a')),
+		coreClip(findClip(project, 'selected-b')),
+		coreClip(findClip(project, 'inactive-right')),
+	].map((clip) => [clip.id, clip.timelineStartFrame, clip.sourceStartFrame, clip.durationFrames]), [
+		['inactive', 500, 1_000, 100],
+		['selected-a', 600, 0, 100],
+		['selected-b', 700, 100, 100],
+		['inactive-right', 800, 1_300, 100],
+	]);
+	assert.equal(validateAudioEditorProject(project), true);
 });
 
 test('overwrite clip placement trims, splits, and removes inactive clips', () => {

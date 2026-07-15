@@ -279,7 +279,7 @@ test('V2 label commands coexist with audio history without clip assumptions', ()
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
-test('paste overlap and insert variants preserve collision regions with replay-stable splits', () => {
+test('paste overlap layers clips while insert variants preserve collision regions with replay-stable splits', () => {
 	let project = createAudioEditorProjectV2({ id: 'paste-project', title: 'Paste', sampleRate: 48_000 });
 	project = apply(project, createAddSourceCommand({
 		schemaVersion: 2, id: 'source', storageKey: 'source', name: 'Source', frameCount: 4_000, channelCount: 1, sampleRate: 48_000,
@@ -298,7 +298,7 @@ test('paste overlap and insert variants preserve collision regions with replay-s
 	assert.deepEqual(project.tracks[0].clipIds.map((id) => {
 		const clip = project.clips.find((candidate) => candidate.id === id);
 		return [clip.timelineStartFrame, clip.durationFrames];
-	}), [[0, 500], [500, 200], [700, 1_300]]);
+	}), [[0, 2_000], [500, 200]]);
 
 	sequence = 0;
 	project = apply(project, preparePasteCommand(clipboard, {
@@ -309,7 +309,7 @@ test('paste overlap and insert variants preserve collision regions with replay-s
 	assert.deepEqual(project.tracks[0].clipIds.map((id) => {
 		const clip = project.clips.find((candidate) => candidate.id === id);
 		return [clip.timelineStartFrame, clip.durationFrames];
-	}), [[0, 500], [500, 200], [700, 300], [1_000, 200], [1_200, 1_000]]);
+	}), [[0, 1_000], [500, 200], [1_000, 200], [1_200, 1_000]]);
 	assert.equal(validateAudioEditorProject(project), true);
 });
 

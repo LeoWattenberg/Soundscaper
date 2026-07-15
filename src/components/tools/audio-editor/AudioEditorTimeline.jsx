@@ -37,6 +37,7 @@ import {
 	AUDACITY_TRACK_CONTEXT_ACTION_IDS,
 	audacityContextMenuAction,
 } from '../../../lib/tools/audio-editor/audacity-context-menu.js';
+import { collectClipTransformIds } from '../../../lib/tools/audio-editor/commands.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
@@ -50,6 +51,7 @@ const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 
 function ContainerAddTrackFlyout({
 	isOpen,
@@ -187,7 +189,7 @@ export default function AudioEditorTimeline({
 	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
 	const addTrackTriggerRef = useRef(null);
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
-	const [draggingClipId, setDraggingClipId] = useState(null);
+	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
 	const telemetry = useAudioEditorTelemetry(controller);
 	const { activeProfile } = useAccessibilityProfile();
@@ -407,10 +409,19 @@ export default function AudioEditorTimeline({
 	}, [durationFrames, pixelsPerSecond, sampleRate, scrollX]);
 
 	const trackAtClientY = useCallback((clientY, fallbackTrackId) => {
-		for (const lane of document.querySelectorAll('[data-track-lane]')) {
+		for (const lane of scrollRef.current?.querySelectorAll('[data-track-lane]') || []) {
 			if (lane.closest('[data-label-track]')) continue;
 			const rect = lane.getBoundingClientRect();
 			if (clientY >= rect.top && clientY < rect.bottom) return lane.dataset.trackId || fallbackTrackId;
+		}
+		const trackList = scrollRef.current?.querySelector('[data-track-list]');
+		const trackRows = [...(trackList?.querySelectorAll('.audio-editor-track-row') || [])];
+		const dropSurfaceRect = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect();
+		const lastTrackBottom = trackRows.length
+			? Math.max(...trackRows.map((row) => row.getBoundingClientRect().bottom))
+			: dropSurfaceRect?.top;
+		if (dropSurfaceRect && clientY >= lastTrackBottom && clientY < dropSurfaceRect.bottom) {
+			return NEW_AUDIO_TRACK_DROP_TARGET;
 		}
 		return fallbackTrackId;
 	}, []);
@@ -418,7 +429,7 @@ export default function AudioEditorTimeline({
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
 		pointerSession.current = null;
-		setDraggingClipId(null);
+		setDraggingClipIds(null);
 		const dragPreview = session?.preview;
 		setClipDragPreview(null);
 		if (!session || cancelled || pinchSession.current || !project) return;
@@ -455,28 +466,20 @@ export default function AudioEditorTimeline({
 			Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 			{ sampleRate },
 		) * Math.sign(event.clientX - session.startX);
-		if (Math.abs(deltaFrames) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
+		if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) < 3) {
 			run(() => controller.actions.transport.seek(frameAtClientX(event.clientX, session.lane)));
 			return;
 		}
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {
+			if (dragPreview?.createTrack) {
+				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame));
+				return;
+			}
 			const trackId = dragPreview?.trackId || trackAtClientY(event.clientY, session.trackId);
 			const timelineStartFrame = dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames);
-			const targetTrack = project.tracks.find((track) => track.id === trackId);
-			const overlaps = targetTrack?.clipIds.some((clipId) => {
-				if (clipId === clip.id) return false;
-				const inactiveClip = project.clips.find((item) => item.id === clipId);
-				return inactiveClip
-					&& timelineStartFrame < inactiveClip.timelineStartFrame + inactiveClip.durationFrames
-					&& inactiveClip.timelineStartFrame < timelineStartFrame + clip.durationFrames;
-			});
-			if (overlaps) {
-				run(() => controller.actions.clip.overwrite(clip.id, trackId, { timelineStartFrame }));
-			} else {
-				run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame));
-			}
+			run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame));
 		} else if (session.kind === 'stretch-left') {
 			const change = Math.max(
 				-session.original.timelineStartFrame,
@@ -492,28 +495,31 @@ export default function AudioEditorTimeline({
 			}));
 		} else if (session.kind === 'trim-left') {
 			const source = project.sources.find((item) => item.id === clip.sourceId);
+			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
+			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
 			const sourceExtension = session.original.reversed
-				? source.frameCount - session.original.sourceStartFrame - session.original.durationFrames
+				? source.frameCount - session.original.sourceStartFrame - sourceDurationFrames
 				: session.original.sourceStartFrame;
+			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 			const change = Math.max(
-				-Math.min(session.original.timelineStartFrame, sourceExtension),
+				-Math.min(session.original.timelineStartFrame, timelineExtension),
 				Math.min(session.original.durationFrames - 1, deltaFrames),
 			);
-			run(() => controller.actions.clip.overwrite(clip.id, session.trackId, {
+			run(() => controller.actions.clip.trim(clip.id, {
 				timelineStartFrame: session.original.timelineStartFrame + change,
-				sourceStartFrame: session.original.sourceStartFrame + (session.original.reversed ? 0 : change),
 				durationFrames: session.original.durationFrames - change,
 			}));
 		} else if (session.kind === 'trim-right') {
 			const source = project.sources.find((item) => item.id === clip.sourceId);
-			const maximum = session.original.reversed
-				? session.original.sourceStartFrame + session.original.durationFrames
-				: source.frameCount - session.original.sourceStartFrame;
-			const nextDuration = Math.max(1, Math.min(maximum, session.original.durationFrames + deltaFrames));
-			run(() => controller.actions.clip.overwrite(clip.id, session.trackId, {
-				sourceStartFrame: session.original.reversed
-					? session.original.sourceStartFrame + session.original.durationFrames - nextDuration
-					: session.original.sourceStartFrame,
+			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
+			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
+			const sourceExtension = session.original.reversed
+				? session.original.sourceStartFrame
+				: source.frameCount - session.original.sourceStartFrame - sourceDurationFrames;
+			const maximumDuration = session.original.durationFrames
+				+ Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
+			const nextDuration = Math.max(1, Math.min(maximumDuration, session.original.durationFrames + deltaFrames));
+			run(() => controller.actions.clip.trim(clip.id, {
 				durationFrames: nextDuration,
 			}));
 		}
@@ -541,8 +547,8 @@ export default function AudioEditorTimeline({
 		const clipElement = event.target.closest('[data-clip-id]');
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
-		if (automationToolEnabled && !lane.closest('[data-label-track]')) return;
 		if (!clipElement) {
+			if (automationToolEnabled && !lane.closest('[data-label-track]')) return;
 			if (lane.dataset.trackId && lane.dataset.rulerInteraction === undefined) {
 				run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
 			}
@@ -556,20 +562,16 @@ export default function AudioEditorTimeline({
 		const clip = project?.clips.find((item) => String(item.id) === clipId);
 		const trackId = lane.dataset.trackId;
 		if (!clip || !trackId) return;
-		if (splitToolActive) {
-			const startFrame = frameAtClientX(event.clientX, lane);
-			const trackIds = event.shiftKey
-				? project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id)
-				: [trackId];
-			pointerSession.current = { kind: 'split', startFrame, trackIds, lane };
-			run(() => controller.actions.edit.splitAt(startFrame, trackIds));
-			event.preventDefault();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-			return;
-		}
-		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil') {
-			const source = project.sources.find((item) => item.id === clip.sourceId);
-			if (!source) return;
+		const source = project.sources.find((item) => item.id === clip.sourceId);
+		const clipTrack = project.tracks.find((track) => track.id === trackId);
+		const clipDisplayMode = clipTrack?.displayMode && clipTrack.displayMode !== 'waveform'
+			? clipTrack.displayMode
+			: timelineView;
+		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+		const samplePencilAvailable = Boolean(source && clip.durationFrames && sourceDurationFrames
+			&& clipDisplayMode === 'waveform'
+			&& pixelsPerSecond >= sampleRate * sourceDurationFrames / clip.durationFrames);
+		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil' && samplePencilAvailable) {
 			const point = samplePointAtPointer(event, lane, clip, source, frameAtClientX);
 			pointerSession.current = {
 				kind: 'sample-pencil',
@@ -588,6 +590,18 @@ export default function AudioEditorTimeline({
 			if (event.pointerId > 0) event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
+		if (automationToolEnabled && !lane.closest('[data-label-track]')) return;
+		if (splitToolActive) {
+			const startFrame = frameAtClientX(event.clientX, lane);
+			const trackIds = event.shiftKey
+				? project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id)
+				: [trackId];
+			pointerSession.current = { kind: 'split', startFrame, trackIds, lane };
+			run(() => controller.actions.edit.splitAt(startFrame, trackIds));
+			event.preventDefault();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		const clipEditHandle = event.target.closest('.clip-display__handle');
 		if (!event.target.closest('.clip-header') && !clipEditHandle) {
 			const startFrame = frameAtClientX(event.clientX, lane);
@@ -601,13 +615,26 @@ export default function AudioEditorTimeline({
 		if (event.target.closest('.clip-display__handle--trim-right')) kind = 'trim-right';
 		if (event.target.closest('.clip-display__handle--stretch-left')) kind = 'stretch-left';
 		if (event.target.closest('.clip-display__handle--stretch-right')) kind = 'stretch-right';
-		pointerSession.current = { kind, clipId: clip.id, trackId, original: { ...clip }, startX: event.clientX, lane };
-		setDraggingClipId(clip.id);
-		if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
-			run(() => controller.actions.timeline.selectClip(clip.id));
-		}
+		const transformClipIds = collectClipTransformIds(project, clip.id);
+		pointerSession.current = {
+			kind,
+			clipId: clip.id,
+			clipIds: transformClipIds,
+			trackId,
+			original: { ...clip },
+			startX: event.clientX,
+			startY: event.clientY,
+			lane,
+		};
+		setDraggingClipIds(new Set(transformClipIds));
+		const selectedClipIds = project.selection?.clipIds || [];
+		if (event.shiftKey) {
+			run(() => controller.actions.timeline.selectClip(clip.id, { additive: true }));
+		} else if (event.metaKey || event.ctrlKey) {
+			run(() => controller.actions.timeline.selectClip(clip.id, { toggle: true }));
+		} else if (!selectedClipIds.includes(clip.id)) run(() => controller.actions.timeline.selectClip(clip.id));
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, snapshot.readOnly, snapshot.recording, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive]);
+	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.readOnly, snapshot.recording, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
@@ -650,11 +677,43 @@ export default function AudioEditorTimeline({
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
-			const preview = {
-				clipId: session.clipId,
-				trackId: trackAtClientY(event.clientY, session.trackId),
-				timelineStartFrame: Math.max(0, session.original.timelineStartFrame + deltaFrames),
-			};
+			const movingClips = session.clipIds
+				.map((clipId) => project.clips.find((clip) => clip.id === clipId))
+				.filter(Boolean);
+			const audioTracks = project.tracks.filter((track) => Array.isArray(track.clipIds));
+			const sourceTrackIndices = movingClips.map((clip) => audioTracks.findIndex((track) => track.clipIds.includes(clip.id)));
+			const activeTrackIndex = audioTracks.findIndex((track) => track.id === session.trackId);
+			const requestedTrackId = trackAtClientY(event.clientY, session.trackId);
+			const createsTrack = requestedTrackId === NEW_AUDIO_TRACK_DROP_TARGET;
+			const requestedTrackIndex = createsTrack
+				? audioTracks.length
+				: audioTracks.findIndex((track) => track.id === requestedTrackId);
+			const minimumTrackDelta = -Math.min(...sourceTrackIndices);
+			const maximumTrackDelta = audioTracks.length - 1 - Math.max(...sourceTrackIndices);
+			const trackDelta = createsTrack
+				? requestedTrackIndex - activeTrackIndex
+				: Math.max(
+					minimumTrackDelta,
+					Math.min(maximumTrackDelta, requestedTrackIndex - activeTrackIndex),
+				);
+			const selection = project.selection;
+			const movesSelection = selection?.endFrame > selection?.startFrame
+				&& selection.clipIds?.includes(session.clipId);
+			const earliestMovingFrame = Math.min(
+				...movingClips.map((clip) => clip.timelineStartFrame),
+				...(movesSelection ? [selection.startFrame] : []),
+			);
+			const clampedDeltaFrames = Math.max(deltaFrames, -earliestMovingFrame);
+			const previews = movingClips.map((clip, index) => {
+				const destinationIndex = sourceTrackIndices[index] + trackDelta;
+				return {
+					clipId: clip.id,
+					trackId: audioTracks[destinationIndex]?.id || `${NEW_AUDIO_TRACK_DROP_TARGET}-${destinationIndex}`,
+					timelineStartFrame: clip.timelineStartFrame + clampedDeltaFrames,
+				};
+			});
+			const activePreview = previews.find((preview) => preview.clipId === session.clipId);
+			const preview = { ...activePreview, createTrack: createsTrack, previews };
 			session.preview = preview;
 			setClipDragPreview((current) => (
 				current?.clipId === preview.clipId
@@ -936,7 +995,7 @@ export default function AudioEditorTimeline({
 								showRms={Boolean(snapshot.timeline?.showRms)}
 								clipStyle={snapshot.preferences?.appearance?.clipStyle}
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
-								draggingClipId={draggingClipId}
+								draggingClipIds={draggingClipIds}
 								clipDragPreview={clipDragPreview}
 								automationToolEnabled={automationToolEnabled}
 								blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.exporting || snapshot.processingEffect}
@@ -955,6 +1014,11 @@ export default function AudioEditorTimeline({
 								onFocusSelectionToolbar={focusSelectionToolbar}
 							/>
 						))}
+						{clipDragPreview?.createTrack && (
+							<div className="audio-editor-new-track-drop-preview" aria-live="polite">
+								<span>{copy.audioTrack}</span>
+							</div>
+						)}
 					</div>
 
 					{project.tracks.length === 0 && project.clips.length === 0 && (
@@ -1219,7 +1283,7 @@ function TrackRow({
 	showRms,
 	clipStyle,
 	recordingPreview,
-	draggingClipId,
+	draggingClipIds,
 	clipDragPreview,
 	automationToolEnabled,
 	blocked,
@@ -1255,15 +1319,15 @@ function TrackRow({
 			isRecordingPreview: true,
 		}] : trackClips;
 		if (!clipDragPreview) return withRecordingPreview;
-		const draggedClip = clipLookup.get(clipDragPreview.clipId);
-		if (!draggedClip) return withRecordingPreview;
-		if (track.id === clipDragPreview.trackId) {
-			const previewClip = { ...draggedClip, ...clipDragPreview };
-			return withRecordingPreview.some((clip) => clip.id === draggedClip.id)
-				? withRecordingPreview.map((clip) => (clip.id === draggedClip.id ? previewClip : clip))
-				: [...withRecordingPreview, previewClip];
+		const previews = clipDragPreview.previews || [clipDragPreview];
+		const previewIds = new Set(previews.map((preview) => preview.clipId));
+		const projected = withRecordingPreview.filter((clip) => !previewIds.has(clip.id));
+		for (const preview of previews) {
+			if (track.id !== preview.trackId) continue;
+			const draggedClip = clipLookup.get(preview.clipId);
+			if (draggedClip) projected.push({ ...draggedClip, ...preview });
 		}
-		return withRecordingPreview.filter((clip) => clip.id !== draggedClip.id);
+		return projected;
 	}, [clipDragPreview, clipLookup, recordingPreview, track.clipIds, track.id]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame,
@@ -1429,31 +1493,32 @@ function TrackRow({
 		const source = clip ? project.sources.find((item) => item.id === clip.sourceId) : null;
 		const deltaFrames = secondsDeltaToFrames(deltaSeconds, sampleRate);
 		if (!clip || !source || !deltaFrames) return;
+		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
 		if (edge === 'left') {
 			const sourceExtension = clip.reversed
-				? source.frameCount - clip.sourceStartFrame - clip.durationFrames
+				? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
 				: clip.sourceStartFrame;
+			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 			const change = Math.max(
-				-Math.min(clip.timelineStartFrame, sourceExtension),
+				-Math.min(clip.timelineStartFrame, timelineExtension),
 				Math.min(clip.durationFrames - 1, deltaFrames),
 			);
 			if (!change) return;
 			run(() => controller.actions.clip.trim(clip.id, {
 				timelineStartFrame: clip.timelineStartFrame + change,
-				sourceStartFrame: clip.sourceStartFrame + (clip.reversed ? 0 : change),
 				durationFrames: clip.durationFrames - change,
 			}));
 			return;
 		}
-		const maximumDuration = clip.reversed
-			? clip.sourceStartFrame + clip.durationFrames
-			: source.frameCount - clip.sourceStartFrame;
+		const sourceExtension = clip.reversed
+			? clip.sourceStartFrame
+			: source.frameCount - clip.sourceStartFrame - sourceDurationFrames;
+		const maximumDuration = clip.durationFrames
+			+ Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 		const nextDuration = Math.max(1, Math.min(maximumDuration, clip.durationFrames - deltaFrames));
 		if (nextDuration === clip.durationFrames) return;
 		run(() => controller.actions.clip.trim(clip.id, {
-			sourceStartFrame: clip.reversed
-				? clip.sourceStartFrame + clip.durationFrames - nextDuration
-				: clip.sourceStartFrame,
 			durationFrames: nextDuration,
 		}));
 	};
@@ -1581,7 +1646,7 @@ function TrackRow({
 						spectrogramScale={spectrogramScale}
 						timeSelection={projectedSelection}
 						clipStyle={clipStyle === 'classic' ? 'classic' : 'colourful'}
-						draggingClipIds={draggingClipId ? new Set([draggingClipId]) : undefined}
+						draggingClipIds={draggingClipIds || undefined}
 						tabIndex={tabIndexFor(2)}
 						trackTabIndex={tabIndexFor(0)}
 						onTrackNavigateVertical={(direction) => {
@@ -1619,7 +1684,7 @@ function TrackRow({
 						onClipMoveToTrack={moveClipToTrack}
 						onClipNavigateVertical={navigateClipVertical}
 						onClipTrim={trimClipBySeconds}
-							onClipStretch={stretchClipBySeconds}
+						onClipStretch={stretchClipBySeconds}
 					/>
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralSelectionOverlay

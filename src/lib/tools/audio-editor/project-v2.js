@@ -560,19 +560,10 @@ export function validateAudioEditorProjectV2(project) {
 
 	for (const track of normalized.tracks) {
 		if (track.type === 'label') continue;
-		const trackClips = [];
 		for (const clipId of track.clipIds) {
-			const clip = clipById.get(clipId);
-			if (!clip) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
+			if (!clipById.has(clipId)) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
 			if (assignedClipIds.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
 			assignedClipIds.add(clipId);
-			trackClips.push(clip);
-		}
-		trackClips.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
-		for (let index = 1; index < trackClips.length; index += 1) {
-			if (clipEndFrameV2(trackClips[index - 1]) > trackClips[index].timelineStartFrame) {
-				throw new RangeError(`Clips overlap on track ${track.id}.`);
-			}
 		}
 	}
 	if (assignedClipIds.size !== normalized.clips.length) throw new RangeError('Every clip must belong to exactly one audio track.');

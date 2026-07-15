@@ -71,7 +71,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		'menu-selection-audio-clips',
 		'menu-selection-spectral',
 		'menu-skip',
-		'mixdown-to',
 		'menu-align',
 		'menu-sort',
 		'set-up-timed-recording',
@@ -92,6 +91,15 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		assert.ok(audacityActionReason(id, 'en'));
 		assert.ok(audacityActionReason(id, 'de'));
 	}
+});
+
+test('Audacity Mix-down to is a concrete destructive track action', () => {
+	const definition = audacityActionDefinition('mixdown-to');
+	assert.equal(definition?.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(definition.handler, 'track.mixAndRender');
+	assert.equal(definition.enableWhen, 'editable-audio-track-selected');
+	assert.equal(resolveAudacityActionId('mix-render'), 'mixdown-to');
+	assert.equal(audacityActionDefinition('mix-render-new'), null);
 });
 
 test('cloud, plugins, OS audio, MIDI tracks, Extra, diagnostics, and updates are audit-only exclusions', () => {

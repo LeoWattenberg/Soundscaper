@@ -865,22 +865,93 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(preferences.locator('[data-shortcut-action="plugin-manager"]')).toHaveCount(0);
 	});
 
-	test('resizes docked panels, floating panels, and editor windows', async ({ page }) => {
+	test('resizes docked panels, moves and resizes floating windows, and resizes editor dialogs', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
 		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
 		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
-		await expect(bottomDock).toHaveCSS('resize', 'vertical');
+		await expect(bottomDock).toHaveCSS('resize', 'none');
 		await expect(bottomDock.locator('[data-workspace-panel="mixer"]')).toHaveCSS('resize', 'horizontal');
+		const initialMixerBounds = await mixerPanel.boundingBox();
+		expect(initialMixerBounds).not.toBeNull();
+		const initialMixerSize = Number(await mixerPanel.getAttribute('data-workspace-panel-size'));
+		await page.mouse.move(initialMixerBounds.x + initialMixerBounds.width - 2, initialMixerBounds.y + initialMixerBounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(initialMixerBounds.x + initialMixerBounds.width - 66, initialMixerBounds.y + initialMixerBounds.height / 2, { steps: 5 });
+		await page.mouse.up();
+		await expect.poll(async () => Number(await mixerPanel.getAttribute('data-workspace-panel-size'))).toBeLessThan(initialMixerSize - 40);
+		const resizedMixerSize = Number(await mixerPanel.getAttribute('data-workspace-panel-size'));
+		await expect.poll(async () => (await mixerPanel.boundingBox())?.width).toBeCloseTo(resizedMixerSize, 0);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await expect(mixerPanel).toHaveCount(0);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await expect(mixerPanel).toHaveAttribute('data-workspace-panel-size', String(resizedMixerSize));
+		await expect.poll(async () => (await mixerPanel.boundingBox())?.width).toBeCloseTo(resizedMixerSize, 0);
 
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
-		await metadataPanel.locator('.kw-audio-editor__panel-dock-picker select').selectOption('floating');
+		await metadataPanel.locator('[data-workspace-panel-dock-picker="metadata"]').selectOption('floating');
 		const floatingDock = editor.locator('[data-panel-dock="floating"]');
-		await expect(floatingDock).toHaveCSS('resize', 'both');
+		await expect(floatingDock.locator('[data-workspace-panel-dock-picker="metadata"]')).toBeFocused();
+		await expect(floatingDock).toHaveCSS('resize', 'none');
 		await expect(floatingDock.locator('[data-workspace-panel="metadata"]')).toHaveCSS('resize', 'both');
+		await expect(floatingDock.locator('[data-floating-panel-move-handle="metadata"]')).toHaveCSS('touch-action', 'none');
+		const initialPanelWidth = Number(await metadataPanel.getAttribute('data-workspace-panel-width'));
+		const initialPanelHeight = Number(await metadataPanel.getAttribute('data-workspace-panel-height'));
+		const metadataBounds = await metadataPanel.boundingBox();
+		expect(metadataBounds).not.toBeNull();
+		await page.mouse.move(metadataBounds.x + metadataBounds.width - 2, metadataBounds.y + metadataBounds.height - 2);
+		await page.mouse.down();
+		await page.mouse.move(metadataBounds.x + metadataBounds.width - 42, metadataBounds.y + metadataBounds.height - 34, { steps: 5 });
+		await page.mouse.up();
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-width'))).not.toBe(initialPanelWidth);
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-height'))).not.toBe(initialPanelHeight);
+
+		const initialPanelX = Number(await metadataPanel.getAttribute('data-workspace-panel-x'));
+		const initialPanelY = Number(await metadataPanel.getAttribute('data-workspace-panel-y'));
+		const moveHandle = metadataPanel.locator('[data-floating-panel-move-handle="metadata"]');
+		const moveBounds = await moveHandle.boundingBox();
+		expect(moveBounds).not.toBeNull();
+		await page.mouse.move(moveBounds.x + moveBounds.width / 2, moveBounds.y + moveBounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(moveBounds.x + moveBounds.width / 2 + 48, moveBounds.y + moveBounds.height / 2 + 32, { steps: 5 });
+		await page.mouse.up();
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-x'))).toBeGreaterThan(initialPanelX + 30);
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-y'))).toBeGreaterThan(initialPanelY + 20);
+
+		const workspace = editor.locator('.kw-audio-editor__workspace');
+		const workspaceBounds = await workspace.boundingBox();
+		const movedHandleBounds = await moveHandle.boundingBox();
+		expect(workspaceBounds).not.toBeNull();
+		expect(movedHandleBounds).not.toBeNull();
+		await page.mouse.move(movedHandleBounds.x + movedHandleBounds.width / 2, movedHandleBounds.y + movedHandleBounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(workspaceBounds.x + workspaceBounds.width - 2, workspaceBounds.y + workspaceBounds.height - 2, { steps: 5 });
+		await page.mouse.up();
+		const clampedBounds = await metadataPanel.boundingBox();
+		expect(clampedBounds.x + clampedBounds.width).toBeLessThanOrEqual(workspaceBounds.x + workspaceBounds.width + 1);
+		expect(clampedBounds.y + clampedBounds.height).toBeLessThanOrEqual(workspaceBounds.y + workspaceBounds.height + 1);
+
+		const keyboardMoveHandle = metadataPanel.locator('[data-workspace-panel-drag-handle="metadata"]');
+		const keyboardStartX = Number(await metadataPanel.getAttribute('data-workspace-panel-x'));
+		const keyboardStartY = Number(await metadataPanel.getAttribute('data-workspace-panel-y'));
+		await keyboardMoveHandle.focus();
+		await expect(metadataPanel).toHaveClass(/kw-audio-editor__workspace-panel--active/);
+		await keyboardMoveHandle.press('ArrowLeft');
+		await keyboardMoveHandle.press('ArrowUp');
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-x'))).toBe(keyboardStartX - 16);
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-y'))).toBe(keyboardStartY - 16);
+		const keyboardResizeHandle = metadataPanel.locator('[data-floating-panel-resize-handle="metadata"]');
+		const keyboardStartWidth = Number(await metadataPanel.getAttribute('data-workspace-panel-width'));
+		const keyboardStartHeight = Number(await metadataPanel.getAttribute('data-workspace-panel-height'));
+		await keyboardResizeHandle.focus();
+		await keyboardResizeHandle.press('ArrowLeft');
+		await keyboardResizeHandle.press('ArrowUp');
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-width'))).toBe(keyboardStartWidth - 16);
+		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-height'))).toBe(keyboardStartHeight - 16);
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -893,6 +964,90 @@ test.describe('audio editor React/design-system workflows', () => {
 		const after = await preferences.boundingBox();
 		expect(after.width).toBeCloseTo(before.width - 16, 0);
 		expect(after.height).toBeCloseTo(before.height - 16, 0);
+	});
+
+	test('keeps compact side docks separate and exposes toolbar ordering without drag handles', async ({ page }) => {
+		await page.setViewportSize({ width: 800, height: 900 });
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		const historyDockPicker = editor.locator('[data-workspace-panel-dock-picker="history"]');
+		if (!await historyDockPicker.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await historyDockPicker.selectOption('left');
+		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel-dock-picker="history"]')).toBeFocused();
+
+		const leftDock = editor.locator('[data-panel-dock="left"]');
+		const rightDock = editor.locator('[data-panel-dock="right"]');
+		const [tabletLeft, tabletRight] = await Promise.all([leftDock.boundingBox(), rightDock.boundingBox()]);
+		expect(tabletLeft).not.toBeNull();
+		expect(tabletRight).not.toBeNull();
+		expect(tabletLeft.x + tabletLeft.width).toBeLessThanOrEqual(tabletRight.x + 1);
+
+		await page.setViewportSize({ width: 390, height: 844 });
+		const [mobileLeft, mobileRight] = await Promise.all([leftDock.boundingBox(), rightDock.boundingBox()]);
+		expect(mobileLeft).not.toBeNull();
+		expect(mobileRight).not.toBeNull();
+		expect(mobileLeft.y + mobileLeft.height).toBeLessThanOrEqual(mobileRight.y + 1);
+
+		await page.setViewportSize({ width: 800, height: 900 });
+		await expect(editor.locator('[data-workspace-toolbar-drag-handle]').first()).toBeHidden();
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Toolbars$/ }).click();
+		await preferences.getByRole('button', { name: 'Move up: Time and meters', exact: true }).click();
+		await expect.poll(() => preferences.locator('[data-preference-toolbar]').evaluateAll(
+			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.preferenceToolbar),
+		)).toEqual(['transport', 'tools', 'meter', 'edit']);
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(preferences).toBeHidden();
+		await expect.poll(() => editor.locator('[data-workspace-toolbar]').evaluateAll(
+			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.workspaceToolbar),
+		)).toEqual(['transport', 'tools', 'meter', 'edit']);
+	});
+
+	test('directly reorders toolbar groups and drags workspace panels between docks', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+
+		const historyPanel = editor.locator('[data-workspace-panel="history"]');
+		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
+		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await expect(historyPanel).toBeVisible();
+		await expect(metadataPanel).toBeVisible();
+		await metadataPanel.locator('[data-workspace-panel-drag-handle="metadata"]').dragTo(historyPanel, {
+			targetPosition: { x: 120, y: 4 },
+		});
+		await expect.poll(() => editor.locator('[data-panel-dock="right"] [data-workspace-panel]').evaluateAll(
+			(panels) => panels.map((panel) => panel.dataset.workspacePanel),
+		)).toEqual(['metadata', 'history']);
+
+		const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+		const metadataHandle = metadataPanel.locator('[data-workspace-panel-drag-handle="metadata"]');
+		await metadataHandle.dispatchEvent('dragstart', { dataTransfer });
+		const floatingTarget = editor.locator('[data-workspace-drop-target="floating"]');
+		await expect(editor.locator('[data-workspace-drop-targets]')).toHaveClass(/--active/);
+		await floatingTarget.dispatchEvent('dragover', { dataTransfer });
+		await floatingTarget.dispatchEvent('drop', { dataTransfer });
+		await expect(editor.locator('[data-panel-dock="floating"] [data-workspace-panel="metadata"]')).toBeVisible();
+
+		const floatingHandle = editor.locator('[data-panel-dock="floating"] [data-workspace-panel-drag-handle="metadata"]');
+		await floatingHandle.dispatchEvent('dragstart', { dataTransfer });
+		const leftTarget = editor.locator('[data-workspace-drop-target="left"]');
+		await leftTarget.dispatchEvent('dragover', { dataTransfer });
+		await leftTarget.dispatchEvent('drop', { dataTransfer });
+		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="metadata"]')).toBeVisible();
+
+		const meterHandle = editor.locator('[data-workspace-toolbar-drag-handle="meter"]');
+		const transportToolbar = editor.locator('[data-workspace-toolbar="transport"]');
+		await meterHandle.dragTo(transportToolbar.getByRole('button', { name: 'Play', exact: true }), {
+			targetPosition: { x: 2, y: 12 },
+		});
+		await expect.poll(() => editor.locator('[data-workspace-toolbar]').evaluateAll(
+			(toolbars) => toolbars.map((toolbar) => toolbar.dataset.workspaceToolbar),
+		)).toEqual(['meter', 'transport', 'tools', 'edit']);
+		expect(errors).toEqual([]);
 	});
 
 	test('exposes the complete zoom menu and executes custom shortcuts through the action registry', async ({ page }) => {
@@ -1149,6 +1304,112 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('creates a new track when a clip is dragged into empty space below the tracks', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await expect(editor).toHaveAttribute('data-track-count', '2');
+		const clip = clipByName(editor, toneA.name);
+		await clip.scrollIntoViewIfNeeded();
+		const clipBox = await clip.boundingBox();
+		const timelineInnerBox = await editor.locator('.audio-editor-timeline-inner').boundingBox();
+		const lastTrackBox = await editor.locator('.audio-editor-track-row').last().boundingBox();
+		expect(clipBox).not.toBeNull();
+		expect(timelineInnerBox).not.toBeNull();
+		expect(lastTrackBox).not.toBeNull();
+		const targetY = Math.min(timelineInnerBox.y + timelineInnerBox.height - 16, lastTrackBox.y + lastTrackBox.height + 32);
+
+		await page.mouse.move(clipBox.x + 32, clipBox.y + 10);
+		await page.mouse.down();
+		await page.mouse.move(clipBox.x + 32, targetY, { steps: 6 });
+		await expect(editor.locator('.audio-editor-new-track-drop-preview')).toBeVisible();
+		await page.mouse.up();
+
+		await expect(editor).toHaveAttribute('data-track-count', '3');
+		await expect(editor.locator('[data-track-row]').last().getByRole('group', {
+			name: `${toneA.name} clip`,
+			exact: true,
+		})).toHaveCount(1);
+		await editor.getByRole('button', { name: 'Undo' }).click();
+		await expect(editor).toHaveAttribute('data-track-count', '2');
+		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
+		expect(errors).toEqual([]);
+	});
+
+	test('moves, trims, and stretches a multi-selection as one clip set', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const firstClip = clipByName(editor, toneA.name);
+		const secondClip = clipByName(editor, toneB.name);
+		await firstClip.locator('.clip-header').click();
+		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
+		await expect(firstClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await expect(secondClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+
+		const firstStart = await firstClip.boundingBox();
+		const secondStart = await secondClip.boundingBox();
+		expect(firstStart).not.toBeNull();
+		expect(secondStart).not.toBeNull();
+		await page.mouse.move(secondStart.x + 28, secondStart.y + 10);
+		await page.mouse.down();
+		await page.mouse.move(secondStart.x + 76, secondStart.y + 10, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await firstClip.boundingBox())?.x || 0).toBeGreaterThan(firstStart.x + 20);
+		await expect.poll(async () => (await secondClip.boundingBox())?.x || 0).toBeGreaterThan(secondStart.x + 20);
+
+		const firstBeforeTrim = await firstClip.boundingBox();
+		const secondBeforeTrim = await secondClip.boundingBox();
+		const trimHandle = secondClip.locator('.clip-display__handle--trim-right');
+		const trimBox = await trimHandle.boundingBox();
+		expect(firstBeforeTrim).not.toBeNull();
+		expect(secondBeforeTrim).not.toBeNull();
+		expect(trimBox).not.toBeNull();
+		await page.mouse.move(trimBox.x + trimBox.width / 2, trimBox.y + trimBox.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(trimBox.x - 24, trimBox.y + trimBox.height / 2, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await firstClip.boundingBox())?.width || 0).toBeLessThan(firstBeforeTrim.width - 10);
+		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeLessThan(secondBeforeTrim.width - 10);
+
+		const firstBeforeStretch = await firstClip.boundingBox();
+		const secondBeforeStretch = await secondClip.boundingBox();
+		const stretchHandle = secondClip.locator('.clip-display__handle--stretch-right');
+		const stretchBox = await stretchHandle.boundingBox();
+		expect(firstBeforeStretch).not.toBeNull();
+		expect(secondBeforeStretch).not.toBeNull();
+		expect(stretchBox).not.toBeNull();
+		await page.mouse.move(stretchBox.x + stretchBox.width / 2, stretchBox.y + stretchBox.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(stretchBox.x + 24, stretchBox.y + stretchBox.height / 2, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await firstClip.boundingBox())?.width || 0).toBeGreaterThan(firstBeforeStretch.width + 10);
+		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeGreaterThan(secondBeforeStretch.width + 10);
+		expect(errors).toEqual([]);
+	});
+
+	test('mixes selected tracks through the real browser graph and restores them with undo', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const firstClip = clipByName(editor, toneA.name);
+		const secondClip = clipByName(editor, toneB.name);
+		await firstClip.locator('.clip-header').click();
+		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
+
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Mix', 'Mix-down to']);
+		const mixedClip = clipByName(editor, 'Mix — Mix and render.wav');
+		await expect(mixedClip).toBeVisible({ timeout: 20_000 });
+		await expect(firstClip).toHaveCount(0);
+		await expect(secondClip).toHaveCount(0);
+
+		await chooseCommandAction(page, editor, 'Edit', 'Undo');
+		await expect(clipByName(editor, toneA.name)).toBeVisible();
+		await expect(clipByName(editor, toneB.name)).toBeVisible();
+		await expect(mixedClip).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('reveals sample tools only at sample zoom and applies an undoable pencil stroke', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -1156,13 +1417,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clip = clipByName(editor, monoTone.name);
 		await clip.click({ position: { x: 24, y: 10 } });
 		await expect(editor.locator('[data-sample-edit-tools]')).toHaveCount(0);
+		const splitTool = editor.getByRole('button', { name: 'Split tool', exact: true });
+		await splitTool.click();
+		await expect(splitTool).toHaveAttribute('aria-pressed', 'true');
 		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
 		for (let step = 0; step < 9; step += 1) await zoomIn.click();
 		const sampleTools = editor.getByRole('toolbar', { name: 'Sample tools', exact: true });
 		await expect(sampleTools).toBeVisible();
 		const pencil = sampleTools.getByRole('button', { name: 'Sample pencil', exact: true });
-		await pencil.click();
 		await expect(pencil).toHaveAttribute('aria-pressed', 'true');
+		await expect(splitTool).toHaveAttribute('aria-pressed', 'false');
 		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-sample-pencil', 'true');
 
 		await clip.scrollIntoViewIfNeeded();
@@ -1219,7 +1483,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('lets pointer-moved clips overwrite and trim inactive clips on release', async ({ page }) => {
+	test('layers pointer-moved clips without trimming inactive audio', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await page.setViewportSize({ width: 1440, height: 1200 });
 		const editor = await bootEditor(page, '/embed/en/');
@@ -1242,7 +1506,11 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(sourceTrack.locator('[data-clip-id]')).toHaveCount(0);
 		await expect(targetTrack.locator('[data-clip-id]')).toHaveCount(2);
-		await expect.poll(async () => (await inactiveClip.boundingBox())?.width || 0).toBeLessThan(inactiveBox.width);
+		await expect.poll(async () => (await inactiveClip.boundingBox())?.width || 0).toBeCloseTo(inactiveBox.width, 0);
+		const movedBox = await clipByName(targetTrack, toneB.name).boundingBox();
+		expect(movedBox).not.toBeNull();
+		expect(movedBox.x).toBeLessThan(inactiveBox.x + inactiveBox.width);
+		expect(inactiveBox.x).toBeLessThan(movedBox.x + movedBox.width);
 		expect(errors).toEqual([]);
 	});
 

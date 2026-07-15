@@ -35,6 +35,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 	const tracks = [];
 	const sourceAudio = [];
 	const selectedTrackIds = [];
+	const selectedClipIds = [];
 	const waveTracks = audacityXmlChildren(root, 'wavetrack');
 	const channelGroups = groupWaveTracks(waveTracks, state.warnings);
 
@@ -117,6 +118,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 				stretchToTempo: Boolean(audacityXmlAttribute(clipNode, 'clipStretchToMatchTempo', false)),
 				opaqueExtensions: { aup4WaveClip: opaqueNode(clipNode), aup4WaveClips: channelNodes.map(opaqueNode) },
 			});
+			if (channelNodes.some((node) => Boolean(audacityXmlAttribute(node, 'isSelected', false)))) selectedClipIds.push(clipId);
 			sources.push(source);
 			clips.push(clip);
 			clipIds.push(clip.id);
@@ -188,7 +190,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 			startFrame: secondsToFrames(nonNegative(audacityXmlAttribute(root, 'sel0', 0)), projectRate),
 			endFrame: secondsToFrames(nonNegative(audacityXmlAttribute(root, 'sel1', 0)), projectRate),
 			trackIds: selectedTrackIds,
-			clipIds: [],
+			clipIds: selectedClipIds,
 			frequencyRange: readFrequencyRange(root, projectRate),
 		},
 		view: {
@@ -199,7 +201,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 		},
 		sources,
 		clips,
-		tracks: spreadOverlappingTracks(tracks, clips, state.warnings),
+		tracks,
 		master: { gain: 1, pan: 0, effects: readAup4EffectsNode(masterEffectsNode, { idFactory }) },
 		opaqueExtensions: {
 			aup4RootAttributes: audacityXmlAttributes(root).map((entry) => ({ ...entry })),
@@ -266,36 +268,6 @@ function groupWaveTracks(nodes, warnings) {
 	}
 	for (const group of groups) if (group.length > 2) warnings.push('A multichannel Audacity track was imported with a custom layout.');
 	return groups;
-}
-
-function spreadOverlappingTracks(tracks, clips, warnings) {
-	const result = [];
-	const clipById = new Map(clips.map((clip) => [clip.id, clip]));
-	for (const track of tracks) {
-		if (track.type === 'label') {
-			result.push(track);
-			continue;
-		}
-		const lanes = [];
-		for (const clipId of track.clipIds) {
-			const clip = clipById.get(clipId);
-			let lane = lanes.find((candidate) => candidate.endFrame <= clip.timelineStartFrame);
-			if (!lane) {
-				lane = { ids: [], endFrame: 0 };
-				lanes.push(lane);
-			}
-			lane.ids.push(clipId);
-			lane.endFrame = clip.timelineStartFrame + clip.durationFrames;
-		}
-		for (let index = 0; index < lanes.length; index += 1) result.push({
-			...track,
-			id: index ? `${track.id}-lane-${index + 1}` : track.id,
-			name: index ? `${track.name} (${index + 1})` : track.name,
-			clipIds: lanes[index].ids,
-		});
-		if (lanes.length > 1) warnings.push(`Overlapping clips on ${track.name} were placed on ${lanes.length} browser lanes; their native nodes remain preserved.`);
-	}
-	return result;
 }
 
 function readEnvelope(clipNode, projectRate) {

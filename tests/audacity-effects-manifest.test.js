@@ -134,6 +134,12 @@ test('Audacity defaults and parameter normalization retain enum, boolean, curve,
 	assert.equal(normalizeAudacityEffectParams('audacity-phaser', { feedbackPercent: 4.6 }).feedbackPercent, 5);
 	assert.equal(normalizeAudacityEffectParams('audacity-phaser', { stages: 3 }).stages, 2);
 	assert.equal(normalizeAudacityEffectParams('audacity-phaser', { stages: 23 }).stages, 22);
+	assert.equal(normalizeAudacityEffectParams('audacity-truncate-silence').independent, false);
+	assert.equal(normalizeAudacityEffectParams('audacity-truncate-silence', { independent: true }).independent, true);
+	assert.equal(
+		audacityEffectParameterLabel('audacity-truncate-silence', 'independent'),
+		'Truncate tracks independently',
+	);
 });
 
 test('Audacity parameter normalization rejects invalid ranges and shapes', () => {

@@ -122,6 +122,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [generatorType, setGeneratorType] = useState('tone');
 	const [analysisMode, setAnalysisMode] = useState('levels');
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
+	const [draggedWorkspacePanelId, setDraggedWorkspacePanelId] = useState(null);
 	const importInputRef = useRef(null);
 	const labelInputRef = useRef(null);
 	const aup4InputRef = useRef(null);
@@ -150,6 +151,14 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
 	const selectedAudioTrackRate = trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000);
+	const splitAvailable = Boolean(
+		selectedClip
+		|| selectedAudioTrack?.clipIds?.length
+		|| project?.selection?.clipIds?.some((clipId) => project.clips.some((clip) => clip.id === clipId))
+		|| project?.selection?.trackIds?.some((trackId) => (
+			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
+		)),
+	);
 
 	useEffect(() => {
 		setParityUi(parityRuntime.uiController.getSnapshot());
@@ -180,6 +189,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 			return undefined;
 		}
 	}, [onError]);
+	const moveWorkspacePanel = useCallback((panelId, dock, index) => {
+		setDraggedWorkspacePanelId(null);
+		return run(() => controller.actions.preferences.movePanel(panelId, dock, index));
+	}, [controller, run]);
 	const zoomProject = useCallback((direction) => run(() => (
 		direction === 'in'
 			? controller.actions.timeline.zoomIn()
@@ -202,17 +215,24 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setIsFullscreen((current) => !current);
 	}, []);
 	const toggleSplitTool = useCallback(() => {
+		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
 		setAutomationToolEnabled(false);
 		return parityRuntime.actions.tools.toggleSplitTool();
-	}, [parityRuntime]);
+	}, [controller, parityRuntime, run, snapshot.sampleEdit?.mode]);
 	const toggleAutomationTool = useCallback(() => {
+		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
 		setAutomationToolEnabled((enabled) => {
 			if (!enabled && parityRuntime.uiController.getSnapshot().flags.splitTool) {
 				parityRuntime.actions.tools.toggleSplitTool();
 			}
 			return !enabled;
 		});
-	}, [parityRuntime]);
+	}, [controller, parityRuntime, run, snapshot.sampleEdit?.mode]);
+	useEffect(() => {
+		if (snapshot.sampleEdit?.mode !== 'pencil') return;
+		if (uiFlags.splitTool) parityRuntime.actions.tools.toggleSplitTool();
+		setAutomationToolEnabled(false);
+	}, [parityRuntime, snapshot.sampleEdit?.mode, uiFlags.splitTool]);
 
 	const toggleRecording = useCallback(() => {
 		if (snapshot.recording) return run(() => controller.actions.recording.stop());
@@ -288,7 +308,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		{ action: 'cut', label: copy.cut, icon: 'cut', disabled: editBlocked || !selectionActive },
 		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !selectionActive },
 		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !snapshot.history?.hasClipboard },
-		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !selectedClip },
+		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !splitAvailable },
 		{ action: 'delete', label: copy.liftDelete, icon: 'trash', disabled: editBlocked || (!selectionActive && !selectedClip) },
 		{ action: 'rippleDelete', label: copy.rippleDelete, icon: 'trim', disabled: editBlocked || !selectionActive },
 	];
@@ -493,6 +513,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			setTrackDisplay: (mode) => snapshot.selectedTrackId && run(() => controller.actions.track.setDisplayMode(snapshot.selectedTrackId, mode)),
 			setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
 			setTrackSampleFormat: (sampleFormat) => snapshot.selectedTrackId && run(() => controller.actions.track.setSampleFormat(snapshot.selectedTrackId, sampleFormat)),
+			mixAndRender: () => run(() => controller.actions.track.mixAndRender()),
 			openTrackRate: () => {
 				setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 				setDialog('track-rate');
@@ -709,6 +730,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 					run={run}
 					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
+					draggedPanelId={draggedWorkspacePanelId}
+					onPanelDragStart={setDraggedWorkspacePanelId}
+					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
+					onPanelMove={moveWorkspacePanel}
 				/>
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
 				<main className="kw-audio-editor__canvas">
@@ -744,6 +769,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 					run={run}
 					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
+					draggedPanelId={draggedWorkspacePanelId}
+					onPanelDragStart={setDraggedWorkspacePanelId}
+					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
+					onPanelMove={moveWorkspacePanel}
 				/>
 				</div>}
 				<WorkspacePanelDock
@@ -754,6 +783,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 					run={run}
 					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
+					draggedPanelId={draggedWorkspacePanelId}
+					onPanelDragStart={setDraggedWorkspacePanelId}
+					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
+					onPanelMove={moveWorkspacePanel}
 				/>
 				<WorkspacePanelDock
 					dock="floating"
@@ -763,7 +796,33 @@ function AudioEditorWorkspace({ locale, copy }) {
 					run={run}
 					showArmControls={showArmControls}
 					onOpenEffects={openEffects}
+					draggedPanelId={draggedWorkspacePanelId}
+					onPanelDragStart={setDraggedWorkspacePanelId}
+					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
+					onPanelMove={moveWorkspacePanel}
 				/>
+				<div
+					className={`kw-audio-editor__workspace-drop-targets${draggedWorkspacePanelId ? ' kw-audio-editor__workspace-drop-targets--active' : ''}`}
+					data-workspace-drop-targets
+					aria-hidden={draggedWorkspacePanelId ? undefined : 'true'}
+				>
+						{WORKSPACE_DOCK_IDS.map((dockId) => (
+							<div
+								key={dockId}
+								className={`kw-audio-editor__workspace-drop-target kw-audio-editor__workspace-drop-target--${dockId}`}
+								data-workspace-drop-target={dockId}
+								onDragOver={(event) => {
+									event.preventDefault();
+									event.dataTransfer.dropEffect = 'move';
+								}}
+								onDrop={(event) => {
+									if (!draggedWorkspacePanelId) return;
+									event.preventDefault();
+									moveWorkspacePanel(draggedWorkspacePanelId, dockId, Number.MAX_SAFE_INTEGER);
+								}}
+							>{workspaceDockLabel(copy, dockId)}</div>
+						))}
+				</div>
 
 				{effectsOverlay && effectsPosition && (
 					<div
@@ -995,6 +1054,7 @@ function EditorToolToolbar({
 		: recordLabel;
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
+	const [draggedToolbarId, setDraggedToolbarId] = useState(null);
 	const setToolbarSettingsTrigger = useCallback((element) => {
 		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
 	}, []);
@@ -1031,6 +1091,42 @@ function EditorToolToolbar({
 		if (!rect) return;
 		setToolbarSettingsPosition({ x: rect.left + rect.width / 2, y: rect.bottom });
 	};
+	const orderedToolbarIds = WORKSPACE_TOOLBAR_IDS
+		.filter((toolbarId) => toolbars[toolbarId])
+		.sort((left, right) => toolbars[left].order - toolbars[right].order);
+	const moveToolbar = (toolbarId, index) => {
+		setDraggedToolbarId(null);
+		return run(() => controller.actions.preferences.moveToolbar(toolbarId, index));
+	};
+	const dropToolbarOn = (event, targetToolbarId) => {
+		if (!draggedToolbarId || draggedToolbarId === targetToolbarId) return;
+		event.preventDefault();
+		const remaining = orderedToolbarIds.filter((toolbarId) => toolbarId !== draggedToolbarId);
+		const targetIndex = remaining.indexOf(targetToolbarId);
+		const childBounds = [...event.currentTarget.children]
+			.map((element) => element.getBoundingClientRect())
+			.filter((bounds) => bounds.width || bounds.height);
+		const left = Math.min(...childBounds.map((bounds) => bounds.left));
+		const right = Math.max(...childBounds.map((bounds) => bounds.right));
+		const after = childBounds.length && event.clientX > left + (right - left) / 2;
+		moveToolbar(draggedToolbarId, targetIndex + (after ? 1 : 0));
+	};
+	const toolbarSectionProps = (toolbarId) => ({
+		toolbarId,
+		label: workspaceToolbarLabel(copy, toolbarId),
+		order: toolbars[toolbarId]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(toolbarId),
+		dragging: draggedToolbarId === toolbarId,
+		onDragStart: setDraggedToolbarId,
+		onDragEnd: () => setDraggedToolbarId(null),
+		onDragOver: (event) => {
+			if (!draggedToolbarId || draggedToolbarId === toolbarId) return;
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'move';
+		},
+		onDrop: (event) => dropToolbarOn(event, toolbarId),
+		onMove: (direction) => moveToolbar(toolbarId, orderedToolbarIds.indexOf(toolbarId) + direction),
+		copy,
+	});
 	return (
 		<div
 			data-editor-tool-toolbar
@@ -1052,7 +1148,9 @@ function EditorToolToolbar({
 					</ToolbarButtonGroup>
 				)}
 			>
-				{toolbars.transport?.visible !== false && transportButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
+				{[
+				toolbars.transport?.visible !== false && transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
+				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
 					{isToolbarButtonVisible('play') && <TransportButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
 						className="kw-audio-editor__transport-play"
@@ -1086,9 +1184,10 @@ function EditorToolToolbar({
 						onClick={() => run(() => controller.actions.transport.toggleLoop())}
 					/>
 					}
-				</ToolbarButtonGroup>}
+				</ToolbarButtonGroup>
+				</WorkspaceToolbarSection>,
 
-				{toolbars.tools?.visible !== false && <>
+				toolbars.tools?.visible !== false && <WorkspaceToolbarSection key="tools" {...toolbarSectionProps('tools')}>
 				{viewButtonsVisible && <ToolbarDivider />}
 				{viewButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__view-actions" gap={2}>
 					{isToolbarButtonVisible('split-tool') && <span data-action-id="split-tool">
@@ -1146,17 +1245,19 @@ function EditorToolToolbar({
 					{isToolbarButtonVisible('zoom-fit') && <ToolButton icon="zoom-to-fit" ariaLabel={copy.zoomFit} onClick={() => run(() => controller.actions.timeline.zoomFit())} />}
 				</ToolbarButtonGroup>
 				}
-				</>}
+				</WorkspaceToolbarSection>,
 
-				{toolbars.edit?.visible !== false && visibleEditItems.length > 0 && <ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
+				toolbars.edit?.visible !== false && visibleEditItems.length > 0 && <WorkspaceToolbarSection key="edit" {...toolbarSectionProps('edit')}>
+				<ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
 					{visibleEditItems.map((item) => (
 						<span key={item.action} data-edit={item.action === 'rippleDelete' ? 'ripple-delete' : item.action}>
 							<ToolButton icon={item.icon} ariaLabel={item.label} disabled={item.disabled} onClick={() => executeEdit(item.action)} />
 						</span>
 					))}
-				</ToolbarButtonGroup>}
+				</ToolbarButtonGroup>
+				</WorkspaceToolbarSection>,
 
-				{toolbars.meter?.visible !== false && <>
+				toolbars.meter?.visible !== false && <WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
 				{isToolbarButtonVisible('time-display') && <div className="kw-audio-editor__timecode" data-time-display>
 					<AccessibleTimeCode
 						ariaLabel={`${copy.playhead}: ${copy.format}`}
@@ -1265,7 +1366,8 @@ function EditorToolToolbar({
 					/>
 					</div>
 				</ToolbarButtonGroup>}
-				</>}
+				</WorkspaceToolbarSection>,
+				].filter(Boolean).sort((left, right) => left.props.order - right.props.order)}
 			</Toolbar>
 			<Flyout
 				isOpen={Boolean(toolbarSettingsPosition)}
@@ -1292,6 +1394,49 @@ function EditorToolToolbar({
 					</div>
 				</div>
 			</Flyout>
+		</div>
+	);
+}
+
+function WorkspaceToolbarSection({
+	toolbarId,
+	label,
+	dragging,
+	onDragStart,
+	onDragEnd,
+	onDragOver,
+	onDrop,
+	onMove,
+	copy,
+	children,
+}) {
+	return (
+		<div
+			className={`kw-audio-editor__workspace-toolbar${dragging ? ' kw-audio-editor__workspace-toolbar--dragging' : ''}`}
+			data-workspace-toolbar={toolbarId}
+			onDragOver={onDragOver}
+			onDrop={onDrop}
+		>
+			{children}
+			<button
+				type="button"
+				className="kw-audio-editor__toolbar-drag-handle"
+				data-workspace-toolbar-drag-handle={toolbarId}
+				draggable
+				aria-label={`${copy.workspaceMove}: ${label}`}
+				onClick={(event) => event.currentTarget.focus()}
+				onDragStart={(event) => {
+					event.dataTransfer.effectAllowed = 'move';
+					event.dataTransfer.setData('text/plain', toolbarId);
+					onDragStart(toolbarId);
+				}}
+				onDragEnd={onDragEnd}
+				onKeyDown={(event) => {
+					if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+					event.preventDefault();
+					onMove(event.key === 'ArrowLeft' ? -1 : 1);
+				}}
+			>⠿</button>
 		</div>
 	);
 }
@@ -1482,30 +1627,416 @@ function AccessibleSelectionToolbar({
 const WORKSPACE_PANEL_IDS = Object.freeze(['history', 'labels', 'metadata', 'effects', 'mixer', 'spectrogram']);
 const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
 const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
+const FLOATING_PANEL_MIN_WIDTH = 240;
+const FLOATING_PANEL_MIN_HEIGHT = 120;
 
-function WorkspacePanelDock({ dock, controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
+function clampFloatingPanelGeometry(panel, workspaceBounds = {}) {
+	const raw = {
+		x: Math.max(0, Number(panel?.x) || 0),
+		y: Math.max(0, Number(panel?.y) || 0),
+		width: Math.max(80, Number(panel?.width ?? panel?.size) || 320),
+		height: Math.max(80, Number(panel?.height) || 320),
+	};
+	const workspaceWidth = Math.max(0, Number(workspaceBounds.width) || 0);
+	const workspaceHeight = Math.max(0, Number(workspaceBounds.height) || 0);
+	if (!workspaceWidth || !workspaceHeight) return raw;
+	const minimumWidth = Math.min(FLOATING_PANEL_MIN_WIDTH, workspaceWidth);
+	const minimumHeight = Math.min(FLOATING_PANEL_MIN_HEIGHT, workspaceHeight);
+	const width = Math.min(workspaceWidth, Math.max(minimumWidth, raw.width));
+	const height = Math.min(workspaceHeight, Math.max(minimumHeight, raw.height));
+	return {
+		x: Math.min(Math.max(0, raw.x), workspaceWidth - width),
+		y: Math.min(Math.max(0, raw.y), workspaceHeight - height),
+		width,
+		height,
+	};
+}
+
+function WorkspacePanelDock({
+	dock,
+	controller,
+	snapshot,
+	copy,
+	run,
+	showArmControls,
+	onOpenEffects,
+	draggedPanelId,
+	onPanelDragStart,
+	onPanelDragEnd,
+	onPanelMove,
+}) {
+	const dockRef = useRef(null);
+	const resizeSessionRef = useRef(null);
+	const moveSessionRef = useRef(null);
+	const [floatingBounds, setFloatingBounds] = useState({ width: 0, height: 0 });
+	const [activeFloatingPanelId, setActiveFloatingPanelId] = useState(null);
 	const panels = WORKSPACE_PANEL_IDS
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([, panel]) => panel?.visible && panel.dock === dock)
 		.sort((left, right) => left[1].order - right[1].order);
+	useEffect(() => {
+		if (dock !== 'floating') return undefined;
+		const element = dockRef.current;
+		if (!element) return undefined;
+		const update = () => {
+			const bounds = element.getBoundingClientRect();
+			const next = { width: Math.round(bounds.width), height: Math.round(bounds.height) };
+			setFloatingBounds((current) => (
+				current.width === next.width && current.height === next.height ? current : next
+			));
+		};
+		update();
+		if (typeof ResizeObserver !== 'function') {
+			window.addEventListener('resize', update);
+			return () => window.removeEventListener('resize', update);
+		}
+		const observer = new ResizeObserver(update);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [dock, panels.length]);
+	useEffect(() => {
+		const resize = (event) => {
+			const session = resizeSessionRef.current;
+			if (!session || dock === 'floating' || event.pointerId !== session.pointerId) return;
+			event.preventDefault();
+			const delta = session.horizontal
+				? event.clientX - session.startClientX
+				: event.clientY - session.startClientY;
+			const size = Math.max(session.minimumSize, Math.min(session.maximumSize, session.initialSize + delta));
+			session.element.style[session.sizeProperty] = `${Math.round(size)}px`;
+		};
+		const finishResize = (event) => {
+			const session = resizeSessionRef.current;
+			if (event?.type === 'pointerup' && session?.pointerId !== event.pointerId) return;
+			resizeSessionRef.current = null;
+			if (!session?.element?.isConnected) return;
+			const bounds = session.element.getBoundingClientRect();
+			if (dock === 'floating') {
+				const containerBounds = dockRef.current?.getBoundingClientRect();
+				if (!containerBounds) return;
+				const geometry = clampFloatingPanelGeometry({
+					x: bounds.left - containerBounds.left,
+					y: bounds.top - containerBounds.top,
+					width: bounds.width,
+					height: bounds.height,
+				}, containerBounds);
+				if (Math.abs(geometry.width - session.initialWidth) < 2
+					&& Math.abs(geometry.height - session.initialHeight) < 2) return;
+				Object.assign(session.element.style, {
+					left: `${geometry.x}px`,
+					top: `${geometry.y}px`,
+					width: `${geometry.width}px`,
+					height: `${geometry.height}px`,
+				});
+				run(() => controller.actions.preferences.setPanel(session.panelId, {
+					...geometry,
+				}));
+				return;
+			}
+			const size = Math.round(session.horizontal ? bounds.width : bounds.height);
+			if (!Number.isFinite(size) || Math.abs(size - session.initialSize) < 2) {
+				session.element.style.removeProperty(session.sizeProperty);
+				return;
+			}
+			session.element.style.setProperty('--workspace-panel-size', `${size}px`);
+			session.element.style.removeProperty(session.sizeProperty);
+			run(() => controller.actions.preferences.setPanel(session.panelId, { size }));
+		};
+		const cancelResize = (event) => {
+			const session = resizeSessionRef.current;
+			if (session?.pointerId !== undefined && event?.pointerId !== session.pointerId) return;
+			resizeSessionRef.current = null;
+			if (session?.manual && session.sizeProperty) session.element?.style.removeProperty(session.sizeProperty);
+		};
+		window.addEventListener('pointermove', resize, { passive: false });
+		window.addEventListener('pointerup', finishResize);
+		window.addEventListener('mouseup', finishResize);
+		window.addEventListener('pointercancel', cancelResize);
+		return () => {
+			window.removeEventListener('pointermove', resize);
+			window.removeEventListener('pointerup', finishResize);
+			window.removeEventListener('mouseup', finishResize);
+			window.removeEventListener('pointercancel', cancelResize);
+		};
+	}, [controller, dock, run]);
+	useEffect(() => {
+		if (dock !== 'floating') return undefined;
+		const move = (event) => {
+			const session = moveSessionRef.current;
+			if (!session || event.pointerId !== session.pointerId) return;
+			event.preventDefault();
+			const geometry = clampFloatingPanelGeometry({
+				...session.startGeometry,
+				x: session.startGeometry.x + event.clientX - session.startClientX,
+				y: session.startGeometry.y + event.clientY - session.startClientY,
+			}, session.workspaceBounds);
+			session.geometry = geometry;
+			session.moved = session.moved
+				|| Math.abs(geometry.x - session.startGeometry.x) >= 1
+				|| Math.abs(geometry.y - session.startGeometry.y) >= 1;
+			Object.assign(session.element.style, {
+				left: `${geometry.x}px`,
+				top: `${geometry.y}px`,
+			});
+		};
+		const finish = (event) => {
+			const session = moveSessionRef.current;
+			if (!session || event.pointerId !== session.pointerId) return;
+			moveSessionRef.current = null;
+			session.element.classList.remove('kw-audio-editor__workspace-panel--moving');
+			if (!session.moved) return;
+			run(() => controller.actions.preferences.setPanel(session.panelId, {
+				x: Math.round(session.geometry.x),
+				y: Math.round(session.geometry.y),
+			}));
+		};
+		const cancel = (event) => {
+			const session = moveSessionRef.current;
+			if (!session || event.pointerId !== session.pointerId) return;
+			moveSessionRef.current = null;
+			session.element.classList.remove('kw-audio-editor__workspace-panel--moving');
+			Object.assign(session.element.style, {
+				left: `${session.startGeometry.x}px`,
+				top: `${session.startGeometry.y}px`,
+			});
+		};
+		window.addEventListener('pointermove', move, { passive: false });
+		window.addEventListener('pointerup', finish);
+		window.addEventListener('pointercancel', cancel);
+		return () => {
+			window.removeEventListener('pointermove', move);
+			window.removeEventListener('pointerup', finish);
+			window.removeEventListener('pointercancel', cancel);
+			moveSessionRef.current?.element?.classList.remove('kw-audio-editor__workspace-panel--moving');
+			moveSessionRef.current = null;
+		};
+	}, [controller, dock, run]);
+	const beginResize = (event) => {
+		if (event.button !== 0) return;
+		const element = event.target.closest?.('[data-workspace-panel]');
+		if (!element) return;
+		const bounds = element.getBoundingClientRect();
+		const threshold = 14;
+		const horizontal = dock === 'bottom' || dock === 'floating';
+		const onResizeEdge = dock === 'floating'
+			? event.clientX >= bounds.right - threshold || event.clientY >= bounds.bottom - threshold
+			: horizontal
+				? event.clientX >= bounds.right - threshold
+				: event.clientY >= bounds.bottom - threshold;
+		if (!onResizeEdge) return;
+		const dockBounds = dockRef.current?.getBoundingClientRect();
+		resizeSessionRef.current = {
+			element,
+			horizontal,
+			initialWidth: Math.round(bounds.width),
+			initialHeight: Math.round(bounds.height),
+			initialSize: Math.round(horizontal ? bounds.width : bounds.height),
+			maximumSize: Math.max(
+				horizontal ? FLOATING_PANEL_MIN_WIDTH : FLOATING_PANEL_MIN_HEIGHT,
+				dock === 'floating'
+					? Number.POSITIVE_INFINITY
+					: Math.round(horizontal ? dockBounds?.width || bounds.width : dockBounds?.height || bounds.height),
+			),
+			minimumSize: horizontal ? FLOATING_PANEL_MIN_WIDTH : FLOATING_PANEL_MIN_HEIGHT,
+			manual: dock !== 'floating',
+			panelId: element.dataset.workspacePanel,
+			pointerId: event.pointerId,
+			sizeProperty: horizontal ? 'width' : 'height',
+			startClientX: event.clientX,
+			startClientY: event.clientY,
+		};
+		if (dock !== 'floating') event.preventDefault();
+	};
+	const beginFloatingMove = (event, panelId) => {
+		if (dock !== 'floating' || event.button !== 0 || resizeSessionRef.current) return;
+		if (event.target.closest('button, select, input, label, a')) return;
+		const element = event.currentTarget.closest('[data-workspace-panel]');
+		const workspace = dockRef.current;
+		if (!element || !workspace) return;
+		const workspaceBounds = workspace.getBoundingClientRect();
+		const elementBounds = element.getBoundingClientRect();
+		const startGeometry = clampFloatingPanelGeometry({
+			x: elementBounds.left - workspaceBounds.left,
+			y: elementBounds.top - workspaceBounds.top,
+			width: elementBounds.width,
+			height: elementBounds.height,
+		}, workspaceBounds);
+		moveSessionRef.current = {
+			panelId,
+			element,
+			pointerId: event.pointerId,
+			startClientX: event.clientX,
+			startClientY: event.clientY,
+			startGeometry,
+			geometry: startGeometry,
+			workspaceBounds,
+			moved: false,
+		};
+		setActiveFloatingPanelId(panelId);
+		element.classList.add('kw-audio-editor__workspace-panel--moving');
+		event.currentTarget.setPointerCapture?.(event.pointerId);
+		event.preventDefault();
+	};
+	const adjustFloatingPanelGeometry = (event, panelId, panel, mode) => {
+		if (dock !== 'floating' || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return false;
+		const workspaceBounds = dockRef.current?.getBoundingClientRect();
+		if (!workspaceBounds) return false;
+		event.preventDefault();
+		const step = event.shiftKey ? 48 : 16;
+		const current = clampFloatingPanelGeometry(panel, workspaceBounds);
+		const next = { ...current };
+		if (mode === 'resize') {
+			if (event.key === 'ArrowLeft') next.width -= step;
+			else if (event.key === 'ArrowRight') next.width += step;
+			else if (event.key === 'ArrowUp') next.height -= step;
+			else next.height += step;
+		} else {
+			if (event.key === 'ArrowLeft') next.x -= step;
+			else if (event.key === 'ArrowRight') next.x += step;
+			else if (event.key === 'ArrowUp') next.y -= step;
+			else next.y += step;
+		}
+		const geometry = clampFloatingPanelGeometry(next, workspaceBounds);
+		setActiveFloatingPanelId(panelId);
+		run(() => controller.actions.preferences.setPanel(panelId, {
+			x: Math.round(geometry.x),
+			y: Math.round(geometry.y),
+			width: Math.round(geometry.width),
+			height: Math.round(geometry.height),
+		}));
+		return true;
+	};
 	if (!panels.length) return null;
 	return (
-		<aside className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`} data-panel-dock={dock} aria-label={copy.panels}>
-			{panels.map(([panelId, panel]) => (
+		<aside
+			ref={dockRef}
+			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
+			data-panel-dock={dock}
+			aria-label={copy.panels}
+			onPointerDownCapture={beginResize}
+			onDragOver={(event) => {
+				if (!draggedPanelId) return;
+				event.preventDefault();
+				event.dataTransfer.dropEffect = 'move';
+			}}
+			onDrop={(event) => {
+				if (!draggedPanelId) return;
+				event.preventDefault();
+				onPanelMove(draggedPanelId, dock, panels.filter(([id]) => id !== draggedPanelId).length);
+			}}
+		>
+			{panels.map(([panelId, panel], panelIndex) => {
+				const geometry = dock === 'floating'
+					? clampFloatingPanelGeometry(panel, floatingBounds)
+					: null;
+				const panelStyle = geometry
+					? {
+						'--workspace-panel-size': `${geometry.width}px`,
+						left: `${geometry.x}px`,
+						top: `${geometry.y}px`,
+						width: `${geometry.width}px`,
+						height: `${geometry.height}px`,
+						minWidth: `${Math.min(FLOATING_PANEL_MIN_WIDTH, floatingBounds.width || FLOATING_PANEL_MIN_WIDTH)}px`,
+						minHeight: `${Math.min(FLOATING_PANEL_MIN_HEIGHT, floatingBounds.height || FLOATING_PANEL_MIN_HEIGHT)}px`,
+						maxWidth: floatingBounds.width ? `${Math.max(1, floatingBounds.width - geometry.x)}px` : '100%',
+						maxHeight: floatingBounds.height ? `${Math.max(1, floatingBounds.height - geometry.y)}px` : '100%',
+					}
+					: { '--workspace-panel-size': `${panel.size}px` };
+				return (
 				<section
 					key={panelId}
-					className="kw-audio-editor__workspace-panel"
+					className={`kw-audio-editor__workspace-panel${draggedPanelId === panelId ? ' kw-audio-editor__workspace-panel--dragging' : ''}${activeFloatingPanelId === panelId ? ' kw-audio-editor__workspace-panel--active' : ''}`}
 					data-workspace-panel={panelId}
-					style={{ '--workspace-panel-size': `${panel.size}px` }}
+					data-workspace-panel-size={panel.size}
+					data-workspace-panel-x={geometry?.x}
+					data-workspace-panel-y={geometry?.y}
+					data-workspace-panel-width={geometry?.width}
+					data-workspace-panel-height={geometry?.height}
+					style={panelStyle}
+					onPointerDownCapture={() => {
+						if (dock === 'floating') setActiveFloatingPanelId(panelId);
+					}}
+					onFocusCapture={() => {
+						if (dock === 'floating') setActiveFloatingPanelId(panelId);
+					}}
+					onDragOver={(event) => {
+						if (!draggedPanelId || draggedPanelId === panelId) return;
+						event.preventDefault();
+						event.stopPropagation();
+						event.dataTransfer.dropEffect = 'move';
+					}}
+					onDrop={(event) => {
+						if (!draggedPanelId) return;
+						event.preventDefault();
+						event.stopPropagation();
+						if (draggedPanelId === panelId) return;
+						const remaining = panels.filter(([id]) => id !== draggedPanelId);
+						const targetIndex = remaining.findIndex(([id]) => id === panelId);
+						const bounds = event.currentTarget.getBoundingClientRect();
+						const after = dock === 'bottom'
+							? event.clientX > bounds.left + bounds.width / 2
+							: event.clientY > bounds.top + bounds.height / 2;
+						onPanelMove(draggedPanelId, dock, targetIndex + (after ? 1 : 0));
+					}}
 				>
-					<header className="kw-audio-editor__workspace-panel-header">
+					<header
+						className="kw-audio-editor__workspace-panel-header"
+						data-floating-panel-move-handle={dock === 'floating' ? panelId : undefined}
+						onPointerDown={(event) => beginFloatingMove(event, panelId)}
+					>
+						<button
+							type="button"
+							className="kw-audio-editor__workspace-drag-handle"
+							data-workspace-panel-drag-handle={panelId}
+							draggable
+							aria-label={`${copy.workspaceMove}: ${workspacePanelLabel(copy, panelId)}`}
+							onClick={(event) => event.currentTarget.focus()}
+							onDragStart={(event) => {
+								event.dataTransfer.effectAllowed = 'move';
+								event.dataTransfer.setData('text/plain', panelId);
+								onPanelDragStart(panelId);
+							}}
+							onDragEnd={onPanelDragEnd}
+							onKeyDown={(event) => {
+								if (adjustFloatingPanelGeometry(event, panelId, panel, 'move')) return;
+								const backwards = dock === 'bottom' ? event.key === 'ArrowLeft' : event.key === 'ArrowUp';
+								const forwards = dock === 'bottom' ? event.key === 'ArrowRight' : event.key === 'ArrowDown';
+								if (!backwards && !forwards) return;
+								event.preventDefault();
+								onPanelMove(panelId, dock, panelIndex + (forwards ? 1 : -1));
+							}}
+						>⠿</button>
 						<h2>{workspacePanelLabel(copy, panelId)}</h2>
+						{dock === 'floating' && <button
+							type="button"
+							className="kw-audio-editor__workspace-resize-handle"
+							data-floating-panel-resize-handle={panelId}
+							aria-label={`${copy.workspaceResize}: ${workspacePanelLabel(copy, panelId)}`}
+							onClick={(event) => event.currentTarget.focus()}
+							onKeyDown={(event) => adjustFloatingPanelGeometry(event, panelId, panel, 'resize')}
+						>↘</button>}
 						<label className="kw-audio-editor__panel-dock-picker">
 							<span className="kw-audio-editor-sr-only">{copy.panelDock}</span>
 							<select
+								data-workspace-panel-dock-picker={panelId}
 								aria-label={`${workspacePanelLabel(copy, panelId)}: ${copy.panelDock}`}
 								value={panel.dock}
-								onChange={(event) => run(() => controller.actions.preferences.setPanel(panelId, { dock: event.currentTarget.value }))}
+								onChange={(event) => {
+									const ownerDocument = event.currentTarget.ownerDocument;
+									const nextDock = event.currentTarget.value;
+									run(() => controller.actions.preferences.setPanel(panelId, { dock: nextDock }));
+									let remainingAttempts = 4;
+									const restoreFocus = () => {
+										const picker = ownerDocument.querySelector(`[data-workspace-panel-dock-picker="${panelId}"]`);
+										if (picker instanceof HTMLElement) {
+											picker.focus();
+											return;
+										}
+										remainingAttempts -= 1;
+										if (remainingAttempts > 0) requestAnimationFrame(restoreFocus);
+									};
+									requestAnimationFrame(restoreFocus);
+								}}
 							>
 								{WORKSPACE_DOCK_IDS.map((dockId) => <option key={dockId} value={dockId}>{workspaceDockLabel(copy, dockId)}</option>)}
 							</select>
@@ -1529,7 +2060,8 @@ function WorkspacePanelDock({ dock, controller, snapshot, copy, run, showArmCont
 						/>
 					</div>
 				</section>
-			))}
+				);
+			})}
 		</aside>
 	);
 }
@@ -1984,6 +2516,11 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }), [copy, locale, menus]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
+	const orderedPreferenceToolbars = [...WORKSPACE_TOOLBAR_IDS]
+		.sort((left, right) => (
+			(preferences.workspace.toolbars[left]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(left))
+			- (preferences.workspace.toolbars[right]?.order ?? WORKSPACE_TOOLBAR_IDS.indexOf(right))
+		));
 	const pages = [
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
@@ -2189,15 +2726,33 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 
 						{selectedPage === 'toolbars' && (
 							<PreferencePanel title={copy.toolbarsMenu}>
-								<div className="kw-audio-editor-preferences__checks">
-									{WORKSPACE_TOOLBAR_IDS.map((toolbarId) => (
-										<PreferenceCheckbox
-											key={toolbarId}
-											label={workspaceToolbarLabel(copy, toolbarId)}
-											checked={preferences.workspace.toolbars[toolbarId]?.visible !== false}
-											onChange={() => run(() => controller.actions.preferences.toggleToolbar(toolbarId))}
-										/>
-									))}
+								<div className="kw-audio-editor-preferences__toolbar-list">
+									{orderedPreferenceToolbars.map((toolbarId, toolbarIndex) => {
+										const label = workspaceToolbarLabel(copy, toolbarId);
+										return <div key={toolbarId} data-preference-toolbar={toolbarId}>
+											<PreferenceCheckbox
+												label={label}
+												checked={preferences.workspace.toolbars[toolbarId]?.visible !== false}
+												onChange={() => run(() => controller.actions.preferences.toggleToolbar(toolbarId))}
+											/>
+											<div className="kw-audio-editor-preferences__toolbar-order-actions">
+												<AccessiblePreferenceButton
+													variant="secondary"
+													size="small"
+													disabled={toolbarIndex === 0}
+													ariaLabel={`${copy.workspaceMoveUp}: ${label}`}
+													onClick={() => run(() => controller.actions.preferences.moveToolbar(toolbarId, toolbarIndex - 1))}
+												>↑</AccessiblePreferenceButton>
+												<AccessiblePreferenceButton
+													variant="secondary"
+													size="small"
+													disabled={toolbarIndex === orderedPreferenceToolbars.length - 1}
+													ariaLabel={`${copy.workspaceMoveDown}: ${label}`}
+													onClick={() => run(() => controller.actions.preferences.moveToolbar(toolbarId, toolbarIndex + 1))}
+												>↓</AccessiblePreferenceButton>
+											</div>
+										</div>;
+									})}
 								</div>
 							</PreferencePanel>
 						)}
@@ -2272,6 +2827,14 @@ function PreferenceCheckbox({ label, checked, onChange }) {
 		onChange(next);
 	};
 	return <LabeledCheckbox label={label} checked={checked} onChange={handleChange} />;
+}
+
+function AccessiblePreferenceButton({ ariaLabel, ...props }) {
+	const buttonRef = useRef(null);
+	useEffect(() => {
+		buttonRef.current?.setAttribute('aria-label', ariaLabel);
+	}, [ariaLabel]);
+	return <Button ref={buttonRef} {...props} />;
 }
 
 function PreferenceChoice({ selectLabel, label, ...props }) {
@@ -3147,12 +3710,26 @@ function createApplicationMenus({
 	const selectedAudioSources = trackSources(project, selectedAudioTrack);
 	const selectedAudioSampleRates = new Set(selectedAudioSources.map((source) => source.sampleRate));
 	const selectedAudioSampleFormats = new Set(selectedAudioSources.map((source) => source.sampleFormat));
+	const selectedMixTrackIds = new Set((project?.selection?.trackIds || []).filter((trackId) => (
+		project?.tracks.some((track) => track.id === trackId && track.type === 'audio')
+	)));
+	if (!selectedMixTrackIds.size && selectedAudioTrack) selectedMixTrackIds.add(selectedAudioTrack.id);
+	const mixableAudioSelected = project?.tracks.some((track) => (
+		track.type === 'audio' && selectedMixTrackIds.has(track.id) && track.clipIds.length
+	));
 	const compatibleMonoTracks = Boolean(selectedAudioChannelCount === 1 && project?.tracks.some((track) => (
 		track.id !== selectedAudioTrack.id && track.type !== 'label' && trackSourceChannelCount(project, track) === 1
 	)));
 	const selectedClipIds = project?.selection?.clipIds?.length
 		? project.selection.clipIds
 		: selectedClip ? [selectedClip.id] : [];
+	const splitAvailable = Boolean(
+		selectedClipIds.some((clipId) => project?.clips.some((clip) => clip.id === clipId))
+		|| selectedAudioTrack?.clipIds?.length
+		|| project?.selection?.trackIds?.some((trackId) => (
+			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
+		)),
+	);
 	const multipleSelectedClips = selectedClipIds.length > 1;
 	const groupedSelectedClips = selectedClipIds.some((clipId) => project?.clips.find((clip) => clip.id === clipId)?.groupId);
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
@@ -3274,7 +3851,7 @@ function createApplicationMenus({
 					id: 'clip-boundaries',
 					label: copy.clipBoundaries,
 					items: [
-						{ id: 'split', label: copy.split, shortcut: 'S', disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('split') },
+						{ id: 'split', label: copy.split, shortcut: 'S', disabled: editBlocked || !splitAvailable, onClick: () => actions.executeEdit('split') },
 						{ id: 'split-into-new-track', label: copy.splitIntoNewTrack, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('splitIntoNewTrack') },
 						{ id: 'join', label: copy.joinClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('join') },
 						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('disjoin') },
@@ -3532,7 +4109,12 @@ function createApplicationMenus({
 				{ id: 'mute-track', label: selectedAudioTrack?.mute ? copy.unmuteTrack : copy.muteTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.toggleTrackMute },
 				unavailable('mute-all', copy.muteAllTracks),
 				unavailable('unmute-all', copy.unmuteAllTracks),
-				{ id: 'mix', label: copy.mixMenu, items: [unavailable('mixdown-to', copy.mixdownTo)] },
+				{ id: 'mix', label: copy.mixMenu, items: [{
+					id: 'mixdown-to',
+					label: copy.mixdownTo,
+					disabled: editBlocked || !mixableAudioSelected,
+					onClick: actions.mixAndRender,
+				}] },
 				{ id: 'resample', label: copy.resample, disabled: editBlocked || !selectedAudioTrack, onClick: actions.openResample },
 				{ id: 'menu-align', label: copy.alignTracks, items: [
 					unavailable('align-end-to-end', copy.alignEndToEnd),

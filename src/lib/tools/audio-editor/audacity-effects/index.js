@@ -38,6 +38,7 @@ import {
 	captureAudacityNoiseProfile as captureNoiseProfile,
 } from './spectral.js';
 import { applyAudacityBrowserReverb } from './reverb.js';
+import { applySpectralReplacement } from '../spectral-edit.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectLabel,
@@ -158,11 +159,25 @@ export function audacityStaffPadTransform(type, params = {}) {
 }
 
 export async function applyAudacityEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
-	if (!isAudacityStaffPadEffect(type)) return applyAudacityEffect(type, channels, sampleRate, params, context);
+	if (!isAudacityStaffPadEffect(type)) {
+		return applyAudacitySpectralContext(
+			channels,
+			applyAudacityEffect(type, channels, sampleRate, params, context),
+			sampleRate,
+			context,
+		);
+	}
 	const normalizedChannels = assertAudacityEffectOutput(channels);
 	if (normalizedChannels[0].length === 0) throw new RangeError('StaffPad input must contain at least one frame.');
 	const transform = audacityStaffPadTransform(type, params);
-	if (isStaffPadPassThrough(transform)) return normalizedChannels.map((channel) => new Float32Array(channel));
+	if (isStaffPadPassThrough(transform)) {
+		return applyAudacitySpectralContext(
+			normalizedChannels,
+			normalizedChannels.map((channel) => new Float32Array(channel)),
+			sampleRate,
+			context,
+		);
+	}
 	const contextual = staffPadContextChannels(normalizedChannels, context);
 	let runtime = context.staffPadRuntime;
 	if (!runtime) {
@@ -199,7 +214,15 @@ export async function applyAudacityEffectAsync(type, channels, sampleRate, param
 		},
 	});
 	if (nextFrame !== outputFrames) throw new Error(`StaffPad returned ${nextFrame} of ${outputFrames} frames.`);
-	return assertAudacityEffectOutput(output);
+	return applyAudacitySpectralContext(normalizedChannels, assertAudacityEffectOutput(output), sampleRate, context);
+}
+
+function applyAudacitySpectralContext(channels, processed, sampleRate, context) {
+	if (!context?.spectralSelection) return processed;
+	return applySpectralReplacement(channels, processed, {
+		...context.spectralSelection,
+		sampleRate,
+	});
 }
 
 export function estimateAudacityEffectOutputFrames(type, inputFrames, params = {}) {
@@ -230,6 +253,16 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 	const outputBytes = safeBytes(outputFrames * channelCount * FLOAT32_BYTES);
 	let contextBytes = 0;
 	let scratchBytes = 0;
+	if (options.spectralWindowSize != null) {
+		const windowSize = positiveInteger(options.spectralWindowSize, 'spectralWindowSize', 16_384);
+		if (windowSize < 32 || (windowSize & (windowSize - 1)) !== 0) {
+			throw new RangeError('spectralWindowSize must be a power of two between 32 and 16384.');
+		}
+		// The bin compositor retains the processed output, allocates a complete
+		// replacement output, two Float64 overlap-add extents, and five reusable
+		// window/complex FFT arrays for one channel.
+		scratchBytes += inputBytes + frames * FLOAT64_BYTES * 2 + windowSize * FLOAT64_BYTES * 5;
+	}
 
 	switch (type) {
 		case 'audacity-change-pitch':

@@ -41,7 +41,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 		id: 'project-1', title: 'Fixture', sampleRate: 44_100,
 		tempo: { bpm: 145, timeSignature: { numerator: 7, denominator: 8 } },
 		metadata: { title: 'Native title', artist: 'kw.media' },
-		selection: { startFrame: 4410, endFrame: 8820, trackIds: [audioTrack.id] },
+		selection: { startFrame: 4410, endFrame: 8820, trackIds: [audioTrack.id], clipIds: [clip.id] },
 		view: { selectedTrackIds: [audioTrack.id] },
 		sources: [source], clips: [clip], tracks: [audioTrack, labelTrack],
 	});
@@ -52,6 +52,9 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 		['source-1:1', [{ blockId: 2, start: 0, sampleCount: 4 }]],
 	]);
 	const tree = createAup4ProjectTree(project, blocks);
+	for (const waveTrack of audacityXmlChildren(tree, 'wavetrack')) {
+		assert.equal(audacityXmlAttribute(audacityXmlChildren(waveTrack, 'waveclip')[0], 'isSelected'), true);
+	}
 	let nextId = 0;
 	const decoded = await decodeAup4ProjectTree(tree, async (id) => id === 1 ? left : id === 2 ? right : null, {
 		projectId: 'opened-project',
@@ -72,11 +75,111 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	}
 	assert.equal(decoded.project.sources[0].channelCount, 2);
 	assert.equal(decoded.project.sources[0].sampleRate, 44_100);
+	const decodedAudioTrack = decoded.project.tracks.find((track) => track.type === 'audio');
 	assert.equal(decoded.project.tracks.find((track) => track.type === 'label').labels[0].title, 'Verse');
+	assert.deepEqual(decoded.project.selection.trackIds, [decodedAudioTrack.id]);
+	assert.deepEqual(decoded.project.selection.clipIds, [decodedAudioTrack.clipIds[0]]);
 	assert.equal(decoded.sources.length, 1);
 	assert.deepEqual(decoded.sources[0].channels[0], Float32Array.of(-1, -0.5, 0.5, 1));
 	assert.deepEqual(decoded.sources[0].channels[1], Float32Array.of(1, 0.5, -0.5, -1));
 	assert.deepEqual(decoded.warnings, []);
+});
+
+test('AUP4 conversion preserves overlapping native clips as layers on their original track', async () => {
+	const sources = ['layer-source-a', 'layer-source-b'].map((id) => createAudioSourceV2({
+		id,
+		storageKey: id,
+		name: id,
+		frameCount: 4,
+		channelCount: 1,
+		sampleRate: 48_000,
+		originalSampleRate: 48_000,
+	}));
+	const clips = sources.map((source, index) => createAudioClipV2({
+		id: `layer-clip-${index + 1}`,
+		sourceId: source.id,
+		title: `Layer ${index + 1}`,
+		timelineStartFrame: index * 2,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 4,
+		durationFrames: 4,
+	}));
+	const track = createAudioTrackV2({
+		id: 'layer-track',
+		name: 'Layered track',
+		clipIds: clips.map((clip) => clip.id),
+	});
+	const project = createAudioEditorProjectV2({
+		id: 'layer-project',
+		title: 'Layer project',
+		sampleRate: 48_000,
+		sources,
+		clips,
+		tracks: [track],
+	});
+	const blocks = new Map([
+		['layer-source-a:0', [{ blockId: 1, start: 0, sampleCount: 4 }]],
+		['layer-source-b:0', [{ blockId: 2, start: 0, sampleCount: 4 }]],
+	]);
+	const tree = createAup4ProjectTree(project, blocks);
+	const sampleBlocks = new Map([
+		[1, createAup4SampleBlock(Float32Array.of(0.1, 0.2, 0.3, 0.4))],
+		[2, createAup4SampleBlock(Float32Array.of(-0.1, -0.2, -0.3, -0.4))],
+	]);
+	let nextId = 0;
+	const decoded = await decodeAup4ProjectTree(tree, async (id) => sampleBlocks.get(id), {
+		idFactory: (prefix) => `${prefix}-${++nextId}`,
+	});
+
+	const audioTracks = decoded.project.tracks.filter((candidate) => candidate.type === 'audio');
+	assert.equal(audioTracks.length, 1);
+	assert.equal(audioTracks[0].clipIds.length, 2);
+	assert.deepEqual(
+		audioTracks[0].clipIds.map((clipId) => (
+			decoded.project.clips.find((clip) => clip.id === clipId).timelineStartFrame
+		)),
+		[0, 2],
+	);
+	assert.deepEqual(decoded.warnings, []);
+});
+
+test('AUP4 export preserves imported group numbers and deterministically avoids collisions for new groups', () => {
+	const source = createAudioSourceV2({
+		id: 'group-source', storageKey: 'group-source', name: 'Groups', frameCount: 16,
+		channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+	});
+	const groupIds = ['aup4-group-1', 'new-z', 'new-a', 'aup4-group-5'];
+	const clips = groupIds.map((groupId, index) => createAudioClipV2({
+		id: `group-clip-${index + 1}`,
+		sourceId: source.id,
+		title: groupId,
+		timelineStartFrame: index * 4,
+		sourceStartFrame: index * 4,
+		sourceDurationFrames: 4,
+		durationFrames: 4,
+		groupId,
+	}));
+	const track = createAudioTrackV2({
+		id: 'group-track', name: 'Groups', clipIds: clips.map((clip) => clip.id),
+	});
+	const createProject = (projectClips) => createAudioEditorProjectV2({
+		id: 'group-project', title: 'Groups', sampleRate: 48_000,
+		sources: [source], clips: projectClips, tracks: [track],
+	});
+	const exportedGroups = (project) => Object.fromEntries(
+		audacityXmlChildren(audacityXmlChildren(createAup4ProjectTree(project), 'wavetrack')[0], 'waveclip')
+			.map((node) => [audacityXmlAttribute(node, 'name'), audacityXmlAttribute(node, 'groupId')]),
+	);
+
+	const expected = {
+		'aup4-group-1': 1,
+		'new-z': 2,
+		'new-a': 0,
+		'aup4-group-5': 5,
+	};
+	assert.deepEqual(exportedGroups(createProject(clips)), expected);
+	assert.deepEqual(exportedGroups(createProject([...clips].reverse())), expected);
+	assert.equal(new Set(Object.values(expected)).size, groupIds.length);
 });
 
 test('AUP4 conversion preserves unmodelled native root nodes, attributes, and master effects', async () => {
