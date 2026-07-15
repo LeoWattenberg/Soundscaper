@@ -63,6 +63,8 @@ const COPY = Object.freeze({
 	monoTrackRequired: 'Select a mono track first.',
 	compatibleMonoTrackRequired: 'Two mono tracks are required.',
 	effectMemoryTooLarge: 'This effect needs too much memory.',
+	generatingAudio: 'Generating audio',
+	toneGenerator: 'Tone',
 	done: 'Done.',
 });
 
@@ -292,6 +294,47 @@ test('controller persists direct workspace panel and toolbar moves', async () =>
 		workspace.panels.mixer,
 	);
 	await controller.dispose();
+});
+
+test('controller commits built-in generated audio as one selected undoable clip', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `controller-generator-${Date.now()}-${Math.random()}`,
+	});
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	try {
+		await controller.ready;
+		const clipId = await controller.actions.generators.generate('tone', {
+			amplitude: 0.4,
+			channelCount: 1,
+			durationSeconds: 0.25,
+			frequency: 880,
+		});
+		let snapshot = controller.getSnapshot();
+		const clip = snapshot.project.clips.find((candidate) => candidate.id === clipId);
+		const source = snapshot.project.sources.find((candidate) => candidate.id === clip?.sourceId);
+		assert.equal(snapshot.selectedClipId, clipId);
+		assert.equal(clip.durationFrames, 12_000);
+		assert.equal(source.name, 'Tone');
+		assert.equal(source.channelCount, 1);
+		assert.ok(Math.abs(await storedSample(store, source.id, 100)) > 0.01);
+
+		controller.actions.edit.undo();
+		snapshot = controller.getSnapshot();
+		assert.equal(snapshot.project.clips.some((candidate) => candidate.id === clipId), false);
+		controller.actions.edit.redo();
+		assert.equal(controller.getSnapshot().project.clips.some((candidate) => candidate.id === clipId), true);
+	} finally {
+		await controller.dispose();
+	}
 });
 
 test('controller persists play-at-speed pitch behavior and dispatches the selected mode', async () => {

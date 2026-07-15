@@ -60,6 +60,20 @@ const toneA = createWavFixture({ name: 'browser-tone-a.wav', frequency: 330 });
 const toneB = createWavFixture({ name: 'browser-tone-b.wav', frequency: 660 });
 const monoTone = createWavFixture({ name: 'browser-mono-tone.wav', frequency: 440, channelCount: 1 });
 const longTone = createWavFixture({ name: 'browser-long-tone.wav', frequency: 220, duration: 8, channelCount: 1 });
+const captionLabels = {
+	name: 'browser-captions.srt',
+	mimeType: 'application/x-subrip',
+	buffer: Buffer.from([
+		'1',
+		'00:00:00,250 --> 00:00:01,500',
+		'Intro caption',
+		'',
+		'2',
+		'00:00:02,000 --> 00:00:03,250',
+		'Outro caption',
+		'',
+	].join('\n')),
+};
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('audio editor React/design-system workflows', () => {
@@ -1331,6 +1345,116 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('generates a configured tone, traverses history, and restores it from autosave', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
+
+		await test.step('configure and generate a quarter-second tone', async () => {
+			await chooseCommandAction(page, editor, 'Generate', 'Tone');
+			const dialog = page.getByRole('dialog', { name: 'Tone', exact: true });
+			await expect(dialog).toBeVisible();
+			await commitInput(dialog.locator('[data-generator-field="frequency"] input'), '880');
+			await commitInput(dialog.locator('[data-generator-field="amplitude"] input'), '0.4');
+			await commitInput(dialog.locator('[data-generator-field="durationSeconds"] input'), '0.25');
+			await dialog.getByRole('button', { name: 'Generate', exact: true }).click();
+			await expect(dialog).toBeHidden();
+			await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 20_000 });
+			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
+			await expect(clipByName(editor, 'Tone')).toHaveCount(1);
+		});
+
+		await test.step('undo and redo the generated source as one edit', async () => {
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-clip-count', '0');
+			await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+			await expect(clipByName(editor, 'Tone')).toHaveCount(1);
+			const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Tone'));
+			await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('12000');
+			await closeDialog(clipDialog);
+		});
+
+		await test.step('reload the saved project and retain the generated duration', async () => {
+			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+			await page.reload();
+			editor = await waitForEditor(page);
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+			const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Tone'));
+			await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('12000');
+			await closeDialog(clipDialog);
+		});
+
+		expect(errors).toEqual([]);
+	});
+
+	test('round-trips imported captions through editing, history, autosave, and WebVTT export', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
+
+		await test.step('import an SRT file as an editable label track', async () => {
+			const fileChooserPromise = page.waitForEvent('filechooser');
+			await chooseFileAction(page, editor, 'Import labels');
+			await (await fileChooserPromise).setFiles(captionLabels);
+			await expect(editor.locator('[data-status]')).toHaveText('Imported 2 label(s).');
+			await expect(editor).toHaveAttribute('data-track-count', '2');
+			await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
+		});
+
+		await test.step('edit one cue and remove another through the label manager', async () => {
+			await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
+			const labelsPanel = editor.locator('[data-workspace-panel="labels"]');
+			await expect(labelsPanel).toBeVisible();
+			const rows = labelsPanel.locator('[data-labels-panel-list] [data-label-id]');
+			await expect(rows).toHaveCount(2);
+
+			const intro = rows.nth(0);
+			await commitInput(intro.getByRole('textbox'), 'Edited intro');
+			await commitInput(intro.getByRole('spinbutton').nth(1), '1.750');
+			await expect(intro.getByRole('textbox')).toHaveValue('Edited intro');
+			await expect(intro.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
+
+			await rows.nth(1).getByRole('button', { name: 'Delete label: Outro caption', exact: true }).click();
+			await expect(rows).toHaveCount(1);
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(rows).toHaveCount(2);
+			await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+			await expect(rows).toHaveCount(1);
+		});
+
+		await test.step('restore the edited label track from autosave', async () => {
+			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+			await page.reload();
+			editor = await waitForEditor(page);
+			const labelsPanel = editor.locator('[data-workspace-panel="labels"]');
+			if (!await labelsPanel.isVisible()) await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
+			const rows = labelsPanel.locator('[data-labels-panel-list] [data-label-id]');
+			await expect(rows).toHaveCount(1);
+			await expect(rows.getByRole('textbox')).toHaveValue('Edited intro');
+			await expect(rows.getByRole('spinbutton').nth(0)).toHaveValue('0.250');
+			await expect(rows.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
+		});
+
+		await test.step('export the surviving cue as valid WebVTT', async () => {
+			const [download] = await Promise.all([
+				page.waitForEvent('download'),
+				chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels', 'As WebVTT']),
+			]);
+			expect(download.suggestedFilename()).toMatch(/\.vtt$/i);
+			const downloadPath = await download.path();
+			expect(downloadPath).not.toBeNull();
+			await expect.poll(async () => readFile(downloadPath, 'utf8')).toBe([
+				'WEBVTT',
+				'',
+				'1',
+				'00:00:00.250 --> 00:00:01.750',
+				'Edited intro',
+				'',
+			].join('\n'));
+		});
+
+		expect(errors).toEqual([]);
+	});
+
 	test('imports, edits, mixes track states, analyzes, and restores the autosaved project', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -1391,6 +1515,50 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(restoredSecondTrack.getByRole('button', { name: 'Solo' })).toHaveAttribute('aria-pressed', 'true');
 		await chooseCommandAction(page, restored, 'View', 'Show arm buttons');
 		await expect(restoredSecondTrack.getByRole('button', { name: /^Arm for recording:/ })).toHaveAttribute('aria-pressed', 'true');
+		expect(errors).toEqual([]);
+	});
+
+	test('splits stereo audio, traverses undo history, recombines it, and restores the result', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
+
+		await test.step('import and split a stereo clip into panned mono tracks', async () => {
+			await importFiles(editor, [toneA]);
+			await chooseNestedCommandAction(page, editor, 'Tracks', ['Track channels', 'Split stereo to L/R mono']);
+			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+			await expect(editor).toHaveAttribute('data-track-count', '3');
+			await expect(editor).toHaveAttribute('data-clip-count', '2');
+			await expect(trackNameText(editor).filter({ hasText: / — Left$/ })).toHaveCount(1);
+			await expect(trackNameText(editor).filter({ hasText: / — Right$/ })).toHaveCount(1);
+		});
+
+		await test.step('undo and redo the complete channel rewrite', async () => {
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-track-count', '2');
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+			await expect(trackNameText(editor).filter({ hasText: / — (?:Left|Right)$/ })).toHaveCount(0);
+
+			await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-track-count', '3');
+			await expect(editor).toHaveAttribute('data-clip-count', '2');
+		});
+
+		await test.step('recombine the mono pair and persist the stereo project', async () => {
+			await editor.locator('.audio-editor-track-controls').nth(1).click();
+			await chooseNestedCommandAction(page, editor, 'Tracks', ['Track channels', 'Make stereo track']);
+			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+			await expect(editor).toHaveAttribute('data-track-count', '2');
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+			await expect(trackNameText(editor).filter({ hasText: / — Right$/ })).toHaveCount(0);
+			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+
+			await page.reload();
+			editor = await waitForEditor(page);
+			await expect(editor).toHaveAttribute('data-track-count', '2');
+			await expect(editor).toHaveAttribute('data-clip-count', '1');
+			await expect(trackNameText(editor).filter({ hasText: / — Right$/ })).toHaveCount(0);
+		});
+
 		expect(errors).toEqual([]);
 	});
 

@@ -3002,7 +3002,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const peaks = await generateWaveformPeaks(generated.channels, copy);
 			sourcePeaks.set(sourceId, peaks);
 			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
-			commit(command, { selectTrackId: targetTrack.id, selectClipId });
+			commit(command, { selectTrackId: targetTrack.id, selectClipId: selectedClipId });
 			setStatus(copy.done, 'success');
 			return selectedClipId;
 		} catch (error) {
