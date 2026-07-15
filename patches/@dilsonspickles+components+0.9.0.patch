@@ -792,8 +792,47 @@ index 9a60fb3..7d16765 100644
          )
        ]
      }
-@@ -393,15 +403,2 @@
-               })(),
+@@ -364,64 +364,34 @@
+            children: [
+-              Object.entries(_chunkD27CEHWGjs.EFFECT_REGISTRY).map(([category, effects]) => {
+-                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
+-                if (enabled2.length === 0) return null;
+-                return /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+-                  _chunk36BYWJRBjs.ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, category);
+-              }),
+-              (() => {
+-                if (!purchasedEffects || purchasedEffects.length === 0) return null;
+-                const visible = purchasedEffects.filter(
+-                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
+-                );
+-                if (visible.length === 0) return null;
+-                const byVendor = /* @__PURE__ */ new Map();
+-                for (const e of visible) {
+-                  const list = _nullishCoalesce(byVendor.get(e.vendor), () => ( []));
+-                  list.push(e);
+-                  byVendor.set(e.vendor, list);
+-                }
+-                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+-                  _chunk36BYWJRBjs.ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, vendor));
+-              })(),
 -              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
 -              /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
 -                _chunk36BYWJRBjs.ContextMenuItem,
@@ -807,7 +846,50 @@ index 9a60fb3..7d16765 100644
 -                  }
 -                }
 -              ),
-               /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+-                _chunk36BYWJRBjs.ContextMenuItem,
+-                {
+-                  label: "Remove effect",
+-                  onClick: () => {
+-                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
+-                    setMenuOpen(false);
+-                  }
+-                }
+-              )
++              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
++                _chunk36BYWJRBjs.ContextMenuItem,
++                {
++                  label: "Remove effect",
++                  onClick: () => {
++                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
++                    setMenuOpen(false);
++                  }
++                }
++              ),
++              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
++              ...Object.values(_chunkD27CEHWGjs.EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
++                _chunk36BYWJRBjs.ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              ))),
++              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
++                _chunk36BYWJRBjs.ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              )))
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
 index 84edc3f..4d187b5 100644
 --- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
@@ -838,8 +920,47 @@ index 84edc3f..4d187b5 100644
          )
        ]
      }
-@@ -393,13 +403,2 @@
-               })(),
+@@ -364,62 +364,34 @@
+             children: [
+-              Object.entries(EFFECT_REGISTRY).map(([category, effects]) => {
+-                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
+-                if (enabled2.length === 0) return null;
+-                return /* @__PURE__ */ jsx3(ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, category);
+-              }),
+-              (() => {
+-                if (!purchasedEffects || purchasedEffects.length === 0) return null;
+-                const visible = purchasedEffects.filter(
+-                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
+-                );
+-                if (visible.length === 0) return null;
+-                const byVendor = /* @__PURE__ */ new Map();
+-                for (const e of visible) {
+-                  const list = byVendor.get(e.vendor) ?? [];
+-                  list.push(e);
+-                  byVendor.set(e.vendor, list);
+-                }
+-                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ jsx3(ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, vendor));
+-              })(),
 -              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
 -              /* @__PURE__ */ jsx3(
 -                ContextMenuItem,
@@ -851,7 +972,50 @@ index 84edc3f..4d187b5 100644
 -                  }
 -                }
 -              ),
-               /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ jsx3(
+-                ContextMenuItem,
+-                {
+-                  label: "Remove effect",
+-                  onClick: () => {
+-                    onRemoveEffect?.();
+-                    setMenuOpen(false);
+-                  }
+-                }
+-              )
++              /* @__PURE__ */ jsx3(
++                ContextMenuItem,
++                {
++                  label: "Remove effect",
++                  onClick: () => {
++                    onRemoveEffect?.();
++                    setMenuOpen(false);
++                  }
++                }
++              ),
++              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
++              ...Object.values(EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ jsx3(
++                ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    onReplaceEffect?.(effect.name);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              ))),
++              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ jsx3(
++                ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    onReplaceEffect?.(effect.name);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              )))
 diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
 index 64b9859..fa15a2b 100644
 --- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
