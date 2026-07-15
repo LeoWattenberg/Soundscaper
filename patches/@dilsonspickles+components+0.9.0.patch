@@ -792,6 +792,22 @@ index 9a60fb3..7d16765 100644
          )
        ]
      }
+@@ -393,15 +403,2 @@
+               })(),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
+-                _chunk36BYWJRBjs.ContextMenuItem,
+-                {
+-                  label: "Get effects\u2026",
+-                  onClick: () => {
+-                    const slotEl = slotRef.current;
+-                    const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
+-                    _optionalChain([onChangeEffect, 'optionalCall', _27 => _27(anchor)]);
+-                    setMenuOpen(false);
+-                  }
+-                }
+-              ),
+               /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
 index 84edc3f..4d187b5 100644
 --- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
@@ -822,6 +838,20 @@ index 84edc3f..4d187b5 100644
          )
        ]
      }
+@@ -393,13 +403,2 @@
+               })(),
+-              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ jsx3(
+-                ContextMenuItem,
+-                {
+-                  label: "Get effects\u2026",
+-                  onClick: () => {
+-                    onChangeEffect?.(anchor);
+-                    setMenuOpen(false);
+-                  }
+-                }
+-              ),
+               /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
 diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
 index 64b9859..fa15a2b 100644
 --- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
