@@ -332,10 +332,10 @@ const definitions = [
 	implemented('plot-spectrum', 'Plot spectrum', ['Analyze'], 'analysis.plotSpectrum', { enableWhen: 'audio-selection' }),
 	implemented('find-clipping', 'Find clipping', ['Analyze'], 'analysis.findClipping', { enableWhen: 'audio-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Find Clipping effect action' }),
 
-	// Upstream TODO commands retained as visible, inert entries.
-	disabled('favourite-effect-1', 'Favorite effect 1', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('favourite-effect-2', 'Favorite effect 2', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('favourite-effect-3', 'Favorite effect 3', ['Effect'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	// Upstream favorite-effect slots are placeholders, so keep them audit-only.
+	excluded('favourite-effect-1', 'Favorite effect 1', ['Effect'], EXCLUDED_REASONS.developer, { source: UPSTREAM.project }),
+	excluded('favourite-effect-2', 'Favorite effect 2', ['Effect'], EXCLUDED_REASONS.developer, { source: UPSTREAM.project }),
+	excluded('favourite-effect-3', 'Favorite effect 3', ['Effect'], EXCLUDED_REASONS.developer, { source: UPSTREAM.project }),
 	disabled('menu-macros', 'Macros', ['Tools'], DISABLED_REASONS.menu),
 	disabled('apply-macros-palette', 'Apply macro', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-fade-ends', 'Fade ends', ['Tools > Macros'], DISABLED_REASONS.menu),
