@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+	AddTrackFlyout,
 	Button,
 	ContextMenu,
 	ContextMenuItem,
@@ -83,6 +84,8 @@ export default function AudioEditorTimeline({
 	const [selectionPreview, setSelectionPreview] = useState(null);
 	const [trackMenu, setTrackMenu] = useState(null);
 	const [clipMenu, setClipMenu] = useState(null);
+	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
+	const addTrackTriggerRef = useRef(null);
 	const [draggingClipId, setDraggingClipId] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
 	const telemetry = useAudioEditorTelemetry(controller);
@@ -249,6 +252,27 @@ export default function AudioEditorTimeline({
 			return undefined;
 		}
 	}, [onError]);
+
+	const openAddTrackFlyout = useCallback((event) => {
+		if (addTrackFlyout) {
+			setAddTrackFlyout(null);
+			return;
+		}
+		const rect = event.currentTarget.getBoundingClientRect();
+		setAddTrackFlyout({
+			x: rect.left + rect.width / 2 - 96,
+			y: rect.bottom + 8,
+			autoFocus: event.nativeEvent.detail === 0,
+		});
+	}, [addTrackFlyout]);
+
+	const addTrackFromFlyout = useCallback((type) => {
+		setAddTrackFlyout(null);
+		if (type === 'mono') return run(() => controller.actions.track.addMono());
+		if (type === 'stereo') return run(() => controller.actions.track.addStereo());
+		if (type === 'label') return run(() => controller.actions.track.addLabel());
+		return undefined;
+	}, [controller, run]);
 
 	const openClipMenu = useCallback((clipId, x, y, openedViaKeyboard = false) => {
 		const clip = project?.clips.find((item) => String(item.id) === String(clipId));
@@ -695,12 +719,13 @@ export default function AudioEditorTimeline({
 						<div className="audio-editor-ruler-corner" style={{ width: panelWidth }}>
 							<span>{copy.tracks}</span>
 							<Button
+								ref={addTrackTriggerRef}
 								variant="secondary"
 								size="small"
 								icon={<Icon name="plus" size={14} />}
 								disabled={mutationsBlocked}
 								tabIndex={addTrackTabIndex}
-								onClick={() => run(() => controller.actions.track.add())}
+								onClick={openAddTrackFlyout}
 							>
 								{copy.addTrack}
 							</Button>
@@ -746,6 +771,17 @@ export default function AudioEditorTimeline({
 							style={{ left: panelWidth + viewportWidth, width: verticalRulerWidth }}
 						/>}
 					</div>
+
+					<AddTrackFlyout
+						isOpen={Boolean(addTrackFlyout)}
+						x={addTrackFlyout?.x || 0}
+						y={addTrackFlyout?.y || 0}
+						autoFocus={Boolean(addTrackFlyout?.autoFocus)}
+						triggerRef={addTrackTriggerRef}
+						className="kw-audio-editor__add-track-flyout"
+						onSelectTrackType={addTrackFromFlyout}
+						onClose={() => setAddTrackFlyout(null)}
+					/>
 
 					<div className="audio-editor-track-list" data-track-list>
 						{project.tracks.map((track, trackIndex) => track.type === 'label' ? (

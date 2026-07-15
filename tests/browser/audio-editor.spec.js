@@ -227,6 +227,22 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 	}
 
+	test('adds the selected track type from the timeline flyout', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
+
+		await addTrack.click();
+		const flyout = page.locator('.add-track-flyout');
+		await expect(flyout).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Mono', exact: true })).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Stereo', exact: true })).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Label', exact: true })).toBeVisible();
+
+		await flyout.getByRole('menuitem', { name: 'Stereo', exact: true }).click();
+		await expect(flyout).toHaveCount(0);
+		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
+	});
+
 	test('opens the custom track name editor only after double-clicking the native name', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const name = trackNameText(editor).first();
