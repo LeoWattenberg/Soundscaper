@@ -709,6 +709,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				forward: () => handleTransport('forward'),
 				toggleLoop: () => handleTransport('loop'),
 				clearLoop: clearLoopRegion,
+				setLoopRegion,
 				loopToSelection: setLoopRegionToSelection,
 				selectionToLoop: setSelectionToLoopRegion,
 				setLoopInOut: setLoopRegionInOut,
@@ -3143,6 +3144,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const selection = activeSelection();
 		if (!selection) throw new Error(copy.timeSelectionRequired);
 		const next = commitLoopRange({ enabled: true, ...selection });
+		engine.setLoop(next.loop);
+		return next.loop;
+	}
+
+	function setLoopRegion(startFrame, endFrame) {
+		const start = normalizeTimelineFrame(Math.min(startFrame, endFrame));
+		const end = normalizeTimelineFrame(Math.max(startFrame, endFrame));
+		if (end <= start) throw new Error(copy.timeSelectionRequired);
+		const next = commitLoopRange({ enabled: true, startFrame: start, endFrame: end });
 		engine.setLoop(next.loop);
 		return next.loop;
 	}

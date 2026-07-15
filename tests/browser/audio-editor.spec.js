@@ -1892,10 +1892,20 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(selectionToolbar).toContainText('Selection');
 		await expect(selectionToolbar).toContainText('Duration');
 
+		const loopButton = editor.getByRole('button', { name: 'Loop selection', exact: true });
+		await page.mouse.move(rulerBox.x + 22, rulerBox.y + 8);
+		await page.mouse.down();
+		await page.mouse.move(rulerBox.x + 82, rulerBox.y + 8, { steps: 4 });
+		await page.mouse.up();
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'true');
+
 		const playhead = editor.getByRole('slider', { name: 'Playhead' });
 		await playhead.scrollIntoViewIfNeeded();
 		await playhead.focus();
 		await page.keyboard.press('Home');
+		await expect(playhead).toHaveAttribute('aria-valuenow', '0');
+		await page.mouse.click(rulerBox.x + 52, rulerBox.y + 8);
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'false');
 		await expect(playhead).toHaveAttribute('aria-valuenow', '0');
 		await page.keyboard.press('ArrowRight');
 		await expect(playhead).toHaveAttribute('aria-valuenow', '1');

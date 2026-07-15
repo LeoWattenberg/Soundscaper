@@ -185,6 +185,7 @@ export default function AudioEditorTimeline({
 	const [splitToolHeld, setSplitToolHeld] = useState(false);
 	const [scrollX, setScrollX] = useState(0);
 	const [selectionPreview, setSelectionPreview] = useState(null);
+	const [loopPreview, setLoopPreview] = useState(null);
 	const [trackMenu, setTrackMenu] = useState(null);
 	const [clipMenu, setClipMenu] = useState(null);
 	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
@@ -433,6 +434,20 @@ export default function AudioEditorTimeline({
 		setDraggingClipIds(null);
 		const dragPreview = session?.preview;
 		setClipDragPreview(null);
+		if (session?.kind === 'loop') {
+			setLoopPreview(null);
+			if (cancelled || pinchSession.current || !project) return;
+			const endFrame = frameAtClientX(event.clientX, session.lane);
+			if (!session.moved) {
+				if (session.insideLoop) run(() => controller.actions.transport.toggleLoop());
+				return;
+			}
+			if (Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
+				return;
+			}
+			run(() => controller.actions.transport.setLoopRegion(session.startFrame, endFrame));
+			return;
+		}
 		if (!session || cancelled || pinchSession.current || !project) return;
 		if (session.kind === 'sample-pencil') {
 			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({
@@ -549,6 +564,25 @@ export default function AudioEditorTimeline({
 		const clipElement = event.target.closest('[data-clip-id]');
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
+		if (lane.dataset.rulerInteraction !== undefined && isRulerLoopBand(event, lane)) {
+			const startFrame = frameAtClientX(event.clientX, lane);
+			const loop = project.loop;
+			const insideLoop = Boolean(loop && loop.endFrame > loop.startFrame
+				&& startFrame >= loop.startFrame && startFrame <= loop.endFrame);
+			pointerSession.current = {
+				kind: 'loop',
+				startFrame,
+				startX: event.clientX,
+				startY: event.clientY,
+				insideLoop,
+				moved: false,
+				lane,
+			};
+			event.preventDefault();
+			event.stopPropagation();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		if (!clipElement) {
 			if (automationToolEnabled && !lane.closest('[data-label-track]')) return;
 			if (lane.dataset.trackId && lane.dataset.rulerInteraction === undefined) {
@@ -658,6 +692,18 @@ export default function AudioEditorTimeline({
 			return;
 		}
 		const session = pointerSession.current;
+		if (session?.kind === 'loop') {
+			const endFrame = frameAtClientX(event.clientX, session.lane);
+			if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) >= 3) {
+				session.moved = true;
+				setLoopPreview({
+					startFrame: Math.min(session.startFrame, endFrame),
+					endFrame: Math.max(session.startFrame, endFrame),
+				});
+			}
+			event.preventDefault();
+			return;
+		}
 		if (session?.kind === 'sample-pencil') {
 			const clip = project?.clips.find((item) => item.id === session.clipId);
 			const source = clip ? project.sources.find((item) => item.id === clip.sourceId) : null;
@@ -841,6 +887,7 @@ export default function AudioEditorTimeline({
 			onClick: () => run(() => controller.actions.track.remove(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 	].filter(Boolean) : [];
+	const displayedLoop = loopPreview || project.loop || {};
 	return (
 		<section
 			className="audio-editor-timeline-panel"
@@ -928,9 +975,9 @@ export default function AudioEditorTimeline({
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
-								loopRegionEnabled={Boolean(project.loop?.enabled)}
-								loopRegionStart={framesToSeconds(project.loop?.startFrame || 0, { sampleRate })}
-								loopRegionEnd={framesToSeconds(project.loop?.endFrame || 0, { sampleRate })}
+								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
+								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
+								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
 							/>
 						</div>
@@ -2488,6 +2535,12 @@ function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedC
 		timelineFrame,
 		value: Math.max(-1, Math.min(1, 1 - 2 * channelY / channelHeight)),
 	};
+}
+
+function isRulerLoopBand(event, lane) {
+	const ruler = lane.querySelector('canvas.timeline-ruler');
+	const rect = ruler?.getBoundingClientRect() || lane.getBoundingClientRect();
+	return event.clientY - rect.top <= rect.height / 2;
 }
 
 function recordingPreviewId(trackId) {
