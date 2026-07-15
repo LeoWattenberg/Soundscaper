@@ -637,7 +637,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			['Generate', ['Plugin manager']],
 			['Effect', ['Plugin manager']],
 			['Analyze', ['Plugin manager']],
-			['Tools', ['Plugin manager', 'Nyquist prompt', 'Screenshot tools', 'Run benchmark']],
+			['Tools', ['Plugin manager', 'Screenshot tools', 'Run benchmark']],
 			['Help', ['Diagnostics', 'Check for updates']],
 		]) {
 			await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
@@ -652,6 +652,101 @@ test.describe('audio editor React/design-system workflows', () => {
 		const backup = getMenuItem(fileMenu, 'Backup project');
 		await expect(backup).toHaveAttribute('aria-disabled', 'true');
 		await expect(backup.locator('[data-disabled-reason]')).toHaveAttribute('title', /disabled placeholder/);
+	});
+
+	test('runs the Nyquist prompt and a bundled Legacy processor through the production WASM boundary', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Tools', 'Nyquist prompt');
+		let dialog = page.getByRole('dialog', { name: 'Nyquist prompt', exact: true });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).toContainText('PCM sandbox');
+		const source = dialog.getByRole('textbox', { name: 'Nyquist source', exact: true });
+		await source.fill('42');
+		await dialog.getByRole('button', { name: 'Run', exact: true }).click();
+		await expect(dialog.locator('.kw-audio-editor__nyquist-output')).toContainText('42', { timeout: 20_000 });
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+		await chooseCommandAction(page, editor, 'Tools', 'Nyquist prompt');
+		dialog = page.getByRole('dialog', { name: 'Nyquist prompt', exact: true });
+		await expect(dialog.getByRole('textbox', { name: 'Nyquist source', exact: true })).toHaveValue('42');
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+		await importFiles(editor, [monoTone]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Legacy', 'Tremolo']);
+		dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
+		await expect(dialog.getByRole('spinbutton', { name: 'Frequency (Hz)', exact: true })).toBeVisible();
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(editor.locator('[data-status]')).toHaveText('Applied the Nyquist result.', { timeout: 20_000 });
+		await expect(dialog.locator('.kw-audio-editor__nyquist-output')).toContainText('1 channel(s)');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(editor.locator('[data-clip-id]')).toContainText('Tremolo');
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).find((storedSource) => storedSource.name.includes('Tremolo'))?.channelCount
+		)).toBe(1);
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
+
+		await chooseNestedCommandAction(page, editor, 'Generate', ['Nyquist', 'Pluck']);
+		dialog = page.getByRole('dialog', { name: 'Pluck', exact: true });
+		await expect(dialog.getByRole('spinbutton', { name: 'Pluck MIDI pitch', exact: true })).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+		await chooseNestedCommandAction(page, editor, 'Analyze', ['Nyquist', 'Beat Finder']);
+		dialog = page.getByRole('dialog', { name: 'Beat Finder', exact: true });
+		await expect(dialog.getByRole('spinbutton', { name: 'Threshold Percentage', exact: true })).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		expect(errors).toEqual([]);
+	});
+
+	test('cancels a bundled Nyquist action while its source fetch is delayed', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let releaseFetch;
+		let markRequested;
+		let markRouteDone;
+		const fetchGate = new Promise((resolve) => { releaseFetch = resolve; });
+		const sourceRequested = new Promise((resolve) => { markRequested = resolve; });
+		const routeDone = new Promise((resolve) => { markRouteDone = resolve; });
+		let wasmRequests = 0;
+		await page.route(/tremolo[^/]*\.ny(?:\?.*)?$/i, async (route) => {
+			markRequested();
+			await fetchGate;
+			try {
+				await route.continue();
+			} catch (error) {
+				if (!/abort|cancel|closed|handled/i.test(String(error?.message || error))) throw error;
+			} finally {
+				markRouteDone();
+			}
+		});
+		await page.route(/nyquist[^/]*\.wasm(?:\?.*)?$/i, async (route) => {
+			wasmRequests += 1;
+			await route.continue();
+		});
+
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+		const originalClip = clipByName(editor, monoTone.name);
+		const originalClipId = await originalClip.getAttribute('data-clip-id');
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Legacy', 'Tremolo']);
+		const dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await sourceRequested;
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(dialog).toBeHidden();
+		releaseFetch();
+		await routeDone;
+		await page.waitForTimeout(500);
+
+		await expect(editor.locator('[data-status]')).toHaveText('Effect preview cancelled.');
+		await expect(clipByName(editor, monoTone.name)).toHaveAttribute('data-clip-id', originalClipId);
+		await expect(editor.locator('[data-clip-id]')).not.toContainText('Tremolo');
+		expect((await effectSourceMetadata(page)).some((storedSource) => storedSource.name.includes('Tremolo'))).toBe(false);
+		expect(wasmRequests).toBe(0);
+		expect(errors).toEqual([]);
 	});
 
 	test('keeps the Record and Effect menus clear of clicked-button tooltips', async ({ page }) => {
@@ -863,6 +958,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await search.fill('Zoom normal');
 		await expect(preferences.locator('[data-shortcut-action="zoom-default"]')).toBeVisible();
 		await expect(preferences.locator('[data-shortcut-action="plugin-manager"]')).toHaveCount(0);
+		await search.fill('Nyquist prompt');
+		await expect(preferences.locator('[data-shortcut-action="nyquist-prompt"]')).toBeVisible();
 	});
 
 	test('resizes docked panels, moves and resizes floating windows, and resizes editor dialogs', async ({ page }) => {

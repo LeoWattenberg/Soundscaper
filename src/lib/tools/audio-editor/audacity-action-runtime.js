@@ -1,4 +1,5 @@
 import { projectDurationFrames } from './project.js';
+import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
@@ -493,6 +494,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		tools: {
 			toggleSplitTool: () => ui.toggleFlag('splitTool'),
+		},
+		nyquist: {
+			openPrompt: () => openSurface('nyquist', { prompt: true }),
+			openById: (pluginId = null) => openSurface('nyquist', { pluginId }),
+			plugins: Object.freeze(Object.fromEntries(NYQUIST_BUNDLED_PLUGINS.map((plugin) => [
+				plugin.id,
+				() => openSurface('nyquist', { pluginId: plugin.id }),
+			]))),
 		},
 		effects: {
 			...controllerActions.effects,

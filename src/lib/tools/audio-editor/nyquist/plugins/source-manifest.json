@@ -1,0 +1,126 @@
+{
+	"formatVersion": 1,
+	"upstream": {
+		"project": "Audacity",
+		"repository": "https://github.com/audacity/audacity.git",
+		"release": "Audacity-3.7.7",
+		"commit": "5ef610ed23260d6d648175735bb16b32536eb30b",
+		"path": "plug-ins"
+	},
+	"included": [
+		{
+			"file": "adjustable-fade.ny",
+			"sha256": "8a2debdc1f446b3a63497aaedb7f4bcfaf5d567cbaeacdd34b714544ab8a064a"
+		},
+		{
+			"file": "beat.ny",
+			"sha256": "d31bace148e6c536f95deb81dae118f5d1be884c40155f0c1435c32e5050faaa"
+		},
+		{
+			"file": "clipfix.ny",
+			"sha256": "ab12ecd52719e636aa326315b019004367db1545f5a473e20f84c7f3850838e2"
+		},
+		{
+			"file": "crossfadeclips.ny",
+			"sha256": "dd95f4f1d757ef01d398f877785df7cd45bce8bcab10c00bd6039bef70a7448c"
+		},
+		{
+			"file": "crossfadetracks.ny",
+			"sha256": "c56b5a2adea5ed60c04be07e04eca6959e64993932397c1f74eb44d666987e0a"
+		},
+		{
+			"file": "delay.ny",
+			"sha256": "78be9261157bb82feff10bf5ae3e9df56f99ffd8c12916ba0867acc99daba546"
+		},
+		{
+			"file": "highpass.ny",
+			"sha256": "41413e36642e45886166053c5d0d44746fa28126e316d5e8d2686dd65355aacb"
+		},
+		{
+			"file": "label-sounds.ny",
+			"sha256": "6156db861a5d7dffde52b700b021f256177933cb132277c157fbc141385fb7ec"
+		},
+		{
+			"file": "legacy-limiter.ny",
+			"sha256": "569db79cbe832c3cf9d2158e37e04aa9dd05c777f8ffce93a2c5ffeccf801838"
+		},
+		{
+			"file": "lowpass.ny",
+			"sha256": "a9cae350be81009b0c12e36d1a9e06e174d0fde2a33485a9d4e26b989681f7de"
+		},
+		{
+			"file": "rms.ny",
+			"sha256": "1f589c2f02e59574a4b7df27ed74968508b695bc019a3a936ed5b88339f481c7"
+		},
+		{
+			"file": "noisegate.ny",
+			"sha256": "1bc9b5a5ace717b0c24c4ec8a7b20ebf3abcc6c727fbf1df7352552ce39344b8"
+		},
+		{
+			"file": "notch.ny",
+			"sha256": "98bb5ada98255d4887e6d586fe978718dde1b4df5ce1975cc5018ec8e783658a"
+		},
+		{
+			"file": "pluck.ny",
+			"sha256": "4510413ed4081f05c8ba1e8a42de387bea96795f7ddcd97d9224b5ee93249581"
+		},
+		{
+			"file": "equalabel.ny",
+			"sha256": "4051913fd46b30d2a5aff758428935dbcfd2d91815642ae02dc966f29fb195a3"
+		},
+		{
+			"file": "rhythmtrack.ny",
+			"sha256": "d612e8fc22b7cec114a1caee2cb996d94b63899fd43e557112b36b7672cd38c2"
+		},
+		{
+			"file": "rissetdrum.ny",
+			"sha256": "e5056c353988310a0ba4967702fbd125fc863129e41f5aa5d074b3504459ac30"
+		},
+		{
+			"file": "ShelfFilter.ny",
+			"sha256": "b73d31f7d3328359bc930a635bae1f143e66d39fc4a5d2abd812cb129a2323ec"
+		},
+		{
+			"file": "spectral-delete.ny",
+			"sha256": "3062c228b1badceec081580c6a3f10219556310ed62453e95e148d4766e3613b"
+		},
+		{
+			"file": "SpectralEditMulti.ny",
+			"sha256": "520d210daddbbebbdc89ab55287fc928a761b109dfeef22b55e3d12cd9fe2cb5"
+		},
+		{
+			"file": "SpectralEditParametricEQ.ny",
+			"sha256": "63bf6ab2e95a2fbf0c35f51325b5dc709c8df93ba9852a49429de8bf7b3055b0"
+		},
+		{
+			"file": "SpectralEditShelves.ny",
+			"sha256": "4c9c3f5a90acc387532984c4a45976d04354b3c4bcf8d2abfb577f099f2e9818"
+		},
+		{
+			"file": "StudioFadeOut.ny",
+			"sha256": "a369b7e560c42113f2753c510108ed219f13ec93c3ab2e48f94a77550a1c3446"
+		},
+		{
+			"file": "tremolo.ny",
+			"sha256": "56efcf1cf9f86a6ca5d10ebe50f514cac16b4876f39e725745b732660ca77735"
+		},
+		{
+			"file": "vocoder.ny",
+			"sha256": "f8ba3fad7df6dd814c0007aef202f4a886dee816828e3cb2758431876e228bdf"
+		}
+	],
+	"excluded": [
+		{
+			"file": "nyquist-plug-in-installer.ny",
+			"reason": "requires host file installation access"
+		},
+		{
+			"file": "sample-data-export.ny",
+			"reason": "requires host file export access"
+		},
+		{
+			"file": "sample-data-import.ny",
+			"reason": "requires host file import access"
+		}
+	]
+}

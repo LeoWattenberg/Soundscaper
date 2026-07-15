@@ -16,6 +16,7 @@ import {
 } from '../../../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import { audioTrackChannelCountV2 } from './project-v2.js';
+import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
 	version: '4.0.0-beta.2+',
@@ -81,6 +82,21 @@ const excluded = (id, label, locations, reason, options = {}) => actionDefinitio
 	upstreamSource: options.source === undefined ? UPSTREAM.project : options.source,
 	origin: options.origin || 'upstream',
 	reason,
+});
+
+const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
+	const location = plugin.category === 'legacy'
+		? 'Effect > Legacy'
+		: plugin.category === 'generate' ? 'Generate > Nyquist' : 'Analyze > Nyquist';
+	const enableWhen = plugin.spectral
+		? 'editable-frequency-selection'
+		: plugin.category === 'generate' ? 'project-writable'
+			: plugin.category === 'legacy' ? 'editable-selection' : 'audio-selection';
+	return implemented(plugin.id, plugin.name, [location], `nyquist.plugins.${plugin.id}`, {
+		enableWhen,
+		source: `plug-ins/${plugin.fileName}`,
+		upstreamAction: plugin.fileName,
+	});
 });
 
 const definitions = [
@@ -342,6 +358,15 @@ const definitions = [
 	disabled('macro-mp3-conversion', 'MP3 conversion', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('raw-data-import', 'Import raw data', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	implemented('nyquist-prompt', 'Nyquist prompt', ['Tools'], 'nyquist.openPrompt', {
+		enableWhen: 'project-opened',
+		source: 'libraries/lib-nyquist-effects/NyquistBase.cpp',
+	}),
+
+	// Audacity 3.7.7's browser-compatible bundled Nyquist plug-ins. Processor
+	// scripts intentionally live in one Legacy group; generators and analyzers
+	// keep their native top-level menu semantics.
+	...nyquistDefinitions,
 
 	// Help actions that translate naturally to a browser surface.
 	implemented('tutorials', 'Tutorials', ['Help'], 'help.openTutorials', { source: UPSTREAM.project }),
@@ -360,11 +385,7 @@ const definitions = [
 	disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-generator', 'Repeat last generator', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://rhythm-generator', 'Rhythm track', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://pluck-generator', 'Pluck', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://risset-generator', 'Risset drum', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://beat-finder', 'Beat finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://silence-finder', 'Silence finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://sound-finder', 'Sound finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 
@@ -421,7 +442,6 @@ const definitions = [
 	excluded('plugin-manager', 'Plugin manager', ['Generate', 'Effect', 'Analyze', 'Tools'], EXCLUDED_REASONS.plugins),
 	excluded('get-effects', 'Get effects', ['Effect'], EXCLUDED_REASONS.plugins, { source: UPSTREAM.playback }),
 	excluded('nyquist-plugin-installer', 'Nyquist plugin installer', ['Tools'], EXCLUDED_REASONS.plugins),
-	excluded('nyquist-prompt', 'Nyquist prompt', ['Tools'], EXCLUDED_REASONS.plugins),
 	excluded('audio-setup', 'Audio setup', ['Transport'], EXCLUDED_REASONS.os, { source: UPSTREAM.playback }),
 	excluded('audio-settings', 'Audio settings', ['Transport'], EXCLUDED_REASONS.os, { source: UPSTREAM.playback }),
 	excluded('rescan-devices', 'Rescan audio devices', ['Transport'], EXCLUDED_REASONS.os, { source: UPSTREAM.playback }),
@@ -526,12 +546,12 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	'dtmf-generator': 'generator://dtmf',
 	'noise-generator': 'generator://noise',
 	'repeat-generator': 'local://repeat-generator',
-	'rhythm-generator': 'local://rhythm-generator',
-	'pluck-generator': 'local://pluck-generator',
-	'risset-generator': 'local://risset-generator',
+	'rhythm-generator': 'nyquist:rhythmtrack',
+	'pluck-generator': 'nyquist:pluck',
+	'risset-generator': 'nyquist:rissetdrum',
 	contrast: 'contrast-analyzer',
 	'repeat-analyzer': 'local://repeat-analyzer',
-	'beat-finder': 'local://beat-finder',
+	'beat-finder': 'nyquist:beat',
 	'silence-finder': 'local://silence-finder',
 	'sound-finder': 'local://sound-finder',
 	'macro-manager': 'manage-macros',

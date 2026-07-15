@@ -2815,6 +2815,74 @@
 	font: inherit;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor-dialog--nyquist {
+	width: min(720px, calc(100vw - 32px));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-dialog__field--source textarea {
+	width: 100%;
+	min-height: 230px;
+	padding: 10px;
+	resize: vertical;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+	font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	tab-size: 2;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	padding: 12px;
+	margin: 0;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-controls legend {
+	padding: 0 6px;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+	font-weight: 750;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-control-note {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-debug {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 14px;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-output {
+	display: grid;
+	gap: 6px;
+	padding: 10px;
+	margin-top: 12px;
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__nyquist-output pre {
+	max-height: 180px;
+	margin: 0;
+	overflow: auto;
+	font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	white-space: pre-wrap;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor-dialog__actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -3486,6 +3554,10 @@
 
 	#kw-audio-editor-design-system .kw-audio-editor-generator__chirp > .kw-audio-editor-dialog__field {
 		max-width: none;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor__nyquist-controls {
+		grid-template-columns: 1fr;
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor-preferences__body {

@@ -102,14 +102,13 @@ test('Audacity Mix-down to is a concrete destructive track action', () => {
 	assert.equal(audacityActionDefinition('mix-render-new'), null);
 });
 
-test('cloud, plugins, OS audio, MIDI tracks, Extra, diagnostics, and updates are audit-only exclusions', () => {
+test('cloud, installable plugins, OS audio, MIDI tracks, Extra, diagnostics, and updates are audit-only exclusions', () => {
 	const excluded = [
 		'file-save-to-cloud',
 		'file-share-audio',
 		'audacity://cloud/open-audio-file',
 		'link-account',
 		'plugin-manager',
-		'nyquist-prompt',
 		'audio-setup',
 		'audio-settings',
 		'rescan-devices',
@@ -126,12 +125,13 @@ test('cloud, plugins, OS audio, MIDI tracks, Extra, diagnostics, and updates are
 	}
 
 	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
-		if (/cloud|audio\.com|plugin|nyquist|diagnostic|rescan-devices|audio-setup/.test(
+		if (/cloud|audio\.com|plugin|diagnostic|rescan-devices|audio-setup/.test(
 			`${definition.id} ${definition.label}`.toLowerCase(),
 		)) {
 			assert.notEqual(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, definition.id);
 		}
 	}
+	assert.equal(audacityActionDefinition('nyquist-prompt')?.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
 });
 
 test('legacy UI aliases resolve to stable upstream IDs and share one policy record', () => {
@@ -147,6 +147,12 @@ test('legacy UI aliases resolve to stable upstream IDs and share one policy reco
 	);
 	assert.equal(audacityActionDefinition('not-in-inventory'), null);
 	assert.ok(Object.isFrozen(AUDACITY_ACTION_ALIASES));
+});
+
+test('Nyquist spectral processors require an editable frequency selection', () => {
+	assert.equal(audacityActionDefinition('nyquist:spectral-delete').enableWhen, 'editable-frequency-selection');
+	assert.equal(audacityActionDefinition('nyquist:spectraleditmulti').enableWhen, 'editable-frequency-selection');
+	assert.equal(audacityActionDefinition('nyquist:lowpass').enableWhen, 'editable-selection');
 });
 
 test('the complete enableWhen vocabulary evaluates from runtime state', () => {

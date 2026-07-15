@@ -1,0 +1,264 @@
+diff --git a/nyx.c b/nyx.c
+--- a/nyx.c
++++ b/nyx.c
+@@ -27,5 +27,6 @@
+ /* nyx includes */
+ #include "nyx.h"
++#include "nyquist_browser.h"
+ 
+ /* xlisp includes */
+ #include "switches.h"
+@@ -1302,17 +1303,14 @@ long osrand(long n)
+ /* cd ..
+ open - open an ascii file */
+ FILE *osaopen(const char *name, const char *mode)
+ {
+-   return fopen(name, mode);
++   return nyquist_runtime_open(name, mode);
+ }
+ 
+ /* osbopen - open a binary file */
+ FILE *osbopen(const char *name, const char *mode)
+ {
+-   char bmode[10];
+-
+-   strncpy(bmode, mode, 8);
+-   strcat(bmode, "b");
+-
+-   return fopen(name,bmode);
++   (void)name;
++   (void)mode;
++   return NULL;
+ }
+@@ -1396,10 +1394,7 @@ void oscheck(void)
+ /* xsystem - execute a system command */
+ LVAL xsystem()
+ {
+-   if (moreargs()) {
+-      unsigned char *cmd;
+-      cmd = (unsigned char *)getstring(xlgastring());
+-      fprintf(stderr, "Will not execute system command: %s\n", cmd);
+-   }
+-   return s_true;
++   while (moreargs())
++      (void)xlgetarg();
++   return NIL;
+ }
+@@ -1407,42 +1402,23 @@ LVAL xsystem()
+ /* xsetdir -- set current directory of the process */
+ LVAL xsetdir()
+ {
+-   char *dir = (char *)getstring(xlgastring());
+-   int result;
+-   LVAL cwd = NULL;
+-   int verbose = TRUE;
+-
++   (void)getstring(xlgastring());
+    if (moreargs()) {
+-      verbose = (xlgetarg() != NIL);
++      (void)xlgetarg();
+    }
+-
++   while (moreargs()) {
++      (void)xlgetarg();
++   }
+    xllastarg();
+-
+-   result = chdir(dir);
+-   if (result) {
+-      /* perror("SETDIR"); -- Nyquist uses SETDIR to search for directories
+-       * at startup, so failures are normal, and seeing error messages
+-       * could be confusing, so don't print them. The NULL return indicates
+-       * an error, but doesn't tell which one it is.
+-       * But now, SETDIR has a second verbose parameter that is nil when
+-       * searching for directories. -RBD
+-       */
+-      if (verbose) perror("Directory Setting Error");
+-      return NULL;
+-   }
+-
+-   dir = getcwd(NULL, 1000);
+-   if (dir) {
+-      cwd = cvstring(dir);
+-      free(dir);
+-   }
+-
+-   return cwd;
++   return cvstring("/runtime/");
+ }
+ 
+-/* xgetkey - get a key from the keyboard */
++/* xgetkey -- browser workers have no terminal input */
+ LVAL xgetkey()
+ {
++   while (moreargs()) {
++      (void)xlgetarg();
++   }
+    xllastarg();
+-   return (cvfixnum((FIXTYPE)getchar()));
++   return cvfixnum((FIXTYPE)-1);
+ }
+@@ -1537,50 +1532,23 @@ void osdir_list_finish()
+ #else
+ 
+-#include <dirent.h>
+ #define OSDIR_LIST_READY 0
+-#define OSDIR_LIST_STARTED 1
+-#define OSDIR_LIST_DONE 2
+ static int osdir_list_status = OSDIR_LIST_READY;
+-static DIR *osdir_dir;
+ 
+-/* osdir_list_start -- open a directory listing */
++/* Directory listing is intentionally unavailable in the browser. */
+ int osdir_list_start(const char *path)
+ {
+-   if (osdir_list_status != OSDIR_LIST_READY) {
+-      osdir_list_finish(); /* close current listing */
+-   }
+-   osdir_dir = opendir(path);
+-   if (!osdir_dir) {
+-      return FALSE;
+-   }
+-   osdir_list_status = OSDIR_LIST_STARTED;
+-   return TRUE;
++   (void)path;
++   return FALSE;
+ }
+ 
+-/* osdir_list_next -- read the next entry from a directory */
+ const char *osdir_list_next()
+ {
+-   struct dirent *entry;
+-
+-   if (osdir_list_status != OSDIR_LIST_STARTED) {
+-      return NULL;
+-   }
+-
+-   entry = readdir(osdir_dir);
+-   if (!entry) {
+-      osdir_list_status = OSDIR_LIST_DONE;
+-      return NULL;
+-   }
+-   return entry->d_name;
++   return NULL;
+ }
+ 
+-/* osdir_list_finish -- close an open directory */
+ void osdir_list_finish()
+ {
+-    if (osdir_list_status != OSDIR_LIST_READY) {
+-        closedir(osdir_dir);
+-    }
+     osdir_list_status = OSDIR_LIST_READY;
+ }
+ 
+ #endif
+@@ -1588,40 +1560,11 @@ void osdir_list_finish()
+ /* xget_temp_path -- get a path to create temp files */
+ LVAL xget_temp_path()
+ {
+-   char *tmp;
+-
+-#if defined(WINDOWS)
+-   tmp = getenv("TEMP");
+-#else
+-   tmp = getenv("TMPDIR");
+-#endif
+-
+-   if (!tmp || !*tmp) {
+-      tmp = getenv("TMP");
+-      if (!tmp || !*tmp) {
+-#if defined(WINDOWS)
+-         tmp = "/";
+-#else
+-         tmp = "/tmp/";
+-#endif
+-      }
+-   }
+-
+-   return cvstring(tmp);
++   return cvstring("");
+ }
+ 
+ /* xget_user -- get a string identifying the user, for use in file names */
+ LVAL xget_user()
+ {
+-   char *user = getenv("USER");
+-
+-   if (!user || !*user) {
+-      user = getenv("USERNAME");
+-      if (!user || !*user) {
+-         errputstr("Warning: could not get user ID, using 'nyquist'\n");
+-         user = "nyquist";
+-      }
+-   }
+-
+-   return cvstring(user);
++   return cvstring("browser");
+ }
+
+diff --git a/nyquist/xlisp/security.c b/nyquist/xlisp/security.c
+--- a/nyquist/xlisp/security.c
++++ b/nyquist/xlisp/security.c
+@@ -87,11 +87,7 @@ void find_full_path(const char *filename, char *fullname)
+ 	fullname[STRMAX - 1] = 0;
+ 	return;
+     }
+-    if (!getcwd(fullname, STRMAX)) {
+-	/* something is really wrong. Pretend we found a
+-	   cwd that will not match anything */
+-	goto error;
+-    }
++    strcpy(fullname, "/runtime");
+     /* see if we need a separator (probably) */
+     int len = (int) strlen(fullname);
+     if (!file_sep(fullname[len - 1])) {
+
+diff --git a/nyquist/xlisp/path.c b/nyquist/xlisp/path.c
+--- a/nyquist/xlisp/path.c
++++ b/nyquist/xlisp/path.c
+@@ -82,21 +82,8 @@ static void path_cleanup(void)
+ 
+ #ifdef UNIX
+ const char *unix_return_xlisp_path()
+ {
+-    char *paths = getenv("XLISPPATH");
+-    if (!paths || !*paths) {
+-        char msg[512];
+-        sprintf(msg, "\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+-                "Warning: XLISP failed to find XLISPPATH in the environment.",
+-                "If you are using Nyquist, probably you should cd to the",
+-                "nyquist directory and type:",
+-                "    setenv XLISPPATH `pwd`/runtime:`pwd`/lib",
+-                "or set XLISPPATH in your .login or .cshrc file.",
+-                "If you use the bash shell, try:",
+-                "    XLISPPATH=`pwd`/runtime:`pwd`/lib; export XLISPPATH");
+-        errputstr(msg);
+-    }
+-    return paths;
++    return NULL;
+ }
+ #endif
+ 
+
+diff --git a/nyquist/xlisp/xlsys.c b/nyquist/xlisp/xlsys.c
+--- a/nyquist/xlisp/xlsys.c
++++ b/nyquist/xlisp/xlsys.c
+@@ -55,15 +55,12 @@ extern LVAL exttype(LVAL x);
+ /* xget_env - get the value of an environment variable */
+ LVAL xget_env(void)
+ {
+-    const char *name = (char *) getstring(xlgetfname());
+-    char *val;
++    (void)getstring(xlgetfname());
+ 
+     /* check for too many arguments */
+     xllastarg();
+ 
+-    /* get the value of the environment variable */
+-    val = getenv(name);
+-    return (val ? cvstring(val) : NULL);
++    return NIL;
+ }
+ 
+ /* xload - read and evaluate expressions from a file */

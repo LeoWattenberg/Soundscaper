@@ -281,3 +281,24 @@ The AUP4 fixture codec and StaffPad WASM audits are retained from the original
 kw.media implementation. The compiled-native Audacity round-trip release gate is
 still tracked separately in `tests/fixtures/aup4-interop-gate.json` and fails
 closed until its required evidence is supplied.
+
+### Nyquist WebAssembly
+
+Soundscaper includes Audacity 3.7.7's Nyx/Nyquist interpreter as a pinned,
+reproducible WebAssembly runtime. It runs in a dedicated worker with PCM input
+and bounded output memory. The browser adapter does not expose host file I/O,
+shell commands, MIDI, audio devices, or AUD-DO.
+
+The bundle includes the 25 compatible Audacity 3.7.7 Nyquist plug-ins. All 18
+processor effects are grouped under **Effect → Legacy**; the three generators
+and four analyzers remain under their respective Nyquist menu groups. The file
+oriented plug-in installer and sample-data import/export scripts are excluded.
+Tools → Nyquist prompt accepts Lisp and SAL and stores its source locally.
+
+Use the pinned toolchain and source checkout recorded in
+`src/lib/tools/audio-editor/nyquist/source-manifest.json`:
+
+```sh
+npm run build:nyquist -- --audacity-source /path/to/audacity-3.7.7
+npm run audit:nyquist
+```

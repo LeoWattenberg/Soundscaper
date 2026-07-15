@@ -132,6 +132,7 @@ import { createEditorFfmpeg } from './ffmpeg.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
+import { NyquistEvaluationClient } from './nyquist/client.js';
 import { decodeAup3File } from '../aup3-browser.js';
 import { ENGLISH_COPY } from '../../../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
@@ -141,6 +142,7 @@ const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_SAMPLE_RATE;
 const MAX_TIMELINE_PIXELS = 16_000_000;
 const SOURCE_CHUNK_FRAMES = 65_536;
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
+const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
@@ -181,6 +183,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		onLoading: () => setStatus(copy.ffmpegLoading),
 		onProgress: (progress) => updateExportProgress(progress),
 	});
+	const nyquistClient = options.nyquistEvaluator ? null : new NyquistEvaluationClient(options.nyquistClientOptions);
+	const nyquistEvaluator = options.nyquistEvaluator || ((request, evaluateOptions) => (
+		nyquistClient.evaluate(request, evaluateOptions)
+	));
 	const state = {
 		history: null,
 		preferences: createAudioEditorPreferencesV1(),
@@ -250,6 +256,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		audacityPreviewSource: null,
 		lastAudacityEffect: null,
 		audacityEffectWorker: null,
+		nyquistAbort: null,
+		nyquistResult: null,
 		spectralWorker: null,
 		phase: 'loading',
 		projects: [],
@@ -337,6 +345,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			stopMetronome();
 			state.audacityEffectWorker?.terminate();
 			state.audacityEffectWorker = null;
+			state.nyquistAbort?.abort();
+			state.nyquistAbort = null;
+			nyquistClient?.dispose();
 			cancelAudacityEffectPreview({ publish: false });
 			state.spectralWorker?.terminate();
 			state.spectralWorker = null;
@@ -479,6 +490,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 				canRepeatLast: Boolean(state.lastAudacityEffect),
 				previewing: Boolean(state.audacityPreviewSource),
 				presets: listAudioEditorEffectPresets(state.effectPresets, state.audacityEffectType),
+			}),
+			nyquist: Object.freeze({
+				processing: Boolean(state.nyquistAbort),
+				result: state.nyquistResult,
 			}),
 			monitor: Object.freeze({ enabled: state.monitoring, latencyOffsetMs: state.latencyOffsetMs }),
 			recordingOptions: Object.freeze({
@@ -724,6 +739,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			generators: Object.freeze({
 				generate: generateSignal,
+			}),
+			nyquist: Object.freeze({
+				evaluate: (request) => runNyquistEvaluation(request),
+				preview: (request) => runNyquistEvaluation({ ...request, preview: true }),
+				cancel: cancelNyquistEvaluation,
 			}),
 			labels: Object.freeze({
 				add: addLabel,
@@ -5264,17 +5284,359 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return matchAudacitySelectionChannels(audioBufferChannels(rendered), channelCount);
 	}
 
+	async function runNyquistEvaluation(request = {}) {
+		if (state.audacityEffectProcessing) return null;
+		const source = String(request.source || '');
+		if (!source.trim()) throw new TypeError(copy.nyquistSource || 'Nyquist source is required.');
+		const role = normalizeNyquistRole(request.role || request.pluginType || request.type);
+		const preview = Boolean(request.preview);
+		const sampleRate = projectSampleRate();
+		const selection = activeSelection();
+		const availableTargets = audacityEffectTargets();
+		const targets = role === 'generate'
+			? [null]
+			: availableTargets.length ? availableTargets : role === 'prompt' ? [null] : [];
+		if (!targets.length) throw new Error(copy.nyquistSelectionRequired || copy.audacitySelectionHint);
+		if (!preview && editingBlocked()) return null;
+
+		cancelAudacityEffectPreview({ publish: false });
+		state.nyquistAbort?.abort();
+		const abort = new AbortController();
+		state.nyquistAbort = abort;
+		state.audacityEffectProcessing = true;
+		state.nyquistResult = null;
+		setStatus(copy.nyquistProcessing || copy.audacityProcessing);
+		publishDocumentSnapshot();
+		try {
+			const evaluations = [];
+			let aggregateAudioBytes = 0;
+			for (let index = 0; index < targets.length; index += 1) {
+				const target = targets[index];
+				// Nyquist's `$preview selection` contract requires the complete
+				// selected sound and duration. The evaluator still caps rendered
+				// output to six seconds through maxOutputFrames below.
+				const runTarget = target;
+				const channels = runTarget
+					? await renderDryTrackRange(
+						runTarget.track.id,
+						runTarget.startFrame,
+						runTarget.endFrame,
+						runTarget.channelCount,
+					)
+					: [];
+				throwIfAborted(abort.signal);
+				const maxOutputFrames = nyquistMaximumOutputFrames({
+					sampleRate,
+					inputFrames: channels[0]?.length || 0,
+					preview,
+					requested: request.maxOutputFrames,
+				});
+				const hostTargets = availableTargets.length ? availableTargets : targets;
+				const hostTargetIndex = target ? Math.max(0, hostTargets.indexOf(target)) : index;
+				const result = await nyquistEvaluator({
+					source,
+					language: request.language === 'sal' ? 'sal' : 'lisp',
+					sampleRate,
+					channels,
+					controls: { ...(request.controls || {}) },
+					properties: nyquistHostProperties(runTarget, hostTargets, hostTargetIndex, channels, request),
+					globals: { PREVIEWP: preview },
+					maxOutputFrames,
+					debug: Boolean(request.debug),
+				}, {
+					signal: abort.signal,
+					timeoutMs: request.timeoutMs,
+					transferInput: true,
+				});
+				throwIfAborted(abort.signal);
+				if (result?.type === 'audio') {
+					aggregateAudioBytes += nyquistAudioResultBytes(result);
+					if (aggregateAudioBytes > NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES) {
+						throw audacityEffectMemoryError(copy);
+					}
+				}
+				evaluations.push({ target: runTarget, result });
+			}
+			throwIfAborted(abort.signal);
+
+			const returnedResult = freezeNyquistResult(evaluations);
+			const audio = evaluations.filter(({ result }) => result?.type === 'audio');
+			const labels = evaluations.flatMap(({ target, result }) => result?.type === 'labels'
+				? result.labels.map((label) => ({ ...label, baseFrame: target?.startFrame ?? selection?.startFrame ?? 0 }))
+				: []);
+			if (preview) {
+				const previewChannels = mixNyquistPreviewChannels(
+					audio.map(({ result }) => result.channels),
+					sampleRate * 6,
+				);
+				if (previewChannels.length) await playNyquistPreview(previewChannels, sampleRate, abort.signal);
+				throwIfAborted(abort.signal);
+				state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
+				if (!audio.length) setStatus(nyquistResultStatus(evaluations, copy), 'success');
+				return returnedResult;
+			}
+
+			const replacements = audio.filter(({ target }) => target);
+			if (replacements.length) {
+				await preflightStorage(replacements.reduce((sum, { result }) => (
+					sum + nyquistAudioResultBytes(result)
+				), 0), 'effect');
+				throwIfAborted(abort.signal);
+				await persistAudacityEffectResults(replacements.map(({ target, result }) => ({
+					target,
+					channels: result.channels,
+				})), null, {
+					allowIndependentLengths: true,
+					effectName: request.name || copy.nyquistPrompt,
+					selectionDetails: audacityEffectSelectionDetails(selection, replacements.map(({ target }) => target)),
+					signal: abort.signal,
+				});
+			}
+			for (const { target, result } of audio.filter(({ target }) => !target)) {
+				throwIfAborted(abort.signal);
+				await persistNyquistGeneratedAudio(result.channels, {
+					name: request.name || copy.nyquistPrompt,
+					atFrame: request.atFrame,
+					trackId: request.trackId || target?.track?.id,
+					signal: abort.signal,
+				});
+			}
+			throwIfAborted(abort.signal);
+			if (labels.length) persistNyquistLabels(labels, request.name);
+			state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
+			setStatus(labels.length && !audio.length
+				? copy.nyquistLabelsAdded
+				: audio.length ? copy.nyquistApplied : nyquistResultStatus(evaluations, copy), 'success');
+			return returnedResult;
+		} catch (error) {
+			if (error?.name === 'AbortError') {
+				setStatus(copy.audacityPreviewCancelled || copy.ready);
+				return null;
+			}
+			throw error;
+		} finally {
+			if (state.nyquistAbort === abort) state.nyquistAbort = null;
+			state.audacityEffectProcessing = false;
+			publishDocumentSnapshot();
+		}
+	}
+
+	function cancelNyquistEvaluation() {
+		const running = state.nyquistAbort;
+		running?.abort();
+		const preview = cancelAudacityEffectPreview({ publish: false });
+		if (!running) state.audacityEffectProcessing = false;
+		setStatus(copy.audacityPreviewCancelled || copy.ready);
+		publishDocumentSnapshot();
+		return Boolean(running || preview);
+	}
+
+	function nyquistHostProperties(target, targets, index, channels, request) {
+		const sampleRate = projectSampleRate();
+		const selection = activeSelection();
+		const frequencyRange = selection?.frequencyRange || {};
+		const startFrame = target?.startFrame ?? selection?.startFrame ?? engine.getPositionFrames();
+		const endFrame = target?.endFrame ?? selection?.endFrame ?? startFrame;
+		const track = target?.track || null;
+		const clips = track?.clipIds?.map((clipId) => findClip(project, clipId)).filter(Boolean).map((clip) => [
+			clip.timelineStartFrame / sampleRate,
+			(clip.timelineStartFrame + clip.durationFrames) / sampleRate,
+		]) || [];
+		const stats = nyquistChannelStats(channels);
+		const lowHz = Number(frequencyRange.minimumFrequency);
+		const highHz = Number(frequencyRange.maximumFrequency);
+		const selectedTrackIndices = targets.map((candidate) => {
+			const projectIndex = project?.tracks?.findIndex((projectTrack) => projectTrack.id === candidate?.track?.id) ?? -1;
+			return projectIndex >= 0 ? projectIndex + 1 : null;
+		}).filter(Number.isInteger);
+		return {
+			AUDACITY: {
+				VERSION: [3, 7, 7],
+				LANGUAGE: locale,
+			},
+			PROJECT: {
+				NAME: project?.title || '',
+				RATE: sampleRate,
+				TEMPO: Number(project?.tempo?.bpm ?? project?.tempo) || 120,
+				TRACKS: project?.tracks?.length || 0,
+				WAVETRACKS: project?.tracks?.filter((candidate) => candidate.type !== 'label').length || 0,
+				LABELTRACKS: project?.tracks?.filter((candidate) => candidate.type === 'label').length || 0,
+				PREVIEW_DURATION: 6,
+			},
+			SELECTION: {
+				START: startFrame / sampleRate,
+				END: endFrame / sampleRate,
+				TRACKS: selectedTrackIndices,
+				PEAK: stats.peak,
+				RMS: stats.rms,
+				...(Number.isFinite(lowHz) ? { LOW_HZ: lowHz } : {}),
+				...(Number.isFinite(highHz) ? { HIGH_HZ: highHz } : {}),
+				...(Number.isFinite(lowHz) && lowHz > 0 && Number.isFinite(highHz) && highHz > lowHz ? {
+					CENTER_HZ: Math.sqrt(lowHz * highHz),
+					BANDWIDTH: Math.log2(highHz / lowHz),
+				} : {}),
+			},
+			TRACK: {
+				INDEX: index + 1,
+				NAME: track?.name || request.name || '',
+				CLIPS: channels.length > 1 ? channels.map(() => clips) : clips,
+				INCLIPS: channels.length > 1 ? channels.map(() => clips) : clips,
+			},
+		};
+	}
+
+	async function playNyquistPreview(channels, sampleRate, signal = null) {
+		throwIfAborted(signal);
+		assertAudacityEffectOutput(channels);
+		const context = await engine.getAudioContext({ resume: true });
+		throwIfAborted(signal);
+		await context.resume?.();
+		throwIfAborted(signal);
+		const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
+		throwIfAborted(signal);
+		const source = context.createBufferSource();
+		source.buffer = buffer;
+		source.connect(context.destination);
+		source.onended = () => {
+			if (state.audacityPreviewSource !== source) return;
+			state.audacityPreviewSource = null;
+			source.disconnect?.();
+			setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
+			publishDocumentSnapshot();
+		};
+		engine.pause();
+		state.audacityPreviewSource = source;
+		source.start();
+		setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
+	}
+
+	async function persistNyquistGeneratedAudio(channels, options = {}) {
+		const signal = options.signal || null;
+		throwIfAborted(signal);
+		assertAudacityEffectOutput(channels);
+		if (!channels.length || !channels[0]?.length || channels.length > 2) throw new Error(copy.effectInvalidAudio);
+		const sampleRate = projectSampleRate();
+		const selection = activeSelection();
+		const replacementTarget = selection ? audacityEffectTarget(options.trackId) : null;
+		if (replacementTarget) {
+			return persistAudacityEffectResult(
+				replacementTarget,
+				null,
+				matchAudacitySelectionChannels(channels, replacementTarget.channelCount),
+				{ effectName: String(options.name || copy.nyquistPrompt), signal },
+			);
+		}
+		const frameCount = channels[0].length;
+		if (!channels.every((channel) => channel instanceof Float32Array && channel.length === frameCount)) {
+			throw new Error(copy.effectChannelLengthsMismatch);
+		}
+		await preflightStorage(frameCount * channels.length * Float32Array.BYTES_PER_ELEMENT, 'effect');
+		throwIfAborted(signal);
+		const sourceId = createStableId('nyquist-generator');
+		const name = String(options.name || copy.nyquistPrompt);
+		const context = await engine.getAudioContext({ resume: false });
+		throwIfAborted(signal);
+		const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
+		throwIfAborted(signal);
+		const writer = await store.beginSourceWrite(sourceId, { name, mimeType: 'audio/wav', sampleRate, channelCount: channels.length });
+		try {
+			throwIfAborted(signal);
+			await writeBuffer(writer, buffer, signal);
+			throwIfAborted(signal);
+			await writer.commit({ sampleRate, channelCount: channels.length });
+			throwIfAborted(signal);
+			const source = {
+				schemaVersion: 2,
+				sampleRate,
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+				id: sourceId,
+				storageKey: sourceId,
+				name,
+				mimeType: 'audio/wav',
+				frameCount,
+				channelCount: channels.length,
+				originalSampleRate: sampleRate,
+			};
+			let targetTrack = findTrack(project, options.trackId || state.selectedTrackId);
+			if (!Array.isArray(targetTrack?.clipIds)) targetTrack = project.tracks.find((track) => Array.isArray(track.clipIds)) || null;
+			const startFrame = snapTimelineFrame(options.atFrame ?? selection?.startFrame ?? engine.getPositionFrames());
+			const endFrame = startFrame + frameCount;
+			let command = { type: 'batch', commands: [createAddSourceCommand(source)] };
+			if (!targetTrack || targetTrack.clipIds.some((clipId) => {
+				const clip = findClip(project, clipId);
+				return clip && clip.timelineStartFrame < endFrame && clip.timelineStartFrame + clip.durationFrames > startFrame;
+			})) {
+				const trackId = createStableId('track');
+				targetTrack = { id: trackId };
+				command.commands.push(createAddTrackCommand({ schemaVersion: 2, type: 'audio', id: trackId, name }));
+			}
+			const selectedClipId = createStableId('clip');
+			command.commands.push(createAddClipCommand(targetTrack.id, {
+				schemaVersion: 2,
+				title: name,
+				sourceDurationFrames: frameCount,
+				id: selectedClipId,
+				sourceId,
+				timelineStartFrame: startFrame,
+				sourceStartFrame: 0,
+				durationFrames: frameCount,
+			}));
+			sourceBuffers.set(sourceId, buffer);
+			const peaks = await generateWaveformPeaks(channels, copy);
+			throwIfAborted(signal);
+			sourcePeaks.set(sourceId, peaks);
+			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
+			throwIfAborted(signal);
+			commit(command, { selectTrackId: targetTrack.id, selectClipId: selectedClipId });
+			return selectedClipId;
+		} catch (error) {
+			await Promise.resolve(writer.abort()).catch(() => undefined);
+			sourceBuffers.delete(sourceId);
+			sourcePeaks.delete(sourceId);
+			await store.deleteSource(sourceId).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	function persistNyquistLabels(labels, name = null) {
+		if (!labels.length) return null;
+		const sampleRate = projectSampleRate();
+		let target = findTrack(project, state.selectedTrackId);
+		if (target?.type !== 'label') target = project.tracks.find((track) => track.type === 'label') || null;
+		const commands = [];
+		if (!target) {
+			target = { id: createStableId('label-track') };
+			commands.push(createAddLabelTrackCommand({ id: target.id, name: String(name || copy.labels) }));
+		}
+		for (const label of labels) {
+			const startFrame = Math.max(0, label.baseFrame + Math.round(Number(label.start || 0) * sampleRate));
+			const endFrame = Math.max(startFrame, label.baseFrame + Math.round(Number(label.end ?? label.start ?? 0) * sampleRate));
+			commands.push(createAddLabelCommand(target.id, {
+				startFrame,
+				endFrame,
+				title: String(label.text || ''),
+			}));
+		}
+		commit({ type: 'batch', commands }, { selectTrackId: target.id });
+		return target.id;
+	}
+
 	async function persistAudacityEffectResult(target, type, channels, options = {}) {
 		return persistAudacityEffectResults([{ target, channels }], type, options);
 	}
 
 	async function persistAudacityEffectResults(results, type, options = {}) {
+		const signal = options.signal || null;
+		throwIfAborted(signal);
 		if (!Array.isArray(results) || !results.length) throw new Error(copy.effectInvalidAudio);
 		const sampleRate = projectSampleRate();
 		const context = await engine.getAudioContext({ resume: false });
+		throwIfAborted(signal);
 		const effectName = options.effectName || audacityEffectLabel(type, copy);
 		const entries = [];
 		for (const result of results) {
+			throwIfAborted(signal);
 			const { target, channels } = result || {};
 			if (!target || !Array.isArray(channels) || !channels.length || channels.length > 2 || !channels[0]?.length) {
 				throw new Error(copy.effectInvalidAudio);
@@ -5299,6 +5661,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				continue;
 			}
 			const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
+			throwIfAborted(signal);
 			const sourceId = createStableId('audacity-effect');
 			const sourceName = `${target.track.name} — ${effectName}.wav`;
 			const source = {
@@ -5331,27 +5694,35 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const persistedEntries = [];
 		try {
 			for (const entry of entries) {
+				throwIfAborted(signal);
 				if (!entry.buffer) continue;
 				const writer = await store.beginSourceWrite(entry.sourceId, {
 					name: entry.sourceName,
 					mimeType: 'audio/wav',
 				});
 				try {
-					await writeBuffer(writer, entry.buffer);
+					throwIfAborted(signal);
+					await writeBuffer(writer, entry.buffer, signal);
+					throwIfAborted(signal);
 					await writer.commit({ sampleRate, channelCount: entry.buffer.numberOfChannels });
 					persistedEntries.push(entry);
+					throwIfAborted(signal);
 				} catch (error) {
 					await writer.abort();
 					throw error;
 				}
 			}
 			for (const entry of entries) {
+				throwIfAborted(signal);
 				if (!entry.buffer) continue;
 				sourceBuffers.set(entry.sourceId, entry.buffer);
 				const peaks = await generateWaveformPeaks(entry.channels, copy);
+				throwIfAborted(signal);
 				sourcePeaks.set(entry.sourceId, peaks);
 				await store.saveAnalysis(peakCacheKey(entry.sourceId), peaks);
+				throwIfAborted(signal);
 			}
+			throwIfAborted(signal);
 			commit({
 					type: 'batch',
 					commands: [
@@ -6864,6 +7235,98 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 }
 
+function normalizeNyquistRole(value) {
+	const role = String(value || 'prompt').trim().toLowerCase();
+	if (role === 'process' || role === 'effect') return 'process';
+	if (role === 'generate' || role === 'generator') return 'generate';
+	if (role === 'analyze' || role === 'analyzer' || role === 'tool analyze' || role === 'tool-analyze') return 'analyze';
+	return 'prompt';
+}
+
+function nyquistAudioResultBytes(result) {
+	if (result?.type !== 'audio' || !Array.isArray(result.channels)) return 0;
+	return result.channels.reduce((sum, channel) => sum + (channel?.byteLength || 0), 0);
+}
+
+function mixNyquistPreviewChannels(channelSets, maximumFrames) {
+	if (!Array.isArray(channelSets) || !channelSets.length) return [];
+	const frameLimit = Math.max(0, Math.round(Number(maximumFrames) || 0));
+	if (!frameLimit) return [];
+	for (const channels of channelSets) assertAudacityEffectOutput(channels);
+	const channelCount = Math.max(...channelSets.map((channels) => channels.length));
+	const frameCount = Math.min(
+		frameLimit,
+		Math.max(...channelSets.map((channels) => channels[0]?.length || 0)),
+	);
+	if (!frameCount) return [];
+	const mixed = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
+	for (const channels of channelSets) {
+		for (let outputChannel = 0; outputChannel < channelCount; outputChannel += 1) {
+			const input = channels.length === 1 ? channels[0] : channels[outputChannel];
+			if (!input) continue;
+			const frames = Math.min(frameCount, input.length);
+			for (let frame = 0; frame < frames; frame += 1) mixed[outputChannel][frame] += input[frame];
+		}
+	}
+	return mixed;
+}
+
+function nyquistMaximumOutputFrames({ sampleRate, inputFrames, preview, requested }) {
+	const hardMaximum = Math.max(1, Math.round(sampleRate * (preview ? 6 : 300)));
+	const inferred = preview
+		? hardMaximum
+		: Math.max(Math.round(sampleRate * 60), Math.max(0, inputFrames) * 4);
+	const value = requested == null ? inferred : Number(requested);
+	if (!Number.isSafeInteger(Math.round(value)) || value <= 0) throw new RangeError('Nyquist maxOutputFrames must be positive.');
+	return Math.min(hardMaximum, Math.round(value));
+}
+
+function nyquistChannelStats(channels) {
+	const channelStats = (channels || []).map((channel) => {
+		let peak = 0;
+		let squareSum = 0;
+		for (let index = 0; index < channel.length; index += 1) {
+			const value = Number(channel[index]) || 0;
+			peak = Math.max(peak, Math.abs(value));
+			squareSum += value * value;
+		}
+		return { peak, rms: channel.length ? Math.sqrt(squareSum / channel.length) : 0 };
+	});
+	if (!channelStats.length) return { peak: 0, rms: 0 };
+	if (channelStats.length === 1) return channelStats[0];
+	return {
+		peak: channelStats.map(({ peak }) => peak),
+		rms: channelStats.map(({ rms }) => rms),
+	};
+}
+
+function freezeNyquistResult(evaluations, options = {}) {
+	const results = Object.freeze(evaluations.map(({ result }) => (
+		options.summarizeAudio && result?.type === 'audio'
+			? Object.freeze({
+				type: 'audio',
+				sampleRate: result.sampleRate,
+				frameCount: result.frameCount ?? result.channels?.[0]?.length ?? 0,
+				channelCount: result.channels?.length || 0,
+				output: result.output || '',
+			})
+			: result
+	)));
+	return results.length === 1
+		? results[0]
+		: Object.freeze({ type: 'multiple', results });
+}
+
+function nyquistResultStatus(evaluations, copy) {
+	for (let index = evaluations.length - 1; index >= 0; index -= 1) {
+		const result = evaluations[index]?.result;
+		if (result?.type === 'message' && result.message) return result.message;
+		if (result?.type === 'number') return String(result.value);
+		if (result?.output) return result.output;
+	}
+	return copy.nyquistNoOutput || copy.done;
+}
+
 function cloneAudacityWorkerPayload(payload, transfer) {
 	const cloneChannels = (channels) => (channels || []).map((channel) => {
 		const copy = Float32Array.from(channel);
@@ -6888,11 +7351,13 @@ function audacityEffectMemoryError(copy) {
 	return new Error(copy.effectMemoryTooLarge);
 }
 
-async function writeBuffer(writer, buffer) {
+async function writeBuffer(writer, buffer, signal = null) {
 	for (let start = 0; start < buffer.length; start += SOURCE_CHUNK_FRAMES) {
+		throwIfAborted(signal);
 		const end = Math.min(buffer.length, start + SOURCE_CHUNK_FRAMES);
 		await writer.write(Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel).slice(start, end)));
 	}
+	throwIfAborted(signal);
 }
 
 async function readStoredAudioBuffer(store, source, context) {
