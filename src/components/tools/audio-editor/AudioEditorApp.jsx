@@ -1333,7 +1333,7 @@ function EditorActionBar({
 					<Button
 						variant={mixerVisible ? 'primary' : 'secondary'}
 						size="small"
-						icon={<Icon name="mixer" size={14} />}
+						icon={iconNameToChar('MIXER')}
 						aria-pressed={mixerVisible}
 						onClick={onToggleMixer}
 					>
