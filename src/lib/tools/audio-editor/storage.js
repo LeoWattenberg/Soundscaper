@@ -3,6 +3,7 @@ import { collectProjectSourceIds, compactProjectSourceMetadata } from './retenti
 const DATABASE_VERSION = 1;
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
+const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 const memoryDatabases = new Map();
 
 /**
@@ -405,36 +406,31 @@ export class AudioEditorProjectStore {
 		if (ancestors.has(sourceId)) throw new Error('The immutable source dependency graph contains a cycle.');
 		const nextAncestors = new Set(ancestors).add(sourceId);
 		if (source.storage === 'copy-on-write') {
-			const replacements = new Map((await this.#sourceChunkRecords(source.sourceToken)).map((record) => [record.index, record]));
-			for await (const baseChunk of this.#readSourceChunks(source.baseSourceId, nextAncestors)) {
-				const replacement = replacements.get(baseChunk.index);
-				if (!replacement) {
-					yield baseChunk;
-					continue;
+			const replacementIterator = this.#sourceChunkRecords(source.sourceToken)[Symbol.asyncIterator]();
+			let replacement = await replacementIterator.next();
+			try {
+				for await (const baseChunk of this.#readSourceChunks(source.baseSourceId, nextAncestors)) {
+					if (!replacement.done && replacement.value.index < baseChunk.index) {
+						throw new Error('A derived source replacement points beyond its base source.');
+					}
+					if (replacement.done || replacement.value.index !== baseChunk.index) {
+						yield baseChunk;
+						continue;
+					}
+					yield sourceChunkFromRecord(replacement.value);
+					replacement = await replacementIterator.next();
 				}
-				replacements.delete(baseChunk.index);
-				yield {
-					index: replacement.index,
-					frames: replacement.frames,
-					channels: replacement.channels.map((buffer) => new Float32Array(buffer.slice(0))),
-				};
+				if (!replacement.done) throw new Error('A derived source replacement points beyond its base source.');
+			} finally {
+				await replacementIterator.return?.();
 			}
-			if (replacements.size) throw new Error('A derived source replacement points beyond its base source.');
 			return;
 		}
 		if (source.storage === 'opfs') {
 			yield* this.#readOpfsSourceChunks(source);
 			return;
 		}
-		const records = await this.#sourceChunkRecords(source.sourceToken);
-		records.sort((left, right) => left.index - right.index);
-		for (const record of records) {
-			yield {
-				index: record.index,
-				frames: record.frames,
-				channels: record.channels.map((buffer) => new Float32Array(buffer.slice(0))),
-			};
-		}
+		for await (const record of this.#sourceChunkRecords(source.sourceToken)) yield sourceChunkFromRecord(record);
 	}
 
 	/** Rehydrate a persisted source directly into its destination AudioBuffer. */
@@ -495,13 +491,20 @@ export class AudioEditorProjectStore {
 				if (!tokens.has(chunk.sourceToken) && Number(chunk.createdAt) < cutoff) this.memory.sourceChunks.delete(key);
 			}
 		} else {
-			const chunks = await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => request(sourceChunks.getAll()));
-			const staleKeys = chunks
-				.filter((chunk) => !tokens.has(chunk.sourceToken) && Number(chunk.createdAt) < cutoff)
-				.map((chunk) => chunk.key);
-			if (staleKeys.length) await transact(database, 'sourceChunks', 'readwrite', ({ sourceChunks }) => {
-				for (const key of staleKeys) sourceChunks.delete(key);
-			});
+			let afterPrimaryKey;
+			while (true) {
+				const chunks = await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => {
+					return readCursorPage(sourceChunks, { afterPrimaryKey, limit: SOURCE_CHUNK_CURSOR_PAGE_SIZE });
+				});
+				if (!chunks.length) break;
+				afterPrimaryKey = chunks.at(-1).key;
+				const staleKeys = chunks
+					.filter((chunk) => !tokens.has(chunk.sourceToken) && Number(chunk.createdAt) < cutoff)
+					.map((chunk) => chunk.key);
+				if (staleKeys.length) await transact(database, 'sourceChunks', 'readwrite', ({ sourceChunks }) => {
+					for (const key of staleKeys) sourceChunks.delete(key);
+				});
+			}
 		}
 
 		const directory = await this.#opfsDirectory();
@@ -689,12 +692,28 @@ export class AudioEditorProjectStore {
 		else await transact(database, 'sourceChunks', 'readwrite', ({ sourceChunks }) => { sourceChunks.put(record); });
 	}
 
-	async #sourceChunkRecords(token) {
+	async *#sourceChunkRecords(token) {
 		const database = await this.#database();
-		if (!database) return [...this.memory.sourceChunks.values()].filter((record) => record.sourceToken === token);
-		return transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => {
-			return request(sourceChunks.index('sourceToken').getAll(token));
-		});
+		if (!database) {
+			const records = [...this.memory.sourceChunks.values()]
+				.filter((record) => record.sourceToken === token)
+				.sort((left, right) => left.index - right.index);
+			for (const record of records) yield record;
+			return;
+		}
+		let afterPrimaryKey;
+		while (true) {
+			const records = await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => {
+				return readCursorPage(sourceChunks.index('sourceToken'), {
+					query: token,
+					afterPrimaryKey,
+					limit: SOURCE_CHUNK_CURSOR_PAGE_SIZE,
+				});
+			});
+			if (!records.length) return;
+			afterPrimaryKey = records.at(-1).key;
+			for (const record of records) yield record;
+		}
 	}
 
 	async #sourceChunkRecord(token, index) {
@@ -930,12 +949,70 @@ function request(idbRequest) {
 	});
 }
 
+/**
+ * Read a bounded cursor page. Callers open a new transaction for every page,
+ * so an async iterator can pause at a yielded chunk without keeping a browser
+ * transaction (and its decoded records) alive.
+ */
+function readCursorPage(source, { query, afterPrimaryKey, limit = SOURCE_CHUNK_CURSOR_PAGE_SIZE } = {}) {
+	const maximumRecords = positiveInteger(limit, SOURCE_CHUNK_CURSOR_PAGE_SIZE);
+	return new Promise((resolve, reject) => {
+		const records = [];
+		let cursorRequest;
+		try {
+			cursorRequest = query === undefined ? source.openCursor() : source.openCursor(query);
+		} catch (error) {
+			reject(error);
+			return;
+		}
+		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate IndexedDB records.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) {
+				resolve(records);
+				return;
+			}
+			if (afterPrimaryKey !== undefined) {
+				const comparison = compareStringKeys(cursor.primaryKey, afterPrimaryKey);
+				if (comparison < 0) {
+					try {
+						if (query !== undefined) {
+							if (typeof cursor.continuePrimaryKey === 'function') cursor.continuePrimaryKey(cursor.key, afterPrimaryKey);
+							else cursor.continue();
+						} else {
+							cursor.continue(afterPrimaryKey);
+						}
+					} catch (error) {
+						reject(error);
+					}
+					return;
+				}
+				if (comparison === 0) {
+					cursor.continue();
+					return;
+				}
+			}
+			records.push(cursor.value);
+			if (records.length >= maximumRecords) {
+				resolve(records);
+				return;
+			}
+			cursor.continue();
+		};
+	});
+}
+
 function transactionCompletion(transaction) {
 	return new Promise((resolve, reject) => {
 		transaction.oncomplete = () => resolve();
 		transaction.onabort = () => reject(transaction.error || new Error('The IndexedDB transaction was aborted.'));
 		transaction.onerror = () => reject(transaction.error || new Error('The IndexedDB transaction failed.'));
 	});
+}
+
+function compareStringKeys(left, right) {
+	if (left === right) return 0;
+	return String(left) < String(right) ? -1 : 1;
 }
 
 function deleteByIndex(index, key) {
