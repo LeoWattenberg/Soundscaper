@@ -72,6 +72,36 @@ test('an imported source over 32 MiB is persisted and immediately represented by
 	}
 });
 
+test('large PCM WAV imports are decoded from bounded slices directly into storage', async () => {
+	const store = new LogicalPcmStore();
+	const engine = new ControllerEngine();
+	const file = virtualMonoPcm16Wav(LONG_MONO_SOURCE_FRAMES);
+	const controller = createTestController({
+		store,
+		engine,
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+
+	try {
+		await controller.ready;
+		await controller.actions.project.importFiles([file]);
+		await settleController();
+
+		const source = controller.getSnapshot().project.sources[0];
+		assert.equal(source.frameCount, LONG_MONO_SOURCE_FRAMES);
+		assert.equal(engine.decodeCalls, 0, 'the Web Audio whole-file decoder is bypassed');
+		assert.equal(file.arrayBufferCalls, 0, 'the complete File is never materialized');
+		assert.ok(file.reads.length > 100);
+		assert.ok(Math.max(...file.reads.map(({ byteLength }) => byteLength)) <= SOURCE_CHUNK_FRAMES * 2);
+		assert.equal(store.sourceWriteCalls.length, Math.ceil(LONG_MONO_SOURCE_FRAMES / SOURCE_CHUNK_FRAMES));
+		assert.equal(store.sourceWriteCalls.every(({ frameCount }) => frameCount <= SOURCE_CHUNK_FRAMES), true);
+		assert.equal(engine.sourceBuffers.has(source.id), false);
+		assert.equal(engine.chunkSources.has(source.id), true);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('finalizing a long recording never asks storage to rehydrate its complete AudioBuffer', async () => {
 	const store = new LogicalPcmStore({ nextWriterFrameCount: LONG_MONO_SOURCE_FRAMES });
 	const engine = new ControllerEngine();
@@ -229,6 +259,55 @@ function audioFile(name) {
 	};
 }
 
+function virtualMonoPcm16Wav(frameCount) {
+	const dataBytes = frameCount * 2;
+	const header = new Uint8Array(44);
+	const view = new DataView(header.buffer);
+	writeAscii(header, 0, 'RIFF');
+	view.setUint32(4, header.byteLength + dataBytes - 8, true);
+	writeAscii(header, 8, 'WAVE');
+	writeAscii(header, 12, 'fmt ');
+	view.setUint32(16, 16, true);
+	view.setUint16(20, 1, true);
+	view.setUint16(22, 1, true);
+	view.setUint32(24, 48_000, true);
+	view.setUint32(28, 96_000, true);
+	view.setUint16(32, 2, true);
+	view.setUint16(34, 16, true);
+	writeAscii(header, 36, 'data');
+	view.setUint32(40, dataBytes, true);
+	const file = {
+		name: 'large-streamed.wav',
+		type: 'audio/wav',
+		size: header.byteLength + dataBytes,
+		reads: [],
+		arrayBufferCalls: 0,
+		async arrayBuffer() {
+			file.arrayBufferCalls += 1;
+			throw new Error('The incremental importer must not read the complete WAV file.');
+		},
+		slice(start = 0, end = file.size) {
+			const from = Math.max(0, Math.min(file.size, Math.floor(start)));
+			const to = Math.max(from, Math.min(file.size, Math.floor(end)));
+			return {
+				async arrayBuffer() {
+					const bytes = new Uint8Array(to - from);
+					const headerStart = Math.min(header.byteLength, from);
+					const headerEnd = Math.min(header.byteLength, to);
+					if (headerEnd > headerStart) bytes.set(header.subarray(headerStart, headerEnd), headerStart - from);
+					file.reads.push({ start: from, end: to, byteLength: bytes.byteLength });
+					return bytes.buffer;
+				},
+			};
+		},
+	};
+	return file;
+}
+
+function writeAscii(bytes, offset, value) {
+	for (let index = 0; index < value.length; index += 1) bytes[offset + index] = value.charCodeAt(index);
+}
+
 function realAudioBuffer(frameCount, value = 0) {
 	const channel = new Float32Array(frameCount).fill(value);
 	return {
@@ -381,6 +460,7 @@ function syntheticChunk(metadata, index) {
 class ControllerEngine {
 	constructor({ decoded = [] } = {}) {
 		this.decoded = [...decoded];
+		this.decodeCalls = 0;
 		this.state = 'stopped';
 		this.positionFrame = 0;
 		this.project = null;
@@ -408,6 +488,7 @@ class ControllerEngine {
 	}
 
 	async decodeAudioData() {
+		this.decodeCalls += 1;
 		const decoded = this.decoded.shift();
 		if (!decoded) throw new Error('No decoded fixture remains.');
 		return decoded;

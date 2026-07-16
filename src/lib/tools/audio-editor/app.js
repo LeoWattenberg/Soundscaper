@@ -136,6 +136,7 @@ import { createSourceBufferCache } from './source-buffer-cache.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { NyquistEvaluationClient } from './nyquist/client.js';
 import { decodeAup3File } from '../aup3-browser.js';
 import { ENGLISH_COPY } from '../../../i18n/catalogs.js';
@@ -1709,8 +1710,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function importFile(file) {
+		if (isAup3File(file)) {
+			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
+			return importStructuredAudacityProject(file);
+		}
+		const incrementalWav = await inspectIncrementalWav(file);
+		if (incrementalWav) return importIncrementalWav(file, incrementalWav);
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-		if (isAup3File(file)) return importStructuredAudacityProject(file);
 		const context = await engine.getAudioContext({ resume: false });
 		let decoded;
 		try {
@@ -1780,6 +1786,98 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceBuffers.delete(sourceId);
 			sourcePeaks.delete(sourceId);
 			await store.deleteSource(sourceId);
+			throw error;
+		}
+		warnEnvelope();
+		return null;
+	}
+
+	async function inspectIncrementalWav(file) {
+		if (!isWavFile(file) || typeof file?.slice !== 'function') return null;
+		try {
+			const descriptor = await inspectWavBlobPcm(file);
+			if (descriptor.channelCount > 2
+				|| sourcePcmBytes(descriptor) <= SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) return null;
+			return descriptor;
+		} catch {
+			return null;
+		}
+	}
+
+	async function importIncrementalWav(file, descriptor) {
+		const pcmBytes = sourcePcmBytes(descriptor);
+		await preflightStorage(pcmBytes, 'import');
+		const sourceId = createStableId('source');
+		const trackId = createStableId('track');
+		const clipId = createStableId('clip');
+		const trackName = stripExtension(file.name) || `${copy.track} ${project.tracks.length + 1}`;
+		const sourceName = file.name;
+		const mimeType = file.type || 'audio/wav';
+		const writer = await store.beginSourceWrite(sourceId, {
+			name: sourceName,
+			mimeType,
+			sampleRate: descriptor.sampleRate,
+			channelCount: descriptor.channelCount,
+		});
+		let metadata;
+		try {
+			await streamWavBlobPcm(file, {
+				descriptor,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+				onChunk: (channels) => writer.write(channels),
+			});
+			metadata = await writer.commit({
+				sampleRate: descriptor.sampleRate,
+				channelCount: descriptor.channelCount,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+			});
+		} catch (error) {
+			await writer.abort().catch(() => undefined);
+			throw error;
+		}
+
+		const source = {
+			schemaVersion: 2,
+			sampleFormat: 'float32',
+			chunkFrames: SOURCE_CHUNK_FRAMES,
+			id: sourceId,
+			storageKey: sourceId,
+			name: sourceName,
+			mimeType,
+			frameCount: descriptor.frameCount,
+			channelCount: descriptor.channelCount,
+			sampleRate: descriptor.sampleRate,
+			originalSampleRate: descriptor.sampleRate,
+		};
+		try {
+			await activateStoredSource(source, metadata);
+			commit({
+				type: 'batch',
+				commands: [
+					createAddSourceCommand(source),
+					createAddTrackCommand({
+						schemaVersion: 2,
+						type: 'audio',
+						id: trackId,
+						name: trackName,
+					}),
+					createAddClipCommand(trackId, {
+						schemaVersion: 2,
+						title: trackName,
+						sourceDurationFrames: descriptor.frameCount,
+						id: clipId,
+						sourceId,
+						timelineStartFrame: 0,
+						sourceStartFrame: 0,
+						durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
+					}),
+				],
+			}, { selectTrackId: trackId, selectClipId: clipId });
+		} catch (error) {
+			sourceBuffers.delete(sourceId);
+			sourceChunkProviders.delete(sourceId);
+			sourcePeaks.delete(sourceId);
+			await store.deleteSource(sourceId).catch(() => undefined);
 			throw error;
 		}
 		warnEnvelope();
@@ -8516,6 +8614,11 @@ function formatBytes(value) {
 function isAup3File(file) { return /\.aup3$/i.test(String(file?.name || '').trim()); }
 function isLegacyAupFile(file) { return /\.aup$/i.test(String(file?.name || '').trim()); }
 function isLegacyBlockFile(file) { return /\.au$/i.test(String(file?.name || '').trim()); }
+function isWavFile(file) {
+	const mimeType = String(file?.type || '').trim().toLowerCase();
+	return /\.(?:wav|wave)$/i.test(String(file?.name || '').trim())
+		|| ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave'].includes(mimeType);
+}
 function formatAup3Warning(warning) {
 	if (typeof warning === 'string') return warning.trim();
 	if (warning?.message) return String(warning.message).trim();
