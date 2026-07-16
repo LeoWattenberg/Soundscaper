@@ -124,6 +124,63 @@ test('selection effects replace every selected audio track in one atomic history
 	}
 });
 
+test('canonical EQ selection processing uses pre-roll and commits all selected tracks atomically', async () => {
+	const frameCount = 512;
+	const startFrame = 64;
+	const endFrame = 320;
+	const inputs = new Map([
+		['effect-track-a', Float32Array.from({ length: frameCount }, (_, frame) => Math.sin(frame / 17) * 0.25)],
+		['effect-track-b', Float32Array.from({ length: frameCount }, (_, frame) => Math.cos(frame / 23) * 0.2)],
+	]);
+	const { store } = await createTwoTrackFixture('multitrack-parametric-eq', inputs, 48_000);
+	const renders = [];
+	const controller = createController(store, async (_snapshot, range) => {
+		renders.push({ trackId: range.trackId, startFrame: range.startFrame, endFrame: range.endFrame });
+		return audioBuffer([
+			inputs.get(range.trackId).slice(range.startFrame, range.endFrame),
+		], 48_000);
+	});
+
+	try {
+		await controller.ready;
+		assert.equal(controller.getSnapshot().effects.selectionTypes.at(-1).type, 'eq');
+		controller.actions.timeline.selectTrack('effect-track-a');
+		controller.actions.timeline.setSelection(startFrame, endFrame, {
+			trackIds: ['effect-track-a', 'effect-track-b'],
+			clipIds: [],
+		});
+		const historyBefore = controller.getSnapshot().history.undoEntries.length;
+		await controller.actions.effects.applySelection({
+			type: 'eq',
+			params: { outputGain: 0, bands: [] },
+		});
+
+		const snapshot = controller.getSnapshot();
+		assert.deepEqual(renders, [
+			{ trackId: 'effect-track-a', startFrame, endFrame },
+			{ trackId: 'effect-track-b', startFrame, endFrame },
+			{ trackId: 'effect-track-a', startFrame: 0, endFrame: startFrame },
+			{ trackId: 'effect-track-b', startFrame: 0, endFrame: startFrame },
+		]);
+		assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
+		assert.deepEqual(snapshot.history.undoEntries[0], {
+			type: 'batch',
+			commandCount: 3,
+			commands: ['range/replace', 'range/replace', 'selection/set'],
+		});
+		for (const [trackId, input] of inputs) {
+			const track = snapshot.project.tracks.find((candidate) => candidate.id === trackId);
+			const replacement = snapshot.project.clips.find((clip) => (
+				track.clipIds.includes(clip.id) && clip.sourceId !== `${trackId}-source`
+			));
+			const output = await storedChannel(store, replacement.sourceId, 0);
+			assert.deepEqual(output, input.slice(startFrame, endFrame));
+		}
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('clip-only effects keep working without an active time selection', async () => {
 	const frameCount = 256;
 	const inputs = new Map([

@@ -36,6 +36,7 @@ export * from './project.js';
 export * from './project-v2.js';
 export * from './resample.js';
 export * from './sample-edit.js';
+export * from './selection-effects.js';
 export * from './engine.js';
 export * from './recording.js';
 export * from './recording-routing.js';

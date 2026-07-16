@@ -50,6 +50,7 @@ import { boundedCanvasDimensions } from '../../../lib/tools/audio-editor/design-
 import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-export.js';
 import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
+import { ParametricEqEditor } from './ParametricEqEditor.jsx';
 import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
 
 const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
@@ -84,7 +85,7 @@ function ControlledDialog({
 
 	const handleHeaderMouseDown = (event) => {
 		if (!draggable || event.button !== 0 || event.target.closest('button, input, select, textarea, a')) return;
-		e.preventDefault();
+		event.preventDefault();
 		dragRef.current = {
 			startX: event.clientX,
 			startY: event.clientY,
@@ -609,7 +610,7 @@ export function AudioEditorEffectsOverlay({
 					isOpen
 					title={safeEffectLabel(effect.type, copy)}
 					onClose={() => setSelectedEffect(null)}
-					width={620}
+					width={effect.type === 'eq' ? 920 : 620}
 					modal={false}
 					draggable
 					className="audio-editor-effect-settings-dialog"
@@ -645,6 +646,49 @@ export function AudioEditorEffectsOverlay({
 								))
 								: null}
 							noiseProfileLabel={effect.context?.noiseProfile ? copy.replaceNoiseProfile : copy.getNoiseProfile}
+							sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
+							onParametricEqGestureBegin={() => controller.actions.effects.beginParametricEqGesture?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+							)}
+							onParametricEqPreview={(params) => controller.actions.effects.previewParametricEq?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+								params,
+							)}
+							onParametricEqCommit={(params) => controller.actions.effects.commitParametricEqGesture
+								? controller.actions.effects.commitParametricEqGesture(
+									effectScope,
+									effectScope === 'master' ? null : targetId,
+									effect.id,
+									params,
+								)
+								: controller.actions.effects.update(
+									effectScope,
+									effectScope === 'master' ? null : targetId,
+									effect.id,
+									{ params },
+								)}
+							onParametricEqCancel={() => controller.actions.effects.cancelParametricEqGesture?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+							)}
+							onParametricEqAudition={(bandId) => controller.actions.effects.auditionParametricEq?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+								bandId,
+							)}
+							readParametricEqSpectrum={(which, target) => controller.actions.effects.readParametricEqSpectrum?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+								which,
+								target,
+							)}
 							onChange={(changes) => run(() => controller.actions.effects.update(
 								effectScope,
 								effectScope === 'master' ? null : targetId,
@@ -927,7 +971,7 @@ export function AudioEditorMacroManagerDialog({
 					isOpen
 					title={safeEffectLabel(selectedEffect.type, copy)}
 					onClose={() => setSelectedEffectId(null)}
-					width={620}
+					width={selectedEffect.type === 'eq' ? 920 : 620}
 					className="audio-editor-effect-settings-dialog audio-editor-macro-effect-settings-dialog"
 					dataAttributes={{ 'data-macro-effect': selectedEffect.id }}
 				>
@@ -937,6 +981,7 @@ export function AudioEditorMacroManagerDialog({
 							locale={locale}
 							copy={copy}
 							disabled={false}
+							sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
 							tracks={project?.tracks || []}
 							targetTrackId={snapshot.selectedTrackId}
 							hideControlTrack
@@ -1053,12 +1098,12 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		<ControlledDialog
 			isOpen={isOpen}
 			title={copy.selectionEffects || copy.audacityEffectsTitle}
-			headerTitle={audacityEffectLabel(selectionType, copy)}
+			headerTitle={safeEffectLabel(selectionType, copy)}
 			onClose={() => {
 				controller.actions.effects.cancelPreview();
 				onClose?.();
 			}}
-			width={720}
+			width={selectionType === 'eq' ? 920 : 720}
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
 			headerSlot={(
@@ -1151,7 +1196,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		>
 			<section className="audio-editor-selection-effects" data-audacity-effect-panel>
 				<div>
-					<h3>{audacityEffectLabel(selectionType, copy)}</h3>
+					<h3>{safeEffectLabel(selectionType, copy)}</h3>
 					<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
 				</div>
 				<Separator />
@@ -1177,6 +1222,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 					locale={locale}
 					copy={copy}
 					disabled={blocked}
+					sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
 					tracks={project?.tracks || []}
 					targetTrackId={selectedTrack?.id || null}
 					captureNoiseProfile={selectionType === 'audacity-noise-reduction'
@@ -1184,8 +1230,19 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 						: null}
 					noiseProfileLabel={snapshot.effects?.noiseProfileReady ? copy.noiseProfileReady : copy.getNoiseProfile}
 					hideControlTrack
+					readParametricEqSpectrum={selectionType === 'eq'
+						? controller.actions.effects.readSelectionParametricEqSpectrum
+						: undefined}
+					onParametricEqAudition={selectionType === 'eq'
+						? controller.actions.effects.auditionSelectionParametricEq
+						: undefined}
 					onChange={(changes) => changes.params && updateSelectionParams(changes.params)}
 				/>
+				{selectionType === 'eq' && snapshot.selection?.frequencyRange && (
+					<p className="audio-editor-panel-hint" data-parametric-eq-spectral-notice>
+						{copy.eqSpectralSelectionNotice || 'The EQ uses the spectral box time span and affects the full spectrum.'}
+					</p>
+				)}
 				<p className="audio-editor-panel-hint" data-audacity-effect-hint>{copy.audacitySelectionHint}</p>
 				{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
 			</section>
@@ -1230,9 +1287,16 @@ function EffectParameterEditor({
 	disabled,
 	tracks,
 	targetTrackId,
+	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	captureNoiseProfile,
 	noiseProfileLabel,
 	hideControlTrack = false,
+	onParametricEqGestureBegin,
+	onParametricEqPreview,
+	onParametricEqCommit,
+	onParametricEqCancel,
+	onParametricEqAudition,
+	readParametricEqSpectrum,
 	onChange,
 }) {
 	const [error, setError] = useState('');
@@ -1246,26 +1310,30 @@ function EffectParameterEditor({
 	const updateParam = (name, value) => update({ params: { [name]: value } });
 
 	if (!definition) {
+		if (effect.type === 'eq') {
+			return (
+				<div className="audio-editor-effect-parameters audio-editor-effect-parameters--parametric-eq" data-effect-parameters>
+					<ParametricEqEditor
+						params={effect.params}
+						effectId={effect.id || 'selection-eq'}
+						sampleRate={sampleRate}
+						copy={copy}
+						disabled={disabled}
+						onGestureBegin={onParametricEqGestureBegin}
+						onPreview={onParametricEqPreview}
+						onCommit={(params) => onParametricEqCommit ? onParametricEqCommit(params) : update({ params })}
+						onCancel={onParametricEqCancel}
+						onAudition={onParametricEqAudition}
+						readSpectrum={readParametricEqSpectrum}
+					/>
+					{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+				</div>
+			);
+		}
 		const ranges = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges || {};
-		const parameterNames = effect.type === 'eq'
-			? ['bands']
-			: Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
+		const parameterNames = Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 		const renderNativeParameter = (name) => {
-			if (name === 'bands') {
-				return (
-					<div className="audio-editor-native-eq-bands" data-effect-param="bands">
-						{(effect.params.bands || []).map((band, index) => (
-							<section className="audio-editor-native-eq-band" key={index}>
-								<h4>{copy.bandNumber.replace('{number}', String(index + 1))}</h4>
-								<ParameterNumber label="Hz" value={band.frequency} range={[10, 24_000]} step={1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.frequency`} onCommit={(value) => updateEqBand(effect, index, 'frequency', value, update)} />
-								<ParameterNumber label="dB" value={band.gain} range={[-24, 24]} step={0.1} presentation="slider" copy={copy} disabled={disabled} hook={`bands.${index}.gain`} onCommit={(value) => updateEqBand(effect, index, 'gain', value, update)} />
-								<ParameterNumber label="Q" value={band.q} range={[0.1, 30]} step={0.1} presentation="number" copy={copy} disabled={disabled} hook={`bands.${index}.q`} onCommit={(value) => updateEqBand(effect, index, 'q', value, update)} />
-							</section>
-						))}
-					</div>
-				);
-			}
 			return (
 				<ParameterNumber
 					label={effectParameterLabel(name, copy)}

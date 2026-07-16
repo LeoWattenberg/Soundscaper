@@ -749,6 +749,70 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 	await controller.dispose();
 });
 
+test('parametric EQ gestures preview live and commit one history entry without rebuilding playback', async () => {
+	const engine = createMemoryEngine();
+	engine.eqConfigurations = [];
+	engine.eqAuditions = [];
+	engine.configureParametricEq = function configureParametricEq(scope, targetId, effectId, params) {
+		this.eqConfigurations.push({ scope, targetId, effectId, params: structuredClone(params) });
+		return this.eqConfigurations.length;
+	};
+	engine.auditionParametricEq = function auditionParametricEq(scope, targetId, effectId, bandId) {
+		this.eqAuditions.push({ scope, targetId, effectId, bandId });
+		return this.eqAuditions.length;
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	const effectId = controller.actions.effects.add({ scope: 'track', trackId, type: 'eq' });
+	await Promise.resolve();
+	await Promise.resolve();
+	engine.appliedProjects.length = 0;
+
+	const before = controller.getSnapshot();
+	const original = before.project.tracks[0].effects.find((effect) => effect.id === effectId).params;
+	const preview = structuredClone(original);
+	preview.bands[0].gain = 9;
+	controller.actions.effects.beginParametricEqGesture('track', trackId, effectId);
+	controller.actions.effects.previewParametricEq('track', trackId, effectId, preview);
+	assert.equal(engine.eqConfigurations.at(-1).params.bands[0].gain, 9);
+	assert.equal(controller.getSnapshot().project.tracks[0].effects[0].params.bands[0].gain, 0);
+
+	const finalParams = structuredClone(preview);
+	finalParams.bands[0].gain = 12;
+	controller.actions.effects.commitParametricEqGesture('track', trackId, effectId, finalParams);
+	const committed = controller.getSnapshot();
+	assert.equal(committed.project.tracks[0].effects[0].params.bands[0].gain, 12);
+	assert.equal(committed.history.undoEntries.length, before.history.undoEntries.length + 1);
+	assert.equal(engine.appliedProjects.length, 0);
+
+	controller.actions.effects.beginParametricEqGesture('track', trackId, effectId);
+	const cancelled = structuredClone(finalParams);
+	cancelled.bands[0].gain = -18;
+	controller.actions.effects.previewParametricEq('track', trackId, effectId, cancelled);
+	controller.actions.effects.cancelParametricEqGesture('track', trackId, effectId);
+	assert.equal(engine.eqConfigurations.at(-1).params.bands[0].gain, 12);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, committed.history.undoEntries.length);
+	const invalid = structuredClone(finalParams);
+	invalid.bands[0].gain = Number.NaN;
+	const configurationCount = engine.eqConfigurations.length;
+	assert.throws(
+		() => controller.actions.effects.previewParametricEq('track', trackId, effectId, invalid),
+		/eq\.bands\[0\]\.gain must be between -24 and 24/,
+	);
+	assert.equal(engine.eqConfigurations.length, configurationCount);
+	controller.actions.effects.auditionParametricEq('track', trackId, effectId, finalParams.bands[0].id);
+	assert.equal(engine.eqAuditions.at(-1).bandId, finalParams.bands[0].id);
+	await controller.dispose();
+});
+
 test('controller renders a macro as an ordered isolated rack and persists one destructive history edit', async () => {
 	const store = createProjectStore({
 		indexedDB: null,
@@ -1490,6 +1554,155 @@ test('controller waits for first clip caches, refreshes stale playback, exports 
 	assert.equal(cache.disposeCalls, 1);
 });
 
+test('controller surfaces parametric EQ processor failures and unsubscribes on disposal', async () => {
+	const engine = createMemoryEngine();
+	const listeners = new Set();
+	let unsubscribeCalls = 0;
+	engine.subscribeParametricEqErrors = (listener) => {
+		listeners.add(listener);
+		return () => {
+			unsubscribeCalls += 1;
+			listeners.delete(listener);
+		};
+	};
+	engine.emitParametricEqError = (error) => {
+		for (const listener of listeners) listener(error);
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	engine.emitParametricEqError({
+		type: 'error',
+		message: 'mock EQ processor failure',
+		scope: 'track',
+		targetId: 'track-1',
+		effectId: 'track-eq',
+	});
+	assert.deepEqual(controller.getSnapshot().status, {
+		message: 'Error: mock EQ processor failure',
+		state: 'error',
+	});
+
+	await controller.dispose();
+	const disposed = controller.getSnapshot();
+	assert.equal(unsubscribeCalls, 1);
+	assert.equal(listeners.size, 0);
+	engine.emitParametricEqError({ type: 'error', message: 'late EQ processor failure' });
+	assert.strictEqual(controller.getSnapshot(), disposed);
+});
+
+test('canceling an asynchronous parametric EQ selection preview prevents a late source from starting', async () => {
+	const engine = createMemoryEngine();
+	const renderStarted = deferred();
+	const renderGate = deferred();
+	let previewCreations = 0;
+	let previewStarts = 0;
+	engine.createParametricEqPreview = async () => {
+		previewCreations += 1;
+		return {
+			start() { previewStarts += 1; },
+			stop() {},
+			disconnect() {},
+		};
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+		renderSnapshot: async () => {
+			renderStarted.resolve();
+			await renderGate.promise;
+			return new MockAudioBuffer(1, 4_800, 48_000);
+		},
+	});
+	try {
+		await controller.ready;
+		installSelectionPreviewFixture(controller);
+		const pending = controller.actions.effects.previewSelection({ type: 'eq' });
+		await renderStarted.promise;
+		assert.equal(controller.getSnapshot().processingEffect, true);
+
+		assert.equal(controller.actions.effects.cancelPreview(), false);
+		renderGate.resolve();
+		assert.equal(await pending, false);
+		assert.equal(previewCreations, 0);
+		assert.equal(previewStarts, 0);
+		assert.equal(controller.getSnapshot().effects.previewing, false);
+		assert.equal(controller.getSnapshot().processingEffect, false);
+	} finally {
+		renderGate.resolve();
+		await controller.dispose();
+	}
+});
+
+test('parametric EQ selection preview errors stop the source and cannot be overwritten by a late ending', async () => {
+	const engine = createMemoryEngine();
+	const listeners = new Set();
+	engine.subscribeParametricEqErrors = (listener) => {
+		listeners.add(listener);
+		return () => listeners.delete(listener);
+	};
+	engine.emitParametricEqError = (error) => {
+		for (const listener of listeners) listener(error);
+	};
+	const preview = {
+		onended: null,
+		onerror: null,
+		startCalls: 0,
+		stopCalls: 0,
+		disconnectCalls: 0,
+		start() { this.startCalls += 1; },
+		stop() { this.stopCalls += 1; },
+		disconnect() { this.disconnectCalls += 1; },
+	};
+	engine.createParametricEqPreview = async () => preview;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+		renderSnapshot: async () => new MockAudioBuffer(1, 4_800, 48_000),
+	});
+	try {
+		await controller.ready;
+		installSelectionPreviewFixture(controller);
+		assert.equal(await controller.actions.effects.previewSelection({ type: 'eq' }), true);
+		assert.equal(preview.startCalls, 1);
+		assert.equal(controller.getSnapshot().effects.previewing, true);
+		const lateEnded = preview.onended;
+
+		const error = { type: 'error', message: 'mock selection EQ processor failure' };
+		engine.emitParametricEqError(error);
+		preview.onerror(error);
+		assert.equal(preview.stopCalls, 1);
+		assert.equal(preview.disconnectCalls, 1);
+		assert.equal(preview.onended, null);
+		assert.equal(controller.getSnapshot().effects.previewing, false);
+		assert.deepEqual(controller.getSnapshot().status, {
+			message: 'Error: mock selection EQ processor failure',
+			state: 'error',
+		});
+
+		lateEnded();
+		assert.deepEqual(controller.getSnapshot().status, {
+			message: 'Error: mock selection EQ processor failure',
+			state: 'error',
+		});
+		assert.equal(preview.disconnectCalls, 1);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('headless controller publishes disposal once and closes injected runtimes', async () => {
 	const store = createMemoryStore();
 	const engine = createMemoryEngine();
@@ -1690,6 +1903,40 @@ function createMemoryEngine() {
 		},
 		async dispose() { this.disposeCalls += 1; },
 	};
+}
+
+function installSelectionPreviewFixture(controller) {
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				id: 'selection-preview-source',
+				name: 'preview.wav',
+				storageKey: 'selection-preview-source',
+				mimeType: 'audio/wav',
+				frameCount: 4_800,
+				channelCount: 1,
+				sampleRate: 48_000,
+				originalSampleRate: 48_000,
+			},
+		}, {
+			type: 'clip/add',
+			trackId,
+			clip: {
+				id: 'selection-preview-clip',
+				sourceId: 'selection-preview-source',
+				title: 'Preview',
+				timelineStartFrame: 0,
+				sourceStartFrame: 0,
+				sourceDurationFrames: 4_800,
+				durationFrames: 4_800,
+			},
+		}],
+	});
+	controller.actions.timeline.selectTrack(trackId);
+	controller.actions.timeline.setSelection(0, 4_800);
 }
 
 function createMemoryRenderEngine(options = {}) {

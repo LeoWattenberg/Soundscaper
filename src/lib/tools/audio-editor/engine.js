@@ -14,6 +14,9 @@ import {
 } from './chunk-stream-client.js';
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from './chunk-stream.js';
 import { createAsyncPlanarPcmSinkQueue } from './pcm-sink.js';
+import { loadParametricEqWasmModule } from './parametric-eq/wasm-loader.js';
+import { designParametricEqWasmConfiguration } from './parametric-eq/wasm-runtime.js';
+import { audioTrackChannelCountV2 } from './project-v2.js';
 export {
 	createRecordingCapturePool,
 	createRecordingController,
@@ -30,8 +33,17 @@ const STREAM_RESAMPLE_RADIUS = 24;
 const PLAY_AT_SPEED_MINIMUM_RATE = 0.5;
 const PLAY_AT_SPEED_MAXIMUM_RATE = 2;
 export const PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES = AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES;
+export const PARAMETRIC_EQ_SPECTRUM_FFT_SIZE = 4_096;
+const PARAMETRIC_EQ_WORKLET_NAME = 'kw-parametric-eq';
+const PARAMETRIC_EQ_TYPES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
 const dynamicsWorkletContexts = new WeakSet();
 const audacityWorkletContexts = new WeakSet();
+const parametricEqWorkletContexts = new WeakSet();
+const parametricEqWasmModules = new WeakMap();
+const dynamicsWorkletLoads = new WeakMap();
+const audacityWorkletLoads = new WeakMap();
+const parametricEqWorkletLoads = new WeakMap();
+const parametricEqPortMessageHandlers = new WeakMap();
 
 export function isAudioEditorEngineSupported() {
 	return Boolean(getAudioContextConstructor());
@@ -58,6 +70,7 @@ export class WebAudioEditorEngine {
 		onPosition,
 		onMeter,
 		onState,
+		onParametricEqError,
 		meterInterval = DEFAULT_METER_INTERVAL,
 	} = {}) {
 		this.audioContextFactory = audioContextFactory || getAudioContextConstructor();
@@ -93,6 +106,7 @@ export class WebAudioEditorEngine {
 		this.positionListeners = new Set(onPosition ? [onPosition] : []);
 		this.meterListeners = new Set(onMeter ? [onMeter] : []);
 		this.stateListeners = new Set(onState ? [onState] : []);
+		this.parametricEqErrorListeners = new Set(onParametricEqError ? [onParametricEqError] : []);
 	}
 
 	loadProject(project, sourceBuffers = new Map(), options = {}) {
@@ -329,6 +343,8 @@ export class WebAudioEditorEngine {
 		const graph = buildProjectGraph(context, context.destination, this.project, {
 			metering: false,
 			respectMuteSolo: true,
+			parametricEqWasmModule: parametricEqWasmModules.get(context),
+			onParametricEqError: (error) => this.#emitParametricEqError(error),
 		});
 		this.graph = graph;
 		try {
@@ -448,6 +464,155 @@ export class WebAudioEditorEngine {
 		return () => this.stateListeners.delete(listener);
 	}
 
+	/** Subscribe to failures reported by parametric EQ processor ports. */
+	subscribeParametricEqErrors(listener) {
+		if (typeof listener !== 'function') return () => {};
+		this.parametricEqErrorListeners.add(listener);
+		return () => this.parametricEqErrorListeners.delete(listener);
+	}
+
+	/** Update an active parametric EQ without rebuilding or restarting playback. */
+	configureParametricEq(scope, targetId, effectId, params, options = {}) {
+		if (!params || typeof params !== 'object' || Array.isArray(params)) {
+			throw new TypeError('Parametric EQ parameters must be an object.');
+		}
+		designParametricEqWasmConfiguration(
+			params,
+			this.context?.sampleRate || this.sampleRate,
+			{ effectId },
+		);
+		const message = { type: 'configure', params };
+		if (options.transitionFrames !== undefined) {
+			message.transitionFrames = safeMessageSequence(options.transitionFrames, 'transitionFrames');
+		}
+		const sequence = postParametricEqMessage(
+			this.graph,
+			scope,
+			targetId,
+			effectId,
+			message,
+			options.revision,
+		);
+		if (sequence !== false) {
+			this.project = projectWithParametricEqParams(this.project, scope, targetId, effectId, params) || this.project;
+		}
+		return sequence;
+	}
+
+	/** Temporarily audition one EQ band; pass null to return to the normal path. */
+	auditionParametricEq(scope, targetId, effectId, bandId = null) {
+		if (bandId !== null && (typeof bandId !== 'string' || !bandId)) {
+			throw new TypeError('A parametric EQ audition band ID must be a non-empty string or null.');
+		}
+		return postParametricEqMessage(this.graph, scope, targetId, effectId, {
+			type: 'audition',
+			bandId,
+		});
+	}
+
+	/** Clear an active EQ processor's filter history without rebuilding its graph. */
+	resetParametricEq(scope, targetId, effectId) {
+		return postParametricEqMessage(this.graph, scope, targetId, effectId, { type: 'reset' });
+	}
+
+	/**
+	 * Copy one active EQ spectrum into a caller-owned frequency-domain buffer.
+	 * Returns immutable analyser metadata, or null when no matching live analyser exists.
+	 */
+	readParametricEqSpectrum(scope, targetId, effectId, which, target) {
+		const key = effectGraphKey(scope, targetId, effectId);
+		const entry = this.graph?.effectAnalysers?.get(key);
+		return readParametricEqSpectrumEntry(entry, which, target);
+	}
+
+	/** Build an independent selection-preview graph through the production EQ worklet. */
+	async createParametricEqPreview(buffer, params, { effectId = 'selection-preview-eq' } = {}) {
+		if (!buffer || !Number.isSafeInteger(buffer.numberOfChannels)
+			|| buffer.numberOfChannels < 1 || buffer.numberOfChannels > 32) {
+			throw new RangeError('Parametric EQ preview requires an AudioBuffer with between one and 32 channels.');
+		}
+		const context = await this.getAudioContext({ resume: true });
+		const wasmModule = await ensureParametricEqWorklet(context);
+		const nodes = [];
+		const effectNodes = new Map();
+		const effectAnalysers = new Map();
+		let previewError = null;
+		let previewErrorListener = null;
+		const source = addNode(nodes, context.createBufferSource());
+		source.buffer = buffer;
+		let output;
+		try {
+			output = applyEffect(context, source, {
+				id: effectId,
+				type: 'eq',
+				enabled: true,
+				params,
+			}, nodes, {
+				scope: 'master',
+				targetId: null,
+				effectAnalysis: true,
+				effectNodes,
+				effectAnalysers,
+				parametricEqWasmModule: wasmModule,
+				parametricEqChannelCount: buffer.numberOfChannels,
+				onParametricEqError: (error) => {
+					previewError ||= error;
+					this.#emitParametricEqError(error);
+					previewErrorListener?.(error);
+				},
+			});
+			connect(output, context.destination);
+		} catch (error) {
+			for (const node of nodes.reverse()) {
+				try { node.disconnect(); } catch { /* The partially built graph may already be disconnected. */ }
+			}
+			throw error;
+		}
+		const key = effectGraphKey('master', null, effectId);
+		const processor = effectNodes.get(key);
+		const analyserEntry = effectAnalysers.get(key);
+		const graph = {
+			nodes,
+			sources: new Set([source]),
+			effectNodes,
+			effectAnalysers,
+			effectMessageSequences: new Map(),
+		};
+		let sequence = 0;
+		let disposed = false;
+		const postPreviewMessage = (message) => {
+			if (disposed || !processor?.port?.postMessage) return false;
+			sequence += 1;
+			processor.port.postMessage({ ...message, revision: sequence, sequence });
+			return sequence;
+		};
+		return {
+			source,
+			get onended() { return source.onended; },
+			set onended(listener) { source.onended = listener; },
+			get onerror() { return previewErrorListener; },
+			set onerror(listener) {
+				previewErrorListener = typeof listener === 'function' ? listener : null;
+				if (previewError && previewErrorListener) previewErrorListener(previewError);
+			},
+			start: (...args) => source.start(...args),
+			stop: (...args) => source.stop(...args),
+			configure: (nextParams) => postPreviewMessage({
+					type: 'configure',
+					params: cloneMessageValue(nextParams),
+					mode: 'smooth',
+				}),
+			audition: (bandId) => postPreviewMessage({ type: 'audition', bandId }),
+			readSpectrum: (which, target) => readParametricEqSpectrumEntry(analyserEntry, which, target),
+			disconnect: () => {
+				if (disposed) return;
+				disposed = true;
+				previewErrorListener = null;
+				disposeGraph(graph, false);
+			},
+		};
+	}
+
 	/**
 	 * Render an authoritative mix using the same graph builder as live playback.
 	 * @returns {Promise<AudioBuffer | { sampleRate: number, length: number, numberOfChannels: number, channels: Float32Array[] }>}
@@ -503,15 +668,22 @@ export class WebAudioEditorEngine {
 		}
 
 		const context = createOfflineContext(this.offlineAudioContextFactory, 2, outputLength, this.sampleRate);
-		await ensureProjectWorklets(context, this.project);
-		const graph = buildProjectGraph(context, context.destination, this.project, {
-			metering: false,
-			respectMuteSolo,
-			trackId,
-			includeMaster,
-			includeTrackPan,
-		});
+		let parametricEqFailure = null;
+		let graph = null;
 		try {
+			await ensureProjectWorklets(context, this.project);
+			graph = buildProjectGraph(context, context.destination, this.project, {
+				metering: false,
+				respectMuteSolo,
+				trackId,
+				includeMaster,
+				includeTrackPan,
+				parametricEqWasmModule: parametricEqWasmModules.get(context),
+				onParametricEqError: (error) => {
+					this.#emitParametricEqError(error);
+					parametricEqFailure ||= parametricEqProcessingError(error);
+				},
+			});
 			await scheduleProjectClips({
 				context,
 				project: this.project,
@@ -533,12 +705,17 @@ export class WebAudioEditorEngine {
 			});
 			throwIfAborted(signal);
 			const rendered = await abortable(context.startRendering(), signal);
+			// OfflineAudioWorklet failures are delivered as queued events in some
+			// engines after the render promise settles.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			throwIfAborted(signal);
+			if (parametricEqFailure) throw parametricEqFailure;
 			const captureOffset = warmupFrames + processingLatencyFrames;
 			return captureOffset || rendered.length !== requestedLength
 				? sliceAudioBuffer(context, rendered, captureOffset, requestedLength)
 				: rendered;
 		} finally {
-			disposeGraph(graph, false);
+			if (graph) disposeGraph(graph, false);
 		}
 	}
 
@@ -576,39 +753,61 @@ export class WebAudioEditorEngine {
 			await context.close?.();
 			throw new Error('Realtime AudioWorklet rendering is not supported in this browser.');
 		}
-		await context.audioWorklet.addModule(new URL('./render-capture-worklet.js', import.meta.url));
-		await ensureProjectWorklets(context, this.project);
-		const outputFrames = requestedOutputFrames == null
-			? Math.max(1, Math.round((toFrame - fromFrame + tailFrames) / this.sampleRate * context.sampleRate))
-			: positiveInteger(requestedOutputFrames, 1);
-		const startTime = context.currentTime + 0.08;
-		const warmupContextFrames = Math.round(warmupProjectFrames / this.sampleRate * context.sampleRate);
-		const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
-			trackId,
-			includeMaster,
-			sampleRate: context.sampleRate,
-		});
-		const capture = new globalThis.AudioWorkletNode(context, 'kw-audio-render-capture', {
-			numberOfInputs: 1,
-			numberOfOutputs: 1,
-			outputChannelCount: [2],
-			processorOptions: {
-				startFrame: Math.ceil(startTime * context.sampleRate) + warmupContextFrames + processingLatencyFrames,
-				totalFrames: outputFrames,
-				chunkFrames: Math.max(128, Math.min(16_384, Math.floor(chunkFrames))),
-			},
-		});
-		const silent = context.createGain();
-		silent.gain.value = 0;
-		capture.connect(silent);
-		silent.connect(context.destination);
-		const graph = buildProjectGraph(context, capture, this.project, {
-			metering: false,
-			respectMuteSolo,
-			trackId,
-			includeMaster,
-			includeTrackPan,
-		});
+		let parametricEqFailure = null;
+		let failParametricEqRender = null;
+		let outputFrames = 0;
+		let startTime = 0;
+		let capture = null;
+		let silent = null;
+		let graph = null;
+		try {
+			await context.audioWorklet.addModule(new URL('./render-capture-worklet.js', import.meta.url));
+			await ensureProjectWorklets(context, this.project);
+			outputFrames = requestedOutputFrames == null
+				? Math.max(1, Math.round((toFrame - fromFrame + tailFrames) / this.sampleRate * context.sampleRate))
+				: positiveInteger(requestedOutputFrames, 1);
+			startTime = context.currentTime + 0.08;
+			const warmupContextFrames = Math.round(warmupProjectFrames / this.sampleRate * context.sampleRate);
+			const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
+				trackId,
+				includeMaster,
+				sampleRate: context.sampleRate,
+			});
+			capture = new globalThis.AudioWorkletNode(context, 'kw-audio-render-capture', {
+				numberOfInputs: 1,
+				numberOfOutputs: 1,
+				outputChannelCount: [2],
+				processorOptions: {
+					startFrame: Math.ceil(startTime * context.sampleRate) + warmupContextFrames + processingLatencyFrames,
+					totalFrames: outputFrames,
+					chunkFrames: Math.max(128, Math.min(16_384, Math.floor(chunkFrames))),
+				},
+			});
+			silent = context.createGain();
+			silent.gain.value = 0;
+			capture.connect(silent);
+			silent.connect(context.destination);
+			graph = buildProjectGraph(context, capture, this.project, {
+				metering: false,
+				respectMuteSolo,
+				trackId,
+				includeMaster,
+				includeTrackPan,
+				parametricEqWasmModule: parametricEqWasmModules.get(context),
+				onParametricEqError: (error) => {
+					this.#emitParametricEqError(error);
+					parametricEqFailure ||= parametricEqProcessingError(error);
+					graph?.abortController?.abort?.(parametricEqFailure);
+					failParametricEqRender?.(parametricEqFailure);
+				},
+			});
+		} catch (error) {
+			if (graph) disposeGraph(graph, true);
+			try { capture?.disconnect(); } catch { /* The capture node may not have connected. */ }
+			try { silent?.disconnect(); } catch { /* The silent node may not have connected. */ }
+			if (context.state !== 'closed') await context.close?.();
+			throw parametricEqFailure || error;
+		}
 		const abortGraph = () => graph.abortController.abort();
 		signal?.addEventListener('abort', abortGraph, { once: true });
 		try {
@@ -638,7 +837,7 @@ export class WebAudioEditorEngine {
 			try { capture.disconnect(); } catch { /* Already disconnected. */ }
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
-			throw error;
+			throw parametricEqFailure || error;
 		}
 
 		let renderedFrames = 0;
@@ -653,6 +852,8 @@ export class WebAudioEditorEngine {
 			graph.abortController.abort(failure);
 			rejectDone(failure);
 		};
+		failParametricEqRender = failRender;
+		if (parametricEqFailure) failRender(parametricEqFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { onError: failRender });
 		const abort = () => failRender(createAbortError());
 		signal?.addEventListener('abort', abort, { once: true });
@@ -752,6 +953,7 @@ export class WebAudioEditorEngine {
 		this.positionListeners.clear();
 		this.meterListeners.clear();
 		this.stateListeners.clear();
+		this.parametricEqErrorListeners.clear();
 		this.reversedBuffers = new WeakMap();
 		this.preparedSpeedPlayback = null;
 		const context = this.context;
@@ -823,6 +1025,9 @@ export class WebAudioEditorEngine {
 			groupAnalysers: new Map(),
 			sendAnalysers: new Map(),
 			masterAnalyser,
+			effectNodes: new Map(),
+			effectAnalysers: new Map(),
+			effectMessageSequences: new Map(),
 			latencyFrames: 0,
 		};
 		try {
@@ -848,6 +1053,9 @@ export class WebAudioEditorEngine {
 		this.graph = buildProjectGraph(context, context.destination, this.project, {
 			metering: this.meterListeners.size > 0,
 			respectMuteSolo: true,
+			effectAnalysis: true,
+			parametricEqWasmModule: parametricEqWasmModules.get(context),
+			onParametricEqError: (error) => this.#emitParametricEqError(error),
 		});
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		const graph = this.graph;
@@ -999,6 +1207,10 @@ export class WebAudioEditorEngine {
 		for (const listener of this.meterListeners) listener(meter);
 	}
 
+	#emitParametricEqError(error) {
+		for (const listener of this.parametricEqErrorListeners) listener(error);
+	}
+
 	#setState(value) {
 		if (this.state === value) return;
 		this.state = value;
@@ -1012,6 +1224,73 @@ export function getProjectDurationFrames(project) {
 		duration = Math.max(duration, clipStart(clip) + clipDuration(clip));
 	}
 	return duration;
+}
+
+/** Iterate every rack location that the project graph can process. */
+export function* projectEffectRacks(project) {
+	for (const [index, track] of (project?.tracks || []).entries()) {
+		if (track?.type === 'label') continue;
+		yield {
+			scope: 'track',
+			targetId: String(track?.id ?? index),
+			effects: Array.isArray(track?.effects) ? track.effects : [],
+		};
+	}
+	for (const [scope, buses] of [
+		['group', project?.mixer?.groups],
+		['send', project?.mixer?.sends],
+	]) {
+		for (const bus of Array.isArray(buses) ? buses : []) {
+			yield {
+				scope,
+				targetId: String(bus.id),
+				effects: Array.isArray(bus.effects) ? bus.effects : [],
+			};
+		}
+	}
+	yield {
+		scope: 'master',
+		targetId: null,
+		effects: Array.isArray(project?.master?.effects) ? project.master.effects : [],
+	};
+}
+
+function projectWithParametricEqParams(project, scope, targetId, effectId, params) {
+	if (!project) return null;
+	const normalizedScope = String(scope || '');
+	const replaceEffects = (effects) => {
+		if (!Array.isArray(effects)) return null;
+		const index = effects.findIndex((effect) => effect?.id === effectId && isParametricEqType(effect?.type));
+		if (index < 0) return null;
+		const output = effects.slice();
+		output[index] = { ...effects[index], params: cloneMessageValue(params) };
+		return output;
+	};
+	if (normalizedScope === 'master') {
+		const effects = replaceEffects(project.master?.effects);
+		return effects ? { ...project, master: { ...project.master, effects } } : null;
+	}
+	if (normalizedScope === 'track') {
+		const index = (project.tracks || []).findIndex((track) => String(track?.id) === String(targetId));
+		if (index < 0) return null;
+		const effects = replaceEffects(project.tracks[index]?.effects);
+		if (!effects) return null;
+		const tracks = project.tracks.slice();
+		tracks[index] = { ...tracks[index], effects };
+		return { ...project, tracks };
+	}
+	if (normalizedScope === 'group' || normalizedScope === 'send') {
+		const key = normalizedScope === 'group' ? 'groups' : 'sends';
+		const buses = project.mixer?.[key] || [];
+		const index = buses.findIndex((bus) => String(bus?.id) === String(targetId));
+		if (index < 0) return null;
+		const effects = replaceEffects(buses[index]?.effects);
+		if (!effects) return null;
+		const nextBuses = buses.slice();
+		nextBuses[index] = { ...nextBuses[index], effects };
+		return { ...project, mixer: { ...project.mixer, [key]: nextBuses } };
+	}
+	return null;
 }
 
 export function projectGraphLatencyFrames(project, {
@@ -1043,6 +1322,9 @@ export function buildProjectGraph(context, destination, project, {
 	trackId: onlyTrackId = null,
 	includeMaster = true,
 	includeTrackPan = true,
+	effectAnalysis = false,
+	parametricEqWasmModule = null,
+	onParametricEqError = null,
 } = {}) {
 	const nodes = [];
 	const sources = new Set();
@@ -1051,6 +1333,9 @@ export function buildProjectGraph(context, destination, project, {
 	const trackAnalysers = new Map();
 	const groupAnalysers = new Map();
 	const sendAnalysers = new Map();
+	const effectNodes = new Map();
+	const effectAnalysers = new Map();
+	const effectMessageSequences = new Map();
 	const tracks = Array.isArray(project?.tracks) ? project.tracks.filter((track) => track.type !== 'label') : [];
 	const mixer = project?.mixer || {};
 	const groups = Array.isArray(mixer.groups) ? mixer.groups : [];
@@ -1065,6 +1350,15 @@ export function buildProjectGraph(context, destination, project, {
 	const renderedTracks = tracks.filter((track, index) => (
 		onlyTrackId == null || String(onlyTrackId) === String(track.id ?? index)
 	));
+	const effectChannelCounts = new Map(tracks.map((track, index) => [
+		String(track.id ?? index),
+		clamp(audioTrackChannelCountV2(project, track, 2), 1, 32),
+	]));
+	const mixEffectChannelCount = clamp(Math.max(
+		2,
+		positiveInteger(project?.masterChannels, 2),
+		...effectChannelCounts.values(),
+	), 1, 32);
 	const maximumTrackLatency = renderedTracks.reduce((maximum, track) => Math.max(
 		maximum,
 		effectRackLatencyFrames(track.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE),
@@ -1095,7 +1389,17 @@ export function buildProjectGraph(context, destination, project, {
 		if (onlyTrackId != null && String(onlyTrackId) !== trackId) continue;
 		const input = trackInputs.get(trackId);
 		const trackLatency = effectRackLatencyFrames(track.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE);
-		let output = applyEffectRack(context, input, track.effects || [], nodes, { sidechainInputs: trackInputs });
+		let output = applyEffectRack(context, input, track.effects || [], nodes, {
+			sidechainInputs: trackInputs,
+			scope: 'track',
+			targetId: trackId,
+			effectAnalysis,
+			effectNodes,
+			effectAnalysers,
+			parametricEqWasmModule,
+			parametricEqChannelCount: effectChannelCounts.get(trackId),
+			onParametricEqError,
+		});
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, finite(track.gain, 1), context.currentTime);
 		trackGainParams.set(trackId, {
@@ -1146,8 +1450,18 @@ export function buildProjectGraph(context, destination, project, {
 		}
 	}
 
-	const processBus = (bus, input, analysers) => {
-		let output = applyEffectRack(context, input, bus.effects || [], nodes, { sidechainInputs: trackInputs });
+	const processBus = (bus, input, analysers, scope) => {
+		let output = applyEffectRack(context, input, bus.effects || [], nodes, {
+			sidechainInputs: trackInputs,
+			scope,
+			targetId: String(bus.id),
+			effectAnalysis,
+			effectNodes,
+			effectAnalysers,
+			parametricEqWasmModule,
+			parametricEqChannelCount: mixEffectChannelCount,
+			onParametricEqError,
+		});
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, finite(bus.gain, 1), context.currentTime);
 		connect(output, gain);
@@ -1169,14 +1483,22 @@ export function buildProjectGraph(context, destination, project, {
 		connect(output, mute);
 		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0);
 	};
-	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers);
-	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers);
+	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers, 'group');
+	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers, 'send');
 
 	const masterEffects = includeMaster ? project?.master?.effects || [] : [];
 	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
 	const masterOutput = applyEffectRack(context, masterInput, masterEffects, nodes, {
 		sidechainInputs: trackInputs,
 		baseSidechainDelayFrames: maximumTrackLatency,
+		scope: 'master',
+		targetId: null,
+		effectAnalysis,
+		effectNodes,
+		effectAnalysers,
+		parametricEqWasmModule,
+		parametricEqChannelCount: mixEffectChannelCount,
+		onParametricEqError,
 	});
 	const masterGain = addNode(nodes, context.createGain());
 	setParam(masterGain.gain, includeMaster ? finite(project?.master?.gain, 1) : 1, context.currentTime);
@@ -1210,6 +1532,9 @@ export function buildProjectGraph(context, destination, project, {
 		groupAnalysers,
 		sendAnalysers,
 		masterAnalyser,
+		effectNodes,
+		effectAnalysers,
+		effectMessageSequences,
 		latencyFrames: maximumTrackLatency + maximumBusLatency + masterLatency,
 	};
 }
@@ -1304,11 +1629,38 @@ function applyEffect(context, input, effect, nodes, options = {}) {
 			return dynamics;
 		}
 	}
-	if (type === 'eq' || type === 'parametric-eq' || type === 'parametric_eq') {
-		let output = input;
-		const bands = Array.isArray(params.bands) ? params.bands.slice(0, 4) : [];
-		for (const band of bands) output = connectBiquad(context, output, { ...band, type: band.type || 'peaking' }, nodes);
-		return output;
+	if (isParametricEqType(type)) {
+		if (!parametricEqWorkletContexts.has(context)) {
+			throw new Error('The parametric EQ processor was not loaded.');
+		}
+		const WorkletNode = globalThis.AudioWorkletNode || globalThis.window?.AudioWorkletNode;
+		if (typeof WorkletNode !== 'function') {
+			throw new Error('This browser cannot run the parametric EQ.');
+		}
+		if (!(options.parametricEqWasmModule instanceof WebAssembly.Module)) {
+			throw new Error('The parametric EQ WASM module was not compiled.');
+		}
+		const inputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
+		const processorInput = inputAnalyser || input;
+		if (inputAnalyser) connect(input, inputAnalyser);
+		const processor = addNode(nodes, new WorkletNode(context, PARAMETRIC_EQ_WORKLET_NAME, {
+			numberOfInputs: 1,
+			numberOfOutputs: 1,
+			channelCountMode: 'max',
+			channelInterpretation: 'speakers',
+			processorOptions: {
+				sampleRate: context.sampleRate || DEFAULT_SAMPLE_RATE,
+				effectId: effect.id,
+				params,
+				wasmModule: options.parametricEqWasmModule,
+				channelCount: clamp(positiveInteger(options.parametricEqChannelCount, 2), 1, 32),
+			},
+		}));
+		connect(processorInput, processor);
+		const outputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
+		if (outputAnalyser) connect(processor, outputAnalyser);
+		registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
+		return outputAnalyser || processor;
 	}
 	if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
 		return connectBiquad(context, input, { ...params, type }, nodes);
@@ -1341,6 +1693,52 @@ function applyEffect(context, input, effect, nodes, options = {}) {
 	if (type === 'delay') return connectDelay(context, input, params, nodes);
 	if (type === 'reverb' || type === 'convolver') return connectReverb(context, input, params, nodes);
 	return input;
+}
+
+function registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options) {
+	if (typeof options.onParametricEqError === 'function' && processor?.port) {
+		const scope = typeof options.scope === 'string' ? options.scope : null;
+		const targetId = scope === 'master' || options.targetId == null ? null : String(options.targetId);
+		const effectId = typeof effect?.id === 'string' && effect.id ? effect.id : null;
+		const handler = ({ data } = {}) => {
+			if (!data || data.type !== 'error') return;
+			const message = typeof data.message === 'string' && data.message
+				? data.message
+				: 'The parametric EQ processor failed.';
+			options.onParametricEqError(Object.freeze({
+				...data,
+				type: 'error',
+				message,
+				scope,
+				targetId,
+				effectId,
+			}));
+		};
+		const processorErrorHandler = () => handler({
+			data: { type: 'error', message: 'The parametric EQ AudioWorklet processor failed.' },
+		});
+		processor.port.onmessage = handler;
+		processor.port.start?.();
+		if (typeof processor.addEventListener === 'function') {
+			processor.addEventListener('processorerror', processorErrorHandler);
+		} else processor.onprocessorerror = processorErrorHandler;
+		parametricEqPortMessageHandlers.set(processor, { handler, processorErrorHandler });
+	}
+	if (!options.effectNodes || typeof effect?.id !== 'string' || !effect.id) return;
+	const key = effectGraphKey(options.scope, options.targetId, effect.id);
+	options.effectNodes.set(key, processor);
+	if (!options.effectAnalysers || !inputAnalyser || !outputAnalyser) return;
+	options.effectAnalysers.set(key, {
+		input: inputAnalyser,
+		output: outputAnalyser,
+		metadata: Object.freeze({
+			sampleRate: positiveInteger(context.sampleRate, DEFAULT_SAMPLE_RATE),
+			fftSize: inputAnalyser.fftSize,
+			frequencyBinCount: inputAnalyser.frequencyBinCount || inputAnalyser.fftSize / 2,
+			minDecibels: inputAnalyser.minDecibels,
+			maxDecibels: inputAnalyser.maxDecibels,
+		}),
+	});
 }
 
 function connectBiquad(context, input, params, nodes) {
@@ -1952,6 +2350,35 @@ function createAnalyser(context, nodes) {
 	return analyser;
 }
 
+function createSpectrumAnalyser(context, nodes) {
+	if (typeof context.createAnalyser !== 'function') return null;
+	const analyser = addNode(nodes, context.createAnalyser());
+	analyser.fftSize = PARAMETRIC_EQ_SPECTRUM_FFT_SIZE;
+	analyser.smoothingTimeConstant = 0.75;
+	analyser.minDecibels = -120;
+	analyser.maxDecibels = 0;
+	return analyser;
+}
+
+function readParametricEqSpectrumEntry(entry, which, target) {
+	if (!(target instanceof Float32Array)) {
+		throw new TypeError('A Float32Array spectrum target is required.');
+	}
+	if (which !== 'input' && which !== 'output') {
+		throw new RangeError('Parametric EQ spectrum source must be input or output.');
+	}
+	const analyser = entry?.[which];
+	if (!analyser?.getFloatFrequencyDomainData) {
+		target.fill(Number.NEGATIVE_INFINITY);
+		return null;
+	}
+	if (target.length !== entry.metadata.frequencyBinCount) {
+		throw new RangeError(`Parametric EQ spectrum buffers must contain ${entry.metadata.frequencyBinCount} bins.`);
+	}
+	analyser.getFloatFrequencyDomainData(target);
+	return entry.metadata;
+}
+
 function readMeter(analyser) {
 	if (!analyser?.getFloatTimeDomainData) return { peak: 0, rms: 0, dbfs: -Infinity };
 	const values = new Float32Array(analyser.fftSize || 256);
@@ -1974,14 +2401,33 @@ function disposeGraph(graph, stopSources) {
 		}
 	}
 	for (const node of [...(graph.nodes || [])].reverse()) {
+		const registration = parametricEqPortMessageHandlers.get(node);
+		if (registration?.handler && node.port?.onmessage === registration.handler) node.port.onmessage = null;
+		if (registration?.processorErrorHandler) {
+			if (typeof node.removeEventListener === 'function') {
+				node.removeEventListener('processorerror', registration.processorErrorHandler);
+			} else if (node.onprocessorerror === registration.processorErrorHandler) node.onprocessorerror = null;
+		}
+		if (registration) parametricEqPortMessageHandlers.delete(node);
 		try { node.disconnect(); } catch { /* It may already be disconnected. */ }
 	}
 	graph.sources?.clear?.();
+	graph.effectNodes?.clear?.();
+	graph.effectAnalysers?.clear?.();
+	graph.effectMessageSequences?.clear?.();
 }
 
 function longSourceError(message) {
 	const error = new Error(message);
 	error.code = 'LONG_SOURCE_RENDER_REQUIRED';
+	return error;
+}
+
+function parametricEqProcessingError(value) {
+	const error = new Error(value?.message || 'The parametric EQ processor failed during rendering.');
+	error.name = 'ParametricEqProcessingError';
+	if (value?.status != null) error.status = value.status;
+	if (value?.effectId) error.effectId = value.effectId;
 	return error;
 }
 
@@ -2123,19 +2569,65 @@ function getAudioContextConstructor() {
 async function ensureProjectWorklets(context, project) {
 	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorkletContexts.has(context);
 	const needsAudacity = projectUsesAudacityWorklet(project) && !audacityWorkletContexts.has(context);
-	if (!needsDynamics && !needsAudacity) return;
+	const usesParametricEq = projectUsesParametricEqWorklet(project);
+	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
+	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
+	if (!needsDynamics && !needsAudacity && !needsParametricEq && !needsParametricEqWasm) return;
 	if (!context?.audioWorklet?.addModule || typeof (globalThis.AudioWorkletNode || globalThis.window?.AudioWorkletNode) !== 'function') {
-		throw new Error(needsAudacity
-			? 'This browser cannot run Audacity real-time effects without bypassing them.'
-			: 'This browser cannot run the limiter or gate without bypassing it.');
+		if (needsAudacity) throw new Error('This browser cannot run Audacity real-time effects without bypassing them.');
+		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
+		throw new Error('This browser cannot run the limiter or gate without bypassing it.');
 	}
+	if (usesParametricEq) await ensureParametricEqWorklet(context);
 	if (needsDynamics) {
-		await context.audioWorklet.addModule(new URL('./dynamics-worklet.js', import.meta.url));
-		dynamicsWorkletContexts.add(context);
+		await addWorkletModuleOnce(
+			context,
+			dynamicsWorkletContexts,
+			dynamicsWorkletLoads,
+			() => new URL('./dynamics-worklet.js', import.meta.url),
+		);
 	}
 	if (needsAudacity) {
-		await context.audioWorklet.addModule(await audacityWorkletModuleUrl());
-		audacityWorkletContexts.add(context);
+		await addWorkletModuleOnce(context, audacityWorkletContexts, audacityWorkletLoads, audacityWorkletModuleUrl);
+	}
+}
+
+async function ensureParametricEqWorklet(context) {
+	if (!context?.audioWorklet?.addModule
+		|| typeof (globalThis.AudioWorkletNode || globalThis.window?.AudioWorkletNode) !== 'function') {
+		throw new Error('This browser cannot run the parametric EQ without bypassing it.');
+	}
+	let module = parametricEqWasmModules.get(context);
+	if (!(module instanceof WebAssembly.Module)) {
+		module = await loadParametricEqWasmModule();
+		if (!(module instanceof WebAssembly.Module)) {
+			throw new Error('The parametric EQ WASM module could not be compiled.');
+		}
+		parametricEqWasmModules.set(context, module);
+	}
+	await addWorkletModuleOnce(
+		context,
+		parametricEqWorkletContexts,
+		parametricEqWorkletLoads,
+		parametricEqWorkletModuleUrl,
+	);
+	return module;
+}
+
+async function addWorkletModuleOnce(context, loadedContexts, pendingLoads, moduleUrl) {
+	if (loadedContexts.has(context)) return;
+	let pending = pendingLoads.get(context);
+	if (!pending) {
+		pending = Promise.resolve()
+			.then(moduleUrl)
+			.then((url) => context.audioWorklet.addModule(url))
+			.then(() => { loadedContexts.add(context); });
+		pendingLoads.set(context, pending);
+	}
+	try {
+		await pending;
+	} finally {
+		if (pendingLoads.get(context) === pending) pendingLoads.delete(context);
 	}
 }
 
@@ -2151,14 +2643,39 @@ async function audacityWorkletModuleUrl() {
 	return new URL('./audacity-effects/live-worklet.js', import.meta.url);
 }
 
+async function parametricEqWorkletModuleUrl() {
+	if (import.meta.env?.DEV || import.meta.env?.PROD) {
+		const module = await import('./parametric-eq/worklet.js?worker&url');
+		return module.default;
+	}
+	return new URL('./parametric-eq/worklet.js', import.meta.url);
+}
+
 function projectUsesDynamicsWorklet(project) {
-	const effects = [project?.master?.effects || [], ...(project?.tracks || []).map((track) => track.effects || [])].flat();
-	return effects.some((effect) => effect?.enabled !== false && (effect?.type === 'limiter' || effect?.type === 'gate'));
+	return projectUsesEffect(project, (type) => type === 'limiter' || type === 'gate');
 }
 
 function projectUsesAudacityWorklet(project) {
-	const effects = [project?.master?.effects || [], ...(project?.tracks || []).map((track) => track.effects || [])].flat();
-	return effects.some((effect) => effect?.enabled !== false && isAudacityLiveEffect(effect?.type));
+	return projectUsesEffect(project, (type) => isAudacityLiveEffect(type));
+}
+
+function projectUsesParametricEqWorklet(project) {
+	return projectUsesEffect(project, isParametricEqType);
+}
+
+function projectUsesEffect(project, predicate) {
+	for (const rack of projectEffectRacks(project)) {
+		if (rack.effects.some((effect) => (
+			effect?.enabled !== false
+			&& effect?.bypassed !== true
+			&& predicate(String(effect?.type || '').toLowerCase())
+		))) return true;
+	}
+	return false;
+}
+
+function isParametricEqType(type) {
+	return PARAMETRIC_EQ_TYPES.has(String(type || '').toLowerCase());
 }
 
 function getOfflineAudioContextConstructor() {
@@ -2200,6 +2717,47 @@ function linearRamp(param, value, time) {
 	if (!param) return;
 	if (typeof param.linearRampToValueAtTime === 'function') param.linearRampToValueAtTime(value, time);
 	else setParam(param, value, time);
+}
+
+function postParametricEqMessage(graph, scope, targetId, effectId, message, requestedSequence) {
+	const key = effectGraphKey(scope, targetId, effectId);
+	const node = graph?.effectNodes?.get(key);
+	if (!node?.port?.postMessage) return false;
+	const currentSequence = graph.effectMessageSequences?.get(key) || 0;
+	const sequence = requestedSequence == null
+		? currentSequence + 1
+		: safeMessageSequence(requestedSequence, 'revision');
+	if (sequence <= currentSequence) return false;
+	node.port.postMessage({ ...message, revision: sequence, sequence });
+	graph.effectMessageSequences?.set(key, sequence);
+	return sequence;
+}
+
+function effectGraphKey(scope, targetId, effectId) {
+	const normalizedScope = String(scope || '');
+	if (!['track', 'master', 'group', 'send'].includes(normalizedScope)) {
+		throw new RangeError(`Unsupported effect scope: ${normalizedScope || '(empty)'}.`);
+	}
+	if (typeof effectId !== 'string' || !effectId) throw new TypeError('A stable effect ID is required.');
+	let normalizedTargetId = 'master';
+	if (normalizedScope !== 'master') {
+		if (targetId == null || String(targetId) === '') throw new TypeError(`A ${normalizedScope} effect target ID is required.`);
+		normalizedTargetId = String(targetId);
+	}
+	return JSON.stringify([normalizedScope, normalizedTargetId, effectId]);
+}
+
+function safeMessageSequence(value, name) {
+	const sequence = Number(value);
+	if (!Number.isSafeInteger(sequence) || sequence < 0) {
+		throw new RangeError(`${name} must be a non-negative safe integer.`);
+	}
+	return sequence;
+}
+
+function cloneMessageValue(value) {
+	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
+	return JSON.parse(JSON.stringify(value));
 }
 
 function clampFrame(value, minimum, maximum) {

@@ -2,6 +2,8 @@ import {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	AUDIO_EDITOR_TRACK_COLORS,
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
+	AUDIO_SELECTION_EFFECT_DEFINITIONS,
+	applyAudioSelectionEffectAsync,
 	applyAudioEditorWorkspace,
 	applyAudioEditorEffectPreset,
 	applyMediaChannelMapping,
@@ -10,6 +12,9 @@ import {
 	audioTrackChannelCountV2,
 	audioEffectLabel,
 	audioEffectTypes,
+	audioSelectionEffectDefaults,
+	audioSelectionEffectLabel,
+	audioSelectionEffectTypes,
 	canEditAudioSamplesAtZoom,
 	canRedo,
 	canUndo,
@@ -54,12 +59,16 @@ import {
 	findTrack,
 	EDITOR_TIMELINE_MINIMUM_SECONDS,
 	editorTimelineDurationFrames,
+	estimateAudioSelectionEffectOutputFrames,
+	estimateAudioSelectionEffectPeakBytes,
 	isAudacityRackEffectType,
 	loadAudioEditorPreferencesV1,
 	loadStoredSourceChannels,
 	migrateAudioEditorProject,
 	generateAudioEditorSignal,
 	normalizeAudioEditorShortcut,
+	normalizeAudioSelectionEffectParams,
+	normalizeEffect,
 	normalizeRecordingInputGain,
 	RECORDING_INPUT_GAIN_DEFAULT,
 	prepareCut,
@@ -96,16 +105,10 @@ import {
 } from './index.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-	AUDACITY_EFFECT_DEFINITIONS,
 	applyAudacityEffectAsync,
 	assertAudacityEffectOutput,
-	audacityEffectDefaults,
-	audacityEffectLabel,
-	audacityEffectTypes,
 	captureAudacityNoiseProfile,
-	estimateAudacityEffectOutputFrames,
 	estimateAudacityEffectPeakBytes,
-	normalizeAudacityEffectParams,
 } from './audacity-effects/index.js';
 import {
 	audacitySelectionChannelCount,
@@ -116,6 +119,9 @@ import {
 	createAudioEditorEngine,
 	effectRackLatencyFrames,
 } from './engine.js';
+import {
+	loadParametricEqWasmModule,
+} from './parametric-eq/index.js';
 import {
 	RECORDING_CHANNEL_COUNT_MAXIMUM,
 	createRecordingCapturePool,
@@ -317,14 +323,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		outputCleanup: null,
 		projectQueue: Promise.resolve(),
 		missingSourceIds: new Set(),
-		audacityEffectType: audacityEffectTypes()[0],
+		audacityEffectType: audioSelectionEffectTypes()[0],
 		audacityEffectParams: {},
 		audacityEffectTouchedParams: new Map(),
 		effectPresets: createAudioEditorEffectPresets(),
+		parametricEqGestures: new Map(),
 		audacityControlTrackId: null,
 		audacityNoiseProfile: null,
 		audacityEffectProcessing: false,
 		audacityPreviewSource: null,
+		audacityPreviewAuditionBandId: null,
+		audacityPreviewGeneration: 0,
 		lastAudacityEffect: null,
 		audacityEffectWorker: null,
 		nyquistAbort: null,
@@ -376,6 +385,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
 	let project = null;
+	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
+		? engine.subscribeParametricEqErrors((error) => handleError(error))
+		: () => {};
 
 	const ready = bootstrap()
 		.then(() => {
@@ -413,6 +425,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		async dispose() {
 			if (state.disposed) return;
 			state.disposed = true;
+			unsubscribeParametricEqErrors();
 			cancelTimedRecording({ publish: false, status: false });
 			cancelRecordingStart();
 			state.phase = 'disposed';
@@ -578,10 +591,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			effects: Object.freeze({
 				rackTypes: Object.freeze(audioEffectTypes().map((type) => Object.freeze({ type, label: audioEffectLabel(type, copy) }))),
 				hasStackClipboard: state.effectClipboard !== null,
-				selectionTypes: Object.freeze(audacityEffectTypes().map((type) => Object.freeze({ type, label: audacityEffectLabel(type, copy) }))),
+				selectionTypes: Object.freeze(audioSelectionEffectTypes().map((type) => Object.freeze({
+					type,
+					label: audioSelectionEffectLabel(type, copy),
+				}))),
 				selectionType: state.audacityEffectType,
 				selectionParams: currentAudacityEffectParams(),
-				selectionDefinition: AUDACITY_EFFECT_DEFINITIONS[state.audacityEffectType] || null,
+				selectionDefinition: AUDIO_SELECTION_EFFECT_DEFINITIONS[state.audacityEffectType] || null,
 				controlTrackId: state.audacityControlTrackId,
 				noiseProfileReady: Boolean(state.audacityNoiseProfile),
 				canRepeatLast: Boolean(state.lastAudacityEffect),
@@ -916,6 +932,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 			effects: Object.freeze({
 				add: addEffect,
 				update: (scope, trackId, effectId, changes) => commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes }),
+				beginParametricEqGesture,
+				previewParametricEq,
+				commitParametricEqGesture,
+				cancelParametricEqGesture,
+				auditionParametricEq: (scope, trackId, effectId, bandId) => engine.auditionParametricEq?.(scope, trackId, effectId, bandId) ?? false,
+				readParametricEqSpectrum: (scope, trackId, effectId, which, target) => engine.readParametricEqSpectrum?.(scope, trackId, effectId, which, target) ?? null,
+				readSelectionParametricEqSpectrum: (which, target) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
+				auditionSelectionParametricEq: (bandId) => {
+					state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
+					return state.audacityPreviewSource?.audition?.(state.audacityPreviewAuditionBandId) ?? false;
+				},
 				remove: (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId }),
 				reorder: (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex }),
 				copyStack: copyEffectStack,
@@ -1181,6 +1208,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function performProjectSwitch(nextProject, options = {}) {
+		state.parametricEqGestures.clear();
 		cancelTimedRecording({ publish: false, status: false });
 		cancelRecordingStart();
 		state.exportAbort?.abort();
@@ -4212,17 +4240,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return state.latencyOffsetMs;
 	}
 
-	function commit(command, selection = {}) {
+	function commit(command, selection = {}, options = {}) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
 		state.history = executeEditorCommand(state.history, command);
 		project = state.history.present;
 		if (selection.selectTrackId) state.selectedTrackId = selection.selectTrackId;
 		if (selection.selectClipId) state.selectedClipId = selection.selectClipId;
-		projectChanged();
+		projectChanged(options);
 		return project;
 	}
 
-	function projectChanged() {
+	function projectChanged(options = {}) {
 		compactLiveSourceState(true);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		const normalizedRouting = normalizeRecordingRouting(state.recordingRouting, project.tracks);
@@ -4236,12 +4264,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const selectedClipExists = state.selectedClipId && findClip(project, state.selectedClipId);
 		if (!selectedClipExists) state.selectedClipId = null;
 		if (state.selectedTrackId && !findTrack(project, state.selectedTrackId)) state.selectedTrackId = project.tracks[0]?.id ?? null;
-		if (engine.getState().state === 'playing' && projectHasTimePitchClips(project)) {
-			const snapshot = project;
-			void beginPlaybackCachePreparation(snapshot)
-				.then(() => snapshot === project && applyProjectToPlaybackEngine(project))
-				.catch(handlePlaybackCacheError);
-		} else void applyProjectToPlaybackEngine(project).catch(handleError);
+		if (!options.skipPlaybackEngine) {
+			if (engine.getState().state === 'playing' && projectHasTimePitchClips(project)) {
+				const snapshot = project;
+				void beginPlaybackCachePreparation(snapshot)
+					.then(() => snapshot === project && applyProjectToPlaybackEngine(project))
+					.catch(handlePlaybackCacheError);
+			} else void applyProjectToPlaybackEngine(project).catch(handleError);
+		}
 		publishProjectState();
 		scheduleAutosave();
 	}
@@ -4971,12 +5001,75 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return effect.id;
 	}
 
+	function beginParametricEqGesture(scope, targetId, effectId) {
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = parametricEqGestureKey(scope, targetId, effectId);
+		if (!state.parametricEqGestures.has(key)) {
+			state.parametricEqGestures.set(key, structuredClone(effect.params));
+		}
+		return structuredClone(state.parametricEqGestures.get(key));
+	}
+
+	function previewParametricEq(scope, targetId, effectId, params) {
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = parametricEqGestureKey(scope, targetId, effectId);
+		if (!state.parametricEqGestures.has(key)) beginParametricEqGesture(scope, targetId, effectId);
+		const normalized = normalizeEffect({ ...effect, params }).params;
+		return engine.configureParametricEq?.(scope, targetId, effectId, normalized) ?? false;
+	}
+
+	function commitParametricEqGesture(scope, targetId, effectId, params) {
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const original = state.parametricEqGestures.get(key) || effect.params;
+		const normalized = normalizeEffect({ ...effect, params }).params;
+		const unchanged = JSON.stringify(normalizeEffect({ ...effect, params: original }).params) === JSON.stringify(normalized);
+		if (unchanged) {
+			state.parametricEqGestures.delete(key);
+			return project;
+		}
+		const adopted = engine.configureParametricEq?.(scope, targetId, effectId, normalized) ?? false;
+		state.parametricEqGestures.delete(key);
+		try {
+			return commit(
+				{ type: 'effect/update', scope, trackId: targetId, busId: targetId, effectId, changes: { params: normalized } },
+				{},
+				{ skipPlaybackEngine: adopted !== false },
+			);
+		} catch (error) {
+			if (adopted !== false) engine.configureParametricEq?.(scope, targetId, effectId, original, { transitionFrames: 0 });
+			throw error;
+		}
+	}
+
+	function cancelParametricEqGesture(scope, targetId, effectId) {
+		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const original = state.parametricEqGestures.get(key);
+		state.parametricEqGestures.delete(key);
+		if (!original) return false;
+		return engine.configureParametricEq?.(scope, targetId, effectId, original) ?? false;
+	}
+
 	function effectStack(scope, trackId, snapshot = project) {
 		if (scope === 'master') return snapshot?.master?.effects || [];
-		if (scope !== 'track') throw new RangeError('Effect stack scope must be track or master.');
+		if (scope === 'group' || scope === 'send') {
+			const buses = scope === 'group' ? snapshot?.mixer?.groups : snapshot?.mixer?.sends;
+			const bus = (buses || []).find((candidate) => String(candidate.id) === String(trackId));
+			if (!bus) throw new Error('Mixer bus not found.');
+			return bus.effects || [];
+		}
+		if (scope !== 'track') throw new RangeError('Effect stack scope must be track, master, group, or send.');
 		const track = findTrack(snapshot, trackId);
 		if (!track || track.type === 'label') throw new Error(copy.audioTrackNotFound);
 		return track.effects || [];
+	}
+
+	function parametricEqGestureKey(scope, targetId, effectId) {
+		return `${scope || 'track'}:${targetId == null ? '' : targetId}:${effectId}`;
 	}
 
 	function copyEffectStack(scope, trackId = state.selectedTrackId) {
@@ -5105,15 +5198,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function currentAudacityEffectParams(type = state.audacityEffectType) {
-		if (!state.audacityEffectParams[type]) state.audacityEffectParams[type] = audacityEffectDefaults(type);
+		if (!state.audacityEffectParams[type]) state.audacityEffectParams[type] = audioSelectionEffectDefaults(type);
 		return state.audacityEffectParams[type];
 	}
 
 	function setAudacityEffectParams(changes, { markTouched = true } = {}) {
-		state.audacityEffectParams[state.audacityEffectType] = normalizeAudacityEffectParams(state.audacityEffectType, {
+		const normalized = normalizeAudioSelectionEffectParams(state.audacityEffectType, {
 			...currentAudacityEffectParams(),
 			...changes,
 		});
+		state.audacityEffectParams[state.audacityEffectType] = normalized;
+		if (state.audacityEffectType === 'eq') state.audacityPreviewSource?.configure?.(normalized);
 		if (markTouched) {
 			if (!state.audacityEffectTouchedParams.has(state.audacityEffectType)) {
 				state.audacityEffectTouchedParams.set(state.audacityEffectType, new Set());
@@ -5124,7 +5219,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function setAudacityEffectType(type) {
-		if (!AUDACITY_EFFECT_DEFINITIONS[type]) throw new Error(copy.selectionEffectUnsupported);
+		if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) throw new Error(copy.selectionEffectUnsupported);
+		if (type !== state.audacityEffectType) state.audacityPreviewAuditionBandId = null;
 		state.audacityEffectType = type;
 		publishDocumentSnapshot();
 		return currentAudacityEffectParams(type);
@@ -5153,7 +5249,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function applyEffectPreset(presetId) {
 		const preset = applyAudioEditorEffectPreset(state.effectPresets, presetId);
 		state.audacityEffectType = preset.effectType;
-		state.audacityEffectParams[preset.effectType] = { ...preset.params };
+		state.audacityEffectParams[preset.effectType] = structuredClone(preset.params);
 		state.audacityEffectTouchedParams.set(preset.effectType, new Set(Object.keys(preset.params)));
 		publishDocumentSnapshot();
 		return preset;
@@ -5199,13 +5295,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function previewAudacityEffectFromController(request = {}) {
 		if (state.audacityEffectProcessing) return false;
 		cancelAudacityEffectPreview({ publish: false });
+		const previewGeneration = state.audacityPreviewGeneration;
+		const requireCurrentPreview = (source = null) => {
+			if (previewGeneration === state.audacityPreviewGeneration) return;
+			if (source) {
+				try { source.onended = null; source.onerror = null; source.stop?.(); } catch { /* A stale source may not have started. */ }
+				try { source.disconnect?.(); } catch { /* A stale source may already be disconnected. */ }
+			}
+			throw abortError();
+		};
 		if (request.type) setAudacityEffectType(request.type);
 		if (request.params) setAudacityEffectParamsFromController(request.params);
 		if ('controlTrackId' in request) setAudacityControlTrack(request.controlTrackId);
 		const fullTarget = audacityEffectTarget();
 		if (!fullTarget) throw new Error(copy.audacitySelectionHint);
 		const type = state.audacityEffectType;
-		const definition = AUDACITY_EFFECT_DEFINITIONS[type];
+		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const sampleRate = projectSampleRate();
 		const spectralSelection = audacitySpectralEffectContext(fullTarget, definition);
 		const durationFrames = Math.min(fullTarget.durationFrames, sampleRate * 6);
@@ -5214,18 +5319,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 			endFrame: fullTarget.startFrame + durationFrames,
 			durationFrames,
 		};
-		let params = normalizeAudacityEffectParams(type, currentAudacityEffectParams());
+		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
 		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
 		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
-		const contextFrames = definition.requiresStaffPad
+		const contextFrames = definition.preRollSeconds
+			? Math.min(fullTarget.startFrame, Math.ceil(definition.preRollSeconds * sampleRate))
+			: definition.requiresStaffPad
 			? sampleRate
 			: definition.requiresContext ? 128 : 0;
-		const estimatedPeakBytes = estimateAudacityEffectPeakBytes(type, durationFrames, params, {
+		const afterContextFrames = definition.preRollSeconds ? 0 : contextFrames;
+		const estimatedPeakBytes = estimateAudioSelectionEffectPeakBytes(type, durationFrames, params, {
 			channelCount: target.channelCount,
 			controlChannelCount: definition.requiresControlTrack ? 2 : undefined,
 			sampleRate,
 			beforeFrames: contextFrames,
-			afterFrames: contextFrames,
+			afterFrames: afterContextFrames,
 			spectralWindowSize: spectralSelection?.windowSize,
 		});
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
@@ -5234,7 +5342,45 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishDocumentSnapshot();
 		try {
 			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount);
+			requireCurrentPreview();
 			params = resolveInteractiveAudacityParams(type, params, channels);
+			if (type === 'eq') {
+				engine.pause();
+				const context = await engine.getAudioContext({ resume: true });
+				requireCurrentPreview();
+				const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
+				requireCurrentPreview();
+				if (typeof engine.createParametricEqPreview !== 'function') {
+					throw new Error('This browser cannot preview the parametric EQ without bypassing it.');
+				}
+				const preview = await engine.createParametricEqPreview(buffer, params, {
+					effectId: 'selection-preview-eq',
+				});
+				requireCurrentPreview(preview);
+				preview.onended = () => {
+					if (state.audacityPreviewSource !== preview) return;
+					state.audacityPreviewSource = null;
+					preview.disconnect?.();
+					setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
+					publishDocumentSnapshot();
+				};
+				state.audacityPreviewSource = preview;
+				preview.onerror = () => {
+					if (state.audacityPreviewSource !== preview) return;
+					state.audacityPreviewSource = null;
+					preview.onended = null;
+					try { preview.stop?.(); } catch { /* A failed preview may already have ended. */ }
+					preview.disconnect?.();
+					publishDocumentSnapshot();
+				};
+				if (state.audacityPreviewSource !== preview) return false;
+				if (state.audacityPreviewAuditionBandId != null) {
+					preview.audition?.(state.audacityPreviewAuditionBandId);
+				}
+				preview.start();
+				setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
+				return true;
+			}
 			const effectContext = {};
 			if (spectralSelection) effectContext.spectralSelection = spectralSelection;
 			if (definition.requiresControlTrack) {
@@ -5247,21 +5393,26 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
 			if (contextFrames > 0) {
 				const beforeStart = Math.max(0, target.startFrame - contextFrames);
-				const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + contextFrames);
 				effectContext.beforeChannels = beforeStart < target.startFrame
 					? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount)
 					: channels.map(() => new Float32Array(0));
-				effectContext.afterChannels = target.endFrame < afterEnd
-					? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
-					: channels.map(() => new Float32Array(0));
+				if (afterContextFrames > 0) {
+					const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + afterContextFrames);
+					effectContext.afterChannels = target.endFrame < afterEnd
+						? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
+						: channels.map(() => new Float32Array(0));
+				}
 			}
-			const result = await runAudacityEffectWorker({
+			const result = await runSelectionEffectWorker({
 				operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
 			});
+			requireCurrentPreview();
 			assertAudacityEffectOutput(result.channels);
 			const context = await engine.getAudioContext({ resume: true });
 			await context.resume?.();
+			requireCurrentPreview();
 			const buffer = await bufferFromChannels(result.channels, sampleRate, context, copy);
+			requireCurrentPreview();
 			const source = context.createBufferSource();
 			source.buffer = buffer;
 			source.connect(context.destination);
@@ -5277,6 +5428,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			source.start();
 			setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
 			return true;
+		} catch (error) {
+			if (error?.name === 'AbortError') return false;
+			throw error;
 		} finally {
 			state.audacityEffectProcessing = false;
 			publishDocumentSnapshot();
@@ -5284,10 +5438,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function cancelAudacityEffectPreview(options = {}) {
+		state.audacityPreviewGeneration += 1;
 		const source = state.audacityPreviewSource;
 		state.audacityPreviewSource = null;
+		state.audacityPreviewAuditionBandId = null;
 		if (source) {
-			try { source.onended = null; source.stop(); } catch { /* The preview may already have ended. */ }
+			try { source.onended = null; source.onerror = null; source.stop(); } catch { /* The preview may already have ended. */ }
 			try { source.disconnect?.(); } catch { /* The preview node may already be disconnected. */ }
 		}
 		if (options.publish !== false) {
@@ -5325,7 +5481,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const gainDb = peak > 0
 			? Math.max(-50, Math.min(50, 20 * Math.log10(1 / peak)))
 			: 0;
-		const resolved = normalizeAudacityEffectParams(type, { ...params, gainDb });
+		const resolved = normalizeAudioSelectionEffectParams(type, { ...params, gainDb });
 		state.audacityEffectParams[type] = resolved;
 		return resolved;
 	}
@@ -5397,6 +5553,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function audacitySpectralEffectContext(target, definition) {
 		const frequencyRange = activeSelection()?.frequencyRange;
 		if (!frequencyRange) return null;
+		// Parametric EQ intentionally treats a spectral box as a time range and
+		// processes the complete spectrum; the box itself remains selected.
+		if (state.audacityEffectType === 'eq') return null;
 		if (definition.lengthChanging) throw new Error(copy.spectralEffectLengthChanging);
 		return {
 			minimumFrequency: frequencyRange.minimumFrequency,
@@ -5540,7 +5699,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishDocumentSnapshot();
 		try {
 			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount);
-			const result = await runAudacityEffectWorker({
+			const result = await runSelectionEffectWorker({
 				operation: 'capture-noise-profile',
 				channels,
 				sampleRate,
@@ -5597,7 +5756,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				scope === 'track' ? selectionTarget.channelCount : 2,
 				trackId,
 			);
-			const result = await runAudacityEffectWorker({
+			const result = await runSelectionEffectWorker({
 				operation: 'capture-noise-profile',
 				channels,
 				sampleRate,
@@ -5668,7 +5827,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function applySelectedAudacityEffect() {
 		if (editingBlocked()) return;
 		const type = state.audacityEffectType;
-		const definition = AUDACITY_EFFECT_DEFINITIONS[type];
+		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const targets = audacityEffectTargets({ includeSilentTracks: Boolean(definition.lengthChanging) });
 		if (!targets.length) throw new Error(copy.audacitySelectionHint);
 		const sampleRate = projectSampleRate();
@@ -5677,34 +5836,37 @@ export function createAudioEditorController(_root = null, options = {}) {
 			target.track.id,
 			audacitySpectralEffectContext(target, definition),
 		]));
-		let params = normalizeAudacityEffectParams(type, currentAudacityEffectParams());
+		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
 		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
 		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
-		const contextFrames = definition.requiresStaffPad
+		const contextFrames = definition.preRollSeconds
+			? Math.ceil(definition.preRollSeconds * sampleRate)
+			: definition.requiresStaffPad
 			? sampleRate
 			: definition.requiresContext ? 128 : 0;
+		const afterContextFrames = definition.preRollSeconds ? 0 : contextFrames;
 		let estimatedOutputBytes = 0;
 		let estimatedPeakBytes = 0;
 		for (const target of targets) {
-			const estimatedFrames = estimateAudacityEffectOutputFrames(type, target.durationFrames, params);
+			const estimatedFrames = estimateAudioSelectionEffectOutputFrames(type, target.durationFrames, params);
 			if (target.hasAudio !== false) {
 				estimatedOutputBytes += estimatedFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 			}
-			estimatedPeakBytes += estimateAudacityEffectPeakBytes(type, target.durationFrames, params, {
+			estimatedPeakBytes += estimateAudioSelectionEffectPeakBytes(type, target.durationFrames, params, {
 				channelCount: target.channelCount,
 				controlChannelCount: definition.requiresControlTrack ? 2 : undefined,
 				sampleRate,
-				beforeFrames: contextFrames,
-				afterFrames: contextFrames,
+				beforeFrames: Math.min(target.startFrame, contextFrames),
+				afterFrames: afterContextFrames,
 				spectralWindowSize: spectralSelections.get(target.track.id)?.windowSize,
 			});
 		}
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
-		await preflightStorage(estimatedOutputBytes, 'effect');
 		state.audacityEffectProcessing = true;
 		setStatus(copy.audacityProcessing);
 		publishDocumentSnapshot();
 		try {
+			await preflightStorage(estimatedOutputBytes, 'effect');
 			const dryResults = [];
 			for (const target of targets) {
 				const channels = await renderDryTrackRange(
@@ -5733,7 +5895,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			let results = [];
 			if (linkedTruncateSilence) {
 				const linkedChannels = dryResults.flatMap(({ channels }) => channels);
-				const result = await runAudacityEffectWorker({
+				const result = await runSelectionEffectWorker({
 					operation: 'apply', effectType: type, channels: linkedChannels, sampleRate, params, context: {},
 				});
 				const processedChannels = Array.isArray(result.channels) ? result.channels : [];
@@ -5753,15 +5915,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 					if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
 					if (contextFrames > 0) {
 						const beforeStart = Math.max(0, target.startFrame - contextFrames);
-						const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + contextFrames);
 						effectContext.beforeChannels = beforeStart < target.startFrame
 							? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount)
 							: channels.map(() => new Float32Array(0));
-						effectContext.afterChannels = target.endFrame < afterEnd
-							? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
-							: channels.map(() => new Float32Array(0));
+						if (afterContextFrames > 0) {
+							const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + afterContextFrames);
+							effectContext.afterChannels = target.endFrame < afterEnd
+								? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
+								: channels.map(() => new Float32Array(0));
+						}
 					}
-					const result = await runAudacityEffectWorker({
+					const result = await runSelectionEffectWorker({
 						operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
 					});
 					results.push({ target, channels: result.channels });
@@ -6162,7 +6326,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const sampleRate = projectSampleRate();
 		const context = await engine.getAudioContext({ resume: false });
 		throwIfAborted(signal);
-		const effectName = options.effectName || audacityEffectLabel(type, copy);
+		const effectName = options.effectName || audioSelectionEffectLabel(type, copy);
 		const entries = [];
 		for (const result of results) {
 			throwIfAborted(signal);
@@ -6312,17 +6476,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 		});
 	}
 
-	async function runAudacityEffectWorker(payload) {
+	async function runSelectionEffectWorker(payload) {
+		const request = payload.effectType === 'eq'
+			? { ...payload, wasmModule: payload.wasmModule || await loadParametricEqWasmModule() }
+			: payload;
 		if (typeof Worker !== 'function') {
-			if (payload.operation === 'capture-noise-profile') {
-				return { profile: captureAudacityNoiseProfile(payload.channels, payload.sampleRate, payload.params) };
+			if (request.operation === 'capture-noise-profile') {
+				return { profile: captureAudacityNoiseProfile(request.channels, request.sampleRate, request.params) };
 			}
-			return { channels: await applyAudacityEffectAsync(payload.effectType, payload.channels, payload.sampleRate, payload.params, payload.context) };
+			return {
+				channels: await applyAudioSelectionEffectAsync(
+					request.effectType,
+					request.channels,
+					request.sampleRate,
+					request.params,
+					{ ...request.context, wasmModule: request.wasmModule },
+				),
+			};
 		}
-		const worker = new Worker(new URL('./audacity-effects/worker.js', import.meta.url), { type: 'module' });
+		const worker = new Worker(new URL('./selection-effects-worker.js', import.meta.url), { type: 'module' });
 		state.audacityEffectWorker = worker;
 		const transfer = [];
-		const message = cloneAudacityWorkerPayload(payload, transfer);
+		const message = cloneAudacityWorkerPayload(request, transfer);
 		try {
 			return await new Promise((resolve, reject) => {
 				worker.onmessage = ({ data }) => {

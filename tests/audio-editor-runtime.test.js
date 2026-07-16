@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+	PARAMETRIC_EQ_SPECTRUM_FFT_SIZE,
 	PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES,
 	buildProjectGraph,
 	createAudioEditorEngine,
 	estimatePlayAtSpeedStaffPadPeakBytes,
 	getProjectDurationFrames,
+	projectEffectRacks,
 	projectGraphLatencyFrames,
 } from '../src/lib/tools/audio-editor/engine.js';
 import { createRecordingController } from '../src/lib/tools/audio-editor/recording.js';
@@ -1149,6 +1151,304 @@ test('engine loads and inserts Audacity worklets in track and master racks witho
 	}
 });
 
+test('project effect rack iteration includes track, group, send, and master locations', () => {
+	const project = createRackProject({
+		tracks: [{ id: 'track-1', effects: [{ id: 'track-fx', type: 'highpass', params: {} }] }],
+		masterEffects: [{ id: 'master-fx', type: 'compressor', params: {} }],
+	});
+	project.tracks.push({ id: 'labels', type: 'label', effects: [{ id: 'ignored', type: 'eq', params: {} }] });
+	project.mixer = {
+		groups: [{ id: 'group-1', effects: [{ id: 'group-fx', type: 'delay', params: {} }] }],
+		sends: [{ id: 'send-1', effects: [{ id: 'send-fx', type: 'reverb', params: {} }] }],
+		routes: {},
+	};
+	assert.deepEqual([...projectEffectRacks(project)].map(({ scope, targetId, effects }) => ({
+		scope,
+		targetId,
+		effectIds: effects.map((effect) => effect.id),
+	})), [
+		{ scope: 'track', targetId: 'track-1', effectIds: ['track-fx'] },
+		{ scope: 'group', targetId: 'group-1', effectIds: ['group-fx'] },
+		{ scope: 'send', targetId: 'send-1', effectIds: ['send-fx'] },
+		{ scope: 'master', targetId: null, effectIds: ['master-fx'] },
+	]);
+});
+
+test('parametric EQ worklets load for mixer buses and accept scoped transient updates without a rebuild', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const realtime = new MockAudioContext();
+	const offlineContexts = [];
+	const eqParams = {
+		outputGain: 0,
+		bands: [{ id: 'band-1', enabled: true, type: 'peaking', frequency: 1_000, gain: 3, q: 1, slope: 12 }],
+	};
+	const project = createRackProject({ tracks: [{ id: 'track-1', effects: [] }] });
+	project.mixer = {
+		groups: [{
+			id: 'group-1', gain: 1, pan: 0, mute: false, solo: false,
+			effects: [{ id: 'group-eq', type: 'eq', enabled: true, params: eqParams }],
+		}],
+		sends: [{
+			id: 'send-1', gain: 1, pan: 0, mute: false, solo: false,
+			effects: [{ id: 'send-eq', type: 'parametric-eq', enabled: true, params: eqParams }],
+		}],
+		routes: { 'track-1': { groupId: 'group-1', sends: { 'send-1': 0.5 } } },
+	};
+	const source = new MockAudioBuffer(2, 4_800, 48_000);
+	const sources = new Map([['source-1', source]]);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => realtime,
+		offlineAudioContextFactory: (options) => {
+			const context = new MockOfflineAudioContext(options);
+			offlineContexts.push(context);
+			return context;
+		},
+		meterInterval: 1_000,
+	});
+
+	try {
+		engine.loadProject(project, sources);
+		await engine.play();
+		assert.equal(realtime.audioWorkletModules.filter((url) => url.endsWith('/parametric-eq/worklet.js')).length, 1);
+		assert.deepEqual(realtime.workletNodes.map((node) => node.name), ['kw-parametric-eq', 'kw-parametric-eq']);
+		assert.equal(engine.graph.effectNodes.size, 2);
+		assert.equal(engine.graph.effectAnalysers.size, 2);
+		for (const node of realtime.workletNodes) {
+			assert.equal(node.options.outputChannelCount, undefined);
+			assert.equal(node.options.channelCountMode, 'max');
+			assert.ok(node.options.processorOptions.wasmModule instanceof WebAssembly.Module);
+			assert.equal(node.options.processorOptions.channelCount, 2);
+		}
+
+		const groupNode = realtime.workletNodes[0];
+		const configuredParams = structuredClone(eqParams);
+		configuredParams.bands[0].gain = 6;
+		assert.equal(engine.configureParametricEq('group', 'group-1', 'group-eq', configuredParams, { transitionFrames: 480 }), 1);
+		assert.equal(engine.configureParametricEq('group', 'group-1', 'group-eq', eqParams, { revision: 7 }), 7);
+		assert.equal(engine.configureParametricEq('group', 'group-1', 'group-eq', configuredParams, { revision: 6 }), false);
+		assert.equal(engine.auditionParametricEq('group', 'group-1', 'group-eq', 'band-1'), 8);
+		assert.equal(engine.resetParametricEq('group', 'group-1', 'group-eq'), 9);
+		assert.deepEqual(groupNode.messages, [
+			{ type: 'configure', params: configuredParams, transitionFrames: 480, revision: 1, sequence: 1 },
+			{ type: 'configure', params: eqParams, revision: 7, sequence: 7 },
+			{ type: 'audition', bandId: 'band-1', revision: 8, sequence: 8 },
+			{ type: 'reset', revision: 9, sequence: 9 },
+		]);
+		assert.notEqual(engine.project.mixer.groups[0].effects[0].params, eqParams);
+		assert.deepEqual(engine.project.mixer.groups[0].effects[0].params, eqParams);
+		assert.equal(engine.configureParametricEq('track', 'track-1', 'missing-eq', eqParams), false);
+
+		const spectrum = new Float32Array(PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2);
+		const metadata = engine.readParametricEqSpectrum('group', 'group-1', 'group-eq', 'input', spectrum);
+		assert.deepEqual(metadata, {
+			sampleRate: 48_000,
+			fftSize: PARAMETRIC_EQ_SPECTRUM_FFT_SIZE,
+			frequencyBinCount: PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2,
+			minDecibels: -120,
+			maxDecibels: 0,
+		});
+		assert.equal(spectrum[0], -48);
+		assert.throws(
+			() => engine.readParametricEqSpectrum('group', 'group-1', 'group-eq', 'output', new Float32Array(8)),
+			/2048 bins/,
+		);
+
+		const updated = structuredClone(project);
+		updated.tracks[0].effects.push({ id: 'track-eq', type: 'eq', enabled: true, params: eqParams });
+		updated.master.effects.push({ id: 'master-eq', type: 'parametric_eq', enabled: true, params: eqParams });
+		await engine.applyProject(updated, sources);
+		assert.equal(realtime.audioWorkletModules.filter((url) => url.endsWith('/parametric-eq/worklet.js')).length, 1);
+		assert.equal(engine.graph.effectNodes.size, 4);
+		assert.equal(engine.configureParametricEq('track', 'track-1', 'track-eq', eqParams), 1);
+		assert.equal(engine.auditionParametricEq('master', null, 'master-eq', null), 1);
+
+		engine.stop();
+		const stoppedSpectrum = new Float32Array(PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2).fill(0);
+		assert.equal(engine.readParametricEqSpectrum('group', 'group-1', 'group-eq', 'input', stoppedSpectrum), null);
+		assert.equal(stoppedSpectrum[0], Number.NEGATIVE_INFINITY);
+
+		await engine.renderMix({ startFrame: 0, endFrame: 2_400 });
+		assert.equal(offlineContexts.length, 1);
+		assert.equal(offlineContexts[0].audioWorkletModules.filter((url) => url.endsWith('/parametric-eq/worklet.js')).length, 1);
+		assert.equal(offlineContexts[0].workletNodes.filter((node) => node.name === 'kw-parametric-eq').length, 4);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('parametric EQ selection previews expose transient controls, spectra, and processor failures', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context, meterInterval: 1_000 });
+	const errors = [];
+	const unsubscribe = engine.subscribeParametricEqErrors((error) => errors.push(error));
+	const params = {
+		outputGain: 0,
+		bands: [{
+			id: 'preview-band', enabled: true, type: 'peaking',
+			frequency: 1_000, gain: 3, q: 1, slope: 12,
+		}],
+	};
+	try {
+		const buffer = new MockAudioBuffer(2, 4_800, 48_000);
+		const preview = await engine.createParametricEqPreview(buffer, params);
+		assert.equal(context.audioWorkletModules.filter((url) => url.endsWith('/parametric-eq/worklet.js')).length, 1);
+		assert.equal(context.workletNodes.length, 1);
+		assert.strictEqual(preview.source, context.bufferSources[0]);
+
+		const processor = context.workletNodes[0];
+		assert.equal(processor.name, 'kw-parametric-eq');
+		assert.equal(processor.options.processorOptions.channelCount, 2);
+		assert.deepEqual(processor.options.processorOptions.params, params);
+		assert.ok(processor.options.processorOptions.wasmModule instanceof WebAssembly.Module);
+
+		const configured = structuredClone(params);
+		configured.bands[0].gain = 9;
+		assert.equal(preview.configure(configured), 1);
+		assert.equal(preview.audition('preview-band'), 2);
+		assert.equal(preview.audition(null), 3);
+		assert.deepEqual(processor.messages, [
+			{ type: 'configure', params: configured, mode: 'smooth', revision: 1, sequence: 1 },
+			{ type: 'audition', bandId: 'preview-band', revision: 2, sequence: 2 },
+			{ type: 'audition', bandId: null, revision: 3, sequence: 3 },
+		]);
+
+		const spectrum = new Float32Array(PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2);
+		assert.deepEqual(preview.readSpectrum('input', spectrum), {
+			sampleRate: 48_000,
+			fftSize: PARAMETRIC_EQ_SPECTRUM_FFT_SIZE,
+			frequencyBinCount: PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2,
+			minDecibels: -120,
+			maxDecibels: 0,
+		});
+		assert.equal(spectrum[0], -48);
+		assert.throws(
+			() => preview.readSpectrum('output', new Float32Array(8)),
+			/2048 bins/,
+		);
+
+		let previewError = null;
+		preview.onerror = (error) => { previewError = error; };
+		processor.onprocessorerror();
+		assert.deepEqual(errors, [{
+			type: 'error',
+			message: 'The parametric EQ AudioWorklet processor failed.',
+			scope: 'master',
+			targetId: null,
+			effectId: 'selection-preview-eq',
+		}]);
+		assert.strictEqual(previewError, errors[0]);
+
+		preview.start(0);
+		assert.deepEqual(preview.source.started, [0, undefined, undefined]);
+		preview.disconnect();
+		assert.equal(preview.configure(params), false);
+		assert.equal(preview.audition('preview-band'), false);
+		assert.equal(processor.port.onmessage, null);
+		assert.equal(processor.onprocessorerror, null);
+		assert.equal(preview.source.disconnected, true);
+	} finally {
+		unsubscribe();
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('parametric EQ worklet load failures reject playback instead of falling back to native biquads', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	context.audioWorklet.addModule = async (url) => {
+		if (String(url).endsWith('/parametric-eq/worklet.js')) throw new Error('mock parametric EQ module load failed');
+		context.audioWorkletModules.push(String(url));
+	};
+	const project = createRackProject({
+		tracks: [{
+			id: 'track-1',
+			effects: [{
+				id: 'track-eq', type: 'eq', enabled: true,
+				params: { outputGain: 0, bands: [] },
+			}],
+		}],
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	try {
+		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(1, 4_800, 48_000)]]));
+		await assert.rejects(() => engine.play(), /mock parametric EQ module load failed/);
+		assert.equal(engine.graph, null);
+		assert.equal(context.workletNodes.length, 0);
+		assert.equal(context.bufferSources.length, 0);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('parametric EQ processor errors surface with rack context without bypassing the worklet', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const project = createRackProject({
+		tracks: [{
+			id: 'track-1',
+			effects: [{
+				id: 'track-eq', type: 'eq', enabled: true,
+				params: { outputGain: 0, bands: [] },
+			}],
+		}],
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context, meterInterval: 1_000 });
+	const errors = [];
+	const unsubscribe = engine.subscribeParametricEqErrors((error) => errors.push(error));
+	try {
+		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(1, 4_800, 48_000)]]));
+		await engine.play();
+		const processor = context.workletNodes[0];
+		processor.port.onmessage({ data: { type: 'status', status: 'ready' } });
+		assert.deepEqual(errors, []);
+
+		processor.port.onmessage({
+			data: {
+				type: 'error',
+				message: 'mock EQ processing failure',
+				revision: 4,
+				sequence: 4,
+				scope: 'spoofed',
+				effectId: 'spoofed',
+			},
+		});
+		assert.deepEqual(errors, [{
+			type: 'error',
+			message: 'mock EQ processing failure',
+			revision: 4,
+			sequence: 4,
+			scope: 'track',
+			targetId: 'track-1',
+			effectId: 'track-eq',
+		}]);
+		assert.equal(engine.getState().state, 'playing');
+		assert.ok(incomingConnections(engine.graph.nodes, processor, 0).length > 0);
+		assert.ok(processor.connectionDetails.length > 0);
+		assert.equal(context.nodeKinds.includes('biquad'), false);
+
+		unsubscribe();
+		processor.port.onmessage({ data: { type: 'error', message: 'ignored after unsubscribe' } });
+		assert.equal(errors.length, 1);
+		engine.stop();
+		assert.equal(processor.port.onmessage, null);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 test('Auto Duck receives its selected control track from the dry second input', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;
@@ -1475,7 +1775,12 @@ class MockAudioWorkletNode extends MockNode {
 		this.context = context;
 		this.name = name;
 		this.options = options;
-		this.port = { onmessage: null, postMessage() {}, start() {} };
+		this.messages = [];
+		this.port = {
+			onmessage: null,
+			postMessage: (message) => this.messages.push(message),
+			start() {},
+		};
 		context.workletNodes.push(this);
 		context.nodeKinds.push(`audio-worklet:${name}`);
 	}
@@ -1555,10 +1860,19 @@ class MockAudioContext {
 	createConvolver() { return this.make('convolver', { buffer: null }); }
 	createWaveShaper() { return this.make('waveshaper', { curve: null }); }
 	createAnalyser() {
-		return this.make('analyser', {
+		const analyser = this.make('analyser', {
 			fftSize: 256,
+			minDecibels: -100,
+			maxDecibels: -30,
+			smoothingTimeConstant: 0.8,
 			getFloatTimeDomainData(values) { values.fill(0.25); },
+			getFloatFrequencyDomainData(values) { values.fill(-48); },
 		});
+		Object.defineProperty(analyser, 'frequencyBinCount', {
+			configurable: true,
+			get() { return analyser.fftSize / 2; },
+		});
+		return analyser;
 	}
 	createBufferSource() {
 		const node = this.make('buffer-source', {

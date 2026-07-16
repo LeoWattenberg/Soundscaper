@@ -453,6 +453,52 @@ test('legacy V2 track format fields are normalized without mutating the saved do
 	}
 });
 
+test('saved legacy parametric EQ racks migrate atomically across tracks, master, groups, and sends', () => {
+	const project = richV2Fixture();
+	const legacyEq = (id) => ({
+		id,
+		type: 'eq',
+		enabled: true,
+		params: {
+			bands: [100, 500, 2_000, 8_000].map((frequency) => ({ frequency, gain: 0, q: 1 })),
+		},
+	});
+	project.tracks[0].effects = [legacyEq('track-eq')];
+	project.master.effects = [legacyEq('master-eq')];
+	project.mixer.groups = [{
+		id: 'group-eq', name: 'EQ group', color: '#4f87c8', gain: 1, pan: 0,
+		mute: false, solo: false, effects: [legacyEq('group-effect-eq')],
+	}];
+	project.mixer.sends = [{
+		id: 'send-eq', name: 'EQ send', color: '#8c6fd1', gain: 1, pan: 0,
+		mute: false, solo: false, effects: [legacyEq('send-effect-eq')],
+	}];
+	const rollback = structuredClone(project);
+
+	const result = migrateAudioEditorProject(project);
+	assert.deepEqual(project, rollback);
+	assert.equal(result.migrated, true);
+	const migratedEffects = [
+		result.project.tracks[0].effects[0],
+		result.project.master.effects[0],
+		result.project.mixer.groups[0].effects[0],
+		result.project.mixer.sends[0].effects[0],
+	];
+	for (const effect of migratedEffects) {
+		assert.equal(effect.params.outputGain, 0);
+		assert.deepEqual(effect.params.bands.map((band) => band.id), [
+			`${effect.id}-band-1`,
+			`${effect.id}-band-2`,
+			`${effect.id}-band-3`,
+			`${effect.id}-band-4`,
+		]);
+		assert.ok(effect.params.bands.every((band) => (
+			band.enabled && band.type === 'peaking' && band.slope === 12
+		)));
+	}
+	assert.equal(migrateAudioEditorProject(result.project).migrated, false);
+});
+
 test('history and state migration are atomic and future schemas stay intact and read-only', () => {
 	const present = v1Fixture();
 	const previous = { ...v1Fixture(), revision: 16, updatedAt: CREATED_AT };

@@ -1,7 +1,7 @@
 import {
-	AUDACITY_EFFECT_DEFINITIONS,
-	normalizeAudacityEffectParams,
-} from './audacity-effects/manifest.js';
+	AUDIO_SELECTION_EFFECT_DEFINITIONS,
+	normalizeAudioSelectionEffectParams,
+} from './effects.js';
 
 export const AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION = 1;
 
@@ -89,7 +89,7 @@ function normalizePreset(value) {
 		id: nonEmptyString(value.id, 'preset.id'),
 		effectType,
 		name: nonEmptyString(value.name, 'preset.name'),
-		params: Object.freeze(normalizeAudacityEffectParams(effectType, value.params || {})),
+		params: Object.freeze(normalizeAudioSelectionEffectParams(effectType, value.params || {})),
 		createdAt: timestamp(value.createdAt),
 		updatedAt: timestamp(value.updatedAt),
 	});
@@ -97,7 +97,7 @@ function normalizePreset(value) {
 
 function effectTypeValue(value) {
 	const effectType = nonEmptyString(value, 'effectType');
-	if (!AUDACITY_EFFECT_DEFINITIONS[effectType]) throw new RangeError(`Unsupported effect preset type: ${effectType}.`);
+	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[effectType]) throw new RangeError(`Unsupported effect preset type: ${effectType}.`);
 	return effectType;
 }
 

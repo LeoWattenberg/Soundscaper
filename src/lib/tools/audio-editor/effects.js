@@ -11,7 +11,34 @@ import {
 } from './audacity-effects/live.js';
 import { canonicalCopyValue, effectNameCopyKey } from '../../../i18n/canonical-extras.js';
 
-const EQ_FREQUENCIES = [100, 500, 2_000, 8_000];
+const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
+
+export const PARAMETRIC_EQ_BAND_TYPES = Object.freeze([
+	'peaking',
+	'lowshelf',
+	'highshelf',
+	'highpass',
+	'lowpass',
+	'notch',
+]);
+export const PARAMETRIC_EQ_SLOPES = Object.freeze([12, 24, 36, 48]);
+export const PARAMETRIC_EQ_MAXIMUM_BANDS = 12;
+
+const PARAMETRIC_EQ_BAND_TYPE_SET = new Set(PARAMETRIC_EQ_BAND_TYPES);
+const PARAMETRIC_EQ_SLOPE_SET = new Set(PARAMETRIC_EQ_SLOPES);
+const PARAMETRIC_EQ_EFFECT_ALIASES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
+const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
+	outputGain: 0,
+	bands: Object.freeze(EQ_FREQUENCIES.map((frequency, index) => Object.freeze({
+		id: `band-${index + 1}`,
+		enabled: true,
+		type: 'peaking',
+		frequency,
+		gain: 0,
+		q: 1,
+		slope: 12,
+	}))),
+});
 
 /**
  * @typedef {Object} AudioEditorEffect
@@ -33,9 +60,16 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 		ranges: { frequency: [10, 24_000], q: [0.1, 30] },
 	},
 	eq: {
-		defaults: {
-			bands: EQ_FREQUENCIES.map((frequency) => ({ frequency, gain: 0, q: 1 })),
+		defaults: PARAMETRIC_EQ_DEFAULTS,
+		ranges: {
+			outputGain: [-24, 24],
+			frequency: [10, 24_000],
+			gain: [-24, 24],
+			q: [0.1, 30],
 		},
+		bandTypes: PARAMETRIC_EQ_BAND_TYPES,
+		slopes: PARAMETRIC_EQ_SLOPES,
+		maximumBands: PARAMETRIC_EQ_MAXIMUM_BANDS,
 	},
 	compressor: {
 		defaults: { threshold: -24, knee: 30, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
@@ -87,8 +121,48 @@ export const AUDIO_RACK_EFFECT_DEFINITIONS = Object.freeze({
 	...Object.fromEntries(AUDACITY_RACK_EFFECT_TYPES.map((type) => [type, AUDACITY_EFFECT_DEFINITIONS[type]])),
 });
 
+/** All effects which can be previewed and destructively applied to a selection. */
+export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
+	...AUDACITY_EFFECT_DEFINITIONS,
+	eq: Object.freeze({
+		...AUDIO_EFFECT_DEFINITIONS.eq,
+		preRollSeconds: 10,
+	}),
+});
+
 export function audioEffectTypes() {
 	return Object.keys(AUDIO_RACK_EFFECT_DEFINITIONS);
+}
+
+export function audioSelectionEffectTypes() {
+	return Object.keys(AUDIO_SELECTION_EFFECT_DEFINITIONS);
+}
+
+export function audioSelectionEffectDefinition(type) {
+	const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
+	if (!definition) throw new RangeError(`Unsupported selection effect: ${type}.`);
+	return definition;
+}
+
+export function audioSelectionEffectLabel(type, copyOrLocale = 'en') {
+	return AUDACITY_EFFECT_DEFINITIONS[type]
+		? audacityEffectLabel(type, copyOrLocale)
+		: audioEffectLabel(type, copyOrLocale);
+}
+
+export function audioSelectionEffectDefaults(type, effectId = null) {
+	if (AUDACITY_EFFECT_DEFINITIONS[type]) return audacityEffectDefaults(type);
+	audioSelectionEffectDefinition(type);
+	return normalizeEffectParams(type, clone(AUDIO_EFFECT_DEFINITIONS[type].defaults), effectId);
+}
+
+export function normalizeAudioSelectionEffectParams(type, params = {}, effectId = null) {
+	if (AUDACITY_EFFECT_DEFINITIONS[type]) return normalizeAudacityEffectParams(type, params);
+	audioSelectionEffectDefinition(type);
+	return normalizeEffectParams(type, {
+		...clone(AUDIO_EFFECT_DEFINITIONS[type].defaults),
+		...clone(params),
+	}, effectId);
 }
 
 export function isAudacityRackEffectType(type) {
@@ -117,6 +191,7 @@ export function createEffect(type, options = {}) {
 	const definition = AUDIO_EFFECT_DEFINITIONS[type];
 	const audacityDefinition = isAudacityRackEffectType(type) ? AUDACITY_EFFECT_DEFINITIONS[type] : null;
 	if (!definition && !audacityDefinition) throw new RangeError(`Unsupported audio effect: ${type}.`);
+	const id = options.id || createStableId('effect');
 	const params = audacityDefinition
 		? normalizeAudacityRackEffectParams(type, {
 			...audacityEffectDefaults(type),
@@ -125,9 +200,9 @@ export function createEffect(type, options = {}) {
 		: normalizeEffectParams(type, {
 			...clone(definition.defaults),
 			...(options.params || {}),
-		});
+		}, id);
 	const effect = {
-		id: options.id || createStableId('effect'),
+		id,
 		type,
 		enabled: options.enabled !== false,
 		params,
@@ -148,7 +223,8 @@ function normalizeAudacityRackEffectParams(type, params) {
 export function normalizeEffect(effect) {
 	if (!effect || typeof effect !== 'object') throw new TypeError('An effect is required.');
 	if (typeof effect.id !== 'string' || !effect.id) throw new TypeError('Every effect needs a stable ID.');
-	return createEffect(effect.type, effect);
+	const type = PARAMETRIC_EQ_EFFECT_ALIASES.has(effect.type) ? 'eq' : effect.type;
+	return createEffect(type, { ...effect, type });
 }
 
 export function validateEffect(effect) {
@@ -195,16 +271,22 @@ export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, m
 	return Math.min(maximum, tail);
 }
 
-function normalizeEffectParams(type, params) {
+function normalizeEffectParams(type, params, effectId = null) {
 	if (type === 'eq') {
-		if (!Array.isArray(params.bands) || params.bands.length !== 4) {
-			throw new RangeError('The parametric EQ requires exactly four bands.');
+		if (!Array.isArray(params.bands) || params.bands.length > PARAMETRIC_EQ_MAXIMUM_BANDS) {
+			throw new RangeError(`The parametric EQ supports between zero and ${PARAMETRIC_EQ_MAXIMUM_BANDS} bands.`);
 		}
+		const ids = normalizeParametricEqBandIds(params.bands, effectId);
 		return {
+			outputGain: range(params.outputGain ?? 0, -24, 24, 'eq.outputGain'),
 			bands: params.bands.map((band, index) => ({
+				id: ids[index],
+				enabled: normalizeBoolean(band?.enabled, true, `eq.bands[${index}].enabled`),
+				type: parametricEqBandType(band?.type ?? 'peaking', `eq.bands[${index}].type`),
 				frequency: range(band.frequency, 10, 24_000, `eq.bands[${index}].frequency`),
 				gain: range(band.gain, -24, 24, `eq.bands[${index}].gain`),
 				q: range(band.q, 0.1, 30, `eq.bands[${index}].q`),
+				slope: parametricEqSlope(band?.slope ?? 12, `eq.bands[${index}].slope`),
 			})),
 		};
 	}
@@ -215,6 +297,54 @@ function normalizeEffectParams(type, params) {
 		output[name] = range(params[name], minimum, maximum, `${type}.${name}`);
 	}
 	return output;
+}
+
+function normalizeParametricEqBandIds(bands, effectId) {
+	const explicitIds = new Set();
+	const sourceIds = bands.map((band, index) => {
+		if (!band || typeof band !== 'object' || Array.isArray(band)) {
+			throw new TypeError(`eq.bands[${index}] must be an object.`);
+		}
+		if (band.id == null || band.id === '') return null;
+		if (typeof band.id !== 'string' || !band.id.trim()) {
+			throw new TypeError(`eq.bands[${index}].id must be a non-empty string.`);
+		}
+		const id = band.id.trim();
+		if (explicitIds.has(id)) throw new RangeError(`Duplicate parametric EQ band ID: ${id}.`);
+		explicitIds.add(id);
+		return id;
+	});
+	const assignedIds = new Set(explicitIds);
+	return sourceIds.map((id, index) => {
+		if (id) return id;
+		const base = `${effectId ? `${effectId}-` : ''}band-${index + 1}`;
+		let generated = base;
+		let suffix = 2;
+		while (assignedIds.has(generated)) generated = `${base}-${suffix++}`;
+		assignedIds.add(generated);
+		return generated;
+	});
+}
+
+function normalizeBoolean(value, defaultValue, name) {
+	if (value === undefined) return defaultValue;
+	if (typeof value !== 'boolean') throw new TypeError(`${name} must be a boolean.`);
+	return value;
+}
+
+function parametricEqBandType(value, name) {
+	if (typeof value !== 'string' || !PARAMETRIC_EQ_BAND_TYPE_SET.has(value)) {
+		throw new RangeError(`${name} must be one of ${PARAMETRIC_EQ_BAND_TYPES.join(', ')}.`);
+	}
+	return value;
+}
+
+function parametricEqSlope(value, name) {
+	const slope = Number(value);
+	if (!PARAMETRIC_EQ_SLOPE_SET.has(slope)) {
+		throw new RangeError(`${name} must be one of ${PARAMETRIC_EQ_SLOPES.join(', ')}.`);
+	}
+	return slope;
 }
 
 function range(value, minimum, maximum, name) {

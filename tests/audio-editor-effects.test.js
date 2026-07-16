@@ -4,12 +4,20 @@ import assert from 'node:assert/strict';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_RACK_EFFECT_DEFINITIONS,
+	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	AUDACITY_RACK_EFFECT_TYPES,
+	PARAMETRIC_EQ_BAND_TYPES,
+	PARAMETRIC_EQ_MAXIMUM_BANDS,
+	PARAMETRIC_EQ_SLOPES,
 	audioEffectLabel,
 	audioEffectParamRange,
 	audioEffectTypes,
+	audioSelectionEffectDefaults,
+	audioSelectionEffectLabel,
+	audioSelectionEffectTypes,
 	createEffect,
 	isAudacityRackEffectType,
+	normalizeAudioSelectionEffectParams,
 	normalizeEffect,
 	updateEffect,
 	validateEffect,
@@ -160,6 +168,88 @@ test('selection-only Audacity effects are rejected by the realtime rack model', 
 	}
 	const live = createEffect('audacity-invert', { id: 'invert' });
 	assert.throws(() => updateEffect(live, { type: 'audacity-reverse' }), /Unsupported audio effect/);
+});
+
+test('parametric EQ normalizes the legacy four-band model into the canonical extensible schema', () => {
+	const legacy = {
+		id: 'legacy-eq',
+		type: 'eq',
+		enabled: true,
+		params: {
+			bands: [100, 500, 2_000, 8_000].map((frequency) => ({ frequency, gain: 0, q: 1 })),
+		},
+	};
+	const normalized = normalizeEffect(legacy);
+	assert.equal(normalized.params.outputGain, 0);
+	assert.deepEqual(normalized.params.bands, [100, 500, 2_000, 8_000].map((frequency, index) => ({
+		id: `legacy-eq-band-${index + 1}`,
+		enabled: true,
+		type: 'peaking',
+		frequency,
+		gain: 0,
+		q: 1,
+		slope: 12,
+	})));
+	assert.equal('outputGain' in legacy.params, false);
+	assert.equal('id' in legacy.params.bands[0], false);
+	assert.deepEqual(audioSelectionEffectDefaults('eq').bands.map((band) => band.id), [
+		'band-1',
+		'band-2',
+		'band-3',
+		'band-4',
+	]);
+	assert.deepEqual(normalizeAudioSelectionEffectParams('eq', legacy.params, legacy.id), normalized.params);
+	assert.equal(normalizeEffect({ ...legacy, type: 'parametric_eq' }).type, 'eq');
+	assert.equal(normalizeEffect({ ...legacy, type: 'parametric-eq' }).type, 'eq');
+});
+
+test('parametric EQ accepts zero through twelve uniquely identified bands and validates every control', () => {
+	assert.deepEqual(createEffect('eq', { id: 'empty', params: { outputGain: -3, bands: [] } }).params, {
+		outputGain: -3,
+		bands: [],
+	});
+	const bands = Array.from({ length: PARAMETRIC_EQ_MAXIMUM_BANDS }, (_, index) => ({
+		id: `node-${index}`,
+		enabled: index % 2 === 0,
+		type: PARAMETRIC_EQ_BAND_TYPES[index % PARAMETRIC_EQ_BAND_TYPES.length],
+		frequency: 20 * 1_000 ** (index / (PARAMETRIC_EQ_MAXIMUM_BANDS - 1)),
+		gain: index - 6,
+		q: 0.5 + index,
+		slope: PARAMETRIC_EQ_SLOPES[index % PARAMETRIC_EQ_SLOPES.length],
+	}));
+	const effect = createEffect('eq', { id: 'full', params: { outputGain: 6, bands } });
+	assert.deepEqual(effect.params, { outputGain: 6, bands });
+	assert.equal(audioEffectParamRange('eq', 'outputGain')[1], 24);
+
+	const thirteen = [...bands, { ...bands[0], id: 'node-12' }];
+	assert.throws(() => createEffect('eq', { id: 'too-many', params: { bands: thirteen } }), /zero and 12 bands/);
+	assert.throws(() => createEffect('eq', {
+		id: 'duplicate', params: { bands: [{ ...bands[0], id: 'same' }, { ...bands[1], id: 'same' }] },
+	}), /Duplicate parametric EQ band ID/);
+	for (const [change, pattern] of [
+		[{ id: ' ' }, /non-empty string/],
+		[{ enabled: 1 }, /must be a boolean/],
+		[{ type: 'bandpass' }, /must be one of/],
+		[{ slope: 18 }, /must be one of/],
+		[{ frequency: 9 }, /between 10 and 24000/],
+		[{ gain: 25 }, /between -24 and 24/],
+		[{ q: 31 }, /between 0.1 and 30/],
+	]) {
+		assert.throws(() => createEffect('eq', {
+			id: 'invalid-band', params: { bands: [{ ...bands[0], ...change }] },
+		}), pattern);
+	}
+	assert.throws(() => createEffect('eq', {
+		id: 'invalid-output', params: { outputGain: -25, bands: [] },
+	}), /between -24 and 24/);
+});
+
+test('selection effect registry adds canonical EQ without changing the Audacity inventory order', () => {
+	assert.deepEqual(audioSelectionEffectTypes(), [...audacityEffectTypes(), 'eq']);
+	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.maximumBands, 12);
+	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.preRollSeconds, 10);
+	assert.equal(audioSelectionEffectLabel('eq', 'en'), audioEffectLabel('eq', 'en'));
+	assert.throws(() => audioSelectionEffectDefaults('compressor'), /Unsupported selection effect/);
 });
 
 test('rack labels keep studio collisions distinct from their Audacity implementations', () => {

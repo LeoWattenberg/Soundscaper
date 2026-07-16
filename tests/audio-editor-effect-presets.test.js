@@ -58,3 +58,33 @@ test('effect presets import/export atomically and reject collisions and invalid 
 		effectType: 'external-plugin', name: 'No', params: {}, idFactory: () => 'no',
 	}), /Unsupported effect preset type/);
 });
+
+test('parametric EQ presets migrate legacy bands and preserve stable node IDs', () => {
+	const saved = saveAudioEditorEffectPreset(createAudioEditorEffectPresets(), {
+		effectType: 'eq',
+		name: 'Legacy presence',
+		params: { bands: [{ frequency: 2_500, gain: 2.5, q: 1.2 }] },
+		idFactory: () => 'preset-eq',
+		now: '2026-07-13T12:00:00.000Z',
+	});
+	assert.deepEqual(saved.preset.params, {
+		outputGain: 0,
+		bands: [{
+			id: 'band-1', enabled: true, type: 'peaking', frequency: 2_500,
+			gain: 2.5, q: 1.2, slope: 12,
+		}],
+	});
+	const updated = saveAudioEditorEffectPreset(saved.state, {
+		id: 'preset-eq',
+		effectType: 'eq',
+		name: 'Legacy presence',
+		params: {
+			outputGain: -1,
+			bands: [{ ...saved.preset.params.bands[0], id: 'presence-node', type: 'highshelf' }],
+		},
+		now: '2026-07-13T12:01:00.000Z',
+	});
+	assert.equal(updated.preset.params.outputGain, -1);
+	assert.equal(updated.preset.params.bands[0].id, 'presence-node');
+	assert.equal(updated.preset.params.bands[0].type, 'highshelf');
+});

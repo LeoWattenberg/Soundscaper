@@ -2335,6 +2335,91 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('edits and restores a parametric EQ rack through its graph controls', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		let effectsPanel = await openEffectsForTrack(editor, 1);
+
+		await openRackPicker(effectsPanel, 'track');
+		const picker = page.getByRole('dialog', { name: 'Choose an effect', exact: true });
+		await picker.locator('[data-effect-type]').getByRole('button').click();
+		const eqOption = page.getByRole('option', { name: /parametric EQ/i }).first();
+		await expect(eqOption).toBeVisible();
+		await eqOption.click();
+		await picker.getByRole('button', { name: 'Add effect', exact: true }).click();
+
+		let eq = page.locator('[data-parametric-eq]');
+		await expect(eq).toBeVisible();
+		let handles = eq.locator('.audio-editor-parametric-eq__handle');
+		await expect(handles).toHaveCount(4);
+		await eq.getByRole('button', { name: 'Add band', exact: true }).click();
+		await expect(handles).toHaveCount(5);
+		await expect(handles.nth(4)).toHaveAttribute('data-selected', 'true');
+
+		let eqDialog = eq.locator('xpath=ancestor::*[@role="dialog"]').first();
+		await closeDialog(eqDialog);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		let rackEq = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: /parametric EQ/i });
+		await rackEq.getByRole('button', { name: 'Select effect', exact: true }).click();
+		eq = page.locator('[data-parametric-eq]');
+		handles = eq.locator('.audio-editor-parametric-eq__handle');
+		await expect(handles).toHaveCount(4);
+		eqDialog = eq.locator('xpath=ancestor::*[@role="dialog"]').first();
+		await closeDialog(eqDialog);
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		rackEq = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: /parametric EQ/i });
+		await rackEq.getByRole('button', { name: 'Select effect', exact: true }).click();
+		eq = page.locator('[data-parametric-eq]');
+		handles = eq.locator('.audio-editor-parametric-eq__handle');
+		await expect(handles).toHaveCount(5);
+
+		await handles.nth(4).click();
+		const selectedBand = eq.getByRole('region', { name: 'Selected band', exact: true });
+		await commitInput(selectedBand.getByLabel('Frequency (Hz)', { exact: true }), '3200');
+		await commitInput(selectedBand.getByLabel('Gain (dB)', { exact: true }), '4.5');
+		await commitInput(selectedBand.getByLabel('Q', { exact: true }), '1.75');
+		await selectedBand.locator('select').first().selectOption('lowshelf');
+		await commitInput(eq.locator('.audio-editor-parametric-eq__output input[type="number"]'), '-2.5');
+		await expect(selectedBand.locator('select').first()).toHaveValue('lowshelf');
+		await expect(selectedBand.getByLabel('Frequency (Hz)', { exact: true })).toHaveValue('3200');
+		await expect(selectedBand.getByLabel('Gain (dB)', { exact: true })).toHaveValue('4.5');
+		await expect(eq.locator('.audio-editor-parametric-eq__output input[type="number"]')).toHaveValue('-2.5');
+
+		const settingsDialog = eq.locator('xpath=ancestor::*[@role="dialog"]').first();
+		await closeDialog(settingsDialog);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		await page.reload();
+
+		const restored = await waitForEditor(page);
+		effectsPanel = await openEffectsForTrack(restored, 1);
+		rackEq = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: /parametric EQ/i });
+		await expect(rackEq).toHaveCount(1);
+		await rackEq.getByRole('button', { name: 'Select effect', exact: true }).click();
+		eq = page.locator('[data-parametric-eq]');
+		await expect(eq.locator('.audio-editor-parametric-eq__handle')).toHaveCount(5);
+		await eq.locator('.audio-editor-parametric-eq__handle').nth(4).click();
+		const restoredBand = eq.getByRole('region', { name: 'Selected band', exact: true });
+		await expect(restoredBand.locator('select').first()).toHaveValue('lowshelf');
+		await expect(restoredBand.getByLabel('Frequency (Hz)', { exact: true })).toHaveValue('3200');
+		await expect(restoredBand.getByLabel('Gain (dB)', { exact: true })).toHaveValue('4.5');
+		await expect(eq.locator('.audio-editor-parametric-eq__output input[type="number"]')).toHaveValue('-2.5');
+		await closeDialog(eq.locator('xpath=ancestor::*[@role="dialog"]').first());
+		await restored.getByRole('button', { name: 'Play', exact: true }).click();
+		const pause = restored.getByRole('button', { name: 'Pause', exact: true });
+		await expect(pause).toBeVisible();
+		await pause.click();
+
+		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function' || typeof globalThis.webkitOfflineAudioContext === 'function'), 'OfflineAudioContext is unavailable in this browser.');
+		const exportDialog = await openExportDialog(page, restored);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		const download = exportDialog.locator('[data-export-download]');
+		await expect(download).toBeVisible({ timeout: 15_000 });
+		await expect(download).toHaveAttribute('download', /\.wav$/);
+		expect(errors).toEqual([]);
+	});
+
 	test('copies an ordered effect stack between tracks and exports it as an Audacity macro', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -2511,6 +2596,36 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
 		await editor.getByRole('button', { name: 'Redo' }).click();
 		await expect(editor.locator('[data-clip-id]')).toContainText('Invert');
+		expect(errors).toEqual([]);
+	});
+
+	test('offers and destructively applies the parametric EQ from the selection Effect menu', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+
+		const effectDialog = await openParametricEqSelectionEffect(page, editor);
+		const eq = effectDialog.locator('[data-parametric-eq]');
+		await expect(eq).toBeVisible();
+		await expect(eq.locator('.audio-editor-parametric-eq__handle')).toHaveCount(4);
+		await commitInput(eq.locator('.audio-editor-parametric-eq__output input[type="number"]'), '-6');
+		await expect(eq.locator('.audio-editor-parametric-eq__output input[type="number"]')).toHaveValue('-6');
+		await effectDialog.getByRole('button', { name: 'Preview', exact: true }).click();
+		const stopPreview = effectDialog.getByRole('button', { name: 'Stop preview', exact: true });
+		await expect(stopPreview).toBeVisible();
+		await stopPreview.click();
+		await expect(effectDialog.getByRole('button', { name: 'Preview', exact: true })).toBeVisible();
+		await effectDialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
+
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+		await expect(effectDialog).toBeHidden();
+		await expect(editor.locator('[data-clip-id]')).toContainText(/parametric EQ/i);
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).some((source) => /parametric EQ/i.test(source.name || ''))
+		)).toBe(true);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
 
@@ -2937,6 +3052,27 @@ async function openEffectsForTrack(editor, trackIndex) {
 
 async function openSelectionEffectDialog(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Special', 'Invert']);
+	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
+	await expect(dialog).toBeVisible();
+	await expect(page.locator('[data-editor-surface="selection-effect"]')).toBeVisible();
+	return dialog;
+}
+
+async function openParametricEqSelectionEffect(page, editor) {
+	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
+	const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
+	await expect(effectMenu).toBeVisible();
+	const filters = effectMenu.getByRole('menuitem', { name: /^EQ and filters(?:\s|$)/i }).first();
+	await expect(filters).toBeVisible();
+	await filters.focus();
+	await page.keyboard.press('ArrowRight');
+	const filtersMenu = filters.getByRole('menu');
+	await expect(filtersMenu).toBeVisible();
+	const eq = filtersMenu.getByRole('menuitem', { name: /parametric EQ/i }).first();
+	await expect(eq).toBeVisible();
+	await eq.focus();
+	await page.keyboard.press('Enter');
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="selection-effect"]')).toBeVisible();

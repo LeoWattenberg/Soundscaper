@@ -4307,7 +4307,7 @@ function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 const EFFECT_MENU_GROUPS = Object.freeze([
 	['volumeCompression', ['audacity-amplify', 'audacity-auto-duck', 'audacity-compressor', 'audacity-legacy-compressor', 'audacity-limiter', 'audacity-loudness-normalization', 'audacity-normalize', 'audacity-remove-dc-offset']],
 	['fading', ['audacity-fade-in', 'audacity-fade-out']],
-	['eqFilters', ['audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq', 'audacity-classic-filters']],
+	['eqFilters', ['eq', 'audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq', 'audacity-classic-filters']],
 	['noiseRepair', ['audacity-click-removal', 'audacity-noise-reduction', 'audacity-repair']],
 	['delayReverb', ['audacity-echo', 'audacity-reverb']],
 	['distortionModulation', ['audacity-distortion', 'audacity-phaser', 'audacity-wahwah']],

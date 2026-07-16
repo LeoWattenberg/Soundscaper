@@ -33,6 +33,8 @@
 		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
 		"build:nyquist": "node scripts/build-nyquist-wasm.mjs",
 		"audit:nyquist": "node scripts/audit-nyquist-wasm.mjs",
+		"build:parametric-eq": "node scripts/build-parametric-eq-wasm.mjs",
+		"audit:parametric-eq": "node scripts/audit-parametric-eq-wasm.mjs",
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
 		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
 		"deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name soundscaper",

@@ -1,4 +1,5 @@
 import { createStableId } from './project.js';
+import { normalizeEffect } from './effects.js';
 
 export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = 2;
 export const AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE = 48_000;
@@ -194,10 +195,15 @@ function normalizeEffects(effects, name) {
 		if (!effect.params || typeof effect.params !== 'object' || Array.isArray(effect.params)) {
 			throw new TypeError(`${name}[${index}].params must be an object.`);
 		}
-		return {
+		const cloned = {
 			...plainClone(effect),
 			enabled: effect.enabled !== false,
 			params: plainClone(effect.params),
+		};
+		if (!['eq', 'parametric-eq', 'parametric_eq'].includes(cloned.type)) return cloned;
+		return {
+			...cloned,
+			...normalizeEffect(cloned),
 		};
 	});
 	assertUniqueIds(result, name);

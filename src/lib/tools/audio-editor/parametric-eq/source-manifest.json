@@ -1,0 +1,89 @@
+{
+	"schemaVersion": 1,
+	"signalsmith": {
+		"repository": "https://github.com/Signalsmith-Audio/dsp.git",
+		"tag": "v1.7.1",
+		"revision": "2d20161915e733f117545c6be8cd3275a739a1e3",
+		"sourcePath": "filters.h",
+		"license": "MIT"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"sourceDateEpoch": "1769077908"
+	},
+	"licenseFiles": [
+		{ "path": "NOTICE.md", "sha256": "a45a9def4e404ebe2467fc57bc2c94671291baa7a5c81fe65c84e54fd3ea744f" },
+		{ "path": "licenses/SIGNALSMITH-DSP.txt", "sha256": "9893cd55f64a11261f50360668dea194240e35170603e610ebad5670442dc612" },
+		{ "path": "../staffpad/licenses/COMPILER_RT.txt", "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d" },
+		{ "path": "../staffpad/licenses/EMSCRIPTEN.txt", "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86" },
+		{ "path": "../staffpad/licenses/LIBCXX.txt", "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b" },
+		{ "path": "../staffpad/licenses/LIBCXXABI.txt", "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c" },
+		{ "path": "../staffpad/licenses/MUSL.txt", "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af" }
+	],
+	"sourceFiles": [
+		{ "path": "parametric_eq_wasm.cpp", "sha256": "bf872aa217d9ad9361a139556b54c3e40ee99e40856859e71727f22c92ab91b9", "origin": "soundscaper" },
+		{ "path": "parametric_eq_wasm.h", "sha256": "70ed84f17d6bffc380c4ca42724e483faf27461a8b8e06c657d9c81423670d8e", "origin": "soundscaper" },
+		{ "path": "vendor/signalsmith/vicanek_reference.h", "sha256": "cb3f88e036b3f3b9c28559129741323dc2d22de4d59784f4bd74e9d213e65601", "origin": "signalsmith-extracted" }
+	],
+	"localExtensions": [
+		{ "path": "core.js", "sha256": "46651301ebfc0ecf497e9a5155406e949698a55cac0db2e2af8a89ade45f8918" },
+		{ "path": "design.js", "sha256": "019cf668cb298f2ef268c307ca2d65a024541655846c61c39b702b6e39636ebc" },
+		{ "path": "destructive.js", "sha256": "88be5e6f79069b0306b8909f80d2fdefe14acabf8cb4b6c1dc2f8d99fc1f3a9f" },
+		{ "path": "index.js", "sha256": "ade3c26cd68e65ac69397a6ff1c11cbdca3df33fb53dfd9eeb2f7634810b75b9" },
+		{ "path": "parameters.js", "sha256": "bc67b327acb5f696ff0c37cca8301e83fe26c16ecb507d7dcf78f0d38ddb7327" },
+		{ "path": "protocol.js", "sha256": "7cedc5bc5e89f39fd5b53176881c80c7fbe2c846101e14018a8473662d8c6468" },
+		{ "path": "response.js", "sha256": "3700ecfe45ce08f33f5358f5a5517576a07c7759566a3df68d5782ac20fb433e" },
+		{ "path": "wasm-loader.js", "sha256": "fd313bf9a7b3acb6f685c86072b62ec156a40cf0cdf7ae7a26355a0f92909f31" },
+		{ "path": "wasm-runtime.js", "sha256": "17595a6977f1423624204e3cf6dcceb374ffa62743177795767d8760e56b3ef2" },
+		{ "path": "worker.js", "sha256": "31251b848c7e2447e78786d23494c08c18ee22705dfa1f97369ab920f3eb52d5" },
+		{ "path": "worklet.js", "sha256": "bd6811feb350316e8addf14740a1bba3ff515f568f8166c6c7d2072f969b0617" }
+	],
+	"compiledSources": [
+		"parametric_eq_wasm.cpp"
+	],
+	"forbiddenRuntimeTokens": [
+		"malloc(",
+		"calloc(",
+		"realloc(",
+		"operator new",
+		"std::vector",
+		"std::string",
+		"std::unique_ptr",
+		"std::shared_ptr"
+	],
+	"wasm": {
+		"path": "parametric-eq.wasm",
+		"sha256": "4cfa05e8183c8d992237c6abb62dee4fa33aada9e3e56c31c09f8e03b9523af4",
+		"maximumBytes": 262144,
+		"initialMemoryBytes": 1048576,
+		"maximumMemoryBytes": 1048576,
+		"stackBytes": 65536,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"peq_abi_version",
+			"peq_maximum_block_size",
+			"peq_maximum_channels",
+			"peq_maximum_bands",
+			"peq_maximum_sections",
+			"peq_linear_memory_bytes",
+			"peq_initialize",
+			"peq_channel_count",
+			"peq_sample_rate",
+			"peq_input_pointer",
+			"peq_output_pointer",
+			"peq_begin_configuration",
+			"peq_set_band",
+			"peq_set_section",
+			"peq_begin_semantic_configuration",
+			"peq_set_semantic_band",
+			"peq_commit_configuration",
+			"peq_is_transitioning",
+			"peq_process",
+			"peq_reset",
+			"peq_response_db"
+		],
+		"allowedFunctionImports": []
+	}
+}
