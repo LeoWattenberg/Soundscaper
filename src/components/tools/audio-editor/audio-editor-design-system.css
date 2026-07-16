@@ -1467,7 +1467,8 @@
 	left: 0;
 	display: flex;
 	height: 100%;
-	align-items: center;
+	flex-direction: column;
+	justify-content: space-between;
 	gap: 8px;
 	padding: 9px;
 	background: var(--kw-editor-stage-raised);
@@ -1478,8 +1479,9 @@
 	display: flex;
 	align-items: center;
 	gap: 7px;
+	width: 100%;
 	min-width: 0;
-	flex: 1;
+	justify-content: space-between;
 }
 
 #kw-audio-editor-design-system .audio-editor-label-track-title [data-track-name] {
@@ -1491,7 +1493,12 @@
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	flex-shrink: 0;
+	width: 100%;
+	justify-content: stretch;
+}
+
+#kw-audio-editor-design-system .audio-editor-label-track-actions .button {
+	width: 100%;
 }
 
 #kw-audio-editor-design-system .audio-editor-label-lane {

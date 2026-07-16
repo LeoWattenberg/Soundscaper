@@ -5,6 +5,7 @@ import {
 	ContextMenu,
 	ContextMenuItem,
 	FrequencyRuler,
+	GhostButton,
 	Icon,
 	LabelMarker,
 	Menu,
@@ -2356,10 +2357,16 @@ function LabelTrackRow({
 							{track.name}
 						</span>
 					)}
+					<GhostButton
+						ariaLabel={copy.trackMenu || copy.tracksMenu}
+						tabIndex={-1}
+						onClick={(event) => onMenu(event.currentTarget)}
+					/>
 				</div>
 				<div className="audio-editor-label-track-actions">
-					<Button variant="secondary" aria-label={copy.addLabel} disabled={blocked} onClick={() => addLabel()}>+</Button>
-					<Button variant="tertiary" aria-label={copy.trackMenu || copy.tracksMenu} onClick={(event) => onMenu(event.currentTarget)}>⋯</Button>
+					<Button variant="secondary" size="small" aria-label={copy.addLabel} disabled={blocked} onClick={() => addLabel()}>
+						{copy.addLabel}
+					</Button>
 				</div>
 			</div>
 			<div
