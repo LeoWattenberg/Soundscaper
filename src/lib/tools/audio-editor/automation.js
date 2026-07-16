@@ -20,17 +20,29 @@ export function envelopeDbToValue(db, maximum = 16) {
  * Missing endpoints use unity gain, matching Audacity's clip envelope.
  */
 export function envelopeValueAtFrame(points, frame, durationFrames) {
+	return createEnvelopeValueEvaluator(points, durationFrames)(frame);
+}
+
+/** Normalize an envelope once and return a reusable clip-frame evaluator. */
+export function createEnvelopeValueEvaluator(points, durationFrames) {
 	const duration = positiveFrame(durationFrames, 'durationFrames');
-	const target = Math.max(0, Math.min(duration, finiteFrame(frame, 'frame')));
 	const normalized = normalizedEnvelope(points, duration);
-	if (!normalized.length) return DEFAULT_ENVELOPE_VALUE;
-	let left = { frame: 0, value: DEFAULT_ENVELOPE_VALUE };
-	for (const point of normalized) {
-		if (point.frame === target) return point.value;
-		if (point.frame > target) return interpolate(left, point, target);
-		left = point;
-	}
-	return left.value;
+	if (!normalized.length) return () => DEFAULT_ENVELOPE_VALUE;
+	return (frame) => {
+		const target = Math.max(0, Math.min(duration, finiteFrame(frame, 'frame')));
+		let low = 0;
+		let high = normalized.length;
+		while (low < high) {
+			const middle = Math.floor((low + high) / 2);
+			if (normalized[middle].frame < target) low = middle + 1;
+			else high = middle;
+		}
+		const right = normalized[low];
+		if (!right) return normalized.at(-1).value;
+		if (right.frame === target) return right.value;
+		const left = low > 0 ? normalized[low - 1] : { frame: 0, value: DEFAULT_ENVELOPE_VALUE };
+		return interpolate(left, right, target);
+	};
 }
 
 /** Convert canonical clip-local points to the design-system shape. */

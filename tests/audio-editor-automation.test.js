@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+	createEnvelopeValueEvaluator,
 	envelopeDbToValue,
 	envelopeFramesToDesignPoints,
 	envelopeValueAtFrame,
@@ -33,6 +34,9 @@ test('volume automation converts between frame-linear gain and design-system dB 
 	assert.equal(envelopeValueAtFrame(points, 0, 48_000), 1);
 	assert.equal(envelopeValueAtFrame(points, 12_000, 48_000), 0.5);
 	assert.equal(envelopeValueAtFrame(points, 18_000, 48_000), 0.75);
+	const evaluate = createEnvelopeValueEvaluator(points, 48_000);
+	assert.equal(evaluate(12_000), 0.5);
+	assert.equal(evaluate(18_000), 0.75);
 });
 
 test('projected automation edits preserve offscreen points and canonical ordering', () => {

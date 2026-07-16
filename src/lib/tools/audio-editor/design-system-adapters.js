@@ -1,4 +1,5 @@
 import { AUDIO_EDITOR_SAMPLE_RATE } from './project.js';
+import { audacityWaveformMode } from './audacity-waveform-renderer.js';
 
 export const DESIGN_SYSTEM_GAIN_DB_MINIMUM = -60;
 export const DESIGN_SYSTEM_GAIN_DB_MAXIMUM = 12;
@@ -227,18 +228,21 @@ export function boundedCanvasDimensions(cssWidth, cssHeight, options = {}) {
  * requested frame window is read and every output channel is capped at
  * `maxSamples`. Downsampled windows store each bucket's minimum and maximum in
  * chronological order so short peaks survive without retaining full source PCM.
- * Clip gain is the canonical linear multiplier, not a dB value.
+ * Clip gain is the canonical linear multiplier, not a dB value. Supplying
+ * `pixelWidth` also attaches a non-enumerable Audacity canvas plan as
+ * `result.rendering`, independently of the compatibility sample cap.
  *
  * @param {Array<Float32Array | number[]>} sourceChannels
  * @param {import('./project.js').AudioEditorClipV1 | {
  *   sourceStartFrame: number,
  *   durationFrames: number,
+ *   sourceDurationFrames?: number,
  *   gain?: number,
  *   fadeInFrames?: number,
  *   fadeOutFrames?: number,
  *   reversed?: boolean,
  * }} clip
- * @param {{ startFrame?: number, endFrame?: number, maxSamples?: number }} [options]
+ * @param {{ startFrame?: number, endFrame?: number, maxSamples?: number, pixelWidth?: number }} [options]
  * @returns {{
  *   channels: Float32Array[],
  *   startFrame: number,
@@ -266,8 +270,11 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		Math.floor(options.maxSamples ?? DEFAULT_MAXIMUM_WAVEFORM_SAMPLES),
 		'maxSamples',
 	);
+	const pixelWidth = options.pixelWidth == null
+		? null
+		: positiveFiniteNumber(options.pixelWidth, 'pixelWidth');
 	if (!frameCount) {
-		return {
+		return withWaveformRendering({
 			channels: sourceChannels.map(() => new Float32Array(0)),
 			startFrame,
 			endFrame,
@@ -275,9 +282,20 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			sampleCount: 0,
 			framesPerBucket: 0,
 			downsampled: false,
-		};
+		}, pixelWidth == null ? null : {
+			mode: 'summary',
+			pixelWidth,
+			pixelsPerSample: 0,
+			startFrame,
+			endFrame,
+			frameCount: 0,
+			channels: sourceChannels.map(() => ({
+				minimum: new Float32Array(0),
+				maximum: new Float32Array(0),
+				rms: new Float32Array(0),
+			})),
+		});
 	}
-
 	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
@@ -291,6 +309,19 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			* gain
 			* fadeEnvelope(localFrame, durationFrames, fadeInFrames, fadeOutFrames);
 	};
+	const rendering = pixelWidth == null ? null : prepareAudacityWaveformRendering(sourceChannels, {
+		sourceStartFrame,
+		sourceDurationFrames,
+		durationFrames,
+		startFrame,
+		endFrame,
+		frameCount,
+		pixelWidth,
+		gain,
+		fadeInFrames,
+		fadeOutFrames,
+		reversed,
+	});
 
 	if (frameCount <= maximumSamples) {
 		const channels = sourceChannels.map((_, channel) => {
@@ -300,7 +331,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			}
 			return output;
 		});
-		return {
+		return withWaveformRendering({
 			channels,
 			startFrame,
 			endFrame,
@@ -308,7 +339,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			sampleCount: frameCount,
 			framesPerBucket: 1,
 			downsampled: false,
-		};
+		}, rendering);
 	}
 
 	if (maximumSamples === 1) {
@@ -320,7 +351,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			}
 			return Float32Array.of(peak);
 		});
-		return {
+		return withWaveformRendering({
 			channels,
 			startFrame,
 			endFrame,
@@ -328,7 +359,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 			sampleCount: 1,
 			framesPerBucket: frameCount,
 			downsampled: true,
-		};
+		}, rendering);
 	}
 
 	const bucketCount = Math.max(1, Math.min(frameCount, Math.floor(maximumSamples / 2)));
@@ -365,7 +396,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		return output;
 	});
 
-	return {
+	return withWaveformRendering({
 		channels,
 		startFrame,
 		endFrame,
@@ -373,7 +404,106 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		sampleCount,
 		framesPerBucket: frameCount / bucketCount,
 		downsampled: true,
+	}, rendering);
+}
+
+/*
+ * GPL-3.0-only browser adaptation of Audacity's WaveDataCache and sample
+ * painters. Exact upstream paths and revision are in THIRD_PARTY_LICENSES.md.
+ */
+function prepareAudacityWaveformRendering(sourceChannels, options) {
+	const sourceSamplesPerTimelineFrame = options.sourceDurationFrames / options.durationFrames;
+	const visibleSourceStart = options.startFrame * sourceSamplesPerTimelineFrame;
+	const visibleSourceEnd = options.endFrame * sourceSamplesPerTimelineFrame;
+	const visibleSourceSamples = options.frameCount * sourceSamplesPerTimelineFrame;
+	const pixelsPerSample = options.pixelWidth / visibleSourceSamples;
+	const mode = audacityWaveformMode(pixelsPerSample);
+	const transformSourceSample = (channel, visualOrdinal) => {
+		const sourceLocalFrame = options.reversed
+			? options.sourceDurationFrames - visualOrdinal - 1
+			: visualOrdinal;
+		const sample = Number(sourceChannels[channel][options.sourceStartFrame + sourceLocalFrame]);
+		const timelineFrame = visualOrdinal / sourceSamplesPerTimelineFrame;
+		return (Number.isFinite(sample) ? sample : 0)
+			* options.gain
+			* fadeEnvelope(timelineFrame, options.durationFrames, options.fadeInFrames, options.fadeOutFrames);
 	};
+	const common = {
+		mode,
+		pixelWidth: options.pixelWidth,
+		pixelsPerSample,
+		startFrame: options.startFrame,
+		endFrame: options.endFrame,
+		frameCount: options.frameCount,
+	};
+
+	if (mode !== 'summary') {
+		const firstSample = Math.max(0, Math.floor(visibleSourceStart));
+		const lastSample = Math.min(options.sourceDurationFrames - 1, Math.ceil(visibleSourceEnd));
+		return {
+			...common,
+			channels: sourceChannels.map((_, channel) => {
+				const samples = new Float32Array(Math.max(0, lastSample - firstSample + 1));
+				for (let index = 0; index < samples.length; index += 1) {
+					samples[index] = transformSourceSample(channel, firstSample + index);
+				}
+				return {
+					firstSample,
+					firstSampleX: (firstSample - visibleSourceStart) * pixelsPerSample,
+					samples,
+				};
+			}),
+		};
+	}
+
+	const columnCount = Math.max(1, Math.ceil(options.pixelWidth));
+	const sourceSamplesPerPixel = 1 / pixelsPerSample;
+	return {
+		...common,
+		channels: sourceChannels.map((_, channel) => {
+			const minimum = new Float32Array(columnCount);
+			const maximum = new Float32Array(columnCount);
+			const rms = new Float32Array(columnCount);
+			for (let column = 0; column < columnCount; column += 1) {
+				const rawStart = Math.min(visibleSourceEnd, visibleSourceStart + column * sourceSamplesPerPixel);
+				const rawEnd = Math.min(visibleSourceEnd, visibleSourceStart + (column + 1) * sourceSamplesPerPixel);
+				let bucketStart = clamp(Math.round(rawStart), 0, options.sourceDurationFrames);
+				let bucketEnd = clamp(Math.round(rawEnd), 0, options.sourceDurationFrames);
+				if (bucketEnd <= bucketStart) {
+					bucketStart = clamp(Math.floor(Math.min(rawStart, visibleSourceEnd - Number.EPSILON)), 0, options.sourceDurationFrames - 1);
+					bucketEnd = bucketStart + 1;
+				}
+				let bucketMinimum = Number.POSITIVE_INFINITY;
+				let bucketMaximum = Number.NEGATIVE_INFINITY;
+				let squareSum = 0;
+				for (let visualOrdinal = bucketStart; visualOrdinal < bucketEnd; visualOrdinal += 1) {
+					const sample = transformSourceSample(channel, visualOrdinal);
+					bucketMinimum = Math.min(bucketMinimum, sample);
+					bucketMaximum = Math.max(bucketMaximum, sample);
+					squareSum += sample * sample;
+				}
+				let joinedToPrevious = false;
+				if (column > 0 && minimum[column - 1] > bucketMaximum) {
+					bucketMaximum = minimum[column - 1];
+					joinedToPrevious = true;
+				}
+				if (column > 0 && maximum[column - 1] < bucketMinimum) {
+					bucketMinimum = maximum[column - 1];
+					joinedToPrevious = true;
+				}
+				minimum[column] = bucketMinimum;
+				maximum[column] = bucketMaximum;
+				const bucketRms = Math.sqrt(squareSum / (bucketEnd - bucketStart));
+				rms[column] = joinedToPrevious ? clamp(bucketRms, bucketMinimum, bucketMaximum) : bucketRms;
+			}
+			return { minimum, maximum, rms };
+		}),
+	};
+}
+
+function withWaveformRendering(result, rendering) {
+	if (rendering) Object.defineProperty(result, 'rendering', { value: rendering });
+	return result;
 }
 
 function frameBounds(options) {

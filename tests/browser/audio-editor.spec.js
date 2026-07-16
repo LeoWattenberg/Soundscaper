@@ -1741,6 +1741,70 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('renders solid Audacity summary columns and connected samples across zoom levels', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		await editor.getByRole('button', { name: 'Zoom out', exact: true }).click();
+		const waveform = clipByName(editor, longTone.name).locator('canvas.clip-body__waveform');
+		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
+		await expect(waveform).toHaveAttribute('data-waveform-mode', 'summary');
+
+		const summaryPixels = await waveform.evaluate((canvas) => {
+			const context = canvas.getContext('2d');
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+			let blankColumns = 0;
+			let transparentInteriorPixels = 0;
+			for (let x = 0; x < width; x += 1) {
+				let first = -1;
+				let last = -1;
+				for (let y = 0; y < height; y += 1) {
+					if (data[(y * width + x) * 4 + 3] === 0) continue;
+					if (first < 0) first = y;
+					last = y;
+				}
+				if (first < 0) {
+					blankColumns += 1;
+					continue;
+				}
+				for (let y = first; y <= last; y += 1) {
+					if (data[(y * width + x) * 4 + 3] === 0) transparentInteriorPixels += 1;
+				}
+			}
+			return { blankColumns, transparentInteriorPixels, width };
+		});
+		expect(summaryPixels.width).toBeGreaterThan(40);
+		expect(summaryPixels.blankColumns).toBe(0);
+		expect(summaryPixels.transparentInteriorPixels).toBe(0);
+
+		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
+		let sampleMode = 'summary';
+		for (let step = 0; step < 12 && sampleMode === 'summary'; step += 1) {
+			await zoomIn.click();
+			sampleMode = await waveform.getAttribute('data-waveform-mode');
+		}
+		expect(sampleMode).toBe('connecting-dots');
+		const connectedPixels = await waveform.evaluate((canvas) => {
+			const context = canvas.getContext('2d');
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+			let blankColumns = 0;
+			for (let x = 0; x < width; x += 1) {
+				let painted = false;
+				for (let y = 0; y < height; y += 1) {
+					if (data[(y * width + x) * 4 + 3] > 0) {
+						painted = true;
+						break;
+					}
+				}
+				if (!painted) blankColumns += 1;
+			}
+			return { blankColumns, width };
+		});
+		expect(connectedPixels.width).toBeGreaterThan(40);
+		expect(connectedPixels.blankColumns).toBe(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('mixes selected tracks through the real browser graph and restores them with undo', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -2597,13 +2661,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		const tracks = editor.locator('[data-track-row]');
 		await expect(tracks).toHaveCount(2);
+		await editor.getByRole('button', { name: 'Spectrogram' }).click();
+		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);
 		const record = editor.getByRole('button', { name: 'Record onto the active track' });
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
 		const recordingPreview = tracks.nth(1).locator('[data-clip-id^="recording-preview-"]');
 		await expect(recordingPreview).toBeVisible({ timeout: 10_000 });
-		await expect(recordingPreview.locator('canvas').first()).toBeVisible();
+		const recordingWaveform = recordingPreview.locator('canvas').first();
+		await expect(recordingWaveform).toBeVisible();
+		await expect(recordingWaveform).toHaveAttribute('data-waveform-renderer', 'audacity');
+		await expect(recordingWaveform).toHaveAttribute('data-waveform-mode', 'summary');
 		await page.waitForTimeout(350);
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 10_000 });

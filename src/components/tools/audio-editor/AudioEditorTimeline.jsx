@@ -30,6 +30,7 @@ import {
 	secondsToFrames,
 } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import {
+	createEnvelopeValueEvaluator,
 	envelopeFramesToDesignPoints,
 	mergeDesignEnvelopePoints,
 } from '../../../lib/tools/audio-editor/automation.js';
@@ -40,6 +41,7 @@ import {
 } from '../../../lib/tools/audio-editor/audacity-context-menu.js';
 import { collectClipTransformIds } from '../../../lib/tools/audio-editor/commands.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
+import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
 import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
@@ -1492,7 +1494,13 @@ function TrackRow({
 			displayMode === 'half-wave',
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
-			return preview ? { ...clip, envelopePoints: preview.designPoints } : clip;
+			return preview ? {
+				...clip,
+				envelopePoints: preview.designPoints,
+				audacityWaveform: clip.audacityWaveform
+					? { ...clip.audacityWaveform, envelope: preview.envelope }
+					: undefined,
+			} : clip;
 		});
 	const projectedSelection = selection ? {
 		startTime: selection.startTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
@@ -1827,6 +1835,15 @@ function TrackRow({
 						onClipTrim={trimClipBySeconds}
 						onClipStretch={stretchClipBySeconds}
 					/>
+					<AudacityWaveformCanvases
+						rootRef={trackWindowRef}
+						clips={projectedClips}
+						displayMode={displayMode === 'spectrogram' && recordingPreview ? 'waveform' : displayMode}
+						pixelsPerSecond={pixelsPerSecond}
+						timeSelection={selectedTrackId === track.id ? projectedSelection : null}
+						showRms={showRms}
+						halfWave={displayMode === 'half-wave'}
+					/>
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralSelectionOverlay
 							selection={activeSpectralSelection}
@@ -1904,6 +1921,160 @@ function TrackRow({
 			</div>
 		</div>
 	);
+}
+
+function AudacityWaveformCanvases({
+	rootRef,
+	clips,
+	displayMode,
+	pixelsPerSecond,
+	timeSelection,
+	showRms,
+	halfWave,
+}) {
+	useEffect(() => {
+		const root = rootRef.current;
+		if (!root || displayMode === 'spectrogram') return undefined;
+		let animationFrame = 0;
+		const draw = () => {
+			animationFrame = 0;
+			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
+			for (const clipElement of root.querySelectorAll('[data-clip-id]')) {
+				const clip = clipById.get(String(clipElement.dataset.clipId));
+				if (!clip?.audacityWaveform) continue;
+				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
+				if (!canvas) continue;
+				drawAudacityClipCanvas(canvas, clip, {
+					displayMode,
+					pixelsPerSecond,
+					timeSelection,
+					showRms,
+					halfWave,
+				});
+			}
+		};
+		const scheduleDraw = () => {
+			if (animationFrame) window.cancelAnimationFrame(animationFrame);
+			animationFrame = window.requestAnimationFrame(draw);
+		};
+
+		draw();
+		scheduleDraw();
+		const observer = new MutationObserver(scheduleDraw);
+		observer.observe(root, {
+			attributes: true,
+			attributeFilter: ['width', 'height'],
+			childList: true,
+			subtree: true,
+		});
+		return () => {
+			observer.disconnect();
+			if (animationFrame) window.cancelAnimationFrame(animationFrame);
+		};
+	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, timeSelection]);
+	return null;
+}
+
+function drawAudacityClipCanvas(canvas, clip, options) {
+	const rendering = clip.audacityWaveform;
+	const context = canvas.getContext('2d', { alpha: true });
+	if (!context || !rendering.channels.length) return;
+	const width = Number.parseFloat(canvas.style.width) || canvas.clientWidth || rendering.pixelWidth;
+	const height = Number.parseFloat(canvas.style.height) || canvas.clientHeight;
+	if (!(width > 0) || !(height > 0)) return;
+	const pixelRatioX = canvas.width / width;
+	const pixelRatioY = canvas.height / height;
+	if (!(pixelRatioX > 0) || !(pixelRatioY > 0)) return;
+
+	const body = canvas.closest('.clip-body');
+	const color = body?.dataset.color || 'blue';
+	const style = getComputedStyle(canvas);
+	const selected = clip.selected || body?.dataset.selected === 'true';
+	const baseWaveform = cssColor(
+		style,
+		`--clip-${color}-waveform${selected ? '-selected' : ''}`,
+		'#172533',
+	);
+	const selectedWaveform = cssColor(style, `--clip-${color}-time-selection-waveform`, baseWaveform);
+	const baseRms = cssColor(
+		style,
+		`--clip-${color}-waveform-rms${selected ? '-selected' : ''}`,
+		baseWaveform,
+	);
+	const selectedRms = cssColor(style, `--clip-${color}-time-selection-waveform-rms`, baseRms);
+	const divider = cssColor(style, `--clip-${color}-divider`, 'rgba(0, 0, 0, 0.35)');
+	const splitSeparator = cssColor(style, '--split-separator', divider);
+	const selection = clipSelectionPixels(clip, options.timeSelection, options.pixelsPerSecond, width);
+	const splitY = options.displayMode === 'multiview' ? height / 2 : 0;
+	const waveformHeight = height - splitY;
+	const channelCount = Math.min(2, rendering.channels.length);
+	const channelHeight = waveformHeight / channelCount;
+	const evaluateEnvelope = rendering.envelope?.length
+		? createEnvelopeValueEvaluator(rendering.envelope, rendering.durationFrames)
+		: null;
+	const envelopeGain = evaluateEnvelope
+		? (x) => evaluateEnvelope(rendering.startFrame + x / width * rendering.frameCount)
+		: undefined;
+	const waveformColor = (x) => x >= selection.start && x < selection.end
+		? selectedWaveform
+		: baseWaveform;
+	const rmsColor = (x) => x >= selection.start && x < selection.end ? selectedRms : baseRms;
+
+	context.save();
+	context.setTransform(pixelRatioX, 0, 0, pixelRatioY, 0, 0);
+	context.globalAlpha = 1;
+	context.globalCompositeOperation = 'source-over';
+	context.clearRect(0, splitY, width, waveformHeight);
+	if (selection.end > selection.start) {
+		context.fillStyle = cssColor(style, `--clip-${color}-time-selection-body`, 'rgba(255, 255, 255, 0.15)');
+		context.fillRect(selection.start, splitY, selection.end - selection.start, waveformHeight);
+	}
+	for (let channel = 0; channel < channelCount; channel += 1) {
+		drawAudacityWaveformChannel(context, rendering, {
+			channel,
+			width,
+			centerY: splitY + channelHeight * (channel + 0.5),
+			maxAmplitude: Math.max(0, channelHeight / 2 - 2),
+			halfWave: options.halfWave,
+			envelopeGain,
+			sampleColor: waveformColor,
+			rmsColor,
+			centerLineColor: divider,
+			showRms: options.showRms,
+		});
+	}
+	context.strokeStyle = divider;
+	context.lineWidth = 1;
+	if (channelCount > 1) drawHorizontalCanvasLine(context, splitY + channelHeight, width);
+	if (splitY > 0) {
+		context.strokeStyle = splitSeparator;
+		drawHorizontalCanvasLine(context, splitY, width);
+	}
+	context.restore();
+	canvas.dataset.waveformRenderer = 'audacity';
+	canvas.dataset.waveformMode = rendering.mode;
+}
+
+function clipSelectionPixels(clip, selection, pixelsPerSecond, width) {
+	if (!selection) return { start: -1, end: -1 };
+	const overlapStart = Math.max(clip.start, selection.startTime);
+	const overlapEnd = Math.min(clip.start + clip.duration, selection.endTime);
+	if (overlapStart >= overlapEnd) return { start: -1, end: -1 };
+	return {
+		start: Math.max(0, Math.min(width, (overlapStart - clip.start) * pixelsPerSecond)),
+		end: Math.max(0, Math.min(width, (overlapEnd - clip.start) * pixelsPerSecond)),
+	};
+}
+
+function cssColor(style, property, fallback) {
+	return style.getPropertyValue(property).trim() || fallback;
+}
+
+function drawHorizontalCanvasLine(context, y, width) {
+	context.beginPath();
+	context.moveTo(0, y);
+	context.lineTo(width, y);
+	context.stroke();
 }
 
 function SpectralSelectionOverlay({
@@ -2592,6 +2763,11 @@ function toDesignRecordingPreview(clip, preview, overscanStartFrame, pixelsPerSe
 	};
 	if (!preview?.channels?.length || !clip.isVisible) return output;
 	const waveformChannels = preview.channels.map((channel) => recordingPreviewWaveformWindow(channel, clip));
+	output.audacityWaveform = prepareRecordingPreviewWaveform(
+		waveformChannels,
+		clip,
+		output.duration * pixelsPerSecond,
+	);
 	if (waveformChannels.length > 1) {
 		output.waveformLeft = waveformChannels[0];
 		output.waveformRight = waveformChannels[1];
@@ -2607,6 +2783,48 @@ function recordingPreviewWaveformWindow(channel, clip) {
 	const startPair = Math.max(0, Math.min(pairCount - 1, Math.floor(clip.waveformStartFrame / clip.durationFrames * pairCount)));
 	const endPair = Math.max(startPair + 1, Math.min(pairCount, Math.ceil(clip.waveformEndFrame / clip.durationFrames * pairCount)));
 	return [...channel.slice(startPair * 2, endPair * 2)];
+}
+
+function prepareRecordingPreviewWaveform(channels, clip, pixelWidth) {
+	const columnCount = Math.max(1, Math.ceil(pixelWidth));
+	return {
+		mode: 'summary',
+		pixelWidth,
+		pixelsPerSample: 0,
+		startFrame: clip.waveformStartFrame,
+		endFrame: clip.waveformEndFrame,
+		frameCount: clip.waveformEndFrame - clip.waveformStartFrame,
+		durationFrames: clip.durationFrames,
+		envelope: [],
+		channels: channels.map((channel) => {
+			const pairCount = Math.max(1, Math.floor(channel.length / 2));
+			const minimum = new Float32Array(columnCount);
+			const maximum = new Float32Array(columnCount);
+			for (let column = 0; column < columnCount; column += 1) {
+				let pairStart;
+				let pairEnd;
+				if (pairCount >= columnCount) {
+					pairStart = Math.round(column * pairCount / columnCount);
+					pairEnd = Math.max(pairStart + 1, Math.round((column + 1) * pairCount / columnCount));
+				} else {
+					pairStart = Math.floor(column * pairCount / columnCount);
+					pairEnd = pairStart + 1;
+				}
+				pairEnd = Math.min(pairCount, pairEnd);
+				let bucketMinimum = Number.POSITIVE_INFINITY;
+				let bucketMaximum = Number.NEGATIVE_INFINITY;
+				for (let pair = pairStart; pair < pairEnd; pair += 1) {
+					bucketMinimum = Math.min(bucketMinimum, Number(channel[pair * 2]) || 0);
+					bucketMaximum = Math.max(bucketMaximum, Number(channel[pair * 2 + 1]) || 0);
+				}
+				if (column > 0 && minimum[column - 1] > bucketMaximum) bucketMaximum = minimum[column - 1];
+				if (column > 0 && maximum[column - 1] < bucketMinimum) bucketMinimum = maximum[column - 1];
+				minimum[column] = bucketMinimum;
+				maximum[column] = bucketMaximum;
+			}
+			return { minimum, maximum, rms: null };
+		}),
+	};
 }
 
 function toDesignClip(
@@ -2649,12 +2867,19 @@ function toDesignClip(
 			{ length: visual.buffer.numberOfChannels },
 			(_, channel) => visual.buffer.getChannelData(channel),
 		);
-		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(clip.duration * pixelsPerSecond * 2)));
+		const pixelWidth = output.duration * pixelsPerSecond;
+		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
 		const waveform = prepareBoundedWaveformWindow(channels, clip, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,
 			maxSamples: maximumSamples,
+			pixelWidth,
 		});
+		output.audacityWaveform = {
+			...waveform.rendering,
+			durationFrames: clip.durationFrames,
+			envelope: clip.envelope || [],
+		};
 		const visualChannels = halfWave
 			? waveform.channels.map((channel) => channel.map((sample) => Math.max(0, sample)))
 			: waveform.channels;

@@ -22,6 +22,20 @@ The port deliberately includes no SoX/libsoxr, SoundTouch, or SBSMS code. Reverb
 
 The effect registry covers Audacity's menu-visible native processors and browser adaptations. Generate-menu modules (DTMF, Chirp, Noise, Silence, and Tone) and Analyze operations are implemented as separate editor operations rather than processor plug-ins.
 
+## Audacity-derived waveform rendering
+
+Parts of `src/lib/tools/audio-editor/audacity-waveform-renderer.js`, the waveform-window preparation in `src/lib/tools/audio-editor/design-system-adapters.js`, and the canvas/recording-preview integration in `src/components/tools/audio-editor/AudioEditorTimeline.jsx` are JavaScript translations and browser adaptations of Audacity waveform rendering at exact commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
+
+- source: <https://github.com/audacity/audacity/tree/908ad0a526e5bfdab68de780e893cebe172d27eb>
+- rendering-mode and sample-painter sources: `src/projectscene/view/tracksitemsview/au3/wavepainterutils.cpp`, `src/projectscene/view/tracksitemsview/au3/connectingdotspainter.cpp`, `src/projectscene/view/tracksitemsview/au3/samplespainterutils.cpp`, and `src/projectscene/view/tracksitemsview/au3/samplespainter.cpp`
+- waveform-summary and bitmap-painter sources: `au3/libraries/au3-wave-track-paint/waveform/WaveDataCache.cpp` and `au3/libraries/au3-wave-track-paint/waveform/WaveBitmapCache.cpp`
+- upstream license and notices: <https://github.com/audacity/audacity/blob/908ad0a526e5bfdab68de780e893cebe172d27eb/LICENSE.txt>
+- selected GPLv3 terms: [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)
+
+The cited Audacity files are GPL-2.0-or-later. GPL-3.0-only is selected for the adapted portions so they can be combined with this AGPL-3.0-only application under section 13 of both licenses. The Audacity-derived portions remain governed by GPLv3. Original code is copyright the Audacity Team and the individual authors named in the upstream source headers; the waveform cache sources credit Dmitry Vedenko.
+
+The implementation was translated from C++ to JavaScript, adapted from Audacity's cached bitmap and painter infrastructure to browser canvas rendering, and integrated into Soundscaper on 2026-07-16. The distributed JavaScript source is the preferred form for modification.
+
 ## Audacity 4 parity and native AUP4 profile
 
 The action-parity manifest, native AUP4 codec/profile implementation, compatibility fixtures, and StaffPad selection are pinned to Audacity commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
