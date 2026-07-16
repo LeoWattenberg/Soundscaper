@@ -76,6 +76,10 @@
 	outline-offset: 2px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__split-button-arrow-icon {
+	font-family: "MusescoreIcon", sans-serif;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__split-button-flyout {
 	min-width: 220px;
 }

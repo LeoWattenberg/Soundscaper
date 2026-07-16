@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Flyout, TransportButton } from '@dilsonspickles/components';
+import { iconNameToChar } from '../../../lib/tools/audio-editor/audacity-iconcodes.js';
 
 export default function AudioEditorSplitButton({
 	icon,
@@ -46,7 +47,7 @@ export default function AudioEditorSplitButton({
 				disabled={arrowDisabled}
 				onClick={openFlyout}
 			>
-				<span aria-hidden="true">⌄</span>
+				<span className="kw-audio-editor__split-button-arrow-icon" aria-hidden="true">{iconNameToChar('DOWN')}</span>
 			</button>
 			<Flyout
 				isOpen={Boolean(flyout)}
