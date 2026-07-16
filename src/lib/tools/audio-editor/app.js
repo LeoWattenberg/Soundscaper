@@ -7571,6 +7571,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;
 		publishProjectState();
+		return state.pixelsPerSecond;
 	}
 
 	function setTimelineViewportWidth(width) {

@@ -252,11 +252,37 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setDraggedWorkspacePanelId(null);
 		return run(() => controller.actions.preferences.movePanel(panelId, dock, index));
 	}, [controller, run]);
-	const zoomProject = useCallback((direction) => run(() => (
-		direction === 'in'
-			? controller.actions.timeline.zoomIn()
-			: controller.actions.timeline.zoomOut()
-	)), [controller, run]);
+	const zoomProject = useCallback((direction, anchor = null) => {
+		const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
+		const timeline = scroll?.closest('.audio-editor-timeline-panel');
+		if (!scroll || !timeline) return undefined;
+		const rect = scroll.getBoundingClientRect();
+		const panelWidth = Number.parseFloat(getComputedStyle(timeline).getPropertyValue('--track-panel-width')) || 0;
+		const currentZoom = snapshot.timeline?.pixelsPerSecond || 120;
+		let anchorSeconds;
+		let anchorOffset;
+		if (anchor === 'playhead') {
+			const positionFrame = controller.getTelemetrySnapshot?.().positionFrame || 0;
+			anchorSeconds = positionFrame / (project?.sampleRate || 48_000);
+			anchorOffset = panelWidth + Math.max(0, scroll.clientWidth - panelWidth) / 2;
+		} else {
+			const clientX = anchor?.clientX ?? rect.left + scroll.clientWidth / 2;
+			anchorSeconds = (scroll.scrollLeft + clientX - rect.left - panelWidth) / currentZoom;
+			anchorOffset = clientX - rect.left;
+		}
+		const action = direction === 'in'
+			? controller.actions.timeline.zoomIn
+			: controller.actions.timeline.zoomOut;
+		const nextZoom = run(() => action());
+		requestAnimationFrame(() => {
+			const element = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
+			if (!element) return;
+			const appliedZoom = Number(nextZoom) || currentZoom * (direction === 'in' ? 2 : 0.5);
+			const maximumScroll = Math.max(0, element.scrollWidth - element.clientWidth);
+			element.scrollLeft = Math.max(0, Math.min(maximumScroll, anchorSeconds * appliedZoom - anchorOffset));
+		});
+		return nextZoom;
+	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond]);
 
 	useEffect(() => {
 		const editor = editorRef.current;
@@ -264,7 +290,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		const onWheel = (event) => {
 			if (event.altKey || (!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return;
 			event.preventDefault();
-			zoomProject(event.deltaY < 0 ? 'in' : 'out');
+			zoomProject(event.deltaY < 0 ? 'in' : 'out', { clientX: event.clientX });
 		};
 		editor.addEventListener('wheel', onWheel, { passive: false });
 		return () => editor.removeEventListener('wheel', onWheel);
@@ -550,8 +576,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 			togglePinnedPlayhead: () => run(() => controller.actions.timeline.togglePinnedPlayhead()),
 			toggleRulerPlayback: () => run(() => controller.actions.timeline.toggleRulerPlayback()),
 				setSnap: (settings) => run(() => controller.actions.timeline.setSnap(settings)),
-			zoomIn: () => run(() => controller.actions.timeline.zoomIn()),
-			zoomOut: () => run(() => controller.actions.timeline.zoomOut()),
+			zoomIn: () => zoomProject('in', 'playhead'),
+			zoomOut: () => zoomProject('out', 'playhead'),
 			zoomDefault: () => run(() => parityRuntime.actions.timeline.zoomDefault()),
 			zoomSelection: () => run(() => parityRuntime.actions.timeline.zoomSelection()),
 			zoomToggle: () => run(() => parityRuntime.actions.timeline.zoomToggle()),
