@@ -73,6 +73,7 @@ test('the coordinator deduplicates renders, publishes atomically, and hydrates p
 	assert.equal(metadata.cacheKey, first.cacheKey);
 	assert.equal(metadata.cacheSchemaVersion, 1);
 	assert.equal(metadata.frameCount, 16);
+	assert.equal(first.channels[0], client.calls[0].outputChannels[0], 'owned StaffPad output is adopted without a second full copy');
 	assert.deepEqual([...coordinator.getProtectedSourceIds()], [first.cacheSourceId]);
 	const chunks = [];
 	for await (const chunk of store.readSourceChunks(first.cacheSourceId)) chunks.push(chunk);
@@ -90,6 +91,103 @@ test('the coordinator deduplicates renders, publishes atomically, and hydrates p
 	);
 	coordinator.dispose();
 	reloaded.dispose();
+});
+
+test('resident planar caches are LRU-bounded while evicted entries stay canonical on disk', async () => {
+	const store = await sourceStore('resident-budget');
+	const source = sourceFixture();
+	const client = new FakeStaffPadClient();
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({
+		store,
+		client,
+		maximumResidentChannelBytes: 32 * Float32Array.BYTES_PER_ELEMENT,
+	});
+	const firstClip = clipFixture({ id: 'clip-first' });
+	const secondClip = clipFixture({ id: 'clip-second', pitchCents: 100, renderCacheRevision: 1 });
+	const thirdClip = clipFixture({ id: 'clip-third', pitchCents: 200, renderCacheRevision: 2 });
+	const first = await coordinator.prepareCommittedOutput(firstClip, source);
+	assert.equal(coordinator.getResidentChannelBytes(), 64);
+	assert.ok(first.channels);
+
+	const second = await coordinator.prepareCommittedOutput(secondClip, source);
+	assert.equal(coordinator.getResidentChannelBytes(), 128);
+	coordinator.getCommitted(first.cacheKey);
+	const third = await coordinator.prepareCommittedOutput(thirdClip, source);
+	assert.equal(coordinator.getResidentChannelBytes(), 128);
+	assert.ok(first.channels, 'reading an entry refreshes its LRU position');
+	assert.equal(second.channels, null, 'the least recently used planar copy is released');
+	assert.ok(third.channels);
+	assert.deepEqual(
+		new Set(coordinator.getProtectedSourceIds()),
+		new Set([first.cacheSourceId, second.cacheSourceId, third.cacheSourceId]),
+		'eviction does not alter cache-source storage retention',
+	);
+	assert.ok(await store.getSourceMetadata(second.cacheSourceId));
+	assert.deepEqual(
+		(await coordinator.loadCommittedChannels(second))[0],
+		client.calls[1].outputChannels[0],
+		'evicted PCM is read back from its committed source',
+	);
+
+	const buffer = new MockAudioBuffer(third.channelCount, third.frameCount, third.sampleRate);
+	coordinator.attachAudioBuffer(third.cacheKey, buffer);
+	assert.equal(third.channels, null, 'the redundant planar copy is dropped once playback has an AudioBuffer');
+	assert.equal(coordinator.getResidentChannelBytes(), 64);
+	assert.equal(coordinator.createEngineSourceResolver()(thirdClip).buffer, buffer);
+	assert.deepEqual((await coordinator.loadCommittedChannels(third))[0], client.calls[2].outputChannels[0]);
+	coordinator.dispose();
+});
+
+test('a zero resident budget publishes disk-only cache entries without changing their API', async () => {
+	const store = await sourceStore('disk-only');
+	const source = sourceFixture();
+	const client = new FakeStaffPadClient();
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({
+		store,
+		client,
+		maximumResidentChannelBytes: 0,
+	});
+	const clip = clipFixture();
+	const entry = await coordinator.prepareCommittedOutput(clip, source);
+	assert.equal(entry.channels, null);
+	assert.equal(coordinator.getResidentChannelBytes(), 0);
+	assert.deepEqual((await coordinator.loadCommittedChannels(entry))[0], client.calls[0].outputChannels[0]);
+	assert.equal(coordinator.getCommitted(entry.cacheKey), entry);
+	assert.deepEqual([...coordinator.getProtectedSourceIds()], [entry.cacheSourceId]);
+	coordinator.dispose();
+});
+
+test('StaffPad transfers coordinator-owned stage input but preserves borrowed loader arrays', async () => {
+	const source = sourceFixture();
+	const clip = clipFixture({ speedRatio: 8, durationFrames: 2 });
+	const storedClient = new FakeStaffPadClient();
+	const stored = new ClipTimePitchRenderCacheCoordinator({
+		store: await sourceStore('transfer-stored'),
+		client: storedClient,
+	});
+	await stored.prepareCommittedOutput(clip, source);
+	assert.deepEqual(
+		storedClient.calls.map((call) => call.transferInput),
+		[true, true, true],
+		'store reads and intermediate output can move to the worker without cloning',
+	);
+	stored.dispose();
+
+	const borrowedChannels = [Float32Array.from({ length: 32 }, (_, index) => index)];
+	const borrowedClient = new FakeStaffPadClient();
+	const borrowed = new ClipTimePitchRenderCacheCoordinator({
+		store: await sourceStore('transfer-borrowed'),
+		client: borrowedClient,
+		loadSourceChannels: async () => borrowedChannels,
+	});
+	await borrowed.prepareCommittedOutput({ ...clip, renderCacheRevision: 1 }, source);
+	assert.deepEqual(
+		borrowedClient.calls.map((call) => call.transferInput),
+		[false, true, true],
+		'custom loader output remains borrowed while later StaffPad output is owned',
+	);
+	assert.equal(borrowedChannels[0].byteLength, 32 * Float32Array.BYTES_PER_ELEMENT);
+	borrowed.dispose();
 });
 
 test('playback retains the last valid cache while a new revision renders and export waits for it', async () => {
@@ -215,6 +313,7 @@ test('reverse renders materialize direction before StaffPad and engine resolver 
 	assert.equal(resolver(clip), null);
 	const buffer = new MockAudioBuffer(entry.channelCount, entry.frameCount, entry.sampleRate);
 	coordinator.attachAudioBuffer(entry.cacheKey, buffer);
+	assert.equal(entry.channels, null);
 	assert.deepEqual(resolver(clip), {
 		buffer,
 		sourceStartFrame: 0,
@@ -343,7 +442,13 @@ class FakeStaffPadClient {
 
 	async render(request, options = {}) {
 		const gate = this.gates.shift() || null;
-		const call = { request, signal: options.signal, cacheKey: options.cacheKey };
+		const call = {
+			request,
+			signal: options.signal,
+			cacheKey: options.cacheKey,
+			transferInput: options.transferInput,
+			outputChannels: null,
+		};
 		this.calls.push(call);
 		for (const entry of this.waiters.splice(0)) {
 			if (this.calls.length >= entry.count) entry.waiter.resolve();
@@ -361,6 +466,7 @@ class FakeStaffPadClient {
 			}
 			return output;
 		});
+		call.outputChannels = channels;
 		options.onProgress?.(1);
 		return { channels, cacheKey: options.cacheKey };
 	}

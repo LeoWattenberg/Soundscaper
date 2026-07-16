@@ -18,6 +18,7 @@ import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-v2.js';
 export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;
 export const CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION = STAFFPAD_ALGORITHM_VERSION;
 export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
+export const CLIP_TIME_PITCH_DEFAULT_RESIDENT_CHANNEL_BYTES = 32 * 1024 ** 2;
 
 const MAXIMUM_SEQUENTIAL_STAGES = 32;
 
@@ -241,9 +242,19 @@ export class ClipTimePitchRenderCacheCoordinator {
 			options.requiredQuotaHeadroomBytes ?? 0,
 			'requiredQuotaHeadroomBytes',
 		);
+		const customSourceLoader = typeof options.loadSourceChannels === 'function';
 		this.loadSourceChannels = options.loadSourceChannels || ((source, context) => (
 			loadStoredSourceChannels(this.store, source, context)
 		));
+		this.transferLoadedSourceChannels = options.transferLoadedSourceChannels == null
+			? !customSourceLoader
+			: Boolean(options.transferLoadedSourceChannels);
+		this.maximumResidentChannelBytes = nonNegativeInteger(
+			options.maximumResidentChannelBytes ?? CLIP_TIME_PITCH_DEFAULT_RESIDENT_CHANNEL_BYTES,
+			'maximumResidentChannelBytes',
+		);
+		this.residentChannelBytes = 0;
+		this.residentChannelsByKey = new Map();
 		this.onWarning = typeof options.onWarning === 'function' ? options.onWarning : null;
 		this.committedByKey = new Map();
 		this.lastCommittedByClip = new Map();
@@ -327,11 +338,19 @@ export class ClipTimePitchRenderCacheCoordinator {
 	}
 
 	getLastValid(clipId) {
-		return this.lastCommittedByClip.get(String(clipId))?.entry || null;
+		const entry = this.lastCommittedByClip.get(String(clipId))?.entry || null;
+		this.#touchResidentChannels(entry);
+		return entry;
 	}
 
 	getCommitted(cacheKey) {
-		return this.committedByKey.get(String(cacheKey)) || null;
+		const entry = this.committedByKey.get(String(cacheKey)) || null;
+		this.#touchResidentChannels(entry);
+		return entry;
+	}
+
+	getResidentChannelBytes() {
+		return this.residentChannelBytes;
 	}
 
 	getProtectedSourceIds() {
@@ -370,6 +389,8 @@ export class ClipTimePitchRenderCacheCoordinator {
 		this.committedByKey.clear();
 		this.lastCommittedByClip.clear();
 		this.desiredByClip.clear();
+		this.residentChannelsByKey.clear();
+		this.residentChannelBytes = 0;
 	}
 
 	/** Read persisted cache PCM without requiring an AudioContext. */
@@ -378,7 +399,10 @@ export class ClipTimePitchRenderCacheCoordinator {
 			? this.committedByKey.get(entryOrKey)
 			: entryOrKey;
 		if (!entry?.cacheSourceId) throw cacheError('CACHE_MISS', 'The committed clip cache could not be found.');
-		if (entry.channels) return entry.channels.map((channel) => channel.slice());
+		if (entry.channels) {
+			this.#touchResidentChannels(entry);
+			return entry.channels.map((channel) => channel.slice());
+		}
 		return loadStoredSourceChannels(this.store, {
 			id: entry.cacheSourceId,
 			storageKey: entry.cacheSourceId,
@@ -396,6 +420,9 @@ export class ClipTimePitchRenderCacheCoordinator {
 		if (buffer.length !== entry.frameCount || buffer.numberOfChannels !== entry.channelCount) {
 			throw cacheError('BUFFER_MISMATCH', 'The AudioBuffer does not match the committed clip cache.');
 		}
+		// The committed source on disk is canonical. Keeping planar output beside
+		// an AudioBuffer doubles the cache's resident PCM without helping playback.
+		this.#releaseResidentChannels(entry);
 		entry.audioBuffer = buffer;
 		return entry;
 	}
@@ -431,7 +458,10 @@ export class ClipTimePitchRenderCacheCoordinator {
 
 	async #findCommitted(plan) {
 		const memoryEntry = this.committedByKey.get(plan.finalKey);
-		if (memoryEntry) return memoryEntry;
+		if (memoryEntry) {
+			this.#touchResidentChannels(memoryEntry);
+			return memoryEntry;
+		}
 		const metadata = await this.store.getSourceMetadata(plan.cacheSourceId);
 		if (!metadata || metadata.cacheKey !== plan.finalKey
 			|| metadata.cacheSchemaVersion !== CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION
@@ -439,7 +469,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			|| Number(metadata.frameCount ?? metadata.frameLength) !== plan.outputFrames
 			|| Number(metadata.channelCount) !== plan.channelCount
 			|| Number(metadata.sampleRate) !== plan.sampleRate) return null;
-		const entry = createCommittedEntry(plan, metadata, null);
+		const entry = createCommittedEntry(plan, metadata);
 		this.committedByKey.set(plan.finalKey, entry);
 		return entry;
 	}
@@ -511,8 +541,43 @@ export class ClipTimePitchRenderCacheCoordinator {
 		const retainedKeys = new Set(this.inFlight.keys());
 		for (const value of this.lastCommittedByClip.values()) retainedKeys.add(value.entry.cacheKey);
 		for (const cacheKey of this.committedByKey.keys()) {
-			if (!retainedKeys.has(cacheKey)) this.committedByKey.delete(cacheKey);
+			if (!retainedKeys.has(cacheKey)) {
+				this.#releaseResidentChannels(this.committedByKey.get(cacheKey));
+				this.committedByKey.delete(cacheKey);
+			}
 		}
+	}
+
+	#retainResidentChannels(entry, channels) {
+		const bytes = channels.reduce((sum, channel) => sum + channel.byteLength, 0);
+		this.#releaseResidentChannels(entry);
+		if (bytes > this.maximumResidentChannelBytes) return;
+		while (this.residentChannelBytes + bytes > this.maximumResidentChannelBytes) {
+			const oldest = this.residentChannelsByKey.values().next().value;
+			if (!oldest) break;
+			this.#releaseResidentChannels(oldest.entry);
+		}
+		entry.channels = channels;
+		this.residentChannelsByKey.set(entry.cacheKey, { entry, bytes });
+		this.residentChannelBytes += bytes;
+	}
+
+	#releaseResidentChannels(entry) {
+		if (!entry) return;
+		const resident = this.residentChannelsByKey.get(entry.cacheKey);
+		if (resident?.entry === entry) {
+			this.residentChannelsByKey.delete(entry.cacheKey);
+			this.residentChannelBytes -= resident.bytes;
+		}
+		entry.channels = null;
+	}
+
+	#touchResidentChannels(entry) {
+		if (!entry?.channels) return;
+		const resident = this.residentChannelsByKey.get(entry.cacheKey);
+		if (resident?.entry !== entry) return;
+		this.residentChannelsByKey.delete(entry.cacheKey);
+		this.residentChannelsByKey.set(entry.cacheKey, resident);
 	}
 
 	async #renderAndCommit(plan, clip, source, options) {
@@ -522,6 +587,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			await this.loadSourceChannels(source, { signal: options.signal, clip, plan }),
 			plan,
 		);
+		let ownsChannels = this.transferLoadedSourceChannels;
 		throwIfAborted(options.signal);
 		let selection = plan.direction === 'reverse'
 			? {
@@ -529,7 +595,10 @@ export class ClipTimePitchRenderCacheCoordinator {
 				frameCount: plan.sourceRange.frameCount,
 			}
 			: { ...plan.sourceRange };
-		if (plan.direction === 'reverse') channels = channels.map(reverseFloat32);
+		if (plan.direction === 'reverse') {
+			channels = channels.map(reverseFloat32);
+			ownsChannels = true;
+		}
 		for (const stage of plan.stages) {
 			throwIfAborted(options.signal);
 			const result = await this.client.render({
@@ -542,6 +611,10 @@ export class ClipTimePitchRenderCacheCoordinator {
 			}, {
 				signal: options.signal,
 				cacheKey: stage.cacheKey,
+				// Stored-source arrays and prior-stage output are coordinator-owned.
+				// Transfer them into the worker instead of structured-cloning a second
+				// full copy. Custom loader output remains borrowed unless opted in.
+				transferInput: ownsChannels,
 				onProgress: typeof options.onProgress === 'function'
 					? (progress) => options.onProgress(
 						(stage.index + Math.max(0, Math.min(1, Number(progress) || 0))) / plan.stages.length,
@@ -550,6 +623,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 					: null,
 			});
 			channels = validateRenderedChannels(result?.channels, plan.channelCount, stage.outputFrames);
+			ownsChannels = true;
 			selection = { startFrame: 0, frameCount: stage.outputFrames };
 		}
 		throwIfAborted(options.signal);
@@ -575,7 +649,9 @@ export class ClipTimePitchRenderCacheCoordinator {
 				frameCount: plan.outputFrames,
 				outputBytes: plan.outputBytes,
 			});
-			return createCommittedEntry(plan, metadata, channels);
+			const entry = createCommittedEntry(plan, metadata);
+			this.#retainResidentChannels(entry, channels);
+			return entry;
 		} catch (error) {
 			await writer.abort().catch(() => undefined);
 			throw normalizeCacheError(error);
@@ -625,7 +701,7 @@ function resolvedEntry(entry, request, stale) {
 	});
 }
 
-function createCommittedEntry(plan, metadata, channels) {
+function createCommittedEntry(plan, metadata) {
 	return {
 		cacheKey: plan.finalKey,
 		cacheSourceId: plan.cacheSourceId,
@@ -637,7 +713,7 @@ function createCommittedEntry(plan, metadata, channels) {
 		frameCount: plan.outputFrames,
 		direction: plan.direction,
 		metadata: Object.freeze(cloneJson(metadata)),
-		channels: channels ? channels.map((channel) => channel.slice()) : null,
+		channels: null,
 		audioBuffer: null,
 		committedAt: String(metadata.committedAt || new Date().toISOString()),
 	};
