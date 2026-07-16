@@ -6,6 +6,34 @@ The application is maintained by [kw.media](https://kw.media) and distributed
 under AGPL-3.0-only, with third-party components documented in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
+## Memory and local storage
+
+Persisted PCM is the canonical copy of a source. New source audio is stored as
+planar float32 PCM in chunks of up to 65,536 frames, using the browser's
+origin-private file system (OPFS) when available and IndexedDB otherwise.
+Decoded `AudioBuffer`s are only a hot LRU cache: its default PCM-payload budget
+is 256 MiB, and an individual source larger than 32 MiB is not admitted. Those
+larger streamable sources remain disk-canonical and are read through bounded
+chunk providers. The thresholds refer to decoded PCM, not compressed file size,
+and do not include browser object or Web Audio overhead.
+
+Several high-volume paths avoid retaining a whole operation in RAM. Large
+uncompressed mono/stereo RIFF/WAVE imports are decoded from bounded `Blob`
+slices directly into storage; recording packets are coalesced into canonical
+storage chunks; and IndexedDB source iteration uses small cursor pages. AUP4
+snapshot writes stage and acknowledge one source at a time, while the lazy
+FFmpeg worker is terminated after 30 seconds without queued work and reloaded
+on demand.
+
+This is a bounded-working-set design, not a zero-RAM mode. Web Audio still needs
+working buffers, and compressed imports, some destructive or stateful effects,
+and final download assembly can temporarily require substantial memory. Browser
+quota and eviction policy also remain authoritative: Soundscaper requests
+persistent storage, but that best-effort request can be denied, private or
+restricted contexts may fall back to process memory, and clearing site data
+removes local projects. Export important work to AUP4 rather than treating
+origin-private storage as the only backup.
+
 ## Local development
 
 ```sh
