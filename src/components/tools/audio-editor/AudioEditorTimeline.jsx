@@ -2841,6 +2841,8 @@ function toDesignClip(
 ) {
 	const visual = controller.getClipVisualData(clip.id);
 	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
+	const sourceRate = Number(source?.sampleRate) > 0 ? Number(source.sampleRate) : sampleRate;
+	const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
 	const selected = selectedClipIds instanceof Set
 		? selectedClipIds.has(clip.id)
 		: selectedClipIds === clip.id;
@@ -2854,8 +2856,11 @@ function toDesignClip(
 		),
 		selected,
 		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
-		fullDuration: framesToSeconds(clip.sourceDurationFrames || clip.durationFrames, { sampleRate }),
-		stretchFactor: clip.durationFrames / Math.max(1, clip.sourceDurationFrames || clip.durationFrames),
+		fullDuration: sourceDurationFrames / sourceRate,
+		// Compare durations, rather than frame counts. A source recorded at
+		// 44.1 kHz and a 48 kHz project can have different frame counts while
+		// still being exactly the same length and requiring no stretch.
+		stretchFactor: (clip.durationFrames / sampleRate) / (sourceDurationFrames / sourceRate),
 		envelopePoints: envelopeFramesToDesignPoints(clip.envelope, sampleRate, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,

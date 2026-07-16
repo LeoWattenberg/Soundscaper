@@ -7125,6 +7125,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				onChunk: async ({ channels }) => {
 					if (channels[0]?.length) await writer.write(channels);
 					appendRecordingPreview(preview, previewResampler.push(channels));
+					updatePlayhead();
 					publishRecordingPreview();
 					let peak = 0;
 					for (const channel of channels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
@@ -7444,6 +7445,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 							));
 							if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
 							appendRecordingPreview(entry.preview, entry.previewResampler.push(routedChannels));
+							updatePlayhead();
 							let peak = 0;
 							for (const channel of routedChannels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
 							sourcePeak = Math.max(sourcePeak, peak);
@@ -7869,8 +7871,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function updatePlayhead(frame = 0, duration = project ? projectDurationFrames(project) : 0) {
-		state.positionFrame = Math.max(0, Math.round(Number(frame) || 0));
-		state.durationFrames = Math.max(0, Math.round(Number(duration) || 0));
+		let nextFrame = Math.max(0, Math.round(Number(frame) || 0));
+		let nextDuration = Math.max(0, Math.round(Number(duration) || 0));
+		// The transport's project duration is fixed while a recording preview is
+		// being appended. Keep the playhead in the same project-time space as the
+		// preview, including recordings that extend the project.
+		const recordingEndFrame = state.recordingPreviews.reduce((end, preview) => (
+			Math.max(end, preview.startFrame + preview.frames)
+		), 0);
+		if (state.recorder && recordingEndFrame > 0) {
+			nextFrame = Math.max(nextFrame, recordingEndFrame);
+			nextDuration = Math.max(nextDuration, recordingEndFrame);
+		}
+		state.positionFrame = nextFrame;
+		state.durationFrames = nextDuration;
 		publishTelemetrySnapshot();
 	}
 
