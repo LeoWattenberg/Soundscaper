@@ -2149,6 +2149,39 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('changes stable track colors and supports inherited or overridden clip colors', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+
+		const clip = clipByName(editor, toneA.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		const clipBody = clip.locator('.clip-body');
+
+		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
+		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Track color', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Track color: Red', exact: true }).click();
+		await expect(track).toHaveAttribute('data-track-color', 'red');
+		await expect(clipBody).toHaveAttribute('data-color', 'red');
+
+		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
+		await page.locator('.audio-editor-clip-context-menu').getByRole('menuitem', { name: /^Clip color/ }).hover();
+		await page.getByRole('menuitem', { name: 'Green', exact: true }).click();
+		await expect(clipBody).toHaveAttribute('data-color', 'green');
+
+		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
+		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Track color', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Track color: Yellow', exact: true }).click();
+		await expect(track).toHaveAttribute('data-track-color', 'yellow');
+		await expect(clipBody).toHaveAttribute('data-color', 'green');
+
+		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
+		await page.locator('.audio-editor-clip-context-menu').getByRole('menuitem', { name: /^Clip color/ }).hover();
+		await page.getByRole('menuitem', { name: 'Follow track color', exact: true }).click();
+		await expect(clipBody).toHaveAttribute('data-color', 'yellow');
+		expect(errors).toEqual([]);
+	});
+
 	test('edits per-track spectrogram settings and exposes adjustable spectral selection handles', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

@@ -1,5 +1,6 @@
 import {
 	AUDIO_EDITOR_SAMPLE_RATE,
+	AUDIO_EDITOR_TRACK_COLORS,
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
 	applyAudioEditorWorkspace,
 	applyAudioEditorEffectPreset,
@@ -1991,6 +1992,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			type: 'audio',
 			id: trackId,
 			name: String(options.name || `${copy.track} ${project.tracks.length + 1}`).trim() || copy.track,
+			color: options.color || AUDIO_EDITOR_TRACK_COLORS[project.tracks.filter((item) => item.type === 'audio').length % AUDIO_EDITOR_TRACK_COLORS.length],
 			armed: options.armed ?? project.tracks.length === 0,
 		});
 		commit(track, { selectTrackId: trackId });

@@ -16,12 +16,15 @@ export const AUDACITY_TRACK_CONTEXT_ACTION_IDS = Object.freeze({
 	waveform: 'action://trackedit/track-view-waveform',
 	spectrogram: 'action://trackedit/track-view-spectrogram',
 	multiview: 'action://trackedit/track-view-multi',
+	changeColor: 'action://trackedit/track/change-color?colorindex=%1',
 	toggleCollapsed: 'local://toggle-track-collapsed',
 	remove: 'remove-tracks',
 });
 
 export const AUDACITY_CLIP_CONTEXT_ACTION_IDS = Object.freeze({
 	properties: 'clip-properties',
+	useTrackColor: 'action://trackedit/clip/change-color-auto',
+	changeColor: 'action://trackedit/clip/change-color?colorindex=%1',
 	split: 'split',
 	reverse: 'local://reverse-clip',
 	normalizePeak: 'local://normalize-clip-peak',

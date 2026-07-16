@@ -8,6 +8,17 @@ export const AUDIO_EDITOR_SOURCE_CHUNK_FRAMES = 65_536;
 export const AUDIO_EDITOR_TRACK_TYPES = Object.freeze(['audio', 'label']);
 export const AUDIO_EDITOR_SAMPLE_FORMATS = Object.freeze(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
 export const AUDIO_EDITOR_DISPLAY_MODES = Object.freeze(['waveform', 'spectrogram', 'multiview', 'half-wave']);
+export const AUDIO_EDITOR_TRACK_COLORS = Object.freeze([
+	'blue',
+	'violet',
+	'magenta',
+	'teal',
+	'cyan',
+	'green',
+	'orange',
+	'red',
+	'yellow',
+]);
 
 const TRACK_TYPE_SET = new Set(AUDIO_EDITOR_TRACK_TYPES);
 const SAMPLE_FORMAT_SET = new Set(AUDIO_EDITOR_SAMPLE_FORMATS);
@@ -341,7 +352,7 @@ export function createAudioTrackV2(options = {}, projectSampleRate = AUDIO_EDITO
 		solo: Boolean(options.solo),
 		armed: Boolean(options.armed),
 		displayMode: oneOf(options.displayMode ?? 'waveform', DISPLAY_MODE_SET, 'track.displayMode'),
-		color: nonEmptyString(options.color || 'auto', 'track.color'),
+		color: nonEmptyString(options.color && options.color !== 'auto' ? options.color : AUDIO_EDITOR_TRACK_COLORS[0], 'track.color'),
 		spectrogram: normalizeSpectrogram(options.spectrogram || {}, sampleRate, 'track.spectrogram'),
 		envelope: normalizeEnvelope(options.envelope || [], 'track.envelope'),
 		effects: normalizeEffects(options.effects || [], 'track.effects'),

@@ -41,6 +41,7 @@ import {
 	audacityContextMenuAction,
 } from '../../../lib/tools/audio-editor/audacity-context-menu.js';
 import { collectClipTransformIds } from '../../../lib/tools/audio-editor/commands.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../../lib/tools/audio-editor/project-v2.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
 import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
@@ -159,6 +160,38 @@ function ContainerAddTrackFlyout({
 	);
 }
 
+function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose }) {
+	return (
+		<ContextMenu
+			isOpen={isOpen}
+			x={x}
+			y={y}
+			autoFocus
+			onClose={onClose}
+			className="audio-editor-track-color-picker"
+		>
+			<div className="audio-editor-track-color-picker__label">{copy.trackColor}</div>
+			{AUDIO_EDITOR_TRACK_COLORS.map((candidate) => (
+				<button
+					key={candidate}
+					type="button"
+					role="menuitem"
+					className="audio-editor-track-color-picker__swatch"
+					data-color={candidate}
+					data-selected={color === candidate ? 'true' : 'false'}
+					style={{ backgroundColor: `var(--clip-${candidate}-body)` }}
+					aria-label={`${copy.trackColor}: ${colorName(copy, candidate)}`}
+					aria-current={color === candidate ? 'true' : undefined}
+					onClick={() => {
+						onChange(candidate);
+						onClose();
+					}}
+				/>
+			))}
+		</ContextMenu>
+	);
+}
+
 export default function AudioEditorTimeline({
 	controller,
 	snapshot,
@@ -191,6 +224,7 @@ export default function AudioEditorTimeline({
 	const [selectionPreview, setSelectionPreview] = useState(null);
 	const [loopPreview, setLoopPreview] = useState(null);
 	const [trackMenu, setTrackMenu] = useState(null);
+	const [trackColorMenu, setTrackColorMenu] = useState(null);
 	const [clipMenu, setClipMenu] = useState(null);
 	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
 	const addTrackTriggerRef = useRef(null);
@@ -827,6 +861,7 @@ export default function AudioEditorTimeline({
 	}
 
 	const menuTrack = trackMenu ? project.tracks.find((track) => track.id === trackMenu.trackId) : null;
+	const colorMenuTrack = trackColorMenu ? project.tracks.find((track) => track.id === trackColorMenu.trackId) : null;
 	const menuClip = clipMenu ? project.clips.find((clip) => clip.id === clipMenu.clipId) : null;
 	const mutationsBlocked = snapshot.readOnly
 		|| snapshot.importing
@@ -867,6 +902,18 @@ export default function AudioEditorTimeline({
 			onClick: () => run(() => controller.actions.track.moveBottom(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 		...(menuTrack.type === 'label' ? [] : [
+			{ divider: true, label: '' },
+			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.changeColor, copy.trackColor, {
+				disabled: mutationsBlocked,
+				onClick: () => {
+					const rect = trackMenu?.anchor?.getBoundingClientRect();
+					setTrackColorMenu({
+						trackId: menuTrack.id,
+						x: rect?.right || 0,
+						y: rect?.top || 0,
+					});
+				},
+			}, contextLocale, unavailableReason),
 			{ divider: true, label: '' },
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, {
 				checked: menuTrack.displayMode === 'waveform',
@@ -1116,6 +1163,16 @@ export default function AudioEditorTimeline({
 				items={trackMenuItems}
 			/>
 
+			<TrackColorPicker
+				isOpen={Boolean(trackColorMenu && colorMenuTrack)}
+				x={trackColorMenu?.x || 0}
+				y={trackColorMenu?.y || 0}
+				color={resolveAudioEditorColor(colorMenuTrack?.color)}
+				copy={copy}
+				onChange={(color) => colorMenuTrack && run(() => controller.actions.track.update(colorMenuTrack.id, { color }))}
+				onClose={() => setTrackColorMenu(null)}
+			/>
+
 			<ContextMenu
 				isOpen={Boolean(clipMenu && menuClip)}
 				x={clipMenu?.x || 0}
@@ -1124,6 +1181,31 @@ export default function AudioEditorTimeline({
 				onClose={() => setClipMenu(null)}
 				className="audio-editor-clip-context-menu"
 			>
+				<ContextMenuItem label={copy.clipColor} hasSubmenu onClose={() => setClipMenu(null)}>
+					<ManifestContextMenuItem
+						actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.useTrackColor}
+						label={copy.followTrackColor}
+						checked={menuClip?.color === 'auto'}
+						disabled={mutationsBlocked || !menuClip}
+						disabledReason={unavailableReason}
+						locale={contextLocale}
+						onClick={() => menuClip && run(() => controller.actions.clip.update(menuClip.id, { color: 'auto' }))}
+					/>
+					<ContextMenuItem isDivider />
+					{AUDIO_EDITOR_TRACK_COLORS.map((color, colorIndex) => (
+						<ManifestContextMenuItem
+							key={color}
+							actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.changeColor.replace('%1', colorIndex)}
+							label={colorName(copy, color)}
+							checked={menuClip?.color === color}
+							disabled={mutationsBlocked || !menuClip}
+							disabledReason={unavailableReason}
+							locale={contextLocale}
+							onClick={() => menuClip && run(() => controller.actions.clip.update(menuClip.id, { color }))}
+						/>
+					))}
+				</ContextMenuItem>
+				<ContextMenuItem isDivider />
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.properties}
 					label={copy.clipPropertiesCommand}
@@ -1265,6 +1347,20 @@ function ContextActionLabel({ action }) {
 			{action.label}
 		</span>
 	);
+}
+
+function colorName(copy, color) {
+	return copy[`color${color[0].toUpperCase()}${color.slice(1)}`] || color;
+}
+
+function resolveAudioEditorColor(color, fallback = AUDIO_EDITOR_TRACK_COLORS[0]) {
+	if (AUDIO_EDITOR_TRACK_COLORS.includes(color)) return color;
+	const aliases = { purple: 'violet', pink: 'magenta', grey: fallback, gray: fallback };
+	if (aliases[color]) return aliases[color];
+	const index = Number(color);
+	return Number.isSafeInteger(index)
+		? AUDIO_EDITOR_TRACK_COLORS[index % AUDIO_EDITOR_TRACK_COLORS.length]
+		: fallback;
 }
 
 function TelemetryTimelineRuler({ controller, sampleRate, ...props }) {
@@ -1493,6 +1589,7 @@ function TrackRow({
 			copy,
 			showRms,
 			displayMode === 'half-wave',
+			resolveAudioEditorColor(clip.color, resolveAudioEditorColor(track.color)),
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {
@@ -1696,6 +1793,7 @@ function TrackRow({
 			data-track-row
 			data-track-id={track.id}
 			data-track-index={trackIndex}
+			data-track-color={resolveAudioEditorColor(track.color)}
 			data-collapsed={track.collapsed ? 'true' : 'false'}
 			data-display-mode={displayMode || 'waveform'}
 			style={{ height: trackHeight }}
@@ -1796,6 +1894,7 @@ function TrackRow({
 						spectrogramScale={spectrogramScale}
 						timeSelection={projectedSelection}
 						clipStyle={clipStyle === 'classic' ? 'classic' : 'colourful'}
+						color={resolveAudioEditorColor(track.color)}
 						draggingClipIds={draggingClipIds || undefined}
 						tabIndex={tabIndexFor(2)}
 						trackTabIndex={tabIndexFor(0)}
@@ -2845,6 +2944,7 @@ function toDesignClip(
 	copy,
 	showRms = false,
 	halfWave = false,
+	color = AUDIO_EDITOR_TRACK_COLORS[0],
 ) {
 	const visual = controller.getClipVisualData(clip.id);
 	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
@@ -2862,6 +2962,7 @@ function toDesignClip(
 			MINIMUM_VISIBLE_CLIP_PIXELS / pixelsPerSecond,
 		),
 		selected,
+		color,
 		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
 		fullDuration: sourceDurationFrames / sourceRate,
 		// Compare durations, rather than frame counts. A source recorded at

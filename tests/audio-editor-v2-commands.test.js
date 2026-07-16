@@ -77,6 +77,36 @@ test('V2 commands preserve arbitrary rates and nondestructive clip properties', 
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
+test('track and clip colors remain attached while tracks reorder and clips move', () => {
+	let project = createAudioEditorProjectV2({ title: 'Colors', sampleRate: 48_000 });
+	project = apply(project, createAddSourceCommand({
+		id: 'source', storageKey: 'source', name: 'Source', frameCount: 48_000,
+		channelCount: 1, sampleRate: 48_000,
+	}));
+	project = apply(project, createAddTrackCommand({ id: 'blue-track', name: 'Blue', color: 'blue' }));
+	project = apply(project, createAddTrackCommand({ id: 'red-track', name: 'Red', color: 'red' }));
+	project = apply(project, createAddClipCommand('blue-track', {
+		id: 'following-clip', sourceId: 'source', durationFrames: 12_000, color: 'auto',
+	}));
+	project = apply(project, createAddClipCommand('blue-track', {
+		id: 'green-clip', sourceId: 'source', timelineStartFrame: 12_000,
+		durationFrames: 12_000, color: 'green',
+	}));
+
+	project = apply(project, { type: 'track/reorder', trackId: 'red-track', index: 0 });
+	assert.deepEqual(project.tracks.map(({ id, color }) => [id, color]), [
+		['red-track', 'red'],
+		['blue-track', 'blue'],
+	]);
+
+	project = apply(project, {
+		type: 'clip/move', clipId: 'green-clip', trackId: 'red-track', timelineStartFrame: 0,
+	});
+	assert.equal(project.clips.find((clip) => clip.id === 'following-clip').color, 'auto');
+	assert.equal(project.clips.find((clip) => clip.id === 'green-clip').color, 'green');
+	assert.deepEqual(project.tracks.find((track) => track.id === 'red-track').clipIds, ['green-clip']);
+});
+
 test('V2 project tempo, time signature, metadata, and source formats are replay-stable', () => {
 	let project = createAudioEditorProjectV2({ id: 'music-project', title: 'Music', sampleRate: 48_000 });
 	project = apply(project, createAddSourceCommand({
