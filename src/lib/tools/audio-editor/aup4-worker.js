@@ -4,6 +4,7 @@ import sqliteWasmUrl from '@sqlite.org/sqlite-wasm/sqlite3.wasm?url';
 import { decodeAudacityBinaryXml, encodeAudacityBinaryXml } from './audacity-binary-xml.js';
 import {
 	commitAup4Autosave,
+	deleteAup4SampleBlocks,
 	discardExcludedAup4Metadata,
 	initializeAup4Database,
 	insertAup4SampleBlock,
@@ -17,7 +18,11 @@ import {
 	writeAup4Document,
 } from './aup4-database.js';
 import { decodeAup4ProjectTree } from './aup4-conversion.js';
-import { normalizeAup4ExportSnapshot } from './aup4-export.js';
+import {
+	createAup4ExportPlan,
+	normalizeAup4ExportSource,
+	requiredAup4SourceIds,
+} from './aup4-export.js';
 import {
 	AUP4_MAX_BLOCK_SAMPLES,
 	createAup4ProjectDocument,
@@ -34,6 +39,8 @@ const WORKER_VALIDATION_OPTIONS = Object.freeze({
 	references: Object.freeze({ allowMissingSampleBlocks: true }),
 });
 const projects = new Map();
+const snapshotWrites = new Map();
+const activeSnapshotByProject = new Map();
 const cancelled = new Set();
 let sqlitePromise;
 let poolPromise;
@@ -78,6 +85,10 @@ async function handle(type, args, context) {
 	if (type === 'decode') return decodeProject(args, context);
 	if (type === 'write-document') return updateDocument(args, context);
 	if (type === 'write-snapshot') return writeSnapshot(args, context);
+	if (type === 'begin-snapshot') return beginSnapshot(args, context);
+	if (type === 'append-snapshot-source') return appendSnapshotSource(args, context);
+	if (type === 'finalize-snapshot') return finalizeSnapshot(args, context);
+	if (type === 'abort-snapshot') return abortSnapshot(args);
 	if (type === 'commit') return commitProject(args.projectId, args.now);
 	if (type === 'restore-history') return restoreHistory(args.projectId, args.generation);
 	if (type === 'history') return listHistory(args.projectId);
@@ -303,6 +314,7 @@ async function decodeProject(args, context) {
 
 function updateDocument(args, context) {
 	const entry = requireWritableProject(args.projectId);
+	assertNoActiveSnapshot(entry.projectId);
 	context.checkCancelled();
 	const blockIds = [];
 	entry.database.exec('BEGIN IMMEDIATE');
@@ -325,12 +337,30 @@ function updateDocument(args, context) {
 }
 
 function writeSnapshot(args, context) {
-	const entry = requireWritableProject(args.projectId);
 	if (!args.project || !Array.isArray(args.sources)) throw operationError('A project and its source channels are required.', 'INVALID_SNAPSHOT');
+	const started = beginSnapshot(args, context);
+	try {
+		for (const source of args.sources) appendSnapshotSource({
+			projectId: args.projectId,
+			snapshotId: started.snapshotId,
+			source,
+		}, context);
+		return finalizeSnapshot({ projectId: args.projectId, snapshotId: started.snapshotId }, context);
+	} catch (error) {
+		abortSnapshot({ projectId: args.projectId, snapshotId: started.snapshotId });
+		throw error;
+	}
+}
+
+function beginSnapshot(args, context) {
+	const entry = requireWritableProject(args.projectId);
+	if (!args.project) throw operationError('An audio editor project is required.', 'INVALID_SNAPSHOT');
+	if (activeSnapshotByProject.has(entry.projectId)) {
+		throw operationError(`An AUP4 snapshot is already being written for ${entry.projectId}.`, 'SNAPSHOT_IN_PROGRESS');
+	}
 	context.checkCancelled();
-	const snapshot = normalizeAup4ExportSnapshot(args.project, args.sources);
-	context.checkCancelled();
-	const estimatedBytes = estimateSnapshotBytes(snapshot.sources);
+	const plan = createAup4ExportPlan(args.project);
+	const estimatedBytes = estimatePlannedSnapshotBytes(plan.sources);
 	const limit = portableLimit(args, Boolean(entry.pool));
 	entry.portableLimit = limit;
 	if (estimatedBytes > limit) throw operationError(
@@ -338,53 +368,150 @@ function writeSnapshot(args, context) {
 		'PROJECT_TOO_LARGE',
 		{ limit, size: estimatedBytes, phase: 'preflight' },
 	);
-	const sourceById = new Map(snapshot.sources.map((source) => [source.sourceId, source]));
-	const expectedSources = new Set((snapshot.project.sources || []).map((source) => source.id));
-	for (const sourceId of expectedSources) {
-		if (!sourceById.has(sourceId) && (snapshot.project.clips || []).some((clip) => clip.sourceId === sourceId)) {
-			throw operationError(`PCM for project source ${sourceId} is missing.`, 'MISSING_SOURCE');
-		}
+	const snapshotId = `${entry.projectId}:${context.id}`;
+	const session = {
+		snapshotId,
+		projectId: entry.projectId,
+		entry,
+		plan,
+		autosave: args.autosave !== false,
+		expectedSourceIds: new Set(requiredAup4SourceIds(plan).map(String)),
+		receivedSourceIds: new Set(),
+		channelBlocks: new Map(),
+		insertedBlockIds: [],
+		totalSamples: plan.sources.reduce((total, variant) => (
+			total + variant.source.frameCount * variant.source.channelCount
+		), 0),
+		completedSamples: 0,
+	};
+	snapshotWrites.set(snapshotId, session);
+	activeSnapshotByProject.set(entry.projectId, snapshotId);
+	return {
+		snapshotId,
+		sourceCount: session.expectedSourceIds.size,
+		normalizedSourceCount: plan.sources.length,
+		estimatedBytes,
+	};
+}
+
+function appendSnapshotSource(args, context) {
+	const session = requireSnapshotWrite(args);
+	context.checkCancelled();
+	const sourceId = String(args.source?.sourceId || '');
+	if (!session.expectedSourceIds.has(sourceId)) return { sourceId, ignored: true };
+	if (session.receivedSourceIds.has(sourceId)) {
+		throw operationError(`PCM for project source ${sourceId} was supplied more than once.`, 'DUPLICATE_SOURCE');
 	}
-	const totalSamples = snapshot.sources.reduce((total, source) => total + (source.channels || []).reduce((sum, channel) => sum + Number(channel?.length || 0), 0), 0);
+	const normalizedSources = normalizeAup4ExportSource(session.plan, args.source);
+	const localBlocks = new Map();
+	const localBlockIds = [];
 	let completedSamples = 0;
-	const channelBlocks = new Map();
-	entry.database.exec('BEGIN IMMEDIATE');
+	session.entry.database.exec('BEGIN IMMEDIATE');
 	try {
-		for (const source of snapshot.sources) {
-			if (!expectedSources.has(source.sourceId)) continue;
-			for (let channelIndex = 0; channelIndex < (source.channels || []).length; channelIndex += 1) {
+		for (const source of normalizedSources) {
+			for (let channelIndex = 0; channelIndex < source.channels.length; channelIndex += 1) {
 				const samples = normalizeFloat32(source.channels[channelIndex]);
 				const blocks = [];
 				for (let offset = 0; offset < samples.length; offset += AUP4_MAX_BLOCK_SAMPLES) {
 					context.checkCancelled();
 					const chunk = samples.subarray(offset, Math.min(samples.length, offset + AUP4_MAX_BLOCK_SAMPLES));
-					const blockId = insertAup4SampleBlock(entry.database, createAup4SampleBlock(chunk));
+					const blockId = insertAup4SampleBlock(session.entry.database, createAup4SampleBlock(chunk));
+					localBlockIds.push(blockId);
 					blocks.push({ blockId, start: offset, sampleCount: chunk.length });
 					completedSamples += chunk.length;
-					context.progress(totalSamples ? completedSamples / totalSamples : 1, 'encoding-audio', { sourceId: source.sourceId, channel: channelIndex });
+					context.progress(
+						session.totalSamples ? (session.completedSamples + completedSamples) / session.totalSamples : 1,
+						'encoding-audio',
+						{ sourceId: source.sourceId, inputSourceId: sourceId, channel: channelIndex },
+					);
 				}
-				channelBlocks.set(`${source.sourceId}:${channelIndex}`, blocks);
+				localBlocks.set(`${source.sourceId}:${channelIndex}`, blocks);
 			}
 		}
-		const document = createAup4ProjectDocument(snapshot.project, channelBlocks);
-		const encoded = encodeAudacityBinaryXml(document);
-		const result = writeAup4Document(entry.database, encoded, { autosave: args.autosave !== false });
-		entry.database.exec('COMMIT');
-		context.progress(1, 'complete');
-		return { ...result, sourceCount: sourceById.size, sampleCount: totalSamples };
+		session.entry.database.exec('COMMIT');
 	} catch (error) {
-		try { entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
+		try { session.entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
 		throw error;
+	}
+	for (const [key, blocks] of localBlocks) session.channelBlocks.set(key, blocks);
+	session.insertedBlockIds.push(...localBlockIds);
+	session.receivedSourceIds.add(sourceId);
+	session.completedSamples += completedSamples;
+	return {
+		sourceId,
+		normalizedSourceCount: normalizedSources.length,
+		sampleCount: completedSamples,
+	};
+}
+
+function finalizeSnapshot(args, context) {
+	const session = requireSnapshotWrite(args);
+	const missing = [...session.expectedSourceIds].filter((sourceId) => !session.receivedSourceIds.has(sourceId));
+	if (missing.length) {
+		throw operationError(`PCM for project source ${missing[0]} is missing.`, 'MISSING_SOURCE', { sourceIds: missing });
+	}
+	context.checkCancelled();
+	session.entry.database.exec('BEGIN IMMEDIATE');
+	try {
+		const document = createAup4ProjectDocument(session.plan.project, session.channelBlocks);
+		const encoded = encodeAudacityBinaryXml(document);
+		const result = writeAup4Document(session.entry.database, encoded, { autosave: session.autosave });
+		session.entry.database.exec('COMMIT');
+		completeSnapshotWrite(session);
+		context.progress(1, 'complete');
+		return {
+			...result,
+			sourceCount: session.plan.sources.length,
+			sampleCount: session.totalSamples,
+		};
+	} catch (error) {
+		try { session.entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
+		discardSnapshotWrite(session);
+		throw error;
+	}
+}
+
+function abortSnapshot(args) {
+	const session = snapshotWrites.get(String(args.snapshotId || ''));
+	if (!session || session.projectId !== normalizeProjectId(args.projectId)) return false;
+	discardSnapshotWrite(session);
+	return true;
+}
+
+function requireSnapshotWrite(args) {
+	const snapshotId = String(args.snapshotId || '');
+	const session = snapshotWrites.get(snapshotId);
+	const projectId = normalizeProjectId(args.projectId);
+	if (!session || session.projectId !== projectId) {
+		throw operationError('The AUP4 snapshot write is no longer active.', 'SNAPSHOT_NOT_OPEN');
+	}
+	if (session.entry !== requireWritableProject(projectId)) {
+		throw operationError('The AUP4 snapshot database changed while it was being written.', 'SNAPSHOT_NOT_OPEN');
+	}
+	return session;
+}
+
+function completeSnapshotWrite(session) {
+	snapshotWrites.delete(session.snapshotId);
+	if (activeSnapshotByProject.get(session.projectId) === session.snapshotId) activeSnapshotByProject.delete(session.projectId);
+}
+
+function discardSnapshotWrite(session) {
+	completeSnapshotWrite(session);
+	if (session.entry.database && session.insertedBlockIds.length) {
+		deleteAup4SampleBlocks(session.entry.database, session.insertedBlockIds);
 	}
 }
 
 function commitProject(projectId, now) {
 	const entry = requireWritableProject(projectId);
+	assertNoActiveSnapshot(entry.projectId);
 	return { committed: commitAup4Autosave(entry.database, { now }), history: listAup4History(entry.database) };
 }
 
 function restoreHistory(projectId, generation) {
 	const entry = requireWritableProject(projectId);
+	assertNoActiveSnapshot(entry.projectId);
 	return {
 		restored: restoreAup4History(entry.database, generation),
 		validation: portableValidation(validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS), entry),
@@ -398,6 +525,7 @@ function readBlock(projectId, blockId) { return readAup4SampleBlock(requireProje
 async function exportProject(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
 	const entry = requireProject(projectId);
+	assertNoActiveSnapshot(entry.projectId);
 	if (!entry.readOnly && args.commit !== false) commitAup4Autosave(entry.database, { now: args.now });
 	validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS);
 	context.checkCancelled();
@@ -426,6 +554,9 @@ async function closeProject(projectId) {
 	const id = normalizeProjectId(projectId);
 	const entry = projects.get(id);
 	if (!entry) return false;
+	for (const session of [...snapshotWrites.values()]) {
+		if (session.projectId === id) discardSnapshotWrite(session);
+	}
 	entry.database?.close();
 	projects.delete(id);
 	return true;
@@ -450,6 +581,12 @@ function requireWritableProject(projectId) {
 	const entry = requireProject(projectId);
 	if (entry.readOnly) throw operationError('This newer AUP4 project is read-only.', 'READ_ONLY');
 	return entry;
+}
+
+function assertNoActiveSnapshot(projectId) {
+	if (activeSnapshotByProject.has(normalizeProjectId(projectId))) {
+		throw operationError('The AUP4 project has an unfinished snapshot write.', 'SNAPSHOT_IN_PROGRESS');
+	}
 }
 
 function projectDescriptor(entry) {
@@ -542,10 +679,12 @@ function storageAvailable(args) {
 	return Math.max(0, quota - usage);
 }
 
-function estimateSnapshotBytes(sources) {
+function estimatePlannedSnapshotBytes(variants) {
 	let pcmBytes = 0;
-	for (const source of sources || []) for (const channel of source.channels || []) {
-		pcmBytes += Number(channel?.byteLength || Number(channel?.length || 0) * Float32Array.BYTES_PER_ELEMENT);
+	for (const variant of variants || []) {
+		pcmBytes += Number(variant?.source?.frameCount || 0)
+			* Number(variant?.source?.channelCount || 0)
+			* Float32Array.BYTES_PER_ELEMENT;
 	}
 	// Float32 blocks plus exact summaries, SQLite pages, and project/history XML.
 	return Math.ceil(pcmBytes * 1.02) + 2 * 1024 * 1024;

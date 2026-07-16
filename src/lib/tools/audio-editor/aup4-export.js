@@ -5,17 +5,36 @@ import { createStreamingWindowedSincResampler } from './resample.js';
  * changing the browser project. The returned project and PCM are export-only.
  */
 export function normalizeAup4ExportSnapshot(project, sourceAudio = []) {
+	if (!Array.isArray(sourceAudio)) throw exportError('AUP4 source audio must be an array.', 'INVALID_SNAPSHOT');
+	const plan = createAup4ExportPlan(project);
+	const audioById = new Map(sourceAudio.map((source) => [source.sourceId, source]));
+	const normalizedSources = [];
+	for (const sourceId of requiredAup4SourceIds(plan)) {
+		const audio = audioById.get(sourceId);
+		if (!audio) throw exportError(`PCM for project source ${sourceId} is missing.`, 'MISSING_SOURCE');
+		normalizedSources.push(...normalizeAup4ExportSource(plan, audio));
+	}
+	const normalizedById = new Map(normalizedSources.map((source) => [source.sourceId, source]));
+	return {
+		project: plan.project,
+		sources: plan.sources.map((variant) => normalizedById.get(variant.source.id)),
+	};
+}
+
+/**
+ * Build the project-only part of AUP4 normalization. This deliberately does
+ * not touch PCM, so callers can retain the plan while materializing one source
+ * at a time from disk.
+ */
+export function createAup4ExportPlan(project) {
 	if (!project || !Array.isArray(project.tracks) || !Array.isArray(project.clips) || !Array.isArray(project.sources)) {
 		throw exportError('An audio editor project is required.', 'INVALID_SNAPSHOT');
 	}
-	if (!Array.isArray(sourceAudio)) throw exportError('AUP4 source audio must be an array.', 'INVALID_SNAPSHOT');
 	const projectRate = positiveRate(project.sampleRate, 'project.sampleRate');
 	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
-	const audioById = new Map(sourceAudio.map((source) => [source.sourceId, source]));
 	const clipById = new Map(project.clips.map((clip) => [clip.id, clip]));
 	const normalizedProject = clone(project);
 	const normalizedClipById = new Map(normalizedProject.clips.map((clip) => [clip.id, clip]));
-	const normalizedSources = [];
 	const normalizedSourceMetadata = [];
 	const variants = new Map();
 	const variantIds = new Set(sourceById.keys());
@@ -81,37 +100,79 @@ export function normalizeAup4ExportSnapshot(project, sourceAudio = []) {
 			const key = JSON.stringify([source.id, targetRate, targetChannels]);
 			const existing = variants.get(key);
 			if (existing) return existing;
-			const audio = audioById.get(source.id);
-			if (!audio) throw exportError(`PCM for project source ${source.id} is missing.`, 'MISSING_SOURCE');
-			const inputChannels = normalizeInputChannels(audio.channels, source);
-			const mappedChannels = mapChannels(inputChannels, targetChannels);
-			const sourceRate = positiveRate(source.sampleRate ?? audio.sampleRate, `source ${source.id} sampleRate`);
-			const channels = sourceRate === targetRate
-				? mappedChannels.map((channel) => channel.slice())
-				: resampleChannels(mappedChannels, sourceRate, targetRate);
+			const sourceRate = positiveRate(source.sampleRate, `source ${source.id} sampleRate`);
+			const inputFrameCount = positiveFrame(source.frameCount, `source ${source.id} frameCount`);
+			const outputFrameCount = sourceRate === targetRate
+				? inputFrameCount
+				: Math.max(1, Math.round(inputFrameCount * targetRate / sourceRate));
 			const variantId = uniqueVariantId(source.id, targetRate, targetChannels, variantIds);
 			const normalizedSource = {
 				...clone(source),
 				id: variantId,
 				storageKey: variantId,
-				frameCount: channels[0].length,
+				frameCount: outputFrameCount,
 				channelCount: targetChannels,
 				sampleRate: targetRate,
 				sampleFormat: 'float32',
 			};
 			const result = {
 				source: normalizedSource,
-				audio: { sourceId: variantId, sampleRate: targetRate, channels },
+				inputSourceId: source.id,
+				inputSource: clone(source),
+				targetRate,
+				targetChannels,
 			};
 			variants.set(key, result);
 			normalizedSourceMetadata.push(normalizedSource);
-			normalizedSources.push(result.audio);
 			return result;
 		}
 	}
 
 	normalizedProject.sources = normalizedSourceMetadata;
-	return { project: normalizedProject, sources: normalizedSources };
+	return {
+		project: normalizedProject,
+		sources: [...variants.values()].map((variant) => ({
+			inputSourceId: variant.inputSourceId,
+			inputSource: variant.inputSource,
+			source: variant.source,
+			targetRate: variant.targetRate,
+			targetChannels: variant.targetChannels,
+		})),
+	};
+}
+
+/** Return the original project-source ids needed by an export plan. */
+export function requiredAup4SourceIds(plan) {
+	assertExportPlan(plan);
+	return [...new Set(plan.sources.map((variant) => variant.inputSourceId))];
+}
+
+/**
+ * Materialize every native variant derived from one original source. The
+ * result can be written and released before the next source is requested.
+ */
+export function normalizeAup4ExportSource(plan, sourceAudio) {
+	assertExportPlan(plan);
+	const sourceId = String(sourceAudio?.sourceId || '');
+	const variants = plan.sources.filter((variant) => variant.inputSourceId === sourceId);
+	if (!variants.length) return [];
+	const inputSource = variants[0].inputSource;
+	const inputChannels = normalizeInputChannels(sourceAudio.channels, inputSource);
+	const sourceRate = positiveRate(inputSource.sampleRate ?? sourceAudio.sampleRate, `source ${sourceId} sampleRate`);
+	return variants.map((variant) => {
+		const mappedChannels = mapChannels(inputChannels, variant.targetChannels);
+		const channels = sourceRate === variant.targetRate
+			? mappedChannels.map((channel) => channel.slice())
+			: resampleChannels(mappedChannels, sourceRate, variant.targetRate);
+		if (channels.some((channel) => channel.length !== variant.source.frameCount)) {
+			throw exportError(`AUP4 source ${sourceId} normalization produced an invalid frame count.`, 'INVALID_SOURCE_AUDIO');
+		}
+		return { sourceId: variant.source.id, sampleRate: variant.targetRate, channels };
+	});
+}
+
+function assertExportPlan(plan) {
+	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An AUP4 export plan is required.', 'INVALID_SNAPSHOT');
 }
 
 function normalizeInputChannels(values, source) {

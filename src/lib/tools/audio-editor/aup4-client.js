@@ -49,23 +49,32 @@ export class Aup4WorkerClient {
 			sampleBlocks,
 		}, { ...options, transfer });
 	}
-	writeSnapshot(projectId, project, sources, options = {}) {
-		const transfer = [];
-		const transferableSources = (sources || []).map((source) => ({
-			...source,
-			channels: (source.channels || []).map((channel) => {
-				const copy = Float32Array.from(channel);
-				transfer.push(copy.buffer);
-				return copy;
-			}),
-		}));
-		return this.call('write-snapshot', {
-			projectId,
-			project,
-			sources: transferableSources,
-			autosave: options.autosave !== false,
-			...deviceOptions(options),
-		}, { ...options, transfer });
+	async writeSnapshot(projectId, project, sources, options = {}) {
+		let snapshotId;
+		try {
+			const started = await this.call('begin-snapshot', {
+				projectId,
+				project,
+				autosave: options.autosave !== false,
+				...deviceOptions(options),
+			}, options);
+			snapshotId = started.snapshotId;
+			for await (const source of snapshotSourceIterable(sources, options.signal)) {
+				const transfer = [];
+				const transferableSource = cloneSnapshotSource(source, transfer);
+				await this.call('append-snapshot-source', {
+					projectId,
+					snapshotId,
+					source: transferableSource,
+				}, { ...options, transfer });
+			}
+			return await this.call('finalize-snapshot', { projectId, snapshotId }, options);
+		} catch (error) {
+			if (snapshotId && !this.disposed) {
+				await this.call('abort-snapshot', { projectId, snapshotId }).catch(() => undefined);
+			}
+			throw error;
+		}
 	}
 	commit(projectId, options = {}) { return this.call('commit', { projectId, now: timestamp(options.now) }, options); }
 	restoreHistory(projectId, generation, options = {}) { return this.call('restore-history', { projectId, generation }, options); }
@@ -229,6 +238,72 @@ function cloneBinaryRecord(value, transfer) {
 	}
 	if (Array.isArray(value)) return value.map((entry) => cloneBinaryRecord(entry, transfer));
 	return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, cloneBinaryRecord(entry, transfer)]));
+}
+
+async function* snapshotSourceIterable(sources, signal) {
+	if (sources == null) return;
+	const iterator = typeof sources[Symbol.asyncIterator] === 'function'
+		? sources[Symbol.asyncIterator]()
+		: typeof sources[Symbol.iterator] === 'function'
+			? sources[Symbol.iterator]()
+			: null;
+	if (!iterator) throw new TypeError('AUP4 source audio must be an iterable or async iterable.');
+	let complete = false;
+	try {
+		while (!complete) {
+			const next = await nextSnapshotSource(iterator, signal);
+			complete = Boolean(next.done);
+			if (!complete) yield next.value;
+		}
+	} finally {
+		if (!complete && typeof iterator.return === 'function') {
+			const closing = Promise.resolve().then(() => iterator.return());
+			if (signal?.aborted) void closing.catch(() => undefined);
+			else await closing;
+		}
+	}
+}
+
+function nextSnapshotSource(iterator, signal) {
+	if (signal?.aborted) return Promise.reject(abortedSnapshotError());
+	if (!signal) return Promise.resolve().then(() => iterator.next());
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const finish = (callback, value) => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', abort);
+			callback(value);
+		};
+		const abort = () => finish(reject, abortedSnapshotError());
+		signal.addEventListener('abort', abort, { once: true });
+		Promise.resolve().then(() => iterator.next()).then(
+			(value) => finish(resolve, value),
+			(error) => finish(reject, error),
+		);
+	});
+}
+
+function abortedSnapshotError() {
+	return new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED');
+}
+
+function cloneSnapshotSource(source, transfer) {
+	if (!source || typeof source !== 'object') throw new TypeError('An AUP4 source audio record is required.');
+	if (!Array.isArray(source.channels) || !source.channels.length) {
+		throw new TypeError(`AUP4 source ${source.sourceId || ''} must contain planar channels.`);
+	}
+	return {
+		...source,
+		channels: source.channels.map((channel) => {
+			if (!(channel instanceof Float32Array) && !ArrayBuffer.isView(channel) && !Array.isArray(channel)) {
+				throw new TypeError(`AUP4 source ${source.sourceId || ''} must contain Float32 samples.`);
+			}
+			const copy = Float32Array.from(channel);
+			transfer.push(copy.buffer);
+			return copy;
+		}),
+	};
 }
 
 function timestamp(value) {

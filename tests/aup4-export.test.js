@@ -3,7 +3,12 @@ import test from 'node:test';
 
 import { audacityXmlAttribute, audacityXmlChildren } from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
 import { decodeAup4ProjectTree } from '../src/lib/tools/audio-editor/aup4-conversion.js';
-import { normalizeAup4ExportSnapshot } from '../src/lib/tools/audio-editor/aup4-export.js';
+import {
+	createAup4ExportPlan,
+	normalizeAup4ExportSnapshot,
+	normalizeAup4ExportSource,
+	requiredAup4SourceIds,
+} from '../src/lib/tools/audio-editor/aup4-export.js';
 import { createAup4ProjectTree, createAup4SampleBlock } from '../src/lib/tools/audio-editor/aup4-profile.js';
 
 test('AUP4 export normalizes mixed-rate mono and stereo clips to one fixed track profile', async () => {
@@ -179,6 +184,76 @@ test('AUP4 export creates and reuses source variants for shared clips without mu
 		'shared-source', 'shared-source', 'shared-source', 'stereo-source',
 	]);
 	assert.deepEqual(sharedPcm, Float32Array.from({ length: 441 }, (_, frame) => frame / 441));
+});
+
+test('AUP4 export planning is PCM-free and materializes one original source at a time', () => {
+	const project = fixtureProject({
+		sources: [
+			source('shared-source', 44_100, 1, 441),
+			source('stereo-source', 48_000, 2, 480),
+		],
+		clips: [
+			clip('shared-native', 'shared-source', { sourceDurationFrames: 441 }),
+			clip('shared-mixed', 'shared-source', { sourceDurationFrames: 441 }),
+			clip('stereo-mixed', 'stereo-source', { sourceDurationFrames: 480 }),
+		],
+		tracks: [
+			track('native-track', ['shared-native']),
+			track('mixed-track', ['shared-mixed', 'stereo-mixed']),
+		],
+	});
+	const plan = createAup4ExportPlan(project);
+	assert.deepEqual(requiredAup4SourceIds(plan), ['shared-source', 'stereo-source']);
+	assert.equal(plan.sources.length, 3);
+	assert.deepEqual(plan.sources.map((variant) => [
+		variant.inputSourceId,
+		variant.source.sampleRate,
+		variant.source.channelCount,
+		variant.source.frameCount,
+	]), [
+		['shared-source', 44_100, 1, 441],
+		['shared-source', 48_000, 2, 480],
+		['stereo-source', 48_000, 2, 480],
+	]);
+
+	const shared = Float32Array.from({ length: 441 }, (_, frame) => frame / 441);
+	const sharedVariants = normalizeAup4ExportSource(plan, {
+		sourceId: 'shared-source', sampleRate: 44_100, channels: [shared],
+	});
+	assert.equal(sharedVariants.length, 2);
+	assert.deepEqual(sharedVariants.map((variant) => [
+		variant.channels.length, variant.channels[0].length,
+	]), [[1, 441], [2, 480]]);
+	assert.deepEqual(normalizeAup4ExportSource(plan, {
+		sourceId: 'unused-source', channels: [Float32Array.of(1)],
+	}), []);
+	assert.deepEqual(shared, Float32Array.from({ length: 441 }, (_, frame) => frame / 441));
+});
+
+test('incremental AUP4 source normalization is byte-for-byte equivalent to snapshot normalization', () => {
+	const project = fixtureProject({
+		sources: [
+			source('mono-source', 44_100, 1, 441),
+			source('stereo-source', 48_000, 2, 480),
+		],
+		clips: [
+			clip('mono-clip', 'mono-source', { sourceDurationFrames: 441 }),
+			clip('stereo-clip', 'stereo-source', { sourceDurationFrames: 480 }),
+		],
+		tracks: [track('mixed-track', ['mono-clip', 'stereo-clip'])],
+	});
+	const sources = [
+		{ sourceId: 'mono-source', sampleRate: 44_100, channels: [new Float32Array(441).fill(0.25)] },
+		{
+			sourceId: 'stereo-source', sampleRate: 48_000,
+			channels: [new Float32Array(480).fill(0.5), new Float32Array(480).fill(-0.5)],
+		},
+	];
+	const snapshot = normalizeAup4ExportSnapshot(project, sources);
+	const plan = createAup4ExportPlan(project);
+	const incremental = sources.flatMap((sourceAudio) => normalizeAup4ExportSource(plan, sourceAudio));
+	assert.deepEqual(plan.project, snapshot.project);
+	assert.deepEqual(incremental, snapshot.sources);
 });
 
 test('AUP4 export represents an empty track as project-rate mono', () => {
