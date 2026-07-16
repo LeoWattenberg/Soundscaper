@@ -30,6 +30,7 @@ export * from './label-io.js';
 export * from './migration.js';
 export * from './media-export.js';
 export * from './pcm-chunks.js';
+export * from './pcm-sink.js';
 export * from './preferences.js';
 export * from './project.js';
 export * from './project-v2.js';

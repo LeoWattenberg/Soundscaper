@@ -13,6 +13,7 @@ import {
 	createChunkStreamAudioNode,
 } from './chunk-stream-client.js';
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from './chunk-stream.js';
+import { createAsyncPlanarPcmSinkQueue } from './pcm-sink.js';
 export {
 	createRecordingCapturePool,
 	createRecordingController,
@@ -548,12 +549,14 @@ export class WebAudioEditorEngine {
 		includeTail = false,
 		trackId = null,
 		includeMaster = true,
+		includeTrackPan = true,
 		respectMuteSolo = true,
 		sampleRate = this.sampleRate,
 		outputFrames: requestedOutputFrames = null,
 		preRollFrames = 0,
 		chunkFrames = 4096,
 		onChunk,
+		onProgress = null,
 		signal,
 	} = {}) {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
@@ -599,7 +602,13 @@ export class WebAudioEditorEngine {
 		silent.gain.value = 0;
 		capture.connect(silent);
 		silent.connect(context.destination);
-		const graph = buildProjectGraph(context, capture, this.project, { metering: false, respectMuteSolo, trackId, includeMaster });
+		const graph = buildProjectGraph(context, capture, this.project, {
+			metering: false,
+			respectMuteSolo,
+			trackId,
+			includeMaster,
+			includeTrackPan,
+		});
 		const abortGraph = () => graph.abortController.abort();
 		signal?.addEventListener('abort', abortGraph, { once: true });
 		try {
@@ -632,35 +641,58 @@ export class WebAudioEditorEngine {
 			throw error;
 		}
 
-		let writeQueue = Promise.resolve();
-		let pendingChunks = 0;
 		let renderedFrames = 0;
 		let resolveDone;
 		let rejectDone;
 		const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
-		const abort = () => rejectDone(createAbortError());
+		let doneReceived = false;
+		let sinkQueue = null;
+		const failRender = (error) => {
+			const failure = error instanceof Error ? error : new Error('The realtime render failed.');
+			sinkQueue?.abort(failure);
+			graph.abortController.abort(failure);
+			rejectDone(failure);
+		};
+		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { onError: failRender });
+		const abort = () => failRender(createAbortError());
 		signal?.addEventListener('abort', abort, { once: true });
-		capture.onprocessorerror = () => rejectDone(new Error('The realtime render worklet failed.'));
+		capture.onprocessorerror = () => failRender(new Error('The realtime render worklet failed.'));
 		capture.port.onmessage = ({ data = {} }) => {
+			if (doneReceived || sinkQueue.failure) return;
 			if (data.type === 'audio-chunk') {
-				pendingChunks += 1;
-				if (pendingChunks > 64) {
-					rejectDone(new Error('Export storage could not keep up with realtime audio.'));
-					return;
-				}
 				const channels = (data.channels || []).map((channel) => channel instanceof Float32Array ? channel : new Float32Array(channel));
-				renderedFrames += data.frames || channels[0]?.length || 0;
-				writeQueue = writeQueue
-					.then(() => onChunk(channels, { frameOffset: data.frameOffset, sampleRate: context.sampleRate }))
-					.finally(() => { pendingChunks -= 1; });
-			} else if (data.type === 'done') writeQueue.then(resolveDone, rejectDone);
+				const frames = channels[0]?.length || 0;
+				const accepted = sinkQueue.enqueue(channels, {
+					frameOffset: data.frameOffset,
+					sampleRate: context.sampleRate,
+				});
+				if (!accepted) return;
+				renderedFrames += frames;
+				try {
+					onProgress?.({
+						frames: renderedFrames,
+						totalFrames: outputFrames,
+						progress: Math.min(1, renderedFrames / outputFrames),
+					});
+				} catch (error) {
+					failRender(error);
+				}
+			} else if (data.type === 'done') {
+				doneReceived = true;
+				void sinkQueue.finish().then(resolveDone, rejectDone);
+			}
 		};
 		capture.port.start?.();
 
 		try {
 			await context.resume();
 			await done;
-			return { sampleRate: context.sampleRate, channelCount: 2, frameCount: renderedFrames };
+			return {
+				sampleRate: context.sampleRate,
+				channelCount: 2,
+				frameCount: sinkQueue.writtenFrames,
+				chunkCount: sinkQueue.writtenChunks,
+			};
 		} finally {
 			signal?.removeEventListener('abort', abort);
 			signal?.removeEventListener('abort', abortGraph);
@@ -670,7 +702,21 @@ export class WebAudioEditorEngine {
 			try { capture.disconnect(); } catch { /* Already disconnected. */ }
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
+			if (sinkQueue.state !== 'finished') sinkQueue.abort(createAbortError());
+			try { await sinkQueue.settled(); } catch { /* The primary render error is reported above. */ }
 		}
+	}
+
+	/**
+	 * Stream an authoritative 1x mix directly into an async planar PCM sink.
+	 * The sink is left open so its owner can atomically commit or abort it.
+	 */
+	renderMixToSink({ sink, ...options } = {}) {
+		if (typeof sink !== 'function' && typeof sink?.write !== 'function') {
+			return Promise.reject(new TypeError('A planar PCM sink function or object with write() is required.'));
+		}
+		const write = typeof sink === 'function' ? sink : sink.write.bind(sink);
+		return this.renderMixRealtime({ ...options, onChunk: write });
 	}
 
 	renderTrack(trackId, options = {}) {
@@ -678,6 +724,18 @@ export class WebAudioEditorEngine {
 			return Promise.reject(new Error('The requested track could not be found.'));
 		}
 		return this.renderMix({
+			...options,
+			trackId,
+			includeMaster: false,
+			respectMuteSolo: false,
+		});
+	}
+
+	renderTrackToSink(trackId, options = {}) {
+		if (!this.project?.tracks?.some((track) => track.id === trackId)) {
+			return Promise.reject(new Error('The requested track could not be found.'));
+		}
+		return this.renderMixToSink({
 			...options,
 			trackId,
 			includeMaster: false,
