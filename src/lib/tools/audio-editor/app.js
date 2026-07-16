@@ -188,6 +188,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const sourceBuffers = createSourceBufferCache({
 		maxBytes: options.sourceBufferCacheMaxBytes,
 	});
+	const mixRenderMemoryLimitBytes = normalizeByteLimit(
+		options.mixRenderMemoryLimitBytes,
+		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
+	);
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
@@ -2094,14 +2098,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const tailFrames = mixRenderTailFrames(targetTracks, renderSnapshotProject, sampleRate);
 		const preRollFrames = Math.min(startFrame, sampleRate * 10);
 		const outputFrames = endFrame - startFrame + tailFrames;
-		// The Web Audio graph renders at most stereo. Reserve the conservative
-		// storage bound now, then decide whether a mono fold is lossless from the
-		// rendered graph and the mixer semantics below.
+		// The Web Audio graph renders at most stereo. Reserve that conservative
+		// storage bound; bounded offline renders may later prove a mono fold is
+		// lossless, while the streamed path remains stereo without scanning it.
 		const outputBytes = outputFrames * 2 * Float32Array.BYTES_PER_ELEMENT;
 		const processingFrames = outputFrames + preRollFrames;
-		if (processingFrames * 2 * Float32Array.BYTES_PER_ELEMENT * 3 > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) {
-			throw audacityEffectMemoryError(copy);
-		}
+		const streamToStorage = processingFrames * 2 * Float32Array.BYTES_PER_ELEMENT * 3
+			> mixRenderMemoryLimitBytes;
 
 		// Claim the shared destructive-render slot before the first await so a
 		// second activation cannot create a competing immutable source.
@@ -2112,28 +2115,38 @@ export function createAudioEditorController(_root = null, options = {}) {
 		let published = false;
 		try {
 			await preflightStorage(outputBytes, 'effect');
-			const rendered = await renderSnapshot(renderSnapshotProject, {
-				startFrame,
-				endFrame,
-				includeTail: tailFrames ? tailFrames / sampleRate : false,
-				includeMaster: false,
-				includeTrackPan: true,
-				respectMuteSolo: false,
-				preRollFrames,
-			});
-			const outputChannelCount = mixRenderOutputChannelCount(
-				targetTracks,
-				renderSnapshotProject,
-				rendered,
-			);
-			const output = await normalizeMixRenderOutput(rendered, outputChannelCount);
 			const mixName = targetTracks.length === 1
 				? targetTracks[0].name
 				: copy.mixedTrack || 'Mix';
-			renderedSource = await persistRenderedMixSource(
-				output,
-				`${mixName} — ${copy.mixRender || copy.mixdownTo || 'Mix and render'}.wav`,
-			);
+			const sourceName = `${mixName} — ${copy.mixRender || copy.mixdownTo || 'Mix and render'}.wav`;
+			if (streamToStorage) {
+				renderedSource = await persistStreamedMixSource(renderSnapshotProject, {
+					name: sourceName,
+					startFrame,
+					endFrame,
+					tailFrames,
+					preRollFrames,
+					outputFrames,
+					sampleRate,
+				});
+			} else {
+				const rendered = await renderSnapshot(renderSnapshotProject, {
+					startFrame,
+					endFrame,
+					includeTail: tailFrames ? tailFrames / sampleRate : false,
+					includeMaster: false,
+					includeTrackPan: true,
+					respectMuteSolo: false,
+					preRollFrames,
+				});
+				const outputChannelCount = mixRenderOutputChannelCount(
+					targetTracks,
+					renderSnapshotProject,
+					rendered,
+				);
+				const output = await normalizeMixRenderOutput(rendered, outputChannelCount);
+				renderedSource = await persistRenderedMixSource(output, sourceName);
+			}
 			const result = prepareMixRenderCommit(targetTracks, renderedSource.source, {
 				startFrame,
 				mixName,
@@ -2356,6 +2369,78 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourcePeaks.delete(sourceId);
 			await store.deleteSource(sourceId).catch(() => undefined);
 			throw error;
+		}
+	}
+
+	async function persistStreamedMixSource(snapshot, {
+		name,
+		startFrame,
+		endFrame,
+		tailFrames,
+		preRollFrames,
+		outputFrames,
+		sampleRate,
+	}) {
+		const sourceId = createStableId('mixed-source');
+		const renderEngine = createCacheAwareRenderEngine();
+		let writer = null;
+		let committed = false;
+		try {
+			await prepareCommittedTimePitchCaches(snapshot);
+			writer = createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, {
+				name,
+				mimeType: 'audio/wav',
+				sampleRate,
+				channelCount: 2,
+			}));
+			renderEngine.loadProject(snapshot, sourceBuffers);
+			const result = await renderEngine.renderMixToSink({
+				sink: writer,
+				startFrame,
+				endFrame,
+				includeTail: tailFrames ? tailFrames / sampleRate : false,
+				includeMaster: false,
+				includeTrackPan: true,
+				respectMuteSolo: false,
+				preRollFrames,
+				outputFrames,
+				sampleRate,
+			});
+			if (Number(result?.sampleRate) !== sampleRate
+				|| Number(result?.channelCount) !== 2
+				|| Number(result?.frameCount) !== outputFrames
+				|| writer.channelCount !== 2
+				|| writer.framesWritten !== outputFrames) {
+				throw new Error(copy.effectInvalidAudio);
+			}
+			const metadata = await writer.commit({
+				sampleRate,
+				channelCount: 2,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+			});
+			committed = true;
+			const source = {
+				schemaVersion: 2,
+				id: sourceId,
+				storageKey: sourceId,
+				name,
+				mimeType: 'audio/wav',
+				frameCount: outputFrames,
+				channelCount: 2,
+				sampleRate,
+				originalSampleRate: sampleRate,
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+				opaqueExtensions: {},
+			};
+			await activateStoredSource(source, metadata);
+			return { source, buffer: null, channels: null };
+		} catch (error) {
+			if (committed) await rollbackDerivedSources([{ source: { id: sourceId } }]);
+			else await writer?.abort?.().catch(() => undefined);
+			throw error;
+		} finally {
+			await renderEngine.dispose();
 		}
 	}
 
@@ -2773,7 +2858,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function rollbackDerivedSources(records) {
 		for (const { source } of records) {
 			sourceBuffers.delete(source.id);
+			sourceChunkProviders.delete(source.id);
 			sourcePeaks.delete(source.id);
+			await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(source.id))).catch(() => undefined);
 			await store.deleteSource(source.id).catch(() => undefined);
 		}
 	}
@@ -8073,6 +8160,9 @@ function createCoalescingSourceWriter(writer) {
 			const storedFrames = Number(writer.framesWritten);
 			return Math.max(coalescer.framesWritten, Number.isSafeInteger(storedFrames) ? storedFrames : 0);
 		},
+		get channelCount() {
+			return coalescer.channelCount;
+		},
 		write(channels) {
 			return coalescer.write(channels);
 		},
@@ -8107,6 +8197,14 @@ function sourcePcmBytes(source) {
 	if (!Number.isSafeInteger(frameCount) || frameCount < 0 || !Number.isSafeInteger(channelCount) || channelCount < 0) return Infinity;
 	const bytes = frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT;
 	return Number.isSafeInteger(bytes) ? bytes : Infinity;
+}
+
+function normalizeByteLimit(value, fallback) {
+	const limit = value == null ? fallback : Number(value);
+	if (!Number.isSafeInteger(limit) || limit < 0) {
+		throw new RangeError('A memory limit must be a non-negative safe integer byte count.');
+	}
+	return limit;
 }
 
 function isStreamableStoredSource(source, metadata) {
