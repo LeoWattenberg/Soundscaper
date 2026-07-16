@@ -131,6 +131,8 @@ import {
 	setRecordingTrackRoute,
 } from './recording-routing.js';
 import { createEditorFfmpeg } from './ffmpeg.js';
+import { createPlanarPcmChunkCoalescer } from './pcm-chunks.js';
+import { createSourceBufferCache } from './source-buffer-cache.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
@@ -182,7 +184,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let telemetrySnapshot = null;
 	const fileService = options.fileService || createAudioEditorFileService();
 	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop });
-	const sourceBuffers = new Map();
+	const sourceBuffers = createSourceBufferCache({
+		maxBytes: options.sourceBufferCacheMaxBytes,
+	});
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
@@ -380,6 +384,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		get project() { return state.history?.present ?? null; },
 		get engine() { return engine; },
 		get clipTimePitchCache() { return clipTimePitchCache; },
+		get sourceBufferCacheStats() {
+			return Object.freeze({
+				byteLength: sourceBuffers.byteLength,
+				maxBytes: sourceBuffers.maxBytes,
+				entryCount: sourceBuffers.size,
+			});
+		},
 		get headless() { return true; },
 		getSnapshot,
 		subscribe: (listener) => subscribeTo(documentListeners, listener),
@@ -420,6 +431,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			clipTimePitchCache.dispose?.();
 			sessionController.dispose?.();
 			await engine.dispose();
+			sourceBuffers.clear();
+			sourceChunkProviders.clear();
+			sourcePeaks.clear();
 			await store.close?.();
 			documentListeners.clear();
 			telemetryListeners.clear();
@@ -1411,19 +1425,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus(`${prefix} ${percentage}%`);
 	}
 
+	function cacheSourceBuffer(sourceId, buffer) {
+		if (!buffer || sourceAudioBufferBytes(buffer) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
+			sourceBuffers.delete(sourceId);
+			return false;
+		}
+		if (sourceBuffers.setIfFits(sourceId, buffer)) return true;
+		sourceBuffers.delete(sourceId);
+		return false;
+	}
+
 	async function loadProjectSources(project) {
 		const usedSourceIds = new Set((project.clips || []).map((clip) => clip.sourceId));
-		sourceChunkProviders.clear();
 		if (!usedSourceIds.size) return;
 		const context = await engine.getAudioContext?.({ resume: false });
 		for (const source of project.sources.filter((candidate) => usedSourceIds.has(candidate.id))) {
 			try {
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
-				const useChunkStream = isLongStoredSource(source, metadata);
+				const chunkProvider = registerStoredChunkProvider(source, metadata);
+				const useChunkStream = Boolean(chunkProvider)
+					&& sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
 				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
-					sourceChunkProviders.set(source.id, createStoredChunkProvider(store, source));
 					if (!peaks?.levels) {
 						peaks = await generateStoredWaveformPeaks(store, source, copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
@@ -1431,7 +1455,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				} else {
 					const buffer = sourceBuffers.get(source.id) || await readStoredAudioBuffer(store, source, context);
 					if (!buffer) continue;
-					sourceBuffers.set(source.id, buffer);
+					cacheSourceBuffer(source.id, buffer);
 					if (!peaks?.levels) {
 						peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
@@ -1443,6 +1467,49 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setStatus(`${source.name}: ${error.message}`, 'error');
 			}
 		}
+	}
+
+	function registerStoredChunkProvider(source, metadata) {
+		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
+		const provider = createStoredChunkProvider(store, source, metadata);
+		sourceChunkProviders.set(source.id, provider);
+		return provider;
+	}
+
+	async function activateStoredSource(source, metadata, { buffer = null } = {}) {
+		const provider = registerStoredChunkProvider(source, metadata);
+		let peakBuffer = buffer;
+		if (provider && sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
+			sourceBuffers.delete(source.id);
+		} else {
+			peakBuffer ||= await readStoredAudioBuffer(store, source, await engine.getAudioContext?.({ resume: false }));
+			if (peakBuffer) cacheSourceBuffer(source.id, peakBuffer);
+		}
+		const peaks = peakBuffer
+			? await generateWaveformPeaks(audioBufferChannels(peakBuffer), copy)
+			: await generateStoredWaveformPeaks(store, source, copy);
+		sourcePeaks.set(source.id, peaks);
+		await store.saveAnalysis(peakCacheKey(source.id), peaks);
+		return peaks;
+	}
+
+	async function ensureProjectSourcesAvailable(snapshot) {
+		const usedSourceIds = new Set((snapshot?.clips || []).map((clip) => clip.sourceId));
+		const transientBuffers = new Map();
+		let context = null;
+		for (const source of (snapshot?.sources || []).filter((candidate) => usedSourceIds.has(candidate.id))) {
+			if (!sourceChunkProviders.has(source.id)) {
+				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				if (!metadata) continue;
+				registerStoredChunkProvider(source, metadata);
+			}
+			if (sourceChunkProviders.has(source.id) || sourceBuffers.has(source.id)) continue;
+			context ||= await engine.getAudioContext?.({ resume: false });
+			const buffer = await readStoredAudioBuffer(store, source, context);
+			if (!buffer) continue;
+			if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
+		}
+		return transientBuffers;
 	}
 
 	async function listProjects() {
@@ -1703,7 +1770,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				}),
 			],
 		};
-		sourceBuffers.set(sourceId, canonical);
+		cacheSourceBuffer(sourceId, canonical);
 		try {
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
 			sourcePeaks.set(sourceId, peaks);
@@ -2162,7 +2229,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			chunkFrames: SOURCE_CHUNK_FRAMES,
 			opaqueExtensions: {},
 		};
-		sourceBuffers.set(sourceId, rendered);
+		cacheSourceBuffer(sourceId, rendered);
 		try {
 			const peaks = await generateWaveformPeaks(channels, copy);
 			sourcePeaks.set(sourceId, peaks);
@@ -2300,7 +2367,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					originalSampleRate: source.originalSampleRate || source.sampleRate,
 				};
 				replacements.set(source.id, { source: nextSource, buffer, channels });
-				sourceBuffers.set(sourceId, buffer);
+				cacheSourceBuffer(sourceId, buffer);
 				const peaks = await generateWaveformPeaks(channels, copy);
 				sourcePeaks.set(sourceId, peaks);
 				await store.saveAnalysis(peakCacheKey(sourceId), peaks);
@@ -2573,7 +2640,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sampleRate,
 			originalSampleRate: template.originalSampleRate || sampleRate,
 		};
-		sourceBuffers.set(sourceId, buffer);
+		cacheSourceBuffer(sourceId, buffer);
 		try {
 			const peaks = await generateWaveformPeaks(channels, copy);
 			sourcePeaks.set(sourceId, peaks);
@@ -3022,7 +3089,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					durationFrames: generated.frameCount,
 				}));
 			}
-			sourceBuffers.set(sourceId, buffer);
+			cacheSourceBuffer(sourceId, buffer);
 			const peaks = await generateWaveformPeaks(generated.channels, copy);
 			sourcePeaks.set(sourceId, peaks);
 			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
@@ -3645,7 +3712,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			throwIfAborted(abort.signal);
 			const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
 			throwIfAborted(abort.signal);
-			sourceBuffers.set(sourceId, buffer);
+			cacheSourceBuffer(sourceId, buffer);
 			sourcePeaks.set(sourceId, peaks);
 			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
 			commit({
@@ -4521,7 +4588,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				fadeOutFrames: Math.min(clip.fadeOutFrames, buffer.length),
 				renderCacheRevision: 0,
 			};
-			sourceBuffers.set(renderedSourceId, buffer);
+			cacheSourceBuffer(renderedSourceId, buffer);
 			const peaks = await generateWaveformPeaks(channels, copy);
 			sourcePeaks.set(renderedSourceId, peaks);
 			await store.saveAnalysis(peakCacheKey(renderedSourceId), peaks);
@@ -4609,7 +4676,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function applyProjectToPlaybackEngine(snapshot) {
 		const previousPlayback = engine.getState();
-		await engine.applyProject(snapshot, sourceBuffers);
+		const transientBuffers = await ensureProjectSourcesAvailable(snapshot);
+		if (snapshot !== project) return;
+		const playbackBuffers = transientBuffers.size
+			? new Map([...sourceBuffers, ...transientBuffers])
+			: sourceBuffers;
+		await engine.applyProject(snapshot, playbackBuffers, { chunkSources: sourceChunkProviders });
 		if (previousPlayback.state === 'playing'
 			&& previousPlayback.playbackMode === 'staffpad'
 			&& engine.getState().state !== 'playing') {
@@ -5833,7 +5905,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				sourceStartFrame: 0,
 				durationFrames: frameCount,
 			}));
-			sourceBuffers.set(sourceId, buffer);
+			cacheSourceBuffer(sourceId, buffer);
 			const peaks = await generateWaveformPeaks(channels, copy);
 			throwIfAborted(signal);
 			sourcePeaks.set(sourceId, peaks);
@@ -5966,7 +6038,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			for (const entry of entries) {
 				throwIfAborted(signal);
 				if (!entry.buffer) continue;
-				sourceBuffers.set(entry.sourceId, entry.buffer);
+				cacheSourceBuffer(entry.sourceId, entry.buffer);
 				const peaks = await generateWaveformPeaks(entry.channels, copy);
 				throwIfAborted(signal);
 				sourcePeaks.set(entry.sourceId, peaks);
@@ -6819,12 +6891,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await preflightStorage(captureSampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60, 'recording');
 			assertRecordingStartActive(token);
 			const sourceId = createStableId('recording');
-			writer = await store.beginSourceWrite(sourceId, {
+			writer = createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, {
 				name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
 				mimeType: 'audio/wav',
 				sampleRate: captureSampleRate,
 				channelCount,
-			});
+			}));
 			assertRecordingStartActive(token);
 			const previewResampler = createStreamingWindowedSincResampler(captureSampleRate, sampleRate, channelCount);
 			const selection = activeSelection();
@@ -7116,12 +7188,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 				);
 				for (const { track, route } of session.routes) {
 					const sourceId = createStableId('recording');
-					const writer = await store.beginSourceWrite(sourceId, {
+					const writer = createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, {
 						name: `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
 						mimeType: 'audio/wav',
 						sampleRate: captureSampleRate,
 						channelCount: route.channelCount,
-					});
+					}));
 					const preview = createRecordingPreview({
 						trackId: track.id,
 						startFrame: session.recordingStartFrame,
@@ -7393,7 +7465,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const metadata = await entry.writer.commit({ sampleRate: entry.sampleRate, channelCount: entry.route.channelCount });
 				entry.committed = true;
 				committedEntries.push(entry);
-				const sourceCommand = createAddSourceCommand({
+				const recordedSource = {
 					schemaVersion: 2,
 					sampleRate: entry.sampleRate,
 					originalSampleRate: entry.sampleRate,
@@ -7405,17 +7477,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 					mimeType: 'audio/wav',
 					frameCount: frames,
 					channelCount: metadata.channelCount || entry.route.channelCount,
-				});
-				const buffer = await readStoredAudioBuffer(store, {
-					id: entry.sourceId,
-					frameCount: frames,
-					channelCount: metadata.channelCount || entry.route.channelCount,
-					sampleRate: entry.sampleRate,
-				}, await engine.getAudioContext());
-				sourceBuffers.set(entry.sourceId, buffer);
-				const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
-				sourcePeaks.set(entry.sourceId, peaks);
-				await store.saveAnalysis(peakCacheKey(entry.sourceId), peaks);
+				};
+				const sourceCommand = createAddSourceCommand(recordedSource);
+				await activateStoredSource(recordedSource, metadata);
 				const sourceStartFrame = Math.min(entry.sourceOffsetFrames, Math.max(0, frames - 1));
 				const availableFrames = frames - sourceStartFrame;
 				const availableProjectFrames = Math.max(1, scaleRecordingFrames(availableFrames, entry.sampleRate, projectRate));
@@ -7450,6 +7514,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			for (const entry of entries) await entry.writer?.abort?.().catch(() => undefined);
 			for (const entry of committedEntries) {
 				sourceBuffers.delete(entry.sourceId);
+				sourceChunkProviders.delete(entry.sourceId);
 				sourcePeaks.delete(entry.sourceId);
 				await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(entry.sourceId))).catch(() => undefined);
 				await store.deleteSource(entry.sourceId).catch(() => undefined);
@@ -7522,7 +7587,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const metadata = await writer.commit({ sampleRate });
 			sourceCommitted = true;
 			const sourceId = state.recordingSourceId;
-			const sourceCommand = createAddSourceCommand({
+			const recordedSource = {
 				schemaVersion: 2,
 				sampleRate,
 				originalSampleRate: sampleRate,
@@ -7534,17 +7599,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				mimeType: 'audio/wav',
 				frameCount: frames,
 				channelCount: metadata.channelCount || 1,
-			});
-			const buffer = await readStoredAudioBuffer(store, {
-				id: sourceId,
-				frameCount: frames,
-				channelCount: metadata.channelCount || 1,
-				sampleRate,
-			}, await engine.getAudioContext());
-			sourceBuffers.set(sourceId, buffer);
-			const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
-			sourcePeaks.set(sourceId, peaks);
-			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
+			};
+			const sourceCommand = createAddSourceCommand(recordedSource);
+			await activateStoredSource(recordedSource, metadata);
 			const selection = state.recordingSelection;
 			const clipId = createStableId('clip');
 			const sourceStartFrame = Math.min(state.recordingSourceOffsetFrames, Math.max(0, frames - 1));
@@ -7571,6 +7628,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await writer?.abort?.().catch(() => undefined);
 			if (sourceCommitted && state.recordingSourceId) {
 				sourceBuffers.delete(state.recordingSourceId);
+				sourceChunkProviders.delete(state.recordingSourceId);
 				sourcePeaks.delete(state.recordingSourceId);
 				await store.deleteSource(state.recordingSourceId).catch(() => undefined);
 			}
@@ -7890,30 +7948,74 @@ async function writeBuffer(writer, buffer, signal = null) {
 	throwIfAborted(signal);
 }
 
-async function readStoredAudioBuffer(store, source, context) {
-	if (!context?.createBuffer) return null;
-	return store.loadSourceAudioBuffer(source.id, context);
+function createCoalescingSourceWriter(writer) {
+	if (!writer || typeof writer.write !== 'function' || typeof writer.commit !== 'function' || typeof writer.abort !== 'function') {
+		throw new TypeError('A writable PCM source is required.');
+	}
+	const coalescer = createPlanarPcmChunkCoalescer({
+		chunkFrames: SOURCE_CHUNK_FRAMES,
+		onChunk: (channels) => writer.write(channels),
+	});
+	let commitPromise = null;
+	return Object.freeze({
+		get framesWritten() {
+			const storedFrames = Number(writer.framesWritten);
+			return Math.max(coalescer.framesWritten, Number.isSafeInteger(storedFrames) ? storedFrames : 0);
+		},
+		write(channels) {
+			return coalescer.write(channels);
+		},
+		commit(metadata = {}) {
+			commitPromise ||= coalescer.finalize()
+				.then(() => writer.commit({ ...metadata, chunkFrames: SOURCE_CHUNK_FRAMES }));
+			return commitPromise;
+		},
+		abort(reason) {
+			coalescer.abort(reason);
+			return writer.abort();
+		},
+	});
 }
 
-function isLongStoredSource(source, metadata) {
+async function readStoredAudioBuffer(store, source, context) {
+	if (!context?.createBuffer) return null;
+	return store.loadSourceAudioBuffer(source.storageKey || source.id, context);
+}
+
+function sourceAudioBufferBytes(buffer) {
+	const length = Number(buffer?.length);
+	const channelCount = Number(buffer?.numberOfChannels);
+	if (!Number.isSafeInteger(length) || length < 0 || !Number.isSafeInteger(channelCount) || channelCount < 0) return Infinity;
+	const bytes = length * channelCount * Float32Array.BYTES_PER_ELEMENT;
+	return Number.isSafeInteger(bytes) ? bytes : Infinity;
+}
+
+function sourcePcmBytes(source) {
+	const frameCount = Number(source?.frameCount);
+	const channelCount = Number(source?.channelCount);
+	if (!Number.isSafeInteger(frameCount) || frameCount < 0 || !Number.isSafeInteger(channelCount) || channelCount < 0) return Infinity;
+	const bytes = frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT;
+	return Number.isSafeInteger(bytes) ? bytes : Infinity;
+}
+
+function isStreamableStoredSource(source, metadata) {
 	if (!metadata || typeof metadata !== 'object') return false;
 	if (typeof metadata.id !== 'string' || typeof source?.id !== 'string') return false;
 	if (!Number.isSafeInteger(source.frameCount) || !Number.isSafeInteger(source.channelCount)) return false;
-	if (source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT <= SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) return false;
-	if (source.chunkFrames !== SOURCE_CHUNK_FRAMES
-		|| (metadata.chunkFrames != null && metadata.chunkFrames !== SOURCE_CHUNK_FRAMES)) return false;
-	if (metadata.frameCount !== source.frameCount || metadata.channelCount !== source.channelCount) return false;
+	const chunkFrames = Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames;
+	if (!Number.isSafeInteger(chunkFrames) || chunkFrames <= 0 || chunkFrames > SOURCE_CHUNK_FRAMES) return false;
+	if ((metadata.frameCount ?? metadata.frameLength) !== source.frameCount || metadata.channelCount !== source.channelCount) return false;
 	if (metadata.sampleRate != null && metadata.sampleRate !== source.sampleRate) return false;
-	return metadata.chunkCount === Math.ceil(source.frameCount / SOURCE_CHUNK_FRAMES);
+	return metadata.chunkCount === Math.ceil(source.frameCount / chunkFrames);
 }
 
-function createStoredChunkProvider(store, source) {
+function createStoredChunkProvider(store, source, metadata) {
 	if (typeof store.readSourceChunk !== 'function') throw new TypeError('The project store cannot demand-load source chunks.');
 	const sourceId = source.storageKey || source.id;
 	return Object.freeze({
 		channelCount: source.channelCount,
 		frameCount: source.frameCount,
-		chunkFrames: SOURCE_CHUNK_FRAMES,
+		chunkFrames: Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames,
 		sampleRate: source.sampleRate,
 		readStorageChunk(chunkIndex, context = {}) {
 			return store.readSourceChunk(sourceId, chunkIndex, context);
