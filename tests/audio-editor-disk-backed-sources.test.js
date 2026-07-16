@@ -39,6 +39,7 @@ const { createAudioEditorController } = await import('../src/lib/tools/audio-edi
 
 const SOURCE_CHUNK_FRAMES = 65_536;
 const LONG_MONO_SOURCE_FRAMES = (32 * 1024 * 1024 / Float32Array.BYTES_PER_ELEMENT) + 1;
+const LONG_STEREO_SOURCE_FRAMES = (32 * 1024 * 1024 / (2 * Float32Array.BYTES_PER_ELEMENT)) + 1;
 
 test('an imported source over 32 MiB is persisted and immediately represented by a chunk provider', async () => {
 	const store = new LogicalPcmStore();
@@ -75,7 +76,7 @@ test('an imported source over 32 MiB is persisted and immediately represented by
 test('large PCM WAV imports are decoded from bounded slices directly into storage', async () => {
 	const store = new LogicalPcmStore();
 	const engine = new ControllerEngine();
-	const file = virtualMonoPcm16Wav(LONG_MONO_SOURCE_FRAMES);
+	const file = virtualPcm16Wav(LONG_MONO_SOURCE_FRAMES);
 	const controller = createTestController({
 		store,
 		engine,
@@ -97,6 +98,40 @@ test('large PCM WAV imports are decoded from bounded slices directly into storag
 		assert.equal(store.sourceWriteCalls.every(({ frameCount }) => frameCount <= SOURCE_CHUNK_FRAMES), true);
 		assert.equal(engine.sourceBuffers.has(source.id), false);
 		assert.equal(engine.chunkSources.has(source.id), true);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('sample editing a long source rebuilds peaks from chunks without rehydrating it', async () => {
+	const store = new LogicalPcmStore();
+	const engine = new ControllerEngine();
+	const controller = createTestController({
+		store,
+		engine,
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+
+	try {
+		await controller.ready;
+		await controller.actions.project.importFiles([virtualPcm16Wav(LONG_STEREO_SOURCE_FRAMES, 2)]);
+		const originalClip = controller.getSnapshot().project.clips[0];
+		controller.actions.timeline.selectClip(originalClip.id);
+		controller.actions.timeline.setZoom(48_000);
+		assert.equal(controller.getSnapshot().sampleEdit.available, true);
+
+		await controller.actions.sampleEdit.pencil({
+			clipId: originalClip.id,
+			channel: 0,
+			points: [{ timelineFrame: 100, value: 0.75 }],
+		});
+		await settleController();
+
+		const editedClip = controller.getSnapshot().project.clips.find(({ id }) => id === originalClip.id);
+		assert.notEqual(editedClip.sourceId, originalClip.sourceId);
+		assert.equal(store.loadSourceAudioBufferCalls, 0);
+		assert.equal(controller.getClipVisualData(editedClip.id).buffer, null);
+		assert.equal(engine.chunkSources.has(editedClip.sourceId), true);
 	} finally {
 		await controller.dispose();
 	}
@@ -259,8 +294,9 @@ function audioFile(name) {
 	};
 }
 
-function virtualMonoPcm16Wav(frameCount) {
-	const dataBytes = frameCount * 2;
+function virtualPcm16Wav(frameCount, channelCount = 1) {
+	const blockAlign = channelCount * 2;
+	const dataBytes = frameCount * blockAlign;
 	const header = new Uint8Array(44);
 	const view = new DataView(header.buffer);
 	writeAscii(header, 0, 'RIFF');
@@ -269,10 +305,10 @@ function virtualMonoPcm16Wav(frameCount) {
 	writeAscii(header, 12, 'fmt ');
 	view.setUint32(16, 16, true);
 	view.setUint16(20, 1, true);
-	view.setUint16(22, 1, true);
+	view.setUint16(22, channelCount, true);
 	view.setUint32(24, 48_000, true);
-	view.setUint32(28, 96_000, true);
-	view.setUint16(32, 2, true);
+	view.setUint32(28, 48_000 * blockAlign, true);
+	view.setUint16(32, blockAlign, true);
 	view.setUint16(34, 16, true);
 	writeAscii(header, 36, 'data');
 	view.setUint32(40, dataBytes, true);
@@ -453,7 +489,7 @@ function syntheticChunk(metadata, index) {
 	return {
 		index,
 		frames,
-		channels: Array.from({ length: metadata.channelCount }, () => logicalChannel(frames)),
+		channels: Array.from({ length: metadata.channelCount }, () => new Float32Array(frames)),
 	};
 }
 

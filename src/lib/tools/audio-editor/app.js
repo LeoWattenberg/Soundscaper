@@ -3805,14 +3805,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			throwIfAborted(abort.signal);
 			const liveClip = project === projectAtStart ? findClip(project, clip.id) : null;
 			if (!liveClip || liveClip.sourceId !== source.id) throw new Error('The clip changed while its sample edit was being prepared.');
-			const context = await engine.getAudioContext({ resume: false });
-			const buffer = await readStoredAudioBuffer(store, persisted.source, context);
+			await activateStoredSource(persisted.source, persisted.metadata);
 			throwIfAborted(abort.signal);
-			const peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
-			throwIfAborted(abort.signal);
-			cacheSourceBuffer(sourceId, buffer);
-			sourcePeaks.set(sourceId, peaks);
-			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
 			commit({
 				type: 'batch',
 				commands: [
@@ -3826,6 +3820,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		} catch (error) {
 			if (!published) {
 				sourceBuffers.delete(sourceId);
+				sourceChunkProviders.delete(sourceId);
 				sourcePeaks.delete(sourceId);
 				await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(sourceId))).catch(() => undefined);
 				await persisted?.rollback().catch(() => undefined);
