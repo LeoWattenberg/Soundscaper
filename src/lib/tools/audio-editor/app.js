@@ -194,8 +194,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
 	const scheduleTimer = typeof options.setTimeout === 'function' ? options.setTimeout : globalThis.setTimeout.bind(globalThis);
 	const clearScheduledTimer = typeof options.clearTimeout === 'function' ? options.clearTimeout : globalThis.clearTimeout.bind(globalThis);
-	let aup4Client = null;
+	let aup4Client = options.aup4Client || null;
 	let aup4Environment = null;
+	let aup4Initialized = false;
 	const engine = options.engine || createAudioEditorEngine({
 		onPosition: updatePlayhead,
 		onMeter: updateMeters,
@@ -434,6 +435,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			ffmpeg.dispose();
 			aup4Client?.dispose();
 			aup4Client = null;
+			aup4Initialized = false;
 			clipTimePitchCache.dispose?.();
 			sessionController.dispose?.();
 			await engine.dispose();
@@ -1265,9 +1267,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function getAup4Client() {
-		if (!aup4Client) {
-			aup4Client = createAup4Client(options.aup4 || {});
+		if (!aup4Client) aup4Client = createAup4Client(options.aup4 || {});
+		if (!aup4Initialized) {
 			aup4Environment = await aup4Client.initialize();
+			aup4Initialized = true;
 		}
 		return aup4Client;
 	}
@@ -1378,16 +1381,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const client = await getAup4Client();
 		const nativeId = String(options.projectId || project.id).replace(/[^a-z0-9_-]/gi, '-');
 		await client.create(nativeId);
-		const sources = [];
-		for (const source of project.sources.filter((candidate) => project.clips.some((clip) => clip.sourceId === candidate.id))) {
-			const buffer = sourceBuffers.get(source.id);
-			const channels = buffer
-				? Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel))
-				: await loadStoredSourceChannels(store, source);
-			if (!channels?.length) throw new Error(copy.sourcePcmUnavailable.replace('{source}', source.name || source.id));
-			sources.push({ sourceId: source.id, sampleRate: source.sampleRate, channels });
-		}
-		const sourceBytes = sources.reduce((sum, source) => sum + source.channels.reduce((total, channel) => total + channel.byteLength, 0), 0);
+		const referencedSources = project.sources.filter((candidate) => (
+			project.clips.some((clip) => clip.sourceId === candidate.id)
+		));
+		const sourceBytes = referencedSources.reduce((sum, source) => sum + sourcePcmBytes(source), 0);
+		const workingBytes = referencedSources.reduce((maximum, source) => (
+			Math.max(maximum, sourcePcmBytes(source))
+		), 0);
 		await preflightStorage(sourceBytes, 'export');
 		const storage = await store.estimateStorage();
 		const portableOptions = {
@@ -1395,12 +1395,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 			opfs: aup4Environment?.opfs,
 			quota: storage.quota,
 			usage: storage.usage,
-			workingBytes: sourceBytes,
+			workingBytes,
 		};
 		state.saveState = 'saving';
 		publishDocumentSnapshot();
 		try {
-			await client.writeSnapshot(nativeId, project, sources, {
+			await client.writeSnapshot(nativeId, project, readAup4SourceAudio(referencedSources), {
 				...portableOptions,
 				onProgress: (progress) => updateNativeProjectProgress(progress, copy.aup4Saving),
 			});
@@ -1423,6 +1423,19 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.saveState = 'dirty';
 			publishDocumentSnapshot();
 			throw error;
+		}
+
+		async function* readAup4SourceAudio(sources) {
+			for (const source of sources) {
+				const buffer = sourceBuffers.get(source.id);
+				const channels = buffer
+					? Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel))
+					: await loadStoredSourceChannels(store, source);
+				if (!channels?.length) {
+					throw new Error(copy.sourcePcmUnavailable.replace('{source}', source.name || source.id));
+				}
+				yield { sourceId: source.id, sampleRate: source.sampleRate, channels };
+			}
 		}
 	}
 
