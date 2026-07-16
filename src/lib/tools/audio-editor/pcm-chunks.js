@@ -1,6 +1,163 @@
 export const AUDIO_EDITOR_PCM_CHUNK_FRAMES = 65_536;
 
 /**
+ * Normalize arbitrary planar PCM packets into fixed-size storage chunks.
+ * Each emitted chunk is owned by the consumer, and awaiting `write` applies
+ * backpressure so the coalescer retains at most one chunk of working PCM.
+ */
+export function createPlanarPcmChunkCoalescer(options = {}) {
+	const chunkFrames = positiveInteger(options.chunkFrames ?? AUDIO_EDITOR_PCM_CHUNK_FRAMES, 'chunkFrames');
+	if (typeof options.onChunk !== 'function') throw new TypeError('onChunk must be a function.');
+	const onChunk = options.onChunk;
+	const signal = options.signal;
+	let state = 'open';
+	let failure = null;
+	let abortReason = null;
+	let channelCount = null;
+	let pendingChannels = null;
+	let pendingFrames = 0;
+	let framesWritten = 0;
+	let emittedFrames = 0;
+	let emittedChunks = 0;
+	let writeActive = false;
+	let finalizePromise = null;
+	let finalizedResult = null;
+
+	function discardPending() {
+		pendingChannels = null;
+		pendingFrames = 0;
+	}
+
+	function abort(error) {
+		if (state === 'finalized' || state === 'failed' || state === 'aborted') return false;
+		abortReason = createPcmCoalescerAbortError(error);
+		state = 'aborted';
+		discardPending();
+		return true;
+	}
+
+	function throwIfAborted() {
+		if (state === 'aborted') throw abortReason;
+		if (!signal?.aborted) return;
+		abort(signal.reason);
+		throw abortReason;
+	}
+
+	function closedError() {
+		if (state === 'aborted') return abortReason;
+		if (state === 'failed') return failure;
+		return new Error('The PCM chunk coalescer is closed.');
+	}
+
+	function fail(error) {
+		failure = error;
+		state = 'failed';
+		discardPending();
+	}
+
+	async function emit(channels, final) {
+		throwIfAborted();
+		const frames = channels[0].length;
+		await onChunk(channels, Object.freeze({
+			index: emittedChunks,
+			frames,
+			final,
+			signal,
+		}));
+		emittedChunks += 1;
+		emittedFrames += frames;
+		throwIfAborted();
+	}
+
+	const coalescer = {
+		get chunkFrames() { return chunkFrames; },
+		get channelCount() { return channelCount; },
+		get framesWritten() { return framesWritten; },
+		get framesEmitted() { return emittedFrames; },
+		get pendingFrames() { return pendingFrames; },
+		get closed() { return state !== 'open'; },
+		get state() { return state; },
+		async write(inputChannels) {
+			if (state !== 'open') throw closedError();
+			if (writeActive) throw new Error('A PCM packet write is already in progress; await it before writing again.');
+			throwIfAborted();
+			const channels = validatePlanarPcmPacket(inputChannels, channelCount);
+			if (channelCount === null) channelCount = channels.length;
+			const inputFrames = channels[0].length;
+			if (!inputFrames) return;
+			writeActive = true;
+			try {
+				let inputOffset = 0;
+				while (inputOffset < inputFrames) {
+					throwIfAborted();
+					if (!pendingChannels) {
+						pendingChannels = Array.from({ length: channelCount }, () => new Float32Array(chunkFrames));
+					}
+					const copiedFrames = Math.min(inputFrames - inputOffset, chunkFrames - pendingFrames);
+					for (let channel = 0; channel < channelCount; channel += 1) {
+						pendingChannels[channel].set(
+							channels[channel].subarray(inputOffset, inputOffset + copiedFrames),
+							pendingFrames,
+						);
+					}
+					inputOffset += copiedFrames;
+					pendingFrames += copiedFrames;
+					framesWritten += copiedFrames;
+					if (pendingFrames !== chunkFrames) continue;
+					const output = pendingChannels;
+					pendingChannels = null;
+					pendingFrames = 0;
+					await emit(output, false);
+				}
+			} catch (error) {
+				if (state === 'open') fail(error);
+				throw error;
+			} finally {
+				writeActive = false;
+			}
+		},
+		finalize() {
+			if (state === 'finalized') return Promise.resolve(finalizedResult);
+			if (finalizePromise) return finalizePromise;
+			if (state !== 'open') return Promise.reject(closedError());
+			if (writeActive) {
+				return Promise.reject(new Error('A PCM packet write is still in progress; await it before finalizing.'));
+			}
+			try {
+				throwIfAborted();
+			} catch (error) {
+				return Promise.reject(error);
+			}
+			state = 'finalizing';
+			finalizePromise = (async () => {
+				try {
+					throwIfAborted();
+					if (pendingFrames) {
+						const output = pendingChannels.map((channel) => channel.slice(0, pendingFrames));
+						discardPending();
+						await emit(output, true);
+					}
+					finalizedResult = Object.freeze({
+						channelCount: channelCount ?? 0,
+						frameCount: framesWritten,
+						chunkFrames,
+						chunkCount: emittedChunks,
+					});
+					state = 'finalized';
+					return finalizedResult;
+				} catch (error) {
+					if (state !== 'aborted') fail(error);
+					throw error;
+				}
+			})();
+			return finalizePromise;
+		},
+		abort,
+	};
+	return Object.freeze(coalescer);
+}
+
+/**
  * Immutable planar PCM split into fixed storage chunks. Accessors always
  * return copies so copy-on-write edits cannot mutate history-owned samples.
  */
@@ -123,6 +280,31 @@ function normalizeChannels(channels) {
 		}
 		return channel.slice();
 	});
+}
+
+function validatePlanarPcmPacket(channels, expectedChannelCount) {
+	if (!Array.isArray(channels) || !channels.length || channels.length > 64) {
+		throw new TypeError('A planar PCM packet with 1 to 64 channels is required.');
+	}
+	if (expectedChannelCount !== null && channels.length !== expectedChannelCount) {
+		throw new Error('Planar PCM channel count changed between packets.');
+	}
+	const frameCount = channels[0] instanceof Float32Array ? channels[0].length : null;
+	for (let channel = 0; channel < channels.length; channel += 1) {
+		if (!(channels[channel] instanceof Float32Array) || channels[channel].length !== frameCount) {
+			throw new TypeError(`channels[${channel}] must be an equally sized Float32Array.`);
+		}
+	}
+	return channels;
+}
+
+function createPcmCoalescerAbortError(reason) {
+	if (reason?.name === 'AbortError') return reason;
+	const message = typeof reason === 'string' && reason ? reason : 'PCM chunk coalescing was aborted.';
+	const error = new Error(message);
+	error.name = 'AbortError';
+	if (reason !== undefined) error.cause = reason;
+	return error;
 }
 
 function normalizeRange(startValue, endValue, frameCount) {
