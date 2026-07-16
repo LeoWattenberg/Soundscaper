@@ -104,9 +104,31 @@ The exact configuration string embedded in the shipped core is:
 --target-os=none --arch=x86_32 --enable-cross-compile --disable-asm --disable-stripping --disable-programs --disable-doc --disable-debug --disable-runtime-cpudetect --disable-autodetect --nm=emnm --ar=emar --ranlib=emranlib --cc=emcc --cxx=em++ --objcc=emcc --dep-cc=emcc --extra-cflags='-I/opt/include -O3 -msimd128' --extra-cxxflags='-I/opt/include -O3 -msimd128' --disable-pthreads --disable-w32threads --disable-os2threads --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libtheora --enable-libvorbis --enable-libopus --enable-zlib --enable-libwebp --enable-libfreetype --enable-libfribidi --enable-libass --enable-libzimg
 ```
 
-That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). Their copyright notices and preferred source are retained in the corresponding `v0.12.10` dependency source assembled by ffmpeg.wasm. The deployed combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
+That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance is why desktop binary publication remains gated below. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
 
 The npm core artifacts themselves are unpatched. Local modifications are confined to `src/lib/tools/audio-editor/ffmpeg.js` and `media-export.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. The editor never invokes the enabled video encoders and includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
+
+The desktop release tooling retrieves the exact `v0.12.10` ffmpeg.wasm build
+repository archive and verifies that it is 1,115,568 bytes with SHA-256
+`3f1c3f94143d11e3bbb322bd8a1a3189965f31162cf7e889fd3b7e21a928d1ea`.
+That archive contains the build recipe, but it is not by itself complete
+corresponding source for FFmpeg and every enabled dependency. Automated binary
+upload and public GitHub release creation are therefore disabled until a
+complete, audited, digest-pinned bundle is described by
+`desktop/ffmpeg-corresponding-source.json`; the release assembler refuses to run
+while that manifest is absent.
+
+## Desktop runtime and build tooling
+
+- Electron 43.1.1 — MIT; source: <https://github.com/electron/electron/tree/v43.1.1>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.
+- electron-builder 26.15.3 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.15.3.tgz> (`sha512-a1KM5heqS3gQCZzizXEI8RjJy3QVogULPdeSknt76uLDpBIW/HDGsMg/XgP0riP6PI9COsRvFITKKGDqA8fJxA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
+- `@electron/fuses` 2.1.3 — MIT; build-time hardening tool used to disable unsafe Electron runtime switches before signing; source: <https://github.com/electron/fuses/tree/v2.1.3>.
+- `@resvg/resvg-js` 2.6.2 — MPL-2.0; unmodified build-time rasterizer used only to derive platform icons from the existing Soundscaper SVG mark; source: <https://github.com/yisibl/resvg-js/tree/v2.6.2>.
+
+Electron and its embedded Chromium/Node.js runtime are shipped only in desktop
+artifacts. Build-only packaging and icon tools are not shipped. Soundscaper does
+not modify these packages; their installed license files and upstream source are
+available from the pinned links above.
 
 ## Packaged browser dependencies
 
@@ -115,7 +137,7 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `@dilsonspickles/components` 0.9.0 — declared MIT; tag `components-v0.9.0`, commit `8cb38db62436db0783cb3a7624306ab3bce19e0b`; source: <https://github.com/DilsonsPickles/audacity-design-system/tree/components-v0.9.0/packages/components>
 - `@ffmpeg/ffmpeg` 0.12.15 — MIT; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
 - `@ffmpeg/util` 0.12.2 — MIT; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
-- `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; corresponding source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10>
+- `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; build scripts and upstream source references: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10>; a complete corresponding-source snapshot for the exact npm binary remains required by the release gate above
 - `@sqlite.org/sqlite-wasm` 3.53.0-build1 — official SQLite WebAssembly distribution; SQLite core is dedicated to the public domain; source and blessing: <https://sqlite.org/wasm/doc/trunk/index.md> and <https://sqlite.org/copyright.html>
 - `fflate` 0.8.3 — MIT; source: <https://github.com/101arrowz/fflate>
 - `sql.js` 1.14.1 — MIT; source: <https://github.com/sql-js/sql.js> (retained for unrelated legacy tools; AUP4 uses the official SQLite WASM package)

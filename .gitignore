@@ -4,6 +4,8 @@ dist/
 .wrangler/
 test-results/
 playwright-report/
+.desktop-build/
+release/desktop/
 .env
 .env.*
 !.env.example

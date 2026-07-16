@@ -1569,6 +1569,47 @@ test('bootstrap preserves the project-lock status for a second controller', asyn
 	}
 });
 
+test('project flush serializes the latest snapshot and rejects persistence failures', async () => {
+	const store = createMemoryStore();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	const firstSave = deferred();
+	const persistedNames = [];
+	let saveCount = 0;
+	store.saveProject = async (project) => {
+		saveCount += 1;
+		if (saveCount === 1) await firstSave.promise;
+		persistedNames.push(project.tracks[0].name);
+		store.projects.set(project.id, structuredClone(project));
+		return structuredClone(project);
+	};
+
+	controller.actions.track.update(trackId, { name: 'First pending name' });
+	const pendingFlush = controller.actions.project.flush();
+	await Promise.resolve();
+	controller.actions.track.update(trackId, { name: 'Latest name' });
+	const latestFlush = controller.actions.project.flush();
+	firstSave.resolve();
+	await Promise.all([pendingFlush, latestFlush]);
+	assert.deepEqual(persistedNames, ['First pending name', 'Latest name']);
+	assert.equal(store.projects.get(controller.getSnapshot().project.id).tracks[0].name, 'Latest name');
+
+	store.saveProject = async () => { throw new Error('disk full'); };
+	controller.actions.track.update(trackId, { name: 'Cannot persist' });
+	await assert.rejects(() => controller.actions.project.flush(), /disk full/);
+	assert.equal(controller.getSnapshot().save.state, 'dirty');
+	assert.match(controller.getSnapshot().status.message, /disk full/);
+	await controller.dispose();
+});
+
 function createMemoryStore() {
 	const projects = new Map();
 	const settings = new Map();

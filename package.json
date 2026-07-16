@@ -1,8 +1,16 @@
 {
 	"name": "soundscaper",
-	"version": "0.1.0",
+	"version": "0.2.0-beta.1",
+	"description": "A local-first multitrack audio editor for the web and desktop.",
 	"private": true,
 	"type": "module",
+	"main": "desktop/main.mjs",
+	"author": "kw.media",
+	"homepage": "https://soundscaper.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/LeoWattenberg/Soundscaper.git"
+	},
 	"license": "AGPL-3.0-only",
 	"scripts": {
 		"dev": "astro dev",
@@ -12,6 +20,14 @@
 		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/lib/tools/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
+		"test:desktop": "node --test tests/desktop-*.test.js tests/audio-editor-file-service.test.js",
+		"desktop:icons": "node scripts/desktop-icons.mjs",
+		"desktop:prepare": "node scripts/desktop-prepare.mjs",
+		"desktop:dev": "npm run desktop:prepare && electron .",
+		"desktop:dir": "npm run desktop:prepare && electron-builder --config electron-builder.config.cjs --dir",
+		"desktop:dist": "npm run desktop:prepare && electron-builder --config electron-builder.config.cjs --publish never",
+		"desktop:smoke": "node scripts/desktop-smoke.mjs",
+		"desktop:release-assets": "node scripts/desktop-release-assets.mjs",
 		"postinstall": "patch-package",
 		"build:staffpad": "node scripts/build-staffpad-wasm.mjs",
 		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
@@ -36,9 +52,13 @@
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.12.1",
+		"@electron/fuses": "2.1.3",
 		"@playwright/test": "^1.61.1",
+		"@resvg/resvg-js": "2.6.2",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
+		"electron": "43.1.1",
+		"electron-builder": "26.15.3",
 		"patch-package": "^8.0.1",
 		"postcss": "8.5.19",
 		"saxes": "6.0.0"

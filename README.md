@@ -36,6 +36,67 @@ npm run test:browser
 limit. FFmpeg's larger WASM runtime is therefore published to R2 rather than
 included in `dist/`.
 
+## Desktop preview
+
+Soundscaper 0.2 can now be built as an unsigned desktop preview:
+
+| Platform | Architectures | Packages |
+| --- | --- | --- |
+| Windows | x64, ARM64 | Per-machine assisted NSIS installer and no-install ZIP |
+| macOS | Intel, Apple silicon | DMG |
+| Linux | x64, ARM64 | AppImage and Debian package |
+
+The Windows installer requires administrator approval because Windows only
+registers the `.aup4` association for this build's per-machine installation.
+The ZIP does not install or register file types. The macOS preview is ad-hoc
+signed rather than notarized, and the Windows preview has no publisher
+certificate, so Gatekeeper or SmartScreen may show an unknown-developer
+warning. A future public release will include `SHA256SUMS` for every artifact.
+
+The desktop editor and all released languages work offline. Its package contains
+the pinned FFmpeg 0.12.10 JavaScript/WebAssembly runtime plus a digest-verified
+snapshot of the current Audacity-derived translations; those larger runtime
+files remain outside the Cloudflare Pages `dist/` build. The app's only runtime
+network request is a throttled GitHub check for a newer release notification.
+It never downloads or installs an update automatically and sends no telemetry.
+
+Desktop projects remain in the app's autosaved local library. Opening or
+double-clicking an `.aup4` imports a new independent library copy;
+later edits never change the opened file. **Save** flushes that internal copy,
+while **Save As** exports a new `.aup4`. Move a browser project to desktop by
+exporting AUP4 in the browser and importing it in the app. Browser preferences,
+undo history, and origin-private storage are not migrated. Uninstalling an
+installed build preserves the local library, but users should still export
+important projects before removing application data manually.
+
+To prepare and package a local desktop build:
+
+```sh
+npm run desktop:prepare
+npm run desktop:dir
+npm run desktop:smoke
+npm run desktop:dist
+```
+
+Preparation writes only to the ignored `.desktop-build/` directory and leaves
+the web `dist/` untouched. Packaging writes ignored artifacts to
+`release/desktop/`. The build machine needs HTTPS access to the public
+translation release. For an intentionally offline/reproducible build, set
+`SOUNDSCAPER_DESKTOP_TRANSLATIONS_SOURCE` to a previously staged directory that
+contains `latest.json`, every referenced pack, the release manifest and audit,
+and the referenced source license; every descriptor is rechecked before use.
+
+Pushing a beta tag that exactly matches `package.json` (for example,
+`v0.2.0-beta.1`) runs unit, reproducibility, browser, and native packaging
+checks, but does not upload or publish the generated binaries yet. Public
+desktop distribution is gated on assembling and auditing a complete,
+digest-pinned corresponding-source bundle for FFmpeg and every enabled codec
+dependency; the upstream ffmpeg.wasm tag alone is only the build recipe and is
+not sufficient. A future stable tag must additionally pass
+`npm run audit:aup4-interop:release` and use Windows signing plus macOS Developer
+ID signing/notarization; the compiled-native AUP4 gate is intentionally still
+pending for this preview.
+
 ## Cloudflare production setup
 
 Cloudflare Pages can build and deploy Soundscaper directly from GitHub. The

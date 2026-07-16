@@ -143,6 +143,15 @@ export async function saveAup4Result(result, options = {}) {
 	const bytes = result?.bytes;
 	if (!(bytes instanceof Uint8Array)) throw new TypeError('A native AUP4 byte array is required.');
 	const fileName = ensureAup4Extension(options.fileName || 'audacity-project.aup4');
+	if (options.fileService?.saveFile) {
+		return options.fileService.saveFile({
+			purpose: 'project',
+			suggestedName: fileName,
+			mimeType: result.mimeType || 'application/x-audacity-project',
+			blob: new Blob([bytes], { type: result.mimeType || 'application/x-audacity-project' }),
+			target: options.saveTarget ?? options.fileHandle ?? { browserDownload: true, name: fileName },
+		});
+	}
 	if (options.fileHandle?.createWritable) {
 		const writable = await options.fileHandle.createWritable();
 		try {

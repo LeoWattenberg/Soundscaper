@@ -114,6 +114,30 @@ test('AUP4 file-handle publication aborts the writable on failure', async () => 
 	assert.equal(closed, false);
 });
 
+test('AUP4 publication delegates opaque desktop targets to the injected file service', async () => {
+	let request;
+	const result = await saveAup4Result({
+		bytes: Uint8Array.of(1, 2, 3),
+		mimeType: 'application/x-audacity-project',
+	}, {
+		fileName: 'desktop-copy',
+		saveTarget: { id: 'target-1', name: 'desktop-copy.aup4' },
+		fileService: {
+			async saveFile(value) {
+				request = value;
+				return { method: 'desktop', fileName: value.target.name, size: value.blob.size };
+			},
+		},
+	});
+
+	assert.equal(request.purpose, 'project');
+	assert.equal(request.suggestedName, 'desktop-copy.aup4');
+	assert.equal(request.mimeType, 'application/x-audacity-project');
+	assert.deepEqual(request.target, { id: 'target-1', name: 'desktop-copy.aup4' });
+	assert.deepEqual(new Uint8Array(await request.blob.arrayBuffer()), Uint8Array.of(1, 2, 3));
+	assert.deepEqual(result, { method: 'desktop', fileName: 'desktop-copy.aup4', size: 3 });
+});
+
 test('AUP4 snapshot PCM is copied into transferables and quota/headroom limits reach the worker', async () => {
 	const worker = new FakeWorker();
 	const client = createAup4Client({ worker });

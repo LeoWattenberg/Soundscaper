@@ -33,6 +33,7 @@ import {
 	createEditorHistory,
 	createEffect,
 	createExportPlan,
+	createAudioEditorFileService,
 	createPencilSampleEdits,
 	createReplaceClipSourceCommand,
 	createSmoothSampleRange,
@@ -179,7 +180,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const telemetryListeners = new Set();
 	let documentSnapshot = null;
 	let telemetrySnapshot = null;
-	const store = options.store || createProjectStore();
+	const fileService = options.fileService || createAudioEditorFileService();
+	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop });
 	const sourceBuffers = new Map();
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
@@ -249,6 +251,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceGcTimer: 0,
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set(),
+		saveQueue: Promise.resolve(),
 		recorder: null,
 		recordingWriter: null,
 		recordingStream: null,
@@ -646,6 +649,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				},
 				list: listProjects,
 				save: saveNow,
+				flush: flushProject,
 				rename: (title) => renameProject(title),
 				duplicate: (title) => duplicateProject(title),
 				remove: deleteProject,
@@ -1330,7 +1334,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (state.missingSourceIds.size) throw new Error(copy.missingSourcesPreventSave);
 		if (state.readOnly && !options.saveCopy) throw new Error(copy.projectReadOnly);
 		let fileHandle = options.fileHandle;
-		if (!fileHandle && options.useFileSystemAccess !== false) {
+		let saveTarget = options.saveTarget;
+		if (fileService.isDesktop && saveTarget === undefined) {
+			try {
+				saveTarget = await fileService.chooseSaveTarget({
+					purpose: 'project',
+					suggestedName: ensureAup4FileName(options.fileName || project.title),
+					mimeType: 'application/x-audacity-project',
+				});
+			} catch (error) {
+				if (error?.name === 'AbortError') return { cancelled: true };
+				throw error;
+			}
+			if (!saveTarget) return { cancelled: true };
+		} else if (!fileHandle && options.useFileSystemAccess !== false) {
 			try { fileHandle = await requestAup4FileHandle({ fileName: options.fileName || project.title }); }
 			catch (error) {
 				if (error?.name === 'AbortError') return { cancelled: true };
@@ -1374,6 +1391,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const saved = await saveAup4Result(result, {
 				fileName: options.fileName || project.title,
 				fileHandle,
+				fileService,
+				saveTarget,
 			});
 			state.saveState = 'saved';
 			setStatus(copy.aup4Saved, 'success');
@@ -2640,7 +2659,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			labelCount: labels.length,
 			trackIds: Object.freeze(tracks.map((track) => track.id)),
 		});
-		if (exportOptions.download !== false) await saveLabelExport(result, options.saveLabelFile);
+		const saved = exportOptions.download !== false
+			? await saveLabelExport(result, options.saveLabelFile, fileService)
+			: null;
+		if (saved?.cancelled) return { ...result, cancelled: true };
 		setStatus(copy.labelsExported.replace('{count}', String(labels.length)), 'success');
 		return result;
 	}
@@ -3960,16 +3982,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishDocumentSnapshot();
 		state.autosaveTimer = globalThis.setTimeout(() => {
 			state.autosaveTimer = 0;
-			void saveSnapshot(snapshot, generation);
+			void enqueueSaveSnapshot(snapshot, generation).catch(() => undefined);
 		}, 500);
 	}
 
 	async function saveNow() {
+		return flushProject();
+	}
+
+	async function flushProject() {
 		if (!state.history || state.readOnly) return;
 		globalThis.clearTimeout(state.autosaveTimer);
 		state.autosaveTimer = 0;
 		const generation = state.saveGeneration;
-		return saveSnapshot(cloneProject(project), generation);
+		return enqueueSaveSnapshot(cloneProject(project), generation);
+	}
+
+	function enqueueSaveSnapshot(snapshot, generation) {
+		const operation = state.saveQueue
+			.catch(() => undefined)
+			.then(() => saveSnapshot(snapshot, generation));
+		state.saveQueue = operation;
+		return operation;
 	}
 
 	async function saveSnapshot(snapshot, generation) {
@@ -3989,6 +4023,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.saveState = 'dirty';
 			publishDocumentSnapshot();
 			handleError(error);
+			throw error;
 		} finally {
 			state.pendingSaveSnapshots.delete(snapshot);
 		}
@@ -6242,14 +6277,32 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (generation !== state.exportGeneration) throw abortError();
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await state.outputCleanup?.();
-			state.outputCleanup = outputCleanup;
+			state.outputUrl = null;
+			state.outputCleanup = null;
+			state.exportOutput = null;
+			const published = await fileService.createDownload({
+				purpose: 'audio',
+				suggestedName: fileName,
+				mimeType: blob.type || 'application/octet-stream',
+				blob,
+			});
+			if (published.cancelled) {
+				await outputCleanup?.();
+				pendingCleanup = null;
+				return published;
+			}
+			state.outputCleanup = async () => {
+				await published.cleanup?.();
+				await outputCleanup?.();
+			};
 			pendingCleanup = null;
-			state.outputUrl = URL.createObjectURL(blob);
+			state.outputUrl = published.url || null;
 			state.exportOutput = Object.freeze({
 				url: state.outputUrl,
-				fileName,
+				fileName: published.fileName || fileName,
 				mimeType: blob.type || 'application/octet-stream',
 				size: blob.size,
+				method: published.method,
 			});
 			setStatus(copy.done, 'success');
 			publishDocumentSnapshot();
@@ -8370,9 +8423,19 @@ function labelExportFileName(value, format) {
 	const base = stripExtension(String(value || 'labels')).replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'labels';
 	return `${base}.${format}`;
 }
-async function saveLabelExport(result, customSaver) {
+function ensureAup4FileName(value) {
+	const base = String(value || 'audacity-project').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'audacity-project';
+	return /\.aup4$/i.test(base) ? base : `${base}.aup4`;
+}
+async function saveLabelExport(result, customSaver, fileService) {
 	const blob = new Blob([result.text], { type: result.mimeType });
 	if (typeof customSaver === 'function') return customSaver({ ...result, blob });
+	if (fileService?.saveFile) return fileService.saveFile({
+		purpose: 'labels',
+		suggestedName: result.fileName,
+		mimeType: result.mimeType,
+		blob,
+	});
 	if (!globalThis.document?.createElement || !globalThis.URL?.createObjectURL) return { ...result, blob };
 	const url = URL.createObjectURL(blob);
 	try {

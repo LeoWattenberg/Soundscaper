@@ -163,6 +163,7 @@ export default function AudioEditorTimeline({
 	copy,
 	mobile,
 	showArmControls,
+	displayAudioSupported,
 	splitToolEnabled = false,
 	automationToolEnabled = false,
 	onToggleSplitTool,
@@ -1051,6 +1052,7 @@ export default function AudioEditorTimeline({
 								automationToolEnabled={automationToolEnabled}
 									blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || snapshot.exporting || snapshot.processingEffect}
 								showArmControls={showArmControls}
+								displayAudioSupported={displayAudioSupported}
 								recordingInputs={snapshot.recordingInputs}
 								copy={copy}
 								run={run}
@@ -1425,6 +1427,7 @@ function TrackRow({
 	automationToolEnabled,
 	blocked,
 	showArmControls,
+	displayAudioSupported,
 	recordingInputs,
 	copy,
 	run,
@@ -1696,6 +1699,7 @@ function TrackRow({
 				selected={selectedTrackId === track.id}
 				blocked={blocked}
 				showArmControls={showArmControls}
+				displayAudioSupported={displayAudioSupported}
 				recordingInputs={recordingInputs}
 				isFlatNavigation={isFlatNavigation}
 				copy={copy}
@@ -2383,6 +2387,7 @@ function TrackControls({
 	selected,
 	blocked,
 	showArmControls,
+	displayAudioSupported,
 	recordingInputs,
 	isFlatNavigation,
 	copy,
@@ -2495,6 +2500,7 @@ function TrackControls({
 						track={track}
 						copy={copy}
 						run={run}
+						displayAudioSupported={displayAudioSupported}
 						disabled={blocked}
 						surface="track"
 					/>

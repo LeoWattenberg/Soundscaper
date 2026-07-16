@@ -30,7 +30,9 @@ import {
 import '@dilsonspickles/components/style.css';
 
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
+import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { createAudioEditorController } from '../../../lib/tools/audio-editor/app.js';
+import { createAudioEditorFileService } from '../../../lib/tools/audio-editor/file-service.js';
 import {
 	applyAudacityParityToMenus,
 	AUDACITY_ACTION_SOURCE,
@@ -108,11 +110,13 @@ class AudioEditorErrorBoundary extends React.Component {
 
 function AudioEditorWorkspace({ locale, copy }) {
 	const editorThemeVariables = useAudioEditorThemeVariables();
+	const fileService = useMemo(() => createAudioEditorFileService(), []);
 	const controller = useMemo(() => createAudioEditorController(null, {
 		headless: true,
 		locale,
 		copy,
-	}), [copy, locale]);
+		fileService,
+	}), [copy, fileService, locale]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const snapshot = useAudioEditorSnapshot(controller);
@@ -124,6 +128,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');
 	const [localError, setLocalError] = useState('');
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
 	const [showArmControls, setShowArmControls] = useState(false);
 	const [automationToolEnabled, setAutomationToolEnabled] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
@@ -140,6 +145,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
+	const desktopReadySignalledRef = useRef(false);
+	const desktopOpenQueueRef = useRef(Promise.resolve());
 	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
 	const isCompact = useMediaQuery('(max-width: 900px)');
@@ -160,6 +167,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 		|| snapshot.sampleEdit?.processing,
 	);
 	const editBlocked = blocked || snapshot.readOnly;
+	const displayAudioSupported = fileService.isDesktop
+		? desktopEnvironment?.capabilities?.displayAudio === true
+		: undefined;
 	const selectionActive = Boolean(snapshot.selection);
 	const selectedClip = project?.clips.find((clip) => clip.id === snapshot.selectedClipId) || null;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
@@ -248,6 +258,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 			return undefined;
 		}
 	}, [onError]);
+	useEffect(() => {
+		if (!fileService.isDesktop) return undefined;
+		let active = true;
+		Promise.resolve(fileService.getEnvironment())
+			.then((environment) => {
+				if (active) setDesktopEnvironment(environment);
+			})
+			.catch(onError);
+		return () => { active = false; };
+	}, [fileService, onError]);
 	const moveWorkspacePanel = useCallback((panelId, dock, index) => {
 		setDraggedWorkspacePanelId(null);
 		return run(() => controller.actions.preferences.movePanel(panelId, dock, index));
@@ -296,9 +316,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 		return () => editor.removeEventListener('wheel', onWheel);
 	}, [zoomProject]);
 
-	const toggleFullscreen = useCallback(() => {
-		setIsFullscreen((current) => !current);
-	}, []);
+	const toggleFullscreen = useCallback(async () => {
+		const next = !isFullscreen;
+		setIsFullscreen(next);
+		try {
+			await fileService.setFullscreen(next);
+		} catch (error) {
+			setIsFullscreen(!next);
+			throw error;
+		}
+	}, [fileService, isFullscreen]);
 	const toggleSplitTool = useCallback(() => {
 		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
 		setAutomationToolEnabled(false);
@@ -341,6 +368,17 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setDialog('projects');
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
+	const openDesktopFiles = useCallback(async (purpose, multiple = false) => {
+		const descriptors = await fileService.chooseFiles({ purpose, multiple });
+		const files = [];
+		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
+		if (purpose === 'project') {
+			for (const file of files) await controller.actions.project.openAup4(file);
+		} else if (purpose === 'labels') {
+			for (const file of files) await controller.actions.labels.importFile(file);
+		} else if (files.length) await controller.actions.project.importFiles(files);
+		return files.length;
+	}, [controller, fileService]);
 
 	const openSurface = useCallback((surface, options = {}) => {
 		setEffectsOverlay(null);
@@ -436,9 +474,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 		});
 	}, [controller, run]);
 	const openExternal = useCallback((url) => {
+		if (fileService.isDesktop) return fileService.openExternal(desktopExternalDestination(url));
 		const opened = globalThis.open?.(url, '_blank', 'noopener,noreferrer');
 		if (opened) opened.opener = null;
-	}, []);
+		return undefined;
+	}, [fileService]);
 	useEffect(() => {
 		const request = parityUi.request;
 		if (!request) return;
@@ -538,12 +578,18 @@ function AudioEditorWorkspace({ locale, copy }) {
 			openRecentProject: (projectId) => run(() => controller.actions.project.openRecent(projectId)),
 			clearRecentProjects: () => run(() => controller.actions.project.clearRecent()),
 			closeProject: () => run(() => controller.actions.project.close()),
-			openAup4: () => aup4InputRef.current?.click(),
+			openAup4: () => fileService.isDesktop
+				? run(() => openDesktopFiles('project'))
+				: aup4InputRef.current?.click(),
 			openLegacyAup: () => legacyAupInputRef.current?.click(),
 			saveProject: () => run(() => controller.actions.project.save()),
 			saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
-				importAudio: () => importInputRef.current?.click(),
-				importLabels: () => labelInputRef.current?.click(),
+				importAudio: () => fileService.isDesktop
+					? run(() => openDesktopFiles('audio', true))
+					: importInputRef.current?.click(),
+				importLabels: () => fileService.isDesktop
+					? run(() => openDesktopFiles('labels', true))
+					: labelInputRef.current?.click(),
 				exportAudio: () => openSurface('export'),
 				exportLabels: (format) => run(() => controller.actions.labels.export({ format })),
 			renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
@@ -661,6 +707,91 @@ function AudioEditorWorkspace({ locale, copy }) {
 			about: () => setDialog('about'),
 		},
 	});
+	useEffect(() => {
+		if (!fileService.isDesktop) return undefined;
+		let active = true;
+		const openDescriptor = (descriptor) => {
+			const operation = desktopOpenQueueRef.current
+				.catch(() => undefined)
+				.then(() => fileService.openReadDescriptor(descriptor))
+				.then((file) => controller.actions.project.openAup4(file));
+			desktopOpenQueueRef.current = operation;
+			void operation.catch(onError);
+		};
+		const handleMenuCommand = ({ command } = {}) => {
+			const edit = (action) => isDesktopTextEditingElement(document.activeElement, action)
+				? fileService.editText(action)
+				: controller.actions.edit[action]();
+			const actions = {
+				'project:open': () => openDesktopFiles('project'),
+				'project:save': () => controller.actions.project.flush(),
+				'project:save-as': () => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }),
+				'audio:export': () => openSurface('export'),
+				'edit:undo': () => edit('undo'),
+				'edit:redo': () => edit('redo'),
+				'edit:cut': () => edit('cut'),
+				'edit:copy': () => edit('copy'),
+				'edit:paste': () => edit('paste'),
+				'edit:select-all': () => isDesktopTextEditingElement(document.activeElement, 'selectAll')
+					? fileService.editText('selectAll')
+					: controller.actions.timeline.setSelection(0, durationFrames),
+				preferences: () => openSurface('preferences'),
+				'view:toggle-fullscreen': toggleFullscreen,
+			};
+			const action = actions[command];
+			if (action) run(action);
+		};
+		const handleClose = async ({ requestId } = {}) => {
+			let allow = false;
+			try {
+				const current = controller.getSnapshot();
+				const activeWork = current.importing
+					|| current.recording
+					|| current.recordingStarting
+					|| current.recordingScheduling
+					|| current.scheduledRecording
+					|| current.exporting
+					|| current.processingEffect
+					|| current.analysisProcessing
+					|| current.sampleEdit?.processing;
+				if (activeWork) {
+					const stopAndQuit = globalThis.confirm?.('Soundscaper is still recording or processing. Stop the active work and quit?') ?? false;
+					if (!stopAndQuit) return;
+					await Promise.resolve(controller.actions.export.cancel());
+					await Promise.resolve(controller.actions.recording.cancelScheduled());
+					await Promise.resolve(controller.actions.recording.stop());
+					await Promise.resolve(controller.actions.sampleEdit.cancel());
+					await Promise.resolve(controller.actions.nyquist.cancel());
+					await Promise.resolve(controller.actions.transport.stop());
+					const remaining = controller.getSnapshot();
+					if (remaining.importing || remaining.processingEffect || remaining.analysisProcessing) return;
+				}
+				await controller.actions.project.flush();
+				allow = true;
+			} catch (error) {
+				onError(error);
+			} finally {
+				await fileService.respondToClose({ requestId, allow });
+			}
+		};
+		const unsubscribers = [
+			fileService.onOpenProject(openDescriptor),
+			fileService.onMenuCommand(handleMenuCommand),
+			fileService.onCloseRequested((request) => { void handleClose(request).catch(onError); }),
+			fileService.onFullscreenChanged(({ fullscreen } = {}) => setIsFullscreen(Boolean(fullscreen))),
+		];
+		void controller.ready.then(() => {
+			if (active && !desktopReadySignalledRef.current) {
+				desktopReadySignalledRef.current = true;
+				return fileService.signalReady();
+			}
+			return undefined;
+		}).catch(onError);
+		return () => {
+			active = false;
+			for (const unsubscribe of unsubscribers) unsubscribe();
+		};
+	}, [controller, fileService, onError, openDesktopFiles, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 	const effectsPosition = effectsOverlay
 		? resolveEffectsOverlayPosition(workspaceRef.current, effectsOverlay.anchorRect, isCompact)
 		: null;
@@ -842,6 +973,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					copy={copy}
 					run={run}
 					showArmControls={showArmControls}
+					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
@@ -857,6 +989,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						copy={copy}
 						mobile={isCompact}
 						showArmControls={showArmControls}
+						displayAudioSupported={displayAudioSupported}
 						splitToolEnabled={uiFlags.splitTool}
 						automationToolEnabled={automationToolEnabled}
 						onToggleSplitTool={toggleSplitTool}
@@ -881,6 +1014,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					copy={copy}
 					run={run}
 					showArmControls={showArmControls}
+					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
@@ -895,6 +1029,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					copy={copy}
 					run={run}
 					showArmControls={showArmControls}
+					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
@@ -908,6 +1043,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					copy={copy}
 					run={run}
 					showArmControls={showArmControls}
+					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
@@ -954,6 +1090,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 							snapshot={snapshot}
 							copy={copy}
 							locale={locale}
+							fileService={fileService}
 							trackId={effectsOverlay.trackId}
 							scope={effectsOverlay.scope}
 							onClose={closeEffects}
@@ -1007,6 +1144,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
+						fileService={fileService}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -1019,6 +1157,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
+						fileService={fileService}
 						draft={macroDraft}
 						onDraftChange={setMacroDraft}
 						onClose={() => setActiveSurface(null)}
@@ -1046,6 +1185,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
+						fileService={fileService}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -1095,6 +1235,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						locale={locale}
+						fileService={fileService}
 						menus={applicationMenus}
 						run={run}
 						initialPage={preferencesPage}
@@ -1586,6 +1727,7 @@ function RecordFlyout({
 			onClick: toggleRecording,
 		},
 		{
+			id: 'record-on-new-track',
 			label: copy.recordNewTrack,
 			shortcut: 'Shift+R',
 			disabled: snapshot.readOnly || recordingInputBlocked,
@@ -1593,6 +1735,7 @@ function RecordFlyout({
 		},
 		{ label: copy.stop, onClick: () => run(() => controller.actions.transport.stop()) },
 		{
+			id: 'action://record/pause',
 			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
 			disabled: !snapshot.recording,
 			checked: Boolean(snapshot.recordingOptions?.paused),
@@ -1620,6 +1763,7 @@ function RecordFlyout({
 		},
 		{ label: copy.recordingOffset, onClick: onOpenRecordingOffset },
 		{
+			id: 'action://record/lead-in-recording',
 			label: copy.leadInTime,
 			checked: Boolean(snapshot.recordingOptions?.leadIn),
 			disabled: recordingInputBlocked,
@@ -1870,6 +2014,7 @@ function WorkspacePanelDock({
 	copy,
 	run,
 	showArmControls,
+	displayAudioSupported,
 	onOpenEffects,
 	draggedPanelId,
 	onPanelDragStart,
@@ -2321,6 +2466,7 @@ function WorkspacePanelDock({
 							copy={copy}
 							run={run}
 							showArmControls={showArmControls}
+							displayAudioSupported={displayAudioSupported}
 							onOpenEffects={onOpenEffects}
 						/>
 					</div>
@@ -2331,7 +2477,7 @@ function WorkspacePanelDock({
 	);
 }
 
-function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
+function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
 	const project = snapshot.project;
 	if (panelId === 'history') {
 		const undoEntries = snapshot.history?.undoEntries || [];
@@ -2434,7 +2580,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showA
 		);
 	}
 	if (panelId === 'mixer') {
-		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} onOpenEffects={onOpenEffects} />;
+		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} />;
 	}
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label') || null;
 	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
@@ -2495,7 +2641,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showA
 	);
 }
 
-function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, onOpenEffects }) {
+function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
 	const telemetry = useAudioEditorTelemetry(controller);
 	const project = snapshot.project;
 	const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
@@ -2561,7 +2707,8 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 							track={channel}
 							copy={copy}
 							run={run}
-								disabled={snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
+							displayAudioSupported={displayAudioSupported}
+							disabled={snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							surface="mixer"
 						/>
 					),
@@ -2771,7 +2918,7 @@ function MetadataEditorField({ name, label, value, disabled, onCommit }) {
 	);
 }
 
-function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus, run, initialPage = 'shortcuts', onClose }) {
+function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, fileService, menus, run, initialPage = 'shortcuts', onClose }) {
 	const panelRef = useRef(null);
 	const sideNavRef = useRef(null);
 	const [selectedPage, setSelectedPage] = useState(initialPage);
@@ -2852,6 +2999,25 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, menus,
 					>
 						{selectedPage === 'appearance' && (
 							<div className="kw-audio-editor-preferences__appearance">
+								{fileService.isDesktop && (
+									<>
+										<PreferencePanel title={copy.languageLabel}>
+											<PreferenceDropdownField
+												label={copy.languageLabel}
+												value={locale}
+												onChange={(value) => run(async () => {
+													await controller.actions.project.flush();
+													await fileService.setLocale(value);
+												})}
+												options={ROUTE_LOCALES.map((descriptor) => ({
+													value: descriptor.locale,
+													label: descriptor.nativeName,
+												}))}
+											/>
+										</PreferencePanel>
+										<Separator />
+									</>
+								)}
 								<PreferencePanel title={highContrastTheme ? copy.highContrastTheme : copy.theme}>
 									<div className="kw-audio-editor-preferences__thumbnails">
 										<PreferenceChoice
@@ -4831,6 +4997,20 @@ function meterPercent(dbfs) {
 
 function formatPlaybackSpeed(rate) {
 	return Number(rate).toFixed(2).replace(/\.00$/u, '').replace(/(\.\d)0$/u, '$1');
+}
+
+function desktopExternalDestination(url) {
+	if (String(url).startsWith('mailto:')) return 'support';
+	if (String(url).includes('support.audacityteam.org')) return 'manual';
+	return 'homepage';
+}
+
+function isDesktopTextEditingElement(element, action) {
+	if (!element || element.disabled || (element.readOnly && !['copy', 'selectAll'].includes(action))) return false;
+	if (element.isContentEditable) return true;
+	if (typeof HTMLTextAreaElement === 'function' && element instanceof HTMLTextAreaElement) return true;
+	if (typeof HTMLInputElement !== 'function' || !(element instanceof HTMLInputElement)) return false;
+	return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(element.type);
 }
 
 function formatDate(value, locale) {

@@ -360,6 +360,7 @@ export function AudioEditorEffectsOverlay({
 	snapshot,
 	copy,
 	locale,
+	fileService,
 	trackId,
 	scope = 'track',
 	onClose,
@@ -543,10 +544,11 @@ export function AudioEditorEffectsOverlay({
 		setMessage(copy.effectsPasted);
 		closeStackMenu();
 	});
-	const exportStack = () => run(() => {
+	const exportStack = () => run(async () => {
 		const encoded = serializeAudacityEffectMacro(menuEffects);
 		const name = stackMenu.scope === 'master' ? copy.master : channel?.name;
-		downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`);
+		const saved = await downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`, fileService, 'macro');
+		if (saved?.cancelled) return;
 		setMessage(copy.macroExported);
 		closeStackMenu();
 	});
@@ -690,6 +692,7 @@ export function AudioEditorMacroManagerDialog({
 	snapshot,
 	copy,
 	locale,
+	fileService,
 	draft,
 	onDraftChange,
 	onClose,
@@ -804,10 +807,11 @@ export function AudioEditorMacroManagerDialog({
 			if (fileInputRef.current) fileInputRef.current.value = '';
 		}
 	};
-	const exportMacro = () => {
+	const exportMacro = async () => {
 		try {
 			const encoded = serializeAudacityEffectMacro(effects);
-			downloadTextFile(encoded, `${macroFileName(draft?.name || copy.untitledMacro)}.txt`);
+			const saved = await downloadTextFile(encoded, `${macroFileName(draft?.name || copy.untitledMacro)}.txt`, fileService, 'macro');
+			if (saved?.cancelled) return;
 			showMessage(copy.macroExported, 'success');
 		} catch (cause) {
 			const detail = cause instanceof Error ? cause.message : String(cause);
@@ -964,7 +968,7 @@ export function AudioEditorMacroManagerDialog({
 	);
 }
 
-export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, locale, onClose }) {
+export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, locale, fileService, onClose }) {
 	const project = snapshot.project;
 	const selectedTrack = project ? findTrack(project, snapshot.selectedTrackId) : null;
 	const blocked = !snapshot.ready || !project || editingBlocked(snapshot);
@@ -1028,15 +1032,14 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 		await controller.actions.effects.presets.import(await file.text());
 		if (presetFileRef.current) presetFileRef.current.value = '';
 	});
-	const exportPreset = () => run(() => {
+	const exportPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(selectedPresetId);
-		const blob = new Blob([encoded], { type: 'application/json' });
-		const url = URL.createObjectURL(blob);
-		const anchor = document.createElement('a');
-		anchor.href = url;
-		anchor.download = `${(presetName || 'audacity-effect-preset').replace(/[^a-z0-9_-]+/gi, '-')}.json`;
-		anchor.click();
-		setTimeout(() => URL.revokeObjectURL(url), 0);
+		await (fileService || createFallbackFileService()).saveFile({
+			purpose: 'preset',
+			suggestedName: `${(presetName || 'audacity-effect-preset').replace(/[^a-z0-9_-]+/gi, '-')}.json`,
+			mimeType: 'application/json',
+			text: encoded,
+		});
 	});
 	const deletePreset = () => run(async () => {
 		await controller.actions.effects.presets.delete(selectedPresetId);
@@ -1551,7 +1554,7 @@ function SteppedSlider({ value, min, max, step, ariaLabel, disabled, onChange })
 	);
 }
 
-export function AnalysisDialog({ isOpen, mode = 'levels', controller, snapshot, copy, locale, onClose }) {
+export function AnalysisDialog({ isOpen, mode = 'levels', controller, snapshot, copy, locale, fileService, onClose }) {
 	return (
 		<ControlledDialog
 			isOpen={isOpen}
@@ -1561,12 +1564,12 @@ export function AnalysisDialog({ isOpen, mode = 'levels', controller, snapshot, 
 			className="audio-editor-analysis-dialog"
 			dataAttributes={{ 'data-analysis-dialog': '' }}
 		>
-			<AnalysisContent mode={mode} controller={controller} snapshot={snapshot} copy={copy} locale={locale} />
+			<AnalysisContent mode={mode} controller={controller} snapshot={snapshot} copy={copy} locale={locale} fileService={fileService} />
 		</ControlledDialog>
 	);
 }
 
-function AnalysisContent({ mode, controller, snapshot, copy, locale }) {
+function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService }) {
 	const result = snapshot.analysis;
 	const report = snapshot.analysisReport;
 	const blocked = !snapshot.ready || !snapshot.project?.clips?.length || snapshot.importing || snapshot.recording || snapshot.exporting || snapshot.analysisProcessing || snapshot.missingSourceIds?.length > 0;
@@ -1588,6 +1591,26 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale }) {
 		Promise.resolve(controller.actions.analysis.contrast(role, scope)).catch((cause) => {
 			setError(cause instanceof Error ? cause.message : String(cause));
 		});
+	};
+	const exportReport = () => {
+		setError('');
+		const payload = JSON.stringify({
+			schemaVersion: 1,
+			project: {
+				id: snapshot.project?.id,
+				title: snapshot.project?.title,
+				sampleRate: snapshot.project?.sampleRate,
+			},
+			mode,
+			result,
+			report,
+		}, null, 2);
+		Promise.resolve((fileService || createFallbackFileService()).saveFile({
+			purpose: 'report',
+			suggestedName: `${macroFileName(snapshot.project?.title || 'soundscaper')}-analysis.json`,
+			mimeType: 'application/json',
+			text: payload,
+		})).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
 	};
 	const values = [
 		['peak', copy.peak, formatDb(result?.peakDbfs, 'dBFS')],
@@ -1634,6 +1657,7 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale }) {
 						<span data-analyze="master"><Button disabled={blocked} onClick={() => run('master')}>{copy.analyzeMaster}</Button></span>
 					</>
 				)}
+				<Button variant="secondary" disabled={!result && !report} onClick={exportReport}>{copy.export}</Button>
 			</div>
 		</div>
 	);
@@ -2205,7 +2229,13 @@ function macroFileName(value) {
 		|| 'macro';
 }
 
-function downloadTextFile(text, name) {
+async function downloadTextFile(text, name, fileService, purpose = 'report') {
+	if (fileService?.saveFile) return fileService.saveFile({
+		purpose,
+		suggestedName: name,
+		mimeType: 'text/plain;charset=utf-8',
+		text,
+	});
 	const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
 	const url = URL.createObjectURL(blob);
 	const anchor = document.createElement('a');
@@ -2213,6 +2243,11 @@ function downloadTextFile(text, name) {
 	anchor.download = name;
 	anchor.click();
 	setTimeout(() => URL.revokeObjectURL(url), 0);
+	return { method: 'download', fileName: name, size: blob.size };
+}
+
+function createFallbackFileService() {
+	return { saveFile: ({ text, suggestedName }) => downloadTextFile(text, suggestedName) };
 }
 
 function safeEffectLabel(type, copyOrLocale) {

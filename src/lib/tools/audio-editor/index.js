@@ -22,6 +22,7 @@ export * from './chunk-stream-client.js';
 export * from './clip-time-pitch-cache.js';
 export * from './effects.js';
 export * from './export.js';
+export * from './file-service.js';
 export * from './generators.js';
 export * from './history.js';
 export * from './id3-metadata.js';

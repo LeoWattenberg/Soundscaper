@@ -9,6 +9,7 @@ export default function RecordingInputSelectors({
 	track,
 	copy,
 	run,
+	displayAudioSupported,
 	disabled = false,
 	surface = 'track',
 }) {
@@ -19,7 +20,7 @@ export default function RecordingInputSelectors({
 	const route = routes[track.id] || null;
 	const sourceKey = routeSourceKey(route);
 	const channelCount = route?.channelCount === 2 ? 2 : 1;
-	const sourceOptions = buildSourceOptions({ devices, route, routes, track, channelCount, copy });
+	const sourceOptions = buildSourceOptions({ devices, route, routes, track, channelCount, copy, displayAudioSupported });
 	const availableChannels = sourceChannelCount(sourceKey, devices, route, channelCount);
 	const channelOptions = sourceKey
 		? buildChannelOptions({ sourceKey, availableChannels, channelCount, routes, trackId: track.id, route })
@@ -145,11 +146,14 @@ export default function RecordingInputSelectors({
 	);
 }
 
-function buildSourceOptions({ devices, route, routes, track, channelCount, copy }) {
+function buildSourceOptions({ devices, route, routes, track, channelCount, copy, displayAudioSupported }) {
 	const options = [{ value: '', label: copy.recordingInputUnassigned, disabled: false }];
 	const currentSourceKey = routeSourceKey(route);
-	const displaySupported = typeof navigator === 'undefined'
+	const browserDisplaySupported = typeof navigator === 'undefined'
 		|| typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+	const displaySupported = typeof displayAudioSupported === 'boolean'
+		? displayAudioSupported && browserDisplaySupported
+		: browserDisplaySupported;
 	const displayChannels = buildChannelOptions({
 		sourceKey: DISPLAY_SOURCE_KEY,
 		availableChannels: 2,
@@ -182,11 +186,13 @@ function buildSourceOptions({ devices, route, routes, track, channelCount, copy 
 			disabled: false,
 		});
 	}
-	options.push({
-		value: DISPLAY_SOURCE_KEY,
-		label: copy.recordingDesktopAudio,
-		disabled: !displaySupported || !displayChannels.some((option) => !option.disabled),
-	});
+	if (displaySupported || currentSourceKey === DISPLAY_SOURCE_KEY) {
+		options.push({
+			value: DISPLAY_SOURCE_KEY,
+			label: copy.recordingDesktopAudio,
+			disabled: !displaySupported || !displayChannels.some((option) => !option.disabled),
+		});
+	}
 	return options;
 }
 
