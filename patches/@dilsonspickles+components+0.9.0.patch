@@ -190,6 +190,414 @@ index 0000000..5c8c9f8
 +import { Flyout } from './chunk-FLYOUT.mjs';
 +export { Flyout };
 +
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+index cb32667..fa15a2b 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+@@ -393,6 +393,21 @@
+   box-sizing: border-box;
+   background: var(--mc-surface);
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+   display: flex;
+   flex-direction: column;
+@@ -404,6 +419,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++	display: flex;
++	align-items: center;
++	width: 100%;
++	min-height: 40px;
++	box-sizing: border-box;
++	flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+index e71b997..6ed0fc2 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
+@@ -69,6 +69,10 @@ interface MixerChannelProps {
+     onPanChange?: (value: number) => void;
+     onMuteToggle?: () => void;
+     onSoloToggle?: () => void;
++    /**
++     * Optional input-routing controls rendered in a compact section above the effects.
++     */
++    inputControls?: React__default.ReactNode;
+     /**
+      * Effects displayed in the effect stack (up to 5 slots).
+      * Each entry has a name, enabled state, and callbacks.
+@@ -78,6 +82,10 @@ interface MixerChannelProps {
+      * Called when the empty effect slot dropdown is clicked (to add a new effect)
+      */
+     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
++    /** Optional controls rendered in a row below the effects stack. */
++    effectFooter?: React__default.ReactNode;
++    /** Reserve the effects-footer row even when this channel has no controls. */
++    effectFooterVisible?: boolean;
+     /**
+      * Total number of effect slots to display (including empty ones).
+      * Used to keep all channels the same height when one has more effects.
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+index e71b997..6ed0fc2 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+@@ -69,6 +69,10 @@ interface MixerChannelProps {
+     onPanChange?: (value: number) => void;
+     onMuteToggle?: () => void;
+     onSoloToggle?: () => void;
++    /**
++     * Optional input-routing controls rendered in a compact section above the effects.
++     */
++    inputControls?: React__default.ReactNode;
+     /**
+      * Effects displayed in the effect stack (up to 5 slots).
+      * Each entry has a name, enabled state, and callbacks.
+@@ -78,6 +82,10 @@ interface MixerChannelProps {
+      * Called when the empty effect slot dropdown is clicked (to add a new effect)
+      */
+     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
++    /** Optional controls rendered in a row below the effects stack. */
++    effectFooter?: React__default.ReactNode;
++    /** Reserve the effects-footer row even when this channel has no controls. */
++    effectFooterVisible?: boolean;
+     /**
+      * Total number of effect slots to display (including empty ones).
+      * Used to keep all channels the same height when one has more effects.
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.css b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+index 2b0af1c..0f18f0d 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
+@@ -393,6 +393,21 @@
+   box-sizing: border-box;
+   background: var(--mc-surface);
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+   display: flex;
+   flex-direction: column;
+@@ -404,6 +419,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++	display: flex;
++	align-items: center;
++	width: 100%;
++	min-height: 40px;
++	box-sizing: border-box;
++	flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+index 09c14ea..847184f 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+@@ -36,6 +36,8 @@ interface MixerPanelProps {
+      * Track mixer channels to display
+      */
+     channels?: MixerPanelChannel[];
++    /** Label for an optional channel row below the effects stack. */
++    effectFooterLabel?: string;
+     /**
+      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
+      */
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
+index 86db20a..4f28d89 100644
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
+@@ -36,6 +36,8 @@ interface MixerPanelProps {
+      * Track mixer channels to display
+      */
+     channels?: MixerPanelChannel[];
++    /** Label for an optional channel row below the effects stack. */
++    effectFooterLabel?: string;
+     /**
+      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
+      */
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+index 84edc3f..45c1af4 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
+   name,
+   allEnabled,
+   onToggleAll,
+-  onContextMenu: _onContextMenu,
++  onContextMenu,
+   onAddEffect,
+   addButtonLabel = "Effects",
+   isMaster = false,
+@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
+             className: "effects-stack-header__add-button",
+             children: addButtonLabel
+           }
++        ),
++        onContextMenu && /* @__PURE__ */ jsx2(
++          GhostButton,
++          {
++            icon: "menu",
++            size: "small",
++            onClick: onContextMenu,
++            ariaLabel: "Effect stack options",
++            className: "effects-stack-header__menu-button"
++          }
+         )
+       ]
+     }
+@@ -351,69 +361,39 @@ var EffectSlot = ({
+             x: menuPosition.x,
+             y: menuPosition.y,
+             children: [
+-              Object.entries(EFFECT_REGISTRY).map(([category, effects]) => {
+-                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
+-                if (enabled2.length === 0) return null;
+-                return /* @__PURE__ */ jsx3(ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, category);
+-              }),
+-              (() => {
+-                if (!purchasedEffects || purchasedEffects.length === 0) return null;
+-                const visible = purchasedEffects.filter(
+-                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
+-                );
+-                if (visible.length === 0) return null;
+-                const byVendor = /* @__PURE__ */ new Map();
+-                for (const e of visible) {
+-                  const list = byVendor.get(e.vendor) ?? [];
+-                  list.push(e);
+-                  byVendor.set(e.vendor, list);
+-                }
+-                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ jsx3(ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, vendor));
+-              })(),
+-              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+               /* @__PURE__ */ jsx3(
+                 ContextMenuItem,
+                 {
+-                  label: "Get effects\u2026",
++                  label: "Remove effect",
+                   onClick: () => {
+-                    const slotEl = slotRef.current;
+-                    const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
+-                    onChangeEffect?.(anchor);
++                    onRemoveEffect?.();
+                     setMenuOpen(false);
+                   }
+                 }
+               ),
+               /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ jsx3(
++              ...Object.values(EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ jsx3(
+                 ContextMenuItem,
+                 {
+-                  label: "Remove effect",
++                  label: effect.name,
+                   onClick: () => {
+-                    onRemoveEffect?.();
++                    onReplaceEffect?.(effect.name);
+                     setMenuOpen(false);
+                   }
+-                }
+-              )
++                },
++                effect.id
++              ))),
++              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ jsx3(
++                ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    onReplaceEffect?.(effect.name);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              )))
+             ]
+           }
+         )
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+index 14e3972..ee77ebd 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+@@ -32,8 +32,11 @@ var MixerChannel = ({
+   onPanChange,
+   onMuteToggle,
+   onSoloToggle,
++  inputControls,
+   effects = [],
+   onAddEffect,
++  effectFooter,
++  effectFooterVisible = false,
+   effectSlotCount = 1,
+   className = ""
+ }) => {
+@@ -58,6 +61,7 @@ var MixerChannel = ({
+   };
+   const volumeDisplay = volume <= FADER_MIN ? "-\u221E" : Math.round(volume).toString();
+   return /* @__PURE__ */ jsxs("div", { className: `mixer-channel ${className}`, style, children: [
++    inputControls != null && /* @__PURE__ */ jsx("div", { className: "mixer-channel__input-controls", children: inputControls }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__effect-slot", children: [
+       effects.map((effect, i) => /* @__PURE__ */ jsx(
+         MixerEffect,
+@@ -75,6 +79,7 @@ var MixerChannel = ({
+       )),
+       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ jsx(MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
+     ] }),
++    effectFooterVisible && /* @__PURE__ */ jsx("div", { className: "mixer-channel__effect-footer", children: effectFooter }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__pan-row", children: [
+       /* @__PURE__ */ jsx(
+         Knob,
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
+index c8661ac..fe51841 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
+@@ -303,18 +303,8 @@ function drawTimeMarkers(ctx, pixelsPerSecond, scrollX, totalDuration, width, he
+ }
+ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, width, height, textColor, topTickColor, bottomTickColor) {
+   const midHeight = height / 2;
+-  let majorInterval = 1;
+-  if (pixelsPerSecond < 20) {
+-    majorInterval = 10;
+-  } else if (pixelsPerSecond < 50) {
+-    majorInterval = 5;
+-  } else if (pixelsPerSecond < 100) {
+-    majorInterval = 2;
+-  } else if (pixelsPerSecond < 200) {
+-    majorInterval = 1;
+-  } else {
+-    majorInterval = 0.5;
+-  }
++  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
++  const decimalPlaces = getDecimalPlaces(majorInterval);
+   const minorInterval = majorInterval / 5;
+   const startTime = Math.floor(scrollX / pixelsPerSecond / minorInterval) * minorInterval;
+   const endTime = Math.ceil((scrollX + width) / pixelsPerSecond / minorInterval) * minorInterval;
+@@ -357,7 +347,7 @@ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, wid
+     const roundedTime = Math.round(time / majorInterval) * majorInterval;
+     const x = CLIP_CONTENT_OFFSET + roundedTime * pixelsPerSecond - scrollX;
+     if (x < CLIP_CONTENT_OFFSET || x > width) continue;
+-    const label = formatTime(roundedTime);
++    const label = formatTime(roundedTime, decimalPlaces);
+     const textY = midHeight / 2 + 4;
+     ctx.fillText(label, x + 4, textY);
+   }
+@@ -450,10 +440,25 @@ function drawBeatsAndMeasures(ctx, pixelsPerSecond, scrollX, totalDuration, widt
+     }
+   }
+ }
+-function formatTime(seconds) {
++function getTimelineMajorInterval(pixelsPerSecond) {
++  if (pixelsPerSecond < 20) return 10;
++  if (pixelsPerSecond < 50) return 5;
++  if (pixelsPerSecond < 100) return 2;
++  if (pixelsPerSecond < 200) return 1;
++  if (pixelsPerSecond < 500) return 0.5;
++  if (pixelsPerSecond < 1000) return 0.2;
++  if (pixelsPerSecond < 2000) return 0.1;
++  if (pixelsPerSecond < 5000) return 0.05;
++  if (pixelsPerSecond < 10000) return 0.02;
++  return 0.01;
++}
++function getDecimalPlaces(value) {
++  return Math.max(0, Math.ceil(-Math.log10(value)));
++}
++function formatTime(seconds, decimalPlaces = 0) {
+   const mins = Math.floor(seconds / 60);
+-  const secs = Math.floor(seconds % 60);
+-  return `${mins}:${secs.toString().padStart(2, "0")}`;
++  const secs = (seconds % 60).toFixed(decimalPlaces);
++  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), "0")}`;
+ }
+ 
+ export {
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+index f71fafb..5816952 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__body", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Pan" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Volume" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _react2.default.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _jsxruntime.Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" })
+       ] }) })
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.js b/node_modules/@dilsonspickles/components/dist/chunk-FLYOUT.js
 new file mode 100644
 index 0000000..c625443
@@ -469,6 +877,72 @@ index 0000000..e265568
 +};
 +export default Flyout;
 +
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+index 26f8e25..287275a 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ jsx("div", { className: "mixer-panel__body", children: /* @__PURE__ */ jsxs("div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ jsxs("div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ jsx("span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Pan" }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Volume" }) }),
+         /* @__PURE__ */ jsx("div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ jsxs(React.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ jsxs(Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" })
+       ] }) })
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+index 4fd5a29..e46069f 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
+@@ -32,8 +32,11 @@ var MixerChannel = ({
+   onPanChange,
+   onMuteToggle,
+   onSoloToggle,
++  inputControls,
+   effects = [],
+   onAddEffect,
++  effectFooter,
++  effectFooterVisible = false,
+   effectSlotCount = 1,
+   className = ""
+ }) => {
+@@ -58,6 +61,7 @@ var MixerChannel = ({
+   };
+   const volumeDisplay = volume <= FADER_MIN ? "-\u221E" : Math.round(volume).toString();
+   return /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: `mixer-channel ${className}`, style, children: [
++    inputControls != null && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__input-controls", children: inputControls }),
+     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__effect-slot", children: [
+       effects.map((effect, i) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+         _chunk54HT3HD2js.MixerEffect,
+@@ -75,6 +79,7 @@ var MixerChannel = ({
+       )),
+       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk54HT3HD2js.MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
+     ] }),
++    effectFooterVisible && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__effect-footer", children: effectFooter }),
+     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__pan-row", children: [
+       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+         _chunkQUONGYVYjs.Knob,
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
 index 887716f..92d6ad0 100644
 --- a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
@@ -501,12 +975,131 @@ index 887716f..92d6ad0 100644
        let newValue = dragStartValueRef.current + deltaValue;
        newValue = Math.round(newValue / step) * step;
        newValue = Math.max(min, Math.min(max, newValue));
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
+index 9a60fb3..b06390f 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
+@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
+   name,
+   allEnabled,
+   onToggleAll,
+-  onContextMenu: _onContextMenu,
++  onContextMenu,
+   onAddEffect,
+   addButtonLabel = "Effects",
+   isMaster = false,
+@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
+             className: "effects-stack-header__add-button",
+             children: addButtonLabel
+           }
++        ),
++        onContextMenu && /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
++          _chunkW4QTXKZCjs.GhostButton,
++          {
++            icon: "menu",
++            size: "small",
++            onClick: onContextMenu,
++            ariaLabel: "Effect stack options",
++            className: "effects-stack-header__menu-button"
++          }
+         )
+       ]
+     }
+@@ -351,69 +361,39 @@ var EffectSlot = ({
+             x: menuPosition.x,
+             y: menuPosition.y,
+             children: [
+-              Object.entries(_chunkD27CEHWGjs.EFFECT_REGISTRY).map(([category, effects]) => {
+-                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
+-                if (enabled2.length === 0) return null;
+-                return /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+-                  _chunk36BYWJRBjs.ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, category);
+-              }),
+-              (() => {
+-                if (!purchasedEffects || purchasedEffects.length === 0) return null;
+-                const visible = purchasedEffects.filter(
+-                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
+-                );
+-                if (visible.length === 0) return null;
+-                const byVendor = /* @__PURE__ */ new Map();
+-                for (const e of visible) {
+-                  const list = _nullishCoalesce(byVendor.get(e.vendor), () => ( []));
+-                  list.push(e);
+-                  byVendor.set(e.vendor, list);
+-                }
+-                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+-                  _chunk36BYWJRBjs.ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, vendor));
+-              })(),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
+               /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+                 _chunk36BYWJRBjs.ContextMenuItem,
+                 {
+-                  label: "Get effects\u2026",
++                  label: "Remove effect",
+                   onClick: () => {
+-                    const slotEl = slotRef.current;
+-                    const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
+-                    _optionalChain([onChangeEffect, 'optionalCall', _27 => _27(anchor)]);
++                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
+                     setMenuOpen(false);
+                   }
+                 }
+               ),
+               /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
++              ...Object.values(_chunkD27CEHWGjs.EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
+                 _chunk36BYWJRBjs.ContextMenuItem,
+                 {
+-                  label: "Remove effect",
++                  label: effect.name,
+                   onClick: () => {
+-                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
++                    _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
+                     setMenuOpen(false);
+                   }
+-                }
+-              )
++                },
++                effect.id
++              ))),
++              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
++                _chunk36BYWJRBjs.ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              )))
+             ]
+           }
+         )
 diff --git a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
 index b4bc80a..7897dd4 100644
 --- a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
 +++ b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
 @@ -15,18 +15,11 @@ import {
-
+ 
  // src/utils/spectrogram.ts
  function getSpectrogramColor(intensity) {
 -  let r, g, b;
@@ -529,11 +1122,111 @@ index b4bc80a..7897dd4 100644
  }
  function renderMonoSpectrogram(ctx, waveformData, x, y, width, height, options = {}) {
    const {
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js b/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
+index 90a9a48..c5348aa 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
+@@ -303,18 +303,8 @@ function drawTimeMarkers(ctx, pixelsPerSecond, scrollX, totalDuration, width, he
+ }
+ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, width, height, textColor, topTickColor, bottomTickColor) {
+   const midHeight = height / 2;
+-  let majorInterval = 1;
+-  if (pixelsPerSecond < 20) {
+-    majorInterval = 10;
+-  } else if (pixelsPerSecond < 50) {
+-    majorInterval = 5;
+-  } else if (pixelsPerSecond < 100) {
+-    majorInterval = 2;
+-  } else if (pixelsPerSecond < 200) {
+-    majorInterval = 1;
+-  } else {
+-    majorInterval = 0.5;
+-  }
++  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
++  const decimalPlaces = getDecimalPlaces(majorInterval);
+   const minorInterval = majorInterval / 5;
+   const startTime = Math.floor(scrollX / pixelsPerSecond / minorInterval) * minorInterval;
+   const endTime = Math.ceil((scrollX + width) / pixelsPerSecond / minorInterval) * minorInterval;
+@@ -357,7 +347,7 @@ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, wid
+     const roundedTime = Math.round(time / majorInterval) * majorInterval;
+     const x = _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET + roundedTime * pixelsPerSecond - scrollX;
+     if (x < _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET || x > width) continue;
+-    const label = formatTime(roundedTime);
++    const label = formatTime(roundedTime, decimalPlaces);
+     const textY = midHeight / 2 + 4;
+     ctx.fillText(label, x + 4, textY);
+   }
+@@ -450,10 +440,25 @@ function drawBeatsAndMeasures(ctx, pixelsPerSecond, scrollX, totalDuration, widt
+     }
+   }
+ }
+-function formatTime(seconds) {
++function getTimelineMajorInterval(pixelsPerSecond) {
++  if (pixelsPerSecond < 20) return 10;
++  if (pixelsPerSecond < 50) return 5;
++  if (pixelsPerSecond < 100) return 2;
++  if (pixelsPerSecond < 200) return 1;
++  if (pixelsPerSecond < 500) return 0.5;
++  if (pixelsPerSecond < 1000) return 0.2;
++  if (pixelsPerSecond < 2000) return 0.1;
++  if (pixelsPerSecond < 5000) return 0.05;
++  if (pixelsPerSecond < 10000) return 0.02;
++  return 0.01;
++}
++function getDecimalPlaces(value) {
++  return Math.max(0, Math.ceil(-Math.log10(value)));
++}
++function formatTime(seconds, decimalPlaces = 0) {
+   const mins = Math.floor(seconds / 60);
+-  const secs = Math.floor(seconds % 60);
+-  return `${mins}:${secs.toString().padStart(2, "0")}`;
++  const secs = (seconds % 60).toFixed(decimalPlaces);
++  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), "0")}`;
+ }
+ 
+ 
 diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
-index 0bcfe41..3e98d91 100644
+index 0bcfe41..9593984 100644
 --- a/node_modules/@dilsonspickles/components/dist/index.css
 +++ b/node_modules/@dilsonspickles/components/dist/index.css
-@@ -9834,7 +9834,7 @@
+@@ -1029,6 +1029,21 @@
+   box-sizing: border-box;
+   background: var(--mc-surface);
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+   display: flex;
+   flex-direction: column;
+@@ -1040,6 +1055,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++  display: flex;
++  align-items: center;
++  width: 100%;
++  min-height: 40px;
++  box-sizing: border-box;
++  flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;
+@@ -9834,7 +9857,7 @@
    user-select: none;
  }
  .selection-toolbar__timecodes {
@@ -542,7 +1235,7 @@ index 0bcfe41..3e98d91 100644
    align-items: flex-start;
    gap: 1px;
    border-radius: var(--border-radius-borderradius-md, 3px);
-@@ -9842,3 +9842,65 @@
+@@ -9842,3 +9865,65 @@
  .selection-toolbar .timecode {
    min-width: fit-content;
  }
@@ -637,8 +1330,8 @@ index a9f8093..4d741f7 100644
 --- a/node_modules/@dilsonspickles/components/dist/index.js
 +++ b/node_modules/@dilsonspickles/components/dist/index.js
 @@ -1290,3 +1290,4 @@ var TrackNew = _react2.default.memo(TrackNewComponent);
-
-
+ 
+ 
  exports.AccessibilityProfileProvider = _chunk2FWK4WXJjs.AccessibilityProfileProvider; exports.AddTrackFlyout = _chunkCTCPMYLHjs.AddTrackFlyout; exports.AlertDialog = _chunk7LIZDVRRjs.AlertDialog; exports.AmplifyEffect = _chunkTY2ORSU7js.AmplifyEffect; exports.ApplicationHeader = _chunkGMOGDPRJjs.ApplicationHeader; exports.AudioFileThumbnail = _chunk3BG2FFRZjs.AudioFileThumbnail; exports.AutomationCurvePoint = _chunk6UBVVDCHjs.AutomationCurvePoint; exports.BLACK_KEY_CLASSES = _chunkISHZ7IK3js.BLACK_KEY_CLASSES; exports.BpmStepper = _chunk34LGA5TXjs.BpmStepper; exports.Button = _chunkXO4CHHO5js.Button; exports.CENTER_LINE_HOVER_WIDTH = _chunkE52TN7TDjs.CENTER_LINE_HOVER_WIDTH; exports.CENTER_LINE_WIDTH = _chunkE52TN7TDjs.CENTER_LINE_WIDTH; exports.CLIP_BOUNDARY_THRESHOLD = _chunkISHZ7IK3js.CLIP_BOUNDARY_THRESHOLD; exports.CLIP_CONTENT_OFFSET = _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET; exports.CLIP_STRIP_HEIGHT = _chunkISHZ7IK3js.CLIP_STRIP_HEIGHT; exports.CORNER_SIZE = _chunkE52TN7TDjs.CORNER_SIZE; exports.Carousel = _chunkLJ665GUQjs.Carousel; exports.ChannelMappingDialog = _chunkK4VDEUXTjs.ChannelMappingDialog; exports.Checkbox = _chunk55DGE5QQjs.Checkbox; exports.Clip = _chunk5YRHZ27Qjs.Clip; exports.ClipBody = _chunkZZDLP42Bjs.ClipBody; exports.ClipContextMenu = _chunk5452T763js.ClipContextMenu; exports.ClipHeader = _chunkIL542RVSjs.ClipHeader; exports.CloudProjectIndicator = _chunkB7GXYZQXjs.CloudProjectIndicator; exports.ContextMenu = _chunkQ5QF7X2Ijs.ContextMenu; exports.ContextMenuItem = _chunk36BYWJRBjs.ContextMenuItem; exports.CustomScrollbar = _chunkBUJXKWRAjs.CustomScrollbar; exports.DASH_LENGTH = _chunkE52TN7TDjs.DASH_LENGTH; exports.DEFAULT_PANEL_HEIGHT = _chunkISHZ7IK3js.DEFAULT_PANEL_HEIGHT; exports.DEFAULT_SCROLL_Y = _chunkISHZ7IK3js.DEFAULT_SCROLL_Y; exports.DEFAULT_VELOCITY = _chunkISHZ7IK3js.DEFAULT_VELOCITY; exports.DbRuler = _chunkICL3A42Sjs.DbRuler; exports.Dialog = _chunkDTENNTSGjs.Dialog; exports.DialogFooter = _chunkME74MOZTjs.DialogFooter; exports.DialogHeader = _chunkM6ZQFYMDjs.DialogHeader; exports.DialogSideNav = _chunkUM2GTOTPjs.DialogSideNav; exports.Dropdown = _chunkHGMTDC56js.Dropdown; exports.EDGE_THRESHOLD = _chunkE52TN7TDjs.EDGE_THRESHOLD; exports.EffectDialog = _chunkTY2ORSU7js.EffectDialog; exports.EffectDialogContextMenu = _chunkTY2ORSU7js.EffectDialogContextMenu; exports.EffectDialogFooter = _chunkTY2ORSU7js.EffectDialogFooter; exports.EffectHeader = _chunkTY2ORSU7js.EffectHeader; exports.EffectSlot = _chunkT4FPUYYHjs.EffectSlot; exports.EffectsPanel = _chunkT4FPUYYHjs.EffectsPanel; exports.EffectsPanelHeader = _chunkT4FPUYYHjs.EffectsPanelHeader; exports.EffectsStackHeader = _chunkT4FPUYYHjs.EffectsStackHeader; exports.EnvelopeCurve = _chunkNHJHZZZFjs.EnvelopeCurve; exports.EnvelopeInteractionLayer = _chunkO3UUG5ELjs.EnvelopeInteractionLayer; exports.EnvelopeOverlay = _chunkBEOG2EG6js.EnvelopeOverlay; exports.EnvelopePoint = _chunkGREC4ZBNjs.EnvelopePoint; exports.ExportModal = _chunkPGWJAM66js.ExportModal; exports.FilterChip = _chunkQ66YDP5Ajs.FilterChip; exports.Footer = _chunkME74MOZTjs.Footer; exports.FrequencyRuler = _chunkICL3A42Sjs.FrequencyRuler; exports.GhostButton = _chunkYA2G6WW2js.GhostButton; exports.HEADER_HEIGHT = _chunkISHZ7IK3js.HEADER_HEIGHT; exports.HomeTab = _chunkME3ICDUFjs.HomeTab; exports.Icon = _chunkG6LVJURDjs.Icon; exports.Knob = _chunkQUONGYVYjs.Knob; exports.LabelEditor = _chunk3N437MRVjs.LabelEditor; exports.LabelEditorHeader = _chunkDXB6UMEKjs.LabelEditorHeader; exports.LabelEditorTableHeader = _chunkWMJUXCYXjs.LabelEditorTableHeader; exports.LabelEditorTableRow = _chunkESDOGPDUjs.LabelEditorTableRow; exports.LabelMarker = _chunkOES6RPYNjs.LabelMarker; exports.LabelRectangle = _chunk4BMABSSQjs.LabelRectangle; exports.LabeledCheckbox = _chunk6Z6STMDUjs.LabeledCheckbox; exports.LabeledFormDivider = _chunkXYFKZGO5js.LabeledFormDivider; exports.LabeledInput = _chunkDJIOYQB4js.LabeledInput; exports.LabeledRadio = _chunk74GHBDKSjs.LabeledRadio; exports.MAX_PPS = _chunkISHZ7IK3js.MAX_PPS; exports.MIN_PANEL_HEIGHT = _chunkISHZ7IK3js.MIN_PANEL_HEIGHT; exports.MIN_PPS = _chunkISHZ7IK3js.MIN_PPS; exports.MacroManager = _chunk4RVARNV2js.MacroManager; exports.MasterMeter = _chunk5Y2EFQ5Hjs.MasterMeter; exports.MasterMeterVertical = _chunk6IQMTFCIjs.MasterMeterVertical; exports.Menu = _chunkEYTFCDE3js.Menu; exports.MidiClipBody = _chunk5YRHZ27Qjs.MidiClipBody; exports.MixerChannel = _chunkPXNZAQTDjs.MixerChannel; exports.MixerEffect = _chunk54HT3HD2js.MixerEffect; exports.MixerFader = _chunk5CVIISAVjs.MixerFader; exports.MixerFaderHandle = _chunkGJ7EDZGAjs.MixerFaderHandle; exports.MixerPanel = _chunkEPKPU5CGjs.MixerPanel; exports.NOTE_EDGE_THRESHOLD = _chunkISHZ7IK3js.NOTE_EDGE_THRESHOLD; exports.NOTE_HEIGHT = _chunkISHZ7IK3js.NOTE_HEIGHT; exports.NOTE_MOVE_THRESHOLD = _chunkISHZ7IK3js.NOTE_MOVE_THRESHOLD; exports.NOTE_NAMES = _chunkISHZ7IK3js.NOTE_NAMES; exports.NoteGrid = _chunkISHZ7IK3js.NoteGrid; exports.NoteGridCanvas = _chunkISHZ7IK3js.NoteGridCanvas; exports.NoteRect = _chunkFYE3CAWHjs.NoteRect; exports.NumberStepper = _chunkVH7S7WJMjs.NumberStepper; exports.PIANO_KEY_WIDTH = _chunkISHZ7IK3js.PIANO_KEY_WIDTH; exports.PanKnob = _chunkVWWGPE4Yjs.PanKnob; exports.PanelHeader = _chunkKNJHOGHKjs.PanelHeader; exports.PianoKeyboard = _chunkISHZ7IK3js.PianoKeyboard; exports.PianoRollClipStrip = _chunkISHZ7IK3js.PianoRollClipStrip; exports.PianoRollPanel = _chunkISHZ7IK3js.PianoRollPanel; exports.PianoRollRuler = _chunkISHZ7IK3js.PianoRollRuler; exports.PianoRollSidebar = _chunkISHZ7IK3js.PianoRollSidebar; exports.PlayheadCursor = _chunkLGTOB37Qjs.PlayheadCursor; exports.PluginBrowserDialog = _chunkY7XPXGVMjs.PluginBrowserDialog; exports.PluginCard = _chunkEGRKZ5CYjs.PluginCard; exports.PluginManagerDialog = _chunkKKV7EEFJjs.PluginManagerDialog; exports.PointLabel = _chunkV6N42HDHjs.PointLabel; exports.PreferencePanel = _chunkYEJ3PLNZjs.PreferencePanel; exports.PreferenceThumbnail = _chunk5Q4EFHIAjs.PreferenceThumbnail; exports.PreferencesModal = _chunkUM2GTOTPjs.PreferencesModal; exports.PreferencesProvider = _chunkYQTQXEC4js.PreferencesProvider; exports.ProgressBar = _chunkAYO6BYNAjs.ProgressBar; exports.ProjectThumbnail = _chunkYEL37QJ3js.ProjectThumbnail; exports.ProjectToolbar = _chunk5AKA5KLFjs.ProjectToolbar; exports.RULER_HEIGHT = _chunkISHZ7IK3js.RULER_HEIGHT; exports.Radio = _chunkMVQKCVPPjs.Radio; exports.RegionLabel = _chunkKKOL46MPjs.RegionLabel; exports.ResizablePanel = _chunkRP5KH64Wjs.ResizablePanel; exports.ReverbEffect = _chunkTY2ORSU7js.ReverbEffect; exports.RulerFlyout = _chunk2IZAVS7Vjs.RulerFlyout; exports.SCROLLBAR_WIDTH = _chunkISHZ7IK3js.SCROLLBAR_WIDTH; exports.SIDEBAR_WIDTH = _chunkISHZ7IK3js.SIDEBAR_WIDTH; exports.SaveProjectModal = _chunkNLLMQHNYjs.SaveProjectModal; exports.SearchField = _chunkSJUY72RKjs.SearchField; exports.SelectCommandDialog = _chunkZ6MD62P4js.SelectCommandDialog; exports.SelectionToolbar = _chunk4JT5DJJWjs.SelectionToolbar; exports.Separator = _chunkJMLDFTHAjs.Separator; exports.ShortcutTableHeader = _chunkM3BLX3JUjs.ShortcutTableHeader; exports.ShortcutTableRow = _chunk6ICT2BT7js.ShortcutTableRow; exports.SidePanel = _chunkTEPCBR7Ejs.SidePanel; exports.SignInActionBar = _chunkJQITFEPOjs.SignInActionBar; exports.Slider = _chunkBPC2DLWJjs.Slider; exports.SocialSignInButton = _chunkTFVKKVNRjs.SocialSignInButton; exports.SpectralSelectionCanvas = _chunkE52TN7TDjs.SpectralSelectionCanvas; exports.SpectralSelectionOverlay = _chunkE52TN7TDjs.SpectralSelectionOverlay; exports.Spinner = _chunkUA7D5UJTjs.Spinner; exports.SwipeyDots = _chunkIO3XBNUWjs.SwipeyDots; exports.TOTAL_GRID_HEIGHT = _chunkISHZ7IK3js.TOTAL_GRID_HEIGHT; exports.TOTAL_PITCHES = _chunkISHZ7IK3js.TOTAL_PITCHES; exports.Tab = _chunkSVK53QX7js.Tab; exports.TabItem = _chunkNOQ2FBTOjs.TabItem; exports.TabList = _chunk5SD5SHH5js.TabList; exports.Table = _chunkLHYKP7DPjs.Table; exports.TableBody = _chunkLHYKP7DPjs.TableBody; exports.TableCell = _chunkLHYKP7DPjs.TableCell; exports.TableHeader = _chunkLHYKP7DPjs.TableHeader; exports.TableHeaderCell = _chunkLHYKP7DPjs.TableHeaderCell; exports.TableRow = _chunkLHYKP7DPjs.TableRow; exports.TextInput = _chunkBEJPGZROjs.TextInput; exports.TextLink = _chunkIBW3AJZQjs.TextLink; exports.ThemeProvider = _chunkLGCLHYTPjs.ThemeProvider; exports.TimeCode = _chunkLCZWNXIEjs.TimeCode; exports.TimeCodeDigit = _chunkLCZWNXIEjs.TimeCodeDigit; exports.TimeCodeUnit = _chunkJHKJUSFPjs.TimeCodeUnit; exports.TimeSelectionCanvasOverlay = _chunkCRNLF3B5js.TimeSelectionCanvasOverlay; exports.TimeSelectionRulerOverlay = _chunkX5RJ5XZVjs.TimeSelectionRulerOverlay; exports.TimeSignatureSelector = _chunkDJBXSWEPjs.TimeSignatureSelector; exports.TimelineRuler = _chunkZG6PGBWJjs.TimelineRuler; exports.TimelineRulerContextMenu = _chunk67EZBSEHjs.TimelineRulerContextMenu; exports.Toast = _chunkV4Z6HIDLjs.Toast; exports.ToastContainer = _chunkV4Z6HIDLjs.ToastContainer; exports.ToggleButton = _chunkW4QTXKZCjs.ToggleButton; exports.ToggleToolButton = _chunkP6ZFN4X4js.ToggleToolButton; exports.ToolButton = _chunkULYXGKTWjs.ToolButton; exports.Toolbar = _chunkO74DM2DJjs.Toolbar; exports.ToolbarButtonGroup = _chunkO74DM2DJjs.ToolbarButtonGroup; exports.ToolbarDivider = _chunkO74DM2DJjs.ToolbarDivider; exports.ToolbarGroup = _chunkHBFFIH4Ojs.ToolbarGroup; exports.Tooltip = _chunkPXSEYRVSjs.Tooltip; exports.Track = _chunkI4P5XWICjs.Track; exports.TrackContextMenu = _chunkU6O7NMIMjs.TrackContextMenu; exports.TrackControlPanel = _chunkAI55CIMNjs.TrackControlPanel; exports.TrackControlSidePanel = _chunkMB2M76MBjs.TrackControlSidePanel; exports.TrackMeter = _chunkVV2RTWFEjs.TrackMeter; exports.TrackNew = TrackNew; exports.TransportButton = _chunkQTPXIIDBjs.TransportButton; exports.TransportToolbar = _chunkB7SOWOOYjs.TransportToolbar; exports.VSTEffectOptionsDialog = _chunkCMZO53CTjs.VSTEffectOptionsDialog; exports.VerticalRuler = _chunkICL3A42Sjs.VerticalRuler; exports.VerticalRulerPanel = _chunkICL3A42Sjs.VerticalRulerPanel; exports.VerticalSpectralRuler = _chunkICL3A42Sjs.VerticalSpectralRuler; exports.WaveformPreview = _chunk43ZUPQJ7js.WaveformPreview; exports.WelcomeDialog = _chunkCVBE4DSTjs.WelcomeDialog; exports.clearAllProjects = _chunkME3ICDUFjs.clearAllProjects; exports.darkTheme = _chunkLGCLHYTPjs.darkTheme; exports.deleteProject = _chunkME3ICDUFjs.deleteProject; exports.deleteProjects = _chunkME3ICDUFjs.deleteProjects; exports.detectCorner = _chunkE52TN7TDjs.detectCorner; exports.detectEdge = _chunkE52TN7TDjs.detectEdge; exports.drawBlackDashedLine = _chunkE52TN7TDjs.drawBlackDashedLine; exports.drawBlackMarqueeBorder = _chunkE52TN7TDjs.drawBlackMarqueeBorder; exports.drawCenterLine = _chunkE52TN7TDjs.drawCenterLine; exports.drawCornerHandles = _chunkE52TN7TDjs.drawCornerHandles; exports.drawDarkenedOverlays = _chunkE52TN7TDjs.drawDarkenedOverlays; exports.drawDashedLine = _chunkE52TN7TDjs.drawDashedLine; exports.drawMarqueeBorder = _chunkE52TN7TDjs.drawMarqueeBorder; exports.exportProjectsToFile = _chunkME3ICDUFjs.exportProjectsToFile; exports.frequencyToY = _chunkE52TN7TDjs.frequencyToY; exports.generateDecayingSineWave = _chunkME3ICDUFjs.generateDecayingSineWave; exports.generateSineWave = _chunkME3ICDUFjs.generateSineWave; exports.generateSpeechWaveform = _chunkME3ICDUFjs.generateSpeechWaveform; exports.getProject = _chunkME3ICDUFjs.getProject; exports.getProjects = _chunkME3ICDUFjs.getProjects; exports.getSelectionBounds = _chunkE52TN7TDjs.getSelectionBounds; exports.getSpectrogramColor = _chunkZZDLP42Bjs.getSpectrogramColor; exports.getStorageInfo = _chunkME3ICDUFjs.getStorageInfo; exports.importProjectsFromFile = _chunkME3ICDUFjs.importProjectsFromFile; exports.isHoveringCenterLine = _chunkE52TN7TDjs.isHoveringCenterLine; exports.isWithinSelection = _chunkE52TN7TDjs.isWithinSelection; exports.lightTheme = _chunkLGCLHYTPjs.lightTheme; exports.renderMonoSpectrogram = _chunkZZDLP42Bjs.renderMonoSpectrogram; exports.renderStereoSpectrogram = _chunkZZDLP42Bjs.renderStereoSpectrogram; exports.saveProject = _chunkME3ICDUFjs.saveProject; exports.scrollIntoViewIfNeeded = scrollIntoViewIfNeeded; exports.timeToX = _chunkE52TN7TDjs.timeToX; exports.toast = _chunkV4Z6HIDLjs.toast; exports.useAccessibilityProfile = _chunk2FWK4WXJjs.useAccessibilityProfile; exports.useAudioSelection = _chunkEQPPTXQIjs.useAudioSelection; exports.useClipSelection = _chunkEQPPTXQIjs.useClipSelection; exports.useContainerTabGroup = _chunkURVJBJH4js.useContainerTabGroup; exports.useFocusTrap = _chunkVA3E7QXAjs.useFocusTrap; exports.useLabelKeyboardHandling = _chunkEQPPTXQIjs.useLabelKeyboardHandling; exports.usePreferences = _chunkYQTQXEC4js.usePreferences; exports.useSpectralSelection = _chunkEQPPTXQIjs.useSpectralSelection; exports.useTabGroup = _chunkBUZ7SWYRjs.useTabGroup; exports.useTabOrder = _chunk6YEGNNJZjs.useTabOrder; exports.useTheme = _chunkLGCLHYTPjs.useTheme; exports.useTimeSelection = _chunkEQPPTXQIjs.useTimeSelection; exports.useTrackSelection = _chunkEQPPTXQIjs.useTrackSelection; exports.useWelcomeDialog = _chunkCVBE4DSTjs.useWelcomeDialog;
 +exports.Flyout = require('./chunk-FLYOUT.js').Flyout;
 diff --git a/node_modules/@dilsonspickles/components/dist/index.mjs b/node_modules/@dilsonspickles/components/dist/index.mjs
@@ -650,712 +1343,3 @@ index f545ddd..2b7487d 100644
    useWelcomeDialog
  };
 +export { Flyout } from "./chunk-FLYOUT.mjs";
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-index cb32667..64b9859 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-@@ -395,2 +395,17 @@
- }
-+.mixer-channel__input-controls {
-+  display: flex;
-+  flex-direction: column;
-+  align-items: stretch;
-+  gap: 4px;
-+  width: 100%;
-+  min-width: 0;
-+  padding: 6px 6px 0;
-+  box-sizing: border-box;
-+  flex-shrink: 0;
-+  margin-top: auto;
-+}
-+.mixer-channel__input-controls + .mixer-channel__effect-slot {
-+  margin-top: 0;
-+}
- .mixer-channel__effect-slot {
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-index e71b997..6df5797 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-@@ -71,2 +71,6 @@ interface MixerChannelProps {
-     onSoloToggle?: () => void;
-+    /**
-+     * Optional input-routing controls rendered in a compact section above the effects.
-+     */
-+    inputControls?: React__default.ReactNode;
-     /**
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-index e71b997..6df5797 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-@@ -71,2 +71,6 @@ interface MixerChannelProps {
-     onSoloToggle?: () => void;
-+    /**
-+     * Optional input-routing controls rendered in a compact section above the effects.
-+     */
-+    inputControls?: React__default.ReactNode;
-     /**
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.css b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-index 2b0af1c..6af68e3 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-+++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-@@ -395,2 +395,17 @@
- }
-+.mixer-channel__input-controls {
-+  display: flex;
-+  flex-direction: column;
-+  align-items: stretch;
-+  gap: 4px;
-+  width: 100%;
-+  min-width: 0;
-+  padding: 6px 6px 0;
-+  box-sizing: border-box;
-+  flex-shrink: 0;
-+  margin-top: auto;
-+}
-+.mixer-channel__input-controls + .mixer-channel__effect-slot {
-+  margin-top: 0;
-+}
- .mixer-channel__effect-slot {
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-index 14e3972..0fc07a4 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-@@ -34,2 +34,3 @@ var MixerChannel = ({
-   onSoloToggle,
-+  inputControls,
-   effects = [],
-@@ -60,2 +61,3 @@ var MixerChannel = ({
-   return /* @__PURE__ */ jsxs("div", { className: `mixer-channel ${className}`, style, children: [
-+    inputControls != null && /* @__PURE__ */ jsx("div", { className: "mixer-channel__input-controls", children: inputControls }),
-     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__effect-slot", children: [
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-index 4fd5a29..e13d8b3 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-@@ -34,2 +34,3 @@ var MixerChannel = ({
-   onSoloToggle,
-+  inputControls,
-   effects = [],
-@@ -60,2 +61,3 @@ var MixerChannel = ({
-   return /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: `mixer-channel ${className}`, style, children: [
-+    inputControls != null && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__input-controls", children: inputControls }),
-     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__effect-slot", children: [
-diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
-index 3e98d91..3c03155 100644
---- a/node_modules/@dilsonspickles/components/dist/index.css
-+++ b/node_modules/@dilsonspickles/components/dist/index.css
-@@ -1031,2 +1031,17 @@
- }
-+.mixer-channel__input-controls {
-+  display: flex;
-+  flex-direction: column;
-+  align-items: stretch;
-+  gap: 4px;
-+  width: 100%;
-+  min-width: 0;
-+  padding: 6px 6px 0;
-+  box-sizing: border-box;
-+  flex-shrink: 0;
-+  margin-top: auto;
-+}
-+.mixer-channel__input-controls + .mixer-channel__effect-slot {
-+  margin-top: 0;
-+}
- .mixer-channel__effect-slot {
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
-index 9a60fb3..7d16765 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-T4FPUYYH.js
-@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
-   name,
-   allEnabled,
-   onToggleAll,
--  onContextMenu: _onContextMenu,
-+  onContextMenu,
-   onAddEffect,
-   addButtonLabel = "Effects",
-   isMaster = false,
-@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
-             className: "effects-stack-header__add-button",
-             children: addButtonLabel
-           }
-+        ),
-+        onContextMenu && /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
-+          _chunkYA2G6WW2js.GhostButton,
-+          {
-+            icon: "menu",
-+            size: "small",
-+            onClick: onContextMenu,
-+            ariaLabel: "Effect stack options",
-+            className: "effects-stack-header__menu-button"
-+          }
-         )
-       ]
-     }
-@@ -364,64 +364,34 @@
-            children: [
--              Object.entries(_chunkD27CEHWGjs.EFFECT_REGISTRY).map(([category, effects]) => {
--                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
--                if (enabled2.length === 0) return null;
--                return /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
--                  _chunk36BYWJRBjs.ContextMenuItem,
--                  {
--                    label: effect.name,
--                    onClick: () => {
--                      _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
--                      setMenuOpen(false);
--                    }
--                  },
--                  effect.id
--                )) }, category);
--              }),
--              (() => {
--                if (!purchasedEffects || purchasedEffects.length === 0) return null;
--                const visible = purchasedEffects.filter(
--                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
--                );
--                if (visible.length === 0) return null;
--                const byVendor = /* @__PURE__ */ new Map();
--                for (const e of visible) {
--                  const list = _nullishCoalesce(byVendor.get(e.vendor), () => ( []));
--                  list.push(e);
--                  byVendor.set(e.vendor, list);
--                }
--                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
--                  _chunk36BYWJRBjs.ContextMenuItem,
--                  {
--                    label: effect.name,
--                    onClick: () => {
--                      _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
--                      setMenuOpen(false);
--                    }
--                  },
--                  effect.id
--                )) }, vendor));
--              })(),
--              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
--              /* @__PURE__ */ _jsxruntime.jsx.call(void 0,
--                _chunk36BYWJRBjs.ContextMenuItem,
--                {
--                  label: "Get effects\u2026",
--                  onClick: () => {
--                    const slotEl = slotRef.current;
--                    const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
--                    _optionalChain([onChangeEffect, 'optionalCall', _27 => _27(anchor)]);
--                    setMenuOpen(false);
--                  }
--                }
--              ),
--              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
--              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
--                _chunk36BYWJRBjs.ContextMenuItem,
--                {
--                  label: "Remove effect",
--                  onClick: () => {
--                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
--                    setMenuOpen(false);
--                  }
--                }
--              )
-+              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
-+                _chunk36BYWJRBjs.ContextMenuItem,
-+                {
-+                  label: "Remove effect",
-+                  onClick: () => {
-+                    _optionalChain([onRemoveEffect, 'optionalCall', _28 => _28()]);
-+                    setMenuOpen(false);
-+                  }
-+                }
-+              ),
-+              /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk36BYWJRBjs.ContextMenuItem, { isDivider: true }),
-+              ...Object.values(_chunkD27CEHWGjs.EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
-+                _chunk36BYWJRBjs.ContextMenuItem,
-+                {
-+                  label: effect.name,
-+                  onClick: () => {
-+                    _optionalChain([onReplaceEffect, 'optionalCall', _25 => _25(effect.name)]);
-+                    setMenuOpen(false);
-+                  }
-+                },
-+                effect.id
-+              ))),
-+              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
-+                _chunk36BYWJRBjs.ContextMenuItem,
-+                {
-+                  label: effect.name,
-+                  onClick: () => {
-+                    _optionalChain([onReplaceEffect, 'optionalCall', _26 => _26(effect.name)]);
-+                    setMenuOpen(false);
-+                  }
-+                },
-+                effect.id
-+              )))
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
-index 84edc3f..4d187b5 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
-@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
-   name,
-   allEnabled,
-   onToggleAll,
--  onContextMenu: _onContextMenu,
-+  onContextMenu,
-   onAddEffect,
-   addButtonLabel = "Effects",
-   isMaster = false,
-@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
-             className: "effects-stack-header__add-button",
-             children: addButtonLabel
-           }
-+        ),
-+        onContextMenu && /* @__PURE__ */ jsx2(
-+          GhostButton,
-+          {
-+            icon: "menu",
-+            size: "small",
-+            onClick: onContextMenu,
-+            ariaLabel: "Effect stack options",
-+            className: "effects-stack-header__menu-button"
-+          }
-         )
-       ]
-     }
-@@ -364,62 +364,34 @@
-             children: [
--              Object.entries(EFFECT_REGISTRY).map(([category, effects]) => {
--                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
--                if (enabled2.length === 0) return null;
--                return /* @__PURE__ */ jsx3(ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ jsx3(
--                  ContextMenuItem,
--                  {
--                    label: effect.name,
--                    onClick: () => {
--                      onReplaceEffect?.(effect.name);
--                      setMenuOpen(false);
--                    }
--                  },
--                  effect.id
--                )) }, category);
--              }),
--              (() => {
--                if (!purchasedEffects || purchasedEffects.length === 0) return null;
--                const visible = purchasedEffects.filter(
--                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
--                );
--                if (visible.length === 0) return null;
--                const byVendor = /* @__PURE__ */ new Map();
--                for (const e of visible) {
--                  const list = byVendor.get(e.vendor) ?? [];
--                  list.push(e);
--                  byVendor.set(e.vendor, list);
--                }
--                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ jsx3(ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ jsx3(
--                  ContextMenuItem,
--                  {
--                    label: effect.name,
--                    onClick: () => {
--                      onReplaceEffect?.(effect.name);
--                      setMenuOpen(false);
--                    }
--                  },
--                  effect.id
--                )) }, vendor));
--              })(),
--              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
--              /* @__PURE__ */ jsx3(
--                ContextMenuItem,
--                {
--                  label: "Get effects\u2026",
--                  onClick: () => {
--                    onChangeEffect?.(anchor);
--                    setMenuOpen(false);
--                  }
--                }
--              ),
--              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
--              /* @__PURE__ */ jsx3(
--                ContextMenuItem,
--                {
--                  label: "Remove effect",
--                  onClick: () => {
--                    onRemoveEffect?.();
--                    setMenuOpen(false);
--                  }
--                }
--              )
-+              /* @__PURE__ */ jsx3(
-+                ContextMenuItem,
-+                {
-+                  label: "Remove effect",
-+                  onClick: () => {
-+                    onRemoveEffect?.();
-+                    setMenuOpen(false);
-+                  }
-+                }
-+              ),
-+              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
-+              ...Object.values(EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ jsx3(
-+                ContextMenuItem,
-+                {
-+                  label: effect.name,
-+                  onClick: () => {
-+                    onReplaceEffect?.(effect.name);
-+                    setMenuOpen(false);
-+                  }
-+                },
-+                effect.id
-+              ))),
-+              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ jsx3(
-+                ContextMenuItem,
-+                {
-+                  label: effect.name,
-+                  onClick: () => {
-+                    onReplaceEffect?.(effect.name);
-+                    setMenuOpen(false);
-+                  }
-+                },
-+                effect.id
-+              )))
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-index 64b9859..fa15a2b 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
-@@ -419,6 +419,14 @@
-   flex-shrink: 0;
-   margin-top: auto;
- }
-+.mixer-channel__effect-footer {
-+	display: flex;
-+	align-items: center;
-+	width: 100%;
-+	min-height: 40px;
-+	box-sizing: border-box;
-+	flex-shrink: 0;
-+}
- .mixer-channel__pan-row {
-   display: flex;
-   align-items: center;
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
---- a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
-@@ -303,18 +303,8 @@
- }
- function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, width, height, textColor, topTickColor, bottomTickColor) {
-   const midHeight = height / 2;
--  let majorInterval = 1;
--  if (pixelsPerSecond < 20) {
--    majorInterval = 10;
--  } else if (pixelsPerSecond < 50) {
--    majorInterval = 5;
--  } else if (pixelsPerSecond < 100) {
--    majorInterval = 2;
--  } else if (pixelsPerSecond < 200) {
--    majorInterval = 1;
--  } else {
--    majorInterval = 0.5;
--  }
-+  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
-+  const decimalPlaces = getDecimalPlaces(majorInterval);
-   const minorInterval = majorInterval / 5;
-   const startTime = Math.floor(scrollX / pixelsPerSecond / minorInterval) * minorInterval;
-   const endTime = Math.ceil((scrollX + width) / pixelsPerSecond / minorInterval) * minorInterval;
-@@ -357,7 +347,7 @@
-     const roundedTime = Math.round(time / majorInterval) * majorInterval;
-     const x = CLIP_CONTENT_OFFSET + roundedTime * pixelsPerSecond - scrollX;
-     if (x < CLIP_CONTENT_OFFSET || x > width) continue;
--    const label = formatTime(roundedTime);
-+    const label = formatTime(roundedTime, decimalPlaces);
-     const textY = midHeight / 2 + 4;
-     ctx.fillText(label, x + 4, textY);
-   }
-@@ -450,8 +440,23 @@
-     }
-   }
- }
--function formatTime(seconds) {
-+function getTimelineMajorInterval(pixelsPerSecond) {
-+  if (pixelsPerSecond < 20) return 10;
-+  if (pixelsPerSecond < 50) return 5;
-+  if (pixelsPerSecond < 100) return 2;
-+  if (pixelsPerSecond < 200) return 1;
-+  if (pixelsPerSecond < 500) return 0.5;
-+  if (pixelsPerSecond < 1000) return 0.2;
-+  if (pixelsPerSecond < 2000) return 0.1;
-+  if (pixelsPerSecond < 5000) return 0.05;
-+  if (pixelsPerSecond < 10000) return 0.02;
-+  return 0.01;
-+}
-+function getDecimalPlaces(value) {
-+  return Math.max(0, Math.ceil(-Math.log10(value)));
-+}
-+function formatTime(seconds, decimalPlaces = 0) {
-   const mins = Math.floor(seconds / 60);
--  const secs = Math.floor(seconds % 60);
--  return `${mins}:${secs.toString().padStart(2, "0")}`;
-+  const secs = (seconds % 60).toFixed(decimalPlaces);
-+  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), "0")}`;
- }
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js b/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
---- a/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-ZG6PGBWJ.js
-@@ -303,18 +303,8 @@
- }
- function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, width, height, textColor, topTickColor, bottomTickColor) {
-   const midHeight = height / 2;
--  let majorInterval = 1;
--  if (pixelsPerSecond < 20) {
--    majorInterval = 10;
--  } else if (pixelsPerSecond < 50) {
--    majorInterval = 5;
--  } else if (pixelsPerSecond < 100) {
--    majorInterval = 2;
--  } else if (pixelsPerSecond < 200) {
--    majorInterval = 1;
--  } else {
--    majorInterval = 0.5;
--  }
-+  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
-+  const decimalPlaces = getDecimalPlaces(majorInterval);
-   const minorInterval = majorInterval / 5;
-   const startTime = Math.floor(scrollX / pixelsPerSecond / minorInterval) * minorInterval;
-   const endTime = Math.ceil((scrollX + width) / pixelsPerSecond / minorInterval) * minorInterval;
-@@ -357,7 +347,7 @@
-     const roundedTime = Math.round(time / majorInterval) * majorInterval;
-     const x = _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET + roundedTime * pixelsPerSecond - scrollX;
-     if (x < _chunkZIYFIYXGjs.CLIP_CONTENT_OFFSET || x > width) continue;
--    const label = formatTime(roundedTime);
-+    const label = formatTime(roundedTime, decimalPlaces);
-     const textY = midHeight / 2 + 4;
-     ctx.fillText(label, x + 4, textY);
-   }
-@@ -450,8 +440,23 @@
-     }
-   }
- }
--function formatTime(seconds) {
-+function getTimelineMajorInterval(pixelsPerSecond) {
-+  if (pixelsPerSecond < 20) return 10;
-+  if (pixelsPerSecond < 50) return 5;
-+  if (pixelsPerSecond < 100) return 2;
-+  if (pixelsPerSecond < 200) return 1;
-+  if (pixelsPerSecond < 500) return 0.5;
-+  if (pixelsPerSecond < 1000) return 0.2;
-+  if (pixelsPerSecond < 2000) return 0.1;
-+  if (pixelsPerSecond < 5000) return 0.05;
-+  if (pixelsPerSecond < 10000) return 0.02;
-+  return 0.01;
-+}
-+function getDecimalPlaces(value) {
-+  return Math.max(0, Math.ceil(-Math.log10(value)));
-+}
-+function formatTime(seconds, decimalPlaces = 0) {
-   const mins = Math.floor(seconds / 60);
--  const secs = Math.floor(seconds % 60);
--  return `${mins}:${secs.toString().padStart(2, "0")}`;
-+  const secs = (seconds % 60).toFixed(decimalPlaces);
-+  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), "0")}`;
- }
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-index 6df5797..6ed0fc2 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.mts
-@@ -82,6 +82,10 @@ interface MixerChannelProps {
-      * Called when the empty effect slot dropdown is clicked (to add a new effect)
-      */
-     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
-+    /** Optional controls rendered in a row below the effects stack. */
-+    effectFooter?: React__default.ReactNode;
-+    /** Reserve the effects-footer row even when this channel has no controls. */
-+    effectFooterVisible?: boolean;
-     /**
-      * Total number of effect slots to display (including empty ones).
-      * Used to keep all channels the same height when one has more effects.
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-index 6df5797..6ed0fc2 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
-@@ -82,6 +82,10 @@ interface MixerChannelProps {
-      * Called when the empty effect slot dropdown is clicked (to add a new effect)
-      */
-     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
-+    /** Optional controls rendered in a row below the effects stack. */
-+    effectFooter?: React__default.ReactNode;
-+    /** Reserve the effects-footer row even when this channel has no controls. */
-+    effectFooterVisible?: boolean;
-     /**
-      * Total number of effect slots to display (including empty ones).
-      * Used to keep all channels the same height when one has more effects.
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.css b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-index 6af68e3..0f18f0d 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-+++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.css
-@@ -419,6 +419,14 @@
-   flex-shrink: 0;
-   margin-top: auto;
- }
-+.mixer-channel__effect-footer {
-+	display: flex;
-+	align-items: center;
-+	width: 100%;
-+	min-height: 40px;
-+	box-sizing: border-box;
-+	flex-shrink: 0;
-+}
- .mixer-channel__pan-row {
-   display: flex;
-   align-items: center;
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
-index 09c14ea..847184f 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
-@@ -36,6 +36,8 @@ interface MixerPanelProps {
-      * Track mixer channels to display
-      */
-     channels?: MixerPanelChannel[];
-+    /** Label for an optional channel row below the effects stack. */
-+    effectFooterLabel?: string;
-     /**
-      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
-      */
-diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
-index 86db20a..4f28d89 100644
---- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
-+++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.ts
-@@ -36,6 +36,8 @@ interface MixerPanelProps {
-      * Track mixer channels to display
-      */
-     channels?: MixerPanelChannel[];
-+    /** Label for an optional channel row below the effects stack. */
-+    effectFooterLabel?: string;
-     /**
-      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
-      */
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-index 0fc07a4..ee77ebd 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
-@@ -35,6 +35,8 @@ var MixerChannel = ({
-   inputControls,
-   effects = [],
-   onAddEffect,
-+  effectFooter,
-+  effectFooterVisible = false,
-   effectSlotCount = 1,
-   className = ""
- }) => {
-@@ -77,6 +79,7 @@ var MixerChannel = ({
-       )),
-       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ jsx(MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
-     ] }),
-+    effectFooterVisible && /* @__PURE__ */ jsx("div", { className: "mixer-channel__effect-footer", children: effectFooter }),
-     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__pan-row", children: [
-       /* @__PURE__ */ jsx(
-         Knob,
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
-index f71fafb..5816952 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
-@@ -24,6 +24,7 @@ var MixerPanel = ({
-   onMenuClick,
-   masterChannel,
-   channels = [],
-+  effectFooterLabel,
-   hideHeader = false,
-   className = ""
- }) => {
-@@ -50,6 +51,7 @@ var MixerPanel = ({
-     /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__body", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-panel__content", children: [
-       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Audio FX" }) }),
-+        effectFooterLabel && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: effectFooterLabel }) }),
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Pan" }) }),
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Volume" }) }),
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { style: { height: 160 } }),
-@@ -60,11 +62,11 @@ var MixerPanel = ({
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
-         channels.map((ch, i) => /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _react2.default.Fragment, { children: [
-           i > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
--          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
-+          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
-         ] }, ch.id)),
-         masterChannel && /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _jsxruntime.Fragment, { children: [
-           channels.length > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
--          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
-+          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
-         ] }),
-         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" })
-       ] }) })
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
-index 26f8e25..287275a 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
-@@ -24,6 +24,7 @@ var MixerPanel = ({
-   onMenuClick,
-   masterChannel,
-   channels = [],
-+  effectFooterLabel,
-   hideHeader = false,
-   className = ""
- }) => {
-@@ -50,6 +51,7 @@ var MixerPanel = ({
-     /* @__PURE__ */ jsx("div", { className: "mixer-panel__body", children: /* @__PURE__ */ jsxs("div", { className: "mixer-panel__content", children: [
-       /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ jsxs("div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
-         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ jsx("span", { children: "Audio FX" }) }),
-+        effectFooterLabel && /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: effectFooterLabel }) }),
-         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Pan" }) }),
-         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Volume" }) }),
-         /* @__PURE__ */ jsx("div", { style: { height: 160 } }),
-@@ -60,11 +62,11 @@ var MixerPanel = ({
-         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
-         channels.map((ch, i) => /* @__PURE__ */ jsxs(React.Fragment, { children: [
-           i > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
--          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
-+          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
-         ] }, ch.id)),
-         masterChannel && /* @__PURE__ */ jsxs(Fragment, { children: [
-           channels.length > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
--          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
-+          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
-         ] }),
-         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" })
-       ] }) })
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-index e13d8b3..e46069f 100644
---- a/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-PXNZAQTD.js
-@@ -35,6 +35,8 @@ var MixerChannel = ({
-   inputControls,
-   effects = [],
-   onAddEffect,
-+  effectFooter,
-+  effectFooterVisible = false,
-   effectSlotCount = 1,
-   className = ""
- }) => {
-@@ -77,6 +79,7 @@ var MixerChannel = ({
-       )),
-       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunk54HT3HD2js.MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
-     ] }),
-+    effectFooterVisible && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-channel__effect-footer", children: effectFooter }),
-     /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-channel__pan-row", children: [
-       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, 
-         _chunkQUONGYVYjs.Knob,
-diff --git a/node_modules/@dilsonspickles/components/dist/index.css b/node_modules/@dilsonspickles/components/dist/index.css
-index 3c03155..9593984 100644
---- a/node_modules/@dilsonspickles/components/dist/index.css
-+++ b/node_modules/@dilsonspickles/components/dist/index.css
-@@ -1055,6 +1055,14 @@
-   flex-shrink: 0;
-   margin-top: auto;
- }
-+.mixer-channel__effect-footer {
-+  display: flex;
-+  align-items: center;
-+  width: 100%;
-+  min-height: 40px;
-+  box-sizing: border-box;
-+  flex-shrink: 0;
-+}
- .mixer-channel__pan-row {
-   display: flex;
-   align-items: center;

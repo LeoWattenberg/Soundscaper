@@ -1886,7 +1886,7 @@ function WorkspacePanelDock({
 			event.preventDefault();
 			const delta = session.horizontal
 				? event.clientX - session.startClientX
-				: event.clientY - session.startClientY;
+				: (event.clientY - session.startClientY) * (session.invertDelta ? -1 : 1);
 			const size = Math.max(session.minimumSize, Math.min(session.maximumSize, session.initialSize + delta));
 			session.element.style[session.sizeProperty] = `${Math.round(size)}px`;
 		};
@@ -1925,7 +1925,11 @@ function WorkspacePanelDock({
 			}
 			session.element.style.setProperty('--workspace-panel-size', `${size}px`);
 			session.element.style.removeProperty(session.sizeProperty);
-			run(() => controller.actions.preferences.setPanel(session.panelId, { size }));
+			run(() => {
+				for (const panelId of session.panelIds || [session.panelId]) {
+					controller.actions.preferences.setPanel(panelId, { size });
+				}
+			});
 		};
 		const cancelResize = (event) => {
 			const session = resizeSessionRef.current;
@@ -1998,6 +2002,31 @@ function WorkspacePanelDock({
 	}, [controller, dock, run]);
 	const beginResize = (event) => {
 		if (event.button !== 0) return;
+		const dockResizeHandle = event.target.closest?.('[data-workspace-dock-resize-handle]');
+		if (dock === 'bottom' && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
+			const element = dockRef.current;
+			const bounds = element?.getBoundingClientRect();
+			if (!element || !bounds) return;
+			resizeSessionRef.current = {
+				element,
+				horizontal: false,
+				invertDelta: true,
+				initialWidth: Math.round(bounds.width),
+				initialHeight: Math.round(bounds.height),
+				initialSize: Math.round(bounds.height),
+				maximumSize: Number.POSITIVE_INFINITY,
+				minimumSize: 120,
+				manual: true,
+				panelId: panels[0][0],
+				panelIds: panels.map(([panelId]) => panelId),
+				pointerId: event.pointerId,
+				sizeProperty: 'height',
+				startClientX: event.clientX,
+				startClientY: event.clientY,
+			};
+			event.preventDefault();
+			return;
+		}
 		const element = event.target.closest?.('[data-workspace-panel]');
 		if (!element) return;
 		const bounds = element.getBoundingClientRect();
@@ -2091,12 +2120,30 @@ function WorkspacePanelDock({
 		}));
 		return true;
 	};
+	const adjustBottomDockSize = (event) => {
+		if (dock !== 'bottom' || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+		const bounds = dockRef.current?.getBoundingClientRect();
+		if (!bounds) return;
+		event.preventDefault();
+		const step = event.shiftKey ? 48 : 16;
+		const size = Math.max(120, bounds.height + (event.key === 'ArrowUp' ? step : -step));
+		run(() => {
+			for (const [panelId] of panels) controller.actions.preferences.setPanel(panelId, { size });
+		});
+	};
 	if (!panels.length) return null;
+	const dockStyle = dock === 'bottom'
+		? {
+			'--workspace-panel-size': `${panels[0][1].size}px`,
+			'--workspace-panel-count': panels.length,
+		}
+		: undefined;
 	return (
 		<aside
 			ref={dockRef}
 			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
 			data-panel-dock={dock}
+			style={dockStyle}
 			aria-label={copy.panels}
 			onPointerDownCapture={beginResize}
 			onDragOver={(event) => {
@@ -2110,6 +2157,13 @@ function WorkspacePanelDock({
 				onPanelMove(draggedPanelId, dock, panels.filter(([id]) => id !== draggedPanelId).length);
 			}}
 		>
+			{dock === 'bottom' && <button
+				type="button"
+				className="kw-audio-editor__workspace-dock-resize-handle"
+				data-workspace-dock-resize-handle={dock}
+				aria-label={`${copy.workspaceResize}: ${workspaceDockLabel(copy, dock)}`}
+				onKeyDown={adjustBottomDockSize}
+			>↕</button>}
 			{panels.map(([panelId, panel], panelIndex) => {
 				const geometry = dock === 'floating'
 					? clampFloatingPanelGeometry(panel, floatingBounds)
@@ -2126,7 +2180,7 @@ function WorkspacePanelDock({
 						maxWidth: floatingBounds.width ? `${Math.max(1, floatingBounds.width - geometry.x)}px` : '100%',
 						maxHeight: floatingBounds.height ? `${Math.max(1, floatingBounds.height - geometry.y)}px` : '100%',
 					}
-					: { '--workspace-panel-size': `${panel.size}px` };
+					: dock === 'bottom' ? undefined : { '--workspace-panel-size': `${panel.size}px` };
 				return (
 				<section
 					key={panelId}
