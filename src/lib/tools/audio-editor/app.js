@@ -207,9 +207,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		client: options.staffPadRenderClient,
 		loadSourceChannels: async (source, context = {}) => {
 			const buffer = sourceBuffers.get(source.id);
-			if (buffer) return audioBufferChannels(buffer);
+			// AudioBuffer channel views are borrowed and must never be detached.
+			// Give StaffPad owned copies so the worker can transfer every input
+			// without retaining a duplicate on the main thread.
+			if (buffer) return audioBufferChannels(buffer).map((channel) => channel.slice());
 			return loadStoredSourceChannels(store, source, context);
 		},
+		transferLoadedSourceChannels: true,
+		maximumResidentChannelBytes: options.clipTimePitchMaximumResidentChannelBytes,
 		onWarning: (warning) => setStatus(copy.staffPadRangeWarning.replace('{stageCount}', String(warning.stageCount))),
 	});
 	const clipTimePitchSourceResolver = clipTimePitchCache.createEngineSourceResolver();

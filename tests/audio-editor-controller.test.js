@@ -79,6 +79,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 		store,
 		engine,
 		ffmpeg,
+		clipTimePitchMaximumResidentChannelBytes: 1_024,
 	});
 
 	const readySnapshot = await controller.ready;
@@ -90,6 +91,8 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.strictEqual(controller.getSnapshot(), readySnapshot);
 	assert.strictEqual(controller.getSnapshot(), controller.getSnapshot());
 	assert.strictEqual(controller.getTelemetrySnapshot(), controller.getTelemetrySnapshot());
+	assert.equal(controller.clipTimePitchCache.transferLoadedSourceChannels, true);
+	assert.equal(controller.clipTimePitchCache.maximumResidentChannelBytes, 1_024);
 
 	assert.deepEqual(Object.keys(controller.actions), [
 		'project', 'edit', 'transport', 'recording', 'timeline', 'sampleEdit', 'spectral',
