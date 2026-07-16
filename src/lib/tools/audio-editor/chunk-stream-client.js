@@ -125,7 +125,7 @@ export class ChunkStreamClient {
 			source: {
 				channelCount: source.channelCount,
 				frameCount: source.frameCount,
-				chunkFrames: AUDIO_EDITOR_STORAGE_CHUNK_FRAMES,
+				chunkFrames: source.chunkFrames,
 			},
 			startFrame,
 			endFrame,
@@ -430,10 +430,12 @@ function normalizeSourceProvider(source) {
 	const descriptor = source.descriptor && typeof source.descriptor === 'object' ? source.descriptor : source;
 	const channelCount = boundedInteger(descriptor.channelCount, 1, 64, 'source.channelCount');
 	const frameCount = positiveInteger(descriptor.frameCount, 'source.frameCount');
-	const chunkFrames = positiveInteger(descriptor.chunkFrames, 'source.chunkFrames');
-	if (chunkFrames !== AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) {
-		throw new RangeError(`Long-source storage chunks must contain ${AUDIO_EDITOR_STORAGE_CHUNK_FRAMES} frames.`);
-	}
+	const chunkFrames = boundedInteger(
+		descriptor.chunkFrames,
+		1,
+		AUDIO_EDITOR_STORAGE_CHUNK_FRAMES,
+		'source.chunkFrames',
+	);
 	let readStorageChunk;
 	if (Array.isArray(source.chunks)) {
 		readStorageChunk = async (chunkIndex) => {

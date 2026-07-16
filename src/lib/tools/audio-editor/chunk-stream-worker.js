@@ -84,8 +84,8 @@ export function installChunkStreamWorker(scope = globalThis) {
 
 	const requestStorageChunk = (stream, chunkIndex) => {
 		if (stream.storageRequest) return;
-		const frameStart = chunkIndex * AUDIO_EDITOR_STORAGE_CHUNK_FRAMES;
-		const frames = Math.min(AUDIO_EDITOR_STORAGE_CHUNK_FRAMES, stream.frameCount - frameStart);
+		const frameStart = chunkIndex * stream.chunkFrames;
+		const frames = Math.min(stream.chunkFrames, stream.frameCount - frameStart);
 		const requestId = `${stream.id}:storage:${nextStorageRequest++}`;
 		stream.storageRequest = { requestId, chunkIndex, frames };
 		post({
@@ -106,14 +106,14 @@ export function installChunkStreamWorker(scope = globalThis) {
 				return;
 			}
 			while (stream.inFlight.size < stream.highWaterMark && stream.nextFrame < stream.endFrame) {
-				const chunkIndex = Math.floor(stream.nextFrame / AUDIO_EDITOR_STORAGE_CHUNK_FRAMES);
+				const chunkIndex = Math.floor(stream.nextFrame / stream.chunkFrames);
 				if (stream.storageChunkIndex !== chunkIndex || !stream.storageChannels) {
 					stream.storageChannels = null;
 					stream.storageChunkIndex = null;
 					requestStorageChunk(stream, chunkIndex);
 					return;
 				}
-				const chunkOffset = stream.nextFrame % AUDIO_EDITOR_STORAGE_CHUNK_FRAMES;
+				const chunkOffset = stream.nextFrame % stream.chunkFrames;
 				const available = stream.storageChannels[0].length - chunkOffset;
 				const frames = Math.min(
 					AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
@@ -123,7 +123,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 				if (frames <= 0) throw createChunkStreamError('INVALID_STORAGE_CHUNK', 'A storage chunk did not cover the requested source frame.');
 				const channels = stream.storageChannels.map((channel) => channel.slice(chunkOffset, chunkOffset + frames));
 				emitPacket(stream, channels);
-				if (Math.floor(stream.nextFrame / AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) !== chunkIndex) {
+				if (Math.floor(stream.nextFrame / stream.chunkFrames) !== chunkIndex) {
 					stream.storageChannels = null;
 					stream.storageChunkIndex = null;
 				}
@@ -155,14 +155,14 @@ export function installChunkStreamWorker(scope = globalThis) {
 				continue;
 			}
 			if (stream.inputNextFrame < stream.sourceEndFrame) {
-				const chunkIndex = Math.floor(stream.inputNextFrame / AUDIO_EDITOR_STORAGE_CHUNK_FRAMES);
+				const chunkIndex = Math.floor(stream.inputNextFrame / stream.chunkFrames);
 				if (stream.storageChunkIndex !== chunkIndex || !stream.storageChannels) {
 					stream.storageChannels = null;
 					stream.storageChunkIndex = null;
 					requestStorageChunk(stream, chunkIndex);
 					return;
 				}
-				const chunkOffset = stream.inputNextFrame % AUDIO_EDITOR_STORAGE_CHUNK_FRAMES;
+				const chunkOffset = stream.inputNextFrame % stream.chunkFrames;
 				const available = stream.storageChannels[0].length - chunkOffset;
 				const frames = Math.min(
 					RESAMPLE_INPUT_FEED_FRAMES,
@@ -174,7 +174,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 				stream.inputNextFrame += frames;
 				stream.pendingOutputChannels = stream.resampler.push(input);
 				stream.pendingOutputOffset = 0;
-				if (Math.floor(stream.inputNextFrame / AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) !== chunkIndex) {
+				if (Math.floor(stream.inputNextFrame / stream.chunkFrames) !== chunkIndex) {
 					stream.storageChannels = null;
 					stream.storageChunkIndex = null;
 				}
@@ -363,13 +363,12 @@ export function installChunkStreamWorker(scope = globalThis) {
 function normalizeDescriptor(value) {
 	const channelCount = boundedInteger(value?.channelCount, 1, 64, 'source.channelCount');
 	const frameCount = positiveInteger(value?.frameCount, 'source.frameCount');
-	const chunkFrames = positiveInteger(value?.chunkFrames, 'source.chunkFrames');
-	if (chunkFrames !== AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) {
-		throw createChunkStreamError(
-			'INVALID_STORAGE_CHUNK_SIZE',
-			`Long-source storage chunks must contain ${AUDIO_EDITOR_STORAGE_CHUNK_FRAMES} frames.`,
-		);
-	}
+	const chunkFrames = boundedInteger(
+		value?.chunkFrames,
+		1,
+		AUDIO_EDITOR_STORAGE_CHUNK_FRAMES,
+		'source.chunkFrames',
+	);
 	return { channelCount, frameCount, chunkFrames };
 }
 

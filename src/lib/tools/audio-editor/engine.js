@@ -1350,8 +1350,8 @@ function normalizeChunkSource(value) {
 	const chunkFrames = positiveInteger(descriptor.chunkFrames, 0);
 	const sampleRate = positiveInteger(descriptor.sampleRate, 0);
 	if (!channelCount || channelCount > 64 || !frameCount || !sampleRate) throw new TypeError('Long-source metadata is invalid.');
-	if (chunkFrames !== AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) {
-		throw new RangeError(`Long sources must use ${AUDIO_EDITOR_STORAGE_CHUNK_FRAMES}-frame immutable chunks.`);
+	if (chunkFrames > AUDIO_EDITOR_STORAGE_CHUNK_FRAMES) {
+		throw new RangeError(`Long-source chunks cannot exceed ${AUDIO_EDITOR_STORAGE_CHUNK_FRAMES} frames.`);
 	}
 	const readStorageChunk = value.readStorageChunk || value.readChunk;
 	if (typeof readStorageChunk !== 'function') throw new TypeError('A long source must provide readStorageChunk().');
