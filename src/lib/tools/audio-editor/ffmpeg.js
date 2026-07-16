@@ -9,6 +9,8 @@ import {
 	normalizeMediaExportSettings,
 } from './media-export.js';
 
+const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
+
 export class FfmpegCoreUnavailableError extends Error {
 	constructor(cause) {
 		super('The browser FFmpeg core could not be loaded; compressed media export is unavailable.', { cause });
@@ -32,13 +34,20 @@ export class FfmpegEncodingError extends Error {
 /**
  * Lazy, single-thread FFmpeg runtime used only for editor decode and encoding.
  * The versioned core is served from R2 in production so the 32 MiB WASM file
- * does not exceed Cloudflare Pages' 25 MiB per-asset limit.
+ * does not exceed Cloudflare Pages' 25 MiB per-asset limit. The worker is
+ * released after 30 seconds idle by default; set idleTimeoutMs to false or
+ * null to retain it until explicit disposal.
  */
 export function createEditorFfmpeg(options = {}) {
 	let ffmpeg = null;
 	let module = null;
 	let loading = null;
 	let queue = Promise.resolve();
+	let pendingOperations = 0;
+	let idleTeardown = null;
+	const idleTimeoutMs = normalizeIdleTimeout(options.idleTimeoutMs);
+	const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout?.bind(globalThis);
+	const clearTimeoutFn = options.clearTimeout ?? globalThis.clearTimeout?.bind(globalThis);
 	const capabilities = options.capabilities?.formats
 		? options.capabilities
 		: createMediaExportCapabilities(options.capabilities || {});
@@ -54,9 +63,48 @@ export function createEditorFfmpeg(options = {}) {
 		options.onProgress?.(Math.max(0, Math.min(1, progress)), time);
 	};
 
+	function cancelIdleTeardown() {
+		const scheduled = idleTeardown;
+		idleTeardown = null;
+		if (scheduled && typeof clearTimeoutFn === 'function') clearTimeoutFn(scheduled.handle);
+	}
+
+	function terminateRuntime() {
+		if (ffmpeg) {
+			ffmpeg.off('progress', handleProgress);
+			ffmpeg.terminate();
+		}
+		ffmpeg = null;
+		loading = null;
+	}
+
+	function scheduleIdleTeardown() {
+		if (idleTimeoutMs === null || typeof setTimeoutFn !== 'function' || pendingOperations !== 0 || !ffmpeg) return;
+		cancelIdleTeardown();
+		const target = ffmpeg;
+		const scheduled = { handle: null };
+		idleTeardown = scheduled;
+		scheduled.handle = setTimeoutFn(() => {
+			if (idleTeardown !== scheduled) return;
+			idleTeardown = null;
+			if (pendingOperations !== 0 || ffmpeg !== target) return;
+			terminateRuntime();
+			queue = Promise.resolve();
+		}, idleTimeoutMs);
+		scheduled.handle?.unref?.();
+	}
+
 	async function load() {
-		if (ffmpeg?.loaded) return ffmpeg;
-		if (loading) return loading;
+		cancelIdleTeardown();
+		if (ffmpeg?.loaded) {
+			scheduleIdleTeardown();
+			return ffmpeg;
+		}
+		if (loading) {
+			const instance = await loading;
+			scheduleIdleTeardown();
+			return instance;
+		}
 
 		loading = import('@ffmpeg/ffmpeg').then(async (loadedModule) => {
 			module = loadedModule;
@@ -72,14 +120,21 @@ export function createEditorFfmpeg(options = {}) {
 			throw error instanceof FfmpegCoreUnavailableError ? error : new FfmpegCoreUnavailableError(error);
 		});
 
-		return loading;
+		const instance = await loading;
+		scheduleIdleTeardown();
+		return instance;
 	}
 
 	function run(task) {
+		cancelIdleTeardown();
+		pendingOperations += 1;
 		const execute = async () => task(await load());
 		const result = queue.then(execute, execute);
 		queue = result.catch(() => undefined);
-		return result;
+		return result.finally(() => {
+			pendingOperations -= 1;
+			if (pendingOperations === 0) scheduleIdleTeardown();
+		});
 	}
 
 	async function encode(wav, format, settings = {}) {
@@ -209,16 +264,21 @@ export function createEditorFfmpeg(options = {}) {
 	}
 
 	function dispose() {
-		if (ffmpeg) {
-			ffmpeg.off('progress', handleProgress);
-			ffmpeg.terminate();
-		}
-		ffmpeg = null;
-		loading = null;
+		cancelIdleTeardown();
+		terminateRuntime();
 		queue = Promise.resolve();
 	}
 
 	return { load, encode, encodeFile, decode, dispose, capabilities: () => capabilities };
+}
+
+function normalizeIdleTimeout(value) {
+	if (value === false || value === null) return null;
+	if (value === undefined) return DEFAULT_IDLE_TIMEOUT_MS;
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+		throw new TypeError('FFmpeg idleTimeoutMs must be a non-negative finite number, false, or null.');
+	}
+	return value;
 }
 
 export function encoderArgs(input, output, format, settings = {}) {
