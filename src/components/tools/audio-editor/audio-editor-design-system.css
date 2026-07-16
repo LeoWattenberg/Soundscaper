@@ -509,7 +509,8 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__action-bar-button[aria-pressed='true'] {
-	background-color: var(--button-bg-active) !important;
+	background-color: var(--kw-editor-primary-button-bg) !important;
+	color: var(--kw-editor-primary-button-text) !important;
 }
 
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
@@ -524,8 +525,12 @@
 	background-color: var(--kw-toolbar-button-hover) !important;
 }
 
-#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--pressed, .toggle-tool-button--on, .toggle-tool-button--on-hover) {
-	background-color: var(--kw-toolbar-button-active) !important;
+#kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--pressed, .toggle-tool-button--on) {
+	background-color: var(--kw-toolbar-button-primary) !important;
+}
+
+#kw-audio-editor-design-system [data-editor-tool-toolbar] .toggle-tool-button--on-hover {
+	background-color: var(--kw-toolbar-button-primary-hover) !important;
 }
 
 #kw-audio-editor-design-system [data-editor-tool-toolbar] :is(.tool-button--disabled, .toggle-tool-button--disabled) {

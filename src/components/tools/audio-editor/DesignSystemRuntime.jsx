@@ -61,9 +61,9 @@ export function useAudioEditorThemeVariables() {
 		'--kw-editor-panel': theme.background.surface.elevated,
 		'--kw-editor-control': theme.background.control.input.idle,
 		'--kw-editor-text': theme.foreground.text.primary,
-		'--kw-editor-primary-button-text': theme === darkTheme
-			? theme.foreground.text.inverse
-			: theme.foreground.text.primary,
+		'--kw-editor-primary-button-bg': theme.background.control.button.primary.idle,
+		'--kw-editor-primary-button-hover': theme.background.control.button.primary.hover,
+		'--kw-editor-primary-button-text': theme.foreground.text.inverse,
 		'--kw-editor-muted': theme.foreground.text.secondary,
 		'--kw-editor-line': theme.border.onSurface,
 		'--kw-editor-stage': theme.background.canvas.default,
@@ -85,6 +85,8 @@ export function useAudioEditorThemeVariables() {
 		'--kw-toolbar-button-bg': theme.background.control.button.secondary.idle,
 		'--kw-toolbar-button-hover': theme.background.control.button.secondary.hover,
 		'--kw-toolbar-button-active': theme.background.control.button.secondary.active,
+		'--kw-toolbar-button-primary': theme.background.control.button.primary.idle,
+		'--kw-toolbar-button-primary-hover': theme.background.control.button.primary.hover,
 		colorScheme: theme === darkTheme ? 'dark' : 'light',
 	}), [theme]);
 }
