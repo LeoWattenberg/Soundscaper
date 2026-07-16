@@ -21,9 +21,10 @@ Several high-volume paths avoid retaining a whole operation in RAM. Large
 uncompressed mono/stereo RIFF/WAVE imports are decoded from bounded `Blob`
 slices directly into storage; recording packets are coalesced into canonical
 storage chunks; and IndexedDB source iteration uses small cursor pages. AUP4
-snapshot writes stage and acknowledge one source at a time, while the lazy
-FFmpeg worker is terminated after 30 seconds without queued work and reloaded
-on demand.
+snapshot writes stage and acknowledge one source at a time. Oversized Mix and
+Render jobs use a bounded real-time pipeline that writes stereo output directly
+into canonical storage chunks. The lazy FFmpeg worker is terminated after 30
+seconds without queued work and reloaded on demand.
 
 This is a bounded-working-set design, not a zero-RAM mode. Web Audio still needs
 working buffers, and compressed imports, some destructive or stateful effects,
