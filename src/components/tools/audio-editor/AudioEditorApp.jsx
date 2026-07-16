@@ -303,6 +303,28 @@ function AudioEditorWorkspace({ locale, copy }) {
 		});
 		return nextZoom;
 	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond]);
+	const jumpTransport = useCallback((action) => {
+		const value = run(action);
+		requestAnimationFrame(() => {
+			const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
+			if (!scroll) return;
+			const positionFrame = controller.getTelemetrySnapshot?.().positionFrame || 0;
+			const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
+			const sampleRate = project?.sampleRate || 48_000;
+			const nextScroll = positionFrame / sampleRate * pixelsPerSecond - scroll.clientWidth / 2;
+			const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+			scroll.scrollLeft = Math.max(0, Math.min(maximumScroll, nextScroll));
+		});
+		return value;
+	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond]);
+	const jumpToStart = useCallback(
+		() => jumpTransport(() => controller.actions.transport.jumpStart()),
+		[controller, jumpTransport],
+	);
+	const jumpToEnd = useCallback(
+		() => jumpTransport(() => controller.actions.transport.jumpEnd()),
+		[controller, jumpTransport],
+	);
 
 	useEffect(() => {
 		const editor = editorRef.current;
@@ -817,8 +839,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 			onToggleAutomationTool={toggleAutomationTool}
 			actionRuntime={parityRuntime.actions}
 			onOpenSpectralSelection={openSpectralSelection}
-			onOpenRecordingOffset={openRecordingOffset}
+				onOpenRecordingOffset={openRecordingOffset}
 			onOpenTimedRecording={openTimedRecording}
+			onJumpToStart={jumpToStart}
+			onJumpToEnd={jumpToEnd}
 			onGripperMouseDown={handleToolbarGripperMouseDown}
 		/>
 	);
@@ -1313,6 +1337,8 @@ function EditorToolToolbar({
 	onOpenSpectralSelection,
 	onOpenRecordingOffset,
 	onOpenTimedRecording,
+	onJumpToStart,
+	onJumpToEnd,
 	onGripperMouseDown,
 }) {
 	const telemetry = useAudioEditorTelemetry(controller);
@@ -1432,14 +1458,14 @@ function EditorToolToolbar({
 						</AudioEditorSplitButton>
 					</span>
 					}
-					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpStart())} />}
-					{isToolbarButtonVisible('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={() => run(() => controller.actions.transport.jumpEnd())} />}
+					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={onJumpToStart} />}
+					{isToolbarButtonVisible('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={onJumpToEnd} />}
 					{isToolbarButtonVisible('loop') && <AccessibleTransportButton
 						icon="loop"
 						ariaLabel={copy.loop}
 						active={Boolean(project?.loop?.enabled)}
 						pressed={Boolean(project?.loop?.enabled)}
-						disabled={!selectionActive}
+						disabled={blocked}
 						onClick={() => run(() => controller.actions.transport.toggleLoop())}
 					/>
 					}

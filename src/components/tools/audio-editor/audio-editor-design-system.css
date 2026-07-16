@@ -1467,23 +1467,31 @@
 	left: 0;
 	display: flex;
 	height: 100%;
-	flex-direction: column;
-	justify-content: space-between;
+	align-items: center;
 	gap: 8px;
 	padding: 9px;
 	background: var(--kw-editor-stage-raised);
 	border-right: 1px solid var(--kw-editor-stage-line);
 }
 
-#kw-audio-editor-design-system :is(.audio-editor-label-track-title, .audio-editor-label-track-actions) {
+#kw-audio-editor-design-system .audio-editor-label-track-title {
 	display: flex;
 	align-items: center;
 	gap: 7px;
+	min-width: 0;
+	flex: 1;
 }
 
 #kw-audio-editor-design-system .audio-editor-label-track-title [data-track-name] {
 	min-width: 0;
 	flex: 1;
+}
+
+#kw-audio-editor-design-system .audio-editor-label-track-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
 }
 
 #kw-audio-editor-design-system .audio-editor-label-lane {
@@ -1844,6 +1852,7 @@
 	z-index: 70;
 	top: 34px;
 	height: calc(100% - 34px);
+	overflow: hidden;
 	pointer-events: none;
 }
 

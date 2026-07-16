@@ -3418,7 +3418,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (action === 'loop') {
 			const selection = activeSelection();
 			const enabled = !engine.getState().loop.enabled;
-			const range = selection || { startFrame: 0, endFrame: projectDurationFrames(project) };
+			const storedLoop = project.loop?.endFrame > project.loop?.startFrame
+				? project.loop
+				: null;
+			const range = storedLoop || selection || {
+				startFrame: 0,
+				endFrame: Math.max(1, Math.round(projectSampleRate() * 4)),
+			};
 			const next = commitLoopRange({ enabled, ...range });
 			engine.setLoop(next.loop);
 			return;

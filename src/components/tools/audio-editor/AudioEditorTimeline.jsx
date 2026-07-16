@@ -2337,7 +2337,7 @@ function LabelTrackRow({
 		>
 			<div className="audio-editor-label-track-controls" style={{ width: panelWidth }}>
 				<div className="audio-editor-label-track-title">
-					<span aria-hidden="true">T</span>
+					<Icon name="label" size={16} aria-hidden="true" />
 					{editingName ? (
 						<TrackNameEditor
 							track={track}
