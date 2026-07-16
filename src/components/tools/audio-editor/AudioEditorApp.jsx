@@ -1338,7 +1338,7 @@ function EditorToolToolbar({
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
-	const viewButtonsVisible = ['split-tool', 'volume-automation', 'waveform-view', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
+	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
 	const toolbarButtonOptions = [
@@ -1350,7 +1350,6 @@ function EditorToolToolbar({
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
-		{ id: 'waveform-view', label: copy.waveformView, icon: 'waveform' },
 		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
 		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
 		{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'brush' },
@@ -1472,8 +1471,7 @@ function EditorToolToolbar({
 						/>
 					</span>
 					}
-					{isToolbarButtonVisible('waveform-view') && <ToggleToolButton icon="waveform" isActive={snapshot.timeline?.view === 'waveform'} ariaLabel={copy.waveformView} onClick={() => run(() => controller.actions.timeline.setView('waveform'))} />}
-					{isToolbarButtonVisible('spectrogram-view') && <ToggleToolButton icon="spectrogram" isActive={snapshot.timeline?.view === 'spectrogram'} ariaLabel={copy.spectrogramView} onClick={() => run(() => controller.actions.timeline.setView('spectrogram'))} />}
+					{isToolbarButtonVisible('spectrogram-view') && <ToggleToolButton icon="spectrogram" isActive={snapshot.timeline?.view === 'spectrogram'} ariaLabel={copy.spectrogramView} onClick={() => run(() => controller.actions.timeline.setAllTracksView(snapshot.timeline?.view === 'spectrogram' ? 'waveform' : 'spectrogram'))} />}
 					{isToolbarButtonVisible('spectral-box-select') && <span data-action-id="spectral-box-select">
 						<ToolButton
 							icon="spectrogram"

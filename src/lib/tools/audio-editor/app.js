@@ -758,6 +758,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				snapFrame: (frame, overrides) => snapTimelineFrame(frame, overrides),
 				zeroCross: selectAtZeroCrossings,
 				setView: setTimelineView,
+				setAllTracksView: setAllTracksView,
 				toggleRms: toggleRmsWaveform,
 				toggleVerticalRulers,
 				toggleUpdateWhilePlaying,
@@ -4091,6 +4092,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.timelineView = ['spectrogram', 'multiview'].includes(view) ? view : 'waveform';
 		publishDocumentSnapshot();
 		return state.timelineView;
+	}
+
+	function setAllTracksView(view) {
+		const displayMode = view === 'spectrogram' ? 'spectrogram' : 'waveform';
+		if (!project) return setTimelineView(displayMode);
+		if (editingBlocked()) return null;
+		state.timelineView = displayMode;
+		const commands = project.tracks
+			.filter((track) => track.type !== 'label' && track.displayMode !== displayMode)
+			.map((track) => ({ type: 'track/update', trackId: track.id, changes: { displayMode } }));
+		if (!commands.length) {
+			publishDocumentSnapshot();
+			return project;
+		}
+		return commit({ type: 'batch', commands });
 	}
 
 	function duplicateTrack(track) {

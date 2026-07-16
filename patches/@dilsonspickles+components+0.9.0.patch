@@ -1239,7 +1239,7 @@ index 0bcfe41..9593984 100644
  .selection-toolbar .timecode {
    min-width: fit-content;
  }
-++.flyout {
++.flyout {
 +  position: fixed;
 +  z-index: 10000;
 +  background: var(--flyout-bg, #f8f8f9);

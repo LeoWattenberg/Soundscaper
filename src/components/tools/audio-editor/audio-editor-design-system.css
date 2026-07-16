@@ -81,7 +81,12 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__split-button-flyout {
+	position: fixed;
+	z-index: 10000;
 	min-width: 220px;
+	background: var(--flyout-bg, var(--kw-editor-bg));
+	border: 1px solid var(--flyout-border, var(--kw-editor-line));
+	box-shadow: var(--kw-editor-shadow);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__split-button-options {
