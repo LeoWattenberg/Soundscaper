@@ -1899,7 +1899,7 @@
 	z-index: 70;
 	top: 34px;
 	height: calc(100% - 34px);
-	overflow: hidden;
+	overflow: visible;
 	pointer-events: none;
 }
 
