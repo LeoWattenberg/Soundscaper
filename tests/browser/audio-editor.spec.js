@@ -509,10 +509,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		const topRecordingMeter = editor.locator('[data-meter-kind="recording"][data-meter-position="top"]:not([data-input-meter])');
 		await expect(topRecordingMeter).toBeVisible();
 		await expect(topRecordingMeter).toHaveAttribute('data-meter-orientation', 'horizontal');
+		await expect(topRecordingMeter.getByRole('slider', { name: 'Record level', exact: true })).toBeVisible();
 		await microphoneFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
 		const sideRecordingMeter = editor.locator('[data-side-recording-meter]');
 		await expect(sideRecordingMeter).toBeVisible();
 		await expect(sideRecordingMeter.locator('[data-meter-kind="recording"]')).toHaveAttribute('data-meter-orientation', 'vertical');
+		await expect(sideRecordingMeter.getByRole('slider', { name: 'Record level', exact: true })).toBeVisible();
 		await page.keyboard.press('Escape');
 
 		let playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });

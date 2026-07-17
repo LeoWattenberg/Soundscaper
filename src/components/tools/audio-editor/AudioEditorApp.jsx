@@ -1705,8 +1705,12 @@ function EditorToolToolbar({
 						settings={playbackMeterSettings}
 						orientation="horizontal"
 						clipped={uiFlags.clipping && (masterMeter?.peak || 0) >= 1}
-						volume={Math.min(1, project?.master?.gain ?? 1)}
-						onVolumeChange={(gain) => run(() => controller.actions.effects.setMasterGain(gain))}
+						slider={playbackMeterSlider(
+							copy,
+							Math.min(1, project?.master?.gain ?? 1),
+							playbackMeterSettings,
+							(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
+						)}
 						compact={isCompact}
 					/>}
 				</ToolbarButtonGroup>}
@@ -1843,6 +1847,43 @@ function recordingMeterChannelCount(snapshot) {
 	return snapshot.recordingInputs?.routes?.[snapshot.selectedTrackId]?.channelCount === 2 ? 2 : 1;
 }
 
+function recordingMeterSlider(copy, snapshot, controller, run) {
+	const inputGain = snapshot.recordingOptions?.inputGain ?? 1;
+	const inputGainDb = Math.max(-60, Math.min(6, inputGain > 0 ? 20 * Math.log10(inputGain) : -60));
+	return {
+		minimum: -60,
+		maximum: 6,
+		step: 0.1,
+		value: inputGainDb,
+		label: copy.recordLevel,
+		valueText: formatDb(inputGainDb),
+		onChange: (value) => run(() => controller.actions.recording.setLevel(value <= -60 ? 0 : 10 ** (value / 20))),
+	};
+}
+
+function playbackMeterSlider(copy, volume, settings, onChange) {
+	const range = settings.type === 'amplitude' ? 60 : settings.dbRange;
+	const position = playbackMeterPercent(
+		playbackMeterAmplitudeToDb(volume, range),
+		settings.type,
+		range,
+	) / 100;
+	const valueText = settings.type === 'amplitude'
+		? volume.toFixed(2)
+		: volume <= 0
+			? '−∞ dB'
+			: `${String(Math.round(playbackMeterAmplitudeToDb(volume, range) * 10) / 10).replace('-', '−')} dB`;
+	return {
+		minimum: 0,
+		maximum: 1,
+		step: 0.001,
+		value: position,
+		label: copy.playbackVolume,
+		valueText,
+		onChange: (nextPosition) => onChange(playbackMeterGainFromPosition(nextPosition, settings.type, range)),
+	};
+}
+
 function RecordingMeterToolbarGroup({
 	copy,
 	snapshot,
@@ -1854,6 +1895,7 @@ function RecordingMeterToolbarGroup({
 	const inputMeterDb = useRecordingMeter(controller);
 	const meter = recordingMeterData(inputMeterDb);
 	const meterVisible = Boolean(snapshot.recording || snapshot.monitor?.metering);
+	const slider = recordingMeterSlider(copy, snapshot, controller, run);
 
 	return (
 		<ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
@@ -1892,6 +1934,7 @@ function RecordingMeterToolbarGroup({
 				channelCount={recordingMeterChannelCount(snapshot)}
 				meterLabel={copy.inputLevel}
 				meterKind="recording"
+				slider={slider}
 			/>}
 		</ToolbarButtonGroup>
 	);
@@ -1906,8 +1949,7 @@ function RecordingMeterFlyout({
 	settings,
 	onSettingsChange,
 }) {
-	const inputGain = snapshot.recordingOptions?.inputGain ?? 1;
-	const inputGainDb = Math.max(-60, Math.min(6, inputGain > 0 ? 20 * Math.log10(inputGain) : -60));
+	const slider = recordingMeterSlider(copy, snapshot, controller, run);
 
 	return (
 		<div className="kw-audio-editor__microphone-level-content" data-microphone-level-flyout>
@@ -1921,23 +1963,8 @@ function RecordingMeterFlyout({
 				meterLabel={copy.inputLevel}
 				meterKind="recording"
 				dataMeterAttribute="input-meter"
+				slider={slider}
 			/>}
-			<label className="kw-audio-editor__microphone-level-slider" data-recording-level>
-				<span className="kw-audio-editor-sr-only">{copy.recordLevel}</span>
-				<input
-					type="range"
-					min="-60"
-					max="6"
-					step="0.1"
-					value={inputGainDb}
-					aria-label={copy.recordLevel}
-					onChange={(event) => {
-						const db = Number(event.currentTarget.value);
-						run(() => controller.actions.recording.setLevel(db <= -60 ? 0 : 10 ** (db / 20)));
-					}}
-				/>
-				<output>{formatDb(inputGainDb)}</output>
-			</label>
 			<p>{copy.microphoneLevelNote}</p>
 			<Separator />
 			<MeterSettingsFlyout
@@ -2111,8 +2138,12 @@ function SidePlaybackMeter({
 				settings={settings}
 				orientation="vertical"
 				clipped={clippingEnabled && (masterMeter?.peak || 0) >= 1}
-				volume={Math.min(1, project?.master?.gain ?? 1)}
-				onVolumeChange={(gain) => run(() => controller.actions.effects.setMasterGain(gain))}
+				slider={playbackMeterSlider(
+					copy,
+					Math.min(1, project?.master?.gain ?? 1),
+					settings,
+					(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
+				)}
 			/>
 		</aside>
 	);
@@ -2128,6 +2159,7 @@ function SideRecordingMeter({
 }) {
 	const inputMeterDb = useRecordingMeter(controller);
 	const meter = recordingMeterData(inputMeterDb);
+	const slider = recordingMeterSlider(copy, snapshot, controller, run);
 	return (
 		<aside
 			className="kw-audio-editor__side-recording-meter"
@@ -2157,6 +2189,7 @@ function SideRecordingMeter({
 				channelCount={recordingMeterChannelCount(snapshot)}
 				meterLabel={copy.inputLevel}
 				meterKind="recording"
+				slider={slider}
 			/>
 		</aside>
 	);
@@ -2168,8 +2201,7 @@ function AudacityAudioMeter({
 	settings,
 	orientation,
 	clipped,
-	volume,
-	onVolumeChange,
+	slider,
 	channelCount = 2,
 	meterLabel,
 	meterKind = 'playback',
@@ -2190,21 +2222,6 @@ function AudacityAudioMeter({
 		? Math.max(0, Math.min(1, Number(meter?.peak) || 0))
 		: Math.max(-range, Math.min(0, peakDb));
 	const ticks = playbackMeterTicks(settings.type, range, meterSize);
-	const hasVolume = volume != null && onVolumeChange;
-	const volumePosition = hasVolume
-		? playbackMeterPercent(
-			playbackMeterAmplitudeToDb(volume, range),
-			settings.type,
-			range,
-		) / 100
-		: 0;
-	const volumeValueText = !hasVolume
-		? ''
-		: settings.type === 'amplitude'
-			? volume.toFixed(2)
-			: volume <= 0
-				? '−∞ dB'
-				: `${String(Math.round(playbackMeterAmplitudeToDb(volume, range) * 10) / 10).replace('-', '−')} dB`;
 	const style = {
 		'--playback-meter-peak': `${peakPercent}%`,
 		'--playback-meter-rms': `${rmsPercent}%`,
@@ -2264,22 +2281,18 @@ function AudacityAudioMeter({
 					>{tick.label}</span>
 				))}
 			</div>
-			{volume != null && onVolumeChange && <input
+			{slider && <input
 				className="kw-audio-editor__playback-meter-volume"
 				type="range"
-				min="0"
-				max="1"
-				step="0.001"
-				value={volumePosition}
-				aria-label={copy.playbackVolume}
+				min={slider.minimum}
+				max={slider.maximum}
+				step={slider.step}
+				value={slider.value}
+				aria-label={slider.label}
 				aria-orientation={orientation}
-				aria-valuetext={volumeValueText}
+				aria-valuetext={slider.valueText}
 				orient={orientation === 'vertical' ? 'vertical' : undefined}
-				onChange={(event) => onVolumeChange(playbackMeterGainFromPosition(
-					Number(event.currentTarget.value),
-					settings.type,
-					range,
-				))}
+				onChange={(event) => slider.onChange(Number(event.currentTarget.value))}
 			/>}
 			{clipped && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
 		</div>

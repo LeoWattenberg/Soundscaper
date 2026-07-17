@@ -833,6 +833,54 @@ test('routed recording stores context-rate channels while clips keep project-rat
 	}
 });
 
+test('selecting stereo upgrades the active default input and stores two recording channels', async () => {
+	const store = createProjectStore({ databaseName: 'recording-controller-preferred-stereo' });
+	const engine = createRecordingEngine();
+	const mono = createMockStream([createMockTrack('audio', { channelCount: 1 })]);
+	const stereo = createMockStream([createMockTrack('audio', { channelCount: 2 })]);
+	const pool = createCapturePool({
+		hardware: {
+			default: ({ channelCount }) => channelCount === 2 ? stereo : mono,
+		},
+	});
+	const createdControllers = [];
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(createdControllers),
+	});
+
+	try {
+		await controller.ready;
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.recording.setTrackInput(trackId, {
+			kind: 'device',
+			deviceId: 'default',
+			channelStart: 0,
+			channelCount: 1,
+		});
+		await controller.actions.audioDevices.setPreferredInputChannelCount(2);
+		assert.equal(controller.getSnapshot().recordingInputs.routes[trackId].channelCount, 2);
+		assert.equal(pool.hardwareRequests.at(-1).channelCount, 2);
+
+		await controller.actions.recording.start({ trackId });
+		const left = new Float32Array(480).fill(0.25);
+		const right = new Float32Array(480).fill(-0.5);
+		await createdControllers[0].onChunk({ channels: [left, right] });
+		await controller.actions.recording.stop();
+
+		const source = controller.getSnapshot().project.sources[0];
+		assert.equal(source.channelCount, 2);
+		const stored = await store.readSourceChunk(source.id, 0);
+		assert.equal(stored.channels[0][100], 0.25);
+		assert.equal(stored.channels[1][100], -0.5);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('audio device preferences persist, preserve explicit routes, and recover from output hot-plug changes', async () => {
 	const store = createProjectStore({ databaseName: 'audio-device-preferences' });
 	const engine = createRecordingEngine();
@@ -945,7 +993,10 @@ function createCapturePool({ hardware = {}, display = null, hardwareFailures = n
 			if (disposed) throw new Error('Capture pool is disposed.');
 			pool.hardwareRequests.push({ deviceId, channelCount: options.channelCount });
 			if (hardwareFailures.has(deviceId)) throw new Error(`Input ${deviceId} is unavailable.`);
-			const stream = hardwareEntries.get(deviceId) || hardware[deviceId];
+			const configuredStream = hardware[deviceId];
+			const stream = typeof configuredStream === 'function'
+				? configuredStream(options, hardwareEntries.get(deviceId) || null)
+				: hardwareEntries.get(deviceId) || configuredStream;
 			if (!stream) throw new Error(`Input ${deviceId} is unavailable.`);
 			hardwareEntries.set(deviceId, stream);
 			return stream;

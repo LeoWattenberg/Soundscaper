@@ -4284,6 +4284,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function setPreferredInputChannelCount(channelCount) {
 		const normalized = Number(channelCount) === 2 ? 2 : 1;
 		state.preferredInputChannelCount = normalized;
+		if (!state.recordingRouting.routes[state.selectedTrackId]) {
+			assignPreferredInputToTrack(state.selectedTrackId);
+		}
+		const selectedRoute = state.recordingRouting.routes[state.selectedTrackId];
+		if (selectedRoute?.kind === 'device'
+			&& selectedRoute.deviceId === state.preferredInputDeviceId
+			&& selectedRoute.channelStart === 0
+			&& selectedRoute.channelCount !== normalized) {
+			try {
+				await setRecordingTrackInput(state.selectedTrackId, {
+					...selectedRoute,
+					channelCount: normalized,
+				});
+			} catch {
+				// Keep the preference for new tracks when the selected route cannot use it.
+			}
+		}
 		publishDocumentSnapshot();
 		await persistAudioDevicePreferences();
 		return normalized;
@@ -7619,13 +7636,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 				channelStart: 0,
 				channelCount: state.preferredInputChannelCount,
 			};
+			const requestedChannels = route.channelStart + route.channelCount;
+			const retained = route.kind === 'display'
+				? recordingCapturePool.getDisplay?.()
+				: recordingCapturePool.getHardware?.(route.deviceId);
+			if (options.reusePreparedInputsOnly && (!retained
+				|| (route.kind !== 'display' && streamAudioChannelCount(retained) < requestedChannels))) {
+				throw new Error('The prepared recording input closed before the timer was armed.');
+			}
 			const stream = route.kind === 'display'
-				? recordingCapturePool.getDisplay?.() || await recordingCapturePool.acquireDisplay()
-				: recordingCapturePool.getHardware?.(route.deviceId)
-					|| await recordingCapturePool.acquireHardware(route.deviceId, {
-						channelCount: route.channelStart + route.channelCount,
-						sampleRate,
-					});
+				? retained || await recordingCapturePool.acquireDisplay()
+				: await recordingCapturePool.acquireHardware(route.deviceId, {
+					channelCount: requestedChannels,
+					sampleRate,
+				});
 			if (!recordingStreamIsLive(stream, route.kind)) {
 				throw new Error('The recording input closed before the timer was armed.');
 			}
@@ -7823,10 +7847,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			// The legacy path still records the active/explicit track from the
 			// default input, but reuses that input between takes when retention is on.
 			stream = recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID);
-			if (!stream && options.reusePreparedInputsOnly) {
+			if (options.reusePreparedInputsOnly && (!stream || streamAudioChannelCount(stream) < 2)) {
 				throw new Error('The prepared recording input closed before the timer was armed.');
 			}
-			stream ||= await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
+			stream = await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate });
 			assertRecordingStartActive(token);
 			syncRecordingPoolSnapshot();
 			if (!timedStart) await beginPlaybackCachePreparation(project);
@@ -8056,7 +8080,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const retained = firstRoute.kind === 'display'
 					? recordingCapturePool.getDisplay?.()
 					: recordingCapturePool.getHardware?.(firstRoute.deviceId);
-				const promise = retained
+				const reusable = retained && (firstRoute.kind === 'display' || streamAudioChannelCount(retained) >= requiredChannels);
+				const promise = reusable
 					? Promise.resolve(retained)
 					: options.reusePreparedInputsOnly
 						? Promise.reject(new Error('A prepared recording input closed before the timer was armed.'))
