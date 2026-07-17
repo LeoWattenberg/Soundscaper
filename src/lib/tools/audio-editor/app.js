@@ -7611,12 +7611,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 				explicitRoute.kind === 'display'
 				|| explicitRoute.deviceId !== RECORDING_DEFAULT_DEVICE_ID
 				|| explicitRoute.channelStart > 0
+				|| explicitRoute.channelCount !== 2
 			);
 			const route = needsRoutedRecording ? explicitRoute : {
 				kind: 'device',
 				deviceId: RECORDING_DEFAULT_DEVICE_ID,
 				channelStart: 0,
-				channelCount: 2,
+				channelCount: state.preferredInputChannelCount,
 			};
 			const stream = route.kind === 'display'
 				? recordingCapturePool.getDisplay?.() || await recordingCapturePool.acquireDisplay()
@@ -7789,6 +7790,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			explicitRoute.kind === 'display'
 			|| explicitRoute.deviceId !== RECORDING_DEFAULT_DEVICE_ID
 			|| explicitRoute.channelStart > 0
+			|| explicitRoute.channelCount !== 2
 		);
 		const operation = options.trackId && !needsRoutedRecording
 			? startLegacyRecording(options, token)

@@ -48,10 +48,10 @@ test('legacy recording reuses a retained mono default input between takes', asyn
 		await controller.actions.recording.stop();
 
 		assert.equal(pool.hardwareRequests.length, 1);
-		assert.deepEqual(pool.hardwareRequests[0], { deviceId: 'default', channelCount: 2 });
+		assert.deepEqual(pool.hardwareRequests[0], { deviceId: 'default', channelCount: 1 });
 		assert.equal(createdControllers.length, 2);
 		assert.equal(createdControllers.every(({ channelCount }) => channelCount === 1), true);
-		assert.equal(createdControllers.every(({ discreteChannels }) => discreteChannels === false), true);
+		assert.equal(createdControllers.every(({ discreteChannels }) => discreteChannels !== false), true);
 		assert.equal(input.getAudioTracks()[0].stopCount, 0);
 		assert.equal(controller.getSnapshot().recordingInputs.hasOpenInputs, true);
 		assert.equal((await store.listSources()).length, 0);
@@ -458,7 +458,7 @@ test('timer recording opens the input immediately and starts the prepared take o
 		assert.equal(controller.getSnapshot().scheduledRecording.startTimeMs, startTimeMs);
 		assert.equal(controller.getSnapshot().recording, false);
 		assert.equal(controller.getSnapshot().recordingInputs.hasOpenInputs, true);
-		assert.deepEqual(pool.hardwareRequests, [{ deviceId: 'default', channelCount: 2 }]);
+		assert.deepEqual(pool.hardwareRequests, [{ deviceId: 'default', channelCount: 1 }]);
 		assert.equal(createdControllers.length, 1, 'the recorder pipeline is prepared while permission is available');
 		assert.deepEqual(createdControllers[0].startOptions, {
 			startFrame: 480_000,
