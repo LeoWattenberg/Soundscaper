@@ -473,6 +473,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(microphoneFlyout).toBeVisible();
 		await expect(microphoneFlyout.getByText('Microphone level', { exact: true })).toBeVisible();
 		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toBeVisible();
+		await expect(microphoneFlyout.getByRole('radio', { name: 'Flyout only', exact: true })).toBeChecked();
+		await expect(microphoneFlyout.getByRole('radio', { name: 'Gradient', exact: true })).toBeVisible();
+		await expect(microphoneFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toBeVisible();
 		const recordGain = microphoneFlyout.getByRole('slider', { name: 'Record level', exact: true });
 		await recordGain.fill('-6');
 		await expect(recordGain).toHaveValue('-6');
@@ -501,6 +504,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
 		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuenow', '-60');
 		await expect(editor.locator('[data-idle-input-meter]')).toHaveCount(0);
+		await microphoneFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true }).click();
+		await expect(microphoneFlyout.locator('[data-input-meter]')).toHaveCount(0);
+		const topRecordingMeter = editor.locator('[data-meter-kind="recording"][data-meter-position="top"]:not([data-input-meter])');
+		await expect(topRecordingMeter).toBeVisible();
+		await expect(topRecordingMeter).toHaveAttribute('data-meter-orientation', 'horizontal');
+		await microphoneFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
+		const sideRecordingMeter = editor.locator('[data-side-recording-meter]');
+		await expect(sideRecordingMeter).toBeVisible();
+		await expect(sideRecordingMeter.locator('[data-meter-kind="recording"]')).toHaveAttribute('data-meter-orientation', 'vertical');
 		await page.keyboard.press('Escape');
 
 		let playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
@@ -508,6 +520,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await playbackSettings.click();
 		let speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
 		await expect(speakerFlyout).toBeVisible();
+		await expect(speakerFlyout.getByRole('checkbox')).toHaveCount(0);
 		await expect(speakerFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true })).toBeChecked();
 		await speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
 		await expect(speakerFlyout).toBeHidden();

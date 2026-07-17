@@ -696,6 +696,29 @@
 	isolation: isolate;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__playback-meter-surface--compact.kw-audio-editor__idle-input-meter {
+	box-sizing: border-box;
+	width: 64px;
+	min-width: 64px;
+	height: 12px;
+	padding: 0;
+	border-radius: 2px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__playback-meter-surface--compact.kw-audio-editor__idle-input-meter .kw-audio-editor__playback-meter-channels {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+	gap: 1px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__playback-meter-surface--compact.kw-audio-editor__idle-input-meter .kw-audio-editor__playback-meter-ruler {
+	display: none;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__playback-meter-channels {
 	display: grid;
 	min-width: 0;
@@ -876,7 +899,7 @@
 	border-radius: 1px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__side-playback-meter {
+#kw-audio-editor-design-system :is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) {
 	box-sizing: border-box;
 	display: flex;
 	width: 72px;
@@ -891,7 +914,7 @@
 	border-left: 1px solid var(--kw-editor-line);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__side-playback-meter .kw-audio-editor__master-meter {
+#kw-audio-editor-design-system :is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) .kw-audio-editor__master-meter {
 	width: 52px;
 	min-width: 52px;
 	min-height: 160px;
@@ -1120,22 +1143,6 @@
 	display: block;
 	height: 100%;
 	background: var(--meter-fill, #48b05e);
-	transition: width 70ms linear;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__idle-input-meter {
-	width: 64px;
-	height: 12px;
-	overflow: hidden;
-	background: color-mix(in srgb, var(--kw-editor-line) 45%, transparent);
-	border: 1px solid var(--kw-editor-line);
-	border-radius: 2px;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__idle-input-meter span {
-	display: block;
-	height: 100%;
-	background: #48b05e;
 	transition: width 70ms linear;
 }
 

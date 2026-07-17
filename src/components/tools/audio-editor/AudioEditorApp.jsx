@@ -81,8 +81,19 @@ import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
 
 const PLAYBACK_METER_SETTINGS_STORAGE_KEY = 'soundscaper-playback-meter-settings-v1';
+const RECORDING_METER_SETTINGS_STORAGE_KEY = 'soundscaper-recording-meter-settings-v1';
+const METER_POSITIONS = Object.freeze(['flyout', 'top', 'side']);
+const METER_STYLES = Object.freeze(['default', 'rms', 'gradient']);
+const METER_TYPES = Object.freeze(['db-log', 'db-linear', 'amplitude']);
+const METER_DB_RANGES = Object.freeze([36, 48, 60, 72, 84, 96, 120, 144]);
 const DEFAULT_PLAYBACK_METER_SETTINGS = Object.freeze({
 	position: 'top',
+	style: 'default',
+	type: 'db-log',
+	dbRange: 60,
+});
+const DEFAULT_RECORDING_METER_SETTINGS = Object.freeze({
+	position: 'flyout',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
@@ -151,6 +162,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [toolbarDock, setToolbarDock] = useState('top');
 	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(loadPlaybackMeterSettings);
+	const [recordingMeterSettings, setRecordingMeterSettings] = useState(loadRecordingMeterSettings);
 	const toolbarDragRef = useRef(null);
 	const importInputRef = useRef(null);
 	const labelInputRef = useRef(null);
@@ -267,6 +279,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 			// Meter presentation preferences are best-effort in restricted storage contexts.
 		}
 	}, [playbackMeterSettings]);
+	useEffect(() => {
+		try {
+			globalThis.localStorage?.setItem(
+				RECORDING_METER_SETTINGS_STORAGE_KEY,
+				JSON.stringify(recordingMeterSettings),
+			);
+		} catch {
+			// Meter presentation preferences are best-effort in restricted storage contexts.
+		}
+	}, [recordingMeterSettings]);
 	const uiFlags = parityUi.flags;
 
 	const onError = useCallback((error) => {
@@ -864,6 +886,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 			uiFlags={uiFlags}
 			playbackMeterSettings={playbackMeterSettings}
 			onPlaybackMeterSettingsChange={setPlaybackMeterSettings}
+			recordingMeterSettings={recordingMeterSettings}
+			onRecordingMeterSettingsChange={setRecordingMeterSettings}
 			automationToolEnabled={automationToolEnabled}
 			onToggleAutomationTool={toggleAutomationTool}
 			actionRuntime={parityRuntime.actions}
@@ -1101,6 +1125,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 						settings={playbackMeterSettings}
 						onSettingsChange={setPlaybackMeterSettings}
 						clippingEnabled={uiFlags.clipping}
+						run={run}
+					/>}
+				{toolbarButtonPreferences.monitor !== false
+					&& recordingMeterSettings.position === 'side'
+					&& <SideRecordingMeter
+						controller={controller}
+						copy={copy}
+						snapshot={snapshot}
+						settings={recordingMeterSettings}
+						onSettingsChange={setRecordingMeterSettings}
 						run={run}
 					/>}
 				<WorkspacePanelDock
@@ -1376,6 +1410,8 @@ function EditorToolToolbar({
 	uiFlags,
 	playbackMeterSettings,
 	onPlaybackMeterSettingsChange,
+	recordingMeterSettings,
+	onRecordingMeterSettingsChange,
 	automationToolEnabled,
 	onToggleAutomationTool,
 	actionRuntime,
@@ -1639,29 +1675,31 @@ function EditorToolToolbar({
 					</span>
 				</label>
 
-				{isToolbarButtonVisible('monitor') && <MicrophoneMeterToolbarGroup
+				{isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
 					copy={copy}
 					snapshot={snapshot}
 					controller={controller}
 					run={run}
+					settings={recordingMeterSettings}
+					onSettingsChange={onRecordingMeterSettingsChange}
 				/>}
 
 				{uiFlags.masterTrack
 					&& isToolbarButtonVisible('playback-volume')
-					&& playbackMeterSettings.position === 'top'
+					&& playbackMeterSettings.position !== 'side'
 					&& <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
 					<AudacityToolbarFlyoutButton
 						icon={iconNameToChar('AUDIO')}
 						ariaLabel={copy.playbackMeterSettings}
 						flyoutClassName="kw-audio-editor__playback-meter-flyout"
 					>
-						<PlaybackMeterSettingsFlyout
+						<MeterSettingsFlyout
 							copy={copy}
 							settings={playbackMeterSettings}
 							onChange={onPlaybackMeterSettingsChange}
 						/>
 					</AudacityToolbarFlyoutButton>
-					<AudacityPlaybackMeter
+					{playbackMeterSettings.position === 'top' && <AudacityAudioMeter
 						copy={copy}
 						meter={masterMeter}
 						settings={playbackMeterSettings}
@@ -1670,7 +1708,7 @@ function EditorToolToolbar({
 						volume={Math.min(1, project?.master?.gain ?? 1)}
 						onVolumeChange={(gain) => run(() => controller.actions.effects.setMasterGain(gain))}
 						compact={isCompact}
-					/>
+					/>}
 				</ToolbarButtonGroup>}
 				</WorkspaceToolbarSection>,
 				].filter(Boolean).sort((left, right) => left.props.order - right.props.order)}
@@ -1789,16 +1827,33 @@ function AudacityToolbarFlyoutButton({
 	);
 }
 
-function MicrophoneMeterToolbarGroup({
+function useRecordingMeter(controller) {
+	return useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60)),
+	);
+}
+
+function recordingMeterData(dbfs) {
+	const peak = dbfs <= -60 ? 0 : 10 ** (dbfs / 20);
+	return { dbfs, peak, rms: peak };
+}
+
+function recordingMeterChannelCount(snapshot) {
+	return snapshot.recordingInputs?.routes?.[snapshot.selectedTrackId]?.channelCount === 2 ? 2 : 1;
+}
+
+function RecordingMeterToolbarGroup({
 	copy,
 	snapshot,
 	controller,
 	run,
+	settings,
+	onSettingsChange,
 }) {
-	const inputMeterDb = useAudioEditorTelemetrySelector(
-		controller,
-		(telemetry) => Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60)),
-	);
+	const inputMeterDb = useRecordingMeter(controller);
+	const meter = recordingMeterData(inputMeterDb);
+	const meterVisible = Boolean(snapshot.recording || snapshot.monitor?.metering);
 
 	return (
 		<ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
@@ -1807,92 +1862,103 @@ function MicrophoneMeterToolbarGroup({
 				ariaLabel={copy.recordLevel}
 				flyoutClassName="kw-audio-editor__microphone-level-flyout"
 			>
-				<MicrophoneLevelFlyout
+				<RecordingMeterFlyout
 					copy={copy}
 					snapshot={snapshot}
-					inputMeterDb={inputMeterDb}
+					meter={meter}
 					controller={controller}
 					run={run}
+					settings={settings}
+					onSettingsChange={onSettingsChange}
 				/>
 			</AudacityToolbarFlyoutButton>
-			{(snapshot.recording || snapshot.monitor?.metering) && <div
+			{meterVisible && settings.position === 'flyout' && <AudacityAudioMeter
+				copy={copy}
+				meter={meter}
+				settings={settings}
+				orientation="horizontal"
+				channelCount={recordingMeterChannelCount(snapshot)}
+				meterLabel={copy.inputLevel}
+				meterKind="recording"
+				compact
 				className="kw-audio-editor__idle-input-meter"
-				data-idle-input-meter
-				role="meter"
-				aria-label={copy.inputLevel}
-				aria-valuemin={-60}
-				aria-valuemax={0}
-				aria-valuenow={inputMeterDb}
-			>
-				<span style={{ width: `${meterPercent(inputMeterDb)}%` }} aria-hidden="true" />
-			</div>}
+				dataMeterAttribute="idle-input-meter"
+			/>}
+			{settings.position === 'top' && <AudacityAudioMeter
+				copy={copy}
+				meter={meter}
+				settings={settings}
+				orientation="horizontal"
+				channelCount={recordingMeterChannelCount(snapshot)}
+				meterLabel={copy.inputLevel}
+				meterKind="recording"
+			/>}
 		</ToolbarButtonGroup>
 	);
 }
 
-function MicrophoneLevelFlyout({
+function RecordingMeterFlyout({
 	copy,
 	snapshot,
-	inputMeterDb,
+	meter,
 	controller,
 	run,
+	settings,
+	onSettingsChange,
 }) {
 	const inputGain = snapshot.recordingOptions?.inputGain ?? 1;
 	const inputGainDb = Math.max(-60, Math.min(6, inputGain > 0 ? 20 * Math.log10(inputGain) : -60));
-	const selectedRoute = snapshot.recordingInputs?.routes?.[snapshot.selectedTrackId];
-	const channelCount = selectedRoute?.channelCount === 2 ? 2 : 1;
-	const meterWidth = `${meterPercent(inputMeterDb)}%`;
 
 	return (
 		<div className="kw-audio-editor__microphone-level-content" data-microphone-level-flyout>
 			<strong>{copy.microphoneLevel}</strong>
-			<div
-				className="kw-audio-editor__microphone-meter"
-				data-input-meter
-				role="meter"
-				aria-label={copy.inputLevel}
-				aria-valuemin={-60}
-				aria-valuemax={0}
-				aria-valuenow={inputMeterDb}
-			>
-				<div className="kw-audio-editor__microphone-meter-bars" aria-hidden="true">
-					<span><i style={{ width: meterWidth }} /></span>
-					{channelCount > 1 && <span><i style={{ width: meterWidth }} /></span>}
-				</div>
-					<div className="kw-audio-editor__microphone-meter-ruler" aria-hidden="true">
-						{[-60, -48, -36, -24, -12, 0].map((tick) => <span key={tick}>{tick}</span>)}
-					</div>
-				</div>
-				<label className="kw-audio-editor__microphone-level-slider" data-recording-level>
-					<span className="kw-audio-editor-sr-only">{copy.recordLevel}</span>
-					<input
-						type="range"
-						min="-60"
-						max="6"
-						step="0.1"
-						value={inputGainDb}
-						aria-label={copy.recordLevel}
-						onChange={(event) => {
-							const db = Number(event.currentTarget.value);
-							run(() => controller.actions.recording.setLevel(db <= -60 ? 0 : 10 ** (db / 20)));
-						}}
-					/>
-					<output>{formatDb(inputGainDb)}</output>
-				</label>
-				<p>{copy.microphoneLevelNote}</p>
+			{settings.position === 'flyout' && <AudacityAudioMeter
+				copy={copy}
+				meter={meter}
+				settings={settings}
+				orientation="horizontal"
+				channelCount={recordingMeterChannelCount(snapshot)}
+				meterLabel={copy.inputLevel}
+				meterKind="recording"
+				dataMeterAttribute="input-meter"
+			/>}
+			<label className="kw-audio-editor__microphone-level-slider" data-recording-level>
+				<span className="kw-audio-editor-sr-only">{copy.recordLevel}</span>
+				<input
+					type="range"
+					min="-60"
+					max="6"
+					step="0.1"
+					value={inputGainDb}
+					aria-label={copy.recordLevel}
+					onChange={(event) => {
+						const db = Number(event.currentTarget.value);
+						run(() => controller.actions.recording.setLevel(db <= -60 ? 0 : 10 ** (db / 20)));
+					}}
+				/>
+				<output>{formatDb(inputGainDb)}</output>
+			</label>
+			<p>{copy.microphoneLevelNote}</p>
 			<Separator />
-			<div className="kw-audio-editor__microphone-level-options">
-				<PreferenceCheckbox
-					label={copy.inputMonitoringDetailed}
-					checked={Boolean(snapshot.monitor?.enabled)}
-					onChange={(enabled) => run(() => controller.actions.recording.setMonitoring(enabled))}
-				/>
-				<PreferenceCheckbox
-					label={copy.microphoneMeteringInactive}
-					checked={Boolean(snapshot.monitor?.metering)}
-					onChange={(enabled) => run(() => controller.actions.recording.setMetering(enabled))}
-				/>
-			</div>
+			<MeterSettingsFlyout
+				copy={copy}
+				settings={settings}
+				onChange={onSettingsChange}
+				recordingOptions={(
+					<>
+						<PreferenceCheckbox
+							label={copy.inputMonitoringDetailed}
+							checked={Boolean(snapshot.monitor?.enabled)}
+							onChange={(enabled) => run(() => controller.actions.recording.setMonitoring(enabled))}
+						/>
+						<PreferenceCheckbox
+							label={copy.microphoneMeteringInactive}
+							checked={Boolean(snapshot.monitor?.metering)}
+							onChange={(enabled) => run(() => controller.actions.recording.setMetering(enabled))}
+						/>
+					</>
+				)}
+			/>
 		</div>
 	);
 }
@@ -2033,13 +2099,13 @@ function SidePlaybackMeter({
 				ariaLabel={copy.playbackMeterSettings}
 				flyoutClassName="kw-audio-editor__playback-meter-flyout"
 			>
-				<PlaybackMeterSettingsFlyout
+				<MeterSettingsFlyout
 					copy={copy}
 					settings={settings}
 					onChange={onSettingsChange}
 				/>
 			</AudacityToolbarFlyoutButton>
-			<AudacityPlaybackMeter
+			<AudacityAudioMeter
 				copy={copy}
 				meter={masterMeter}
 				settings={settings}
@@ -2052,7 +2118,51 @@ function SidePlaybackMeter({
 	);
 }
 
-function AudacityPlaybackMeter({
+function SideRecordingMeter({
+	controller,
+	copy,
+	snapshot,
+	settings,
+	onSettingsChange,
+	run,
+}) {
+	const inputMeterDb = useRecordingMeter(controller);
+	const meter = recordingMeterData(inputMeterDb);
+	return (
+		<aside
+			className="kw-audio-editor__side-recording-meter"
+			data-side-recording-meter
+			aria-label={copy.recordLevel}
+		>
+			<AudacityToolbarFlyoutButton
+				icon={iconNameToChar('MICROPHONE')}
+				ariaLabel={copy.recordLevel}
+				flyoutClassName="kw-audio-editor__microphone-level-flyout"
+			>
+				<RecordingMeterFlyout
+					copy={copy}
+					snapshot={snapshot}
+					meter={meter}
+					controller={controller}
+					run={run}
+					settings={settings}
+					onSettingsChange={onSettingsChange}
+				/>
+			</AudacityToolbarFlyoutButton>
+			<AudacityAudioMeter
+				copy={copy}
+				meter={meter}
+				settings={settings}
+				orientation="vertical"
+				channelCount={recordingMeterChannelCount(snapshot)}
+				meterLabel={copy.inputLevel}
+				meterKind="recording"
+			/>
+		</aside>
+	);
+}
+
+function AudacityAudioMeter({
 	copy,
 	meter,
 	settings,
@@ -2060,7 +2170,12 @@ function AudacityPlaybackMeter({
 	clipped,
 	volume,
 	onVolumeChange,
+	channelCount = 2,
+	meterLabel,
+	meterKind = 'playback',
 	compact = false,
+	className = '',
+	dataMeterAttribute,
 }) {
 	const meterRef = useRef(null);
 	const [meterSize, setMeterSize] = useState(orientation === 'vertical' ? 500 : 280);
@@ -2075,16 +2190,21 @@ function AudacityPlaybackMeter({
 		? Math.max(0, Math.min(1, Number(meter?.peak) || 0))
 		: Math.max(-range, Math.min(0, peakDb));
 	const ticks = playbackMeterTicks(settings.type, range, meterSize);
-	const volumePosition = playbackMeterPercent(
-		playbackMeterAmplitudeToDb(volume, range),
-		settings.type,
-		range,
-	) / 100;
-	const volumeValueText = settings.type === 'amplitude'
-		? volume.toFixed(2)
-		: volume <= 0
-			? '−∞ dB'
-			: `${String(Math.round(playbackMeterAmplitudeToDb(volume, range) * 10) / 10).replace('-', '−')} dB`;
+	const hasVolume = volume != null && onVolumeChange;
+	const volumePosition = hasVolume
+		? playbackMeterPercent(
+			playbackMeterAmplitudeToDb(volume, range),
+			settings.type,
+			range,
+		) / 100
+		: 0;
+	const volumeValueText = !hasVolume
+		? ''
+		: settings.type === 'amplitude'
+			? volume.toFixed(2)
+			: volume <= 0
+				? '−∞ dB'
+				: `${String(Math.round(playbackMeterAmplitudeToDb(volume, range) * 10) / 10).replace('-', '−')} dB`;
 	const style = {
 		'--playback-meter-peak': `${peakPercent}%`,
 		'--playback-meter-rms': `${rmsPercent}%`,
@@ -2107,8 +2227,12 @@ function AudacityPlaybackMeter({
 	return (
 		<div
 			ref={meterRef}
-			className={`kw-audio-editor__master-meter kw-audio-editor__playback-meter-surface kw-audio-editor__playback-meter-surface--${orientation}${compact ? ' kw-audio-editor__playback-meter-surface--compact' : ''}`}
-			data-playback-meter
+			className={`kw-audio-editor__master-meter kw-audio-editor__playback-meter-surface kw-audio-editor__playback-meter-surface--${orientation}${compact ? ' kw-audio-editor__playback-meter-surface--compact' : ''}${className ? ` ${className}` : ''}`}
+			data-playback-meter={!meterLabel ? '' : undefined}
+			data-audio-meter
+			data-meter-kind={meterKind}
+			data-input-meter={dataMeterAttribute === 'input-meter' ? '' : undefined}
+			data-idle-input-meter={dataMeterAttribute === 'idle-input-meter' ? '' : undefined}
 			data-meter-position={settings.position}
 			data-meter-style={settings.style}
 			data-meter-type={settings.type}
@@ -2119,12 +2243,12 @@ function AudacityPlaybackMeter({
 			<div
 				className="kw-audio-editor__playback-meter-channels"
 				role="meter"
-				aria-label={copy.metering}
+				aria-label={meterLabel || copy.metering}
 				aria-valuemin={settings.type === 'amplitude' ? 0 : -range}
 				aria-valuemax={settings.type === 'amplitude' ? 1 : 0}
 				aria-valuenow={displayedValue}
 			>
-				{['left', 'right'].map((channel) => (
+				{Array.from({ length: channelCount === 2 ? 2 : 1 }, (_, channel) => (
 					<span className="kw-audio-editor__playback-meter-channel" key={channel} aria-hidden="true">
 						<i className="kw-audio-editor__playback-meter-peak" />
 						{settings.style === 'rms' && <i className="kw-audio-editor__playback-meter-rms" />}
@@ -2140,7 +2264,7 @@ function AudacityPlaybackMeter({
 					>{tick.label}</span>
 				))}
 			</div>
-			<input
+			{volume != null && onVolumeChange && <input
 				className="kw-audio-editor__playback-meter-volume"
 				type="range"
 				min="0"
@@ -2156,15 +2280,16 @@ function AudacityPlaybackMeter({
 					settings.type,
 					range,
 				))}
-			/>
+			/>}
 			{clipped && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
 		</div>
 	);
 }
 
-function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
+function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null }) {
 	const update = (key, value) => onChange((current) => ({ ...current, [key]: value }));
 	const positions = [
+		['flyout', copy.meterPositionFlyout],
 		['top', copy.meterPositionTop],
 		['side', copy.meterPositionSide],
 	];
@@ -2187,7 +2312,7 @@ function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
 					<label key={value} className="kw-audio-editor__playback-meter-radio">
 						<input
 							type="radio"
-							name="playback-meter-position"
+							name="meter-position"
 							value={value}
 							checked={settings.position === value}
 							onChange={() => update('position', value)}
@@ -2203,7 +2328,7 @@ function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
 						<label key={value} className="kw-audio-editor__playback-meter-radio">
 							<input
 								type="radio"
-								name="playback-meter-style"
+								name="meter-style"
 								value={value}
 								checked={settings.style === value}
 								onChange={() => update('style', value)}
@@ -2218,7 +2343,7 @@ function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
 						<label key={value} className="kw-audio-editor__playback-meter-radio">
 							<input
 								type="radio"
-								name="playback-meter-type"
+								name="meter-type"
 								value={value}
 								checked={settings.type === value}
 								onChange={() => update('type', value)}
@@ -2235,11 +2360,14 @@ function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
 					disabled={settings.type === 'amplitude'}
 					onChange={(event) => update('dbRange', Number(event.currentTarget.value))}
 				>
-					{[36, 48, 60, 72, 84, 96, 120, 144].map((range) => (
+					{METER_DB_RANGES.map((range) => (
 						<option key={range} value={range}>−{range === 144 ? 145 : range} dB – 0 dB</option>
 					))}
 				</select>
 			</label>
+			{recordingOptions && <div className="kw-audio-editor__microphone-level-options" data-recording-meter-options>
+				{recordingOptions}
+			</div>}
 		</div>
 	);
 }
@@ -5635,11 +5763,6 @@ function resolveEffectsOverlayPosition(workspace, anchorRect, compact) {
 	return { left, top, width, panelHeight, totalHeight };
 }
 
-function meterPercent(dbfs) {
-	const value = Number.isFinite(dbfs) ? dbfs : -60;
-	return (Math.max(-60, Math.min(0, value)) + 60) / 60 * 100;
-}
-
 function playbackMeterTicks(type, range, meterSize) {
 	return playbackMeterFullSteps(type, range, meterSize).map((step) => {
 		const db = type === 'amplitude'
@@ -5655,22 +5778,31 @@ function playbackMeterTicks(type, range, meterSize) {
 }
 
 function loadPlaybackMeterSettings() {
+	return loadMeterSettings(PLAYBACK_METER_SETTINGS_STORAGE_KEY, DEFAULT_PLAYBACK_METER_SETTINGS);
+}
+
+function loadRecordingMeterSettings() {
+	return loadMeterSettings(RECORDING_METER_SETTINGS_STORAGE_KEY, DEFAULT_RECORDING_METER_SETTINGS);
+}
+
+function loadMeterSettings(storageKey, defaults) {
 	try {
-		return normalizePlaybackMeterSettings(JSON.parse(
-			globalThis.localStorage?.getItem(PLAYBACK_METER_SETTINGS_STORAGE_KEY) || 'null',
-		));
+		return normalizeMeterSettings(
+			JSON.parse(globalThis.localStorage?.getItem(storageKey) || 'null'),
+			defaults,
+		);
 	} catch {
-		return { ...DEFAULT_PLAYBACK_METER_SETTINGS };
+		return { ...defaults };
 	}
 }
 
-function normalizePlaybackMeterSettings(value) {
-	const position = ['top', 'side'].includes(value?.position) ? value.position : DEFAULT_PLAYBACK_METER_SETTINGS.position;
-	const style = ['default', 'rms', 'gradient'].includes(value?.style) ? value.style : DEFAULT_PLAYBACK_METER_SETTINGS.style;
-	const type = ['db-log', 'db-linear', 'amplitude'].includes(value?.type) ? value.type : DEFAULT_PLAYBACK_METER_SETTINGS.type;
-	const dbRange = [36, 48, 60, 72, 84, 96, 120, 144].includes(Number(value?.dbRange))
+function normalizeMeterSettings(value, defaults) {
+	const position = METER_POSITIONS.includes(value?.position) ? value.position : defaults.position;
+	const style = METER_STYLES.includes(value?.style) ? value.style : defaults.style;
+	const type = METER_TYPES.includes(value?.type) ? value.type : defaults.type;
+	const dbRange = METER_DB_RANGES.includes(Number(value?.dbRange))
 		? Number(value.dbRange)
-		: DEFAULT_PLAYBACK_METER_SETTINGS.dbRange;
+		: defaults.dbRange;
 	return { position, style, type, dbRange };
 }
 
