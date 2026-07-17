@@ -2076,6 +2076,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(verticalRuler).toHaveAttribute('data-ruler-zoom', '1');
 		await rulerFlyout.getByText('Half wave', { exact: true }).click();
 		await expect(importedTrack).toHaveAttribute('data-display-mode', 'half-wave');
+		await expect(importedTrack.locator('.clip-body[data-half-wave="true"]')).toHaveCount(1);
+		await expect(importedTrack.locator('.audio-editor-half-wave-ruler')).toHaveCount(2);
 		await rulerFlyout.getByText('Half wave', { exact: true }).click();
 		await expect(importedTrack).toHaveAttribute('data-display-mode', 'waveform');
 		await page.keyboard.press('Escape');

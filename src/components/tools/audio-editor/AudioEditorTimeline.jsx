@@ -2326,6 +2326,15 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 		? selectedWaveform
 		: baseWaveform;
 	const rmsColor = (x) => x >= selection.start && x < selection.end ? selectedRms : baseRms;
+	if (body) {
+		if (options.halfWave) {
+			body.dataset.halfWave = 'true';
+			body.dataset.waveformChannels = String(channelCount);
+		} else {
+			delete body.dataset.halfWave;
+			delete body.dataset.waveformChannels;
+		}
+	}
 
 	context.save();
 	context.setTransform(pixelRatioX, 0, 0, pixelRatioY, 0, 0);
@@ -3264,27 +3273,24 @@ function renderAmplitudeRulers(
 		const rulerHeight = channel === normalizedChannelCount - 1
 			? height - channelHeight * channel
 			: channelHeight;
+		const ruler = (Ruler, props) => halfWave ? (
+			<div className="audio-editor-half-wave-ruler" style={{ height: rulerHeight, overflow: 'hidden' }}>
+				<Ruler {...props} height={rulerHeight / 2} />
+			</div>
+		) : <Ruler {...props} height={rulerHeight} />;
 		if (rulerFormat !== 'linear-amp') {
-			return (
-				<DbRuler
-					key={channel}
-					height={rulerHeight}
-					scale={rulerFormat === 'linear-db' ? 'linear' : 'logarithmic'}
-					width={width}
-				/>
-			);
+			return React.cloneElement(ruler(DbRuler, {
+				scale: rulerFormat === 'linear-db' ? 'linear' : 'logarithmic',
+				width,
+			}), { key: channel });
 		}
-		return (
-			<VerticalRuler
-				key={channel}
-				height={rulerHeight}
-				min={minimum}
-				max={maximum}
-				majorDivisions={halfWave ? 2 : 3}
-				minorDivisions={1}
-				width={width}
-			/>
-		);
+		return React.cloneElement(ruler(VerticalRuler, {
+			min: minimum,
+			max: maximum,
+			majorDivisions: halfWave ? 2 : 3,
+			minorDivisions: 1,
+			width,
+		}), { key: channel });
 	});
 }
 
