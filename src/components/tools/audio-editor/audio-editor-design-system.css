@@ -2437,6 +2437,10 @@
 	transition: filter 120ms ease, opacity 120ms ease;
 }
 
+#kw-audio-editor-design-system .audio-editor-track-window [data-clip-id]:has(.clip-display--selected) {
+	z-index: 1001 !important;
+}
+
 #kw-audio-editor-design-system .audio-editor-track-window .clip-display__handle {
 	z-index: 1000;
 }

@@ -1966,6 +1966,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 		await expect(firstClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
 		await expect(secondClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await expect(firstClip).toHaveCSS('z-index', '1001');
+		await expect(secondClip).toHaveCSS('z-index', '1001');
 
 		const firstStart = await firstClip.boundingBox();
 		const secondStart = await secondClip.boundingBox();
