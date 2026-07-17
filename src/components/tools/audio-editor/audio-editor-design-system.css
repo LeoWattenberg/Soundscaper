@@ -2231,6 +2231,18 @@
 	max-width: 100%;
 }
 
+#kw-audio-editor-design-system .audio-editor-ruler-playhead {
+	position: absolute;
+	z-index: 2;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 100%;
+	background: var(--kw-editor-text);
+	pointer-events: none;
+	will-change: transform;
+}
+
 #kw-audio-editor-design-system .audio-editor-ruler-scale-corner {
 	position: sticky;
 	z-index: 63;
@@ -2720,6 +2732,12 @@
 
 #kw-audio-editor-design-system .audio-editor-playhead-boundary .playhead-cursor__line {
 	background: var(--kw-editor-accent);
+}
+
+#kw-audio-editor-design-system .audio-editor-playhead-boundary .playhead-cursor {
+	left: 0 !important;
+	transform: translate3d(var(--playhead-x), 0, 0);
+	will-change: transform;
 }
 
 #kw-audio-editor-design-system .audio-editor-playhead-boundary .playhead-cursor__icon polygon {

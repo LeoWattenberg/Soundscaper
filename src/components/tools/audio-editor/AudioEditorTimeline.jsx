@@ -241,7 +241,6 @@ export default function AudioEditorTimeline({
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
 	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();
 	const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';
@@ -385,20 +384,6 @@ export default function AudioEditorTimeline({
 			.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
 		setScrollX(nextScrollX);
 	}, []);
-
-	useEffect(() => {
-		const element = scrollRef.current;
-		if (
-			!element
-			|| !snapshot.timeline?.pinnedPlayhead
-			|| snapshot.timeline?.updateDisplayWhilePlaying === false
-			|| transportState !== 'playing'
-		) return;
-		const positionPixels = framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
-		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
-		const nextScroll = Math.max(0, Math.min(maximumScroll, positionPixels - viewportWidth / 2));
-		if (Math.abs(element.scrollLeft - nextScroll) > 1) element.scrollLeft = nextScroll;
-	}, [pixelsPerSecond, positionFrame, sampleRate, snapshot.timeline?.pinnedPlayhead, snapshot.timeline?.updateDisplayWhilePlaying, timelineWidth, transportState, viewportWidth]);
 
 	const run = useCallback((action) => {
 		try {
@@ -1116,8 +1101,7 @@ export default function AudioEditorTimeline({
 								}
 							}}
 						>
-							<TelemetryTimelineRuler
-								controller={controller}
+							<TimelineRuler
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								totalDuration={durationSeconds}
@@ -1132,6 +1116,13 @@ export default function AudioEditorTimeline({
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
+							/>
+							<TelemetryRulerPlayhead
+								controller={controller}
+								pixelsPerSecond={pixelsPerSecond}
+								scrollX={scrollX}
+								sampleRate={sampleRate}
+								viewportWidth={viewportWidth}
 							/>
 						</div>
 						{verticalRulerWidth > 0 && <div
@@ -1253,6 +1244,19 @@ export default function AudioEditorTimeline({
 						sampleRate={sampleRate}
 						height={Math.max(TRACK_HEIGHT, totalTrackHeight)}
 						run={run}
+					/>
+					<PinnedPlayheadScroller
+						controller={controller}
+						enabled={Boolean(
+							snapshot.timeline?.pinnedPlayhead
+							&& snapshot.timeline?.updateDisplayWhilePlaying !== false
+						)}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						scrollRef={scrollRef}
+						timelineWidth={timelineWidth}
+						transportState={transportState}
+						viewportWidth={viewportWidth}
 					/>
 				</div>
 			</div>
@@ -1546,9 +1550,69 @@ function resolveAudioEditorColor(color, fallback = AUDIO_EDITOR_TRACK_COLORS[0])
 		: fallback;
 }
 
-function TelemetryTimelineRuler({ controller, sampleRate, ...props }) {
+function TelemetryRulerPlayhead({
+	controller,
+	pixelsPerSecond,
+	scrollX,
+	sampleRate,
+	viewportWidth,
+}) {
 	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	return <TimelineRuler {...props} cursorPosition={framesToSeconds(positionFrame, { sampleRate })} />;
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
+	const cursorRef = useRef(null);
+	useEffect(() => {
+		const cursor = cursorRef.current;
+		if (!cursor) return undefined;
+		let animationFrame = 0;
+		const update = (frame) => {
+			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond - scrollX;
+			cursor.style.transform = `translate3d(${x}px, 0, 0)`;
+			cursor.style.visibility = x >= CLIP_CONTENT_OFFSET && x <= viewportWidth ? 'visible' : 'hidden';
+		};
+		const draw = () => {
+			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
+			animationFrame = globalThis.requestAnimationFrame(draw);
+		};
+		update(positionFrame);
+		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
+		return () => {
+			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
+		};
+	}, [controller, pixelsPerSecond, positionFrame, sampleRate, scrollX, transportState, viewportWidth]);
+	const x = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond - scrollX;
+	return (
+		<div
+			className="audio-editor-ruler-playhead"
+			aria-hidden="true"
+			ref={cursorRef}
+			style={{
+				transform: `translate3d(${x}px, 0, 0)`,
+				visibility: x >= CLIP_CONTENT_OFFSET && x <= viewportWidth ? 'visible' : 'hidden',
+			}}
+		/>
+	);
+}
+
+function PinnedPlayheadScroller({
+	controller,
+	enabled,
+	pixelsPerSecond,
+	sampleRate,
+	scrollRef,
+	timelineWidth,
+	transportState,
+	viewportWidth,
+}) {
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	useEffect(() => {
+		const element = scrollRef.current;
+		if (!element || !enabled || transportState !== 'playing') return;
+		const positionPixels = framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
+		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
+		const nextScroll = Math.max(0, Math.min(maximumScroll, positionPixels - viewportWidth / 2));
+		if (Math.abs(element.scrollLeft - nextScroll) > 1) element.scrollLeft = nextScroll;
+	}, [enabled, pixelsPerSecond, positionFrame, sampleRate, scrollRef, timelineWidth, transportState, viewportWidth]);
+	return null;
 }
 
 function TelemetryPlayhead({
@@ -1563,6 +1627,8 @@ function TelemetryPlayhead({
 	run,
 }) {
 	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
+	const playheadRef = useRef(null);
 	const scrubbingRef = useRef(false);
 	const scrubDragRef = useRef(null);
 	const finishScrub = useCallback(() => {
@@ -1586,31 +1652,59 @@ function TelemetryPlayhead({
 			finishScrub();
 		};
 	}, [finishPointerScrub, finishScrub]);
+	useEffect(() => {
+		const playhead = playheadRef.current;
+		if (!playhead) return undefined;
+		let animationFrame = 0;
+		const update = (frame) => {
+			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
+			playhead.style.setProperty('--playhead-x', `${x}px`);
+		};
+		const draw = () => {
+			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
+			animationFrame = globalThis.requestAnimationFrame(draw);
+		};
+		update(positionFrame);
+		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
+		return () => {
+			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
+		};
+	}, [controller, pixelsPerSecond, positionFrame, sampleRate, transportState]);
+	const positionPixels = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
 	return (
 		<div
 			className="audio-editor-playhead-boundary"
 			data-playhead
+			ref={playheadRef}
 			role="slider"
 			tabIndex={0}
 			aria-label={copy.playhead}
 			aria-valuemin={0}
 			aria-valuemax={durationFrames}
 			aria-valuenow={positionFrame}
-			style={{ left: panelWidth, width: viewportWidth, touchAction: 'none' }}
+			style={{
+				'--playhead-x': `${positionPixels}px`,
+				left: panelWidth,
+				width: viewportWidth,
+				touchAction: 'none',
+			}}
 			onPointerDownCapture={(event) => {
 				if (event.button !== 0 || event.isPrimary === false || !event.target.closest?.('.playhead-cursor')) return;
 				event.preventDefault();
 				event.stopPropagation();
+				const liveFrame = Math.max(0, Math.round(
+					controller.engine?.getPositionFrames?.() ?? positionFrame,
+				));
 				scrubDragRef.current = {
 					pointerId: event.pointerId,
 					clientX: event.clientX,
-					startFrame: positionFrame,
+					startFrame: liveFrame,
 				};
 				event.currentTarget.setPointerCapture?.(event.pointerId);
 				scrubbingRef.current = true;
 				// Resume Web Audio from the initiating gesture; later pointer moves
 				// are not consistently treated as activation by browsers.
-				run(() => controller.actions.transport.scrub(positionFrame));
+				run(() => controller.actions.transport.scrub(liveFrame));
 			}}
 			onPointerMoveCapture={(event) => {
 				const drag = scrubDragRef.current;

@@ -3096,13 +3096,23 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps playback free of main-thread long tasks over 50 ms', async ({ page }) => {
+	test('keeps playback smooth without redrawing clip waveforms or producing long tasks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
+		await seekOnRuler(editor, 60);
+		await editor.getByRole('button', { name: 'Split at playhead' }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		test.skip(!await page.evaluate(() => PerformanceObserver.supportedEntryTypes?.includes('longtask')), 'The Long Task API is unavailable in this browser.');
 		await page.evaluate(() => {
 			globalThis.__audioEditorLongTasks = [];
+			globalThis.__playbackWaveformDraws = 0;
+			const prototype = CanvasRenderingContext2D.prototype;
+			const clearRect = prototype.clearRect;
+			prototype.clearRect = function countPlaybackWaveformDraws(...args) {
+				if (this.canvas?.matches('canvas.clip-body__waveform')) globalThis.__playbackWaveformDraws += 1;
+				return clearRect.apply(this, args);
+			};
 			globalThis.__audioEditorLongTaskObserver = new PerformanceObserver((list) => {
 				for (const entry of list.getEntries()) globalThis.__audioEditorLongTasks.push(entry.duration);
 			});
@@ -3111,13 +3121,33 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(700);
-		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-		const longestTask = await page.evaluate(() => {
-			globalThis.__audioEditorLongTaskObserver.disconnect();
-			return Math.max(0, ...globalThis.__audioEditorLongTasks);
+		await page.waitForTimeout(150);
+		await page.evaluate(() => { globalThis.__playbackWaveformDraws = 0; });
+		const playheadPositions = await page.evaluate(async () => {
+			const line = document.querySelector('[data-playhead] .playhead-cursor__line');
+			const positions = [];
+			const startedAt = performance.now();
+			await new Promise((resolve) => {
+				const sample = () => {
+					positions.push(line?.getBoundingClientRect().x || 0);
+					if (performance.now() - startedAt >= 350) resolve();
+					else requestAnimationFrame(sample);
+				};
+				requestAnimationFrame(sample);
+			});
+			return positions;
 		});
-		expect(longestTask).toBeLessThanOrEqual(50);
+		const playbackMetrics = await page.evaluate(() => {
+			globalThis.__audioEditorLongTaskObserver.disconnect();
+			return {
+				longestTask: Math.max(0, ...globalThis.__audioEditorLongTasks),
+				waveformDraws: globalThis.__playbackWaveformDraws,
+			};
+		});
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		expect(new Set(playheadPositions.map((position) => position.toFixed(1))).size).toBeGreaterThan(10);
+		expect(playbackMetrics.waveformDraws).toBe(0);
+		expect(playbackMetrics.longestTask).toBeLessThanOrEqual(50);
 		expect(errors).toEqual([]);
 	});
 
