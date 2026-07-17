@@ -526,6 +526,21 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('selects and restores custom microphone and speaker devices', async ({ page }) => {
 		await page.addInitScript(() => {
 			const events = new EventTarget();
+			const createTrack = (kind) => {
+				const target = new EventTarget();
+				let readyState = 'live';
+				Object.defineProperties(target, {
+					kind: { value: kind },
+					readyState: { get: () => readyState },
+					getSettings: { value: () => kind === 'audio' ? { channelCount: 2 } : {} },
+					stop: { value: () => {
+						if (readyState === 'ended') return;
+						readyState = 'ended';
+						target.dispatchEvent(new Event('ended'));
+					} },
+				});
+				return target;
+			};
 			let devices = [
 				{ kind: 'audioinput', deviceId: 'default', groupId: 'built-in', label: 'System microphone' },
 				{ kind: 'audioinput', deviceId: 'usb-mic', groupId: 'usb', label: 'USB microphone' },
@@ -533,6 +548,8 @@ test.describe('audio editor React/design-system workflows', () => {
 				{ kind: 'audiooutput', deviceId: 'usb-speakers', groupId: 'usb', label: 'USB speakers' },
 			];
 			window.__audioSinkIds = [];
+			window.__displayCaptureRequests = 0;
+			window.__captureTracks = [];
 			window.__setAudioDevices = (nextDevices) => {
 				devices = nextDevices;
 				events.dispatchEvent(new Event('devicechange'));
@@ -547,7 +564,26 @@ test.describe('audio editor React/design-system workflows', () => {
 				configurable: true,
 				value: {
 					enumerateDevices: async () => devices,
-					getUserMedia: async () => { throw new Error('Not used by this device-selection test.'); },
+					getUserMedia: async () => {
+						const audioTrack = createTrack('audio');
+						window.__captureTracks.push(audioTrack);
+						return {
+							getAudioTracks: () => [audioTrack],
+							getVideoTracks: () => [],
+							getTracks: () => [audioTrack],
+						};
+					},
+					getDisplayMedia: async () => {
+						window.__displayCaptureRequests += 1;
+						const audioTrack = createTrack('audio');
+						const videoTrack = createTrack('video');
+						window.__captureTracks.push(audioTrack, videoTrack);
+						return {
+							getAudioTracks: () => [audioTrack],
+							getVideoTracks: () => [videoTrack],
+							getTracks: () => [audioTrack, videoTrack],
+						};
+					},
 					addEventListener: events.addEventListener.bind(events),
 					removeEventListener: events.removeEventListener.bind(events),
 				},
@@ -567,16 +603,26 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(actionBarZ).toBeGreaterThan(toolbarsZ);
 
 		const microphone = flyout.getByRole('combobox', { name: 'Microphone', exact: true });
-		const recordingChannels = flyout.getByRole('combobox', { name: 'Recording channels', exact: true });
+		const recordingChannels = flyout.getByRole('radiogroup', { name: 'Recording channels', exact: true });
 		const speakers = flyout.getByRole('combobox', { name: 'Speakers', exact: true });
 		await expect(microphone).toContainText('USB microphone');
 		await expect(speakers).toContainText('USB speakers');
 		await microphone.selectOption('usb-mic');
-		await recordingChannels.selectOption('2');
+		await recordingChannels.getByRole('radio', { name: 'Stereo', exact: true }).check();
 		await speakers.selectOption('usb-speakers');
 		await expect(microphone).toHaveValue('usb-mic');
-		await expect(recordingChannels).toHaveValue('2');
+		await expect(recordingChannels.getByRole('radio', { name: 'Stereo', exact: true })).toBeChecked();
 		await expect(speakers).toHaveValue('usb-speakers');
+
+		await microphone.selectOption('display');
+		await flyout.getByRole('button', { name: 'Choose display source', exact: true }).click();
+		const changeDisplaySource = flyout.getByRole('button', { name: 'Choose a different display source', exact: true });
+		await expect(changeDisplaySource).toBeVisible();
+		await changeDisplaySource.click();
+		await expect.poll(() => page.evaluate(() => window.__displayCaptureRequests)).toBe(2);
+		await expect.poll(() => page.evaluate(() => (
+			window.__captureTracks.filter((track) => track.readyState === 'live').length
+		))).toBe(3);
 
 		await page.evaluate(() => window.__setAudioDevices([
 			{ kind: 'audioinput', deviceId: 'default', groupId: 'built-in', label: 'System microphone' },

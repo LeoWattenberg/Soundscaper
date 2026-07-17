@@ -1031,6 +1031,34 @@
 	border-radius: 3px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__audio-device-channels {
+	display: flex;
+	gap: 16px;
+	margin: 0;
+	padding: 8px;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 3px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-device-channels legend {
+	padding: 0 4px;
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-device-channels label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-device-channels input {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var(--kw-editor-accent);
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__audio-devices-note {
 	margin: 0;
 	color: var(--kw-editor-text-muted);

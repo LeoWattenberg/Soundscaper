@@ -1,5 +1,6 @@
 const DEFAULT_PROCESSOR_NAME = 'kw-audio-recorder';
 const DISPLAY_INPUT_KEY = 'display';
+const DISPLAY_REPLACEMENT_KEY = 'display:replacement';
 const HARDWARE_INPUT_KEY_PREFIX = 'device:';
 export const RECORDING_INPUT_GAIN_MINIMUM = 0;
 export const RECORDING_INPUT_GAIN_MAXIMUM = 2;
@@ -301,6 +302,7 @@ export function createRecordingCapturePool(options = {}) {
 		get hasInputs() { return entries.size > 0; },
 		acquireHardware,
 		acquireDisplay,
+		replaceDisplay,
 		getHardware(deviceId) {
 			return getLiveEntry(hardwareInputKey(deviceId), 'device')?.stream || null;
 		},
@@ -397,6 +399,37 @@ export function createRecordingCapturePool(options = {}) {
 		}).finally(() => pending.delete(DISPLAY_INPUT_KEY));
 		pending.set(DISPLAY_INPUT_KEY, acquisition);
 		return acquisition;
+	}
+
+	async function replaceDisplay(acquireOptions = {}) {
+		if (disposed) throw new Error('The recording capture pool has been disposed.');
+		if (pending.has(DISPLAY_REPLACEMENT_KEY)) return pending.get(DISPLAY_REPLACEMENT_KEY);
+		if (pending.has(DISPLAY_INPUT_KEY)) await pending.get(DISPLAY_INPUT_KEY);
+		const generation = generationFor(DISPLAY_INPUT_KEY);
+		const replacement = Promise.resolve().then(async () => {
+			const stream = await requestDisplay(acquireOptions);
+			if (disposed || generation !== generationFor(DISPLAY_INPUT_KEY)) {
+				stopStream(stream);
+				throw new Error('The display input was released while it was opening.');
+			}
+			if (!hasLiveTrack(stream, 'audio')) {
+				stopStream(stream);
+				throw new Error('Display capture did not include a live audio track.');
+			}
+			if (!hasLiveTrack(stream, 'video')) {
+				stopStream(stream);
+				throw new Error('Display capture did not include its required live video track.');
+			}
+			setEntry(DISPLAY_INPUT_KEY, {
+				key: DISPLAY_INPUT_KEY,
+				kind: 'display',
+				stream,
+				channelCount: exposedAudioChannelCount(stream),
+			});
+			return stream;
+		}).finally(() => pending.delete(DISPLAY_REPLACEMENT_KEY));
+		pending.set(DISPLAY_REPLACEMENT_KEY, replacement);
+		return replacement;
 	}
 
 	function getLiveEntry(key, kind) {

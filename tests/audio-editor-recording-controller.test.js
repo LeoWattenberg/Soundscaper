@@ -734,6 +734,56 @@ test('routed recording starts surviving desktop audio when a hardware source is 
 	assert.equal(desktop.getTracks().every((track) => track.stopCount === 1), true);
 });
 
+test('configured desktop audio stays open and compact single-track recording uses its route', async () => {
+	const store = createProjectStore({ databaseName: 'recording-controller-retained-display' });
+	const engine = createRecordingEngine();
+	const desktop = createMockStream([
+		createMockTrack('audio', { channelCount: 2 }),
+		createMockTrack('video'),
+	]);
+	const pool = createCapturePool({ display: desktop });
+	const createdControllers = [];
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		mediaDevices: {
+			async enumerateDevices() { return []; },
+			async getDisplayMedia() { return desktop; },
+		},
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(createdControllers),
+	});
+
+	try {
+		await controller.ready;
+		await controller.actions.recording.setRetainInputs(false);
+		await controller.actions.audioDevices.setPreferredInput('display');
+		await controller.actions.audioDevices.configureDisplayInput();
+		assert.equal(controller.getSnapshot().recordingInputs.retainInputs, true);
+		assert.equal(controller.getSnapshot().audioDevices.displayCaptureOpen, true);
+
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.recording.setTrackInput(trackId, {
+			kind: 'display',
+			channelStart: 0,
+			channelCount: 2,
+		});
+		await controller.actions.recording.start({ trackId });
+		assert.equal(createdControllers.length, 1);
+		assert.equal(createdControllers[0].stream, desktop);
+
+		await controller.actions.recording.stop();
+		assert.equal(desktop.getTracks().every((track) => track.stopCount === 0), true);
+		assert.equal(controller.getSnapshot().audioDevices.displayCaptureOpen, true);
+
+		assert.equal(controller.actions.recording.releaseInputs(), 1);
+		assert.equal(desktop.getTracks().every((track) => track.stopCount === 1), true);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('routed recording stores context-rate channels while clips keep project-rate timing', async () => {
 	const store = createProjectStore({ databaseName: 'recording-controller-native-routed' });
 	const engine = createRecordingEngine({ sampleRate: 96_000 });
@@ -808,6 +858,7 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 	const listeners = new Set();
 	const mediaDevices = {
 		async enumerateDevices() { return devices; },
+		async getDisplayMedia() { throw new Error('Not used by this preference test.'); },
 		addEventListener(type, listener) {
 			if (type === 'devicechange') listeners.add(listener);
 		},
@@ -823,7 +874,12 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 		engine,
 		mediaDevices,
 		ffmpeg: createFfmpegStub(),
-		recordingCapturePool: createCapturePool(),
+		recordingCapturePool: createCapturePool({
+			hardware: {
+				default: createMockStream([createMockTrack('audio', { channelCount: 1 })]),
+				'mic-2': createMockStream([createMockTrack('audio', { channelCount: 2 })]),
+			},
+		}),
 	});
 
 	try {
@@ -831,7 +887,10 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
 		assert.equal(controller.getSnapshot().recordingInputs.routes[firstTrackId].deviceId, 'default');
 
+		await controller.actions.recording.setRetainInputs(false);
 		await controller.actions.audioDevices.setPreferredInput('mic-2');
+		assert.equal(controller.getSnapshot().recordingInputs.retainInputs, true);
+		assert.equal(controller.getSnapshot().recordingInputs.sources.some((source) => source.deviceId === 'mic-2'), true);
 		await controller.actions.audioDevices.setPreferredInputChannelCount(2);
 		assert.equal(
 			controller.getSnapshot().recordingInputs.routes[firstTrackId].deviceId,
@@ -850,6 +909,10 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 			inputChannelCount: 2,
 			outputDeviceId: 'speaker-2',
 		});
+		await controller.actions.audioDevices.setPreferredInput('display');
+		const displayTrackId = controller.actions.track.add({ armed: false });
+		assert.equal(controller.getSnapshot().recordingInputs.routes[displayTrackId].kind, 'display');
+		assert.equal(controller.getSnapshot().recordingInputs.routes[displayTrackId].channelCount, 2);
 
 		devices = devices.filter((device) => device.deviceId !== 'speaker-2');
 		mediaDevices.emitDeviceChange();

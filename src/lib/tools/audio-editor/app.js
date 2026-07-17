@@ -131,6 +131,7 @@ import {
 } from './recording.js';
 import {
 	RECORDING_DEFAULT_DEVICE_ID,
+	RECORDING_DISPLAY_SOURCE_KEY,
 	normalizeRecordingRouting,
 	recordingRouteSourceKey,
 	recordingRoutingSettingKey,
@@ -672,6 +673,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function audioDevicesSnapshot() {
 		const outputState = engine.getOutputDeviceState?.() || {};
 		const preferredInputAvailable = state.preferredInputDeviceId === RECORDING_DEFAULT_DEVICE_ID
+			|| (state.preferredInputDeviceId === RECORDING_DISPLAY_SOURCE_KEY && Boolean(mediaDevices?.getDisplayMedia))
 			|| state.audioInputDevices.some((device) => device.deviceId === state.preferredInputDeviceId);
 		const preferredOutputAvailable = !state.preferredOutputDeviceId
 			|| state.audioOutputDevices.some((device) => device.deviceId === state.preferredOutputDeviceId);
@@ -683,7 +685,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			preferredOutputDeviceId: state.preferredOutputDeviceId,
 			activeOutputDeviceId: outputState.activeDeviceId ?? state.activeOutputDeviceId,
 			inputAccess: state.audioInputAccess,
-			inputSupported: Boolean(mediaDevices?.getUserMedia),
+			inputSupported: Boolean(mediaDevices?.getUserMedia || mediaDevices?.getDisplayMedia),
+			microphoneInputSupported: Boolean(mediaDevices?.getUserMedia),
+			displayInputSupported: Boolean(mediaDevices?.getDisplayMedia),
+			displayCaptureOpen: state.recordingPoolSources.some((source) => source.kind === 'display'),
 			outputSupported: Boolean(outputState.supported),
 			preferredInputAvailable,
 			preferredOutputAvailable,
@@ -842,6 +847,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				refresh: () => refreshAudioDevices({ probe: false }),
 				setPreferredInput: setPreferredInputDevice,
 				setPreferredInputChannelCount,
+				configureDisplayInput,
 				setOutput: setAudioOutputDevice,
 			}),
 			timeline: Object.freeze({
@@ -2117,17 +2123,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const track = findTrack(project, trackId);
 		if (!track || track.type === 'label') return false;
 		const deviceId = state.preferredInputDeviceId || RECORDING_DEFAULT_DEVICE_ID;
+		const displayInput = deviceId === RECORDING_DISPLAY_SOURCE_KEY;
 		const device = state.recordingDevices.find((candidate) => candidate.deviceId === deviceId);
 		const channelCount = state.preferredInputChannelCount === 2 ? 2 : 1;
-		const discoveredChannelCount = Math.max(0, Number(device?.channelCount) || 0);
+		const displaySource = displayInput
+			? state.recordingPoolSources.find((source) => source.kind === 'display')
+			: null;
+		const discoveredChannelCount = Math.max(0, Number(displaySource?.channelCount ?? device?.channelCount) || 0);
 		if (discoveredChannelCount > 0 && discoveredChannelCount < channelCount) return false;
 		const maximumChannels = Math.max(channelCount, discoveredChannelCount || 2);
 		for (let channelStart = 0; channelStart + channelCount <= maximumChannels; channelStart += channelCount) {
 			try {
 				state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, {
-					kind: 'device',
-					deviceId,
-					deviceLabel: device?.label || '',
+					...(displayInput
+						? { kind: 'display', label: copy.recordingDesktopAudio }
+						: { kind: 'device', deviceId, deviceLabel: device?.label || '' }),
 					channelStart,
 					channelCount,
 				});
@@ -4230,20 +4240,52 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function setPreferredInputDevice(deviceId) {
 		const normalized = normalizePreferredInputDeviceId(deviceId);
 		if (normalized !== RECORDING_DEFAULT_DEVICE_ID
+			&& normalized !== RECORDING_DISPLAY_SOURCE_KEY
 			&& !state.audioInputDevices.some((device) => device.deviceId === normalized)) {
 			throw new Error('The selected audio input is unavailable.');
 		}
+		if (normalized === RECORDING_DISPLAY_SOURCE_KEY && !mediaDevices?.getDisplayMedia) {
+			throw new Error('Display audio capture is not supported in this browser.');
+		}
+		await keepSelectedRecordingInputsOpen();
 		state.preferredInputDeviceId = normalized;
 		await persistAudioDevicePreferences();
+		if (normalized !== RECORDING_DISPLAY_SOURCE_KEY) {
+			await recordingCapturePool.acquireHardware(normalized, {
+				channelCount: state.preferredInputChannelCount,
+				sampleRate: projectSampleRate(),
+			});
+			syncRecordingPoolSnapshot();
+		}
 		publishDocumentSnapshot();
 		return normalized;
+	}
+
+	async function configureDisplayInput() {
+		if (!mediaDevices?.getDisplayMedia) throw new Error('Display audio capture is not supported in this browser.');
+		if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording) {
+			throw new Error('The display source cannot be changed while recording is active.');
+		}
+		await keepSelectedRecordingInputsOpen();
+		const hasDisplay = Boolean(recordingCapturePool.getDisplay?.());
+		const stream = hasDisplay && typeof recordingCapturePool.replaceDisplay === 'function'
+			? await recordingCapturePool.replaceDisplay()
+			: await recordingCapturePool.acquireDisplay();
+		syncRecordingPoolSnapshot();
+		publishDocumentSnapshot();
+		return stream;
+	}
+
+	function keepSelectedRecordingInputsOpen() {
+		if (state.preferences.recording.retainInputs) return Promise.resolve(state.preferences);
+		return updatePreferences({ recording: { retainInputs: true } });
 	}
 
 	async function setPreferredInputChannelCount(channelCount) {
 		const normalized = Number(channelCount) === 2 ? 2 : 1;
 		state.preferredInputChannelCount = normalized;
-		await persistAudioDevicePreferences();
 		publishDocumentSnapshot();
+		await persistAudioDevicePreferences();
 		return normalized;
 	}
 
@@ -7564,13 +7606,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (options.trackId) {
 			const track = findTrack(project, options.trackId);
 			if (!track || track.type === 'label') throw new Error(copy.armTrackForRecording);
-			const stream = await (recordingCapturePool.getHardware?.(RECORDING_DEFAULT_DEVICE_ID)
-				|| recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: 2, sampleRate }));
-			if (!recordingStreamIsLive(stream, 'device')) throw new Error('The recording input closed before the timer was armed.');
-			return Object.freeze({ inputKeys: Object.freeze([recordingRouteSourceKey({
+			const explicitRoute = state.recordingRouting.routes[track.id];
+			const needsRoutedRecording = explicitRoute && (
+				explicitRoute.kind === 'display'
+				|| explicitRoute.deviceId !== RECORDING_DEFAULT_DEVICE_ID
+				|| explicitRoute.channelStart > 0
+			);
+			const route = needsRoutedRecording ? explicitRoute : {
 				kind: 'device',
 				deviceId: RECORDING_DEFAULT_DEVICE_ID,
-			})]) });
+				channelStart: 0,
+				channelCount: 2,
+			};
+			const stream = route.kind === 'display'
+				? recordingCapturePool.getDisplay?.() || await recordingCapturePool.acquireDisplay()
+				: recordingCapturePool.getHardware?.(route.deviceId)
+					|| await recordingCapturePool.acquireHardware(route.deviceId, {
+						channelCount: route.channelStart + route.channelCount,
+						sampleRate,
+					});
+			if (!recordingStreamIsLive(stream, route.kind)) {
+				throw new Error('The recording input closed before the timer was armed.');
+			}
+			return Object.freeze({ inputKeys: Object.freeze([recordingRouteSourceKey(route)]) });
 		}
 
 		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
@@ -7726,7 +7784,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			generation: ++state.recordingStartGeneration,
 			projectId: project?.id,
 		});
-		const operation = options.trackId
+		const explicitRoute = options.trackId ? state.recordingRouting.routes[options.trackId] : null;
+		const needsRoutedRecording = explicitRoute && (
+			explicitRoute.kind === 'display'
+			|| explicitRoute.deviceId !== RECORDING_DEFAULT_DEVICE_ID
+			|| explicitRoute.channelStart > 0
+		);
+		const operation = options.trackId && !needsRoutedRecording
 			? startLegacyRecording(options, token)
 			: startRoutedRecording(options, token);
 		const tracked = Promise.resolve(operation).finally(() => {
@@ -7916,7 +7980,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function startRoutedRecording(options = {}, token) {
 		const timedStartTimeMs = Number(options.timedStartTimeMs);
 		const timedStart = Number.isFinite(timedStartTimeMs);
-		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
+		const explicitTrack = options.trackId ? findTrack(project, options.trackId) : null;
+		const armedTracks = explicitTrack
+			? [explicitTrack]
+			: project.tracks.filter((track) => track.type !== 'label' && track.armed);
 		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
 		const routedTracks = [];
 		for (const track of armedTracks) {

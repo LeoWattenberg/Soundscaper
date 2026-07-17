@@ -151,6 +151,7 @@ test('capture pool reuses live inputs, reacquires for more exposed channels, and
 	const requestedChannels = [];
 	const hardwareStreams = [];
 	let displayRequests = 0;
+	let rejectDisplay = false;
 	const changes = [];
 	const pool = createRecordingCapturePool({
 		requestHardwareInput: async ({ channelCount }) => {
@@ -161,6 +162,7 @@ test('capture pool reuses live inputs, reacquires for more exposed channels, and
 		},
 		requestDisplayInput: async () => {
 			displayRequests += 1;
+			if (rejectDisplay) throw new Error('Display chooser cancelled.');
 			return createMockStream([createMockTrack('audio', 2), createMockTrack('video')]);
 		},
 		onChange: (snapshot) => changes.push(snapshot),
@@ -177,6 +179,14 @@ test('capture pool reuses live inputs, reacquires for more exposed channels, and
 	const display = await pool.acquireDisplay();
 	assert.equal(await pool.acquireDisplay(), display);
 	assert.equal(displayRequests, 1);
+	const replacementDisplay = await pool.replaceDisplay();
+	assert.notEqual(replacementDisplay, display);
+	assert.equal(displayRequests, 2);
+	assert.equal(display.getTracks().every((track) => track.stopCount === 1), true);
+	rejectDisplay = true;
+	await assert.rejects(pool.replaceDisplay(), /chooser cancelled/);
+	assert.equal(pool.getDisplay(), replacementDisplay);
+	assert.equal(replacementDisplay.getTracks().every((track) => track.stopCount === 0), true);
 	assert.deepEqual(pool.getSnapshot(), [
 		{ key: 'device:interface-1', kind: 'device', deviceId: 'interface-1', channelCount: 8, state: 'open' },
 		{ key: 'display', kind: 'display', channelCount: 2, state: 'open' },
@@ -185,7 +195,7 @@ test('capture pool reuses live inputs, reacquires for more exposed channels, and
 	assert.equal(pool.releaseHardware('interface-1'), true);
 	assert.equal(expanded.getAudioTracks()[0].stopCount, 1);
 	assert.equal(pool.releaseAll(), 1);
-	assert.equal(display.getTracks().every((track) => track.stopCount === 1), true);
+	assert.equal(replacementDisplay.getTracks().every((track) => track.stopCount === 1), true);
 	assert.equal(pool.size, 0);
 	assert.ok(changes.length >= 4);
 });

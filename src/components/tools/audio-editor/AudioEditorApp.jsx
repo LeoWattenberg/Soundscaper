@@ -1885,11 +1885,13 @@ function AudioDevicesFlyout({
 	const outputs = Array.isArray(devices.outputs) ? devices.outputs : [];
 	const preferredInput = devices.preferredInputDeviceId || 'default';
 	const preferredInputChannelCount = devices.preferredInputChannelCount === 2 ? 2 : 1;
+	const displayInputSelected = preferredInput === 'display';
 	const preferredOutput = devices.preferredOutputDeviceId || '';
 	const selectedInput = inputs.find((device) => device.deviceId === preferredInput);
 	const stereoUnavailable = Number(selectedInput?.channelCount) === 1;
-	const missingInput = preferredInput !== 'default'
-		&& !inputs.some((device) => device.deviceId === preferredInput);
+	const missingInput = preferredInput === 'display'
+		? !devices.displayInputSupported
+		: preferredInput !== 'default' && !inputs.some((device) => device.deviceId === preferredInput);
 	const missingOutput = Boolean(preferredOutput)
 		&& !outputs.some((device) => device.deviceId === preferredOutput);
 	const outputMessage = devices.outputStatus === 'unavailable'
@@ -1916,22 +1918,48 @@ function AudioDevicesFlyout({
 					{inputs
 						.filter((device) => device.deviceId !== 'default')
 						.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
+					{devices.displayInputSupported && <option value="display">{copy.recordingDesktopAudio}</option>}
 				</select>
 			</label>
-			{!devices.inputAccess && devices.inputSupported && (
+			{!displayInputSelected && !devices.inputAccess && devices.microphoneInputSupported && (
 				<p className="kw-audio-editor__audio-devices-note">{copy.audioDeviceInputAccessRequired}</p>
 			)}
-			<label>
-				<span>{copy.audioDeviceRecordingChannels}</span>
-				<select
-					aria-label={copy.audioDeviceRecordingChannels}
-					value={preferredInputChannelCount}
-					onChange={(event) => run(() => controller.actions.audioDevices.setPreferredInputChannelCount(Number(event.currentTarget.value)))}
+			{displayInputSelected && (
+				<Button
+					variant="secondary"
+					onClick={() => run(() => controller.actions.audioDevices.configureDisplayInput())}
 				>
-					<option value="1">{copy.mono}</option>
-					<option value="2" disabled={stereoUnavailable}>{copy.stereo}</option>
-				</select>
-			</label>
+					{devices.displayCaptureOpen ? copy.audioDeviceChangeDisplaySource : copy.audioDeviceChooseDisplaySource}
+				</Button>
+			)}
+			<fieldset
+				className="kw-audio-editor__audio-device-channels"
+				role="radiogroup"
+				aria-label={copy.audioDeviceRecordingChannels}
+			>
+				<legend>{copy.audioDeviceRecordingChannels}</legend>
+				<label>
+					<input
+						type="radio"
+						name="audio-device-recording-channels"
+						value="1"
+						checked={preferredInputChannelCount === 1}
+						onChange={() => run(() => controller.actions.audioDevices.setPreferredInputChannelCount(1))}
+					/>
+					<span>{copy.mono}</span>
+				</label>
+				<label>
+					<input
+						type="radio"
+						name="audio-device-recording-channels"
+						value="2"
+						checked={preferredInputChannelCount === 2}
+						disabled={stereoUnavailable}
+						onChange={() => run(() => controller.actions.audioDevices.setPreferredInputChannelCount(2))}
+					/>
+					<span>{copy.stereo}</span>
+				</label>
+			</fieldset>
 			<p className="kw-audio-editor__audio-devices-note">{copy.audioDeviceRecordingChannelsNote}</p>
 			<label>
 				<span>{copy.audioOutputDevice}</span>
@@ -1948,7 +1976,7 @@ function AudioDevicesFlyout({
 			</label>
 			{outputMessage && <p className="kw-audio-editor__audio-devices-note" role="status">{outputMessage}</p>}
 			<div className="kw-audio-editor__audio-devices-actions">
-				{!devices.inputAccess && devices.inputSupported && (
+				{!displayInputSelected && !devices.inputAccess && devices.microphoneInputSupported && (
 					<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.requestAccess())}>
 						{copy.audioDeviceAllowAccess}
 					</Button>
