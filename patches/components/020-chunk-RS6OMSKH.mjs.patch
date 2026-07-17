@@ -1,0 +1,31 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-RS6OMSKH.mjs
+@@ -22,6 +22,7 @@ var Knob = ({
+   const { theme } = useTheme();
+   const knobRef = useRef(null);
+   const [isDragging, setIsDragging] = useState(false);
++  const dragStartXRef = useRef(0);
+   const dragStartYRef = useRef(0);
+   const dragStartValueRef = useRef(0);
+   const clampedValue = Math.max(min, Math.min(max, value));
+@@ -60,6 +61,7 @@ var Knob = ({
+     if (disabled || !onChange) return;
+     e.preventDefault();
+     setIsDragging(true);
++    dragStartXRef.current = e.clientX;
+     dragStartYRef.current = e.clientY;
+     dragStartValueRef.current = clampedValue;
+   };
+@@ -67,9 +69,10 @@ var Knob = ({
+     if (!isDragging) return;
+     const handleMouseMove = (e) => {
+       if (!onChange) return;
++      const deltaX = e.clientX - dragStartXRef.current;
+       const deltaY = dragStartYRef.current - e.clientY;
+       const sensitivity = (max - min) / 200;
+-      const deltaValue = deltaY * sensitivity;
++      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
+       let newValue = dragStartValueRef.current + deltaValue;
+       newValue = Math.round(newValue / step) * step;
+       newValue = Math.max(min, Math.min(max, newValue));

@@ -1,0 +1,118 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-3LVIFHXO.mjs
+@@ -73,7 +73,7 @@ var EffectsStackHeader = ({
+   name,
+   allEnabled,
+   onToggleAll,
+-  onContextMenu: _onContextMenu,
++  onContextMenu,
+   onAddEffect,
+   addButtonLabel = "Effects",
+   isMaster = false,
+@@ -122,6 +122,16 @@ var EffectsStackHeader = ({
+             className: "effects-stack-header__add-button",
+             children: addButtonLabel
+           }
++        ),
++        onContextMenu && /* @__PURE__ */ jsx2(
++          GhostButton,
++          {
++            icon: "menu",
++            size: "small",
++            onClick: onContextMenu,
++            ariaLabel: "Effect stack options",
++            className: "effects-stack-header__menu-button"
++          }
+         )
+       ]
+     }
+@@ -351,69 +361,39 @@ var EffectSlot = ({
+             x: menuPosition.x,
+             y: menuPosition.y,
+             children: [
+-              Object.entries(EFFECT_REGISTRY).map(([category, effects]) => {
+-                const enabled2 = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
+-                if (enabled2.length === 0) return null;
+-                return /* @__PURE__ */ jsx3(ContextMenuItem, { label: category, hasSubmenu: true, children: enabled2.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, category);
+-              }),
+-              (() => {
+-                if (!purchasedEffects || purchasedEffects.length === 0) return null;
+-                const visible = purchasedEffects.filter(
+-                  (e) => !disabledPluginIds || !disabledPluginIds.has(e.id)
+-                );
+-                if (visible.length === 0) return null;
+-                const byVendor = /* @__PURE__ */ new Map();
+-                for (const e of visible) {
+-                  const list = byVendor.get(e.vendor) ?? [];
+-                  list.push(e);
+-                  byVendor.set(e.vendor, list);
+-                }
+-                return Array.from(byVendor.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([vendor, effects]) => /* @__PURE__ */ jsx3(ContextMenuItem, { label: vendor, hasSubmenu: true, children: effects.map((effect) => /* @__PURE__ */ jsx3(
+-                  ContextMenuItem,
+-                  {
+-                    label: effect.name,
+-                    onClick: () => {
+-                      onReplaceEffect?.(effect.name);
+-                      setMenuOpen(false);
+-                    }
+-                  },
+-                  effect.id
+-                )) }, vendor));
+-              })(),
+-              /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+               /* @__PURE__ */ jsx3(
+                 ContextMenuItem,
+                 {
+-                  label: "Get effects\u2026",
++                  label: "Remove effect",
+                   onClick: () => {
+-                    const slotEl = slotRef.current;
+-                    const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
+-                    onChangeEffect?.(anchor);
++                    onRemoveEffect?.();
+                     setMenuOpen(false);
+                   }
+                 }
+               ),
+               /* @__PURE__ */ jsx3(ContextMenuItem, { isDivider: true }),
+-              /* @__PURE__ */ jsx3(
++              ...Object.values(EFFECT_REGISTRY).flatMap((effects) => effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).map((effect) => /* @__PURE__ */ jsx3(
+                 ContextMenuItem,
+                 {
+-                  label: "Remove effect",
++                  label: effect.name,
+                   onClick: () => {
+-                    onRemoveEffect?.();
++                    onReplaceEffect?.(effect.name);
+                     setMenuOpen(false);
+                   }
+-                }
+-              )
++                },
++                effect.id
++              ))),
++              ...((purchasedEffects || []).filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id)).sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`)).map((effect) => /* @__PURE__ */ jsx3(
++                ContextMenuItem,
++                {
++                  label: effect.name,
++                  onClick: () => {
++                    onReplaceEffect?.(effect.name);
++                    setMenuOpen(false);
++                  }
++                },
++                effect.id
++              )))
+             ]
+           }
+         )

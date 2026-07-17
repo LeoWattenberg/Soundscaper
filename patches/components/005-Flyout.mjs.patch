@@ -1,0 +1,10 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.mjs b/node_modules/@dilsonspickles/components/dist/Flyout.mjs
+new file mode 100644
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.mjs
+@@ -0,0 +1,5 @@
++/* attach-css-imports: managed */
++import './Flyout.css';
++import { Flyout } from './chunk-FLYOUT.mjs';
++export { Flyout };
++

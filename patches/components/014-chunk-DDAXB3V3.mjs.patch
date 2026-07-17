@@ -1,0 +1,62 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-DDAXB3V3.mjs
+@@ -303,18 +303,8 @@ function drawTimeMarkers(ctx, pixelsPerSecond, scrollX, totalDuration, width, he
+ }
+ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, width, height, textColor, topTickColor, bottomTickColor) {
+   const midHeight = height / 2;
+-  let majorInterval = 1;
+-  if (pixelsPerSecond < 20) {
+-    majorInterval = 10;
+-  } else if (pixelsPerSecond < 50) {
+-    majorInterval = 5;
+-  } else if (pixelsPerSecond < 100) {
+-    majorInterval = 2;
+-  } else if (pixelsPerSecond < 200) {
+-    majorInterval = 1;
+-  } else {
+-    majorInterval = 0.5;
+-  }
++  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
++  const decimalPlaces = getDecimalPlaces(majorInterval);
+   const minorInterval = majorInterval / 5;
+   const startTime = Math.floor(scrollX / pixelsPerSecond / minorInterval) * minorInterval;
+   const endTime = Math.ceil((scrollX + width) / pixelsPerSecond / minorInterval) * minorInterval;
+@@ -357,7 +347,7 @@ function drawMinutesAndSeconds(ctx, pixelsPerSecond, scrollX, totalDuration, wid
+     const roundedTime = Math.round(time / majorInterval) * majorInterval;
+     const x = CLIP_CONTENT_OFFSET + roundedTime * pixelsPerSecond - scrollX;
+     if (x < CLIP_CONTENT_OFFSET || x > width) continue;
+-    const label = formatTime(roundedTime);
++    const label = formatTime(roundedTime, decimalPlaces);
+     const textY = midHeight / 2 + 4;
+     ctx.fillText(label, x + 4, textY);
+   }
+@@ -450,10 +440,25 @@ function drawBeatsAndMeasures(ctx, pixelsPerSecond, scrollX, totalDuration, widt
+     }
+   }
+ }
+-function formatTime(seconds) {
++function getTimelineMajorInterval(pixelsPerSecond) {
++  if (pixelsPerSecond < 20) return 10;
++  if (pixelsPerSecond < 50) return 5;
++  if (pixelsPerSecond < 100) return 2;
++  if (pixelsPerSecond < 200) return 1;
++  if (pixelsPerSecond < 500) return 0.5;
++  if (pixelsPerSecond < 1000) return 0.2;
++  if (pixelsPerSecond < 2000) return 0.1;
++  if (pixelsPerSecond < 5000) return 0.05;
++  if (pixelsPerSecond < 10000) return 0.02;
++  return 0.01;
++}
++function getDecimalPlaces(value) {
++  return Math.max(0, Math.ceil(-Math.log10(value)));
++}
++function formatTime(seconds, decimalPlaces = 0) {
+   const mins = Math.floor(seconds / 60);
+-  const secs = Math.floor(seconds % 60);
+-  return `${mins}:${secs.toString().padStart(2, "0")}`;
++  const secs = (seconds % 60).toFixed(decimalPlaces);
++  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), "0")}`;
+ }
+ 
+ export {

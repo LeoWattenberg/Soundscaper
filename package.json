@@ -28,7 +28,7 @@
 		"desktop:dist": "npm run desktop:prepare && electron-builder --config electron-builder.config.cjs --publish never",
 		"desktop:smoke": "node scripts/desktop-smoke.mjs",
 		"desktop:release-assets": "node scripts/desktop-release-assets.mjs",
-		"postinstall": "patch-package",
+		"postinstall": "node scripts/apply-component-patches.mjs",
 		"build:staffpad": "node scripts/build-staffpad-wasm.mjs",
 		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
 		"build:nyquist": "node scripts/build-nyquist-wasm.mjs",

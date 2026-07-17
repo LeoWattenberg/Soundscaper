@@ -1,0 +1,33 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+--- a/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-EPKPU5CG.js
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__body", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, "div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Pan" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "span", { children: "Volume" }) }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _react2.default.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ _jsxruntime.jsxs.call(void 0, _jsxruntime.Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ _jsxruntime.jsx.call(void 0, _chunkPXNZAQTDjs.MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ _jsxruntime.jsx.call(void 0, "div", { className: "mixer-panel__channel-divider" })
+       ] }) })

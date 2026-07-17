@@ -1,0 +1,27 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-U4HBTJNU.mjs
+@@ -15,18 +15,11 @@ import {
+ 
+ // src/utils/spectrogram.ts
+ function getSpectrogramColor(intensity) {
+-  let r, g, b;
+-  if (intensity < 0.5) {
+-    r = 0;
+-    g = Math.floor(intensity * 2 * 255);
+-    b = Math.floor(255 - intensity * 2 * 255);
+-  } else {
+-    r = Math.floor((intensity - 0.5) * 2 * 255);
+-    g = 255;
+-    b = 0;
+-  }
+-  const alpha = Math.max(0.3, intensity);
+-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
++  // Roseus colormap by dofuuz/roseus (MIT), sampled at 256 steps.
++  // https://github.com/dofuuz/roseus
++  const roseus = "01010101020202020202030302030402040502050603060703070803080a03090c030a0e030c10030d11030e13020f1502101702111902121b02131e01142001152201162401172601182800192b001a2d001b2f001b32001c34001d36001e39001e3b011f3e01204001204302214503214804224a05234d06234f0823520924540b24560d25590f255b11255e1325601526631726651926681b266a1d266c1f266f2126712326732626762826782a267a2c267c2e267e3126803326823525843725863a25883c248a3e248b41248d43238f4523904823924a22934c22954f2196512197542098562099581f9a5b1f9b5d1e9c5f1d9d621d9e641c9f671c9f691ba06b1ba06e1aa1701aa17219a17519a27718a27918a27c17a27e17a28017a28316a18516a18716a18916a18c16a08e16a090169f92169f94169e96169d99169d9b179c9d179b9f179aa11899a31898a51997a71a96a91a95ab1b94ad1c93af1d92b11d91b31e90b51f8eb7208db8218cba228bbc2389be2488c02587c12785c32884c52982c62a81c82b80ca2d7ecb2e7dcd2f7bce307ad03278d13377d33475d43674d63772d73971d93a6fda3c6edb3d6ddd3f6bde406adf4268e14367e24565e34664e44863e54961e64b60e74d5ee94e5dea505ceb525bec5359ed5558ed5757ee5956ef5a54f05c53f15e52f26051f26150f3634ff4654ef5674df5694cf66b4bf66c4af76e4af87049f87248f87448f97647f97847fa7a46fa7c46fa7e46fb8046fb8245fb8446fb8646fb8846fc8a46fc8c46fc8e47fc9048fc9248fc9449fc964afb984bfb9a4cfb9c4dfb9e4efba050fba251faa453faa655faa857f9aa58f9ac5af8ae5df8b05ff8b261f7b463f7b666f6b868f6ba6bf5bc6ef4be70f4c073f3c276f3c379f2c57cf2c77ff1c983f0cb86f0cd89efcf8cefd090eed293eed497edd59aedd79eecd9a1ecdaa5ecdca9ecdeacebdfb0ebe1b4ebe2b7ebe4bbebe5bfebe6c2ece8c6ece9c9eceacdedecd0ededd4eeeed7efefdbf0f0def1f2e1f2f3e4f3f4e7f4f5eaf6f6edf7f7f0f9f8f2fbf9f5fdfaf7fefbf9";
++  const index = Math.round(Math.max(0, Math.min(1, intensity)) * 255) * 6;
++  return `#${roseus.slice(index, index + 6)}`;
+ }
+ function renderMonoSpectrogram(ctx, waveformData, x, y, width, height, options = {}) {
+   const {

@@ -1,0 +1,11 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/index.d.ts b/node_modules/@dilsonspickles/components/dist/index.d.ts
+--- a/node_modules/@dilsonspickles/components/dist/index.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/index.d.ts
+@@ -22,6 +22,7 @@ export { TransportButton, TransportButtonProps } from './TransportButton.js';
+ export { ContextMenu, ContextMenuProps } from './ContextMenu.js';
+ export { ContextMenuItem, ContextMenuItemProps } from './ContextMenuItem.js';
+ export { AddTrackFlyout, AddTrackFlyoutProps, TrackType, TrackTypeOption } from './AddTrackFlyout.js';
++export { Flyout, FlyoutDirection, FlyoutProps } from './Flyout.js';
+ export { RulerFlyout, RulerFlyoutProps, WaveformRulerFormat } from './RulerFlyout.js';
+ export { Toast, ToastAction, ToastContainer, ToastContainerProps, ToastProps, toast } from './Toast.js';
+ export { Dialog, DialogProps } from './Dialog.js';

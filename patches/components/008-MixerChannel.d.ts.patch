@@ -1,0 +1,25 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.d.ts
+@@ -69,6 +69,10 @@ interface MixerChannelProps {
+     onPanChange?: (value: number) => void;
+     onMuteToggle?: () => void;
+     onSoloToggle?: () => void;
++    /**
++     * Optional input-routing controls rendered in a compact section above the effects.
++     */
++    inputControls?: React__default.ReactNode;
+     /**
+      * Effects displayed in the effect stack (up to 5 slots).
+      * Each entry has a name, enabled state, and callbacks.
+@@ -78,6 +82,10 @@ interface MixerChannelProps {
+      * Called when the empty effect slot dropdown is clicked (to add a new effect)
+      */
+     onAddEffect?: (event: React__default.MouseEvent<HTMLButtonElement>) => void;
++    /** Optional controls rendered in a row below the effects stack. */
++    effectFooter?: React__default.ReactNode;
++    /** Reserve the effects-footer row even when this channel has no controls. */
++    effectFooterVisible?: boolean;
+     /**
+      * Total number of effect slots to display (including empty ones).
+      * Used to keep all channels the same height when one has more effects.

@@ -1,0 +1,31 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-6F7CDGQV.mjs
+@@ -32,8 +32,11 @@ var MixerChannel = ({
+   onPanChange,
+   onMuteToggle,
+   onSoloToggle,
++  inputControls,
+   effects = [],
+   onAddEffect,
++  effectFooter,
++  effectFooterVisible = false,
+   effectSlotCount = 1,
+   className = ""
+ }) => {
+@@ -58,6 +61,7 @@ var MixerChannel = ({
+   };
+   const volumeDisplay = volume <= FADER_MIN ? "-\u221E" : Math.round(volume).toString();
+   return /* @__PURE__ */ jsxs("div", { className: `mixer-channel ${className}`, style, children: [
++    inputControls != null && /* @__PURE__ */ jsx("div", { className: "mixer-channel__input-controls", children: inputControls }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__effect-slot", children: [
+       effects.map((effect, i) => /* @__PURE__ */ jsx(
+         MixerEffect,
+@@ -75,6 +79,7 @@ var MixerChannel = ({
+       )),
+       Array.from({ length: Math.max(0, effectSlotCount - effects.length) }, (_, i) => /* @__PURE__ */ jsx(MixerEffect, { onDropdownClick: onAddEffect }, `empty-${i}`))
+     ] }),
++    effectFooterVisible && /* @__PURE__ */ jsx("div", { className: "mixer-channel__effect-footer", children: effectFooter }),
+     /* @__PURE__ */ jsxs("div", { className: "mixer-channel__pan-row", children: [
+       /* @__PURE__ */ jsx(
+         Knob,

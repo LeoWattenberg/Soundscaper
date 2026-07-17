@@ -1,0 +1,33 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+--- a/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-IDVJI4QN.mjs
+@@ -24,6 +24,7 @@ var MixerPanel = ({
+   onMenuClick,
+   masterChannel,
+   channels = [],
++  effectFooterLabel,
+   hideHeader = false,
+   className = ""
+ }) => {
+@@ -50,6 +51,7 @@ var MixerPanel = ({
+     /* @__PURE__ */ jsx("div", { className: "mixer-panel__body", children: /* @__PURE__ */ jsxs("div", { className: "mixer-panel__content", children: [
+       /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-labels", children: /* @__PURE__ */ jsxs("div", { style: { marginTop: "auto", paddingRight: 8 }, children: [
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: effectRowHeight, alignItems: "flex-start", paddingTop: 10 }, children: /* @__PURE__ */ jsx("span", { children: "Audio FX" }) }),
++        effectFooterLabel && /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: effectFooterLabel }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Pan" }) }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__row-label", style: { height: 40 }, children: /* @__PURE__ */ jsx("span", { children: "Volume" }) }),
+         /* @__PURE__ */ jsx("div", { style: { height: 160 } }),
+@@ -60,11 +62,11 @@ var MixerPanel = ({
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+         channels.map((ch, i) => /* @__PURE__ */ jsxs(React.Fragment, { children: [
+           i > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...ch.channelProps, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }, ch.id)),
+         masterChannel && /* @__PURE__ */ jsxs(Fragment, { children: [
+           channels.length > 0 && /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" }),
+-          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots })
++          /* @__PURE__ */ jsx(MixerChannel, { ...masterChannel, effectSlotCount: maxEffectSlots, effectFooterVisible: Boolean(effectFooterLabel) })
+         ] }),
+         /* @__PURE__ */ jsx("div", { className: "mixer-panel__channel-divider" })
+       ] }) })

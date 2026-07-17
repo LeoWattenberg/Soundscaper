@@ -1,0 +1,40 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerChannel.css b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+--- a/node_modules/@dilsonspickles/components/dist/MixerChannel.css
++++ b/node_modules/@dilsonspickles/components/dist/MixerChannel.css
+@@ -393,6 +393,21 @@
+   box-sizing: border-box;
+   background: var(--mc-surface);
+ }
++.mixer-channel__input-controls {
++  display: flex;
++  flex-direction: column;
++  align-items: stretch;
++  gap: 4px;
++  width: 100%;
++  min-width: 0;
++  padding: 6px 6px 0;
++  box-sizing: border-box;
++  flex-shrink: 0;
++  margin-top: auto;
++}
++.mixer-channel__input-controls + .mixer-channel__effect-slot {
++  margin-top: 0;
++}
+ .mixer-channel__effect-slot {
+   display: flex;
+   flex-direction: column;
+@@ -404,6 +419,14 @@
+   flex-shrink: 0;
+   margin-top: auto;
+ }
++.mixer-channel__effect-footer {
++	display: flex;
++	align-items: center;
++	width: 100%;
++	min-height: 40px;
++	box-sizing: border-box;
++	flex-shrink: 0;
++}
+ .mixer-channel__pan-row {
+   display: flex;
+   align-items: center;

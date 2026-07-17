@@ -1,0 +1,12 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+--- a/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
++++ b/node_modules/@dilsonspickles/components/dist/MixerPanel.d.mts
+@@ -36,6 +36,8 @@ interface MixerPanelProps {
+      * Track mixer channels to display
+      */
+     channels?: MixerPanelChannel[];
++    /** Label for an optional channel row below the effects stack. */
++    effectFooterLabel?: string;
+     /**
+      * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
+      */

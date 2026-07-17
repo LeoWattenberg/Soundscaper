@@ -1,0 +1,49 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/Flyout.d.mts b/node_modules/@dilsonspickles/components/dist/Flyout.d.mts
+new file mode 100644
+--- /dev/null
++++ b/node_modules/@dilsonspickles/components/dist/Flyout.d.mts
+@@ -0,0 +1,44 @@
++import React from 'react';
++
++type FlyoutDirection = 'down' | 'up' | 'left' | 'right';
++interface FlyoutProps {
++    /** Whether the flyout is open. */
++    isOpen: boolean;
++    /** Called when the flyout should close. */
++    onClose: () => void;
++    /** Horizontal position of the anchor point, in viewport pixels. */
++    x: number;
++    /** Vertical position of the anchor point, in viewport pixels. */
++    y: number;
++    /** Edge from which the flyout expands. Defaults to downward. */
++    direction?: FlyoutDirection;
++    /** Arbitrary flyout content. */
++    children: React.ReactNode;
++    /** Whether to render an arrow that points to the anchor. */
++    showArrow?: boolean;
++    /** Whether a pointer press outside the flyout closes it. */
++    closeOnOutsideClick?: boolean;
++    /** Whether Escape closes the flyout. */
++    closeOnEscape?: boolean;
++    /** Whether to focus the first focusable child when the flyout opens. */
++    autoFocus?: boolean;
++    /** Trigger to restore focus to after pressing Escape. */
++    triggerRef?: React.RefObject<HTMLElement>;
++    /** Accessible name for the flyout. */
++    ariaLabel?: string;
++    /** ARIA role applied to the flyout container. */
++    role?: React.AriaRole;
++    /** Optional CSS class name. */
++    className?: string;
++    /** Optional inline styles. */
++    style?: React.CSSProperties;
++}
++/**
++ * A floating surface for arbitrary content, anchored to viewport coordinates.
++ * It supports all four expansion directions while keeping the surface inside
++ * the viewport where possible.
++ */
++declare const Flyout: React.FC<FlyoutProps>;
++
++export { Flyout, type FlyoutDirection, type FlyoutProps };
++
