@@ -2772,17 +2772,22 @@ function AudacityLabelMarker({
 		inputRef.current?.select();
 	}, [editing]);
 
-	useEffect(() => {
-		const finishDrag = () => queueMicrotask(() => {
-			const pending = pendingRef.current;
-			if (!pending) return;
-			pendingRef.current = null;
-			setPreview(null);
-			run(() => controller.actions.labels.update(trackId, label.id, pending));
-		});
-		document.addEventListener('mouseup', finishDrag);
-		return () => document.removeEventListener('mouseup', finishDrag);
+	const finishDrag = useCallback(() => {
+		const pending = pendingRef.current;
+		if (!pending) return;
+		pendingRef.current = null;
+		setPreview(null);
+		run(() => controller.actions.labels.update(trackId, label.id, pending));
 	}, [controller, label.id, run, trackId]);
+
+	useEffect(() => {
+		document.addEventListener('mouseup', finishDrag);
+		document.addEventListener('pointerup', finishDrag);
+		return () => {
+			document.removeEventListener('mouseup', finishDrag);
+			document.removeEventListener('pointerup', finishDrag);
+		};
+	}, [finishDrag]);
 
 	const previewRange = (startFrame, endFrame) => {
 		const changes = {
@@ -2803,6 +2808,8 @@ function AudacityLabelMarker({
 			className="audio-editor-label-marker"
 			data-label-id={label.id}
 			data-point-label={point ? 'true' : 'false'}
+			onMouseUp={finishDrag}
+			onPointerUp={finishDrag}
 			style={{ left: displayedLeft, width: displayedWidth }}
 			role="group"
 			tabIndex={0}

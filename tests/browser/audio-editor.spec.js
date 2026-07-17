@@ -1397,6 +1397,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
 		const timelineLabel = editor.locator('[data-label-track] [data-label-id]', { hasText: 'Verse' });
 		await expect(timelineLabel).toBeVisible();
+		const widthBeforeResize = await timelineLabel.evaluate((element) => element.getBoundingClientRect().width);
+		const rightEar = timelineLabel.locator('.label-marker__right-ear');
+		const rightEarBox = await rightEar.boundingBox();
+		expect(rightEarBox).not.toBeNull();
+		await page.mouse.move(rightEarBox.x + rightEarBox.width / 2, rightEarBox.y + rightEarBox.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(rightEarBox.x + rightEarBox.width / 2 + 32, rightEarBox.y + rightEarBox.height / 2, { steps: 3 });
+		await page.mouse.up();
+		await expect.poll(() => timelineLabel.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(widthBeforeResize);
+		const widthAfterResize = await timelineLabel.evaluate((element) => element.getBoundingClientRect().width);
+		await page.mouse.move(rightEarBox.x + rightEarBox.width / 2 + 96, rightEarBox.y + rightEarBox.height / 2);
+		await expect.poll(() => timelineLabel.evaluate((element) => element.getBoundingClientRect().width)).toBe(widthAfterResize);
 		await timelineLabel.dblclick();
 		await expect(timelineLabel.locator('input')).toHaveValue('Verse');
 		await page.keyboard.press('Escape');
