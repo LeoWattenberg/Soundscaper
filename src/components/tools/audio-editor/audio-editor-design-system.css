@@ -861,7 +861,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__playback-meter-volume::-webkit-slider-thumb {
-	width: 12px;
+	width: 22px;
 	height: 22px;
 	margin-top: -11px;
 	appearance: none;
@@ -876,7 +876,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__playback-meter-volume::-moz-range-thumb {
-	width: 12px;
+	width: 22px;
 	height: 22px;
 	background: color-mix(in srgb, var(--kw-editor-panel) 78%, transparent);
 	border: 1px solid var(--kw-editor-text);
@@ -999,14 +999,14 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-volume::-webkit-slider-thumb {
 	width: 22px;
-	height: 12px;
+	height: 22px;
 	margin-left: -11px;
 	margin-top: 0;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-volume::-moz-range-thumb {
 	width: 22px;
-	height: 12px;
+	height: 22px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__audacity-level-trigger {
