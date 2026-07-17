@@ -733,6 +733,7 @@ export default function AudioEditorTimeline({
 			}
 		}
 		if (!event.target.closest('.clip-header') && !clipEditHandle && !edgeKind) {
+			run(() => controller.actions.timeline.selectClip(null));
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
 			setSelectionPreview({ startFrame, endFrame: startFrame });

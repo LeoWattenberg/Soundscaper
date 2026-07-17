@@ -2008,6 +2008,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('deselects a clip when clicking its body instead of its header', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await clip.locator('.clip-header').click();
+		await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await clip.click({ position: { x: 48, y: 48 } });
+		await expect(clip.locator('.clip-display')).not.toHaveClass(/clip-display--selected/);
+		expect(errors).toEqual([]);
+	});
+
 	test('renders solid Audacity summary columns and connected samples across zoom levels', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
