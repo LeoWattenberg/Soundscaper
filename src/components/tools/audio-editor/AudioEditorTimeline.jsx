@@ -144,7 +144,7 @@ function ContainerAddTrackFlyout({
 		<div
 			ref={flyoutRef}
 			className={`add-track-flyout ${className}`}
-			style={{ position: 'fixed', left: `${x}px`, top: `${y}px`, zIndex: 10_000 }}
+			style={{ position: 'fixed', left: `${x}px`, top: `${y}px` }}
 		>
 			<div className="add-track-flyout__triangle" style={{ left: 88 }} />
 			<div className="add-track-flyout__body" role="menu" aria-label={copy.addTrack}>
@@ -2392,18 +2392,9 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	const body = canvas.closest('.clip-body');
 	const color = body?.dataset.color || 'blue';
 	const style = getComputedStyle(canvas);
-	const selected = clip.selected || body?.dataset.selected === 'true';
-	const baseWaveform = cssColor(
-		style,
-		`--clip-${color}-waveform${selected ? '-selected' : ''}`,
-		'#172533',
-	);
+	const baseWaveform = cssColor(style, `--clip-${color}-waveform`, '#172533');
 	const selectedWaveform = cssColor(style, `--clip-${color}-time-selection-waveform`, baseWaveform);
-	const baseRms = cssColor(
-		style,
-		`--clip-${color}-waveform-rms${selected ? '-selected' : ''}`,
-		baseWaveform,
-	);
+	const baseRms = cssColor(style, `--clip-${color}-waveform-rms`, baseWaveform);
 	const selectedRms = cssColor(style, `--clip-${color}-time-selection-waveform-rms`, baseRms);
 	const divider = cssColor(style, `--clip-${color}-divider`, 'rgba(0, 0, 0, 0.35)');
 	const splitSeparator = cssColor(style, '--split-separator', divider);

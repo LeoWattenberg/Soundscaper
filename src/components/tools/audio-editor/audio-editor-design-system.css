@@ -2,6 +2,7 @@
 	/* Values are projected from the active Audacity ThemeProvider in React. */
 	--kw-editor-shadow: 0 12px 32px rgb(20 21 26 / 18%);
 	--focus-ring-size: 2px;
+	--kw-editor-flyout-z: 10020;
 	box-sizing: border-box;
 	position: relative;
 	z-index: 21;
@@ -97,11 +98,16 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__split-button-flyout {
 	position: fixed;
-	z-index: 10000;
+	z-index: var(--kw-editor-flyout-z);
 	min-width: 220px;
 	background: var(--flyout-bg, var(--kw-editor-bg));
 	border: 1px solid var(--flyout-border, var(--kw-editor-line));
 	box-shadow: var(--kw-editor-shadow);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__add-track-flyout {
+	position: fixed;
+	z-index: var(--kw-editor-flyout-z);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__split-button-options {
@@ -409,7 +415,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__application-menu.context-menu {
 	min-width: 260px;
-	z-index: 1001;
+	z-index: var(--kw-editor-flyout-z);
 	max-height: min(72dvh, 620px);
 	overflow-x: visible;
 	overflow-y: auto;
@@ -419,12 +425,12 @@
 }
 
 #kw-audio-editor-design-system .context-menu {
-	z-index: 1001;
+	z-index: var(--kw-editor-flyout-z);
 }
 
 #kw-audio-editor-design-system .audio-editor-track-menu.menu {
 	position: fixed !important;
-	z-index: 1001 !important;
+	z-index: var(--kw-editor-flyout-z) !important;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-color-picker.context-menu {
@@ -433,6 +439,7 @@
 	gap: 6px;
 	min-width: 0;
 	padding: 10px;
+	z-index: var(--kw-editor-flyout-z);
 }
 
 #kw-audio-editor-design-system .audio-editor-track-color-picker__label {
@@ -467,6 +474,15 @@
 	 * off-screen rows inherit a transparent background and fail contrast
 	 * evaluation even though the menu itself is painted underneath them. */
 	background-color: var(--context-menu-bg);
+}
+
+#kw-audio-editor-design-system .context-menu-item.disabled {
+	opacity: 1;
+	cursor: not-allowed;
+}
+
+#kw-audio-editor-design-system .context-menu-item.disabled > .context-menu-item-content {
+	opacity: 0.4;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__application-menu .context-menu-item:hover:not(.disabled),
@@ -605,7 +621,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__toolbar-settings.flyout {
 	position: fixed;
-	z-index: 1002;
+	z-index: var(--kw-editor-flyout-z);
 	width: min(256px, calc(100vw - 20px));
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-panel);
@@ -1111,13 +1127,17 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__audacity-level-flyout.flyout {
 	position: fixed;
-	z-index: 1002;
+	z-index: var(--kw-editor-flyout-z);
 	max-height: calc(100vh - 20px);
 	max-width: calc(100vw - 20px);
 	overflow-y: auto;
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-panel);
 	border-color: var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-ruler-flyout {
+	z-index: var(--kw-editor-flyout-z);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__microphone-level-flyout {
