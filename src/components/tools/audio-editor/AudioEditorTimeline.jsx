@@ -650,7 +650,7 @@ export default function AudioEditorTimeline({
 		if (lane.dataset.rulerInteraction !== undefined && isRulerLoopBand(event, lane)) {
 			const startFrame = frameAtClientX(event.clientX, lane);
 			const loop = project.loop;
-			const insideLoop = Boolean(loop && loop.endFrame > loop.startFrame
+			const insideLoop = Boolean(loop?.enabled && loop.endFrame > loop.startFrame
 				&& startFrame >= loop.startFrame && startFrame <= loop.endFrame);
 			pointerSession.current = {
 				kind: 'loop',

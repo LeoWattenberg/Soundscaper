@@ -3469,7 +3469,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (action === 'forward') return engine.seek(engine.getPositionFrames() + projectSampleRate() * 5);
 		if (action === 'loop') {
 			const selection = activeSelection();
-			const enabled = !engine.getState().loop.enabled;
+			const enabled = !project?.loop?.enabled;
 			const storedLoop = project.loop?.endFrame > project.loop?.startFrame
 				? project.loop
 				: null;
