@@ -423,6 +423,25 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('opens Audacity microphone and speaker flyouts', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: {
+					async getUserMedia() {
+						const context = new AudioContext({ sampleRate: 48_000 });
+						const oscillator = context.createOscillator();
+						const gain = context.createGain();
+						const destination = context.createMediaStreamDestination();
+						oscillator.frequency.value = 440;
+						gain.gain.value = 0.2;
+						oscillator.connect(gain).connect(destination);
+						oscillator.start();
+						await context.resume();
+						return destination.stream;
+					},
+				},
+			});
+		});
 		const editor = await bootEditor(page, '/embed/en/');
 		const recordLevel = editor.getByRole('button', { name: 'Record level', exact: true });
 		await expect(recordLevel.locator('.musescore-icon')).toHaveText('\uF41B');
@@ -436,23 +455,64 @@ test.describe('audio editor React/design-system workflows', () => {
 		await recordGain.fill('-6');
 		await expect(recordGain).toHaveValue('-6');
 		const micMetering = microphoneFlyout.getByRole('checkbox', { name: 'Show mic metering when not recording', exact: true });
+		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
+		await micMetering.click();
 		await expect(micMetering).toHaveAttribute('aria-checked', 'true');
+		await expect.poll(async () => Number(await microphoneFlyout
+			.getByRole('meter', { name: 'Input level', exact: true })
+			.getAttribute('aria-valuenow'))).toBeGreaterThan(-60);
+		await expect(editor.locator('[data-idle-input-meter]')).toBeVisible();
 		await micMetering.click();
 		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
+		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuenow', '-60');
+		await expect(editor.locator('[data-idle-input-meter]')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		const playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
+		let playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
 		await expect(playbackSettings.locator('.musescore-icon')).toHaveText('\uEF4E');
 		await playbackSettings.click();
-		const speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
+		let speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
 		await expect(speakerFlyout).toBeVisible();
 		await expect(speakerFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true })).toBeChecked();
 		await speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
+		await expect(speakerFlyout).toBeHidden();
+		const sideMeter = editor.locator('[data-side-playback-meter]');
+		await expect(sideMeter).toBeVisible();
+		await expect(sideMeter.locator('[data-playback-meter]')).toHaveAttribute('data-meter-orientation', 'vertical');
+		const playbackVolume = sideMeter.getByRole('slider', { name: 'Playback volume', exact: true });
+		await expect(playbackVolume).toHaveAttribute('aria-orientation', 'vertical');
+		await expect(playbackVolume).toHaveAttribute('aria-valuetext', '0 dB');
+		await playbackVolume.fill('0.5');
+		await expect(playbackVolume).toHaveAttribute('aria-valuetext', '−30 dB');
+		await playbackVolume.fill('1');
+		await expect(playbackVolume).toHaveAttribute('aria-valuetext', '0 dB');
+		const sideMeterBox = await sideMeter.locator('[data-playback-meter]').boundingBox();
+		expect(sideMeterBox.height).toBeGreaterThan(sideMeterBox.width);
+
+		playbackSettings = sideMeter.getByRole('button', { name: 'Playback meter settings', exact: true });
+		await playbackSettings.click();
+		speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
 		await expect(speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true })).toBeChecked();
 		await speakerFlyout.getByRole('radio', { name: 'Gradient', exact: true }).click();
-		await expect(editor.locator('.kw-audio-editor__master-meter')).toHaveAttribute('data-meter-style', 'gradient');
+		const playbackMeter = sideMeter.locator('[data-playback-meter]');
+		await expect(playbackMeter).toHaveAttribute('data-meter-style', 'gradient');
+		const gradientPeak = playbackMeter.locator('.kw-audio-editor__playback-meter-peak').first();
+		await expect(gradientPeak).toHaveCSS('background-image', /linear-gradient/);
+		await expect(gradientPeak).not.toHaveCSS('clip-path', 'none');
+		await speakerFlyout.getByRole('radio', { name: 'RMS', exact: true }).click();
+		await expect(playbackMeter.locator('.kw-audio-editor__playback-meter-rms')).toHaveCount(2);
+		await speakerFlyout.getByRole('radio', { name: 'Linear (dB)', exact: true }).click();
+		const range = speakerFlyout.getByRole('combobox', { name: 'dB range', exact: true });
+		await range.selectOption('120');
+		await expect(playbackMeter).toHaveAttribute('data-meter-db-range', '120');
+		await expect(playbackMeter.locator('.kw-audio-editor__playback-meter-ruler')).toContainText('120');
 		await speakerFlyout.getByRole('radio', { name: 'Linear (amp)', exact: true }).click();
-		await expect(speakerFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toBeDisabled();
+		await expect(range).toBeDisabled();
+		await expect(playbackMeter.locator('.kw-audio-editor__playback-meter-ruler')).toContainText('0.40');
+
+		await page.reload();
+		const reloaded = await waitForEditor(page);
+		await expect(reloaded.locator('[data-side-playback-meter] [data-playback-meter]')).toHaveAttribute('data-meter-type', 'amplitude');
 	});
 
 	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {

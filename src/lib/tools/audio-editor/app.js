@@ -205,6 +205,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
 	const scheduleTimer = typeof options.setTimeout === 'function' ? options.setTimeout : globalThis.setTimeout.bind(globalThis);
 	const clearScheduledTimer = typeof options.clearTimeout === 'function' ? options.clearTimeout : globalThis.clearTimeout.bind(globalThis);
+	const scheduleInterval = typeof options.setInterval === 'function' ? options.setInterval : globalThis.setInterval.bind(globalThis);
+	const clearScheduledInterval = typeof options.clearInterval === 'function' ? options.clearInterval : globalThis.clearInterval.bind(globalThis);
 	let aup4Client = options.aup4Client || null;
 	let aup4Environment = null;
 	let aup4Initialized = false;
@@ -357,6 +359,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		exportProgress: 0,
 		exportOutput: null,
 		monitoring: false,
+		microphoneMetering: false,
 		latencyOffsetMs: 0,
 		showRms: false,
 		showVerticalRulers: true,
@@ -384,6 +387,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		onChange: handleRecordingPoolChange,
 	});
 	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
+	let microphoneMeterSession = null;
+	let microphoneMeterStartPromise = null;
+	let microphoneMeterGeneration = 0;
+	let microphoneMeterTargetKey = null;
 	let project = null;
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
@@ -393,6 +400,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		.then(() => {
 			state.phase = 'ready';
 			publishDocumentSnapshot();
+			if (state.microphoneMetering) {
+				void setMicrophoneMetering(true).catch((error) => {
+					if (!state.disposed) handleError(error);
+				});
+			}
 			return getSnapshot();
 		})
 		.catch((error) => {
@@ -444,6 +456,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			cancelAudacityEffectPreview({ publish: false });
 			state.spectralWorker?.terminate();
 			state.spectralWorker = null;
+			state.microphoneMetering = false;
+			microphoneMeterGeneration += 1;
+			stopMicrophoneMetering({ releaseInput: false });
 			await stopRecording().catch(() => undefined);
 			await Promise.resolve(recordingCapturePool.dispose?.());
 			state.projectLock?.release();
@@ -608,7 +623,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				processing: Boolean(state.nyquistAbort),
 				result: state.nyquistResult,
 			}),
-			monitor: Object.freeze({ enabled: state.monitoring, latencyOffsetMs: state.latencyOffsetMs }),
+			monitor: Object.freeze({
+				enabled: state.monitoring,
+				metering: state.microphoneMetering,
+				latencyOffsetMs: state.latencyOffsetMs,
+			}),
 			recordingOptions: Object.freeze({
 				paused: state.recordingPaused,
 				leadIn: state.leadInRecording,
@@ -772,6 +791,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				stop: stopRecording,
 				toggleLeadIn: toggleLeadInRecording,
 				setMonitoring,
+				setMetering: setMicrophoneMetering,
 				setLevel: setRecordingInputGain,
 				setLatencyOffset,
 				requestInputAccess,
@@ -1150,6 +1170,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.effectPresets = createAudioEditorEffectPresets();
 		}
 		state.monitoring = Boolean(await store.loadSetting('input-monitor', false));
+		state.microphoneMetering = Boolean(await store.loadSetting('microphone-metering', false));
 		try {
 			state.recordingInputGain = normalizeRecordingInputGain(await store.loadSetting(
 				'recording-input-gain',
@@ -1293,6 +1314,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		state.saveState = sessionTab(project.id)?.dirty ? 'dirty' : 'saved';
 		state.projects = Object.freeze(await store.listProjects());
+		synchronizeMicrophoneMeterTarget();
 		publishProjectState();
 		await garbageCollectSources();
 		if (lockReadOnly) setStatus(copy.projectOpenOtherTab, 'error');
@@ -3610,6 +3632,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (trackId != null && !findTrack(project, trackId)) throw new Error(copy.audioTrackNotFound);
 		state.selectedTrackId = trackId || null;
 		state.selectedClipId = null;
+		synchronizeMicrophoneMeterTarget();
 		publishProjectState();
 	}
 
@@ -3636,6 +3659,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (project.schemaVersion !== 2) {
 			state.selectedTrackId = track.id;
 			state.selectedClipId = clip.id;
+			synchronizeMicrophoneMeterTarget();
 			publishProjectState();
 			return clip.id;
 		}
@@ -3684,7 +3708,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const selection = project.selection || { startFrame: 0, endFrame: 0 };
 		const trackIds = project.tracks.map((track) => track.id);
 		const next = setSelection(selection.startFrame, selection.endFrame, { trackIds });
-		if (!state.selectedTrackId && trackIds.length) state.selectedTrackId = trackIds[0];
+		if (!state.selectedTrackId && trackIds.length) {
+			state.selectedTrackId = trackIds[0];
+			synchronizeMicrophoneMeterTarget();
+		}
 		return next.selection;
 	}
 
@@ -4044,7 +4071,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		syncRecordingPoolSnapshot();
 		await refreshRecordingInputs({ probe: false });
-		if (!state.preferences.recording.retainInputs && !state.recorder) recordingCapturePool.releaseAll();
+		if (!state.recorder) releaseUnretainedRecordingInputs();
 		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
 		if (!opened.length && failures[0]) throw failures[0];
@@ -4071,7 +4098,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				sampleRate: projectSampleRate(),
 			})));
 			syncRecordingPoolSnapshot();
-			if (!state.preferences.recording.retainInputs && !state.recorder) recordingCapturePool.releaseAll();
+			if (!state.recorder) releaseUnretainedRecordingInputs();
 			syncRecordingPoolSnapshot();
 		}
 		publishDocumentSnapshot();
@@ -4110,6 +4137,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function setRecordingTrackInput(trackId, route) {
 		if (state.timedRecordingPreparing || state.timedRecording) return state.recordingRouting.routes[trackId] || null;
+		const meterRouteBefore = state.microphoneMetering ? microphoneMeterRoute() : null;
 		const track = findTrack(project, trackId);
 		state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, route);
 		if (route == null) delete state.recordingRouteHealth[trackId];
@@ -4118,8 +4146,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishDocumentSnapshot();
 		const persist = persistRecordingRouting();
 		const normalized = state.recordingRouting.routes[trackId];
+		const meterRouteAfter = state.microphoneMetering ? microphoneMeterRoute() : null;
+		const restartMetering = Boolean(
+			state.microphoneMetering
+			&& !state.recorder
+			&& microphoneMeterRouteKey(meterRouteBefore) !== microphoneMeterRouteKey(meterRouteAfter),
+		);
+		let meterRestartGeneration = null;
+		if (restartMetering) {
+			meterRestartGeneration = ++microphoneMeterGeneration;
+			stopMicrophoneMetering({
+				releaseInput: meterRouteBefore?.deviceId !== meterRouteAfter?.deviceId,
+			});
+		}
 		if (!normalized) {
 			await persist;
+			if (restartMetering && state.microphoneMetering && microphoneMeterGeneration === meterRestartGeneration) {
+				await setMicrophoneMetering(true);
+			}
 			return null;
 		}
 		try {
@@ -4135,9 +4179,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				? 'open'
 				: 'unavailable';
 			syncRecordingPoolSnapshot();
-			if (!state.preferences.recording.retainInputs && !state.recorder) {
-				if (normalized.kind === 'display') recordingCapturePool.releaseDisplay();
-				else recordingCapturePool.releaseHardware(normalized.deviceId);
+			if (!state.recorder) {
+				releaseUnretainedRecordingInputs();
 				syncRecordingPoolSnapshot();
 			}
 		} catch {
@@ -4147,6 +4190,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		await persist;
 		updateRecordingDeviceRows();
 		publishDocumentSnapshot();
+		if (restartMetering && state.microphoneMetering && microphoneMeterGeneration === meterRestartGeneration) {
+			await setMicrophoneMetering(true);
+		}
 		return normalized;
 	}
 
@@ -4164,7 +4210,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		else if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording) {
 			state.recordingReleaseAfterStop = true;
 		}
-		else recordingCapturePool.releaseAll();
+		else releaseUnretainedRecordingInputs();
 		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
 		return retainInputs;
@@ -4172,9 +4218,30 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function releaseInputs() {
 		if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recordingFinishing) return false;
+		if (state.microphoneMetering) {
+			state.microphoneMetering = false;
+			microphoneMeterGeneration += 1;
+			stopMicrophoneMetering({ releaseInput: false });
+			void store.saveSetting('microphone-metering', false);
+		}
 		const released = recordingCapturePool.releaseAll();
 		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
+		return released;
+	}
+
+	function releaseUnretainedRecordingInputs({ force = false } = {}) {
+		if (!force && state.preferences.recording.retainInputs) return false;
+		if (!state.microphoneMetering) return recordingCapturePool.releaseAll();
+		const meterDeviceId = microphoneMeterSession?.deviceId || microphoneMeterDeviceId();
+		let released = false;
+		for (const source of recordingCapturePool.getSnapshot?.() || []) {
+			if (source.kind === 'display') {
+				released = recordingCapturePool.releaseDisplay() || released;
+			} else if (source.kind === 'device' && source.deviceId !== meterDeviceId) {
+				released = recordingCapturePool.releaseHardware(source.deviceId) || released;
+			}
+		}
 		return released;
 	}
 
@@ -4214,7 +4281,30 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}
 		}
 		updateRecordingDeviceRows();
+		reconcileMicrophoneMeterInput();
 		if (!state.disposed) publishDocumentSnapshot();
+	}
+
+	function reconcileMicrophoneMeterInput({ endedSession = null } = {}) {
+		const session = endedSession || microphoneMeterSession;
+		if (!session || microphoneMeterSession !== session) return false;
+		const replacement = recordingCapturePool.getHardware?.(session.deviceId) || null;
+		if (microphoneMeterSession !== session) return true;
+		if (!endedSession && replacement === session.stream) return false;
+		if (!state.disposed && state.microphoneMetering && replacement && replacement !== session.stream) {
+			microphoneMeterGeneration += 1;
+			stopMicrophoneMetering({ releaseInput: false });
+			void setMicrophoneMetering(true).catch((error) => {
+				if (!state.disposed) handleError(error);
+			});
+			return true;
+		}
+		state.microphoneMetering = false;
+		microphoneMeterGeneration += 1;
+		stopMicrophoneMetering({ releaseInput: false });
+		void store.saveSetting('microphone-metering', false);
+		if (!state.disposed) publishDocumentSnapshot();
+		return true;
 	}
 
 	function setMonitoring(enabled) {
@@ -4223,6 +4313,217 @@ export function createAudioEditorController(_root = null, options = {}) {
 		void store.saveSetting('input-monitor', state.monitoring);
 		publishDocumentSnapshot();
 		return state.monitoring;
+	}
+
+	async function setMicrophoneMetering(enabled) {
+		const next = Boolean(enabled);
+		if (!next) {
+			state.microphoneMetering = false;
+			microphoneMeterGeneration += 1;
+			stopMicrophoneMetering({ releaseInput: true });
+			void store.saveSetting('microphone-metering', false);
+			publishDocumentSnapshot();
+			return false;
+		}
+		state.microphoneMetering = true;
+		void store.saveSetting('microphone-metering', true);
+		publishDocumentSnapshot();
+		if (microphoneMeterSession) return true;
+		try {
+			while (state.microphoneMetering && !microphoneMeterSession && !state.disposed) {
+				if (!microphoneMeterStartPromise) {
+					const operation = startMicrophoneMetering();
+					const tracked = Promise.resolve(operation).finally(() => {
+						if (microphoneMeterStartPromise === tracked) microphoneMeterStartPromise = null;
+					});
+					microphoneMeterStartPromise = tracked;
+				}
+				await microphoneMeterStartPromise;
+			}
+			return Boolean(state.microphoneMetering && microphoneMeterSession);
+		} catch (error) {
+			if (state.microphoneMetering && !state.disposed) {
+				state.microphoneMetering = false;
+				microphoneMeterGeneration += 1;
+				stopMicrophoneMetering({ releaseInput: true });
+				void store.saveSetting('microphone-metering', false);
+				publishDocumentSnapshot();
+			}
+			throw error;
+		}
+	}
+
+	async function startMicrophoneMetering() {
+		if (microphoneMeterSession || !state.microphoneMetering || state.disposed) return;
+		const generation = ++microphoneMeterGeneration;
+		const route = microphoneMeterRoute();
+		const deviceId = route.deviceId;
+		const requestedChannels = Math.max(1, route.channelStart + route.channelCount);
+		microphoneMeterTargetKey = microphoneMeterRouteKey(route);
+		const retainedStream = recordingCapturePool.getHardware?.(deviceId);
+		let stream = retainedStream && streamAudioChannelCount(retainedStream) >= requestedChannels
+			? retainedStream
+			: null;
+		let source = null;
+		let splitter = null;
+		const analysers = [];
+		try {
+			stream ||= await recordingCapturePool.acquireHardware(deviceId, {
+				channelCount: requestedChannels,
+				sampleRate: projectSampleRate(),
+			});
+			if (generation !== microphoneMeterGeneration || !state.microphoneMetering || state.disposed) {
+				if (!state.preferences.recording.retainInputs && !state.recorder && !state.recordingStarting
+					&& !state.timedRecordingPreparing && !state.timedRecording) {
+					recordingCapturePool.releaseHardware(deviceId);
+				}
+				return;
+			}
+			const context = await engine.getAudioContext({ resume: true });
+			if (generation !== microphoneMeterGeneration || !state.microphoneMetering || state.disposed) {
+				if (!state.preferences.recording.retainInputs && !state.recorder && !state.recordingStarting
+					&& !state.timedRecordingPreparing && !state.timedRecording) {
+					recordingCapturePool.releaseHardware(deviceId);
+					syncRecordingPoolSnapshot();
+				}
+				return;
+			}
+			if (!context?.createMediaStreamSource || !context?.createAnalyser) {
+				throw new Error('Microphone metering is not supported by this AudioContext.');
+			}
+			source = context.createMediaStreamSource(stream);
+			if (typeof context.createChannelSplitter === 'function') {
+				splitter = context.createChannelSplitter(requestedChannels);
+				source.connect(splitter);
+				for (let index = 0; index < route.channelCount; index += 1) {
+					const analyser = context.createAnalyser();
+					if (typeof analyser?.getFloatTimeDomainData !== 'function') {
+						throw new Error('Microphone metering is not supported by this AudioContext.');
+					}
+					analyser.fftSize = 256;
+					analyser.smoothingTimeConstant = 0.35;
+					splitter.connect(analyser, route.channelStart + index);
+					analysers.push(analyser);
+				}
+			} else {
+				const analyser = context.createAnalyser();
+				if (typeof analyser?.getFloatTimeDomainData !== 'function') {
+					throw new Error('Microphone metering is not supported by this AudioContext.');
+				}
+				analyser.fftSize = 256;
+				analyser.smoothingTimeConstant = 0.35;
+				source.connect(analyser);
+				analysers.push(analyser);
+			}
+			const samples = analysers.map((analyser) => new Float32Array(analyser.fftSize));
+			const session = {
+				analysers,
+				deviceId,
+				endedListeners: [],
+				interval: null,
+				routeKey: microphoneMeterRouteKey(route),
+				source,
+				splitter,
+				stream,
+			};
+			const handleEnded = () => {
+				if (microphoneMeterSession !== session) return;
+				reconcileMicrophoneMeterInput({ endedSession: session });
+			};
+			for (const track of stream.getAudioTracks?.() || []) {
+				track.addEventListener?.('ended', handleEnded);
+				session.endedListeners.push(() => track.removeEventListener?.('ended', handleEnded));
+			}
+			microphoneMeterSession = session;
+			const update = () => {
+				if (microphoneMeterSession !== session || !state.microphoneMetering || state.disposed) return;
+				let peak = 0;
+				for (let index = 0; index < analysers.length; index += 1) {
+					analysers[index].getFloatTimeDomainData(samples[index]);
+					for (const sample of samples[index]) peak = Math.max(peak, Math.abs(sample));
+				}
+				peak *= state.recordingInputGain;
+				state.inputMeterDb = peak > 0 ? Math.max(-60, 20 * Math.log10(peak)) : -60;
+				publishTelemetrySnapshot();
+			};
+			session.interval = scheduleInterval(update, 50);
+			update();
+			syncRecordingPoolSnapshot();
+			publishDocumentSnapshot();
+		} catch (error) {
+			try { source?.disconnect(); } catch { /* Already disconnected. */ }
+			try { splitter?.disconnect(); } catch { /* Already disconnected. */ }
+			for (const analyser of analysers) {
+				try { analyser.disconnect(); } catch { /* Already disconnected. */ }
+			}
+			if (!state.preferences.recording.retainInputs && !state.recorder && !state.recordingStarting
+				&& !state.timedRecordingPreparing && !state.timedRecording) {
+				recordingCapturePool.releaseHardware(deviceId);
+				syncRecordingPoolSnapshot();
+			}
+			throw error;
+		}
+	}
+
+	function stopMicrophoneMetering({ releaseInput = false } = {}) {
+		const session = microphoneMeterSession;
+		microphoneMeterSession = null;
+		microphoneMeterTargetKey = null;
+		if (session?.interval != null) clearScheduledInterval(session.interval);
+		for (const remove of session?.endedListeners || []) remove();
+		try { session?.source?.disconnect(); } catch { /* Already disconnected. */ }
+		try { session?.splitter?.disconnect(); } catch { /* Already disconnected. */ }
+		for (const analyser of session?.analysers || []) {
+			try { analyser.disconnect(); } catch { /* Already disconnected. */ }
+		}
+		if (releaseInput && session && !state.preferences.recording.retainInputs
+			&& !state.recorder && !state.recordingStarting && !state.timedRecordingPreparing && !state.timedRecording) {
+			recordingCapturePool.releaseHardware(session.deviceId);
+			syncRecordingPoolSnapshot();
+		}
+		if (!state.recorder) {
+			state.inputMeterDb = -60;
+			publishTelemetrySnapshot();
+		}
+	}
+
+	function microphoneMeterRoute() {
+		const selectedRoute = state.recordingRouting.routes?.[state.selectedTrackId];
+		const route = selectedRoute?.kind === 'device'
+			? selectedRoute
+			: Object.values(state.recordingRouting.routes || {})
+				.find((candidate) => candidate?.kind === 'device');
+		return route || {
+			kind: 'device',
+			deviceId: RECORDING_DEFAULT_DEVICE_ID,
+			channelStart: 0,
+			channelCount: 2,
+		};
+	}
+
+	function microphoneMeterRouteKey(route = microphoneMeterRoute()) {
+		return `${route.deviceId}:${route.channelStart}:${route.channelCount}`;
+	}
+
+	function microphoneMeterDeviceId() {
+		return microphoneMeterRoute().deviceId;
+	}
+
+	function synchronizeMicrophoneMeterTarget() {
+		if (!state.microphoneMetering || state.recorder || state.disposed) return false;
+		const route = microphoneMeterRoute();
+		const targetKey = microphoneMeterRouteKey(route);
+		if (microphoneMeterTargetKey === targetKey) return false;
+		const releaseInput = Boolean(
+			microphoneMeterSession
+			&& microphoneMeterSession.deviceId !== route.deviceId,
+		);
+		microphoneMeterGeneration += 1;
+		stopMicrophoneMetering({ releaseInput });
+		void setMicrophoneMetering(true).catch((error) => {
+			if (!state.disposed) handleError(error);
+		});
+		return true;
 	}
 
 	function setRecordingInputGain(value) {
@@ -4264,6 +4565,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const selectedClipExists = state.selectedClipId && findClip(project, state.selectedClipId);
 		if (!selectedClipExists) state.selectedClipId = null;
 		if (state.selectedTrackId && !findTrack(project, state.selectedTrackId)) state.selectedTrackId = project.tracks[0]?.id ?? null;
+		synchronizeMicrophoneMeterTarget();
 		if (!options.skipPlaybackEngine) {
 			if (engine.getState().state === 'playing' && projectHasTimePitchClips(project)) {
 				const snapshot = project;
@@ -7042,7 +7344,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		} catch (error) {
 			if (generation === state.timedRecordingGeneration) state.timedRecording = null;
 			if (generation === state.timedRecordingGeneration && !state.preferences.recording.retainInputs) {
-				recordingCapturePool.releaseAll();
+				releaseUnretainedRecordingInputs();
 				syncRecordingPoolSnapshot();
 			}
 			if (generation !== state.timedRecordingGeneration || error?.name === 'AbortError') return null;
@@ -7169,7 +7471,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (state.recordingStarting) cancelRecordingStart();
 		if (hadPreparedRecorder) void discardPreparedTimedRecording();
 		if (hadTimer && options.releaseInputs !== false) {
-			recordingCapturePool.releaseAll();
+			releaseUnretainedRecordingInputs({ force: true });
 			state.recordingReleaseAfterStop = false;
 			syncRecordingPoolSnapshot();
 		}
@@ -7200,7 +7502,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!state.recordingStarting && !state.recordingStartPromise) return false;
 		state.recordingStartGeneration += 1;
 		state.recordingStarting = false;
-		if (!state.recorder && !state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+		if (!state.recorder) releaseUnretainedRecordingInputs();
 		return true;
 	}
 
@@ -7386,7 +7688,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				await recorder?.dispose?.({ stopTracks: false }).catch(() => undefined);
 				await writer?.abort?.().catch(() => undefined);
 			}
-			if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseHardware(RECORDING_DEFAULT_DEVICE_ID);
+			releaseUnretainedRecordingInputs();
 			if (ownsStart) {
 				syncRecordingPoolSnapshot();
 				state.recorder = null;
@@ -7534,7 +7836,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await dropFailedSourceSessions();
 			syncRecordingPoolSnapshot();
 			if (!sourceSessions.length) {
-				if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+				releaseUnretainedRecordingInputs();
 				throw new Error('None of the assigned recording inputs are available.');
 			}
 
@@ -7737,10 +8039,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 				state.inputMeters = {};
 				state.inputMeterDb = -60;
 				state.recordingFatalError = null;
-				if (!state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+				releaseUnretainedRecordingInputs();
 				syncRecordingPoolSnapshot();
 			}
-			if (!ownsStart && !state.preferences.recording.retainInputs) recordingCapturePool.releaseAll();
+			if (!ownsStart) releaseUnretainedRecordingInputs();
 			if (error?.name === 'AbortError') return;
 			throw error;
 		} finally {
@@ -7926,9 +8228,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.inputMeterDb = -60;
 			state.inputMeters = {};
 			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
-				recordingCapturePool.releaseAll();
-				state.recordingReleaseAfterStop = false;
+				releaseUnretainedRecordingInputs({ force: state.recordingReleaseAfterStop });
 			}
+			state.recordingReleaseAfterStop = false;
 			syncRecordingPoolSnapshot();
 			publishTelemetrySnapshot();
 			updateTransportState(engine.getState().state);
@@ -8038,9 +8340,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.inputMeterDb = -60;
 			state.inputMeters = {};
 			if (!state.preferences.recording.retainInputs || state.recordingReleaseAfterStop) {
-				recordingCapturePool.releaseAll();
-				state.recordingReleaseAfterStop = false;
+				releaseUnretainedRecordingInputs({ force: state.recordingReleaseAfterStop });
 			}
+			state.recordingReleaseAfterStop = false;
 			syncRecordingPoolSnapshot();
 			publishTelemetrySnapshot();
 			updateTransportState(engine.getState().state);

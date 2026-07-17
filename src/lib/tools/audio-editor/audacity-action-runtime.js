@@ -12,7 +12,6 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	clipping: true,
 	halfWave: false,
 	masterTrack: true,
-	microphoneMetering: true,
 	selectionToolbar: true,
 	splitTool: false,
 	statusbar: true,
@@ -424,7 +423,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			setLevel: (level = null) => level == null
 				? ui.issue('focus-recording-level')
 				: controllerActions.recording.setLevel(Number(level)),
-			toggleMicMetering: () => ui.toggleFlag('microphoneMetering'),
+			toggleMicMetering: () => controllerActions.recording.setMetering(!snapshot().monitor?.metering),
 			toggleInputMonitoring: () => controllerActions.recording.setMonitoring(!snapshot().monitor?.enabled),
 		},
 		transport: {
