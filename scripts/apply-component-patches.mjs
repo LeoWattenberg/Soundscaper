@@ -11,11 +11,28 @@ const patchFiles = readdirSync(patchDirectory)
 for (const file of patchFiles) {
 	const patchPath = join(patchDirectory, file);
 	const patch = readFileSync(patchPath, 'utf8');
-	execFileSync('git', ['apply', '--check', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
-		cwd: root,
-		input: patch,
-		stdio: ['pipe', 'inherit', 'inherit'],
-	});
+	try {
+		execFileSync('git', ['apply', '--check', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
+			cwd: root,
+			input: patch,
+			stdio: 'pipe',
+		});
+	} catch {
+		try {
+			execFileSync('git', ['apply', '--reverse', '--check', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
+				cwd: root,
+				input: patch,
+				stdio: 'pipe',
+			});
+			continue;
+		} catch {
+			execFileSync('git', ['apply', '--check', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
+				cwd: root,
+				input: patch,
+				stdio: ['pipe', 'inherit', 'inherit'],
+			});
+		}
+	}
 	execFileSync('git', ['apply', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
 		cwd: root,
 		input: patch,
