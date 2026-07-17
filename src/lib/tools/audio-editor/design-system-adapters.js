@@ -165,6 +165,24 @@ export function projectClipsToViewport(clips, options = {}) {
 }
 
 /**
+ * Return the visible clip nearest the viewport's right edge. A clip with a
+ * later visible start wins when two clips end at the same visible position.
+ */
+export function rightmostVisibleClip(clips) {
+	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
+	let result = null;
+	for (const clip of clips) {
+		if (!clip?.isVisible) continue;
+		if (!result || clip.visibleEndSeconds > result.visibleEndSeconds
+			|| (clip.visibleEndSeconds === result.visibleEndSeconds
+				&& clip.visibleStartSeconds >= result.visibleStartSeconds)) {
+			result = clip;
+		}
+	}
+	return result;
+}
+
+/**
  * Calculate a canvas backing size without allowing high-DPI or very large CSS
  * dimensions to allocate an unbounded pixel buffer.
  *

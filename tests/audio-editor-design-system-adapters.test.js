@@ -12,6 +12,7 @@ import {
 	prepareBoundedWaveformWindow,
 	progressToDesignValue,
 	projectClipsToViewport,
+	rightmostVisibleClip,
 	secondsToFrames,
 } from '../src/lib/tools/audio-editor/design-system-adapters.js';
 
@@ -171,6 +172,19 @@ test('viewport projection rejects unsafe geometry and clips ending exactly at an
 	], { viewportStartFrame: 96_000, viewportDurationFrames: 48_000 });
 	assert.deepEqual(projection.clips.map((item) => item.id), ['starts-at-end']);
 	assert.equal(projection.clips[0].isVisible, false);
+});
+
+test('rightmost visible clip is selected for viewport-dependent display state', () => {
+	const clips = [
+		{ id: 'hidden', isVisible: false, visibleStartSeconds: 0, visibleEndSeconds: 4 },
+		{ id: 'left', isVisible: true, visibleStartSeconds: 0, visibleEndSeconds: 0.5 },
+		{ id: 'right', isVisible: true, visibleStartSeconds: 0.5, visibleEndSeconds: 1 },
+		{ id: 'later-tie', isVisible: true, visibleStartSeconds: 0.75, visibleEndSeconds: 1 },
+	];
+
+	assert.equal(rightmostVisibleClip(clips).id, 'later-tie');
+	assert.equal(rightmostVisibleClip([{ id: 'hidden', isVisible: false }]), null);
+	assert.throws(() => rightmostVisibleClip(null), /clips must be an array/);
 });
 
 test('bounded canvas dimensions preserve normal high-DPI output and cap each allocation limit', () => {

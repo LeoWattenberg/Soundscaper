@@ -28,6 +28,7 @@ import {
 	panToDesignValue,
 	prepareBoundedWaveformWindow,
 	projectClipsToViewport,
+	rightmostVisibleClip,
 	secondsToFrames,
 } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import {
@@ -1600,6 +1601,19 @@ function TrackRow({
 					: undefined,
 			} : clip;
 		});
+	const measuredProjectionClip = rightmostVisibleClip(projection.clips);
+	const measuredClip = measuredProjectionClip
+		? projectedClips.find((clip) => String(clip.id) === String(measuredProjectionClip.id))
+		: null;
+	const measuredSource = measuredProjectionClip?.sourceId
+		? project.sources.find((source) => source.id === measuredProjectionClip.sourceId)
+		: null;
+	const rulerChannelCount = Math.max(1, Math.min(2,
+		measuredClip?.audacityWaveform?.channels?.length
+			|| measuredClip?.channelCount
+			|| measuredSource?.channelCount
+			|| 1,
+	));
 	const projectedSelection = selection ? {
 		startTime: selection.startTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
 		endTime: selection.endTime - framesToSeconds(projection.overscanStartFrame, { sampleRate }),
@@ -2005,17 +2019,10 @@ function TrackRow({
 								scale={spectrogramScale}
 								width={verticalRulerWidth}
 							/>
-							<VerticalRuler height={Math.ceil(trackHeight / 2)} min={-1} max={1} majorDivisions={2} minorDivisions={1} width={verticalRulerWidth} />
+							{renderAmplitudeRulers(rulerChannelCount, trackHeight - Math.floor(trackHeight / 2), verticalRulerWidth, displayMode)}
 						</>
 					) : (
-						<VerticalRuler
-							height={trackHeight}
-							min={displayMode === 'half-wave' ? 0 : -1}
-							max={1}
-							majorDivisions={displayMode === 'half-wave' ? 2 : 3}
-							minorDivisions={1}
-							width={verticalRulerWidth}
-						/>
+						renderAmplitudeRulers(rulerChannelCount, trackHeight, verticalRulerWidth, displayMode)
 					)}
 				</div>}
 			</div>
@@ -3034,6 +3041,24 @@ function normalizeSpectrogramScale(value) {
 	const scale = String(value || 'mel').toLowerCase();
 	if (scale === 'log') return 'logarithmic';
 	return ['linear', 'logarithmic', 'mel', 'bark', 'erb', 'period'].includes(scale) ? scale : 'mel';
+}
+
+function renderAmplitudeRulers(channelCount, height, width, displayMode) {
+	const normalizedChannelCount = Math.max(1, Math.min(2, Number(channelCount) || 1));
+	const channelHeight = Math.floor(height / normalizedChannelCount);
+	return Array.from({ length: normalizedChannelCount }, (_, channel) => (
+		<VerticalRuler
+			key={channel}
+			height={channel === normalizedChannelCount - 1
+				? height - channelHeight * channel
+				: channelHeight}
+			min={displayMode === 'half-wave' ? 0 : -1}
+			max={1}
+			majorDivisions={displayMode === 'half-wave' ? 2 : 3}
+			minorDivisions={1}
+			width={width}
+		/>
+	));
 }
 
 function spectralSelectionState(selection) {
