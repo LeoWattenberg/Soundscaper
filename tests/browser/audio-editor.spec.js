@@ -269,7 +269,20 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.down();
 		await page.mouse.move(box.x + 144, box.y + 48, { steps: 4 });
 		await page.mouse.up();
-		await expect(editor.getByRole('button', { name: 'Loop selection' })).toBeEnabled();
+		const loopSelection = editor.getByRole('button', { name: 'Loop selection' });
+		await expect(loopSelection).toBeEnabled();
+		const loopButton = editor.locator('.kw-audio-editor__transport-state button');
+		await loopButton.click();
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'true');
+		await loopButton.click();
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'false');
+		await loopSelection.click();
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'true');
+		const ruler = editor.locator('[data-ruler]');
+		const rulerBox = await ruler.boundingBox();
+		expect(rulerBox).not.toBeNull();
+		await page.mouse.click(rulerBox.x + 84, rulerBox.y + rulerBox.height / 4);
+		await expect(loopButton).toHaveAttribute('aria-pressed', 'false');
 		await expect(editor.locator('[data-selection-toolbar] .timecode')).toHaveCount(3);
 
 		await editor.getByRole('button', { name: 'Add track', exact: true }).click();

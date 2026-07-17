@@ -3581,7 +3581,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				startFrame: 0,
 				endFrame: Math.max(1, Math.round(projectSampleRate() * 4)),
 			};
-			const next = commitLoopRange({ enabled, ...range });
+			const next = commitLoopRange({ ...range, enabled });
 			engine.setLoop(next.loop);
 			return;
 		}
