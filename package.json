@@ -46,7 +46,7 @@
 		"@ffmpeg/core": "0.12.10",
 		"@ffmpeg/ffmpeg": "0.12.15",
 		"@sqlite.org/sqlite-wasm": "3.53.0-build1",
-		"astro": "^7.0.7",
+		"astro": "^7.1.1",
 		"fflate": "0.8.3",
 		"react": "19.2.7",
 		"react-dom": "19.2.7",
