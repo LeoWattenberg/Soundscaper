@@ -525,6 +525,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		const sideChannelsBox = await sideRecordingMeter.locator('.kw-audio-editor__playback-meter-channels').boundingBox();
 		expect(Math.abs((sideSliderBox.x + sideSliderBox.width / 2) - (sideChannelsBox.x + sideChannelsBox.width / 2))).toBeLessThanOrEqual(1);
 		expect(sideSliderBox.width).toBeGreaterThanOrEqual(sideChannelsBox.width - 1);
+		await sideRecordingMeter.getByRole('button', { name: 'Record level', exact: true }).click();
+		let sideRecordingFlyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
+		await sideRecordingFlyout.getByRole('radio', { name: 'EBU R 128', exact: true }).click();
+		const sideInputEbuMeter = sideRecordingMeter.locator('[data-audio-meter]');
+		await expect(sideInputEbuMeter).toHaveAttribute('data-meter-type', 'ebu-r128');
+		await expect(sideInputEbuMeter).toHaveAttribute('data-ebu-scale', 'plus9');
+		await expect(sideInputEbuMeter).toHaveAttribute('data-ebu-unit', 'absolute');
+		await expect(sideInputEbuMeter.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuemin', '-41');
+		await expect(sideInputEbuMeter.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuetext', '— LUFS');
+		await expect(sideRecordingFlyout.getByRole('radio', { name: 'Gradient', exact: true })).toHaveCount(0);
+		await expect(sideRecordingFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toHaveCount(0);
+		await sideRecordingFlyout.getByRole('radio', { name: 'EBU +18', exact: true }).click();
+		await sideRecordingFlyout.getByRole('radio', { name: 'Relative (LU)', exact: true }).click();
+		await sideRecordingFlyout.getByRole('radio', { name: 'Short-term (S)', exact: true }).click();
+		await expect(sideInputEbuMeter).toHaveAttribute('data-ebu-scale', 'plus18');
+		await expect(sideInputEbuMeter).toHaveAttribute('data-ebu-unit', 'relative');
+		await expect(sideInputEbuMeter).toHaveAttribute('data-ebu-live-value', 'short-term');
+		await expect(sideInputEbuMeter.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuemin', '-36');
+		await expect(sideRecordingFlyout.getByRole('button', { name: 'Reset measurement', exact: true })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
 		let playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
@@ -569,10 +588,78 @@ test.describe('audio editor React/design-system workflows', () => {
 		await speakerFlyout.getByRole('radio', { name: 'Linear (amp)', exact: true }).click();
 		await expect(range).toBeDisabled();
 		await expect(playbackMeter.locator('.kw-audio-editor__playback-meter-ruler')).toContainText('0.40');
+		await speakerFlyout.getByRole('radio', { name: 'EBU R 128', exact: true }).click();
+		await expect(playbackMeter).toHaveAttribute('data-meter-type', 'ebu-r128');
+		await expect(playbackMeter).toHaveAttribute('data-ebu-scale', 'plus9');
+		await expect(playbackMeter).toHaveAttribute('data-ebu-unit', 'absolute');
+		await expect(playbackMeter.locator('[data-ebu-target]')).toContainText('23');
+		await expect(speakerFlyout.getByRole('radio', { name: 'Gradient', exact: true })).toHaveCount(0);
+		await expect(speakerFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toHaveCount(0);
+		await expect(speakerFlyout.getByText('Loudness range (LRA)', { exact: true })).toHaveCount(0);
+		await speakerFlyout.getByRole('radio', { name: 'EBU +18', exact: true }).click();
+		await speakerFlyout.getByRole('radio', { name: 'Relative (LU)', exact: true }).click();
+		await speakerFlyout.getByRole('radio', { name: 'Short-term (S)', exact: true }).click();
+		await expect(playbackMeter).toHaveAttribute('data-ebu-scale', 'plus18');
+		await expect(playbackMeter).toHaveAttribute('data-ebu-unit', 'relative');
+		await expect(playbackMeter).toHaveAttribute('data-ebu-live-value', 'short-term');
+		await expect(playbackMeter.getByRole('meter')).toHaveAttribute('aria-valuemin', '-36');
+		await expect(playbackMeter.getByRole('meter')).toHaveAttribute('aria-valuemax', '18');
+		await expect(playbackMeter.locator('[data-ebu-target]')).toHaveText('0');
+		await expect(speakerFlyout.getByRole('button', { name: 'Reset measurement', exact: true })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await chooseCommandAction(page, editor, 'Analyze', 'EBU R 128');
+		const ebuPanel = editor.locator('[data-workspace-panel="ebu-r128"]');
+		await expect(ebuPanel.getByText('Loudness range (LRA)', { exact: true })).toBeVisible();
+		await ebuPanel.getByRole('button', { name: 'Reset measurement', exact: true }).focus();
+		await page.keyboard.press('Enter');
 
 		await page.reload();
 		const reloaded = await waitForEditor(page);
-		await expect(reloaded.locator('[data-side-playback-meter] [data-playback-meter]')).toHaveAttribute('data-meter-type', 'amplitude');
+		const reloadedPlayback = reloaded.locator('[data-side-playback-meter] [data-playback-meter]');
+		await expect(reloadedPlayback).toHaveAttribute('data-meter-type', 'ebu-r128');
+		await expect(reloadedPlayback).toHaveAttribute('data-ebu-scale', 'plus18');
+		await expect(reloadedPlayback).toHaveAttribute('data-ebu-unit', 'relative');
+		await expect(reloadedPlayback).toHaveAttribute('data-ebu-live-value', 'short-term');
+		const reloadedInput = reloaded.locator('[data-side-recording-meter] [data-audio-meter]');
+		await expect(reloadedInput).toHaveAttribute('data-meter-type', 'ebu-r128');
+		await expect(reloadedInput).toHaveAttribute('data-ebu-scale', 'plus18');
+	});
+
+	test('migrates legacy meter settings while preserving conventional meter choices', async ({ page }) => {
+		await page.addInitScript(() => {
+			localStorage.setItem('soundscaper-playback-meter-settings-v1', JSON.stringify({
+				position: 'side',
+				style: 'gradient',
+				type: 'db-linear',
+				dbRange: 96,
+			}));
+			localStorage.setItem('soundscaper-recording-meter-settings-v1', JSON.stringify({
+				position: 'top',
+				style: 'rms',
+				type: 'db-log',
+				dbRange: 72,
+			}));
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		const playback = editor.locator('[data-side-playback-meter] [data-playback-meter]');
+		await expect(playback).toHaveAttribute('data-meter-type', 'db-linear');
+		await expect(playback).toHaveAttribute('data-meter-style', 'gradient');
+		await expect(playback).toHaveAttribute('data-meter-db-range', '96');
+		const recording = editor.locator('[data-meter-kind="recording"][data-meter-position="top"]');
+		await expect(recording).toHaveAttribute('data-meter-type', 'db-log');
+		await expect(recording).toHaveAttribute('data-meter-style', 'rms');
+		await expect(recording).toHaveAttribute('data-meter-db-range', '72');
+		await expect.poll(() => page.evaluate(() => (
+			JSON.parse(localStorage.getItem('soundscaper-playback-meter-settings-v2'))
+		))).toMatchObject({
+			position: 'side',
+			style: 'gradient',
+			type: 'db-linear',
+			dbRange: 96,
+			ebuScale: 'plus9',
+			ebuUnit: 'absolute',
+			ebuLiveValue: 'momentary',
+		});
 	});
 
 	test('selects and restores custom microphone and speaker devices', async ({ page }) => {
@@ -1250,10 +1337,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		const rightClip = clips.nth(1);
 		const clipBox = await rightClip.boundingBox();
 		expect(clipBox).not.toBeNull();
+		const headerBox = await rightClip.locator('.clip-header').boundingBox();
+		expect(headerBox).not.toBeNull();
+		const startX = headerBox.x + Math.min(headerBox.width / 2, 40);
+		const startY = headerBox.y + headerBox.height / 2;
 
-		await page.mouse.move(clipBox.x + 10, clipBox.y + 12);
+		await page.mouse.move(startX, startY);
 		await page.mouse.down();
-		await page.mouse.move(clipBox.x + 35, clipBox.y + 12, { steps: 4 });
+		await page.mouse.move(startX + 25, startY, { steps: 4 });
 		await page.mouse.up();
 
 		await expect.poll(async () => (await rightClip.boundingBox())?.x || 0).toBeGreaterThan(clipBox.x + 15);
@@ -1270,12 +1361,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-automation-tool', 'true');
 
 		const clip = clipByName(editor, toneA.name);
-		await expect(clip.locator('.envelope-overlay')).toBeVisible();
-		const box = await clip.boundingBox();
-		expect(box).toBeTruthy();
-		// Standard clips place the design-system's non-linear 0 dB line about
-		// 58 px below the top edge (20 px header plus the body curve offset).
-		await page.mouse.click(box.x + box.width * 0.5, box.y + 58);
+		const envelope = clip.locator('.envelope-overlay');
+		await expect(envelope).toBeVisible();
+		const envelopeBox = await envelope.boundingBox();
+		expect(envelopeBox).toBeTruthy();
+		const curveY = await envelope.locator('path').evaluate((path) => (
+			Number(path.getAttribute('d')?.match(/^M [^,]+,([^ ]+)/)?.[1])
+		));
+		await page.mouse.click(
+			envelopeBox.x + envelopeBox.width * 0.5,
+			envelopeBox.y + curveY,
+		);
 		await expect(clip.locator('.envelope-point')).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
@@ -1758,14 +1854,32 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(effectsPanel.locator('[data-master-gain] input')).toHaveValue('-3.00');
 		await closeEffectsPanel(effectsPanel);
 
-		const analysisDialog = await openAnalysisDialog(page, editor);
-		await analysisDialog.getByRole('button', { name: 'Analyze master' }).click();
+		const analysisPanel = await openAnalysisPanel(page, editor);
+		await analysisPanel.getByRole('button', { name: 'Analyze master' }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
-		await expect(analysisDialog.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS');
-		await expect(analysisDialog.locator('[data-analysis-value="clipping"]')).toHaveText('0');
-		await expect(analysisDialog.locator('[data-analysis-spectrum]')).toBeVisible();
-		await expect(analysisDialog.locator('[data-analysis-spectrogram]')).toBeVisible();
-		await closeDialog(analysisDialog);
+		await expect(analysisPanel.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS');
+		await expect(analysisPanel.locator('[data-analysis-value="clipping"]')).toHaveText('0');
+		await expect(analysisPanel.locator('[data-analysis-spectrum]')).toBeVisible();
+		await expect(analysisPanel.locator('[data-analysis-spectrogram]')).toBeVisible();
+		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await expect(analysisPanel).toHaveCount(0);
+
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+		for (const [command, panelId, panelName] of [
+			['Plot spectrum', 'spectrum', 'Plot spectrum'],
+			['Find clipping', 'clipping', 'Find clipping'],
+			['Contrast', 'contrast', 'Contrast'],
+			['EBU R 128', 'ebu-r128', 'EBU R 128'],
+		]) {
+			await chooseCommandAction(page, editor, 'Analyze', command);
+			const analyzerPanel = editor.locator(`[data-workspace-panel="${panelId}"]`);
+			await expect(analyzerPanel).toBeVisible();
+			if (panelId === 'ebu-r128') {
+				await expect(analyzerPanel.locator('.kw-audio-editor__ebu-dashboard')).toBeVisible();
+			}
+			await analyzerPanel.getByRole('button', { name: `Close: ${panelName}`, exact: true }).click();
+			await expect(analyzerPanel).toHaveCount(0);
+		}
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
@@ -2277,9 +2391,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await verticalRuler.click({ button: 'right', position: { x: 20, y: 70 } });
 		const rulerFlyout = page.locator('.audio-editor-ruler-flyout');
 		await expect(rulerFlyout).toBeVisible();
-		await expect(rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' })).not.toContainText('Logarithmic (dB)');
-		await expect(rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio')).toHaveCount(2);
-		await rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio').nth(1).click();
+		await expect(rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio')).toHaveCount(3);
+		await rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio').nth(2).click();
 		await expect(verticalRuler).toHaveAttribute('data-ruler-format', 'linear-db');
 		await rulerFlyout.getByRole('button', { name: 'Zoom in', exact: true }).click();
 		await expect(verticalRuler).toHaveAttribute('data-ruler-zoom', '1');
@@ -2358,9 +2471,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await editor.getByRole('button', { name: 'Spectrogram' }).click();
+		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
-		await expect(editor.getByRole('button', { name: 'Spectrogram' })).toHaveAttribute('aria-pressed', 'true');
+		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
 		const rulerCanvas = editor.locator('[data-ruler] canvas.timeline-ruler');
 		await expect.poll(() => rulerCanvas.evaluate((canvas) => canvas.width / canvas.getBoundingClientRect().width)).toBeGreaterThanOrEqual(1);
@@ -3133,7 +3246,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		const tracks = editor.locator('[data-track-row]');
 		await expect(tracks).toHaveCount(2);
-		await editor.getByRole('button', { name: 'Spectrogram' }).click();
+		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);
 		const record = editor.getByRole('button', { name: 'Record onto the active track' });
@@ -3203,10 +3316,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await assertNoSeriousAxeViolations(page);
 		await closeDialog(effectDialog);
 
-		const analysisDialog = await openAnalysisDialog(page, editor);
-		await assertAccessibleBasics(analysisDialog);
+		const analysisPanel = await openAnalysisPanel(page, editor);
+		await assertAccessibleBasics(analysisPanel);
 		await assertNoSeriousAxeViolations(page);
-		await closeDialog(analysisDialog);
+		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
 
 		const exportDialog = await openExportDialog(page, editor);
 		await assertAccessibleBasics(exportDialog);
@@ -3403,12 +3516,11 @@ async function openParametricEqSelectionEffect(page, editor) {
 	return dialog;
 }
 
-async function openAnalysisDialog(page, editor) {
+async function openAnalysisPanel(page, editor) {
 	await chooseCommandAction(page, editor, 'Analyze', 'Analysis');
-	const dialog = page.getByRole('dialog', { name: 'Analysis', exact: true });
-	await expect(dialog).toBeVisible();
-	await expect(page.locator('[data-editor-surface="analysis"]')).toBeVisible();
-	return dialog;
+	const panel = editor.locator('[data-workspace-panel="analysis"]');
+	await expect(panel).toBeVisible();
+	return panel;
 }
 
 async function openExportDialog(page, editor) {

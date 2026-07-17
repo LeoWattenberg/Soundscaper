@@ -1622,19 +1622,8 @@ function SteppedSlider({ value, min, max, step, ariaLabel, disabled, onChange })
 	);
 }
 
-export function AnalysisDialog({ isOpen, mode = 'levels', controller, snapshot, copy, locale, fileService, onClose }) {
-	return (
-		<ControlledDialog
-			isOpen={isOpen}
-			title={copy.analysisDialog || copy.analysis}
-			onClose={onClose}
-			width={780}
-			className="audio-editor-analysis-dialog"
-			dataAttributes={{ 'data-analysis-dialog': '' }}
-		>
-			<AnalysisContent mode={mode} controller={controller} snapshot={snapshot} copy={copy} locale={locale} fileService={fileService} />
-		</ControlledDialog>
-	);
+export function AnalysisPanel({ mode = 'levels', controller, snapshot, copy, locale, fileService }) {
+	return <AnalysisContent mode={mode} controller={controller} snapshot={snapshot} copy={copy} locale={locale} fileService={fileService} />;
 }
 
 function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService }) {

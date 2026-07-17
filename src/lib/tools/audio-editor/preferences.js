@@ -91,6 +91,11 @@ const DEFAULT_PANELS = Object.freeze({
 	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
 	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 	spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
+	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),
+	spectrum: Object.freeze({ visible: false, dock: 'right', order: 7, size: 380 }),
+	clipping: Object.freeze({ visible: false, dock: 'right', order: 8, size: 380 }),
+	contrast: Object.freeze({ visible: false, dock: 'right', order: 9, size: 380 }),
+	'ebu-r128': Object.freeze({ visible: false, dock: 'right', order: 10, size: 380 }),
 });
 
 const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
@@ -100,6 +105,11 @@ const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	effects: Object.freeze({ x: 96, y: 40, width: 400, height: 440 }),
 	mixer: Object.freeze({ x: 40, y: 96, width: 560, height: 360 }),
 	spectrogram: Object.freeze({ x: 120, y: 64, width: 400, height: 360 }),
+	analysis: Object.freeze({ x: 144, y: 88, width: 520, height: 600 }),
+	spectrum: Object.freeze({ x: 168, y: 112, width: 520, height: 600 }),
+	clipping: Object.freeze({ x: 192, y: 136, width: 520, height: 600 }),
+	contrast: Object.freeze({ x: 216, y: 160, width: 520, height: 600 }),
+	'ebu-r128': Object.freeze({ x: 240, y: 184, width: 440, height: 460 }),
 });
 
 export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({

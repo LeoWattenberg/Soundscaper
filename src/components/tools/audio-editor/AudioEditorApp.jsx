@@ -47,6 +47,9 @@ import {
 	normalizeAudioEditorShortcut,
 } from '../../../lib/tools/audio-editor/preferences.js';
 import {
+	ebuMeterBounds,
+	ebuMeterPercent,
+	ebuMeterTicks,
 	playbackMeterAmplitudeToDb,
 	playbackMeterFullSteps,
 	playbackMeterGainFromPosition,
@@ -59,7 +62,7 @@ import {
 	loadNyquistPluginSource,
 } from '../../../lib/tools/audio-editor/nyquist/plugin-registry.js';
 import {
-	AnalysisDialog,
+	AnalysisPanel,
 	AudioEditorEffectsOverlay,
 	AudioEditorMacroManagerDialog,
 	ClipPropertiesDialog,
@@ -80,23 +83,40 @@ import AudioEditorSplitButton from './AudioEditorSplitButton.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
 
-const PLAYBACK_METER_SETTINGS_STORAGE_KEY = 'soundscaper-playback-meter-settings-v1';
-const RECORDING_METER_SETTINGS_STORAGE_KEY = 'soundscaper-recording-meter-settings-v1';
+const PLAYBACK_METER_SETTINGS_STORAGE_KEY = 'soundscaper-playback-meter-settings-v2';
+const RECORDING_METER_SETTINGS_STORAGE_KEY = 'soundscaper-recording-meter-settings-v2';
+const LEGACY_PLAYBACK_METER_SETTINGS_STORAGE_KEY = 'soundscaper-playback-meter-settings-v1';
+const LEGACY_RECORDING_METER_SETTINGS_STORAGE_KEY = 'soundscaper-recording-meter-settings-v1';
 const METER_POSITIONS = Object.freeze(['flyout', 'top', 'side']);
 const METER_STYLES = Object.freeze(['default', 'rms', 'gradient']);
-const METER_TYPES = Object.freeze(['db-log', 'db-linear', 'amplitude']);
+const METER_TYPES = Object.freeze(['db-log', 'db-linear', 'amplitude', 'ebu-r128']);
 const METER_DB_RANGES = Object.freeze([36, 48, 60, 72, 84, 96, 120, 144]);
+const EBU_METER_SCALES = Object.freeze(['plus9', 'plus18']);
+const EBU_METER_UNITS = Object.freeze(['absolute', 'relative']);
+const EBU_METER_LIVE_VALUES = Object.freeze(['momentary', 'short-term']);
+const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
+	levels: 'analysis',
+	spectrum: 'spectrum',
+	clipping: 'clipping',
+	contrast: 'contrast',
+});
 const DEFAULT_PLAYBACK_METER_SETTINGS = Object.freeze({
 	position: 'top',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
+	ebuScale: 'plus9',
+	ebuUnit: 'absolute',
+	ebuLiveValue: 'momentary',
 });
 const DEFAULT_RECORDING_METER_SETTINGS = Object.freeze({
 	position: 'flyout',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
+	ebuScale: 'plus9',
+	ebuUnit: 'absolute',
+	ebuLiveValue: 'momentary',
 });
 
 export default function AudioEditorApp(props) {
@@ -155,7 +175,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [showArmControls, setShowArmControls] = useState(false);
 	const [automationToolEnabled, setAutomationToolEnabled] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
-	const [analysisMode, setAnalysisMode] = useState('levels');
 	const [nyquistTarget, setNyquistTarget] = useState(() => ({ prompt: true, pluginId: null }));
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
 	const [draggedWorkspacePanelId, setDraggedWorkspacePanelId] = useState(null);
@@ -763,12 +782,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 				openSurface('nyquist');
 			},
 			openAnalysis: (mode = 'levels') => {
-				setAnalysisMode(mode);
-				openSurface('analysis');
+				openWorkspacePanel(ANALYSIS_MODE_PANEL_IDS[mode] || 'analysis');
 				const scope = selectedAudioTrack ? 'track' : 'master';
 				if (mode === 'spectrum') run(() => controller.actions.analysis.plotSpectrum(scope));
 				else if (mode === 'clipping') run(() => controller.actions.analysis.findClipping(scope));
 			},
+			openEbuR128: () => openWorkspacePanel('ebu-r128'),
 			setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
 			togglePanel: (panelId) => run(() => controller.actions.preferences.togglePanel(panelId)),
 			quickHelp: () => workspaceRef.current?.querySelector('.kw-audio-editor__keyboard-help')?.focus?.(),
@@ -1050,6 +1069,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
+					locale={locale}
+					fileService={fileService}
+					playbackMeterSettings={playbackMeterSettings}
 					run={run}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
@@ -1091,6 +1113,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
+					locale={locale}
+					fileService={fileService}
+					playbackMeterSettings={playbackMeterSettings}
 					run={run}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
@@ -1106,6 +1131,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
+					locale={locale}
+					fileService={fileService}
+					playbackMeterSettings={playbackMeterSettings}
 					run={run}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
@@ -1142,6 +1170,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
+					locale={locale}
+					fileService={fileService}
+					playbackMeterSettings={playbackMeterSettings}
 					run={run}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
@@ -1273,20 +1304,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 						snapshot={snapshot}
 						copy={copy}
 						run={run}
-						onClose={() => setActiveSurface(null)}
-					/>
-				</div>
-			)}
-			{activeSurface === 'analysis' && (
-				<div data-editor-surface="analysis">
-					<AnalysisDialog
-						isOpen
-						mode={analysisMode}
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						locale={locale}
-						fileService={fileService}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -1839,7 +1856,8 @@ function AudacityToolbarFlyoutButton({
 function useRecordingMeter(controller) {
 	return useAudioEditorTelemetrySelector(
 		controller,
-		(telemetry) => Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60)),
+		(telemetry) => telemetry.inputMeter
+			|| Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60)),
 	);
 }
 
@@ -1897,8 +1915,8 @@ function RecordingMeterToolbarGroup({
 	settings,
 	onSettingsChange,
 }) {
-	const inputMeterDb = useRecordingMeter(controller);
-	const meter = recordingMeterData(inputMeterDb);
+	const meterValue = useRecordingMeter(controller);
+	const meter = typeof meterValue === 'number' ? recordingMeterData(meterValue) : meterValue;
 	const meterVisible = Boolean(snapshot.recording || snapshot.monitor?.metering);
 	const slider = recordingMeterSlider(copy, snapshot, controller, run);
 
@@ -1976,6 +1994,7 @@ function RecordingMeterFlyout({
 				copy={copy}
 				settings={settings}
 				onChange={onSettingsChange}
+				meterKind="recording"
 				recordingOptions={(
 					<>
 						<PreferenceCheckbox
@@ -2162,8 +2181,8 @@ function SideRecordingMeter({
 	onSettingsChange,
 	run,
 }) {
-	const inputMeterDb = useRecordingMeter(controller);
-	const meter = recordingMeterData(inputMeterDb);
+	const meterValue = useRecordingMeter(controller);
+	const meter = typeof meterValue === 'number' ? recordingMeterData(meterValue) : meterValue;
 	const slider = recordingMeterSlider(copy, snapshot, controller, run);
 	return (
 		<aside
@@ -2216,17 +2235,44 @@ function AudacityAudioMeter({
 }) {
 	const meterRef = useRef(null);
 	const [meterSize, setMeterSize] = useState(orientation === 'vertical' ? 500 : 280);
+	const isEbu = settings.type === 'ebu-r128';
+	const loudness = meter?.loudness || {};
+	const ebuBounds = ebuMeterBounds(settings.ebuScale);
+	const liveLufs = settings.ebuLiveValue === 'short-term'
+		? loudness.shortTermLufs
+		: loudness.momentaryLufs;
 	const range = settings.type === 'amplitude' ? 60 : settings.dbRange;
 	const peakDb = Number.isFinite(meter?.dbfs)
 		? meter.dbfs
 		: playbackMeterAmplitudeToDb(meter?.peak, range);
 	const rmsDb = playbackMeterAmplitudeToDb(meter?.rms, range);
-	const peakPercent = playbackMeterPercent(peakDb, settings.type, range);
-	const rmsPercent = Math.min(peakPercent, playbackMeterPercent(rmsDb, settings.type, range));
-	const displayedValue = settings.type === 'amplitude'
-		? Math.max(0, Math.min(1, Number(meter?.peak) || 0))
-		: Math.max(-range, Math.min(0, peakDb));
-	const ticks = playbackMeterTicks(settings.type, range, meterSize);
+	const peakPercent = isEbu
+		? ebuMeterPercent(liveLufs, settings.ebuScale)
+		: playbackMeterPercent(peakDb, settings.type, range);
+	const rmsPercent = isEbu
+		? peakPercent
+		: Math.min(peakPercent, playbackMeterPercent(rmsDb, settings.type, range));
+	const absoluteDisplayedValue = Math.max(
+		ebuBounds.minimumLufs,
+		Math.min(ebuBounds.maximumLufs, Number.isFinite(liveLufs) ? liveLufs : ebuBounds.minimumLufs),
+	);
+	const displayedValue = isEbu
+		? settings.ebuUnit === 'relative' ? absoluteDisplayedValue + 23 : absoluteDisplayedValue
+		: settings.type === 'amplitude'
+			? Math.max(0, Math.min(1, Number(meter?.peak) || 0))
+			: Math.max(-range, Math.min(0, peakDb));
+	const ticks = isEbu
+		? ebuMeterTicks(settings.ebuScale, settings.ebuUnit, meterSize)
+		: playbackMeterTicks(settings.type, range, meterSize);
+	const ebuMinimum = settings.ebuUnit === 'relative'
+		? ebuBounds.minimumLufs + 23
+		: ebuBounds.minimumLufs;
+	const ebuMaximum = settings.ebuUnit === 'relative'
+		? ebuBounds.maximumLufs + 23
+		: ebuBounds.maximumLufs;
+	const ebuUnit = settings.ebuUnit === 'relative' ? 'LU' : 'LUFS';
+	const truePeakExceeded = Number.isFinite(loudness.maximumTruePeakDbtp)
+		&& loudness.maximumTruePeakDbtp > -1;
 	const style = {
 		'--playback-meter-peak': `${peakPercent}%`,
 		'--playback-meter-rms': `${rmsPercent}%`,
@@ -2259,6 +2305,9 @@ function AudacityAudioMeter({
 			data-meter-style={settings.style}
 			data-meter-type={settings.type}
 			data-meter-db-range={range}
+			data-ebu-scale={isEbu ? settings.ebuScale : undefined}
+			data-ebu-unit={isEbu ? settings.ebuUnit : undefined}
+			data-ebu-live-value={isEbu ? settings.ebuLiveValue : undefined}
 			data-meter-orientation={orientation}
 			style={style}
 		>
@@ -2266,11 +2315,12 @@ function AudacityAudioMeter({
 				className="kw-audio-editor__playback-meter-channels"
 				role="meter"
 				aria-label={meterLabel || copy.metering}
-				aria-valuemin={settings.type === 'amplitude' ? 0 : -range}
-				aria-valuemax={settings.type === 'amplitude' ? 1 : 0}
+				aria-valuemin={isEbu ? ebuMinimum : settings.type === 'amplitude' ? 0 : -range}
+				aria-valuemax={isEbu ? ebuMaximum : settings.type === 'amplitude' ? 1 : 0}
 				aria-valuenow={displayedValue}
+				aria-valuetext={isEbu ? formatEbuLoudness(liveLufs, settings.ebuUnit) : undefined}
 			>
-				{Array.from({ length: channelCount === 2 ? 2 : 1 }, (_, channel) => (
+				{Array.from({ length: isEbu ? 1 : channelCount === 2 ? 2 : 1 }, (_, channel) => (
 					<span className="kw-audio-editor__playback-meter-channel" key={channel} aria-hidden="true">
 						<i className="kw-audio-editor__playback-meter-peak" />
 						{settings.style === 'rms' && <i className="kw-audio-editor__playback-meter-rms" />}
@@ -2282,10 +2332,18 @@ function AudacityAudioMeter({
 				{ticks.map((tick) => (
 					<span
 						key={`${tick.label}-${tick.position}`}
+						data-ebu-target={isEbu && tick.target ? '' : undefined}
 						style={{ '--playback-meter-tick': `${tick.position}%` }}
 					>{tick.label}</span>
 				))}
 			</div>
+			{isEbu && <div className="kw-audio-editor__ebu-compact-readout" aria-hidden="true">
+				<span>{settings.ebuLiveValue === 'short-term' ? 'S' : 'M'} {formatEbuLoudness(liveLufs, settings.ebuUnit)}</span>
+				<span>I {formatEbuLoudness(loudness.integratedLufs, settings.ebuUnit)}</span>
+				<span className={truePeakExceeded ? 'is-over' : ''}>
+					TP {formatDbtp(loudness.truePeakDbtp)}
+				</span>
+			</div>}
 			{slider && <input
 				className="kw-audio-editor__playback-meter-volume"
 				type="range"
@@ -2299,13 +2357,20 @@ function AudacityAudioMeter({
 				orient={orientation === 'vertical' ? 'vertical' : undefined}
 				onChange={(event) => slider.onChange(Number(event.currentTarget.value))}
 			/>}
-			{clipped && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
+			{(clipped || truePeakExceeded) && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
 		</div>
 	);
 }
 
-function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null }) {
+function MeterSettingsFlyout({
+	copy,
+	settings,
+	onChange,
+	meterKind = 'playback',
+	recordingOptions = null,
+}) {
 	const update = (key, value) => onChange((current) => ({ ...current, [key]: value }));
+	const isEbu = settings.type === 'ebu-r128';
 	const positions = [
 		['flyout', copy.meterPositionFlyout],
 		['top', copy.meterPositionTop],
@@ -2320,6 +2385,7 @@ function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null
 		['db-log', copy.meterTypeLogarithmic],
 		['db-linear', copy.meterTypeLinearDb],
 		['amplitude', copy.meterTypeLinearAmplitude],
+		['ebu-r128', copy.meterTypeEbuR128],
 	];
 
 	return (
@@ -2340,7 +2406,7 @@ function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null
 				))}
 			</fieldset>
 			<div className="kw-audio-editor__playback-meter-settings-row">
-				<fieldset>
+				{!isEbu && <fieldset>
 					<legend>{copy.meterStyle}</legend>
 					{styles.map(([value, label]) => (
 						<label key={value} className="kw-audio-editor__playback-meter-radio">
@@ -2354,7 +2420,7 @@ function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null
 							<span>{label}</span>
 						</label>
 					))}
-				</fieldset>
+				</fieldset>}
 				<fieldset>
 					<legend>{copy.meterType}</legend>
 					{types.map(([value, label]) => (
@@ -2371,7 +2437,62 @@ function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null
 					))}
 				</fieldset>
 			</div>
-			<label className="kw-audio-editor__playback-meter-range">
+			{isEbu ? <div className="kw-audio-editor__ebu-settings">
+				<fieldset>
+					<legend>{copy.ebuScale}</legend>
+					{[
+						['plus9', copy.ebuScalePlus9],
+						['plus18', copy.ebuScalePlus18],
+					].map(([value, label]) => (
+						<label key={value} className="kw-audio-editor__playback-meter-radio">
+							<input
+								type="radio"
+								name={`ebu-scale-${meterKind}`}
+								value={value}
+								checked={settings.ebuScale === value}
+								onChange={() => update('ebuScale', value)}
+							/>
+							<span>{label}</span>
+						</label>
+					))}
+				</fieldset>
+				<fieldset>
+					<legend>{copy.ebuUnits}</legend>
+					{[
+						['absolute', copy.ebuUnitsAbsolute],
+						['relative', copy.ebuUnitsRelative],
+					].map(([value, label]) => (
+						<label key={value} className="kw-audio-editor__playback-meter-radio">
+							<input
+								type="radio"
+								name={`ebu-units-${meterKind}`}
+								value={value}
+								checked={settings.ebuUnit === value}
+								onChange={() => update('ebuUnit', value)}
+							/>
+							<span>{label}</span>
+						</label>
+					))}
+				</fieldset>
+				<fieldset>
+					<legend>{copy.ebuLiveValue}</legend>
+					{[
+						['momentary', copy.ebuMomentary],
+						['short-term', copy.ebuShortTerm],
+					].map(([value, label]) => (
+						<label key={value} className="kw-audio-editor__playback-meter-radio">
+							<input
+								type="radio"
+								name={`ebu-live-${meterKind}`}
+								value={value}
+								checked={settings.ebuLiveValue === value}
+								onChange={() => update('ebuLiveValue', value)}
+							/>
+							<span>{label}</span>
+						</label>
+					))}
+				</fieldset>
+			</div> : <label className="kw-audio-editor__playback-meter-range">
 				<span>{copy.dbRange}</span>
 				<select
 					value={settings.dbRange}
@@ -2382,11 +2503,73 @@ function MeterSettingsFlyout({ copy, settings, onChange, recordingOptions = null
 						<option key={range} value={range}>−{range === 144 ? 145 : range} dB – 0 dB</option>
 					))}
 				</select>
-			</label>
+			</label>}
 			{recordingOptions && <div className="kw-audio-editor__microphone-level-options" data-recording-meter-options>
 				{recordingOptions}
 			</div>}
 		</div>
+	);
+}
+
+function EbuMeterDashboard({ copy, loudness = {}, unit, meterKind, controller }) {
+	const values = [
+		['M', copy.ebuMomentary, formatEbuLoudness(loudness?.momentaryLufs, unit)],
+		['S', copy.ebuShortTerm, formatEbuLoudness(loudness?.shortTermLufs, unit)],
+		['I', copy.ebuIntegrated, formatEbuLoudness(loudness?.integratedLufs, unit)],
+		['maxM', copy.ebuMaximumMomentary, formatEbuLoudness(loudness?.maximumMomentaryLufs, unit)],
+		['maxS', copy.ebuMaximumShortTerm, formatEbuLoudness(loudness?.maximumShortTermLufs, unit)],
+		['lra', copy.ebuLoudnessRange, formatLra(loudness?.loudnessRangeLu)],
+		['tp', copy.ebuMaximumTruePeak, formatDbtp(loudness?.maximumTruePeakDbtp)],
+	];
+	const running = loudness?.state === 'running';
+	const provisional = !loudness?.loudnessRangeStable && Number(loudness?.measuredSeconds) < 60;
+	return (
+		<section className="kw-audio-editor__ebu-dashboard" aria-label={copy.ebuR128Readout}>
+			<header>
+				<strong>{copy.meterTypeEbuR128}</strong>
+				<span data-ebu-state={running ? 'running' : 'standby'}>
+					{running ? copy.ebuRunning : copy.ebuStandby}
+				</span>
+			</header>
+			<div className="kw-audio-editor__ebu-values">
+				{values.map(([key, label, value]) => (
+					<div key={key} data-ebu-value={key}>
+						<span>{label}</span>
+						<strong>{value}</strong>
+					</div>
+				))}
+			</div>
+			{provisional && <p>{copy.ebuLraProvisional}</p>}
+			<div className="kw-audio-editor__ebu-actions">
+				<Button
+					variant="secondary"
+					onClick={() => controller?.actions.metering[
+						running ? 'pause' : 'continue'
+					]?.(meterKind)}
+				>
+					{running ? copy.ebuPause : copy.ebuContinue}
+				</Button>
+				<Button
+					variant="secondary"
+					onClick={() => controller?.actions.metering.reset?.(meterKind)}
+				>
+					{copy.ebuReset}
+				</Button>
+			</div>
+		</section>
+	);
+}
+
+function EbuR128WorkspacePanel({ copy, controller, settings }) {
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	return (
+		<EbuMeterDashboard
+			copy={copy}
+			loudness={masterMeter?.loudness}
+			unit={settings?.ebuUnit || 'absolute'}
+			meterKind="playback"
+			controller={controller}
+		/>
 	);
 }
 
@@ -2766,7 +2949,19 @@ function AccessibleSelectionToolbar({
 	);
 }
 
-const WORKSPACE_PANEL_IDS = Object.freeze(['history', 'labels', 'metadata', 'effects', 'mixer', 'spectrogram']);
+const WORKSPACE_PANEL_IDS = Object.freeze([
+	'history',
+	'labels',
+	'metadata',
+	'effects',
+	'mixer',
+	'spectrogram',
+	'analysis',
+	'spectrum',
+	'clipping',
+	'contrast',
+	'ebu-r128',
+]);
 const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
 const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
 const FLOATING_PANEL_MIN_WIDTH = 240;
@@ -2799,6 +2994,9 @@ function WorkspacePanelDock({
 	controller,
 	snapshot,
 	copy,
+	locale,
+	fileService,
+	playbackMeterSettings,
 	run,
 	showArmControls,
 	displayAudioSupported,
@@ -3251,6 +3449,9 @@ function WorkspacePanelDock({
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							playbackMeterSettings={playbackMeterSettings}
 							run={run}
 							showArmControls={showArmControls}
 							displayAudioSupported={displayAudioSupported}
@@ -3264,8 +3465,43 @@ function WorkspacePanelDock({
 	);
 }
 
-function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
+function WorkspacePanelContent({
+	panelId,
+	controller,
+	snapshot,
+	copy,
+	locale,
+	fileService,
+	playbackMeterSettings,
+	run,
+	showArmControls,
+	displayAudioSupported,
+	onOpenEffects,
+}) {
 	const project = snapshot.project;
+	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
+		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
+	if (analysisMode) {
+		return (
+			<AnalysisPanel
+				mode={analysisMode}
+				controller={controller}
+				snapshot={snapshot}
+				copy={copy}
+				locale={locale}
+				fileService={fileService}
+			/>
+		);
+	}
+	if (panelId === 'ebu-r128') {
+		return (
+			<EbuR128WorkspacePanel
+				controller={controller}
+				copy={copy}
+				settings={playbackMeterSettings}
+			/>
+		);
+	}
 	if (panelId === 'history') {
 		const undoEntries = snapshot.history?.undoEntries || [];
 		const redoEntries = snapshot.history?.redoEntries || [];
@@ -4105,6 +4341,14 @@ function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
 }
 
 function workspacePanelLabel(copy, panelId) {
+	const analyzerLabels = {
+		analysis: copy.analysisCommand,
+		spectrum: copy.plotSpectrum,
+		clipping: copy.findClipping,
+		contrast: copy.contrast,
+		'ebu-r128': copy.meterTypeEbuR128,
+	};
+	if (analyzerLabels[panelId]) return analyzerLabels[panelId];
 	return copy[`panel${panelId[0].toUpperCase()}${panelId.slice(1)}`] || panelId;
 }
 
@@ -5603,6 +5847,7 @@ function createApplicationMenus({
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('spectrum') },
 				{ id: 'find-clipping', label: copy.findClipping, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('clipping') },
 				{ id: 'contrast', label: copy.contrast, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('contrast') },
+				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
 				{ id: 'nyquist-analyzers', label: 'Nyquist', items: nyquistAnalyzers.map((plugin) => nyquistItem(plugin, blocked || !selectedAudioTrack)) },
 			],
 		},
@@ -5796,17 +6041,29 @@ function playbackMeterTicks(type, range, meterSize) {
 }
 
 function loadPlaybackMeterSettings() {
-	return loadMeterSettings(PLAYBACK_METER_SETTINGS_STORAGE_KEY, DEFAULT_PLAYBACK_METER_SETTINGS);
+	return loadMeterSettings(
+		PLAYBACK_METER_SETTINGS_STORAGE_KEY,
+		LEGACY_PLAYBACK_METER_SETTINGS_STORAGE_KEY,
+		DEFAULT_PLAYBACK_METER_SETTINGS,
+	);
 }
 
 function loadRecordingMeterSettings() {
-	return loadMeterSettings(RECORDING_METER_SETTINGS_STORAGE_KEY, DEFAULT_RECORDING_METER_SETTINGS);
+	return loadMeterSettings(
+		RECORDING_METER_SETTINGS_STORAGE_KEY,
+		LEGACY_RECORDING_METER_SETTINGS_STORAGE_KEY,
+		DEFAULT_RECORDING_METER_SETTINGS,
+	);
 }
 
-function loadMeterSettings(storageKey, defaults) {
+function loadMeterSettings(storageKey, legacyStorageKey, defaults) {
 	try {
 		return normalizeMeterSettings(
-			JSON.parse(globalThis.localStorage?.getItem(storageKey) || 'null'),
+			JSON.parse(
+				globalThis.localStorage?.getItem(storageKey)
+				|| globalThis.localStorage?.getItem(legacyStorageKey)
+				|| 'null',
+			),
 			defaults,
 		);
 	} catch {
@@ -5821,13 +6078,37 @@ function normalizeMeterSettings(value, defaults) {
 	const dbRange = METER_DB_RANGES.includes(Number(value?.dbRange))
 		? Number(value.dbRange)
 		: defaults.dbRange;
-	return { position, style, type, dbRange };
+	const ebuScale = EBU_METER_SCALES.includes(value?.ebuScale) ? value.ebuScale : defaults.ebuScale;
+	const ebuUnit = EBU_METER_UNITS.includes(value?.ebuUnit) ? value.ebuUnit : defaults.ebuUnit;
+	const ebuLiveValue = EBU_METER_LIVE_VALUES.includes(value?.ebuLiveValue)
+		? value.ebuLiveValue
+		: defaults.ebuLiveValue;
+	return { position, style, type, dbRange, ebuScale, ebuUnit, ebuLiveValue };
 }
 
 function formatDb(value) {
 	if (!Number.isFinite(value) || value <= -60) return '−∞ dB';
 	const rounded = Math.round(value * 10) / 10;
 	return `${String(rounded).replace('-', '−')} dB`;
+}
+
+function formatEbuLoudness(value, unit = 'absolute') {
+	const suffix = unit === 'relative' ? 'LU' : 'LUFS';
+	if (!Number.isFinite(value)) return `— ${suffix}`;
+	const displayed = unit === 'relative' ? value + 23 : value;
+	return `${String(displayed.toFixed(1)).replace('-', '−')} ${suffix}`;
+}
+
+function formatLra(value) {
+	return Number.isFinite(value)
+		? `${String(value.toFixed(1)).replace('-', '−')} LU`
+		: '— LU';
+}
+
+function formatDbtp(value) {
+	return Number.isFinite(value)
+		? `${String(value.toFixed(1)).replace('-', '−')} dBTP`
+		: '— dBTP';
 }
 
 function formatPlaybackSpeed(rate) {
