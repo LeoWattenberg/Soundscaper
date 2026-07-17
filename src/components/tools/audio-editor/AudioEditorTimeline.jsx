@@ -226,6 +226,7 @@ export default function AudioEditorTimeline({
 	const splitToolTimer = useRef(0);
 	const splitToolPress = useRef(null);
 	const splitToolHeldRef = useRef(false);
+	const waveformCacheRef = useRef(new Map());
 	const [splitToolHeld, setSplitToolHeld] = useState(false);
 	const [scrollX, setScrollX] = useState(0);
 	const [selectionPreview, setSelectionPreview] = useState(null);
@@ -272,6 +273,13 @@ export default function AudioEditorTimeline({
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
 	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
 	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
+	const projectClipIds = useMemo(
+		() => new Set(project?.clips.map((clip) => String(clip.id)) || []),
+		[project?.clips],
+	);
+	for (const clipId of waveformCacheRef.current.keys()) {
+		if (!projectClipIds.has(clipId)) waveformCacheRef.current.delete(clipId);
+	}
 
 	useEffect(() => {
 		controller.actions.timeline.setViewportWidth(viewportWidth);
@@ -1233,6 +1241,7 @@ export default function AudioEditorTimeline({
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipIds={draggingClipIds}
 								clipDragPreview={clipDragPreview}
+								waveformCache={waveformCacheRef.current}
 								automationToolEnabled={automationToolEnabled}
 									blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || snapshot.exporting || snapshot.processingEffect}
 								showArmControls={showArmControls}
@@ -1839,6 +1848,7 @@ function TrackRow({
 	recordingPreview,
 	draggingClipIds,
 	clipDragPreview,
+	waveformCache,
 	automationToolEnabled,
 	blocked,
 	showArmControls,
@@ -1885,6 +1895,11 @@ function TrackRow({
 		}
 		return projected;
 	}, [clipDragPreview, clipLookup, recordingPreview, track.clipIds, track.id]);
+	const movingPreviewClipIds = useMemo(() => new Set(
+		(clipDragPreview?.previews || (clipDragPreview ? [clipDragPreview] : []))
+			.filter((preview) => !Object.hasOwn(preview, 'durationFrames'))
+			.map((preview) => String(preview.clipId)),
+	), [clipDragPreview]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame,
 		viewportDurationFrames,
@@ -1907,6 +1922,8 @@ function TrackRow({
 			showRms,
 			displayMode === 'half-wave',
 			resolveAudioEditorColor(clip.color, resolveAudioEditorColor(track.color)),
+			waveformCache,
+			movingPreviewClipIds.has(String(clip.id)),
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {
@@ -2428,11 +2445,21 @@ function AudacityWaveformCanvases({
 		const draw = () => {
 			animationFrame = 0;
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
+			const drawKey = [
+				displayMode,
+				pixelsPerSecond,
+				showRms,
+				halfWave,
+				timeSelection?.startTime ?? '',
+				timeSelection?.endTime ?? '',
+			].join('|');
 			for (const clipElement of root.querySelectorAll('[data-clip-id]')) {
 				const clip = clipById.get(String(clipElement.dataset.clipId));
 				if (!clip?.audacityWaveform) continue;
 				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
 				if (!canvas) continue;
+				const canvasDrawKey = `${drawKey}|${canvas.style.width}|${canvas.style.height}|${canvas.width}|${canvas.height}`;
+				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
 				drawAudacityClipCanvas(canvas, clip, {
 					displayMode,
 					pixelsPerSecond,
@@ -2440,6 +2467,8 @@ function AudacityWaveformCanvases({
 					showRms,
 					halfWave,
 				});
+				canvas.__kwWaveformPlan = clip.audacityWaveform;
+				canvas.__kwWaveformDrawKey = canvasDrawKey;
 			}
 		};
 		const scheduleDraw = () => {
@@ -3340,6 +3369,8 @@ function toDesignClip(
 	showRms = false,
 	halfWave = false,
 	color = AUDIO_EDITOR_TRACK_COLORS[0],
+	waveformCache = null,
+	freezeWaveform = false,
 ) {
 	const visual = controller.getClipVisualData(clip.id);
 	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
@@ -3371,11 +3402,40 @@ function toDesignClip(
 	};
 	if (!visual?.buffer || !clip.isVisible) return output;
 	try {
+		const pixelWidth = output.duration * pixelsPerSecond;
+		const contentSignature = [
+			clip.sourceId,
+			clip.durationFrames,
+			clip.sourceStartFrame,
+			sourceDurationFrames,
+			clip.gain,
+			clip.fadeInFrames,
+			clip.fadeOutFrames,
+			clip.reversed,
+			showRms,
+			halfWave,
+			pixelsPerSecond,
+		].join('|');
+		const cacheSignature = [
+			contentSignature,
+			clip.waveformStartFrame,
+			clip.waveformEndFrame,
+			pixelWidth,
+		].join('|');
+		const cached = waveformCache?.get(String(clip.id));
+		if (
+			cached?.buffer === visual.buffer
+			&& cached.envelope === clip.envelope
+			&& (cached.signature === cacheSignature
+				|| (freezeWaveform && cached.contentSignature === contentSignature))
+		) {
+			Object.assign(output, cached.data);
+			return output;
+		}
 		const channels = Array.from(
 			{ length: visual.buffer.numberOfChannels },
 			(_, channel) => visual.buffer.getChannelData(channel),
 		);
-		const pixelWidth = output.duration * pixelsPerSecond;
 		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
 		const waveform = prepareBoundedWaveformWindow(channels, clip, {
 			startFrame: clip.waveformStartFrame,
@@ -3383,25 +3443,35 @@ function toDesignClip(
 			maxSamples: maximumSamples,
 			pixelWidth,
 		});
-		output.audacityWaveform = {
-			...waveform.rendering,
-			durationFrames: clip.durationFrames,
-			envelope: clip.envelope || [],
+		const waveformData = {
+			audacityWaveform: {
+				...waveform.rendering,
+				durationFrames: clip.durationFrames,
+				envelope: clip.envelope || [],
+			},
 		};
 		const visualChannels = halfWave
 			? waveform.channels.map((channel) => channel.map((sample) => Math.max(0, sample)))
 			: waveform.channels;
 		if (visualChannels.length > 1) {
-			output.waveformLeft = [...visualChannels[0]];
-			output.waveformRight = [...visualChannels[1]];
+			waveformData.waveformLeft = [...visualChannels[0]];
+			waveformData.waveformRight = [...visualChannels[1]];
 			if (showRms) {
-				output.waveformLeftRms = rmsEnvelope(visualChannels[0]);
-				output.waveformRightRms = rmsEnvelope(visualChannels[1]);
+				waveformData.waveformLeftRms = rmsEnvelope(visualChannels[0]);
+				waveformData.waveformRightRms = rmsEnvelope(visualChannels[1]);
 			}
 		} else {
-			output.waveform = [...visualChannels[0]];
-			if (showRms) output.waveformRms = rmsEnvelope(visualChannels[0]);
+			waveformData.waveform = [...visualChannels[0]];
+			if (showRms) waveformData.waveformRms = rmsEnvelope(visualChannels[0]);
 		}
+		waveformCache?.set(String(clip.id), {
+			buffer: visual.buffer,
+			envelope: clip.envelope,
+			contentSignature,
+			signature: cacheSignature,
+			data: waveformData,
+		});
+		Object.assign(output, waveformData);
 	} catch {
 		// The source may still be loading. TrackNew renders a bounded placeholder.
 	}

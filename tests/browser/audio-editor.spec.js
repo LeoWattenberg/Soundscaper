@@ -2295,6 +2295,39 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps clipped waveform data stable for the duration of a move preview', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		await page.setViewportSize({ width: 720, height: 900 });
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
+		const waveform = clip.locator('canvas.clip-body__waveform');
+		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
+
+		const clipBox = await clip.boundingBox();
+		expect(clipBox).not.toBeNull();
+		await page.mouse.move(clipBox.x + 28, clipBox.y + 12);
+		await page.mouse.down();
+		await waveform.evaluate((canvas) => new Promise((resolve) => {
+			const waitForPlan = () => {
+				if (canvas.__kwWaveformPlan) {
+					globalThis.__movePreviewWaveformPlan = canvas.__kwWaveformPlan;
+					resolve();
+				} else requestAnimationFrame(waitForPlan);
+			};
+			requestAnimationFrame(waitForPlan);
+		}));
+		await page.mouse.move(clipBox.x + 148, clipBox.y + 12, { steps: 8 });
+		await expect.poll(() => waveform.evaluate(
+			(canvas) => canvas.__kwWaveformPlan === globalThis.__movePreviewWaveformPlan,
+		)).toBe(true);
+		await page.mouse.up();
+		await expect.poll(() => waveform.evaluate(
+			(canvas) => canvas.__kwWaveformPlan === globalThis.__movePreviewWaveformPlan,
+		)).toBe(false);
+		expect(errors).toEqual([]);
+	});
+
 	test('layers pointer-moved clips without trimming inactive audio', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await page.setViewportSize({ width: 1440, height: 1200 });
