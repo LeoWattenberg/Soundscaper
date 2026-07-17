@@ -23,7 +23,6 @@ import {
 	Toolbar,
 	ToolbarButtonGroup,
 	ToolbarDivider,
-	TrackMeter,
 	TransportButton,
 	ToolButton,
 } from '@dilsonspickles/components';
@@ -1357,6 +1356,12 @@ function EditorToolToolbar({
 		: recordLabel;
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
+	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(() => ({
+		position: 'top',
+		style: 'default',
+		type: 'db-log',
+		dbRange: 60,
+	}));
 	const setToolbarSettingsTrigger = useCallback((element) => {
 		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
 	}, []);
@@ -1384,8 +1389,8 @@ function EditorToolToolbar({
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
 		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
 		{ id: 'time-display', label: copy.playhead, icon: 'playhead' },
-		{ id: 'monitor', label: copy.monitor, icon: 'microphone' },
-		{ id: 'playback-volume', label: copy.playbackVolume, icon: 'volume' },
+		{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') },
+		{ id: 'playback-volume', label: copy.playbackVolume, icon: iconNameToChar('AUDIO') },
 	];
 	const openToolbarSettings = () => {
 		const rect = toolbarSettingsTriggerRef.current?.getBoundingClientRect();
@@ -1592,51 +1597,44 @@ function EditorToolToolbar({
 					</span>
 				</label>
 
-				{uiFlags.microphoneMetering && isToolbarButtonVisible('monitor') && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
-					<span data-monitor-input>
-						<ToggleToolButton
-							icon="microphone"
-							isActive={Boolean(snapshot.monitor?.enabled)}
-							ariaLabel={copy.monitor}
-							disabled={snapshot.recordingStarting}
-							onClick={() => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled))}
-						/>
-					</span>
-					<div
-						className="kw-audio-editor__input-meter"
-						data-input-meter
-						role="meter"
-						aria-label={copy.inputLevel}
-						aria-valuemin={-60}
-						aria-valuemax={0}
-						aria-valuenow={inputMeterDb}
+				{isToolbarButtonVisible('monitor') && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
+					<AudacityToolbarFlyoutButton
+						icon={iconNameToChar('MICROPHONE')}
+						ariaLabel={copy.recordLevel}
+						flyoutClassName="kw-audio-editor__microphone-level-flyout"
 					>
-						<TrackMeter volume={meterPercent(inputMeterDb)} clipped={uiFlags.clipping && inputMeterDb >= 0} variant="stereo" />
-					</div>
-					<label className="kw-audio-editor__recording-level" data-recording-level>
-						<span className="kw-audio-editor-sr-only">{copy.recordLevel}</span>
-						<input
-							type="range"
-							min="0"
-							max="2"
-							step="0.01"
-							value={snapshot.recordingOptions?.inputGain ?? 1}
-							aria-label={copy.recordLevel}
-							onChange={(event) => run(() => controller.actions.recording.setLevel(Number(event.currentTarget.value)))}
+						<MicrophoneLevelFlyout
+							copy={copy}
+							snapshot={snapshot}
+							inputMeterDb={inputMeterDb}
+							microphoneMetering={uiFlags.microphoneMetering}
+							controller={controller}
+							actionRuntime={actionRuntime}
+							run={run}
 						/>
-					</label>
+					</AudacityToolbarFlyoutButton>
 				</ToolbarButtonGroup>}
 
 				{uiFlags.masterTrack && isToolbarButtonVisible('playback-volume') && <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
-					<ToolButton
-						icon="volume"
-						ariaLabel={copy.playbackVolume}
-						onClick={(event) => {
-							const group = event.currentTarget.closest('.kw-audio-editor__playback-meter');
-							group?.querySelector('[role="slider"], input')?.focus?.();
-						}}
-					/>
-					<div className="kw-audio-editor__master-meter" aria-label={copy.metering}>
+					<AudacityToolbarFlyoutButton
+						icon={iconNameToChar('AUDIO')}
+						ariaLabel={copy.playbackMeterSettings}
+						flyoutClassName="kw-audio-editor__playback-meter-flyout"
+					>
+						<PlaybackMeterSettingsFlyout
+							copy={copy}
+							settings={playbackMeterSettings}
+							onChange={setPlaybackMeterSettings}
+						/>
+					</AudacityToolbarFlyoutButton>
+					<div
+						className="kw-audio-editor__master-meter"
+						aria-label={copy.metering}
+						data-meter-position={playbackMeterSettings.position}
+						data-meter-style={playbackMeterSettings.style}
+						data-meter-type={playbackMeterSettings.type}
+						data-meter-db-range={playbackMeterSettings.dbRange}
+					>
 						<MasterMeter
 							levelLeft={masterMeter?.dbfs ?? -60}
 							levelRight={masterMeter?.dbfs ?? -60}
@@ -1668,7 +1666,11 @@ function EditorToolToolbar({
 					<strong>{copy.toolbarButtons}</strong>
 					<div className="kw-audio-editor__toolbar-settings-list">
 						{toolbarButtonOptions.map((button) => <div key={button.id} className="kw-audio-editor__toolbar-settings-option">
-							<span aria-hidden="true"><Icon name={button.icon} size={16} /></span>
+							<span aria-hidden="true">
+								{button.icon.length === 1
+									? <span className="musescore-icon">{button.icon}</span>
+									: <Icon name={button.icon} size={16} />}
+							</span>
 							<PreferenceCheckbox
 								label={button.label}
 								checked={isToolbarButtonVisible(button.id)}
@@ -1692,6 +1694,224 @@ function WorkspaceToolbarSection({
 			data-workspace-toolbar={toolbarId}
 		>
 			{children}
+		</div>
+	);
+}
+
+// Browser adaptations of Audacity's RecordLevel.qml/RecordLevelPopup.qml and
+// PlaybackLevel.qml/PlaybackMeterCustomisePopup.qml at eee7be71d602bfd852d6d30e58b70a8ab43ed28f.
+function AudacityToolbarFlyoutButton({
+	icon,
+	ariaLabel,
+	flyoutClassName,
+	children,
+}) {
+	const triggerRef = useRef(null);
+	const [position, setPosition] = useState(null);
+	const setTrigger = useCallback((element) => {
+		triggerRef.current = element?.querySelector('button') || null;
+	}, []);
+	const close = useCallback(() => setPosition(null), []);
+	const toggle = (event) => {
+		if (position) {
+			close();
+			return;
+		}
+		const rect = triggerRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setPosition({
+			x: rect.left + rect.width / 2,
+			y: rect.bottom,
+			direction: window.innerHeight - rect.bottom >= 320 ? 'down' : 'up',
+			autoFocus: event.nativeEvent?.detail === 0,
+		});
+	};
+
+	useEffect(() => {
+		triggerRef.current?.setAttribute('aria-expanded', String(Boolean(position)));
+	}, [position]);
+
+	return (
+		<>
+			<span ref={setTrigger} className="kw-audio-editor__audacity-level-trigger">
+				<button
+					type="button"
+					className="tool-button tool-button--default tool-button--idle kw-audio-editor__audacity-level-button"
+					aria-label={ariaLabel}
+					aria-expanded={Boolean(position)}
+					onClick={toggle}
+				>
+					<span className="musescore-icon tool-button__icon" aria-hidden="true">{icon}</span>
+				</button>
+			</span>
+			<Flyout
+				isOpen={Boolean(position)}
+				onClose={close}
+				x={position?.x || 0}
+				y={position?.y || 0}
+				direction={position?.direction || 'down'}
+				autoFocus={Boolean(position?.autoFocus)}
+				triggerRef={triggerRef}
+				showArrow
+				closeOnOutsideClick
+				closeOnEscape
+				ariaLabel={ariaLabel}
+				role="dialog"
+				className={`kw-audio-editor__audacity-level-flyout ${flyoutClassName}`}
+			>
+				{children}
+			</Flyout>
+		</>
+	);
+}
+
+function MicrophoneLevelFlyout({
+	copy,
+	snapshot,
+	inputMeterDb,
+	microphoneMetering,
+	controller,
+	actionRuntime,
+	run,
+}) {
+	const inputGain = snapshot.recordingOptions?.inputGain ?? 1;
+	const inputGainDb = Math.max(-60, Math.min(6, inputGain > 0 ? 20 * Math.log10(inputGain) : -60));
+	const selectedRoute = snapshot.recordingInputs?.routes?.[snapshot.selectedTrackId];
+	const channelCount = selectedRoute?.channelCount === 2 ? 2 : 1;
+	const meterWidth = `${meterPercent(inputMeterDb)}%`;
+
+	return (
+		<div className="kw-audio-editor__microphone-level-content" data-microphone-level-flyout>
+			<strong>{copy.microphoneLevel}</strong>
+			<div
+				className="kw-audio-editor__microphone-meter"
+				data-input-meter
+				role="meter"
+				aria-label={copy.inputLevel}
+				aria-valuemin={-60}
+				aria-valuemax={0}
+				aria-valuenow={inputMeterDb}
+			>
+				<div className="kw-audio-editor__microphone-meter-bars" aria-hidden="true">
+					<span><i style={{ width: meterWidth }} /></span>
+					{channelCount > 1 && <span><i style={{ width: meterWidth }} /></span>}
+				</div>
+				<div className="kw-audio-editor__microphone-meter-ruler" aria-hidden="true">
+					{[-60, -48, -36, -24, -12, 0, 6].map((tick) => <span key={tick}>{tick > 0 ? `+${tick}` : tick}</span>)}
+				</div>
+				<label className="kw-audio-editor__microphone-level-slider" data-recording-level>
+					<span className="kw-audio-editor-sr-only">{copy.recordLevel}</span>
+					<input
+						type="range"
+						min="-60"
+						max="6"
+						step="0.1"
+						value={inputGainDb}
+						aria-label={copy.recordLevel}
+						onChange={(event) => {
+							const db = Number(event.currentTarget.value);
+							run(() => controller.actions.recording.setLevel(db <= -60 ? 0 : 10 ** (db / 20)));
+						}}
+					/>
+					<output>{formatDb(inputGainDb)}</output>
+				</label>
+			</div>
+			<p>{copy.microphoneLevelNote}</p>
+			<Separator />
+			<div className="kw-audio-editor__microphone-level-options">
+				<PreferenceCheckbox
+					label={copy.inputMonitoringDetailed}
+					checked={Boolean(snapshot.monitor?.enabled)}
+					onChange={(enabled) => run(() => controller.actions.recording.setMonitoring(enabled))}
+				/>
+				<PreferenceCheckbox
+					label={copy.microphoneMeteringInactive}
+					checked={microphoneMetering}
+					onChange={() => actionRuntime.recording.toggleMicMetering()}
+				/>
+			</div>
+		</div>
+	);
+}
+
+function PlaybackMeterSettingsFlyout({ copy, settings, onChange }) {
+	const update = (key, value) => onChange((current) => ({ ...current, [key]: value }));
+	const positions = [
+		['top', copy.meterPositionTop],
+		['side', copy.meterPositionSide],
+	];
+	const styles = [
+		['default', copy.defaultOption],
+		['rms', 'RMS'],
+		['gradient', copy.gradient],
+	];
+	const types = [
+		['db-log', copy.meterTypeLogarithmic],
+		['db-linear', copy.meterTypeLinearDb],
+		['amplitude', copy.meterTypeLinearAmplitude],
+	];
+
+	return (
+		<div className="kw-audio-editor__playback-meter-settings" data-playback-meter-settings>
+			<fieldset>
+				<legend>{copy.position}</legend>
+				{positions.map(([value, label]) => (
+					<label key={value} className="kw-audio-editor__playback-meter-radio">
+						<input
+							type="radio"
+							name="playback-meter-position"
+							value={value}
+							checked={settings.position === value}
+							onChange={() => update('position', value)}
+						/>
+						<span>{label}</span>
+					</label>
+				))}
+			</fieldset>
+			<div className="kw-audio-editor__playback-meter-settings-row">
+				<fieldset>
+					<legend>{copy.meterStyle}</legend>
+					{styles.map(([value, label]) => (
+						<label key={value} className="kw-audio-editor__playback-meter-radio">
+							<input
+								type="radio"
+								name="playback-meter-style"
+								value={value}
+								checked={settings.style === value}
+								onChange={() => update('style', value)}
+							/>
+							<span>{label}</span>
+						</label>
+					))}
+				</fieldset>
+				<fieldset>
+					<legend>{copy.meterType}</legend>
+					{types.map(([value, label]) => (
+						<label key={value} className="kw-audio-editor__playback-meter-radio">
+							<input
+								type="radio"
+								name="playback-meter-type"
+								value={value}
+								checked={settings.type === value}
+								onChange={() => update('type', value)}
+							/>
+							<span>{label}</span>
+						</label>
+					))}
+				</fieldset>
+			</div>
+			<label className="kw-audio-editor__playback-meter-range">
+				<span>{copy.dbRange}</span>
+				<select
+					value={settings.dbRange}
+					disabled={settings.type === 'amplitude'}
+					onChange={(event) => update('dbRange', Number(event.currentTarget.value))}
+				>
+					{[36, 48, 60, 72, 84, 96, 120, 145].map((range) => (
+						<option key={range} value={range}>−{range} dB – 0 dB</option>
+					))}
+				</select>
+			</label>
 		</div>
 	);
 }
@@ -5017,6 +5237,12 @@ function resolveEffectsOverlayPosition(workspace, anchorRect, compact) {
 function meterPercent(dbfs) {
 	const value = Number.isFinite(dbfs) ? dbfs : -60;
 	return (Math.max(-60, Math.min(0, value)) + 60) / 60 * 100;
+}
+
+function formatDb(value) {
+	if (!Number.isFinite(value) || value <= -60) return '−∞ dB';
+	const rounded = Math.round(value * 10) / 10;
+	return `${String(rounded).replace('-', '−')} dB`;
 }
 
 function formatPlaybackSpeed(rate) {

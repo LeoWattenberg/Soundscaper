@@ -410,16 +410,49 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-time-display]')).toHaveCount(0);
 		await timeDisplayToggle.click();
 		await expect(editor.locator('[data-time-display]')).toBeVisible();
-		const monitorToggle = flyout.getByRole('checkbox', { name: 'Monitor input', exact: true });
+		const monitorToggle = flyout.getByRole('checkbox', { name: 'Record level', exact: true });
 		await monitorToggle.click();
-		await expect(editor.locator('[data-input-meter]')).toHaveCount(0);
+		await expect(editor.getByRole('button', { name: 'Record level', exact: true })).toHaveCount(0);
 		await monitorToggle.click();
-		await expect(editor.locator('[data-input-meter]')).toBeVisible();
+		await expect(editor.getByRole('button', { name: 'Record level', exact: true })).toBeVisible();
 		const playbackVolumeToggle = flyout.getByRole('checkbox', { name: 'Playback volume', exact: true });
 		await playbackVolumeToggle.click();
 		await expect(editor.locator('.kw-audio-editor__master-meter')).toHaveCount(0);
 		await playbackVolumeToggle.click();
 		await expect(editor.locator('.kw-audio-editor__master-meter')).toBeVisible();
+	});
+
+	test('opens Audacity microphone and speaker flyouts', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const recordLevel = editor.getByRole('button', { name: 'Record level', exact: true });
+		await expect(recordLevel.locator('.musescore-icon')).toHaveText('\uF41B');
+		await recordLevel.click();
+
+		const microphoneFlyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
+		await expect(microphoneFlyout).toBeVisible();
+		await expect(microphoneFlyout.getByText('Microphone level', { exact: true })).toBeVisible();
+		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toBeVisible();
+		const recordGain = microphoneFlyout.getByRole('slider', { name: 'Record level', exact: true });
+		await recordGain.fill('-6');
+		await expect(recordGain).toHaveValue('-6');
+		const micMetering = microphoneFlyout.getByRole('checkbox', { name: 'Show mic metering when not recording', exact: true });
+		await expect(micMetering).toHaveAttribute('aria-checked', 'true');
+		await micMetering.click();
+		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
+		await page.keyboard.press('Escape');
+
+		const playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
+		await expect(playbackSettings.locator('.musescore-icon')).toHaveText('\uEF4E');
+		await playbackSettings.click();
+		const speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
+		await expect(speakerFlyout).toBeVisible();
+		await expect(speakerFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true })).toBeChecked();
+		await speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
+		await expect(speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true })).toBeChecked();
+		await speakerFlyout.getByRole('radio', { name: 'Gradient', exact: true }).click();
+		await expect(editor.locator('.kw-audio-editor__master-meter')).toHaveAttribute('data-meter-style', 'gradient');
+		await speakerFlyout.getByRole('radio', { name: 'Linear (amp)', exact: true }).click();
+		await expect(speakerFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toBeDisabled();
 	});
 
 	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {
@@ -660,13 +693,20 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor.getByRole('button', { name: 'Back five seconds', exact: true })).toHaveCount(0);
 		await expect(editor.getByRole('button', { name: 'Forward five seconds', exact: true })).toHaveCount(0);
-		const monitor = toolToolbar.getByRole('button', { name: 'Monitor input', exact: true });
-		await expect(monitor).toHaveAttribute('aria-pressed', 'false');
+		const recordLevel = toolToolbar.getByRole('button', { name: 'Record level', exact: true });
+		await expect(recordLevel).toHaveAttribute('aria-expanded', 'false');
+		await recordLevel.click();
+		const recordLevelFlyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
+		const monitor = recordLevelFlyout.getByRole('checkbox', { name: 'Turn on input monitoring (hear yourself while recording)', exact: true });
+		await expect(recordLevelFlyout).toBeVisible();
+		await expect(monitor).toHaveAttribute('aria-checked', 'false');
 		await monitor.click();
-		await expect(monitor).toHaveAttribute('aria-pressed', 'true');
+		await expect(monitor).toHaveAttribute('aria-checked', 'true');
 		await expect(editor.getByRole('alert')).toContainText('Use headphones while monitoring');
 		await monitor.click();
-		await expect(monitor).toHaveAttribute('aria-pressed', 'false');
+		await expect(monitor).toHaveAttribute('aria-checked', 'false');
+		await page.keyboard.press('Escape');
+		await expect(recordLevel).toHaveAttribute('aria-expanded', 'false');
 
 		const arm = editor.getByRole('button', { name: /^Arm for recording:/ });
 		await expect(arm).toHaveCount(0);
@@ -1276,10 +1316,11 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('edits recording level, project metadata, and labels through the manifest surfaces', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		const recordingLevel = editor.getByRole('slider', { name: 'Record level', exact: true });
-		await recordingLevel.fill('1.37');
-		await expect(recordingLevel).toHaveValue('1.37');
-		await expect(recordingLevel).toHaveValue('1.37');
+		await editor.getByRole('button', { name: 'Record level', exact: true }).click();
+		const recordingLevel = editor.getByRole('dialog', { name: 'Record level', exact: true }).getByRole('slider', { name: 'Record level', exact: true });
+		await recordingLevel.fill('2.7');
+		await expect(recordingLevel).toHaveValue('2.7');
+		await page.keyboard.press('Escape');
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
 		await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
