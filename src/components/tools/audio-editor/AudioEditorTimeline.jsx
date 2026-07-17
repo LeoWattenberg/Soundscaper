@@ -922,7 +922,7 @@ export default function AudioEditorTimeline({
 		? project.tracks.find((track) => track.id === trackRulerFlyout.trackId && track.type !== 'label')
 		: null;
 	const activeWaveformRuler = rulerFlyoutTrack
-		? waveformRulerState[rulerFlyoutTrack.id] || DEFAULT_WAVEFORM_RULER_STATE
+		? normalizeWaveformRulerState(waveformRulerState[rulerFlyoutTrack.id])
 		: DEFAULT_WAVEFORM_RULER_STATE;
 	const mutationsBlocked = snapshot.readOnly
 		|| snapshot.importing
@@ -1192,8 +1192,8 @@ export default function AudioEditorTimeline({
 								selectedClipIds={project.selection?.clipIds || []}
 								timelineView={snapshot.timeline?.view}
 								showRms={Boolean(snapshot.timeline?.showRms)}
-								waveformRulerFormat={(waveformRulerState[track.id] || DEFAULT_WAVEFORM_RULER_STATE).format}
-								waveformZoom={(waveformRulerState[track.id] || DEFAULT_WAVEFORM_RULER_STATE).zoom}
+								waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
+								waveformZoom={normalizeWaveformRulerState(waveformRulerState[track.id]).zoom}
 								clipStyle={snapshot.preferences?.appearance?.clipStyle}
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipIds={draggingClipIds}
@@ -1292,7 +1292,7 @@ export default function AudioEditorTimeline({
 				onClose={() => setTrackRulerFlyout(null)}
 				rulerFormat={activeWaveformRuler.format}
 				onRulerFormatChange={(format) => {
-					if (rulerFlyoutTrack) updateWaveformRuler(rulerFlyoutTrack.id, { format });
+					if (rulerFlyoutTrack) updateWaveformRuler(rulerFlyoutTrack.id, { format: normalizeWaveformRulerFormat(format) });
 				}}
 				halfWave={rulerFlyoutTrack?.displayMode === 'half-wave'}
 				onHalfWaveChange={(enabled) => {
@@ -3250,6 +3250,18 @@ function normalizeSpectrogramScale(value) {
 	const scale = String(value || 'mel').toLowerCase();
 	if (scale === 'log') return 'logarithmic';
 	return ['linear', 'logarithmic', 'mel', 'bark', 'erb', 'period'].includes(scale) ? scale : 'mel';
+}
+
+function normalizeWaveformRulerFormat(value) {
+	return value === 'linear-db' ? value : DEFAULT_WAVEFORM_RULER_STATE.format;
+}
+
+function normalizeWaveformRulerState(value) {
+	return {
+		...DEFAULT_WAVEFORM_RULER_STATE,
+		...value,
+		format: normalizeWaveformRulerFormat(value?.format),
+	};
 }
 
 function renderAmplitudeRulers(

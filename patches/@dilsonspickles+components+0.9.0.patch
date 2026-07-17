@@ -1343,3 +1343,23 @@ index f545ddd..2b7487d 100644
    useWelcomeDialog
  };
 +export { Flyout } from "./chunk-FLYOUT.mjs";
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-2IZAV7V.js b/node_modules/@dilsonspickles/components/dist/chunk-2IZAV7V.js
+index abcdef0..1234567 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-2IZAV7V.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-2IZAV7V.js
+@@ -63,5 +63,4 @@
+ var WAVEFORM_OPTIONS = [
+   { value: "linear-amp", label: "Linear (amp)" },
+-  { value: "logarithmic-db", label: "Logarithmic (dB)" },
+   { value: "linear-db", label: "Linear (dB)" }
+ ];
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs b/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
+index abcdef0..1234567 100644
+--- a/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
++++ b/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
+@@ -63,5 +63,4 @@
+ var WAVEFORM_OPTIONS = [
+   { value: "linear-amp", label: "Linear (amp)" },
+-  { value: "logarithmic-db", label: "Logarithmic (dB)" },
+   { value: "linear-db", label: "Linear (dB)" }
+ ];
