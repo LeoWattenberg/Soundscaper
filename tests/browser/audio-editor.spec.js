@@ -1935,6 +1935,48 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('exposes Audacity timeline and vertical ruler context controls', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+
+		const timelineRuler = editor.locator('[data-ruler]');
+		await timelineRuler.click({ button: 'right', position: { x: 80, y: 20 } });
+		const timelineMenu = page.locator('.timeline-ruler-context-menu');
+		await expect(timelineMenu).toBeVisible();
+		await timelineMenu.getByRole('menuitem', { name: 'Beats & measures', exact: true }).click();
+		await expect(timelineRuler).toHaveAttribute('data-time-format', 'beats-measures');
+
+		await timelineRuler.click({ button: 'right', position: { x: 80, y: 20 } });
+		await timelineMenu.getByRole('menuitem', { name: 'Click ruler to start playback', exact: true }).click();
+		await timelineRuler.click({ button: 'right', position: { x: 80, y: 20 } });
+		await expect(timelineMenu.getByRole('menuitem', { name: 'Click ruler to start playback', exact: true }).locator('svg')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+
+		const importedTrack = clipByName(editor, toneA.name).locator('xpath=ancestor::div[@data-track-row]');
+		const verticalRuler = importedTrack.locator('[data-track-ruler]');
+		await verticalRuler.click({ button: 'right', position: { x: 20, y: 70 } });
+		const rulerFlyout = page.locator('.audio-editor-ruler-flyout');
+		await expect(rulerFlyout).toBeVisible();
+		await rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio').nth(1).click();
+		await expect(verticalRuler).toHaveAttribute('data-ruler-format', 'logarithmic-db');
+		await rulerFlyout.getByRole('button', { name: 'Zoom in', exact: true }).click();
+		await expect(verticalRuler).toHaveAttribute('data-ruler-zoom', '1');
+		await rulerFlyout.getByText('Half wave', { exact: true }).click();
+		await expect(importedTrack).toHaveAttribute('data-display-mode', 'half-wave');
+		await rulerFlyout.getByText('Half wave', { exact: true }).click();
+		await expect(importedTrack).toHaveAttribute('data-display-mode', 'waveform');
+		await page.keyboard.press('Escape');
+
+		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
+		await verticalRuler.click({ button: 'right', position: { x: 20, y: 70 } });
+		await expect(rulerFlyout).toBeVisible();
+		await rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' }).getByRole('radio').first().click();
+		await expect(importedTrack.locator('[data-track-lane]')).toHaveAttribute('data-spectrogram-scale', 'linear');
+
+		expect(errors).toEqual([]);
+	});
+
 	test('shows time selections above clips and label tracks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

@@ -4,14 +4,17 @@ import {
 	CLIP_CONTENT_OFFSET,
 	ContextMenu,
 	ContextMenuItem,
+	DbRuler,
 	FrequencyRuler,
 	GhostButton,
 	Icon,
 	LabelMarker,
 	Menu,
 	PlayheadCursor,
+	RulerFlyout,
 	TextInput,
 	TimelineRuler,
+	TimelineRulerContextMenu,
 	ToggleToolButton,
 	TrackControlPanel,
 	TrackNew,
@@ -58,6 +61,8 @@ const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
+const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
+const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 
 function ContainerAddTrackFlyout({
 	isOpen,
@@ -227,6 +232,9 @@ export default function AudioEditorTimeline({
 	const [trackMenu, setTrackMenu] = useState(null);
 	const [trackColorMenu, setTrackColorMenu] = useState(null);
 	const [clipMenu, setClipMenu] = useState(null);
+	const [timelineRulerMenu, setTimelineRulerMenu] = useState(null);
+	const [trackRulerFlyout, setTrackRulerFlyout] = useState(null);
+	const [waveformRulerState, setWaveformRulerState] = useState({});
 	const [addTrackFlyout, setAddTrackFlyout] = useState(null);
 	const addTrackTriggerRef = useRef(null);
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
@@ -432,6 +440,40 @@ export default function AudioEditorTimeline({
 			autoFocus: Boolean(openedViaKeyboard),
 		});
 	}, [controller, project, run]);
+
+	const openTimelineRulerMenu = useCallback((event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		const rect = event.currentTarget.getBoundingClientRect();
+		const openedViaKeyboard = event.type === 'keydown';
+		setTrackRulerFlyout(null);
+		setTimelineRulerMenu({
+			x: openedViaKeyboard ? rect.left + 12 : event.clientX,
+			y: openedViaKeyboard ? rect.bottom - 4 : event.clientY,
+			autoFocus: openedViaKeyboard,
+		});
+	}, []);
+
+	const openTrackRulerFlyout = useCallback((track, displayMode, event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		const rect = event.currentTarget.getBoundingClientRect();
+		const openedViaKeyboard = event.type === 'keydown';
+		const mode = displayMode === 'spectrogram'
+			|| (displayMode === 'multiview' && (openedViaKeyboard || event.clientY < rect.top + rect.height / 2))
+			? 'spectrogram'
+			: 'waveform';
+		const popupHeight = mode === 'spectrogram' ? 430 : 260;
+		const requestedY = openedViaKeyboard ? rect.top : event.clientY + 8;
+		setTimelineRulerMenu(null);
+		setTrackRulerFlyout({
+			trackId: track.id,
+			mode,
+			x: Math.max(8, rect.left - 208),
+			y: Math.max(8, Math.min(requestedY, globalThis.innerHeight - popupHeight - 8)),
+			trigger: event.currentTarget,
+		});
+	}, []);
 
 	const onClipContextMenu = useCallback((event) => {
 		const clipElement = event.target.closest?.('[data-clip-id]');
@@ -864,6 +906,12 @@ export default function AudioEditorTimeline({
 	const menuTrack = trackMenu ? project.tracks.find((track) => track.id === trackMenu.trackId) : null;
 	const colorMenuTrack = trackColorMenu ? project.tracks.find((track) => track.id === trackColorMenu.trackId) : null;
 	const menuClip = clipMenu ? project.clips.find((clip) => clip.id === clipMenu.clipId) : null;
+	const rulerFlyoutTrack = trackRulerFlyout
+		? project.tracks.find((track) => track.id === trackRulerFlyout.trackId && track.type !== 'label')
+		: null;
+	const activeWaveformRuler = rulerFlyoutTrack
+		? waveformRulerState[rulerFlyoutTrack.id] || DEFAULT_WAVEFORM_RULER_STATE
+		: DEFAULT_WAVEFORM_RULER_STATE;
 	const mutationsBlocked = snapshot.readOnly
 		|| snapshot.importing
 		|| snapshot.recording
@@ -874,6 +922,35 @@ export default function AudioEditorTimeline({
 		|| snapshot.processingEffect;
 	const contextLocale = locale;
 	const unavailableReason = copy.unavailable;
+	const updateWaveformRuler = (trackId, changes) => {
+		setWaveformRulerState((current) => ({
+			...current,
+			[trackId]: {
+				...(current[trackId] || DEFAULT_WAVEFORM_RULER_STATE),
+				...changes,
+			},
+		}));
+	};
+	const updateTrackSpectrogram = (track, changes) => {
+		if (!track || mutationsBlocked) return;
+		run(() => controller.actions.track.update(track.id, {
+			spectrogram: { ...track.spectrogram, ...changes },
+		}));
+	};
+	const zoomSpectrogram = (track, direction) => {
+		if (!track || mutationsBlocked) return;
+		const nyquist = sampleRate / 2;
+		const minimum = Math.max(0, Number(track.spectrogram?.minimumFrequency) || 0);
+		const maximum = Math.min(nyquist, Number(track.spectrogram?.maximumFrequency) || nyquist);
+		const center = (minimum + maximum) / 2;
+		const requestedSpan = (maximum - minimum) * (direction === 'in' ? 0.5 : 2);
+		const span = Math.max(10, Math.min(nyquist, requestedSpan));
+		const nextMinimum = Math.max(0, Math.min(nyquist - span, center - span / 2));
+		updateTrackSpectrogram(track, {
+			minimumFrequency: Math.round(nextMinimum),
+			maximumFrequency: Math.round(nextMinimum + span),
+		});
+	};
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'label' ? [] : [
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
@@ -1003,14 +1080,18 @@ export default function AudioEditorTimeline({
 							data-ruler
 							data-ruler-focus
 							data-ruler-interaction
+							data-time-format={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
 							data-track-lane
 							data-track-id={snapshot.selectedTrackId || project.tracks[0]?.id || ''}
 							role="region"
 							aria-label={copy.timeline}
 							tabIndex={timelineRulerTabIndex}
 							style={{ left: panelWidth, width: viewportWidth }}
+							onContextMenu={openTimelineRulerMenu}
 							onKeyDown={(event) => {
-								if (event.key === 'Tab' && !event.shiftKey && project.tracks.length) {
+								if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+									openTimelineRulerMenu(event);
+								} else if (event.key === 'Tab' && !event.shiftKey && project.tracks.length) {
 									event.preventDefault();
 									focusTrackContainer(0);
 								} else if (event.key === 'Escape') {
@@ -1027,6 +1108,9 @@ export default function AudioEditorTimeline({
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
+								timeFormat={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
+								bpm={project.tempo?.bpm || 120}
+								beatsPerMeasure={project.tempo?.timeSignature?.numerator || 4}
 								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
@@ -1096,6 +1180,8 @@ export default function AudioEditorTimeline({
 								selectedClipIds={project.selection?.clipIds || []}
 								timelineView={snapshot.timeline?.view}
 								showRms={Boolean(snapshot.timeline?.showRms)}
+								waveformRulerFormat={(waveformRulerState[track.id] || DEFAULT_WAVEFORM_RULER_STATE).format}
+								waveformZoom={(waveformRulerState[track.id] || DEFAULT_WAVEFORM_RULER_STATE).zoom}
 								clipStyle={snapshot.preferences?.appearance?.clipStyle}
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipIds={draggingClipIds}
@@ -1110,6 +1196,7 @@ export default function AudioEditorTimeline({
 								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
 								onOpenEffects={onOpenEffects}
 								onOpenClipMenu={openClipMenu}
+								onOpenRulerFlyout={(displayMode, event) => openTrackRulerFlyout(track, displayMode, event)}
 								onFocusTimelineRuler={focusTimelineRuler}
 								onFocusTrackContainer={focusTrackContainer}
 								onFocusTrackPanelControl={focusTrackPanelControl}
@@ -1155,6 +1242,85 @@ export default function AudioEditorTimeline({
 			</div>
 
 			<AudioEditorSampleTools controller={controller} snapshot={snapshot} copy={copy} run={run} />
+
+			<TimelineRulerContextMenu
+				isOpen={Boolean(timelineRulerMenu)}
+				x={timelineRulerMenu?.x || 0}
+				y={timelineRulerMenu?.y || 0}
+				autoFocus={Boolean(timelineRulerMenu?.autoFocus)}
+				onClose={() => setTimelineRulerMenu(null)}
+				timeFormat={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
+				onTimeFormatChange={(format) => run(() => controller.actions.project.setTimeDisplay(
+					format === 'beats-measures' ? 'beats+measures' : 'hh:mm:ss+milliseconds',
+				))}
+				updateDisplayWhilePlaying={snapshot.timeline?.updateDisplayWhilePlaying !== false}
+				onToggleUpdateDisplay={() => run(() => controller.actions.timeline.toggleUpdateWhilePlaying())}
+				pinnedPlayHead={Boolean(snapshot.timeline?.pinnedPlayhead)}
+				onTogglePinnedPlayHead={() => run(() => controller.actions.timeline.togglePinnedPlayhead())}
+				clickRulerToStartPlayback={snapshot.timeline?.playbackOnRulerClick !== false}
+				onToggleClickRulerToStartPlayback={() => run(() => controller.actions.timeline.toggleRulerPlayback())}
+				loopRegionEnabled={Boolean(project.loop?.enabled)}
+				onToggleLoopRegion={() => run(() => controller.actions.transport.toggleLoop())}
+				onClearLoopRegion={() => run(() => controller.actions.transport.clearLoop())}
+				onSetLoopRegionToSelection={() => run(() => controller.actions.transport.loopToSelection())}
+				onSetSelectionToLoop={() => run(() => controller.actions.transport.selectionToLoop())}
+				creatingLoopSelectsAudio={Boolean(snapshot.loopOptions?.selectionFollows)}
+				onToggleCreatingLoopSelectsAudio={() => run(() => controller.actions.transport.toggleSelectionFollowsLoop())}
+				showVerticalRulers={snapshot.timeline?.showVerticalRulers !== false}
+				onToggleVerticalRulers={() => run(() => controller.actions.timeline.toggleVerticalRulers())}
+			/>
+
+			<RulerFlyout
+				isOpen={Boolean(trackRulerFlyout && rulerFlyoutTrack)}
+				x={trackRulerFlyout?.x || 0}
+				y={trackRulerFlyout?.y || 0}
+				mode={trackRulerFlyout?.mode || 'waveform'}
+				className="audio-editor-ruler-flyout"
+				triggerRef={{ current: trackRulerFlyout?.trigger || null }}
+				onClose={() => setTrackRulerFlyout(null)}
+				rulerFormat={activeWaveformRuler.format}
+				onRulerFormatChange={(format) => {
+					if (rulerFlyoutTrack) updateWaveformRuler(rulerFlyoutTrack.id, { format });
+				}}
+				halfWave={rulerFlyoutTrack?.displayMode === 'half-wave'}
+				onHalfWaveChange={(enabled) => {
+					if (!rulerFlyoutTrack || mutationsBlocked) return;
+					run(() => controller.actions.track.setDisplayMode(
+						rulerFlyoutTrack.id,
+						enabled ? 'half-wave' : 'waveform',
+					));
+				}}
+				spectrogramScale={normalizeSpectrogramScale(rulerFlyoutTrack?.spectrogram?.scale)}
+				onSpectrogramScaleChange={(scale) => updateTrackSpectrogram(rulerFlyoutTrack, {
+					scale: scale === 'logarithmic' ? 'log' : scale,
+				})}
+				minFreq={rulerFlyoutTrack?.spectrogram?.minimumFrequency || 0}
+				onMinFreqChange={(minimumFrequency) => updateTrackSpectrogram(rulerFlyoutTrack, { minimumFrequency })}
+				maxFreq={rulerFlyoutTrack?.spectrogram?.maximumFrequency || Math.min(20_000, sampleRate / 2)}
+				onMaxFreqChange={(maximumFrequency) => updateTrackSpectrogram(rulerFlyoutTrack, { maximumFrequency })}
+				onZoomIn={() => {
+					if (!rulerFlyoutTrack) return;
+					if (trackRulerFlyout?.mode === 'spectrogram') zoomSpectrogram(rulerFlyoutTrack, 'in');
+					else updateWaveformRuler(rulerFlyoutTrack.id, {
+						zoom: Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, activeWaveformRuler.zoom + 1),
+					});
+				}}
+				onZoomOut={() => {
+					if (!rulerFlyoutTrack) return;
+					if (trackRulerFlyout?.mode === 'spectrogram') zoomSpectrogram(rulerFlyoutTrack, 'out');
+					else updateWaveformRuler(rulerFlyoutTrack.id, {
+						zoom: Math.max(0, activeWaveformRuler.zoom - 1),
+					});
+				}}
+				onReset={() => {
+					if (!rulerFlyoutTrack) return;
+					if (trackRulerFlyout?.mode === 'spectrogram') updateTrackSpectrogram(rulerFlyoutTrack, {
+						minimumFrequency: 0,
+						maximumFrequency: Math.min(20_000, sampleRate / 2),
+					});
+					else updateWaveformRuler(rulerFlyoutTrack.id, { zoom: 0 });
+				}}
+			/>
 
 			<Menu
 				isOpen={Boolean(trackMenu && menuTrack)}
@@ -1520,6 +1686,8 @@ function TrackRow({
 	selectedClipIds,
 	timelineView,
 	showRms,
+	waveformRulerFormat,
+	waveformZoom,
 	clipStyle,
 	recordingPreview,
 	draggingClipIds,
@@ -1534,6 +1702,7 @@ function TrackRow({
 	onMenu,
 	onOpenEffects,
 	onOpenClipMenu,
+	onOpenRulerFlyout,
 	onFocusTimelineRuler,
 	onFocusTrackContainer,
 	onFocusTrackPanelControl,
@@ -1984,11 +2153,16 @@ function TrackRow({
 				{verticalRulerWidth > 0 && <div
 					className="audio-editor-vertical-ruler"
 					data-track-ruler
+					data-ruler-format={waveformRulerFormat}
+					data-ruler-zoom={waveformZoom}
 					role="region"
 					aria-label={`${track.name}: ${displayMode === 'spectrogram' ? copy.spectrogramView : displayMode === 'multiview' ? copy.multiview : copy.waveformView}`}
 					tabIndex={tabIndexFor(3)}
+					onContextMenu={(event) => onOpenRulerFlyout(displayMode, event)}
 					onKeyDown={(event) => {
-						if (event.key === 'Tab') {
+						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+							onOpenRulerFlyout(displayMode, event);
+						} else if (event.key === 'Tab') {
 							event.preventDefault();
 							if (event.shiftKey) focusBeforeRuler();
 							else focusAfterRuler();
@@ -2019,10 +2193,24 @@ function TrackRow({
 								scale={spectrogramScale}
 								width={verticalRulerWidth}
 							/>
-							{renderAmplitudeRulers(rulerChannelCount, trackHeight - Math.floor(trackHeight / 2), verticalRulerWidth, displayMode)}
+							{renderAmplitudeRulers(
+								rulerChannelCount,
+								trackHeight - Math.floor(trackHeight / 2),
+								verticalRulerWidth,
+								displayMode,
+								waveformRulerFormat,
+								waveformZoom,
+							)}
 						</>
 					) : (
-						renderAmplitudeRulers(rulerChannelCount, trackHeight, verticalRulerWidth, displayMode)
+						renderAmplitudeRulers(
+							rulerChannelCount,
+							trackHeight,
+							verticalRulerWidth,
+							displayMode,
+							waveformRulerFormat,
+							waveformZoom,
+						)
 					)}
 				</div>}
 			</div>
@@ -3043,22 +3231,49 @@ function normalizeSpectrogramScale(value) {
 	return ['linear', 'logarithmic', 'mel', 'bark', 'erb', 'period'].includes(scale) ? scale : 'mel';
 }
 
-function renderAmplitudeRulers(channelCount, height, width, displayMode) {
+function renderAmplitudeRulers(
+	channelCount,
+	height,
+	width,
+	displayMode,
+	rulerFormat = DEFAULT_WAVEFORM_RULER_STATE.format,
+	zoom = DEFAULT_WAVEFORM_RULER_STATE.zoom,
+) {
 	const normalizedChannelCount = Math.max(1, Math.min(2, Number(channelCount) || 1));
 	const channelHeight = Math.floor(height / normalizedChannelCount);
-	return Array.from({ length: normalizedChannelCount }, (_, channel) => (
-		<VerticalRuler
-			key={channel}
-			height={channel === normalizedChannelCount - 1
-				? height - channelHeight * channel
-				: channelHeight}
-			min={displayMode === 'half-wave' ? 0 : -1}
-			max={1}
-			majorDivisions={displayMode === 'half-wave' ? 2 : 3}
-			minorDivisions={1}
-			width={width}
-		/>
-	));
+	const halfWave = displayMode === 'half-wave';
+	const normalizedZoom = Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(zoom) || 0));
+	const baseSpan = halfWave ? 1 : 2;
+	const center = halfWave ? 0.5 : 0;
+	const span = baseSpan / 2 ** normalizedZoom;
+	const minimum = center - span / 2;
+	const maximum = center + span / 2;
+	return Array.from({ length: normalizedChannelCount }, (_, channel) => {
+		const rulerHeight = channel === normalizedChannelCount - 1
+			? height - channelHeight * channel
+			: channelHeight;
+		if (rulerFormat !== 'linear-amp') {
+			return (
+				<DbRuler
+					key={channel}
+					height={rulerHeight}
+					scale={rulerFormat === 'linear-db' ? 'linear' : 'logarithmic'}
+					width={width}
+				/>
+			);
+		}
+		return (
+			<VerticalRuler
+				key={channel}
+				height={rulerHeight}
+				min={minimum}
+				max={maximum}
+				majorDivisions={halfWave ? 2 : 3}
+				minorDivisions={1}
+				width={width}
+			/>
+		);
+	});
 }
 
 function spectralSelectionState(selection) {
