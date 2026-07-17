@@ -487,7 +487,10 @@ export default function AudioEditorTimeline({
 
 	const frameAtClientX = useCallback((clientX, lane) => {
 		const rect = lane.getBoundingClientRect();
-		return secondsToFrames(Math.max(0, (scrollX + clientX - rect.left - CLIP_CONTENT_OFFSET) / pixelsPerSecond), {
+		const currentScrollX = lane.dataset.rulerInteraction !== undefined
+			? (scrollRef.current?.scrollLeft ?? scrollX)
+			: 0;
+		return secondsToFrames(Math.max(0, (currentScrollX + clientX - rect.left - CLIP_CONTENT_OFFSET) / pixelsPerSecond), {
 			maximumFrame: durationFrames,
 			sampleRate,
 		});
