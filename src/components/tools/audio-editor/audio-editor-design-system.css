@@ -19,6 +19,17 @@
 	color-scheme: light;
 	font-family: Inter, var(--font-body, system-ui, sans-serif);
 	isolation: isolate;
+	user-select: none;
+}
+
+#kw-audio-editor-design-system * {
+	user-select: none;
+}
+
+#kw-audio-editor-design-system :where([role='alert'], [role='alert'] *),
+#kw-audio-editor-design-system[role='alert'],
+#kw-audio-editor-design-system[role='alert'] * {
+	user-select: text;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__transport-play .transport-button__icon {
