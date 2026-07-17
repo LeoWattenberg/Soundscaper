@@ -185,6 +185,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 		: undefined;
 	const selectionActive = Boolean(snapshot.selection);
 	const selectedClip = project?.clips.find((clip) => clip.id === snapshot.selectedClipId) || null;
+	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
+		project.clips.some((clip) => clip.id === clipId)
+	)));
+	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
 	const selectedAudioTrackRate = trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000);
@@ -485,8 +489,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
 
 	const editItems = [
-		{ action: 'cut', label: copy.cut, icon: 'cut', disabled: editBlocked || !selectionActive },
-		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !selectionActive },
+		{ action: 'cut', label: copy.cut, icon: 'cut', disabled: editBlocked || !editSelectionActive },
+		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !editSelectionActive },
 		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !snapshot.history?.hasClipboard },
 		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !splitAvailable },
 		{ action: 'delete', label: copy.liftDelete, icon: 'trash', disabled: editBlocked || (!selectionActive && !selectedClip) },
@@ -4795,6 +4799,10 @@ function createApplicationMenus({
 }) {
 	const divider = () => ({ divider: true });
 	const unavailable = (id, label) => ({ id, label, disabled: true });
+	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
+		project.clips.some((clip) => clip.id === clipId)
+	)));
+	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
 	const selectedTrackIndex = selectedTrack ? project.tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
@@ -4918,9 +4926,9 @@ function createApplicationMenus({
 				{ id: 'undo', label: copy.undo, shortcut: 'Ctrl+Z', disabled: editBlocked || !snapshot.history?.canUndo, onClick: () => actions.executeEdit('undo') },
 				{ id: 'redo', label: copy.redo, shortcut: 'Ctrl+Shift+Z', disabled: editBlocked || !snapshot.history?.canRedo, onClick: () => actions.executeEdit('redo') },
 				divider(),
-				{ id: 'cut', label: copy.cut, shortcut: 'Ctrl+X', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cut') },
+				{ id: 'cut', label: copy.cut, shortcut: 'Ctrl+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cut') },
 				{ id: 'delete', label: copy.liftDelete, shortcut: 'Delete', disabled: editBlocked || (!selectionActive && !selectedClip), onClick: () => actions.executeEdit('delete') },
-				{ id: 'copy', label: copy.copy, shortcut: 'Ctrl+C', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('copy') },
+				{ id: 'copy', label: copy.copy, shortcut: 'Ctrl+C', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('copy') },
 				{ id: 'paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
 				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('duplicate') },
 				{

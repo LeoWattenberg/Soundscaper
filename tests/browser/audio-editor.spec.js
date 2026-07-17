@@ -2236,7 +2236,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
 
 		const clip = clipByName(editor, toneA.name);
-		await clip.click({ position: { x: 24, y: 10 } });
+		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
+		await page.keyboard.press('Escape');
+		const editMenu = editor.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'Edit', exact: true });
+		await editMenu.click();
+		const editCommands = page.getByRole('menu', { name: 'Edit', exact: true });
+		await expect(getMenuItem(editCommands, 'Cut')).toHaveAttribute('aria-disabled', 'false');
+		await expect(getMenuItem(editCommands, 'Copy')).toHaveAttribute('aria-disabled', 'false');
+		await page.keyboard.press('Escape');
 		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');
 		const split = clipMenu.locator('[data-action-id="split"]');

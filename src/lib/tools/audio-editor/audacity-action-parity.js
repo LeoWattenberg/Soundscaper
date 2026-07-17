@@ -124,7 +124,7 @@ const definitions = [
 	// Edit menu and destructive/ripple variants.
 	implemented('action://trackedit/undo', 'Undo', ['Edit'], 'edit.undo', { shortcut: 'Ctrl+Z', enableWhen: 'history-can-undo', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/redo', 'Redo', ['Edit'], 'edit.redo', { shortcut: 'Ctrl+Shift+Z', enableWhen: 'history-can-redo', source: UPSTREAM.trackEdit }),
-	implemented('action://cut', 'Cut', ['Edit'], 'edit.cut', { shortcut: 'Ctrl+X', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
+	implemented('action://cut', 'Cut', ['Edit'], 'edit.cut', { shortcut: 'Ctrl+X', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
 	implemented('action://copy', 'Copy', ['Edit'], 'edit.copy', { shortcut: 'Ctrl+C', enableWhen: 'selection', source: UPSTREAM.trackEdit }),
 	implemented('action://paste', 'Paste', ['Edit'], 'edit.paste', { shortcut: 'Ctrl+V', enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.trackEdit }),
 	implemented('action://delete', 'Delete', ['Edit', 'Clip context'], 'edit.delete', { shortcut: 'Delete', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
