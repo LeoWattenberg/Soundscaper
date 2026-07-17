@@ -60,6 +60,7 @@ const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
@@ -642,6 +643,7 @@ export default function AudioEditorTimeline({
 		const interactiveControl = event.target.closest?.('button, input, textarea, select, [role="menuitem"]');
 		if (interactiveControl && !interactiveControl.classList.contains('clip-display__handle')) return;
 		if (event.target.closest?.('[data-label-id]')) return;
+		if (event.target.closest?.('.audio-editor-vertical-ruler')) return;
 		const clipElement = event.target.closest('[data-clip-id]');
 		const lane = event.target.closest('[data-track-lane]');
 		if (!lane) return;
@@ -720,7 +722,16 @@ export default function AudioEditorTimeline({
 			return;
 		}
 		const clipEditHandle = event.target.closest('.clip-display__handle');
-		if (!event.target.closest('.clip-header') && !clipEditHandle) {
+		let edgeKind = null;
+		if (event.target.closest('.clip-display') && !clipEditHandle) {
+			const clipRect = clipElement.getBoundingClientRect();
+			const distanceFromLeft = event.clientX - clipRect.left;
+			const distanceFromRight = clipRect.right - event.clientX;
+			if (Math.min(distanceFromLeft, distanceFromRight) <= CLIP_TRIM_EDGE_HIT_WIDTH) {
+				edgeKind = distanceFromLeft <= distanceFromRight ? 'trim-left' : 'trim-right';
+			}
+		}
+		if (!event.target.closest('.clip-header') && !clipEditHandle && !edgeKind) {
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
 			setSelectionPreview({ startFrame, endFrame: startFrame });
@@ -732,6 +743,7 @@ export default function AudioEditorTimeline({
 		if (event.target.closest('.clip-display__handle--trim-right')) kind = 'trim-right';
 		if (event.target.closest('.clip-display__handle--stretch-left')) kind = 'stretch-left';
 		if (event.target.closest('.clip-display__handle--stretch-right')) kind = 'stretch-right';
+		if (edgeKind) kind = edgeKind;
 		const transformClipIds = collectClipTransformIds(project, clip.id);
 		pointerSession.current = {
 			kind,

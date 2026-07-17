@@ -1610,12 +1610,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		const movedDuration = Number(await clipField(clipDialog, 'durationFrame').inputValue());
 		await closeDialog(clipDialog);
 		await clip.scrollIntoViewIfNeeded();
-		const trimHandle = clip.locator('.clip-display__handle--trim-right');
-		const trimBox = await trimHandle.boundingBox();
+		const trimBox = await clip.boundingBox();
 		expect(trimBox).not.toBeNull();
-		await page.mouse.move(trimBox.x + trimBox.width / 2, trimBox.y + trimBox.height / 2);
+		await page.mouse.move(trimBox.x + trimBox.width - 2, trimBox.y + 48);
 		await page.mouse.down();
-		await page.mouse.move(trimBox.x - 24, trimBox.y + trimBox.height / 2, { steps: 4 });
+		await page.mouse.move(trimBox.x + trimBox.width - 26, trimBox.y + 48, { steps: 4 });
 		await page.mouse.up();
 		clipDialog = await openClipProperties(page, editor);
 		await expect.poll(async () => Number(await clipField(clipDialog, 'durationFrame').inputValue())).toBeLessThan(movedDuration);
@@ -1909,6 +1908,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
+		await chooseCommandAction(page, editor, 'Select', 'Select none');
+		const selectionToolbar = editor.locator('[data-selection-toolbar]');
+		const timecodesBeforeVerticalDrag = await selectionToolbar.locator('.timecode').allTextContents();
+
+		const verticalRuler = editor.locator('[data-track-ruler]').first();
+		await verticalRuler.scrollIntoViewIfNeeded();
+		const verticalRulerBox = await verticalRuler.boundingBox();
+		expect(verticalRulerBox).not.toBeNull();
+		await page.mouse.move(verticalRulerBox.x + verticalRulerBox.width / 2, verticalRulerBox.y + 24);
+		await page.mouse.down();
+		await page.mouse.move(verticalRulerBox.x + verticalRulerBox.width / 2, verticalRulerBox.y + 72, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(() => selectionToolbar.locator('.timecode').allTextContents()).toEqual(timecodesBeforeVerticalDrag);
 
 		const ruler = editor.locator('[data-ruler]');
 		await ruler.scrollIntoViewIfNeeded();
@@ -1919,7 +1931,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.move(rulerBox.x + 82, rulerBox.y + 26, { steps: 4 });
 		await page.mouse.up();
 		await expect(editor.getByRole('button', { name: 'Loop selection' })).toBeEnabled();
-		const selectionToolbar = editor.locator('[data-selection-toolbar]');
 		await expect(selectionToolbar.locator('.timecode')).toHaveCount(3);
 		await expect(selectionToolbar).toContainText('Selection');
 		await expect(selectionToolbar).toContainText('Duration');
