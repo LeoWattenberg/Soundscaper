@@ -1248,7 +1248,6 @@ export default function AudioEditorTimeline({
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}
 						height={Math.max(TRACK_HEIGHT, totalTrackHeight)}
-						scrollX={scrollX}
 						run={run}
 					/>
 				</div>
@@ -1557,7 +1556,6 @@ function TelemetryPlayhead({
 	pixelsPerSecond,
 	sampleRate,
 	height,
-	scrollX,
 	run,
 }) {
 	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
@@ -1647,7 +1645,6 @@ function TelemetryPlayhead({
 				height={height}
 				showTopIcon
 				iconTopOffset={-17}
-				scrollX={scrollX}
 				minPosition={0}
 				onPositionChange={(seconds) => {
 					const frame = secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate });
