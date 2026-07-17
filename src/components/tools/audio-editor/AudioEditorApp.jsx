@@ -71,7 +71,7 @@ import AudioEditorTimeline from './AudioEditorTimeline.jsx';
 import {
 	DesignSystemProviders,
 	useAudioEditorSnapshot,
-	useAudioEditorTelemetry,
+	useAudioEditorTelemetrySelector,
 	useAudioEditorThemeVariables,
 } from './DesignSystemRuntime.jsx';
 import AudioEditorButtonTooltips from './AudioEditorButtonTooltips.jsx';
@@ -1386,7 +1386,11 @@ function EditorToolToolbar({
 	onJumpToEnd,
 	onGripperMouseDown,
 }) {
-	const telemetry = useAudioEditorTelemetry(controller);
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
+	const playbackMode = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.playbackMode);
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	const telemetry = { playbackMode, positionFrame, transportState };
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label');
 	const spectralTrackSelected = Boolean(selectedTrack && (
@@ -1395,8 +1399,6 @@ function EditorToolToolbar({
 		|| snapshot.timeline?.view === 'spectrogram'
 	));
 	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
-	const masterMeter = telemetry.meters?.master;
-	const inputMeterDb = Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60));
 	const recordControlLabel = snapshot.readOnly
 		? `${recordLabel} — ${copy.projectReadOnly}`
 		: recordLabel;
@@ -1637,32 +1639,12 @@ function EditorToolToolbar({
 					</span>
 				</label>
 
-				{isToolbarButtonVisible('monitor') && <ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
-					<AudacityToolbarFlyoutButton
-						icon={iconNameToChar('MICROPHONE')}
-						ariaLabel={copy.recordLevel}
-						flyoutClassName="kw-audio-editor__microphone-level-flyout"
-					>
-						<MicrophoneLevelFlyout
-							copy={copy}
-							snapshot={snapshot}
-							inputMeterDb={inputMeterDb}
-							controller={controller}
-							run={run}
-						/>
-					</AudacityToolbarFlyoutButton>
-					{(snapshot.recording || snapshot.monitor?.metering) && <div
-						className="kw-audio-editor__idle-input-meter"
-						data-idle-input-meter
-						role="meter"
-						aria-label={copy.inputLevel}
-						aria-valuemin={-60}
-						aria-valuemax={0}
-						aria-valuenow={inputMeterDb}
-					>
-						<span style={{ width: `${meterPercent(inputMeterDb)}%` }} aria-hidden="true" />
-					</div>}
-				</ToolbarButtonGroup>}
+				{isToolbarButtonVisible('monitor') && <MicrophoneMeterToolbarGroup
+					copy={copy}
+					snapshot={snapshot}
+					controller={controller}
+					run={run}
+				/>}
 
 				{uiFlags.masterTrack
 					&& isToolbarButtonVisible('playback-volume')
@@ -1804,6 +1786,47 @@ function AudacityToolbarFlyoutButton({
 				{children}
 			</Flyout>
 		</>
+	);
+}
+
+function MicrophoneMeterToolbarGroup({
+	copy,
+	snapshot,
+	controller,
+	run,
+}) {
+	const inputMeterDb = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => Math.max(-60, Math.min(0, telemetry.inputMeterDb ?? -60)),
+	);
+
+	return (
+		<ToolbarButtonGroup className="kw-audio-editor__recording-meter" gap={4}>
+			<AudacityToolbarFlyoutButton
+				icon={iconNameToChar('MICROPHONE')}
+				ariaLabel={copy.recordLevel}
+				flyoutClassName="kw-audio-editor__microphone-level-flyout"
+			>
+				<MicrophoneLevelFlyout
+					copy={copy}
+					snapshot={snapshot}
+					inputMeterDb={inputMeterDb}
+					controller={controller}
+					run={run}
+				/>
+			</AudacityToolbarFlyoutButton>
+			{(snapshot.recording || snapshot.monitor?.metering) && <div
+				className="kw-audio-editor__idle-input-meter"
+				data-idle-input-meter
+				role="meter"
+				aria-label={copy.inputLevel}
+				aria-valuemin={-60}
+				aria-valuemax={0}
+				aria-valuenow={inputMeterDb}
+			>
+				<span style={{ width: `${meterPercent(inputMeterDb)}%` }} aria-hidden="true" />
+			</div>}
+		</ToolbarButtonGroup>
 	);
 }
 
@@ -1998,8 +2021,7 @@ function SidePlaybackMeter({
 	clippingEnabled,
 	run,
 }) {
-	const telemetry = useAudioEditorTelemetry(controller);
-	const masterMeter = telemetry.meters?.master;
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
 	return (
 		<aside
 			className="kw-audio-editor__side-playback-meter"
@@ -3261,7 +3283,7 @@ function WorkspacePanelContent({ panelId, controller, snapshot, copy, run, showA
 }
 
 function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
-	const telemetry = useAudioEditorTelemetry(controller);
+	const meters = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters);
 	const project = snapshot.project;
 	const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
 	const groups = project?.mixer?.groups || [];
@@ -3284,7 +3306,7 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 		const isMaster = type === 'master';
 		const targetId = channel.id || 'master';
 		const scope = isTrack ? 'track' : type;
-		const meter = isMaster ? telemetry.meters?.master : telemetry.meters?.[`${type}s`]?.[targetId];
+		const meter = isMaster ? meters?.master : meters?.[`${type}s`]?.[targetId];
 		const update = (changes) => {
 			if (isTrack) return controller.actions.track.update(targetId, changes);
 			if (isMaster) return controller.actions.mixer.updateMaster(changes);

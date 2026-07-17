@@ -456,6 +456,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			});
 		});
 		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
 		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio devices', exact: true }).click();
 		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio devices', exact: true });
 		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Allow microphone access', exact: true });
@@ -483,6 +484,19 @@ test.describe('audio editor React/design-system workflows', () => {
 			.getByRole('meter', { name: 'Input level', exact: true })
 			.getAttribute('aria-valuenow'))).toBeGreaterThan(-60);
 		await expect(editor.locator('[data-idle-input-meter]')).toBeVisible();
+		await page.evaluate(() => {
+			globalThis.__idleWaveformDraws = 0;
+			const prototype = CanvasRenderingContext2D.prototype;
+			const clearRect = prototype.clearRect;
+			prototype.clearRect = function countIdleWaveformDraws(...args) {
+				if (this.canvas?.matches('canvas.clip-body__waveform')) globalThis.__idleWaveformDraws += 1;
+				return clearRect.apply(this, args);
+			};
+		});
+		await page.waitForTimeout(150);
+		await page.evaluate(() => { globalThis.__idleWaveformDraws = 0; });
+		await page.waitForTimeout(350);
+		expect(await page.evaluate(() => globalThis.__idleWaveformDraws)).toBe(0);
 		await micMetering.click();
 		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
 		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuenow', '-60');

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
 	AccessibilityProfileProvider,
 	darkTheme,
@@ -42,6 +42,34 @@ export function useAudioEditorTelemetry(controller) {
 		controller.subscribeTelemetry,
 		controller.getTelemetrySnapshot,
 		controller.getTelemetrySnapshot,
+	);
+}
+
+export function useAudioEditorTelemetrySelector(controller, selector, isEqual = Object.is) {
+	const selectorRef = useRef(selector);
+	const equalityRef = useRef(isEqual);
+	const selectionRef = useRef({ controller: null, hasValue: false, value: undefined });
+	selectorRef.current = selector;
+	equalityRef.current = isEqual;
+
+	const getSelectedSnapshot = useCallback(() => {
+		const next = selectorRef.current(controller.getTelemetrySnapshot());
+		const previous = selectionRef.current;
+		if (
+			previous.controller === controller
+			&& previous.hasValue
+			&& equalityRef.current(previous.value, next)
+		) {
+			return previous.value;
+		}
+		selectionRef.current = { controller, hasValue: true, value: next };
+		return next;
+	}, [controller]);
+
+	return useSyncExternalStore(
+		controller.subscribeTelemetry,
+		getSelectedSnapshot,
+		getSelectedSnapshot,
 	);
 }
 

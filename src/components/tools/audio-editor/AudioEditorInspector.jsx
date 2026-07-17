@@ -51,7 +51,7 @@ import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-expo
 import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { ParametricEqEditor } from './ParametricEqEditor.jsx';
-import { useAudioEditorTelemetry } from './DesignSystemRuntime.jsx';
+import { useAudioEditorTelemetrySelector } from './DesignSystemRuntime.jsx';
 
 const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
 
@@ -1900,7 +1900,7 @@ function effectHasEditableSettings(type) {
 }
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClose }) {
-	const telemetry = useAudioEditorTelemetry(controller);
+	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [settings, setSettings] = useState({
 		mode: 'mix',
@@ -1932,7 +1932,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, locale, onClo
 	const hasSelection = Boolean(snapshot.selection);
 	const hasLoop = Boolean(snapshot.project?.loop?.enabled);
 	const exporting = Boolean(snapshot.exporting);
-	const progress = Math.round(Math.max(0, Math.min(1, telemetry?.exportProgress ?? snapshot.export?.progress ?? 0)) * 100);
+	const progress = Math.round(Math.max(0, Math.min(1, exportProgress ?? snapshot.export?.progress ?? 0)) * 100);
 	const output = snapshot.export?.output;
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 

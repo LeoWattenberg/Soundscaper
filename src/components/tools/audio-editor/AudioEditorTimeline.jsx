@@ -48,7 +48,7 @@ import { collectClipTransformIds } from '../../../lib/tools/audio-editor/command
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../../lib/tools/audio-editor/project-v2.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
-import { useAudioEditorTelemetry, useElementSize } from './DesignSystemRuntime.jsx';
+import { useAudioEditorTelemetrySelector, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 
@@ -241,7 +241,8 @@ export default function AudioEditorTimeline({
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
-	const telemetry = useAudioEditorTelemetry(controller);
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();
 	const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';
 	const timelineRulerTabIndex = useTabOrder('timeline-ruler');
@@ -391,13 +392,13 @@ export default function AudioEditorTimeline({
 			!element
 			|| !snapshot.timeline?.pinnedPlayhead
 			|| snapshot.timeline?.updateDisplayWhilePlaying === false
-			|| telemetry.transportState !== 'playing'
+			|| transportState !== 'playing'
 		) return;
-		const positionPixels = framesToSeconds(telemetry.positionFrame || 0, { sampleRate }) * pixelsPerSecond;
+		const positionPixels = framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
 		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
 		const nextScroll = Math.max(0, Math.min(maximumScroll, positionPixels - viewportWidth / 2));
 		if (Math.abs(element.scrollLeft - nextScroll) > 1) element.scrollLeft = nextScroll;
-	}, [pixelsPerSecond, sampleRate, snapshot.timeline?.pinnedPlayhead, snapshot.timeline?.updateDisplayWhilePlaying, telemetry.positionFrame, telemetry.transportState, timelineWidth, viewportWidth]);
+	}, [pixelsPerSecond, positionFrame, sampleRate, snapshot.timeline?.pinnedPlayhead, snapshot.timeline?.updateDisplayWhilePlaying, timelineWidth, transportState, viewportWidth]);
 
 	const run = useCallback((action) => {
 		try {
@@ -545,7 +546,7 @@ export default function AudioEditorTimeline({
 			if (Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
 				run(() => controller.actions.transport.seek(endFrame));
 				run(() => controller.actions.timeline.clearSelection());
-				if (session.lane.dataset.rulerInteraction !== undefined && snapshot.timeline?.playbackOnRulerClick !== false && telemetry.transportState === 'stopped') {
+				if (session.lane.dataset.rulerInteraction !== undefined && snapshot.timeline?.playbackOnRulerClick !== false && transportState === 'stopped') {
 					run(() => controller.actions.transport.playPause());
 				}
 			} else {
@@ -621,7 +622,7 @@ export default function AudioEditorTimeline({
 				durationFrames: nextDuration,
 			}));
 		}
-	}, [controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.timeline?.playbackOnRulerClick, telemetry.transportState, trackAtClientY]);
+	}, [controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
 
 	const onPointerDown = useCallback((event) => {
 		if (event.pointerType === 'touch') {
@@ -1543,8 +1544,8 @@ function resolveAudioEditorColor(color, fallback = AUDIO_EDITOR_TRACK_COLORS[0])
 }
 
 function TelemetryTimelineRuler({ controller, sampleRate, ...props }) {
-	const telemetry = useAudioEditorTelemetry(controller);
-	return <TimelineRuler {...props} cursorPosition={framesToSeconds(telemetry.positionFrame || 0, { sampleRate })} />;
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	return <TimelineRuler {...props} cursorPosition={framesToSeconds(positionFrame, { sampleRate })} />;
 }
 
 function TelemetryPlayhead({
@@ -1559,7 +1560,7 @@ function TelemetryPlayhead({
 	scrollX,
 	run,
 }) {
-	const telemetry = useAudioEditorTelemetry(controller);
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
 	const scrubbingRef = useRef(false);
 	const scrubDragRef = useRef(null);
 	const finishScrub = useCallback(() => {
@@ -1592,7 +1593,7 @@ function TelemetryPlayhead({
 			aria-label={copy.playhead}
 			aria-valuemin={0}
 			aria-valuemax={durationFrames}
-			aria-valuenow={telemetry.positionFrame || 0}
+			aria-valuenow={positionFrame}
 			style={{ left: panelWidth, width: viewportWidth, touchAction: 'none' }}
 			onPointerDownCapture={(event) => {
 				if (event.button !== 0 || event.isPrimary === false || !event.target.closest?.('.playhead-cursor')) return;
@@ -1601,13 +1602,13 @@ function TelemetryPlayhead({
 				scrubDragRef.current = {
 					pointerId: event.pointerId,
 					clientX: event.clientX,
-					startFrame: telemetry.positionFrame || 0,
+					startFrame: positionFrame,
 				};
 				event.currentTarget.setPointerCapture?.(event.pointerId);
 				scrubbingRef.current = true;
 				// Resume Web Audio from the initiating gesture; later pointer moves
 				// are not consistently treated as activation by browsers.
-				run(() => controller.actions.transport.scrub(telemetry.positionFrame || 0));
+				run(() => controller.actions.transport.scrub(positionFrame));
 			}}
 			onPointerMoveCapture={(event) => {
 				const drag = scrubDragRef.current;
@@ -1633,7 +1634,7 @@ function TelemetryPlayhead({
 				const amount = event.shiftKey ? Math.round(sampleRate / 10) : 1;
 				if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
 					event.preventDefault();
-					run(() => controller.actions.transport.seek((telemetry.positionFrame || 0) + (event.key === 'ArrowLeft' ? -amount : amount)));
+					run(() => controller.actions.transport.seek(positionFrame + (event.key === 'ArrowLeft' ? -amount : amount)));
 				} else if (event.key === 'Home' || event.key === 'End') {
 					event.preventDefault();
 					run(() => controller.actions.transport.seek(event.key === 'Home' ? 0 : durationFrames));
@@ -1641,7 +1642,7 @@ function TelemetryPlayhead({
 			}}
 		>
 			<PlayheadCursor
-				position={framesToSeconds(telemetry.positionFrame || 0, { sampleRate })}
+				position={framesToSeconds(positionFrame, { sampleRate })}
 				pixelsPerSecond={pixelsPerSecond}
 				height={height}
 				showTopIcon
@@ -2898,10 +2899,9 @@ function TrackControls({
 	onShiftTabOut,
 	onNavigateVertical,
 }) {
-	const telemetry = useAudioEditorTelemetry(controller);
 	const controlsRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
-	const meter = telemetry.meters?.tracks?.[track.id];
+	const meter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.tracks?.[track.id]);
 	const meterVolume = meterPercent(meter?.dbfs);
 	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
