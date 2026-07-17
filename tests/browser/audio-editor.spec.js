@@ -1294,12 +1294,13 @@ test.describe('audio editor React/design-system workflows', () => {
 	]) {
 		test(`${locale.path} keeps the upstream spectral brush visible and inert`, async ({ page }) => {
 			const editor = await bootEditor(page, locale.path);
+			await editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm) options$/, exact: true }).click();
 			const entry = editor.locator('[data-action-id="spectral-brush"]');
 			await expect(entry).toBeVisible();
 			await expect(entry).toHaveAttribute('aria-disabled', 'true');
 			await expect(entry).toHaveAttribute('title', locale.reason);
 			await expect(entry).toHaveAttribute('data-disabled-reason', locale.reason);
-			await expect(entry.getByRole('button', { name: new RegExp(`^${escapeRegex(locale.label)}:`) })).toBeDisabled();
+			await expect(entry.getByRole('menuitem', { name: new RegExp(`^${escapeRegex(locale.label)}:`) })).toBeDisabled();
 		});
 	}
 
@@ -2530,7 +2531,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.down();
 		await page.mouse.move(rulerBox.x + 110, rulerBox.y + 24, { steps: 4 });
 		await page.mouse.up();
-		await editor.getByRole('button', { name: 'Select spectral frequency range', exact: true }).click();
+		await editor.getByRole('button', { name: 'Spectrogram options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Select spectral frequency range', exact: true }).click();
 		const spectralDialog = page.getByRole('dialog', { name: 'Spectral selection', exact: true });
 		await expect(spectralDialog).toBeVisible();
 		await spectralDialog.getByRole('button', { name: 'Select range', exact: true }).click();

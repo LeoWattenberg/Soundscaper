@@ -1580,29 +1580,34 @@ function EditorToolToolbar({
 						/>
 					</span>
 					}
-					{isToolbarButtonVisible('spectrogram-view') && <ToggleToolButton icon="spectrogram" isActive={snapshot.timeline?.view === 'spectrogram'} ariaLabel={copy.spectrogramView} onClick={() => run(() => controller.actions.timeline.setAllTracksView(snapshot.timeline?.view === 'spectrogram' ? 'waveform' : 'spectrogram'))} />}
-					{isToolbarButtonVisible('spectral-box-select') && <span data-action-id="spectral-box-select">
-						<ToolButton
-							icon="spectrogram"
-							ariaLabel={copy.spectralBoxSelect}
-							disabled={!spectralTrackSelected}
-							onClick={onOpenSpectralSelection}
-						/>
-					</span>
-					}
-					{isToolbarButtonVisible('spectral-brush') && <span
-						data-action-id="spectral-brush"
-						data-disabled-reason={spectralBrushReason}
-						aria-disabled="true"
-						title={spectralBrushReason}
+					{isToolbarButtonVisible('spectrogram-view') && <AudioEditorSplitButton
+						icon="spectrogram"
+						toggle
+						pressed={snapshot.timeline?.view === 'spectrogram'}
+						ariaLabel={copy.spectrogramView}
+						onClick={() => run(() => controller.actions.timeline.setAllTracksView(snapshot.timeline?.view === 'spectrogram' ? 'waveform' : 'spectrogram'))}
 					>
-						<ToolButton
-							icon="brush"
-							ariaLabel={`${copy.spectralBrush}: ${spectralBrushReason}`}
-							disabled
-						/>
-					</span>
-					}
+						{({ close }) => <div className="kw-audio-editor__split-button-options kw-audio-editor__spectrogram-tool-options">
+							{isToolbarButtonVisible('spectral-box-select') && <span data-action-id="spectral-box-select">
+								<ContextMenuItem
+									label={copy.spectralBoxSelect}
+									disabled={!spectralTrackSelected}
+									onClick={() => {
+										close();
+										onOpenSpectralSelection();
+									}}
+								/>
+							</span>}
+							{isToolbarButtonVisible('spectral-brush') && <span
+								data-action-id="spectral-brush"
+								data-disabled-reason={spectralBrushReason}
+								aria-disabled="true"
+								title={spectralBrushReason}
+							>
+								<ContextMenuItem label={`${copy.spectralBrush}: ${spectralBrushReason}`} disabled />
+							</span>}
+						</div>}
+					</AudioEditorSplitButton>}
 				</ToolbarButtonGroup>
 				}
 

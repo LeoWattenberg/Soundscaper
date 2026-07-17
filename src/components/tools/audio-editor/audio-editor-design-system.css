@@ -55,6 +55,10 @@
 	border-radius: 3px 0 0 3px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__split-button-main .toggle-tool-button {
+	border-radius: 3px 0 0 3px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__split-button-arrow {
 	width: 13px;
 	min-width: 13px;

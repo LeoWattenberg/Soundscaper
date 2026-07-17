@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Flyout, TransportButton } from '@dilsonspickles/components';
+import { Flyout, ToggleToolButton, TransportButton } from '@dilsonspickles/components';
 import { iconNameToChar } from '../../../lib/tools/audio-editor/audacity-iconcodes.js';
 
 export default function AudioEditorSplitButton({
@@ -10,6 +10,7 @@ export default function AudioEditorSplitButton({
 	disabled = false,
 	pressed = false,
 	arrowDisabled = false,
+	toggle = false,
 	children,
 	...transportProps
 }) {
@@ -35,7 +36,9 @@ export default function AudioEditorSplitButton({
 	return (
 		<span className={`kw-audio-editor__split-button ${className}`}>
 			<span ref={mainRef} className="kw-audio-editor__split-button-main">
-				<TransportButton icon={icon} ariaLabel={ariaLabel} disabled={disabled} className={className} {...transportProps} />
+				{toggle
+					? <ToggleToolButton icon={icon} ariaLabel={ariaLabel} disabled={disabled} isActive={pressed} {...transportProps} />
+					: <TransportButton icon={icon} ariaLabel={ariaLabel} disabled={disabled} className={className} {...transportProps} />}
 			</span>
 			<button
 				ref={arrowRef}
