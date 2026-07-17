@@ -1001,6 +1001,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 			<EditorActionBar
 				copy={copy}
 				snapshot={snapshot}
+				controller={controller}
+				run={run}
 				editBlocked={editBlocked}
 				blocked={blocked}
 				executeEdit={executeEdit}
@@ -1872,6 +1874,93 @@ function MicrophoneLevelFlyout({
 	);
 }
 
+function AudioDevicesFlyout({
+	copy,
+	snapshot,
+	controller,
+	run,
+}) {
+	const devices = snapshot.audioDevices || {};
+	const inputs = Array.isArray(devices.inputs) ? devices.inputs : [];
+	const outputs = Array.isArray(devices.outputs) ? devices.outputs : [];
+	const preferredInput = devices.preferredInputDeviceId || 'default';
+	const preferredInputChannelCount = devices.preferredInputChannelCount === 2 ? 2 : 1;
+	const preferredOutput = devices.preferredOutputDeviceId || '';
+	const selectedInput = inputs.find((device) => device.deviceId === preferredInput);
+	const stereoUnavailable = Number(selectedInput?.channelCount) === 1;
+	const missingInput = preferredInput !== 'default'
+		&& !inputs.some((device) => device.deviceId === preferredInput);
+	const missingOutput = Boolean(preferredOutput)
+		&& !outputs.some((device) => device.deviceId === preferredOutput);
+	const outputMessage = devices.outputStatus === 'unavailable'
+		? copy.audioDeviceOutputUnavailable
+		: devices.outputStatus === 'denied'
+			? copy.audioDeviceOutputDenied
+			: !devices.outputSupported
+				? copy.audioDeviceOutputUnsupported
+				: '';
+
+	return (
+		<div className="kw-audio-editor__audio-devices-content" data-audio-devices-flyout>
+			<strong>{copy.audioDevices}</strong>
+			<label>
+				<span>{copy.audioInputDevice}</span>
+				<select
+					aria-label={copy.audioInputDevice}
+					value={preferredInput}
+					disabled={!devices.inputSupported}
+					onChange={(event) => run(() => controller.actions.audioDevices.setPreferredInput(event.currentTarget.value))}
+				>
+					<option value="default">{copy.audioDeviceSystemDefault}</option>
+					{missingInput && <option value={preferredInput}>{copy.audioDevicePreferredUnavailable}</option>}
+					{inputs
+						.filter((device) => device.deviceId !== 'default')
+						.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
+				</select>
+			</label>
+			{!devices.inputAccess && devices.inputSupported && (
+				<p className="kw-audio-editor__audio-devices-note">{copy.audioDeviceInputAccessRequired}</p>
+			)}
+			<label>
+				<span>{copy.audioDeviceRecordingChannels}</span>
+				<select
+					aria-label={copy.audioDeviceRecordingChannels}
+					value={preferredInputChannelCount}
+					onChange={(event) => run(() => controller.actions.audioDevices.setPreferredInputChannelCount(Number(event.currentTarget.value)))}
+				>
+					<option value="1">{copy.mono}</option>
+					<option value="2" disabled={stereoUnavailable}>{copy.stereo}</option>
+				</select>
+			</label>
+			<p className="kw-audio-editor__audio-devices-note">{copy.audioDeviceRecordingChannelsNote}</p>
+			<label>
+				<span>{copy.audioOutputDevice}</span>
+				<select
+					aria-label={copy.audioOutputDevice}
+					value={preferredOutput}
+					disabled={!devices.outputSupported}
+					onChange={(event) => run(() => controller.actions.audioDevices.setOutput(event.currentTarget.value))}
+				>
+					<option value="">{copy.audioDeviceSystemDefault}</option>
+					{missingOutput && <option value={preferredOutput}>{copy.audioDevicePreferredUnavailable}</option>}
+					{outputs.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
+				</select>
+			</label>
+			{outputMessage && <p className="kw-audio-editor__audio-devices-note" role="status">{outputMessage}</p>}
+			<div className="kw-audio-editor__audio-devices-actions">
+				{!devices.inputAccess && devices.inputSupported && (
+					<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.requestAccess())}>
+						{copy.audioDeviceAllowAccess}
+					</Button>
+				)}
+				<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.refresh())}>
+					{copy.audioDeviceRefresh}
+				</Button>
+			</div>
+		</div>
+	);
+}
+
 function SidePlaybackMeter({
 	controller,
 	copy,
@@ -2232,6 +2321,8 @@ function SplitButtonMenuItems({ items, onClose }) {
 function EditorActionBar({
 	copy,
 	snapshot,
+	controller,
+	run,
 	editBlocked,
 	blocked,
 	executeEdit,
@@ -2277,6 +2368,12 @@ function EditorActionBar({
 						{copy.panelMixer}
 					</Button>
 				</span>
+				<ActionBarAudioDevicesButton
+					copy={copy}
+					snapshot={snapshot}
+					controller={controller}
+					run={run}
+				/>
 			</div>
 			<div className="kw-audio-editor__action-bar-right">
 				<span data-edit="undo">
@@ -2287,6 +2384,67 @@ function EditorActionBar({
 				</span>
 			</div>
 		</div>
+	);
+}
+
+function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
+	const triggerRef = useRef(null);
+	const [position, setPosition] = useState(null);
+	const setTrigger = useCallback((element) => {
+		triggerRef.current = element?.querySelector('button') || null;
+	}, []);
+	const close = useCallback(() => setPosition(null), []);
+	const toggle = (event) => {
+		if (position) {
+			close();
+			return;
+		}
+		const rect = triggerRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setPosition({
+			x: rect.left + rect.width / 2,
+			y: rect.bottom,
+			direction: window.innerHeight - rect.bottom >= 320 ? 'down' : 'up',
+			autoFocus: event.nativeEvent?.detail === 0,
+		});
+	};
+
+	useEffect(() => {
+		triggerRef.current?.setAttribute('aria-expanded', String(Boolean(position)));
+	}, [position]);
+
+	return (
+		<>
+			<span ref={setTrigger} className="kw-audio-editor__action-bar-toggle" data-action="audio-devices">
+				<Button
+					variant="secondary"
+					size="small"
+					className="kw-audio-editor__action-bar-button"
+					icon={<span className="musescore-icon" aria-hidden="true">{iconNameToChar('AUDIO')}</span>}
+					aria-expanded={Boolean(position)}
+					onClick={toggle}
+				>
+					{copy.audioDevices}
+				</Button>
+			</span>
+			<Flyout
+				isOpen={Boolean(position)}
+				onClose={close}
+				x={position?.x || 0}
+				y={position?.y || 0}
+				direction={position?.direction || 'down'}
+				autoFocus={Boolean(position?.autoFocus)}
+				triggerRef={triggerRef}
+				showArrow
+				closeOnOutsideClick
+				closeOnEscape
+				ariaLabel={copy.audioDevices}
+				role="dialog"
+				className="kw-audio-editor__audacity-level-flyout kw-audio-editor__audio-devices-flyout"
+			>
+				<AudioDevicesFlyout copy={copy} snapshot={snapshot} controller={controller} run={run} />
+			</Flyout>
+		</>
 	);
 }
 

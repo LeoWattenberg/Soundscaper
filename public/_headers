@@ -3,7 +3,7 @@
 	Cross-Origin-Opener-Policy: same-origin
 	Cross-Origin-Embedder-Policy: credentialless
 	Referrer-Policy: strict-origin-when-cross-origin
-	Permissions-Policy: microphone=(self), display-capture=(self), camera=(), geolocation=()
+	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
 	X-Content-Type-Options: nosniff
 
 /_astro/*

@@ -159,6 +159,7 @@ const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
+const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
 
 export function calculateAudioEditorMetronomeSchedule({
 	bpm,
@@ -311,6 +312,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingRouting: normalizeRecordingRouting(),
 		recordingDevices: [],
 		recordingEnumeratedDeviceIds: new Set(),
+		audioInputDevices: [],
+		audioOutputDevices: [],
+		audioInputAccess: false,
+		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
+		preferredInputChannelCount: 1,
+		preferredOutputDeviceId: '',
+		activeOutputDeviceId: '',
+		audioOutputStatus: 'default',
 		recordingRouteHealth: {},
 		recordingPoolSources: [],
 		inputMeters: {},
@@ -391,6 +400,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let microphoneMeterStartPromise = null;
 	let microphoneMeterGeneration = 0;
 	let microphoneMeterTargetKey = null;
+	let removeDeviceChangeListener = () => {};
 	let project = null;
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
@@ -437,6 +447,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		async dispose() {
 			if (state.disposed) return;
 			state.disposed = true;
+			removeDeviceChangeListener();
+			removeDeviceChangeListener = () => {};
 			unsubscribeParametricEqErrors();
 			cancelTimedRecording({ publish: false, status: false });
 			cancelRecordingStart();
@@ -571,6 +583,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				retainInputs: state.preferences.recording.retainInputs,
 				hasOpenInputs: state.recordingPoolSources.length > 0,
 			}),
+			audioDevices: audioDevicesSnapshot(),
 			processingEffect: state.audacityEffectProcessing,
 			exporting: Boolean(state.exportAbort),
 			timeline: Object.freeze({
@@ -653,6 +666,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 			inputMeterDb: state.inputMeterDb,
 			inputMeters: Object.freeze({ ...state.inputMeters }),
 			exportProgress: state.exportProgress,
+		});
+	}
+
+	function audioDevicesSnapshot() {
+		const outputState = engine.getOutputDeviceState?.() || {};
+		const preferredInputAvailable = state.preferredInputDeviceId === RECORDING_DEFAULT_DEVICE_ID
+			|| state.audioInputDevices.some((device) => device.deviceId === state.preferredInputDeviceId);
+		const preferredOutputAvailable = !state.preferredOutputDeviceId
+			|| state.audioOutputDevices.some((device) => device.deviceId === state.preferredOutputDeviceId);
+		return Object.freeze({
+			inputs: Object.freeze(state.audioInputDevices),
+			outputs: Object.freeze(state.audioOutputDevices),
+			preferredInputDeviceId: state.preferredInputDeviceId,
+			preferredInputChannelCount: state.preferredInputChannelCount,
+			preferredOutputDeviceId: state.preferredOutputDeviceId,
+			activeOutputDeviceId: outputState.activeDeviceId ?? state.activeOutputDeviceId,
+			inputAccess: state.audioInputAccess,
+			inputSupported: Boolean(mediaDevices?.getUserMedia),
+			outputSupported: Boolean(outputState.supported),
+			preferredInputAvailable,
+			preferredOutputAvailable,
+			outputStatus: state.audioOutputStatus,
 		});
 	}
 
@@ -801,6 +836,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setSourceOffset: setRecordingSourceLatency,
 				setRetainInputs,
 				releaseInputs,
+			}),
+			audioDevices: Object.freeze({
+				requestAccess: requestInputAccess,
+				refresh: () => refreshAudioDevices({ probe: false }),
+				setPreferredInput: setPreferredInputDevice,
+				setPreferredInputChannelCount,
+				setOutput: setAudioOutputDevice,
 			}),
 			timeline: Object.freeze({
 				selectTrack,
@@ -1188,6 +1230,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.playbackOnRulerClick = Boolean(await store.loadSetting('timeline-ruler-playback', true));
 		state.metronomeEnabled = Boolean(await store.loadSetting('transport-metronome', false));
 		state.selectionFollowsLoop = Boolean(await store.loadSetting('selection-follows-loop', false));
+		const savedAudioDevices = normalizeAudioDevicePreferences(await store.loadSetting(
+			AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
+			null,
+		));
+		state.preferredInputDeviceId = savedAudioDevices.inputDeviceId;
+		state.preferredInputChannelCount = savedAudioDevices.inputChannelCount;
+		state.preferredOutputDeviceId = savedAudioDevices.outputDeviceId;
+		await Promise.resolve(engine.setOutputDevice?.(state.preferredOutputDeviceId)).catch(() => undefined);
+		await refreshAudioDevices({ probe: false, publish: false });
+		if (typeof mediaDevices?.addEventListener === 'function') {
+			const handleDeviceChange = () => {
+				void refreshAudioDevices({ probe: false }).catch((error) => {
+					if (!state.disposed) handleError(error);
+				});
+			};
+			mediaDevices.addEventListener('devicechange', handleDeviceChange);
+			removeDeviceChangeListener = () => mediaDevices.removeEventListener?.('devicechange', handleDeviceChange);
+		}
 		const storedRecentProjectIds = await store.loadSetting('audio-editor-recent-project-ids', []);
 		state.recentProjectIds = Array.isArray(storedRecentProjectIds)
 			? [...new Set(storedRecentProjectIds.filter((projectId) => typeof projectId === 'string' && projectId))]
@@ -1214,6 +1274,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		});
 		const history = executeEditorCommand(createEditorHistory(nextProject), track);
 		await switchProject(history.present, { save: true, skipFlush: options.skipFlush });
+		const firstAudioTrack = project.tracks.find((candidate) => candidate.type !== 'label');
+		if (firstAudioTrack) assignPreferredInputToTrack(firstAudioTrack.id);
 	}
 
 	async function openProject(value) {
@@ -2046,7 +2108,39 @@ export function createAudioEditorController(_root = null, options = {}) {
 			armed: options.armed ?? project.tracks.length === 0,
 		});
 		commit(track, { selectTrackId: trackId });
+		assignPreferredInputToTrack(trackId);
 		return trackId;
+	}
+
+	function assignPreferredInputToTrack(trackId) {
+		if (!project || state.recordingRouting.routes[trackId]) return false;
+		const track = findTrack(project, trackId);
+		if (!track || track.type === 'label') return false;
+		const deviceId = state.preferredInputDeviceId || RECORDING_DEFAULT_DEVICE_ID;
+		const device = state.recordingDevices.find((candidate) => candidate.deviceId === deviceId);
+		const channelCount = state.preferredInputChannelCount === 2 ? 2 : 1;
+		const discoveredChannelCount = Math.max(0, Number(device?.channelCount) || 0);
+		if (discoveredChannelCount > 0 && discoveredChannelCount < channelCount) return false;
+		const maximumChannels = Math.max(channelCount, discoveredChannelCount || 2);
+		for (let channelStart = 0; channelStart + channelCount <= maximumChannels; channelStart += channelCount) {
+			try {
+				state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, {
+					kind: 'device',
+					deviceId,
+					deviceLabel: device?.label || '',
+					channelStart,
+					channelCount,
+				});
+				state.recordingRouteHealth[trackId] = device?.status || 'available';
+				updateRecordingDeviceRows();
+				void persistRecordingRouting();
+				publishDocumentSnapshot();
+				return true;
+			} catch {
+				// Try the next free mono channel; leave the track unassigned when none remain.
+			}
+		}
+		return false;
 	}
 
 	function addLabelTrack(options = {}) {
@@ -4069,6 +4163,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (results[index].status === 'fulfilled') opened.push(deviceIds[index]);
 			else failures.push(results[index].reason);
 		}
+		state.audioInputAccess = opened.length > 0;
 		syncRecordingPoolSnapshot();
 		await refreshRecordingInputs({ probe: false });
 		if (!state.recorder) releaseUnretainedRecordingInputs();
@@ -4079,30 +4174,137 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function refreshRecordingInputs({ probe = true } = {}) {
-		const discovered = [];
+		return refreshAudioDevices({ probe });
+	}
+
+	async function refreshAudioDevices({ probe = true, publish = true } = {}) {
+		const discoveredInputs = [];
+		const discoveredOutputs = [];
 		if (mediaDevices?.enumerateDevices) {
 			const devices = await mediaDevices.enumerateDevices();
 			for (const device of devices || []) {
-				if (device?.kind !== 'audioinput' || !device.deviceId) continue;
-				discovered.push({
+				if (!device?.deviceId) continue;
+				const row = {
 					deviceId: String(device.deviceId),
 					label: String(device.label || ''),
-				});
+					groupId: String(device.groupId || ''),
+				};
+				if (device.kind === 'audioinput') discoveredInputs.push(row);
+				else if (device.kind === 'audiooutput' && row.deviceId !== 'default') discoveredOutputs.push(row);
 			}
 		}
-		state.recordingEnumeratedDeviceIds = new Set(discovered.map((device) => device.deviceId));
-		updateRecordingDeviceRows(discovered);
+		state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device) => device.deviceId));
+		if (discoveredInputs.some((device) => device.label)) state.audioInputAccess = true;
+		updateRecordingDeviceRows(discoveredInputs);
+		state.audioInputDevices = Object.freeze(state.recordingDevices.map((device, index) => Object.freeze({
+			deviceId: device.deviceId,
+			label: device.label || `Audio input ${index + 1}`,
+			channelCount: device.channelCount,
+			status: device.status,
+		})));
+		state.audioOutputDevices = Object.freeze(discoveredOutputs.map((device, index) => Object.freeze({
+			deviceId: device.deviceId,
+			label: device.label || `Audio output ${index + 1}`,
+		})));
 		if (probe) {
-			await Promise.allSettled(discovered.map((device) => recordingCapturePool.acquireHardware(device.deviceId, {
+			await Promise.allSettled(discoveredInputs.map((device) => recordingCapturePool.acquireHardware(device.deviceId, {
 				channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM,
 				sampleRate: projectSampleRate(),
 			})));
 			syncRecordingPoolSnapshot();
 			if (!state.recorder) releaseUnretainedRecordingInputs();
 			syncRecordingPoolSnapshot();
+			updateRecordingDeviceRows(discoveredInputs);
+			state.audioInputDevices = Object.freeze(state.recordingDevices.map((device) => Object.freeze({
+				deviceId: device.deviceId,
+				label: device.label,
+				channelCount: device.channelCount,
+				status: device.status,
+			})));
 		}
-		publishDocumentSnapshot();
+		await reconcilePreferredOutputDevice();
+		if (publish) publishDocumentSnapshot();
 		return state.recordingDevices;
+	}
+
+	async function setPreferredInputDevice(deviceId) {
+		const normalized = normalizePreferredInputDeviceId(deviceId);
+		if (normalized !== RECORDING_DEFAULT_DEVICE_ID
+			&& !state.audioInputDevices.some((device) => device.deviceId === normalized)) {
+			throw new Error('The selected audio input is unavailable.');
+		}
+		state.preferredInputDeviceId = normalized;
+		await persistAudioDevicePreferences();
+		publishDocumentSnapshot();
+		return normalized;
+	}
+
+	async function setPreferredInputChannelCount(channelCount) {
+		const normalized = Number(channelCount) === 2 ? 2 : 1;
+		state.preferredInputChannelCount = normalized;
+		await persistAudioDevicePreferences();
+		publishDocumentSnapshot();
+		return normalized;
+	}
+
+	async function setAudioOutputDevice(deviceId) {
+		const normalized = normalizePreferredOutputDeviceId(deviceId);
+		if (normalized && !state.audioOutputDevices.some((device) => device.deviceId === normalized)) {
+			throw new Error('The selected audio output is unavailable.');
+		}
+		const previous = state.preferredOutputDeviceId;
+		try {
+			const result = await Promise.resolve(engine.setOutputDevice?.(normalized));
+			state.preferredOutputDeviceId = normalized;
+			state.activeOutputDeviceId = result?.activeDeviceId ?? normalized;
+			state.audioOutputStatus = normalized ? 'active' : 'default';
+			await persistAudioDevicePreferences();
+			publishDocumentSnapshot();
+			return normalized;
+		} catch (error) {
+			state.preferredOutputDeviceId = previous;
+			state.audioOutputStatus = error?.name === 'NotSupportedError'
+				? 'unsupported'
+				: error?.name === 'NotAllowedError' || error?.name === 'SecurityError'
+					? 'denied'
+					: 'error';
+			publishDocumentSnapshot();
+			throw error;
+		}
+	}
+
+	async function reconcilePreferredOutputDevice() {
+		const preferred = state.preferredOutputDeviceId;
+		if (!preferred) {
+			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			state.activeOutputDeviceId = '';
+			state.audioOutputStatus = 'default';
+			return;
+		}
+		const available = state.audioOutputDevices.some((device) => device.deviceId === preferred);
+		if (!available) {
+			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			state.activeOutputDeviceId = '';
+			state.audioOutputStatus = 'unavailable';
+			return;
+		}
+		try {
+			const result = await Promise.resolve(engine.setOutputDevice?.(preferred));
+			state.activeOutputDeviceId = result?.activeDeviceId ?? preferred;
+			state.audioOutputStatus = 'active';
+		} catch (error) {
+			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			state.activeOutputDeviceId = '';
+			state.audioOutputStatus = error?.name === 'NotSupportedError' ? 'unsupported' : 'denied';
+		}
+	}
+
+	function persistAudioDevicePreferences() {
+		return store.saveSetting(AUDIO_DEVICE_PREFERENCES_SETTING_KEY, {
+			inputDeviceId: state.preferredInputDeviceId,
+			inputChannelCount: state.preferredInputChannelCount,
+			outputDeviceId: state.preferredOutputDeviceId,
+		});
 	}
 
 	function updateRecordingDeviceRows(discovered = state.recordingDevices) {
@@ -9101,6 +9303,27 @@ function scaleRecordingFrames(frameCount, inputSampleRate, outputSampleRate) {
 	const inputRate = Math.max(1, Math.floor(Number(inputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
 	const outputRate = Math.max(1, Math.floor(Number(outputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
 	return Math.max(0, Math.round(frames * outputRate / inputRate));
+}
+
+function normalizeAudioDevicePreferences(value) {
+	const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+	return Object.freeze({
+		inputDeviceId: normalizePreferredInputDeviceId(source.inputDeviceId),
+		inputChannelCount: Number(source.inputChannelCount) === 2 ? 2 : 1,
+		outputDeviceId: normalizePreferredOutputDeviceId(source.outputDeviceId),
+	});
+}
+
+function normalizePreferredInputDeviceId(deviceId) {
+	if (deviceId == null || deviceId === '') return RECORDING_DEFAULT_DEVICE_ID;
+	if (typeof deviceId !== 'string') return RECORDING_DEFAULT_DEVICE_ID;
+	return deviceId.trim() || RECORDING_DEFAULT_DEVICE_ID;
+}
+
+function normalizePreferredOutputDeviceId(deviceId) {
+	if (deviceId == null || deviceId === 'default') return '';
+	if (typeof deviceId !== 'string') return '';
+	return deviceId.trim();
 }
 
 function streamAudioChannelCount(stream) {

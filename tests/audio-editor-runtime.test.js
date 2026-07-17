@@ -564,6 +564,58 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	assert.equal(realtime.closed, true);
 });
 
+test('Web Audio engine applies preferred outputs lazily and keeps the active sink when switching fails', async () => {
+	class SinkAudioContext extends MockAudioContext {
+		constructor() {
+			super();
+			this.sinkIds = [];
+		}
+		async setSinkId(deviceId) {
+			if (deviceId === 'blocked-speaker') {
+				const error = new Error('Speaker access denied.');
+				error.name = 'NotAllowedError';
+				throw error;
+			}
+			this.sinkIds.push(deviceId);
+		}
+	}
+	const context = new SinkAudioContext();
+	const engine = createAudioEditorEngine({ audioContextFactory: SinkAudioContext });
+
+	const pending = await engine.setOutputDevice('speaker-a');
+	assert.equal(pending.preferredDeviceId, 'speaker-a');
+	assert.deepEqual(context.sinkIds, [], 'the test instance is not used until the engine creates its context');
+
+	engine.audioContextFactory = () => context;
+	await engine.getAudioContext({ resume: false });
+	assert.deepEqual(context.sinkIds, ['speaker-a']);
+	assert.equal(engine.getOutputDeviceState().activeDeviceId, 'speaker-a');
+
+	await engine.setOutputDevice('speaker-b');
+	assert.equal(engine.getOutputDeviceState().activeDeviceId, 'speaker-b');
+	await assert.rejects(engine.setOutputDevice('blocked-speaker'), { name: 'NotAllowedError' });
+	assert.deepEqual(engine.getOutputDeviceState(), {
+		preferredDeviceId: 'speaker-b',
+		activeDeviceId: 'speaker-b',
+		supported: true,
+		error: engine.getOutputDeviceState().error,
+	});
+	assert.equal(engine.getOutputDeviceState().error.name, 'NotAllowedError');
+	await engine.dispose();
+});
+
+test('Web Audio engine reports unsupported non-default outputs without creating a context', async () => {
+	const engine = createAudioEditorEngine({ audioContextFactory: MockAudioContext });
+	await engine.setOutputDevice('speaker-a');
+	const context = await engine.getAudioContext({ resume: false });
+	assert.equal(context instanceof MockAudioContext, true);
+	assert.equal(engine.getOutputDeviceState().activeDeviceId, '');
+	assert.equal(engine.getOutputDeviceState().error?.name, 'NotSupportedError');
+	await assert.rejects(engine.setOutputDevice('speaker-b'), { name: 'NotSupportedError' });
+	await engine.setOutputDevice('');
+	await engine.dispose();
+});
+
 test('playhead scrubbing auditions independent 50 ms project-time frames', async () => {
 	const context = new MockAudioContext();
 	const project = createProject();

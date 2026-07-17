@@ -509,7 +509,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__action-bar {
 	position: relative;
-	z-index: 20;
+	z-index: 21;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1001,6 +1001,47 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__microphone-level-flyout {
 	width: min(480px, calc(100vw - 20px));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-flyout {
+	width: min(360px, calc(100vw - 20px));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-content {
+	box-sizing: border-box;
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	font-size: 12px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-content > label {
+	display: grid;
+	gap: 4px;
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-content select {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 28px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 3px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-note {
+	margin: 0;
+	color: var(--kw-editor-text-muted);
+	line-height: 1.4;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__audio-devices-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__microphone-level-content {

@@ -157,7 +157,7 @@ test('idle microphone metering follows the selected track input route and channe
 
 		assert.equal(controller.getSnapshot().monitor.metering, true);
 		assert.deepEqual(pool.hardwareRequests, [
-			{ deviceId: 'default', channelCount: 2 },
+			{ deviceId: 'default', channelCount: 1 },
 			{ deviceId: 'mic-2', channelCount: 4 },
 		]);
 		assert.deepEqual(splitOutputs.slice(-2), [2, 3]);
@@ -781,6 +781,94 @@ test('routed recording stores context-rate channels while clips keep project-rat
 	} finally {
 		await controller.dispose();
 	}
+});
+
+test('audio device preferences persist, preserve explicit routes, and recover from output hot-plug changes', async () => {
+	const store = createProjectStore({ databaseName: 'audio-device-preferences' });
+	const engine = createRecordingEngine();
+	const sinkIds = [];
+	let activeSinkId = '';
+	engine.setOutputDevice = async (deviceId = '') => {
+		sinkIds.push(deviceId);
+		activeSinkId = deviceId;
+		return { activeDeviceId: deviceId, preferredDeviceId: deviceId, supported: true, error: null };
+	};
+	engine.getOutputDeviceState = () => ({
+		activeDeviceId: activeSinkId,
+		preferredDeviceId: activeSinkId,
+		supported: true,
+		error: null,
+	});
+	let devices = [
+		{ kind: 'audioinput', deviceId: 'default', label: 'System microphone' },
+		{ kind: 'audioinput', deviceId: 'mic-2', label: 'USB microphone' },
+		{ kind: 'audiooutput', deviceId: 'default', label: 'System speakers' },
+		{ kind: 'audiooutput', deviceId: 'speaker-2', label: 'USB speakers' },
+	];
+	const listeners = new Set();
+	const mediaDevices = {
+		async enumerateDevices() { return devices; },
+		addEventListener(type, listener) {
+			if (type === 'devicechange') listeners.add(listener);
+		},
+		removeEventListener(type, listener) {
+			if (type === 'devicechange') listeners.delete(listener);
+		},
+		emitDeviceChange() {
+			for (const listener of [...listeners]) listener();
+		},
+	};
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		mediaDevices,
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: createCapturePool(),
+	});
+
+	try {
+		await controller.ready;
+		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+		assert.equal(controller.getSnapshot().recordingInputs.routes[firstTrackId].deviceId, 'default');
+
+		await controller.actions.audioDevices.setPreferredInput('mic-2');
+		await controller.actions.audioDevices.setPreferredInputChannelCount(2);
+		assert.equal(
+			controller.getSnapshot().recordingInputs.routes[firstTrackId].deviceId,
+			'default',
+			'changing the default does not overwrite an explicit track route',
+		);
+		const secondTrackId = controller.actions.track.add({ armed: false });
+		assert.equal(controller.getSnapshot().recordingInputs.routes[secondTrackId].deviceId, 'mic-2');
+		assert.equal(controller.getSnapshot().recordingInputs.routes[secondTrackId].channelCount, 2);
+
+		await controller.actions.audioDevices.setOutput('speaker-2');
+		assert.equal(controller.getSnapshot().audioDevices.preferredOutputDeviceId, 'speaker-2');
+		assert.equal(controller.getSnapshot().audioDevices.outputStatus, 'active');
+		assert.deepEqual(await store.loadSetting('audio-device-preferences-v1'), {
+			inputDeviceId: 'mic-2',
+			inputChannelCount: 2,
+			outputDeviceId: 'speaker-2',
+		});
+
+		devices = devices.filter((device) => device.deviceId !== 'speaker-2');
+		mediaDevices.emitDeviceChange();
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(controller.getSnapshot().audioDevices.preferredOutputDeviceId, 'speaker-2');
+		assert.equal(controller.getSnapshot().audioDevices.activeOutputDeviceId, '');
+		assert.equal(controller.getSnapshot().audioDevices.outputStatus, 'unavailable');
+
+		devices = [...devices, { kind: 'audiooutput', deviceId: 'speaker-2', label: 'USB speakers' }];
+		mediaDevices.emitDeviceChange();
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(controller.getSnapshot().audioDevices.activeOutputDeviceId, 'speaker-2');
+		assert.equal(controller.getSnapshot().audioDevices.outputStatus, 'active');
+		assert.ok(sinkIds.includes(''));
+		assert.equal(sinkIds.at(-1), 'speaker-2');
+	} finally {
+		await controller.dispose();
+	}
+	assert.equal(listeners.size, 0);
 });
 
 function createCapturePool({ hardware = {}, display = null, hardwareFailures = new Set() } = {}) {

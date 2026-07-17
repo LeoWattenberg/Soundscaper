@@ -84,6 +84,9 @@ export class WebAudioEditorEngine {
 		this.sources = new Map();
 		this.chunkSources = new Map();
 		this.context = null;
+		this.preferredOutputDeviceId = '';
+		this.activeOutputDeviceId = '';
+		this.outputDeviceError = null;
 		this.positionFrame = 0;
 		this.playbackStartFrame = 0;
 		this.playbackStartTime = 0;
@@ -167,6 +170,48 @@ export class WebAudioEditorEngine {
 		const context = await this.#getContext();
 		if (resume) await context.resume?.();
 		return context;
+	}
+
+	/** Select the realtime context's hardware output without rebuilding its graph. */
+	async setOutputDevice(deviceId = '') {
+		const normalized = normalizeOutputDeviceId(deviceId);
+		if (!this.context) {
+			this.preferredOutputDeviceId = normalized;
+			this.outputDeviceError = null;
+			return this.getOutputDeviceState();
+		}
+		if (typeof this.context.setSinkId !== 'function') {
+			if (normalized) throw outputDeviceError('NotSupportedError', 'Audio output selection is not supported by this browser.');
+			this.preferredOutputDeviceId = '';
+			this.activeOutputDeviceId = '';
+			this.outputDeviceError = null;
+			return this.getOutputDeviceState();
+		}
+		const previousPreferred = this.preferredOutputDeviceId;
+		const previousActive = this.activeOutputDeviceId;
+		try {
+			await this.context.setSinkId(normalized);
+			this.preferredOutputDeviceId = normalized;
+			this.activeOutputDeviceId = normalized;
+			this.outputDeviceError = null;
+			return this.getOutputDeviceState();
+		} catch (error) {
+			this.preferredOutputDeviceId = previousPreferred;
+			this.activeOutputDeviceId = previousActive;
+			this.outputDeviceError = error;
+			throw error;
+		}
+	}
+
+	getOutputDeviceState() {
+		return Object.freeze({
+			preferredDeviceId: this.preferredOutputDeviceId,
+			activeDeviceId: this.activeOutputDeviceId,
+			supported: this.context
+				? typeof this.context.setSinkId === 'function'
+				: typeof this.audioContextFactory?.prototype?.setSinkId === 'function',
+			error: this.outputDeviceError,
+		});
 	}
 
 	async play() {
@@ -968,6 +1013,16 @@ export class WebAudioEditorEngine {
 		if (this.context) return this.context;
 		if (!this.audioContextFactory) throw new Error('Web Audio is not supported in this browser.');
 		this.context = createRealtimeContext(this.audioContextFactory);
+		const preferredOutputDeviceId = this.preferredOutputDeviceId;
+		if (preferredOutputDeviceId) {
+			try {
+				await this.setOutputDevice(preferredOutputDeviceId);
+			} catch (error) {
+				this.outputDeviceError = error;
+				this.activeOutputDeviceId = '';
+				try { await this.context.setSinkId?.(''); } catch { /* The system output remains the browser fallback. */ }
+			}
+		}
 		return this.context;
 	}
 
@@ -2564,6 +2619,19 @@ function resolveTailSeconds(project, includeTail, { trackId = null, includeMaste
 
 function getAudioContextConstructor() {
 	return globalThis.AudioContext || globalThis.webkitAudioContext || globalThis.window?.AudioContext || globalThis.window?.webkitAudioContext;
+}
+
+function normalizeOutputDeviceId(deviceId) {
+	if (deviceId == null || deviceId === 'default') return '';
+	if (typeof deviceId !== 'string') throw new TypeError('An audio output device ID must be a string.');
+	return deviceId;
+}
+
+function outputDeviceError(name, message) {
+	if (typeof globalThis.DOMException === 'function') return new DOMException(message, name);
+	const error = new Error(message);
+	error.name = name;
+	return error;
 }
 
 async function ensureProjectWorklets(context, project) {

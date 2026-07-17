@@ -129,7 +129,7 @@ export function securityHeaders({ html = null, immutable = false } = {}) {
 		'Cross-Origin-Opener-Policy': 'same-origin',
 		'Cross-Origin-Embedder-Policy': 'credentialless',
 		'Referrer-Policy': 'no-referrer',
-		'Permissions-Policy': 'microphone=(self), display-capture=(self), camera=(), geolocation=()',
+		'Permissions-Policy': 'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()',
 		'X-Content-Type-Options': 'nosniff',
 		'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
 	};

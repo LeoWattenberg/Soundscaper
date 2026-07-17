@@ -443,6 +443,14 @@ test.describe('audio editor React/design-system workflows', () => {
 			});
 		});
 		const editor = await bootEditor(page, '/embed/en/');
+		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio devices', exact: true }).click();
+		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio devices', exact: true });
+		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Allow microphone access', exact: true });
+		await expect(allowMicrophone).toBeVisible();
+		await allowMicrophone.click();
+		await expect(allowMicrophone).toHaveCount(0);
+		await page.keyboard.press('Escape');
+
 		const recordLevel = editor.getByRole('button', { name: 'Record level', exact: true });
 		await expect(recordLevel.locator('.musescore-icon')).toHaveText('\uF41B');
 		await recordLevel.click();
@@ -513,6 +521,79 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.reload();
 		const reloaded = await waitForEditor(page);
 		await expect(reloaded.locator('[data-side-playback-meter] [data-playback-meter]')).toHaveAttribute('data-meter-type', 'amplitude');
+	});
+
+	test('selects and restores custom microphone and speaker devices', async ({ page }) => {
+		await page.addInitScript(() => {
+			const events = new EventTarget();
+			let devices = [
+				{ kind: 'audioinput', deviceId: 'default', groupId: 'built-in', label: 'System microphone' },
+				{ kind: 'audioinput', deviceId: 'usb-mic', groupId: 'usb', label: 'USB microphone' },
+				{ kind: 'audiooutput', deviceId: 'default', groupId: 'built-in', label: 'System speakers' },
+				{ kind: 'audiooutput', deviceId: 'usb-speakers', groupId: 'usb', label: 'USB speakers' },
+			];
+			window.__audioSinkIds = [];
+			window.__setAudioDevices = (nextDevices) => {
+				devices = nextDevices;
+				events.dispatchEvent(new Event('devicechange'));
+			};
+			Object.defineProperty(AudioContext.prototype, 'setSinkId', {
+				configurable: true,
+				async value(deviceId) {
+					window.__audioSinkIds.push(deviceId);
+				},
+			});
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: {
+					enumerateDevices: async () => devices,
+					getUserMedia: async () => { throw new Error('Not used by this device-selection test.'); },
+					addEventListener: events.addEventListener.bind(events),
+					removeEventListener: events.removeEventListener.bind(events),
+				},
+			});
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		const audioDevicesButton = editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio devices', exact: true });
+		await expect(audioDevicesButton).toBeVisible();
+		await expect(editor.locator('[data-editor-tool-toolbar]').getByRole('button', { name: 'Audio devices', exact: true })).toHaveCount(0);
+		await audioDevicesButton.click();
+		const flyout = editor.getByRole('dialog', { name: 'Audio devices', exact: true });
+		await expect(flyout).toBeVisible();
+		const actionBarZ = Number(await editor.locator('[data-action-bar]').evaluate((element) => getComputedStyle(element).zIndex));
+		const toolbarsZ = Number(await editor.locator('[data-toolbar-dock="top"]').evaluate((element) => getComputedStyle(element).zIndex));
+		expect(actionBarZ).toBeGreaterThan(toolbarsZ);
+
+		const microphone = flyout.getByRole('combobox', { name: 'Microphone', exact: true });
+		const recordingChannels = flyout.getByRole('combobox', { name: 'Recording channels', exact: true });
+		const speakers = flyout.getByRole('combobox', { name: 'Speakers', exact: true });
+		await expect(microphone).toContainText('USB microphone');
+		await expect(speakers).toContainText('USB speakers');
+		await microphone.selectOption('usb-mic');
+		await recordingChannels.selectOption('2');
+		await speakers.selectOption('usb-speakers');
+		await expect(microphone).toHaveValue('usb-mic');
+		await expect(recordingChannels).toHaveValue('2');
+		await expect(speakers).toHaveValue('usb-speakers');
+
+		await page.evaluate(() => window.__setAudioDevices([
+			{ kind: 'audioinput', deviceId: 'default', groupId: 'built-in', label: 'System microphone' },
+			{ kind: 'audioinput', deviceId: 'usb-mic', groupId: 'usb', label: 'USB microphone' },
+			{ kind: 'audiooutput', deviceId: 'default', groupId: 'built-in', label: 'System speakers' },
+		]));
+		await expect(flyout.getByText('The preferred output is unavailable. Using the system default.')).toBeVisible();
+		await expect(speakers).toHaveValue('usb-speakers');
+		await expect.poll(() => page.evaluate(() => window.__audioSinkIds.at(-1))).toBe('');
+
+		await page.evaluate(() => window.__setAudioDevices([
+			{ kind: 'audioinput', deviceId: 'default', groupId: 'built-in', label: 'System microphone' },
+			{ kind: 'audioinput', deviceId: 'usb-mic', groupId: 'usb', label: 'USB microphone' },
+			{ kind: 'audiooutput', deviceId: 'default', groupId: 'built-in', label: 'System speakers' },
+			{ kind: 'audiooutput', deviceId: 'usb-speakers', groupId: 'usb', label: 'USB speakers' },
+		]));
+		await expect.poll(() => page.evaluate(() => window.__audioSinkIds.at(-1))).toBe('usb-speakers');
 	});
 
 	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {
@@ -591,14 +672,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		const trackSource = trackSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
 		const trackChannel = trackSelectors.getByRole('combobox', { name: 'Channel: Track 1', exact: true });
 		await expect(trackSource).toBeVisible();
-		await expect(trackChannel).toBeDisabled();
+		await expect(trackSource).toHaveValue('device:default');
+		await expect(trackChannel).toHaveValue('0');
 
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
 		let mixer = editor.locator('[data-mixer-panel]');
 		const mixerSelectors = mixer.locator('.kw-recording-input-selectors--mixer').first();
 		const mixerSource = mixerSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
 		const mixerChannel = mixerSelectors.getByRole('combobox', { name: 'Channel: Track 1', exact: true });
-		await expect(mixerSource).toHaveValue('');
+		await expect(mixerSource).toHaveValue('device:default');
 
 		// The selectors are native comboboxes, so the complete routing workflow is
 		// available from a keyboard without opening a custom pointer-only surface.
