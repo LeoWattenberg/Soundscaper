@@ -5578,7 +5578,7 @@ function createApplicationMenus({
 			label: copy.selectMenu,
 			items: [
 				{ id: 'select-all', label: copy.selectAll, shortcut: 'Ctrl+A', disabled: editBlocked || durationFrames <= 0, onClick: actions.selectAll },
-				{ id: 'select-none', label: copy.selectNone, shortcut: 'Ctrl+Shift+A', disabled: !selectionActive, onClick: actions.selectNone },
+				{ id: 'select-none', label: copy.selectNone, shortcut: 'Ctrl+Shift+A', disabled: !editSelectionActive, onClick: actions.selectNone },
 				divider(),
 				{ id: 'select-tracks', label: copy.selectTracks, items: [
 					{ id: 'select-all-tracks', label: copy.allTracks, disabled: !project?.tracks.length, onClick: actions.selectAllTracks },

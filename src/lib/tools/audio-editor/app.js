@@ -863,16 +863,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 				configureDisplayInput,
 				setOutput: setAudioOutputDevice,
 			}),
-			timeline: Object.freeze({
-				selectTrack,
-				selectClip,
-				setSelection,
-				clearSelection: () => setSelection(0, 0, {
-					trackIds: [],
-					clipIds: [],
-					frequencyRange: null,
-				}),
-				selectAllTracks,
+		timeline: Object.freeze({
+			selectTrack,
+			selectClip,
+			setSelection,
+			clearSelection: () => commit({
+				type: 'selection/set',
+				startFrame: 0,
+				endFrame: 0,
+				trackIds: [],
+				clipIds: [],
+				frequencyRange: null,
+			}, {
+				selectClipId: null,
+			}),
+			selectAllTracks,
 				selectLeftOfPlayback: selectLeftOfPlaybackPosition,
 				selectRightOfPlayback: selectRightOfPlaybackPosition,
 				selectTrackStartToCursor,
@@ -3801,14 +3806,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const activeTrack = activeClipId ? findClipTrack(project, activeClipId) : null;
 		state.selectedTrackId = activeTrack?.id || null;
 		state.selectedClipId = activeClipId;
-		const selection = project.selection || { startFrame: 0, endFrame: 0, frequencyRange: null };
 		commit({
 			type: 'selection/set',
-			startFrame: selection.startFrame,
-			endFrame: selection.endFrame,
+			startFrame: 0,
+			endFrame: 0,
 			trackIds,
 			clipIds,
-			frequencyRange: selection.frequencyRange || null,
+			frequencyRange: null,
 		});
 		return activeClipId;
 	}
@@ -4914,8 +4918,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
 		state.history = executeEditorCommand(state.history, command);
 		project = state.history.present;
-		if (selection.selectTrackId) state.selectedTrackId = selection.selectTrackId;
-		if (selection.selectClipId) state.selectedClipId = selection.selectClipId;
+		if (Object.hasOwn(selection, 'selectTrackId')) state.selectedTrackId = selection.selectTrackId;
+		if (Object.hasOwn(selection, 'selectClipId')) state.selectedClipId = selection.selectClipId;
 		projectChanged(options);
 		return project;
 	}
