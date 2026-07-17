@@ -1,9 +1,0 @@
-diff --git a/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs b/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
---- a/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
-+++ b/node_modules/@dilsonspickles/components/dist/chunk-5YKPMS3N.mjs
-@@ -63,5 +63,4 @@
- var WAVEFORM_OPTIONS = [
-   { value: "linear-amp", label: "Linear (amp)" },
--  { value: "logarithmic-db", label: "Logarithmic (dB)" },
-   { value: "linear-db", label: "Linear (dB)" }
- ];

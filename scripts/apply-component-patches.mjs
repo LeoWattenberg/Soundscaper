@@ -11,12 +11,12 @@ const patchFiles = readdirSync(patchDirectory)
 for (const file of patchFiles) {
 	const patchPath = join(patchDirectory, file);
 	const patch = readFileSync(patchPath, 'utf8');
-	execFileSync('git', ['apply', '--check', '--unsafe-paths', patchPath], {
+	execFileSync('git', ['apply', '--check', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
 		cwd: root,
 		input: patch,
 		stdio: ['pipe', 'inherit', 'inherit'],
 	});
-	execFileSync('git', ['apply', '--unsafe-paths', patchPath], {
+	execFileSync('git', ['apply', '--unsafe-paths', '--whitespace=nowarn', patchPath], {
 		cwd: root,
 		input: patch,
 		stdio: ['pipe', 'inherit', 'inherit'],
