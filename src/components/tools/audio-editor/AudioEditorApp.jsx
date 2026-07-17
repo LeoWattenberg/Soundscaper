@@ -1860,7 +1860,7 @@ function EditorActionBar({
 					<Button
 						variant={mixerVisible ? 'primary' : 'secondary'}
 						size="small"
-						className="kw-audio-editor__action-bar-button"
+						className={`kw-audio-editor__action-bar-button${mixerVisible ? ' kw-audio-editor__action-bar-button--active' : ''}`}
 						icon={iconNameToChar('MIXER')}
 						aria-pressed={mixerVisible}
 						onClick={onToggleMixer}

@@ -535,11 +535,11 @@
 	--button-bg-hover: color-mix(in srgb, var(--kw-editor-accent) 16%, transparent) !important;
 	--button-bg-active: color-mix(in srgb, var(--kw-editor-accent) 24%, transparent) !important;
 	--button-bg-disabled: transparent !important;
+	color: var(--kw-editor-text) !important;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__action-bar-button[aria-pressed='true'] {
-	background-color: var(--kw-editor-primary-button-bg) !important;
-	color: var(--kw-editor-primary-button-text) !important;
+#kw-audio-editor-design-system .kw-audio-editor__action-bar-button--active:not(.button--disabled) {
+	background-color: var(--kw-editor-accent-strong) !important;
 }
 
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
