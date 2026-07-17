@@ -1917,6 +1917,12 @@ function TrackRow({
 					: undefined,
 			} : clip;
 		});
+	const crossfadeOverlays = useMemo(() => createCrossfadeOverlays(
+		projection.clips,
+		projection.overscanStartFrame,
+		pixelsPerSecond,
+		sampleRate,
+	), [pixelsPerSecond, projection.clips, projection.overscanStartFrame, sampleRate]);
 	const measuredProjectionClip = rightmostVisibleClip(projection.clips);
 	const measuredClip = measuredProjectionClip
 		? projectedClips.find((clip) => String(clip.id) === String(measuredProjectionClip.id))
@@ -2274,6 +2280,7 @@ function TrackRow({
 						showRms={showRms}
 						halfWave={displayMode === 'half-wave'}
 					/>
+					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralSelectionOverlay
 							selection={activeSpectralSelection}
@@ -2363,6 +2370,46 @@ function TrackRow({
 			</div>
 		</div>
 	);
+}
+
+function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSecond, sampleRate) {
+	const ordered = clips
+		.filter((clip) => !clip.isRecordingPreview && clip.isVisible)
+		.slice()
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || String(left.id).localeCompare(String(right.id)));
+	const overlays = [];
+	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
+		const left = ordered[leftIndex];
+		const leftEnd = left.timelineStartFrame + left.durationFrames;
+		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
+			const right = ordered[rightIndex];
+			if (right.timelineStartFrame >= leftEnd) break;
+			const startFrame = Math.max(left.timelineStartFrame, right.timelineStartFrame);
+			const endFrame = Math.min(leftEnd, right.timelineStartFrame + right.durationFrames);
+			if (endFrame <= startFrame) continue;
+			overlays.push({
+				id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
+				left: (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
+				width: Math.max(2, (endFrame - startFrame) / sampleRate * pixelsPerSecond),
+				label: `Automatic crossfade between ${left.name || left.id} and ${right.name || right.id}`,
+			});
+		}
+	}
+	return overlays;
+}
+
+function AutomaticCrossfadeOverlays({ overlays }) {
+	return overlays.map((overlay) => (
+		<div
+			key={overlay.id}
+			className="audio-editor-automatic-crossfade"
+			data-automatic-crossfade="true"
+			style={{ left: overlay.left, width: overlay.width }}
+			role="img"
+			aria-label={overlay.label}
+			title={overlay.label}
+		/>
+	));
 }
 
 function AudacityWaveformCanvases({

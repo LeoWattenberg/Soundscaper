@@ -2669,6 +2669,19 @@
 	box-shadow: 0 0 0 1px #111, 0 5px 18px rgba(0, 0, 0, 0.28);
 }
 
+#kw-audio-editor-design-system .audio-editor-track-window .audio-editor-automatic-crossfade {
+	position: absolute;
+	top: 20px;
+	bottom: 2px;
+	z-index: 1002;
+	min-width: 2px;
+	background:
+		linear-gradient(to bottom right, transparent calc(50% - 1px), color-mix(in srgb, #fff 86%, var(--kw-editor-accent)) 50%, transparent calc(50% + 1px)),
+		linear-gradient(to bottom left, transparent calc(50% - 1px), color-mix(in srgb, #fff 86%, var(--kw-editor-accent)) 50%, transparent calc(50% + 1px));
+	box-shadow: 0 0 0 1px color-mix(in srgb, #111 65%, transparent);
+	pointer-events: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-spectral-selection {
 	position: absolute;
 	z-index: 32;

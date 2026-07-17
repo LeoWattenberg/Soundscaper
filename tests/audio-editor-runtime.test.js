@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
 	PARAMETRIC_EQ_SPECTRUM_FFT_SIZE,
 	PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES,
+	automaticCrossfadeRanges,
 	buildProjectGraph,
 	createAudioEditorEngine,
 	estimatePlayAtSpeedStaffPadPeakBytes,
@@ -1837,6 +1838,26 @@ function incomingConnections(nodes, target, input) {
 		connection.node === target && connection.input === input
 	));
 }
+
+test('automatic crossfade ranges pair overlapping clips on the same track', () => {
+	const ranges = automaticCrossfadeRanges([
+		{ id: 'early', timelineStartFrame: 0, durationFrames: 10 },
+		{ id: 'late', timelineStartFrame: 5, durationFrames: 10 },
+		{ id: 'separate', timelineStartFrame: 20, durationFrames: 5 },
+	]);
+	assert.deepEqual(ranges.get('early'), {
+		crossfadeInRanges: [],
+		crossfadeOutRanges: [[5, 10]],
+	});
+	assert.deepEqual(ranges.get('late'), {
+		crossfadeInRanges: [[0, 5]],
+		crossfadeOutRanges: [],
+	});
+	assert.deepEqual(ranges.get('separate'), {
+		crossfadeInRanges: [],
+		crossfadeOutRanges: [],
+	});
+});
 
 class MockParam {
 	constructor(value = 0) { this.value = value; this.events = []; }

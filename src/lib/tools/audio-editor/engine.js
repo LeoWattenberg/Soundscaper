@@ -2029,7 +2029,9 @@ async function scheduleProjectClips({
 		if (track.type === 'label') continue;
 		const trackInput = trackInputs.get(String(track.id ?? trackIndex));
 		if (!trackInput) continue;
-		for (const clip of getTrackClips(track, clipsById)) {
+		const trackClips = getTrackClips(track, clipsById);
+		const crossfades = automaticCrossfadeRanges(trackClips);
+		for (const clip of trackClips) {
 			const start = clipStart(clip);
 			const duration = clipDuration(clip);
 			const end = start + duration;
@@ -2055,6 +2057,7 @@ async function scheduleProjectClips({
 			const playbackRate = sourceDuration * sampleRate / Math.max(1, duration * sourceSampleRate);
 			plans.push({
 				clip,
+				...(crossfades.get(String(clip.id)) || {}),
 				trackInput,
 				originalBuffer,
 				chunkSource,
@@ -2206,7 +2209,7 @@ function scheduleBufferPlan({
 	const timelineRate = sampleRate * transportRate;
 	const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
 	setParam(source.playbackRate, plan.playbackRate * transportRate, startTime);
-	scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate);
+	scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate, plan);
 	try {
 		source.start(startTime, plan.offsetFrame / buffer.sampleRate, plan.segmentDuration * plan.playbackRate);
 		activeSources.add(source);
@@ -2284,7 +2287,7 @@ async function prepareLiveChunkPlan({
 		start(contextStartTime, fromFrame, sampleRate, activeTransportRate) {
 			const timelineRate = sampleRate * activeTransportRate;
 			const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
-			scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate);
+			scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate, plan);
 			void handle.play({ contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)) });
 		},
 	};
@@ -2310,7 +2313,7 @@ async function scheduleOfflineChunkPlan({
 	const lastChunk = Math.max(firstChunk, Math.ceil(sourceEndFrame / provider.chunkFrames) - 1);
 	const chain = createClipGainChain(context, plan.trackInput, allNodes);
 	const clipStartTime = contextStartTime + (plan.segmentStart - fromFrame) / sampleRate;
-	scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, clipStartTime, sampleRate);
+	scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, clipStartTime, sampleRate, plan);
 	for (let chunkIndex = firstChunk; chunkIndex <= lastChunk; chunkIndex += 1) {
 		throwIfAborted(signal);
 		const chunk = await provider.readStorageChunk(chunkIndex, { signal });
@@ -2394,7 +2397,7 @@ async function readChunkSourceRange(source, startFrame, endFrame, signal) {
 	return output;
 }
 
-function scheduleClipGain(fadeInParam, fadeOutParam, clipGainParam, clip, segmentStart, segmentEnd, duration, startTime, sampleRate) {
+function scheduleClipGain(fadeInParam, fadeOutParam, clipGainParam, clip, segmentStart, segmentEnd, duration, startTime, sampleRate, options = {}) {
 	const baseGain = Math.max(0, finite(clip.gain, 1));
 	const envelope = Array.isArray(clip.envelope) ? clip.envelope : [];
 	setParam(clipGainParam, baseGain * envelopeValueAtFrame(envelope, segmentStart, duration), startTime);
@@ -2417,22 +2420,43 @@ function scheduleClipGain(fadeInParam, fadeOutParam, clipGainParam, clip, segmen
 	}
 	const fadeIn = clampFrame(clip.fadeInFrames, 0, duration);
 	const fadeOut = clampFrame(clip.fadeOutFrames, 0, duration);
-	const fadeInAt = (frame) => fadeIn > 0 && frame < fadeIn ? Math.max(0, frame / fadeIn) : 1;
-	const fadeOutAt = (frame) => fadeOut > 0 && frame > duration - fadeOut
+	const crossfadeInRanges = options.crossfadeInRanges || [];
+	const crossfadeOutRanges = options.crossfadeOutRanges || [];
+	const fadeInAt = (frame) => (fadeIn > 0 && frame < fadeIn ? Math.max(0, frame / fadeIn) : 1)
+		* crossfadeGainAt(frame, crossfadeInRanges, 'in');
+	const fadeOutAt = (frame) => (fadeOut > 0 && frame > duration - fadeOut
 		? Math.max(0, (duration - frame) / fadeOut)
-		: 1;
-	setParam(fadeInParam, fadeInAt(segmentStart), startTime);
-	if (fadeIn > 0 && segmentStart < fadeIn) {
-		const fadeInEnd = Math.min(segmentEnd, fadeIn);
-		linearRamp(fadeInParam, fadeInAt(fadeInEnd), startTime + (fadeInEnd - segmentStart) / sampleRate);
+		: 1)
+		* crossfadeGainAt(frame, crossfadeOutRanges, 'out');
+	scheduleGainAutomation(fadeInParam, fadeInAt, segmentStart, segmentEnd, startTime, sampleRate, [
+		0, fadeIn, ...crossfadeInRanges.flat(),
+	]);
+	scheduleGainAutomation(fadeOutParam, fadeOutAt, segmentStart, segmentEnd, startTime, sampleRate, [
+		duration - fadeOut, duration, ...crossfadeOutRanges.flat(),
+	]);
+}
+
+function crossfadeGainAt(frame, ranges, direction) {
+	let gain = 1;
+	for (const [start, end] of ranges) {
+		if (frame < start || frame > end) continue;
+		const progress = end > start ? (frame - start) / (end - start) : 1;
+		const value = direction === 'in' ? progress : 1 - progress;
+		gain = Math.min(gain, Math.max(0, Math.min(1, value)));
 	}
-	setParam(fadeOutParam, fadeOutAt(segmentStart), startTime);
-	const fadeOutStart = duration - fadeOut;
-	if (fadeOut > 0 && segmentEnd > fadeOutStart) {
-		if (fadeOutStart > segmentStart) {
-			setParam(fadeOutParam, 1, startTime + (fadeOutStart - segmentStart) / sampleRate);
-		}
-		linearRamp(fadeOutParam, fadeOutAt(segmentEnd), startTime + (segmentEnd - segmentStart) / sampleRate);
+	return gain;
+}
+
+function scheduleGainAutomation(param, evaluate, segmentStart, segmentEnd, startTime, sampleRate, boundaries) {
+	setParam(param, evaluate(segmentStart), startTime);
+	const points = [...new Set(boundaries
+		.filter((frame) => Number.isFinite(frame) && frame > segmentStart && frame < segmentEnd))]
+		.sort((left, right) => left - right);
+	for (const frame of points) {
+		linearRamp(param, evaluate(frame), startTime + (frame - segmentStart) / sampleRate);
+	}
+	if (segmentEnd > segmentStart) {
+		linearRamp(param, evaluate(segmentEnd), startTime + (segmentEnd - segmentStart) / sampleRate);
 	}
 }
 
@@ -2612,6 +2636,59 @@ function getTrackClips(track, clipsById) {
 		return track.clips.map((clip) => typeof clip === 'object' ? clip : clipsById.get(String(clip))).filter(Boolean);
 	}
 	return [];
+}
+
+/**
+ * Derive complementary crossfade ranges for all overlapping clips on a track.
+ * Ranges are clip-local and intentionally not persisted in the project model.
+ */
+export function automaticCrossfadeRanges(clips) {
+	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
+	const ranges = new Map(clips.map((clip) => [String(clip.id), { crossfadeInRanges: [], crossfadeOutRanges: [] }]));
+	const ordered = clips
+		.filter((clip) => clip && clip.id != null && clipDuration(clip) > 0)
+		.slice()
+		.sort((left, right) => clipStart(left) - clipStart(right) || String(left.id).localeCompare(String(right.id)));
+	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
+		const left = ordered[leftIndex];
+		const leftStart = clipStart(left);
+		const leftEnd = leftStart + clipDuration(left);
+		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
+			const right = ordered[rightIndex];
+			const rightStart = clipStart(right);
+			if (rightStart >= leftEnd) break;
+			const overlapStart = Math.max(leftStart, rightStart);
+			const overlapEnd = Math.min(leftEnd, rightStart + clipDuration(right));
+			if (overlapEnd <= overlapStart) continue;
+			ranges.get(String(left.id)).crossfadeOutRanges.push([
+				overlapStart - leftStart,
+				overlapEnd - leftStart,
+			]);
+			ranges.get(String(right.id)).crossfadeInRanges.push([
+				overlapStart - rightStart,
+				overlapEnd - rightStart,
+			]);
+		}
+	}
+	for (const value of ranges.values()) {
+		value.crossfadeInRanges = mergeFrameRanges(value.crossfadeInRanges);
+		value.crossfadeOutRanges = mergeFrameRanges(value.crossfadeOutRanges);
+	}
+	return ranges;
+}
+
+function mergeFrameRanges(ranges) {
+	const ordered = ranges
+		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+		.slice()
+		.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+	const merged = [];
+	for (const [start, end] of ordered) {
+		const previous = merged.at(-1);
+		if (previous && start <= previous[1]) previous[1] = Math.max(previous[1], end);
+		else merged.push([start, end]);
+	}
+	return merged;
 }
 
 function clipStart(clip) {
