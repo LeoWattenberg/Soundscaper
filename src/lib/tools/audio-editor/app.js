@@ -141,6 +141,8 @@ import {
 import { createEditorFfmpeg } from './ffmpeg.js';
 import { createPlanarPcmChunkCoalescer } from './pcm-chunks.js';
 import { createSourceBufferCache } from './source-buffer-cache.js';
+import { createEbuR128MeterNode } from './ebu-r128-node.js';
+import { createEbuR128Meter } from './ebu-r128.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
@@ -384,6 +386,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		transportState: 'stopped',
 		meters: { tracks: {}, master: null },
 		inputMeterDb: -60,
+		inputMeter: null,
+		inputLoudnessMeasurementManuallyPaused: false,
+		inputLoudnessMeasurementExplicitlyRunning: false,
 		disposed: false,
 	};
 	const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
@@ -401,6 +406,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let microphoneMeterStartPromise = null;
 	let microphoneMeterGeneration = 0;
 	let microphoneMeterTargetKey = null;
+	let routedInputLoudnessMeter = null;
+	let routedInputLoudnessMeterKey = null;
 	let removeDeviceChangeListener = () => {};
 	let project = null;
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
@@ -665,6 +672,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),
 			meters: state.meters,
 			inputMeterDb: state.inputMeterDb,
+			inputMeter: state.inputMeter,
 			inputMeters: Object.freeze({ ...state.inputMeters }),
 			exportProgress: state.exportProgress,
 		});
@@ -841,6 +849,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setSourceOffset: setRecordingSourceLatency,
 				setRetainInputs,
 				releaseInputs,
+			}),
+			metering: Object.freeze({
+				pause: pauseLoudnessMeasurement,
+				continue: continueLoudnessMeasurement,
+				reset: resetLoudnessMeasurement,
 			}),
 			audioDevices: Object.freeze({
 				requestAccess: requestInputAccess,
@@ -3734,8 +3747,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function selectTrack(trackId) {
 		if (trackId != null && !findTrack(project, trackId)) throw new Error(copy.audioTrackNotFound);
+		const changed = state.selectedTrackId !== (trackId || null);
 		state.selectedTrackId = trackId || null;
 		state.selectedClipId = null;
+		if (changed) {
+			routedInputLoudnessMeter = null;
+			routedInputLoudnessMeterKey = null;
+			state.inputMeter = null;
+		}
 		synchronizeMicrophoneMeterTarget();
 		publishProjectState();
 	}
@@ -4401,6 +4420,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const meterRouteBefore = state.microphoneMetering ? microphoneMeterRoute() : null;
 		const track = findTrack(project, trackId);
 		state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, track, route);
+		if (trackId === state.selectedTrackId) {
+			routedInputLoudnessMeter = null;
+			routedInputLoudnessMeterKey = null;
+			state.inputMeter = null;
+		}
 		if (route == null) delete state.recordingRouteHealth[trackId];
 		else state.recordingRouteHealth[trackId] = 'unavailable';
 		updateRecordingDeviceRows();
@@ -4576,12 +4600,55 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return state.monitoring;
 	}
 
+	function pauseLoudnessMeasurement(kind = 'playback') {
+		if (kind === 'input') {
+			state.inputLoudnessMeasurementManuallyPaused = true;
+			state.inputLoudnessMeasurementExplicitlyRunning = false;
+			microphoneMeterSession?.loudnessMeter?.setRunning(false);
+			microphoneMeterSession?.loudnessMeter?.requestSnapshot();
+			routedInputLoudnessMeter?.setRunning(false);
+		} else engine.pauseLoudnessMeasurement?.();
+		publishTelemetrySnapshot();
+		return true;
+	}
+
+	function continueLoudnessMeasurement(kind = 'playback') {
+		if (kind === 'input') {
+			state.inputLoudnessMeasurementManuallyPaused = false;
+			state.inputLoudnessMeasurementExplicitlyRunning = state.transportState !== 'recording';
+			microphoneMeterSession?.loudnessMeter?.setRunning(
+				state.transportState === 'recording'
+					|| state.inputLoudnessMeasurementExplicitlyRunning,
+			);
+			microphoneMeterSession?.loudnessMeter?.requestSnapshot();
+			routedInputLoudnessMeter?.setRunning(
+				state.transportState === 'recording'
+					|| state.inputLoudnessMeasurementExplicitlyRunning,
+			);
+		} else engine.continueLoudnessMeasurement?.();
+		publishTelemetrySnapshot();
+		return true;
+	}
+
+	function resetLoudnessMeasurement(kind = 'playback') {
+		if (kind === 'input') {
+			microphoneMeterSession?.loudnessMeter?.reset();
+			microphoneMeterSession?.loudnessMeter?.requestSnapshot();
+			routedInputLoudnessMeter?.reset();
+			if (routedInputLoudnessMeter) state.inputMeter = routedInputLoudnessMeter.snapshot();
+		} else engine.resetLoudnessMeasurement?.();
+		publishTelemetrySnapshot();
+		return true;
+	}
+
 	async function setMicrophoneMetering(enabled) {
 		const next = Boolean(enabled);
 		if (!next) {
 			state.microphoneMetering = false;
 			microphoneMeterGeneration += 1;
-			stopMicrophoneMetering({ releaseInput: true });
+			if (!state.recorder && !state.recordingStarting) {
+				stopMicrophoneMetering({ releaseInput: true });
+			}
 			void store.saveSetting('microphone-metering', false);
 			publishDocumentSnapshot();
 			return false;
@@ -4614,8 +4681,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 	}
 
-	async function startMicrophoneMetering() {
-		if (microphoneMeterSession || !state.microphoneMetering || state.disposed) return;
+	async function startMicrophoneMetering({ force = false } = {}) {
+		if (microphoneMeterSession || (!state.microphoneMetering && !force) || state.disposed) return;
 		const generation = ++microphoneMeterGeneration;
 		const route = microphoneMeterRoute();
 		const deviceId = route.deviceId;
@@ -4627,6 +4694,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			: null;
 		let source = null;
 		let splitter = null;
+		let merger = null;
+		let loudnessMeter = null;
 		const analysers = [];
 		try {
 			stream ||= await recordingCapturePool.acquireHardware(deviceId, {
@@ -4676,12 +4745,43 @@ export function createAudioEditorController(_root = null, options = {}) {
 				source.connect(analyser);
 				analysers.push(analyser);
 			}
+			try {
+				loudnessMeter = await createEbuR128MeterNode(context, {
+					channelCount: route.channelCount,
+					inputGain: state.recordingInputGain,
+					passthrough: false,
+					running: !state.inputLoudnessMeasurementManuallyPaused
+						&& (state.transportState === 'recording'
+							|| state.inputLoudnessMeasurementExplicitlyRunning),
+					onMeter: (reading) => {
+						if (microphoneMeterSession?.loudnessMeter !== loudnessMeter) return;
+						state.inputMeter = reading;
+						state.inputMeterDb = Number.isFinite(reading?.dbfs)
+							? Math.max(-60, Math.min(0, reading.dbfs))
+							: -60;
+						publishTelemetrySnapshot();
+					},
+				});
+				if (splitter && typeof context.createChannelMerger === 'function') {
+					merger = context.createChannelMerger(route.channelCount);
+					for (let index = 0; index < route.channelCount; index += 1) {
+						splitter.connect(merger, route.channelStart + index, index);
+					}
+					merger.connect(loudnessMeter.node);
+				} else source.connect(loudnessMeter.node);
+				loudnessMeter.node.connect(context.destination);
+			} catch {
+				loudnessMeter = null;
+				merger = null;
+			}
 			const samples = analysers.map((analyser) => new Float32Array(analyser.fftSize));
 			const session = {
 				analysers,
 				deviceId,
 				endedListeners: [],
 				interval: null,
+				loudnessMeter,
+				merger,
 				routeKey: microphoneMeterRouteKey(route),
 				source,
 				splitter,
@@ -4697,7 +4797,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}
 			microphoneMeterSession = session;
 			const update = () => {
-				if (microphoneMeterSession !== session || !state.microphoneMetering || state.disposed) return;
+				if (microphoneMeterSession !== session
+					|| (!state.microphoneMetering && !state.recorder && !state.recordingStarting)
+					|| state.disposed) return;
 				let peak = 0;
 				for (let index = 0; index < analysers.length; index += 1) {
 					analysers[index].getFloatTimeDomainData(samples[index]);
@@ -4714,6 +4816,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		} catch (error) {
 			try { source?.disconnect(); } catch { /* Already disconnected. */ }
 			try { splitter?.disconnect(); } catch { /* Already disconnected. */ }
+			try { merger?.disconnect(); } catch { /* Already disconnected. */ }
+			loudnessMeter?.dispose();
 			for (const analyser of analysers) {
 				try { analyser.disconnect(); } catch { /* Already disconnected. */ }
 			}
@@ -4726,7 +4830,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 	}
 
-	function stopMicrophoneMetering({ releaseInput = false } = {}) {
+	function stopMicrophoneMetering({ releaseInput = false, preserveReading = false } = {}) {
 		const session = microphoneMeterSession;
 		microphoneMeterSession = null;
 		microphoneMeterTargetKey = null;
@@ -4734,6 +4838,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		for (const remove of session?.endedListeners || []) remove();
 		try { session?.source?.disconnect(); } catch { /* Already disconnected. */ }
 		try { session?.splitter?.disconnect(); } catch { /* Already disconnected. */ }
+		try { session?.merger?.disconnect(); } catch { /* Already disconnected. */ }
+		session?.loudnessMeter?.dispose();
 		for (const analyser of session?.analysers || []) {
 			try { analyser.disconnect(); } catch { /* Already disconnected. */ }
 		}
@@ -4742,8 +4848,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recordingCapturePool.releaseHardware(session.deviceId);
 			syncRecordingPoolSnapshot();
 		}
-		if (!state.recorder) {
+		if (!state.recorder && !preserveReading) {
 			state.inputMeterDb = -60;
+			state.inputMeter = null;
 			publishTelemetrySnapshot();
 		}
 	}
@@ -4790,6 +4897,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function setRecordingInputGain(value) {
 		state.recordingInputGain = normalizeRecordingInputGain(value);
 		state.recorder?.setInputGain(state.recordingInputGain);
+		microphoneMeterSession?.loudnessMeter?.setInputGain(state.recordingInputGain);
 		void store.saveSetting('recording-input-gain', state.recordingInputGain);
 		publishDocumentSnapshot();
 		return state.recordingInputGain;
@@ -7859,6 +7967,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			assertRecordingStartActive(token);
 			await context.resume();
 			assertRecordingStartActive(token);
+			await startMicrophoneMetering({ force: true });
+			assertRecordingStartActive(token);
 			const inputTrack = stream.getAudioTracks()[0];
 			const trackSettings = inputTrack?.getSettings?.() || {};
 			const channelCount = Math.min(2, trackSettings.channelCount || 1);
@@ -8202,6 +8312,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}
 			await dropFailedSourceSessions();
 			if (!sourceSessions.length) throw new Error('None of the assigned recording inputs are available.');
+			const selectedMeterEntry = entries.find((entry) => entry.trackId === state.selectedTrackId) || entries[0] || null;
+			if (selectedMeterEntry) {
+				const nextMeterKey = [
+					selectedMeterEntry.sourceKey,
+					selectedMeterEntry.route.channelStart,
+					selectedMeterEntry.route.channelCount,
+					captureSampleRate,
+				].join(':');
+				if (!routedInputLoudnessMeter || routedInputLoudnessMeterKey !== nextMeterKey) {
+					routedInputLoudnessMeter = createEbuR128Meter({
+						sampleRate: captureSampleRate,
+						channelCount: selectedMeterEntry.route.channelCount,
+					});
+					routedInputLoudnessMeterKey = nextMeterKey;
+					state.inputMeter = routedInputLoudnessMeter.snapshot();
+				}
+			}
 
 			const handleFatalRecordingError = (error) => {
 				state.recordingFatalError = error;
@@ -8224,6 +8351,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 								|| (session.kind === 'display' ? channels[0] : null)
 								|| new Float32Array(channels[0]?.length || 0)
 							));
+							if (entry === selectedMeterEntry && routedChannels[0]?.length) {
+								routedInputLoudnessMeter?.push(routedChannels, (reading) => {
+									state.inputMeter = reading;
+									state.inputMeterDb = Math.max(-60, Number(reading.dbfs) || -60);
+								});
+							}
 							if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
 							appendRecordingPreview(entry.preview, entry.previewResampler.push(routedChannels));
 							updatePlayhead();
@@ -8670,7 +8803,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function updateTransportState(value) {
-		state.transportState = value || 'stopped';
+		const nextTransportState = value || 'stopped';
+		if (nextTransportState !== state.transportState && nextTransportState !== 'recording') {
+			state.inputLoudnessMeasurementExplicitlyRunning = false;
+		}
+		state.transportState = nextTransportState;
+		microphoneMeterSession?.loudnessMeter?.setRunning(
+			!state.inputLoudnessMeasurementManuallyPaused
+				&& (state.transportState === 'recording'
+					|| state.inputLoudnessMeasurementExplicitlyRunning),
+		);
+		routedInputLoudnessMeter?.setRunning(
+			!state.inputLoudnessMeasurementManuallyPaused
+				&& (state.transportState === 'recording'
+					|| state.inputLoudnessMeasurementExplicitlyRunning),
+		);
+		microphoneMeterSession?.loudnessMeter?.requestSnapshot();
+		if (state.transportState !== 'recording'
+			&& !state.microphoneMetering
+			&& !state.recorder
+			&& microphoneMeterSession) {
+			stopMicrophoneMetering({ releaseInput: false, preserveReading: true });
+		}
 		syncMetronome();
 		publishTelemetrySnapshot();
 	}

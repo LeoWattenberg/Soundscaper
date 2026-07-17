@@ -37,6 +37,7 @@
 		"audit:parametric-eq": "node scripts/audit-parametric-eq-wasm.mjs",
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
 		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
+		"audit:ebu-r128": "node scripts/audit-ebu-r128.mjs",
 		"deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name soundscaper",
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},

@@ -1703,6 +1703,48 @@ test('rebuilding a playing rack disconnects its old worklet graph and reuses the
 	}
 });
 
+test('master EBU metering stays post-master and persists across transport graph rebuilds', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const project = createProject();
+	const source = new MockAudioBuffer(1, 48_000, 48_000);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		onMeter() {},
+		meterInterval: 1_000,
+	});
+	try {
+		engine.loadProject(project, new Map([['source-1', source]]));
+		await engine.play();
+		const meter = context.workletNodes.find(({ name }) => name === 'kw-ebu-r128-meter');
+		assert.ok(meter);
+		assert.equal(meter.connections[0], context.destination);
+		assert.ok(incomingConnections(engine.graph.nodes, meter, 0).length > 0);
+		assert.deepEqual(meter.messages.at(-1), { type: 'running', running: true });
+
+		engine.pauseLoudnessMeasurement();
+		assert.deepEqual(meter.messages.at(-1), { type: 'running', running: false });
+		engine.continueLoudnessMeasurement();
+		assert.deepEqual(meter.messages.at(-1), { type: 'running', running: true });
+		engine.resetLoudnessMeasurement();
+		assert.deepEqual(meter.messages.slice(-2), [{ type: 'reset' }, { type: 'snapshot' }]);
+
+		engine.seek(12_000);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(context.workletNodes.filter(({ name }) => name === 'kw-ebu-r128-meter').length, 1);
+		assert.ok(incomingConnections(engine.graph.nodes, meter, 0).length > 0);
+		assert.deepEqual(meter.messages.slice(-2), [
+			{ type: 'running', running: false },
+			{ type: 'running', running: true },
+		]);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 function createProject() {
 	return {
 		id: 'project-1',

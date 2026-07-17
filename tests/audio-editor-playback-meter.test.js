@@ -2,11 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+	ebuMeterBounds,
+	ebuMeterPercent,
+	ebuMeterTicks,
 	playbackMeterAmplitudeToDb,
 	playbackMeterFullSteps,
 	playbackMeterGainFromPosition,
 	playbackMeterPercent,
 } from '../src/lib/tools/audio-editor/playback-meter.js';
+
+test('EBU +9/+18 rulers preserve the -23 LUFS target in absolute and relative units', () => {
+	assert.deepEqual(ebuMeterBounds('plus9'), { minimumLufs: -41, maximumLufs: -14 });
+	assert.deepEqual(ebuMeterBounds('plus18'), { minimumLufs: -59, maximumLufs: -5 });
+	assert.equal(ebuMeterPercent(-41, 'plus9'), 0);
+	assert.ok(Math.abs(ebuMeterPercent(-23, 'plus9') - 100 * 18 / 27) < 1e-12);
+	assert.equal(ebuMeterPercent(-14, 'plus9'), 100);
+	assert.equal(ebuMeterPercent(-100, 'plus18'), 0);
+	assert.equal(ebuMeterPercent(0, 'plus18'), 100);
+
+	const absolute = ebuMeterTicks('plus9', 'absolute', 280);
+	const relative = ebuMeterTicks('plus9', 'relative', 280);
+	assert.equal(absolute.find(({ target }) => target).label, '−23');
+	assert.equal(relative.find(({ target }) => target).label, '0');
+	assert.deepEqual(relative.map(({ label }) => label), ['−18', '−12', '−6', '0', '6', '9']);
+	assert.equal(
+		ebuMeterTicks('plus18', 'absolute', 500).some(({ lufs }) => lufs === -23),
+		true,
+	);
+});
 
 test('playback meter scales match Audacity logarithmic, IEC dB, and amplitude models', () => {
 	assert.equal(playbackMeterPercent(-60, 'db-log', 60), 0);

@@ -27,6 +27,34 @@ const DB_LINEAR_HIGH_STEPS = Object.freeze({
 	144: Object.freeze([-144, -96, -72, -60, -48, -36, -27, -18, 0]),
 });
 
+export function ebuMeterBounds(scale = 'plus9') {
+	return scale === 'plus18'
+		? Object.freeze({ minimumLufs: -59, maximumLufs: -5 })
+		: Object.freeze({ minimumLufs: -41, maximumLufs: -14 });
+}
+
+export function ebuMeterPercent(lufs, scale = 'plus9') {
+	const { minimumLufs, maximumLufs } = ebuMeterBounds(scale);
+	const value = Number.isFinite(lufs) ? lufs : minimumLufs;
+	return Math.max(0, Math.min(100, (value - minimumLufs) / (maximumLufs - minimumLufs) * 100));
+}
+
+export function ebuMeterTicks(scale = 'plus9', unit = 'absolute', meterSize = 280) {
+	const { minimumLufs, maximumLufs } = ebuMeterBounds(scale);
+	const size = Math.max(0, Number(meterSize) || 0);
+	const increment = size >= 400 ? 3 : scale === 'plus18' ? 9 : 6;
+	const ticks = [];
+	for (let lufs = minimumLufs; lufs <= maximumLufs; lufs += increment) ticks.push(lufs);
+	if (ticks[ticks.length - 1] !== maximumLufs) ticks.push(maximumLufs);
+	if (!ticks.includes(-23)) ticks.push(-23);
+	return ticks.sort((first, second) => first - second).map((lufs) => Object.freeze({
+		lufs,
+		label: String(unit === 'relative' ? lufs + 23 : lufs).replace('-', '−'),
+		position: ebuMeterPercent(lufs, scale),
+		target: lufs === -23,
+	}));
+}
+
 export function playbackMeterAmplitudeToDb(amplitude, dbRange = 60) {
 	const range = Math.max(1, Number(dbRange) || 60);
 	const value = Number(amplitude);

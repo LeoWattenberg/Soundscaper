@@ -17,6 +17,7 @@ import { createAsyncPlanarPcmSinkQueue } from './pcm-sink.js';
 import { loadParametricEqWasmModule } from './parametric-eq/wasm-loader.js';
 import { designParametricEqWasmConfiguration } from './parametric-eq/wasm-runtime.js';
 import { audioTrackChannelCountV2 } from './project-v2.js';
+import { createEbuR128MeterNode } from './ebu-r128-node.js';
 export {
 	createRecordingCapturePool,
 	createRecordingController,
@@ -110,6 +111,10 @@ export class WebAudioEditorEngine {
 		this.meterListeners = new Set(onMeter ? [onMeter] : []);
 		this.stateListeners = new Set(onState ? [onState] : []);
 		this.parametricEqErrorListeners = new Set(onParametricEqError ? [onParametricEqError] : []);
+		this.masterLoudnessMeter = null;
+		this.masterLoudnessMeterError = null;
+		this.latestMasterLoudnessMeter = null;
+		this.loudnessMeasurementManuallyPaused = false;
 	}
 
 	loadProject(project, sourceBuffers = new Map(), options = {}) {
@@ -125,6 +130,10 @@ export class WebAudioEditorEngine {
 		this.positionFrame = Math.min(this.positionFrame, this.durationFrames);
 		this.playEndFrame = this.durationFrames;
 		this.loop = normalizeLoop(project?.loop, this.durationFrames);
+		this.loudnessMeasurementManuallyPaused = false;
+		this.masterLoudnessMeter?.setRunning(false);
+		this.masterLoudnessMeter?.reset();
+		this.latestMasterLoudnessMeter = null;
 		this.#setState(project ? 'stopped' : 'empty');
 		this.#emitPosition();
 		return this;
@@ -223,6 +232,7 @@ export class WebAudioEditorEngine {
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
 		await ensureProjectWorklets(context, this.project);
+		await this.#ensureMasterLoudnessMeter(context);
 		if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
 		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 		await this.#schedulePlayback(this.positionFrame, context.currentTime);
@@ -318,6 +328,7 @@ export class WebAudioEditorEngine {
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
 		await ensureProjectWorklets(context, this.project);
+		await this.#ensureMasterLoudnessMeter(context);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.durationFrames);
 		await this.#schedulePlayback(this.positionFrame, scheduledTime);
@@ -328,6 +339,7 @@ export class WebAudioEditorEngine {
 		this.#cancelScrub();
 		this.positionFrame = this.getPositionFrames();
 		this.#haltGraph();
+		this.masterLoudnessMeter?.setRunning(false);
 		this.#setState('paused');
 		this.#emitPosition();
 	}
@@ -335,6 +347,7 @@ export class WebAudioEditorEngine {
 	stop() {
 		this.#cancelScrub();
 		this.#haltGraph();
+		this.masterLoudnessMeter?.setRunning(false);
 		this.positionFrame = 0;
 		this.#setState(this.project ? 'stopped' : 'empty');
 		this.#emitPosition();
@@ -352,6 +365,32 @@ export class WebAudioEditorEngine {
 			this.#emitPosition();
 		}
 		return this.positionFrame;
+	}
+
+	pauseLoudnessMeasurement() {
+		this.loudnessMeasurementManuallyPaused = true;
+		this.masterLoudnessMeter?.setRunning(false);
+		return this.getLoudnessMeasurementState();
+	}
+
+	continueLoudnessMeasurement() {
+		this.loudnessMeasurementManuallyPaused = false;
+		this.masterLoudnessMeter?.setRunning(this.state === 'playing');
+		return this.getLoudnessMeasurementState();
+	}
+
+	resetLoudnessMeasurement() {
+		this.masterLoudnessMeter?.reset();
+		this.masterLoudnessMeter?.requestSnapshot();
+		return this.getLoudnessMeasurementState();
+	}
+
+	getLoudnessMeasurementState() {
+		return Object.freeze({
+			manuallyPaused: this.loudnessMeasurementManuallyPaused,
+			running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
+			error: this.masterLoudnessMeterError,
+		});
 	}
 
 	/**
@@ -1001,6 +1040,10 @@ export class WebAudioEditorEngine {
 		this.parametricEqErrorListeners.clear();
 		this.reversedBuffers = new WeakMap();
 		this.preparedSpeedPlayback = null;
+		this.masterLoudnessMeter?.dispose();
+		this.masterLoudnessMeter = null;
+		this.latestMasterLoudnessMeter = null;
+		this.masterLoudnessMeterError = null;
 		const context = this.context;
 		this.context = null;
 		if (context?.state !== 'closed') await context?.close?.();
@@ -1037,6 +1080,9 @@ export class WebAudioEditorEngine {
 		const context = this.context;
 		const prepared = this.preparedSpeedPlayback;
 		if (!context || !this.project || !prepared) return;
+		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
+			await this.#ensureMasterLoudnessMeter(context);
+		}
 		this.#haltGraph();
 		const frame = clampFrame(fromFrame, 0, this.durationFrames);
 		const nodes = [];
@@ -1052,11 +1098,12 @@ export class WebAudioEditorEngine {
 		}
 		source.buffer = prepared.audioBuffer;
 		let masterAnalyser = null;
+		const meterDestination = this.masterLoudnessMeter?.node || context.destination;
 		if (this.meterListeners.size > 0) {
 			masterAnalyser = createAnalyser(context, nodes);
 			connect(source, masterAnalyser);
-			connect(masterAnalyser, context.destination);
-		} else connect(source, context.destination);
+			connect(masterAnalyser, meterDestination);
+		} else connect(source, meterDestination);
 		const outputFrameAt = (timelineFrame) => this.durationFrames > 0
 			? clampFrame(Math.round(timelineFrame / this.durationFrames * prepared.frameCount), 0, prepared.frameCount)
 			: 0;
@@ -1093,6 +1140,7 @@ export class WebAudioEditorEngine {
 			throw error;
 		}
 		this.#setState('playing');
+		this.masterLoudnessMeter?.setRunning(!this.loudnessMeasurementManuallyPaused);
 		this.#startTicker();
 		this.#emitPosition();
 	}
@@ -1100,18 +1148,26 @@ export class WebAudioEditorEngine {
 	async #schedulePlayback(fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		const context = this.context;
 		if (!context || !this.project) return;
+		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
+			await this.#ensureMasterLoudnessMeter(context);
+		}
 		this.#haltGraph();
 		const loopEnd = this.loop.enabled ? this.loop.endFrame : this.durationFrames;
 		this.playEndFrame = Math.max(fromFrame, loopEnd);
 		this.playbackStartFrame = fromFrame;
 		this.positionFrame = fromFrame;
-		this.graph = buildProjectGraph(context, context.destination, this.project, {
+		this.graph = buildProjectGraph(
+			context,
+			this.masterLoudnessMeter?.node || context.destination,
+			this.project,
+			{
 			metering: this.meterListeners.size > 0,
 			respectMuteSolo: true,
 			effectAnalysis: true,
 			parametricEqWasmModule: parametricEqWasmModules.get(context),
 			onParametricEqError: (error) => this.#emitParametricEqError(error),
-		});
+			},
+		);
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		const graph = this.graph;
 		let schedule;
@@ -1150,6 +1206,7 @@ export class WebAudioEditorEngine {
 			this.#scheduleLoopAhead();
 		}
 		this.#setState('playing');
+		this.masterLoudnessMeter?.setRunning(!this.loudnessMeasurementManuallyPaused);
 		this.#startTicker();
 		this.#emitPosition();
 	}
@@ -1160,9 +1217,32 @@ export class WebAudioEditorEngine {
 		return this.chunkStreamClient;
 	}
 
+	async #ensureMasterLoudnessMeter(context) {
+		if (!this.meterListeners.size || this.masterLoudnessMeter || this.masterLoudnessMeterError) {
+			return this.masterLoudnessMeter;
+		}
+		try {
+			const meter = await createEbuR128MeterNode(context, {
+				channelCount: 2,
+				passthrough: true,
+				running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
+				onMeter: (reading) => {
+					this.latestMasterLoudnessMeter = reading;
+				},
+			});
+			meter.node.connect(context.destination);
+			this.masterLoudnessMeter = meter;
+			return meter;
+		} catch (error) {
+			this.masterLoudnessMeterError = error;
+			return null;
+		}
+	}
+
 	#handleSchedulingError(error) {
 		if (error?.name === 'AbortError') return;
 		this.#haltGraph();
+		this.masterLoudnessMeter?.setRunning(false);
 		this.#setState(this.project ? 'stopped' : 'empty');
 		globalThis.console?.error?.(error);
 	}
@@ -1181,9 +1261,11 @@ export class WebAudioEditorEngine {
 			if (frame < this.playEndFrame) return;
 			this.positionFrame = this.durationFrames;
 			this.#haltGraph();
+			this.masterLoudnessMeter?.setRunning(false);
 			this.#setState('stopped');
 			this.#emitPosition();
 		}, this.meterInterval);
+		this.ticker?.unref?.();
 	}
 
 	#scheduleLoopAhead() {
@@ -1235,6 +1317,7 @@ export class WebAudioEditorEngine {
 	}
 
 	#haltGraph() {
+		this.masterLoudnessMeter?.setRunning(false);
 		this.#stopTicker();
 		if (this.scrubTimer !== null) {
 			globalThis.clearTimeout(this.scrubTimer);
@@ -1258,7 +1341,11 @@ export class WebAudioEditorEngine {
 		const sends = {};
 		for (const [busId, analyser] of this.graph.groupAnalysers || []) groups[busId] = readMeter(analyser);
 		for (const [busId, analyser] of this.graph.sendAnalysers || []) sends[busId] = readMeter(analyser);
-		const meter = { master: readMeter(this.graph.masterAnalyser), tracks, groups, sends };
+		const master = readMeter(this.graph.masterAnalyser);
+		if (this.latestMasterLoudnessMeter?.loudness) {
+			master.loudness = this.latestMasterLoudnessMeter.loudness;
+		}
+		const meter = { master, tracks, groups, sends };
 		for (const listener of this.meterListeners) listener(meter);
 	}
 
