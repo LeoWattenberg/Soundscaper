@@ -225,6 +225,12 @@ test('AudioWorklet processing is transparent and emits meter telemetry at 10 Hz'
 			},
 		});
 		for (let block = 0; block < 38; block += 1) {
+			const output = [new Float32Array(128).fill(1), new Float32Array(128).fill(1)];
+			assert.equal(processor.process([[]], [output]), true);
+			assert.equal(output.every((channel) => channel.every((sample) => sample === 0)), true);
+		}
+		assert.equal(processor.port.messages.filter(({ type }) => type === 'meter').length, 0);
+		for (let block = 0; block < 38; block += 1) {
 			const left = Float32Array.from({ length: 128 }, (_, frame) => ((block * 128 + frame) % 31) / 31 - 0.5);
 			const right = Float32Array.from(left, (sample) => -sample);
 			const output = [new Float32Array(128), new Float32Array(128)];
@@ -233,6 +239,25 @@ test('AudioWorklet processing is transparent and emits meter telemetry at 10 Hz'
 		}
 		assert.equal(processor.port.messages[0].type, 'ready');
 		assert.equal(processor.port.messages.filter(({ type }) => type === 'meter').length, 1);
+
+		const gained = new Processor({
+			processorOptions: {
+				sampleRate: TRUE_PEAK_SAMPLE_RATE,
+				channelCount: 2,
+				inputGain: 0.5,
+				running: true,
+			},
+		});
+		for (let block = 0; block < 38; block += 1) {
+			const mono = new Float32Array(128).fill(0.5);
+			const output = [new Float32Array(128), new Float32Array(128)];
+			assert.equal(gained.process([[mono]], [output]), true);
+			assert.equal(output.every((channel) => channel.every((sample) => sample === 0.25)), true);
+		}
+		const gainedReading = gained.port.messages.find(({ type }) => type === 'meter').meter;
+		assert.ok(gainedReading.peak >= 0.25 && gainedReading.peak < 0.3);
+		assertNear(gainedReading.rms, 0.25, 1e-7, 'worklet input-gain RMS');
+		assertNear(gainedReading.dbfs, 20 * Math.log10(gainedReading.peak), 1e-7, 'worklet input-gain dBFS');
 	} finally {
 		if (previousBase === undefined) delete globalThis.AudioWorkletProcessor;
 		else globalThis.AudioWorkletProcessor = previousBase;

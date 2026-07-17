@@ -15,6 +15,8 @@ export class EbuR128MeterProcessor extends ProcessorBase {
 		this.channelCount = Math.max(1, Math.min(8, Math.floor(settings.channelCount || 2)));
 		this.passthrough = settings.passthrough !== false;
 		this.inputGain = normalizeGain(settings.inputGain, 1);
+		this.channels = Array.from({ length: this.channelCount });
+		this.publishMeter = (meter) => this.port.postMessage({ type: 'meter', meter });
 		this.meter = createEbuR128Meter({
 			sampleRate: Number(settings.sampleRate || globalThis.sampleRate || 48_000),
 			channelCount: this.channelCount,
@@ -29,27 +31,33 @@ export class EbuR128MeterProcessor extends ProcessorBase {
 	process(inputs, outputs) {
 		const input = inputs[0] || [];
 		const output = outputs[0] || [];
-		const frames = input[0]?.length || output[0]?.length || 128;
-		const channels = Array.from({ length: this.channelCount }, (_, channelIndex) => {
-			const source = input[Math.min(channelIndex, Math.max(0, input.length - 1))];
-			const values = new Float32Array(frames);
-			if (source) {
-				for (let frame = 0; frame < frames; frame += 1) {
-					values[frame] = (source[frame] || 0) * this.inputGain;
-				}
-			}
-			return values;
-		});
+		if (!input.length || !input[0]?.length) {
+			for (const target of output) target.fill(0);
+			return true;
+		}
+		for (let channelIndex = 0; channelIndex < this.channelCount; channelIndex += 1) {
+			this.channels[channelIndex] = input[Math.min(channelIndex, input.length - 1)];
+		}
 		for (let channelIndex = 0; channelIndex < output.length; channelIndex += 1) {
 			const target = output[channelIndex];
 			if (!this.passthrough) {
 				target.fill(0);
 				continue;
 			}
-			const source = channels[Math.min(channelIndex, channels.length - 1)];
-			target.set(source.subarray(0, target.length));
+			const source = this.channels[Math.min(channelIndex, this.channels.length - 1)];
+			if (this.inputGain === 1) {
+				target.set(source.length === target.length ? source : source.subarray(0, target.length));
+			} else {
+				for (let frame = 0; frame < target.length; frame += 1) {
+					target[frame] = (source[frame] || 0) * this.inputGain;
+				}
+			}
 		}
-		this.meter.push(channels, (meter) => this.port.postMessage({ type: 'meter', meter }));
+		this.meter.push(
+			this.channels,
+			this.publishMeter,
+			this.inputGain,
+		);
 		return true;
 	}
 

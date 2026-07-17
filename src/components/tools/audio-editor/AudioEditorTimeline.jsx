@@ -1924,6 +1924,7 @@ function TrackRow({
 			resolveAudioEditorColor(clip.color, resolveAudioEditorColor(track.color)),
 			waveformCache,
 			movingPreviewClipIds.has(String(clip.id)),
+			displayMode === 'waveform' || displayMode === 'half-wave',
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {
@@ -3371,6 +3372,7 @@ function toDesignClip(
 	color = AUDIO_EDITOR_TRACK_COLORS[0],
 	waveformCache = null,
 	freezeWaveform = false,
+	reuseSummaryForCompatibility = false,
 ) {
 	const visual = controller.getClipVisualData(clip.id);
 	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
@@ -3415,6 +3417,7 @@ function toDesignClip(
 			showRms,
 			halfWave,
 			pixelsPerSecond,
+			reuseSummaryForCompatibility,
 		].join('|');
 		const cacheSignature = [
 			contentSignature,
@@ -3442,6 +3445,7 @@ function toDesignClip(
 			endFrame: clip.waveformEndFrame,
 			maxSamples: maximumSamples,
 			pixelWidth,
+			reuseSummaryForCompatibility,
 		});
 		const waveformData = {
 			audacityWaveform: {

@@ -2,6 +2,7 @@ const DEFAULT_PROCESSOR_NAME = 'kw-audio-recorder';
 const DISPLAY_INPUT_KEY = 'display';
 const DISPLAY_REPLACEMENT_KEY = 'display:replacement';
 const HARDWARE_INPUT_KEY_PREFIX = 'device:';
+const recordingWorkletLoads = new WeakMap();
 export const RECORDING_INPUT_GAIN_MINIMUM = 0;
 export const RECORDING_INPUT_GAIN_MAXIMUM = 2;
 export const RECORDING_INPUT_GAIN_DEFAULT = 1;
@@ -99,7 +100,7 @@ export async function createRecordingController({
 	if (!stream) throw new Error('An audio MediaStream is required.');
 	const normalizedChannelCount = normalizeRecordingChannelCount(channelCount);
 	let currentInputGain = normalizeRecordingInputGain(inputGain);
-	await context.audioWorklet.addModule(String(workletUrl));
+	await loadRecordingWorklet(context, workletUrl);
 
 	const createNode = nodeFactory || ((audioContext, name, options) => {
 		if (typeof globalThis.AudioWorkletNode !== 'function') {
@@ -262,6 +263,27 @@ export async function createRecordingController({
 			state = 'recording';
 			onState?.(state);
 		}
+	}
+}
+
+async function loadRecordingWorklet(context, workletUrl) {
+	const url = String(workletUrl);
+	let contextLoads = recordingWorkletLoads.get(context);
+	if (!contextLoads) {
+		contextLoads = new Map();
+		recordingWorkletLoads.set(context, contextLoads);
+	}
+	let load = contextLoads.get(url);
+	if (!load) {
+		load = Promise.resolve().then(() => context.audioWorklet.addModule(url));
+		contextLoads.set(url, load);
+	}
+	try {
+		await load;
+	} catch (error) {
+		if (contextLoads.get(url) === load) contextLoads.delete(url);
+		if (!contextLoads.size) recordingWorkletLoads.delete(context);
+		throw error;
 	}
 }
 

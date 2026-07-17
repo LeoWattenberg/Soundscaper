@@ -260,7 +260,17 @@ export function boundedCanvasDimensions(cssWidth, cssHeight, options = {}) {
  *   fadeOutFrames?: number,
  *   reversed?: boolean,
  * }} clip
- * @param {{ startFrame?: number, endFrame?: number, maxSamples?: number, pixelWidth?: number }} [options]
+ * Set `reuseSummaryForCompatibility` when the Audacity canvas plan is the
+ * authoritative summary waveform. The bounded legacy channels are then
+ * derived from that plan instead of scanning the source PCM a second time.
+ *
+ * @param {{
+ *   startFrame?: number,
+ *   endFrame?: number,
+ *   maxSamples?: number,
+ *   pixelWidth?: number,
+ *   reuseSummaryForCompatibility?: boolean,
+ * }} [options]
  * @returns {{
  *   channels: Float32Array[],
  *   startFrame: number,
@@ -340,6 +350,15 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		fadeOutFrames,
 		reversed,
 	});
+	if (rendering?.mode === 'summary' && options.reuseSummaryForCompatibility) {
+		const compatibility = waveformCompatibilityFromSummary(rendering, frameCount, maximumSamples);
+		return withWaveformRendering({
+			...compatibility,
+			startFrame,
+			endFrame,
+			frameCount,
+		}, rendering);
+	}
 
 	if (frameCount <= maximumSamples) {
 		const channels = sourceChannels.map((_, channel) => {
@@ -423,6 +442,57 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		framesPerBucket: frameCount / bucketCount,
 		downsampled: true,
 	}, rendering);
+}
+
+function waveformCompatibilityFromSummary(rendering, frameCount, maximumSamples) {
+	if (maximumSamples === 1) {
+		return {
+			channels: rendering.channels.map((channel) => Float32Array.of(summaryChannelPeak(channel))),
+			sampleCount: 1,
+			framesPerBucket: frameCount,
+			downsampled: true,
+		};
+	}
+	const columnCount = rendering.channels[0]?.minimum.length || 0;
+	const bucketCount = Math.max(1, Math.min(columnCount, Math.floor(maximumSamples / 2)));
+	const channels = rendering.channels.map((channel) => {
+		const output = new Float32Array(bucketCount * 2);
+		for (let bucket = 0; bucket < bucketCount; bucket += 1) {
+			const bucketStart = Math.floor(bucket * columnCount / bucketCount);
+			const bucketEnd = Math.max(bucketStart + 1, Math.floor((bucket + 1) * columnCount / bucketCount));
+			let minimum = Number.POSITIVE_INFINITY;
+			let maximum = Number.NEGATIVE_INFINITY;
+			for (let column = bucketStart; column < bucketEnd; column += 1) {
+				minimum = Math.min(minimum, finiteWaveformSample(channel.minimum[column]));
+				maximum = Math.max(maximum, finiteWaveformSample(channel.maximum[column]));
+			}
+			output[bucket * 2] = minimum;
+			output[bucket * 2 + 1] = maximum;
+		}
+		return output;
+	});
+	return {
+		channels,
+		sampleCount: bucketCount * 2,
+		framesPerBucket: frameCount / bucketCount,
+		downsampled: true,
+	};
+}
+
+function summaryChannelPeak(channel) {
+	let peak = 0;
+	for (let index = 0; index < channel.minimum.length; index += 1) {
+		const minimum = finiteWaveformSample(channel.minimum[index]);
+		const maximum = finiteWaveformSample(channel.maximum[index]);
+		if (Math.abs(minimum) > Math.abs(peak)) peak = minimum;
+		if (Math.abs(maximum) > Math.abs(peak)) peak = maximum;
+	}
+	return peak;
+}
+
+function finiteWaveformSample(value) {
+	const sample = Number(value);
+	return Number.isFinite(sample) ? sample : 0;
 }
 
 /*

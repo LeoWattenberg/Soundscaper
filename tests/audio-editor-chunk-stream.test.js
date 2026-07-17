@@ -9,6 +9,7 @@ import {
 } from '../src/lib/tools/audio-editor/chunk-stream.js';
 import {
 	ChunkStreamClient,
+	ensureChunkStreamWorklet,
 } from '../src/lib/tools/audio-editor/chunk-stream-client.js';
 import {
 	ChunkStreamPlaybackProcessor,
@@ -16,6 +17,40 @@ import {
 import { installChunkStreamWorker } from '../src/lib/tools/audio-editor/chunk-stream-worker.js';
 import { createImmutablePcmChunks } from '../src/lib/tools/audio-editor/pcm-chunks.js';
 import { createStreamingWindowedSincResampler } from '../src/lib/tools/audio-editor/resample.js';
+
+test('chunk stream worklet loading coalesces per context and remains retryable', async () => {
+	const pending = deferred();
+	let loads = 0;
+	const context = {
+		audioWorklet: {
+			addModule() {
+				loads += 1;
+				return pending.promise;
+			},
+		},
+	};
+	const first = ensureChunkStreamWorklet(context);
+	const second = ensureChunkStreamWorklet(context);
+	await Promise.resolve();
+	assert.equal(loads, 1);
+	pending.resolve();
+	await Promise.all([first, second]);
+	await ensureChunkStreamWorklet(context);
+	assert.equal(loads, 1);
+
+	let attempts = 0;
+	const retryContext = {
+		audioWorklet: {
+			async addModule() {
+				attempts += 1;
+				if (attempts === 1) throw new Error('temporary worklet failure');
+			},
+		},
+	};
+	await assert.rejects(ensureChunkStreamWorklet(retryContext), /temporary worklet failure/);
+	await ensureChunkStreamWorklet(retryContext);
+	assert.equal(attempts, 2);
+});
 
 test('transferable queue is bounded, contiguous, and rejects shared memory', () => {
 	const queue = new TransferableAudioChunkQueue({ channelCount: 2, capacity: 2, startFrame: 0 });
@@ -421,6 +456,16 @@ function createEventPort() {
 			for (const listener of this.peer?.listeners || []) listener(event);
 		},
 	};
+}
+
+function deferred() {
+	let resolve;
+	let reject;
+	const promise = new Promise((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise;
+		reject = rejectPromise;
+	});
+	return { promise, resolve, reject };
 }
 
 function createLinkedWorker() {

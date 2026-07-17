@@ -8016,13 +8016,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 				onChunk: async ({ channels }) => {
 					if (channels[0]?.length) await writer.write(channels);
 					appendRecordingPreview(preview, previewResampler.push(channels));
-					updatePlayhead();
-					publishRecordingPreview();
 					let peak = 0;
 					for (const channel of channels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
 					const db = peak > 0 ? 20 * Math.log10(peak) : -60;
 					state.inputMeterDb = Math.max(-60, db);
-					publishTelemetrySnapshot();
+					updatePlayhead();
+					publishRecordingPreview();
 				},
 				onError: (error) => {
 					state.recordingFatalError = error;
@@ -8363,7 +8362,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 							}
 							if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
 							appendRecordingPreview(entry.preview, entry.previewResampler.push(routedChannels));
-							updatePlayhead();
 							let peak = 0;
 							for (const channel of routedChannels) for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
 							sourcePeak = Math.max(sourcePeak, peak);
@@ -8372,8 +8370,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 						const failedWrite = writes.find((result) => result.status === 'rejected');
 						if (failedWrite) throw failedWrite.reason;
 						state.inputMeterDb = sourcePeak > 0 ? Math.max(-60, 20 * Math.log10(sourcePeak)) : -60;
+						updatePlayhead();
 						publishRecordingPreview();
-						publishTelemetrySnapshot();
 					},
 					onError: handleFatalRecordingError,
 					onState: (recordingState) => {

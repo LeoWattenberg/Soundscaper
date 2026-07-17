@@ -45,6 +45,7 @@ const dynamicsWorkletLoads = new WeakMap();
 const audacityWorkletLoads = new WeakMap();
 const parametricEqWorkletLoads = new WeakMap();
 const parametricEqPortMessageHandlers = new WeakMap();
+const meterReadBuffers = new WeakMap();
 
 export function isAudioEditorEngineSupported() {
 	return Boolean(getAudioContextConstructor());
@@ -2077,10 +2078,10 @@ async function scheduleProjectClips({
 	const streamed = [];
 	let loadedChunkFrames = 0;
 	const totalChunkFrames = plans.reduce((total, plan) => total + (plan.originalBuffer ? 0 : Math.ceil(plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate)), 0);
-	for (const plan of plans) {
-		throwIfAborted(signal);
-		if (plan.originalBuffer) continue;
-		if (mode === 'offline') {
+	const chunkPlans = plans.filter((plan) => !plan.originalBuffer);
+	if (mode === 'offline') {
+		for (const plan of chunkPlans) {
+			throwIfAborted(signal);
 			await scheduleOfflineChunkPlan({
 				...plan,
 				context,
@@ -2100,9 +2101,12 @@ async function scheduleProjectClips({
 					});
 				},
 			});
-		} else {
-			if (!chunkStreamClient) throw longSourceError('The long-source playback worker is unavailable.');
-			streamed.push(await prepareLiveChunkPlan({
+		}
+	} else if (chunkPlans.length) {
+		if (!chunkStreamClient) throw longSourceError('The long-source playback worker is unavailable.');
+		streamed.push(...await Promise.all(chunkPlans.map((plan) => {
+			throwIfAborted(signal);
+			return prepareLiveChunkPlan({
 				...plan,
 				context,
 				chunkStreamClient,
@@ -2111,8 +2115,8 @@ async function scheduleProjectClips({
 				activeSources,
 				allNodes,
 				signal,
-			}));
-		}
+			});
+		})));
 	}
 
 	const actualContextStartTime = streamed.length && deferStartUntilPrimed
@@ -2201,8 +2205,10 @@ function scheduleBufferPlan({
 	allNodes,
 	...plan
 }) {
-	const source = addNode(allNodes, context.createBufferSource());
-	const chain = createClipGainChain(context, plan.trackInput, allNodes);
+	const transientNodes = getTransientNodes(allNodes);
+	const source = addNode(transientNodes, context.createBufferSource());
+	const chain = createClipGainChain(context, plan.trackInput, transientNodes);
+	const scheduledNodes = [source, chain.fadeInGain, chain.fadeOutGain, chain.clipGain];
 	const buffer = plan.reversed ? getReversedBuffer(context, plan.originalBuffer, reversedBuffers) : plan.originalBuffer;
 	source.buffer = buffer;
 	connect(source, chain.input);
@@ -2213,8 +2219,13 @@ function scheduleBufferPlan({
 	try {
 		source.start(startTime, plan.offsetFrame / buffer.sampleRate, plan.segmentDuration * plan.playbackRate);
 		activeSources.add(source);
+		source.onended = () => {
+			activeSources.delete(source);
+			releaseTransientNodes(transientNodes, scheduledNodes);
+		};
 	} catch {
 		// A malformed or out-of-range clip is skipped without stopping the mix.
+		releaseTransientNodes(transientNodes, scheduledNodes);
 	}
 }
 
@@ -2228,6 +2239,7 @@ async function prepareLiveChunkPlan({
 	transportRate,
 	...plan
 }) {
+	const transientNodes = getTransientNodes(allNodes);
 	const requestedInputFrames = plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate;
 	const outputFrameCount = Math.round(plan.segmentDuration / transportRate * context.sampleRate);
 	if (!Number.isFinite(plan.offsetFrame) || plan.offsetFrame < 0 || !Number.isFinite(requestedInputFrames)
@@ -2236,9 +2248,6 @@ async function prepareLiveChunkPlan({
 	}
 	const provider = plan.reversed ? createReversedChunkSource(plan.chunkSource) : plan.chunkSource;
 	if (plan.offsetFrame >= provider.frameCount) throw longSourceError('The long-source clip range is empty.');
-	const node = addNode(allNodes, await chunkAudioNodeFactory(context, { channelCount: provider.channelCount }));
-	const chain = createClipGainChain(context, plan.trackInput, allNodes);
-	connect(node, chain.input);
 	const roundedStart = Math.round(plan.offsetFrame);
 	const roundedInputFrames = Math.round(requestedInputFrames);
 	const direct = Math.abs(roundedStart - plan.offsetFrame) <= 1e-9
@@ -2264,33 +2273,61 @@ async function prepareLiveChunkPlan({
 			resampleInputOffset: plan.offsetFrame - sourceStartFrame,
 		};
 	}
-	const handle = chunkStreamClient.open({
-		source: provider,
-		...streamRange,
-		outputPort: node.port,
-		signal,
-	});
-	void handle.ready.catch(() => undefined);
-	void handle.primed.catch(() => undefined);
-	void handle.done.catch(() => undefined);
-	await handle.primed;
-	const sourceControl = {
-		stop() { handle.cancel(); },
-		disconnect() { node.disconnect?.(); },
-	};
-	activeSources.add(sourceControl);
-	handle.done.then(
-		() => activeSources.delete(sourceControl),
-		() => activeSources.delete(sourceControl),
-	);
-	return {
-		start(contextStartTime, fromFrame, sampleRate, activeTransportRate) {
-			const timelineRate = sampleRate * activeTransportRate;
-			const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
-			scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate, plan);
-			void handle.play({ contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)) });
-		},
-	};
+	let node = null;
+	let chain = null;
+	let handle = null;
+	let sourceControl = null;
+	try {
+		throwIfAborted(signal);
+		node = await chunkAudioNodeFactory(context, { channelCount: provider.channelCount });
+		throwIfAborted(signal);
+		addNode(transientNodes, node);
+		chain = createClipGainChain(context, plan.trackInput, transientNodes);
+		connect(node, chain.input);
+		handle = chunkStreamClient.open({
+			source: provider,
+			...streamRange,
+			outputPort: node.port,
+			signal,
+		});
+		void handle.ready.catch(() => undefined);
+		void handle.primed.catch(() => undefined);
+		void handle.done.catch(() => undefined);
+		await handle.primed;
+		throwIfAborted(signal);
+		sourceControl = {
+			stop() { handle.cancel(); },
+			disconnect() { node.disconnect?.(); },
+		};
+		activeSources.add(sourceControl);
+		const scheduledNodes = [node, chain.fadeInGain, chain.fadeOutGain, chain.clipGain];
+		const release = () => {
+			activeSources.delete(sourceControl);
+			releaseTransientNodes(transientNodes, scheduledNodes);
+		};
+		handle.done.then(
+			release,
+			release,
+		);
+		return {
+			start(contextStartTime, fromFrame, sampleRate, activeTransportRate) {
+				const timelineRate = sampleRate * activeTransportRate;
+				const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
+				scheduleClipGain(chain.fadeInGain.gain, chain.fadeOutGain.gain, chain.clipGain.gain, plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, startTime, timelineRate, plan);
+				void handle.play({ contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)) });
+			},
+		};
+	} catch (error) {
+		activeSources.delete(sourceControl);
+		try { handle?.cancel?.(); } catch { /* The stream may already be cancelled. */ }
+		releaseTransientNodes(transientNodes, [
+			node,
+			chain?.fadeInGain,
+			chain?.fadeOutGain,
+			chain?.clipGain,
+		].filter(Boolean));
+		throw error;
+	}
 }
 
 async function scheduleOfflineChunkPlan({
@@ -2547,7 +2584,12 @@ function readParametricEqSpectrumEntry(entry, which, target) {
 
 function readMeter(analyser) {
 	if (!analyser?.getFloatTimeDomainData) return { peak: 0, rms: 0, dbfs: -Infinity };
-	const values = new Float32Array(analyser.fftSize || 256);
+	const sampleCount = analyser.fftSize || 256;
+	let values = meterReadBuffers.get(analyser);
+	if (!values || values.length !== sampleCount) {
+		values = new Float32Array(sampleCount);
+		meterReadBuffers.set(analyser, values);
+	}
 	analyser.getFloatTimeDomainData(values);
 	let peak = 0;
 	let squares = 0;
@@ -2566,7 +2608,11 @@ function disposeGraph(graph, stopSources) {
 			try { source.stop(); } catch { /* It may already have ended. */ }
 		}
 	}
-	for (const node of [...(graph.nodes || [])].reverse()) {
+	const transientNodes = graph.nodes?.transientNodes;
+	for (const node of [
+		...(graph.nodes || []),
+		...(transientNodes || []),
+	].reverse()) {
 		const registration = parametricEqPortMessageHandlers.get(node);
 		if (registration?.handler && node.port?.onmessage === registration.handler) node.port.onmessage = null;
 		if (registration?.processorErrorHandler) {
@@ -2577,6 +2623,7 @@ function disposeGraph(graph, stopSources) {
 		if (registration) parametricEqPortMessageHandlers.delete(node);
 		try { node.disconnect(); } catch { /* It may already be disconnected. */ }
 	}
+	transientNodes?.clear();
 	graph.sources?.clear?.();
 	graph.effectNodes?.clear?.();
 	graph.effectAnalysers?.clear?.();
@@ -2810,18 +2857,25 @@ async function ensureProjectWorklets(context, project) {
 		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
 		throw new Error('This browser cannot run the limiter or gate without bypassing it.');
 	}
-	if (usesParametricEq) await ensureParametricEqWorklet(context);
+	const loads = [];
+	if (usesParametricEq) loads.push(ensureParametricEqWorklet(context));
 	if (needsDynamics) {
-		await addWorkletModuleOnce(
+		loads.push(addWorkletModuleOnce(
 			context,
 			dynamicsWorkletContexts,
 			dynamicsWorkletLoads,
 			() => new URL('./dynamics-worklet.js', import.meta.url),
-		);
+		));
 	}
 	if (needsAudacity) {
-		await addWorkletModuleOnce(context, audacityWorkletContexts, audacityWorkletLoads, audacityWorkletModuleUrl);
+		loads.push(addWorkletModuleOnce(
+			context,
+			audacityWorkletContexts,
+			audacityWorkletLoads,
+			audacityWorkletModuleUrl,
+		));
 	}
+	await Promise.all(loads);
 }
 
 async function ensureParametricEqWorklet(context) {
@@ -2930,8 +2984,28 @@ function createOfflineContext(factory, channels, length, sampleRate) {
 }
 
 function addNode(nodes, node) {
-	if (node) nodes.push(node);
+	if (node) {
+		if (typeof nodes?.add === 'function') nodes.add(node);
+		else nodes?.push?.(node);
+	}
 	return node;
+}
+
+function getTransientNodes(nodes) {
+	if (!nodes.transientNodes) {
+		Object.defineProperty(nodes, 'transientNodes', {
+			configurable: true,
+			value: new Set(),
+		});
+	}
+	return nodes.transientNodes;
+}
+
+function releaseTransientNodes(transientNodes, nodes) {
+	for (const node of nodes) {
+		transientNodes.delete(node);
+		try { node?.disconnect?.(); } catch { /* It may already be disconnected. */ }
+	}
 }
 
 function connect(source, target, output = undefined, input = undefined) {

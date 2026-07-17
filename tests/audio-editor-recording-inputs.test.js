@@ -126,10 +126,57 @@ test('recording controller can preserve legacy channel interpretation for mono-t
 	await controller.detach();
 });
 
+test('recording worklet modules load once per context and failed loads remain retryable', async () => {
+	const pending = deferred();
+	let moduleLoads = 0;
+	const context = {
+		destination: createMockNode(),
+		audioWorklet: {
+			addModule() {
+				moduleLoads += 1;
+				return pending.promise;
+			},
+		},
+		createMediaStreamSource: () => createMockNode(),
+	};
+	const options = {
+		context,
+		stream: createMockStream([createMockTrack('audio', 1)]),
+		workletUrl: '/shared-recorder.js',
+		nodeFactory: () => createMockNode(),
+	};
+	const firstPending = createRecordingController(options);
+	const secondPending = createRecordingController(options);
+	await Promise.resolve();
+	assert.equal(moduleLoads, 1);
+	pending.resolve();
+	const [first, second] = await Promise.all([firstPending, secondPending]);
+	await first.detach();
+	await second.detach();
+
+	let attempts = 0;
+	const retryContext = {
+		destination: createMockNode(),
+		audioWorklet: {
+			async addModule() {
+				attempts += 1;
+				if (attempts === 1) throw new Error('temporary load failure');
+			},
+		},
+		createMediaStreamSource: () => createMockNode(),
+	};
+	const retryOptions = { ...options, context: retryContext, workletUrl: '/retry-recorder.js' };
+	await assert.rejects(createRecordingController(retryOptions), /temporary load failure/);
+	const retried = await createRecordingController(retryOptions);
+	assert.equal(attempts, 2);
+	await retried.detach();
+});
+
 test('recording worklet preserves distinct browser-exposed channels', () => {
 	const processor = new StreamingRecorderProcessor({
 		processorOptions: { channelCount: 4, chunkFrames: 128, monitor: true },
 	});
+	const initialBuffers = processor.buffers;
 	const messages = [];
 	processor.port.postMessage = (message, transfer = []) => messages.push({ message, transfer });
 	processor.port.onmessage({ data: { type: 'start', startFrame: 0, stopFrame: 128 } });
@@ -141,10 +188,55 @@ test('recording worklet preserves distinct browser-exposed channels', () => {
 	assert.equal(chunk.message.channels.length, 4);
 	assert.equal(chunk.transfer.length, 4);
 	for (let channel = 0; channel < 4; channel += 1) {
+		assert.strictEqual(chunk.message.channels[channel], initialBuffers[channel]);
 		assert.deepEqual(chunk.message.channels[channel], input[channel]);
 		assert.deepEqual(output[channel], input[channel]);
 	}
 	assert.equal(new StreamingRecorderProcessor({ processorOptions: { channelCount: 100 } }).buffers.length, 32);
+});
+
+test('recording worklet only copies partial flushes', () => {
+	const processor = new StreamingRecorderProcessor({
+		processorOptions: { channelCount: 1, chunkFrames: 128 },
+	});
+	const initialBuffer = processor.buffers[0];
+	const messages = [];
+	processor.port.postMessage = (message) => messages.push(message);
+	processor.port.onmessage({ data: { type: 'start', startFrame: 0 } });
+	const input = Float32Array.from({ length: 64 }, (_, frame) => frame / 64);
+	processor.process([[input]], [[new Float32Array(64)]]);
+	processor.port.onmessage({ data: { type: 'stop' } });
+
+	const chunk = messages.find(({ type }) => type === 'audio-chunk');
+	assert.equal(chunk.frames, 64);
+	assert.notStrictEqual(chunk.channels[0], initialBuffer);
+	assert.deepEqual(chunk.channels[0], input);
+});
+
+test('recording worklet keeps chunk frame starts contiguous across quantum boundaries', () => {
+	const previousFrame = globalThis.currentFrame;
+	try {
+		const processor = new StreamingRecorderProcessor({
+			processorOptions: { channelCount: 1, chunkFrames: 128 },
+		});
+		const messages = [];
+		processor.port.postMessage = (message) => messages.push(message);
+		processor.port.onmessage({ data: { type: 'start', startFrame: 64 } });
+		globalThis.currentFrame = 0;
+		processor.process([[new Float32Array(128).fill(0.25)]], [[new Float32Array(128)]]);
+		globalThis.currentFrame = 128;
+		processor.process([[new Float32Array(128).fill(0.5)]], [[new Float32Array(128)]]);
+		processor.port.onmessage({ data: { type: 'stop' } });
+
+		const chunks = messages.filter(({ type }) => type === 'audio-chunk');
+		assert.deepEqual(chunks.map(({ frameStart, frames }) => ({ frameStart, frames })), [
+			{ frameStart: 64, frames: 128 },
+			{ frameStart: 192, frames: 64 },
+		]);
+	} finally {
+		if (previousFrame === undefined) delete globalThis.currentFrame;
+		else globalThis.currentFrame = previousFrame;
+	}
 });
 
 test('capture pool reuses live inputs, reacquires for more exposed channels, and releases explicitly', async () => {

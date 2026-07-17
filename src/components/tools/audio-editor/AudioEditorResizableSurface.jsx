@@ -2,6 +2,13 @@ import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 const RESIZE_STEP = 16;
 
+function boundedSize(width, height, minWidth, minHeight, maxWidth, maxHeight) {
+	return {
+		width: Math.round(Math.max(minWidth, Math.min(maxWidth, width))),
+		height: Math.round(Math.max(minHeight, Math.min(maxHeight, height))),
+	};
+}
+
 /**
  * Editor-owned dialog frame with a mouse and keyboard accessible resize grip.
  * Keeping this separate from the design-system Dialog avoids inheriting its
@@ -28,10 +35,7 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 		const rect = surface.getBoundingClientRect();
 		const maxWidth = Math.max(minWidth, window.innerWidth - rect.left - 8);
 		const maxHeight = Math.max(minHeight, window.innerHeight - rect.top - 8);
-		setSize({
-			width: Math.round(Math.max(minWidth, Math.min(maxWidth, width))),
-			height: Math.round(Math.max(minHeight, Math.min(maxHeight, height))),
-		});
+		setSize(boundedSize(width, height, minWidth, minHeight, maxWidth, maxHeight));
 	};
 
 	useEffect(() => {
@@ -39,13 +43,27 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 		const handleMouseMove = (event) => {
 			const drag = dragRef.current;
 			if (!drag) return;
-			resizeTo(
+			drag.size = boundedSize(
 				drag.width + event.clientX - drag.x,
 				drag.height + event.clientY - drag.y,
+				minWidth,
+				minHeight,
+				drag.maxWidth,
+				drag.maxHeight,
 			);
+			if (drag.frame) return;
+			drag.frame = requestAnimationFrame(() => {
+				drag.frame = 0;
+				if (dragRef.current !== drag || !surfaceRef.current || !drag.size) return;
+				surfaceRef.current.style.width = `${drag.size.width}px`;
+				surfaceRef.current.style.height = `${drag.size.height}px`;
+			});
 		};
 		const handleMouseUp = () => {
+			const drag = dragRef.current;
+			if (drag?.frame) cancelAnimationFrame(drag.frame);
 			dragRef.current = null;
+			if (drag?.size) setSize(drag.size);
 			setIsResizing(false);
 		};
 		document.addEventListener('mousemove', handleMouseMove);
@@ -53,16 +71,22 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 		return () => {
 			document.removeEventListener('mousemove', handleMouseMove);
 			document.removeEventListener('mouseup', handleMouseUp);
+			const drag = dragRef.current;
+			if (drag?.frame) {
+				cancelAnimationFrame(drag.frame);
+				drag.frame = 0;
+			}
 		};
 	}, [isResizing, minHeight, minWidth]);
 
+	const renderedSize = dragRef.current?.size || size;
 	return (
 		<section
 			ref={surfaceRef}
 			className={`${className}${isResizing ? ' audio-editor-resizable-surface--resizing' : ''}`}
 			style={{
 				...style,
-				...(size ? { width: `${size.width}px`, height: `${size.height}px` } : null),
+				...(renderedSize ? { width: `${renderedSize.width}px`, height: `${renderedSize.height}px` } : null),
 			}}
 			{...props}
 		>
@@ -82,6 +106,10 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 						y: event.clientY,
 						width: rect.width,
 						height: rect.height,
+						maxWidth: Math.max(minWidth, window.innerWidth - rect.left - 8),
+						maxHeight: Math.max(minHeight, window.innerHeight - rect.top - 8),
+						frame: 0,
+						size: null,
 					};
 					setIsResizing(true);
 				}}

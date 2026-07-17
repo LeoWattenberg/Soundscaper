@@ -44,8 +44,14 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			const outputChannel = output[channelIndex];
 			const inputChannel = input[Math.min(channelIndex, Math.max(0, input.length - 1))];
 			if (this.monitor && inputChannel) {
-				for (let frameIndex = 0; frameIndex < outputChannel.length; frameIndex += 1) {
-					outputChannel[frameIndex] = (inputChannel[frameIndex] || 0) * this.inputGain;
+				if (this.inputGain === 1) {
+					outputChannel.set(inputChannel.length === outputChannel.length
+						? inputChannel
+						: inputChannel.subarray(0, outputChannel.length));
+				} else {
+					for (let frameIndex = 0; frameIndex < outputChannel.length; frameIndex += 1) {
+						outputChannel[frameIndex] = (inputChannel[frameIndex] || 0) * this.inputGain;
+					}
 				}
 			} else outputChannel.fill(0);
 		}
@@ -62,13 +68,29 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			return true;
 		}
 
-		if (this.writeOffset === 0) this.chunkStartFrame = globalFrame + firstIndex;
-		for (let frameIndex = firstIndex; frameIndex < lastIndex; frameIndex += 1) {
+		let frameIndex = firstIndex;
+		while (frameIndex < lastIndex) {
+			if (this.writeOffset === 0) this.chunkStartFrame = globalFrame + frameIndex;
+			const frames = Math.min(lastIndex - frameIndex, this.chunkFrames - this.writeOffset);
 			for (let channelIndex = 0; channelIndex < this.channelCount; channelIndex += 1) {
 				const source = input[Math.min(channelIndex, input.length - 1)];
-				this.buffers[channelIndex][this.writeOffset] = (source?.[frameIndex] || 0) * this.inputGain;
+				const target = this.buffers[channelIndex];
+				if (!source) target.fill(0, this.writeOffset, this.writeOffset + frames);
+				else if (this.inputGain === 1) {
+					target.set(
+						frameIndex === 0 && frames === source.length
+							? source
+							: source.subarray(frameIndex, frameIndex + frames),
+						this.writeOffset,
+					);
+				} else {
+					for (let offset = 0; offset < frames; offset += 1) {
+						target[this.writeOffset + offset] = (source[frameIndex + offset] || 0) * this.inputGain;
+					}
+				}
 			}
-			this.writeOffset += 1;
+			this.writeOffset += frames;
+			frameIndex += frames;
 			if (this.writeOffset === this.chunkFrames) this.#flush();
 		}
 		if (globalFrame + blockLength >= this.stopFrame) this.#finish();
@@ -119,7 +141,9 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 
 	#flush() {
 		if (!this.writeOffset) return;
-		const channels = this.buffers.map((buffer) => buffer.slice(0, this.writeOffset));
+		const channels = this.writeOffset === this.chunkFrames
+			? this.buffers
+			: this.buffers.map((buffer) => buffer.slice(0, this.writeOffset));
 		const frames = this.writeOffset;
 		this.buffers = this.#allocateBuffers();
 		this.writeOffset = 0;

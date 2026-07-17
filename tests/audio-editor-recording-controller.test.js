@@ -651,8 +651,14 @@ test('legacy recording stores context-rate PCM and scales latency into native so
 		await controller.ready;
 		const trackId = controller.getSnapshot().project.tracks[0].id;
 		await controller.actions.recording.start({ trackId });
+		let telemetryUpdates = 0;
+		const unsubscribeTelemetry = controller.subscribeTelemetry(() => {
+			telemetryUpdates += 1;
+		});
 		const captured = Float32Array.from({ length: 1_440 }, (_, frame) => frame / 1_440);
 		await createdControllers[0].onChunk({ channels: [captured] });
+		unsubscribeTelemetry();
+		assert.equal(telemetryUpdates, 1, 'one capture chunk publishes one coalesced telemetry update');
 		await controller.actions.recording.stop();
 
 		const project = controller.getSnapshot().project;
@@ -732,6 +738,59 @@ test('routed recording starts surviving desktop audio when a hardware source is 
 	}
 
 	assert.equal(desktop.getTracks().every((track) => track.stopCount === 1), true);
+});
+
+test('one routed source chunk publishes telemetry once across multiple track routes', async () => {
+	const store = createProjectStore({ databaseName: 'recording-controller-routed-telemetry' });
+	const engine = createRecordingEngine();
+	const input = createMockStream([
+		createMockTrack('audio', { channelCount: 2 }),
+	]);
+	const pool = createCapturePool({ hardware: { default: input } });
+	const createdControllers = [];
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		ffmpeg: createFfmpegStub(),
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(createdControllers),
+	});
+
+	try {
+		await controller.ready;
+		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+		const secondTrackId = controller.actions.track.addMono({ name: 'Second route', armed: true });
+		await controller.actions.recording.setTrackInput(firstTrackId, {
+			kind: 'device',
+			deviceId: 'default',
+			channelStart: 0,
+			channelCount: 1,
+		});
+		await controller.actions.recording.setTrackInput(secondTrackId, {
+			kind: 'device',
+			deviceId: 'default',
+			channelStart: 1,
+			channelCount: 1,
+		});
+		await controller.actions.recording.start();
+		assert.equal(createdControllers.length, 1);
+
+		let telemetryUpdates = 0;
+		const unsubscribeTelemetry = controller.subscribeTelemetry(() => {
+			telemetryUpdates += 1;
+		});
+		await createdControllers[0].onChunk({
+			channels: [
+				new Float32Array(128).fill(0.25),
+				new Float32Array(128).fill(-0.5),
+			],
+		});
+		unsubscribeTelemetry();
+		assert.equal(telemetryUpdates, 1);
+		await controller.actions.recording.stop();
+	} finally {
+		await controller.dispose();
+	}
 });
 
 test('configured desktop audio stays open and compact single-track recording uses its route', async () => {

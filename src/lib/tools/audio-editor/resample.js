@@ -100,6 +100,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 	if (!Number.isFinite(initialInputPosition) || initialInputPosition < 0) {
 		throw new RangeError('initialInputPosition must be finite and non-negative.');
 	}
+	const passthrough = inputRate === outputRate && initialInputPosition === 0;
 	let buffered = emptyChannels(channels);
 	let bufferStartFrame = 0;
 	let totalInputFrames = 0;
@@ -110,7 +111,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 	return Object.freeze({
 		push,
 		finish,
-		get latencyInputFrames() { return radius; },
+		get latencyInputFrames() { return passthrough ? 0 : radius; },
 		get inputFrames() { return totalInputFrames; },
 		get outputFrames() { return totalOutputFrames; },
 	});
@@ -120,6 +121,11 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 		const normalized = validateStreamingChannels(inputChannels, channels);
 		const frameCount = normalized[0]?.length || 0;
 		if (!frameCount) return emptyChannels(channels);
+		if (passthrough) {
+			totalInputFrames += frameCount;
+			totalOutputFrames += frameCount;
+			return normalized;
+		}
 		buffered = appendChannels(buffered, normalized);
 		totalInputFrames += frameCount;
 		return produce(false);
@@ -134,6 +140,11 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 			: Math.max(totalOutputFrames, Math.round(Number(requestedOutputFrames)));
 		if (!Number.isSafeInteger(targetFrames) || targetFrames < 0) {
 			throw new RangeError('Requested resampler output length is invalid.');
+		}
+		if (passthrough) {
+			const remaining = targetFrames - totalOutputFrames;
+			totalOutputFrames = targetFrames;
+			return Array.from({ length: channels }, () => new Float32Array(remaining));
 		}
 		return produce(true, targetFrames);
 	}

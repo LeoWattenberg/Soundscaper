@@ -126,6 +126,50 @@ test('windowed-sinc resampler is deterministic across chunk boundaries and rejec
 	assert.deepEqual([...paddedOutput.slice(-50)], [...new Float32Array(50)]);
 });
 
+test('windowed-sinc equal-rate streams preserve exact chunks and finish padding', () => {
+	const first = [
+		Float32Array.from({ length: 24 }, (_, index) => index / 24),
+		Float32Array.from({ length: 24 }, (_, index) => -index / 24),
+	];
+	const second = [
+		Float32Array.of(-1, -0.5, 0, 0.5, 1),
+		Float32Array.of(1, 0.5, 0, -0.5, -1),
+	];
+	const resampler = createStreamingWindowedSincResampler(48_000, 48_000, 2);
+	const firstOutput = resampler.push(first);
+	const secondOutput = resampler.push(second);
+
+	assert.equal(resampler.latencyInputFrames, 0);
+	assert.strictEqual(firstOutput[0], first[0]);
+	assert.strictEqual(firstOutput[1], first[1]);
+	assert.strictEqual(secondOutput[0], second[0]);
+	assert.strictEqual(secondOutput[1], second[1]);
+	assert.equal(resampler.inputFrames, 29);
+	assert.equal(resampler.outputFrames, 29);
+
+	const tail = resampler.finish(32);
+	assert.deepEqual([...tail[0]], [0, 0, 0]);
+	assert.deepEqual([...tail[1]], [0, 0, 0]);
+	assert.equal(resampler.outputFrames, 32);
+	assert.deepEqual(resampler.finish().map((channel) => channel.length), [0, 0]);
+	assert.throws(() => resampler.push([new Float32Array(1), new Float32Array(1)]), /finished/);
+});
+
+test('windowed-sinc equal-rate preserves a nonzero initial input position', () => {
+	const input = Float32Array.from({ length: 48 }, (_, index) => index % 2 ? -1 : 1);
+	const resampler = createStreamingWindowedSincResampler(48_000, 48_000, 1, {
+		initialInputPosition: 0.5,
+	});
+	const head = resampler.push([input]);
+
+	assert.equal(resampler.latencyInputFrames, 24);
+	assert.notStrictEqual(head[0], input);
+	assert.equal(head[0].length, 24);
+	const output = concatenateFloat32([head[0], resampler.finish()[0]]);
+	assert.equal(output.length, 48);
+	assert.notDeepEqual(output, input);
+});
+
 test('memory project store retains revisions and streams immutable source chunks', async () => {
 	const store = createProjectStore({ indexedDB: null, databaseName: `test-${Date.now()}-${Math.random()}` });
 	assert.equal(store.backend, 'memory');
@@ -565,6 +609,35 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	assert.equal(realtime.closed, true);
 });
 
+test('loop scheduling releases ended clip graphs', async () => {
+	const context = new MockAudioContext();
+	const project = createProject();
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		meterInterval: 50,
+	});
+	engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(1, 48_000, 48_000)]]));
+	engine.setLoop({ enabled: true, startFrame: 0, endFrame: 4_800 });
+
+	await engine.play();
+	const graph = engine.graph;
+	assert.equal(context.bufferSources.length, 3);
+	assert.equal(graph.sources.size, 3);
+	assert.equal(graph.nodes.transientNodes.size, 3 * 4);
+
+	const endedSource = context.bufferSources[0];
+	const endedChain = [...endedSource.connections];
+	endedSource.onended();
+	assert.equal(graph.sources.size, 2);
+	assert.equal(graph.nodes.transientNodes.size, 2 * 4);
+	assert.equal(endedSource.disconnected, true);
+	assert.equal(endedChain.every(({ disconnected }) => disconnected), true);
+
+	engine.stop();
+	assert.equal(graph.nodes.transientNodes.size, 0);
+	await engine.dispose();
+});
+
 test('Web Audio engine applies preferred outputs lazily and keeps the active sink when switching fails', async () => {
 	class SinkAudioContext extends MockAudioContext {
 		constructor() {
@@ -960,6 +1033,138 @@ test('engine streams persisted long sources live and schedules bounded chunks th
 	assert.ok(offlineContexts[0].nodeKinds.includes('compressor'));
 	assert.ok(offlineContexts[0].nodeKinds.includes('delay'));
 	assert.equal(progress.at(-1), 1);
+	await engine.dispose();
+});
+
+test('engine primes independent long-source clips concurrently with one worklet load', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const project = createProject();
+	project.sources = ['source-1', 'source-2'].map((id) => ({
+		id,
+		frameCount: 48_000,
+		sampleRate: 48_000,
+		channelCount: 1,
+		chunkFrames: 65_536,
+	}));
+	project.clips = [
+		{ ...project.clips[0], id: 'clip-1', sourceId: 'source-1' },
+		{ ...project.clips[0], id: 'clip-2', sourceId: 'source-2' },
+	];
+	project.tracks[0].clipIds = ['clip-1', 'clip-2'];
+	const providers = new Map(project.sources.map((source) => [source.id, {
+		channelCount: source.channelCount,
+		frameCount: source.frameCount,
+		chunkFrames: source.chunkFrames,
+		sampleRate: source.sampleRate,
+		async readStorageChunk() { return [new Float32Array(source.frameCount)]; },
+	}]));
+	const handles = [];
+	const streamClient = {
+		open() {
+			let resolvePrimed;
+			let resolveDone;
+			const handle = {
+				ready: Promise.resolve(),
+				primed: new Promise((resolve) => { resolvePrimed = resolve; }),
+				done: new Promise((resolve) => { resolveDone = resolve; }),
+				resolvePrimed,
+				resolveDone,
+				play() {},
+				cancel() { resolveDone(); },
+			};
+			handle.resolvePrimed = resolvePrimed;
+			handle.resolveDone = resolveDone;
+			handles.push(handle);
+			return handle;
+		},
+		dispose() {},
+	};
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		chunkStreamClient: streamClient,
+		meterInterval: 1_000,
+	});
+	try {
+		engine.loadProject(project, new Map(), { chunkSources: providers });
+		const playback = engine.play();
+		for (let attempt = 0; attempt < 10 && handles.length < 2; attempt += 1) {
+			await new Promise((resolve) => setImmediate(resolve));
+		}
+		assert.equal(handles.length, 2, 'all long-source streams open before any one finishes priming');
+		assert.equal(
+			context.audioWorkletModules.filter((url) => url.endsWith('/chunk-stream-worklet.js')).length,
+			1,
+		);
+		for (const handle of handles) handle.resolvePrimed();
+		await playback;
+		assert.equal(engine.graph.sources.size, 2);
+		assert.equal(engine.graph.nodes.transientNodes.size, 8);
+		handles[0].resolveDone();
+		await Promise.resolve();
+		assert.equal(engine.graph.sources.size, 1);
+		assert.equal(engine.graph.nodes.transientNodes.size, 4);
+		assert.equal(context.workletNodes[0].disconnected, true);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('stopping playback disconnects a long-source node whose factory resolves late', async () => {
+	const context = new MockAudioContext();
+	const project = createProject();
+	project.sources = [{
+		id: 'source-1',
+		frameCount: 48_000,
+		sampleRate: 48_000,
+		channelCount: 1,
+		chunkFrames: 65_536,
+	}];
+	const provider = {
+		channelCount: 1,
+		frameCount: 48_000,
+		chunkFrames: 65_536,
+		sampleRate: 48_000,
+		async readStorageChunk() { return [new Float32Array(48_000)]; },
+	};
+	let resolveFactory;
+	let markFactoryStarted;
+	const factoryStarted = new Promise((resolve) => { markFactoryStarted = resolve; });
+	const lateNode = context.make('late-chunk-stream', {
+		port: { postMessage() {}, addEventListener() {}, removeEventListener() {}, start() {} },
+	});
+	const streamClient = {
+		opens: 0,
+		open() {
+			this.opens += 1;
+			throw new Error('an aborted late node must not open a stream');
+		},
+		dispose() {},
+	};
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		chunkStreamClient: streamClient,
+		chunkAudioNodeFactory: () => {
+			markFactoryStarted();
+			return new Promise((resolve) => { resolveFactory = resolve; });
+		},
+		meterInterval: 1_000,
+	});
+	engine.loadProject(project, new Map(), { chunkSources: new Map([['source-1', provider]]) });
+	const playback = engine.play();
+	await factoryStarted;
+	const graph = engine.graph;
+	engine.stop();
+	resolveFactory(lateNode);
+
+	await assert.rejects(playback, { name: 'AbortError' });
+	assert.equal(streamClient.opens, 0);
+	assert.equal(lateNode.disconnected, true);
+	assert.equal(graph.sources.size, 0);
+	assert.equal(graph.nodes.transientNodes.size, 0);
 	await engine.dispose();
 });
 

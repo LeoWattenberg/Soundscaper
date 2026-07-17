@@ -1532,6 +1532,102 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(after.height).toBeCloseTo(before.height - 16, 0);
 	});
 
+	test('resizes editor dialogs live with mouse and remains keyboard accessible', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		const resizeHandle = preferences.getByRole('button', { name: 'Resize: Editor preferences', exact: true });
+		await expect(resizeHandle).toBeVisible();
+		const beforeMouseResize = await preferences.boundingBox();
+		const resizeHandleBounds = await resizeHandle.boundingBox();
+		expect(beforeMouseResize).not.toBeNull();
+		expect(resizeHandleBounds).not.toBeNull();
+
+		await page.mouse.move(
+			resizeHandleBounds.x + resizeHandleBounds.width / 2,
+			resizeHandleBounds.y + resizeHandleBounds.height / 2,
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			resizeHandleBounds.x + resizeHandleBounds.width / 2 - 48,
+			resizeHandleBounds.y + resizeHandleBounds.height / 2 - 32,
+			{ steps: 4 },
+		);
+		await expect(preferences).toHaveClass(/audio-editor-resizable-surface--resizing/);
+		const liveMouseResize = await preferences.boundingBox();
+		expect(liveMouseResize.width).toBeCloseTo(beforeMouseResize.width - 48, 0);
+		expect(liveMouseResize.height).toBeCloseTo(beforeMouseResize.height - 32, 0);
+		const resizeTheme = await page.evaluate(() => {
+			document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+			return document.documentElement.dataset.theme;
+		});
+		await expect(editor).toHaveCSS('color-scheme', resizeTheme);
+		const rerenderedMouseResize = await preferences.boundingBox();
+		expect(rerenderedMouseResize.width).toBeCloseTo(liveMouseResize.width, 0);
+		expect(rerenderedMouseResize.height).toBeCloseTo(liveMouseResize.height, 0);
+
+		await page.mouse.up();
+		await expect(preferences).not.toHaveClass(/audio-editor-resizable-surface--resizing/);
+		const committedMouseResize = await preferences.boundingBox();
+		await page.mouse.move(
+			resizeHandleBounds.x + resizeHandleBounds.width / 2 + 32,
+			resizeHandleBounds.y + resizeHandleBounds.height / 2 + 32,
+		);
+		const afterMouseCleanup = await preferences.boundingBox();
+		expect(afterMouseCleanup.width).toBeCloseTo(committedMouseResize.width, 0);
+		expect(afterMouseCleanup.height).toBeCloseTo(committedMouseResize.height, 0);
+
+		await resizeHandle.focus();
+		await resizeHandle.press('ArrowLeft');
+		await resizeHandle.press('ArrowUp');
+		const afterKeyboardResize = await preferences.boundingBox();
+		expect(afterKeyboardResize.width).toBeCloseTo(committedMouseResize.width - 16, 0);
+		expect(afterKeyboardResize.height).toBeCloseTo(committedMouseResize.height - 16, 0);
+	});
+
+	test('keeps the floating toolbar position live and commits it after dragging', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const editorBounds = await editor.boundingBox();
+		const gripper = editor.locator('[data-toolbar-dock="top"] .toolbar__gripper');
+		const gripperBounds = await gripper.boundingBox();
+		expect(editorBounds).not.toBeNull();
+		expect(gripperBounds).not.toBeNull();
+
+		const startX = gripperBounds.x + gripperBounds.width / 2;
+		const startY = gripperBounds.y + gripperBounds.height / 2;
+		const floatingX = editorBounds.x + Math.min(320, editorBounds.width / 3);
+		const floatingY = editorBounds.y + Math.min(240, editorBounds.height / 3);
+		await page.mouse.move(startX, startY);
+		await page.mouse.down();
+		await page.mouse.move(floatingX, floatingY, { steps: 4 });
+
+		const floatingToolbar = editor.locator('[data-toolbar-dock="floating"]');
+		await expect(floatingToolbar).toBeVisible();
+		const livePosition = await floatingToolbar.boundingBox();
+		const dragTheme = await page.evaluate(() => {
+			document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+			return document.documentElement.dataset.theme;
+		});
+		await expect(editor).toHaveCSS('color-scheme', dragTheme);
+		const rerenderedPosition = await floatingToolbar.boundingBox();
+		expect(rerenderedPosition.x).toBeCloseTo(livePosition.x, 0);
+		expect(rerenderedPosition.y).toBeCloseTo(livePosition.y, 0);
+
+		await page.mouse.move(floatingX + 48, floatingY + 32);
+		await expect.poll(async () => (await floatingToolbar.boundingBox()).x).toBeCloseTo(livePosition.x + 48, 0);
+		await expect.poll(async () => (await floatingToolbar.boundingBox()).y).toBeCloseTo(livePosition.y + 32, 0);
+		await page.mouse.up();
+		const committedPosition = await floatingToolbar.boundingBox();
+		const committedTheme = await page.evaluate(() => {
+			document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+			return document.documentElement.dataset.theme;
+		});
+		await expect(editor).toHaveCSS('color-scheme', committedTheme);
+		const finalPosition = await floatingToolbar.boundingBox();
+		expect(finalPosition.x).toBeCloseTo(committedPosition.x, 0);
+		expect(finalPosition.y).toBeCloseTo(committedPosition.y, 0);
+	});
+
 	test('keeps compact side docks separate without toolbar group controls', async ({ page }) => {
 		await page.setViewportSize({ width: 800, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/');

@@ -115,6 +115,34 @@ test('summary plans retain a continuous complete min/max column for every CSS pi
 	}
 });
 
+test('rendering reuse derives bounded compatibility samples without rescanning source PCM', () => {
+	const frameCount = 256;
+	const values = Array.from({ length: frameCount }, (_, frame) => {
+		if (frame === 42) return 1;
+		if (frame === 200) return -0.75;
+		return Math.sin(frame / 9) * 0.25;
+	});
+	let indexedReads = 0;
+	const source = new Proxy(values, {
+		get(target, property, receiver) {
+			if (typeof property === 'string' && /^\d+$/.test(property)) indexedReads += 1;
+			return Reflect.get(target, property, receiver);
+		},
+	});
+	const result = prepareBoundedWaveformWindow([source], clip(frameCount), {
+		maxSamples: 32,
+		pixelWidth: 16,
+		reuseSummaryForCompatibility: true,
+	});
+
+	assert.equal(result.rendering.mode, 'summary');
+	assert.equal(indexedReads, frameCount, 'the rendering pass must be the only source PCM traversal');
+	assert.equal(result.sampleCount, 32);
+	assert.equal(result.channels[0].length, 32);
+	assert.ok(result.channels[0].includes(1));
+	assert.ok(result.channels[0].includes(-0.75));
+});
+
 test('connecting-dot rendering includes the sample at the visible end boundary', () => {
 	const source = Float32Array.from({ length: 12 }, (_, frame) => frame / 12);
 	const result = prepareBoundedWaveformWindow([source], clip(source.length), {

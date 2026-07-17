@@ -109,15 +109,18 @@ export function createEbuR128Meter(options = {}) {
 	let maximumMomentaryLufs = null;
 	let maximumShortTermLufs = null;
 
-	function push(channels, onSnapshot) {
+	function push(channels, onSnapshot, inputGain = 1) {
 		validateChannels(channels, channelCount);
+		if (!Number.isFinite(inputGain)) throw new RangeError('EBU R 128 input gain must be finite.');
+		const applyInputGain = inputGain !== 1;
 		const frames = channels[0].length;
 		for (let frame = 0; frame < frames; frame += 1) {
 			let weightedEnergy = 0;
 			let framePeak = 0;
 			let frameSquares = 0;
 			for (let channel = 0; channel < channelCount; channel += 1) {
-				const sample = Number(channels[channel][frame]);
+				const sourceSample = Number(channels[channel][frame]);
+				const sample = applyInputGain ? sourceSample * inputGain : sourceSample;
 				if (!Number.isFinite(sample)) throw new RangeError('PCM samples must be finite.');
 				framePeak = Math.max(framePeak, Math.abs(sample));
 				frameSquares += sample * sample;

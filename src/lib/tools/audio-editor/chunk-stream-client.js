@@ -12,6 +12,7 @@ import {
 } from './chunk-stream.js';
 
 const loadedWorkletContexts = new WeakSet();
+const pendingWorkletLoads = new WeakMap();
 let nextStreamId = 1;
 
 export class ChunkStreamClient {
@@ -400,8 +401,21 @@ export class ChunkStreamClient {
 export async function ensureChunkStreamWorklet(audioContext) {
 	if (!audioContext?.audioWorklet?.addModule) throw new TypeError('An AudioContext with audioWorklet support is required.');
 	if (loadedWorkletContexts.has(audioContext)) return;
-	await audioContext.audioWorklet.addModule(new URL('./chunk-stream-worklet.js', import.meta.url));
-	loadedWorkletContexts.add(audioContext);
+	let load = pendingWorkletLoads.get(audioContext);
+	if (!load) {
+		load = Promise.resolve().then(() => (
+			audioContext.audioWorklet.addModule(new URL('./chunk-stream-worklet.js', import.meta.url))
+		));
+		pendingWorkletLoads.set(audioContext, load);
+	}
+	try {
+		await load;
+		loadedWorkletContexts.add(audioContext);
+		pendingWorkletLoads.delete(audioContext);
+	} catch (error) {
+		if (pendingWorkletLoads.get(audioContext) === load) pendingWorkletLoads.delete(audioContext);
+		throw error;
+	}
 }
 
 export async function createChunkStreamAudioNode(audioContext, options = {}) {

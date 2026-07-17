@@ -61,14 +61,6 @@ import {
 	listNyquistPlugins,
 	loadNyquistPluginSource,
 } from '../../../lib/tools/audio-editor/nyquist/plugin-registry.js';
-import {
-	AnalysisPanel,
-	AudioEditorEffectsOverlay,
-	AudioEditorMacroManagerDialog,
-	ClipPropertiesDialog,
-	ExportDialog,
-	SelectionEffectsDialog,
-} from './AudioEditorInspector.jsx';
 import AudioEditorMenuBar from './AudioEditorMenuBar.jsx';
 import AudioEditorTimeline from './AudioEditorTimeline.jsx';
 import {
@@ -82,6 +74,14 @@ import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import AudioEditorSplitButton from './AudioEditorSplitButton.jsx';
 import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 import './audio-editor-design-system.css';
+
+const loadAudioEditorInspector = () => import('./AudioEditorInspector.jsx');
+const AnalysisPanel = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.AnalysisPanel })));
+const AudioEditorEffectsOverlay = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.AudioEditorEffectsOverlay })));
+const AudioEditorMacroManagerDialog = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.AudioEditorMacroManagerDialog })));
+const ClipPropertiesDialog = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.ClipPropertiesDialog })));
+const ExportDialog = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.ExportDialog })));
+const SelectionEffectsDialog = React.lazy(() => loadAudioEditorInspector().then((module) => ({ default: module.SelectionEffectsDialog })));
 
 const PLAYBACK_METER_SETTINGS_STORAGE_KEY = 'soundscaper-playback-meter-settings-v2';
 const RECORDING_METER_SETTINGS_STORAGE_KEY = 'soundscaper-recording-meter-settings-v2';
@@ -151,6 +151,10 @@ class AudioEditorErrorBoundary extends React.Component {
 	}
 }
 
+function LazyInspectorFallback({ copy }) {
+	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
+}
+
 function AudioEditorWorkspace({ locale, copy }) {
 	const editorThemeVariables = useAudioEditorThemeVariables();
 	const fileService = useMemo(() => createAudioEditorFileService(), []);
@@ -183,6 +187,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(loadPlaybackMeterSettings);
 	const [recordingMeterSettings, setRecordingMeterSettings] = useState(loadRecordingMeterSettings);
 	const toolbarDragRef = useRef(null);
+	const floatingToolbarRef = useRef(null);
 	const importInputRef = useRef(null);
 	const labelInputRef = useRef(null);
 	const aup4InputRef = useRef(null);
@@ -232,6 +237,14 @@ function AudioEditorWorkspace({ locale, copy }) {
 		)),
 	);
 	const finishToolbarDrag = useCallback(() => {
+		const drag = toolbarDragRef.current;
+		if (drag?.frame) cancelAnimationFrame(drag.frame);
+		if (drag?.moved) {
+			setToolbarDock(drag.dock);
+			if (drag.dock === 'floating') {
+				setFloatingToolbarPosition({ x: drag.x, y: drag.y });
+			}
+		}
 		toolbarDragRef.current = null;
 	}, []);
 	const handleToolbarGripperMouseDown = useCallback((event, toolbarRect) => {
@@ -243,30 +256,52 @@ function AudioEditorWorkspace({ locale, copy }) {
 			startY: event.clientY,
 			offsetX: event.clientX - toolbarRect.left,
 			offsetY: event.clientY - toolbarRect.top,
+			editorLeft: editorRect.left,
+			editorTop: editorRect.top,
+			editorBottom: editorRect.bottom,
+			dock: toolbarDock,
+			x: floatingToolbarPosition.x,
+			y: floatingToolbarPosition.y,
+			frame: 0,
 			moved: false,
 		};
-	}, []);
+	}, [floatingToolbarPosition.x, floatingToolbarPosition.y, toolbarDock]);
 	useEffect(() => {
 		const handleToolbarDrag = (event) => {
 			const drag = toolbarDragRef.current;
-			if (!drag || !editorRef.current) return;
-			const editorRect = editorRef.current.getBoundingClientRect();
+			if (!drag) return;
 			const moved = drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4;
 			if (!moved) return;
 			drag.moved = true;
 			const edgeDistance = 56;
-			if (event.clientY - editorRect.top <= edgeDistance) {
-				setToolbarDock('top');
+			if (event.clientY - drag.editorTop <= edgeDistance) {
+				if (drag.dock !== 'top') {
+					drag.dock = 'top';
+					setToolbarDock('top');
+				}
 				return;
 			}
-			if (editorRect.bottom - event.clientY <= edgeDistance) {
-				setToolbarDock('bottom');
+			if (drag.editorBottom - event.clientY <= edgeDistance) {
+				if (drag.dock !== 'bottom') {
+					drag.dock = 'bottom';
+					setToolbarDock('bottom');
+				}
 				return;
 			}
-			setToolbarDock('floating');
-			setFloatingToolbarPosition({
-				x: Math.max(0, event.clientX - editorRect.left - drag.offsetX),
-				y: Math.max(0, event.clientY - editorRect.top - drag.offsetY),
+			drag.x = Math.max(0, event.clientX - drag.editorLeft - drag.offsetX);
+			drag.y = Math.max(0, event.clientY - drag.editorTop - drag.offsetY);
+			if (drag.dock !== 'floating') {
+				drag.dock = 'floating';
+				setToolbarDock('floating');
+			}
+			if (drag.frame) return;
+			drag.frame = requestAnimationFrame(() => {
+				drag.frame = 0;
+				if (toolbarDragRef.current !== drag || drag.dock !== 'floating') return;
+				const toolbar = floatingToolbarRef.current;
+				if (!toolbar) return;
+				toolbar.style.left = `${drag.x}px`;
+				toolbar.style.top = `${drag.y}px`;
 			});
 		};
 		window.addEventListener('mousemove', handleToolbarDrag);
@@ -274,6 +309,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 		return () => {
 			window.removeEventListener('mousemove', handleToolbarDrag);
 			window.removeEventListener('mouseup', finishToolbarDrag);
+			const drag = toolbarDragRef.current;
+			if (drag?.frame) {
+				cancelAnimationFrame(drag.frame);
+				drag.frame = 0;
+			}
 		};
 	}, [finishToolbarDrag]);
 
@@ -538,7 +578,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 		{ action: 'rippleDelete', label: copy.rippleDelete, icon: 'trim', disabled: editBlocked || !selectionActive },
 	];
 
-	const executeEdit = (action) => run(() => controller.actions.edit[action]());
+	const executeEdit = useCallback(
+		(action) => run(() => controller.actions.edit[action]()),
+		[controller, run],
+	);
 	const openSelectionEffect = useCallback((type = null) => {
 		if (type) run(() => controller.actions.effects.setSelectionType(type));
 		openSurface('selection-effect');
@@ -647,7 +690,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 		snapshot.timeline?.pixelsPerSecond,
 		toggleFullscreen,
 	]);
-	const applicationMenus = createApplicationMenus({
+	const recentProjectsMenuKey = (snapshot.recentProjects || [])
+		.map(({ id, title }) => `${id}:${title}`)
+		.join('\n');
+	const applicationMenus = useMemo(() => createApplicationMenus({
 		locale,
 		copy,
 		project,
@@ -796,7 +842,59 @@ function AudioEditorWorkspace({ locale, copy }) {
 			support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 			about: () => setDialog('about'),
 		},
-	});
+	}), [
+		blocked,
+		controller,
+		copy,
+		durationFrames,
+		editBlocked,
+		Boolean(effectsOverlay),
+		executeEdit,
+		fileService,
+		locale,
+		openDesktopFiles,
+		openEffects,
+		openExternal,
+		openGenerator,
+		openProjects,
+		openRecordingOffset,
+		openSelectionEffect,
+		openSpectralSelection,
+		openSurface,
+		openTimedRecording,
+		openWorkspacePanel,
+		parityRuntime.actions,
+		project,
+		recentProjectsMenuKey,
+		recordLabel,
+		run,
+		selectedClip,
+		selectionActive,
+		showArmControls,
+		snapshot.effects?.canRepeatLast,
+		snapshot.history?.canRedo,
+		snapshot.history?.canUndo,
+		snapshot.history?.hasClipboard,
+		snapshot.loopOptions?.selectionFollows,
+		snapshot.monitor?.enabled,
+		snapshot.preferences,
+		snapshot.readOnly,
+		snapshot.recordingOptions?.metronome,
+		snapshot.selectedTrackId,
+		snapshot.timeline?.pinnedPlayhead,
+		snapshot.timeline?.playbackOnRulerClick,
+		snapshot.timeline?.showRms,
+		snapshot.timeline?.showVerticalRulers,
+		snapshot.timeline?.updateDisplayWhilePlaying,
+		snapshot.timeline?.view,
+		toggleFullscreen,
+		toggleRecording,
+		uiFlags.clipping,
+		uiFlags.masterTrack,
+		uiFlags.statusbar,
+		uiFlags.tracksPanel,
+		zoomProject,
+	]);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
@@ -1216,32 +1314,38 @@ function AudioEditorWorkspace({ locale, copy }) {
 							'--effects-panel-height': `${effectsPosition.panelHeight}px`,
 						}}
 					>
-						<AudioEditorEffectsOverlay
-							isOpen
-							controller={controller}
-							snapshot={snapshot}
-							copy={copy}
-							locale={locale}
-							fileService={fileService}
-							trackId={effectsOverlay.trackId}
-							scope={effectsOverlay.scope}
-							onClose={closeEffects}
-							position={{
-								left: effectsPosition.left,
-								top: effectsPosition.top,
-								width: effectsPosition.width,
-								height: effectsPosition.panelHeight,
-							}}
-						/>
+						<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+							<AudioEditorEffectsOverlay
+								isOpen
+								controller={controller}
+								snapshot={snapshot}
+								copy={copy}
+								locale={locale}
+								fileService={fileService}
+								trackId={effectsOverlay.trackId}
+								scope={effectsOverlay.scope}
+								onClose={closeEffects}
+								position={{
+									left: effectsPosition.left,
+									top: effectsPosition.top,
+									width: effectsPosition.width,
+									height: effectsPosition.panelHeight,
+								}}
+							/>
+						</React.Suspense>
 					</div>
 				)}
 			</div>
 
 			{toolbarDock === 'bottom' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="bottom">{editorToolbar}</div>}
 			{toolbarDock === 'floating' && <div
+				ref={floatingToolbarRef}
 				className="kw-audio-editor__floating-toolbar"
 				data-toolbar-dock="floating"
-				style={{ left: `${floatingToolbarPosition.x}px`, top: `${floatingToolbarPosition.y}px` }}
+				style={{
+					left: `${toolbarDragRef.current?.dock === 'floating' ? toolbarDragRef.current.x : floatingToolbarPosition.x}px`,
+					top: `${toolbarDragRef.current?.dock === 'floating' ? toolbarDragRef.current.y : floatingToolbarPosition.y}px`,
+				}}
 			>{editorToolbar}</div>}
 
 			{(uiFlags.selectionToolbar || uiFlags.statusbar) && <AccessibleSelectionToolbar
@@ -1259,41 +1363,47 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 			{activeSurface === 'clip' && (
 				<div data-editor-surface="clip">
-					<ClipPropertiesDialog
-						isOpen
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						onClose={() => setActiveSurface(null)}
-					/>
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<ClipPropertiesDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
 				</div>
 			)}
 			{activeSurface === 'selection-effect' && (
 				<div data-editor-surface="selection-effect">
-					<SelectionEffectsDialog
-						isOpen
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						locale={locale}
-						fileService={fileService}
-						onClose={() => setActiveSurface(null)}
-					/>
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<SelectionEffectsDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
 				</div>
 			)}
 			{activeSurface === 'macro-manager' && (
 				<div data-editor-surface="macro-manager">
-					<AudioEditorMacroManagerDialog
-						isOpen
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						locale={locale}
-						fileService={fileService}
-						draft={macroDraft}
-						onDraftChange={setMacroDraft}
-						onClose={() => setActiveSurface(null)}
-					/>
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<AudioEditorMacroManagerDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							draft={macroDraft}
+							onDraftChange={setMacroDraft}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
 				</div>
 			)}
 			{activeSurface === 'spectral-selection' && (
@@ -1335,14 +1445,16 @@ function AudioEditorWorkspace({ locale, copy }) {
 			)}
 			{activeSurface === 'export' && (
 				<div data-editor-surface="export">
-					<ExportDialog
-						isOpen
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						locale={locale}
-						onClose={() => setActiveSurface(null)}
-					/>
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<ExportDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							locale={locale}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
 				</div>
 			)}
 			{activeSurface === 'preferences' && (
@@ -3483,14 +3595,16 @@ function WorkspacePanelContent({
 		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
 	if (analysisMode) {
 		return (
-			<AnalysisPanel
-				mode={analysisMode}
-				controller={controller}
-				snapshot={snapshot}
-				copy={copy}
-				locale={locale}
-				fileService={fileService}
-			/>
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<AnalysisPanel
+					mode={analysisMode}
+					controller={controller}
+					snapshot={snapshot}
+					copy={copy}
+					locale={locale}
+					fileService={fileService}
+				/>
+			</React.Suspense>
 		);
 	}
 	if (panelId === 'ebu-r128') {
