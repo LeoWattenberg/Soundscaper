@@ -581,34 +581,25 @@ export default function AudioEditorTimeline({
 				durationFrames: Math.max(1, session.original.durationFrames + deltaFrames),
 			}));
 		} else if (session.kind === 'trim-left') {
-			const source = project.sources.find((item) => item.id === clip.sourceId);
-			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
-			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
-			const sourceExtension = session.original.reversed
-				? source.frameCount - session.original.sourceStartFrame - sourceDurationFrames
-				: session.original.sourceStartFrame;
-			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
-			const change = Math.max(
-				-Math.min(session.original.timelineStartFrame, timelineExtension),
-				Math.min(session.original.durationFrames - 1, deltaFrames),
-			);
-			run(() => controller.actions.clip.trim(clip.id, {
-				timelineStartFrame: session.original.timelineStartFrame + change,
-				durationFrames: session.original.durationFrames - change,
-			}));
+			const trimPreview = dragPreview || null;
+			const nextTimelineStartFrame = Number(trimPreview?.timelineStartFrame);
+			const nextDurationFrames = Number(trimPreview?.durationFrames);
+			const changes = {};
+			if (Number.isSafeInteger(nextTimelineStartFrame) && nextTimelineStartFrame !== session.original.timelineStartFrame) {
+				changes.timelineStartFrame = nextTimelineStartFrame;
+			}
+			if (Number.isSafeInteger(nextDurationFrames) && nextDurationFrames !== session.original.durationFrames) {
+				changes.durationFrames = nextDurationFrames;
+			}
+			if (Object.keys(changes).length) {
+				run(() => controller.actions.clip.trim(clip.id, changes));
+			}
 		} else if (session.kind === 'trim-right') {
-			const source = project.sources.find((item) => item.id === clip.sourceId);
-			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
-			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
-			const sourceExtension = session.original.reversed
-				? session.original.sourceStartFrame
-				: source.frameCount - session.original.sourceStartFrame - sourceDurationFrames;
-			const maximumDuration = session.original.durationFrames
-				+ Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
-			const nextDuration = Math.max(1, Math.min(maximumDuration, session.original.durationFrames + deltaFrames));
-			run(() => controller.actions.clip.trim(clip.id, {
-				durationFrames: nextDuration,
-			}));
+			const trimPreview = dragPreview || null;
+			const nextDurationFrames = Number(trimPreview?.durationFrames);
+			if (Number.isSafeInteger(nextDurationFrames) && nextDurationFrames !== session.original.durationFrames) {
+				run(() => controller.actions.clip.trim(clip.id, { durationFrames: nextDurationFrames }));
+			}
 		}
 	}, [controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
 
@@ -868,6 +859,54 @@ export default function AudioEditorTimeline({
 				durationFrames: session.kind === 'stretch-left'
 					? session.original.durationFrames - change
 					: Math.max(1, session.original.durationFrames + deltaFrames),
+			};
+			session.preview = preview;
+			setClipDragPreview(preview);
+		} else if (session?.kind === 'trim-left') {
+			const source = project.sources.find((item) => item.id === session.original.sourceId);
+			if (!source) return;
+			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
+			const deltaFrames = secondsToFrames(
+				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
+				{ sampleRate },
+			) * Math.sign(event.clientX - session.startX);
+			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
+			const sourceExtension = session.original.reversed
+				? source.frameCount - session.original.sourceStartFrame - sourceDurationFrames
+				: session.original.sourceStartFrame;
+			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
+			const change = Math.max(
+				-Math.min(session.original.timelineStartFrame, timelineExtension),
+				Math.min(session.original.durationFrames - 1, deltaFrames),
+			);
+			const preview = {
+				clipId: session.clipId,
+				trackId: session.trackId,
+				timelineStartFrame: session.original.timelineStartFrame + change,
+				durationFrames: session.original.durationFrames - change,
+			};
+			session.preview = preview;
+			setClipDragPreview(preview);
+		} else if (session?.kind === 'trim-right') {
+			const source = project.sources.find((item) => item.id === session.original.sourceId);
+			if (!source) return;
+			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
+			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
+			const sourceExtension = session.original.reversed
+				? session.original.sourceStartFrame
+				: source.frameCount - session.original.sourceStartFrame - sourceDurationFrames;
+			const maximumDuration = session.original.durationFrames
+				+ Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
+			const deltaFrames = secondsToFrames(
+				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
+				{ sampleRate },
+			) * Math.sign(event.clientX - session.startX);
+			const durationFrames = Math.max(1, Math.min(maximumDuration, session.original.durationFrames + deltaFrames));
+			const preview = {
+				clipId: session.clipId,
+				trackId: session.trackId,
+				timelineStartFrame: session.original.timelineStartFrame,
+				durationFrames,
 			};
 			session.preview = preview;
 			setClipDragPreview(preview);
