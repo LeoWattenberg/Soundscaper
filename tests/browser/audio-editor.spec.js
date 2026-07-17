@@ -509,12 +509,22 @@ test.describe('audio editor React/design-system workflows', () => {
 		const topRecordingMeter = editor.locator('[data-meter-kind="recording"][data-meter-position="top"]:not([data-input-meter])');
 		await expect(topRecordingMeter).toBeVisible();
 		await expect(topRecordingMeter).toHaveAttribute('data-meter-orientation', 'horizontal');
-		await expect(topRecordingMeter.getByRole('slider', { name: 'Record level', exact: true })).toBeVisible();
+		const topRecordingSlider = topRecordingMeter.getByRole('slider', { name: 'Record level', exact: true });
+		await expect(topRecordingSlider).toBeVisible();
+		const topSliderBox = await topRecordingSlider.boundingBox();
+		const topChannelsBox = await topRecordingMeter.locator('.kw-audio-editor__playback-meter-channels').boundingBox();
+		expect(Math.abs((topSliderBox.y + topSliderBox.height / 2) - (topChannelsBox.y + topChannelsBox.height / 2))).toBeLessThanOrEqual(1);
+		expect(topSliderBox.height).toBeGreaterThanOrEqual(topChannelsBox.height - 1);
 		await microphoneFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
 		const sideRecordingMeter = editor.locator('[data-side-recording-meter]');
 		await expect(sideRecordingMeter).toBeVisible();
 		await expect(sideRecordingMeter.locator('[data-meter-kind="recording"]')).toHaveAttribute('data-meter-orientation', 'vertical');
-		await expect(sideRecordingMeter.getByRole('slider', { name: 'Record level', exact: true })).toBeVisible();
+		const sideRecordingSlider = sideRecordingMeter.getByRole('slider', { name: 'Record level', exact: true });
+		await expect(sideRecordingSlider).toBeVisible();
+		const sideSliderBox = await sideRecordingSlider.boundingBox();
+		const sideChannelsBox = await sideRecordingMeter.locator('.kw-audio-editor__playback-meter-channels').boundingBox();
+		expect(Math.abs((sideSliderBox.x + sideSliderBox.width / 2) - (sideChannelsBox.x + sideChannelsBox.width / 2))).toBeLessThanOrEqual(1);
+		expect(sideSliderBox.width).toBeGreaterThanOrEqual(sideChannelsBox.width - 1);
 		await page.keyboard.press('Escape');
 
 		let playbackSettings = editor.getByRole('button', { name: 'Playback meter settings', exact: true });
