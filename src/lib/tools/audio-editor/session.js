@@ -109,19 +109,78 @@ function sourceIdsFromDescriptor(descriptor) {
 
 function validateClipboardDescriptor(descriptor) {
 	if (!descriptor || typeof descriptor !== 'object') throw new TypeError('An audio editor clipboard descriptor is required.');
-	if (descriptor.schemaVersion !== 1) throw new RangeError(`Unsupported clipboard schema version: ${descriptor.schemaVersion}.`);
+	if (![1, 2].includes(descriptor.schemaVersion)) {
+		throw new RangeError(`Unsupported clipboard schema version: ${descriptor.schemaVersion}.`);
+	}
 	positiveInteger(descriptor.sampleRate, 'clipboard.sampleRate');
 	positiveInteger(descriptor.durationFrames, 'clipboard.durationFrames');
 	if (!Array.isArray(descriptor.tracks)) throw new TypeError('clipboard.tracks must be an array.');
+	const laneGroups = new Map();
+	const avLinks = new Map();
 	for (const [trackIndex, track] of descriptor.tracks.entries()) {
 		nonEmptyString(track?.sourceTrackId, `clipboard.tracks[${trackIndex}].sourceTrackId`);
 		if (!Array.isArray(track.clips)) throw new TypeError(`clipboard.tracks[${trackIndex}].clips must be an array.`);
+		const sourceTrackType = descriptor.schemaVersion === 2 ? track.sourceTrackType : 'audio';
+		if (!['audio', 'video'].includes(sourceTrackType)) {
+			throw new RangeError(`clipboard.tracks[${trackIndex}].sourceTrackType must be audio or video.`);
+		}
+		if (descriptor.schemaVersion === 2 && track.sourceLaneGroupId != null) {
+			const laneGroupId = nonEmptyString(track.sourceLaneGroupId, `clipboard.tracks[${trackIndex}].sourceLaneGroupId`);
+			const entries = laneGroups.get(laneGroupId) || [];
+			entries.push({ index: trackIndex, type: sourceTrackType });
+			laneGroups.set(laneGroupId, entries);
+		}
 		for (const [clipIndex, clip] of track.clips.entries()) {
 			nonEmptyString(clip?.key, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].key`);
 			nonEmptyString(clip?.sourceId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].sourceId`);
 			nonNegativeInteger(clip.offsetFrame, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].offsetFrame`);
 			nonNegativeInteger(clip.sourceStartFrame, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].sourceStartFrame`);
 			positiveInteger(clip.durationFrames, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].durationFrames`);
+			if (descriptor.schemaVersion === 2) {
+				if (!['audio', 'video'].includes(clip.kind)) {
+					throw new RangeError(`clipboard.tracks[${trackIndex}].clips[${clipIndex}].kind must be audio or video.`);
+				}
+				if (clip.kind !== sourceTrackType) {
+					throw new RangeError(`clipboard.tracks[${trackIndex}] cannot contain a ${clip.kind} clip.`);
+				}
+				if (clip.groupId != null) {
+					nonEmptyString(clip.groupId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].groupId`);
+				}
+				if (clip.avLinkId != null) {
+					const avLinkId = nonEmptyString(clip.avLinkId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].avLinkId`);
+					const linked = avLinks.get(avLinkId) || [];
+					linked.push({
+						kind: clip.kind,
+						offsetFrame: clip.offsetFrame,
+						durationFrames: clip.durationFrames,
+						laneGroupId: track.sourceLaneGroupId || null,
+					});
+					avLinks.set(avLinkId, linked);
+				}
+			}
+		}
+	}
+	for (const [laneGroupId, tracks] of laneGroups) {
+		if (
+			tracks.length !== 2
+			|| tracks[0].type !== 'video'
+			|| tracks[1].type !== 'audio'
+			|| tracks[1].index !== tracks[0].index + 1
+		) {
+			throw new RangeError(`Clipboard media lane group ${laneGroupId} must contain one adjacent video/audio track pair.`);
+		}
+	}
+	for (const [avLinkId, linked] of avLinks) {
+		if (
+			linked.length !== 2
+			|| linked[0].kind !== 'video'
+			|| linked[1].kind !== 'audio'
+			|| linked[0].offsetFrame !== linked[1].offsetFrame
+			|| linked[0].durationFrames !== linked[1].durationFrames
+			|| !linked[0].laneGroupId
+			|| linked[0].laneGroupId !== linked[1].laneGroupId
+		) {
+			throw new RangeError(`Clipboard A/V link ${avLinkId} must contain one aligned video/audio pair.`);
 		}
 	}
 	return clone(descriptor);

@@ -7,8 +7,11 @@ import {
 	collectClipTrimIds,
 	collectRelatedClipIds,
 	createClipboardDescriptor,
+	prepareKeepRangeCommand,
 	prepareLinkedSplitCommand,
 	prepareLinkAvCommand,
+	preparePasteCommand,
+	prepareRangeDeleteCommand,
 	prepareTransformClipsCommand,
 	prepareUnlinkAvCommand,
 } from '../src/lib/tools/audio-editor/commands.js';
@@ -358,6 +361,239 @@ test('a linked split keeps the left pair together and assigns a fresh link to th
 		],
 	);
 	assert.equal(validateAudioEditorProject(split), true);
+});
+
+test('range deletion from one media lane edits its linked companion and gives the right pair a fresh link', () => {
+	const project = createTimelinePairProject();
+	const counts = new Map();
+	const command = prepareRangeDeleteCommand(project, {
+		startFrame: 300,
+		endFrame: 500,
+		trackIds: ['video-track'],
+	}, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+
+	assert.deepEqual(command.trackIds, ['video-track', 'audio-track']);
+	assert.deepEqual(command.clipIds, ['video-clip', 'audio-clip']);
+	assert.deepEqual(command.splitAvLinkIds, { 'av-original': 'av-link-1' });
+	const edited = apply(project, command);
+	assert.deepEqual(edited.tracks.map((track) => track.clipIds), [
+		['video-clip', 'clip-1'],
+		['audio-clip', 'clip-2'],
+	]);
+	assert.deepEqual(
+		edited.clips
+			.map((clip) => [clip.kind, clip.timelineStartFrame, clip.durationFrames, clip.avLinkId])
+			.sort((left, right) => left[1] - right[1] || right[0].localeCompare(left[0])),
+		[
+			['video', 100, 200, 'av-original'],
+			['audio', 100, 200, 'av-original'],
+			['video', 500, 200, 'av-link-1'],
+			['audio', 500, 200, 'av-link-1'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(edited), true);
+});
+
+test('keep-range from one media lane trims its linked pair without deleting unrelated companion-lane audio', () => {
+	let project = createTimelinePairProject();
+	project = apply(project, {
+		type: 'clip/add',
+		trackId: 'audio-track',
+		clip: createAudioClipV4({
+			id: 'independent-audio',
+			sourceId: 'audio-source',
+			timelineStartFrame: 800,
+			sourceStartFrame: 800,
+			durationFrames: 100,
+		}),
+	});
+	project = apply(project, prepareKeepRangeCommand(project, {
+		startFrame: 300,
+		endFrame: 500,
+		trackIds: ['video-track'],
+	}));
+
+	assert.deepEqual(
+		project.clips.map((clip) => [clip.id, clip.timelineStartFrame, clip.durationFrames, clip.avLinkId]),
+		[
+			['video-clip', 300, 200, 'av-original'],
+			['audio-clip', 300, 200, 'av-original'],
+			['independent-audio', 800, 100, null],
+		],
+	);
+	assert.equal(validateAudioEditorProject(project), true);
+});
+
+test('clipboard paste preserves media lanes and remaps clip groups and A/V links', () => {
+	const sourceProject = createTimelinePairProject();
+	sourceProject.clips = sourceProject.clips.map((clip) => ({ ...clip, groupId: 'source-group' }));
+	const clipboard = createClipboardDescriptor(sourceProject, {
+		startFrame: 100,
+		endFrame: 700,
+		trackIds: ['video-track'],
+	});
+	assert.equal(clipboard.schemaVersion, 2);
+	assert.deepEqual(
+		clipboard.tracks.map((track) => [
+			track.sourceTrackType,
+			track.sourceLaneGroupId,
+			track.clips[0].kind,
+			track.clips[0].avLinkId,
+		]),
+		[
+			['video', 'camera-lanes', 'video', 'av-original'],
+			['audio', 'camera-lanes', 'audio', 'av-original'],
+		],
+	);
+
+	let target = createAudioEditorProjectV4({
+		id: 'clipboard-target',
+		title: 'Clipboard target',
+		now: NOW,
+		sources: createMediaSources(),
+		tracks: [
+			createVideoTrackV4({ id: 'target-video', laneGroupId: 'target-lanes' }),
+			createAudioTrackV4({ id: 'target-audio', laneGroupId: 'target-lanes' }),
+		],
+	});
+	const counts = new Map();
+	const paste = preparePasteCommand(clipboard, {
+		atFrame: 1_000,
+		trackMap: {
+			'video-track': 'target-video',
+			'audio-track': 'target-audio',
+		},
+	}, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+	target = apply(target, paste);
+
+	assert.notEqual(paste.groupIds['source-group'], 'source-group');
+	assert.notEqual(paste.avLinkIds['av-original'], 'av-original');
+	assert.deepEqual(
+		target.clips.map((clip) => [
+			clip.kind,
+			clip.timelineStartFrame,
+			clip.groupId,
+			clip.avLinkId,
+		]),
+		[
+			['video', 1_000, 'clip-group-1', 'av-link-1'],
+			['audio', 1_000, 'clip-group-1', 'av-link-1'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(target), true);
+});
+
+test('insert-paste splits an existing linked pair with one fresh right-side link', () => {
+	const project = createTimelinePairProject();
+	const clipboard = createClipboardDescriptor(project, {
+		startFrame: 100,
+		endFrame: 200,
+		trackIds: ['video-track'],
+	});
+	const counts = new Map();
+	const command = preparePasteCommand(clipboard, {
+		project,
+		atFrame: 400,
+		mode: 'insert-track',
+		trackMap: {
+			'video-track': 'video-track',
+			'audio-track': 'audio-track',
+		},
+	}, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+	const pasted = apply(project, command);
+	const linkedRanges = new Map();
+	for (const clip of pasted.clips) {
+		const ranges = linkedRanges.get(clip.avLinkId) || [];
+		ranges.push([clip.kind, clip.timelineStartFrame, clip.durationFrames]);
+		linkedRanges.set(clip.avLinkId, ranges);
+	}
+
+	assert.equal(linkedRanges.size, 3);
+	assert.deepEqual(linkedRanges.get('av-original'), [
+		['video', 100, 300],
+		['audio', 100, 300],
+	]);
+	assert.deepEqual(linkedRanges.get(command.avLinkIds['av-original']), [
+		['video', 400, 100],
+		['audio', 400, 100],
+	]);
+	assert.deepEqual(linkedRanges.get(command.splitAvLinkIds['av-original']), [
+		['video', 500, 300],
+		['audio', 500, 300],
+	]);
+	assert.equal(validateAudioEditorProject(pasted), true);
+});
+
+test('legacy V1 audio clipboards still paste into V4 audio tracks', () => {
+	const target = createAudioEditorProjectV4({
+		id: 'legacy-clipboard-target',
+		title: 'Legacy clipboard target',
+		now: NOW,
+		sources: [createMediaSources()[1]],
+		tracks: [createAudioTrackV4({ id: 'legacy-audio-track' })],
+	});
+	const clipboard = {
+		schemaVersion: 1,
+		sampleRate: 48_000,
+		durationFrames: 100,
+		tracks: [{
+			sourceTrackId: 'legacy-source-track',
+			sourceTrackName: 'Legacy audio',
+			clips: [{
+				key: 'legacy-clip:0:100',
+				sourceId: 'audio-source',
+				offsetFrame: 0,
+				sourceStartFrame: 0,
+				durationFrames: 100,
+			}],
+		}],
+	};
+	const pasted = apply(target, preparePasteCommand(clipboard, {
+		atFrame: 250,
+		trackMap: { 'legacy-source-track': 'legacy-audio-track' },
+	}, () => 'legacy-pasted-clip'));
+	assert.deepEqual(
+		pasted.clips.map((clip) => [clip.id, clip.kind, clip.timelineStartFrame]),
+		[['legacy-pasted-clip', 'audio', 250]],
+	);
+	assert.equal(validateAudioEditorProject(pasted), true);
+});
+
+test('joining adjacent linked segments rejoins both media lanes atomically', () => {
+	let project = createTimelinePairProject();
+	project = apply(project, prepareLinkedSplitCommand(project, 'video-clip', 400, (() => {
+		const ids = ['right-video', 'right-audio', 'right-av'];
+		return () => ids.shift();
+	})()));
+	project = apply(project, {
+		type: 'clip/join',
+		clipIds: ['video-clip', 'right-video', 'audio-clip', 'right-audio'],
+	});
+
+	assert.deepEqual(project.tracks.map((track) => track.clipIds), [
+		['video-clip'],
+		['audio-clip'],
+	]);
+	assert.deepEqual(
+		project.clips.map((clip) => [clip.id, clip.durationFrames, clip.avLinkId]),
+		[
+			['video-clip', 600, 'av-original'],
+			['audio-clip', 600, 'av-original'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(project), true);
 });
 
 test('linked trims and stretches commit only when both media clips remain aligned', () => {

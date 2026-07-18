@@ -166,6 +166,31 @@ test('cross-project clipboard retains source metadata and owns source roots afte
 	assert.deepEqual(released.at(-1), { sourceIds: ['source-a'], reason: 'project-close' });
 });
 
+test('session clipboard accepts legacy V1 audio descriptors', () => {
+	const project = audioProject('legacy-clipboard-project', 'legacy-source');
+	const controller = createAudioEditorSessionController({ projects: [project] });
+	const result = controller.setClipboard({
+		schemaVersion: 1,
+		sampleRate: project.sampleRate,
+		durationFrames: 100,
+		tracks: [{
+			sourceTrackId: `${project.id}-track`,
+			sourceTrackName: 'Legacy track',
+			clips: [{
+				key: 'legacy-key',
+				sourceId: 'legacy-source',
+				offsetFrame: 0,
+				sourceStartFrame: 0,
+				durationFrames: 100,
+			}],
+		}],
+	});
+
+	assert.equal(result.clipboard.descriptor.schemaVersion, 1);
+	assert.deepEqual(result.clipboard.sources.map((source) => source.id), ['legacy-source']);
+	assert.equal(controller.clipboardForProject(project.id).descriptor.tracks[0].clips[0].key, 'legacy-key');
+});
+
 test('history and clipboard reference counts release sources only after their final root disappears', () => {
 	const project = audioProject('project-history', 'source-history');
 	const empty = emptyProjectLike(project);

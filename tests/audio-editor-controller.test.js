@@ -621,6 +621,53 @@ test('moving a linked video clip below the timeline creates a fresh paired lane 
 	await controller.dispose();
 });
 
+test('cross-project video paste creates one adjacent paired lane group with fresh relationships', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ timeline: true });
+	store.projects.set(fixture.project.id, structuredClone(fixture.project));
+	store.settings.set('last-project-id', fixture.project.id);
+	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
+	store.audioSources.set(fixture.audioSource.id, [
+		new Float32Array(fixture.audioSource.frameCount),
+		new Float32Array(fixture.audioSource.frameCount),
+	]);
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	try {
+		await controller.ready;
+		controller.actions.timeline.selectClip('persisted-timeline-video');
+		controller.actions.edit.copy();
+		assert.equal(controller.getSnapshot().history.hasClipboard, true);
+
+		await controller.actions.project.create({ title: 'Video paste target' });
+		controller.actions.edit.paste();
+		const snapshot = controller.getSnapshot();
+		const mediaTracks = snapshot.project.tracks.filter((track) => track.laneGroupId);
+		assert.deepEqual(mediaTracks.map((track) => track.type), ['video', 'audio']);
+		assert.equal(mediaTracks[0].laneGroupId, mediaTracks[1].laneGroupId);
+		assert.notEqual(mediaTracks[0].laneGroupId, 'persisted-lane-group');
+		assert.equal(snapshot.project.tracks.indexOf(mediaTracks[1]), snapshot.project.tracks.indexOf(mediaTracks[0]) + 1);
+
+		const videoClip = snapshot.project.clips.find((clip) => clip.kind === 'video');
+		const audioClip = snapshot.project.clips.find((clip) => clip.avLinkId === videoClip?.avLinkId && clip.kind === 'audio');
+		assert.ok(videoClip);
+		assert.ok(audioClip);
+		assert.notEqual(videoClip.avLinkId, 'persisted-av-link');
+		assert.equal(videoClip.timelineStartFrame, audioClip.timelineStartFrame);
+		assert.equal(videoClip.durationFrames, audioClip.durationFrames);
+		assert.ok(snapshot.project.sources.some((source) => source.id === fixture.videoSource.id && source.kind === 'video'));
+		assert.ok(snapshot.project.sources.some((source) => source.id === fixture.audioSource.id && source.kind === 'audio'));
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('video export API and generic export dispatch stage raw media and audio for MP4 and WebM', async () => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });

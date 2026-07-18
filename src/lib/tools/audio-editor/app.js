@@ -4083,23 +4083,99 @@ export function createAudioEditorController(_root = null, options = {}) {
 		let addedTrackCount = 0;
 		const usedTrackIds = new Set();
 		const selected = findTrack(project, state.selectedTrackId);
-		for (const [index, clipboardTrack] of state.clipboard.tracks.entries()) {
-			let target = findTrack(project, clipboardTrack.sourceTrackId);
-			if (!target && index === 0 && selected && Array.isArray(selected.clipIds)) target = selected;
-			if (target && usedTrackIds.has(target.id)) target = null;
-			if (!target) {
-				const trackId = createStableId('track');
-				addedTrackCount += 1;
-				commands.push(createAddTrackCommand({
-					schemaVersion: 2,
-					type: 'audio',
-					id: trackId,
-					name: clipboardTrack.sourceTrackName || `${copy.track} ${project.tracks.length + addedTrackCount}`,
-				}));
-				target = { id: trackId };
-			}
+		const clipboardTracks = state.clipboard.tracks || [];
+		const clipboardTrackType = (clipboardTrack) => (
+			clipboardTrack.sourceTrackType
+			|| clipboardTrack.clips?.[0]?.kind
+			|| 'audio'
+		);
+		const targetMatches = (target, clipboardTrack) => Boolean(
+			target
+			&& Array.isArray(target.clipIds)
+			&& target.type === clipboardTrackType(clipboardTrack)
+			&& !usedTrackIds.has(target.id)
+		);
+		const assignTarget = (clipboardTrack, target) => {
 			trackMap[clipboardTrack.sourceTrackId] = target.id;
 			usedTrackIds.add(target.id);
+		};
+		const laneGroups = new Map();
+		for (const clipboardTrack of clipboardTracks) {
+			if (!clipboardTrack.sourceLaneGroupId) continue;
+			const grouped = laneGroups.get(clipboardTrack.sourceLaneGroupId) || [];
+			grouped.push(clipboardTrack);
+			laneGroups.set(clipboardTrack.sourceLaneGroupId, grouped);
+		}
+		const findTargetLanePair = (candidate) => {
+			if (!candidate?.laneGroupId) return null;
+			const grouped = project.tracks.filter((track) => track.laneGroupId === candidate.laneGroupId);
+			if (
+				grouped.length !== 2
+				|| grouped[0].type !== 'video'
+				|| grouped[1].type !== 'audio'
+				|| grouped.some((track) => usedTrackIds.has(track.id))
+			) return null;
+			return grouped;
+		};
+		const createTargetTrack = (clipboardTrack, laneGroupId = null) => {
+			const type = clipboardTrackType(clipboardTrack);
+			if (type === 'video' && project.schemaVersion < 4) {
+				throw new RangeError('Video clipboard tracks require an AudioEditorProjectV4 project.');
+			}
+			const trackId = createStableId(type === 'video' ? 'video-track' : 'track');
+			addedTrackCount += 1;
+			commands.push(createAddTrackCommand({
+				schemaVersion: project.schemaVersion,
+				type,
+				id: trackId,
+				name: clipboardTrack.sourceTrackName || `${copy.track} ${project.tracks.length + addedTrackCount}`,
+				laneGroupId,
+			}));
+			return { id: trackId, type, laneGroupId, clipIds: [] };
+		};
+
+		for (const [index, clipboardTrack] of clipboardTracks.entries()) {
+			if (trackMap[clipboardTrack.sourceTrackId]) continue;
+			const grouped = clipboardTrack.sourceLaneGroupId
+				? laneGroups.get(clipboardTrack.sourceLaneGroupId)
+				: null;
+			const videoClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'video');
+			const audioClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'audio');
+			if (grouped?.length === 2 && videoClipboardTrack && audioClipboardTrack) {
+				const existingVideo = findTrack(project, videoClipboardTrack.sourceTrackId);
+				const existingAudio = findTrack(project, audioClipboardTrack.sourceTrackId);
+				let targetPair = (
+					targetMatches(existingVideo, videoClipboardTrack)
+					&& targetMatches(existingAudio, audioClipboardTrack)
+					&& existingVideo.laneGroupId
+					&& existingVideo.laneGroupId === existingAudio.laneGroupId
+				) ? [existingVideo, existingAudio] : null;
+				if (
+					!targetPair
+					&& (
+						targetMatches(selected, videoClipboardTrack)
+						|| targetMatches(selected, audioClipboardTrack)
+					)
+				) {
+					targetPair = findTargetLanePair(selected);
+				}
+				if (!targetPair) {
+					const laneGroupId = createStableId('media-lanes');
+					targetPair = [
+						createTargetTrack(videoClipboardTrack, laneGroupId),
+						createTargetTrack(audioClipboardTrack, laneGroupId),
+					];
+				}
+				assignTarget(videoClipboardTrack, targetPair[0]);
+				assignTarget(audioClipboardTrack, targetPair[1]);
+				continue;
+			}
+
+			let target = findTrack(project, clipboardTrack.sourceTrackId);
+			if (!targetMatches(target, clipboardTrack)) target = null;
+			if (!target && index === 0 && targetMatches(selected, clipboardTrack)) target = selected;
+			if (!target) target = createTargetTrack(clipboardTrack);
+			assignTarget(clipboardTrack, target);
 		}
 		commands.push(preparePasteCommand(state.clipboard, { project, atFrame, trackMap, mode }));
 		return commands.length === 1 ? commands[0] : { type: 'batch', commands };
