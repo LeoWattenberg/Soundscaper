@@ -271,6 +271,68 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	await controller.dispose();
 });
 
+test('selection-only actions preserve edit history, persistence state, and the live audio graph', async () => {
+	const store = createMemoryStore();
+	const engine = createMemoryEngine();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const projectId = controller.getSnapshot().project.id;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				id: 'selection-state-source',
+				name: 'selection.wav',
+				storageKey: 'selection-state-source',
+				mimeType: 'audio/wav',
+				frameCount: 4_800,
+				channelCount: 1,
+				sampleRate: 48_000,
+			},
+		}, {
+			type: 'clip/add',
+			trackId,
+			clip: {
+				id: 'selection-state-clip',
+				sourceId: 'selection-state-source',
+				timelineStartFrame: 0,
+				sourceStartFrame: 0,
+				durationFrames: 4_800,
+			},
+		}],
+	});
+	await controller.actions.project.flush();
+	await Promise.resolve();
+	await Promise.resolve();
+
+	const historyBefore = controller.getSnapshot().history;
+	const persistedSelection = structuredClone(store.projects.get(projectId).selection);
+	engine.appliedProjects.length = 0;
+	engine.play();
+
+	controller.actions.timeline.setSelection(100, 200);
+	controller.actions.timeline.selectClip('selection-state-clip');
+	controller.actions.timeline.clearSelection();
+
+	const snapshot = controller.getSnapshot();
+	assert.equal(engine.state, 'playing');
+	assert.equal(engine.appliedProjects.length, 0);
+	assert.deepEqual(snapshot.history.undoEntries, historyBefore.undoEntries);
+	assert.deepEqual(snapshot.history.redoEntries, historyBefore.redoEntries);
+	assert.equal(snapshot.save.state, 'saved');
+	assert.deepEqual(store.projects.get(projectId).selection, persistedSelection);
+	await controller.dispose();
+});
+
 test('controller moves transformed selections through the reusable project bin and places stable copies', async () => {
 	const engine = createMemoryEngine();
 	const controller = createAudioEditorController(null, {

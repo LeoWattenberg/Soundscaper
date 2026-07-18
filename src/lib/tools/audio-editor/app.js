@@ -3,6 +3,7 @@ import {
 	AUDIO_EDITOR_TRACK_COLORS,
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
+	applyEditorCommand,
 	applyAudioSelectionEffectAsync,
 	applyAudioEditorWorkspace,
 	applyAudioEditorEffectPreset,
@@ -1002,16 +1003,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 			selectTrack,
 			selectClip,
 			setSelection,
-			clearSelection: () => commit({
-				type: 'selection/set',
-				startFrame: 0,
-				endFrame: 0,
-				trackIds: [],
-				clipIds: [],
-				frequencyRange: null,
-			}, {
-				selectClipId: null,
-			}),
+			clearSelection: () => {
+				state.selectedClipId = null;
+				return updateSelection({
+					type: 'selection/set',
+					startFrame: 0,
+					endFrame: 0,
+					trackIds: [],
+					clipIds: [],
+					frequencyRange: null,
+				});
+			},
 			selectAllTracks,
 				selectLeftOfPlayback: selectLeftOfPlaybackPosition,
 				selectRightOfPlayback: selectRightOfPlaybackPosition,
@@ -4532,7 +4534,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.selectedClipId = null;
 			if (project?.schemaVersion >= 2 && project.selection?.clipIds?.length) {
 				const selection = project.selection;
-				return commit({
+				return updateSelection({
 					type: 'selection/set',
 					startFrame: selection.startFrame,
 					endFrame: selection.endFrame,
@@ -4571,7 +4573,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const activeTrack = activeClipId ? findClipTrack(project, activeClipId) : null;
 		state.selectedTrackId = activeTrack?.id || null;
 		state.selectedClipId = activeClipId;
-		commit({
+		updateSelection({
 			type: 'selection/set',
 			startFrame: 0,
 			endFrame: 0,
@@ -4595,7 +4597,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.selectedClipId = null;
 		const command = { type: 'selection/set', startFrame: start, endFrame: end };
 		if (Object.keys(details).length) Object.assign(command, details, { clipIds: [] });
-		return commit(command);
+		return updateSelection(command);
 	}
 
 	function selectAllTracks() {
@@ -5689,6 +5691,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (Object.hasOwn(selection, 'selectTrackId')) state.selectedTrackId = selection.selectTrackId;
 		if (Object.hasOwn(selection, 'selectClipId')) state.selectedClipId = selection.selectClipId;
 		projectChanged(options);
+		return project;
+	}
+
+	function updateSelection(command) {
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		state.history = {
+			...state.history,
+			present: applyEditorCommand(state.history.present, command),
+		};
+		project = state.history.present;
+		publishProjectState();
 		return project;
 	}
 
