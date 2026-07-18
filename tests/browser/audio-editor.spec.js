@@ -3253,6 +3253,89 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps rack knob updates live and ends Delay gestures when the window blurs', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const effectsPanel = await openEffectsForTrack(editor, 0);
+
+		await addRackEffect(page, effectsPanel, 'track', 'Reverb');
+		const reverb = page.getByRole('dialog', { name: 'Reverb', exact: true });
+		const decayInput = reverb.locator('[data-effect-param="decay"] input');
+		const decayKnob = reverb.locator('[data-effect-param="decay"]').getByRole('slider', { name: /Decay:/ });
+		const initialDecay = await decayInput.inputValue();
+		const decayBox = await decayKnob.boundingBox();
+		expect(decayBox).not.toBeNull();
+		await page.mouse.move(decayBox.x + decayBox.width / 2, decayBox.y + decayBox.height / 2);
+		await page.mouse.down();
+		try {
+			await page.mouse.move(decayBox.x + decayBox.width / 2 + 20, decayBox.y + decayBox.height / 2);
+			await expect.poll(() => decayInput.inputValue()).not.toBe(initialDecay);
+		} finally {
+			await page.mouse.up();
+		}
+		await closeDialog(reverb);
+
+		await addRackEffect(page, effectsPanel, 'track', 'Delay');
+		const delay = page.getByRole('dialog', { name: 'Delay', exact: true });
+		const mixField = delay.locator('[data-effect-param="mix"]');
+		const mixInput = mixField.locator('input');
+		const mixKnob = mixField.getByRole('slider', { name: /Mix:/ });
+		await commitInput(mixInput, '0');
+		const dryBox = await mixKnob.boundingBox();
+		expect(dryBox).not.toBeNull();
+		await page.mouse.move(dryBox.x + dryBox.width / 2, dryBox.y + dryBox.height / 2);
+		await page.mouse.down();
+		try {
+			await expect(mixKnob).toHaveClass(/knob--dragging/);
+			await page.waitForTimeout(50);
+			await page.evaluate(({ clientX, clientY }) => {
+				document.dispatchEvent(new MouseEvent('mousemove', {
+					bubbles: true,
+					buttons: 1,
+					clientX,
+					clientY,
+				}));
+			}, {
+				clientX: dryBox.x + dryBox.width / 2,
+				clientY: dryBox.y + dryBox.height / 2 - 24,
+			});
+			await expect.poll(async () => Number(await mixKnob.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+			await expect.poll(() => mixInput.inputValue()).not.toBe('0');
+		} finally {
+			await page.mouse.up();
+		}
+
+		await commitInput(mixInput, '0.2');
+		const liveBox = await mixKnob.boundingBox();
+		expect(liveBox).not.toBeNull();
+		await page.mouse.move(liveBox.x + liveBox.width / 2, liveBox.y + liveBox.height / 2);
+		await page.mouse.down();
+		await expect(mixKnob).toHaveClass(/knob--dragging/);
+		await page.waitForTimeout(50);
+		await page.evaluate(({ clientX, clientY }) => {
+			document.dispatchEvent(new MouseEvent('mousemove', {
+				bubbles: true,
+				buttons: 1,
+				clientX,
+				clientY,
+			}));
+		}, {
+			clientX: liveBox.x + liveBox.width / 2,
+			clientY: liveBox.y + liveBox.height / 2 - 20,
+		});
+		await expect(mixInput).toHaveValue('0.2');
+		await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+		await expect(mixKnob).not.toHaveClass(/knob--dragging/);
+		await expect.poll(() => mixInput.inputValue()).not.toBe('0.2');
+		const committedMix = await mixInput.inputValue();
+		await page.mouse.move(liveBox.x + liveBox.width / 2, liveBox.y + liveBox.height / 2 - 40);
+		await expect.poll(() => mixInput.inputValue()).toBe(committedMix);
+		await page.mouse.up();
+
+		await closeDialog(delay);
+		expect(errors).toEqual([]);
+	});
+
 	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

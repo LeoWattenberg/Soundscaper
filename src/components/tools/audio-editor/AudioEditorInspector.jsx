@@ -528,6 +528,13 @@ export function AudioEditorEffectsOverlay({
 	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : channelEffects;
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
 	const effectScope = selectedEffect?.scope || scope;
+	const effectOwner = effectScope === 'master' ? project?.master : channel;
+	const supportsLiveRackGesture = (
+		effect?.type === 'delay'
+		&& effect.enabled !== false
+		&& effectOwner?.effectsActive !== false
+		&& Number(effect.params?.mix) > 0
+	);
 	const rackPresets = effect && effect.type !== 'missing'
 		? controller.actions.effects.presets.list(effect.type)
 		: [];
@@ -679,35 +686,43 @@ export function AudioEditorEffectsOverlay({
 								: null}
 							noiseProfileLabel={effect.context?.noiseProfile ? copy.replaceNoiseProfile : copy.getNoiseProfile}
 							sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
-							onRackEffectGestureBegin={() => controller.actions.effects.beginRackEffectGesture?.(
-								effectScope,
-								effectScope === 'master' ? null : targetId,
-								effect.id,
-							)}
-							onRackEffectPreview={(params) => controller.actions.effects.previewRackEffect?.(
-								effectScope,
-								effectScope === 'master' ? null : targetId,
-								effect.id,
-								params,
-							)}
-							onRackEffectCommit={(params) => controller.actions.effects.commitRackEffectGesture
-								? controller.actions.effects.commitRackEffectGesture(
+							onRackEffectGestureBegin={supportsLiveRackGesture
+								? () => controller.actions.effects.beginRackEffectGesture?.(
+									effectScope,
+									effectScope === 'master' ? null : targetId,
+									effect.id,
+								)
+								: null}
+							onRackEffectPreview={supportsLiveRackGesture
+								? (params) => controller.actions.effects.previewRackEffect?.(
 									effectScope,
 									effectScope === 'master' ? null : targetId,
 									effect.id,
 									params,
 								)
-								: controller.actions.effects.update(
+								: null}
+							onRackEffectCommit={supportsLiveRackGesture
+								? (params) => controller.actions.effects.commitRackEffectGesture
+									? controller.actions.effects.commitRackEffectGesture(
+										effectScope,
+										effectScope === 'master' ? null : targetId,
+										effect.id,
+										params,
+									)
+									: controller.actions.effects.update(
+										effectScope,
+										effectScope === 'master' ? null : targetId,
+										effect.id,
+										{ params },
+									)
+								: null}
+							onRackEffectCancel={supportsLiveRackGesture
+								? () => controller.actions.effects.cancelRackEffectGesture?.(
 									effectScope,
 									effectScope === 'master' ? null : targetId,
 									effect.id,
-									{ params },
-								)}
-							onRackEffectCancel={() => controller.actions.effects.cancelRackEffectGesture?.(
-								effectScope,
-								effectScope === 'master' ? null : targetId,
-								effect.id,
-							)}
+								)
+								: null}
 							onParametricEqGestureBegin={() => controller.actions.effects.beginParametricEqGesture?.(
 								effectScope,
 								effectScope === 'master' ? null : targetId,
@@ -1696,14 +1711,17 @@ function ParameterNumber({
 	const knobRange = Array.isArray(range) && range.length === 2 && range.every(Number.isFinite) ? range : null;
 	const knobStep = Number.isFinite(step) && step > 0
 		? step
-		: Number.isInteger(value) && knobRange?.every(Number.isInteger) ? 1 : 0.01;
+		: 0.01;
 	const gestureEnabled = Boolean(onGestureBegin && onGesturePreview && onGestureCommit);
 	useEffect(() => {
 		if (!gestureActive) return undefined;
-		const finish = () => {
+		const finish = (event) => {
 			if (!gestureActiveRef.current) return;
 			gestureActiveRef.current = false;
 			const next = gestureValueRef.current;
+			if (event?.type === 'blur' && typeof globalThis.MouseEvent === 'function') {
+				document.dispatchEvent(new globalThis.MouseEvent('mouseup', { bubbles: true }));
+			}
 			setGestureActive(false);
 			setGestureValue(null);
 			gestureCallbacksRef.current.commit?.(next);
