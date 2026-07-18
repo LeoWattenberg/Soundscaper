@@ -71,6 +71,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		mimeType: String(file.type || ''),
 		byteLength: Number(file.size) || 0,
 	});
+	let hasPresentedFrame = false;
 
 	async function capture(timestampSeconds, captureOptions = {}) {
 		if (disposed) throw new Error('The video frame extractor is closed.');
@@ -78,13 +79,20 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 			Math.max(0, durationSeconds - 0.001),
 			Number(timestampSeconds) || 0,
 		));
-		if (Math.abs(Number(video.currentTime) - timestamp) > 0.001) {
+		// `loadedmetadata` can fire before the decoder has presented the first
+		// frame. Seeking to a nearby time forces the browser to populate the
+		// video frame before canvas capture, including for the timestamp-zero
+		// poster.
+		const seekTimestamp = timestamp === 0 && !hasPresentedFrame
+			? Math.min(Math.max(0.001, durationSeconds / 2_000), Math.max(0, durationSeconds - 0.001))
+			: timestamp;
+		if (Math.abs(Number(video.currentTime) - seekTimestamp) > 0.001) {
 			const seeked = waitForMediaEvent(video, 'seeked', {
 				signal: captureOptions.signal ?? options.signal,
 				timeoutMs: captureOptions.timeoutMs ?? options.timeoutMs ?? DEFAULT_METADATA_TIMEOUT_MS,
 				errorMessage: 'The browser could not seek this video.',
 			});
-			video.currentTime = timestamp;
+			video.currentTime = seekTimestamp;
 			await seeked;
 		}
 		const maximumWidth = positiveInteger(captureOptions.maximumWidth ?? 320, 'Thumbnail width');
@@ -101,6 +109,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		const mimeType = String(captureOptions.mimeType || 'image/webp');
 		const quality = Math.max(0, Math.min(1, Number(captureOptions.quality ?? 0.78)));
 		const blob = await canvasToBlob(canvas, mimeType, quality);
+		hasPresentedFrame = true;
 		return Object.freeze({
 			timestampSeconds: timestamp,
 			width: outputWidth,

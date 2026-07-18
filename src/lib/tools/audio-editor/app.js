@@ -2428,11 +2428,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 			const context = await engine.getAudioContext({ resume: false });
 			try {
-				const decodedAudio = await ffmpeg.decode(file, { sampleRate });
-				if (decodedAudio?.channels?.length) {
+				let decodedAudio;
+				try {
+					// The browser has already decoded this container for thumbnails,
+					// and native Web Audio handles AAC tracks that may be unavailable
+					// to a particular FFmpeg core build.
+					decodedAudio = await engine.decodeAudioData(await file.arrayBuffer());
+				} catch {
+					decodedAudio = await ffmpeg.decode(file, { sampleRate });
+				}
+				const decodedChannels = decodedAudio?.channels?.length
+					? decodedAudio.channels
+					: decodedAudio?.numberOfChannels
+						? audioBufferChannels(decodedAudio)
+						: null;
+				if (decodedChannels?.length) {
 					originalAudioSampleRate = decodedAudio.sampleRate || sampleRate;
 					const decodedBuffer = await bufferFromChannels(
-						decodedAudio.channels,
+						decodedChannels,
 						decodedAudio.sampleRate,
 						context,
 						copy,
