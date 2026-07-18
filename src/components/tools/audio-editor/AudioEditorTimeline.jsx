@@ -31,6 +31,7 @@ import {
 	gainDbToDesignVolume,
 	panToDesignValue,
 	prepareBoundedWaveformWindow,
+	preparePeakPyramidWaveformWindow,
 	projectClipsToViewport,
 	rightmostVisibleClip,
 	secondsToFrames,
@@ -2848,6 +2849,7 @@ function TrackRow({
 			waveformCache,
 			movingPreviewClipIds.has(String(clip.id)),
 			displayMode === 'waveform' || displayMode === 'half-wave',
+			displayMode !== 'spectrogram',
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {
@@ -4304,6 +4306,7 @@ function toDesignClip(
 	waveformCache = null,
 	freezeWaveform = false,
 	reuseSummaryForCompatibility = false,
+	allowPeakPyramid = true,
 ) {
 	const visual = controller.getClipVisualData(clip.id)
 		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
@@ -4334,7 +4337,8 @@ function toDesignClip(
 			endFrame: clip.waveformEndFrame,
 		}),
 	};
-	if (!visual?.buffer || !clip.isVisible) return output;
+	const waveformSource = visual?.buffer || (allowPeakPyramid ? visual?.peaks : null);
+	if (!waveformSource || !clip.isVisible) return output;
 	try {
 		const pixelWidth = output.duration * pixelsPerSecond;
 		const contentSignature = [
@@ -4359,7 +4363,7 @@ function toDesignClip(
 		].join('|');
 		const cached = waveformCache?.get(String(clip.id));
 		if (
-			cached?.buffer === visual.buffer
+			cached?.source === waveformSource
 			&& cached.envelope === clip.envelope
 			&& (cached.signature === cacheSignature
 				|| (freezeWaveform && cached.contentSignature === contentSignature))
@@ -4367,18 +4371,26 @@ function toDesignClip(
 			Object.assign(output, cached.data);
 			return output;
 		}
-		const channels = Array.from(
-			{ length: visual.buffer.numberOfChannels },
-			(_, channel) => visual.buffer.getChannelData(channel),
-		);
 		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
-		const waveform = prepareBoundedWaveformWindow(channels, clip, {
-			startFrame: clip.waveformStartFrame,
-			endFrame: clip.waveformEndFrame,
-			maxSamples: maximumSamples,
-			pixelWidth,
-			reuseSummaryForCompatibility,
-		});
+		const waveform = visual.buffer
+			? prepareBoundedWaveformWindow(Array.from(
+				{ length: visual.buffer.numberOfChannels },
+				(_, channel) => visual.buffer.getChannelData(channel),
+			), clip, {
+				startFrame: clip.waveformStartFrame,
+				endFrame: clip.waveformEndFrame,
+				maxSamples: maximumSamples,
+				pixelWidth,
+				reuseSummaryForCompatibility,
+			})
+			: preparePeakPyramidWaveformWindow(visual.peaks, clip, {
+				startFrame: clip.waveformStartFrame,
+				endFrame: clip.waveformEndFrame,
+				maxSamples: maximumSamples,
+				pixelWidth,
+				channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
+				sourceFrameCount: source?.frameCount,
+			});
 		const waveformData = {
 			audacityWaveform: {
 				...waveform.rendering,
@@ -4392,16 +4404,16 @@ function toDesignClip(
 		if (visualChannels.length > 1) {
 			waveformData.waveformLeft = [...visualChannels[0]];
 			waveformData.waveformRight = [...visualChannels[1]];
-			if (showRms) {
+			if (showRms && visual.buffer) {
 				waveformData.waveformLeftRms = rmsEnvelope(visualChannels[0]);
 				waveformData.waveformRightRms = rmsEnvelope(visualChannels[1]);
 			}
 		} else {
 			waveformData.waveform = [...visualChannels[0]];
-			if (showRms) waveformData.waveformRms = rmsEnvelope(visualChannels[0]);
+			if (showRms && visual.buffer) waveformData.waveformRms = rmsEnvelope(visualChannels[0]);
 		}
 		waveformCache?.set(String(clip.id), {
-			buffer: visual.buffer,
+			source: waveformSource,
 			envelope: clip.envelope,
 			contentSignature,
 			signature: cacheSignature,

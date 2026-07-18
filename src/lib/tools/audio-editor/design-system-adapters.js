@@ -489,6 +489,162 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 	}, rendering);
 }
 
+/**
+ * Prepare a summary waveform directly from the persisted waveform peak
+ * pyramid. This is the bufferless counterpart to
+ * `prepareBoundedWaveformWindow`: it never reads source PCM and always returns
+ * an Audacity summary plan. The coarsest cached level no wider than a viewport
+ * pixel is selected automatically, keeping aggregation bounded without
+ * smearing peaks across multiple columns.
+ *
+ * Peak cache version 1 stores a mono fold-down. `channelCount` may be supplied
+ * to preserve a stereo lane layout; in that case the mono summary is repeated
+ * for each displayed channel.
+ *
+ * @param {{
+ *   levels: Array<{
+ *     blockSize: number,
+ *     minimums: Float32Array | number[],
+ *     maximums: Float32Array | number[],
+ *   }>,
+ * }} peaks
+ * @param {import('./project.js').AudioEditorClipV1 | {
+ *   sourceStartFrame: number,
+ *   durationFrames: number,
+ *   sourceDurationFrames?: number,
+ *   gain?: number,
+ *   fadeInFrames?: number,
+ *   fadeOutFrames?: number,
+ *   reversed?: boolean,
+ * }} clip
+ * @param {{
+ *   startFrame?: number,
+ *   endFrame?: number,
+ *   maxSamples?: number,
+ *   pixelWidth: number,
+ *   channelCount?: number,
+ *   sourceFrameCount?: number,
+ * }} options
+ * @returns {{
+ *   channels: Float32Array[],
+ *   startFrame: number,
+ *   endFrame: number,
+ *   frameCount: number,
+ *   sampleCount: number,
+ *   framesPerBucket: number,
+ *   downsampled: true,
+ * }}
+ */
+export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
+	if (!clip || typeof clip !== 'object') throw new TypeError('clip must be an object.');
+	const levels = validateWaveformPeakLevels(peaks);
+	const sourceStartFrame = nonNegativeSafeInteger(clip.sourceStartFrame, 'clip.sourceStartFrame');
+	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
+	const sourceDurationFrames = positiveSafeInteger(clip.sourceDurationFrames ?? durationFrames, 'clip.sourceDurationFrames');
+	const sourceEndFrame = addFrames(sourceStartFrame, sourceDurationFrames, 'clip source range');
+	if (options.sourceFrameCount != null) {
+		const sourceFrameCount = nonNegativeSafeInteger(options.sourceFrameCount, 'sourceFrameCount');
+		if (sourceEndFrame > sourceFrameCount) throw new RangeError('The clip exceeds the supplied source frame count.');
+	}
+
+	const startFrame = clampedLocalFrame(options.startFrame ?? 0, durationFrames, 'startFrame');
+	const endFrame = clampedLocalFrame(options.endFrame ?? durationFrames, durationFrames, 'endFrame');
+	if (endFrame < startFrame) throw new RangeError('endFrame must not be before startFrame.');
+	const frameCount = endFrame - startFrame;
+	const maximumSamples = positiveSafeInteger(
+		Math.floor(options.maxSamples ?? DEFAULT_MAXIMUM_WAVEFORM_SAMPLES),
+		'maxSamples',
+	);
+	const pixelWidth = positiveFiniteNumber(options.pixelWidth, 'pixelWidth');
+	const channelCount = positiveSafeInteger(
+		Math.floor(options.channelCount ?? 1),
+		'channelCount',
+	);
+	const columnCount = frameCount ? Math.max(1, Math.ceil(pixelWidth)) : 0;
+	const sourceSamplesPerTimelineFrame = sourceDurationFrames / durationFrames;
+	const visibleSourceStart = startFrame * sourceSamplesPerTimelineFrame;
+	const visibleSourceEnd = endFrame * sourceSamplesPerTimelineFrame;
+	const visibleSourceSamples = frameCount * sourceSamplesPerTimelineFrame;
+	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
+	const level = selectWaveformPeakLevel(levels, sourceSamplesPerPixel);
+	const minimum = new Float32Array(columnCount);
+	const maximum = new Float32Array(columnCount);
+	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
+	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
+	const reversed = Boolean(clip.reversed);
+
+	for (let column = 0; column < columnCount; column += 1) {
+		const visualStart = Math.min(
+			visibleSourceEnd,
+			visibleSourceStart + column * sourceSamplesPerPixel,
+		);
+		const visualEnd = Math.min(
+			visibleSourceEnd,
+			visibleSourceStart + (column + 1) * sourceSamplesPerPixel,
+		);
+		const absoluteStart = sourceStartFrame + (reversed
+			? sourceDurationFrames - visualEnd
+			: visualStart);
+		const absoluteEnd = sourceStartFrame + (reversed
+			? sourceDurationFrames - visualStart
+			: visualEnd);
+		const range = aggregateWaveformPeakRange(level, absoluteStart, absoluteEnd);
+		const localStart = visualStart / sourceSamplesPerTimelineFrame;
+		const localEnd = visualEnd / sourceSamplesPerTimelineFrame;
+		const scale = gain * maximumFadeEnvelope(
+			localStart,
+			localEnd,
+			durationFrames,
+			fadeInFrames,
+			fadeOutFrames,
+		);
+		let bucketMinimum = Math.min(range.minimum * scale, range.maximum * scale);
+		let bucketMaximum = Math.max(range.minimum * scale, range.maximum * scale);
+		if (column > 0 && minimum[column - 1] > bucketMaximum) {
+			bucketMaximum = minimum[column - 1];
+		}
+		if (column > 0 && maximum[column - 1] < bucketMinimum) {
+			bucketMinimum = maximum[column - 1];
+		}
+		minimum[column] = bucketMinimum;
+		maximum[column] = bucketMaximum;
+	}
+
+	const rendering = {
+		mode: 'summary',
+		pixelWidth,
+		pixelsPerSample: visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0,
+		startFrame,
+		endFrame,
+		frameCount,
+		peakBlockSize: level.blockSize,
+		channels: Array.from({ length: channelCount }, (_, channel) => ({
+			minimum: channel ? minimum.slice() : minimum,
+			maximum: channel ? maximum.slice() : maximum,
+			rms: null,
+		})),
+	};
+	if (!frameCount) {
+		return withWaveformRendering({
+			channels: Array.from({ length: channelCount }, () => new Float32Array(0)),
+			startFrame,
+			endFrame,
+			frameCount,
+			sampleCount: 0,
+			framesPerBucket: 0,
+			downsampled: true,
+		}, rendering);
+	}
+	const compatibility = waveformCompatibilityFromSummary(rendering, frameCount, maximumSamples);
+	return withWaveformRendering({
+		...compatibility,
+		startFrame,
+		endFrame,
+		frameCount,
+	}, rendering);
+}
+
 function waveformCompatibilityFromSummary(rendering, frameCount, maximumSamples) {
 	if (maximumSamples === 1) {
 		return {
@@ -538,6 +694,76 @@ function summaryChannelPeak(channel) {
 function finiteWaveformSample(value) {
 	const sample = Number(value);
 	return Number.isFinite(sample) ? sample : 0;
+}
+
+function validateWaveformPeakLevels(peaks) {
+	if (!peaks || typeof peaks !== 'object' || !Array.isArray(peaks.levels)) {
+		throw new TypeError('peaks.levels must be an array.');
+	}
+	const levels = peaks.levels.map((level) => {
+		if (!level || typeof level !== 'object') throw new TypeError('Each waveform peak level must be an object.');
+		const blockSize = positiveSafeInteger(level.blockSize, 'peak level blockSize');
+		const minimums = level.minimums;
+		const maximums = level.maximums;
+		if (
+			(!Array.isArray(minimums) && !ArrayBuffer.isView(minimums))
+			|| (!Array.isArray(maximums) && !ArrayBuffer.isView(maximums))
+		) {
+			throw new TypeError('Waveform peak extrema must be array-like.');
+		}
+		if (!minimums.length || minimums.length !== maximums.length) {
+			throw new RangeError('Waveform peak extrema must be non-empty equally sized arrays.');
+		}
+		return { blockSize, minimums, maximums };
+	});
+	if (!levels.length) throw new RangeError('peaks.levels must contain at least one level.');
+	return levels.sort((left, right) => left.blockSize - right.blockSize);
+}
+
+function selectWaveformPeakLevel(levels, sourceSamplesPerPixel) {
+	const targetBlockSize = Math.max(1, sourceSamplesPerPixel);
+	let selected = levels[0];
+	for (const level of levels) {
+		if (level.blockSize > targetBlockSize) break;
+		selected = level;
+	}
+	return selected;
+}
+
+function aggregateWaveformPeakRange(level, absoluteStart, absoluteEnd) {
+	const startBlock = Math.max(0, Math.floor(absoluteStart / level.blockSize));
+	const endBlock = Math.min(level.minimums.length, Math.max(
+		startBlock + 1,
+		Math.ceil(absoluteEnd / level.blockSize),
+	));
+	if (startBlock >= level.minimums.length || endBlock <= startBlock) {
+		throw new RangeError('The waveform peak pyramid does not cover the requested clip range.');
+	}
+	let minimum = Number.POSITIVE_INFINITY;
+	let maximum = Number.NEGATIVE_INFINITY;
+	for (let block = startBlock; block < endBlock; block += 1) {
+		minimum = Math.min(minimum, finiteWaveformSample(level.minimums[block]));
+		maximum = Math.max(maximum, finiteWaveformSample(level.maximums[block]));
+	}
+	return { minimum, maximum };
+}
+
+function maximumFadeEnvelope(startFrame, endFrame, durationFrames, fadeInFrames, fadeOutFrames) {
+	const candidates = [
+		startFrame,
+		endFrame,
+		clamp(fadeInFrames, startFrame, endFrame),
+		clamp(durationFrames - fadeOutFrames, startFrame, endFrame),
+		clamp(durationFrames / 2, startFrame, endFrame),
+	];
+	let maximum = 0;
+	for (const frame of candidates) {
+		maximum = Math.max(
+			maximum,
+			fadeEnvelope(frame, durationFrames, fadeInFrames, fadeOutFrames),
+		);
+	}
+	return maximum;
 }
 
 /*

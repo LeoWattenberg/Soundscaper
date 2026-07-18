@@ -11,6 +11,7 @@ import {
 	gainDbToDesignVolume,
 	panToDesignValue,
 	prepareBoundedWaveformWindow,
+	preparePeakPyramidWaveformWindow,
 	progressToDesignValue,
 	projectClipsToViewport,
 	rightmostVisibleClip,
@@ -348,4 +349,111 @@ test('bounded waveform preprocessing clamps windows and validates channel/source
 	assert.throws(() => prepareBoundedWaveformWindow([source], clip({ durationFrames: 4 }), {
 		maxSamples: 0,
 	}), /maxSamples/);
+});
+
+test('peak-pyramid waveform rendering selects the finest bounded viewport level without source PCM', () => {
+	const peaks = {
+		version: 1,
+		levels: [
+			{
+				blockSize: 4,
+				minimums: Float32Array.from({ length: 32 }, (_, index) => -(index + 1) / 100),
+				maximums: Float32Array.from({ length: 32 }, (_, index) => (index + 1) / 100),
+			},
+			{
+				blockSize: 16,
+				minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1) / 10),
+				maximums: Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 10),
+			},
+			{
+				blockSize: 64,
+				minimums: Float32Array.of(-0.9, -1),
+				maximums: Float32Array.of(0.9, 1),
+			},
+		],
+	};
+	const result = preparePeakPyramidWaveformWindow(peaks, clip({
+		durationFrames: 128,
+	}), {
+		pixelWidth: 8,
+		channelCount: 2,
+		sourceFrameCount: 128,
+	});
+
+	assert.equal(result.rendering.mode, 'summary');
+	assert.equal(result.rendering.peakBlockSize, 16);
+	assert.equal(result.rendering.channels.length, 2);
+	assert.deepEqual(
+		[...result.rendering.channels[0].minimum].map((value) => Math.round(value * 10) / 10),
+		[-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8],
+	);
+	assert.deepEqual(
+		[...result.rendering.channels[0].maximum].map((value) => Math.round(value * 10) / 10),
+		[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+	);
+	assert.deepEqual(
+		[...result.rendering.channels[1].minimum],
+		[...result.rendering.channels[0].minimum],
+		'version 1 mono peaks preserve the known stereo lane layout',
+	);
+	assert.notEqual(result.rendering.channels[1].minimum, result.rendering.channels[0].minimum);
+	assert.equal(result.channels[0].length, 16);
+	assert.equal(result.channels[1].length, 16);
+});
+
+test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gain, and viewport windows', () => {
+	const peaks = {
+		version: 1,
+		levels: [{
+			blockSize: 4,
+			minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1)),
+			maximums: Float32Array.from({ length: 8 }, (_, index) => index + 1),
+		}],
+	};
+	const result = preparePeakPyramidWaveformWindow(peaks, clip({
+		sourceStartFrame: 8,
+		sourceDurationFrames: 16,
+		durationFrames: 8,
+		gain: 2,
+		reversed: true,
+	}), {
+		startFrame: 2,
+		endFrame: 6,
+		pixelWidth: 2,
+		sourceFrameCount: 32,
+	});
+
+	assert.equal(result.rendering.peakBlockSize, 4);
+	assert.equal(result.rendering.startFrame, 2);
+	assert.equal(result.rendering.endFrame, 6);
+	assert.deepEqual([...result.rendering.channels[0].minimum], [-10, -8]);
+	assert.deepEqual([...result.rendering.channels[0].maximum], [10, 8]);
+	assert.deepEqual([...result.channels[0]], [-10, 10, -8, 8]);
+});
+
+test('peak-pyramid waveform rendering validates cache geometry and clip source bounds', () => {
+	const valid = {
+		levels: [{
+			blockSize: 4,
+			minimums: Float32Array.of(-1),
+			maximums: Float32Array.of(1),
+		}],
+	};
+	assert.throws(() => preparePeakPyramidWaveformWindow({ levels: [] }, clip({
+		durationFrames: 4,
+	}), { pixelWidth: 1 }), /at least one level/);
+	assert.throws(() => preparePeakPyramidWaveformWindow({
+		levels: [{
+			blockSize: 4,
+			minimums: Float32Array.of(-1),
+			maximums: Float32Array.of(1, 1),
+		}],
+	}, clip({ durationFrames: 4 }), { pixelWidth: 1 }), /equally sized/);
+	assert.throws(() => preparePeakPyramidWaveformWindow(valid, clip({
+		sourceStartFrame: 2,
+		durationFrames: 4,
+	}), {
+		pixelWidth: 1,
+		sourceFrameCount: 4,
+	}), /exceeds/);
 });
