@@ -17,6 +17,7 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
+const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
 const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
 
 const SOURCE_CHUNK_FRAMES = 65_536;
@@ -80,7 +81,22 @@ test('AUP4 save lazily reads one referenced source at a time and reserves only t
 			]);
 			assert.deepEqual(await iterator.next(), { value: undefined, done: true });
 			assert.deepEqual(project.sources.map((source) => source.id), ['source-a', 'source-b']);
-			return { sourceCount: 2 };
+			return {
+				sourceCount: 2,
+				compatibilityReport: {
+					schemaVersion: 1,
+					format: 'aup4',
+					direction: 'save',
+					items: [{
+						code: 'MIXER_ROUTE_OMITTED',
+						severity: 'warning',
+						disposition: 'omitted',
+						scope: 'project',
+						data: {},
+					}],
+					counts: { preserved: 2, converted: 0, missing: 0, omitted: 1 },
+				},
+			};
 		},
 		async commit(projectId) { clientCalls.push(['commit', projectId]); },
 		async export(projectId, options) {
@@ -94,6 +110,10 @@ test('AUP4 save lazily reads one referenced source at a time and reserves only t
 		async inspect(projectId) {
 			clientCalls.push(['inspect', projectId]);
 			return { valid: true };
+		},
+		async delete(projectId) {
+			clientCalls.push(['delete', projectId]);
+			return true;
 		},
 		dispose() { clientCalls.push('dispose'); },
 	};
@@ -127,6 +147,19 @@ test('AUP4 save lazily reads one referenced source at a time and reserves only t
 			fileName: 'lazy-sources.aup4',
 			size: 4,
 			validation: { valid: true },
+			compatibilityReport: {
+				schemaVersion: 1,
+				format: 'aup4',
+				direction: 'save',
+				items: [{
+					code: 'MIXER_ROUTE_OMITTED',
+					severity: 'warning',
+					disposition: 'omitted',
+					scope: 'project',
+					data: {},
+				}],
+				counts: { preserved: 2, converted: 0, missing: 0, omitted: 1 },
+			},
 		});
 		assert.equal(maximumConcurrentReads, 1);
 		assert.equal(readEvents.values.some((event) => event.sourceId === 'source-unused'), false);
@@ -140,8 +173,13 @@ test('AUP4 save lazily reads one referenced source at a time and reserves only t
 			'commit',
 			'export',
 			'inspect',
+			'delete',
 		]);
 		assert.equal(controller.getSnapshot().save.state, 'saved');
+		assert.equal(controller.getSnapshot().aup4Compatibility.report.counts.omitted, 1);
+		assert.equal(controller.getSnapshot().aup4Compatibility.dismissed, false);
+		assert.equal(controller.actions.project.dismissAup4CompatibilitySummary(), true);
+		assert.equal(controller.getSnapshot().aup4Compatibility.dismissed, true);
 	} finally {
 		await controller.dispose();
 	}
@@ -171,6 +209,102 @@ test('AUP4 save preflights the combined referenced source bytes instead of the p
 			/Not enough local storage for export/,
 		);
 		assert.equal(writeSnapshotCalls, 0);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('each AUP4 interchange export uses and removes a fresh native database identity', async () => {
+	const nativeIds = [];
+	const deletedIds = [];
+	const aup4Client = {
+		async initialize() { return { opfs: true }; },
+		async create(projectId) { nativeIds.push(projectId); },
+		async writeSnapshot() {
+			return {
+				compatibilityReport: {
+					items: [],
+					counts: { preserved: 0, converted: 0, missing: 0, omitted: 0 },
+				},
+			};
+		},
+		async commit() {},
+		async export() {
+			return {
+				bytes: Uint8Array.of(0x41, 0x55, 0x50, 0x34),
+				mimeType: 'application/x-audacity-project',
+			};
+		},
+		async inspect() { return { valid: true }; },
+		async delete(projectId) { deletedIds.push(projectId); },
+		dispose() {},
+	};
+	const controller = createTestController({ aup4Client });
+
+	try {
+		await controller.ready;
+		const localProjectId = controller.getSnapshot().project.id;
+		await controller.actions.project.saveAup4({ useFileSystemAccess: false });
+		await controller.actions.project.saveAup4({ useFileSystemAccess: false });
+
+		assert.equal(nativeIds.length, 2);
+		assert.notEqual(nativeIds[0], nativeIds[1]);
+		assert.equal(nativeIds.includes(localProjectId), false);
+		assert.deepEqual(deletedIds, nativeIds);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('AUP4 open stores its compatibility report on the imported project tab and removes the native staging database', async () => {
+	const deletedIds = [];
+	const imported = createAudioEditorProjectV2({ id: 'aup4-imported', title: 'Imported' });
+	const aup4Client = {
+		async initialize() { return { opfs: true }; },
+		async openFile() {
+			return { readOnly: false, validation: { issues: [] } };
+		},
+		async decode() {
+			return {
+				project: imported,
+				sources: [],
+				warnings: [],
+				validation: { issues: [] },
+				compatibilityReport: {
+					missingAudio: [{
+						blockId: 17,
+						reason: 'missing-local-sample-block',
+					}],
+					items: [{
+						code: 'MISSING_REALTIME_EFFECT',
+						severity: 'warning',
+						disposition: 'missing',
+						scope: { kind: 'track', name: 'Voice' },
+						data: { name: 'SuperVerb' },
+					}],
+					counts: { preserved: 0, converted: 0, missing: 1, omitted: 0 },
+				},
+			};
+		},
+		async delete(projectId) { deletedIds.push(projectId); },
+		dispose() {},
+	};
+	const controller = createTestController({ aup4Client });
+
+	try {
+		await controller.ready;
+		const result = await controller.actions.project.openAup4({ name: 'imported.aup4', size: 256 });
+		const compatibility = controller.getSnapshot().aup4Compatibility;
+
+		assert.equal(result.compatibilityReport.direction, 'open');
+		assert.equal(compatibility.report.items[0].data.name, 'SuperVerb');
+		assert.equal(compatibility.dismissed, false);
+		assert.equal(deletedIds.length, 1);
+		assert.match(deletedIds[0], /^aup4-/);
+		await assert.rejects(
+			() => controller.actions.project.saveAup4({ useFileSystemAccess: false }),
+			/Missing audio sources prevent saving/,
+		);
 	} finally {
 		await controller.dispose();
 	}

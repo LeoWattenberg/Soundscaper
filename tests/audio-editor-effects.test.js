@@ -16,9 +16,13 @@ import {
 	audioSelectionEffectLabel,
 	audioSelectionEffectTypes,
 	createEffect,
+	createMissingEffect,
+	effectTailFrames,
 	isAudacityRackEffectType,
+	missingEffectLabel,
 	normalizeAudioSelectionEffectParams,
 	normalizeEffect,
+	rackTailFrames,
 	updateEffect,
 	validateEffect,
 } from '../src/lib/tools/audio-editor/effects.js';
@@ -168,6 +172,62 @@ test('selection-only Audacity effects are rejected by the realtime rack model', 
 	}
 	const live = createEffect('audacity-invert', { id: 'invert' });
 	assert.throws(() => updateEffect(live, { type: 'audacity-reverse' }), /Unsupported audio effect/);
+});
+
+test('missing rack effects preserve identity but are permanently inert locally', () => {
+	const opaque = {
+		kind: 'node',
+		node: {
+			name: 'effect',
+			content: [{ kind: 'blob', name: 'state', value: Uint8Array.of(1, 2, 3) }],
+		},
+	};
+	const missing = createMissingEffect({
+		id: 'missing-superverb',
+		enabled: true,
+		missing: {
+			name: 'SuperVerb',
+			nativeId: 'Effect_VST3_Acme_SuperVerb_/plugins/superverb.vst3',
+			reason: 'plugin-unavailable',
+			source: 'aup4',
+		},
+		opaqueAudacityNode: opaque,
+	});
+	assert.deepEqual({
+		type: missing.type,
+		enabled: missing.enabled,
+		bypassed: missing.bypassed,
+		params: missing.params,
+		label: missingEffectLabel(missing),
+	}, {
+		type: 'missing',
+		enabled: true,
+		bypassed: true,
+		params: {},
+		label: 'Missing: SuperVerb',
+	});
+	assert.equal(effectTailFrames(missing), 0);
+	assert.equal(rackTailFrames([missing]), 0);
+
+	opaque.node.content[0].value[0] = 99;
+	assert.deepEqual(missing.opaqueAudacityNode.node.content[0].value, Uint8Array.of(1, 2, 3));
+	const normalized = normalizeEffect(missing);
+	const disabled = updateEffect(normalized, {
+		enabled: false,
+		bypassed: false,
+		params: { unsafe: true },
+		missing: { name: 'Changed' },
+	});
+	assert.equal(disabled.enabled, false);
+	assert.equal(disabled.bypassed, true);
+	assert.deepEqual(disabled.params, {});
+	assert.deepEqual(disabled.missing, missing.missing);
+	assert.notEqual(disabled.opaqueAudacityNode, missing.opaqueAudacityNode);
+
+	const replacement = updateEffect(missing, { type: 'highpass', params: { frequency: 160 } });
+	assert.equal(replacement.type, 'highpass');
+	assert.equal(replacement.params.frequency, 160);
+	assert.equal('missing' in replacement, false);
 });
 
 test('parametric EQ normalizes the legacy four-band model into the canonical extensible schema', () => {

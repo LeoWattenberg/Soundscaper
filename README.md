@@ -32,8 +32,11 @@ and final download assembly can temporarily require substantial memory. Browser
 quota and eviction policy also remain authoritative: Soundscaper requests
 persistent storage, but that best-effort request can be denied, private or
 restricted contexts may fall back to process memory, and clearing site data
-removes local projects. Export important work to AUP4 rather than treating
-origin-private storage as the only backup.
+removes local projects. Keep rendered audio backups of important work rather
+than treating origin-private storage as the only copy. AUP4 is an Audacity
+interchange export: it preserves compatible editable tracks and reports
+conversions, missing plug-ins, and omitted Soundscaper-only mixing state, but it
+is not a full-fidelity Soundscaper backup.
 
 ## Local development
 
@@ -92,11 +95,14 @@ It never downloads or installs an update automatically and sends no telemetry.
 Desktop projects remain in the app's autosaved local library. Opening or
 double-clicking an `.aup4` imports a new independent library copy;
 later edits never change the opened file. **Save** flushes that internal copy,
-while **Save As** exports a new `.aup4`. Move a browser project to desktop by
-exporting AUP4 in the browser and importing it in the app. Browser preferences,
-undo history, and origin-private storage are not migrated. Uninstalling an
-installed build preserves the local library, but users should still export
-important projects before removing application data manually.
+while **Save As** exports a new Audacity interchange `.aup4`. Move compatible
+tracks between the browser and desktop app by exporting AUP4 and importing the
+independent copy. The compatibility report identifies converted audio,
+unavailable effects, and Soundscaper-only state that was omitted. Browser
+preferences, undo history, mixer routing, and origin-private storage are not
+migrated. Uninstalling an installed build preserves the local library, but
+users should still keep rendered backups before removing application data
+manually.
 
 To prepare and package a local desktop build:
 
@@ -371,6 +377,28 @@ The AUP4 fixture codec and StaffPad WASM audits are retained from the original
 kw.media implementation. The compiled-native Audacity round-trip release gate is
 still tracked separately in `tests/fixtures/aup4-interop-gate.json` and fails
 closed until its required evidence is supplied.
+
+The release audit accepts an optional executable built from the pinned Audacity
+commit:
+
+```sh
+npm run audit:aup4-interop:release -- --native-runner /path/to/aup4-native-runner
+# or
+AUDACITY_AUP4_NATIVE_RUNNER=/path/to/aup4-native-runner npm run audit:aup4-interop:release
+```
+
+Runner protocol version 1 requires a direct compiled ELF, PE, Mach-O, or
+universal Mach-O executable, not a script or wrapper. Invoking
+`<runner> --revision` must print exactly
+`908ad0a526e5bfdab68de780e893cebe172d27eb` followed only by optional trailing
+whitespace. Invoking
+`<runner> --roundtrip <input.aup4> <output.aup4>` must open the read-only input
+through that revision's Audacity loader, save to the distinct output path
+through its native writer, close and checkpoint the database, and exit zero.
+The audit hashes the runner and both directions' files, independently validates
+the native outputs with Soundscaper's codec, and only passes the release gate
+from evidence produced during that invocation. Without a runner, the normal
+codec audit still passes and the release audit exits with status 2.
 
 ### Nyquist WebAssembly
 

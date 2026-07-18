@@ -10,7 +10,7 @@ import {
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
 		extensions: Object.freeze(['aup4']),
-		filters: Object.freeze([{ name: 'Audacity 4 project', extensions: ['aup4'] }]),
+		filters: Object.freeze([{ name: 'Audacity interchange', extensions: ['aup4'] }]),
 	}),
 	audio: Object.freeze({
 		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
@@ -23,7 +23,7 @@ const FILE_PURPOSES = Object.freeze({
 });
 
 const SAVE_PURPOSES = Object.freeze({
-	project: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity 4 project', extensions: ['aup4'] }] }),
+	project: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	audio: Object.freeze({
 		defaultExtension: 'wav',
 		filters: [

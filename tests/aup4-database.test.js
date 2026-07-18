@@ -19,6 +19,7 @@ import {
 	initializeAup4Database,
 	insertAup4SampleBlock,
 	listAup4History,
+	prepareAup4PortableExport,
 	prepareAup4SerializedDatabase,
 	pruneAup4OrphanSampleBlocks,
 	readAup4Document,
@@ -176,6 +177,7 @@ test('Audacity-created rich fixture survives browser decode â†’ browser write â†
 	}
 	assert.equal(firstDecoded.project.tracks.filter((track) => track.type === 'audio').length, 2);
 	assert.equal(firstDecoded.project.clips.length, 5);
+	assert.deepEqual(firstDecoded.compatibilityReport.missingAudio, []);
 	assert.deepEqual([...new Set(firstDecoded.project.clips.map((clip) => clip.groupId))], [
 		'aup4-group-0',
 		'aup4-group-1',
@@ -367,6 +369,52 @@ test('AUP4 database initializes, autosaves, commits, restores, and validates the
 	}
 });
 
+test('portable AUP4 export requires a committed, checkpointed, fully valid database', () => {
+	const database = new SQL.Database();
+	try {
+		initializeAup4Database(database);
+		writeAup4Document(database, documentBytes(44_100));
+		assert.throws(
+			() => prepareAup4PortableExport(database),
+			(error) => error.code === 'UNCOMMITTED_AUTOSAVE',
+		);
+		assert.equal(commitAup4Autosave(database, { now: 0 }), true);
+		const validation = prepareAup4PortableExport(database);
+		assert.equal(validation.compatible, true);
+		assert.equal(validation.readOnly, false);
+		assert.equal(validation.source, 'project');
+		assert.equal(Number(database.exec('SELECT count(*) FROM autosave')[0].values[0][0]), 0);
+		database.run('DELETE FROM project_history');
+		assert.throws(
+			() => prepareAup4PortableExport(database),
+			(error) => error.code === 'UNCOMMITTED_HISTORY',
+		);
+	} finally {
+		database.close();
+	}
+});
+
+test('portable AUP4 certification never falls back to an older valid history document', () => {
+	const database = new SQL.Database();
+	try {
+		initializeAup4Database(database);
+		writeAup4Document(database, documentBytes(44_100));
+		commitAup4Autosave(database, { now: 0 });
+		writeAup4Document(
+			database,
+			encodeAudacityBinaryXml(projectTreeWithBlocks([{ blockId: 999, start: 0, sampleCount: 3 }])),
+		);
+		commitAup4Autosave(database, { now: 1 });
+
+		assert.throws(
+			() => prepareAup4PortableExport(database),
+			(error) => error.code === 'MISSING_SAMPLE_BLOCK',
+		);
+	} finally {
+		database.close();
+	}
+});
+
 test('AUP4 database stores immutable Float32 blocks', () => {
 	const database = new SQL.Database();
 	try {
@@ -462,6 +510,43 @@ test('AUP4 validation rejects missing blocks and truncated binary XML', () => {
 		const valid = documentBytes(44_100);
 		writeAup4Document(database, { ...valid, document: valid.document.subarray(0, valid.document.length - 1) });
 		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
+	} finally {
+		database.close();
+	}
+});
+
+test('AUP4 validation ignores sample references inside unsupported nested wave clips', () => {
+	const database = new SQL.Database();
+	try {
+		initializeAup4Database(database);
+		const block = createAup4SampleBlock(Float32Array.of(-1, 0, 1));
+		const blockId = insertAup4SampleBlock(database, block);
+		const tree = projectTreeWithBlocks([{ blockId, start: 0, sampleCount: 3 }]);
+		const outerClip = audacityXmlChildren(audacityXmlChildren(tree, 'wavetrack')[0], 'waveclip')[0];
+		outerClip.content.push({
+			kind: 'node',
+			node: createAudacityXmlNode('waveclip', [], [{
+				kind: 'node',
+				node: createAudacityXmlNode('sequence', [
+					{ kind: 'attribute', name: 'maxsamples', type: 'size-t', value: 262_144 },
+					{ kind: 'attribute', name: 'numsamples', type: 'long-long', value: 3 },
+				], [{
+					kind: 'node',
+					node: createAudacityXmlNode('waveblock', [
+						{ kind: 'attribute', name: 'start', type: 'long-long', value: 0 },
+						{ kind: 'attribute', name: 'length', type: 'long-long', value: 3 },
+						{ kind: 'attribute', name: 'blockid', type: 'long-long', value: 999 },
+					]),
+				}]),
+			}]),
+		});
+		writeAup4Document(database, encodeAudacityBinaryXml(tree));
+
+		const validation = validateAup4Database(database);
+		assert.equal(validation.readOnly, false);
+		assert.equal(validation.references.sequenceCount, 1);
+		assert.equal(validation.references.blockReferenceCount, 1);
+		assert.deepEqual(validation.compatibilityReport.missingAudio, []);
 	} finally {
 		database.close();
 	}

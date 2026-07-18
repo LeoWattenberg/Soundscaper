@@ -12,6 +12,7 @@ import {
 import { canonicalCopyValue, effectNameCopyKey } from '../../../i18n/canonical-extras.js';
 
 const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
+export const MISSING_EFFECT_TYPE = 'missing';
 
 export const PARAMETRIC_EQ_BAND_TYPES = Object.freeze([
 	'peaking',
@@ -48,6 +49,9 @@ const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
  * @property {Record<string, *>} params
  * @property {Record<string, *> | null} [context] JSON-safe routing/profile/range metadata
  * @property {Record<string, *> | null} [state] JSON-safe persistent processor/cache metadata
+ * @property {true} [bypassed] Missing effects are always bypassed locally
+ * @property {{name: string, nativeId: string, reason: string, source: string}} [missing]
+ * @property {*} [opaqueAudacityNode]
  */
 
 export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
@@ -188,6 +192,7 @@ export function audioEffectParamRange(type, name) {
 
 /** @returns {AudioEditorEffect} */
 export function createEffect(type, options = {}) {
+	if (type === MISSING_EFFECT_TYPE) return createMissingEffect(options);
 	const definition = AUDIO_EFFECT_DEFINITIONS[type];
 	const audacityDefinition = isAudacityRackEffectType(type) ? AUDACITY_EFFECT_DEFINITIONS[type] : null;
 	if (!definition && !audacityDefinition) throw new RangeError(`Unsupported audio effect: ${type}.`);
@@ -212,6 +217,44 @@ export function createEffect(type, options = {}) {
 	return effect;
 }
 
+/**
+ * Create an unavailable rack item which retains a foreign plug-in's identity
+ * and opaque state without ever making that state executable in the browser.
+ *
+ * @returns {AudioEditorEffect}
+ */
+export function createMissingEffect(options = {}) {
+	const id = options.id || createStableId('effect');
+	if (typeof id !== 'string' || !id) throw new TypeError('Every effect needs a stable ID.');
+	const metadata = options.missing;
+	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+		throw new TypeError('A missing effect needs compatibility metadata.');
+	}
+	const name = boundedNonEmptyString(metadata.name, 'missing effect name');
+	const nativeId = boundedNonEmptyString(metadata.nativeId, 'missing effect native ID', 64 * 1024);
+	const reason = boundedNonEmptyString(metadata.reason, 'missing effect reason');
+	const source = boundedNonEmptyString(metadata.source || 'aup4', 'missing effect source');
+	const effect = {
+		id,
+		type: MISSING_EFFECT_TYPE,
+		enabled: options.enabled !== false,
+		bypassed: true,
+		params: {},
+		missing: { name, nativeId, reason, source },
+	};
+	if (options.opaqueAudacityNode !== undefined) {
+		effect.opaqueAudacityNode = clonePersistentValue(options.opaqueAudacityNode, 'effect.opaqueAudacityNode');
+	}
+	return effect;
+}
+
+/** Return the exact English fallback used when no localized UI copy is supplied. */
+export function missingEffectLabel(effect) {
+	const normalized = normalizeEffect(effect);
+	if (normalized.type !== MISSING_EFFECT_TYPE) throw new TypeError('A missing effect is required.');
+	return `Missing: ${normalized.missing.name}`;
+}
+
 function normalizeAudacityRackEffectParams(type, params) {
 	const normalized = normalizeAudacityEffectParams(type, params);
 	for (const [name, [minimum, maximum]] of Object.entries(audacityLiveEffectCapability(type).paramRanges || {})) {
@@ -223,6 +266,7 @@ function normalizeAudacityRackEffectParams(type, params) {
 export function normalizeEffect(effect) {
 	if (!effect || typeof effect !== 'object') throw new TypeError('An effect is required.');
 	if (typeof effect.id !== 'string' || !effect.id) throw new TypeError('Every effect needs a stable ID.');
+	if (effect.type === MISSING_EFFECT_TYPE) return createMissingEffect(effect);
 	const type = PARAMETRIC_EQ_EFFECT_ALIASES.has(effect.type) ? 'eq' : effect.type;
 	return createEffect(type, { ...effect, type });
 }
@@ -233,23 +277,30 @@ export function validateEffect(effect) {
 }
 
 export function updateEffect(effect, changes = {}) {
+	const current = normalizeEffect(effect);
+	if (current.type === MISSING_EFFECT_TYPE && (!changes.type || changes.type === MISSING_EFFECT_TYPE)) {
+		return createMissingEffect({
+			...current,
+			enabled: changes.enabled ?? current.enabled,
+		});
+	}
 	const options = {
-		id: effect.id,
-		enabled: changes.enabled ?? effect.enabled,
-		params: { ...clone(effect.params), ...(changes.params || {}) },
+		id: current.id,
+		enabled: changes.enabled ?? current.enabled,
+		params: { ...clone(current.params), ...(changes.params || {}) },
 	};
-	const context = mergeEffectMetadata(effect.context, changes, 'context');
-	const state = mergeEffectMetadata(effect.state, changes, 'state');
+	const context = mergeEffectMetadata(current.context, changes, 'context');
+	const state = mergeEffectMetadata(current.state, changes, 'state');
 	if (context !== undefined) options.context = context;
 	if (state !== undefined) options.state = state;
-	return createEffect(changes.type || effect.type, options);
+	return createEffect(changes.type || current.type, options);
 }
 
 export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) {
 	const normalized = effect?.id
 		? normalizeEffect(effect)
 		: createEffect(effect?.type, { ...effect, id: `tail-${effect?.type || 'effect'}` });
-	if (!normalized.enabled) return 0;
+	if (!normalized.enabled || normalized.bypassed === true || normalized.type === MISSING_EFFECT_TYPE) return 0;
 	if (isAudacityRackEffectType(normalized.type)) {
 		return Math.ceil(audacityLiveEffectTailFrames(normalized.type, sampleRate, normalized.params));
 	}
@@ -374,6 +425,43 @@ function cloneEffectMetadata(value, name) {
 	if (value === null) return null;
 	if (!isPlainObject(value)) throw new TypeError(`${name} must be a JSON-safe object or null.`);
 	return cloneJsonValue(value, name, new Set());
+}
+
+function boundedNonEmptyString(value, name, maximumCodeUnits = 1_024) {
+	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} must be a non-empty string.`);
+	if (value.length > maximumCodeUnits) throw new RangeError(`${name} exceeds its size limit.`);
+	return value;
+}
+
+function clonePersistentValue(value, name) {
+	if (typeof structuredClone === 'function') {
+		try {
+			return structuredClone(value);
+		} catch {
+			throw new TypeError(`${name} must be cloneable.`);
+		}
+	}
+	return clonePersistentValueFallback(value, name, new Set());
+}
+
+function clonePersistentValueFallback(value, name, ancestors) {
+	if (value === null || ['string', 'boolean', 'undefined'].includes(typeof value)) return value;
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value)) throw new RangeError(`${name} numbers must be finite.`);
+		return value;
+	}
+	if (value instanceof Uint8Array) return value.slice();
+	if (value instanceof ArrayBuffer) return value.slice(0);
+	if (typeof value !== 'object') throw new TypeError(`${name} must be cloneable.`);
+	if (ancestors.has(value)) throw new TypeError(`${name} must not contain circular references.`);
+	if (!Array.isArray(value) && !isPlainObject(value)) throw new TypeError(`${name} must be cloneable.`);
+	ancestors.add(value);
+	const output = Array.isArray(value) ? [] : {};
+	for (const [key, item] of Object.entries(value)) {
+		output[key] = clonePersistentValueFallback(item, `${name}.${key}`, ancestors);
+	}
+	ancestors.delete(value);
+	return output;
 }
 
 function cloneJsonValue(value, name, ancestors) {

@@ -347,7 +347,7 @@ function updateTrack(project, trackId, changes = {}) {
 		Object.assign(track, createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
 		return;
 	}
-	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed']);
+	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive']);
 	for (const key of ['displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
@@ -393,7 +393,7 @@ function removeLabel(project, trackId, labelId) {
 
 function updateMaster(project, changes = {}) {
 	const keys = Object.keys(changes);
-	if (keys.some((key) => !['gain', 'pan', 'mute', 'solo'].includes(key))) throw new RangeError('Unsupported master mixer field.');
+	if (keys.some((key) => !['gain', 'pan', 'mute', 'solo', 'effectsActive'].includes(key))) throw new RangeError('Unsupported master mixer field.');
 	if (Object.hasOwn(changes, 'gain')) {
 		const gain = Number(changes.gain);
 		if (!Number.isFinite(gain) || gain < 0 || gain > 4) throw new RangeError('Master gain must be between 0 and 4.');
@@ -406,6 +406,7 @@ function updateMaster(project, changes = {}) {
 	}
 	if (Object.hasOwn(changes, 'mute')) project.master.mute = Boolean(changes.mute);
 	if (Object.hasOwn(changes, 'solo')) project.master.solo = Boolean(changes.solo);
+	if (Object.hasOwn(changes, 'effectsActive')) project.master.effectsActive = Boolean(changes.effectsActive);
 }
 
 function ensureMixer(project) {
@@ -443,7 +444,7 @@ function addMixerBus(project, command) {
 function updateMixerBus(project, command) {
 	const bus = requireMixerBus(project, command.busType, command.busId);
 	const changes = command.changes || {};
-	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo']);
+	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo', 'effectsActive']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer bus field cannot be updated: ${key}.`);
 	const collection = mixerBusCollection(project, command.busType);
 	const normalized = createAudioMixerBusV2({ ...bus, ...changes, effects: bus.effects }, command.busType, collection.indexOf(bus));
@@ -540,7 +541,14 @@ function updateClip(project, clipId, changes = {}) {
 	const allowed = new Set(['gain', 'fadeInFrames', 'fadeOutFrames', 'reversed']);
 	for (const key of ['title', 'envelope', 'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'renderCacheRevision']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Clip field cannot be updated: ${key}.`);
-	const updated = normalizeClipForProject(project, { ...clip, ...changes, id: clip.id });
+	const updated = normalizeClipForProject(project, {
+		...clip,
+		...changes,
+		...(Object.hasOwn(changes, 'preserveFormants') ? {
+			opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
+		} : {}),
+		id: clip.id,
+	});
 	assertClipSpace(project, track, updated, clip.id);
 	replaceClip(project, updated);
 }
@@ -718,6 +726,9 @@ function buildClipTransformState(project, transforms) {
 		const updated = normalizeClipForProject(project, {
 			...clip,
 			...changes,
+			...(Object.hasOwn(changes, 'preserveFormants') ? {
+				opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
+			} : {}),
 			...(!Object.hasOwn(changes, 'envelope') && durationFrames !== clip.durationFrames ? {
 				envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 			} : {}),
@@ -726,6 +737,12 @@ function buildClipTransformState(project, transforms) {
 		assertClipSourceBounds(project, updated);
 		return { clip, oldTrack, track, updated, changes: { ...changes } };
 	});
+}
+
+function withoutImportedPitchPreset(opaqueExtensions) {
+	const output = { ...(opaqueExtensions || {}) };
+	delete output.aup4PitchAndSpeedPreset;
+	return output;
 }
 
 function validateClipTransformState(project, state, overwrite) {

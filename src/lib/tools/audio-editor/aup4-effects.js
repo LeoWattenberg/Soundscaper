@@ -3,11 +3,19 @@ import {
 	audacityXmlChildren,
 	createAudacityXmlNode,
 } from './audacity-binary-xml.js';
-import { createEffect, normalizeEffect } from './effects.js';
+import {
+	audioEffectLabel,
+	createEffect,
+	createMissingEffect,
+	normalizeEffect,
+} from './effects.js';
 
 const AUDACITY_EFFECT_ID_PREFIX = 'Effect_Audacity_Audacity_';
 const AUDACITY_EFFECT_PATH_PREFIX = 'Built-in Effect: ';
-const BROWSER_EFFECT_ID_PREFIX = 'Effect_kw.media_kw.media_Browser Rack_kw.media Browser Effect: ';
+const BROWSER_EFFECT_FAMILY = 'kw.media';
+const BROWSER_EFFECT_VENDOR = 'kw.media';
+const BROWSER_EFFECT_PATH_PREFIX = 'kw.media Browser Effect: ';
+const LEGACY_BROWSER_EFFECT_NAME = 'Browser Rack';
 const BROWSER_EFFECT_SCHEMA_VERSION = 1;
 const MAX_BROWSER_EFFECT_ID_BYTES = 64 * 1024;
 const MAX_BROWSER_EFFECT_JSON_DEPTH = 32;
@@ -19,7 +27,7 @@ const MAX_NATIVE_PARAMETER_NAME_CODE_UNITS = 256;
 const MAX_NATIVE_PARAMETER_VALUE_CODE_UNITS = 4_096;
 const UTF8 = new TextEncoder();
 const MAX_BROWSER_EFFECT_PAYLOAD_BYTES = Math.floor(
-	(MAX_BROWSER_EFFECT_ID_BYTES - UTF8.encode(BROWSER_EFFECT_ID_PREFIX).byteLength) / 4 * 3,
+	(MAX_BROWSER_EFFECT_ID_BYTES - 2_048) / 4 * 3,
 );
 
 const DISTORTION_MODES = Object.freeze([
@@ -39,11 +47,12 @@ const FILTER_NATIVE_DIRECTIONS = Object.freeze(['Lowpass', 'Highpass']);
 const EQ_INTERPOLATIONS = Object.freeze(['bspline', 'cosine', 'cubic']);
 const EQ_NATIVE_INTERPOLATIONS = Object.freeze(['B-spline', 'Cosine', 'Cubic']);
 
-const numberParam = (model, native = model) => ({ model, native, decode: finiteNumber });
-const booleanParam = (model, native = model) => ({ model, native, encode: booleanString, decode: booleanValue });
+const numberParam = (model, native = model) => ({ model, native, kind: 'number', decode: finiteNumber });
+const booleanParam = (model, native = model) => ({ model, native, kind: 'boolean', encode: booleanString, decode: booleanValue });
 const enumParam = (model, native, values, nativeValues) => ({
 	model,
 	native,
+	kind: 'enum',
 	encode: (value) => {
 		const index = values.indexOf(value);
 		if (index < 0) throw new RangeError(`Unsupported ${native} value: ${value}.`);
@@ -189,6 +198,19 @@ export function aup4NativeEffectId(type) {
 	return profile ? nativeEffectId(profile.symbol) : null;
 }
 
+export function canEncodeAup4NativeRealtimeEffect(effect) {
+	const profile = AUP4_REALTIME_EFFECT_PROFILES[effect?.type];
+	if (!profile || effect?.context !== undefined || effect?.state !== undefined || !isPlainObject(effect?.params)) {
+		return false;
+	}
+	const supportedParams = new Set(profile.params
+		.filter((descriptor) => descriptor.model)
+		.map((descriptor) => descriptor.model));
+	if (profile.curve) supportedParams.add('points');
+	if (profile.bands) supportedParams.add('gains');
+	return Object.keys(effect.params).every((name) => supportedParams.has(name));
+}
+
 /**
  * Encode a browser Audacity rack effect's parameters with Audacity's stable
  * CommandParameters names and values. This representation is shared by AUP4
@@ -233,26 +255,19 @@ export function decodeAudacityRealtimeEffectParameters(type, parameters) {
 	return params;
 }
 
-export function createAup4EffectsNode(effects = [], opaqueEffectsNode = null) {
-	const active = booleanAttribute(opaqueEffectsNode, 'active', true);
-	const content = [{ kind: 'attribute', name: 'active', type: 'bool', value: active }];
-	const claimedOpaqueIds = new Map();
-	for (const [index, effect] of (effects || []).entries()) {
+export function createAup4EffectsNode(effects = [], opaqueEffectsNode = null, options = {}) {
+	const requestedActive = typeof options === 'boolean' ? options : options.effectsActive;
+	const active = requestedActive === undefined
+		? booleanAttribute(opaqueEffectsNode, 'active', true)
+		: requestedActive !== false;
+	const generated = (effects || []).map((effect, index) => {
 		const opaque = effect?.opaqueAudacityNode?.kind === 'node' ? effect.opaqueAudacityNode.node : null;
-		if (opaque) increment(claimedOpaqueIds, String(audacityXmlAttribute(opaque, 'id', '')));
-		content.push({ kind: 'node', node: createRealtimeEffectNode(effect, opaque, index) });
-	}
-	for (const [index, child] of audacityXmlChildren(opaqueEffectsNode, 'effect').entries()) {
-		const id = String(audacityXmlAttribute(child, 'id', ''));
-		if (takeClaim(claimedOpaqueIds, id)) continue;
-		// A valid effect from the opaque source rack which no longer has a
-		// corresponding model item was deleted by the user. Unknown, malformed,
-		// and over-limit entries stay opaque instead of being discarded.
-		if (index < MAX_EFFECTS_PER_RACK
-			&& decodeRealtimeEffectNode(child, () => `opaque-effect-${index}`)) continue;
-		content.push({ kind: 'node', node: cloneNode(child) });
-	}
-	return createAudacityXmlNode('effects', [], content);
+		return { kind: 'node', node: createRealtimeEffectNode(effect, opaque, index) };
+	});
+	const content = mergeRackChildren(generated, opaqueEffectsNode);
+	return createAudacityXmlNode('effects', mergeAttributes([
+		{ kind: 'attribute', name: 'active', type: 'bool', value: active },
+	], opaqueEffectsNode?.content), content);
 }
 
 export function readAup4EffectsNode(node, options = {}) {
@@ -261,22 +276,50 @@ export function readAup4EffectsNode(node, options = {}) {
 		? options.idFactory
 		: (prefix) => `${prefix}-${Math.random().toString(36).slice(2)}`;
 	const effects = [];
-	for (const effectNode of audacityXmlChildren(node, 'effect').slice(0, MAX_EFFECTS_PER_RACK)) {
+	const effectsActive = booleanAttribute(node, 'active', true);
+	if (typeof options.onRackActive === 'function') options.onRackActive(effectsActive);
+	for (const [index, effectNode] of audacityXmlChildren(node, 'effect').entries()) {
+		if (index >= MAX_EFFECTS_PER_RACK) {
+			options.onOpaqueEffect?.(effectNode, index, 'rack-limit-exceeded');
+			continue;
+		}
 		const decoded = decodeRealtimeEffectNode(effectNode, idFactory);
-		if (decoded) effects.push(decoded);
+		if (!decoded) {
+			options.onOpaqueEffect?.(effectNode, index, 'malformed-or-over-limit-state');
+			continue;
+		}
+		effects.push(decoded);
+		if (decoded.type === 'missing' && typeof options.onMissingEffect === 'function') {
+			options.onMissingEffect(decoded, index);
+		}
 	}
 	return effects;
 }
 
 function decodeRealtimeEffectNode(effectNode, idFactory) {
 	const nativeId = String(audacityXmlAttribute(effectNode, 'id', ''));
-	const browserEffect = readBrowserEffect(nativeId, effectNode);
-	if (browserEffect) return browserEffect;
+	const parsedId = parseNativeEffectId(nativeId);
+	if (!parsedId) return null;
+	const browserEffect = readBrowserEffect(nativeId, parsedId, effectNode, idFactory);
+	if (browserEffect !== undefined) return browserEffect;
 	const type = TYPE_BY_NATIVE_ID.get(nativeId);
 	const profile = AUP4_REALTIME_EFFECT_PROFILES[type];
-	if (!profile) return null;
 	const nativeParams = readNativeParameters(effectNode);
 	if (!nativeParams) return null;
+	if (!profile) {
+		return missingEffect(effectNode, idFactory, {
+			name: parsedId.name,
+			nativeId,
+			reason: 'plugin-unavailable',
+		});
+	}
+	if (hasUnsupportedNativeParameters(profile, nativeParams)) {
+		return missingEffect(effectNode, idFactory, {
+			name: profile.symbol,
+			nativeId,
+			reason: 'unsupported-state',
+		});
+	}
 	try {
 		const params = decodeAudacityRealtimeEffectParameters(type, nativeParams);
 		const id = idFactory('effect');
@@ -288,10 +331,43 @@ function decodeRealtimeEffectNode(effectNode, idFactory) {
 		});
 		return { ...normalized, opaqueAudacityNode: { kind: 'node', node: cloneNode(effectNode) } };
 	} catch {
-		// Invalid or future parameter sets stay in the enclosing opaque AST and
-		// are deliberately not made executable in the browser.
-		return null;
+		if (hasMalformedNativeParameterValues(profile, nativeParams)) return null;
+		// The bounded record is structurally valid, but this build cannot
+		// interpret a future enum/range value. Keep it visible and bypassed.
+		return missingEffect(effectNode, idFactory, {
+			name: profile.symbol,
+			nativeId,
+			reason: 'unsupported-state',
+		});
 	}
+}
+
+function hasMalformedNativeParameterValues(profile, nativeParams) {
+	for (const descriptor of profile.params) {
+		if (!descriptor.model || !nativeParams.has(descriptor.native)) continue;
+		const value = nativeParams.get(descriptor.native);
+		if (descriptor.kind === 'number' && finiteNumber(value) === undefined) return true;
+		if (descriptor.kind === 'boolean' && booleanValue(value) === undefined) return true;
+	}
+	for (const [name, value] of nativeParams) {
+		if (/^[fv](?:0|[1-9][0-9]{0,2})$/.test(name) && finiteNumber(value) === undefined) return true;
+	}
+	return false;
+}
+
+function hasUnsupportedNativeParameters(profile, nativeParams) {
+	const known = new Set(profile.params.map((descriptor) => descriptor.native));
+	for (const descriptor of profile.params) {
+		if (descriptor.constant !== undefined
+			&& nativeParams.has(descriptor.native)
+			&& nativeParams.get(descriptor.native) !== descriptor.constant) return true;
+	}
+	for (const name of nativeParams.keys()) {
+		if (known.has(name)) continue;
+		if ((profile.curve || profile.bands) && /^[fv](?:0|[1-9][0-9]{0,2})$/.test(name)) continue;
+		return true;
+	}
+	return false;
 }
 
 function readNativeParameters(effectNode) {
@@ -305,6 +381,7 @@ function readNativeParameters(effectNode) {
 			const value = String(audacityXmlAttribute(parameter, 'value', ''));
 			if (!name || name.length > MAX_NATIVE_PARAMETER_NAME_CODE_UNITS
 				|| value.length > MAX_NATIVE_PARAMETER_VALUE_CODE_UNITS) return null;
+			if (output.has(name)) return null;
 			output.set(name, value);
 		}
 	}
@@ -312,8 +389,9 @@ function readNativeParameters(effectNode) {
 }
 
 function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
+	if (effect?.type === 'missing') return createMissingEffectNode(effect, opaqueNode);
 	const profile = AUP4_REALTIME_EFFECT_PROFILES[effect?.type];
-	if (!profile) {
+	if (!profile || !canEncodeAup4NativeRealtimeEffect(effect)) {
 		// Older browser snapshots sometimes materialized an unavailable native
 		// effect as an opaque-only rack item. It has no executable browser type,
 		// so retaining the native node is the only safe round trip.
@@ -343,6 +421,75 @@ function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
 	], opaqueNode?.content), content);
 }
 
+function createMissingEffectNode(effect, opaqueNode) {
+	const normalized = normalizeEffect(effect);
+	const source = opaqueNode?.name === 'effect'
+		? opaqueNode
+		: normalized.opaqueAudacityNode?.kind === 'node'
+			? normalized.opaqueAudacityNode.node
+			: null;
+	if (!source) {
+		if (!parseNativeEffectId(normalized.missing.nativeId)) {
+			throw new TypeError('A missing AUP4 effect needs a valid native effect ID.');
+		}
+		return createAudacityXmlNode('effect', [
+			{ kind: 'attribute', name: 'active', type: 'bool', value: normalized.enabled !== false },
+			{ kind: 'attribute', name: 'id', type: 'string', value: normalized.missing.nativeId },
+		]);
+	}
+	if (booleanAttribute(source, 'active', true) === (normalized.enabled !== false)) {
+		return cloneNode(source);
+	}
+	// An unavailable plug-in's private state belongs to that plug-in. Preserve
+	// every byte and attribute, changing only the activation requested by the
+	// user.
+	const enabled = normalized.enabled !== false;
+	let replaced = false;
+	const attributes = source.content
+		.filter((entry) => entry.kind === 'attribute')
+		.map((entry) => {
+			if (entry.name !== 'active') return cloneEntry(entry);
+			replaced = true;
+			return { ...cloneEntry(entry), value: activationAttributeValue(entry, enabled) };
+		});
+	if (!replaced) attributes.push({ kind: 'attribute', name: 'active', type: 'bool', value: enabled });
+	return createAudacityXmlNode('effect', attributes, source.content
+		.filter((entry) => entry.kind !== 'attribute')
+		.map(cloneEntry));
+}
+
+function mergeRackChildren(generated, opaqueEffectsNode) {
+	if (!opaqueEffectsNode) return generated;
+	const output = [];
+	let generatedIndex = 0;
+	let effectIndex = 0;
+	for (const entry of opaqueEffectsNode.content || []) {
+		if (entry.kind === 'attribute') continue;
+		if (entry.kind !== 'node' || entry.node?.name !== 'effect') {
+			output.push(cloneEntry(entry));
+			continue;
+		}
+		const materializedSlot = effectIndex < MAX_EFFECTS_PER_RACK
+			&& decodeRealtimeEffectNode(entry.node, () => `opaque-effect-${effectIndex}`);
+		effectIndex += 1;
+		if (materializedSlot) {
+			if (generatedIndex < generated.length) output.push(generated[generatedIndex++]);
+		} else {
+			// Malformed and over-limit records stay inert, byte-preserving, and
+			// anchored between the same neighboring materialized rack slots.
+			output.push(cloneEntry(entry));
+		}
+	}
+	while (generatedIndex < generated.length) output.push(generated[generatedIndex++]);
+	return output;
+}
+
+function activationAttributeValue(attribute, enabled) {
+	if (attribute.type === 'bool') return enabled;
+	if (attribute.type === 'string') return enabled ? '1' : '0';
+	return enabled ? 1 : 0;
+}
+
 function createBrowserEffectNode(effect, opaqueNode = null, rackIndex = 0) {
 	// Validate and normalize before embedding the portable browser extension.
 	// Audacity preserves an unavailable realtime effect's ID even though it
@@ -352,16 +499,41 @@ function createBrowserEffectNode(effect, opaqueNode = null, rackIndex = 0) {
 	if (effect?.context !== undefined) assertPortableJson(effect.context, 'effect.context');
 	if (effect?.state !== undefined) assertPortableJson(effect.state, 'effect.state');
 	const missingId = effect?.id === undefined || effect?.id === null || effect?.id === '';
-	const normalized = normalizeEffect({
+	const id = missingId ? legacyBrowserEffectId(effect, rackIndex) : effect.id;
+	assertStableEffectId(id);
+	const type = String(effect?.type || '').trim();
+	if (!type || type.length > 1_024 || !isPlainObject(effect?.params)) {
+		throw new TypeError('A browser effect needs a bounded type and parameter object.');
+	}
+	assertPortableJson(effect.params, 'effect.params');
+	let normalized = {
 		...effect,
-		id: missingId ? legacyBrowserEffectId(effect, rackIndex) : effect.id,
-	});
-	assertStableEffectId(normalized.id);
+		id,
+		type,
+		enabled: effect?.enabled !== false,
+		params: effect.params,
+	};
+	try {
+		const executable = normalizeEffect(normalized);
+		normalized = {
+			...executable,
+			params: effect.params,
+			...(effect.context === undefined ? {} : { context: effect.context }),
+			...(effect.state === undefined ? {} : { state: effect.state }),
+		};
+	} catch {
+		// A future bounded Soundscaper type is still a valid interchange
+		// placeholder even when this build cannot execute it.
+	}
+	let canonicalName;
+	try { canonicalName = audioEffectLabel(type, 'en'); }
+	catch { canonicalName = type; }
 	const payload = {
 		schemaVersion: BROWSER_EFFECT_SCHEMA_VERSION,
-		id: normalized.id,
-		type: normalized.type,
-		params: normalized.params,
+		id,
+		type,
+		name: canonicalName,
+		params: effect.params,
 		...(normalized.context === undefined ? {} : { context: normalized.context }),
 		...(normalized.state === undefined ? {} : { state: normalized.state }),
 	};
@@ -371,7 +543,7 @@ function createBrowserEffectNode(effect, opaqueNode = null, rackIndex = 0) {
 		throw new RangeError('The browser effect state is too large for a portable AUP4 extension.');
 	}
 	const encoded = encodeBase64(payloadBytes);
-	const nativeId = `${BROWSER_EFFECT_ID_PREFIX}${encoded}`;
+	const nativeId = browserNativeEffectId(canonicalName, encoded);
 	if (UTF8.encode(nativeId).byteLength > MAX_BROWSER_EFFECT_ID_BYTES) {
 		throw new RangeError('The browser effect state is too large for a portable AUP4 extension.');
 	}
@@ -385,30 +557,125 @@ function createBrowserEffectNode(effect, opaqueNode = null, rackIndex = 0) {
 	return createAudacityXmlNode('effect', mergeAttributes(generated, opaqueNode?.content), content);
 }
 
-function readBrowserEffect(nativeId, effectNode) {
-	if (!nativeId.startsWith(BROWSER_EFFECT_ID_PREFIX)) return null;
+function readBrowserEffect(nativeId, parsedId, effectNode, idFactory) {
+	if (parsedId.family !== BROWSER_EFFECT_FAMILY
+		|| parsedId.vendor !== BROWSER_EFFECT_VENDOR
+		|| !parsedId.path.startsWith(BROWSER_EFFECT_PATH_PREFIX)) return undefined;
 	try {
 		if (UTF8.encode(nativeId).byteLength > MAX_BROWSER_EFFECT_ID_BYTES) return null;
-		const encoded = nativeId.slice(BROWSER_EFFECT_ID_PREFIX.length);
+		const encoded = parsedId.path.slice(BROWSER_EFFECT_PATH_PREFIX.length);
 		if (!encoded || encoded.length > Math.ceil(MAX_BROWSER_EFFECT_PAYLOAD_BYTES / 3) * 4) return null;
 		const decoded = decodeBase64(encoded);
 		if (decoded.byteLength > MAX_BROWSER_EFFECT_PAYLOAD_BYTES) return null;
 		const payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(decoded));
 		if (payload?.schemaVersion !== BROWSER_EFFECT_SCHEMA_VERSION) return null;
 		if (!isPlainObject(payload) || !isPlainObject(payload.params)) return null;
+		if (typeof payload.type !== 'string' || !payload.type || payload.type.length > 1_024) return null;
+		if (payload.name !== undefined
+			&& (typeof payload.name !== 'string' || !payload.name || payload.name.length > 1_024)) return null;
 		assertStableEffectId(payload.id);
 		assertPortableJson(payload, 'browser effect payload');
-		const normalized = createEffect(payload.type, {
-			id: payload.id,
-			enabled: booleanAttribute(effectNode, 'active', true),
-			params: payload.params,
-			...(Object.hasOwn(payload, 'context') ? { context: payload.context } : {}),
-			...(Object.hasOwn(payload, 'state') ? { state: payload.state } : {}),
-		});
-		return { ...normalized, opaqueAudacityNode: { kind: 'node', node: cloneNode(effectNode) } };
+		try {
+			const normalized = createEffect(payload.type, {
+				id: payload.id,
+				enabled: booleanAttribute(effectNode, 'active', true),
+				params: payload.params,
+				...(Object.hasOwn(payload, 'context') ? { context: payload.context } : {}),
+				...(Object.hasOwn(payload, 'state') ? { state: payload.state } : {}),
+			});
+			return {
+				...normalized,
+				params: clonePortableValue(payload.params),
+				...(Object.hasOwn(payload, 'context') ? { context: clonePortableValue(payload.context) } : {}),
+				...(Object.hasOwn(payload, 'state') ? { state: clonePortableValue(payload.state) } : {}),
+				opaqueAudacityNode: { kind: 'node', node: cloneNode(effectNode) },
+			};
+		} catch {
+			return missingEffect(effectNode, idFactory, {
+				id: payload.id,
+				name: payload.name || (parsedId.name === LEGACY_BROWSER_EFFECT_NAME ? payload.type : parsedId.name),
+				nativeId,
+				reason: supportedBrowserEffectType(payload.type) ? 'unsupported-state' : 'unsupported-browser-effect',
+			});
+		}
 	} catch {
 		return null;
 	}
+}
+
+function missingEffect(effectNode, idFactory, metadata) {
+	try {
+		const id = metadata.id || idFactory('effect');
+		if (typeof id !== 'string' || !id) return null;
+		return createMissingEffect({
+			id,
+			enabled: booleanAttribute(effectNode, 'active', true),
+			missing: {
+				name: metadata.name,
+				nativeId: metadata.nativeId,
+				reason: metadata.reason,
+				source: 'aup4',
+			},
+			opaqueAudacityNode: { kind: 'node', node: cloneNode(effectNode) },
+		});
+	} catch {
+		return null;
+	}
+}
+
+function supportedBrowserEffectType(type) {
+	try {
+		audioEffectLabel(type, 'en');
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function browserNativeEffectId(name, encodedPayload) {
+	if (typeof name !== 'string' || !name || name.length > 1_024) {
+		throw new TypeError('A browser effect needs a bounded canonical name.');
+	}
+	return `Effect_${BROWSER_EFFECT_FAMILY}_${BROWSER_EFFECT_VENDOR}_${escapeEffectIdField(name)}_${BROWSER_EFFECT_PATH_PREFIX}${encodedPayload}`;
+}
+
+function parseNativeEffectId(nativeId) {
+	if (typeof nativeId !== 'string' || !nativeId.startsWith('Effect_')
+		|| UTF8.encode(nativeId).byteLength > MAX_BROWSER_EFFECT_ID_BYTES) return null;
+	const fields = [];
+	let field = '';
+	let escaped = false;
+	for (const character of nativeId.slice('Effect_'.length)) {
+		if (fields.length >= 3) {
+			field += character;
+			continue;
+		}
+		if (escaped) {
+			field += character;
+			escaped = false;
+		} else if (character === '\\') {
+			escaped = true;
+		} else if (character === '_') {
+			fields.push(field);
+			field = '';
+		} else {
+			field += character;
+		}
+	}
+	if (escaped || fields.length !== 3) return null;
+	fields.push(field);
+	if (fields.some((value) => !value)
+		|| fields.slice(0, 3).some((value) => value.length > MAX_BROWSER_EFFECT_ID_CODE_UNITS)) return null;
+	return {
+		family: fields[0],
+		vendor: fields[1],
+		name: fields[2],
+		path: fields[3],
+	};
+}
+
+function escapeEffectIdField(value) {
+	return value.replaceAll('\\', '\\\\').replaceAll('_', '\\_');
 }
 
 function appendEqualizationPoints(profile, params, output) {
@@ -584,18 +851,6 @@ function isPlainObject(value) {
 	return prototype === Object.prototype || prototype === null;
 }
 
-function increment(map, key) {
-	map.set(key, (map.get(key) || 0) + 1);
-}
-
-function takeClaim(map, key) {
-	const count = map.get(key) || 0;
-	if (!count) return false;
-	if (count === 1) map.delete(key);
-	else map.set(key, count - 1);
-	return true;
-}
-
 function cloneNode(node) {
 	return {
 		name: node.name,
@@ -607,6 +862,11 @@ function cloneEntry(entry) {
 	if (entry.kind === 'node') return { kind: 'node', node: cloneNode(entry.node) };
 	if (entry.value instanceof Uint8Array) return { ...entry, value: entry.value.slice() };
 	return { ...entry };
+}
+
+function clonePortableValue(value) {
+	if (typeof structuredClone === 'function') return structuredClone(value);
+	return JSON.parse(JSON.stringify(value));
 }
 
 function encodeBase64(bytes) {

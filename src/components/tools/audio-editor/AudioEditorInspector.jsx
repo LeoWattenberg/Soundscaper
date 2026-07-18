@@ -52,7 +52,10 @@ import { MEDIA_EXPORT_FORMATS } from '../../../lib/tools/audio-editor/media-expo
 import { AudacityEffectLayout } from './AudacityEffectLayout.jsx';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { ParametricEqEditor } from './ParametricEqEditor.jsx';
-import { useAudioEditorTelemetrySelector } from './DesignSystemRuntime.jsx';
+import {
+	useAudioEditorTelemetrySelector,
+	useAudioEditorThemeVariables,
+} from './DesignSystemRuntime.jsx';
 
 const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
 
@@ -456,16 +459,18 @@ export function AudioEditorEffectsOverlay({
 		});
 	};
 
-	const section = (scope, effects) => ({
+	const section = (scope, effects, owner) => ({
 		effects: effects.map((effect) => ({
 			id: effect.id,
-			name: safeEffectLabel(effect.type, copy),
+			name: safeEffectLabel(effect, copy),
 			enabled: effect.enabled,
 		})),
-		allEnabled: effects.length > 0 && effects.every((effect) => effect.enabled),
+		allEnabled: owner?.effectsActive !== false,
 		onToggleAll: (enabled) => {
 			if (blocked) return;
-			for (const effect of effects) controller.actions.effects.update(scope, scope === 'master' ? null : targetId, effect.id, { enabled });
+			if (scope === 'master') controller.actions.mixer.updateMaster({ effectsActive: enabled });
+			else if (scope === 'track') controller.actions.track.update(targetId, { effectsActive: enabled });
+			else controller.actions.mixer.updateBus(scope, targetId, { effectsActive: enabled });
 		},
 		onEffectToggle: (index, enabled) => {
 			const effect = effects[index];
@@ -505,7 +510,9 @@ export function AudioEditorEffectsOverlay({
 	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : channelEffects;
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
 	const effectScope = selectedEffect?.scope || scope;
-	const rackPresets = effect ? controller.actions.effects.presets.list(effect.type) : [];
+	const rackPresets = effect && effect.type !== 'missing'
+		? controller.actions.effects.presets.list(effect.type)
+		: [];
 	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset);
 	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
 	const applyRackPreset = (value) => {
@@ -547,7 +554,7 @@ export function AudioEditorEffectsOverlay({
 		closeStackMenu();
 	});
 	const exportStack = () => run(async () => {
-		const encoded = serializeAudacityEffectMacro(menuEffects);
+		const encoded = serializeAudacityEffectMacro(menuEffects.filter((candidate) => candidate.type !== 'missing'));
 		const name = stackMenu.scope === 'master' ? copy.master : channel?.name;
 		const saved = await downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`, fileService, 'macro');
 		if (saved?.cancelled) return;
@@ -568,8 +575,8 @@ export function AudioEditorEffectsOverlay({
 						width={position.width}
 						height={position.height}
 						onClose={onClose}
-						trackSection={channel ? { trackName: channel.name, ...section(scope, channelEffects) } : undefined}
-						masterSection={{ ...section('master', masterEffects) }}
+						trackSection={channel ? { trackName: channel.name, ...section(scope, channelEffects, channel) } : undefined}
+						masterSection={{ ...section('master', masterEffects, project?.master) }}
 					/>
 				</div>
 
@@ -602,21 +609,21 @@ export function AudioEditorEffectsOverlay({
 					<ContextMenuItem label={copy.copyEffects} onClick={copyStack} />
 					<ContextMenuItem label={copy.pasteEffects} disabled={blocked || !snapshot.effects?.hasStackClipboard} onClick={pasteStack} />
 					<ContextMenuItem isDivider />
-					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled)} onClick={exportStack} />
+					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled && candidate.type !== 'missing')} onClick={exportStack} />
 				</ContextMenu>
 			</div>
 
 			{effect && (
 				<ControlledDialog
 					isOpen
-					title={safeEffectLabel(effect.type, copy)}
+					title={safeEffectLabel(effect, copy)}
 					onClose={() => setSelectedEffect(null)}
 					width={effect.type === 'eq' ? 920 : 620}
 					modal={false}
 					draggable
 					className="audio-editor-effect-settings-dialog"
 					dataAttributes={{ 'data-effect': effect.id }}
-					headerSlot={(
+					headerSlot={effect.type === 'missing' ? null : (
 						<div className="audio-editor-rack-effect-header">
 							<AudacityEffectHeader
 								copy={copy}
@@ -940,7 +947,7 @@ export function AudioEditorMacroManagerDialog({
 							<EffectSlot
 								key={effect.id}
 								className="audio-editor-macro-manager__effect"
-								effectName={safeEffectLabel(effect.type, copy)}
+								effectName={safeEffectLabel(effect, copy)}
 								enabled
 								isDragging={draggedIndex === index}
 								onSelectEffect={() => setSelectedEffectId(effect.id)}
@@ -972,7 +979,7 @@ export function AudioEditorMacroManagerDialog({
 			{selectedEffect && (
 				<ControlledDialog
 					isOpen
-					title={safeEffectLabel(selectedEffect.type, copy)}
+					title={safeEffectLabel(selectedEffect, copy)}
 					onClose={() => setSelectedEffectId(null)}
 					width={selectedEffect.type === 'eq' ? 920 : 620}
 					className="audio-editor-effect-settings-dialog audio-editor-macro-effect-settings-dialog"
@@ -1255,6 +1262,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 
 function EffectPicker({ copy, locale, disabled, flyout = false, anchor = null, onClose, onChoose }) {
 	const types = useMemo(() => audioEffectTypes(), []);
+	const themeVariables = useAudioEditorThemeVariables();
 	const triggerRef = useRef(anchor);
 	const [type, setType] = useState(types[0] || '');
 	useEffect(() => {
@@ -1277,7 +1285,7 @@ function EffectPicker({ copy, locale, disabled, flyout = false, anchor = null, o
 				ariaLabel={copy.chooseEffect}
 				role="menu"
 				className="audio-editor-effect-picker-flyout"
-				style={{ zIndex: 10020, pointerEvents: 'auto' }}
+				style={{ ...themeVariables, zIndex: 10020, pointerEvents: 'auto' }}
 			>
 				<div className="audio-editor-effect-picker-flyout__grid">
 					{types.map((value) => (
@@ -1342,6 +1350,14 @@ function EffectParameterEditor({
 	onChange,
 }) {
 	const [error, setError] = useState('');
+	if (effect.type === 'missing') {
+		return (
+			<div className="audio-editor-effect-parameters audio-editor-effect-parameters--missing" data-missing-effect>
+				<strong>{safeEffectLabel(effect, copy)}</strong>
+				<p className="audio-editor-panel-hint">{copy.missingEffectReadOnly}</p>
+			</div>
+		);
+	}
 	const definition = isAudacityDefinition(effect.type) ? AUDACITY_EFFECT_DEFINITIONS[effect.type] : null;
 	const update = (changes) => {
 		setError('');
@@ -2349,7 +2365,15 @@ function createFallbackFileService() {
 	return { saveFile: ({ text, suggestedName }) => downloadTextFile(text, suggestedName) };
 }
 
-function safeEffectLabel(type, copyOrLocale) {
+function safeEffectLabel(effectOrType, copyOrLocale) {
+	if (effectOrType && typeof effectOrType === 'object' && effectOrType.type === 'missing') {
+		const name = String(effectOrType.missing?.name || '').trim()
+			|| copyOrLocale?.missingEffectUnknown
+			|| 'Unknown effect';
+		const template = copyOrLocale?.missingEffectLabel || 'Missing: {name}';
+		return template.replace('{name}', name);
+	}
+	const type = typeof effectOrType === 'object' ? effectOrType?.type : effectOrType;
 	try {
 		return audioEffectLabel(type, copyOrLocale);
 	} catch {

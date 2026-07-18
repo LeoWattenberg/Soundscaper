@@ -86,7 +86,7 @@ test('AUP4 equalizer curves keep ordered f/v parameter pairs', () => {
 	assert.deepEqual(decoded.params.points, effect.params.points);
 });
 
-test('known rack rewrites preserve unknown native effects and unknown parameters opaquely', () => {
+test('unknown native effects and known effects with future state become ordered missing placeholders', () => {
 	const futureParameter = createAudacityXmlNode('parameter', [
 		{ kind: 'attribute', name: 'name', type: 'string', value: 'future-control' },
 		{ kind: 'attribute', name: 'value', type: 'string', value: 'opaque-value' },
@@ -106,15 +106,32 @@ test('known rack rewrites preserve unknown native effects and unknown parameters
 	const opaqueRack = createAudacityXmlNode('effects', [
 		{ kind: 'attribute', name: 'active', type: 'bool', value: false },
 	], [{ kind: 'node', node: compressorNode }, { kind: 'node', node: futureEffect }]);
-	const [decoded] = readAup4EffectsNode(opaqueRack, { idFactory: () => 'known-effect' });
-	const rewritten = createAup4EffectsNode([{ ...decoded, params: { ...decoded.params, thresholdDb: -22 } }], opaqueRack);
+	let nextId = 0;
+	const decoded = readAup4EffectsNode(opaqueRack, { idFactory: () => `opened-${++nextId}` });
+	assert.deepEqual(decoded.map((effect) => ({
+		type: effect.type,
+		name: effect.missing.name,
+		reason: effect.missing.reason,
+		enabled: effect.enabled,
+		bypassed: effect.bypassed,
+	})), [
+		{ type: 'missing', name: 'Compressor', reason: 'unsupported-state', enabled: true, bypassed: true },
+		{ type: 'missing', name: 'vendor', reason: 'plugin-unavailable', enabled: false, bypassed: true },
+	]);
+	const rewritten = createAup4EffectsNode([
+		{ ...decoded[1], enabled: true },
+		{ ...decoded[0], enabled: false },
+	], opaqueRack);
 	assert.equal(audacityXmlAttribute(rewritten, 'active'), false);
 	const rewrittenEffects = audacityXmlChildren(rewritten, 'effect');
 	assert.equal(rewrittenEffects.length, 2);
-	assert.equal(audacityXmlAttribute(rewrittenEffects[0], 'future-before'), 9);
-	assert.equal(parameterMap(rewrittenEffects[0]).get('thresholdDb'), '-22');
-	assert.equal(parameterMap(rewrittenEffects[0]).get('future-control'), 'opaque-value');
-	assert.deepEqual(rewrittenEffects[1], futureEffect);
+	assert.equal(audacityXmlAttribute(rewrittenEffects[0], 'id'), 'Effect_VST3_Future_vendor_Path');
+	assert.equal(audacityXmlAttribute(rewrittenEffects[0], 'active'), true);
+	assert.deepEqual(rewrittenEffects[0].content.at(-1), futureEffect.content.at(-1));
+	assert.equal(audacityXmlAttribute(rewrittenEffects[1], 'future-before'), 9);
+	assert.equal(audacityXmlAttribute(rewrittenEffects[1], 'active'), false);
+	assert.equal(parameterMap(rewrittenEffects[1]).get('thresholdDb'), '-10');
+	assert.equal(parameterMap(rewrittenEffects[1]).get('future-control'), 'opaque-value');
 });
 
 test('supplemental browser effects survive AUP4 and native missing-effect rewrites through a bounded opaque ID', () => {
@@ -127,7 +144,7 @@ test('supplemental browser effects survive AUP4 and native missing-effect rewrit
 	const rack = createAup4EffectsNode([local]);
 	const nativeNode = audacityXmlChildren(rack, 'effect')[0];
 	const nativeId = audacityXmlAttribute(nativeNode, 'id');
-	assert.match(nativeId, /^Effect_kw\.media_kw\.media_Browser Rack_kw\.media Browser Effect: /);
+	assert.match(nativeId, /^Effect_kw\.media_kw\.media_High-pass filter_kw\.media Browser Effect: /);
 	assert.equal(nativeId.split('_').length, 5);
 	// RealtimeEffectState keeps active + id for an unavailable effect but drops
 	// its parameters. The extension deliberately needs no parameter children.
@@ -159,6 +176,75 @@ test('supplemental browser effects survive AUP4 and native missing-effect rewrit
 	assert.deepEqual(updated.context, { routing: 'master' });
 });
 
+test('future Soundscaper effects export as named missing plug-ins without blocking save', () => {
+	const rack = createAup4EffectsNode([{
+		id: 'future-local-effect',
+		type: 'spectral-cloud-v2',
+		enabled: true,
+		params: { density: 0.75 },
+		state: { revision: 2 },
+	}]);
+	const nativeId = audacityXmlAttribute(audacityXmlChildren(rack, 'effect')[0], 'id');
+	assert.match(nativeId, /^Effect_kw\.media_kw\.media_spectral-cloud-v2_kw\.media Browser Effect: /);
+	const [decoded] = readAup4EffectsNode(rack, { idFactory: () => 'unused' });
+	assert.equal(decoded.id, 'future-local-effect');
+	assert.equal(decoded.type, 'missing');
+	assert.equal(decoded.missing.name, 'spectral-cloud-v2');
+	assert.equal(decoded.missing.reason, 'unsupported-browser-effect');
+});
+
+test('mapped effects with local context, state, or future parameters use the browser extension intact', () => {
+	const noiseReduction = createEffect('audacity-noise-reduction', {
+		id: 'noise-profile',
+		context: { noiseProfile: { bins: [0.1, 0.2] } },
+	});
+	const autoDuck = createEffect('audacity-auto-duck', {
+		id: 'auto-duck-context',
+		context: { controlTrackId: 'control-track' },
+	});
+	const echo = createEffect('audacity-echo', {
+		id: 'future-echo',
+		state: { revision: 7 },
+	});
+	echo.params.futureControl = 0.25;
+	const rack = createAup4EffectsNode([noiseReduction, autoDuck, echo]);
+	for (const native of audacityXmlChildren(rack, 'effect')) {
+		assert.match(audacityXmlAttribute(native, 'id'), /^Effect_kw\.media_kw\.media_/);
+	}
+	const decoded = readAup4EffectsNode(rack, { idFactory: () => 'unused' });
+	assert.deepEqual(decoded.map((effect) => effect.type), [
+		'audacity-noise-reduction',
+		'audacity-auto-duck',
+		'audacity-echo',
+	]);
+	assert.deepEqual(decoded[0].context, noiseReduction.context);
+	assert.deepEqual(decoded[1].context, autoDuck.context);
+	assert.deepEqual(decoded[2].state, echo.state);
+	assert.equal(decoded[2].params.futureControl, 0.25);
+});
+
+test('legacy fixed-name browser extension IDs remain readable', () => {
+	const payload = Buffer.from(JSON.stringify({
+		schemaVersion: 1,
+		id: 'legacy-local-effect',
+		type: 'highpass',
+		params: { frequency: 80, q: 0.707 },
+	})).toString('base64');
+	const rack = createAudacityXmlNode('effects', [], [{ kind: 'node', node: createAudacityXmlNode('effect', [
+		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+		{
+			kind: 'attribute',
+			name: 'id',
+			type: 'string',
+			value: `Effect_kw.media_kw.media_Browser Rack_kw.media Browser Effect: ${payload}`,
+		},
+	]) }]);
+	const [decoded] = readAup4EffectsNode(rack);
+	assert.equal(decoded.id, 'legacy-local-effect');
+	assert.equal(decoded.type, 'highpass');
+	assert.deepEqual(decoded.params, { frequency: 80, q: 0.707 });
+});
+
 test('Audacity symbolic enum identifiers round-trip and legacy browser indexes remain readable', () => {
 	const effect = createEffect('audacity-classic-filters', {
 		id: 'classic-filter',
@@ -187,10 +273,76 @@ test('removing modeled effects does not resurrect their opaque source nodes', ()
 	const opaqueRack = createAudacityXmlNode('effects', [
 		{ kind: 'attribute', name: 'active', type: 'bool', value: false },
 	], [{ kind: 'node', node: knownNode }, { kind: 'node', node: futureNode }]);
-	assert.equal(readAup4EffectsNode(opaqueRack, { idFactory: () => 'opened' }).length, 1);
+	let id = 0;
+	const decoded = readAup4EffectsNode(opaqueRack, { idFactory: () => `opened-${++id}` });
+	assert.deepEqual(decoded.map((effect) => effect.type), ['audacity-compressor', 'missing']);
 	const rewritten = createAup4EffectsNode([], opaqueRack);
 	assert.equal(audacityXmlAttribute(rewritten, 'active'), false);
-	assert.deepEqual(audacityXmlChildren(rewritten, 'effect'), [futureNode]);
+	assert.deepEqual(audacityXmlChildren(rewritten, 'effect'), []);
+});
+
+test('unknown plug-in names, rack-wide activation, and opaque state round-trip safely', () => {
+	const native = createAudacityXmlNode('effect', [
+		{ kind: 'attribute', name: 'vendor-state', type: 'long', value: 42 },
+		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+		{
+			kind: 'attribute',
+			name: 'id',
+			type: 'string',
+			value: 'Effect_VST3_Acme_Super\\_Verb_/plugins/super_verb.vst3',
+		},
+	], [{ kind: 'blob', name: 'state', value: Uint8Array.of(4, 5, 6) }]);
+	const rack = createAudacityXmlNode('effects', [
+		{ kind: 'attribute', name: 'active', type: 'bool', value: false },
+	], [{ kind: 'node', node: native }]);
+	let rackActive = true;
+	const [decoded] = readAup4EffectsNode(rack, {
+		idFactory: () => 'missing-superverb',
+		onRackActive: (active) => { rackActive = active; },
+	});
+	assert.equal(rackActive, false);
+	assert.deepEqual(decoded.missing, {
+		name: 'Super_Verb',
+		nativeId: 'Effect_VST3_Acme_Super\\_Verb_/plugins/super_verb.vst3',
+		reason: 'plugin-unavailable',
+		source: 'aup4',
+	});
+	assert.deepEqual(decoded.params, {});
+	assert.equal(decoded.bypassed, true);
+
+	const rewritten = createAup4EffectsNode([{ ...decoded, enabled: false }], rack, { effectsActive: true });
+	assert.equal(audacityXmlAttribute(rewritten, 'active'), true);
+	const [rewrittenNative] = audacityXmlChildren(rewritten, 'effect');
+	assert.equal(audacityXmlAttribute(rewrittenNative, 'active'), false);
+	assert.equal(audacityXmlAttribute(rewrittenNative, 'vendor-state'), 42);
+	assert.equal(audacityXmlAttribute(rewrittenNative, 'id'), decoded.missing.nativeId);
+	assert.deepEqual(rewrittenNative.content.at(-1), native.content.at(-1));
+});
+
+test('future browser effect types become named missing placeholders instead of disappearing', () => {
+	const payload = Buffer.from(JSON.stringify({
+		schemaVersion: 1,
+		id: 'future-browser-effect',
+		type: 'spectral-cloud-v2',
+		name: 'Spectral Cloud',
+		params: { density: 0.75 },
+		state: { revision: 2 },
+	})).toString('base64');
+	const nativeId = `Effect_kw.media_kw.media_Spectral Cloud_kw.media Browser Effect: ${payload}`;
+	const rack = createAudacityXmlNode('effects', [], [{ kind: 'node', node: createAudacityXmlNode('effect', [
+		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+		{ kind: 'attribute', name: 'id', type: 'string', value: nativeId },
+	]) }]);
+	const [decoded] = readAup4EffectsNode(rack, { idFactory: () => 'unused' });
+	assert.equal(decoded.id, 'future-browser-effect');
+	assert.equal(decoded.type, 'missing');
+	assert.equal(decoded.missing.name, 'Spectral Cloud');
+	assert.equal(decoded.missing.reason, 'unsupported-browser-effect');
+	assert.equal(decoded.bypassed, true);
+	assert.deepEqual(
+		audacityXmlChildren(createAup4EffectsNode([decoded]), 'effect'),
+		audacityXmlChildren(rack, 'effect'),
+	);
 });
 
 test('malformed native and browser extension state remains opaque and non-executable', () => {
@@ -208,12 +360,34 @@ test('malformed native and browser extension state remains opaque and non-execut
 		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
 		{ kind: 'attribute', name: 'id', type: 'string', value: `Effect_kw.media_kw.media_Browser Rack_kw.media Browser Effect: ${malformedPayload}` },
 	]);
+	const duplicateParameter = createAudacityXmlNode('effect', [
+		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+		{ kind: 'attribute', name: 'id', type: 'string', value: aup4NativeEffectId('audacity-echo') },
+	], [{ kind: 'node', node: createAudacityXmlNode('parameters', [], [
+		parameter('Delay', '1'),
+		parameter('Delay', '2'),
+	]) }]);
 	const rack = createAudacityXmlNode('effects', [], [
 		{ kind: 'node', node: malformedNative },
 		{ kind: 'node', node: malformedBrowser },
+		{ kind: 'node', node: duplicateParameter },
 	]);
-	assert.deepEqual(readAup4EffectsNode(rack, { idFactory: () => 'unused' }), []);
-	assert.deepEqual(audacityXmlChildren(createAup4EffectsNode([], rack), 'effect'), [malformedNative, malformedBrowser]);
+	const opaqueRecords = [];
+	assert.deepEqual(readAup4EffectsNode(rack, {
+		idFactory: () => 'unused',
+		onOpaqueEffect(node, index, reason) {
+			opaqueRecords.push({ node, index, reason });
+		},
+	}), []);
+	assert.deepEqual(opaqueRecords, [
+		{ node: malformedNative, index: 0, reason: 'malformed-or-over-limit-state' },
+		{ node: malformedBrowser, index: 1, reason: 'malformed-or-over-limit-state' },
+		{ node: duplicateParameter, index: 2, reason: 'malformed-or-over-limit-state' },
+	]);
+	assert.deepEqual(
+		audacityXmlChildren(createAup4EffectsNode([], rack), 'effect'),
+		[malformedNative, malformedBrowser, duplicateParameter],
+	);
 });
 
 test('browser extension encoding rejects deeply nested metadata before recursive normalization', () => {

@@ -9,6 +9,7 @@ import {
 	initializeAup4Database,
 	insertAup4SampleBlock,
 	listAup4History,
+	prepareAup4PortableExport,
 	prepareAup4SerializedDatabase,
 	readAup4Document,
 	readAup4SampleBlock,
@@ -25,6 +26,7 @@ import {
 } from './aup4-export.js';
 import {
 	AUP4_MAX_BLOCK_SAMPLES,
+	createAup4CompatibilityReport,
 	createAup4ProjectDocument,
 	createAup4SampleBlock,
 	effectiveAup4SaveLimit,
@@ -456,6 +458,7 @@ function finalizeSnapshot(args, context) {
 		const document = createAup4ProjectDocument(session.plan.project, session.channelBlocks);
 		const encoded = encodeAudacityBinaryXml(document);
 		const result = writeAup4Document(session.entry.database, encoded, { autosave: session.autosave });
+		session.entry.lastExportCompatibilityReport = session.plan.compatibilityReport || null;
 		session.entry.database.exec('COMMIT');
 		completeSnapshotWrite(session);
 		context.progress(1, 'complete');
@@ -463,6 +466,7 @@ function finalizeSnapshot(args, context) {
 			...result,
 			sourceCount: session.plan.sources.length,
 			sampleCount: session.totalSamples,
+			compatibilityReport: session.entry.lastExportCompatibilityReport,
 		};
 	} catch (error) {
 		try { session.entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
@@ -527,7 +531,7 @@ async function exportProject(args, context) {
 	const entry = requireProject(projectId);
 	assertNoActiveSnapshot(entry.projectId);
 	if (!entry.readOnly && args.commit !== false) commitAup4Autosave(entry.database, { now: args.now });
-	validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS);
+	const validation = prepareAup4PortableExport(entry.database);
 	context.checkCancelled();
 	let bytes;
 	if (entry.pool) {
@@ -547,7 +551,14 @@ async function exportProject(args, context) {
 	const limit = portableLimit(args, Boolean(entry.pool));
 	if (bytes.byteLength > limit) throw operationError(`The AUP4 snapshot exceeds this browser's ${Math.round(limit / 1024 / 1024)} MiB save limit.`, 'PROJECT_TOO_LARGE', { limit, size: bytes.byteLength });
 	context.progress(1, 'complete');
-	return { bytes, size: bytes.byteLength, mimeType: 'application/x-audacity-project', extension: '.aup4' };
+	return {
+		bytes,
+		size: bytes.byteLength,
+		mimeType: 'application/x-audacity-project',
+		extension: '.aup4',
+		validation: portableValidation(validation, entry),
+		compatibilityReport: entry.lastExportCompatibilityReport || null,
+	};
 }
 
 async function closeProject(projectId) {
@@ -627,7 +638,9 @@ function portableValidation(validation, entry = null) {
 		references: validation.references,
 		recovery: validation.recovery,
 		issues,
-		compatibilityReport: {
+		compatibilityReport: createAup4CompatibilityReport(
+			validation.compatibilityReport?.direction || 'open',
+			{
 			discardedCloudMetadata,
 			missingAudio: (validation.compatibilityReport?.missingAudio || []).map((missing) => ({
 				...missing,
@@ -638,11 +651,13 @@ function portableValidation(validation, entry = null) {
 				backend: entry.backend,
 				crashRecovery: Boolean(entry.pool),
 			} : null,
-			limits: entry ? {
-				portableSaveBytes: entry.portableLimit ?? null,
-				openedBytes: entry.openedSize ?? null,
-			} : null,
-		},
+				limits: entry ? {
+					portableSaveBytes: entry.portableLimit ?? null,
+					openedBytes: entry.openedSize ?? null,
+				} : null,
+				items: validation.compatibilityReport?.items || [],
+			},
+		),
 	};
 }
 
@@ -711,14 +726,32 @@ function mergeSanitizationReport(...reports) {
 }
 
 function mergeCompatibilityReports(left, right) {
-	return {
+	const items = [...(left?.items || []), ...(right?.items || [])]
+		.filter((entry, index, all) => {
+			const key = JSON.stringify([
+				entry?.code,
+				entry?.severity,
+				entry?.disposition,
+				entry?.scope,
+				entry?.data,
+			]);
+			return all.findIndex((candidate) => JSON.stringify([
+				candidate?.code,
+				candidate?.severity,
+				candidate?.disposition,
+				candidate?.scope,
+				candidate?.data,
+			]) === key) === index;
+		});
+	return createAup4CompatibilityReport(right?.direction || left?.direction || 'open', {
 		discardedCloudMetadata: mergeSanitizationReport(left?.discardedCloudMetadata, right?.discardedCloudMetadata),
 		missingAudio: [...(left?.missingAudio || []), ...(right?.missingAudio || [])]
 			.filter((entry, index, all) => all.findIndex((candidate) => candidate.blockId === entry.blockId && candidate.reason === entry.reason) === index),
 		networkAccessAttempted: false,
 		persistence: left?.persistence || right?.persistence || null,
 		limits: left?.limits || right?.limits || null,
-	};
+		items,
+	});
 }
 
 function normalizeFloat32(value) {

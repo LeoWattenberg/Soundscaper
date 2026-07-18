@@ -231,7 +231,7 @@ function assertTrustedIpc(event) {
 async function chooseFiles(value) {
 	const choice = validateFileChoice(value);
 	const result = await dialog.showOpenDialog(mainWindow, {
-		title: choice.purpose === 'project' ? 'Open project copy' : 'Import files',
+		title: choice.purpose === 'project' ? 'Import Audacity interchange' : 'Import files',
 		properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
 		filters: choice.filters,
 	});
@@ -252,7 +252,7 @@ async function chooseFiles(value) {
 async function chooseSaveTarget(value) {
 	const choice = validateSaveChoice(value);
 	const result = await dialog.showSaveDialog(mainWindow, {
-		title: choice.purpose === 'project' ? 'Export project copy' : 'Export',
+		title: choice.purpose === 'project' ? 'Export Audacity interchange' : 'Export',
 		defaultPath: choice.suggestedName,
 		filters: choice.filters,
 	});
@@ -382,9 +382,9 @@ function installMenu() {
 		{
 			label: 'File',
 			submenu: [
-				{ label: 'Open Project Copy…', accelerator: 'CmdOrCtrl+O', click: command('project:open') },
+				{ label: 'Import Audacity Interchange…', accelerator: 'CmdOrCtrl+O', click: command('project:open') },
 				{ label: 'Save', accelerator: 'CmdOrCtrl+S', click: command('project:save') },
-				{ label: 'Save Project Copy As…', accelerator: 'CmdOrCtrl+Shift+S', click: command('project:save-as') },
+				{ label: 'Export Audacity Interchange As…', accelerator: 'CmdOrCtrl+Shift+S', click: command('project:save-as') },
 				{ label: 'Export Audio…', accelerator: 'CmdOrCtrl+Shift+E', click: command('audio:export') },
 				{ type: 'separator' },
 				process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },

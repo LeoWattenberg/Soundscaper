@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import {
 	PARAMETRIC_EQ_SPECTRUM_FFT_SIZE,
 	PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES,
+	applyEffectRack,
 	automaticCrossfadeRanges,
 	buildProjectGraph,
 	createAudioEditorEngine,
+	effectRackLatencyFrames,
 	estimatePlayAtSpeedStaffPadPeakBytes,
 	getProjectDurationFrames,
 	projectEffectRacks,
@@ -1432,6 +1434,40 @@ test('project effect rack iteration includes track, group, send, and master loca
 	]);
 });
 
+test('missing effects and inactive racks add no processor or latency', () => {
+	const input = { connect() { throw new Error('A missing effect must not connect a processor.'); } };
+	const missing = {
+		id: 'missing-plugin',
+		type: 'missing',
+		enabled: true,
+		bypassed: true,
+		params: {},
+		missing: {
+			name: 'SuperVerb',
+			nativeId: 'Effect_VST3_Acme_SuperVerb_Path',
+			reason: 'plugin-unavailable',
+			source: 'aup4',
+		},
+	};
+	assert.equal(applyEffectRack({ sampleRate: 48_000 }, input, [missing]), input);
+	assert.equal(effectRackLatencyFrames([missing], 48_000), 0);
+
+	const project = createRackProject({
+		tracks: [{
+			id: 'track-1',
+			effectsActive: false,
+			effects: [{ id: 'limiter', type: 'limiter', enabled: true, params: { lookahead: 0.1 } }],
+		}],
+		masterEffects: [missing],
+	});
+	project.master.effectsActive = true;
+	const racks = [...projectEffectRacks(project)];
+	assert.equal(racks[0].effectsActive, false);
+	assert.deepEqual(racks[0].effects, []);
+	assert.equal(racks.at(-1).effectsActive, true);
+	assert.equal(projectGraphLatencyFrames(project), 0);
+});
+
 test('parametric EQ worklets load for mixer buses and accept scoped transient updates without a rebuild', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;
@@ -2032,6 +2068,7 @@ function createRackProject({ tracks, masterEffects = [] }) {
 			pan: 0,
 			mute: false,
 			solo: false,
+			effectsActive: track.effectsActive !== false,
 			effects: track.effects,
 		})),
 		master: { gain: 1, effects: masterEffects },

@@ -77,6 +77,47 @@ test('V2 commands preserve arbitrary rates and nondestructive clip properties', 
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
+test('editing preserveFormants clears an imported future AUP4 preset even when toggled back', () => {
+	let project = createAudioEditorProjectV2({
+		id: 'future-formant-preset',
+		title: 'Future formant preset',
+		sampleRate: 48_000,
+		sources: [{
+			id: 'source',
+			storageKey: 'source',
+			name: 'Source',
+			frameCount: 4,
+			channelCount: 1,
+			sampleRate: 48_000,
+		}],
+		clips: [{
+			id: 'clip',
+			sourceId: 'source',
+			durationFrames: 4,
+			sourceDurationFrames: 4,
+			preserveFormants: false,
+			opaqueExtensions: {
+				aup4PitchAndSpeedPreset: { value: 100_000, preserveFormants: false },
+			},
+		}],
+		tracks: [{ type: 'audio', id: 'track', name: 'Track', clipIds: ['clip'] }],
+	});
+	project = apply(project, {
+		type: 'clip/update',
+		clipId: 'clip',
+		changes: { preserveFormants: true },
+	});
+	assert.equal(project.clips[0].preserveFormants, true);
+	assert.equal(project.clips[0].opaqueExtensions.aup4PitchAndSpeedPreset, undefined);
+	project = apply(project, {
+		type: 'clip/update',
+		clipId: 'clip',
+		changes: { preserveFormants: false },
+	});
+	assert.equal(project.clips[0].preserveFormants, false);
+	assert.equal(project.clips[0].opaqueExtensions.aup4PitchAndSpeedPreset, undefined);
+});
+
 test('track and clip colors remain attached while tracks reorder and clips move', () => {
 	let project = createAudioEditorProjectV2({ title: 'Colors', sampleRate: 48_000 });
 	project = apply(project, createAddSourceCommand({

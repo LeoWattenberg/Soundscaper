@@ -194,7 +194,7 @@ export async function requestAup4FileHandle(options = {}) {
 	return globalThis.showSaveFilePicker({
 		suggestedName: ensureAup4Extension(options.fileName || 'audacity-project.aup4'),
 		types: [{
-			description: 'Audacity 4 project',
+			description: 'Audacity interchange',
 			accept: { 'application/x-audacity-project': ['.aup4'] },
 		}],
 		excludeAcceptAllOption: false,

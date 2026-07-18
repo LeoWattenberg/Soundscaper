@@ -5,7 +5,7 @@ import {
 	applyEditorCommand,
 	createAddTrackCommand,
 } from '../src/lib/tools/audio-editor/commands.js';
-import { createEffect } from '../src/lib/tools/audio-editor/effects.js';
+import { createEffect, createMissingEffect } from '../src/lib/tools/audio-editor/effects.js';
 import {
 	createEditorHistory,
 	executeEditorCommand,
@@ -131,4 +131,97 @@ test('track/add normalizes preconfigured racks and rejects effect ID collisions'
 	assert.equal(configured.type, 'audacity-auto-duck');
 	assert.equal(configured.context.controlTrackId, 'track-b');
 	assert.deepEqual(configured.context.range, { startFrame: 0, endFrame: 100 });
+});
+
+test('missing effects support rack commands and history without becoming executable', () => {
+	let project = createRackFixture();
+	const missing = createMissingEffect({
+		id: 'missing-plugin',
+		missing: {
+			name: 'SuperVerb',
+			nativeId: 'Effect_VST3_Acme_SuperVerb_/plugins/superverb.vst3',
+			reason: 'plugin-unavailable',
+			source: 'aup4',
+		},
+		opaqueAudacityNode: {
+			kind: 'node',
+			node: { name: 'effect', content: [{ kind: 'blob', name: 'state', value: Uint8Array.of(1, 2) }] },
+		},
+	});
+	project = apply(project, {
+		type: 'effect/add',
+		scope: 'track',
+		trackId: 'track-a',
+		effect: missing,
+	});
+	project = apply(project, {
+		type: 'effect/add',
+		scope: 'track',
+		trackId: 'track-a',
+		effect: createEffect('highpass', { id: 'highpass' }),
+	});
+	project = apply(project, {
+		type: 'effect/reorder',
+		scope: 'track',
+		trackId: 'track-a',
+		effectId: 'missing-plugin',
+		toIndex: 1,
+	});
+	assert.deepEqual(findTrack(project, 'track-a').effects.map((effect) => effect.id), ['highpass', 'missing-plugin']);
+
+	project = apply(project, {
+		type: 'effect/update',
+		scope: 'track',
+		trackId: 'track-a',
+		effectId: 'missing-plugin',
+		changes: { enabled: false, params: { unsafe: true } },
+	});
+	const updated = findTrack(project, 'track-a').effects[1];
+	assert.equal(updated.enabled, false);
+	assert.equal(updated.bypassed, true);
+	assert.deepEqual(updated.params, {});
+
+	let history = executeEditorCommand(createEditorHistory(project), {
+		type: 'effect/remove',
+		scope: 'track',
+		trackId: 'track-a',
+		effectId: 'missing-plugin',
+	}, { now: NOW });
+	assert.deepEqual(findTrack(history.present, 'track-a').effects.map((effect) => effect.id), ['highpass']);
+	history = undoEditorCommand(history, { now: NOW });
+	assert.equal(findTrack(history.present, 'track-a').effects[1].type, 'missing');
+	assert.deepEqual(
+		findTrack(history.present, 'track-a').effects[1].opaqueAudacityNode.node.content[0].value,
+		Uint8Array.of(1, 2),
+	);
+});
+
+test('rack-wide activation is normalized and editable for tracks, buses, and master', () => {
+	let project = createRackFixture();
+	assert.equal(findTrack(project, 'track-a').effectsActive, true);
+	assert.equal(project.master.effectsActive, true);
+	project = apply(project, {
+		type: 'track/update',
+		trackId: 'track-a',
+		changes: { effectsActive: false },
+	});
+	project = apply(project, {
+		type: 'master/update',
+		changes: { effectsActive: false },
+	});
+	project = apply(project, {
+		type: 'mixer/bus-add',
+		busType: 'group',
+		bus: { id: 'group-a', effectsActive: false },
+	});
+	assert.equal(findTrack(project, 'track-a').effectsActive, false);
+	assert.equal(project.master.effectsActive, false);
+	assert.equal(project.mixer.groups[0].effectsActive, false);
+	project = apply(project, {
+		type: 'mixer/bus-update',
+		busType: 'group',
+		busId: 'group-a',
+		changes: { effectsActive: true },
+	});
+	assert.equal(project.mixer.groups[0].effectsActive, true);
 });

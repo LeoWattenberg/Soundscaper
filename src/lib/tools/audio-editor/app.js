@@ -536,6 +536,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function buildDocumentSnapshot() {
 		const currentProject = state.history?.present ?? null;
+		const currentTabMetadata = currentProject ? sessionTab(currentProject.id)?.metadata || {} : {};
 		const selection = currentProject?.selection && currentProject.selection.endFrame > currentProject.selection.startFrame
 			? currentProject.selection
 			: null;
@@ -618,6 +619,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			status: Object.freeze({ ...state.status }),
 			save: Object.freeze({ state: state.saveState }),
+			aup4Compatibility: currentTabMetadata.aup4CompatibilityReport
+				? Object.freeze({
+					report: currentTabMetadata.aup4CompatibilityReport,
+					dismissed: Boolean(currentTabMetadata.aup4CompatibilityReportDismissed),
+				})
+				: null,
 			storage: Object.freeze({ ...state.storageEstimate }),
 			analysis: state.analysisResult,
 			analysisVisuals: state.analysisVisuals,
@@ -749,6 +756,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				openAup4,
 				saveAup4,
 				saveAs: saveAup4,
+				dismissAup4CompatibilitySummary,
 				close: closeProjectTab,
 				openById: async (projectId) => {
 					const openTab = sessionTab(projectId);
@@ -1017,7 +1025,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			effects: Object.freeze({
 				add: addEffect,
-				update: (scope, trackId, effectId, changes) => commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes }),
+				update: updateRackEffect,
 				beginParametricEqGesture,
 				previewParametricEq,
 				commitParametricEqGesture,
@@ -1468,6 +1476,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 				readOnlyReason: readOnlyIssue?.message,
 				save: !opened.readOnly,
 			});
+			const compatibilityReport = rememberAup4CompatibilityReport(
+				decoded.compatibilityReport
+					|| decoded.validation?.compatibilityReport
+					|| opened.validation?.compatibilityReport,
+				'open',
+			);
 			const validationWarnings = compatibilityIssues.filter((issue) => issue.level === 'warning').map((issue) => issue.message);
 			const allWarnings = [...validationWarnings, ...(decoded.warnings || [])];
 			const warning = allWarnings.length ? ` ${allWarnings.join(' ')}` : '';
@@ -1482,13 +1496,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 				project: decoded.project,
 				validation: decoded.validation,
 				warnings: decoded.warnings || [],
-				compatibilityReport: decoded.compatibilityReport || decoded.validation?.compatibilityReport || null,
+				compatibilityReport,
 			};
 		} catch (error) {
 			for (const sourceId of persistedSourceIds) await store.deleteSource(sourceId).catch(() => undefined);
-			await aup4Client?.close(nativeId).catch(() => undefined);
 			throw error;
 		} finally {
+			await Promise.resolve(
+				typeof aup4Client?.delete === 'function'
+					? aup4Client.delete(nativeId)
+					: aup4Client?.close?.(nativeId),
+			).catch(() => undefined);
 			state.importing = false;
 			publishDocumentSnapshot();
 		}
@@ -1497,6 +1515,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function saveAup4(options = {}) {
 		if (project?.schemaVersion !== 2) throw new Error(copy.aup4OnlyV2);
 		if (state.missingSourceIds.size) throw new Error(copy.missingSourcesPreventSave);
+		if (aup4ReportHasMissingPcm(sessionTab(project.id)?.metadata?.aup4CompatibilityReport)) {
+			throw new Error(copy.missingSourcesPreventSave);
+		}
 		if (state.readOnly && !options.saveCopy) throw new Error(copy.projectReadOnly);
 		let fileHandle = options.fileHandle;
 		let saveTarget = options.saveTarget;
@@ -1520,8 +1541,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}
 		}
 		const client = await getAup4Client();
-		const nativeId = String(options.projectId || project.id).replace(/[^a-z0-9_-]/gi, '-');
-		await client.create(nativeId);
+		// AUP4 is an interchange export, not the backing store for the local
+		// project. Every export gets an independent native database identity.
+		const nativeId = createStableId('aup4-export').replace(/[^a-z0-9_-]/gi, '-');
+		let nativeCreated = false;
 		const referencedSources = project.sources.filter((candidate) => (
 			project.clips.some((clip) => clip.sourceId === candidate.id)
 		));
@@ -1541,7 +1564,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.saveState = 'saving';
 		publishDocumentSnapshot();
 		try {
-			await client.writeSnapshot(nativeId, project, readAup4SourceAudio(referencedSources), {
+			await client.create(nativeId);
+			nativeCreated = true;
+			const written = await client.writeSnapshot(nativeId, project, readAup4SourceAudio(referencedSources), {
 				...portableOptions,
 				onProgress: (progress) => updateNativeProjectProgress(progress, copy.aup4Saving),
 			});
@@ -1556,14 +1581,27 @@ export function createAudioEditorController(_root = null, options = {}) {
 				fileService,
 				saveTarget,
 			});
+			const validation = result?.validation || await client.inspect(nativeId);
+			const compatibilityReport = rememberAup4CompatibilityReport(
+				written?.compatibilityReport
+					|| result?.compatibilityReport
+					|| validation?.compatibilityReport,
+				'save',
+			);
 			state.saveState = 'saved';
 			setStatus(copy.aup4Saved, 'success');
 			publishDocumentSnapshot();
-			return { ...saved, validation: await client.inspect(nativeId) };
+			return { ...saved, validation, compatibilityReport };
 		} catch (error) {
 			state.saveState = 'dirty';
 			publishDocumentSnapshot();
 			throw error;
+		} finally {
+			if (nativeCreated) {
+				await Promise.resolve(
+					typeof client.delete === 'function' ? client.delete(nativeId) : client.close?.(nativeId),
+				).catch(() => undefined);
+			}
 		}
 
 		async function* readAup4SourceAudio(sources) {
@@ -1583,6 +1621,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function updateNativeProjectProgress(progress, prefix) {
 		const percentage = Math.round(Math.max(0, Math.min(1, Number(progress?.value) || 0)) * 100);
 		setStatus(`${prefix} ${percentage}%`);
+	}
+
+	function rememberAup4CompatibilityReport(report, direction) {
+		const normalized = normalizeAup4CompatibilityReport(report, direction);
+		if (project && sessionTab(project.id)) {
+			sessionController.updateProjectMetadata(project.id, {
+				aup4CompatibilityReport: normalized,
+				aup4CompatibilityReportDismissed: false,
+			});
+			publishDocumentSnapshot();
+		}
+		return normalized;
+	}
+
+	function dismissAup4CompatibilitySummary() {
+		if (!project || !sessionTab(project.id)) return false;
+		const metadata = sessionTab(project.id).metadata || {};
+		if (!metadata.aup4CompatibilityReport || metadata.aup4CompatibilityReportDismissed) return false;
+		sessionController.updateProjectMetadata(project.id, {
+			aup4CompatibilityReportDismissed: true,
+		});
+		publishDocumentSnapshot();
+		return true;
 	}
 
 	function cacheSourceBuffer(sourceId, buffer) {
@@ -2372,8 +2433,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		];
 		if (buses.some((bus) => Number(bus.pan ?? 0) !== 0)) return 2;
 		const rackEffects = [
-			...targetTracks.flatMap((track) => track.effects || []),
-			...buses.flatMap((bus) => bus.effects || []),
+			...targetTracks.flatMap((track) => track.effectsActive === false ? [] : track.effects || []),
+			...buses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []),
 		].filter((effect) => effect?.enabled !== false && effect?.bypassed !== true);
 		// Audacity worklets expose a fixed stereo output even for mono input. Do
 		// not apply the centered-mono inverse to that dual-channel signal: it can
@@ -2399,9 +2460,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			...(snapshot.mixer?.sends || []),
 		].filter((bus) => relevantBusIds.has(bus.id));
 		const controlTrackIds = new Set([
-			...targetTracks.flatMap((track) => track.effects || []),
-			...relevantBuses.flatMap((bus) => bus.effects || []),
-		].filter((effect) => effect.type === 'audacity-auto-duck')
+			...targetTracks.flatMap((track) => track.effectsActive === false ? [] : track.effects || []),
+			...relevantBuses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []),
+		].filter((effect) => effect.type === 'audacity-auto-duck' && effect.enabled !== false && effect.bypassed !== true)
 			.map((effect) => effect.context?.controlTrackId)
 			.filter((trackId) => findTrack(snapshot, trackId)?.type === 'audio'));
 		const renderTrackIds = new Set([...targetIds, ...controlTrackIds]);
@@ -2460,13 +2521,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function mixRenderTailFrames(targetTracks, snapshot, sampleRate) {
 		const trackTail = Math.max(0, ...targetTracks.map((track) => (
-			rackTailFrames(track.effects || [], sampleRate, 10)
+			track.effectsActive === false ? 0 : rackTailFrames(track.effects || [], sampleRate, 10)
 		)));
 		const busTail = targetTracks.length > 1
 			? Math.max(0, ...[
 				...(snapshot.mixer?.groups || []),
 				...(snapshot.mixer?.sends || []),
-			].map((bus) => rackTailFrames(bus.effects || [], sampleRate, 10)))
+			].map((bus) => bus.effectsActive === false ? 0 : rackTailFrames(bus.effects || [], sampleRate, 10)))
 			: 0;
 		return Math.min(sampleRate * 10, trackTail + busTail);
 	}
@@ -5093,7 +5154,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function duplicateTrack(track) {
 		if (editingBlocked() || !track) return;
 		const trackId = createStableId('track');
-		const effects = track.effects.map((effect) => ({ ...effect, id: createStableId('effect') }));
+		const effects = track.effects.map((effect) => ({
+			...structuredClone(effect),
+			id: createStableId('effect'),
+		}));
 		const commands = [createAddTrackCommand({ ...track, id: trackId, name: `${track.name} ${copy.projectCopySuffix}`, armed: false, effects, clipIds: [] })];
 		let selectedClipId = null;
 		for (const clipId of track.clipIds) {
@@ -5369,7 +5433,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			changes: {
 				pitchCents,
 				speedRatio,
-				preserveFormants: changes.preserveFormants == null ? clip.preserveFormants : Boolean(changes.preserveFormants),
+				...(changes.preserveFormants == null ? {} : {
+					preserveFormants: Boolean(changes.preserveFormants),
+				}),
 				durationFrames,
 				fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
 				fadeOutFrames: Math.min(clip.fadeOutFrames, durationFrames),
@@ -5681,6 +5747,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return effect.id;
 	}
 
+	function updateRackEffect(scope, trackId, effectId, changes = {}) {
+		const effect = effectStack(scope, trackId).find((candidate) => candidate.id === effectId);
+		if (!effect) throw new Error(copy.rackEffectNotFound);
+		if (effect.type === 'missing') {
+			const keys = Object.keys(changes || {});
+			const replacing = typeof changes.type === 'string' && changes.type !== 'missing';
+			const activationOnly = keys.every((key) => key === 'enabled');
+			if (!replacing && !activationOnly) throw new Error(copy.missingEffectReadOnly);
+		}
+		return commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes });
+	}
+
 	function beginParametricEqGesture(scope, targetId, effectId) {
 		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
 		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
@@ -5775,6 +5853,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function materializeRackEffect(effect, scope, trackId, options = {}) {
+		if (effect.type === 'missing') {
+			return {
+				...structuredClone(effect),
+				id: createStableId('effect'),
+				enabled: options.forceEnabled ? true : effect.enabled !== false,
+				bypassed: true,
+			};
+		}
 		const effectOptions = {
 			enabled: options.forceEnabled ? true : effect.enabled !== false,
 			params: structuredClone(effect.params || {}),
@@ -5806,7 +5892,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const target = audacityEffectTarget(request.trackId);
 		if (!target) throw new Error(copy.macroSelectionRequired || copy.audacitySelectionHint);
 		const requestedEffects = Array.isArray(request.effects) ? request.effects : [];
-		const enabledEffects = requestedEffects.filter((effect) => effect?.enabled !== false);
+		const enabledEffects = requestedEffects.filter((effect) => (
+			effect?.enabled !== false && effect?.type !== 'missing'
+		));
 		if (!enabledEffects.length) throw new Error(copy.macroEffectsRequired || copy.effectRackEmpty);
 		const effects = enabledEffects.map((effect) => materializeRackEffect(effect, 'track', target.track.id, {
 			forceEnabled: true,
@@ -9735,6 +9823,33 @@ function labelExportFileName(value, format) {
 function ensureAup4FileName(value) {
 	const base = String(value || 'audacity-project').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'audacity-project';
 	return /\.aup4$/i.test(base) ? base : `${base}.aup4`;
+}
+function normalizeAup4CompatibilityReport(report, direction) {
+	const value = report && typeof report === 'object' ? structuredClone(report) : {};
+	const items = Array.isArray(value.items) ? value.items : [];
+	const suppliedCounts = value.counts && typeof value.counts === 'object' ? value.counts : {};
+	const count = (disposition) => {
+		const supplied = Number(suppliedCounts[disposition]);
+		if (Number.isSafeInteger(supplied) && supplied >= 0) return supplied;
+		return items.filter((item) => item?.disposition === disposition).length;
+	};
+	return Object.freeze({
+		...value,
+		schemaVersion: 1,
+		format: 'aup4',
+		direction: direction === 'open' ? 'open' : 'save',
+		items: Object.freeze(items),
+		counts: Object.freeze({
+			preserved: count('preserved'),
+			converted: count('converted'),
+			missing: count('missing'),
+			omitted: count('omitted'),
+		}),
+	});
+}
+function aup4ReportHasMissingPcm(report) {
+	if (Array.isArray(report?.missingAudio) && report.missingAudio.length) return true;
+	return (report?.items || []).some((item) => item?.code === 'MISSING_LOCAL_AUDIO');
 }
 async function saveLabelExport(result, customSaver, fileService) {
 	const blob = new Blob([result.text], { type: result.mimeType });

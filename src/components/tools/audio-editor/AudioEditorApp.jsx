@@ -562,6 +562,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const durationFrames = project ? projectDurationFrames(project) : 0;
 	const statusMessage = localError || snapshot.status?.message || copy.ready;
 	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
+	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'
 		? copy.projectSaving
 		: snapshot.save?.state === 'dirty'
@@ -720,6 +721,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			openLegacyAup: () => legacyAupInputRef.current?.click(),
 			saveProject: () => run(() => controller.actions.project.save()),
 			saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
+			openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
 				importAudio: () => fileService.isDesktop
 					? run(() => openDesktopFiles('audio', true))
 					: importInputRef.current?.click(),
@@ -871,6 +873,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 		selectionActive,
 		showArmControls,
 		snapshot.effects?.canRepeatLast,
+		snapshot.aup4Compatibility?.dismissed,
+		snapshot.aup4Compatibility?.report,
 		snapshot.history?.canRedo,
 		snapshot.history?.canUndo,
 		snapshot.history?.hasClipboard,
@@ -1155,6 +1159,26 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 			{snapshot.monitor?.enabled && (
 				<div className="kw-audio-editor__monitor-warning" role="alert">{copy.monitorWarning}</div>
+			)}
+			{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
+				<aside className="kw-audio-editor__aup4-compatibility" role="status" data-aup4-compatibility-summary>
+					<div>
+						<strong>{copy.aup4CompatibilityReport}</strong>
+						<p>{formatAup4CompatibilitySummary(aup4Compatibility.report, copy)}</p>
+					</div>
+					<div className="kw-audio-editor__aup4-compatibility-actions">
+						<Button variant="secondary" onClick={() => setDialog('aup4-compatibility')}>
+							{copy.aup4CompatibilityViewReport}
+						</Button>
+						<button
+							type="button"
+							className="kw-audio-editor__aup4-compatibility-dismiss"
+							aria-label={copy.aup4CompatibilityDismiss}
+							title={copy.aup4CompatibilityDismiss}
+							onClick={() => controller.actions.project.dismissAup4CompatibilitySummary()}
+						>×</button>
+					</div>
+				</aside>
 			)}
 
 			<div
@@ -3790,8 +3814,10 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 	];
 	const effectLabels = new Map((snapshot.effects?.rackTypes || []).map(({ type, label }) => [type, label]));
 	const effectProps = (effects, scope, targetId) => (effects || []).map((effect) => ({
-		name: effectLabels.get(effect.type) || effect.type,
-		enabled: effect.enabled !== false && effect.bypassed !== true,
+		name: rackEffectLabel(effect, effectLabels, copy),
+		enabled: effect.type === 'missing'
+			? effect.enabled !== false
+			: effect.enabled !== false && effect.bypassed !== true,
 		onToggle: () => run(() => controller.actions.effects.update(scope, targetId, effect.id, { enabled: effect.enabled === false })),
 		onRemoveEffect: () => run(() => controller.actions.effects.remove(scope, targetId, effect.id)),
 		...(scope !== 'master' ? { onClick: () => onOpenEffects(targetId, null, scope) } : {}),
@@ -5131,6 +5157,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 		'recording-offset': copy.recordingOffset,
 		'track-rate': copy.sampleRate,
 		resample: copy.resample,
+		'aup4-compatibility': copy.aup4CompatibilityReport,
 		about: copy.aboutEditor,
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
@@ -5313,6 +5340,13 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 							<div className="kw-audio-editor-dialog__actions"><Button onClick={onClose}>{copy.close}</Button></div>
 						</>
 					)}
+					{type === 'aup4-compatibility' && (
+						<Aup4CompatibilityReport
+							report={snapshot.aup4Compatibility?.report}
+							copy={copy}
+							onClose={onClose}
+						/>
+					)}
 					{(type === 'delete' || type === 'clear') && (
 						<>
 							<p>{type === 'delete' ? copy.deleteDescription : copy.clearData}</p>
@@ -5329,6 +5363,111 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 			</AudioEditorResizableSurface>
 		</div>
 	);
+}
+
+function Aup4CompatibilityReport({ report, copy, onClose }) {
+	const visibleItems = aup4CompatibilityItems(report);
+	const counts = report?.counts || {};
+	const visibleCount = (disposition) => visibleItems.filter((item) => item?.disposition === disposition).length;
+	const displayCount = (disposition) => Math.max(compatibilityCount(counts[disposition]), visibleCount(disposition));
+	return (
+		<div data-aup4-compatibility-report>
+			<p>{copy.aup4CompatibilityDescription}</p>
+			<p>{formatAup4CompatibilitySummary(report, copy)}</p>
+			<dl className="kw-audio-editor-compatibility-counts">
+				<div><dt>{copy.aup4CompatibilityPreserved}</dt><dd>{displayCount('preserved')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityConverted}</dt><dd>{displayCount('converted')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityMissing}</dt><dd>{displayCount('missing')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityOmitted}</dt><dd>{displayCount('omitted')}</dd></div>
+			</dl>
+			<h3>{copy.aup4CompatibilityDetails}</h3>
+			{visibleItems.length ? (
+				<ul className="kw-audio-editor-compatibility-items">
+					{visibleItems.map((item, index) => (
+						<li key={`${item?.code || 'AUP4'}-${index}`} data-severity={item?.severity || 'info'}>
+							<strong>{formatAup4CompatibilityItem(item, copy)}</strong>
+							{item?.scope && <small>{formatAup4CompatibilityScope(item.scope)}</small>}
+						</li>
+					))}
+				</ul>
+			) : <p>{copy.aup4CompatibilityNoIssues}</p>}
+			<div className="kw-audio-editor-dialog__actions">
+				<Button onClick={onClose}>{copy.close}</Button>
+			</div>
+		</div>
+	);
+}
+
+function formatAup4CompatibilitySummary(report, copy) {
+	const counts = report?.counts || {};
+	const items = aup4CompatibilityItems(report);
+	const count = (disposition) => Math.max(
+		compatibilityCount(counts[disposition]),
+		items.filter((item) => item?.disposition === disposition).length,
+	);
+	return copy.aup4CompatibilitySummary
+		.replace('{direction}', report?.direction === 'open' ? copy.aup4CompatibilityOpen : copy.aup4CompatibilitySave)
+		.replace('{converted}', String(count('converted')))
+		.replace('{missing}', String(count('missing')))
+		.replace('{omitted}', String(count('omitted')));
+}
+
+function aup4CompatibilityItems(report) {
+	const items = [...(Array.isArray(report?.items) ? report.items : [])];
+	const legacyItems = [
+		...(report?.missingAudio || []).map((entry) => ({
+			code: 'MISSING_LOCAL_AUDIO',
+			severity: 'warning',
+			disposition: 'missing',
+			data: entry,
+		})),
+		...(Number(report?.discardedCloudMetadata?.discardedEntries) > 0 ? [{
+			code: 'EXCLUDED_CLOUD_METADATA',
+			severity: 'warning',
+			disposition: 'omitted',
+			data: report.discardedCloudMetadata,
+		}] : []),
+	];
+	const key = (item) => `${item?.code || ''}:${item?.data?.blockId ?? ''}`;
+	const seen = new Set(items.map(key));
+	for (const item of legacyItems) {
+		const itemKey = key(item);
+		if (!seen.has(itemKey)) {
+			seen.add(itemKey);
+			items.push(item);
+		}
+	}
+	return items;
+}
+
+function formatAup4CompatibilityItem(item, copy) {
+	const name = String(item?.data?.name || item?.name || '').trim();
+	if (item?.disposition === 'missing' && name) {
+		return copy.missingEffectLabel.replace('{name}', name);
+	}
+	const message = String(item?.message || '').trim();
+	if (message) return message;
+	return String(item?.code || copy.aup4CompatibilityDetails).replaceAll('_', ' ');
+}
+
+function rackEffectLabel(effect, labels, copy) {
+	if (effect?.type === 'missing') {
+		const name = String(effect.missing?.name || copy.missingEffectUnknown).trim() || copy.missingEffectUnknown;
+		return copy.missingEffectLabel.replace('{name}', name);
+	}
+	return labels.get(effect?.type) || String(effect?.type || '');
+}
+
+function formatAup4CompatibilityScope(scope) {
+	if (typeof scope === 'string') return scope;
+	if (!scope || typeof scope !== 'object') return '';
+	return [scope.kind || scope.type, scope.name || scope.trackName].filter(Boolean).join(': ');
+}
+
+function compatibilityCount(value, items = [], disposition = '') {
+	const count = Number(value);
+	if (Number.isSafeInteger(count) && count >= 0) return count;
+	return items.filter((item) => item?.disposition === disposition).length;
 }
 
 function recordingOffsetSources(snapshot, copy) {
@@ -5576,6 +5715,9 @@ function createApplicationMenus({
 		disabled,
 		onClick: () => actions.openNyquist(plugin.id),
 	});
+	const nyquistItems = (category) => nyquistPlugins
+		.filter((plugin) => plugin.category === category)
+		.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin)));
 
 	return applyAudacityParityToMenus([
 		{
@@ -5631,6 +5773,18 @@ function createApplicationMenus({
 				{ id: 'duplicate-project', label: copy.duplicateProject, disabled: blocked, onClick: actions.duplicateProject },
 				{ id: 'delete-project', label: copy.deleteProject, disabled: editBlocked, onClick: actions.deleteProject },
 				{ id: 'clear-data', label: copy.clearData, disabled: blocked, onClick: actions.clearData },
+			],
+		},
+		{
+			id: 'project',
+			label: copy.project,
+			items: [
+				{
+					id: 'aup4-compatibility-report',
+					label: copy.aup4CompatibilityReport,
+					disabled: !snapshot.aup4Compatibility?.report,
+					onClick: actions.openAup4CompatibilityReport,
+				},
 			],
 		},
 		{
@@ -5915,6 +6069,7 @@ function createApplicationMenus({
 				{ id: 'chirp-generator', label: copy.chirpGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('chirp') },
 				{ id: 'dtmf-generator', label: copy.dtmfGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('dtmf') },
 				{ id: 'noise-generator', label: copy.noiseGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('noise') },
+				{ id: 'nyquist-generators', label: copy.nyquist, items: nyquistItems('generate') },
 			],
 		},
 		{
@@ -5940,7 +6095,7 @@ function createApplicationMenus({
 				{
 					id: 'nyquist-effects',
 					label: copy.nyquist,
-					items: nyquistPlugins.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin))),
+					items: nyquistItems('legacy'),
 				},
 				{
 					id: 'spectral-effects',
@@ -5964,6 +6119,7 @@ function createApplicationMenus({
 				{ id: 'find-clipping', label: copy.findClipping, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('clipping') },
 				{ id: 'contrast', label: copy.contrast, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('contrast') },
 				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
+				{ id: 'nyquist-analyzers', label: copy.nyquist, items: nyquistItems('analyze') },
 			],
 		},
 		{

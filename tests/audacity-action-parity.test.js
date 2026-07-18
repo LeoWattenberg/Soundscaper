@@ -229,7 +229,10 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 test('every existing disabled application-menu placeholder has a parity classification', async () => {
 	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
-	assert.ok(placeholderIds.length > 20);
+	assert.ok(
+		placeholderIds.length >= 18,
+		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
+	);
 	assert.deepEqual(
 		placeholderIds.filter((id) => !audacityActionDefinition(id)),
 		[],

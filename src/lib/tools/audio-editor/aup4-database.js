@@ -11,11 +11,14 @@ import {
 } from './aup4-sanitization.js';
 import {
 	AUP4_APPLICATION_ID,
+	AUP4_BINARY_XML_VERSION,
 	AUP4_HISTORY_DEPTH,
 	AUP4_MAX_BLOCK_SAMPLES,
 	AUP4_SCHEMA_SQL,
 	AUP4_USER_VERSION,
 	Aup4Error,
+	addAup4CompatibilityItem,
+	createAup4CompatibilityReport,
 	inspectAup4Header,
 	readAup4ProjectSummary,
 	validateAup4SchemaObjects,
@@ -76,6 +79,61 @@ export function initializeAup4Database(database) {
 	adapter.exec('PRAGMA trusted_schema = OFF');
 	adapter.exec(AUP4_SCHEMA_SQL);
 	return validateAup4Database(database, { allowEmpty: true });
+}
+
+/**
+ * Checkpoint and validate a standalone AUP4 image before it is handed to a
+ * browser download or desktop file writer. This is intentionally stricter
+ * than open-time validation: a newly-authored file must have no autosave row,
+ * no missing audio, and no dependency on a WAL sidecar.
+ */
+export function prepareAup4PortableExport(database) {
+	const adapter = createAup4DatabaseAdapter(database);
+	adapter.exec('PRAGMA trusted_schema = OFF');
+	const integrityRows = adapter.rows('PRAGMA integrity_check').map(([value]) => String(value || ''));
+	if (integrityRows.length !== 1 || integrityRows[0].toLowerCase() !== 'ok') {
+		throw new Aup4Error(
+			`SQLite integrity check failed: ${integrityRows.filter(Boolean).join('; ') || 'unknown error'}.`,
+			'CORRUPT_DATABASE',
+		);
+	}
+	const autosaveRows = Number(adapter.value('SELECT count(*) FROM autosave'));
+	if (autosaveRows !== 0) {
+		throw new Aup4Error('A portable AUP4 export still contains an autosave document.', 'UNCOMMITTED_AUTOSAVE');
+	}
+	const committedHistoryRows = Number(adapter.value(`
+		SELECT count(*)
+		FROM project AS current
+		JOIN project_history AS history
+		  ON history.generation = (SELECT max(generation) FROM project_history)
+		 AND history.dict = current.dict
+		 AND history.doc = current.doc
+		WHERE current.id = 1
+	`));
+	if (committedHistoryRows !== 1) {
+		throw new Aup4Error(
+			'A portable AUP4 export does not have a committed history snapshot.',
+			'UNCOMMITTED_HISTORY',
+		);
+	}
+	const validation = validateAup4Database(database, {
+		allowHistoryRecovery: false,
+		validateReferences: true,
+		references: { allowMissingSampleBlocks: false },
+	});
+	if (validation.source !== 'project') {
+		throw new Aup4Error('A portable AUP4 export was not certified from the committed project document.', 'UNCOMMITTED_HISTORY');
+	}
+	if (validation.readOnly || validation.applicationId !== AUP4_APPLICATION_ID
+		|| validation.userVersion !== AUP4_USER_VERSION
+		|| validation.summary?.xmlVersion !== AUP4_BINARY_XML_VERSION) {
+		throw new Aup4Error('A portable AUP4 export does not use the pinned writable profile.', 'UNSUPPORTED_SCHEMA');
+	}
+	const checkpoint = adapter.rows('PRAGMA wal_checkpoint(TRUNCATE)')[0] || [];
+	if (checkpoint.length && Number(checkpoint[0]) !== 0) {
+		throw new Aup4Error('The AUP4 write-ahead log could not be checkpointed.', 'WAL_CHECKPOINT_FAILED');
+	}
+	return validation;
 }
 
 /**
@@ -372,7 +430,7 @@ export function validateAup4References(database, root, options = {}) {
 	let blockReferenceCount = 0;
 	let sampleBytes = 0;
 	const missingSampleBlockIds = new Set();
-	for (const sequence of descendantNodes(root, 'sequence')) {
+	for (const sequence of editableAup4Sequences(root)) {
 		sequenceCount += 1;
 		const expectedSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'numsamples', 0), 'sequence numsamples', 0);
 		const maxSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'maxsamples', AUP4_MAX_BLOCK_SAMPLES), 'sequence maxsamples', 1);
@@ -436,7 +494,7 @@ export function validateAup4References(database, root, options = {}) {
 }
 
 function createCompatibilityReport(excludedMetadata, missingSampleBlockIds) {
-	return {
+	const report = createAup4CompatibilityReport('open', {
 		discardedCloudMetadata: excludedMetadata,
 		missingAudio: missingSampleBlockIds.map((blockId) => ({
 			blockId,
@@ -445,7 +503,22 @@ function createCompatibilityReport(excludedMetadata, missingSampleBlockIds) {
 			networkAccessAttempted: false,
 		})),
 		networkAccessAttempted: false,
-	};
+	});
+	if (excludedMetadata.discardedEntries) addAup4CompatibilityItem(report, {
+		code: 'EXCLUDED_CLOUD_METADATA',
+		severity: 'warning',
+		disposition: 'omitted',
+		scope: { kind: 'project' },
+		data: { discardedEntries: excludedMetadata.discardedEntries },
+	});
+	for (const blockId of missingSampleBlockIds) addAup4CompatibilityItem(report, {
+		code: 'MISSING_LOCAL_AUDIO',
+		severity: 'warning',
+		disposition: 'missing',
+		scope: { kind: 'sampleblock', blockId },
+		data: { blockId, reason: 'missing-local-sample-block' },
+	});
+	return report;
 }
 
 function validatePinnedColumns(adapter, options = {}) {
@@ -512,6 +585,17 @@ function validateSampleBlockRecord(blockId, row) {
 		throw new Aup4Error(`AUP4 sample block ${blockId} has invalid summary lengths.`, 'INVALID_SAMPLE_BLOCK');
 	}
 	return { sampleCount, sampleBytes };
+}
+
+function editableAup4Sequences(root) {
+	const output = [];
+	for (const waveTrack of audacityXmlChildren(root, 'wavetrack')) {
+		for (const waveClip of audacityXmlChildren(waveTrack, 'waveclip')) {
+			const sequence = audacityXmlChildren(waveClip, 'sequence')[0];
+			if (sequence) output.push(sequence);
+		}
+	}
+	return output;
 }
 
 function descendantNodes(root, name) {

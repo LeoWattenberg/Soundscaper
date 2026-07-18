@@ -6,7 +6,7 @@
 		"command": "npm run audit:aup4-interop",
 		"fixturePath": "src/trackedit/tests/data/testClipboard.aup4",
 		"fixtureSha256": "a8279b4573862579647b3826250d366af134ab9684fa20f409a03fd7227dba59",
-		"expectedBrowserSnapshotSha256": "6f1129a79fb9f0b9d99ea1ca323c2b014f035ea7e003dddc395bf78a8aad5b0c",
+		"expectedBrowserSnapshotSha256": "cbc92d61663f82ce9be11b97c0ac09dfe4c704620eb35a65dfeaf29374ef6b24",
 		"expectedBrowserSnapshotByteLength": 253952,
 		"expectedSampleBlock": {
 			"samplesSha256": "9379743d5c98d7a075ee3814f97b4b67737087b097de33a2b2cdd6c8539d3264",
@@ -29,11 +29,33 @@
 		"compiledNativeCodeExecuted": false,
 		"availableEvidence": null,
 		"blockedReason": "No executable built from the pinned Audacity commit is checked in or available to this repository's test environment.",
+		"runnerProtocol": {
+			"version": 1,
+			"configuration": [
+				"--native-runner <absolute-or-relative-executable-path>",
+				"AUDACITY_AUP4_NATIVE_RUNNER=<absolute-or-relative-executable-path>"
+			],
+			"artifact": "A direct compiled ELF, PE, Mach-O, or universal Mach-O executable linked to the pinned Audacity loader and writer; scripts and wrapper launchers do not satisfy the release gate.",
+			"revisionCommand": [
+				"<runner>",
+				"--revision"
+			],
+			"revisionStdout": "Exactly the pinned 40-character lowercase Audacity commit followed by optional trailing whitespace.",
+			"roundtripCommand": [
+				"<runner>",
+				"--roundtrip",
+				"<input.aup4>",
+				"<output.aup4>"
+			],
+			"roundtripBehavior": "Open the input through the pinned Audacity loader, save the loaded project to the distinct output path through the pinned Audacity writer, close the database, and exit zero. The input is read-only and the output must have no uncheckpointed WAL."
+		},
 		"requiredEvidence": [
 			"The runner identifies its source revision as 908ad0a526e5bfdab68de780e893cebe172d27eb.",
-			"The pinned native loader opens the browser-authored rich-project snapshot.",
-			"The pinned native writer saves that loaded project to a new AUP4 snapshot.",
-			"The browser reopens the native-writer snapshot with matching sample hashes, summaries, labels, envelopes, effects, pitch/stretch state, opaque nodes, autosave, and history."
+			"The configured artifact is a direct compiled native executable, and its digest is recorded.",
+			"Audacity fixture to Soundscaper rewrite to pinned native save to Soundscaper reopen succeeds.",
+			"A distinct Soundscaper-authored fixture to pinned native save to Soundscaper reopen succeeds.",
+			"Both native-writer snapshots retain matching PCM hashes, regenerated summaries, labels, envelopes, effects, rack activation, pitch/stretch state, missing-effect opaque state, and supported project metadata.",
+			"Both native-writer snapshots pass exact schema/reference checks and SQLite integrity with empty autosave, committed history, and no uncheckpointed WAL."
 		]
 	}
 }

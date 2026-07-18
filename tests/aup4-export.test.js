@@ -10,6 +10,7 @@ import {
 	requiredAup4SourceIds,
 } from '../src/lib/tools/audio-editor/aup4-export.js';
 import { createAup4ProjectTree, createAup4SampleBlock } from '../src/lib/tools/audio-editor/aup4-profile.js';
+import { createEffect, createMissingEffect } from '../src/lib/tools/audio-editor/effects.js';
 
 test('AUP4 export normalizes mixed-rate mono and stereo clips to one fixed track profile', async () => {
 	const mono = Float32Array.from({ length: 441 }, (_, frame) => Math.sin(frame / 17));
@@ -64,6 +65,7 @@ test('AUP4 export normalizes mixed-rate mono and stereo clips to one fixed track
 		sourceDurationFrames: 384,
 		trimStartFrames: 48,
 		trimEndFrames: 48,
+		envelope: [{ frame: 0, value: 1 }, { frame: 192, value: 0.5 }],
 	});
 	assert.equal(project.clips[0].sourceStartFrame, 44);
 	assert.equal(project.clips[0].sourceDurationFrames, 353);
@@ -95,7 +97,7 @@ test('AUP4 export normalizes mixed-rate mono and stereo clips to one fixed track
 		durationFrames: 384,
 		trimStartFrames: 48,
 		trimEndFrames: 48,
-		envelope: [{ frame: 192, value: 0.5 }],
+		envelope: [{ frame: 0, value: 1 }, { frame: 192, value: 0.5 }],
 	});
 	const reopenedMonoAudio = reopened.sources.find((item) => item.sourceId === reopenedMono.sourceId);
 	assert.equal(reopenedMonoAudio.sampleRate, 48_000);
@@ -292,6 +294,274 @@ test('AUP4 export rejects PCM metadata mismatches and out-of-bounds clip ranges'
 		}]),
 		(error) => error?.code === 'INVALID_SNAPSHOT' && /exceeds source/.test(error.message),
 	);
+});
+
+test('AUP4 export plan renders reverse and excessive gain into an isolated PCM variant', () => {
+	const project = fixtureProject({
+		sources: [source('render-source', 48_000, 1, 4)],
+		clips: [clip('render-clip', 'render-source', {
+			sourceDurationFrames: 4,
+			durationFrames: 4,
+			gain: 8,
+			fadeInFrames: 2,
+			fadeOutFrames: 2,
+			reversed: true,
+		})],
+		tracks: [{
+			...track('render-track', ['render-clip']),
+			envelope: [{ frame: 0, value: 0.5 }, { frame: 4, value: 1 }],
+		}],
+	});
+	const original = structuredClone(project);
+	const plan = createAup4ExportPlan(project);
+	const normalized = normalizeAup4ExportSource(plan, {
+		sourceId: 'render-source',
+		sampleRate: 48_000,
+		channels: [Float32Array.of(1, 2, 3, 4)],
+	})[0];
+	const exportedClip = plan.project.clips[0];
+
+	assert.deepEqual(normalized.channels[0], Float32Array.of(6, 4.5, 3, 1.5));
+	assert.equal(exportedClip.reversed, false);
+	assert.equal(exportedClip.gain, 1);
+	assert.equal(exportedClip.fadeInFrames, 0);
+	assert.equal(exportedClip.fadeOutFrames, 0);
+	assert.deepEqual(exportedClip.envelope, [
+		{ frame: 0, value: 0 },
+		{ frame: 1, value: 5 / 3 },
+		{ frame: 2, value: 4 },
+		{ frame: 3, value: 7 / 3 },
+		{ frame: 4, value: 0 },
+	]);
+	assert.deepEqual(project, original);
+	assert.equal(plan.compatibilityReport.schemaVersion, 1);
+	assert.equal(plan.compatibilityReport.format, 'aup4');
+	assert.equal(plan.compatibilityReport.direction, 'save');
+	assert.ok(plan.compatibilityReport.items.some((item) => item.code === 'REVERSED_CLIP_RENDERED'));
+	assert.ok(plan.compatibilityReport.items.some((item) => (
+		item.code === 'CLIP_GAIN_AUTOMATION_MERGED' && item.data.pcmGain === 1.5
+	)));
+	assert.equal(plan.compatibilityReport.counts.converted, 3);
+});
+
+test('AUP4 export isolates trim-accessible PCM and reverses hidden handles with the clip', async () => {
+	const project = fixtureProject({
+		sources: [source('trim-source', 48_000, 1, 10)],
+		clips: [clip('trim-clip', 'trim-source', {
+			sourceStartFrame: 3,
+			sourceDurationFrames: 4,
+			durationFrames: 4,
+			trimStartFrames: 2,
+			trimEndFrames: 1,
+			reversed: true,
+		})],
+		tracks: [track('trim-track', ['trim-clip'])],
+	});
+	const snapshot = normalizeAup4ExportSnapshot(project, [{
+		sourceId: 'trim-source',
+		sampleRate: 48_000,
+		channels: [Float32Array.from({ length: 10 }, (_, frame) => frame)],
+	}]);
+	const exportedClip = snapshot.project.clips[0];
+	assert.deepEqual(snapshot.sources[0].channels[0], Float32Array.of(7, 6, 5, 4, 3, 2, 1));
+	assert.deepEqual({
+		sourceStartFrame: exportedClip.sourceStartFrame,
+		sourceDurationFrames: exportedClip.sourceDurationFrames,
+		trimStartFrames: exportedClip.trimStartFrames,
+		trimEndFrames: exportedClip.trimEndFrames,
+	}, {
+		sourceStartFrame: 1,
+		sourceDurationFrames: 4,
+		trimStartFrames: 1,
+		trimEndFrames: 2,
+	});
+	assert.ok(snapshot.compatibilityReport.items.some((item) => item.code === 'CLIP_SOURCE_RANGE_ISOLATED'));
+
+	const blocks = nativeBlockFixture(snapshot.sources);
+	const tree = createAup4ProjectTree(snapshot.project, blocks.channelBlocks);
+	let nextId = 0;
+	const reopened = await decodeAup4ProjectTree(tree, async (blockId) => blocks.sampleBlocks.get(blockId), {
+		idFactory: (prefix) => `${prefix}-${++nextId}`,
+	});
+	assert.deepEqual({
+		sourceStartFrame: reopened.project.clips[0].sourceStartFrame,
+		sourceDurationFrames: reopened.project.clips[0].sourceDurationFrames,
+		trimStartFrames: reopened.project.clips[0].trimStartFrames,
+		trimEndFrames: reopened.project.clips[0].trimEndFrames,
+	}, {
+		sourceStartFrame: 1,
+		sourceDurationFrames: 4,
+		trimStartFrames: 1,
+		trimEndFrames: 2,
+	});
+});
+
+test('AUP4 export splits overlapping clips into lanes and materializes automatic crossfades', () => {
+	const project = fixtureProject({
+		sources: [source('overlap-source', 48_000, 1, 8)],
+		clips: [
+			clip('overlap-a', 'overlap-source', { sourceDurationFrames: 6, durationFrames: 6 }),
+			clip('overlap-b', 'overlap-source', {
+				timelineStartFrame: 3,
+				sourceDurationFrames: 5,
+				durationFrames: 5,
+			}),
+		],
+		tracks: [{
+			...track('overlap-track', ['overlap-a', 'overlap-b']),
+			effects: [createEffect('audacity-invert', { id: 'overlap-invert' })],
+		}],
+	});
+	const plan = createAup4ExportPlan(project);
+	assert.equal(plan.project.tracks.length, 2);
+	assert.deepEqual(plan.project.tracks.map((item) => item.clipIds), [['overlap-a'], ['overlap-b']]);
+	assert.deepEqual(plan.project.clips[0].envelope, [
+		{ frame: 0, value: 1 },
+		{ frame: 3, value: 1 },
+		{ frame: 6, value: 0 },
+	]);
+	assert.deepEqual(plan.project.clips[1].envelope, [
+		{ frame: 0, value: 0 },
+		{ frame: 3, value: 1 },
+		{ frame: 5, value: 1 },
+	]);
+	const codes = new Set(plan.compatibilityReport.items.map((item) => item.code));
+	assert.ok(codes.has('OVERLAPPING_CLIPS_SPLIT_TO_LANES'));
+	assert.ok(codes.has('TRACK_EFFECT_RACK_DUPLICATED_FOR_OVERLAP'));
+	assert.ok(plan.compatibilityReport.items.filter((item) => (
+		item.code === 'CLIP_GAIN_AUTOMATION_MERGED' && item.data.automaticCrossfade
+	)).length >= 2);
+});
+
+test('AUP4 export reports disabled loop bounds that have no native equivalent', () => {
+	const project = fixtureProject({
+		loop: { enabled: false, startFrame: 100, endFrame: 200 },
+		sources: [],
+		clips: [],
+		tracks: [],
+	});
+	const plan = createAup4ExportPlan(project);
+	assert.ok(plan.compatibilityReport.items.some((item) => item.code === 'LOOP_REGION_OMITTED'));
+	assert.deepEqual(plan.project.loop, { enabled: false, startFrame: 0, endFrame: 0 });
+});
+
+test('AUP4 export report identifies converted source layouts and omitted mixer state', () => {
+	const project = fixtureProject({
+		masterChannels: 6,
+		master: { gain: 0.5, pan: -0.25, mute: true, solo: false, effects: [] },
+		loop: { enabled: true, startFrame: 1, endFrame: 4 },
+		view: { panelState: { inspector: true } },
+		mixer: {
+			groups: [{ id: 'group', effects: [createEffect('highpass', { id: 'group-effect' })] }],
+			sends: [{ id: 'send', effects: [createEffect('delay', { id: 'send-effect' })] }],
+			routes: { track: { groupId: 'group', sends: { send: 0.5 } } },
+		},
+		sources: [source('surround', 44_100, 6, 4)],
+		clips: [clip('clip', 'surround', { sourceDurationFrames: 4, durationFrames: 4 })],
+		tracks: [{ ...track('track', ['clip']), armed: true, displayMode: 'half-wave' }],
+	});
+	const plan = createAup4ExportPlan(project);
+	const codes = new Set(plan.compatibilityReport.items.map((item) => item.code));
+
+	for (const code of [
+		'MIXER_GROUPS_OMITTED',
+		'MIXER_SENDS_OMITTED',
+		'BUS_EFFECTS_OMITTED',
+		'MIXER_ROUTES_OMITTED',
+		'MASTER_GAIN_OMITTED',
+		'MASTER_PAN_OMITTED',
+		'MASTER_MUTE_OMITTED',
+		'MASTER_CHANNEL_LAYOUT_OMITTED',
+		'LOOP_REGION_OMITTED',
+		'EDITOR_PANEL_STATE_OMITTED',
+		'TRACK_ARMED_STATE_OMITTED',
+		'HALF_WAVE_DISPLAY_CONVERTED',
+		'MULTICHANNEL_DOWNMIXED_TO_STEREO',
+	]) assert.ok(codes.has(code), `missing compatibility item ${code}`);
+	assert.deepEqual(plan.project.mixer, { groups: [], sends: [], routes: {} });
+	assert.deepEqual(
+		[plan.project.master.gain, plan.project.master.pan, plan.project.master.mute],
+		[1, 0, false],
+	);
+	assert.equal(plan.project.masterChannels, 2);
+	assert.equal(plan.project.loop.enabled, false);
+	assert.equal(plan.project.tracks[0].armed, false);
+	assert.equal(plan.project.tracks[0].displayMode, 'waveform');
+	assert.equal(plan.compatibilityReport.counts.omitted, 12);
+});
+
+test('AUP4 save analysis reports browser and unavailable effects at their rack positions', () => {
+	const browserEffect = createEffect('reverb', { id: 'browser-reverb' });
+	const missingEffect = createMissingEffect({
+		id: 'missing-superverb',
+		enabled: false,
+		missing: {
+			name: 'SuperVerb',
+			nativeId: 'Effect_VST3_Acme_SuperVerb_Acme SuperVerb',
+			reason: 'plugin-unavailable',
+			source: 'aup4',
+		},
+	});
+	const nativeEffect = createEffect('audacity-invert', { id: 'native-invert' });
+	const project = fixtureProject({
+		sources: [],
+		clips: [],
+		tracks: [{
+			...track('effect-track', []),
+			effectsActive: false,
+			effects: [browserEffect, missingEffect, nativeEffect],
+		}],
+		master: { effects: [] },
+	});
+
+	const report = createAup4ExportPlan(project).compatibilityReport;
+	const missingItems = report.items.filter((item) => item.disposition === 'missing');
+	assert.deepEqual(missingItems.map((item) => ({
+		code: item.code,
+		name: item.data.name,
+		severity: item.severity,
+		effectIndex: item.scope.effectIndex,
+	})), [
+		{
+			code: 'SOUNDSCAPER_EFFECT_EXPORTED_AS_MISSING',
+			name: 'Reverb',
+			severity: 'info',
+			effectIndex: 0,
+		},
+		{
+			code: 'MISSING_REALTIME_EFFECT',
+			name: 'SuperVerb',
+			severity: 'info',
+			effectIndex: 1,
+		},
+	]);
+	assert.equal(report.counts.missing, 2);
+});
+
+test('AUP4 save analysis reports future effects and mapped effects with unsupported local state', () => {
+	const echo = createEffect('audacity-echo', {
+		id: 'stateful-echo',
+		state: { revision: 7 },
+	});
+	echo.params.futureControl = 0.5;
+	const future = {
+		id: 'future-effect',
+		type: 'spectral-cloud-v2',
+		enabled: true,
+		params: { density: 0.75 },
+	};
+	const project = fixtureProject({
+		sources: [],
+		clips: [],
+		tracks: [{ ...track('effect-track', []), effects: [echo, future] }],
+	});
+	const report = createAup4ExportPlan(project).compatibilityReport;
+	assert.deepEqual(report.items.filter((item) => item.disposition === 'missing').map((item) => item.code), [
+		'AUDACITY_EFFECT_UNSUPPORTED_STATE_EXPORTED_AS_MISSING',
+		'SOUNDSCAPER_EFFECT_EXPORTED_AS_MISSING',
+	]);
+	const tree = createAup4ProjectTree(createAup4ExportPlan(project).project);
+	assert.equal(audacityXmlChildren(audacityXmlChildren(tree, 'wavetrack')[0], 'effects').length, 1);
 });
 
 function fixtureProject(overrides) {

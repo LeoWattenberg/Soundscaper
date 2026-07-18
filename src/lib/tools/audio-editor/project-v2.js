@@ -80,6 +80,7 @@ const DISPLAY_MODE_SET = new Set(AUDIO_EDITOR_DISPLAY_MODES);
  * @property {string} color
  * @property {Object} spectrogram
  * @property {Array<{frame: number, value: number}>} envelope
+ * @property {boolean} effectsActive
  * @property {Object[]} effects
  * @property {string[]} clipIds
  * @property {boolean} collapsed
@@ -200,6 +201,7 @@ function normalizeEffects(effects, name) {
 			enabled: effect.enabled !== false,
 			params: plainClone(effect.params),
 		};
+		if (cloned.type === 'missing') return normalizeEffect(cloned);
 		if (!['eq', 'parametric-eq', 'parametric_eq'].includes(cloned.type)) return cloned;
 		return {
 			...cloned,
@@ -221,6 +223,7 @@ export function createAudioMixerBusV2(value = {}, type = 'group', index = 0) {
 		pan: finiteInRange(value.pan ?? 0, -1, 1, `mixer.${type}.pan`),
 		mute: Boolean(value.mute),
 		solo: Boolean(value.solo),
+		effectsActive: value.effectsActive !== false,
 		effects: normalizeEffects(value.effects || [], `mixer.${type}.effects`),
 	};
 }
@@ -361,6 +364,7 @@ export function createAudioTrackV2(options = {}, projectSampleRate = AUDIO_EDITO
 		color: nonEmptyString(options.color && options.color !== 'auto' ? options.color : AUDIO_EDITOR_TRACK_COLORS[0], 'track.color'),
 		spectrogram: normalizeSpectrogram(options.spectrogram || {}, sampleRate, 'track.spectrogram'),
 		envelope: normalizeEnvelope(options.envelope || [], 'track.envelope'),
+		effectsActive: options.effectsActive !== false,
 		effects: normalizeEffects(options.effects || [], 'track.effects'),
 		clipIds: uniqueStrings(options.clipIds || [], 'track.clipIds'),
 		collapsed: Boolean(options.collapsed),
@@ -510,6 +514,7 @@ export function createAudioEditorProjectV2(options = {}) {
 			pan: finiteInRange(options.master?.pan ?? 0, -1, 1, 'master.pan'),
 			mute: Boolean(options.master?.mute),
 			solo: Boolean(options.master?.solo),
+			effectsActive: options.master?.effectsActive !== false,
 			effects: masterEffects,
 		},
 		mixer: normalizeAudioMixerV2(options.mixer || {}),

@@ -2,8 +2,27 @@ import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import initSqlJs from 'sql.js';
 import { createAup3Fixture } from '../aup3-fixture.js';
 import { aup4NativeRichFixture } from '../fixtures/aup4-native-rich.js';
+import { encodeAudacityBinaryXml } from '../../src/lib/tools/audio-editor/audacity-binary-xml.js';
+import {
+	initializeAup4Database,
+	insertAup4SampleBlock,
+	prepareAup4PortableExport,
+	writeAup4Document,
+} from '../../src/lib/tools/audio-editor/aup4-database.js';
+import { createEffect, createMissingEffect } from '../../src/lib/tools/audio-editor/effects.js';
+import {
+	createAup4ProjectDocument,
+	createAup4SampleBlock,
+} from '../../src/lib/tools/audio-editor/aup4-profile.js';
+import {
+	createAudioClipV2,
+	createAudioEditorProjectV2,
+	createAudioSourceV2,
+	createAudioTrackV2,
+} from '../../src/lib/tools/audio-editor/project-v2.js';
 
 const AUDIO_EDITOR_PATHS = [
 	{
@@ -946,6 +965,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			'Effect',
 			'Analyze',
 			'Tools',
+			'Project',
 			'Help',
 		];
 
@@ -1071,9 +1091,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
-		const backup = getMenuItem(fileMenu, 'Backup project');
-		await expect(backup).toHaveAttribute('aria-disabled', 'true');
-		await expect(backup.locator('[data-disabled-reason]')).toHaveAttribute('title', /disabled placeholder/);
+		const projectProperties = getMenuItem(fileMenu, 'Project properties');
+		await expect(projectProperties).toHaveAttribute('aria-disabled', 'true');
+		await expect(projectProperties.locator('[data-disabled-reason]')).toHaveAttribute('title', /does not provide a usable handler/);
 	});
 
 	test('opens timer recording as a reachable future-time workflow', async ({ page }) => {
@@ -1148,7 +1168,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await importFiles(editor, [monoTone]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Legacy', 'Tremolo']);
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Tremolo']);
 		dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
 		await expect(dialog.getByRole('spinbutton', { name: 'Frequency (Hz)', exact: true })).toBeVisible();
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
@@ -1205,7 +1225,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		const originalClip = clipByName(editor, monoTone.name);
 		const originalClipId = await originalClip.getAttribute('data-clip-id');
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Legacy', 'Tremolo']);
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Tremolo']);
 		const dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await sourceRequested;
@@ -1252,7 +1272,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('tab', { name: 'Untitled project' })).toHaveAttribute('aria-selected', 'true');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		await expect(menubar).toBeVisible();
-		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help']) {
+		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Project', 'Help']) {
 			await expect(menubar.getByRole('menuitem', { name: menu, exact: true })).toBeVisible();
 		}
 		await expect(menubar.getByRole('menuitem', { name: 'Record', exact: true })).toHaveCount(0);
@@ -2063,7 +2083,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from(aup4NativeRichFixture()),
 		});
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
+		await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor).toHaveAttribute('data-clip-count', '5');
 
@@ -2082,9 +2102,88 @@ test.describe('audio editor React/design-system workflows', () => {
 			mimeType: 'application/x-audacity-project',
 			buffer: await readFile(snapshotPath),
 		});
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
+		await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor).toHaveAttribute('data-clip-count', '5');
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps an active missing AUP4 effect visible, bypassed, and ordered across save and reopen', async ({ page }) => {
+		test.setTimeout(90_000);
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const fixture = await createAup4MissingEffectFixture();
+
+		await editor.locator('[data-aup4-input]').setInputFiles({
+			name: 'missing-superverb.aup4',
+			mimeType: 'application/x-audacity-project',
+			buffer: Buffer.from(fixture),
+		});
+
+		const compatibilitySummary = editor.locator('[data-aup4-compatibility-summary]');
+		await expect(compatibilitySummary).toBeVisible({ timeout: 30_000 });
+		await expect(compatibilitySummary).toContainText('AUP4 open: 0 converted, 1 missing, 0 omitted.');
+		await expect(editor).toHaveAttribute('data-track-count', '1');
+
+		let effectsPanel = await openEffectsForTrack(editor, 0);
+		let rack = effectsPanel.locator('[data-effect-rack]');
+		await expect(rack.locator('.effect-slot__name-text')).toHaveText([
+			'Invert',
+			'Missing: SuperVerb',
+			'Echo',
+		]);
+		const missingEffect = rack.getByRole('group', { name: 'Missing: SuperVerb', exact: true });
+		const selectMissingEffect = missingEffect.getByRole('button', { name: 'Select effect', exact: true });
+		await selectMissingEffect.focus();
+		await selectMissingEffect.press('Enter');
+		const missingDialog = page.getByRole('dialog', { name: 'Missing: SuperVerb', exact: true });
+		await expect(missingDialog.locator('[data-missing-effect]')).toContainText('Local playback bypasses it');
+		await closeDialog(missingDialog);
+		await closeEffectsPanel(effectsPanel);
+
+		await chooseCommandAction(page, editor, 'Project', 'AUP4 Compatibility Report');
+		let reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
+		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
+		await closeAup4CompatibilityReport(reportDialog);
+
+		await compatibilitySummary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
+		await expect(compatibilitySummary).toBeHidden();
+		await chooseCommandAction(page, editor, 'Project', 'AUP4 Compatibility Report');
+		reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
+		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
+		await closeAup4CompatibilityReport(reportDialog);
+
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+
+		await page.evaluate(() => Object.defineProperty(globalThis, 'showSaveFilePicker', {
+			configurable: true,
+			value: undefined,
+		}));
+		const downloadPromise = page.waitForEvent('download');
+		await chooseFileAction(page, editor, 'Save project as');
+		const download = await downloadPromise;
+		const snapshotPath = await download.path();
+		expect(snapshotPath).toBeTruthy();
+		await expect(compatibilitySummary).toBeVisible({ timeout: 30_000 });
+		await expect(compatibilitySummary).toContainText('AUP4 export: 0 converted, 1 missing, 0 omitted.');
+
+		await editor.locator('[data-aup4-input]').setInputFiles({
+			name: download.suggestedFilename(),
+			mimeType: 'application/x-audacity-project',
+			buffer: await readFile(snapshotPath),
+		});
+		await expect(compatibilitySummary).toContainText('AUP4 open: 0 converted, 1 missing, 0 omitted.', { timeout: 30_000 });
+
+		effectsPanel = await openEffectsForTrack(editor, 0);
+		rack = effectsPanel.locator('[data-effect-rack]');
+		await expect(rack.locator('.effect-slot__name-text')).toHaveText([
+			'Invert',
+			'Missing: SuperVerb',
+			'Echo',
+		]);
+		await closeEffectsPanel(effectsPanel);
 		expect(errors).toEqual([]);
 	});
 
@@ -3587,6 +3686,89 @@ async function importFiles(editor, files) {
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 }
 
+let aup4FixtureSql;
+async function createAup4MissingEffectFixture() {
+	const SQL = await (aup4FixtureSql ||= initSqlJs());
+	const sampleRate = 48_000;
+	const frameCount = sampleRate;
+	const source = createAudioSourceV2({
+		id: 'missing-effects-source',
+		storageKey: 'missing-effects-source',
+		name: 'Missing effects source',
+		frameCount,
+		channelCount: 1,
+		sampleRate,
+		originalSampleRate: sampleRate,
+	});
+	const clip = createAudioClipV2({
+		id: 'missing-effects-clip',
+		sourceId: source.id,
+		title: 'Missing effects audio',
+		timelineStartFrame: 0,
+		sourceStartFrame: 0,
+		sourceDurationFrames: frameCount,
+		durationFrames: frameCount,
+	});
+	const track = createAudioTrackV2({
+		id: 'missing-effects-track',
+		name: 'Missing effects track',
+		clipIds: [clip.id],
+		effects: [
+			createEffect('audacity-invert', { id: 'fixture-invert' }),
+			createMissingEffect({
+				id: 'fixture-superverb',
+				enabled: true,
+				missing: {
+					name: 'SuperVerb',
+					nativeId: 'Effect_VST3_Acme_SuperVerb_/plugins/superverb.vst3',
+					reason: 'plugin-unavailable',
+					source: 'aup4',
+				},
+			}),
+			createEffect('audacity-echo', {
+				id: 'fixture-echo',
+				params: { delaySeconds: 0.1, decay: 0.25 },
+			}),
+		],
+	}, sampleRate);
+	const project = createAudioEditorProjectV2({
+		id: 'missing-effects-project',
+		title: 'Missing effects fixture',
+		sampleRate,
+		sources: [source],
+		clips: [clip],
+		tracks: [track],
+		selection: {
+			startFrame: 0,
+			endFrame: frameCount,
+			trackIds: [track.id],
+			clipIds: [clip.id],
+		},
+		view: { selectedTrackIds: [track.id] },
+	});
+	const samples = Float32Array.from(
+		{ length: frameCount },
+		(_value, frame) => Math.sin(2 * Math.PI * 440 * frame / sampleRate) * 0.2,
+	);
+	const database = new SQL.Database();
+	try {
+		initializeAup4Database(database);
+		const blockId = insertAup4SampleBlock(database, createAup4SampleBlock(samples));
+		const channelBlocks = new Map([
+			[`${source.id}:0`, [{ blockId, start: 0, sampleCount: frameCount }]],
+		]);
+		writeAup4Document(
+			database,
+			encodeAudacityBinaryXml(createAup4ProjectDocument(project, channelBlocks)),
+			{ autosave: false, now: 0 },
+		);
+		prepareAup4PortableExport(database);
+		return database.export();
+	} finally {
+		database.close();
+	}
+}
+
 function trackNameText(editor) {
 	return editor.locator('.track-control-panel__track-name-text');
 }
@@ -3686,6 +3868,11 @@ async function openExportDialog(page, editor) {
 
 async function closeDialog(dialog) {
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect(dialog).toBeHidden();
+}
+
+async function closeAup4CompatibilityReport(dialog) {
+	await dialog.locator('[data-aup4-compatibility-report]').getByRole('button', { name: 'Close', exact: true }).click();
 	await expect(dialog).toBeHidden();
 }
 

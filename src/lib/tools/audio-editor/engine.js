@@ -1369,6 +1369,11 @@ export function getProjectDurationFrames(project) {
 	return duration;
 }
 
+function activeRackEffects(owner) {
+	if (!owner || owner.effectsActive === false || !Array.isArray(owner.effects)) return [];
+	return owner.effects;
+}
+
 /** Iterate every rack location that the project graph can process. */
 export function* projectEffectRacks(project) {
 	for (const [index, track] of (project?.tracks || []).entries()) {
@@ -1376,7 +1381,8 @@ export function* projectEffectRacks(project) {
 		yield {
 			scope: 'track',
 			targetId: String(track?.id ?? index),
-			effects: Array.isArray(track?.effects) ? track.effects : [],
+			effectsActive: track?.effectsActive !== false,
+			effects: activeRackEffects(track),
 		};
 	}
 	for (const [scope, buses] of [
@@ -1387,14 +1393,16 @@ export function* projectEffectRacks(project) {
 			yield {
 				scope,
 				targetId: String(bus.id),
-				effects: Array.isArray(bus.effects) ? bus.effects : [],
+				effectsActive: bus?.effectsActive !== false,
+				effects: activeRackEffects(bus),
 			};
 		}
 	}
 	yield {
 		scope: 'master',
 		targetId: null,
-		effects: Array.isArray(project?.master?.effects) ? project.master.effects : [],
+		effectsActive: project?.master?.effectsActive !== false,
+		effects: activeRackEffects(project?.master),
 	};
 }
 
@@ -1446,15 +1454,15 @@ export function projectGraphLatencyFrames(project, {
 	));
 	const trackLatency = tracks.reduce((maximum, track) => Math.max(
 		maximum,
-		effectRackLatencyFrames(track.effects || [], sampleRate),
+		effectRackLatencyFrames(activeRackEffects(track), sampleRate),
 	), 0);
 	const masterLatency = includeMaster
-		? effectRackLatencyFrames(project?.master?.effects || [], sampleRate)
+		? effectRackLatencyFrames(activeRackEffects(project?.master), sampleRate)
 		: 0;
 	const busLatency = Math.max(0, ...[
 		...(project?.mixer?.groups || []),
 		...(project?.mixer?.sends || []),
-	].map((bus) => effectRackLatencyFrames(bus.effects || [], sampleRate)));
+	].map((bus) => effectRackLatencyFrames(activeRackEffects(bus), sampleRate)));
 	return trackLatency + busLatency + masterLatency;
 }
 
@@ -1504,13 +1512,13 @@ export function buildProjectGraph(context, destination, project, {
 	), 1, 32);
 	const maximumTrackLatency = renderedTracks.reduce((maximum, track) => Math.max(
 		maximum,
-		effectRackLatencyFrames(track.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE),
+		effectRackLatencyFrames(activeRackEffects(track), context.sampleRate || DEFAULT_SAMPLE_RATE),
 	), 0);
 	const masterInput = addNode(nodes, context.createGain());
 	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const busLatencies = new Map([...groups, ...sends].map((bus) => [
-		String(bus.id), effectRackLatencyFrames(bus.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE),
+		String(bus.id), effectRackLatencyFrames(activeRackEffects(bus), context.sampleRate || DEFAULT_SAMPLE_RATE),
 	]));
 	const maximumBusLatency = Math.max(0, ...busLatencies.values());
 	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
@@ -1531,8 +1539,9 @@ export function buildProjectGraph(context, destination, project, {
 		const trackId = String(track.id ?? index);
 		if (onlyTrackId != null && String(onlyTrackId) !== trackId) continue;
 		const input = trackInputs.get(trackId);
-		const trackLatency = effectRackLatencyFrames(track.effects || [], context.sampleRate || DEFAULT_SAMPLE_RATE);
-		let output = applyEffectRack(context, input, track.effects || [], nodes, {
+		const rackEffects = activeRackEffects(track);
+		const trackLatency = effectRackLatencyFrames(rackEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
+		let output = applyEffectRack(context, input, rackEffects, nodes, {
 			sidechainInputs: trackInputs,
 			scope: 'track',
 			targetId: trackId,
@@ -1594,7 +1603,7 @@ export function buildProjectGraph(context, destination, project, {
 	}
 
 	const processBus = (bus, input, analysers, scope) => {
-		let output = applyEffectRack(context, input, bus.effects || [], nodes, {
+		let output = applyEffectRack(context, input, activeRackEffects(bus), nodes, {
 			sidechainInputs: trackInputs,
 			scope,
 			targetId: String(bus.id),
@@ -1629,7 +1638,7 @@ export function buildProjectGraph(context, destination, project, {
 	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers, 'group');
 	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers, 'send');
 
-	const masterEffects = includeMaster ? project?.master?.effects || [] : [];
+	const masterEffects = includeMaster ? activeRackEffects(project?.master) : [];
 	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
 	const masterOutput = applyEffectRack(context, masterInput, masterEffects, nodes, {
 		sidechainInputs: trackInputs,
@@ -2819,11 +2828,11 @@ function resolveTailSeconds(project, includeTail, { trackId = null, includeMaste
 		: (project?.tracks || []).filter((track) => String(track.id) === String(trackId)))
 		.filter((track) => track.type !== 'label');
 	const trackTailFrames = tracks.reduce(
-		(longest, track) => Math.max(longest, rackTailFrames(track.effects || [], project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)),
+		(longest, track) => Math.max(longest, rackTailFrames(activeRackEffects(track), project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)),
 		0,
 	);
 	const masterTailFrames = includeMaster
-		? rackTailFrames(project?.master?.effects || [], project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)
+		? rackTailFrames(activeRackEffects(project?.master), project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)
 		: 0;
 	return Math.min(MAX_EFFECT_TAIL_SECONDS, (trackTailFrames + masterTailFrames) / (project?.sampleRate || DEFAULT_SAMPLE_RATE));
 }
