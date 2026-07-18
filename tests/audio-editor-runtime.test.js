@@ -19,6 +19,7 @@ import { createRecordingController } from '../src/lib/tools/audio-editor/recordi
 import { StreamingRecorderProcessor } from '../src/lib/tools/audio-editor/recording-worklet.js';
 import { RenderCaptureProcessor } from '../src/lib/tools/audio-editor/render-capture-worklet.js';
 import { DynamicsProcessor } from '../src/lib/tools/audio-editor/dynamics-worklet.js';
+import { DelayProcessor } from '../src/lib/tools/audio-editor/delay-worklet.js';
 import {
 	createStreamingLinearResampler,
 	createStreamingWindowedSincResampler,
@@ -496,6 +497,68 @@ test('dynamics worklet gates quiet input and look-ahead limits overshoot', () =>
 		if (previousSampleRate === undefined) delete globalThis.sampleRate;
 		else globalThis.sampleRate = previousSampleRate;
 	}
+});
+
+test('delay worklet keeps feedback taps sample-accurate across render quanta', () => {
+	const previousSampleRate = globalThis.sampleRate;
+	globalThis.sampleRate = 8_000;
+	try {
+		const delay = new DelayProcessor({
+			processorOptions: {
+				sampleRate: 8_000,
+				maximumSeconds: 1,
+				params: { time: 0.01, feedback: 0.5, mix: 1 },
+			},
+		});
+		const rendered = new Float32Array(512);
+		for (let blockStart = 0; blockStart < rendered.length; blockStart += 128) {
+			const input = new Float32Array(128);
+			if (blockStart === 0) input[16] = 1;
+			const output = new Float32Array(128);
+			assert.equal(delay.process([[input]], [[output]]), true);
+			rendered.set(output, blockStart);
+		}
+
+		assert.deepEqual(
+			[...rendered.entries()].filter(([, sample]) => sample !== 0),
+			[
+				[96, 1],
+				[176, 0.5],
+				[256, 0.25],
+				[336, 0.125],
+				[416, 0.0625],
+				[496, 0.03125],
+			],
+		);
+	} finally {
+		if (previousSampleRate === undefined) delete globalThis.sampleRate;
+		else globalThis.sampleRate = previousSampleRate;
+	}
+});
+
+test('delay worklet preserves feedback history when live parameters change', () => {
+	const delay = new DelayProcessor({
+		processorOptions: {
+			sampleRate: 8_000,
+			maximumSeconds: 1,
+			params: { time: 0.01, feedback: 0.5, mix: 1 },
+		},
+	});
+	const firstInput = new Float32Array(128);
+	firstInput[16] = 1;
+	const firstOutput = new Float32Array(128);
+	delay.process([[firstInput]], [[firstOutput]]);
+	assert.equal(firstOutput[96], 1);
+
+	delay.configure({ feedback: 0.25 });
+	const secondOutput = new Float32Array(128);
+	delay.process([[new Float32Array(128)]], [[secondOutput]]);
+	assert.equal(secondOutput[48], 0.5, 'the repeat already stored before configuration remains audible');
+	assert.equal(secondOutput[128 - 1], 0);
+
+	const thirdOutput = new Float32Array(128);
+	delay.process([[new Float32Array(128)]], [[thirdOutput]]);
+	assert.equal(thirdOutput[0], 0.125, 'new feedback applies without resetting the delay line');
 });
 
 test('realtime render worklet emits bounded stereo chunks at the requested frame range', () => {
@@ -1124,7 +1187,10 @@ test('engine primes independent long-source clips concurrently with one worklet 
 		await Promise.resolve();
 		assert.equal(engine.graph.sources.size, 1);
 		assert.equal(engine.graph.nodes.transientNodes.size, 4);
-		assert.equal(context.workletNodes[0].disconnected, true);
+		assert.equal(
+			context.workletNodes.find((node) => node.name === 'kw-audio-chunk-stream')?.disconnected,
+			true,
+		);
 	} finally {
 		await engine.dispose();
 		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
@@ -1497,6 +1563,101 @@ test('missing effects and inactive racks add no processor or latency', () => {
 	assert.deepEqual(racks[0].effects, []);
 	assert.equal(racks.at(-1).effectsActive, true);
 	assert.equal(projectGraphLatencyFrames(project), 0);
+});
+
+test('engine uses the sample-accurate delay worklet for playback and offline renders', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const realtime = new MockAudioContext();
+	const offlineContexts = [];
+	const project = createRackProject({
+		tracks: [{
+			id: 'track-1',
+			effects: [{
+				id: 'delay-1',
+				type: 'delay',
+				enabled: true,
+				params: { time: 0.01, feedback: 0.5, mix: 1 },
+			}],
+		}],
+	});
+	const sources = new Map([['source-1', new MockAudioBuffer(2, 4_800, 48_000)]]);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => realtime,
+		offlineAudioContextFactory: (options) => {
+			const context = new MockOfflineAudioContext(options);
+			offlineContexts.push(context);
+			return context;
+		},
+		meterInterval: 1_000,
+	});
+	try {
+		engine.loadProject(project, sources);
+		await engine.play();
+		assert.equal(realtime.audioWorkletModules.filter((url) => url.endsWith('/delay-worklet.js')).length, 1);
+		assert.deepEqual(realtime.workletNodes.map((node) => node.name), ['kw-audio-delay']);
+		assert.deepEqual(realtime.workletNodes[0].options.outputChannelCount, [2]);
+		assert.deepEqual(realtime.workletNodes[0].options.processorOptions.params, {
+			time: 0.01,
+			feedback: 0.5,
+			mix: 1,
+		});
+		assert.equal(realtime.createdDelays.length, 0);
+		assert.equal(engine.graph.effectNodes.size, 1);
+		assert.equal(engine.configureRackEffect('track', 'track-1', 'delay-1', { feedback: 0.25 }), 1);
+		assert.deepEqual(realtime.workletNodes[0].messages, [{
+			type: 'configure',
+			params: { time: 0.01, feedback: 0.25, mix: 1 },
+			revision: 1,
+			sequence: 1,
+		}]);
+		assert.equal(engine.project.tracks[0].effects[0].params.feedback, 0.25);
+		assert.equal(engine.configureRackEffect('track', 'track-1', 'missing-delay', { feedback: 0.1 }), false);
+
+		engine.stop();
+		await engine.renderMix({ startFrame: 0, endFrame: 4_800 });
+		assert.equal(offlineContexts.length, 1);
+		assert.equal(offlineContexts[0].audioWorkletModules.filter((url) => url.endsWith('/delay-worklet.js')).length, 1);
+		assert.deepEqual(offlineContexts[0].workletNodes.map((node) => node.name), ['kw-audio-delay']);
+		assert.equal(offlineContexts[0].createdDelays.length, 0);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('engine falls back to a native delay when its optional worklet cannot load', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	context.audioWorklet.addModule = async (url) => {
+		context.audioWorkletModules.push(String(url));
+		throw new Error('mock delay module load failed');
+	};
+	const project = createRackProject({
+		tracks: [{
+			id: 'track-1',
+			effects: [{
+				id: 'delay-1',
+				type: 'delay',
+				enabled: true,
+				params: { time: 0.01, feedback: 0.5, mix: 1 },
+			}],
+		}],
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context, meterInterval: 1_000 });
+	try {
+		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(2, 4_800, 48_000)]]));
+		await engine.play();
+		assert.equal(context.audioWorkletModules.filter((url) => url.endsWith('/delay-worklet.js')).length, 1);
+		assert.equal(context.workletNodes.length, 0);
+		assert.equal(context.createdDelays.length, 1);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
 });
 
 test('parametric EQ worklets load for mixer buses and accept scoped transient updates without a rebuild', async () => {

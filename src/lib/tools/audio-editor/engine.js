@@ -1,4 +1,4 @@
-import { projectEffectTailFrames } from './effects.js';
+import { normalizeEffect, projectEffectTailFrames } from './effects.js';
 import { envelopeValueAtFrame } from './automation.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
@@ -31,18 +31,22 @@ const DEFAULT_SAMPLE_RATE = 48000;
 const DEFAULT_METER_INTERVAL = 50;
 const DEFAULT_SCRUB_FRAME_MS = 50;
 const MAX_EFFECT_TAIL_SECONDS = 10;
+const MAX_DELAY_SECONDS = 5;
 const STREAM_RESAMPLE_RADIUS = 24;
 const PLAY_AT_SPEED_MINIMUM_RATE = 0.5;
 const PLAY_AT_SPEED_MAXIMUM_RATE = 2;
 export const PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES = AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES;
 export const PARAMETRIC_EQ_SPECTRUM_FFT_SIZE = 4_096;
+const DELAY_WORKLET_NAME = 'kw-audio-delay';
 const PARAMETRIC_EQ_WORKLET_NAME = 'kw-parametric-eq';
 const PARAMETRIC_EQ_TYPES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
 const dynamicsWorkletContexts = new WeakSet();
+const delayWorkletContexts = new WeakSet();
 const audacityWorkletContexts = new WeakSet();
 const parametricEqWorkletContexts = new WeakSet();
 const parametricEqWasmModules = new WeakMap();
 const dynamicsWorkletLoads = new WeakMap();
+const delayWorkletLoads = new WeakMap();
 const audacityWorkletLoads = new WeakMap();
 const parametricEqWorkletLoads = new WeakMap();
 const parametricEqPortMessageHandlers = new WeakMap();
@@ -559,6 +563,41 @@ export class WebAudioEditorEngine {
 		return () => this.parametricEqErrorListeners.delete(listener);
 	}
 
+	/**
+	 * Update an active worklet-backed rack effect without rebuilding playback.
+	 * Returns false when the addressed effect is not live-configurable.
+	 */
+	configureRackEffect(scope, targetId, effectId, params, options = {}) {
+		if (!params || typeof params !== 'object' || Array.isArray(params)) {
+			throw new TypeError('Rack effect parameters must be an object.');
+		}
+		const effect = projectRackEffect(this.project, scope, targetId, effectId);
+		if (!effect || String(effect.type || '').toLowerCase() !== 'delay') return false;
+		const normalized = normalizeEffect({
+			...effect,
+			params: { ...(effect.params || {}), ...params },
+		}).params;
+		const sequence = postEffectMessage(
+			this.graph,
+			scope,
+			targetId,
+			effectId,
+			{ type: 'configure', params: normalized },
+			options.revision,
+		);
+		if (sequence !== false) {
+			this.project = projectWithEffectParams(
+				this.project,
+				scope,
+				targetId,
+				effectId,
+				normalized,
+				(candidate) => String(candidate?.type || '').toLowerCase() === 'delay',
+			) || this.project;
+		}
+		return sequence;
+	}
+
 	/** Update an active parametric EQ without rebuilding or restarting playback. */
 	configureParametricEq(scope, targetId, effectId, params, options = {}) {
 		if (!params || typeof params !== 'object' || Array.isArray(params)) {
@@ -573,7 +612,7 @@ export class WebAudioEditorEngine {
 		if (options.transitionFrames !== undefined) {
 			message.transitionFrames = safeMessageSequence(options.transitionFrames, 'transitionFrames');
 		}
-		const sequence = postParametricEqMessage(
+		const sequence = postEffectMessage(
 			this.graph,
 			scope,
 			targetId,
@@ -592,7 +631,7 @@ export class WebAudioEditorEngine {
 		if (bandId !== null && (typeof bandId !== 'string' || !bandId)) {
 			throw new TypeError('A parametric EQ audition band ID must be a non-empty string or null.');
 		}
-		return postParametricEqMessage(this.graph, scope, targetId, effectId, {
+		return postEffectMessage(this.graph, scope, targetId, effectId, {
 			type: 'audition',
 			bandId,
 		});
@@ -600,7 +639,7 @@ export class WebAudioEditorEngine {
 
 	/** Clear an active EQ processor's filter history without rebuilding its graph. */
 	resetParametricEq(scope, targetId, effectId) {
-		return postParametricEqMessage(this.graph, scope, targetId, effectId, { type: 'reset' });
+		return postEffectMessage(this.graph, scope, targetId, effectId, { type: 'reset' });
 	}
 
 	/**
@@ -1418,11 +1457,22 @@ export function* projectEffectRacks(project) {
 }
 
 function projectWithParametricEqParams(project, scope, targetId, effectId, params) {
+	return projectWithEffectParams(
+		project,
+		scope,
+		targetId,
+		effectId,
+		params,
+		(effect) => isParametricEqType(effect?.type),
+	);
+}
+
+function projectWithEffectParams(project, scope, targetId, effectId, params, predicate = () => true) {
 	if (!project) return null;
 	const normalizedScope = String(scope || '');
 	const replaceEffects = (effects) => {
 		if (!Array.isArray(effects)) return null;
-		const index = effects.findIndex((effect) => effect?.id === effectId && isParametricEqType(effect?.type));
+		const index = effects.findIndex((effect) => effect?.id === effectId && predicate(effect));
 		if (index < 0) return null;
 		const output = effects.slice();
 		output[index] = { ...effects[index], params: cloneMessageValue(params) };
@@ -1451,6 +1501,17 @@ function projectWithParametricEqParams(project, scope, targetId, effectId, param
 		const nextBuses = buses.slice();
 		nextBuses[index] = { ...nextBuses[index], effects };
 		return { ...project, mixer: { ...project.mixer, [key]: nextBuses } };
+	}
+	return null;
+}
+
+function projectRackEffect(project, scope, targetId, effectId) {
+	const normalizedScope = String(scope || '');
+	const normalizedTargetId = normalizedScope === 'master' ? null : String(targetId);
+	for (const rack of projectEffectRacks(project)) {
+		if (rack.scope !== normalizedScope) continue;
+		if (rack.scope !== 'master' && rack.targetId !== normalizedTargetId) continue;
+		return rack.effects.find((effect) => effect?.id === effectId) || null;
 	}
 	return null;
 }
@@ -1562,6 +1623,7 @@ export function buildProjectGraph(context, destination, project, {
 			effectAnalysis,
 			effectNodes,
 			effectAnalysers,
+			effectChannelCount: effectChannelCounts.get(trackId),
 			parametricEqWasmModule,
 			parametricEqChannelCount: effectChannelCounts.get(trackId),
 			onParametricEqError,
@@ -1625,6 +1687,7 @@ export function buildProjectGraph(context, destination, project, {
 			effectAnalysis,
 			effectNodes,
 			effectAnalysers,
+			effectChannelCount: mixEffectChannelCount,
 			parametricEqWasmModule,
 			parametricEqChannelCount: mixEffectChannelCount,
 			onParametricEqError,
@@ -1663,6 +1726,7 @@ export function buildProjectGraph(context, destination, project, {
 		effectAnalysis,
 		effectNodes,
 		effectAnalysers,
+		effectChannelCount: mixEffectChannelCount,
 		parametricEqWasmModule,
 		parametricEqChannelCount: mixEffectChannelCount,
 		onParametricEqError,
@@ -1857,7 +1921,7 @@ function applyEffect(context, input, effect, nodes, options = {}) {
 		connect(input, shaper);
 		return shaper;
 	}
-	if (type === 'delay') return connectDelay(context, input, params, nodes);
+	if (type === 'delay') return connectDelay(context, input, effect, params, nodes, options);
 	if (type === 'reverb' || type === 'convolver') return connectReverb(context, input, params, nodes);
 	return input;
 }
@@ -1891,9 +1955,8 @@ function registerEffectGraphNodes(context, effect, processor, inputAnalyser, out
 		} else processor.onprocessorerror = processorErrorHandler;
 		parametricEqPortMessageHandlers.set(processor, { handler, processorErrorHandler });
 	}
-	if (!options.effectNodes || typeof effect?.id !== 'string' || !effect.id) return;
-	const key = effectGraphKey(options.scope, options.targetId, effect.id);
-	options.effectNodes.set(key, processor);
+	const key = registerEffectNode(effect, processor, options);
+	if (!key) return;
 	if (!options.effectAnalysers || !inputAnalyser || !outputAnalyser) return;
 	options.effectAnalysers.set(key, {
 		input: inputAnalyser,
@@ -1919,22 +1982,48 @@ function connectBiquad(context, input, params, nodes) {
 	return filter;
 }
 
-function connectDelay(context, input, params, nodes) {
+function connectDelay(context, input, effect, params, nodes, options = {}) {
 	const mix = clamp(finite(params.mix, 0.25), 0, 1);
-	if (mix <= 0 || typeof context.createDelay !== 'function') return input;
+	if (mix <= 0) return input;
+	const WorkletNode = globalThis.AudioWorkletNode || globalThis.window?.AudioWorkletNode;
+	if (delayWorkletContexts.has(context) && typeof WorkletNode === 'function') {
+		const delay = addNode(nodes, new WorkletNode(context, DELAY_WORKLET_NAME, {
+			numberOfInputs: 1,
+			numberOfOutputs: 1,
+			outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
+			channelCountMode: 'max',
+			channelInterpretation: 'speakers',
+			processorOptions: {
+				sampleRate: context.sampleRate || DEFAULT_SAMPLE_RATE,
+				maximumSeconds: MAX_DELAY_SECONDS,
+				params,
+			},
+		}));
+		connect(input, delay);
+		registerEffectNode(effect, delay, options);
+		return delay;
+	}
+	if (typeof context.createDelay !== 'function') return input;
 	const output = addNode(nodes, context.createGain());
 	const dry = addNode(nodes, context.createGain());
 	const wet = addNode(nodes, context.createGain());
-	const delay = addNode(nodes, context.createDelay(MAX_EFFECT_TAIL_SECONDS));
+	const delay = addNode(nodes, context.createDelay(MAX_DELAY_SECONDS));
 	const feedback = addNode(nodes, context.createGain());
 	setParam(dry.gain, 1 - mix, context.currentTime);
 	setParam(wet.gain, mix, context.currentTime);
-	setParam(delay.delayTime, clamp(finite(params.time ?? params.delayTime, 0.25), 0, MAX_EFFECT_TAIL_SECONDS), context.currentTime);
+	setParam(delay.delayTime, clamp(finite(params.time ?? params.delayTime, 0.25), 0, MAX_DELAY_SECONDS), context.currentTime);
 	setParam(feedback.gain, clamp(finite(params.feedback, 0.25), 0, 0.95), context.currentTime);
 	connect(input, dry); connect(dry, output);
 	connect(input, delay); connect(delay, wet); connect(wet, output);
 	connect(delay, feedback); connect(feedback, delay);
 	return output;
+}
+
+function registerEffectNode(effect, processor, options) {
+	if (!options.effectNodes || typeof effect?.id !== 'string' || !effect.id) return null;
+	const key = effectGraphKey(options.scope, options.targetId, effect.id);
+	options.effectNodes.set(key, processor);
+	return key;
 }
 
 function connectReverb(context, input, params, nodes) {
@@ -2870,15 +2959,17 @@ function outputDeviceError(name, message) {
 
 async function ensureProjectWorklets(context, project) {
 	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorkletContexts.has(context);
+	const needsDelay = projectUsesDelayWorklet(project) && !delayWorkletContexts.has(context);
 	const needsAudacity = projectUsesAudacityWorklet(project) && !audacityWorkletContexts.has(context);
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
 	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
-	if (!needsDynamics && !needsAudacity && !needsParametricEq && !needsParametricEqWasm) return;
+	if (!needsDynamics && !needsDelay && !needsAudacity && !needsParametricEq && !needsParametricEqWasm) return;
 	if (!context?.audioWorklet?.addModule || typeof (globalThis.AudioWorkletNode || globalThis.window?.AudioWorkletNode) !== 'function') {
 		if (needsAudacity) throw new Error('This browser cannot run Audacity real-time effects without bypassing them.');
 		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
-		throw new Error('This browser cannot run the limiter or gate without bypassing it.');
+		if (needsDynamics) throw new Error('This browser cannot run the limiter or gate without bypassing it.');
+		return;
 	}
 	const loads = [];
 	if (usesParametricEq) loads.push(ensureParametricEqWorklet(context));
@@ -2889,6 +2980,16 @@ async function ensureProjectWorklets(context, project) {
 			dynamicsWorkletLoads,
 			() => new URL('./dynamics-worklet.js', import.meta.url),
 		));
+	}
+	if (needsDelay) {
+		// Delay has a native Web Audio fallback. A worklet load failure must not
+		// make an otherwise playable project fail to open or render.
+		loads.push(addWorkletModuleOnce(
+			context,
+			delayWorkletContexts,
+			delayWorkletLoads,
+			() => new URL('./delay-worklet.js', import.meta.url),
+		).catch(() => {}));
 	}
 	if (needsAudacity) {
 		loads.push(addWorkletModuleOnce(
@@ -2962,6 +3063,10 @@ async function parametricEqWorkletModuleUrl() {
 
 function projectUsesDynamicsWorklet(project) {
 	return projectUsesEffect(project, (type) => type === 'limiter' || type === 'gate');
+}
+
+function projectUsesDelayWorklet(project) {
+	return projectUsesEffect(project, (type) => type === 'delay');
 }
 
 function projectUsesAudacityWorklet(project) {
@@ -3048,7 +3153,7 @@ function linearRamp(param, value, time) {
 	else setParam(param, value, time);
 }
 
-function postParametricEqMessage(graph, scope, targetId, effectId, message, requestedSequence) {
+function postEffectMessage(graph, scope, targetId, effectId, message, requestedSequence) {
 	const key = effectGraphKey(scope, targetId, effectId);
 	const node = graph?.effectNodes?.get(key);
 	if (!node?.port?.postMessage) return false;
