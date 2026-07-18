@@ -2302,9 +2302,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(firstBeforeTrim).not.toBeNull();
 		expect(secondBeforeTrim).not.toBeNull();
 		expect(trimBox).not.toBeNull();
+		const trimWaveform = secondClip.locator('canvas.clip-body__waveform');
+		const waveformRatioBeforeTrim = await trimWaveform.evaluate((canvas) => (
+			canvas.__kwWaveformPlan.frameCount / canvas.__kwWaveformPlan.durationFrames
+		));
 		await page.mouse.move(trimBox.x + trimBox.width / 2, trimBox.y + trimBox.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(trimBox.x - 24, trimBox.y + trimBox.height / 2, { steps: 4 });
+		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeLessThan(secondBeforeTrim.width - 10);
+		const waveformRatioDuringTrim = await trimWaveform.evaluate((canvas) => (
+			canvas.__kwWaveformPlan.frameCount / canvas.__kwWaveformPlan.durationFrames
+		));
+		expect(waveformRatioDuringTrim).toBeCloseTo(waveformRatioBeforeTrim, 4);
 		await page.mouse.up();
 		await expect.poll(async () => (await firstClip.boundingBox())?.width || 0).toBeLessThan(firstBeforeTrim.width - 10);
 		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeLessThan(secondBeforeTrim.width - 10);
@@ -3023,6 +3032,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(effectsPanel.locator('.kw-audio-editor__workspace-panel-header').getByText('Effects', { exact: true })).toBeVisible();
 		await expect(packagePanel.locator('.effects-panel__header, .effects-panel-header')).toBeHidden();
 		await expect(resizeHandle).toHaveCSS('cursor', 'ew-resize');
+		await expect(resizeHandle).toHaveText('↔');
+		await expect(resizeHandle).toHaveCSS('writing-mode', 'horizontal-tb');
 		const initialDockBox = await sideDock.boundingBox();
 		expect(initialDockBox).not.toBeNull();
 		await page.mouse.move(initialDockBox.x + 2, initialDockBox.y + initialDockBox.height / 2);
@@ -3034,6 +3045,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const leftDock = editor.locator('[data-panel-dock="left"]:has([data-workspace-panel="effects"])');
 		const leftResizeHandle = leftDock.locator('[data-workspace-dock-resize-handle="left"]');
 		await expect(leftResizeHandle).toHaveCSS('cursor', 'ew-resize');
+		await expect(leftResizeHandle).toHaveText('↔');
+		await expect(leftResizeHandle).toHaveCSS('writing-mode', 'horizontal-tb');
 		const initialLeftDockBox = await leftDock.boundingBox();
 		expect(initialLeftDockBox).not.toBeNull();
 		await leftResizeHandle.press('ArrowLeft');
@@ -3297,10 +3310,12 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const reduction = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Noise Reduction' });
 		await expect(reduction.getByRole('button', { name: 'Enable effect' })).toBeVisible();
-		await effectsPanel.locator('[data-effect-noise-profile]').getByRole('button').click();
+		const settingsDialog = page.getByRole('dialog', { name: 'Noise Reduction', exact: true });
+		await settingsDialog.locator('[data-effect-noise-profile]').getByRole('button').click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(reduction.getByRole('button', { name: 'Disable effect' })).toBeVisible();
-		await expect(effectsPanel.locator('[data-effect-noise-profile]')).toContainText('Replace noise profile');
+		await expect(settingsDialog.locator('[data-effect-noise-profile]')).toContainText('Replace noise profile');
+		await closeDialog(settingsDialog);
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
@@ -3401,6 +3416,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await seekOnRuler(editor, 60);
 		await editor.getByRole('button', { name: 'Split at playhead' }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		test.skip(!await page.evaluate(() => PerformanceObserver.supportedEntryTypes?.includes('longtask')), 'The Long Task API is unavailable in this browser.');
 		await page.evaluate(() => {
 			globalThis.__audioEditorLongTasks = [];
@@ -3419,7 +3436,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(150);
+		await page.waitForTimeout(500);
 		await page.evaluate(() => { globalThis.__playbackWaveformDraws = 0; });
 		const playheadPositions = await page.evaluate(async () => {
 			const line = document.querySelector('[data-playhead] .playhead-cursor__line');

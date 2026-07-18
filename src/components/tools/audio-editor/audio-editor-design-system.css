@@ -1699,7 +1699,6 @@
 	width: 17px;
 	height: 100%;
 	cursor: ew-resize;
-	writing-mode: vertical-rl;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__workspace-dock-resize-handle--left {

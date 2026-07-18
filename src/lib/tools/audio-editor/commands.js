@@ -612,6 +612,24 @@ export function collectClipTransformIds(project, activeClipId) {
 }
 
 /**
+ * Returns clips that should share a trim edge with activeClipId. Clips beside
+ * one another on the same track retain independent edges; selected/grouped
+ * clips on other tracks participate in the shared trim.
+ */
+export function collectClipTrimIds(project, activeClipId, edge) {
+	if (edge !== 'left' && edge !== 'right') throw new RangeError(`Unsupported trim edge: ${edge}.`);
+	const activeClip = findClip(project, activeClipId);
+	const activeTrack = activeClip ? findClipTrack(project, activeClip.id) : null;
+	if (!activeClip || !activeTrack) return [];
+	return collectClipTransformIds(project, activeClip.id).filter((clipId) => {
+		if (clipId === activeClip.id) return true;
+		const clip = findClip(project, clipId);
+		const track = clip ? findClipTrack(project, clip.id) : null;
+		return Boolean(clip && track && track.id !== activeTrack.id);
+	});
+}
+
+/**
  * Prepares an atomic transform for selected/grouped clips. When overwrite is
  * enabled, stable IDs are reserved for any inactive clip that is split into
  * multiple surviving segments.

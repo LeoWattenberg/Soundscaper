@@ -15,6 +15,7 @@ test('default editor shortcuts are derived from implemented pinned-manifest acti
 	const expected = Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)
 		.filter((action) => action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED && action.shortcut)
 		.map((action) => [action.id, [action.shortcut]]));
+	expected['delete-all-tracks-ripple'] = ['Ctrl+Delete', 'Ctrl+Backspace'];
 
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS, expected);
 	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-default'][0], 'Ctrl+2');

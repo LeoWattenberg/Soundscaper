@@ -675,6 +675,107 @@ test('controller trims forward, reversed, and stretched clips without changing p
 	await controller.dispose();
 });
 
+test('group selection expands atomically while horizontal and vertical trim relationships stay distinct', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+	const secondTrackId = controller.actions.track.add({ name: 'Vertical companions' });
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [
+			{ type: 'source/add', source: {
+				id: 'group-trim-source', storageKey: 'group-trim-source', name: 'group.wav',
+				mimeType: 'audio/wav', frameCount: 8_000, channelCount: 1,
+			} },
+			{ type: 'clip/add', trackId: firstTrackId, clip: {
+				id: 'horizontal-left', sourceId: 'group-trim-source', timelineStartFrame: 0,
+				sourceStartFrame: 0, durationFrames: 1_000,
+			} },
+			{ type: 'clip/add', trackId: firstTrackId, clip: {
+				id: 'horizontal-right', sourceId: 'group-trim-source', timelineStartFrame: 1_000,
+				sourceStartFrame: 1_000, durationFrames: 1_000,
+			} },
+			{ type: 'clip/group', clipIds: ['horizontal-left', 'horizontal-right'], groupId: 'horizontal-group' },
+			{ type: 'clip/add', trackId: firstTrackId, clip: {
+				id: 'vertical-top', sourceId: 'group-trim-source', timelineStartFrame: 3_000,
+				sourceStartFrame: 3_000, durationFrames: 1_000,
+			} },
+			{ type: 'clip/add', trackId: secondTrackId, clip: {
+				id: 'vertical-bottom', sourceId: 'group-trim-source', timelineStartFrame: 3_000,
+				sourceStartFrame: 4_000, durationFrames: 1_000,
+			} },
+			{ type: 'clip/group', clipIds: ['vertical-top', 'vertical-bottom'], groupId: 'vertical-group' },
+		],
+	});
+
+	controller.actions.timeline.selectClip('horizontal-left');
+	assert.deepEqual(
+		new Set(controller.getSnapshot().project.selection.clipIds),
+		new Set(['horizontal-left', 'horizontal-right']),
+	);
+	controller.actions.clip.trim('horizontal-left', { durationFrames: 800 });
+	let clips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(clips['horizontal-left'].durationFrames, 800);
+	assert.equal(clips['horizontal-right'].durationFrames, 1_000);
+
+	controller.actions.timeline.selectClip('vertical-top');
+	assert.deepEqual(
+		new Set(controller.getSnapshot().project.selection.clipIds),
+		new Set(['vertical-top', 'vertical-bottom']),
+	);
+	controller.actions.clip.trim('vertical-top', { durationFrames: 750 });
+	clips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(clips['vertical-top'].durationFrames, 750);
+	assert.equal(clips['vertical-bottom'].durationFrames, 750);
+	controller.actions.timeline.selectClip('vertical-top', { toggle: true });
+	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, []);
+	assert.equal(controller.getSnapshot().selectedClipId, null);
+	await controller.dispose();
+});
+
+test('cut and delete accept clip selections without a time range', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [
+			{ type: 'source/add', source: {
+				id: 'clip-edit-source', storageKey: 'clip-edit-source', name: 'edit.wav',
+				mimeType: 'audio/wav', frameCount: 4_000, channelCount: 1,
+			} },
+			{ type: 'clip/add', trackId, clip: {
+				id: 'clip-edit-target', sourceId: 'clip-edit-source', timelineStartFrame: 500,
+				sourceStartFrame: 500, durationFrames: 1_000,
+			} },
+		],
+	});
+
+	controller.actions.timeline.selectClip('clip-edit-target');
+	controller.actions.edit.cutLeaveGap();
+	assert.equal(controller.getSnapshot().project.clips.some((clip) => clip.id === 'clip-edit-target'), false);
+	assert.equal(controller.getSnapshot().history.hasClipboard, true);
+	controller.actions.edit.undo();
+	controller.actions.timeline.selectClip('clip-edit-target');
+	controller.actions.edit.deleteLeaveGap();
+	assert.equal(controller.getSnapshot().project.clips.some((clip) => clip.id === 'clip-edit-target'), false);
+	await controller.dispose();
+});
+
 test('controller copies and atomically replaces realtime effect stacks across tracks', async () => {
 	const controller = createAudioEditorController(null, {
 		headless: true,

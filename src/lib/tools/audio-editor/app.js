@@ -22,6 +22,7 @@ import {
 	clipNeedsTimePitchRender,
 	ClipTimePitchRenderCacheCoordinator,
 	collectClipTransformIds,
+	collectClipTrimIds,
 	createAup4Client,
 	createAiffStreamEncoder,
 	createAudioEditorPreferencesV1,
@@ -3186,10 +3187,30 @@ export function createAudioEditorController(_root = null, options = {}) {
 				projectChanged();
 				return;
 			}
-			const selection = activeSelection();
 			const audioTrackIds = project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 			const selectedTrack = findTrack(project, state.selectedTrackId);
-			const rangeTrackIds = project.selection?.trackIds?.filter((trackId) => audioTrackIds.includes(trackId)) || [];
+			const baseSelection = activeSelection();
+			const selectedClipCandidates = expandSelectedClipIds(project.selection?.clipIds?.length
+				? project.selection.clipIds
+				: state.selectedClipId
+					? [state.selectedClipId]
+					: []);
+			const selectedClips = selectedClipCandidates
+				.map((clipId) => findClip(project, clipId))
+				.filter(Boolean);
+			const selectedClipIds = selectedClips.map((clip) => clip.id);
+			const selectedClipRange = selectedClips.length
+				? {
+					startFrame: Math.min(...selectedClips.map((clip) => clip.timelineStartFrame)),
+					endFrame: Math.max(...selectedClips.map((clip) => clip.timelineStartFrame + clip.durationFrames)),
+					clipIds: selectedClipIds,
+				}
+				: null;
+			const selection = baseSelection || (selectedClipRange && selectedClipRange.endFrame > selectedClipRange.startFrame ? selectedClipRange : null);
+			const selectedClipTrackIds = [...new Set(selectedClips
+				.map((clip) => findClipTrack(project, clip.id)?.id)
+				.filter(Boolean))];
+			const rangeTrackIds = project.selection?.trackIds?.filter((trackId) => audioTrackIds.includes(trackId)) || selectedClipTrackIds;
 			const trackIds = rangeTrackIds.length
 				? rangeTrackIds
 				: selectedTrack && Array.isArray(selectedTrack.clipIds) ? [selectedTrack.id] : audioTrackIds;
@@ -3259,9 +3280,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				}, { selectTrackId: trackId, selectClipId: split.rightClipId });
 				return;
 			}
-			const selectedClipIds = project.selection?.clipIds?.length
-				? project.selection.clipIds
-				: state.selectedClipId ? [state.selectedClipId] : [];
 			if (action === 'join' && selectedClipIds.length > 1) {
 				commit({ type: 'clip/join', clipIds: selectedClipIds }, { selectClipId: selectedClipIds[0] });
 				return;
@@ -3274,7 +3292,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				commit({ type: 'clip/ungroup', clipIds: selectedClipIds });
 				return;
 			}
-			if (action === 'delete' && !selection && state.selectedClipId) {
+			if (action === 'delete' && !baseSelection && state.selectedClipId && selectedClipIds.length <= 1) {
 				commit({ type: 'clip/remove', clipId: state.selectedClipId });
 				state.selectedClipId = null;
 				return;
@@ -3832,6 +3850,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishProjectState();
 	}
 
+	function expandSelectedClipIds(rawClipIds) {
+		const clipIds = new Set(Array.isArray(rawClipIds)
+			? rawClipIds
+			: rawClipIds ? [rawClipIds] : []);
+		const groupIds = new Set();
+		for (const clipId of clipIds) {
+			const clip = findClip(project, clipId);
+			if (clip?.groupId) groupIds.add(clip.groupId);
+		}
+		if (!groupIds.size) return [...clipIds];
+		for (const clip of project.clips) {
+			if (clip.groupId && groupIds.has(clip.groupId)) clipIds.add(clip.id);
+		}
+		return [...clipIds];
+	}
+
 	function selectClip(clipId, options = {}) {
 		if (clipId == null) {
 			state.selectedClipId = null;
@@ -3863,14 +3897,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const currentClipIds = project.selection?.clipIds || [];
 		let clipIds;
 		if (options.toggle) {
+			const toggledClipIds = new Set(expandSelectedClipIds([clip.id]));
 			clipIds = currentClipIds.includes(clip.id)
-				? currentClipIds.filter((selectedId) => selectedId !== clip.id)
-				: [...currentClipIds, clip.id];
+				? currentClipIds.filter((selectedId) => !toggledClipIds.has(selectedId))
+				: [...currentClipIds, ...toggledClipIds];
 		} else if (options.additive) {
 			clipIds = currentClipIds.includes(clip.id) ? currentClipIds : [...currentClipIds, clip.id];
 		} else clipIds = [clip.id];
-		const trackIds = [...new Set(clipIds.map((selectedId) => findClipTrack(project, selectedId)?.id).filter(Boolean))];
-		const activeClipId = clipIds.includes(clip.id) ? clip.id : clipIds.at(-1) || null;
+		const nextClipIds = expandSelectedClipIds(clipIds);
+		const trackIds = [...new Set(nextClipIds.map((selectedId) => findClipTrack(project, selectedId)?.id).filter(Boolean))];
+		const activeClipId = nextClipIds.includes(clip.id) ? clip.id : nextClipIds.at(-1) || null;
 		const activeTrack = activeClipId ? findClipTrack(project, activeClipId) : null;
 		state.selectedTrackId = activeTrack?.id || null;
 		state.selectedClipId = activeClipId;
@@ -3879,7 +3915,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			startFrame: 0,
 			endFrame: 0,
 			trackIds,
-			clipIds,
+			clipIds: nextClipIds,
 			frequencyRange: null,
 		});
 		return activeClipId;
@@ -5317,7 +5353,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				: { type: 'clip/trim', clipId: clip.id, ...changes };
 			return commit(command, { selectClipId: clip.id });
 		}
-		const clipIds = collectClipTransformIds(project, clip.id);
+		const clipIds = collectClipTrimIds(project, clip.id, timelineStartChanged ? 'left' : 'right');
 		const clips = clipIds.map((id) => findClip(project, id)).filter(Boolean);
 		const trimsLeft = timelineStartChanged;
 		let requestedDelta;

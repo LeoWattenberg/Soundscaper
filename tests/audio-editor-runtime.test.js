@@ -1309,6 +1309,7 @@ test('engine schedules track automation in project time and composes it with sta
 			['set', 0.25, 0.25],
 			['ramp', 0, 0.5],
 			['ramp', 0.5, 1],
+			['ramp', 0.5, 30],
 		]);
 		engine.stop();
 	} finally {

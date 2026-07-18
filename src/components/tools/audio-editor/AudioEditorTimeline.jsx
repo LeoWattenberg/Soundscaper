@@ -44,7 +44,10 @@ import {
 	AUDACITY_TRACK_CONTEXT_ACTION_IDS,
 	audacityContextMenuAction,
 } from '../../../lib/tools/audio-editor/audacity-context-menu.js';
-import { collectClipTransformIds } from '../../../lib/tools/audio-editor/commands.js';
+import {
+	collectClipTransformIds,
+	collectClipTrimIds,
+} from '../../../lib/tools/audio-editor/commands.js';
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../../lib/tools/audio-editor/project-v2.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
 import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
@@ -197,6 +200,81 @@ function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose }) {
 			))}
 		</ContextMenu>
 	);
+}
+
+function createClipTrimPreview(project, session, requestedDelta, edge) {
+	const originals = session.clipIds
+		.map((clipId) => session.originals?.[clipId])
+		.filter(Boolean);
+	if (!originals.length) return null;
+	let lowerBound = Number.NEGATIVE_INFINITY;
+	let upperBound = Number.POSITIVE_INFINITY;
+	for (const clip of originals) {
+		const source = project.sources.find((item) => item.id === clip.sourceId);
+		if (!source) return null;
+		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
+		const sourceExtension = edge === 'left'
+			? (clip.reversed
+				? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
+				: clip.sourceStartFrame)
+			: (clip.reversed
+				? clip.sourceStartFrame
+				: source.frameCount - clip.sourceStartFrame - sourceDurationFrames);
+		if (edge === 'left') {
+			lowerBound = Math.max(
+				lowerBound,
+				-Math.min(clip.timelineStartFrame, Math.floor(sourceExtension / sourceFramesPerTimelineFrame)),
+			);
+			upperBound = Math.min(upperBound, clip.durationFrames - 1);
+		} else {
+			lowerBound = Math.max(lowerBound, 1 - clip.durationFrames);
+			upperBound = Math.min(upperBound, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
+		}
+	}
+	const deltaFrames = Math.max(lowerBound, Math.min(upperBound, requestedDelta));
+	const previews = originals.map((clip) => {
+		const source = project.sources.find((item) => item.id === clip.sourceId);
+		const track = project.tracks.find((item) => item.clipIds?.includes(clip.id));
+		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+		const durationFrames = edge === 'left'
+			? clip.durationFrames - deltaFrames
+			: clip.durationFrames + deltaFrames;
+		const sourceExtension = edge === 'left'
+			? (clip.reversed
+				? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
+				: clip.sourceStartFrame)
+			: (clip.reversed
+				? clip.sourceStartFrame
+				: source.frameCount - clip.sourceStartFrame - sourceDurationFrames);
+		const nextSourceDurationFrames = Math.max(1, Math.min(
+			sourceDurationFrames + sourceExtension,
+			Math.round(sourceDurationFrames * durationFrames / clip.durationFrames),
+		));
+		const removedSourceFrames = sourceDurationFrames - nextSourceDurationFrames;
+		const trimsSourceStart = edge === 'left' ? !clip.reversed : clip.reversed;
+		return {
+			clipId: clip.id,
+			trackId: track?.id,
+			...(edge === 'left' ? {
+				timelineStartFrame: clip.timelineStartFrame + deltaFrames,
+				sourceStartFrame: clip.sourceStartFrame + (clip.reversed ? 0 : removedSourceFrames),
+			} : {
+				timelineStartFrame: clip.timelineStartFrame,
+				sourceStartFrame: clip.reversed
+					? clip.sourceStartFrame + removedSourceFrames
+					: clip.sourceStartFrame,
+			}),
+			sourceDurationFrames: nextSourceDurationFrames,
+			durationFrames,
+			trimStartFrames: Math.max(0, (clip.trimStartFrames || 0) + (trimsSourceStart ? removedSourceFrames : 0)),
+			trimEndFrames: Math.max(0, (clip.trimEndFrames || 0) + (trimsSourceStart ? 0 : removedSourceFrames)),
+			fadeInFrames: Math.min(clip.fadeInFrames || 0, durationFrames),
+			fadeOutFrames: Math.min(clip.fadeOutFrames || 0, durationFrames),
+		};
+	});
+	const active = previews.find((preview) => preview.clipId === session.clipId);
+	return active ? { ...active, previews } : null;
 }
 
 export default function AudioEditorTimeline({
@@ -727,30 +805,40 @@ export default function AudioEditorTimeline({
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
-		let kind = 'move';
-		if (event.target.closest('.clip-display__handle--trim-left')) kind = 'trim-left';
-		if (event.target.closest('.clip-display__handle--trim-right')) kind = 'trim-right';
-		if (event.target.closest('.clip-display__handle--stretch-left')) kind = 'stretch-left';
-		if (event.target.closest('.clip-display__handle--stretch-right')) kind = 'stretch-right';
-		if (edgeKind) kind = edgeKind;
+		let kind = edgeKind || 'move';
+		if (clipEditHandle) {
+			if (clipEditHandle.classList.contains('clip-display__handle--trim-left')) kind = 'trim-left';
+			else if (clipEditHandle.classList.contains('clip-display__handle--trim-right')) kind = 'trim-right';
+			else if (clipEditHandle.classList.contains('clip-display__handle--stretch-left')) kind = 'stretch-left';
+			else if (clipEditHandle.classList.contains('clip-display__handle--stretch-right')) kind = 'stretch-right';
+		}
 		const transformClipIds = collectClipTransformIds(project, clip.id);
+		const interactionClipIds = kind === 'trim-left' || kind === 'trim-right'
+			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
+			: transformClipIds;
 		pointerSession.current = {
 			kind,
 			clipId: clip.id,
-			clipIds: transformClipIds,
+			clipIds: interactionClipIds,
 			trackId,
 			original: { ...clip },
+			originals: Object.fromEntries(interactionClipIds.map((selectedId) => {
+				const selectedClip = project.clips.find((item) => item.id === selectedId);
+				return [selectedId, { ...selectedClip }];
+			})),
 			startX: event.clientX,
 			startY: event.clientY,
 			lane,
 		};
-		setDraggingClipIds(new Set(transformClipIds));
+		setDraggingClipIds(new Set(interactionClipIds));
 		const selectedClipIds = project.selection?.clipIds || [];
 		if (event.shiftKey) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { additive: true }));
 		} else if (event.metaKey || event.ctrlKey) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { toggle: true }));
-		} else if (!selectedClipIds.includes(clip.id)) run(() => controller.actions.timeline.selectClip(clip.id));
+		} else if (!transformClipIds.every((selectedId) => selectedClipIds.includes(selectedId))) {
+			run(() => controller.actions.timeline.selectClip(clip.id));
+		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
 	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.readOnly, snapshot.recording, snapshot.recordingScheduling, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, snapshot.scheduledRecording, splitToolActive, timelineView]);
 
@@ -871,51 +959,21 @@ export default function AudioEditorTimeline({
 			session.preview = preview;
 			setClipDragPreview(preview);
 		} else if (session?.kind === 'trim-left') {
-			const source = project.sources.find((item) => item.id === session.original.sourceId);
-			if (!source) return;
-			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
 			const deltaFrames = secondsToFrames(
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
-			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
-			const sourceExtension = session.original.reversed
-				? source.frameCount - session.original.sourceStartFrame - sourceDurationFrames
-				: session.original.sourceStartFrame;
-			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
-			const change = Math.max(
-				-Math.min(session.original.timelineStartFrame, timelineExtension),
-				Math.min(session.original.durationFrames - 1, deltaFrames),
-			);
-			const preview = {
-				clipId: session.clipId,
-				trackId: session.trackId,
-				timelineStartFrame: session.original.timelineStartFrame + change,
-				durationFrames: session.original.durationFrames - change,
-			};
+			const preview = createClipTrimPreview(project, session, deltaFrames, 'left');
+			if (!preview) return;
 			session.preview = preview;
 			setClipDragPreview(preview);
 		} else if (session?.kind === 'trim-right') {
-			const source = project.sources.find((item) => item.id === session.original.sourceId);
-			if (!source) return;
-			const sourceDurationFrames = session.original.sourceDurationFrames || session.original.durationFrames;
-			const sourceFramesPerTimelineFrame = sourceDurationFrames / session.original.durationFrames;
-			const sourceExtension = session.original.reversed
-				? session.original.sourceStartFrame
-				: source.frameCount - session.original.sourceStartFrame - sourceDurationFrames;
-			const maximumDuration = session.original.durationFrames
-				+ Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 			const deltaFrames = secondsToFrames(
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
-			const durationFrames = Math.max(1, Math.min(maximumDuration, session.original.durationFrames + deltaFrames));
-			const preview = {
-				clipId: session.clipId,
-				trackId: session.trackId,
-				timelineStartFrame: session.original.timelineStartFrame,
-				durationFrames,
-			};
+			const preview = createClipTrimPreview(project, session, deltaFrames, 'right');
+			if (!preview) return;
 			session.preview = preview;
 			setClipDragPreview(preview);
 		}
