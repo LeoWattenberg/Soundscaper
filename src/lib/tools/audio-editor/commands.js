@@ -963,28 +963,33 @@ export function collectClipTrimIds(project, activeClipId, edge) {
 /**
  * Prepares an atomic transform for selected/grouped clips. When overwrite is
  * enabled, stable IDs are reserved for any inactive clip that is split into
- * multiple surviving segments.
+ * multiple surviving segments, including fresh A/V links for matching
+ * survivor pairs.
  */
 export function prepareTransformClipsCommand(project, transforms, options = {}, idFactory = createStableId) {
 	const state = buildClipTransformState(project, transforms);
 	const overwrite = Boolean(options.overwrite);
 	validateClipTransformState(project, state, overwrite);
 	const splitClipIds = {};
+	const splitAvLinkIds = {};
 	if (overwrite) {
-		const movingIds = new Set(state.map((item) => item.clip.id));
-		for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
-			const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
-			if (!activeClips.length) continue;
-			for (const clipId of track.clipIds) {
-				if (movingIds.has(clipId)) continue;
-				const clip = requireClip(project, clipId);
-				const ranges = remainingClipRanges(clip, activeClips);
-				if (ranges.length <= 1) continue;
-				splitClipIds[clip.id] = Array.from(
-					{ length: ranges.length - 1 },
-					() => idFactory('clip'),
-				);
+		const rangesByClipId = overwriteClipRanges(project, state);
+		const splitCountsByAvLinkId = new Map();
+		for (const clip of project.clips) {
+			const ranges = rangesByClipId.get(clip.id);
+			const splitCount = Math.max(0, (ranges?.length || 0) - 1);
+			if (!splitCount) continue;
+			splitClipIds[clip.id] = Array.from({ length: splitCount }, () => idFactory('clip'));
+			if (clip.avLinkId) {
+				const previousCount = splitCountsByAvLinkId.get(clip.avLinkId);
+				if (previousCount != null && previousCount !== splitCount) {
+					throw new RangeError(`Linked A/V clips require matching overwrite segments: ${clip.avLinkId}.`);
+				}
+				splitCountsByAvLinkId.set(clip.avLinkId, splitCount);
 			}
+		}
+		for (const [avLinkId, splitCount] of splitCountsByAvLinkId) {
+			splitAvLinkIds[avLinkId] = Array.from({ length: splitCount }, () => idFactory('av-link'));
 		}
 	}
 	return {
@@ -996,6 +1001,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 		})),
 		overwrite,
 		splitClipIds,
+		splitAvLinkIds,
 	};
 }
 
@@ -1008,27 +1014,58 @@ function transformClips(project, command) {
 	const reservedIds = new Set();
 
 	if (overwrite) {
-		for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
-			const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
-			if (!activeClips.length) continue;
-			for (const clipId of track.clipIds) {
-				if (movingIds.has(clipId)) continue;
-				const clip = requireClip(project, clipId);
-				const ranges = remainingClipRanges(clip, activeClips);
-				if (ranges.length === 1 && ranges[0][0] === clip.timelineStartFrame && ranges[0][1] === clipEndFrame(clip)) continue;
-				const splitIds = command.splitClipIds?.[clip.id] || [];
-				if (!Array.isArray(splitIds) || splitIds.length !== Math.max(0, ranges.length - 1)) {
-					throw new TypeError(`Stable split clip IDs are required for ${clip.id}.`);
-				}
-				for (const splitId of splitIds) {
-					const stableId = requireStableCommandId(splitId, 'split clip');
-					reserveReplacementClipId(project, stableId, reservedIds);
-				}
-				const ids = [clip.id, ...splitIds];
-				replacementsById.set(clip.id, ranges.map(([startFrame, endFrame], index) => (
-					segmentOfClip(clip, startFrame, endFrame, startFrame, ids[index])
-				)));
+		const rangesByClipId = overwriteClipRanges(project, state);
+		const splitCountsByAvLinkId = new Map();
+		for (const clip of project.clips) {
+			const ranges = rangesByClipId.get(clip.id);
+			if (!ranges) continue;
+			const splitIds = command.splitClipIds?.[clip.id] || [];
+			const splitCount = Math.max(0, ranges.length - 1);
+			if (!Array.isArray(splitIds) || splitIds.length !== splitCount) {
+				throw new TypeError(`Stable split clip IDs are required for ${clip.id}.`);
 			}
+			for (const splitId of splitIds) {
+				const stableId = requireStableCommandId(splitId, 'split clip');
+				reserveReplacementClipId(project, stableId, reservedIds);
+			}
+			if (clip.avLinkId && splitCount) {
+				const previousCount = splitCountsByAvLinkId.get(clip.avLinkId);
+				if (previousCount != null && previousCount !== splitCount) {
+					throw new RangeError(`Linked A/V clips require matching overwrite segments: ${clip.avLinkId}.`);
+				}
+				splitCountsByAvLinkId.set(clip.avLinkId, splitCount);
+			}
+		}
+		const existingAvLinkIds = new Set(project.clips.map((clip) => clip.avLinkId).filter(Boolean));
+		const reservedAvLinkIds = new Set();
+		for (const [avLinkId, splitCount] of splitCountsByAvLinkId) {
+			const splitIds = command.splitAvLinkIds?.[avLinkId] || [];
+			if (!Array.isArray(splitIds) || splitIds.length !== splitCount) {
+				throw new TypeError(`Stable split A/V link IDs are required for ${avLinkId}.`);
+			}
+			for (const splitId of splitIds) {
+				const stableId = requireStableCommandId(splitId, 'split A/V link');
+				if (existingAvLinkIds.has(stableId) || reservedAvLinkIds.has(stableId)) {
+					throw new RangeError(`Duplicate A/V link ID: ${stableId}.`);
+				}
+				reservedAvLinkIds.add(stableId);
+			}
+		}
+		for (const clip of project.clips) {
+			const ranges = rangesByClipId.get(clip.id);
+			if (!ranges) continue;
+			const ids = [clip.id, ...(command.splitClipIds?.[clip.id] || [])];
+			replacementsById.set(clip.id, ranges.map(([startFrame, endFrame], index) => {
+				let segment = segmentOfClip(clip, startFrame, endFrame, startFrame, ids[index]);
+				if (clip.avLinkId && index > 0) {
+					segment = normalizeClipForProject(project, {
+						...segment,
+						avLinkId: command.splitAvLinkIds[clip.avLinkId][index - 1],
+						id: segment.id,
+					});
+				}
+				return segment;
+			}));
 		}
 	}
 
@@ -1135,6 +1172,83 @@ function remainingClipRanges(clip, activeClips) {
 		if (!ranges.length) break;
 	}
 	return ranges;
+}
+
+function overwriteClipRanges(project, state) {
+	const tracks = project.tracks.filter((track) => Array.isArray(track.clipIds));
+	const movingIds = new Set(state.map((item) => item.clip.id));
+	const trackIdByClipId = new Map();
+	for (const track of tracks) {
+		for (const clipId of track.clipIds) trackIdByClipId.set(clipId, track.id);
+	}
+	const clipsByAvLinkId = new Map();
+	for (const clip of project.clips) {
+		if (!clip.avLinkId) continue;
+		const linked = clipsByAvLinkId.get(clip.avLinkId) || [];
+		linked.push(clip);
+		clipsByAvLinkId.set(clip.avLinkId, linked);
+	}
+	const cutsByTrackId = new Map();
+	for (const item of state) appendOverwriteCut(cutsByTrackId, item.track.id, item.updated);
+
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const track of tracks) {
+			const cuts = cutsByTrackId.get(track.id);
+			if (!cuts?.length) continue;
+			for (const clipId of track.clipIds) {
+				if (movingIds.has(clipId)) continue;
+				const clip = requireClip(project, clipId);
+				if (!clip.avLinkId) continue;
+				const overlappingCuts = cuts.filter((cut) => clipsOverlap(clip, cut));
+				if (!overlappingCuts.length) continue;
+				for (const linkedClip of clipsByAvLinkId.get(clip.avLinkId) || []) {
+					if (linkedClip.id === clip.id || movingIds.has(linkedClip.id)) continue;
+					const linkedTrackId = trackIdByClipId.get(linkedClip.id);
+					if (!linkedTrackId) continue;
+					for (const cut of overlappingCuts) {
+						if (appendOverwriteCut(cutsByTrackId, linkedTrackId, cut)) changed = true;
+					}
+				}
+			}
+		}
+	}
+
+	const rangesByClipId = new Map();
+	for (const track of tracks) {
+		const cuts = cutsByTrackId.get(track.id);
+		if (!cuts?.length) continue;
+		for (const clipId of track.clipIds) {
+			if (movingIds.has(clipId)) continue;
+			const clip = requireClip(project, clipId);
+			const ranges = remainingClipRanges(clip, cuts);
+			if (
+				ranges.length === 1
+				&& ranges[0][0] === clip.timelineStartFrame
+				&& ranges[0][1] === clipEndFrame(clip)
+			) continue;
+			rangesByClipId.set(clip.id, ranges);
+		}
+	}
+	return rangesByClipId;
+}
+
+function appendOverwriteCut(cutsByTrackId, trackId, clip) {
+	const startFrame = clip.timelineStartFrame;
+	const endFrame = clipEndFrame(clip);
+	const cuts = cutsByTrackId.get(trackId) || [];
+	if (cuts.some((cut) => (
+		cut.timelineStartFrame === startFrame
+		&& clipEndFrame(cut) === endFrame
+	))) return false;
+	cuts.push({ timelineStartFrame: startFrame, durationFrames: endFrame - startFrame });
+	cuts.sort((left, right) => (
+		left.timelineStartFrame - right.timelineStartFrame
+		|| clipEndFrame(left) - clipEndFrame(right)
+	));
+	cutsByTrackId.set(trackId, cuts);
+	return true;
 }
 
 function overwriteClip(project, command) {

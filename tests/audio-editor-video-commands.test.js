@@ -124,6 +124,63 @@ function createTimelinePairProject(options = {}) {
 	});
 }
 
+function createOverwritePairProject({ linkedMover = true } = {}) {
+	const [videoSource, audioSource] = createMediaSources();
+	const targetAvLinkId = 'target-av';
+	const moverAvLinkId = linkedMover ? 'mover-av' : null;
+	const clips = [
+		createVideoClipV4({
+			id: 'target-video',
+			sourceId: videoSource.id,
+			timelineStartFrame: 0,
+			sourceStartFrame: 0,
+			sourceDurationFrames: 300,
+			durationFrames: 300,
+			avLinkId: targetAvLinkId,
+		}),
+		createAudioClipV4({
+			id: 'target-audio',
+			sourceId: audioSource.id,
+			timelineStartFrame: 0,
+			sourceStartFrame: 0,
+			sourceDurationFrames: 300,
+			durationFrames: 300,
+			avLinkId: targetAvLinkId,
+		}),
+		createVideoClipV4({
+			id: 'mover-video',
+			sourceId: videoSource.id,
+			timelineStartFrame: 400,
+			sourceStartFrame: 400,
+			sourceDurationFrames: 100,
+			durationFrames: 100,
+			avLinkId: moverAvLinkId,
+		}),
+	];
+	if (linkedMover) {
+		clips.push(createAudioClipV4({
+			id: 'mover-audio',
+			sourceId: audioSource.id,
+			timelineStartFrame: 400,
+			sourceStartFrame: 400,
+			sourceDurationFrames: 100,
+			durationFrames: 100,
+			avLinkId: moverAvLinkId,
+		}));
+	}
+	return createAudioEditorProjectV4({
+		id: 'overwrite-pair-project',
+		title: 'Overwrite pair project',
+		now: NOW,
+		sources: [videoSource, audioSource],
+		clips,
+		tracks: createPairedTracks({
+			video: ['target-video', 'mover-video'],
+			audio: linkedMover ? ['target-audio', 'mover-audio'] : ['target-audio'],
+		}),
+	});
+}
+
 test('V4 Project Bin commands add, place, update, and remove a compound A/V item atomically', () => {
 	let project = createAudioEditorProjectV4({
 		id: 'video-bin-project',
@@ -257,6 +314,79 @@ test('linked clips are included in transform and trim participation', () => {
 		collectRelatedClipIds(project, ['video-clip']),
 		['video-clip', 'audio-clip'],
 	);
+});
+
+test('overwrite transforms split linked targets into valid survivor pairs with stable fresh links', () => {
+	const project = createOverwritePairProject();
+	const counts = new Map();
+	const command = prepareTransformClipsCommand(project, [
+		{
+			clipId: 'mover-video',
+			trackId: 'video-track',
+			changes: { timelineStartFrame: 100 },
+		},
+		{
+			clipId: 'mover-audio',
+			trackId: 'audio-track',
+			changes: { timelineStartFrame: 100 },
+		},
+	], { overwrite: true }, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+
+	assert.deepEqual(command.splitClipIds, {
+		'target-video': ['clip-1'],
+		'target-audio': ['clip-2'],
+	});
+	assert.deepEqual(command.splitAvLinkIds, { 'target-av': ['av-link-1'] });
+	const edited = apply(project, command);
+
+	assert.deepEqual(
+		edited.clips
+			.map((clip) => [clip.kind, clip.timelineStartFrame, clip.durationFrames, clip.avLinkId])
+			.sort((left, right) => left[1] - right[1] || right[0].localeCompare(left[0])),
+		[
+			['video', 0, 100, 'target-av'],
+			['audio', 0, 100, 'target-av'],
+			['video', 100, 100, 'mover-av'],
+			['audio', 100, 100, 'mover-av'],
+			['video', 200, 100, 'av-link-1'],
+			['audio', 200, 100, 'av-link-1'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(edited), true);
+});
+
+test('an unlinked video overwrite closes collisions through the target companion lane', () => {
+	const project = createOverwritePairProject({ linkedMover: false });
+	const counts = new Map();
+	const command = prepareTransformClipsCommand(project, [{
+		clipId: 'mover-video',
+		trackId: 'video-track',
+		changes: { timelineStartFrame: 100 },
+	}], { overwrite: true }, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+	const edited = apply(project, command);
+
+	assert.deepEqual(command.splitAvLinkIds, { 'target-av': ['av-link-1'] });
+	assert.deepEqual(
+		edited.clips
+			.map((clip) => [clip.kind, clip.timelineStartFrame, clip.durationFrames, clip.avLinkId])
+			.sort((left, right) => left[1] - right[1] || right[0].localeCompare(left[0])),
+		[
+			['video', 0, 100, 'target-av'],
+			['audio', 0, 100, 'target-av'],
+			['video', 100, 100, null],
+			['video', 200, 100, 'av-link-1'],
+			['audio', 200, 100, 'av-link-1'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(edited), true);
 });
 
 test('exact grouped clip edits do not capture or delete unrelated material inside the group span', () => {
