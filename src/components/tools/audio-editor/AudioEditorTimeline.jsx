@@ -50,6 +50,12 @@ import {
 } from '../../../lib/tools/audio-editor/commands.js';
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../../lib/tools/audio-editor/project-v2.js';
 import { editorTimelineDurationFrames } from '../../../lib/tools/audio-editor/project.js';
+import {
+	AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,
+	clearActiveProjectBinDragPayload,
+	getActiveProjectBinDragPayload,
+	parseProjectBinDragPayload,
+} from '../../../lib/tools/audio-editor/project-bin-dnd.js';
 import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
 import { useAudioEditorTelemetrySelector, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
@@ -67,6 +73,20 @@ const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
+
+function dataTransferHasType(dataTransfer, type) {
+	return Array.from(dataTransfer?.types || []).includes(type);
+}
+
+function projectBinPayloadFromDataTransfer(dataTransfer) {
+	let serialized = '';
+	try {
+		serialized = dataTransfer?.getData?.(AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE) || '';
+	} catch {
+		// Browsers can protect drag data until drop; the in-memory payload covers same-document drags.
+	}
+	return parseProjectBinDragPayload(serialized) || getActiveProjectBinDragPayload();
+}
 
 function ContainerAddTrackFlyout({
 	isOpen,
@@ -292,9 +312,21 @@ export default function AudioEditorTimeline({
 	onOpenEffects,
 	onOpenClipProperties,
 	onExportClip,
+	onRevealProjectBin,
 	onToggleArmControls,
 }) {
 	const project = snapshot.project;
+	const mutationsBlocked = snapshot.readOnly
+		|| snapshot.importing
+		|| snapshot.recording
+		|| snapshot.recordingStarting
+		|| snapshot.recordingScheduling
+		|| snapshot.scheduledRecording
+		|| snapshot.playbackOptions?.preparing
+		|| snapshot.exporting
+		|| snapshot.processingEffect
+		|| snapshot.analysisProcessing
+		|| snapshot.sampleEdit?.processing;
 	const [timelineRef, timelineSize] = useElementSize();
 	const navigationRootRef = useRef(null);
 	const scrollRef = useRef(null);
@@ -320,6 +352,7 @@ export default function AudioEditorTimeline({
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
+	const [projectBinDragPreview, setProjectBinDragPreview] = useState(null);
 	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();
 	const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';
@@ -505,7 +538,9 @@ export default function AudioEditorTimeline({
 	const openClipMenu = useCallback((clipId, x, y, openedViaKeyboard = false) => {
 		const clip = project?.clips.find((item) => String(item.id) === String(clipId));
 		if (!clip) return;
-		run(() => controller.actions.timeline.selectClip(clip.id));
+		if (!project.selection?.clipIds?.includes(clip.id)) {
+			run(() => controller.actions.timeline.selectClip(clip.id));
+		}
 		setClipMenu({
 			clipId: clip.id,
 			x: Number.isFinite(x) ? x : 0,
@@ -585,10 +620,50 @@ export default function AudioEditorTimeline({
 		return fallbackTrackId;
 	}, []);
 
+	const projectBinDropTarget = useCallback(() => {
+		const editor = navigationRootRef.current?.closest('#kw-audio-editor-design-system');
+		return editor?.querySelector('[data-project-bin-drop-target]') || null;
+	}, []);
+
+	const setProjectBinDropActive = useCallback((active) => {
+		const target = projectBinDropTarget();
+		if (!target) return;
+		if (active) target.dataset.dropActive = 'true';
+		else target.removeAttribute('data-drop-active');
+	}, [projectBinDropTarget]);
+
+	const isOverProjectBin = useCallback((clientX, clientY) => {
+		const target = projectBinDropTarget();
+		if (!target) return false;
+		const rect = target.getBoundingClientRect();
+		return clientX >= rect.left && clientX < rect.right && clientY >= rect.top && clientY < rect.bottom;
+	}, [projectBinDropTarget]);
+
+	const timelineDropTargetAt = useCallback((event) => {
+		const eventLane = event.target?.closest?.('.audio-editor-track-lane[data-track-lane]');
+		const lane = eventLane && !eventLane.closest('[data-label-track]') ? eventLane : null;
+		const coordinateLane = lane
+			|| scrollRef.current?.querySelector('.audio-editor-track-lane[data-track-lane]')
+			|| scrollRef.current?.querySelector('[data-ruler-interaction]');
+		return {
+			trackId: lane?.dataset.trackId || null,
+			timelineStartFrame: coordinateLane ? frameAtClientX(event.clientX, coordinateLane) : 0,
+			createTrack: !lane,
+		};
+	}, [frameAtClientX]);
+
+	const clearProjectBinDragState = useCallback((clearPayload = false) => {
+		setProjectBinDragPreview(null);
+		setDraggingClipIds(null);
+		setProjectBinDropActive(false);
+		if (clearPayload) clearActiveProjectBinDragPayload();
+	}, [setProjectBinDropActive]);
+
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
 		pointerSession.current = null;
 		setDraggingClipIds(null);
+		setProjectBinDropActive(false);
 		const dragPreview = session?.preview;
 		setClipDragPreview(null);
 		if (session?.kind === 'loop') {
@@ -646,6 +721,11 @@ export default function AudioEditorTimeline({
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {
+			if (session.projectBinDrop) {
+				run(() => controller.actions.projectBin.moveFromTimeline(clip.id));
+				onRevealProjectBin?.();
+				return;
+			}
 			if (dragPreview?.createTrack) {
 				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame));
 				return;
@@ -687,7 +767,7 @@ export default function AudioEditorTimeline({
 				run(() => controller.actions.clip.trim(clip.id, { durationFrames: nextDurationFrames }));
 			}
 		}
-	}, [controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
 
 	const onPointerDown = useCallback((event) => {
 		if (event.pointerType === 'touch') {
@@ -704,8 +784,7 @@ export default function AudioEditorTimeline({
 				return;
 			}
 		}
-		if (event.button !== 0 || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting
-			|| snapshot.recordingScheduling || snapshot.scheduledRecording) return;
+		if (event.button !== 0 || mutationsBlocked) return;
 		const interactiveControl = event.target.closest?.('button, input, textarea, select, [role="menuitem"]');
 		if (interactiveControl && !interactiveControl.classList.contains('clip-display__handle')) return;
 		if (event.target.closest?.('[data-label-id]')) return;
@@ -840,7 +919,7 @@ export default function AudioEditorTimeline({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, pixelsPerSecond, project, run, sampleRate, snapshot.readOnly, snapshot.recording, snapshot.recordingScheduling, snapshot.recordingStarting, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, snapshot.scheduledRecording, splitToolActive, timelineView]);
+	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
@@ -891,6 +970,18 @@ export default function AudioEditorTimeline({
 				endFrame: Math.max(session.startFrame, endFrame),
 			});
 		} else if (session?.kind === 'move') {
+			if (isOverProjectBin(event.clientX, event.clientY)) {
+				session.projectBinDrop = true;
+				session.preview = null;
+				setClipDragPreview(null);
+				setProjectBinDropActive(true);
+				event.preventDefault();
+				return;
+			}
+			if (session.projectBinDrop) {
+				session.projectBinDrop = false;
+				setProjectBinDropActive(false);
+			}
 			const deltaFrames = secondsToFrames(
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
@@ -977,12 +1068,23 @@ export default function AudioEditorTimeline({
 			session.preview = preview;
 			setClipDragPreview(preview);
 		}
-	}, [controller, frameAtClientX, panelWidth, pixelsPerSecond, project, run, sampleRate, trackAtClientY]);
+	}, [controller, frameAtClientX, isOverProjectBin, panelWidth, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
 		if (touchPointers.current.size < 2) pinchSession.current = null;
 	}, []);
+
+	const cancelPointerSession = useCallback(() => {
+		if (!pointerSession.current) return false;
+		pointerSession.current = null;
+		setDraggingClipIds(null);
+		setClipDragPreview(null);
+		setSelectionPreview(null);
+		setLoopPreview(null);
+		setProjectBinDropActive(false);
+		return true;
+	}, [setProjectBinDropActive]);
 
 	useEffect(() => {
 		const finishOutsideTimeline = (event) => {
@@ -1006,6 +1108,109 @@ export default function AudioEditorTimeline({
 		};
 	}, [finishPointerSession, finishTouch]);
 
+	useEffect(() => {
+		const cancelWithEscape = (event) => {
+			if (event.key !== 'Escape' || !cancelPointerSession()) return;
+			event.preventDefault();
+			event.stopPropagation();
+		};
+		globalThis.addEventListener('keydown', cancelWithEscape, true);
+		return () => globalThis.removeEventListener('keydown', cancelWithEscape, true);
+	}, [cancelPointerSession]);
+
+	const onTimelineDragOver = useCallback((event) => {
+		const binDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE);
+		const fileDrag = dataTransferHasType(event.dataTransfer, 'Files');
+		if (!binDrag && !fileDrag) return;
+		event.preventDefault();
+		if (mutationsBlocked || !project) {
+			event.dataTransfer.dropEffect = 'none';
+			clearProjectBinDragState();
+			return;
+		}
+		event.dataTransfer.dropEffect = 'copy';
+		if (!binDrag) {
+			setProjectBinDragPreview(null);
+			setDraggingClipIds(null);
+			return;
+		}
+		const payload = projectBinPayloadFromDataTransfer(event.dataTransfer);
+		const clip = payload && String(payload.projectId) === String(project.id)
+			? project.projectBin?.clips.find((item) => String(item.id) === String(payload.clipId))
+			: null;
+		if (!clip) {
+			event.dataTransfer.dropEffect = 'none';
+			clearProjectBinDragState();
+			return;
+		}
+		const target = timelineDropTargetAt(event);
+		const preview = {
+			clip,
+			clipId: clip.id,
+			trackId: target.trackId,
+			timelineStartFrame: target.timelineStartFrame,
+			createTrack: target.createTrack,
+		};
+		setProjectBinDragPreview((current) => (
+			current?.clipId === preview.clipId
+			&& current.trackId === preview.trackId
+			&& current.timelineStartFrame === preview.timelineStartFrame
+			&& current.createTrack === preview.createTrack
+				? current
+				: preview
+		));
+		setDraggingClipIds((current) => (
+			current?.size === 1 && current.has(String(clip.id))
+				? current
+				: new Set([String(clip.id)])
+		));
+	}, [clearProjectBinDragState, mutationsBlocked, project, timelineDropTargetAt]);
+
+	const onTimelineDragLeave = useCallback((event) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		if (
+			event.clientX >= rect.left
+			&& event.clientX < rect.right
+			&& event.clientY >= rect.top
+			&& event.clientY < rect.bottom
+		) return;
+		clearProjectBinDragState();
+	}, [clearProjectBinDragState]);
+
+	const onTimelineDrop = useCallback((event) => {
+		const binDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE);
+		const files = [...(event.dataTransfer?.files || [])];
+		if (!binDrag && !files.length) return;
+		event.preventDefault();
+		const payload = binDrag ? projectBinPayloadFromDataTransfer(event.dataTransfer) : null;
+		const target = timelineDropTargetAt(event);
+		clearProjectBinDragState(true);
+		if (mutationsBlocked || !project) return;
+		if (payload) {
+			if (String(payload.projectId) !== String(project.id)) return;
+			const clip = project.projectBin?.clips.find((item) => String(item.id) === String(payload.clipId));
+			if (!clip) return;
+			run(() => controller.actions.projectBin.place(clip.id, {
+				...(target.trackId ? { trackId: target.trackId } : {}),
+				timelineStartFrame: target.timelineStartFrame,
+			}));
+			return;
+		}
+		if (files.length) {
+			run(() => controller.actions.project.importFiles(files, {
+				destination: 'timeline',
+				...(target.trackId ? { trackId: target.trackId } : {}),
+				timelineStartFrame: target.timelineStartFrame,
+			}));
+		}
+	}, [clearProjectBinDragState, controller, mutationsBlocked, project, run, timelineDropTargetAt]);
+
+	useEffect(() => {
+		const finishHtmlDrag = () => clearProjectBinDragState(true);
+		globalThis.addEventListener('dragend', finishHtmlDrag, true);
+		return () => globalThis.removeEventListener('dragend', finishHtmlDrag, true);
+	}, [clearProjectBinDragState]);
+
 	if (!project) {
 		return <div className="audio-editor-timeline-loading" role="status">{copy.loading}</div>;
 	}
@@ -1019,14 +1224,6 @@ export default function AudioEditorTimeline({
 	const activeWaveformRuler = rulerFlyoutTrack
 		? normalizeWaveformRulerState(waveformRulerState[rulerFlyoutTrack.id])
 		: DEFAULT_WAVEFORM_RULER_STATE;
-	const mutationsBlocked = snapshot.readOnly
-		|| snapshot.importing
-		|| snapshot.recording
-		|| snapshot.recordingStarting
-		|| snapshot.recordingScheduling
-		|| snapshot.scheduledRecording
-		|| snapshot.exporting
-		|| snapshot.processingEffect;
 	const contextLocale = locale;
 	const unavailableReason = copy.unavailable;
 	const updateWaveformRuler = (trackId, changes) => {
@@ -1156,12 +1353,9 @@ export default function AudioEditorTimeline({
 					finishPointerSession(event, !mouseCancellation);
 				}}
 				onContextMenu={onClipContextMenu}
-				onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
-				onDrop={(event) => {
-					event.preventDefault();
-					const files = [...event.dataTransfer.files];
-					if (files.length) run(() => controller.actions.project.importFiles(files));
-				}}
+				onDragOver={onTimelineDragOver}
+				onDragLeave={onTimelineDragLeave}
+				onDrop={onTimelineDrop}
 			>
 				<div className="audio-editor-timeline-inner" style={{
 					width: panelWidth + timelineWidth + verticalRulerWidth,
@@ -1299,6 +1493,7 @@ export default function AudioEditorTimeline({
 								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 								draggingClipIds={draggingClipIds}
 								clipDragPreview={clipDragPreview}
+								projectBinDragPreview={projectBinDragPreview}
 								waveformCache={waveformCacheRef.current}
 								automationToolEnabled={automationToolEnabled}
 									blocked={snapshot.readOnly || snapshot.importing || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || snapshot.exporting || snapshot.processingEffect}
@@ -1319,9 +1514,9 @@ export default function AudioEditorTimeline({
 								onFocusSelectionToolbar={focusSelectionToolbar}
 							/>
 						))}
-						{clipDragPreview?.createTrack && (
+						{(clipDragPreview?.createTrack || projectBinDragPreview?.createTrack) && (
 							<div className="audio-editor-new-track-drop-preview" aria-live="polite">
-								<span>{copy.audioTrack}</span>
+								<span>{projectBinDragPreview?.clip?.title || copy.audioTrack}</span>
 							</div>
 						)}
 					</div>
@@ -1578,6 +1773,19 @@ export default function AudioEditorTimeline({
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && onExportClip?.(menuClip.id)}
+					onClose={() => setClipMenu(null)}
+				/>
+				<ManifestContextMenuItem
+					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.moveToProjectBin}
+					label={copy.moveToProjectBin || 'Move to Project bin'}
+					disabled={mutationsBlocked || !menuClip}
+					disabledReason={unavailableReason}
+					locale={contextLocale}
+					onClick={() => {
+						if (!menuClip) return;
+						run(() => controller.actions.projectBin.moveFromTimeline(menuClip.id));
+						onRevealProjectBin?.();
+					}}
 					onClose={() => setClipMenu(null)}
 				/>
 				<ManifestContextMenuItem
@@ -1906,6 +2114,7 @@ function TrackRow({
 	recordingPreview,
 	draggingClipIds,
 	clipDragPreview,
+	projectBinDragPreview,
 	waveformCache,
 	automationToolEnabled,
 	blocked,
@@ -1942,22 +2151,35 @@ function TrackRow({
 			sourceDurationFrames: recordingPreview.durationFrames,
 			isRecordingPreview: true,
 		}] : trackClips;
-		if (!clipDragPreview) return withRecordingPreview;
-		const previews = clipDragPreview.previews || [clipDragPreview];
-		const previewIds = new Set(previews.map((preview) => preview.clipId));
-		const projected = withRecordingPreview.filter((clip) => !previewIds.has(clip.id));
-		for (const preview of previews) {
-			if (track.id !== preview.trackId) continue;
-			const draggedClip = clipLookup.get(preview.clipId);
-			if (draggedClip) projected.push({ ...draggedClip, ...preview });
+		const projected = [...withRecordingPreview];
+		if (clipDragPreview) {
+			const previews = clipDragPreview.previews || [clipDragPreview];
+			const previewIds = new Set(previews.map((preview) => preview.clipId));
+			projected.splice(0, projected.length, ...withRecordingPreview.filter((clip) => !previewIds.has(clip.id)));
+			for (const preview of previews) {
+				if (track.id !== preview.trackId) continue;
+				const draggedClip = clipLookup.get(preview.clipId);
+				if (draggedClip) projected.push({ ...draggedClip, ...preview });
+			}
+		}
+		if (projectBinDragPreview?.trackId === track.id && projectBinDragPreview.clip) {
+			projected.push({
+				...projectBinDragPreview.clip,
+				timelineStartFrame: projectBinDragPreview.timelineStartFrame,
+				groupId: null,
+				projectBinClipId: projectBinDragPreview.clip.id,
+			});
 		}
 		return projected;
-	}, [clipDragPreview, clipLookup, recordingPreview, track.clipIds, track.id]);
+	}, [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, track.clipIds, track.id]);
 	const movingPreviewClipIds = useMemo(() => new Set(
-		(clipDragPreview?.previews || (clipDragPreview ? [clipDragPreview] : []))
+		[
+			...(clipDragPreview?.previews || (clipDragPreview ? [clipDragPreview] : [])),
+			...(projectBinDragPreview?.clip ? [{ clipId: projectBinDragPreview.clip.id }] : []),
+		]
 			.filter((preview) => !Object.hasOwn(preview, 'durationFrames'))
 			.map((preview) => String(preview.clipId)),
-	), [clipDragPreview]);
+	), [clipDragPreview, projectBinDragPreview]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame,
 		viewportDurationFrames,
@@ -3432,7 +3654,8 @@ function toDesignClip(
 	freezeWaveform = false,
 	reuseSummaryForCompatibility = false,
 ) {
-	const visual = controller.getClipVisualData(clip.id);
+	const visual = controller.getClipVisualData(clip.id)
+		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
 	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
 	const sourceRate = Number(source?.sampleRate) > 0 ? Number(source.sampleRate) : sampleRate;
 	const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
@@ -3441,7 +3664,7 @@ function toDesignClip(
 		: selectedClipIds === clip.id;
 	const output = {
 		id: clip.id,
-		name: source?.name || copy.clip,
+		name: source?.name || clip.title || copy.clip,
 		start: framesToSeconds(Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame), { sampleRate }),
 		duration: Math.max(
 			framesToSeconds(clip.waveformEndFrame - clip.waveformStartFrame, { sampleRate }),

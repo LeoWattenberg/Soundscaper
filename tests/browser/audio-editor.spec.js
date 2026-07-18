@@ -818,7 +818,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [monoTone]);
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
 		await playOptions.click();
 		await editor.getByRole('menuitem', { name: 'Play at speed', exact: true }).click();
@@ -1723,6 +1725,168 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor.locator('[data-workspace-toolbar-drag-handle]')).toHaveCount(0);
 		expect(errors).toEqual([]);
+	});
+
+	test('routes picker imports by effective Project bin visibility and keeps cards reusable across reload', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
+		const projectBin = projectBinPanel.locator('[data-project-bin-drop-target]');
+		await expect(projectBinPanel).toBeVisible();
+
+		await editor.locator('[data-import-input]').setInputFiles([toneA]);
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		const card = projectBin.locator('[data-project-bin-item]').first();
+		await expect(card.locator('[data-project-bin-waveform]')).toBeVisible();
+		await expect(card.locator('.kw-audio-editor__project-bin-waveform-peaks')).toHaveCount(1);
+		const name = card.locator('[data-project-bin-name]');
+		await name.fill('Reusable browser tone');
+		await name.press('Enter');
+		await expect(name).toHaveValue('Reusable browser tone');
+
+		await card.getByRole('button', { name: 'Add to timeline', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
+		await card.getByRole('button', { name: /Delete from Project bin/ }).click();
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
+
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		await page.reload();
+		await waitForEditor(page);
+		await expect(projectBinPanel).toBeVisible();
+		await expect(projectBin.locator('[data-project-bin-name]')).toHaveValue('Reusable browser tone');
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+
+		await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
+		await expect(projectBinPanel).toBeHidden();
+		await editor.locator('[data-import-input]').setInputFiles([toneB]);
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		await expect(clipByName(editor, toneB.name)).toBeVisible();
+	});
+
+	test('reveals the Project bin for context moves and supports atomic pointer moves with Escape cancellation', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const firstClip = clipByName(editor, toneA.name);
+		const secondClip = clipByName(editor, toneB.name);
+		await firstClip.locator('.clip-header').click();
+		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
+		await expect(firstClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await expect(secondClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+
+		await firstClip.getByRole('button', { name: 'Clip menu', exact: true }).click();
+		const clipMenu = page.locator('.audio-editor-clip-context-menu');
+		const moveToBin = clipMenu.locator('[data-action-id="local://move-clip-to-project-bin"]');
+		await expect(moveToBin).toHaveAttribute('data-parity-status', 'supplemental');
+		await moveToBin.click();
+		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
+		const projectBin = projectBinPanel.locator('[data-project-bin-drop-target]');
+		await expect(projectBinPanel).toBeVisible();
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
+
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(0);
+		await expect(firstClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await expect(secondClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+
+		const dragHeader = firstClip.locator('.clip-header');
+		const [headerBounds, binBounds] = await Promise.all([dragHeader.boundingBox(), projectBin.boundingBox()]);
+		expect(headerBounds).not.toBeNull();
+		expect(binBounds).not.toBeNull();
+		const startX = headerBounds.x + Math.min(32, headerBounds.width / 2);
+		const startY = headerBounds.y + headerBounds.height / 2;
+		const dropX = binBounds.x + binBounds.width / 2;
+		const dropY = binBounds.y + Math.min(120, binBounds.height / 2);
+		await page.mouse.move(startX, startY);
+		await page.mouse.down();
+		await page.mouse.move(dropX, dropY, { steps: 8 });
+		await expect(projectBin).toHaveAttribute('data-drop-active', 'true');
+		await page.keyboard.press('Escape');
+		await page.mouse.up();
+		await expect(projectBin).not.toHaveAttribute('data-drop-active', 'true');
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+
+		await page.mouse.move(startX, startY);
+		await page.mouse.down();
+		await page.mouse.move(dropX, dropY, { steps: 8 });
+		await page.mouse.up();
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
+	});
+
+	test('previews reusable bin clips on timeline drag and routes external drops by surface', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const projectBin = editor.locator('[data-project-bin-drop-target]');
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
+		const card = projectBin.locator('[data-project-bin-item]').first();
+		await expect(card).toBeVisible();
+		const lane = editor.locator('.audio-editor-track-lane[data-track-lane]').first();
+		const laneBounds = await lane.boundingBox();
+		expect(laneBounds).not.toBeNull();
+		const targetPosition = {
+			x: laneBounds.x + Math.min(220, laneBounds.width - 24),
+			y: laneBounds.y + laneBounds.height / 2,
+		};
+		const binTransfer = await page.evaluateHandle(() => new DataTransfer());
+		await card.dispatchEvent('dragstart', { dataTransfer: binTransfer });
+		await lane.dispatchEvent('dragover', {
+			dataTransfer: binTransfer,
+			clientX: targetPosition.x,
+			clientY: targetPosition.y,
+		});
+		await expect(clipByName(editor, toneA.name)).toBeVisible();
+		await lane.dispatchEvent('drop', {
+			dataTransfer: binTransfer,
+			clientX: targetPosition.x,
+			clientY: targetPosition.y,
+		});
+		await card.dispatchEvent('dragend', { dataTransfer: binTransfer });
+		await binTransfer.dispose();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
+
+		const explicitBinTransfer = await fileDataTransfer(page, [toneB]);
+		await projectBin.dispatchEvent('dragenter', { dataTransfer: explicitBinTransfer });
+		await projectBin.dispatchEvent('dragover', { dataTransfer: explicitBinTransfer });
+		await expect(projectBin).toHaveAttribute('data-drop-active', 'true');
+		await projectBin.dispatchEvent('drop', { dataTransfer: explicitBinTransfer });
+		await explicitBinTransfer.dispose();
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+
+		const timelineTransfer = await fileDataTransfer(page, [monoTone, toneB]);
+		const timelineDropX = laneBounds.x + Math.min(420, laneBounds.width - 24);
+		const timelineDropY = laneBounds.y + laneBounds.height / 2;
+		await lane.dispatchEvent('dragover', {
+			dataTransfer: timelineTransfer,
+			clientX: timelineDropX,
+			clientY: timelineDropY,
+		});
+		await lane.dispatchEvent('drop', {
+			dataTransfer: timelineTransfer,
+			clientX: timelineDropX,
+			clientY: timelineDropY,
+		});
+		await timelineTransfer.dispose();
+		await expect(editor).toHaveAttribute('data-clip-count', '3');
+		await expect(editor).toHaveAttribute('data-track-count', '2');
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
+		const droppedClipDialog = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
+		await expect.poll(async () => Number(await clipField(droppedClipDialog, 'startFrame').inputValue())).toBeGreaterThan(0);
+		await closeDialog(droppedClipDialog);
+	});
+
+	test('suppresses the default Project bin on compact mobile until explicitly opened', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		const editor = await bootEditor(page, '/embed/en/');
+		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
+		await expect(projectBinPanel).toHaveCount(0);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await expect(projectBinPanel).toBeVisible();
 	});
 
 	test('exposes the complete zoom menu and executes custom shortcuts through the action registry', async ({ page }) => {
@@ -3022,6 +3186,11 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
+		if (await projectBinPanel.isVisible()) {
+			await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
+			await expect(projectBinPanel).toBeHidden();
+		}
 		const effectsPanel = await openEffectsForTrack(editor, 0);
 		const rack = effectsPanel.locator('[data-effect-rack]');
 		const packagePanel = rack.locator('.effects-panel');
@@ -3676,7 +3845,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		test.skip(testInfo.project.name !== 'chromium', 'The canonical visual baselines use desktop Chromium.');
 		test.setTimeout(60_000);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [toneA]);
+		await editor.locator('[data-import-input]').setInputFiles([toneA]);
+		await expect(editor.locator('[data-project-bin-item]')).toHaveCount(1);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.evaluate(() => document.fonts.ready);
 		await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }' });
@@ -3774,7 +3944,29 @@ async function waitForEditor(page) {
 	return editor;
 }
 
+async function fileDataTransfer(page, files) {
+	return page.evaluateHandle((entries) => {
+		const transfer = new DataTransfer();
+		for (const entry of entries) {
+			const binary = atob(entry.base64);
+			const bytes = new Uint8Array(binary.length);
+			for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+			transfer.items.add(new File([bytes], entry.name, { type: entry.mimeType }));
+		}
+		return transfer;
+	}, files.map((file) => ({
+		name: file.name,
+		mimeType: file.mimeType,
+		base64: file.buffer.toString('base64'),
+	})));
+}
+
 async function importFiles(editor, files) {
+	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
+	if (await projectBin.isVisible()) {
+		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
+		await expect(projectBin).toBeHidden();
+	}
 	await editor.locator('[data-import-input]').setInputFiles(files);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 }

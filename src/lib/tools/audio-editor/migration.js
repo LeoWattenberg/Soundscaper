@@ -1,7 +1,6 @@
 import { validateAudioEditorProject } from './project.js';
 import { normalizeEffect } from './effects.js';
 import {
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	createAudioClipV2,
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
@@ -9,6 +8,12 @@ import {
 	loadAudioEditorProjectV2,
 	validateAudioEditorProjectV2,
 } from './project-v2.js';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createAudioEditorProjectV3,
+	loadAudioEditorProjectV3,
+	validateAudioEditorProjectV3,
+} from './project-v3.js';
 
 const PROJECT_V1_KEYS = new Set([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate', 'masterChannels',
@@ -140,9 +145,28 @@ export function migrateAudioEditorProjectV1ToV2(value) {
 	return project;
 }
 
+export function migrateAudioEditorProjectV2ToV3(value) {
+	if (!value || typeof value !== 'object' || value.schemaVersion !== 2) {
+		throw new RangeError('An AudioEditorProjectV2 project is required.');
+	}
+	const loaded = loadAudioEditorProjectV2(value);
+	if (loaded.readOnly) throw new RangeError('An AudioEditorProjectV2 project is required.');
+	const project = createAudioEditorProjectV3({
+		...loaded.project,
+		now: loaded.project.createdAt,
+		projectBin: { clips: [] },
+	});
+	validateAudioEditorProjectV3(project);
+	return project;
+}
+
+export function migrateAudioEditorProjectV1ToV3(value) {
+	return migrateAudioEditorProjectV2ToV3(migrateAudioEditorProjectV1ToV2(value));
+}
+
 /**
  * Version-aware load/migration boundary. Future documents are returned intact
- * and read-only; V1 is migrated atomically; V2 is validated and cloned.
+ * and read-only; V1/V2 are migrated atomically; V3 is validated and cloned.
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
@@ -150,7 +174,7 @@ export function migrateAudioEditorProject(value) {
 	if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) {
 		throw new RangeError(`Unsupported audio editor schema version: ${value.schemaVersion}.`);
 	}
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
+	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		return {
 			project: clone(value),
 			migrated: false,
@@ -159,8 +183,8 @@ export function migrateAudioEditorProject(value) {
 			reason: 'newer-schema',
 		};
 	}
-	if (schemaVersion === AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		const loaded = loadAudioEditorProjectV2(value);
+	if (schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		const loaded = loadAudioEditorProjectV3(value);
 		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
 			Object.hasOwn(track, 'channelCount')
 			|| Object.hasOwn(track, 'channelLayout')
@@ -175,7 +199,9 @@ export function migrateAudioEditorProject(value) {
 			reason: null,
 		};
 	}
-	const project = migrateAudioEditorProjectV1ToV2(value);
+	const project = schemaVersion === 2
+		? migrateAudioEditorProjectV2ToV3(value)
+		: migrateAudioEditorProjectV1ToV3(value);
 	return {
 		project,
 		migrated: true,

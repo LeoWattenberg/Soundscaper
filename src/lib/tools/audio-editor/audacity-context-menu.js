@@ -32,6 +32,7 @@ export const AUDACITY_CLIP_CONTEXT_ACTION_IDS = Object.freeze({
 	resetPitchSpeed: 'clip-reset-pitch-speed',
 	stretchToTempo: 'stretch-clip-to-match-tempo',
 	export: 'clip-export',
+	moveToProjectBin: 'local://move-clip-to-project-bin',
 	remove: 'action://delete',
 });
 

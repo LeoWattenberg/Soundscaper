@@ -351,6 +351,21 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 }
 
 function reportOmittedProjectFeatures(project, normalizedProject, report) {
+	const projectBinClips = Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [];
+	if (projectBinClips.length) {
+		addAup4CompatibilityItem(report, {
+			code: 'PROJECT_BIN_OMITTED',
+			severity: 'warning',
+			disposition: 'omitted',
+			scope: { kind: 'project' },
+			data: {
+				clipCount: projectBinClips.length,
+				sourceCount: new Set(projectBinClips.map((clip) => clip.sourceId)).size,
+			},
+		});
+	}
+	if (Object.hasOwn(normalizedProject, 'projectBin')) normalizedProject.projectBin = { clips: [] };
+
 	const mixer = project.mixer || {};
 	if (Array.isArray(mixer.groups) && mixer.groups.length) addAup4CompatibilityItem(report, {
 		code: 'MIXER_GROUPS_OMITTED',

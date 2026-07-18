@@ -1,6 +1,6 @@
 import { createClipboardDescriptor } from './commands.js';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from './history.js';
-import { AUDIO_EDITOR_PROJECT_SCHEMA_VERSION } from './project-v2.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v3.js';
 import { collectHistorySourceIds } from './retention.js';
 
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;
@@ -291,7 +291,7 @@ export function createAudioEditorSessionController(options = {}) {
 			return { projectId: existing.projectId, opened: false, activated, releasedSourceIds: [] };
 		}
 		const schemaVersion = Number(normalizedProject.schemaVersion);
-		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > AUDIO_EDITOR_PROJECT_SCHEMA_VERSION;
+		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
 		const tab = normalizeTab({
 			project: normalizedProject,
 			history: openOptions.history,

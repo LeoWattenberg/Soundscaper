@@ -41,6 +41,59 @@ const SOURCE_CHUNK_FRAMES = 65_536;
 const LONG_MONO_SOURCE_FRAMES = (32 * 1024 * 1024 / Float32Array.BYTES_PER_ELEMENT) + 1;
 const LONG_STEREO_SOURCE_FRAMES = (32 * 1024 * 1024 / (2 * Float32Array.BYTES_PER_ELEMENT)) + 1;
 
+test('decoded imports route to the visible project bin and honor exact timeline lane placement', async () => {
+	const store = new LogicalPcmStore();
+	const engine = new ControllerEngine({
+		decoded: [
+			realAudioBuffer(128, 0.25),
+			realAudioBuffer(96, 0.5),
+			realAudioBuffer(64, -0.25),
+		],
+	});
+	const controller = createTestController({ store, engine });
+
+	try {
+		await controller.ready;
+		const targetTrackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.project.importFiles([audioFile('bin-take.wav')], {
+			destination: 'auto',
+			projectBinVisible: true,
+		});
+		let snapshot = controller.getSnapshot();
+		assert.equal(snapshot.project.clips.length, 0);
+		assert.equal(snapshot.project.projectBin.clips.length, 1);
+		const binClip = snapshot.project.projectBin.clips[0];
+		assert.equal(binClip.title, 'bin-take');
+		assert.equal(controller.actions.projectBin.getVisualData(binClip.id).available, true);
+
+		const placedId = controller.actions.projectBin.place(binClip.id, {
+			trackId: targetTrackId,
+			timelineStartFrame: 1_234,
+		});
+		assert.equal(controller.getSnapshot().project.clips.find((clip) => clip.id === placedId).timelineStartFrame, 1_234);
+
+		await controller.actions.project.importFiles([
+			audioFile('lane-first.wav'),
+			audioFile('lane-second.wav'),
+		], {
+			destination: 'timeline',
+			trackId: targetTrackId,
+			timelineStartFrame: 4_321,
+		});
+		snapshot = controller.getSnapshot();
+		const first = snapshot.project.clips.find((clip) => clip.title === 'lane-first');
+		const second = snapshot.project.clips.find((clip) => clip.title === 'lane-second');
+		assert.equal(first.timelineStartFrame, 4_321);
+		assert.equal(second.timelineStartFrame, 4_321);
+		assert.equal(snapshot.project.tracks.find((track) => track.id === targetTrackId).clipIds.includes(first.id), true);
+		const targetIndex = snapshot.project.tracks.findIndex((track) => track.id === targetTrackId);
+		assert.equal(snapshot.project.tracks[targetIndex + 1].clipIds.includes(second.id), true);
+		assert.equal(snapshot.project.projectBin.clips.length, 1, 'placing and timeline imports keep the reusable bin item');
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('an imported source over 32 MiB is persisted and immediately represented by a chunk provider', async () => {
 	const store = new LogicalPcmStore();
 	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
@@ -85,10 +138,13 @@ test('large PCM WAV imports are decoded from bounded slices directly into storag
 
 	try {
 		await controller.ready;
-		await controller.actions.project.importFiles([file]);
+		await controller.actions.project.importFiles([file], { destination: 'project-bin' });
 		await settleController();
 
 		const source = controller.getSnapshot().project.sources[0];
+		const binClip = controller.getSnapshot().project.projectBin.clips[0];
+		assert.equal(controller.getSnapshot().project.clips.length, 0);
+		assert.equal(binClip.sourceId, source.id);
 		assert.equal(source.frameCount, LONG_MONO_SOURCE_FRAMES);
 		assert.equal(engine.decodeCalls, 0, 'the Web Audio whole-file decoder is bypassed');
 		assert.equal(file.arrayBufferCalls, 0, 'the complete File is never materialized');
@@ -98,6 +154,7 @@ test('large PCM WAV imports are decoded from bounded slices directly into storag
 		assert.equal(store.sourceWriteCalls.every(({ frameCount }) => frameCount <= SOURCE_CHUNK_FRAMES), true);
 		assert.equal(engine.sourceBuffers.has(source.id), false);
 		assert.equal(engine.chunkSources.has(source.id), true);
+		assert.equal(controller.actions.projectBin.getVisualData(binClip.id).available, true);
 	} finally {
 		await controller.dispose();
 	}

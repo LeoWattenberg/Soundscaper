@@ -29,8 +29,10 @@ import {
 	migrateAudioEditorHistoryV1ToV2,
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV1ToV2,
+	migrateAudioEditorProjectV2ToV3,
 	migrateAudioEditorStateV1ToV2,
 } from '../src/lib/tools/audio-editor/migration.js';
+import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
 
 const CREATED_AT = '2026-07-12T10:00:00.000Z';
 const UPDATED_AT = '2026-07-13T11:30:00.000Z';
@@ -285,6 +287,19 @@ test('one audio track accepts sequential clips backed by mixed-rate mono and ste
 test('editor preferences default to Modern/system/Colorful and exclude OS, cloud, and plugin state', () => {
 	const preferences = createAudioEditorPreferencesV1();
 	assert.equal(preferences.workspace.activeId, 'modern');
+	assert.deepEqual(
+		preferences.workspace.panels['project-bin'],
+		{
+			visible: true,
+			dock: 'left',
+			order: 0,
+			size: 380,
+			x: 24,
+			y: 24,
+			width: 380,
+			height: 520,
+		},
+	);
 	assert.equal(preferences.appearance.theme, 'system');
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
 	assert.equal(preferences.import.detectTempo, true);
@@ -418,10 +433,11 @@ test('V1 migration preserves identity, PCM roots, revisions, timestamps, racks, 
 	assert.equal(result.migrated, true);
 	assert.equal(result.fromVersion, 1);
 	assert.equal(result.readOnly, false);
-	assert.deepEqual(result.project, migrated);
+	assert.deepEqual(result.project, migrateAudioEditorProjectV2ToV3(migrated));
 	const alreadyV2 = migrateAudioEditorProject(migrated);
-	assert.equal(alreadyV2.migrated, false);
+	assert.equal(alreadyV2.migrated, true);
 	assert.notEqual(alreadyV2.project, migrated);
+	assert.equal(migrateAudioEditorProject(alreadyV2.project).migrated, false);
 });
 
 test('legacy V2 track format fields are normalized without mutating the saved document', () => {
@@ -449,7 +465,7 @@ test('legacy V2 track format fields are normalized without mutating the saved do
 		assert.equal(normalized.sources[0].sampleRate, 44_100);
 		assert.equal(normalized.sources[0].sampleFormat, 'int24');
 		assert.deepEqual(normalized.opaqueExtensions, legacy.opaqueExtensions);
-		assert.equal(validateAudioEditorProjectV2(normalized), true);
+		assert.equal(validateAudioEditorProject(normalized), true);
 	}
 });
 
@@ -512,8 +528,8 @@ test('history and state migration are atomic and future schemas stay intact and 
 	const rollback = structuredClone(history);
 	const migrated = migrateAudioEditorHistoryV1ToV2(history);
 	assert.deepEqual(history, rollback);
-	assert.equal(migrated.present.schemaVersion, 2);
-	assert.equal(migrated.undoStack[0].project.schemaVersion, 2);
+	assert.equal(migrated.present.schemaVersion, 3);
+	assert.equal(migrated.undoStack[0].project.schemaVersion, 3);
 	assert.deepEqual(migrated.undoStack[0].command, command);
 	assert.notEqual(migrated.undoStack[0].command, command);
 
@@ -528,10 +544,10 @@ test('history and state migration are atomic and future schemas stay intact and 
 
 	const stateResult = migrateAudioEditorStateV1ToV2({ project: present, history, clipboard: { sourceIds: ['source-1'] } });
 	assert.equal(stateResult.migrated, true);
-	assert.equal(stateResult.state.project.schemaVersion, 2);
+	assert.equal(stateResult.state.project.schemaVersion, 3);
 	assert.deepEqual(stateResult.state.clipboard, { sourceIds: ['source-1'] });
 
-	const future = { ...richV2Fixture(), schemaVersion: 3, opaqueFutureData: new Uint8Array([9, 8, 7]) };
+	const future = { ...richV2Fixture(), schemaVersion: 4, opaqueFutureData: new Uint8Array([9, 8, 7]) };
 	const futureResult = migrateAudioEditorProject(future);
 	assert.equal(futureResult.readOnly, true);
 	assert.equal(futureResult.reason, 'newer-schema');

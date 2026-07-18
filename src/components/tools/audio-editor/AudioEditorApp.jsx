@@ -47,6 +47,11 @@ import {
 	normalizeAudioEditorShortcut,
 } from '../../../lib/tools/audio-editor/preferences.js';
 import {
+	AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,
+	clearActiveProjectBinDragPayload,
+	createProjectBinDragPayload,
+} from '../../../lib/tools/audio-editor/project-bin-dnd.js';
+import {
 	ebuMeterBounds,
 	ebuMeterPercent,
 	ebuMeterTicks,
@@ -94,6 +99,7 @@ const METER_DB_RANGES = Object.freeze([36, 48, 60, 72, 84, 96, 120, 144]);
 const EBU_METER_SCALES = Object.freeze(['plus9', 'plus18']);
 const EBU_METER_UNITS = Object.freeze(['absolute', 'relative']);
 const EBU_METER_LIVE_VALUES = Object.freeze(['momentary', 'short-term']);
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,.aac,.aif,.aiff,.aup3,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.wav,.webm,.wv';
 const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	levels: 'analysis',
 	spectrum: 'spectrum',
@@ -183,6 +189,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [nyquistTarget, setNyquistTarget] = useState(() => ({ prompt: true, pluginId: null }));
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
 	const [draggedWorkspacePanelId, setDraggedWorkspacePanelId] = useState(null);
+	const [projectBinSessionOpened, setProjectBinSessionOpened] = useState(false);
 	const [toolbarDock, setToolbarDock] = useState('top');
 	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(loadPlaybackMeterSettings);
@@ -200,8 +207,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
 	const isCompact = useMediaQuery('(max-width: 900px)');
+	const isProjectBinCompact = useMediaQuery('(max-width: 520px)');
 	const project = snapshot.project;
 	const preferences = snapshot.preferences;
+	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
+	const projectBinEffectivelyOpen = projectBinPreferenceVisible
+		&& (!isProjectBinCompact || projectBinSessionOpened);
 	const toolbarPreferences = preferences?.workspace?.toolbars || {};
 	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const blocked = Boolean(
@@ -499,7 +510,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setDialog('projects');
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
-	const openDesktopFiles = useCallback(async (purpose, multiple = false) => {
+	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
 		const files = [];
 		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
@@ -507,9 +518,15 @@ function AudioEditorWorkspace({ locale, copy }) {
 			for (const file of files) await controller.actions.project.openAup4(file);
 		} else if (purpose === 'labels') {
 			for (const file of files) await controller.actions.labels.importFile(file);
-		} else if (files.length) await controller.actions.project.importFiles(files);
+		} else if (files.length) {
+			await controller.actions.project.importFiles(files, {
+				destination: 'auto',
+				projectBinVisible: projectBinEffectivelyOpen,
+				...importOptions,
+			});
+		}
 		return files.length;
-	}, [controller, fileService]);
+	}, [controller, fileService, projectBinEffectivelyOpen]);
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
@@ -584,6 +601,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setActiveSurface(null);
 	}, [controller]);
 	const openWorkspacePanel = useCallback((panelId) => {
+		if (panelId === 'project-bin') setProjectBinSessionOpened(true);
 		run(() => controller.actions.preferences.setPanel(panelId, { visible: true }));
 		requestAnimationFrame(() => {
 			const panel = workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`);
@@ -592,6 +610,20 @@ function AudioEditorWorkspace({ locale, copy }) {
 			panel.focus({ preventScroll: false });
 		});
 	}, [controller, run]);
+	const toggleWorkspacePanel = useCallback((panelId) => {
+		if (panelId !== 'project-bin') {
+			return run(() => controller.actions.preferences.togglePanel(panelId));
+		}
+		if (projectBinEffectivelyOpen) {
+			return run(() => controller.actions.preferences.setPanel(panelId, { visible: false }));
+		}
+		setProjectBinSessionOpened(true);
+		return run(() => controller.actions.preferences.setPanel(panelId, { visible: true }));
+	}, [controller, projectBinEffectivelyOpen, run]);
+	const revealProjectBin = useCallback(
+		() => openWorkspacePanel('project-bin'),
+		[openWorkspacePanel],
+	);
 	const openExternal = useCallback((url) => {
 		if (fileService.isDesktop) return fileService.openExternal(desktopExternalDestination(url));
 		const opened = globalThis.open?.(url, '_blank', 'noopener,noreferrer');
@@ -692,6 +724,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		selectedClip,
 		durationFrames,
 		effectsPanelOpen: Boolean(snapshot.preferences?.workspace?.panels?.effects?.visible),
+		projectBinEffectivelyOpen,
 		uiFlags,
 		actionRuntime: parityRuntime.actions,
 			actions: {
@@ -822,7 +855,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			},
 				openEbuR128: () => openWorkspacePanel('ebu-r128'),
 				setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
-				togglePanel: (panelId) => run(() => controller.actions.preferences.togglePanel(panelId)),
+				togglePanel: toggleWorkspacePanel,
 				manual: () => openExternal('https://support.audacityteam.org/au4'),
 				tutorials: () => openExternal('https://support.audacityteam.org/au4'),
 				support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
@@ -851,6 +884,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		openWorkspacePanel,
 		parityRuntime.actions,
 		project,
+		projectBinEffectivelyOpen,
 		recentProjectsMenuKey,
 		recordLabel,
 		run,
@@ -877,6 +911,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		snapshot.timeline?.view,
 		toggleFullscreen,
 		toggleRecording,
+		toggleWorkspacePanel,
 		uiFlags.clipping,
 		uiFlags.masterTrack,
 		uiFlags.statusbar,
@@ -1100,12 +1135,15 @@ function AudioEditorWorkspace({ locale, copy }) {
 				aria-label={copy.importAudio}
 				type="file"
 				tabIndex={-1}
-				accept="audio/*,.aac,.aif,.aiff,.aup3,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.wav,.webm,.wv"
+				accept={AUDIO_EDITOR_AUDIO_FILE_ACCEPT}
 				multiple
 				onChange={(event) => {
 					const files = [...event.currentTarget.files];
 					event.currentTarget.value = '';
-					if (files.length) run(() => controller.actions.project.importFiles(files));
+					if (files.length) run(() => controller.actions.project.importFiles(files, {
+						destination: 'auto',
+						projectBinVisible: projectBinEffectivelyOpen,
+					}));
 				}}
 			/>
 
@@ -1185,6 +1223,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
 					onPanelMove={moveWorkspacePanel}
+					onTogglePanel={toggleWorkspacePanel}
+					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
+					blocked={blocked}
 				/>
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
 				<main className="kw-audio-editor__canvas">
@@ -1209,6 +1250,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 							run(() => controller.actions.timeline.setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames));
 							openSurface('export');
 						}}
+						onRevealProjectBin={revealProjectBin}
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
 					/>
 					<p className="kw-audio-editor__keyboard-help" tabIndex={-1}>{copy.keyboardHelp}</p>
@@ -1231,6 +1273,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
 					onPanelMove={moveWorkspacePanel}
+					onTogglePanel={toggleWorkspacePanel}
+					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
+					blocked={blocked}
 				/>
 				</div>}
 				<WorkspacePanelDock
@@ -1251,6 +1296,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
 					onPanelMove={moveWorkspacePanel}
+					onTogglePanel={toggleWorkspacePanel}
+					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
+					blocked={blocked}
 				/>
 				{uiFlags.masterTrack
 					&& toolbarButtonPreferences['playback-volume'] !== false
@@ -1292,6 +1340,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
 					onPanelMove={moveWorkspacePanel}
+					onTogglePanel={toggleWorkspacePanel}
+					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
+					blocked={blocked}
 				/>
 				<div
 					className={`kw-audio-editor__workspace-drop-targets${draggedWorkspacePanelId ? ' kw-audio-editor__workspace-drop-targets--active' : ''}`}
@@ -1472,6 +1523,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 						menus={applicationMenus}
 						run={run}
 						initialPage={preferencesPage}
+						isPanelVisible={(panelId) => (
+							panelId === 'project-bin'
+								? projectBinEffectivelyOpen
+								: preferences.workspace.panels[panelId]?.visible === true
+						)}
+						onTogglePanel={toggleWorkspacePanel}
 						onClose={() => setActiveSurface(null)}
 					/>
 				</div>
@@ -3065,6 +3122,7 @@ function AccessibleSelectionToolbar({
 }
 
 const WORKSPACE_PANEL_IDS = Object.freeze([
+	'project-bin',
 	'history',
 	'labels',
 	'metadata',
@@ -3122,6 +3180,9 @@ function WorkspacePanelDock({
 	onPanelDragStart,
 	onPanelDragEnd,
 	onPanelMove,
+	onTogglePanel,
+	projectBinEffectivelyOpen,
+	blocked,
 }) {
 	const dockRef = useRef(null);
 	const resizeSessionRef = useRef(null);
@@ -3130,7 +3191,11 @@ function WorkspacePanelDock({
 	const [activeFloatingPanelId, setActiveFloatingPanelId] = useState(null);
 	const panels = WORKSPACE_PANEL_IDS
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
-		.filter(([, panel]) => panel?.visible && panel.dock === dock)
+		.filter(([id, panel]) => (
+			panel?.visible
+			&& panel.dock === dock
+			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
+		))
 		.sort((left, right) => left[1].order - right[1].order);
 	useEffect(() => {
 		if (dock !== 'floating') return undefined;
@@ -3621,7 +3686,7 @@ function WorkspacePanelDock({
 							type="button"
 							className="kw-audio-editor__workspace-panel-close"
 							aria-label={`${copy.close}: ${workspacePanelLabel(copy, panelId)}`}
-							onClick={() => run(() => controller.actions.preferences.togglePanel(panelId))}
+							onClick={() => onTogglePanel(panelId)}
 						>×</button>
 					</header>
 					<div className="kw-audio-editor__workspace-panel-content">
@@ -3639,6 +3704,7 @@ function WorkspacePanelDock({
 							onOpenEffects={onOpenEffects}
 							effectsPanelTarget={effectsPanelTarget}
 							onEffectWindowChange={onEffectWindowChange}
+							blocked={blocked}
 						/>
 					</div>
 				</section>
@@ -3662,8 +3728,22 @@ function WorkspacePanelContent({
 	onOpenEffects,
 	effectsPanelTarget,
 	onEffectWindowChange,
+	blocked,
 }) {
 	const project = snapshot.project;
+	if (panelId === 'project-bin') {
+		return (
+			<ProjectBinPanel
+				controller={controller}
+				snapshot={snapshot}
+				copy={copy}
+				locale={locale}
+				fileService={fileService}
+				run={run}
+				blocked={blocked}
+			/>
+		);
+	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
 		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
 	if (analysisMode) {
@@ -3868,6 +3948,412 @@ function WorkspacePanelContent({
 			</label>
 		</div>
 	);
+}
+
+function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
+	const inputRef = useRef(null);
+	const dragDepthRef = useRef(0);
+	const [dropActive, setDropActive] = useState(false);
+	const project = snapshot.project;
+	const clips = project?.projectBin?.clips || [];
+	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
+	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
+	const mutationBlocked = Boolean(blocked || snapshot.readOnly);
+	const positionFrame = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => Math.max(0, Number(telemetry.positionFrame) || 0),
+	);
+	const selectedAudioTrack = project?.tracks.find((track) => (
+		track.id === snapshot.selectedTrackId && track.type === 'audio'
+	)) || null;
+
+	const importFiles = (files) => {
+		if (mutationBlocked || !files.length) return undefined;
+		return controller.actions.project.importFiles(files, { destination: 'project-bin' });
+	};
+	const chooseFiles = () => run(async () => {
+		if (mutationBlocked) return;
+		if (!fileService.isDesktop) {
+			inputRef.current?.click();
+			return;
+		}
+		const descriptors = await fileService.chooseFiles({ purpose: 'audio', multiple: true });
+		const files = [];
+		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
+		if (files.length) await importFiles(files);
+	});
+	const isFileDrag = (dataTransfer) => {
+		const types = [...(dataTransfer?.types || [])];
+		return types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
+	};
+	const resetDropState = (element = null) => {
+		dragDepthRef.current = 0;
+		setDropActive(false);
+		element?.removeAttribute('data-drop-active');
+	};
+
+	return (
+		<div
+			className="kw-audio-editor__project-bin"
+			data-project-bin-drop-target
+			data-drop-active={dropActive ? 'true' : 'false'}
+			data-project-bin-disabled={mutationBlocked ? 'true' : 'false'}
+			aria-disabled={mutationBlocked ? 'true' : undefined}
+			onDragEnter={(event) => {
+				if (mutationBlocked || !isFileDrag(event.dataTransfer)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				dragDepthRef.current += 1;
+				setDropActive(true);
+			}}
+			onDragOver={(event) => {
+				if (mutationBlocked || !isFileDrag(event.dataTransfer)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				event.dataTransfer.dropEffect = 'copy';
+				setDropActive(true);
+			}}
+			onDragLeave={(event) => {
+				if (!isFileDrag(event.dataTransfer)) return;
+				event.stopPropagation();
+				dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+				if (!dragDepthRef.current) setDropActive(false);
+			}}
+			onDrop={(event) => {
+				if (!isFileDrag(event.dataTransfer)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				resetDropState(event.currentTarget);
+				if (mutationBlocked) return;
+				const files = [...(event.dataTransfer.files || [])];
+				if (files.length) run(() => importFiles(files));
+			}}
+		>
+			<input
+				ref={inputRef}
+				className="kw-audio-editor__file-input"
+				data-project-bin-input
+				aria-label={copy.projectBinImport}
+				type="file"
+				tabIndex={-1}
+				accept={AUDIO_EDITOR_AUDIO_FILE_ACCEPT}
+				multiple
+				onChange={(event) => {
+					const files = [...event.currentTarget.files];
+					event.currentTarget.value = '';
+					if (files.length) run(() => importFiles(files));
+				}}
+			/>
+			<div className="kw-audio-editor__project-bin-import" data-project-bin-import>
+				<div aria-hidden="true" className="kw-audio-editor__project-bin-import-icon">＋</div>
+				<p>
+					<strong>{copy.projectBinDropTitle}</strong>
+					<span>{copy.projectBinDropHint}</span>
+				</p>
+				<Button variant="secondary" disabled={mutationBlocked} onClick={chooseFiles}>
+					{copy.projectBinImport}
+				</Button>
+			</div>
+			{snapshot.readOnly && (
+				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinReadOnly}</p>
+			)}
+			{!snapshot.readOnly && blocked && (
+				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinBusy}</p>
+			)}
+			{clips.length ? (
+				<ul className="kw-audio-editor__project-bin-list" data-project-bin-list>
+					{clips.map((clip) => (
+						<ProjectBinCard
+							key={clip.id}
+							clip={clip}
+							source={sourceById.get(clip.sourceId) || null}
+							project={project}
+							controller={controller}
+							copy={copy}
+							locale={locale}
+							mutationBlocked={mutationBlocked}
+							missing={missingSourceIds.has(clip.sourceId)}
+							selectedAudioTrack={selectedAudioTrack}
+							positionFrame={positionFrame}
+							run={run}
+							onDragEnd={(element) => resetDropState(element)}
+						/>
+					))}
+				</ul>
+			) : (
+				<p className="kw-audio-editor__panel-empty kw-audio-editor__project-bin-empty">
+					{copy.projectBinEmpty}
+				</p>
+			)}
+		</div>
+	);
+}
+
+function ProjectBinCard({
+	clip,
+	source,
+	project,
+	controller,
+	copy,
+	locale,
+	mutationBlocked,
+	missing,
+	selectedAudioTrack,
+	positionFrame,
+	run,
+	onDragEnd,
+}) {
+	let visual = null;
+	try {
+		visual = controller.actions.projectBin.getVisualData(clip.id);
+	} catch {
+		// The source can still be activating while the project document is already visible.
+	}
+	const unavailable = Boolean(missing || !source || visual?.available === false);
+	const disabled = mutationBlocked || unavailable;
+	const name = clip.title || source?.name || copy.clip;
+	const waveformPath = projectBinWaveformPath(visual, clip);
+	const transformBadges = projectBinTransformBadges(clip, source, copy);
+	const format = formatProjectBinSource(source, copy);
+	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
+
+	return (
+		<li
+			className={`kw-audio-editor__project-bin-card${unavailable ? ' kw-audio-editor__project-bin-card--unavailable' : ''}`}
+			data-project-bin-item={clip.id}
+			data-source-id={clip.sourceId}
+			data-unavailable={unavailable ? 'true' : 'false'}
+			draggable={!disabled}
+			onDragStart={(event) => {
+				if (disabled) {
+					event.preventDefault();
+					return;
+				}
+				event.dataTransfer.effectAllowed = 'copy';
+				event.dataTransfer.setData(
+					AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,
+					createProjectBinDragPayload(project.id, clip.id),
+				);
+				event.dataTransfer.setData('text/plain', name);
+				event.currentTarget.dataset.dragging = 'true';
+			}}
+			onDragEnd={(event) => {
+				delete event.currentTarget.dataset.dragging;
+				clearActiveProjectBinDragPayload();
+				onDragEnd(event.currentTarget.closest('[data-project-bin-drop-target]'));
+			}}
+		>
+			<div
+				className="kw-audio-editor__project-bin-waveform"
+				data-project-bin-waveform
+				aria-label={`${copy.projectBinWaveform}: ${name}`}
+				role="img"
+			>
+				<svg viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+					<path className="kw-audio-editor__project-bin-waveform-zero" d="M0 22 H160" />
+					{waveformPath && <path className="kw-audio-editor__project-bin-waveform-peaks" d={waveformPath} />}
+				</svg>
+			</div>
+			<div className="kw-audio-editor__project-bin-card-body">
+				<ProjectBinNameEditor
+					clip={clip}
+					name={name}
+					copy={copy}
+					disabled={mutationBlocked}
+					onCommit={(nextName) => run(() => controller.actions.projectBin.rename(clip.id, nextName))}
+				/>
+				<p className="kw-audio-editor__project-bin-meta">
+					<span>{duration}</span>
+					<span aria-hidden="true">·</span>
+					<span>{format}</span>
+				</p>
+				{transformBadges.length > 0 && (
+					<ul className="kw-audio-editor__project-bin-badges" aria-label={copy.projectBinTransformations}>
+						{transformBadges.map((badge) => <li key={badge}>{badge}</li>)}
+					</ul>
+				)}
+				{unavailable && (
+					<p className="kw-audio-editor__project-bin-unavailable" role="status">
+						{copy.projectBinUnavailable}
+					</p>
+				)}
+				<div className="kw-audio-editor__project-bin-card-actions">
+					<Button
+						variant="secondary"
+						disabled={disabled}
+						onClick={() => run(() => controller.actions.projectBin.place(clip.id, {
+							...(selectedAudioTrack ? { trackId: selectedAudioTrack.id } : {}),
+							timelineStartFrame: positionFrame,
+						}))}
+					>
+						{copy.projectBinAddToTimeline}
+					</Button>
+					<Button
+						variant="secondary"
+						disabled={mutationBlocked}
+						aria-label={`${copy.projectBinDelete}: ${name}`}
+						onClick={() => run(() => controller.actions.projectBin.remove(clip.id))}
+					>
+						{copy.projectBinDelete}
+					</Button>
+				</div>
+			</div>
+		</li>
+	);
+}
+
+function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
+	const [draft, setDraft] = useState(name);
+	useEffect(() => setDraft(name), [clip.id, name]);
+	const commit = () => {
+		const nextName = draft.trim();
+		if (!nextName) {
+			setDraft(name);
+			return;
+		}
+		if (nextName !== name) onCommit(nextName);
+	};
+	return (
+		<label className="kw-audio-editor__project-bin-name">
+			<span className="kw-audio-editor-sr-only">{copy.projectBinRename}</span>
+			<input
+				data-project-bin-name
+				aria-label={`${copy.projectBinRename}: ${name}`}
+				value={draft}
+				disabled={disabled}
+				onChange={(event) => setDraft(event.currentTarget.value)}
+				onBlur={commit}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter') event.currentTarget.blur();
+					else if (event.key === 'Escape') {
+						event.preventDefault();
+						setDraft(name);
+						event.currentTarget.blur();
+					}
+				}}
+			/>
+		</label>
+	);
+}
+
+function projectBinTransformBadges(clip, source, copy) {
+	const badges = [];
+	const sourceEnd = (clip.sourceStartFrame || 0) + (clip.sourceDurationFrames || clip.durationFrames);
+	if ((clip.trimStartFrames || 0) > 0
+		|| (clip.trimEndFrames || 0) > 0
+		|| (clip.sourceStartFrame || 0) > 0
+		|| (source?.frameCount && sourceEnd < source.frameCount)) badges.push(copy.projectBinTransformTrim);
+	if (Math.abs((clip.gain ?? 1) - 1) > 1e-9) badges.push(copy.projectBinTransformGain);
+	if ((clip.fadeInFrames || 0) > 0 || (clip.fadeOutFrames || 0) > 0) badges.push(copy.projectBinTransformFade);
+	if (clip.envelope?.length) badges.push(copy.projectBinTransformEnvelope);
+	if (clip.reversed) badges.push(copy.projectBinTransformReverse);
+	if (Math.abs(clip.pitchCents || 0) > 1e-9) badges.push(copy.projectBinTransformPitch);
+	if (Math.abs((clip.speedRatio ?? 1) - 1) > 1e-9 || clip.stretchToTempo) {
+		badges.push(copy.projectBinTransformSpeed);
+	}
+	if (clip.preserveFormants) badges.push(copy.projectBinTransformFormants);
+	if ((clip.renderCacheRevision || 0) > 0) badges.push(copy.projectBinTransformRendered);
+	return badges;
+}
+
+function formatProjectBinDuration(durationFrames, sampleRate, locale) {
+	const seconds = Math.max(0, Number(durationFrames) || 0) / Math.max(1, Number(sampleRate) || 48_000);
+	const wholeMinutes = Math.floor(seconds / 60);
+	const remaining = seconds - wholeMinutes * 60;
+	const number = new Intl.NumberFormat(locale, {
+		minimumIntegerDigits: 2,
+		minimumFractionDigits: remaining < 10 ? 1 : 0,
+		maximumFractionDigits: 1,
+	}).format(remaining);
+	return `${wholeMinutes}:${number}`;
+}
+
+function formatProjectBinSource(source, copy) {
+	if (!source) return copy.projectBinUnknownFormat;
+	const mimeSubtype = String(source.mimeType || '')
+		.replace(/^audio\//i, '')
+		.replace(/^x-/i, '')
+		.replace('mpeg', 'mp3');
+	const format = mimeSubtype ? mimeSubtype.toUpperCase() : copy.projectBinUnknownFormat;
+	const channels = Number(source.channelCount) === 1
+		? copy.projectBinMono
+		: copy.projectBinChannels.replace('{count}', String(source.channelCount || 0));
+	return `${format} · ${channels}`;
+}
+
+function projectBinWaveformPath(visual, clip, width = 160, height = 44) {
+	if (!visual) return '';
+	const ranges = projectBinPeakRanges(visual, clip, width);
+	if (!ranges.length) return '';
+	const middle = height / 2;
+	const amplitude = Math.max(1, middle - 3);
+	return ranges.map(({ minimum, maximum }, index) => {
+		const x = ranges.length === 1 ? width / 2 : index * width / (ranges.length - 1);
+		const top = middle - Math.max(-1, Math.min(1, maximum)) * amplitude;
+		const bottom = middle - Math.max(-1, Math.min(1, minimum)) * amplitude;
+		return `M${x.toFixed(2)} ${top.toFixed(2)}V${bottom.toFixed(2)}`;
+	}).join('');
+}
+
+function projectBinPeakRanges(visual, clip, maximumColumns) {
+	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
+	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames || clip.durationFrames) || 1);
+	const levels = visual.peaks?.levels || [];
+	let level = levels[levels.length - 1] || null;
+	for (const candidate of levels) {
+		const count = Math.ceil(sourceDurationFrames / Math.max(1, Number(candidate.blockSize) || 1));
+		if (count <= maximumColumns) {
+			level = candidate;
+			break;
+		}
+	}
+	if (level?.minimums?.length && level?.maximums?.length) {
+		const blockSize = Math.max(1, Number(level.blockSize) || 1);
+		const start = Math.max(0, Math.floor(sourceStartFrame / blockSize));
+		const end = Math.min(
+			level.minimums.length,
+			Math.max(start + 1, Math.ceil((sourceStartFrame + sourceDurationFrames) / blockSize)),
+		);
+		return aggregateProjectBinRanges(level.minimums, level.maximums, start, end, maximumColumns);
+	}
+	const buffer = visual.buffer;
+	if (!buffer?.numberOfChannels || !buffer.length || typeof buffer.getChannelData !== 'function') return [];
+	const end = Math.min(buffer.length, sourceStartFrame + sourceDurationFrames);
+	const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
+	const columns = Math.max(1, Math.min(maximumColumns, end - sourceStartFrame));
+	const ranges = [];
+	for (let column = 0; column < columns; column += 1) {
+		const startFrame = Math.floor(sourceStartFrame + column * (end - sourceStartFrame) / columns);
+		const endFrame = Math.max(startFrame + 1, Math.ceil(sourceStartFrame + (column + 1) * (end - sourceStartFrame) / columns));
+		let minimum = 1;
+		let maximum = -1;
+		const stride = Math.max(1, Math.floor((endFrame - startFrame) / 32));
+		for (let frame = startFrame; frame < endFrame; frame += stride) {
+			let sample = 0;
+			for (const channel of channels) sample += (Number(channel[frame]) || 0) / channels.length;
+			minimum = Math.min(minimum, sample);
+			maximum = Math.max(maximum, sample);
+		}
+		ranges.push({ minimum, maximum });
+	}
+	return ranges;
+}
+
+function aggregateProjectBinRanges(minimums, maximums, start, end, maximumColumns) {
+	const columns = Math.max(1, Math.min(maximumColumns, end - start));
+	const ranges = [];
+	for (let column = 0; column < columns; column += 1) {
+		const rangeStart = Math.floor(start + column * (end - start) / columns);
+		const rangeEnd = Math.max(rangeStart + 1, Math.ceil(start + (column + 1) * (end - start) / columns));
+		let minimum = 1;
+		let maximum = -1;
+		for (let index = rangeStart; index < rangeEnd; index += 1) {
+			minimum = Math.min(minimum, Number(minimums[index]) || 0);
+			maximum = Math.max(maximum, Number(maximums[index]) || 0);
+		}
+		ranges.push({ minimum, maximum });
+	}
+	return ranges;
 }
 
 function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
@@ -4149,7 +4635,19 @@ function MetadataEditorField({ name, label, value, disabled, onCommit }) {
 	);
 }
 
-function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, fileService, menus, run, initialPage = 'shortcuts', onClose }) {
+function WorkspacePreferencesDialog({
+	controller,
+	snapshot,
+	copy,
+	locale,
+	fileService,
+	menus,
+	run,
+	initialPage = 'shortcuts',
+	isPanelVisible = null,
+	onTogglePanel,
+	onClose,
+}) {
 	const panelRef = useRef(null);
 	const sideNavRef = useRef(null);
 	const [selectedPage, setSelectedPage] = useState(initialPage);
@@ -4402,7 +4900,15 @@ function WorkspacePreferencesDialog({ controller, snapshot, copy, locale, fileSe
 										const label = workspacePanelLabel(copy, panelId);
 										return (
 											<div key={panelId}>
-												<PreferenceCheckbox label={label} checked={panel.visible} onChange={() => run(() => controller.actions.preferences.togglePanel(panelId))} />
+												<PreferenceCheckbox
+													label={label}
+													checked={isPanelVisible ? isPanelVisible(panelId) : panel.visible}
+													onChange={() => (
+														onTogglePanel
+															? onTogglePanel(panelId)
+															: run(() => controller.actions.preferences.togglePanel(panelId))
+													)}
+												/>
 												<PreferenceDropdownField
 													label={`${label}: ${copy.panelDock}`}
 													visuallyHiddenLabel
@@ -4550,6 +5056,7 @@ function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
 
 function workspacePanelLabel(copy, panelId) {
 	const analyzerLabels = {
+		'project-bin': copy.panelProjectBin,
 		analysis: copy.analysisCommand,
 		spectrum: copy.plotSpectrum,
 		clipping: copy.findClipping,
@@ -5713,6 +6220,7 @@ function createApplicationMenus({
 	selectedClip,
 	durationFrames,
 	effectsPanelOpen,
+	projectBinEffectivelyOpen,
 	uiFlags,
 	actionRuntime,
 	actions,
@@ -5979,7 +6487,9 @@ function createApplicationMenus({
 						...WORKSPACE_PANEL_IDS.map((panelId) => ({
 							id: `panel-${panelId}`,
 							label: workspacePanelLabel(copy, panelId),
-							checked: preferences.workspace.panels[panelId].visible,
+							checked: panelId === 'project-bin'
+								? projectBinEffectivelyOpen
+								: preferences.workspace.panels[panelId].visible,
 							onClick: () => actions.togglePanel(panelId),
 						})),
 					],

@@ -198,6 +198,10 @@ export function findClip(project, clipId) {
 	return project.clips.find((clip) => clip.id === clipId) || null;
 }
 
+export function findProjectBinClip(project, clipId) {
+	return project?.projectBin?.clips?.find((clip) => clip.id === clipId) || null;
+}
+
 export function findClipTrack(project, clipId) {
 	return project.tracks.find((track) => Array.isArray(track.clipIds) && track.clipIds.includes(clipId)) || null;
 }
@@ -278,6 +282,7 @@ export function commitProject(project, mutate, options = {}) {
 export function validateAudioEditorProject(project) {
 	if (!project || typeof project !== 'object') throw new TypeError('An audio editor project is required.');
 	if (project.schemaVersion === 2) return validateProjectV2Shape(project);
+	if (project.schemaVersion === 3) return validateProjectV3Shape(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -424,5 +429,34 @@ function validateProjectV2Shape(project) {
 	finiteInRange(project.master?.gain, 0, 4, 'master.gain');
 	if (!Array.isArray(project.master?.effects)) throw new TypeError('Master effects must be an array.');
 	validateMixerV2Shape(project);
+	return true;
+}
+
+function validateProjectV3Shape(project) {
+	if (!project.projectBin || typeof project.projectBin !== 'object' || Array.isArray(project.projectBin)) {
+		throw new TypeError('project.projectBin must be an object.');
+	}
+	if (!Array.isArray(project.projectBin.clips)) {
+		throw new TypeError('project.projectBin.clips must be an array.');
+	}
+	validateProjectV2Shape(project);
+	assertUniqueIds([...project.clips, ...project.projectBin.clips], 'clip');
+	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
+	for (const clip of project.projectBin.clips) {
+		if (!sourceById.has(clip.sourceId)) throw new ReferenceError(`Clip ${clip.id} references a missing source.`);
+		assertFrame(clip.timelineStartFrame, `clip ${clip.id}.timelineStartFrame`);
+		assertFrame(clip.sourceStartFrame, `clip ${clip.id}.sourceStartFrame`);
+		assertPositiveFrame(clip.durationFrames, `clip ${clip.id}.durationFrames`);
+		const sourceDurationFrames = clip.sourceDurationFrames ?? clip.durationFrames;
+		assertPositiveFrame(sourceDurationFrames, `clip ${clip.id}.sourceDurationFrames`);
+		const source = sourceById.get(clip.sourceId);
+		if (clip.sourceStartFrame + sourceDurationFrames > source.frameCount) {
+			throw new RangeError(`Clip ${clip.id} exceeds its source bounds.`);
+		}
+	}
+	const timelineClipIds = new Set(project.clips.map((clip) => clip.id));
+	for (const clipId of project.selection?.clipIds || []) {
+		if (!timelineClipIds.has(clipId)) throw new ReferenceError(`Selection references missing timeline clip ${clipId}.`);
+	}
 	return true;
 }

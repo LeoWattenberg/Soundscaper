@@ -95,7 +95,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(controller.clipTimePitchCache.maximumResidentChannelBytes, 1_024);
 
 	assert.deepEqual(Object.keys(controller.actions), [
-		'project', 'edit', 'transport', 'recording', 'metering', 'audioDevices', 'timeline', 'sampleEdit', 'spectral',
+		'project', 'projectBin', 'edit', 'transport', 'recording', 'metering', 'audioDevices', 'timeline', 'sampleEdit', 'spectral',
 		'track', 'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences', 'clip', 'effects', 'macros', 'analysis', 'export',
 	]);
 	assert.equal(readySnapshot.preferences.workspace.activeId, 'modern');
@@ -254,6 +254,209 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(store.projects.get(changedSnapshot.project.id)?.sampleRate, 48_000);
 	assert.ok(engine.appliedProjects.length >= 1);
 
+	await controller.dispose();
+});
+
+test('controller moves transformed selections through the reusable project bin and places stable copies', async () => {
+	const engine = createMemoryEngine();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	const firstTrackId = controller.project.tracks[0].id;
+	const secondTrackId = controller.actions.track.add({ name: 'Project-bin companion' });
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				schemaVersion: 2,
+				id: 'project-bin-source',
+				storageKey: 'project-bin-source',
+				name: 'project-bin.wav',
+				mimeType: 'audio/wav',
+				frameCount: 96_000,
+				channelCount: 2,
+				sampleRate: 48_000,
+				originalSampleRate: 48_000,
+			},
+		}, {
+			type: 'clip/add',
+			trackId: firstTrackId,
+			clip: {
+				schemaVersion: 2,
+				id: 'project-bin-first',
+				sourceId: 'project-bin-source',
+				title: 'Transformed take',
+				timelineStartFrame: 2_000,
+				sourceStartFrame: 1_000,
+				sourceDurationFrames: 10_000,
+				durationFrames: 8_000,
+				trimStartFrames: 500,
+				trimEndFrames: 800,
+				gain: 1.5,
+				fadeInFrames: 200,
+				fadeOutFrames: 300,
+				envelope: [{ frame: 1_000, value: 0.75 }],
+				groupId: 'project-bin-group',
+				color: 'magenta',
+				pitchCents: 250,
+				speedRatio: 1.25,
+				preserveFormants: true,
+				stretchToTempo: true,
+				renderCacheRevision: 4,
+			},
+		}, {
+			type: 'clip/add',
+			trackId: secondTrackId,
+			clip: {
+				schemaVersion: 2,
+				id: 'project-bin-second',
+				sourceId: 'project-bin-source',
+				title: 'Grouped take',
+				timelineStartFrame: 12_000,
+				sourceStartFrame: 20_000,
+				sourceDurationFrames: 4_000,
+				durationFrames: 4_000,
+				groupId: 'project-bin-group',
+			},
+		}],
+	});
+	controller.actions.timeline.selectClip('project-bin-first');
+
+	assert.deepEqual(
+		controller.actions.projectBin.moveFromTimeline('project-bin-first'),
+		['project-bin-first', 'project-bin-second'],
+	);
+	let snapshot = controller.getSnapshot();
+	assert.deepEqual(snapshot.project.clips, []);
+	assert.deepEqual(snapshot.project.projectBin.clips.map((clip) => clip.id), [
+		'project-bin-first',
+		'project-bin-second',
+	]);
+	const stored = snapshot.project.projectBin.clips[0];
+	assert.equal(stored.groupId, null);
+	assert.equal(stored.sourceStartFrame, 1_000);
+	assert.equal(stored.sourceDurationFrames, 10_000);
+	assert.equal(stored.durationFrames, 8_000);
+	assert.equal(stored.gain, 1.5);
+	assert.equal(stored.pitchCents, 250);
+	assert.equal(stored.speedRatio, 1.25);
+	assert.equal(stored.preserveFormants, true);
+	assert.equal(stored.stretchToTempo, true);
+	assert.equal(stored.renderCacheRevision, 4);
+	assert.equal(snapshot.selectedClipId, null);
+	assert.deepEqual(snapshot.project.selection.clipIds, []);
+	assert.deepEqual(controller.actions.projectBin.getVisualData(stored.id), {
+		clip: stored,
+		track: null,
+		source: snapshot.project.sources[0],
+		buffer: null,
+		peaks: null,
+		available: true,
+	});
+
+	controller.actions.edit.undo();
+	snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.projectBin.clips.length, 0);
+	assert.deepEqual(snapshot.project.clips.map((clip) => clip.groupId), [
+		'project-bin-group',
+		'project-bin-group',
+	]);
+	assert.deepEqual(snapshot.project.selection.clipIds, ['project-bin-first', 'project-bin-second']);
+	controller.actions.edit.redo();
+
+	controller.actions.projectBin.rename('project-bin-first', 'Reusable vocal');
+	assert.equal(controller.getSnapshot().project.projectBin.clips[0].title, 'Reusable vocal');
+	engine.positionFrame = 33_333;
+	controller.actions.timeline.selectTrack(firstTrackId);
+	const placedClipId = controller.actions.projectBin.place('project-bin-first');
+	snapshot = controller.getSnapshot();
+	assert.notEqual(placedClipId, 'project-bin-first');
+	assert.equal(snapshot.project.projectBin.clips.length, 2);
+	const placed = snapshot.project.clips.find((clip) => clip.id === placedClipId);
+	assert.equal(placed.timelineStartFrame, 33_333);
+	assert.equal(placed.groupId, null);
+	assert.equal(placed.title, 'Reusable vocal');
+	assert.equal(placed.pitchCents, 250);
+	assert.equal(snapshot.selectedClipId, placedClipId);
+	assert.equal(snapshot.selectedTrackId, firstTrackId);
+
+	assert.equal(controller.actions.projectBin.remove('project-bin-second'), 'project-bin-second');
+	assert.deepEqual(controller.getSnapshot().project.projectBin.clips.map((clip) => clip.id), ['project-bin-first']);
+	controller.actions.edit.undo();
+	assert.deepEqual(controller.getSnapshot().project.projectBin.clips.map((clip) => clip.id), [
+		'project-bin-first',
+		'project-bin-second',
+	]);
+	await controller.dispose();
+});
+
+test('bin-only missing audio is unavailable without blocking timeline transport', async () => {
+	const store = createMemoryStore();
+	let controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: {
+				id: 'missing-bin-source',
+				storageKey: 'missing-bin-source',
+				name: 'missing-bin.wav',
+				mimeType: 'audio/wav',
+				frameCount: 48_000,
+				channelCount: 1,
+				sampleRate: 48_000,
+			},
+		}, {
+			type: 'project-bin/add',
+			clip: {
+				id: 'missing-bin-clip',
+				sourceId: 'missing-bin-source',
+				title: 'Unavailable take',
+				timelineStartFrame: 0,
+				sourceStartFrame: 0,
+				sourceDurationFrames: 48_000,
+				durationFrames: 48_000,
+			},
+		}],
+	});
+	await controller.actions.project.save();
+	await controller.dispose();
+
+	const engine = createMemoryEngine();
+	controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const visuals = controller.actions.projectBin.getVisualData('missing-bin-clip');
+	assert.equal(visuals.available, false);
+	assert.equal(controller.getSnapshot().missingSourceIds.includes('missing-bin-source'), true);
+	assert.throws(
+		() => controller.actions.projectBin.place('missing-bin-clip'),
+		/missing|source|audio/i,
+	);
+	await assert.doesNotReject(() => controller.actions.transport.playPause());
+	assert.equal(engine.state, 'playing');
 	await controller.dispose();
 });
 

@@ -34,6 +34,8 @@ export * from './pcm-sink.js';
 export * from './preferences.js';
 export * from './project.js';
 export * from './project-v2.js';
+export * from './project-v3.js';
+export { AUDIO_EDITOR_PROJECT_SCHEMA_VERSION } from './project-v3.js';
 export * from './resample.js';
 export * from './sample-edit.js';
 export * from './selection-effects.js';

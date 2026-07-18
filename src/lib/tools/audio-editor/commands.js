@@ -7,6 +7,7 @@ import {
 	createStableId,
 	findClip,
 	findClipTrack,
+	findProjectBinClip,
 	findSource,
 	findTrack,
 	normalizeFrameRange,
@@ -48,9 +49,28 @@ import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
  * @returns {import('./project.js').AudioEditorProjectV1}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (project?.schemaVersion !== 2) throw new RangeError('Editor commands require an AudioEditorProjectV2 project.');
+	if (![2, 3].includes(project?.schemaVersion)) {
+		throw new RangeError('Editor commands require a current audio editor project.');
+	}
 	if (!command || typeof command.type !== 'string') throw new TypeError('A serializable editor command is required.');
-	return commitProject(project, (draft) => mutateCommand(draft, command), options);
+	return commitProject(project, (draft) => {
+		mutateCommand(draft, command);
+		pruneMissingProjectSelections(draft);
+	}, options);
+}
+
+function pruneMissingProjectSelections(project) {
+	const trackIds = new Set(project.tracks.map((track) => track.id));
+	const timelineClipIds = new Set(project.clips.map((clip) => clip.id));
+	if (Array.isArray(project.selection?.trackIds)) {
+		project.selection.trackIds = project.selection.trackIds.filter((trackId) => trackIds.has(trackId));
+	}
+	if (Array.isArray(project.selection?.clipIds)) {
+		project.selection.clipIds = project.selection.clipIds.filter((clipId) => timelineClipIds.has(clipId));
+	}
+	if (Array.isArray(project.view?.selectedTrackIds)) {
+		project.view.selectedTrackIds = project.view.selectedTrackIds.filter((trackId) => trackIds.has(trackId));
+	}
 }
 
 function mutateCommand(project, command) {
@@ -89,6 +109,21 @@ function mutateCommand(project, command) {
 			break;
 		case 'source/update':
 			updateSource(project, command.sourceId, command.changes);
+			break;
+		case 'project-bin/add':
+			addProjectBinClip(project, command.clip);
+			break;
+		case 'project-bin/move-from-timeline':
+			moveTimelineClipsToProjectBin(project, command.clipIds);
+			break;
+		case 'project-bin/place':
+			placeProjectBinClip(project, command);
+			break;
+		case 'project-bin/update':
+			updateProjectBinClip(project, command.clipId, command.changes);
+			break;
+		case 'project-bin/remove':
+			removeProjectBinClip(project, command.clipId);
 			break;
 		case 'track/add':
 			addTrack(project, command.track, command.index);
@@ -232,7 +267,7 @@ function setLoop(project, command) {
 }
 
 function setSnap(project, command) {
-	if (project.schemaVersion !== 2) throw new RangeError('Snap settings require an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Snap settings require an AudioEditorProjectV2 or newer project.');
 	const settings = command.settings || {};
 	const next = {
 		...project.snap,
@@ -249,7 +284,7 @@ function setSnap(project, command) {
 }
 
 function setTempo(project, command) {
-	if (project.schemaVersion !== 2) throw new RangeError('Tempo settings require an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Tempo settings require an AudioEditorProjectV2 or newer project.');
 	const bpm = command.bpm == null ? project.tempo.bpm : Number(command.bpm);
 	if (!Number.isFinite(bpm) || bpm < 1 || bpm > 1_000) throw new RangeError('tempo.bpm must be between 1 and 1000.');
 	const numerator = command.numerator == null
@@ -274,7 +309,11 @@ function addSource(project, value) {
 }
 
 function removeSource(project, sourceId) {
-	if (project.clips.some((clip) => clip.sourceId === sourceId)) throw new RangeError('A source in use cannot be removed.');
+	const inUse = [
+		...project.clips,
+		...(project.projectBin?.clips || []),
+	].some((clip) => clip.sourceId === sourceId);
+	if (inUse) throw new RangeError('A source in use cannot be removed.');
 	const index = project.sources.findIndex((source) => source.id === sourceId);
 	if (index < 0) throw new ReferenceError(`Unknown source: ${sourceId}.`);
 	project.sources.splice(index, 1);
@@ -288,9 +327,90 @@ function updateSource(project, sourceId, changes = {}) {
 	project.sources[index] = createAudioSourceV2({ ...project.sources[index], ...changes, id: sourceId });
 }
 
+function addProjectBinClip(project, value) {
+	const projectBin = requireProjectBin(project);
+	const clip = normalizeClipForProject(project, { ...value, groupId: null });
+	assertUnusedClipId(project, clip.id);
+	assertClipSourceBounds(project, clip);
+	projectBin.clips.push(clip);
+}
+
+function moveTimelineClipsToProjectBin(project, clipIds) {
+	const projectBin = requireProjectBin(project);
+	const requestedIds = normalizeCommandIds(clipIds, 'clipIds');
+	const requestedClips = requestedIds.map((clipId) => requireClip(project, clipId));
+	const groupIds = new Set(requestedClips.map((clip) => clip.groupId).filter(Boolean));
+	const movedIds = new Set(requestedIds);
+	if (groupIds.size) {
+		for (const clip of project.clips) {
+			if (clip.groupId && groupIds.has(clip.groupId)) movedIds.add(clip.id);
+		}
+	}
+	const movedClips = project.clips
+		.filter((clip) => movedIds.has(clip.id))
+		.map((clip) => normalizeClipForProject(project, { ...clip, groupId: null, id: clip.id }));
+	for (const track of project.tracks) {
+		if (!Array.isArray(track.clipIds)) continue;
+		track.clipIds = track.clipIds.filter((clipId) => !movedIds.has(clipId));
+	}
+	project.clips = project.clips.filter((clip) => !movedIds.has(clip.id));
+	projectBin.clips.push(...movedClips);
+	if (Array.isArray(project.selection?.clipIds)) {
+		project.selection.clipIds = project.selection.clipIds.filter((clipId) => !movedIds.has(clipId));
+	}
+}
+
+function placeProjectBinClip(project, command) {
+	const binClip = requireProjectBinClip(project, command.binClipId);
+	const track = requireTrack(project, command.trackId);
+	if (!Array.isArray(track.clipIds)) throw new RangeError('Project-bin clips can only be placed on audio tracks.');
+	const clipId = requireStableCommandId(command.clipId, 'placed clip');
+	assertUnusedClipId(project, clipId);
+	const clip = normalizeClipForProject(project, {
+		...binClip,
+		id: clipId,
+		timelineStartFrame: assertFrame(command.timelineStartFrame, 'project-bin.timelineStartFrame'),
+		groupId: null,
+	});
+	assertClipSourceBounds(project, clip);
+	assertClipSpace(project, track, clip);
+	project.clips.push(clip);
+	track.clipIds.push(clip.id);
+	sortTrack(project, track);
+}
+
+function updateProjectBinClip(project, clipId, changes = {}) {
+	const projectBin = requireProjectBin(project);
+	const index = projectBin.clips.findIndex((clip) => clip.id === clipId);
+	if (index < 0) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
+	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
+		throw new TypeError('Project-bin clip changes must be an object.');
+	}
+	const allowed = new Set(['title']);
+	for (const key of Object.keys(changes)) {
+		if (!allowed.has(key)) throw new RangeError(`Project-bin clip field cannot be updated: ${key}.`);
+	}
+	if (Object.hasOwn(changes, 'title') && (typeof changes.title !== 'string' || !changes.title.trim())) {
+		throw new TypeError('A project-bin clip title is required.');
+	}
+	projectBin.clips[index] = normalizeClipForProject(project, {
+		...projectBin.clips[index],
+		...changes,
+		id: clipId,
+		groupId: null,
+	});
+}
+
+function removeProjectBinClip(project, clipId) {
+	const projectBin = requireProjectBin(project);
+	const index = projectBin.clips.findIndex((clip) => clip.id === clipId);
+	if (index < 0) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
+	projectBin.clips.splice(index, 1);
+}
+
 function addTrack(project, value, requestedIndex) {
 	if (value?.type === 'label') {
-		if (project.schemaVersion !== 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 project.');
+		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
 		const labelTrack = createLabelTrackV2(value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
@@ -490,7 +610,7 @@ function updateMixerRoute(project, command) {
 }
 
 function updateMetadata(project, changes = {}) {
-	if (project.schemaVersion !== 2) throw new RangeError('Metadata editing requires an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Metadata editing requires an AudioEditorProjectV2 or newer project.');
 	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Metadata changes must be an object.');
 	const allowed = new Set(['title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Metadata field cannot be updated: ${key}.`);
@@ -512,7 +632,7 @@ function updateMetadata(project, changes = {}) {
 }
 
 function setTimeDisplay(project, command) {
-	if (project.schemaVersion !== 2) throw new RangeError('Time-display settings require an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Time-display settings require an AudioEditorProjectV2 or newer project.');
 	if (typeof command.format !== 'string' || !command.format.trim()) throw new TypeError('A time-display format is required.');
 	project.timeDisplay = { ...project.timeDisplay, format: command.format };
 }
@@ -521,7 +641,7 @@ function addClip(project, trackId, value) {
 	const track = requireTrack(project, trackId);
 	if (!Array.isArray(track.clipIds)) throw new RangeError('Audio clips can only be added to audio tracks.');
 	const clip = normalizeClipForProject(project, value);
-	assertUnusedId(project.clips, clip.id, 'clip');
+	assertUnusedClipId(project, clip.id);
 	assertClipSourceBounds(project, clip);
 	assertClipSpace(project, track, clip);
 	project.clips.push(clip);
@@ -554,7 +674,7 @@ function updateClip(project, clipId, changes = {}) {
 }
 
 function replaceClipSource(project, clipId, sourceId) {
-	if (project.schemaVersion !== 2) throw new RangeError('Immutable sample editing requires an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Immutable sample editing requires an AudioEditorProjectV2 or newer project.');
 	const clip = requireClip(project, clipId);
 	const track = requireClipTrack(project, clipId);
 	const source = project.sources.find((candidate) => candidate.id === sourceId);
@@ -764,7 +884,7 @@ function withoutImportedPitchPreset(opaqueExtensions) {
 }
 
 function validateClipTransformState(project, state, overwrite) {
-	if (project.schemaVersion === 2) return;
+	if (project.schemaVersion >= 2) return;
 	const movingIds = new Set(state.map((item) => item.clip.id));
 	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
 		const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
@@ -842,7 +962,7 @@ function overwriteClip(project, command) {
 		if (hasTrailingSegment) {
 			const id = hasLeadingSegment ? command.splitClipIds?.[inactiveClip.id] : inactiveClip.id;
 			if (!id) throw new TypeError(`A stable split clip ID is required for ${inactiveClip.id}.`);
-			if (hasLeadingSegment) assertUnusedId(project.clips, id, 'clip');
+			if (hasLeadingSegment) assertUnusedClipId(project, id);
 			replacements.push(segmentOfClip(inactiveClip, activeEnd, inactiveEnd, activeEnd, id));
 		}
 	}
@@ -920,7 +1040,7 @@ function splitClip(project, command) {
 		throw new RangeError('A split must be inside the clip.');
 	}
 	if (!command.rightClipId) throw new TypeError('A stable rightClipId is required for a replayable split.');
-	assertUnusedId(project.clips, command.rightClipId, 'clip');
+	assertUnusedClipId(project, command.rightClipId);
 	const left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
 	const right = segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame, command.rightClipId);
 	replaceClip(project, left);
@@ -940,7 +1060,7 @@ export function prepareGroupClipsCommand(clipIds, idFactory = createStableId) {
 }
 
 function groupClips(project, clipIds, groupId) {
-	if (project.schemaVersion !== 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 or newer project.');
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to create a group.');
 	const stableGroupId = requireStableCommandId(groupId, 'clip group');
@@ -951,7 +1071,7 @@ function groupClips(project, clipIds, groupId) {
 }
 
 function ungroupClips(project, clipIds) {
-	if (project.schemaVersion !== 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 project.');
+	if (project.schemaVersion < 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 or newer project.');
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	for (const clipId of ids) {
 		const clip = requireClip(project, clipId);
@@ -1066,7 +1186,7 @@ function processTrackRange(project, track, range, rippleMode, splitClipIds) {
 		if (hasRight) {
 			const rightId = hasLeft ? splitClipIds[clip.id] : clip.id;
 			if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
-			if (hasLeft) assertUnusedId(project.clips, rightId, 'clip');
+			if (hasLeft) assertUnusedClipId(project, rightId);
 			const timelineStartFrame = rippleMode === 'track'
 				? range.startFrame
 				: rippleMode === 'clip'
@@ -1222,7 +1342,7 @@ function pasteClipboard(project, command) {
 	for (const clipboardTrack of clipboard.tracks || []) {
 		targetTracks.add(requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId));
 	}
-	if (mode === 'overlap' && project.schemaVersion !== 2) {
+	if (mode === 'overlap' && project.schemaVersion < 2) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
 		for (const track of targetTracks) processTrackRange(project, track, range, 'none', command.splitClipIds || {});
 	} else if (mode === 'insert-track' || mode === 'insert-all') {
@@ -1237,7 +1357,7 @@ function pasteClipboard(project, command) {
 		for (const descriptor of clipboardTrack.clips || []) {
 			const id = command.clipIds?.[descriptor.key];
 			if (!id) throw new TypeError(`A stable pasted clip ID is required for ${descriptor.key}.`);
-			assertUnusedId(project.clips, id, 'clip');
+			assertUnusedClipId(project, id);
 			const clip = normalizeClipForProject(project, scaleClipboardClip(descriptor, scale, atFrame, id));
 			assertClipSourceBounds(project, clip);
 			if (mode === 'reject') {
@@ -1296,7 +1416,7 @@ function insertSpaceOnTrack(project, track, atFrame, durationFrames, splitClipId
 		}
 		const rightId = splitClipIds[clip.id];
 		if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
-		assertUnusedId(project.clips, rightId, 'clip');
+		assertUnusedClipId(project, rightId);
 		replacements.push(segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id));
 		replacements.push(segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame + durationFrames, rightId));
 	}
@@ -1550,7 +1670,7 @@ function assertClipSourceBounds(project, clip) {
 }
 
 function assertClipSpace(project, track, candidate, excludedClipId = null, additionalClips = []) {
-	if (project.schemaVersion === 2) return;
+	if (project.schemaVersion >= 2) return;
 	const clips = track.clipIds
 		.filter((clipId) => clipId !== excludedClipId)
 		.map((clipId) => requireClip(project, clipId));
@@ -1566,7 +1686,7 @@ function validateTrackReplacement(project, track, deletedIds, clips) {
 		ids.add(clip.id);
 		assertClipSourceBounds(project, clip);
 	}
-	if (project.schemaVersion !== 2) for (let index = 1; index < clips.length; index += 1) {
+	if (project.schemaVersion < 2) for (let index = 1; index < clips.length; index += 1) {
 		if (clipsOverlap(clips[index - 1], clips[index])) throw new RangeError(`Range replacement overlaps existing material on track ${track.id}.`);
 	}
 }
@@ -1587,7 +1707,7 @@ function requireStableCommandId(value, name) {
 }
 
 function reserveReplacementClipId(project, id, reservedIds) {
-	assertUnusedId(project.clips, id, 'clip');
+	assertUnusedClipId(project, id);
 	if (reservedIds.has(id)) throw new RangeError(`Duplicate replacement clip ID: ${id}.`);
 	reservedIds.add(id);
 }
@@ -1630,6 +1750,20 @@ function requireClip(project, clipId) {
 	return clip;
 }
 
+function requireProjectBin(project) {
+	if (project.schemaVersion !== 3 || !project.projectBin || !Array.isArray(project.projectBin.clips)) {
+		throw new RangeError('Project-bin commands require an AudioEditorProjectV3 project.');
+	}
+	return project.projectBin;
+}
+
+function requireProjectBinClip(project, clipId) {
+	requireProjectBin(project);
+	const clip = findProjectBinClip(project, clipId);
+	if (!clip) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
+	return clip;
+}
+
 function requireClipTrack(project, clipId) {
 	const track = findClipTrack(project, clipId);
 	if (!track) throw new ReferenceError(`Clip ${clipId} is not assigned to a track.`);
@@ -1638,6 +1772,12 @@ function requireClipTrack(project, clipId) {
 
 function assertUnusedId(items, id, type) {
 	if (items.some((item) => item.id === id)) throw new RangeError(`Duplicate ${type} ID: ${id}.`);
+}
+
+function assertUnusedClipId(project, id) {
+	if (project.clips.some((clip) => clip.id === id) || findProjectBinClip(project, id)) {
+		throw new RangeError(`Duplicate clip ID: ${id}.`);
+	}
 }
 
 function insertionIndex(value, length) {

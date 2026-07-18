@@ -5,7 +5,11 @@
  */
 
 export function collectProjectSourceIds(project, target = new Set()) {
-	for (const clip of project?.clips || []) {
+	const clips = [
+		...(project?.clips || []),
+		...(project?.projectBin?.clips || []),
+	];
+	for (const clip of clips) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
 	return target;

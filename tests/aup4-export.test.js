@@ -445,6 +445,35 @@ test('AUP4 export reports disabled loop bounds that have no native equivalent', 
 	assert.deepEqual(plan.project.loop, { enabled: false, startFrame: 0, endFrame: 0 });
 });
 
+test('AUP4 export omits project-bin clips and their bin-only PCM with a compatibility warning', () => {
+	const project = fixtureProject({
+		sources: [
+			source('timeline-source', 48_000, 1, 32),
+			source('bin-source', 48_000, 1, 64),
+		],
+		clips: [clip('timeline-clip', 'timeline-source', {
+			sourceDurationFrames: 32,
+			durationFrames: 32,
+		})],
+		tracks: [track('track-1', ['timeline-clip'])],
+		projectBin: {
+			clips: [clip('bin-clip', 'bin-source', {
+				sourceDurationFrames: 64,
+				durationFrames: 64,
+			})],
+		},
+	});
+
+	const plan = createAup4ExportPlan(project);
+	assert.deepEqual(requiredAup4SourceIds(plan), ['timeline-source']);
+	assert.deepEqual(plan.project.projectBin, { clips: [] });
+	assert.ok(plan.compatibilityReport.items.some((item) => (
+		item.code === 'PROJECT_BIN_OMITTED'
+		&& item.disposition === 'omitted'
+		&& item.data.clipCount === 1
+	)));
+});
+
 test('AUP4 export report identifies converted source layouts and omitted mixer state', () => {
 	const project = fixtureProject({
 		masterChannels: 6,

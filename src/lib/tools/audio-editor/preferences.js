@@ -93,6 +93,7 @@ const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 });
 
 const DEFAULT_PANELS = Object.freeze({
+	'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
@@ -107,6 +108,7 @@ const DEFAULT_PANELS = Object.freeze({
 });
 
 const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
+	'project-bin': Object.freeze({ x: 24, y: 24, width: 380, height: 520 }),
 	history: Object.freeze({ x: 24, y: 24, width: 360, height: 320 }),
 	labels: Object.freeze({ x: 48, y: 48, width: 360, height: 360 }),
 	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
