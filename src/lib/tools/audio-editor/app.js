@@ -3827,7 +3827,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const clampSelectionFrame = (value) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
 		const start = snapTimelineFrame(clampSelectionFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
 		const end = snapTimelineFrame(clampSelectionFrame(Math.max(Number(startFrame), Number(endFrame))), { maximumFrame });
-		return commit({ type: 'selection/set', startFrame: start, endFrame: end, ...details });
+		state.selectedClipId = null;
+		const command = { type: 'selection/set', startFrame: start, endFrame: end };
+		if (Object.keys(details).length) Object.assign(command, details, { clipIds: [] });
+		return commit(command);
 	}
 
 	function selectAllTracks() {
@@ -5133,11 +5136,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const trackDelta = targetTrackIndex - oldTrackIndex;
 		const clips = clipIds.map((id) => findClip(project, id)).filter(Boolean);
 		const selection = activeSelection();
-		const movesSelection = Boolean(selection && project.selection?.clipIds?.includes(clip.id));
+		const clipSelection = project.selection;
+		const movesClipSelection = Boolean(clipSelection?.clipIds?.includes(clip.id));
 		const requestedDelta = requestedStartFrame - clip.timelineStartFrame;
 		const earliestMovingFrame = Math.min(
 			...clips.map((item) => item.timelineStartFrame),
-			...(movesSelection ? [selection.startFrame] : []),
+			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
 		const transforms = clips.map((item) => {
@@ -5152,18 +5156,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			};
 		});
 		const transformCommand = prepareTransformClipsCommand(project, transforms, { overwrite: Boolean(options.overwrite) });
-		const command = movesSelection ? {
+		const command = movesClipSelection ? {
 			type: 'batch',
 			commands: [transformCommand, {
 				type: 'selection/set',
-				startFrame: selection.startFrame + deltaFrames,
-				endFrame: selection.endFrame + deltaFrames,
-				trackIds: [...new Set(selection.trackIds.map((trackId) => {
+				startFrame: selection ? selection.startFrame + deltaFrames : clipSelection.startFrame,
+				endFrame: selection ? selection.endFrame + deltaFrames : clipSelection.endFrame,
+				trackIds: [...new Set(clipSelection.trackIds.map((trackId) => {
 					const index = audioTracks.findIndex((candidate) => candidate.id === trackId);
 					return index < 0 ? trackId : (audioTracks[index + trackDelta]?.id || trackId);
 				}))],
-				clipIds: selection.clipIds,
-				frequencyRange: selection.frequencyRange,
+				clipIds: clipSelection.clipIds,
+				frequencyRange: clipSelection.frequencyRange,
 			}],
 		} : transformCommand;
 		return commit(command, { selectTrackId: targetTrack.id, selectClipId: clip.id });
@@ -5195,11 +5199,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const virtualTracks = [...audioTracks, ...newTrackCommands.map((command) => command.track)];
 		const requestedStartFrame = snapTimelineFrame(timelineStartFrame);
 		const selection = activeSelection();
-		const movesSelection = Boolean(selection && project.selection?.clipIds?.includes(clip.id));
+		const clipSelection = project.selection;
+		const movesClipSelection = Boolean(clipSelection?.clipIds?.includes(clip.id));
 		const requestedDelta = requestedStartFrame - clip.timelineStartFrame;
 		const earliestMovingFrame = Math.min(
 			...clips.map((item) => item.timelineStartFrame),
-			...(movesSelection ? [selection.startFrame] : []),
+			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
 		const transforms = clips.map((item, index) => ({
@@ -5212,16 +5217,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			...newTrackCommands,
 			{ type: 'clip/transform-many', transforms, overwrite: false, splitClipIds: {} },
 		];
-		if (movesSelection) commands.push({
+		if (movesClipSelection) commands.push({
 			type: 'selection/set',
-			startFrame: selection.startFrame + deltaFrames,
-			endFrame: selection.endFrame + deltaFrames,
-			trackIds: [...new Set(selection.trackIds.map((trackId) => {
+			startFrame: selection ? selection.startFrame + deltaFrames : clipSelection.startFrame,
+			endFrame: selection ? selection.endFrame + deltaFrames : clipSelection.endFrame,
+			trackIds: [...new Set(clipSelection.trackIds.map((trackId) => {
 				const index = audioTracks.findIndex((track) => track.id === trackId);
 				return index < 0 ? trackId : virtualTracks[index + trackDelta]?.id || trackId;
 			}))],
-			clipIds: selection.clipIds,
-			frequencyRange: selection.frequencyRange,
+			clipIds: clipSelection.clipIds,
+			frequencyRange: clipSelection.frequencyRange,
 		});
 		commit({ type: 'batch', commands }, { selectTrackId: targetTrackId, selectClipId: clip.id });
 		return targetTrackId;

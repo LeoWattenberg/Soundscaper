@@ -191,13 +191,14 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 		'clip-controller-second',
 	]);
 	assert.deepEqual(controller.getSnapshot().project.selection.trackIds, [originalTrackId, addedTrackId]);
+	assert.deepEqual(controller.getSnapshot().selection, null);
 	controller.actions.clip.move('clip-controller-second', addedTrackId, 4_800);
 	let collectivelyEditedClips = Object.fromEntries(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
 	assert.equal(collectivelyEditedClips['clip-controller-test'].timelineStartFrame, 4_800);
 	assert.equal(collectivelyEditedClips['clip-controller-second'].timelineStartFrame, 4_800);
 	assert.deepEqual(controller.getSnapshot().project.selection, {
-		startFrame: 52_800,
-		endFrame: 100_800,
+		startFrame: 0,
+		endFrame: 0,
 		trackIds: [originalTrackId, addedTrackId],
 		clipIds: ['clip-controller-test', 'clip-controller-second'],
 		frequencyRange: null,
@@ -222,6 +223,12 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(stretchedClip.durationFrames, 96_000);
 	assert.equal(stretchedClip.speedRatio, 47_900 / 96_000);
 	assert.equal(stretchedClip.renderCacheRevision, 2);
+	controller.actions.timeline.setSelection(48_000, 96_000);
+	assert.equal(controller.getSnapshot().selectedClipId, null);
+	assert.deepEqual(controller.getSnapshot().project.selection, {
+		startFrame: 48_000,
+		endFrame: 96_000,
+	});
 	controller.actions.timeline.clearSelection();
 	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, []);
 
@@ -464,9 +471,9 @@ test('controller splits selected and grouped clips at both selection boundaries 
 			{ type: 'clip/group', clipIds: ['split-selected', 'split-grouped'], groupId: 'split-group' },
 		],
 	});
-	controller.actions.timeline.setSelection(200, 800);
-	controller.actions.timeline.selectClip('split-selected');
-	controller.actions.timeline.selectClip('split-also-selected', { additive: true });
+	controller.actions.timeline.setSelection(200, 800, {
+		trackIds: [firstTrackId, secondTrackId],
+	});
 
 	controller.actions.edit.split();
 	let project = controller.getSnapshot().project;
@@ -488,9 +495,9 @@ test('controller splits selected and grouped clips at both selection boundaries 
 	assert.equal(project.clips.length, 3);
 	assert.ok(project.clips.some((clip) => clip.id === 'split-selected' && clip.durationFrames === 1_000));
 
-	controller.actions.timeline.setSelection(233, 777);
-	controller.actions.timeline.selectClip('split-selected');
-	controller.actions.timeline.selectClip('split-also-selected', { additive: true });
+	controller.actions.timeline.setSelection(233, 777, {
+		trackIds: [firstTrackId, secondTrackId],
+	});
 	controller.actions.timeline.setSnap({ enabled: true, unit: 'seconds', mode: 'nearest' });
 	controller.actions.edit.split();
 	project = controller.getSnapshot().project;
@@ -565,7 +572,12 @@ test('controller moves a selected clip set into newly created tracks in one undo
 		{ id: 'new-track-active', timelineStartFrame: 250 },
 		{ id: 'new-track-companion', timelineStartFrame: 350 },
 	]);
-	assert.deepEqual(snapshot.project.selection.trackIds, [audioTracks[2].id, audioTracks[3].id]);
+	assert.equal(snapshot.project.tracks.find((track) => track.id === activeDestinationId)?.clipIds.at(0), 'new-track-active');
+	const expectedTrackIds = audioTracks
+		.filter((track) => track.clipIds.includes('new-track-active') || track.clipIds.includes('new-track-companion'))
+		.map((track) => track.id)
+		.sort();
+	assert.deepEqual([...new Set(snapshot.project.selection.trackIds)].sort(), expectedTrackIds);
 	assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
 
 	controller.actions.edit.undo();
