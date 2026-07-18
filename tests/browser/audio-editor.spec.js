@@ -1296,7 +1296,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 		await chooseCommandAction(page, editor, 'Effect', 'Add track effects');
-		const commandEffects = editor.locator('[data-effects-overlay]');
+		const commandEffects = editor.locator('[data-workspace-panel="effects"]');
 		await expect(commandEffects.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
 		await closeEffectsPanel(commandEffects);
 
@@ -2742,15 +2742,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipDialog).toBeHidden();
 		await expect(mobileClip).toBeFocused();
 
-		const effectsLauncher = editor.locator('[data-track-row]').nth(1).getByRole('button', { name: 'Effects', exact: true });
 		const effectsPanel = await openEffectsForTrack(editor, 1);
 		await expectSurfaceWithinViewport(
 			effectsPanel.getByRole('region', { name: 'Effects panel', exact: true }),
 			page,
 		);
-		await page.keyboard.press('Escape');
+		await closeEffectsPanel(effectsPanel);
 		await expect(effectsPanel).toBeHidden();
-		await expect(effectsLauncher).toBeFocused();
 
 		const firstTrack = editor.locator('[data-track-row]').first();
 		const trackMenuButton = firstTrack.getByRole('button', { name: 'Track menu' });
@@ -2983,7 +2981,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await openRackPicker(effectsPanel, 'master');
 		await page.getByRole('menu', { name: 'Choose an effect' }).getByRole('menuitem', { name: 'Bass and Treble' }).click();
 		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Bass and Treble' })).toHaveCount(1);
-		const bassKnob = effectsPanel.locator('[data-effect-param="bassDb"]').getByRole('slider', { name: /Bass \(dB\):/ });
+		const bassDialog = page.getByRole('dialog', { name: 'Bass and Treble', exact: true });
+		const bassKnob = bassDialog.locator('[data-effect-param="bassDb"]').getByRole('slider', { name: /Bass \(dB\):/ });
 		await expect(bassKnob).toBeVisible();
 		const bassKnobBox = await bassKnob.boundingBox();
 		expect(bassKnobBox).not.toBeNull();
@@ -2997,7 +2996,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.move(bassKnobBox.x + bassKnobBox.width / 2 - 16, bassKnobBox.y + bassKnobBox.height / 2);
 		await page.mouse.up();
 		await expect.poll(async () => Number(await bassKnob.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(0);
-		await commitInput(effectsPanel.locator('[data-effect-param="bassDb"] input'), '7.5');
+		await commitInput(bassDialog.locator('[data-effect-param="bassDb"] input'), '7.5');
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
@@ -3007,7 +3006,70 @@ test.describe('audio editor React/design-system workflows', () => {
 		const bassTreble = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Bass and Treble' });
 		await expect(bassTreble).toHaveCount(1);
 		await bassTreble.getByRole('button', { name: 'Select effect' }).click();
-		await expect(effectsPanel.locator('[data-effect-param="bassDb"] input')).toHaveValue('7.5');
+		await expect(page.getByRole('dialog', { name: 'Bass and Treble', exact: true }).locator('[data-effect-param="bassDb"] input')).toHaveValue('7.5');
+		expect(errors).toEqual([]);
+	});
+
+	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const effectsPanel = await openEffectsForTrack(editor, 0);
+		const rack = effectsPanel.locator('[data-effect-rack]');
+		const packagePanel = rack.locator('.effects-panel');
+		const sideDock = editor.locator('[data-panel-dock="right"]:has([data-workspace-panel="effects"])');
+		const resizeHandle = sideDock.locator('[data-workspace-dock-resize-handle="right"]');
+
+		await expect(editor.locator('[data-effects-overlay]')).toHaveCount(0);
+		await expect(effectsPanel.locator('.kw-audio-editor__workspace-panel-header').getByText('Effects', { exact: true })).toBeVisible();
+		await expect(packagePanel.locator('.effects-panel__header, .effects-panel-header')).toBeHidden();
+		await expect(resizeHandle).toHaveCSS('cursor', 'ew-resize');
+		const initialDockBox = await sideDock.boundingBox();
+		expect(initialDockBox).not.toBeNull();
+		await page.mouse.move(initialDockBox.x + 2, initialDockBox.y + initialDockBox.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(initialDockBox.x - 46, initialDockBox.y + initialDockBox.height / 2, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await sideDock.boundingBox())?.width || 0).toBeGreaterThan(initialDockBox.width + 30);
+		await effectsPanel.locator('[data-workspace-panel-dock-picker="effects"]').selectOption('left');
+		const leftDock = editor.locator('[data-panel-dock="left"]:has([data-workspace-panel="effects"])');
+		const leftResizeHandle = leftDock.locator('[data-workspace-dock-resize-handle="left"]');
+		await expect(leftResizeHandle).toHaveCSS('cursor', 'ew-resize');
+		const initialLeftDockBox = await leftDock.boundingBox();
+		expect(initialLeftDockBox).not.toBeNull();
+		await leftResizeHandle.press('ArrowLeft');
+		await expect.poll(async () => (await leftDock.boundingBox())?.width || 0).toBeLessThan(initialLeftDockBox.width);
+		const shrunkenLeftDockBox = await leftDock.boundingBox();
+		expect(shrunkenLeftDockBox).not.toBeNull();
+		await page.mouse.move(
+			shrunkenLeftDockBox.x + shrunkenLeftDockBox.width - 2,
+			shrunkenLeftDockBox.y + shrunkenLeftDockBox.height / 2,
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			shrunkenLeftDockBox.x + shrunkenLeftDockBox.width + 30,
+			shrunkenLeftDockBox.y + shrunkenLeftDockBox.height / 2,
+			{ steps: 4 },
+		);
+		await page.mouse.up();
+		await expect.poll(async () => (await leftDock.boundingBox())?.width || 0).toBeGreaterThan(shrunkenLeftDockBox.width + 20);
+		await expect.poll(async () => {
+			const [rackBox, panelBox] = await Promise.all([rack.boundingBox(), packagePanel.boundingBox()]);
+			return rackBox && panelBox ? Math.abs(rackBox.width - panelBox.width) : Number.POSITIVE_INFINITY;
+		}).toBeLessThanOrEqual(1);
+
+		const masterSection = packagePanel.locator('.effects-panel__content > .effects-panel__master-section');
+		await expect(masterSection).toBeVisible();
+		await expect.poll(async () => {
+			const [panelBox, masterBox] = await Promise.all([packagePanel.boundingBox(), masterSection.boundingBox()]);
+			return panelBox && masterBox ? masterBox.y - panelBox.y : 0;
+		}).toBeGreaterThan(120);
+
+		await addRackEffect(page, effectsPanel, 'track', 'Reverb');
+		const settings = page.getByRole('dialog', { name: 'Reverb', exact: true });
+		await expect(settings).toBeVisible();
+		await closeEffectsPanel(effectsPanel);
+		await expect(settings).toBeVisible();
+		await closeDialog(settings);
 		expect(errors).toEqual([]);
 	});
 
@@ -3830,10 +3892,10 @@ async function openClipProperties(page, editor, clip) {
 
 async function openEffectsForTrack(editor, trackIndex) {
 	await editor.locator('[data-track-row]').nth(trackIndex).getByRole('button', { name: 'Effects', exact: true }).click();
-	const overlay = editor.locator('[data-effects-overlay]');
-	await expect(overlay).toBeVisible();
-	await expect(overlay.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
-	return overlay;
+	const panel = editor.locator('[data-workspace-panel="effects"]');
+	await expect(panel).toBeVisible();
+	await expect(panel.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
+	return panel;
 }
 
 async function openSelectionEffectDialog(page, editor) {
@@ -3891,7 +3953,7 @@ async function closeAup4CompatibilityReport(dialog) {
 }
 
 async function closeEffectsPanel(panel) {
-	await panel.getByRole('button', { name: 'Close effects panel', exact: true }).click();
+	await panel.getByRole('button', { name: 'Close: Effects', exact: true }).click();
 	await expect(panel).toBeHidden();
 }
 

@@ -370,6 +370,11 @@ export function AudioEditorEffectsOverlay({
 	scope = 'track',
 	onClose,
 	position = {},
+	layout = 'overlay',
+	selectedEffect: controlledSelectedEffect,
+	onSelectedEffectChange,
+	renderRack = true,
+	renderDialogs = true,
 }) {
 	const project = snapshot.project;
 	const selectedTrack = scope === 'track' && project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
@@ -384,7 +389,14 @@ export function AudioEditorEffectsOverlay({
 	const masterEffects = project?.master?.effects || [];
 	const blocked = !snapshot.ready || !project || editingBlocked(snapshot);
 	const [picker, setPicker] = useState(null);
-	const [selectedEffect, setSelectedEffect] = useState(null);
+	const [internalSelectedEffect, setInternalSelectedEffect] = useState(null);
+	const selectedEffect = controlledSelectedEffect === undefined
+		? internalSelectedEffect
+		: controlledSelectedEffect;
+	const setSelectedEffect = (value) => {
+		if (onSelectedEffectChange) onSelectedEffectChange(value);
+		else setInternalSelectedEffect(value);
+	};
 	const [rackPresetId, setRackPresetId] = useState('');
 	const [message, setMessage] = useState('');
 	const [stackMenu, setStackMenu] = useState(null);
@@ -564,16 +576,22 @@ export function AudioEditorEffectsOverlay({
 
 	return (
 		<>
-			<div className="audio-editor-effects-overlay" data-open={isOpen ? 'true' : 'false'}>
+			{renderRack && <div
+				className="audio-editor-effects-overlay"
+				data-open={isOpen ? 'true' : 'false'}
+				data-layout={layout}
+			>
 				<div ref={rackRef} data-effect-rack>
 					<EffectsPanel
 						isOpen={isOpen}
 						resizable={false}
-						mode="overlay"
-						left={position.left}
-						top={position.top}
-						width={position.width}
-						height={position.height}
+						mode={layout === 'docked' ? 'sidebar' : 'overlay'}
+						{...(layout === 'docked' ? {} : {
+							left: position.left,
+							top: position.top,
+							width: position.width,
+							height: position.height,
+						})}
 						onClose={onClose}
 						trackSection={channel ? { trackName: channel.name, ...section(scope, channelEffects, channel) } : undefined}
 						masterSection={{ ...section('master', masterEffects, project?.master) }}
@@ -611,9 +629,9 @@ export function AudioEditorEffectsOverlay({
 					<ContextMenuItem isDivider />
 					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled && candidate.type !== 'missing')} onClick={exportStack} />
 				</ContextMenu>
-			</div>
+			</div>}
 
-			{effect && (
+			{renderDialogs && effect && (
 				<ControlledDialog
 					isOpen
 					title={safeEffectLabel(effect, copy)}
@@ -708,7 +726,7 @@ export function AudioEditorEffectsOverlay({
 				</ControlledDialog>
 			)}
 
-			{picker && (
+			{renderRack && picker && (
 				<EffectPicker
 					copy={copy}
 					locale={locale}

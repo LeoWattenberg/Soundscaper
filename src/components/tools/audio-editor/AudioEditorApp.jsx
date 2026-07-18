@@ -168,7 +168,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useState(null);
-	const [effectsOverlay, setEffectsOverlay] = useState(null);
+	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
+	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
@@ -511,7 +512,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 	}, [controller, fileService]);
 
 	const openSurface = useCallback((surface, options = {}) => {
-		setEffectsOverlay(null);
 		if (surface === 'preferences') {
 			const requestedSection = options?.section;
 			setPreferencesPage(requestedSection === 'workspace'
@@ -523,41 +523,23 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setActiveSurface(surface);
 	}, []);
 
-	const openEffects = useCallback((trackId, anchorRect = null, scope = 'track') => {
+	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
 		if (!trackId && scope !== 'master') return;
 		setActiveSurface(null);
-		setEffectsOverlay((current) => {
-			if (current?.trackId === trackId && current.scope === scope) {
-				requestAnimationFrame(() => current.returnFocus?.focus?.({ preventScroll: true }));
-				return null;
+		setEffectsPanelTarget({ trackId: scope === 'master' ? null : trackId, scope });
+		run(() => {
+			if (scope === 'track' && trackId !== snapshot.selectedTrackId) {
+				controller.actions.timeline.selectTrack(trackId);
 			}
-			return {
-				trackId,
-				scope,
-				anchorRect,
-				returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-			};
+			controller.actions.preferences.setPanel('effects', { visible: true });
 		});
-	}, []);
-
-	const closeEffects = useCallback(() => {
-		setEffectsOverlay((current) => {
-			requestAnimationFrame(() => current?.returnFocus?.focus?.({ preventScroll: true }));
-			return null;
+		requestAnimationFrame(() => {
+			const panel = workspaceRef.current?.querySelector('[data-workspace-panel="effects"]');
+			if (!panel) return;
+			panel.tabIndex = -1;
+			panel.focus({ preventScroll: false });
 		});
-	}, []);
-
-	useEffect(() => {
-		if (!effectsOverlay) return undefined;
-		const onKeyDown = (event) => {
-			if (event.key !== 'Escape') return;
-			if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="listbox"], [role="menu"]')) return;
-			event.preventDefault();
-			closeEffects();
-		};
-		document.addEventListener('keydown', onKeyDown, true);
-		return () => document.removeEventListener('keydown', onKeyDown, true);
-	}, [closeEffects, effectsOverlay]);
+	}, [controller, run, snapshot.selectedTrackId]);
 
 	const durationFrames = project ? projectDurationFrames(project) : 0;
 	const statusMessage = localError || snapshot.status?.message || copy.ready;
@@ -709,7 +691,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		selectionActive,
 		selectedClip,
 		durationFrames,
-		effectsOverlay,
+		effectsPanelOpen: Boolean(snapshot.preferences?.workspace?.panels?.effects?.visible),
 		uiFlags,
 		actionRuntime: parityRuntime.actions,
 			actions: {
@@ -852,7 +834,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		copy,
 		durationFrames,
 		editBlocked,
-		Boolean(effectsOverlay),
+		snapshot.preferences?.workspace?.panels?.effects?.visible,
 		executeEdit,
 		fileService,
 		locale,
@@ -986,9 +968,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
 	}, [controller, fileService, onError, openDesktopFiles, openSurface, run, snapshot.readOnly, toggleFullscreen]);
-	const effectsPosition = effectsOverlay
-		? resolveEffectsOverlayPosition(workspaceRef.current, effectsOverlay.anchorRect, isCompact)
-		: null;
 	const editorToolbar = (
 		<EditorToolToolbar
 			controller={controller}
@@ -1186,7 +1165,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 			<div
 				ref={workspaceRef}
-				className={`kw-audio-editor__workspace${effectsOverlay ? ' kw-audio-editor__workspace--effects-open' : ''}`}
+				className="kw-audio-editor__workspace"
 			>
 				<WorkspacePanelDock
 					dock="left"
@@ -1200,6 +1179,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					effectsPanelTarget={effectsPanelTarget}
+					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
@@ -1244,6 +1225,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					effectsPanelTarget={effectsPanelTarget}
+					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
@@ -1262,6 +1245,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					effectsPanelTarget={effectsPanelTarget}
+					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
@@ -1301,6 +1286,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					effectsPanelTarget={effectsPanelTarget}
+					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
 					onPanelDragStart={setDraggedWorkspacePanelId}
 					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
@@ -1329,39 +1316,29 @@ function AudioEditorWorkspace({ locale, copy }) {
 						))}
 				</div>
 
-				{effectsOverlay && effectsPosition && (
-					<div
-						className="kw-audio-editor__effects-surface"
-						data-effects-overlay
-						style={{
-							'--effects-left': `${effectsPosition.left}px`,
-							'--effects-top': `${effectsPosition.top}px`,
-							'--effects-width': `${effectsPosition.width}px`,
-							'--effects-panel-height': `${effectsPosition.panelHeight}px`,
-						}}
-					>
-						<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-							<AudioEditorEffectsOverlay
-								isOpen
-								controller={controller}
-								snapshot={snapshot}
-								copy={copy}
-								locale={locale}
-								fileService={fileService}
-								trackId={effectsOverlay.trackId}
-								scope={effectsOverlay.scope}
-								onClose={closeEffects}
-								position={{
-									left: effectsPosition.left,
-									top: effectsPosition.top,
-									width: effectsPosition.width,
-									height: effectsPosition.panelHeight,
-								}}
-							/>
-						</React.Suspense>
-					</div>
-				)}
 			</div>
+
+			{effectWindow && (
+				<div data-effects-window-host>
+					<React.Suspense fallback={null}>
+						<AudioEditorEffectsOverlay
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							trackId={effectWindow.trackId}
+							scope={effectWindow.scope}
+							selectedEffect={effectWindow.selectedEffect}
+							onSelectedEffectChange={(selectedEffect) => setEffectWindow(selectedEffect
+								? { ...effectWindow, selectedEffect }
+								: null)}
+							renderRack={false}
+						/>
+					</React.Suspense>
+				</div>
+			)}
 
 			{toolbarDock === 'bottom' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="bottom">{editorToolbar}</div>}
 			{toolbarDock === 'floating' && <div
@@ -3139,6 +3116,8 @@ function WorkspacePanelDock({
 	showArmControls,
 	displayAudioSupported,
 	onOpenEffects,
+	effectsPanelTarget,
+	onEffectWindowChange,
 	draggedPanelId,
 	onPanelDragStart,
 	onPanelDragEnd,
@@ -3178,9 +3157,10 @@ function WorkspacePanelDock({
 			const session = resizeSessionRef.current;
 			if (!session || dock === 'floating' || event.pointerId !== session.pointerId) return;
 			event.preventDefault();
-			const delta = session.horizontal
+			const pointerDelta = session.horizontal
 				? event.clientX - session.startClientX
-				: (event.clientY - session.startClientY) * (session.invertDelta ? -1 : 1);
+				: event.clientY - session.startClientY;
+			const delta = pointerDelta * (session.invertDelta ? -1 : 1);
 			const size = Math.max(session.minimumSize, Math.min(session.maximumSize, session.initialSize + delta));
 			session.element.style[session.sizeProperty] = `${Math.round(size)}px`;
 		};
@@ -3217,11 +3197,13 @@ function WorkspacePanelDock({
 				session.element.style.removeProperty(session.sizeProperty);
 				return;
 			}
-			session.element.style.setProperty('--workspace-panel-size', `${size}px`);
+			session.element.style.setProperty(session.cssSizeProperty || '--workspace-panel-size', `${size}px`);
 			session.element.style.removeProperty(session.sizeProperty);
 			run(() => {
 				for (const panelId of session.panelIds || [session.panelId]) {
-					controller.actions.preferences.setPanel(panelId, { size });
+					controller.actions.preferences.setPanel(panelId, {
+						[session.preferenceProperty || 'size']: size,
+					});
 				}
 			});
 		};
@@ -3297,6 +3279,39 @@ function WorkspacePanelDock({
 	const beginResize = (event) => {
 		if (event.button !== 0) return;
 		const dockResizeHandle = event.target.closest?.('[data-workspace-dock-resize-handle]');
+		if ((dock === 'left' || dock === 'right') && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
+			const element = dockRef.current;
+			const bounds = element?.getBoundingClientRect();
+			const workspaceBounds = element?.parentElement?.getBoundingClientRect();
+			if (!element || !bounds) return;
+			const hasEffects = panels.some(([panelId]) => panelId === 'effects');
+			const minimumSize = hasEffects ? 360 : 240;
+			const maximumSize = Math.max(
+				minimumSize,
+				Math.min(hasEffects ? 520 : 420, Math.round((workspaceBounds?.width || window.innerWidth) * 0.65)),
+			);
+			resizeSessionRef.current = {
+				element,
+				horizontal: true,
+				invertDelta: dock === 'right',
+				initialWidth: Math.round(bounds.width),
+				initialHeight: Math.round(bounds.height),
+				initialSize: Math.round(bounds.width),
+				maximumSize,
+				minimumSize,
+				manual: true,
+				panelId: panels[0][0],
+				panelIds: panels.map(([panelId]) => panelId),
+				pointerId: event.pointerId,
+				sizeProperty: 'width',
+				cssSizeProperty: '--workspace-dock-width',
+				preferenceProperty: 'width',
+				startClientX: event.clientX,
+				startClientY: event.clientY,
+			};
+			event.preventDefault();
+			return;
+		}
 		if (dock === 'bottom' && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
 			const element = dockRef.current;
 			const bounds = element?.getBoundingClientRect();
@@ -3425,13 +3440,34 @@ function WorkspacePanelDock({
 			for (const [panelId] of panels) controller.actions.preferences.setPanel(panelId, { size });
 		});
 	};
+	const adjustSideDockSize = (event) => {
+		if ((dock !== 'left' && dock !== 'right') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+		const bounds = dockRef.current?.getBoundingClientRect();
+		const workspaceBounds = dockRef.current?.parentElement?.getBoundingClientRect();
+		if (!bounds) return;
+		event.preventDefault();
+		const hasEffects = panels.some(([panelId]) => panelId === 'effects');
+		const minimumSize = hasEffects ? 360 : 240;
+		const maximumSize = Math.max(
+			minimumSize,
+			Math.min(hasEffects ? 520 : 420, Math.round((workspaceBounds?.width || window.innerWidth) * 0.65)),
+		);
+		const step = event.shiftKey ? 48 : 16;
+		const expands = dock === 'left' ? event.key === 'ArrowRight' : event.key === 'ArrowLeft';
+		const width = Math.max(minimumSize, Math.min(maximumSize, bounds.width + (expands ? step : -step)));
+		run(() => {
+			for (const [panelId] of panels) controller.actions.preferences.setPanel(panelId, { width });
+		});
+	};
 	if (!panels.length) return null;
 	const dockStyle = dock === 'bottom'
 		? {
 			'--workspace-panel-size': `${panels[0][1].size}px`,
 			'--workspace-panel-count': panels.length,
 		}
-		: undefined;
+		: (dock === 'left' || dock === 'right')
+			? { '--workspace-dock-width': `${panels[0][1].width}px` }
+			: undefined;
 	return (
 		<aside
 			ref={dockRef}
@@ -3451,6 +3487,13 @@ function WorkspacePanelDock({
 				onPanelMove(draggedPanelId, dock, panels.filter(([id]) => id !== draggedPanelId).length);
 			}}
 		>
+			{(dock === 'left' || dock === 'right') && <button
+				type="button"
+				className={`kw-audio-editor__workspace-dock-resize-handle kw-audio-editor__workspace-dock-resize-handle--${dock}`}
+				data-workspace-dock-resize-handle={dock}
+				aria-label={`${copy.workspaceResize}: ${workspaceDockLabel(copy, dock)}`}
+				onKeyDown={adjustSideDockSize}
+			>↔</button>}
 			{dock === 'bottom' && <button
 				type="button"
 				className="kw-audio-editor__workspace-dock-resize-handle"
@@ -3594,6 +3637,8 @@ function WorkspacePanelDock({
 							showArmControls={showArmControls}
 							displayAudioSupported={displayAudioSupported}
 							onOpenEffects={onOpenEffects}
+							effectsPanelTarget={effectsPanelTarget}
+							onEffectWindowChange={onEffectWindowChange}
 						/>
 					</div>
 				</section>
@@ -3615,6 +3660,8 @@ function WorkspacePanelContent({
 	showArmControls,
 	displayAudioSupported,
 	onOpenEffects,
+	effectsPanelTarget,
+	onEffectWindowChange,
 }) {
 	const project = snapshot.project;
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
@@ -3734,13 +3781,32 @@ function WorkspacePanelContent({
 	}
 	if (panelId === 'effects') {
 		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label');
-		return (
-			<>
-				<p>{selectedTrack ? selectedTrack.name : copy.noAudioTrackSelected}</p>
-				<Button disabled={!selectedTrack} onClick={() => selectedTrack && onOpenEffects(selectedTrack.id)}>{copy.trackMasterEffects}</Button>
-				<Button variant="secondary" disabled={!selectedTrack} onClick={() => run(() => controller.actions.effects.applySelection())}>{copy.applyAudacityEffect}</Button>
-			</>
-		);
+		const scope = effectsPanelTarget?.scope || 'track';
+		const targetId = scope === 'track'
+			? selectedTrack?.id || null
+			: effectsPanelTarget?.trackId || null;
+		return <AudioEditorEffectsOverlay
+			isOpen
+			controller={controller}
+			snapshot={snapshot}
+			copy={copy}
+			locale={locale}
+			fileService={fileService}
+			trackId={targetId}
+			scope={scope}
+			layout="docked"
+			onClose={() => undefined}
+			selectedEffect={null}
+			onSelectedEffectChange={(selectedEffect) => {
+				if (!selectedEffect) return;
+				onEffectWindowChange?.({
+					trackId: selectedEffect.scope === 'master' ? null : targetId,
+					scope: selectedEffect.scope,
+					selectedEffect,
+				});
+			}}
+			renderDialogs={false}
+		/>;
 	}
 	if (panelId === 'mixer') {
 		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} />;
@@ -5646,7 +5712,7 @@ function createApplicationMenus({
 	selectionActive,
 	selectedClip,
 	durationFrames,
-	effectsOverlay,
+	effectsPanelOpen,
 	uiFlags,
 	actionRuntime,
 	actions,
@@ -5928,7 +5994,7 @@ function createApplicationMenus({
 						...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
 					],
 				},
-				{ id: 'show-effects', label: copy.showEffects, checked: Boolean(effectsOverlay), disabled: !selectedAudioTrack, onClick: actions.openEffects },
+				{ id: 'show-effects', label: copy.showEffects, checked: effectsPanelOpen, disabled: !selectedAudioTrack, onClick: actions.openEffects },
 				{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
 				{ id: 'show-rms', label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
@@ -6277,35 +6343,6 @@ function useMediaQuery(query) {
 		return () => media.removeEventListener('change', update);
 	}, [query]);
 	return matches;
-}
-
-function resolveEffectsOverlayPosition(workspace, anchorRect, compact) {
-	const viewportWidth = typeof window === 'undefined' ? 1024 : window.innerWidth;
-	const viewportHeight = typeof window === 'undefined' ? 768 : window.innerHeight;
-	const bounds = workspace?.getBoundingClientRect() || {
-		left: 0,
-		top: 0,
-		width: viewportWidth,
-		height: viewportHeight,
-	};
-	const inset = 8;
-	const adapterHeight = 78;
-	const width = Math.max(240, Math.min(compact ? 372 : 340, bounds.width - inset * 2));
-	const availableHeight = Math.max(320, bounds.height - inset * 2);
-	const totalHeight = Math.min(compact ? 520 : 570, availableHeight);
-	const panelHeight = Math.max(250, totalHeight - adapterHeight);
-	let left = anchorRect
-		? anchorRect.right - bounds.left + 6
-		: inset;
-	if (left + width + inset > bounds.width) {
-		left = anchorRect
-			? anchorRect.left - bounds.left - width - 6
-			: bounds.width - width - inset;
-	}
-	left = Math.max(inset, Math.min(left, Math.max(inset, bounds.width - width - inset)));
-	let top = anchorRect ? anchorRect.top - bounds.top : inset;
-	top = Math.max(inset, Math.min(top, Math.max(inset, bounds.height - totalHeight - inset)));
-	return { left, top, width, panelHeight, totalHeight };
 }
 
 function playbackMeterTicks(type, range, meterSize) {

@@ -1602,7 +1602,8 @@
 }
 
 #kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) {
-	width: min(34vw, var(--workspace-panel-size, 360px));
+	position: relative;
+	width: min(34vw, var(--workspace-dock-width, 360px));
 	min-width: 240px;
 	max-width: 420px;
 	flex-direction: column;
@@ -1687,6 +1688,28 @@
 #kw-audio-editor-design-system .kw-audio-editor__workspace-dock-resize-handle:focus-visible {
 	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
 	outline-offset: -2px;
+}
+
+#kw-audio-editor-design-system :is(
+	.kw-audio-editor__workspace-dock-resize-handle--left,
+	.kw-audio-editor__workspace-dock-resize-handle--right
+) {
+	top: 0;
+	bottom: 0;
+	width: 17px;
+	height: 100%;
+	cursor: ew-resize;
+	writing-mode: vertical-rl;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-dock-resize-handle--left {
+	right: 0;
+	left: auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-dock-resize-handle--right {
+	right: auto;
+	left: 0;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__panel-dock--floating .kw-audio-editor__workspace-panel {
@@ -1860,6 +1883,33 @@
 	overflow: auto;
 	padding: 10px;
 	font-size: 11px;
+}
+
+#kw-audio-editor-design-system [data-workspace-panel='effects'] .kw-audio-editor__workspace-panel-content {
+	display: flex;
+	padding: 0;
+	overflow: hidden;
+}
+
+#kw-audio-editor-design-system [data-workspace-panel='effects'] [data-layout='docked'] {
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+	flex-direction: column;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has([data-workspace-panel='effects']) {
+	width: min(42vw, var(--workspace-dock-width, 440px));
+	min-width: 360px;
+	max-width: 520px;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) [data-workspace-panel='effects'] {
+	height: 100%;
+	min-height: 320px;
+	flex: 1 1 auto;
+	resize: none;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__panel-list {
@@ -3560,6 +3610,64 @@
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
 }
 
+#kw-audio-editor-design-system [data-layout='docked'] .audio-editor-effects-overlay__adapters {
+	position: static;
+	width: auto;
+	max-height: none;
+	margin-top: 4px;
+	box-shadow: none;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] [data-effect-rack],
+#kw-audio-editor-design-system [data-layout='docked'] .effects-panel {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] [data-effect-rack] > .effects-panel {
+	width: 100% !important;
+	max-width: none;
+	flex: 1 1 auto;
+	border-right: 0;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] [data-effect-rack] {
+	display: flex;
+	min-height: 0;
+	flex: 1 1 auto;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] :is(.effects-panel__header, .effects-panel-header) {
+	display: none;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] .effects-panel__master-section {
+	margin-top: auto;
+	box-sizing: border-box;
+}
+
+#kw-audio-editor-design-system .audio-editor-controlled-dialog__backdrop:has(.audio-editor-effect-settings-dialog) {
+	z-index: var(--kw-editor-effects-z);
+}
+
+#kw-audio-editor-design-system [data-effects-window-host] {
+	position: fixed;
+	z-index: var(--kw-editor-effects-z);
+	inset: 0;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system [data-effects-window-host] .audio-editor-controlled-dialog__backdrop--non-modal {
+	background: transparent;
+	backdrop-filter: none;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system [data-effects-window-host] .audio-editor-controlled-dialog {
+	pointer-events: auto;
+}
+
 #kw-audio-editor-design-system .audio-editor-effects-overlay__adapters .audio-editor-master-gain {
 	padding: 0;
 	background: transparent;
@@ -3570,6 +3678,16 @@
 	background: transparent;
 	backdrop-filter: none;
 	pointer-events: none;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] .audio-editor-controlled-dialog__backdrop--non-modal {
+	background: transparent;
+	backdrop-filter: none;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system [data-layout='docked'] .audio-editor-controlled-dialog__backdrop--non-modal .audio-editor-controlled-dialog {
+	pointer-events: auto;
 }
 
 #kw-audio-editor-design-system [data-effects-overlay] .audio-editor-controlled-dialog__backdrop--non-modal .audio-editor-controlled-dialog {
