@@ -9,3 +9,4 @@ release/desktop/
 .env
 .env.*
 !.env.example
+private/
