@@ -3,6 +3,7 @@
 	--kw-editor-shadow: 0 12px 32px rgb(20 21 26 / 18%);
 	--focus-ring-size: 2px;
 	--kw-editor-flyout-z: 10020;
+	--kw-editor-effects-z: 10030;
 	box-sizing: border-box;
 	position: relative;
 	z-index: 21;
@@ -1580,7 +1581,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__workspace--effects-open {
 	/* Fixed mobile rack controls must remain above the selection toolbar. */
-	z-index: 40;
+	z-index: var(--kw-editor-effects-z);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__workspace-main {
@@ -3499,7 +3500,7 @@
 
 #kw-audio-editor-design-system [data-effects-overlay] {
 	position: absolute;
-	z-index: 90;
+	z-index: var(--kw-editor-effects-z);
 	inset: 0;
 	pointer-events: none;
 }
