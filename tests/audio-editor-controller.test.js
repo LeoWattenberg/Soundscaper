@@ -1439,6 +1439,79 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 	await controller.dispose();
 });
 
+test('rack effect gestures preview Delay live and commit once without rebuilding playback', async () => {
+	const engine = createMemoryEngine();
+	engine.rackConfigurations = [];
+	engine.configureRackEffect = function configureRackEffect(scope, targetId, effectId, params) {
+		this.rackConfigurations.push({ scope, targetId, effectId, params: structuredClone(params) });
+		return this.rackConfigurations.length;
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	const effectId = controller.actions.effects.add({
+		scope: 'track',
+		trackId,
+		type: 'delay',
+		options: { params: { time: 0.25, feedback: 0.3, mix: 0.2 } },
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	engine.appliedProjects.length = 0;
+	engine.play();
+
+	const before = controller.getSnapshot();
+	controller.actions.effects.beginRackEffectGesture('track', trackId, effectId);
+	controller.actions.effects.previewRackEffect('track', trackId, effectId, {
+		time: 0.5,
+		feedback: 0.6,
+		mix: 0.4,
+	});
+	assert.deepEqual(engine.rackConfigurations.at(-1).params, {
+		time: 0.5,
+		feedback: 0.6,
+		mix: 0.4,
+	});
+	assert.deepEqual(before.project.tracks[0].effects[0].params, {
+		time: 0.25,
+		feedback: 0.3,
+		mix: 0.2,
+	});
+
+	controller.actions.effects.commitRackEffectGesture('track', trackId, effectId, {
+		time: 0.5,
+		feedback: 0.6,
+		mix: 0.4,
+	});
+	const committed = controller.getSnapshot();
+	assert.deepEqual(committed.project.tracks[0].effects[0].params, {
+		time: 0.5,
+		feedback: 0.6,
+		mix: 0.4,
+	});
+	assert.equal(committed.history.undoEntries.length, before.history.undoEntries.length + 1);
+	assert.equal(engine.appliedProjects.length, 0);
+	assert.equal(engine.state, 'playing');
+
+	controller.actions.effects.beginRackEffectGesture('track', trackId, effectId);
+	controller.actions.effects.previewRackEffect('track', trackId, effectId, { feedback: 0.1 });
+	controller.actions.effects.cancelRackEffectGesture('track', trackId, effectId);
+	assert.deepEqual(engine.rackConfigurations.at(-1).params, {
+		time: 0.5,
+		feedback: 0.6,
+		mix: 0.4,
+	});
+	assert.equal(controller.getSnapshot().history.undoEntries.length, committed.history.undoEntries.length);
+	await controller.dispose();
+});
+
 test('parametric EQ gestures preview live and commit one history entry without rebuilding playback', async () => {
 	const engine = createMemoryEngine();
 	engine.eqConfigurations = [];

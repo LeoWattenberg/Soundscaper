@@ -351,6 +351,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		audacityEffectParams: {},
 		audacityEffectTouchedParams: new Map(),
 		effectPresets: createAudioEditorEffectPresets(),
+		rackEffectGestures: new Map(),
 		parametricEqGestures: new Map(),
 		audacityControlTrackId: null,
 		audacityNoiseProfile: null,
@@ -1157,6 +1158,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			effects: Object.freeze({
 				add: addEffect,
 				update: updateRackEffect,
+				beginRackEffectGesture,
+				previewRackEffect,
+				commitRackEffectGesture,
+				cancelRackEffectGesture,
 				beginParametricEqGesture,
 				previewParametricEq,
 				commitParametricEqGesture,
@@ -1454,6 +1459,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function performProjectSwitch(nextProject, options = {}) {
+		state.rackEffectGestures.clear();
 		state.parametricEqGestures.clear();
 		cancelTimedRecording({ publish: false, status: false });
 		cancelRecordingStart();
@@ -6669,10 +6675,69 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return commit({ type: 'effect/update', scope, trackId, busId: trackId, effectId, changes });
 	}
 
+	function beginRackEffectGesture(scope, targetId, effectId) {
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type === 'missing' || effect.type === 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = effectGestureKey(scope, targetId, effectId);
+		if (!state.rackEffectGestures.has(key)) {
+			state.rackEffectGestures.set(key, structuredClone(effect.params));
+		}
+		return structuredClone(state.rackEffectGestures.get(key));
+	}
+
+	function previewRackEffect(scope, targetId, effectId, params) {
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type === 'missing' || effect.type === 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = effectGestureKey(scope, targetId, effectId);
+		if (!state.rackEffectGestures.has(key)) beginRackEffectGesture(scope, targetId, effectId);
+		const normalized = normalizeEffect({
+			...effect,
+			params: { ...effect.params, ...params },
+		}).params;
+		return engine.configureRackEffect?.(scope, targetId, effectId, normalized) ?? false;
+	}
+
+	function commitRackEffectGesture(scope, targetId, effectId, params) {
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
+		if (!effect || effect.type === 'missing' || effect.type === 'eq') throw new Error(copy.rackEffectNotFound);
+		const key = effectGestureKey(scope, targetId, effectId);
+		const original = state.rackEffectGestures.get(key) || effect.params;
+		const normalized = normalizeEffect({
+			...effect,
+			params: { ...effect.params, ...params },
+		}).params;
+		const unchanged = JSON.stringify(normalizeEffect({ ...effect, params: original }).params) === JSON.stringify(normalized);
+		if (unchanged) {
+			state.rackEffectGestures.delete(key);
+			return project;
+		}
+		const adopted = engine.configureRackEffect?.(scope, targetId, effectId, normalized) ?? false;
+		state.rackEffectGestures.delete(key);
+		try {
+			return commit(
+				{ type: 'effect/update', scope, trackId: targetId, busId: targetId, effectId, changes: { params: normalized } },
+				{},
+				{ skipPlaybackEngine: adopted !== false },
+			);
+		} catch (error) {
+			if (adopted !== false) engine.configureRackEffect?.(scope, targetId, effectId, original);
+			throw error;
+		}
+	}
+
+	function cancelRackEffectGesture(scope, targetId, effectId) {
+		const key = effectGestureKey(scope, targetId, effectId);
+		const original = state.rackEffectGestures.get(key);
+		state.rackEffectGestures.delete(key);
+		if (!original) return false;
+		return engine.configureRackEffect?.(scope, targetId, effectId, original) ?? false;
+	}
+
 	function beginParametricEqGesture(scope, targetId, effectId) {
 		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
 		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
-		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const key = effectGestureKey(scope, targetId, effectId);
 		if (!state.parametricEqGestures.has(key)) {
 			state.parametricEqGestures.set(key, structuredClone(effect.params));
 		}
@@ -6682,7 +6747,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function previewParametricEq(scope, targetId, effectId, params) {
 		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
 		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
-		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const key = effectGestureKey(scope, targetId, effectId);
 		if (!state.parametricEqGestures.has(key)) beginParametricEqGesture(scope, targetId, effectId);
 		const normalized = normalizeEffect({ ...effect, params }).params;
 		return engine.configureParametricEq?.(scope, targetId, effectId, normalized) ?? false;
@@ -6692,7 +6757,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
 		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
 		if (!effect || effect.type !== 'eq') throw new Error(copy.rackEffectNotFound);
-		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const key = effectGestureKey(scope, targetId, effectId);
 		const original = state.parametricEqGestures.get(key) || effect.params;
 		const normalized = normalizeEffect({ ...effect, params }).params;
 		const unchanged = JSON.stringify(normalizeEffect({ ...effect, params: original }).params) === JSON.stringify(normalized);
@@ -6715,7 +6780,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function cancelParametricEqGesture(scope, targetId, effectId) {
-		const key = parametricEqGestureKey(scope, targetId, effectId);
+		const key = effectGestureKey(scope, targetId, effectId);
 		const original = state.parametricEqGestures.get(key);
 		state.parametricEqGestures.delete(key);
 		if (!original) return false;
@@ -6736,7 +6801,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return track.effects || [];
 	}
 
-	function parametricEqGestureKey(scope, targetId, effectId) {
+	function effectGestureKey(scope, targetId, effectId) {
 		return `${scope || 'track'}:${targetId == null ? '' : targetId}:${effectId}`;
 	}
 

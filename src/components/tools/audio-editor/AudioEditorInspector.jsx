@@ -679,6 +679,35 @@ export function AudioEditorEffectsOverlay({
 								: null}
 							noiseProfileLabel={effect.context?.noiseProfile ? copy.replaceNoiseProfile : copy.getNoiseProfile}
 							sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
+							onRackEffectGestureBegin={() => controller.actions.effects.beginRackEffectGesture?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+							)}
+							onRackEffectPreview={(params) => controller.actions.effects.previewRackEffect?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+								params,
+							)}
+							onRackEffectCommit={(params) => controller.actions.effects.commitRackEffectGesture
+								? controller.actions.effects.commitRackEffectGesture(
+									effectScope,
+									effectScope === 'master' ? null : targetId,
+									effect.id,
+									params,
+								)
+								: controller.actions.effects.update(
+									effectScope,
+									effectScope === 'master' ? null : targetId,
+									effect.id,
+									{ params },
+								)}
+							onRackEffectCancel={() => controller.actions.effects.cancelRackEffectGesture?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+							)}
 							onParametricEqGestureBegin={() => controller.actions.effects.beginParametricEqGesture?.(
 								effectScope,
 								effectScope === 'master' ? null : targetId,
@@ -1365,6 +1394,10 @@ function EffectParameterEditor({
 	captureNoiseProfile,
 	noiseProfileLabel,
 	hideControlTrack = false,
+	onRackEffectGestureBegin,
+	onRackEffectPreview,
+	onRackEffectCommit,
+	onRackEffectCancel,
 	onParametricEqGestureBegin,
 	onParametricEqPreview,
 	onParametricEqCommit,
@@ -1383,12 +1416,13 @@ function EffectParameterEditor({
 		);
 	}
 	const definition = isAudacityDefinition(effect.type) ? AUDACITY_EFFECT_DEFINITIONS[effect.type] : null;
-	const update = (changes) => {
+	const invoke = (callback) => {
 		setError('');
-		Promise.resolve().then(() => onChange(changes)).catch((cause) => {
+		return Promise.resolve().then(callback).catch((cause) => {
 			setError(cause instanceof Error ? cause.message : String(cause));
 		});
 	};
+	const update = (changes) => invoke(() => onChange(changes));
 	const updateParam = (name, value) => update({ params: { [name]: value } });
 
 	if (!definition) {
@@ -1425,6 +1459,24 @@ function EffectParameterEditor({
 					disabled={disabled}
 					hook={name}
 					onCommit={(next) => updateParam(name, next)}
+					onGestureBegin={onRackEffectGestureBegin
+						? () => invoke(onRackEffectGestureBegin)
+						: null}
+					onGesturePreview={onRackEffectPreview
+						? (next) => invoke(() => onRackEffectPreview({
+							...effect.params,
+							[name]: next,
+						}))
+						: null}
+					onGestureCommit={onRackEffectCommit
+						? (next) => invoke(() => onRackEffectCommit({
+							...effect.params,
+							[name]: next,
+						}))
+						: null}
+					onGestureCancel={onRackEffectCancel
+						? () => invoke(onRackEffectCancel)
+						: null}
 				/>
 			);
 		};
@@ -1615,11 +1667,82 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 	);
 }
 
-function ParameterNumber({ label, value, range, step, presentation = 'knob', copy, disabled, hook, onCommit }) {
+function ParameterNumber({
+	label,
+	value,
+	range,
+	step,
+	presentation = 'knob',
+	copy,
+	disabled,
+	hook,
+	onCommit,
+	onGestureBegin,
+	onGesturePreview,
+	onGestureCommit,
+	onGestureCancel,
+}) {
+	const [gestureActive, setGestureActive] = useState(false);
+	const [gestureValue, setGestureValue] = useState(null);
+	const gestureActiveRef = useRef(false);
+	const gestureValueRef = useRef(null);
+	const gestureCallbacksRef = useRef({});
+	gestureCallbacksRef.current = {
+		begin: onGestureBegin,
+		preview: onGesturePreview,
+		commit: onGestureCommit,
+		cancel: onGestureCancel,
+	};
 	const knobRange = Array.isArray(range) && range.length === 2 && range.every(Number.isFinite) ? range : null;
 	const knobStep = Number.isFinite(step) && step > 0
 		? step
 		: Number.isInteger(value) && knobRange?.every(Number.isInteger) ? 1 : 0.01;
+	const gestureEnabled = Boolean(onGestureBegin && onGesturePreview && onGestureCommit);
+	useEffect(() => {
+		if (!gestureActive) return undefined;
+		const finish = () => {
+			if (!gestureActiveRef.current) return;
+			gestureActiveRef.current = false;
+			const next = gestureValueRef.current;
+			setGestureActive(false);
+			setGestureValue(null);
+			gestureCallbacksRef.current.commit?.(next);
+		};
+		document.addEventListener('mouseup', finish);
+		globalThis.addEventListener?.('blur', finish);
+		return () => {
+			document.removeEventListener('mouseup', finish);
+			globalThis.removeEventListener?.('blur', finish);
+		};
+	}, [gestureActive]);
+	useEffect(() => () => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		gestureCallbacksRef.current.cancel?.();
+	}, []);
+	const beginKnobGesture = (event) => {
+		if (
+			disabled
+			|| !gestureEnabled
+			|| event.button !== 0
+			|| !event.target.closest?.('.knob')
+		) return;
+		const current = Number(value) || 0;
+		gestureActiveRef.current = true;
+		gestureValueRef.current = current;
+		setGestureValue(current);
+		setGestureActive(true);
+		gestureCallbacksRef.current.begin?.();
+	};
+	const previewKnobValue = (next) => {
+		if (!gestureActiveRef.current || !gestureEnabled) {
+			onCommit(next);
+			return;
+		}
+		gestureValueRef.current = next;
+		setGestureValue(next);
+		gestureCallbacksRef.current.preview?.(next);
+	};
 	const commit = (raw) => {
 		const next = Number(raw);
 		if (!Number.isFinite(next) || (range && (next < range[0] || next > range[1]))) {
@@ -1637,17 +1760,23 @@ function ParameterNumber({ label, value, range, step, presentation = 'knob', cop
 		onCommit(Number(snapped.toFixed(8)));
 	};
 	return (
-		<div className={`audio-editor-effect-number audio-editor-effect-number--${presentation}`} data-effect-param={hook} role="group" aria-label={label}>
+		<div
+			className={`audio-editor-effect-number audio-editor-effect-number--${presentation}`}
+			data-effect-param={hook}
+			role="group"
+			aria-label={label}
+			onMouseDownCapture={beginKnobGesture}
+		>
 			<span>{label}</span>
 			{knobRange && presentation === 'knob' && <Knob
-				value={Number(value) || 0}
+				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}
 				step={knobStep}
 				label={label}
 				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
 				disabled={disabled}
-				onChange={onCommit}
+				onChange={previewKnobValue}
 			/>}
 			{knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
