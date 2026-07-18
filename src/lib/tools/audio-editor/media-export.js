@@ -345,13 +345,21 @@ export function normalizeMediaDecodeSampleRate(value = 48_000) {
 
 /** Pure command builder used by the lazy FFmpeg import fallback. */
 export function buildMediaFfmpegDecoderArgs(input, output, options = {}) {
-	const sampleRate = normalizeMediaDecodeSampleRate(options.sampleRate);
-	const channelCount = integerInRange(options.channelCount ?? 2, 1, MAX_EXPORT_CHANNELS, 'Decode channel count');
-	return [
-		'-i', String(input), '-vn', '-map', '0:a:0',
-		'-ac', String(channelCount), '-ar', String(sampleRate),
-		'-c:a', 'pcm_f32le', '-f', 'f32le', '-y', String(output),
-	];
+	const sampleRate = options.sampleRate === null
+		? null
+		: normalizeMediaDecodeSampleRate(options.sampleRate);
+	const channelCount = options.channelCount === null
+		? null
+		: integerInRange(options.channelCount ?? 2, 1, MAX_EXPORT_CHANNELS, 'Decode channel count');
+	const outputFormat = options.outputFormat ?? 'f32le';
+	if (outputFormat !== 'f32le' && outputFormat !== 'wav') {
+		throw new RangeError('Decode output format must be f32le or wav.');
+	}
+	const args = ['-i', String(input), '-vn', '-map', '0:a:0'];
+	if (channelCount !== null) args.push('-ac', String(channelCount));
+	if (sampleRate !== null) args.push('-ar', String(sampleRate));
+	args.push('-c:a', 'pcm_f32le', '-f', outputFormat, '-y', String(output));
+	return args;
 }
 
 /** Pure command builder used by the lazy FFmpeg runtime. */

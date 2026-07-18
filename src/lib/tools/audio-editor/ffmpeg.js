@@ -10,6 +10,7 @@ import {
 } from './media-export.js';
 import { getVideoExportFormat } from './video-export.js';
 import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -239,11 +240,11 @@ export function createEditorFfmpeg(options = {}) {
 
 	async function decode(file, settings = {}) {
 		const signal = settings.signal;
-		const sampleRate = normalizeMediaDecodeSampleRate(settings.sampleRate);
+		if (settings.sampleRate != null) normalizeMediaDecodeSampleRate(settings.sampleRate);
 		return run(async (instance) => {
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const mountPoint = `/editor-input-${stamp}`;
-			const output = `editor-decoded-${stamp}.f32`;
+			const output = `editor-decoded-${stamp}.wav`;
 			let input = `editor-input-${stamp}`;
 			let mounted = false;
 
@@ -258,14 +259,18 @@ export function createEditorFfmpeg(options = {}) {
 				}
 
 				const code = await instance.exec(
-					buildMediaFfmpegDecoderArgs(input, output, { sampleRate, channelCount: 2 }),
+					buildMediaFfmpegDecoderArgs(input, output, {
+						sampleRate: null,
+						channelCount: null,
+						outputFormat: 'wav',
+					}),
 					-1,
 					{ signal },
 				);
 				if (code !== 0) throw new Error(`FFmpeg exited with code ${code}`);
 				const raw = await instance.readFile(output, undefined, { signal });
 				if (!(raw instanceof Uint8Array)) throw new Error('FFmpeg returned invalid PCM data');
-				return deinterleaveStereo(raw, sampleRate);
+				return decodeFloatWave(raw, signal);
 			} finally {
 				await instance.deleteFile(output).catch(() => undefined);
 				if (mounted) {
@@ -400,16 +405,30 @@ function toUint8Array(value) {
 	throw new TypeError('Expected WAV bytes');
 }
 
-function deinterleaveStereo(bytes, sampleRate) {
-	const frames = Math.floor(bytes.byteLength / 8);
-	const view = new DataView(bytes.buffer, bytes.byteOffset, frames * 8);
-	const left = new Float32Array(frames);
-	const right = new Float32Array(frames);
-	for (let frame = 0; frame < frames; frame += 1) {
-		left[frame] = view.getFloat32(frame * 8, true);
-		right[frame] = view.getFloat32(frame * 8 + 4, true);
+async function decodeFloatWave(bytes, signal) {
+	const blob = new Blob([bytes]);
+	const descriptor = await inspectWavBlobPcm(blob, { signal });
+	if (descriptor.encoding !== 'ieee-float' || descriptor.bitDepth !== 32) {
+		throw new Error('FFmpeg returned an unexpected PCM format.');
 	}
-	return { sampleRate, channels: [left, right], frameCount: frames };
+	const channels = Array.from(
+		{ length: descriptor.channelCount },
+		() => new Float32Array(descriptor.frameCount),
+	);
+	await streamWavBlobPcm(blob, {
+		descriptor,
+		signal,
+		onChunk(packet, { frameOffset }) {
+			for (let channel = 0; channel < channels.length; channel += 1) {
+				channels[channel].set(packet[channel], frameOffset);
+			}
+		},
+	});
+	return {
+		sampleRate: descriptor.sampleRate,
+		channels,
+		frameCount: descriptor.frameCount,
+	};
 }
 
 function abortError() {

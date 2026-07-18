@@ -22,6 +22,7 @@ const ffmpegLoader = `
 register(`data:text/javascript,${encodeURIComponent(ffmpegLoader)}`, import.meta.url);
 
 const { createEditorFfmpeg } = await import('../src/lib/tools/audio-editor/ffmpeg.js');
+const { encodeWav } = await import('../src/lib/tools/audio-editor/wav.js');
 
 const originalTestRuntime = globalThis.__soundscaperFfmpegTestRuntime;
 
@@ -150,10 +151,16 @@ test('completed decode work uses the same bounded idle lifetime', async () => {
 	});
 
 	const decoded = await ffmpeg.decode(new Blob([Uint8Array.of(1, 2, 3)]), { sampleRate: 44_100 });
-	assert.equal(decoded.sampleRate, 44_100);
+	assert.equal(decoded.sampleRate, 32_000);
 	assert.equal(decoded.frameCount, 2);
+	assert.equal(decoded.channels.length, 1);
 	assert.deepEqual([...decoded.channels[0]], [0.25, 0.75]);
-	assert.deepEqual([...decoded.channels[1]], [-0.5, 1]);
+	assert.deepEqual(MockFfmpegRuntime.instances[0].lastExec, [
+		'-i', 'editor-input-' + MockFfmpegRuntime.instances[0].lastStamp,
+		'-vn', '-map', '0:a:0',
+		'-c:a', 'pcm_f32le', '-f', 'wav', '-y',
+		'editor-decoded-' + MockFfmpegRuntime.instances[0].lastStamp + '.wav',
+	]);
 	assert.deepEqual(timers.active().map(({ delay }) => delay), [2_500]);
 
 	timers.fire(timers.active()[0].id);
@@ -216,7 +223,15 @@ class MockFfmpegRuntime {
 
 	async writeFile() {}
 
-	exec() {
+	exec(args) {
+		this.lastExec = [...args];
+		const input = this.lastExec[1];
+		const output = this.lastExec.at(-1);
+		const inputMatch = input.match(/^editor-input-(.+)$/);
+		const outputMatch = output.match(/^editor-decoded-(.+)\.wav$/);
+		this.lastStamp = inputMatch && outputMatch && inputMatch[1] === outputMatch[1]
+			? inputMatch[1]
+			: null;
 		if (!this.pauseExec) return Promise.resolve(0);
 		return new Promise((resolve, reject) => {
 			this.pendingExec.push({ resolve, reject });
@@ -230,9 +245,13 @@ class MockFfmpegRuntime {
 	}
 
 	async readFile(path) {
-		if (!path.endsWith('.f32')) return Uint8Array.of(9, 8, 7);
-		const samples = Float32Array.of(0.25, -0.5, 0.75, 1);
-		return new Uint8Array(samples.buffer.slice(0));
+		if (!path.endsWith('.wav')) return Uint8Array.of(9, 8, 7);
+		return encodeWav([Float32Array.of(0.25, 0.75)], {
+			sampleRate: 32_000,
+			bitDepth: 32,
+			float: true,
+			dither: false,
+		});
 	}
 
 	async deleteFile() {}

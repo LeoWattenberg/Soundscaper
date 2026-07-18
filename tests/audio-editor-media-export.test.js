@@ -154,6 +154,21 @@ test('FFmpeg import targets the requested project sample rate instead of a fixed
 	assert.equal(normalizeMediaDecodeSampleRate(), 48_000);
 	assert.throws(() => normalizeMediaDecodeSampleRate(7_999), /8000 to 384000/);
 	assert.throws(() => buildMediaFfmpegDecoderArgs('input', 'output', { sampleRate: 44_100.5 }), /integer/);
+	assert.deepEqual(
+		buildMediaFfmpegDecoderArgs('input.wv', 'decoded.wav', {
+			sampleRate: null,
+			channelCount: null,
+			outputFormat: 'wav',
+		}),
+		[
+			'-i', 'input.wv', '-vn', '-map', '0:a:0',
+			'-c:a', 'pcm_f32le', '-f', 'wav', '-y', 'decoded.wav',
+		],
+	);
+	assert.throws(
+		() => buildMediaFfmpegDecoderArgs('input', 'output', { outputFormat: 'mp3' }),
+		/f32le or wav/,
+	);
 });
 
 test('AIFF encoder writes big-endian integer PCM, extended sample rate, and even chunk padding', () => {
