@@ -23,10 +23,9 @@ export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze(Object.fromEntries(
 		.map((action) => [action.id, Object.freeze([action.shortcut])]),
 ));
 
-const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
-	play: 'action://playback/play',
-	'quick-help': 'online-handbook',
-});
+	const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
+		play: 'action://playback/play',
+	});
 
 const BUILT_IN_WORKSPACE_SET = new Set(AUDIO_EDITOR_BUILT_IN_WORKSPACES);
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);

@@ -810,7 +810,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 				setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 				setDialog('resample');
 			},
-			zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
+				zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
 			toggleTrackMute: () => {
 				const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId);
 				if (track) run(() => controller.actions.track.update(track.id, { mute: !track.mute }));
@@ -833,15 +833,14 @@ function AudioEditorWorkspace({ locale, copy }) {
 				if (mode === 'spectrum') run(() => controller.actions.analysis.plotSpectrum(scope));
 				else if (mode === 'clipping') run(() => controller.actions.analysis.findClipping(scope));
 			},
-			openEbuR128: () => openWorkspacePanel('ebu-r128'),
-			setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
-			togglePanel: (panelId) => run(() => controller.actions.preferences.togglePanel(panelId)),
-			quickHelp: () => workspaceRef.current?.querySelector('.kw-audio-editor__keyboard-help')?.focus?.(),
-			manual: () => openExternal('https://support.audacityteam.org/au4'),
-			tutorials: () => openExternal('https://support.audacityteam.org/au4'),
-			support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
-			about: () => setDialog('about'),
-		},
+				openEbuR128: () => openWorkspacePanel('ebu-r128'),
+				setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
+				togglePanel: (panelId) => run(() => controller.actions.preferences.togglePanel(panelId)),
+				manual: () => openExternal('https://support.audacityteam.org/au4'),
+				tutorials: () => openExternal('https://support.audacityteam.org/au4'),
+				support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
+				about: () => setDialog('about'),
+			},
 	}), [
 		blocked,
 		controller,
@@ -5426,13 +5425,14 @@ function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 }
 
 const EFFECT_MENU_GROUPS = Object.freeze([
-	['volumeCompression', ['audacity-amplify', 'audacity-auto-duck', 'audacity-compressor', 'audacity-legacy-compressor', 'audacity-limiter', 'audacity-loudness-normalization', 'audacity-normalize', 'audacity-remove-dc-offset']],
+	['volumeCompression', ['audacity-amplify', 'audacity-auto-duck', 'audacity-compressor', 'audacity-limiter', 'audacity-loudness-normalization', 'audacity-normalize', 'audacity-remove-dc-offset']],
 	['fading', ['audacity-fade-in', 'audacity-fade-out']],
-	['eqFilters', ['eq', 'audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq', 'audacity-classic-filters']],
+	['eqFilters', ['eq', 'audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq']],
 	['noiseRepair', ['audacity-click-removal', 'audacity-noise-reduction', 'audacity-repair']],
 	['delayReverb', ['audacity-echo', 'audacity-reverb']],
 	['distortionModulation', ['audacity-distortion', 'audacity-phaser', 'audacity-wahwah']],
-	['specialEffects', ['audacity-invert', 'audacity-paulstretch', 'audacity-repeat', 'audacity-reverse', 'audacity-truncate-silence']],
+	['specialEffects', ['audacity-invert', 'audacity-repeat', 'audacity-reverse', 'audacity-truncate-silence']],
+	['legacyEffects', ['audacity-legacy-compressor', 'audacity-classic-filters']],
 ]);
 
 const MUSICAL_SNAP_ITEMS = Object.freeze([
@@ -5563,9 +5563,13 @@ function createApplicationMenus({
 			onClick: () => actions.openSelectionEffect(type),
 		})),
 	})).filter((group) => group.items.length);
-	const nyquistLegacyEffects = listNyquistPlugins({ category: 'legacy' });
-	const nyquistGenerators = listNyquistPlugins({ category: 'generate' });
-	const nyquistAnalyzers = listNyquistPlugins({ category: 'analyze' });
+	const nyquistPlugins = listNyquistPlugins();
+	const nyquistDisabled = (plugin) => {
+		if (plugin.category === 'legacy') return editBlocked || !selectedAudioTrack || (plugin.spectral && !frequencySelectionActive);
+		if (plugin.category === 'generate') return editBlocked;
+		if (plugin.category === 'analyze') return blocked || !selectedAudioTrack;
+		return editBlocked || !selectedAudioTrack;
+	};
 	const nyquistItem = (plugin, disabled) => ({
 		id: plugin.id,
 		label: plugin.name,
@@ -5600,9 +5604,8 @@ function createApplicationMenus({
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: snapshot.readOnly || blocked, onClick: actions.saveProject },
 				{ id: 'save-project-as', label: copy.saveAup4, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveAup4 },
-				unavailable('backup-project', copy.backupProject),
-				divider(),
-				{ id: 'import-audio', label: copy.importAudio, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importAudio },
+					divider(),
+					{ id: 'import-audio', label: copy.importAudio, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importAudio },
 				{ id: 'import-labels', label: copy.importLabels, disabled: editBlocked, onClick: actions.importLabels },
 				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
 				{
@@ -5623,8 +5626,7 @@ function createApplicationMenus({
 						unavailable('export-midi', copy.exportMidi),
 					],
 				},
-				unavailable('export-multiple', copy.exportMultiple),
-				divider(),
+					divider(),
 				{ id: 'rename-project', label: copy.renameProject, disabled: editBlocked, onClick: actions.renameProject },
 				{ id: 'duplicate-project', label: copy.duplicateProject, disabled: blocked, onClick: actions.duplicateProject },
 				{ id: 'delete-project', label: copy.deleteProject, disabled: editBlocked, onClick: actions.deleteProject },
@@ -5728,13 +5730,11 @@ function createApplicationMenus({
 						{ id: 'set-selection-to-loop', label: copy.selectionToLoop, disabled: !project?.loop?.enabled, onClick: actions.selectionToLoop },
 						{ id: 'set-loop-region-in-out', label: copy.setLoopInOut || copy.loopRegion, onClick: actions.setLoopInOut },
 						{ id: 'toggle-selection-follows-loop-region', label: copy.selectionFollowsLoop, checked: Boolean(snapshot.loopOptions?.selectionFollows), onClick: actions.toggleSelectionFollowsLoop },
-					],
-				},
-				unavailable('store-selection', copy.storeSelection),
-				unavailable('retrieve-selection', copy.retrieveSelection),
-				{ id: 'zero-crossings', label: copy.zeroCrossings, shortcut: 'Z', disabled: editBlocked || !selectionActive, onClick: actions.zeroCross },
-			],
-		},
+						],
+					},
+					{ id: 'zero-crossings', label: copy.zeroCrossings, shortcut: 'Z', disabled: editBlocked || !selectionActive, onClick: actions.zeroCross },
+				],
+			},
 		{
 			id: 'view',
 			label: copy.viewMenu,
@@ -5915,7 +5915,6 @@ function createApplicationMenus({
 				{ id: 'chirp-generator', label: copy.chirpGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('chirp') },
 				{ id: 'dtmf-generator', label: copy.dtmfGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('dtmf') },
 				{ id: 'noise-generator', label: copy.noiseGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('noise') },
-				{ id: 'nyquist-generators', label: 'Nyquist', items: nyquistGenerators.map((plugin) => nyquistItem(plugin, editBlocked)) },
 			],
 		},
 		{
@@ -5926,20 +5925,23 @@ function createApplicationMenus({
 				{ id: 'repeat-effect', label: copy.repeatLastEffect, disabled: editBlocked || !selectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
 				divider(),
 				...effectGroups,
-				{
-					id: 'nyquist-legacy-effects',
-					label: copy.nyquistLegacyEffects,
-					items: nyquistLegacyEffects.map((plugin) => nyquistItem(
-						plugin,
-						editBlocked || !selectedAudioTrack || (plugin.spectral && !frequencySelectionActive),
-					)),
-				},
 				{ id: 'pitch-tempo', label: copy.pitchTempo, items: [
 					{ id: 'change-pitch', label: copy.changePitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-pitch') },
 					{ id: 'change-tempo', label: copy.changeTempo, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-tempo') },
 					{ id: 'effect://builtin/change-speed-pitch', label: copy.changeSpeedPitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-speed-pitch') },
 					{ id: 'effect://builtin/sliding-stretch', label: copy.slidingStretch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-sliding-stretch') },
+					...(effectLabels.has('audacity-paulstretch') ? [{
+						id: 'audacity-paulstretch',
+						label: effectLabels.get('audacity-paulstretch') || 'Paulstretch',
+						disabled: editBlocked || !selectedAudioTrack,
+						onClick: () => actions.openSelectionEffect('audacity-paulstretch'),
+					}] : []),
 				] },
+				{
+					id: 'nyquist-effects',
+					label: copy.nyquist,
+					items: nyquistPlugins.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin))),
+				},
 				{
 					id: 'spectral-effects',
 					label: copy.spectralEffects,
@@ -5962,7 +5964,6 @@ function createApplicationMenus({
 				{ id: 'find-clipping', label: copy.findClipping, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('clipping') },
 				{ id: 'contrast', label: copy.contrast, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('contrast') },
 				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
-				{ id: 'nyquist-analyzers', label: 'Nyquist', items: nyquistAnalyzers.map((plugin) => nyquistItem(plugin, blocked || !selectedAudioTrack)) },
 			],
 		},
 		{
@@ -5974,13 +5975,12 @@ function createApplicationMenus({
 				unavailable('reset-configuration', copy.resetConfiguration),
 			],
 		},
-		{
-			id: 'help',
-			label: copy.helpMenu,
-			items: [
-				{ id: 'quick-help', label: copy.quickHelp, shortcut: 'F1', onClick: actions.quickHelp },
-				{ id: 'tutorials', label: copy.tutorials || copy.quickHelp, onClick: actions.tutorials },
-				{ id: 'manual', label: copy.manual, onClick: actions.manual },
+			{
+				id: 'help',
+				label: copy.helpMenu,
+				items: [
+					{ id: 'tutorials', label: copy.tutorials, onClick: actions.tutorials },
+					{ id: 'manual', label: copy.manual, onClick: actions.manual },
 				{ id: 'support', label: copy.support, onClick: actions.support },
 				divider(),
 				{ id: 'about', label: copy.aboutEditor, onClick: actions.about },

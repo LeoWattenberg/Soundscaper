@@ -86,9 +86,7 @@ const excluded = (id, label, locations, reason, options = {}) => actionDefinitio
 });
 
 const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
-	const location = plugin.category === 'legacy'
-		? 'Effect > Legacy'
-		: plugin.category === 'generate' ? 'Generate > Nyquist' : 'Analyze > Nyquist';
+	const location = 'Nyquist';
 	const enableWhen = plugin.spectral
 		? 'editable-frequency-selection'
 		: plugin.category === 'generate' ? 'project-writable'
@@ -381,14 +379,10 @@ const definitions = [
 	implemented('local://transport-toolbar', 'Transport toolbar', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: null, origin: 'local' }),
 	implemented('local://selection-toolbar', 'Selection toolbar', ['View > Toolbars'], 'workspace.toggleSelectionToolbar', { source: null, origin: 'local' }),
 
-	// Existing browser placeholders explicitly retained by the user's parity policy.
-	disabled('local://backup-project', 'Backup project', ['File'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://export-multiple', 'Export multiple', ['File'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://store-selection', 'Store selection', ['Select'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://retrieve-selection', 'Retrieve selection', ['Select'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+		// Existing browser placeholders explicitly retained by the user's parity policy.
+		disabled('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+		disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+		disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-generator', 'Repeat last generator', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://silence-finder', 'Silence finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
@@ -469,15 +463,13 @@ export const AUDACITY_ACTION_MANIFEST = deepFreeze(toManifest(definitions));
 // Existing UI IDs predate the upstream parity inventory. Keeping aliases here
 // lets menu rendering consume the manifest without forcing command/model churn.
 export const AUDACITY_ACTION_ALIASES = deepFreeze({
-	'new-project': 'file-new',
-	'open-project': 'file-open',
-	'recent-projects': 'file-open-recent',
-	'save-project': 'file-save',
-	'save-project-as': 'file-save-as',
-	'backup-project': 'local://backup-project',
-	'import-audio': 'project-import',
-	'export-multiple': 'local://export-multiple',
-	undo: 'action://trackedit/undo',
+		'new-project': 'file-new',
+		'open-project': 'file-open',
+		'recent-projects': 'file-open-recent',
+		'save-project': 'file-save',
+		'save-project-as': 'file-save-as',
+		'import-audio': 'project-import',
+		undo: 'action://trackedit/undo',
 	'action://undo': 'action://trackedit/undo',
 	redo: 'action://trackedit/redo',
 	'action://redo': 'action://trackedit/redo',
@@ -505,12 +497,10 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	'select-none': 'clear-selection',
 	'select-no-tracks': 'local://select-no-tracks',
 	'left-at-playback': 'select-left-of-playback-position',
-	'right-at-playback': 'select-right-of-playback-position',
-	'track-start-cursor': 'select-track-start-to-cursor',
-	'cursor-track-end': 'select-cursor-to-track-end',
-	'store-selection': 'local://store-selection',
-	'retrieve-selection': 'local://retrieve-selection',
-	'zero-crossings': 'zero-cross',
+		'right-at-playback': 'select-right-of-playback-position',
+		'track-start-cursor': 'select-track-start-to-cursor',
+		'cursor-track-end': 'select-cursor-to-track-end',
+		'zero-crossings': 'zero-cross',
 	'show-effects': 'toggle-effects',
 	'panel-history': 'toggle-history',
 	'transport-toolbar': 'local://transport-toolbar',
