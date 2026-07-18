@@ -1727,7 +1727,9 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 			: 'range/lift-delete';
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'delete range');
 	const requestedTrackIds = options.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
-	const { trackIds, clipIds } = collectLinkedRangeTargets(project, requestedTrackIds);
+	const { trackIds, clipIds } = collectLinkedRangeTargets(project, requestedTrackIds, {
+		expandTracks: rippleMode === 'track',
+	});
 	const clipIdSet = new Set(clipIds);
 	const splitClipIds = {};
 	const splitAvLinkIds = {};
@@ -1753,12 +1755,13 @@ export function prepareKeepRangeCommand(project, options = {}) {
 	return { type: 'range/keep', trackIds, clipIds, ...range };
 }
 
-function collectLinkedRangeTargets(project, requestedTrackIds) {
+function collectLinkedRangeTargets(project, requestedTrackIds, options = {}) {
 	const tracks = requestedTrackIds.map((trackId) => {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) throw new RangeError(`Track ${track.id} does not contain media clips.`);
 		return track;
 	});
+	if (options.expandTracks) return collectLinkedTrackRippleTargets(project, tracks.map((track) => track.id));
 	const clipIds = collectAvLinkedClipIds(project, tracks.flatMap((track) => track.clipIds));
 	const clipIdSet = new Set(clipIds);
 	return {
@@ -1766,6 +1769,30 @@ function collectLinkedRangeTargets(project, requestedTrackIds) {
 			.filter((track) => Array.isArray(track.clipIds) && track.clipIds.some((clipId) => clipIdSet.has(clipId)))
 			.map((track) => track.id),
 		clipIds,
+	};
+}
+
+function collectLinkedTrackRippleTargets(project, requestedTrackIds) {
+	const trackIdSet = new Set(requestedTrackIds);
+	const clipIdSet = new Set();
+	let previousTrackCount = -1;
+	while (trackIdSet.size !== previousTrackCount) {
+		previousTrackCount = trackIdSet.size;
+		for (const track of project.tracks) {
+			if (!trackIdSet.has(track.id)) continue;
+			if (!Array.isArray(track.clipIds)) throw new RangeError(`Track ${track.id} does not contain media clips.`);
+			for (const clipId of track.clipIds) clipIdSet.add(clipId);
+		}
+		for (const clipId of collectAvLinkedClipIds(project, [...clipIdSet])) {
+			clipIdSet.add(clipId);
+			trackIdSet.add(requireClipTrack(project, clipId).id);
+		}
+	}
+	return {
+		trackIds: project.tracks
+			.filter((track) => trackIdSet.has(track.id) && Array.isArray(track.clipIds))
+			.map((track) => track.id),
+		clipIds: project.clips.filter((clip) => clipIdSet.has(clip.id)).map((clip) => clip.id),
 	};
 }
 
@@ -2016,7 +2043,9 @@ function preparePasteCollisionIds(project, command, idFactory) {
 	} else {
 		baseClipIds = targetTracks.flatMap((track) => track.clipIds);
 	}
-	const collisionClipIds = collectAvLinkedClipIds(project, baseClipIds);
+	const collisionClipIds = command.mode === 'insert-track' || command.mode === 'insert-all'
+		? collectLinkedTrackRippleTargets(project, targetTracks.map((track) => track.id)).clipIds
+		: collectAvLinkedClipIds(project, baseClipIds);
 	const collisionClipIdSet = new Set(collisionClipIds);
 	const tracks = project.tracks.filter((track) => (
 		Array.isArray(track.clipIds)

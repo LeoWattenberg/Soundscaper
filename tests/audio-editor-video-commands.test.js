@@ -181,6 +181,49 @@ function createOverwritePairProject({ linkedMover = true } = {}) {
 	});
 }
 
+function createRippleClosureProject({ linkedStartFrame = 0, unlinkedStartFrame = 150 } = {}) {
+	const [videoSource, audioSource] = createMediaSources();
+	const clips = [
+		createVideoClipV4({
+			id: 'linked-video',
+			sourceId: videoSource.id,
+			timelineStartFrame: linkedStartFrame,
+			sourceStartFrame: linkedStartFrame,
+			sourceDurationFrames: 100,
+			durationFrames: 100,
+			avLinkId: 'linked-av',
+		}),
+		createVideoClipV4({
+			id: 'unlinked-video',
+			sourceId: videoSource.id,
+			timelineStartFrame: unlinkedStartFrame,
+			sourceStartFrame: unlinkedStartFrame,
+			sourceDurationFrames: 100,
+			durationFrames: 100,
+		}),
+		createAudioClipV4({
+			id: 'linked-audio',
+			sourceId: audioSource.id,
+			timelineStartFrame: linkedStartFrame,
+			sourceStartFrame: linkedStartFrame,
+			sourceDurationFrames: 100,
+			durationFrames: 100,
+			avLinkId: 'linked-av',
+		}),
+	];
+	return createAudioEditorProjectV4({
+		id: 'ripple-closure-project',
+		title: 'Ripple closure project',
+		now: NOW,
+		sources: [videoSource, audioSource],
+		clips,
+		tracks: createPairedTracks({
+			video: ['linked-video', 'unlinked-video'],
+			audio: ['linked-audio'],
+		}),
+	});
+}
+
 test('V4 Project Bin commands add, place, update, and remove a compound A/V item atomically', () => {
 	let project = createAudioEditorProjectV4({
 		id: 'video-bin-project',
@@ -528,6 +571,44 @@ test('range deletion from one media lane edits its linked companion and gives th
 	assert.equal(validateAudioEditorProject(edited), true);
 });
 
+test('track-ripple delete closes over unlinked clips on a reached companion lane', () => {
+	const project = createRippleClosureProject({
+		linkedStartFrame: 300,
+		unlinkedStartFrame: 100,
+	});
+	const lift = prepareRangeDeleteCommand(project, {
+		startFrame: 50,
+		endFrame: 250,
+		trackIds: ['audio-track'],
+		rippleMode: 'none',
+	});
+	assert.deepEqual(lift.clipIds, ['linked-video', 'linked-audio']);
+
+	const command = prepareRangeDeleteCommand(project, {
+		startFrame: 50,
+		endFrame: 250,
+		trackIds: ['audio-track'],
+		rippleMode: 'track',
+	});
+	assert.deepEqual(command.trackIds, ['video-track', 'audio-track']);
+	assert.deepEqual(command.clipIds, ['linked-video', 'unlinked-video', 'linked-audio']);
+	const edited = apply(project, command);
+
+	assert.deepEqual(
+		edited.clips.map((clip) => [
+			clip.id,
+			clip.timelineStartFrame,
+			clip.durationFrames,
+			clip.avLinkId,
+		]),
+		[
+			['linked-video', 100, 100, 'linked-av'],
+			['linked-audio', 100, 100, 'linked-av'],
+		],
+	);
+	assert.equal(validateAudioEditorProject(edited), true);
+});
+
 test('keep-range from one media lane trims its linked pair without deleting unrelated companion-lane audio', () => {
 	let project = createTimelinePairProject();
 	project = apply(project, {
@@ -663,6 +744,59 @@ test('insert-paste splits an existing linked pair with one fresh right-side link
 		['video', 500, 300],
 		['audio', 500, 300],
 	]);
+	assert.equal(validateAudioEditorProject(pasted), true);
+});
+
+test('insert-track paste shifts unlinked neighbors on a reached companion lane', () => {
+	const project = createRippleClosureProject();
+	const clipboard = {
+		schemaVersion: 2,
+		sampleRate: 48_000,
+		durationFrames: 100,
+		tracks: [{
+			sourceTrackId: 'clipboard-audio-track',
+			sourceTrackName: 'Clipboard audio',
+			sourceTrackType: 'audio',
+			sourceLaneGroupId: null,
+			clips: [{
+				key: 'clipboard-audio:0:100',
+				kind: 'audio',
+				sourceId: 'audio-source',
+				offsetFrame: 0,
+				sourceStartFrame: 1_000,
+				sourceDurationFrames: 100,
+				durationFrames: 100,
+			}],
+		}],
+	};
+	const counts = new Map();
+	const command = preparePasteCommand(clipboard, {
+		project,
+		atFrame: 50,
+		mode: 'insert-track',
+		trackMap: { 'clipboard-audio-track': 'audio-track' },
+	}, (prefix) => {
+		const count = (counts.get(prefix) || 0) + 1;
+		counts.set(prefix, count);
+		return `${prefix}-${count}`;
+	});
+
+	assert.deepEqual(command.collisionTrackIds, ['video-track', 'audio-track']);
+	assert.deepEqual(command.collisionClipIds, ['linked-video', 'unlinked-video', 'linked-audio']);
+	const pasted = apply(project, command);
+	assert.deepEqual(
+		pasted.clips
+			.map((clip) => [clip.kind, clip.timelineStartFrame, clip.durationFrames, clip.avLinkId])
+			.sort((left, right) => left[1] - right[1] || right[0].localeCompare(left[0])),
+		[
+			['video', 0, 50, 'linked-av'],
+			['audio', 0, 50, 'linked-av'],
+			['audio', 50, 100, null],
+			['video', 150, 50, command.splitAvLinkIds['linked-av']],
+			['audio', 150, 50, command.splitAvLinkIds['linked-av']],
+			['video', 250, 100, null],
+		],
+	);
 	assert.equal(validateAudioEditorProject(pasted), true);
 });
 
