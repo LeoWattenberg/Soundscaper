@@ -176,6 +176,9 @@ function mutateCommand(project, command) {
 		case 'clip/remove':
 			removeClip(project, command.clipId);
 			break;
+		case 'clip/remove-many':
+			removeClips(project, command.clipIds, command.rippleMode);
+			break;
 		case 'clip/update':
 			updateClip(project, command.clipId, command.changes);
 			break;
@@ -789,19 +792,40 @@ function addClip(project, trackId, value) {
 }
 
 function removeClip(project, clipId) {
-	const clip = requireClip(project, clipId);
-	const removedIds = new Set([clip.id]);
-	if (clip.avLinkId) {
-		for (const candidate of project.clips) {
-			if (candidate.avLinkId === clip.avLinkId) removedIds.add(candidate.id);
-		}
+	removeClips(project, [clipId]);
+}
+
+function removeClips(project, clipIds, rippleMode = 'none') {
+	if (!['none', 'clip', 'track'].includes(rippleMode || 'none')) {
+		throw new RangeError(`Unsupported clip removal ripple mode: ${rippleMode}.`);
 	}
+	const removedIds = new Set(collectRelatedClipIds(project, normalizeCommandIds(clipIds, 'clipIds')));
+	const removedByTrack = new Map();
 	for (const track of project.tracks) {
-		if (Array.isArray(track.clipIds)) {
-			track.clipIds = track.clipIds.filter((id) => !removedIds.has(id));
-		}
+		if (!Array.isArray(track.clipIds)) continue;
+		const removed = track.clipIds
+			.filter((id) => removedIds.has(id))
+			.map((id) => requireClip(project, id))
+			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
+		removedByTrack.set(track.id, removed);
+		track.clipIds = track.clipIds.filter((id) => !removedIds.has(id));
 	}
 	project.clips = project.clips.filter((candidate) => !removedIds.has(candidate.id));
+	if (rippleMode !== 'track') return;
+	for (const track of project.tracks) {
+		const removed = removedByTrack.get(track.id) || [];
+		if (!removed.length || !Array.isArray(track.clipIds)) continue;
+		for (const clipId of track.clipIds) {
+			const clip = requireClip(project, clipId);
+			const shiftFrames = removed.reduce((sum, removedClip) => (
+				clip.timelineStartFrame >= clipEndFrame(removedClip)
+					? sum + removedClip.durationFrames
+					: sum
+			), 0);
+			if (shiftFrames > 0) clip.timelineStartFrame -= shiftFrames;
+		}
+		sortTrack(project, track);
+	}
 }
 
 function updateClip(project, clipId, changes = {}) {
@@ -879,6 +903,17 @@ export function collectClipTransformIds(project, activeClipId) {
 	if (selectedIds.includes(activeClip.id)) {
 		for (const clipId of selectedIds) if (findClip(project, clipId)) ids.add(clipId);
 	}
+	return collectRelatedClipIds(project, [...ids]);
+}
+
+/**
+ * Expands clip IDs through both edit groups and linked audio/video pairs.
+ * Relations are followed transitively so callers cannot leave half of an A/V
+ * pair behind when it belongs to a larger clip group.
+ */
+export function collectRelatedClipIds(project, clipIds) {
+	const ids = new Set((Array.isArray(clipIds) ? clipIds : [clipIds])
+		.filter((clipId) => findClip(project, clipId)));
 	let changed = true;
 	while (changed) {
 		changed = false;
@@ -1525,6 +1560,9 @@ export function prepareKeepRangeCommand(project, options = {}) {
 export function createClipboardDescriptor(project, options = {}) {
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'clipboard range');
 	const trackIds = options.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
+	const includedClipIds = options.clipIds
+		? new Set(collectRelatedClipIds(project, options.clipIds))
+		: null;
 	return {
 		schemaVersion: 1,
 		sampleRate: project.sampleRate,
@@ -1532,6 +1570,7 @@ export function createClipboardDescriptor(project, options = {}) {
 		tracks: trackIds.map((trackId) => {
 			const track = requireTrack(project, trackId);
 			const clips = track.clipIds.flatMap((clipId) => {
+				if (includedClipIds && !includedClipIds.has(clipId)) return [];
 				const clip = requireClip(project, clipId);
 				const startFrame = Math.max(range.startFrame, clip.timelineStartFrame);
 				const endFrame = Math.min(range.endFrame, clipEndFrame(clip));

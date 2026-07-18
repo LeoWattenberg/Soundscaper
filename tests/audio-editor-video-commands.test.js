@@ -5,6 +5,8 @@ import {
 	applyEditorCommand,
 	collectClipTransformIds,
 	collectClipTrimIds,
+	collectRelatedClipIds,
+	createClipboardDescriptor,
 	prepareLinkedSplitCommand,
 	prepareLinkAvCommand,
 	prepareTransformClipsCommand,
@@ -248,6 +250,70 @@ test('linked clips are included in transform and trim participation', () => {
 		collectClipTrimIds(project, 'audio-clip', 'right'),
 		['video-clip', 'audio-clip'],
 	);
+	assert.deepEqual(
+		collectRelatedClipIds(project, ['video-clip']),
+		['video-clip', 'audio-clip'],
+	);
+});
+
+test('exact grouped clip edits do not capture or delete unrelated material inside the group span', () => {
+	const source = createAudioSourceV4({
+		id: 'group-source',
+		name: 'group.wav',
+		storageKey: 'group-source',
+		frameCount: 2_000,
+		channelCount: 1,
+		sampleRate: 48_000,
+	});
+	const clips = [{
+		id: 'group-first',
+		timelineStartFrame: 0,
+		sourceStartFrame: 0,
+		groupId: 'edit-group',
+	}, {
+		id: 'unrelated-gap',
+		timelineStartFrame: 200,
+		sourceStartFrame: 200,
+		groupId: null,
+	}, {
+		id: 'group-last',
+		timelineStartFrame: 400,
+		sourceStartFrame: 400,
+		groupId: 'edit-group',
+	}].map((value) => createAudioClipV4({
+		...value,
+		sourceId: source.id,
+		durationFrames: 100,
+	}));
+	const project = createAudioEditorProjectV4({
+		id: 'exact-group-project',
+		title: 'Exact group edits',
+		now: NOW,
+		sources: [source],
+		clips,
+		tracks: [createAudioTrackV4({
+			id: 'group-track',
+			clipIds: clips.map((clip) => clip.id),
+		})],
+	});
+	const clipboard = createClipboardDescriptor(project, {
+		startFrame: 0,
+		endFrame: 500,
+		trackIds: ['group-track'],
+		clipIds: ['group-first'],
+	});
+	assert.deepEqual(
+		clipboard.tracks[0].clips.map((clip) => clip.key),
+		['group-first:0:100', 'group-last:400:500'],
+	);
+
+	const edited = apply(project, {
+		type: 'clip/remove-many',
+		clipIds: ['group-first'],
+	});
+	assert.deepEqual(edited.clips.map((clip) => clip.id), ['unrelated-gap']);
+	assert.deepEqual(edited.tracks[0].clipIds, ['unrelated-gap']);
+	assert.equal(validateAudioEditorProject(edited), true);
 });
 
 test('a linked split keeps the left pair together and assigns a fresh link to the right pair', () => {

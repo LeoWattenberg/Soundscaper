@@ -1020,6 +1020,14 @@ test('controller splits selected and grouped clips at both selection boundaries 
 	controller.actions.edit.undo();
 	controller.actions.timeline.setSnap({ enabled: false, unit: 'seconds', mode: 'nearest' });
 
+	controller.actions.timeline.selectClip('split-selected');
+	controller.engine.positionFrame = 500;
+	controller.actions.edit.split();
+	project = controller.getSnapshot().project;
+	assert.equal(project.tracks.find((track) => track.id === firstTrackId).clipIds.length, 2);
+	assert.equal(project.tracks.find((track) => track.id === secondTrackId).clipIds.length, 3);
+	controller.actions.edit.undo();
+
 	controller.actions.edit.splitAt(500, [firstTrackId]);
 	project = controller.getSnapshot().project;
 	assert.equal(project.tracks.find((track) => track.id === firstTrackId).clipIds.length, 2);
@@ -1271,19 +1279,30 @@ test('cut and delete accept clip selections without a time range', async () => {
 			} },
 			{ type: 'clip/add', trackId, clip: {
 				id: 'clip-edit-target', sourceId: 'clip-edit-source', timelineStartFrame: 500,
-				sourceStartFrame: 500, durationFrames: 1_000,
+				sourceStartFrame: 500, durationFrames: 500,
 			} },
+			{ type: 'clip/add', trackId, clip: {
+				id: 'clip-edit-gap', sourceId: 'clip-edit-source', timelineStartFrame: 1_500,
+				sourceStartFrame: 1_500, durationFrames: 500,
+			} },
+			{ type: 'clip/add', trackId, clip: {
+				id: 'clip-edit-companion', sourceId: 'clip-edit-source', timelineStartFrame: 2_500,
+				sourceStartFrame: 2_500, durationFrames: 500,
+			} },
+			{ type: 'clip/group', clipIds: ['clip-edit-target', 'clip-edit-companion'], groupId: 'clip-edit-group' },
 		],
 	});
 
 	controller.actions.timeline.selectClip('clip-edit-target');
 	controller.actions.edit.cutLeaveGap();
 	assert.equal(controller.getSnapshot().project.clips.some((clip) => clip.id === 'clip-edit-target'), false);
+	assert.deepEqual(controller.getSnapshot().project.clips.map((clip) => clip.id), ['clip-edit-gap']);
 	assert.equal(controller.getSnapshot().history.hasClipboard, true);
 	controller.actions.edit.undo();
 	controller.actions.timeline.selectClip('clip-edit-target');
 	controller.actions.edit.deleteLeaveGap();
 	assert.equal(controller.getSnapshot().project.clips.some((clip) => clip.id === 'clip-edit-target'), false);
+	assert.deepEqual(controller.getSnapshot().project.clips.map((clip) => clip.id), ['clip-edit-gap']);
 	await controller.dispose();
 });
 

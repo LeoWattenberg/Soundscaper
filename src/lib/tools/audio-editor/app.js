@@ -24,6 +24,7 @@ import {
 	ClipTimePitchRenderCacheCoordinator,
 	collectClipTransformIds,
 	collectClipTrimIds,
+	collectRelatedClipIds,
 	createAup4Client,
 	createAiffStreamEncoder,
 	createAudioEditorPreferencesV1,
@@ -3881,19 +3882,33 @@ export function createAudioEditorController(_root = null, options = {}) {
 			};
 			if (action === 'copy' || Object.hasOwn(cutModes, action)) {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
+				const exactClipEdit = !baseSelection
+					&& selectedClipIds.length > 0
+					&& action !== 'cut-all-tracks-ripple';
+				const affectedTrackIds = action === 'cut-all-tracks-ripple' ? audioTrackIds : trackIds;
+				const clipboardOptions = {
+					...selection,
+					trackIds: exactClipEdit ? selectedClipTrackIds : affectedTrackIds,
+					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
+				};
 				if (action === 'copy') {
-					setSessionClipboard(createClipboardDescriptor(project, { ...selection, trackIds }));
+					setSessionClipboard(createClipboardDescriptor(project, clipboardOptions));
 					compactLiveSourceState();
 					void garbageCollectSources().catch(handleError);
 				}
 				else {
-					const affectedTrackIds = action === 'cut-all-tracks-ripple' ? audioTrackIds : trackIds;
-					setSessionClipboard(createClipboardDescriptor(project, { ...selection, trackIds: affectedTrackIds }));
-					commit(prepareRangeDeleteCommand(project, {
-						...selection,
-						trackIds: affectedTrackIds,
-						rippleMode: cutModes[action],
-					}));
+					setSessionClipboard(createClipboardDescriptor(project, clipboardOptions));
+					commit(exactClipEdit
+						? {
+							type: 'clip/remove-many',
+							clipIds: selectedClipIds,
+							rippleMode: cutModes[action],
+						}
+						: prepareRangeDeleteCommand(project, {
+							...selection,
+							trackIds: affectedTrackIds,
+							rippleMode: cutModes[action],
+						}));
 				}
 				publishDocumentSnapshot();
 				return;
@@ -3910,13 +3925,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}
 			if (action === 'duplicate') {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
-				setSessionClipboard(createClipboardDescriptor(project, { ...selection, trackIds }));
+				const exactClipEdit = !baseSelection && selectedClipIds.length > 0;
+				setSessionClipboard(createClipboardDescriptor(project, {
+					...selection,
+					trackIds: exactClipEdit ? selectedClipTrackIds : trackIds,
+					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
+				}));
 				commit(prepareControllerPaste('overlap', selection.endFrame));
 				return;
 			}
 			if (action === 'split') {
-				const boundaries = selection
-					? [selection.startFrame, selection.endFrame]
+				const boundaries = baseSelection
+					? [baseSelection.startFrame, baseSelection.endFrame]
 					: [normalizeTimelineFrame(engine.getPositionFrames())];
 				commitSplitAtFrames(boundaries);
 				return;
@@ -3951,11 +3971,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 				commit({ type: 'clip/ungroup', clipIds: selectedClipIds });
 				return;
 			}
-			if (action === 'delete' && !baseSelection && state.selectedClipId && selectedClipIds.length <= 1) {
-				commit({ type: 'clip/remove', clipId: state.selectedClipId });
-				state.selectedClipId = null;
-				return;
-			}
 			if (action === 'trim-outside-selection' && selection) {
 				commit(prepareKeepRangeCommand(project, { ...selection, trackIds }));
 				return;
@@ -3968,6 +3983,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 				'delete-per-track-ripple': 'track',
 				'delete-all-tracks-ripple': 'track',
 			};
+			if (
+				!baseSelection
+				&& selectedClipIds.length
+				&& Object.hasOwn(deleteModes, action)
+				&& action !== 'delete-all-tracks-ripple'
+			) {
+				commit({
+					type: 'clip/remove-many',
+					clipIds: selectedClipIds,
+					rippleMode: deleteModes[action],
+				});
+				state.selectedClipId = null;
+				return;
+			}
 			if (selection && Object.hasOwn(deleteModes, action)) {
 				commit(prepareRangeDeleteCommand(project, {
 					...selection,
@@ -4514,19 +4543,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function expandSelectedClipIds(rawClipIds) {
-		const clipIds = new Set(Array.isArray(rawClipIds)
-			? rawClipIds
-			: rawClipIds ? [rawClipIds] : []);
-		const groupIds = new Set();
-		for (const clipId of clipIds) {
-			const clip = findClip(project, clipId);
-			if (clip?.groupId) groupIds.add(clip.groupId);
-		}
-		if (!groupIds.size) return [...clipIds];
-		for (const clip of project.clips) {
-			if (clip.groupId && groupIds.has(clip.groupId)) clipIds.add(clip.id);
-		}
-		return [...clipIds];
+		return collectRelatedClipIds(project, rawClipIds || []);
 	}
 
 	function selectClip(clipId, options = {}) {
