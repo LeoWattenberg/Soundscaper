@@ -11,6 +11,7 @@ import {
 	effectRackLatencyFrames,
 	estimatePlayAtSpeedStaffPadPeakBytes,
 	getProjectDurationFrames,
+	getProjectTimelineDurationFrames,
 	projectEffectRacks,
 	projectGraphLatencyFrames,
 } from '../src/lib/tools/audio-editor/engine.js';
@@ -637,6 +638,22 @@ test('loop scheduling releases ended clip graphs', async () => {
 
 	engine.stop();
 	assert.equal(graph.nodes.transientNodes.size, 0);
+	await engine.dispose();
+});
+
+test('Web Audio playback uses the extended editor timeline duration', async () => {
+	const project = createProject();
+	project.clips[0].durationFrames = 960_000;
+	const engine = createAudioEditorEngine();
+
+	engine.loadProject(project);
+
+	assert.equal(getProjectDurationFrames(project), 960_000);
+	assert.equal(getProjectTimelineDurationFrames(project), 1_920_000);
+	assert.equal(engine.getState().durationFrames, 960_000);
+	assert.equal(engine.playbackDurationFrames, 1_920_000);
+	assert.equal(engine.seek(1_440_000), 1_440_000);
+	assert.equal(engine.getState().positionFrame, 1_440_000);
 	await engine.dispose();
 });
 

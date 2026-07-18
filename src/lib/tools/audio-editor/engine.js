@@ -17,6 +17,7 @@ import { createAsyncPlanarPcmSinkQueue } from './pcm-sink.js';
 import { loadParametricEqWasmModule } from './parametric-eq/wasm-loader.js';
 import { designParametricEqWasmConfiguration } from './parametric-eq/wasm-runtime.js';
 import { audioTrackChannelCountV2 } from './project-v2.js';
+import { EDITOR_TIMELINE_MINIMUM_SECONDS } from './project.js';
 import { createEbuR128MeterNode } from './ebu-r128-node.js';
 export {
 	createRecordingCapturePool,
@@ -93,6 +94,7 @@ export class WebAudioEditorEngine {
 		this.playbackStartFrame = 0;
 		this.playbackStartTime = 0;
 		this.durationFrames = 0;
+		this.playbackDurationFrames = 0;
 		this.playEndFrame = 0;
 		this.loopScheduleTime = 0;
 		this.playbackRate = 1;
@@ -125,11 +127,12 @@ export class WebAudioEditorEngine {
 		this.sources = sourceBuffers instanceof Map ? new Map(sourceBuffers) : new Map(Object.entries(sourceBuffers || {}));
 		if (options.chunkSources !== undefined) this.setChunkSources(options.chunkSources);
 		this.durationFrames = getProjectDurationFrames(project);
+		this.playbackDurationFrames = getProjectTimelineDurationFrames(project);
 		this.playbackRate = 1;
 		this.playbackMode = 'normal';
 		this.preparedSpeedPlayback = null;
-		this.positionFrame = Math.min(this.positionFrame, this.durationFrames);
-		this.playEndFrame = this.durationFrames;
+		this.positionFrame = Math.min(this.positionFrame, this.playbackDurationFrames);
+		this.playEndFrame = this.playbackDurationFrames;
 		this.loop = normalizeLoop(project?.loop, this.durationFrames);
 		this.loudnessMeasurementManuallyPaused = false;
 		this.masterLoudnessMeter?.setRunning(false);
@@ -146,7 +149,7 @@ export class WebAudioEditorEngine {
 		const playbackRate = this.playbackRate;
 		const playbackMode = this.playbackMode;
 		this.loadProject(project, sourceBuffers, options);
-		this.positionFrame = Math.min(position, this.durationFrames);
+		this.positionFrame = Math.min(position, this.playbackDurationFrames);
 		if (wasPlaying && playbackMode === 'naive') return this.playAtSpeed(playbackRate);
 		// A StaffPad mix belongs to the exact project snapshot that produced it.
 		// Stop instead of silently resuming that stale PCM or falling back to 1x.
@@ -234,7 +237,7 @@ export class WebAudioEditorEngine {
 		const context = await this.getAudioContext();
 		await ensureProjectWorklets(context, this.project);
 		await this.#ensureMasterLoudnessMeter(context);
-		if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
+		if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
 		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 		await this.#schedulePlayback(this.positionFrame, context.currentTime);
 	}
@@ -265,7 +268,7 @@ export class WebAudioEditorEngine {
 		signal?.addEventListener('abort', cancelPendingPlayback, { once: true });
 		try {
 			throwIfAborted(signal);
-			if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
+			if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
 			if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) {
 				this.positionFrame = this.loop.startFrame;
 			}
@@ -331,7 +334,7 @@ export class WebAudioEditorEngine {
 		await ensureProjectWorklets(context, this.project);
 		await this.#ensureMasterLoudnessMeter(context);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
-		this.positionFrame = clampFrame(fromFrame, 0, this.durationFrames);
+		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
 		await this.#schedulePlayback(this.positionFrame, scheduledTime);
 	}
 
@@ -355,12 +358,12 @@ export class WebAudioEditorEngine {
 	}
 
 	seek(frame) {
-		const nextFrame = clampFrame(frame, 0, this.durationFrames);
+		const nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
 		const wasPlaying = this.state === 'playing';
 		this.#cancelScrub();
 		this.#haltGraph();
 		this.positionFrame = nextFrame;
-		if (wasPlaying && nextFrame < this.durationFrames) void this.#scheduleCurrentPlayback(nextFrame).catch((error) => this.#handleSchedulingError(error));
+		if (wasPlaying && nextFrame < this.playbackDurationFrames) void this.#scheduleCurrentPlayback(nextFrame).catch((error) => this.#handleSchedulingError(error));
 		else {
 			this.#setState(this.project ? 'paused' : 'empty');
 			this.#emitPosition();
@@ -401,7 +404,7 @@ export class WebAudioEditorEngine {
 	 */
 	async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		if (!this.project) throw new Error('Load an audio editor project before scrubbing.');
-		const nextFrame = clampFrame(frame, 0, this.durationFrames);
+		const nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
 		const frameMs = clamp(Number(durationMs) || DEFAULT_SCRUB_FRAME_MS, 16, 250);
 		if (!this.scrubbing) {
 			this.#cancelScrub();
@@ -413,7 +416,7 @@ export class WebAudioEditorEngine {
 		this.#emitPosition();
 
 		const now = monotonicMilliseconds();
-		if (now < this.scrubNextAt || nextFrame >= this.durationFrames) return this.positionFrame;
+		if (now < this.scrubNextAt || nextFrame >= this.playbackDurationFrames) return this.positionFrame;
 		this.scrubNextAt = now + frameMs;
 		const generation = ++this.scrubGeneration;
 		this.#haltGraph();
@@ -423,7 +426,7 @@ export class WebAudioEditorEngine {
 
 		const fromFrame = this.positionFrame;
 		const frameCount = Math.max(1, Math.round(frameMs / 1000 * this.sampleRate));
-		const toFrame = Math.min(this.durationFrames, fromFrame + frameCount);
+		const toFrame = Math.min(this.playbackDurationFrames, fromFrame + frameCount);
 		if (toFrame <= fromFrame) return this.positionFrame;
 		const graph = buildProjectGraph(context, context.destination, this.project, {
 			metering: false,
@@ -1085,7 +1088,7 @@ export class WebAudioEditorEngine {
 			await this.#ensureMasterLoudnessMeter(context);
 		}
 		this.#haltGraph();
-		const frame = clampFrame(fromFrame, 0, this.durationFrames);
+		const frame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
 		const nodes = [];
 		const sources = new Set();
 		const source = addNode(nodes, context.createBufferSource());
@@ -1113,7 +1116,7 @@ export class WebAudioEditorEngine {
 			source.loopStart = outputFrameAt(this.loop.startFrame) / prepared.sampleRate;
 			source.loopEnd = outputFrameAt(this.loop.endFrame) / prepared.sampleRate;
 		}
-		this.playEndFrame = Math.max(frame, this.loop.enabled ? this.loop.endFrame : this.durationFrames);
+		this.playEndFrame = Math.max(frame, this.loop.enabled ? this.loop.endFrame : this.playbackDurationFrames);
 		this.playbackStartFrame = frame;
 		this.positionFrame = frame;
 		this.playbackStartTime = scheduledTime;
@@ -1153,7 +1156,7 @@ export class WebAudioEditorEngine {
 			await this.#ensureMasterLoudnessMeter(context);
 		}
 		this.#haltGraph();
-		const loopEnd = this.loop.enabled ? this.loop.endFrame : this.durationFrames;
+		const loopEnd = this.loop.enabled ? this.loop.endFrame : this.playbackDurationFrames;
 		this.playEndFrame = Math.max(fromFrame, loopEnd);
 		this.playbackStartFrame = fromFrame;
 		this.positionFrame = fromFrame;
@@ -1260,7 +1263,7 @@ export class WebAudioEditorEngine {
 				return;
 			}
 			if (frame < this.playEndFrame) return;
-			this.positionFrame = this.durationFrames;
+			this.positionFrame = this.playbackDurationFrames;
 			this.#haltGraph();
 			this.masterLoudnessMeter?.setRunning(false);
 			this.#setState('stopped');
@@ -1331,7 +1334,7 @@ export class WebAudioEditorEngine {
 	}
 
 	#emitPosition(frame = this.getPositionFrames()) {
-		for (const listener of this.positionListeners) listener(frame, this.durationFrames);
+		for (const listener of this.positionListeners) listener(frame, this.playbackDurationFrames);
 	}
 
 	#emitMeters() {
@@ -1367,6 +1370,14 @@ export function getProjectDurationFrames(project) {
 		duration = Math.max(duration, clipStart(clip) + clipDuration(clip));
 	}
 	return duration;
+}
+
+export function getProjectTimelineDurationFrames(project) {
+	const sampleRate = positiveInteger(project?.sampleRate, DEFAULT_SAMPLE_RATE);
+	return Math.max(
+		getProjectDurationFrames(project) * 2,
+		Math.round(sampleRate * EDITOR_TIMELINE_MINIMUM_SECONDS),
+	);
 }
 
 function activeRackEffects(owner) {

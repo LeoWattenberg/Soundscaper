@@ -814,14 +814,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 				playAtSpeed: (rate = state.playAtSpeedRate) => handlePlayAtSpeed(rate),
 				setPlayAtSpeedRate,
 				stop: () => handleTransport('stop'),
-				seek: (frame) => engine.seek(normalizeTimelineFrame(frame)),
+				seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
 				scrub: (frame) => {
 					if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 						return engine.getPositionFrames();
 					}
 					if (state.missingSourceIds.size) throw new Error(copy.localSourcesMissing);
 					cancelPlaybackCachePreparation();
-					const nextFrame = normalizeTimelineFrame(frame);
+					const nextFrame = normalizePlaybackFrame(frame);
 					return typeof engine.scrub === 'function' ? engine.scrub(nextFrame) : engine.seek(nextFrame);
 				},
 				endScrub: () => engine.endScrub?.(),
@@ -3647,7 +3647,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			return state.recorder ? stopRecording() : engine.stop();
 		}
 		if (action === 'jump-start') return engine.seek(0);
-		if (action === 'jump-end') return engine.seek(projectDurationFrames(project));
+		if (action === 'jump-end') return engine.seek(editorTimelineDurationFrames(project, projectSampleRate()));
 		if (action === 'rewind') return engine.seek(engine.getPositionFrames() - projectSampleRate() * 5);
 		if (action === 'forward') return engine.seek(engine.getPositionFrames() + projectSampleRate() * 5);
 		if (action === 'loop') {
@@ -3800,6 +3800,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function normalizeTimelineFrame(value) {
 		const maximum = project ? projectDurationFrames(project) : 0;
+		const frame = Number(value);
+		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
+		return Math.max(0, Math.min(maximum, Math.round(frame)));
+	}
+
+	function normalizePlaybackFrame(value) {
+		const maximum = project ? editorTimelineDurationFrames(project, projectSampleRate()) : 0;
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
 		return Math.max(0, Math.min(maximum, Math.round(frame)));
