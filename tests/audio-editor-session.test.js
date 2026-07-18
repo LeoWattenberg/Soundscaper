@@ -239,3 +239,44 @@ test('invalid clipboard replacement is atomic and cannot lose an existing clipbo
 	assert.deepEqual(controller.serialize(), before);
 	assert.deepEqual(controller.getSourceReferenceCounts(), { 'source-a': 2 });
 });
+
+test('history ingestion clones the aggregate once regardless of stack depth and keeps caller data isolated', () => {
+	const initial = audioProject('project-history-clone', 'source-history-clone');
+	const initialTitle = initial.title;
+	let present = initial;
+	const undoStack = [];
+	for (let index = 0; index < 40; index += 1) {
+		const command = { type: 'project/rename', title: `Revision ${index}` };
+		undoStack.push({ project: present, command });
+		present = applyEditorCommand(present, command, { now: LATER });
+	}
+	const history = {
+		limit: 200,
+		present,
+		undoStack,
+		redoStack: [],
+	};
+	const controller = createAudioEditorSessionController({ projects: [initial] });
+	const nativeStructuredClone = globalThis.structuredClone;
+	let aggregateCloneCalls = 0;
+	globalThis.structuredClone = (value, options) => {
+		aggregateCloneCalls += 1;
+		return nativeStructuredClone(value, options);
+	};
+	let result;
+	try {
+		result = controller.updateProjectHistory(initial.id, history);
+	} finally {
+		globalThis.structuredClone = nativeStructuredClone;
+	}
+
+	assert.equal(aggregateCloneCalls, 4);
+	history.present.title = 'Mutated caller history';
+	history.undoStack[0].project.title = 'Mutated caller snapshot';
+	result.history.present.title = 'Mutated result';
+	result.history.undoStack[0].project.title = 'Mutated result snapshot';
+	const retained = controller.getProjectHistory(initial.id);
+	assert.equal(retained.present.title, 'Revision 39');
+	assert.equal(retained.undoStack[0].project.title, initialTitle);
+	assert.deepEqual(controller.getSourceReferenceCounts(), { 'source-history-clone': 1 });
+});

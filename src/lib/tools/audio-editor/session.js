@@ -50,7 +50,7 @@ function nonNegativeInteger(value, name) {
 	return value;
 }
 
-function normalizeProject(project, name = 'project') {
+function validateProject(project, name = 'project') {
 	if (!project || typeof project !== 'object') throw new TypeError(`A ${name} is required.`);
 	positiveInteger(project.schemaVersion, `${name}.schemaVersion`);
 	nonEmptyString(project.id, `${name}.id`);
@@ -58,7 +58,11 @@ function normalizeProject(project, name = 'project') {
 	if (!Array.isArray(project.sources) || !Array.isArray(project.clips) || !Array.isArray(project.tracks)) {
 		throw new TypeError(`${name} sources, clips, and tracks must be arrays.`);
 	}
-	return clone(project);
+	return project;
+}
+
+function normalizeProject(project, name = 'project') {
+	return clone(validateProject(project, name));
 }
 
 function createHistory(project, history) {
@@ -75,20 +79,21 @@ function createHistory(project, history) {
 	if (!Array.isArray(history.undoStack) || !Array.isArray(history.redoStack)) {
 		throw new TypeError('Project history stacks must be arrays.');
 	}
-	const present = normalizeProject(history.present, 'history.present');
+	const normalized = clone(history);
+	const present = validateProject(normalized.present, 'history.present');
 	if (present.id !== project.id) throw new RangeError('Project history must belong to the open project.');
 	const normalizeEntry = (entry, name) => {
 		if (!entry || typeof entry !== 'object') throw new TypeError(`${name} must be a history entry.`);
-		const snapshot = normalizeProject(entry.project, `${name}.project`);
+		const snapshot = validateProject(entry.project, `${name}.project`);
 		if (snapshot.id !== project.id) throw new RangeError(`${name} belongs to another project.`);
-		return { ...clone(entry), project: snapshot, command: clone(entry.command) };
+		return entry;
 	};
 	return {
-		...clone(history),
-		limit: history.limit,
+		...normalized,
+		limit: normalized.limit,
 		present,
-		undoStack: history.undoStack.map((entry, index) => normalizeEntry(entry, `history.undoStack[${index}]`)),
-		redoStack: history.redoStack.map((entry, index) => normalizeEntry(entry, `history.redoStack[${index}]`)),
+		undoStack: normalized.undoStack.map((entry, index) => normalizeEntry(entry, `history.undoStack[${index}]`)),
+		redoStack: normalized.redoStack.map((entry, index) => normalizeEntry(entry, `history.redoStack[${index}]`)),
 	};
 }
 
@@ -182,16 +187,17 @@ function normalizeSessionClipboard(value) {
 
 function normalizeTab(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A project tab is required.');
-	const project = value.history?.present || value.project;
-	const normalizedProject = normalizeProject(project, 'tab project');
-	if (value.projectId != null && value.projectId !== normalizedProject.id) {
+	const project = validateProject(value.history?.present || value.project, 'tab project');
+	if (value.projectId != null && value.projectId !== project.id) {
 		throw new RangeError('Project tab ID does not match its project history.');
 	}
-	const history = createHistory(normalizedProject, value.history);
+	const history = createHistory(project, value.history);
+	const normalizedProject = history.present;
 	const readOnly = Boolean(value.readOnly);
 	return {
 		projectId: normalizedProject.id,
 		history,
+		sourceIds: collectHistorySourceIds(history),
 		readOnly,
 		readOnlyReason: readOnly ? String(value.readOnlyReason || 'read-only') : null,
 		lockMethod: value.lockMethod == null ? null : String(value.lockMethod),
@@ -204,7 +210,7 @@ function countsFor(tabs, clipboard) {
 	const counts = new Map();
 	const add = (sourceId) => counts.set(sourceId, (counts.get(sourceId) || 0) + 1);
 	for (const tab of tabs) {
-		for (const sourceId of collectHistorySourceIds(tab.history)) add(sourceId);
+		for (const sourceId of tab.sourceIds || collectHistorySourceIds(tab.history)) add(sourceId);
 	}
 	for (const sourceId of sourceIdsFromDescriptor(clipboard?.descriptor)) add(sourceId);
 	return counts;
@@ -280,8 +286,8 @@ export function createAudioEditorSessionController(options = {}) {
 
 	function openProject(project, openOptions = {}) {
 		ensureUsable();
-		const normalizedProject = normalizeProject(project);
-		const existing = tabs.find((tab) => tab.projectId === normalizedProject.id);
+		const candidateProject = validateProject(project);
+		const existing = tabs.find((tab) => tab.projectId === candidateProject.id);
 		if (existing) {
 			const activated = openOptions.activate !== false && activeProjectId !== existing.projectId;
 			if (activated) {
@@ -290,10 +296,10 @@ export function createAudioEditorSessionController(options = {}) {
 			}
 			return { projectId: existing.projectId, opened: false, activated, releasedSourceIds: [] };
 		}
-		const schemaVersion = Number(normalizedProject.schemaVersion);
+		const schemaVersion = Number(candidateProject.schemaVersion);
 		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
 		const tab = normalizeTab({
-			project: normalizedProject,
+			project: candidateProject,
 			history: openOptions.history,
 			readOnly: openOptions.readOnly || newerSchema,
 			readOnlyReason: openOptions.readOnlyReason || (newerSchema ? 'newer-schema' : null),
@@ -335,6 +341,7 @@ export function createAudioEditorSessionController(options = {}) {
 				redoStack: [],
 			};
 		}
+		tab.sourceIds = collectHistorySourceIds(tab.history);
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'project-update', { project: clone(next) });
 	}
@@ -347,6 +354,7 @@ export function createAudioEditorSessionController(options = {}) {
 			throw new RangeError('Project history updates cannot change schema version.');
 		}
 		tab.history = nextHistory;
+		tab.sourceIds = collectHistorySourceIds(nextHistory);
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'history-update', { history: clone(tab.history) });
 	}
