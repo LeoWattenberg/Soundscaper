@@ -148,6 +148,7 @@ import {
 	setRecordingTrackRoute,
 } from './recording-routing.js';
 import { createEditorFfmpeg } from './ffmpeg.js';
+import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { createPlanarPcmChunkCoalescer } from './pcm-chunks.js';
 import { createSourceBufferCache } from './source-buffer-cache.js';
 import { createEbuR128MeterNode } from './ebu-r128-node.js';
@@ -2316,11 +2317,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		const context = await engine.getAudioContext({ resume: false });
 		let decoded;
+		let originalSampleRate = null;
 		try {
-			decoded = await engine.decodeAudioData(await file.arrayBuffer());
+			const encoded = await file.arrayBuffer();
+			originalSampleRate = inspectEncodedAudioSampleRate(encoded);
+			decoded = await engine.decodeAudioData(encoded);
 		} catch {
 			const fallback = await ffmpeg.decode(file, { sampleRate: projectSampleRate() });
 			decoded = await bufferFromChannels(fallback.channels, fallback.sampleRate, context, copy);
+			originalSampleRate ??= fallback.sampleRate;
 		}
 		const canonical = await canonicalizeBuffer(decoded, context, null, copy);
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
@@ -2349,7 +2354,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			frameCount: canonical.length,
 			channelCount: canonical.numberOfChannels,
 			sampleRate: canonical.sampleRate,
-			originalSampleRate: decoded.sampleRate,
+			originalSampleRate: originalSampleRate || decoded.sampleRate,
 		}, {
 			schemaVersion: 2,
 			title: trackName,
@@ -2438,11 +2443,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const context = await engine.getAudioContext({ resume: false });
 			try {
 				let decodedAudio;
+				let declaredAudioSampleRate = null;
 				try {
 					// The browser has already decoded this container for thumbnails,
 					// and native Web Audio handles AAC tracks that may be unavailable
 					// to a particular FFmpeg core build.
-					decodedAudio = await engine.decodeAudioData(await file.arrayBuffer());
+					const encoded = await file.arrayBuffer();
+					declaredAudioSampleRate = inspectEncodedAudioSampleRate(encoded);
+					decodedAudio = await engine.decodeAudioData(encoded);
 				} catch {
 					decodedAudio = await ffmpeg.decode(file, { sampleRate });
 				}
@@ -2452,7 +2460,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 						? audioBufferChannels(decodedAudio)
 						: null;
 				if (decodedChannels?.length) {
-					originalAudioSampleRate = decodedAudio.sampleRate || sampleRate;
+					originalAudioSampleRate = declaredAudioSampleRate || decodedAudio.sampleRate || sampleRate;
 					const decodedBuffer = await bufferFromChannels(
 						decodedChannels,
 						decodedAudio.sampleRate,

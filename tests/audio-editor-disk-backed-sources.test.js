@@ -94,6 +94,26 @@ test('decoded imports route to the visible project bin and honor exact timeline 
 	}
 });
 
+test('native decoded imports preserve the encoded source sample rate metadata', async () => {
+	const store = new LogicalPcmStore();
+	const engine = new ControllerEngine({ decoded: [realAudioBuffer(128, 0.25)] });
+	const controller = createTestController({ store, engine });
+
+	try {
+		await controller.ready;
+		await controller.actions.project.importFiles([encodedAudioFile(
+			'original-rate.mp3',
+			'audio/mpeg',
+			Uint8Array.of(0xff, 0xfb, 0x90, 0),
+		)]);
+		const source = controller.getSnapshot().project.sources[0];
+		assert.equal(source.sampleRate, 48_000, 'native PCM remains at the AudioContext rate');
+		assert.equal(source.originalSampleRate, 44_100);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('an imported source over 32 MiB is persisted and immediately represented by a chunk provider', async () => {
 	const store = new LogicalPcmStore();
 	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
@@ -348,6 +368,17 @@ function audioFile(name) {
 		type: 'audio/wav',
 		size: 1,
 		async arrayBuffer() { return new ArrayBuffer(1); },
+	};
+}
+
+function encodedAudioFile(name, type, bytes) {
+	return {
+		name,
+		type,
+		size: bytes.byteLength,
+		async arrayBuffer() {
+			return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+		},
 	};
 }
 
