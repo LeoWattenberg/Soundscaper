@@ -107,7 +107,7 @@ const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	contrast: 'contrast',
 });
 const DEFAULT_PLAYBACK_METER_SETTINGS = Object.freeze({
-	position: 'top',
+	position: 'side',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
@@ -116,7 +116,7 @@ const DEFAULT_PLAYBACK_METER_SETTINGS = Object.freeze({
 	ebuLiveValue: 'momentary',
 });
 const DEFAULT_RECORDING_METER_SETTINGS = Object.freeze({
-	position: 'flyout',
+	position: 'side',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
@@ -194,6 +194,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(loadPlaybackMeterSettings);
 	const [recordingMeterSettings, setRecordingMeterSettings] = useState(loadRecordingMeterSettings);
+	const meterWorkspaceRef = useRef(null);
 	const toolbarDragRef = useRef(null);
 	const floatingToolbarRef = useRef(null);
 	const importInputRef = useRef(null);
@@ -210,9 +211,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const isProjectBinCompact = useMediaQuery('(max-width: 520px)');
 	const project = snapshot.project;
 	const preferences = snapshot.preferences;
+	const isVideoEditorWorkspace = preferences?.workspace?.activeId === 'video-editor';
 	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
 	const projectBinEffectivelyOpen = projectBinPreferenceVisible
-		&& (!isProjectBinCompact || projectBinSessionOpened);
+		&& (isVideoEditorWorkspace || !isProjectBinCompact || projectBinSessionOpened);
 	const toolbarPreferences = preferences?.workspace?.toolbars || {};
 	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const blocked = Boolean(
@@ -360,6 +362,18 @@ function AudioEditorWorkspace({ locale, copy }) {
 			// Meter presentation preferences are best-effort in restricted storage contexts.
 		}
 	}, [recordingMeterSettings]);
+	useEffect(() => {
+		const activeWorkspaceId = preferences?.workspace?.activeId || 'modern';
+		const previousWorkspaceId = meterWorkspaceRef.current;
+		meterWorkspaceRef.current = activeWorkspaceId;
+		if (!previousWorkspaceId || previousWorkspaceId === activeWorkspaceId || activeWorkspaceId !== 'modern') return;
+		setPlaybackMeterSettings((settings) => settings.position === 'side'
+			? settings
+			: { ...settings, position: 'side' });
+		setRecordingMeterSettings((settings) => settings.position === 'side'
+			? settings
+			: { ...settings, position: 'side' });
+	}, [preferences?.workspace?.activeId]);
 	const uiFlags = parityUi.flags;
 
 	const onError = useCallback((error) => {
@@ -378,6 +392,41 @@ function AudioEditorWorkspace({ locale, copy }) {
 			return undefined;
 		}
 	}, [onError]);
+	const workspaceSwitcherOptions = useMemo(() => [
+		{ id: 'modern', name: copy.workspaceModern },
+		{ id: 'music', name: copy.workspaceMusic },
+		{ id: 'classic', name: copy.workspaceClassic },
+		{ id: 'video-editor', name: copy.workspaceVideo },
+		...(preferences?.workspace?.custom || []).map(({ id, name }) => ({ id, name })),
+	], [
+		copy.workspaceClassic,
+		copy.workspaceModern,
+		copy.workspaceMusic,
+		copy.workspaceVideo,
+		preferences?.workspace?.custom,
+	]);
+	const publishWorkspaceSwitcherState = useCallback(() => {
+		globalThis.dispatchEvent?.(new CustomEvent('soundscaper:workspace-state', {
+			detail: {
+				activeId: preferences?.workspace?.activeId || 'modern',
+				workspaces: workspaceSwitcherOptions,
+			},
+		}));
+	}, [preferences?.workspace?.activeId, workspaceSwitcherOptions]);
+	useEffect(() => {
+		const handleWorkspaceRequest = (event) => {
+			const workspaceId = event?.detail?.workspaceId;
+			if (!workspaceSwitcherOptions.some(({ id }) => id === workspaceId)) return;
+			run(() => controller.actions.preferences.setWorkspace(workspaceId));
+		};
+		globalThis.addEventListener?.('soundscaper:workspace-request', handleWorkspaceRequest);
+		globalThis.addEventListener?.('soundscaper:workspace-ready', publishWorkspaceSwitcherState);
+		publishWorkspaceSwitcherState();
+		return () => {
+			globalThis.removeEventListener?.('soundscaper:workspace-request', handleWorkspaceRequest);
+			globalThis.removeEventListener?.('soundscaper:workspace-ready', publishWorkspaceSwitcherState);
+		};
+	}, [controller, publishWorkspaceSwitcherState, run, workspaceSwitcherOptions]);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
@@ -1185,6 +1234,23 @@ function AudioEditorWorkspace({ locale, copy }) {
 				onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
 			/>
 
+			{isVideoEditorWorkspace && <VideoEditorWorkspacePanels
+				controller={controller}
+				snapshot={snapshot}
+				copy={copy}
+				locale={locale}
+				fileService={fileService}
+				playbackMeterSettings={playbackMeterSettings}
+				run={run}
+				showArmControls={showArmControls}
+				displayAudioSupported={displayAudioSupported}
+				onOpenEffects={openEffects}
+				effectsPanelTarget={effectsPanelTarget}
+				onEffectWindowChange={setEffectWindow}
+				onTogglePanel={toggleWorkspacePanel}
+				blocked={blocked}
+			/>}
+
 			{toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
 
 			{snapshot.monitor?.enabled && (
@@ -1644,6 +1710,7 @@ function EditorToolToolbar({
 	}, []);
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
+	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
 	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
@@ -1839,7 +1906,7 @@ function EditorToolToolbar({
 						onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate: project?.sampleRate })))}
 					/>
 				</div>}
-				<label className="kw-audio-editor__tempo-control" data-action-id="playback-bpm">
+				{showMusicalTiming && <label className="kw-audio-editor__tempo-control" data-action-id="playback-bpm">
 					<span>{copy.projectTempo}</span>
 					<input
 						type="number"
@@ -1853,8 +1920,8 @@ function EditorToolToolbar({
 							if (Number.isFinite(bpm) && bpm >= 1) run(() => controller.actions.project.setTempo(bpm));
 						}}
 					/>
-				</label>
-				<label className="kw-audio-editor__signature-control" data-action-id="playback-time-signature">
+				</label>}
+				{showMusicalTiming && <label className="kw-audio-editor__signature-control" data-action-id="playback-time-signature">
 					<span>{copy.timeSignature}</span>
 					<span className="kw-audio-editor__signature-fields">
 						<input
@@ -1877,7 +1944,7 @@ function EditorToolToolbar({
 							onChange={(event) => run(() => controller.actions.project.setTimeSignature(project?.tempo?.timeSignature?.numerator || 4, Number(event.currentTarget.value)))}
 						/>
 					</span>
-				</label>
+				</label>}
 
 				{isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
 					copy={copy}
@@ -3173,6 +3240,72 @@ function clampFloatingPanelGeometry(panel, workspaceBounds = {}) {
 	};
 }
 
+function VideoEditorWorkspacePanels({
+	controller,
+	snapshot,
+	copy,
+	locale,
+	fileService,
+	playbackMeterSettings,
+	run,
+	showArmControls,
+	displayAudioSupported,
+	onOpenEffects,
+	effectsPanelTarget,
+	onEffectWindowChange,
+	onTogglePanel,
+	blocked,
+}) {
+	const panelIds = ['project-bin', 'video-preview'].filter((panelId) => (
+		snapshot.preferences?.workspace?.panels?.[panelId]?.visible
+	));
+	if (!panelIds.length) return null;
+	return (
+		<section
+			className="kw-audio-editor__video-workspace"
+			data-video-workspace
+			aria-label={`${copy.workspace}: ${copy.workspaceVideo}`}
+		>
+			{panelIds.map((panelId) => (
+				<section
+					key={panelId}
+					className="kw-audio-editor__workspace-panel kw-audio-editor__video-workspace-panel"
+					data-workspace-panel={panelId}
+					data-video-workspace-panel={panelId}
+				>
+					<header className="kw-audio-editor__workspace-panel-header">
+						<h2>{workspacePanelLabel(copy, panelId)}</h2>
+						<button
+							type="button"
+							className="kw-audio-editor__workspace-panel-close"
+							aria-label={`${copy.close}: ${workspacePanelLabel(copy, panelId)}`}
+							onClick={() => onTogglePanel(panelId)}
+						>×</button>
+					</header>
+					<div className="kw-audio-editor__workspace-panel-content">
+						<WorkspacePanelContent
+							panelId={panelId}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							playbackMeterSettings={playbackMeterSettings}
+							run={run}
+							showArmControls={showArmControls}
+							displayAudioSupported={displayAudioSupported}
+							onOpenEffects={onOpenEffects}
+							effectsPanelTarget={effectsPanelTarget}
+							onEffectWindowChange={onEffectWindowChange}
+							blocked={blocked}
+						/>
+					</div>
+				</section>
+			))}
+		</section>
+	);
+}
+
 function WorkspacePanelDock({
 	dock,
 	controller,
@@ -3205,6 +3338,8 @@ function WorkspacePanelDock({
 		.filter(([id, panel]) => (
 			panel?.visible
 			&& panel.dock === dock
+			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
+				&& (id === 'project-bin' || id === 'video-preview'))
 			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
 			&& (id !== 'video-preview' || snapshot.project?.tracks?.some((track) => (
 				track.type === 'video' && track.clipIds?.length
@@ -3969,11 +4104,19 @@ function WorkspacePanelContent({
 
 function VideoPreviewPanel({ controller, snapshot, copy }) {
 	const videoRef = useRef(null);
-	const telemetry = useAudioEditorTelemetrySelector(controller, (value) => ({
-		positionFrame: Math.max(0, Number(value.positionFrame) || 0),
-		transportState: value.transportState || 'stopped',
-		playbackRate: Math.max(0.001, Number(value.playbackRate) || 1),
-	}));
+	const positionFrame = useAudioEditorTelemetrySelector(
+		controller,
+		(value) => Math.max(0, Number(value.positionFrame) || 0),
+	);
+	const transportState = useAudioEditorTelemetrySelector(
+		controller,
+		(value) => value.transportState || 'stopped',
+	);
+	const playbackRate = useAudioEditorTelemetrySelector(
+		controller,
+		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
+	);
+	const telemetry = { positionFrame, transportState, playbackRate };
 	const project = snapshot.project;
 	const clipById = useMemo(() => new Map(
 		(project?.clips || []).map((clip) => [clip.id, clip]),
@@ -4965,6 +5108,7 @@ function WorkspacePreferencesDialog({
 										{ value: 'modern', label: copy.workspaceModern },
 										{ value: 'music', label: copy.workspaceMusic },
 										{ value: 'classic', label: copy.workspaceClassic },
+										{ value: 'video-editor', label: copy.workspaceVideo },
 										...preferences.workspace.custom.map((workspace) => ({ value: workspace.id, label: workspace.name })),
 									]}
 								/>
@@ -6653,6 +6797,7 @@ function createApplicationMenus({
 						{ id: 'workspace-modern', label: copy.workspaceModern, checked: preferences.workspace.activeId === 'modern', onClick: () => actions.setWorkspace('modern') },
 						{ id: 'workspace-music', label: copy.workspaceMusic, checked: preferences.workspace.activeId === 'music', onClick: () => actions.setWorkspace('music') },
 						{ id: 'workspace-classic', label: copy.workspaceClassic, checked: preferences.workspace.activeId === 'classic', onClick: () => actions.setWorkspace('classic') },
+						{ id: 'workspace-video-editor', label: copy.workspaceVideo, checked: preferences.workspace.activeId === 'video-editor', onClick: () => actions.setWorkspace('video-editor') },
 						...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
 					],
 				},

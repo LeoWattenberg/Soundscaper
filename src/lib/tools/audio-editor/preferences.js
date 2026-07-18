@@ -6,7 +6,7 @@ import {
 
 export const AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION = 1;
 
-export const AUDIO_EDITOR_BUILT_IN_WORKSPACES = Object.freeze(['classic', 'music', 'modern']);
+export const AUDIO_EDITOR_BUILT_IN_WORKSPACES = Object.freeze(['classic', 'music', 'modern', 'video-editor']);
 export const AUDIO_EDITOR_THEMES = Object.freeze([
 	'system',
 	'light',
@@ -134,7 +134,8 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		}),
 		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: Object.freeze({
-			history: Object.freeze({ visible: true, dock: 'left', order: 0, size: 300 }),
+			'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
+			history: Object.freeze({ visible: false, dock: 'left', order: 0, size: 300 }),
 			labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
@@ -160,6 +161,15 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		toolbars: DEFAULT_TOOLBARS,
 		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: DEFAULT_PANELS,
+	}),
+	'video-editor': Object.freeze({
+		toolbars: DEFAULT_TOOLBARS,
+		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
+		panels: Object.freeze({
+			...DEFAULT_PANELS,
+			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
+			'video-preview': Object.freeze({ visible: true, dock: 'right', order: 0, size: 560 }),
+		}),
 	}),
 });
 

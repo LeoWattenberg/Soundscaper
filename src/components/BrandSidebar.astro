@@ -25,6 +25,12 @@ const copy = {
 	collapse: catalog.collapseNavigation,
 	expand: catalog.expandNavigation,
 	language: catalog.languageLabel,
+	workspace: catalog.workspace,
+	workspaceModern: catalog.workspaceModern,
+	workspaceMusic: catalog.workspaceMusic,
+	workspaceClassic: catalog.workspaceClassic,
+	workspaceVideo: catalog.workspaceVideo,
+	settings: catalog.sidebarSettings,
 };
 const routeLocales = ROUTE_LOCALES.map(({ locale: routeLocale, nativeName, direction }) => ({
 	locale: routeLocale,
@@ -59,18 +65,31 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 			<a class="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
 		</nav>
 
-		<div class="sidebar-actions">
-			<button class="theme-toggle" type="button" data-theme-toggle data-light={copy.light} data-dark={copy.dark} aria-label={copy.theme} aria-pressed="false">
-				<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
-				<span data-theme-label>{copy.light}</span>
-			</button>
-			<label class="language-picker">
-				<span>{copy.language}</span>
-				<select data-locale-select aria-label={copy.language}>
-					{initialLocales.map(({ locale: optionLocale, name }) => <option value={optionLocale} selected={optionLocale === localeDescriptor.locale}>{name}</option>)}
+		<section class="sidebar-settings" aria-labelledby="sidebar-settings-title">
+			<h2 id="sidebar-settings-title">{copy.settings}</h2>
+			<label class="sidebar-workspace">
+				<span>{copy.workspace}</span>
+				<select data-workspace-select aria-label={copy.workspace} disabled>
+					<option value="modern">{copy.workspaceModern}</option>
+					<option value="music">{copy.workspaceMusic}</option>
+					<option value="classic">{copy.workspaceClassic}</option>
+					<option value="video-editor">{copy.workspaceVideo}</option>
 				</select>
 			</label>
-		</div>
+
+			<div class="sidebar-actions">
+				<button class="theme-toggle" type="button" data-theme-toggle data-light={copy.light} data-dark={copy.dark} aria-label={copy.theme} aria-pressed="false">
+					<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
+					<span data-theme-label>{copy.light}</span>
+				</button>
+				<label class="language-picker">
+					<span>{copy.language}</span>
+					<select data-locale-select aria-label={copy.language}>
+						{initialLocales.map(({ locale: optionLocale, name }) => <option value={optionLocale} selected={optionLocale === localeDescriptor.locale}>{name}</option>)}
+					</select>
+				</label>
+			</div>
+		</section>
 	</div>
 	<script is:inline type="application/json" data-route-locales set:html={JSON.stringify(routeLocales)}></script>
 </aside>
@@ -106,6 +125,37 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 		};
 		sync(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 		toggle.addEventListener('click', () => apply(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+	}
+
+	const workspaceSelect = sidebar?.querySelector<HTMLSelectElement>('[data-workspace-select]');
+	if (workspaceSelect) {
+		type WorkspaceState = {
+			activeId?: string;
+			workspaces?: Array<{ id?: string; name?: string }>;
+		};
+		window.addEventListener('soundscaper:workspace-state', (event) => {
+			const detail = (event as CustomEvent<WorkspaceState>).detail;
+			const workspaces = Array.isArray(detail?.workspaces) ? detail.workspaces : [];
+			const options = workspaces
+				.filter(({ id, name }) => typeof id === 'string' && id && typeof name === 'string' && name)
+				.map(({ id, name }) => {
+					const option = document.createElement('option');
+					option.value = id!;
+					option.textContent = name!;
+					return option;
+				});
+			if (options.length) workspaceSelect.replaceChildren(...options);
+			if (detail?.activeId && [...workspaceSelect.options].some(({ value }) => value === detail.activeId)) {
+				workspaceSelect.value = detail.activeId;
+			}
+			workspaceSelect.disabled = false;
+		});
+		workspaceSelect.addEventListener('change', () => {
+			window.dispatchEvent(new CustomEvent('soundscaper:workspace-request', {
+				detail: { workspaceId: workspaceSelect.value },
+			}));
+		});
+		window.dispatchEvent(new CustomEvent('soundscaper:workspace-ready'));
 	}
 
 	const localeSelect = sidebar?.querySelector<HTMLSelectElement>('[data-locale-select]');
@@ -195,7 +245,50 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	.sidebar-nav { display: grid; gap: 4px; margin-top: 34px; }
 	.sidebar-link { padding: 10px 12px; color: var(--color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
 	.sidebar-link:hover, .sidebar-link.is-active { color: var(--color-accent-dark); background: var(--color-surface-alt); }
-	.sidebar-actions { display: grid; gap: 8px; margin-top: auto; }
+	.sidebar-settings {
+		display: grid;
+		gap: 8px;
+		margin-top: auto;
+		padding-top: 20px;
+	}
+	.sidebar-settings h2 {
+		margin: 0 0 2px;
+		color: var(--color-muted);
+		font-size: 0.8rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.sidebar-workspace {
+		display: grid;
+		gap: 6px;
+		color: var(--color-muted);
+		font-size: 0.78rem;
+		font-weight: 900;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+	.sidebar-workspace select {
+		width: 100%;
+		min-width: 0;
+		min-height: 42px;
+		padding: 8px 34px 8px 12px;
+		color: var(--color-ink);
+		background: var(--color-control-surface);
+		border: 1px solid var(--color-line);
+		border-radius: 6px;
+		font: inherit;
+		font-size: 0.92rem;
+		font-weight: 800;
+		letter-spacing: normal;
+		text-transform: none;
+	}
+	.sidebar-workspace select:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+	}
+	.sidebar-workspace select:disabled { opacity: 0.55; }
+	.sidebar-actions { display: grid; gap: 8px; }
 	.theme-toggle, .language-picker {
 		display: flex;
 		align-items: center;
@@ -240,6 +333,7 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 		:global(:root[data-theme='dark']) .brand .logo-dark.logo-small { display: block; width: 42px; }
 		.sidebar-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
 		.sidebar-link { flex: 0 0 auto; }
-		.sidebar-actions { grid-template-columns: 1fr 1fr; margin-top: 10px; }
+		.sidebar-settings { margin-top: 12px; padding-top: 0; }
+		.sidebar-actions { grid-template-columns: 1fr 1fr; }
 	}
 </style>

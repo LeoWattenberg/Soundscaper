@@ -116,6 +116,13 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(controller.getSnapshot().project.metadata.artist, 'Browser Artist');
 	await controller.actions.preferences.setWorkspace('music');
 	assert.equal(controller.getSnapshot().preferences.workspace.panels.mixer.visible, true);
+	await controller.actions.preferences.setWorkspace('video-editor');
+	assert.equal(controller.getSnapshot().preferences.workspace.activeId, 'video-editor');
+	assert.equal(controller.getSnapshot().preferences.workspace.panels['project-bin'].visible, true);
+	assert.equal(controller.getSnapshot().preferences.workspace.panels['video-preview'].visible, true);
+	await controller.actions.preferences.setWorkspace('classic');
+	assert.equal(controller.getSnapshot().preferences.workspace.panels.history.visible, false);
+	assert.equal(controller.getSnapshot().preferences.workspace.panels['project-bin'].visible, false);
 	await controller.actions.preferences.togglePanel('labels');
 	assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.visible, true);
 	await controller.actions.preferences.setTheme('high-contrast-dark');

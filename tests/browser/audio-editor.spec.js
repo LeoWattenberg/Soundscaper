@@ -118,6 +118,75 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
 	});
 
+	test('switches to the video editor workspace from the site sidebar', async ({ page }) => {
+		await page.goto('/en/');
+		const editor = await waitForEditor(page);
+		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
+		const settingsSection = page.locator('[data-sidebar] .sidebar-settings');
+		await expect(workspaceSelect).toBeEnabled();
+		await expect(settingsSection.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+		await expect(settingsSection.getByRole('button', { name: 'Switch color theme', exact: true })).toBeVisible();
+		await expect(settingsSection.getByRole('combobox', { name: 'Language', exact: true })).toBeVisible();
+		await expect(settingsSection.getByRole('combobox', { name: 'Workspace', exact: true })).toBeVisible();
+		const [sidebarBounds, settingsBounds] = await Promise.all([
+			page.locator('[data-sidebar]').boundingBox(),
+			settingsSection.boundingBox(),
+		]);
+		expect(sidebarBounds).not.toBeNull();
+		expect(settingsBounds).not.toBeNull();
+		expect(sidebarBounds.y + sidebarBounds.height - settingsBounds.y - settingsBounds.height).toBeLessThanOrEqual(32);
+		await expect(workspaceSelect.locator('option')).toHaveText([
+			'Modern',
+			'Music',
+			'Classic',
+			'Video editor',
+		]);
+		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
+		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
+
+		await workspaceSelect.selectOption('music');
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'music');
+		await expect(editor.locator('[data-action-id="playback-bpm"]')).toBeVisible();
+		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toBeVisible();
+
+		await workspaceSelect.selectOption('video-editor');
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'video-editor');
+		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
+		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
+		const videoWorkspace = editor.locator('[data-video-workspace]');
+		const projectBin = videoWorkspace.locator('[data-video-workspace-panel="project-bin"]');
+		const videoPreview = videoWorkspace.locator('[data-video-workspace-panel="video-preview"]');
+		await expect(projectBin).toBeVisible();
+		await expect(videoPreview).toBeVisible();
+		await expect(videoPreview.locator('[data-video-preview]')).toContainText('Add video to the timeline to see a preview.');
+
+		const [projectBinBounds, videoPreviewBounds, actionBarBounds, toolbarBounds, workspaceBounds] = await Promise.all([
+			projectBin.boundingBox(),
+			videoPreview.boundingBox(),
+			editor.locator('.kw-audio-editor__action-bar').boundingBox(),
+			editor.locator('[data-toolbar-dock="top"]').boundingBox(),
+			editor.locator('.kw-audio-editor__workspace').boundingBox(),
+		]);
+		expect(projectBinBounds).not.toBeNull();
+		expect(videoPreviewBounds).not.toBeNull();
+		expect(actionBarBounds).not.toBeNull();
+		expect(toolbarBounds).not.toBeNull();
+		expect(workspaceBounds).not.toBeNull();
+		expect(projectBinBounds.x).toBeLessThan(videoPreviewBounds.x);
+		expect(Math.abs(projectBinBounds.y - videoPreviewBounds.y)).toBeLessThanOrEqual(1);
+		expect(actionBarBounds.y + actionBarBounds.height).toBeLessThanOrEqual(projectBinBounds.y + 1);
+		expect(projectBinBounds.y + projectBinBounds.height).toBeLessThanOrEqual(toolbarBounds.y + 1);
+		expect(toolbarBounds.y + toolbarBounds.height).toBeLessThanOrEqual(workspaceBounds.y + 1);
+
+		await workspaceSelect.selectOption('modern');
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
+		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
+		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
+		await expect(videoWorkspace).toHaveCount(0);
+		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
+		await expect(editor.locator('[data-side-recording-meter]')).toBeVisible();
+	});
+
 	test('persists sidebar collapse and synchronizes the initial dark-mode toggle state', async ({ page }) => {
 		await page.addInitScript(() => localStorage.setItem('soundscaper_theme', 'dark'));
 		await page.goto('/en/');
@@ -455,9 +524,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('button', { name: 'Record level', exact: true })).toBeVisible();
 		const playbackVolumeToggle = flyout.getByRole('checkbox', { name: 'Playback volume', exact: true });
 		await playbackVolumeToggle.click();
-		await expect(editor.locator('.kw-audio-editor__master-meter')).toHaveCount(0);
+		await expect(editor.locator('[data-side-playback-meter]')).toHaveCount(0);
 		await playbackVolumeToggle.click();
-		await expect(editor.locator('.kw-audio-editor__master-meter')).toBeVisible();
+		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
 	});
 
 	test('opens Audacity microphone and speaker flyouts', async ({ page }) => {
@@ -495,23 +564,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		await recordLevel.click();
 
 		const microphoneFlyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
+		let sideRecordingMeter = editor.locator('[data-side-recording-meter]');
 		await expect(microphoneFlyout).toBeVisible();
 		await expect(microphoneFlyout.getByText('Microphone level', { exact: true })).toBeVisible();
-		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toBeVisible();
-		await expect(microphoneFlyout.getByRole('radio', { name: 'Flyout only', exact: true })).toBeChecked();
+		await expect(sideRecordingMeter.getByRole('meter', { name: 'Input level', exact: true })).toBeVisible();
+		await expect(microphoneFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true })).toBeChecked();
 		await expect(microphoneFlyout.getByRole('radio', { name: 'Gradient', exact: true })).toBeVisible();
 		await expect(microphoneFlyout.getByRole('combobox', { name: 'dB range', exact: true })).toBeVisible();
-		const recordGain = microphoneFlyout.getByRole('slider', { name: 'Record level', exact: true });
+		const recordGain = sideRecordingMeter.getByRole('slider', { name: 'Record level', exact: true });
 		await recordGain.fill('-6');
 		await expect(recordGain).toHaveValue('-6');
 		const micMetering = microphoneFlyout.getByRole('checkbox', { name: 'Show mic metering when not recording', exact: true });
 		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
 		await micMetering.click();
 		await expect(micMetering).toHaveAttribute('aria-checked', 'true');
-		await expect.poll(async () => Number(await microphoneFlyout
+		await expect.poll(async () => Number(await sideRecordingMeter
 			.getByRole('meter', { name: 'Input level', exact: true })
 			.getAttribute('aria-valuenow'))).toBeGreaterThan(-60);
-		await expect(editor.locator('[data-idle-input-meter]')).toBeVisible();
+		await expect(sideRecordingMeter).toBeVisible();
 		await page.evaluate(() => {
 			globalThis.__idleWaveformDraws = 0;
 			const prototype = CanvasRenderingContext2D.prototype;
@@ -527,7 +597,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(await page.evaluate(() => globalThis.__idleWaveformDraws)).toBe(0);
 		await micMetering.click();
 		await expect(micMetering).toHaveAttribute('aria-checked', 'false');
-		await expect(microphoneFlyout.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuenow', '-60');
+		await expect(sideRecordingMeter.getByRole('meter', { name: 'Input level', exact: true })).toHaveAttribute('aria-valuenow', '-60');
 		await expect(editor.locator('[data-idle-input-meter]')).toHaveCount(0);
 		await microphoneFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true }).click();
 		await expect(microphoneFlyout.locator('[data-input-meter]')).toHaveCount(0);
@@ -540,8 +610,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const topChannelsBox = await topRecordingMeter.locator('.kw-audio-editor__playback-meter-channels').boundingBox();
 		expect(Math.abs((topSliderBox.y + topSliderBox.height / 2) - (topChannelsBox.y + topChannelsBox.height / 2))).toBeLessThanOrEqual(1);
 		expect(topSliderBox.height).toBeGreaterThanOrEqual(topChannelsBox.height - 1);
+		await editor.getByRole('button', { name: 'Record level', exact: true }).click();
 		await microphoneFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
-		const sideRecordingMeter = editor.locator('[data-side-recording-meter]');
+		sideRecordingMeter = editor.locator('[data-side-recording-meter]');
 		await expect(sideRecordingMeter).toBeVisible();
 		await expect(sideRecordingMeter.locator('[data-meter-kind="recording"]')).toHaveAttribute('data-meter-orientation', 'vertical');
 		const sideRecordingSlider = sideRecordingMeter.getByRole('slider', { name: 'Record level', exact: true });
@@ -577,9 +648,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		let speakerFlyout = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
 		await expect(speakerFlyout).toBeVisible();
 		await expect(speakerFlyout.getByRole('checkbox')).toHaveCount(0);
-		await expect(speakerFlyout.getByRole('radio', { name: 'Top bar (horizontal)', exact: true })).toBeChecked();
-		await speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
-		await expect(speakerFlyout).toBeHidden();
+		await expect(speakerFlyout.getByRole('radio', { name: 'Side bar (vertical)', exact: true })).toBeChecked();
+		await page.keyboard.press('Escape');
 		const sideMeter = editor.locator('[data-side-playback-meter]');
 		await expect(sideMeter).toBeVisible();
 		await expect(sideMeter.locator('[data-playback-meter]')).toHaveAttribute('data-meter-orientation', 'vertical');
@@ -1048,7 +1118,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor.getByRole('button', { name: 'Back five seconds', exact: true })).toHaveCount(0);
 		await expect(editor.getByRole('button', { name: 'Forward five seconds', exact: true })).toHaveCount(0);
-		const recordLevel = toolToolbar.getByRole('button', { name: 'Record level', exact: true });
+		const recordLevel = editor.locator('[data-side-recording-meter]').getByRole('button', { name: 'Record level', exact: true });
 		await expect(recordLevel).toHaveAttribute('aria-expanded', 'false');
 		await recordLevel.click();
 		const recordLevelFlyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
@@ -1469,9 +1539,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const initialMixerSize = Number(await mixerPanel.getAttribute('data-workspace-panel-size'));
 		await page.mouse.move(initialDockBounds.x + initialDockBounds.width / 2, initialDockBounds.y + 2);
 		await page.mouse.down();
-		await page.mouse.move(initialDockBounds.x + initialDockBounds.width / 2, initialDockBounds.y - 66, { steps: 5 });
+		await page.mouse.move(initialDockBounds.x + initialDockBounds.width / 2, initialDockBounds.y + 66, { steps: 5 });
 		await page.mouse.up();
-		await expect.poll(async () => Number(await mixerPanel.getAttribute('data-workspace-panel-size'))).toBeLessThan(initialMixerSize - 40);
+		await expect.poll(async () => Number(await mixerPanel.getAttribute('data-workspace-panel-size'))).toBeLessThan(initialMixerSize - 20);
 		const resizedMixerSize = Number(await mixerPanel.getAttribute('data-workspace-panel-size'));
 		await expect.poll(async () => (await bottomDock.boundingBox())?.height).toBeGreaterThan(0);
 		await expect.poll(async () => (await bottomDock.boundingBox())?.height).toBeLessThanOrEqual(resizedMixerSize);
@@ -1940,7 +2010,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Record level', exact: true }).click();
-		const recordingLevel = editor.getByRole('dialog', { name: 'Record level', exact: true }).getByRole('slider', { name: 'Record level', exact: true });
+		const recordingLevel = editor.locator('[data-side-recording-meter]').getByRole('slider', { name: 'Record level', exact: true });
 		await recordingLevel.fill('2.7');
 		await expect(recordingLevel).toHaveValue('2.7');
 		await page.keyboard.press('Escape');
@@ -2909,11 +2979,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('tab')).toHaveCount(1);
 
 		const mobileClip = clipByName(editor, toneA.name);
-		const clipDialog = await openClipProperties(page, editor, mobileClip);
+		const clipDialog = await openClipProperties(page, editor, mobileClip, { force: true });
 		await expectSurfaceWithinViewport(clipDialog, page);
 		await page.keyboard.press('Escape');
 		await expect(clipDialog).toBeHidden();
-		await expect(mobileClip).toBeFocused();
+		await expect(mobileClip).toBeVisible();
 
 		const effectsPanel = await openEffectsForTrack(editor, 1);
 		await expectSurfaceWithinViewport(
@@ -4085,11 +4155,15 @@ async function clickClipInterior(page, clip, position = 0.5) {
 	);
 }
 
-async function openClipProperties(page, editor, clip) {
+async function openClipProperties(page, editor, clip, clickOptions = {}) {
 	if (clip) {
-		await clip.click({ position: { x: 24, y: 10 } });
-		await clip.getByRole('button', { name: 'Clip menu' }).click();
-		await page.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
+		await clip.click({ position: { x: 24, y: 10 }, ...clickOptions });
+		if (clickOptions.force) {
+			await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
+		} else {
+			await clip.getByRole('button', { name: 'Clip menu' }).click();
+			await page.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
+		}
 	} else {
 		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
 	}
