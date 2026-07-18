@@ -304,7 +304,7 @@ export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) 
 	if (isAudacityRackEffectType(normalized.type)) {
 		return Math.ceil(audacityLiveEffectTailFrames(normalized.type, sampleRate, normalized.params));
 	}
-	if (normalized.type === 'reverb') {
+	if (normalized.type === 'reverb' && normalized.params.mix > 0) {
 		return Math.ceil((normalized.params.preDelay + normalized.params.decay) * sampleRate);
 	}
 	if (normalized.type === 'delay' && normalized.params.mix > 0) {
@@ -320,6 +320,43 @@ export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, m
 	const maximum = Math.round(maximumSeconds * sampleRate);
 	const tail = (effects || []).reduce((total, effect) => Math.min(maximum, total + effectTailFrames(effect, sampleRate)), 0);
 	return Math.min(maximum, tail);
+}
+
+/**
+ * Return the longest audible insert path through track, routed bus, and master
+ * racks. Group and send racks run in parallel, so only the longest bus rack is
+ * added to each track path.
+ */
+export function projectEffectTailFrames(project, {
+	trackId = null,
+	includeMaster = true,
+	maximumSeconds = 10,
+} = {}) {
+	const sampleRate = Number.isSafeInteger(project?.sampleRate) && project.sampleRate > 0
+		? project.sampleRate
+		: AUDIO_EDITOR_SAMPLE_RATE;
+	const maximum = Math.max(0, Math.round(maximumSeconds * sampleRate));
+	const rackTail = (owner) => owner?.effectsActive === false
+		? 0
+		: rackTailFrames(owner?.effects || [], sampleRate, maximumSeconds);
+	const tracks = (project?.tracks || []).filter((track) => (
+		track?.type !== 'label'
+		&& track?.type !== 'video'
+		&& (trackId == null || String(track.id) === String(trackId))
+	));
+	const groups = new Map((project?.mixer?.groups || []).map((bus) => [String(bus.id), bus]));
+	const sends = new Map((project?.mixer?.sends || []).map((bus) => [String(bus.id), bus]));
+	const longestTrackPath = tracks.reduce((longest, track) => {
+		const route = project?.mixer?.routes?.[String(track.id)] || {};
+		const busTails = [0];
+		if (route.groupId != null) busTails.push(rackTail(groups.get(String(route.groupId))));
+		for (const [sendId, gain] of Object.entries(route.sends || {})) {
+			if (Number(gain) > 0) busTails.push(rackTail(sends.get(String(sendId))));
+		}
+		return Math.max(longest, rackTail(track) + Math.max(...busTails));
+	}, 0);
+	const masterTail = includeMaster ? rackTail(project?.master) : 0;
+	return Math.min(maximum, longestTrackPath + masterTail);
 }
 
 function normalizeEffectParams(type, params, effectId = null) {

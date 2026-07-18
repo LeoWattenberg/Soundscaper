@@ -1,4 +1,4 @@
-import { rackTailFrames } from './effects.js';
+import { projectEffectTailFrames } from './effects.js';
 import { envelopeValueAtFrame } from './automation.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
@@ -1619,6 +1619,7 @@ export function buildProjectGraph(context, destination, project, {
 	const processBus = (bus, input, analysers, scope) => {
 		let output = applyEffectRack(context, input, activeRackEffects(bus), nodes, {
 			sidechainInputs: trackInputs,
+			baseSidechainDelayFrames: maximumTrackLatency,
 			scope,
 			targetId: String(bus.id),
 			effectAnalysis,
@@ -1656,7 +1657,7 @@ export function buildProjectGraph(context, destination, project, {
 	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
 	const masterOutput = applyEffectRack(context, masterInput, masterEffects, nodes, {
 		sidechainInputs: trackInputs,
-		baseSidechainDelayFrames: maximumTrackLatency,
+		baseSidechainDelayFrames: maximumTrackLatency + maximumBusLatency,
 		scope: 'master',
 		targetId: null,
 		effectAnalysis,
@@ -1919,13 +1920,13 @@ function connectBiquad(context, input, params, nodes) {
 }
 
 function connectDelay(context, input, params, nodes) {
-	if (typeof context.createDelay !== 'function') return input;
+	const mix = clamp(finite(params.mix, 0.25), 0, 1);
+	if (mix <= 0 || typeof context.createDelay !== 'function') return input;
 	const output = addNode(nodes, context.createGain());
 	const dry = addNode(nodes, context.createGain());
 	const wet = addNode(nodes, context.createGain());
 	const delay = addNode(nodes, context.createDelay(MAX_EFFECT_TAIL_SECONDS));
 	const feedback = addNode(nodes, context.createGain());
-	const mix = clamp(finite(params.mix, 0.25), 0, 1);
 	setParam(dry.gain, 1 - mix, context.currentTime);
 	setParam(wet.gain, mix, context.currentTime);
 	setParam(delay.delayTime, clamp(finite(params.time ?? params.delayTime, 0.25), 0, MAX_EFFECT_TAIL_SECONDS), context.currentTime);
@@ -1937,12 +1938,12 @@ function connectDelay(context, input, params, nodes) {
 }
 
 function connectReverb(context, input, params, nodes) {
-	if (typeof context.createConvolver !== 'function') return input;
+	const mix = clamp(finite(params.mix, 0.25), 0, 1);
+	if (mix <= 0 || typeof context.createConvolver !== 'function') return input;
 	const output = addNode(nodes, context.createGain());
 	const dry = addNode(nodes, context.createGain());
 	const wet = addNode(nodes, context.createGain());
 	const convolver = addNode(nodes, context.createConvolver());
-	const mix = clamp(finite(params.mix, 0.25), 0, 1);
 	setParam(dry.gain, 1 - mix, context.currentTime);
 	setParam(wet.gain, mix, context.currentTime);
 	const duration = clamp(finite(params.duration ?? params.decay, 1.5), 0.05, MAX_EFFECT_TAIL_SECONDS);
@@ -2842,18 +2843,12 @@ function normalizePreparedSpeedPlayback(channels, sampleRate, durationFrames, pl
 function resolveTailSeconds(project, includeTail, { trackId = null, includeMaster = true } = {}) {
 	if (!includeTail) return 0;
 	if (Number.isFinite(includeTail)) return clamp(includeTail, 0, MAX_EFFECT_TAIL_SECONDS);
-	const tracks = (trackId == null
-		? project?.tracks || []
-		: (project?.tracks || []).filter((track) => String(track.id) === String(trackId)))
-		.filter((track) => track.type !== 'label' && track.type !== 'video');
-	const trackTailFrames = tracks.reduce(
-		(longest, track) => Math.max(longest, rackTailFrames(activeRackEffects(track), project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)),
-		0,
-	);
-	const masterTailFrames = includeMaster
-		? rackTailFrames(activeRackEffects(project?.master), project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)
-		: 0;
-	return Math.min(MAX_EFFECT_TAIL_SECONDS, (trackTailFrames + masterTailFrames) / (project?.sampleRate || DEFAULT_SAMPLE_RATE));
+	const sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE;
+	return projectEffectTailFrames(project, {
+		trackId,
+		includeMaster,
+		maximumSeconds: MAX_EFFECT_TAIL_SECONDS,
+	}) / sampleRate;
 }
 
 function getAudioContextConstructor() {

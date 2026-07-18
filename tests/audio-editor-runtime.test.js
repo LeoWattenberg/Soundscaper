@@ -1373,6 +1373,19 @@ test('project graph builds metered group and send bus paths', () => {
 	assert.ok(context.nodeKinds.includes('stereo-panner'));
 });
 
+test('zero-wet native delay and reverb effects bypass graph allocation', () => {
+	const context = new MockAudioContext();
+	const project = createProject();
+	project.tracks[0].effects = [
+		{ type: 'delay', params: { time: 1, feedback: 0.9, mix: 0 } },
+		{ type: 'reverb', params: { decay: 10, preDelay: 1, mix: 0 } },
+	];
+	project.master.effects = [];
+	buildProjectGraph(context, context.destination, project, { metering: false });
+	assert.equal(context.nodeKinds.includes('delay'), false);
+	assert.equal(context.nodeKinds.includes('convolver'), false);
+});
+
 test('engine loads and inserts Audacity worklets in track and master racks without bypassing them', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;
@@ -1811,6 +1824,75 @@ test('Auto Duck receives its selected control track from the dry second input', 
 	}
 });
 
+test('Auto Duck sidechains align with compensated bus and master program paths', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const project = createRackProject({
+		tracks: [
+			{
+				id: 'program',
+				effects: [{
+					type: 'audacity-limiter',
+					enabled: true,
+					params: { lookaheadMs: 10 },
+				}],
+			},
+			{ id: 'control', effects: [] },
+		],
+		masterEffects: [{
+			type: 'audacity-auto-duck',
+			enabled: true,
+			params: {},
+			context: { controlTrackId: 'control' },
+		}],
+	});
+	project.mixer = {
+		groups: [{
+			id: 'duck-group',
+			gain: 1,
+			pan: 0,
+			mute: false,
+			solo: false,
+			effects: [{
+				type: 'audacity-auto-duck',
+				enabled: true,
+				params: {},
+				context: { controlTrackId: 'control' },
+			}],
+		}],
+		sends: [],
+		routes: {
+			program: { groupId: 'duck-group', sends: {} },
+			control: { groupId: null, sends: {} },
+		},
+	};
+	const source = new MockAudioBuffer(1, 4_800, 48_000);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		meterInterval: 1_000,
+	});
+
+	try {
+		engine.loadProject(project, new Map([['source-1', source]]));
+		await engine.play();
+		const autoDucks = context.workletNodes.filter((node) => (
+			node.options.processorOptions.effectType === 'audacity-auto-duck'
+		));
+		assert.equal(autoDucks.length, 2);
+		const groupLatencyFrames = effectRackLatencyFrames(project.mixer.groups[0].effects, 48_000);
+		const sidechainDelayFor = (processor) => context.createdDelays.find((delay) => (
+			delay.connectionDetails.some(({ node, input }) => node === processor && input === 1)
+		));
+		assert.equal(sidechainDelayFor(autoDucks[0]).delayTime.value, 0.01);
+		assert.equal(sidechainDelayFor(autoDucks[1]).delayTime.value, (480 + groupLatencyFrames) / 48_000);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 test('project graph reports rack latency and delays lower-latency tracks to match', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;
@@ -1898,6 +1980,46 @@ test('offline rendering crops live latency while retaining the requested effect 
 		await engine.dispose();
 		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
 		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('automatic offline tail length includes routed bus racks', async () => {
+	const offlineContexts = [];
+	const project = createRackProject({
+		tracks: [{ id: 'routed', effects: [] }],
+	});
+	project.mixer = {
+		groups: [{
+			id: 'delay-group',
+			gain: 1,
+			pan: 0,
+			mute: false,
+			solo: false,
+			effects: [{
+				type: 'delay',
+				enabled: true,
+				params: { time: 0.1, feedback: 0, mix: 1 },
+			}],
+		}],
+		sends: [],
+		routes: { routed: { groupId: 'delay-group', sends: {} } },
+	};
+	const source = new MockAudioBuffer(1, 4_800, 48_000);
+	const engine = createAudioEditorEngine({
+		offlineAudioContextFactory: (options) => {
+			const context = new MockRampOfflineAudioContext(options);
+			offlineContexts.push(context);
+			return context;
+		},
+	});
+
+	try {
+		engine.loadProject(project, new Map([['source-1', source]]));
+		const rendered = await engine.renderMix({ startFrame: 0, endFrame: 2_400, includeTail: true });
+		assert.equal(offlineContexts[0].length, 2_400 + 4_800);
+		assert.equal(rendered.length, 2_400 + 4_800);
+	} finally {
+		await engine.dispose();
 	}
 });
 

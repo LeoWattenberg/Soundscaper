@@ -230,6 +230,22 @@ test('missing rack effects preserve identity but are permanently inert locally',
 	assert.equal('missing' in replacement, false);
 });
 
+test('zero-wet native delay and reverb racks are tail-free', () => {
+	const delay = createEffect('delay', {
+		id: 'dry-delay',
+		params: { time: 1, feedback: 0.9, mix: 0 },
+	});
+	const reverb = createEffect('reverb', {
+		id: 'dry-reverb',
+		params: { decay: 10, preDelay: 1, mix: 0 },
+	});
+	assert.equal(effectTailFrames(delay), 0);
+	assert.equal(effectTailFrames(reverb), 0);
+	assert.equal(rackTailFrames([delay, reverb]), 0);
+	assert.ok(effectTailFrames(updateEffect(delay, { params: { mix: 0.5 } })) > 0);
+	assert.ok(effectTailFrames(updateEffect(reverb, { params: { mix: 0.5 } })) > 0);
+});
+
 test('parametric EQ normalizes the legacy four-band model into the canonical extensible schema', () => {
 	const legacy = {
 		id: 'legacy-eq',

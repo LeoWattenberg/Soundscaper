@@ -1,4 +1,4 @@
-import { rackTailFrames } from './effects.js';
+import { projectEffectTailFrames } from './effects.js';
 import {
 	AUDIO_EDITOR_MASTER_CHANNELS,
 	AUDIO_EDITOR_SAMPLE_RATE,
@@ -170,16 +170,10 @@ function resolveExportRange(project, requestedRange) {
 
 function determineTailFrames(project, mode, includeTail) {
 	if (!includeTail) return 0;
-	const trackTail = project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').reduce(
-		(longest, track) => Math.max(longest, track.effectsActive === false
-			? 0
-			: rackTailFrames(track.effects || [], project.sampleRate, 10)),
-		0,
-	);
-	const masterTail = mode === 'mix' && project.master.effectsActive !== false
-		? rackTailFrames(project.master.effects, project.sampleRate, 10)
-		: 0;
-	return Math.min(project.sampleRate * 10, trackTail + masterTail);
+	return projectEffectTailFrames(project, {
+		includeMaster: mode === 'mix',
+		maximumSeconds: 10,
+	});
 }
 
 function exportExtension(format) {

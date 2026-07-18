@@ -613,6 +613,44 @@ test('export plans define mix/stem policy, encoding defaults, tails, names, and 
 	assert.throws(() => createExportPlan(project, { format: 'mp3', bitRate: 129 }), /bitrate/);
 });
 
+test('export tails include the longest active routed group or send rack', () => {
+	let project = createFixture({ frameCount: 96_000 });
+	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
+		id: 'tail-clip', sourceId: 'source-1', timelineStartFrame: 0, sourceStartFrame: 0, durationFrames: 48_000,
+	} });
+	project = apply(project, {
+		type: 'mixer/bus-add', busType: 'group', bus: { id: 'tail-group', name: 'Tail group' },
+	});
+	project = apply(project, {
+		type: 'mixer/bus-add', busType: 'send', bus: { id: 'tail-send', name: 'Tail send' },
+	});
+	project = apply(project, {
+		type: 'effect/add', scope: 'group', busId: 'tail-group',
+		effect: createEffect('delay', {
+			id: 'group-delay', params: { time: 0.5, feedback: 0, mix: 1 },
+		}),
+	});
+	project = apply(project, {
+		type: 'effect/add', scope: 'send', busId: 'tail-send',
+		effect: createEffect('reverb', {
+			id: 'send-reverb', params: { decay: 0.75, preDelay: 0.25, mix: 1 },
+		}),
+	});
+	project = apply(project, {
+		type: 'mixer/route-update', trackId: 'track-1',
+		changes: { groupId: 'tail-group', sends: { 'tail-send': 0.5 } },
+	});
+
+	assert.equal(createExportPlan(project).tailFrames, 48_000);
+	assert.equal(createExportPlan(project, { mode: 'stems' }).tailFrames, 48_000);
+
+	project = apply(project, {
+		type: 'mixer/bus-update', busType: 'send', busId: 'tail-send',
+		changes: { effectsActive: false },
+	});
+	assert.equal(createExportPlan(project).tailFrames, 24_000);
+});
+
 test('streaming analysis is chunk-invariant and reports channel-aware production levels', () => {
 	const sampleRate = 8_000;
 	const frames = sampleRate * 4;
