@@ -2860,18 +2860,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		let effectsPanel = await openEffectsForTrack(editor, 0);
 
 		await openRackPicker(effectsPanel, 'track');
-		const picker = page.getByRole('dialog', { name: 'Choose an effect' });
-		await picker.locator('[data-effect-type]').getByRole('button').click();
-		await expect(page.getByRole('option')).toHaveCount(22);
-		await expect(page.getByRole('option', { name: 'Invert' })).toHaveCount(1);
-		await expect(page.getByRole('option', { name: 'Paulstretch' })).toHaveCount(0);
-		await page.getByRole('option', { name: 'Invert' }).click();
-		await picker.getByRole('button', { name: 'Add effect' }).click();
+		const picker = page.getByRole('menu', { name: 'Choose an effect' });
+		await expect(picker.getByRole('menuitem')).toHaveCount(22);
+		await expect(picker.getByRole('menuitem', { name: 'Invert' })).toHaveCount(1);
+		await expect(picker.getByRole('menuitem', { name: 'Paulstretch' })).toHaveCount(0);
+		await picker.getByRole('menuitem', { name: 'Invert' }).click();
 		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Invert' })).toHaveCount(1);
 
 		await openRackPicker(effectsPanel, 'master');
-		await chooseDropdown(page, page.getByRole('dialog', { name: 'Choose an effect' }).locator('[data-effect-type]'), 'Bass and Treble');
-		await page.getByRole('dialog', { name: 'Choose an effect' }).getByRole('button', { name: 'Add effect' }).click();
+		await page.getByRole('menu', { name: 'Choose an effect' }).getByRole('menuitem', { name: 'Bass and Treble' }).click();
 		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Bass and Treble' })).toHaveCount(1);
 		const bassKnob = effectsPanel.locator('[data-effect-param="bassDb"]').getByRole('slider', { name: /Bass \(dB\):/ });
 		await expect(bassKnob).toBeVisible();
@@ -2908,12 +2905,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		let effectsPanel = await openEffectsForTrack(editor, 1);
 
 		await openRackPicker(effectsPanel, 'track');
-		const picker = page.getByRole('dialog', { name: 'Choose an effect', exact: true });
-		await picker.locator('[data-effect-type]').getByRole('button').click();
-		const eqOption = page.getByRole('option', { name: /parametric EQ/i }).first();
+		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+		const eqOption = picker.getByRole('menuitem', { name: /parametric EQ/i }).first();
 		await expect(eqOption).toBeVisible();
 		await eqOption.click();
-		await picker.getByRole('button', { name: 'Add effect', exact: true }).click();
 
 		let eq = page.locator('[data-parametric-eq]');
 		await expect(eq).toBeVisible();
@@ -3123,8 +3118,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		let effectsPanel = await openEffectsForTrack(editor, 1);
 		await openRackPicker(effectsPanel, 'track');
-		await chooseDropdown(page, page.getByRole('dialog', { name: 'Choose an effect' }).locator('[data-effect-type]'), 'Noise Reduction');
-		await page.getByRole('dialog', { name: 'Choose an effect' }).getByRole('button', { name: 'Add effect' }).click();
+		await page.getByRole('menu', { name: 'Choose an effect' }).getByRole('menuitem', { name: 'Noise Reduction' }).click();
 
 		const reduction = effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Noise Reduction' });
 		await expect(reduction.getByRole('button', { name: 'Enable effect' })).toBeVisible();
@@ -3460,9 +3454,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await assertAccessibleBasics(effectsPanel);
 		await assertNoSeriousAxeViolations(page);
 		await openRackPicker(effectsPanel, 'track');
-		await assertAccessibleBasics(page.getByRole('dialog', { name: 'Choose an effect' }));
+		await assertAccessibleBasics(page.getByRole('menu', { name: 'Choose an effect' }));
 		await assertNoSeriousAxeViolations(page);
-		await closeDialog(page.getByRole('dialog', { name: 'Choose an effect' }));
+		await page.keyboard.press('Escape');
 		await closeEffectsPanel(effectsPanel);
 
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, toneA.name));
@@ -3709,14 +3703,13 @@ async function chooseDropdown(page, group, optionName) {
 async function openRackPicker(panel, scope) {
 	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Effects', exact: true });
 	await (scope === 'master' ? buttons.last() : buttons.first()).click();
-	await expect(panel.page().getByRole('dialog', { name: 'Choose an effect' })).toBeVisible();
+	await expect(panel.page().getByRole('menu', { name: 'Choose an effect' })).toBeVisible();
 }
 
 async function addRackEffect(page, panel, scope, effectName) {
 	await openRackPicker(panel, scope);
-	const picker = page.getByRole('dialog', { name: 'Choose an effect', exact: true });
-	await chooseDropdown(page, picker.locator('[data-effect-type]'), effectName);
-	await picker.getByRole('button', { name: 'Add effect', exact: true }).click();
+	const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+	await picker.getByRole('menuitem', { name: effectName, exact: true }).click();
 }
 
 async function openEffectStackMenu(panel, scope) {

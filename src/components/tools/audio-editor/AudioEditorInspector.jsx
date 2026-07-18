@@ -9,6 +9,7 @@ import {
 	EffectHeader,
 	EffectSlot,
 	EffectsPanel,
+	Flyout,
 	Icon,
 	Knob,
 	LabeledCheckbox,
@@ -421,9 +422,9 @@ export function AudioEditorEffectsOverlay({
 		});
 	};
 
-	const openPicker = (scope, replaceId = null) => {
+	const openPicker = (scope, replaceId = null, event = null) => {
 		if (blocked || (scope !== 'master' && !channel)) return;
-		setPicker({ scope, replaceId });
+		setPicker({ scope, replaceId, flyout: !replaceId, anchor: event?.currentTarget || null });
 		setMessage('');
 	};
 
@@ -478,7 +479,7 @@ export function AudioEditorEffectsOverlay({
 			const effect = effects[fromIndex];
 			if (!blocked && effect) controller.actions.effects.reorder(scope, scope === 'master' ? null : targetId, effect.id, toIndex);
 		},
-		onAddEffect: () => openPicker(scope),
+		onAddEffect: (event) => openPicker(scope, null, event),
 		onContextMenu: (scope === 'track' || scope === 'master') ? (event) => {
 			const rect = event?.currentTarget?.getBoundingClientRect?.();
 			if (event?.currentTarget instanceof HTMLElement) {
@@ -705,6 +706,8 @@ export function AudioEditorEffectsOverlay({
 					copy={copy}
 					locale={locale}
 					disabled={blocked}
+					flyout={picker.flyout}
+					anchor={picker.anchor}
 					onClose={() => setPicker(null)}
 					onChoose={(type) => run(async () => {
 						if (picker.replaceId) {
@@ -1250,9 +1253,48 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, loc
 	);
 }
 
-function EffectPicker({ copy, locale, disabled, onClose, onChoose }) {
+function EffectPicker({ copy, locale, disabled, flyout = false, anchor = null, onClose, onChoose }) {
 	const types = useMemo(() => audioEffectTypes(), []);
+	const triggerRef = useRef(anchor);
 	const [type, setType] = useState(types[0] || '');
+	useEffect(() => {
+		triggerRef.current = anchor;
+	}, [anchor]);
+	if (flyout) {
+		const rect = anchor?.getBoundingClientRect?.();
+		return (
+			<Flyout
+				isOpen
+				onClose={onClose}
+				x={rect ? rect.left + rect.width / 2 : 0}
+				y={rect?.bottom || 0}
+				direction={rect && window.innerHeight - rect.bottom < 300 ? 'up' : 'down'}
+				autoFocus
+				triggerRef={triggerRef}
+				showArrow
+				closeOnOutsideClick
+				closeOnEscape
+				ariaLabel={copy.chooseEffect}
+				role="menu"
+				className="audio-editor-effect-picker-flyout"
+				style={{ zIndex: 10020, pointerEvents: 'auto' }}
+			>
+				<div className="audio-editor-effect-picker-flyout__grid">
+					{types.map((value) => (
+						<button
+							key={value}
+							type="button"
+							role="menuitem"
+							disabled={disabled}
+							onClick={() => onChoose(value)}
+						>
+							{safeEffectLabel(value, copy)}
+						</button>
+					))}
+				</div>
+			</Flyout>
+		);
+	}
 	return (
 		<ControlledDialog
 			isOpen
