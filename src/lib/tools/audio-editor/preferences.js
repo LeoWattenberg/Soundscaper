@@ -17,11 +17,16 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
 
-export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze(Object.fromEntries(
+const AUDIO_EDITOR_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze(Object.fromEntries(
 	Object.values(AUDACITY_ACTION_MANIFEST)
 		.filter((action) => action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED && action.shortcut)
 		.map((action) => [action.id, Object.freeze([action.shortcut])]),
 ));
+
+export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze({
+	...AUDIO_EDITOR_DEFAULT_SHORTCUTS_BY_ACTION,
+	'delete-all-tracks-ripple': Object.freeze(['Ctrl+Delete', 'Ctrl+Backspace']),
+});
 
 const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 	play: 'action://playback/play',
@@ -73,12 +78,15 @@ const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'zoom-fit': true,
 	undo: true,
 	redo: true,
-	cut: true,
+	cutPerTrackRipple: true,
+	cutLeaveGap: false,
+	cutAllTracksRipple: false,
 	copy: true,
 	paste: true,
 	split: true,
-	delete: true,
-	rippleDelete: true,
+	deletePerTrackRipple: true,
+	deleteLeaveGap: false,
+	deleteAllTracksRipple: false,
 	'time-display': true,
 	monitor: true,
 	'playback-volume': true,

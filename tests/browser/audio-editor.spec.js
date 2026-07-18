@@ -430,6 +430,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(flyout).toBeVisible();
 		await expect(flyout).toHaveCSS('position', 'fixed');
 		await expect(flyout.locator('.musescore-icon').first()).toBeVisible();
+		await expect(flyout.getByRole('checkbox', { name: 'Cut and close gap per track', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expect(flyout.getByRole('checkbox', { name: 'Delete and close gap per track', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expect(flyout.getByRole('checkbox', { name: 'Cut and leave gap', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await expect(flyout.getByRole('checkbox', { name: 'Delete and leave gap', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await expect(flyout.getByRole('checkbox', { name: 'Cut and close gap on all tracks', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await expect(flyout.getByRole('checkbox', { name: 'Delete and close gap on all tracks', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await expect(playToggle).toHaveAttribute('aria-checked', 'true');
 		await playToggle.click();
 		await expect(playToggle).toHaveAttribute('aria-checked', 'false');
@@ -2791,6 +2797,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editCommands = page.getByRole('menu', { name: 'Edit', exact: true });
 		await expect(getMenuItem(editCommands, 'Cut')).toHaveAttribute('aria-disabled', 'false');
 		await expect(getMenuItem(editCommands, 'Copy')).toHaveAttribute('aria-disabled', 'false');
+		const paste = getMenuItem(editCommands, 'Paste');
+		await paste.focus();
+		await page.keyboard.press('ArrowRight');
+		const pasteMenu = paste.getByRole('menu');
+		await expect(pasteMenu).toBeVisible();
+		await expect(pasteMenu.getByRole('menuitem', { name: /^Paste/ })).toHaveCount(1);
+		await expect(getMenuItem(pasteMenu, 'Insert')).toBeVisible();
+		await expect(getMenuItem(pasteMenu, 'Insert and preserve synchronisation')).toBeVisible();
 		await page.keyboard.press('Escape');
 		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');

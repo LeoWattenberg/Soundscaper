@@ -571,12 +571,15 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
 
 	const editItems = [
-		{ action: 'cut', label: copy.cut, icon: 'cut', disabled: editBlocked || !editSelectionActive },
+		{ action: 'cutPerTrackRipple', label: copy.cutPerTrackRipple, icon: 'cut', disabled: editBlocked || !selectionActive },
+		{ action: 'cutLeaveGap', label: copy.cutLeaveGap, icon: 'cut', disabled: editBlocked || !selectionActive },
+		{ action: 'cutAllTracksRipple', label: copy.cutAllTracksRipple, icon: 'cut', disabled: editBlocked || !selectionActive },
 		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !editSelectionActive },
 		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !snapshot.history?.hasClipboard },
 		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !splitAvailable },
-		{ action: 'delete', label: copy.liftDelete, icon: 'trash', disabled: editBlocked || (!selectionActive && !selectedClip) },
-		{ action: 'rippleDelete', label: copy.rippleDelete, icon: 'trim', disabled: editBlocked || !selectionActive },
+		{ action: 'deletePerTrackRipple', label: copy.deletePerTrackRipple, icon: 'trash', disabled: editBlocked || !selectionActive },
+		{ action: 'deleteLeaveGap', label: copy.deleteLeaveGap, icon: 'trash', disabled: editBlocked || !selectionActive },
+		{ action: 'deleteAllTracksRipple', label: copy.deleteAllTracksRipple, icon: 'trash', disabled: editBlocked || !selectionActive },
 	];
 
 	const executeEdit = useCallback(
@@ -5794,32 +5797,41 @@ function createApplicationMenus({
 				{ id: 'undo', label: copy.undo, shortcut: 'Ctrl+Z', disabled: editBlocked || !snapshot.history?.canUndo, onClick: () => actions.executeEdit('undo') },
 				{ id: 'redo', label: copy.redo, shortcut: 'Ctrl+Shift+Z', disabled: editBlocked || !snapshot.history?.canRedo, onClick: () => actions.executeEdit('redo') },
 				divider(),
-				{ id: 'cut', label: copy.cut, shortcut: 'Ctrl+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cut') },
-				{ id: 'delete', label: copy.liftDelete, shortcut: 'Delete', disabled: editBlocked || (!selectionActive && !selectedClip), onClick: () => actions.executeEdit('delete') },
+					{
+						id: 'cut',
+						label: copy.cut,
+						items: [
+							{ id: 'cut-leave-gap', label: copy.cutLeaveGap, shortcut: 'Ctrl+X', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutLeaveGap') },
+							{ id: 'cut-per-clip-ripple', label: copy.cutPerClipRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutPerClipRipple') },
+							{ id: 'cut-per-track-ripple', label: copy.cutPerTrackRipple, shortcut: 'Shift+X', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutPerTrackRipple') },
+							{ id: 'cut-all-tracks-ripple', label: copy.cutAllTracksRipple, shortcut: 'Shift+Ctrl+X', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutAllTracksRipple') },
+						],
+					},
+					{
+						id: 'delete',
+						label: copy.liftDelete,
+						items: [
+							{ id: 'delete-leave-gap', label: copy.deleteLeaveGap, shortcut: 'Delete', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deleteLeaveGap') },
+							{ id: 'delete-per-clip-ripple', label: copy.deletePerClipRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deletePerClipRipple') },
+							{ id: 'delete-per-track-ripple', label: copy.deletePerTrackRipple, shortcut: 'Backspace', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deletePerTrackRipple') },
+							{ id: 'delete-all-tracks-ripple', label: copy.deleteAllTracksRipple, shortcut: 'Ctrl+Delete, Ctrl+Backspace', disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deleteAllTracksRipple') },
+						],
+					},
 				{ id: 'copy', label: copy.copy, shortcut: 'Ctrl+C', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('copy') },
-				{ id: 'paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
-				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('duplicate') },
 				{
-					id: 'paste-special',
-					label: copy.pasteSpecial,
+					id: 'paste',
+					label: copy.paste,
 					items: [
-						{ id: 'action://trackedit/paste-overlap', label: copy.pasteOverlap, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteOverlap') },
+						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
 						{ id: 'action://trackedit/paste-insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteInsert') },
 						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteAllTracksRipple') },
 					],
 				},
+				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('duplicate') },
 				{
 					id: 'remove-special',
 					label: copy.removeSpecial,
 					items: [
-						{ id: 'cut-leave-gap', label: copy.cutLeaveGap, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutLeaveGap') },
-						{ id: 'cut-per-clip-ripple', label: copy.cutPerClipRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutPerClipRipple') },
-						{ id: 'cut-per-track-ripple', label: copy.cutPerTrackRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutPerTrackRipple') },
-						{ id: 'cut-all-tracks-ripple', label: copy.cutAllTracksRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('cutAllTracksRipple') },
-						{ id: 'delete-leave-gap', label: copy.deleteLeaveGap, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deleteLeaveGap') },
-						{ id: 'delete-per-clip-ripple', label: copy.deletePerClipRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deletePerClipRipple') },
-						{ id: 'delete-per-track-ripple', label: copy.deletePerTrackRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deletePerTrackRipple') },
-						{ id: 'delete-all-tracks-ripple', label: copy.deleteAllTracksRipple, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('deleteAllTracksRipple') },
 						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
 						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('silenceSelection') },
 					],
