@@ -24,6 +24,7 @@ import {
 } from '@dilsonspickles/components';
 
 import {
+	createTimelineProjectIndex,
 	designValueToPan,
 	designVolumeToGainDb,
 	framesToSeconds,
@@ -74,6 +75,7 @@ const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
+const EMPTY_TIMELINE_CLIPS = Object.freeze([]);
 
 function dataTransferHasType(dataTransfer, type) {
 	return Array.from(dataTransfer?.types || []).includes(type);
@@ -224,7 +226,7 @@ function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose }) {
 	);
 }
 
-function createClipTrimPreview(project, session, requestedDelta, edge) {
+function createClipTrimPreview(projectIndex, session, requestedDelta, edge) {
 	const originals = session.clipIds
 		.map((clipId) => session.originals?.[clipId])
 		.filter(Boolean);
@@ -232,7 +234,7 @@ function createClipTrimPreview(project, session, requestedDelta, edge) {
 	let lowerBound = Number.NEGATIVE_INFINITY;
 	let upperBound = Number.POSITIVE_INFINITY;
 	for (const clip of originals) {
-		const source = project.sources.find((item) => item.id === clip.sourceId);
+		const source = projectIndex.sourceById.get(clip.sourceId);
 		if (!source) return null;
 		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
 		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
@@ -256,8 +258,8 @@ function createClipTrimPreview(project, session, requestedDelta, edge) {
 	}
 	const deltaFrames = Math.max(lowerBound, Math.min(upperBound, requestedDelta));
 	const previews = originals.map((clip) => {
-		const source = project.sources.find((item) => item.id === clip.sourceId);
-		const track = project.tracks.find((item) => item.clipIds?.includes(clip.id));
+		const source = projectIndex.sourceById.get(clip.sourceId);
+		const track = projectIndex.trackByClipId.get(clip.id);
 		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
 		const durationFrames = edge === 'left'
 			? clip.durationFrames - deltaFrames
@@ -386,9 +388,17 @@ export default function AudioEditorTimeline({
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
 	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
 	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
+	const projectIndex = useMemo(
+		() => createTimelineProjectIndex(project),
+		[project?.clips, project?.sources, project?.tracks],
+	);
 	const projectClipIds = useMemo(
-		() => new Set(project?.clips.map((clip) => String(clip.id)) || []),
-		[project?.clips],
+		() => new Set([...projectIndex.clipById.keys()].map(String)),
+		[projectIndex],
+	);
+	const selectedClipIdSet = useMemo(
+		() => new Set(project?.selection?.clipIds || []),
+		[project?.selection?.clipIds],
 	);
 	for (const clipId of waveformCacheRef.current.keys()) {
 		if (!projectClipIds.has(clipId)) waveformCacheRef.current.delete(clipId);
@@ -1058,7 +1068,7 @@ export default function AudioEditorTimeline({
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
-			const preview = createClipTrimPreview(project, session, deltaFrames, 'left');
+			const preview = createClipTrimPreview(projectIndex, session, deltaFrames, 'left');
 			if (!preview) return;
 			session.preview = preview;
 			setClipDragPreview(preview);
@@ -1067,12 +1077,12 @@ export default function AudioEditorTimeline({
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
-			const preview = createClipTrimPreview(project, session, deltaFrames, 'right');
+			const preview = createClipTrimPreview(projectIndex, session, deltaFrames, 'right');
 			if (!preview) return;
 			session.preview = preview;
 			setClipDragPreview(preview);
 		}
-	}, [controller, frameAtClientX, isOverProjectBin, panelWidth, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
+	}, [controller, frameAtClientX, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
@@ -1470,8 +1480,10 @@ export default function AudioEditorTimeline({
 							<VideoTrackRow
 								key={track.id}
 								controller={controller}
-								project={project}
 								track={track}
+								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
+								clipLookup={projectIndex.clipById}
+								sourceLookup={projectIndex.sourceById}
 								trackIndex={trackIndex}
 								trackCount={project.tracks.length}
 								isFlatNavigation={isFlatNavigation}
@@ -1485,7 +1497,7 @@ export default function AudioEditorTimeline({
 								verticalRulerWidth={verticalRulerWidth}
 								selectedTrackId={snapshot.selectedTrackId}
 								selectedClipId={snapshot.selectedClipId}
-								selectedClipIds={project.selection?.clipIds || []}
+								selectedClipIdSet={selectedClipIdSet}
 								draggingClipIds={draggingClipIds}
 								clipDragPreview={clipDragPreview}
 								projectBinDragPreview={projectBinDragPreview}
@@ -1506,6 +1518,9 @@ export default function AudioEditorTimeline({
 								controller={controller}
 								project={project}
 								track={track}
+								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
+								clipLookup={projectIndex.clipById}
+								sourceLookup={projectIndex.sourceById}
 								trackIndex={trackIndex}
 								trackCount={project.tracks.length}
 								isFlatNavigation={isFlatNavigation}
@@ -1522,7 +1537,7 @@ export default function AudioEditorTimeline({
 								spectralSelection={documentSelection?.frequencyRange ? documentSelection : null}
 								selectedTrackId={snapshot.selectedTrackId}
 								selectedClipId={snapshot.selectedClipId}
-								selectedClipIds={project.selection?.clipIds || []}
+								selectedClipIdSet={selectedClipIdSet}
 								timelineView={snapshot.timeline?.view}
 								showRms={Boolean(snapshot.timeline?.showRms)}
 								waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
@@ -2125,8 +2140,10 @@ function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, height }
 
 function VideoTrackRow({
 	controller,
-	project,
 	track,
+	trackClips,
+	clipLookup,
+	sourceLookup,
 	trackIndex,
 	trackCount,
 	isFlatNavigation,
@@ -2140,7 +2157,7 @@ function VideoTrackRow({
 	verticalRulerWidth,
 	selectedTrackId,
 	selectedClipId,
-	selectedClipIds,
+	selectedClipIdSet,
 	draggingClipIds,
 	clipDragPreview,
 	projectBinDragPreview,
@@ -2157,11 +2174,8 @@ function VideoTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const trackHeight = trackVisualHeight(track);
-	const clipLookup = useMemo(() => new Map(project.clips.map((clip) => [clip.id, clip])), [project.clips]);
-	const sourceLookup = useMemo(() => new Map(project.sources.map((source) => [source.id, source])), [project.sources]);
-	const selectedClipIdSet = useMemo(() => new Set(selectedClipIds || []), [selectedClipIds]);
 	const clips = useMemo(() => {
-		const projected = track.clipIds.map((clipId) => clipLookup.get(clipId)).filter(Boolean);
+		const projected = [...trackClips];
 		if (clipDragPreview) {
 			const previews = clipDragPreview.previews || [clipDragPreview];
 			const previewIds = new Set(previews.map((preview) => preview.clipId));
@@ -2185,7 +2199,7 @@ function VideoTrackRow({
 			});
 		}
 		return projected;
-	}, [clipDragPreview, clipLookup, projectBinDragPreview, track.clipIds, track.id]);
+	}, [clipDragPreview, clipLookup, projectBinDragPreview, track.id, trackClips]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame,
 		viewportDurationFrames,
@@ -2718,6 +2732,9 @@ function TrackRow({
 	controller,
 	project,
 	track,
+	trackClips,
+	clipLookup,
+	sourceLookup,
 	trackIndex,
 	trackCount,
 	isFlatNavigation,
@@ -2734,7 +2751,7 @@ function TrackRow({
 	spectralSelection,
 	selectedTrackId,
 	selectedClipId,
-	selectedClipIds,
+	selectedClipIdSet,
 	timelineView,
 	showRms,
 	waveformRulerFormat,
@@ -2769,10 +2786,7 @@ function TrackRow({
 	const trackHeight = trackVisualHeight(track, showArmControls);
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
 	const spectrogramScale = normalizeSpectrogramScale(track.spectrogram?.scale);
-	const clipLookup = useMemo(() => new Map(project.clips.map((clip) => [clip.id, clip])), [project.clips]);
-	const selectedClipIdSet = useMemo(() => new Set(selectedClipIds || []), [selectedClipIds]);
 	const clips = useMemo(() => {
-		const trackClips = track.clipIds.map((clipId) => clipLookup.get(clipId)).filter(Boolean);
 		const withRecordingPreview = recordingPreview?.durationFrames > 0 ? [...trackClips, {
 			id: recordingPreviewId(track.id),
 			timelineStartFrame: recordingPreview.startFrame,
@@ -2800,7 +2814,7 @@ function TrackRow({
 			});
 		}
 		return projected;
-	}, [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, track.clipIds, track.id]);
+	}, [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, track.id, trackClips]);
 	const movingPreviewClipIds = useMemo(() => new Set(
 		[
 			...(clipDragPreview?.previews || (clipDragPreview ? [clipDragPreview] : [])),
@@ -2821,7 +2835,7 @@ function TrackRow({
 		? toDesignRecordingPreview(clip, recordingPreview, projection.overscanStartFrame, pixelsPerSecond, sampleRate, copy)
 		: toDesignClip(
 			controller,
-			project,
+			sourceLookup,
 			clip,
 			projection.overscanStartFrame,
 			pixelsPerSecond,
@@ -2855,7 +2869,7 @@ function TrackRow({
 		? projectedClips.find((clip) => String(clip.id) === String(measuredProjectionClip.id))
 		: null;
 	const measuredSource = measuredProjectionClip?.sourceId
-		? project.sources.find((source) => source.id === measuredProjectionClip.sourceId)
+		? sourceLookup.get(measuredProjectionClip.sourceId)
 		: null;
 	const rulerChannelCount = Math.max(1, Math.min(2,
 		measuredClip?.audacityWaveform?.channels?.length
@@ -3007,7 +3021,7 @@ function TrackRow({
 	const trimClipBySeconds = (clipId, edge, deltaSeconds) => {
 		if (blocked) return;
 		const clip = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
-		const source = clip ? project.sources.find((item) => item.id === clip.sourceId) : null;
+		const source = clip ? sourceLookup.get(clip.sourceId) : null;
 		const deltaFrames = secondsDeltaToFrames(deltaSeconds, sampleRate);
 		if (!clip || !source || !deltaFrames) return;
 		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
@@ -4277,7 +4291,7 @@ function prepareRecordingPreviewWaveform(channels, clip, pixelWidth) {
 
 function toDesignClip(
 	controller,
-	project,
+	sourceLookup,
 	clip,
 	overscanStartFrame,
 	pixelsPerSecond,
@@ -4293,7 +4307,7 @@ function toDesignClip(
 ) {
 	const visual = controller.getClipVisualData(clip.id)
 		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
-	const source = visual?.source || project.sources.find((item) => item.id === clip.sourceId);
+	const source = visual?.source || sourceLookup.get(clip.sourceId);
 	const sourceRate = Number(source?.sampleRate) > 0 ? Number(source.sampleRate) : sampleRate;
 	const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
 	const selected = selectedClipIds instanceof Set

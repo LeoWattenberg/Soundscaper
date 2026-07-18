@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
 	boundedCanvasDimensions,
+	createTimelineProjectIndex,
 	designValueToPan,
 	designValueToProgress,
 	designVolumeToGainDb,
@@ -97,6 +98,35 @@ test('gain, pan, and progress adapters preserve their endpoints and clamp extern
 	assert.throws(() => gainDbToDesignVolume('not-a-number'), /gainDb must be finite/);
 	assert.throws(() => panToDesignValue(undefined), /pan must be finite/);
 	assert.throws(() => designValueToProgress(Number.NaN), /progress must be finite/);
+});
+
+test('timeline project indexing shares clip and source lookups across track projections', () => {
+	const sources = [
+		{ id: 'source-a', name: 'A' },
+		{ id: 'source-b', name: 'B' },
+	];
+	const clips = [
+		{ id: 'clip-a', sourceId: 'source-a' },
+		{ id: 'clip-b', sourceId: 'source-b' },
+		{ id: 'clip-unplaced', sourceId: 'source-a' },
+	];
+	const tracks = [
+		{ id: 'track-a', type: 'audio', clipIds: ['clip-a', 'missing-clip'] },
+		{ id: 'track-b', type: 'video', clipIds: ['clip-b'] },
+		{ id: 'labels', type: 'label' },
+	];
+
+	const index = createTimelineProjectIndex({ sources, clips, tracks });
+
+	assert.strictEqual(index.clipById.get('clip-a'), clips[0]);
+	assert.strictEqual(index.sourceById.get('source-b'), sources[1]);
+	assert.deepEqual(index.clipsByTrackId.get('track-a'), [clips[0]]);
+	assert.deepEqual(index.clipsByTrackId.get('track-b'), [clips[1]]);
+	assert.deepEqual(index.clipsByTrackId.get('labels'), []);
+	assert.strictEqual(index.trackByClipId.get('clip-a'), tracks[0]);
+	assert.strictEqual(index.trackByClipId.get('clip-b'), tracks[1]);
+	assert.equal(index.trackByClipId.has('clip-unplaced'), false);
+	assert.deepEqual(createTimelineProjectIndex(null).clipsByTrackId, new Map());
 });
 
 test('viewport projection includes one viewport of overscan and returns viewport-relative seconds', () => {

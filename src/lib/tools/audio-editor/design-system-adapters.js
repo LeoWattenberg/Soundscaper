@@ -74,6 +74,51 @@ export function designValueToProgress(progress) {
 }
 
 /**
+ * Build the lookup tables used while projecting a project into timeline rows.
+ * Keeping this work at the project boundary avoids rebuilding full clip and
+ * source maps in every rendered track.
+ *
+ * @param {{
+ *   clips?: Array<Record<string, *>>,
+ *   sources?: Array<Record<string, *>>,
+ *   tracks?: Array<{ id: string, clipIds?: Array<string> }>,
+ * } | null} project
+ * @returns {{
+ *   clipById: Map<string, Record<string, *>>,
+ *   sourceById: Map<string, Record<string, *>>,
+ *   clipsByTrackId: Map<string, Array<Record<string, *>>>,
+ *   trackByClipId: Map<string, Record<string, *>>,
+ * }}
+ */
+export function createTimelineProjectIndex(project) {
+	const clips = Array.isArray(project?.clips) ? project.clips : [];
+	const sources = Array.isArray(project?.sources) ? project.sources : [];
+	const tracks = Array.isArray(project?.tracks) ? project.tracks : [];
+	const clipById = new Map(clips.map((clip) => [clip.id, clip]));
+	const sourceById = new Map(sources.map((source) => [source.id, source]));
+	const clipsByTrackId = new Map();
+	const trackByClipId = new Map();
+
+	for (const track of tracks) {
+		const trackClips = [];
+		for (const clipId of Array.isArray(track.clipIds) ? track.clipIds : []) {
+			const clip = clipById.get(clipId);
+			if (!clip) continue;
+			trackClips.push(clip);
+			trackByClipId.set(clipId, track);
+		}
+		clipsByTrackId.set(track.id, trackClips);
+	}
+
+	return {
+		clipById,
+		sourceById,
+		clipsByTrackId,
+		trackByClipId,
+	};
+}
+
+/**
  * @typedef {Object} ViewportClipProjection
  * @property {number} start Projected design-system start relative to the viewport.
  * @property {number} duration Projected design-system duration in seconds.
