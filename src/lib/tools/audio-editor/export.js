@@ -48,7 +48,9 @@ export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_
 }
 
 export function estimateProjectPcmBytes(project) {
-	return project.sources.reduce((bytes, source) => bytes + estimatePcmBytes(source.frameCount, source.channelCount), 0);
+	return project.sources
+		.filter((source) => source.kind !== 'video')
+		.reduce((bytes, source) => bytes + estimatePcmBytes(source.frameCount, source.channelCount), 0);
 }
 
 export function chooseRenderStrategy(options = {}) {
@@ -119,7 +121,7 @@ export function createExportPlan(project, options = {}) {
 			includeMaster: true,
 			respectMuteSolo: true,
 		}]
-		: project.tracks.filter((track) => track.type !== 'label').map((track, trackIndex) => ({
+		: project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').map((track, trackIndex) => ({
 			kind: 'stem',
 			fileName: createExportFileName(project, { format, extension: encoding.extension, mode: 'stem', trackIndex, trackName: track.name }),
 			trackId: track.id,
@@ -168,7 +170,7 @@ function resolveExportRange(project, requestedRange) {
 
 function determineTailFrames(project, mode, includeTail) {
 	if (!includeTail) return 0;
-	const trackTail = project.tracks.filter((track) => track.type !== 'label').reduce(
+	const trackTail = project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').reduce(
 		(longest, track) => Math.max(longest, track.effectsActive === false
 			? 0
 			: rackTailFrames(track.effects || [], project.sampleRate, 10)),

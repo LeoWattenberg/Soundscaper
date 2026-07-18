@@ -1,14 +1,15 @@
 # Soundscaper
 
-Soundscaper is a local-first multitrack audio editor for the browser. Projects,
-recordings, and imported audio remain in the browser's origin-private storage.
+Soundscaper is a local-first multitrack audio and video editor for the browser.
+Projects, recordings, and imported media remain in the browser's
+origin-private storage.
 The application is maintained by [kw.media](https://kw.media) and distributed
 under AGPL-3.0-only, with third-party components documented in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
 ## Memory and local storage
 
-Persisted PCM is the canonical copy of a source. New source audio is stored as
+Persisted PCM is the canonical copy of an audio source. New source audio is stored as
 planar float32 PCM in chunks of up to 65,536 frames, using the browser's
 origin-private file system (OPFS) when available and IndexedDB otherwise.
 Decoded `AudioBuffer`s are only a hot LRU cache: its default PCM-payload budget
@@ -36,7 +37,15 @@ removes local projects. Keep rendered audio backups of important work rather
 than treating origin-private storage as the only copy. AUP4 is an Audacity
 interchange export: it preserves compatible editable tracks and reports
 conversions, missing plug-ins, and omitted Soundscaper-only mixing state, but it
-is not a full-fidelity Soundscaper backup.
+is not a full-fidelity Soundscaper backup. AUP4 is audio-only, so video media is
+explicitly reported and omitted; use MP4 or WebM export for a rendered video.
+
+Imported MP4, M4V, and WebM originals are stored immutably in OPFS when
+available, with an IndexedDB Blob fallback. Posters and five-second filmstrip
+thumbnails are disposable derivatives. Video and extracted audio enter the
+Project Bin as one media item and are placed on adjacent linked lanes by
+default, so move, split, trim, and stretch edits stay synchronized unless the
+pair is explicitly unlinked.
 
 ## Local development
 

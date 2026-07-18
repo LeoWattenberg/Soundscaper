@@ -99,7 +99,7 @@ const METER_DB_RANGES = Object.freeze([36, 48, 60, 72, 84, 96, 120, 144]);
 const EBU_METER_SCALES = Object.freeze(['plus9', 'plus18']);
 const EBU_METER_UNITS = Object.freeze(['absolute', 'relative']);
 const EBU_METER_LIVE_VALUES = Object.freeze(['momentary', 'short-term']);
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,.aac,.aif,.aiff,.aup3,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.wav,.webm,.wv';
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.aup3,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
 const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	levels: 'analysis',
 	spectrum: 'spectrum',
@@ -238,7 +238,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	)));
 	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
-	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
+	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
 	const selectedAudioTrackRate = trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000);
 	const splitAvailable = Boolean(
 		selectedClip
@@ -491,7 +491,17 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const toggleRecording = useCallback(() => {
 		if (snapshot.recording) return run(() => controller.actions.recording.stop());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
-		const trackId = showArmControls ? undefined : snapshot.selectedTrackId || project?.tracks[0]?.id;
+		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
+		const pairedAudioTrack = selectedTrack?.type === 'video' && selectedTrack.laneGroupId
+			? project?.tracks.find((track) => (
+				track.type === 'audio' && track.laneGroupId === selectedTrack.laneGroupId
+			))
+			: null;
+		const trackId = showArmControls
+			? undefined
+			: selectedTrack?.type === 'audio'
+				? selectedTrack.id
+				: pairedAudioTrack?.id || project?.tracks.find((track) => track.type === 'audio')?.id;
 		return run(() => controller.actions.recording.start({ trackId }));
 	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
 
@@ -741,7 +751,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 			openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
 				importAudio: () => fileService.isDesktop
-					? run(() => openDesktopFiles('audio', true))
+					? run(() => openDesktopFiles('media', true))
 					: importInputRef.current?.click(),
 				importLabels: () => fileService.isDesktop
 					? run(() => openDesktopFiles('labels', true))
@@ -1617,7 +1627,7 @@ function EditorToolToolbar({
 	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
 	const telemetry = { playbackMode, positionFrame, transportState };
 	const project = snapshot.project;
-	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label');
+	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
 	const spectralTrackSelected = Boolean(selectedTrack && (
 		selectedTrack.displayMode === 'spectrogram'
 		|| selectedTrack.displayMode === 'multiview'
@@ -3123,6 +3133,7 @@ function AccessibleSelectionToolbar({
 
 const WORKSPACE_PANEL_IDS = Object.freeze([
 	'project-bin',
+	'video-preview',
 	'history',
 	'labels',
 	'metadata',
@@ -3195,6 +3206,9 @@ function WorkspacePanelDock({
 			panel?.visible
 			&& panel.dock === dock
 			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
+			&& (id !== 'video-preview' || snapshot.project?.tracks?.some((track) => (
+				track.type === 'video' && track.clipIds?.length
+			)))
 		))
 		.sort((left, right) => left[1].order - right[1].order);
 	useEffect(() => {
@@ -3744,6 +3758,9 @@ function WorkspacePanelContent({
 			/>
 		);
 	}
+	if (panelId === 'video-preview') {
+		return <VideoPreviewPanel controller={controller} snapshot={snapshot} copy={copy} />;
+	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
 		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
 	if (analysisMode) {
@@ -3860,7 +3877,7 @@ function WorkspacePanelContent({
 		);
 	}
 	if (panelId === 'effects') {
-		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label');
+		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
 		const scope = effectsPanelTarget?.scope || 'track';
 		const targetId = scope === 'track'
 			? selectedTrack?.id || null
@@ -3891,7 +3908,7 @@ function WorkspacePanelContent({
 	if (panelId === 'mixer') {
 		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} />;
 	}
-	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label') || null;
+	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio') || null;
 	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
 	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
 	const spectrogram = { ...defaultSpectrogram, ...(selectedTrack?.spectrogram || {}) };
@@ -3950,12 +3967,95 @@ function WorkspacePanelContent({
 	);
 }
 
+function VideoPreviewPanel({ controller, snapshot, copy }) {
+	const videoRef = useRef(null);
+	const telemetry = useAudioEditorTelemetrySelector(controller, (value) => ({
+		positionFrame: Math.max(0, Number(value.positionFrame) || 0),
+		transportState: value.transportState || 'stopped',
+		playbackRate: Math.max(0.001, Number(value.playbackRate) || 1),
+	}));
+	const project = snapshot.project;
+	const clipById = useMemo(() => new Map(
+		(project?.clips || []).map((clip) => [clip.id, clip]),
+	), [project?.clips]);
+	const active = useMemo(() => {
+		const frame = telemetry.positionFrame;
+		for (const track of project?.tracks || []) {
+			if (track.type !== 'video' || track.hidden) continue;
+			const clip = (track.clipIds || [])
+				.map((clipId) => clipById.get(clipId))
+				.find((candidate) => (
+					candidate
+					&& candidate.timelineStartFrame <= frame
+					&& candidate.timelineStartFrame + candidate.durationFrames > frame
+				));
+			if (clip) return { track, clip };
+		}
+		return null;
+	}, [clipById, project?.tracks, telemetry.positionFrame]);
+	const visual = active
+		? controller.actions.video?.getClipVisualData?.(active.clip.id)
+			|| controller.actions.timeline.getClipVisualData?.(active.clip.id)
+		: null;
+	const source = active
+		? project?.sources?.find((candidate) => candidate.id === active.clip.sourceId) || null
+		: null;
+	const sourceUrl = visual?.mediaUrl || visual?.url || null;
+	const unavailable = Boolean(active && (!source || !sourceUrl || snapshot.missingSourceIds?.includes(source.id)));
+
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video || !active || !sourceUrl) return;
+		const clip = active.clip;
+		const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || clip.durationFrames);
+		const timelineOffsetFrames = Math.max(0, telemetry.positionFrame - clip.timelineStartFrame);
+		const sourceFrame = (Number(clip.sourceStartFrame) || 0)
+			+ timelineOffsetFrames * sourceDurationFrames / Math.max(1, clip.durationFrames);
+		const targetTime = sourceFrame / Math.max(1, Number(source.sampleRate) || project.sampleRate || 48_000);
+		if (Math.abs((Number(video.currentTime) || 0) - targetTime) > 0.08) {
+			try {
+				video.currentTime = Math.max(0, targetTime);
+			} catch {
+				// Metadata can still be loading; loadedmetadata retries through the next telemetry update.
+			}
+		}
+		video.playbackRate = Math.max(
+			0.0625,
+			Math.min(16, sourceDurationFrames / Math.max(1, clip.durationFrames) * telemetry.playbackRate),
+		);
+		if (telemetry.transportState === 'playing') {
+			void video.play?.().catch(() => undefined);
+		} else video.pause?.();
+	}, [active, project?.sampleRate, source, sourceUrl, telemetry.playbackRate, telemetry.positionFrame, telemetry.transportState]);
+
+	return (
+		<div className="kw-audio-editor__video-preview" data-video-preview data-active-clip-id={active?.clip.id || ''}>
+			{active && sourceUrl && !unavailable ? (
+				<video
+					key={sourceUrl}
+					ref={videoRef}
+					src={sourceUrl}
+					muted
+					playsInline
+					preload="auto"
+					aria-label={`${copy.panelVideoPreview}: ${active.clip.title || source?.name || copy.videoClip}`}
+				/>
+			) : (
+				<div className="kw-audio-editor__video-preview-empty" role="status">
+					{unavailable ? copy.videoPreviewUnavailable : copy.videoPreviewEmpty}
+				</div>
+			)}
+		</div>
+	);
+}
+
 function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
 	const dragDepthRef = useRef(0);
 	const [dropActive, setDropActive] = useState(false);
 	const project = snapshot.project;
 	const clips = project?.projectBin?.clips || [];
+	const items = projectBinItems(clips);
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = Boolean(blocked || snapshot.readOnly);
@@ -3963,8 +4063,8 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 		controller,
 		(telemetry) => Math.max(0, Number(telemetry.positionFrame) || 0),
 	);
-	const selectedAudioTrack = project?.tracks.find((track) => (
-		track.id === snapshot.selectedTrackId && track.type === 'audio'
+	const selectedMediaTrack = project?.tracks.find((track) => (
+		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
 
 	const importFiles = (files) => {
@@ -3977,7 +4077,7 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 			inputRef.current?.click();
 			return;
 		}
-		const descriptors = await fileService.chooseFiles({ purpose: 'audio', multiple: true });
+		const descriptors = await fileService.chooseFiles({ purpose: 'media', multiple: true });
 		const files = [];
 		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
 		if (files.length) await importFiles(files);
@@ -4060,20 +4160,22 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 			{!snapshot.readOnly && blocked && (
 				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinBusy}</p>
 			)}
-			{clips.length ? (
+			{items.length ? (
 				<ul className="kw-audio-editor__project-bin-list" data-project-bin-list>
-					{clips.map((clip) => (
+					{items.map((item) => (
 						<ProjectBinCard
-							key={clip.id}
-							clip={clip}
-							source={sourceById.get(clip.sourceId) || null}
+							key={item.id}
+							clip={item.primaryClip}
+							itemClips={item.clips}
+							source={sourceById.get(item.primaryClip.sourceId) || null}
+							sources={item.clips.map((clip) => sourceById.get(clip.sourceId) || null)}
 							project={project}
 							controller={controller}
 							copy={copy}
 							locale={locale}
 							mutationBlocked={mutationBlocked}
-							missing={missingSourceIds.has(clip.sourceId)}
-							selectedAudioTrack={selectedAudioTrack}
+							missing={item.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
+							selectedMediaTrack={selectedMediaTrack}
 							positionFrame={positionFrame}
 							run={run}
 							onDragEnd={(element) => resetDropState(element)}
@@ -4091,14 +4193,16 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 
 function ProjectBinCard({
 	clip,
+	itemClips,
 	source,
+	sources,
 	project,
 	controller,
 	copy,
 	locale,
 	mutationBlocked,
 	missing,
-	selectedAudioTrack,
+	selectedMediaTrack,
 	positionFrame,
 	run,
 	onDragEnd,
@@ -4113,14 +4217,19 @@ function ProjectBinCard({
 	const disabled = mutationBlocked || unavailable;
 	const name = clip.title || source?.name || copy.clip;
 	const waveformPath = projectBinWaveformPath(visual, clip);
-	const transformBadges = projectBinTransformBadges(clip, source, copy);
+	const transformBadges = [...new Set(itemClips.flatMap((itemClip, index) => (
+		projectBinTransformBadges(itemClip, sources[index], copy)
+	)))];
 	const format = formatProjectBinSource(source, copy);
 	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
+	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
+	const posterUrl = visual?.posterUrl || visual?.thumbnails?.[0]?.url || null;
 
 	return (
 		<li
 			className={`kw-audio-editor__project-bin-card${unavailable ? ' kw-audio-editor__project-bin-card--unavailable' : ''}`}
-			data-project-bin-item={clip.id}
+			data-project-bin-item={clip.binItemId || clip.id}
+			data-project-bin-media-kind={videoClip ? 'video' : 'audio'}
 			data-source-id={clip.sourceId}
 			data-unavailable={unavailable ? 'true' : 'false'}
 			draggable={!disabled}
@@ -4143,17 +4252,31 @@ function ProjectBinCard({
 				onDragEnd(event.currentTarget.closest('[data-project-bin-drop-target]'));
 			}}
 		>
-			<div
-				className="kw-audio-editor__project-bin-waveform"
-				data-project-bin-waveform
-				aria-label={`${copy.projectBinWaveform}: ${name}`}
-				role="img"
-			>
-				<svg viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-					<path className="kw-audio-editor__project-bin-waveform-zero" d="M0 22 H160" />
-					{waveformPath && <path className="kw-audio-editor__project-bin-waveform-peaks" d={waveformPath} />}
-				</svg>
-			</div>
+			{videoClip ? (
+				<div
+					className="kw-audio-editor__project-bin-video"
+					data-project-bin-video
+					aria-label={`${copy.videoClip}: ${name}`}
+					role="img"
+				>
+					{posterUrl
+						? <img src={posterUrl} alt="" draggable="false" />
+						: <span aria-hidden="true">▶</span>}
+					<span>{itemClips.some((itemClip) => itemClip.kind === 'audio') ? copy.videoHasAudio : copy.videoSilent}</span>
+				</div>
+			) : (
+				<div
+					className="kw-audio-editor__project-bin-waveform"
+					data-project-bin-waveform
+					aria-label={`${copy.projectBinWaveform}: ${name}`}
+					role="img"
+				>
+					<svg viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+						<path className="kw-audio-editor__project-bin-waveform-zero" d="M0 22 H160" />
+						{waveformPath && <path className="kw-audio-editor__project-bin-waveform-peaks" d={waveformPath} />}
+					</svg>
+				</div>
+			)}
 			<div className="kw-audio-editor__project-bin-card-body">
 				<ProjectBinNameEditor
 					clip={clip}
@@ -4182,7 +4305,7 @@ function ProjectBinCard({
 						variant="secondary"
 						disabled={disabled}
 						onClick={() => run(() => controller.actions.projectBin.place(clip.id, {
-							...(selectedAudioTrack ? { trackId: selectedAudioTrack.id } : {}),
+							...(selectedMediaTrack ? { trackId: selectedMediaTrack.id } : {}),
 							timelineStartFrame: positionFrame,
 						}))}
 					>
@@ -4200,6 +4323,21 @@ function ProjectBinCard({
 			</div>
 		</li>
 	);
+}
+
+function projectBinItems(clips) {
+	const grouped = new Map();
+	for (const clip of clips || []) {
+		const id = clip.binItemId || clip.id;
+		const item = grouped.get(id) || [];
+		item.push(clip);
+		grouped.set(id, item);
+	}
+	return [...grouped].map(([id, itemClips]) => Object.freeze({
+		id,
+		clips: Object.freeze(itemClips),
+		primaryClip: itemClips.find((clip) => clip.kind === 'video') || itemClips[0],
+	}));
 }
 
 function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
@@ -4271,10 +4409,14 @@ function formatProjectBinDuration(durationFrames, sampleRate, locale) {
 function formatProjectBinSource(source, copy) {
 	if (!source) return copy.projectBinUnknownFormat;
 	const mimeSubtype = String(source.mimeType || '')
-		.replace(/^audio\//i, '')
+		.replace(/^(?:audio|video)\//i, '')
 		.replace(/^x-/i, '')
 		.replace('mpeg', 'mp3');
 	const format = mimeSubtype ? mimeSubtype.toUpperCase() : copy.projectBinUnknownFormat;
+	if (source.kind === 'video') {
+		const resolution = source.width && source.height ? `${source.width}×${source.height}` : copy.videoResolution;
+		return `${format} · ${resolution}`;
+	}
 	const channels = Number(source.channelCount) === 1
 		? copy.projectBinMono
 		: copy.projectBinChannels.replace('{count}', String(source.channelCount || 0));
@@ -4359,7 +4501,7 @@ function aggregateProjectBinRanges(minimums, maximums, start, end, maximumColumn
 function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
 	const meters = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters);
 	const project = snapshot.project;
-	const tracks = (project?.tracks || []).filter((track) => track.type !== 'label');
+	const tracks = (project?.tracks || []).filter((track) => track.type === 'audio');
 	const groups = project?.mixer?.groups || [];
 	const sends = project?.mixer?.sends || [];
 	const routes = project?.mixer?.routes || {};
@@ -5057,6 +5199,7 @@ function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
 function workspacePanelLabel(copy, panelId) {
 	const analyzerLabels = {
 		'project-bin': copy.panelProjectBin,
+		'video-preview': copy.panelVideoPreview,
 		analysis: copy.analysisCommand,
 		spectrum: copy.plotSpectrum,
 		clipping: copy.findClipping,
@@ -5802,8 +5945,17 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 							if (!Number.isFinite(startTimeMs) || startTimeMs <= Date.now()) return;
 							const trackId = showArmControls
 								? undefined
-								: snapshot.project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type !== 'label')?.id
-									|| snapshot.project?.tracks.find((track) => track.type !== 'label')?.id;
+								: (() => {
+									const selectedTrack = snapshot.project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
+									if (selectedTrack?.type === 'audio') return selectedTrack.id;
+									if (selectedTrack?.type === 'video' && selectedTrack.laneGroupId) {
+										const pairedTrack = snapshot.project?.tracks.find((track) => (
+											track.type === 'audio' && track.laneGroupId === selectedTrack.laneGroupId
+										));
+										if (pairedTrack) return pairedTrack.id;
+									}
+									return snapshot.project?.tracks.find((track) => track.type === 'audio')?.id;
+								})();
 							const operation = run(() => controller.actions.recording.schedule(startTimeMs, { trackId }));
 							if (operation && typeof operation.then === 'function') {
 								operation.then((scheduled) => { if (scheduled) onClose(); }, () => undefined);
@@ -6070,7 +6222,7 @@ function recordingOffsetSources(snapshot, copy) {
 function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const panelRef = useRef(null);
 	const project = snapshot.project;
-	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type !== 'label') || null;
+	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type === 'audio') || null;
 	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
 	const existing = snapshot.selection?.frequencyRange;
 	const [minimumFrequency, setMinimumFrequency] = useState(existing?.minimumFrequency ?? track?.spectrogram?.minimumFrequency ?? 0);
@@ -6189,7 +6341,7 @@ function createSnapMenu(copy, project, editBlocked, setSnap) {
 }
 
 function trackSources(project, track) {
-	if (!project || !track || track.type === 'label') return [];
+	if (!project || !track || track.type !== 'audio') return [];
 	const clipById = new Map((project.clips || []).map((clip) => [clip.id, clip]));
 	const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
 	return [...new Map((track.clipIds || []).map((clipId) => {
@@ -6232,7 +6384,7 @@ function createApplicationMenus({
 	)));
 	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
-	const selectedAudioTrack = selectedTrack?.type === 'label' ? null : selectedTrack;
+	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
 	const selectedTrackIndex = selectedTrack ? project.tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
 	const selectedAudioChannelCount = trackSourceChannelCount(project, selectedAudioTrack);
 	const selectedAudioSources = trackSources(project, selectedAudioTrack);
@@ -6246,7 +6398,7 @@ function createApplicationMenus({
 		track.type === 'audio' && selectedMixTrackIds.has(track.id) && track.clipIds.length
 	));
 	const compatibleMonoTracks = Boolean(selectedAudioChannelCount === 1 && project?.tracks.some((track) => (
-		track.id !== selectedAudioTrack.id && track.type !== 'label' && trackSourceChannelCount(project, track) === 1
+		track.id !== selectedAudioTrack.id && track.type === 'audio' && trackSourceChannelCount(project, track) === 1
 	)));
 	const selectedClipIds = project?.selection?.clipIds?.length
 		? project.selection.clipIds

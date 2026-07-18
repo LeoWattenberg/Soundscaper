@@ -236,8 +236,12 @@ export function editorTimelineDurationFrames(project, sampleRate = project.sampl
 
 /** @param {AudioEditorProjectV1} project @returns {number} */
 export function aggregateStereoMinutes(project) {
-	const usedSourceIds = new Set(project.clips.map((clip) => clip.sourceId));
-	const uniqueSources = new Map(project.sources.filter((source) => usedSourceIds.has(source.id)).map((source) => [source.id, source]));
+	const usedSourceIds = new Set(project.clips
+		.filter((clip) => clip.kind !== 'video')
+		.map((clip) => clip.sourceId));
+	const uniqueSources = new Map(project.sources
+		.filter((source) => source.kind !== 'video' && usedSourceIds.has(source.id))
+		.map((source) => [source.id, source]));
 	let channelSeconds = 0;
 	for (const source of uniqueSources.values()) {
 		const sourceRate = Number(source.sampleRate) || Number(project.sampleRate) || AUDIO_EDITOR_SAMPLE_RATE;
@@ -252,7 +256,7 @@ export function projectEnvelope(project, options = {}) {
 		? { trackCount: 4, stereoMinutes: 10 }
 		: { trackCount: 8, stereoMinutes: 30 };
 	const actual = {
-		trackCount: project.tracks.filter((track) => track.type !== 'label').length,
+		trackCount: project.tracks.filter((track) => track.type == null || track.type === 'audio').length,
 		stereoMinutes: aggregateStereoMinutes(project),
 	};
 	const exceeded = {
@@ -283,6 +287,7 @@ export function validateAudioEditorProject(project) {
 	if (!project || typeof project !== 'object') throw new TypeError('An audio editor project is required.');
 	if (project.schemaVersion === 2) return validateProjectV2Shape(project);
 	if (project.schemaVersion === 3) return validateProjectV3Shape(project);
+	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -459,4 +464,238 @@ function validateProjectV3Shape(project) {
 		if (!timelineClipIds.has(clipId)) throw new ReferenceError(`Selection references missing timeline clip ${clipId}.`);
 	}
 	return true;
+}
+
+function validateProjectV4Shape(project) {
+	if (!project.projectBin || typeof project.projectBin !== 'object' || Array.isArray(project.projectBin)) {
+		throw new TypeError('project.projectBin must be an object.');
+	}
+	if (!Array.isArray(project.projectBin.clips)) {
+		throw new TypeError('project.projectBin.clips must be an array.');
+	}
+	if (!Array.isArray(project.sources) || !Array.isArray(project.clips) || !Array.isArray(project.tracks)) {
+		throw new TypeError('Project sources, clips, and tracks must be arrays.');
+	}
+	assertUniqueIds(project.sources, 'source');
+	assertUniqueIds([...project.clips, ...project.projectBin.clips], 'clip');
+	assertUniqueIds(project.tracks, 'track');
+	for (const source of project.sources) {
+		if (source.kind !== 'audio' && source.kind !== 'video') {
+			throw new RangeError(`Unsupported source kind: ${source.kind}.`);
+		}
+	}
+	for (const clip of [...project.clips, ...project.projectBin.clips]) {
+		if (clip.kind !== 'audio' && clip.kind !== 'video') {
+			throw new RangeError(`Unsupported clip kind: ${clip.kind}.`);
+		}
+	}
+	for (const track of project.tracks) {
+		if (!['audio', 'video', 'label'].includes(track.type)) {
+			throw new RangeError(`Unsupported track type: ${track.type}.`);
+		}
+	}
+
+	const audioSourceIds = new Set(project.sources
+		.filter((source) => source.kind === 'audio')
+		.map((source) => source.id));
+	const audioClipIds = new Set(project.clips
+		.filter((clip) => clip.kind === 'audio')
+		.map((clip) => clip.id));
+	const audioTrackIds = new Set(project.tracks
+		.filter((track) => track.type === 'audio')
+		.map((track) => track.id));
+	const labelTrackIds = new Set(project.tracks
+		.filter((track) => track.type === 'label')
+		.map((track) => track.id));
+	const audioProject = {
+		...project,
+		schemaVersion: 2,
+		sources: project.sources.filter((source) => audioSourceIds.has(source.id)),
+		clips: project.clips.filter((clip) => audioClipIds.has(clip.id)),
+		tracks: project.tracks.filter((track) => audioTrackIds.has(track.id) || labelTrackIds.has(track.id)),
+		selection: {
+			...project.selection,
+			trackIds: (project.selection?.trackIds || []).filter((trackId) => (
+				audioTrackIds.has(trackId) || labelTrackIds.has(trackId)
+			)),
+			clipIds: (project.selection?.clipIds || []).filter((clipId) => audioClipIds.has(clipId)),
+		},
+		view: {
+			...project.view,
+			selectedTrackIds: (project.view?.selectedTrackIds || []).filter((trackId) => (
+				audioTrackIds.has(trackId) || labelTrackIds.has(trackId)
+			)),
+		},
+	};
+	delete audioProject.projectBin;
+	validateProjectV2Shape(audioProject);
+
+	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
+	const timelineClipById = new Map(project.clips.map((clip) => [clip.id, clip]));
+	const trackById = new Map(project.tracks.map((track) => [track.id, track]));
+	const assignedClipTrack = new Map();
+	for (const source of project.sources) {
+		if (source.kind !== 'video') continue;
+		assertPositiveFrame(source.frameCount, `source ${source.id}.frameCount`);
+		assertPositiveFrame(source.sampleRate, `source ${source.id}.sampleRate`);
+		assertPositiveFrame(source.width, `source ${source.id}.width`);
+		assertPositiveFrame(source.height, `source ${source.id}.height`);
+		if (!Number.isFinite(source.frameRate) || source.frameRate <= 0) {
+			throw new RangeError(`source ${source.id}.frameRate must be positive.`);
+		}
+		if (typeof source.storageKey !== 'string' || !source.storageKey) {
+			throw new TypeError(`source ${source.id}.storageKey must be a non-empty string.`);
+		}
+	}
+	for (const clip of project.clips) {
+		validateV4ClipBounds(clip, sourceById);
+		if (clip.binItemId != null) throw new RangeError(`Timeline clip ${clip.id} cannot have a bin item ID.`);
+	}
+	for (const clip of project.projectBin.clips) {
+		validateV4ClipBounds(clip, sourceById);
+		if (clip.avLinkId != null) throw new RangeError(`Project Bin clip ${clip.id} cannot have an A/V link ID.`);
+		if (typeof clip.binItemId !== 'string' || !clip.binItemId) {
+			throw new TypeError(`Project Bin clip ${clip.id}.binItemId must be a non-empty string.`);
+		}
+	}
+	for (const track of project.tracks) {
+		if (track.type === 'label') {
+			if (track.laneGroupId != null) throw new RangeError(`Label track ${track.id} cannot belong to a media lane group.`);
+			continue;
+		}
+		if (!Array.isArray(track.clipIds)) throw new TypeError(`Track ${track.id} must contain clip IDs.`);
+		for (const clipId of track.clipIds) {
+			const clip = timelineClipById.get(clipId);
+			if (!clip) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
+			if (clip.kind !== track.type) throw new RangeError(`Track ${track.id} cannot contain a ${clip.kind} clip.`);
+			if (assignedClipTrack.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
+			assignedClipTrack.set(clipId, track);
+		}
+		if (track.type === 'video') validateV4VideoTrackClipOverlaps(track, timelineClipById);
+	}
+	if (assignedClipTrack.size !== project.clips.length) {
+		throw new RangeError('Every clip must belong to exactly one media track.');
+	}
+	for (const trackId of [
+		...(project.selection?.trackIds || []),
+		...(project.view?.selectedTrackIds || []),
+	]) {
+		if (!trackById.has(trackId)) throw new ReferenceError(`Project state references missing track ${trackId}.`);
+	}
+	for (const clipId of project.selection?.clipIds || []) {
+		if (!timelineClipById.has(clipId)) throw new ReferenceError(`Selection references missing timeline clip ${clipId}.`);
+	}
+	validateV4LaneGroups(project.tracks);
+	validateV4AvLinks(project.clips, assignedClipTrack);
+	validateV4BinItems(project.projectBin.clips);
+	return true;
+}
+
+function validateV4VideoTrackClipOverlaps(track, clipById) {
+	const clips = track.clipIds
+		.map((clipId) => clipById.get(clipId))
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
+	for (let index = 1; index < clips.length; index += 1) {
+		const previous = clips[index - 1];
+		if (clips[index].timelineStartFrame < previous.timelineStartFrame + previous.durationFrames) {
+			throw new RangeError(`Video clips overlap on track ${track.id}.`);
+		}
+	}
+}
+
+function validateV4ClipBounds(clip, sourceById) {
+	const source = sourceById.get(clip.sourceId);
+	if (!source) throw new ReferenceError(`Clip ${clip.id} references a missing source.`);
+	if (source.kind !== clip.kind) {
+		throw new RangeError(`Clip ${clip.id} cannot reference ${source.kind === 'audio' ? 'an' : 'a'} ${source.kind} source.`);
+	}
+	assertFrame(clip.timelineStartFrame, `clip ${clip.id}.timelineStartFrame`);
+	assertFrame(clip.sourceStartFrame, `clip ${clip.id}.sourceStartFrame`);
+	assertPositiveFrame(clip.durationFrames, `clip ${clip.id}.durationFrames`);
+	assertPositiveFrame(clip.sourceDurationFrames, `clip ${clip.id}.sourceDurationFrames`);
+	assertFrame(clip.trimStartFrames, `clip ${clip.id}.trimStartFrames`);
+	assertFrame(clip.trimEndFrames, `clip ${clip.id}.trimEndFrames`);
+	if (clip.sourceStartFrame + clip.sourceDurationFrames > source.frameCount) {
+		throw new RangeError(`Clip ${clip.id} exceeds its source bounds.`);
+	}
+	if (clip.trimStartFrames > clip.sourceStartFrame) {
+		throw new RangeError(`Clip ${clip.id} has an invalid leading trim range.`);
+	}
+	if (clip.sourceStartFrame + clip.sourceDurationFrames + clip.trimEndFrames > source.frameCount) {
+		throw new RangeError(`Clip ${clip.id} has an invalid trailing trim range.`);
+	}
+}
+
+function validateV4LaneGroups(tracks) {
+	const groups = new Map();
+	for (const [index, track] of tracks.entries()) {
+		if (track.laneGroupId == null) continue;
+		if (typeof track.laneGroupId !== 'string' || !track.laneGroupId) {
+			throw new TypeError(`track ${track.id}.laneGroupId must be a non-empty string.`);
+		}
+		const entries = groups.get(track.laneGroupId) || [];
+		entries.push({ index, track });
+		groups.set(track.laneGroupId, entries);
+	}
+	for (const [laneGroupId, entries] of groups) {
+		if (
+			entries.length !== 2
+			|| entries[0].track.type !== 'video'
+			|| entries[1].track.type !== 'audio'
+			|| entries[1].index !== entries[0].index + 1
+		) {
+			throw new RangeError(`Media lane group ${laneGroupId} must contain one adjacent video/audio track pair.`);
+		}
+	}
+}
+
+function validateV4AvLinks(clips, assignedClipTrack) {
+	const links = new Map();
+	for (const clip of clips) {
+		if (clip.avLinkId == null) continue;
+		if (typeof clip.avLinkId !== 'string' || !clip.avLinkId) {
+			throw new TypeError(`clip ${clip.id}.avLinkId must be a non-empty string.`);
+		}
+		const linked = links.get(clip.avLinkId) || [];
+		linked.push(clip);
+		links.set(clip.avLinkId, linked);
+	}
+	for (const [avLinkId, linked] of links) {
+		const audio = linked.find((clip) => clip.kind === 'audio');
+		const video = linked.find((clip) => clip.kind === 'video');
+		if (linked.length !== 2 || !audio || !video) {
+			throw new RangeError(`A/V link ${avLinkId} must contain exactly one audio and one video clip.`);
+		}
+		if (audio.timelineStartFrame !== video.timelineStartFrame || audio.durationFrames !== video.durationFrames) {
+			throw new RangeError(`A/V link ${avLinkId} clips must have aligned timeline ranges.`);
+		}
+		const audioTrack = assignedClipTrack.get(audio.id);
+		const videoTrack = assignedClipTrack.get(video.id);
+		if (!audioTrack?.laneGroupId || audioTrack.laneGroupId !== videoTrack?.laneGroupId) {
+			throw new RangeError(`A/V link ${avLinkId} clips must belong to the same media lane group.`);
+		}
+	}
+}
+
+function validateV4BinItems(clips) {
+	const items = new Map();
+	for (const clip of clips) {
+		const grouped = items.get(clip.binItemId) || [];
+		grouped.push(clip);
+		items.set(clip.binItemId, grouped);
+	}
+	for (const [binItemId, grouped] of items) {
+		const audioCount = grouped.filter((clip) => clip.kind === 'audio').length;
+		const videoCount = grouped.filter((clip) => clip.kind === 'video').length;
+		if (grouped.length > 2 || audioCount > 1 || videoCount > 1) {
+			throw new RangeError(`Project Bin item ${binItemId} can contain at most one audio and one video clip.`);
+		}
+		if (
+			audioCount === 1
+			&& videoCount === 1
+			&& grouped[0].durationFrames !== grouped[1].durationFrames
+		) {
+			throw new RangeError(`Project Bin item ${binItemId} clips must have aligned durations.`);
+		}
+	}
 }

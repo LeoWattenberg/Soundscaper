@@ -151,13 +151,13 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		const currentProject = project();
 		if (!currentProject) return null;
 		const current = selectedTrack();
-		if (current && current.type !== 'label') return current;
+		if (current?.type === 'audio') return current;
 		for (const trackId of currentProject.selection?.trackIds || []) {
 			const track = currentProject.tracks.find((candidate) => candidate.id === trackId);
-			if (track && track.type !== 'label') return track;
+			if (track?.type === 'audio') return track;
 		}
 		const clipId = selectedClipId();
-		return currentProject.tracks.find((track) => track.type !== 'label' && track.clipIds?.includes(clipId)) || null;
+		return currentProject.tracks.find((track) => track.type === 'audio' && track.clipIds?.includes(clipId)) || null;
 	};
 	const selectedRackEffect = (effectId = null) => {
 		const track = selectedTrack();
@@ -201,7 +201,17 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		const currentProject = project();
 		if (!clip || !currentProject) return null;
 		const currentTrackIndex = currentProject.tracks.findIndex((track) => track.clipIds?.includes(clip.id));
-		const targetTrack = currentProject.tracks[Math.max(0, Math.min(currentProject.tracks.length - 1, currentTrackIndex + trackDelta))];
+		const currentTrack = currentProject.tracks[currentTrackIndex];
+		const targetType = clip.kind || currentTrack?.type;
+		let targetTrackIndex = Math.max(0, Math.min(currentProject.tracks.length - 1, currentTrackIndex + trackDelta));
+		while (
+			targetTrackIndex >= 0
+			&& targetTrackIndex < currentProject.tracks.length
+			&& currentProject.tracks[targetTrackIndex]?.type !== targetType
+		) {
+			targetTrackIndex += Math.sign(trackDelta);
+		}
+		const targetTrack = currentProject.tracks[targetTrackIndex];
 		if (!targetTrack || targetTrack.type === 'label') return null;
 		return controllerActions.clip.move(
 			clip.id,
@@ -439,7 +449,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			duplicate: (context = null) => {
 				const requestedTrackId = typeof context === 'string' ? context : context?.trackId;
 				const requestedTrack = requestedTrackId
-					? project()?.tracks.find((track) => track.id === requestedTrackId && track.type !== 'label')
+					? project()?.tracks.find((track) => track.id === requestedTrackId && track.type === 'audio')
 					: null;
 				const track = requestedTrack || selectedAudioTrack();
 				return track ? controllerActions.track.duplicate(track.id) : null;

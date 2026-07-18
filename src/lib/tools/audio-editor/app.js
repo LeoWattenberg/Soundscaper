@@ -34,12 +34,14 @@ import {
 	createAddLabelTrackCommand,
 	createAddSourceCommand,
 	createAddTrackCommand,
-	createAudioEditorProjectV3,
+	createAudioEditorProjectV4,
+	createAudioEditorVideoFrameExtractor,
 	convertStructuredAup3ToProjectV2,
 	createClipboardDescriptor,
 	createEditorHistory,
 	createEffect,
 	createExportPlan,
+	createVideoExportPlan,
 	createAudioEditorFileService,
 	createPencilSampleEdits,
 	createReplaceClipSourceCommand,
@@ -64,6 +66,7 @@ import {
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
 	isAudacityRackEffectType,
+	isAudioEditorVideoFile,
 	loadAudioEditorPreferencesV1,
 	loadStoredSourceChannels,
 	migrateAudioEditorProject,
@@ -83,6 +86,7 @@ import {
 	prepareOverwriteClipCommand,
 	prepareTransformClipsCommand,
 	prepareSplitCommand,
+	prepareLinkedSplitCommand,
 	projectDurationFrames,
 	projectEnvelope,
 	rackTailFrames,
@@ -104,6 +108,7 @@ import {
 	createStreamingWindowedSincResampler,
 	redoEditorCommand,
 	undoEditorCommand,
+	audioEditorVideoThumbnailTimes,
 } from './index.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
@@ -207,6 +212,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	);
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
+	const videoVisuals = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
 	const scheduleTimer = typeof options.setTimeout === 'function' ? options.setTimeout : globalThis.setTimeout.bind(globalThis);
@@ -498,6 +504,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceBuffers.clear();
 			sourceChunkProviders.clear();
 			sourcePeaks.clear();
+			revokeVideoVisuals();
 			await store.close?.();
 			documentListeners.clear();
 			telemetryListeners.clear();
@@ -717,12 +724,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function getClipVisualData(clipId) {
 		const clip = project ? findClip(project, clipId) : null;
 		if (!clip) return null;
+		const source = findSource(project, clip.sourceId);
+		const video = clip.kind === 'video' ? videoVisuals.get(clip.sourceId) : null;
 		return Object.freeze({
 			clip,
 			track: findClipTrack(project, clip.id),
-			source: findSource(project, clip.sourceId),
+			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
+			available: Boolean(source && !state.missingSourceIds.has(source.id)),
+			mediaUrl: video?.mediaUrl || null,
+			posterUrl: video?.posterUrl || null,
+			thumbnails: video?.thumbnails || Object.freeze([]),
 		});
 	}
 
@@ -730,14 +743,74 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const clip = project ? findProjectBinClip(project, clipId) : null;
 		if (!clip) return null;
 		const source = findSource(project, clip.sourceId);
-		return Object.freeze({
+		const itemClips = project.schemaVersion >= 4
+			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
+			: [clip];
+		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') || null;
+		const video = videoClip ? videoVisuals.get(videoClip.sourceId) : null;
+		const visual = {
 			clip,
 			track: null,
 			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
 			available: Boolean(source && !state.missingSourceIds.has(source.id)),
+		};
+		if (videoClip) Object.assign(visual, {
+			itemClips: Object.freeze(itemClips),
+			videoClip,
+			mediaUrl: video?.mediaUrl || null,
+			posterUrl: video?.posterUrl || null,
+			thumbnails: video?.thumbnails || Object.freeze([]),
 		});
+		return Object.freeze(visual);
+	}
+
+	function revokeVideoVisuals() {
+		for (const sourceId of [...videoVisuals.keys()]) revokeVideoVisual(sourceId);
+	}
+
+	function revokeVideoVisual(sourceId) {
+		const visual = videoVisuals.get(sourceId);
+		if (!visual) return;
+		for (const url of [
+			visual.mediaUrl,
+			visual.posterUrl,
+			...(visual.thumbnails || []).map((thumbnail) => thumbnail.url),
+		]) {
+			if (url) globalThis.URL?.revokeObjectURL?.(url);
+		}
+		videoVisuals.delete(sourceId);
+	}
+
+	async function activateVideoSource(source) {
+		const sourceId = source.storageKey || source.id;
+		const mediaBlob = await store.loadMediaAsset(sourceId);
+		if (!mediaBlob) throw new Error('The original video file is missing.');
+		const mediaUrl = globalThis.URL?.createObjectURL?.(mediaBlob) || null;
+		let posterUrl = null;
+		const thumbnails = [];
+		const derivatives = await store.listVideoDerivatives(sourceId);
+		for (const derivative of derivatives) {
+			const blob = await store.loadVideoDerivative(sourceId, derivative);
+			const url = blob && globalThis.URL?.createObjectURL?.(blob);
+			if (!url) continue;
+			if (derivative.type === 'poster') posterUrl = url;
+			else if (derivative.type === 'thumbnail') {
+				thumbnails.push(Object.freeze({
+					sourceTimeSeconds: derivative.timestamp,
+					timestampSeconds: derivative.timestamp,
+					url,
+					width: derivative.width,
+					height: derivative.height,
+				}));
+			} else globalThis.URL?.revokeObjectURL?.(url);
+		}
+		videoVisuals.set(source.id, Object.freeze({
+			mediaUrl,
+			posterUrl: posterUrl || thumbnails[0]?.url || null,
+			thumbnails: Object.freeze(thumbnails),
+		}));
 	}
 
 	function projectBinClips(snapshot = project) {
@@ -748,9 +821,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return [...(snapshot?.clips || []), ...projectBinClips(snapshot)];
 	}
 
-	function hasMissingTimelineSources(snapshot = project) {
+	function hasMissingTimelineSources(snapshot = project, options = {}) {
 		if (!state.missingSourceIds.size) return false;
-		return (snapshot?.clips || []).some((clip) => state.missingSourceIds.has(clip.sourceId));
+		const sourceById = options.audioOnly
+			? new Map((snapshot?.sources || []).map((source) => [source.id, source]))
+			: null;
+		return (snapshot?.clips || []).some((clip) => (
+			(!options.audioOnly || (clip.kind !== 'video' && sourceById.get(clip.sourceId)?.kind !== 'video'))
+			&& state.missingSourceIds.has(clip.sourceId)
+		));
 	}
 
 	function getVisibleClips(options = {}) {
@@ -813,6 +892,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 				rename: renameProjectBinClip,
 				remove: removeProjectBinClip,
 				getVisualData: getProjectBinClipVisualData,
+			}),
+			video: Object.freeze({
+				getClipVisualData,
+				export: exportVideo,
+				link: (videoClipId, audioClipId) => commit({
+					type: 'clip/link-av',
+					videoClipId,
+					audioClipId,
+					avLinkId: createStableId('av-link'),
+				}),
+				unlink: (clipId) => commit({ type: 'clip/unlink-av', clipId }),
 			}),
 			edit: Object.freeze({
 				execute: handleEdit,
@@ -959,6 +1049,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			track: Object.freeze({
 				add: addTrack,
+				addVideo: addVideoTrackPair,
 				// Compatibility aliases for Audacity's two add-track commands. The
 				// resulting browser track has no media layout until it contains clips.
 				addMono: addTrack,
@@ -1334,7 +1425,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function newProject(options = {}) {
 		const title = String(options.title || copy.untitledProject).trim() || copy.untitledProject;
-		const nextProject = createAudioEditorProjectV3({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) });
+		const nextProject = createAudioEditorProjectV4({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) });
 		const track = createAddTrackCommand({
 			schemaVersion: 2,
 			type: 'audio',
@@ -1343,7 +1434,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		});
 		const history = executeEditorCommand(createEditorHistory(nextProject), track);
 		await switchProject(history.present, { save: true, skipFlush: options.skipFlush });
-		const firstAudioTrack = project.tracks.find((candidate) => candidate.type !== 'label');
+		const firstAudioTrack = project.tracks.find((candidate) => candidate.type === 'audio');
 		if (firstAudioTrack) assignPreferredInputToTrack(firstAudioTrack.id);
 	}
 
@@ -1432,6 +1523,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.outputCleanup = null;
 		state.exportOutput = null;
 		state.missingSourceIds.clear();
+		revokeVideoVisuals();
 		await loadProjectSources(project);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
@@ -1552,7 +1644,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function saveAup4(options = {}) {
 		if (!project || project.schemaVersion < 2) throw new Error(copy.aup4OnlyV2);
-		if (hasMissingTimelineSources()) throw new Error(copy.missingSourcesPreventSave);
+		if (hasMissingTimelineSources(project, { audioOnly: true })) throw new Error(copy.missingSourcesPreventSave);
 		if (aup4ReportHasMissingPcm(sessionTab(project.id)?.metadata?.aup4CompatibilityReport)) {
 			throw new Error(copy.missingSourcesPreventSave);
 		}
@@ -1584,7 +1676,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const nativeId = createStableId('aup4-export').replace(/[^a-z0-9_-]/gi, '-');
 		let nativeCreated = false;
 		const referencedSources = project.sources.filter((candidate) => (
-			project.clips.some((clip) => clip.sourceId === candidate.id)
+			candidate.kind !== 'video'
+			&& project.clips.some((clip) => clip.kind !== 'video' && clip.sourceId === candidate.id)
 		));
 		const sourceBytes = referencedSources.reduce((sum, source) => sum + sourcePcmBytes(source), 0);
 		const workingBytes = referencedSources.reduce((maximum, source) => (
@@ -1700,6 +1793,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const context = await engine.getAudioContext?.({ resume: false });
 		for (const source of project.sources.filter((candidate) => usedSourceIds.has(candidate.id))) {
 			try {
+				if (source.kind === 'video') {
+					await activateVideoSource(source);
+					continue;
+				}
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 				const chunkProvider = registerStoredChunkProvider(source, metadata);
 				const useChunkStream = Boolean(chunkProvider)
@@ -1753,10 +1850,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function ensureProjectSourcesAvailable(snapshot) {
-		const usedSourceIds = new Set((snapshot?.clips || []).map((clip) => clip.sourceId));
+		const usedSourceIds = new Set((snapshot?.clips || [])
+			.filter((clip) => clip.kind !== 'video')
+			.map((clip) => clip.sourceId));
 		const transientBuffers = new Map();
 		let context = null;
-		for (const source of (snapshot?.sources || []).filter((candidate) => usedSourceIds.has(candidate.id))) {
+		for (const source of (snapshot?.sources || []).filter((candidate) => (
+			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
+		))) {
 			if (!sourceChunkProviders.has(source.id)) {
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 				if (!metadata) continue;
@@ -1907,6 +2008,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers.clear();
 		sourceChunkProviders.clear();
 		sourcePeaks.clear();
+		revokeVideoVisuals();
 		await store.clear();
 		sessionController.clearClipboard();
 		for (const tab of [...sessionController.getSnapshot().tabs]) {
@@ -1943,44 +2045,97 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		const binClip = findProjectBinClip(project, binClipId);
 		if (!binClip) throw new Error(copy.audioClipNotFound);
-		const source = findSource(project, binClip.sourceId);
-		if (!source || state.missingSourceIds.has(source.id)) throw new Error(copy.localSourcesMissing);
-
-		let track = null;
-		if (placement.trackId != null) {
-			track = findTrack(project, placement.trackId);
-			if (!track || !Array.isArray(track.clipIds)) throw new Error(copy.audioTrackNotFound);
-		} else {
-			const selectedTrack = findTrack(project, state.selectedTrackId);
-			if (selectedTrack && Array.isArray(selectedTrack.clipIds)) track = selectedTrack;
+		const itemClips = project.schemaVersion >= 4
+			? projectBinClips(project).filter((clip) => clip.binItemId === binClip.binItemId)
+			: [binClip];
+		for (const itemClip of itemClips) {
+			const source = findSource(project, itemClip.sourceId);
+			if (!source || state.missingSourceIds.has(source.id)) throw new Error(copy.localSourcesMissing);
 		}
-
+		const videoClip = itemClips.find((clip) => clip.kind === 'video') || null;
+		const audioClip = itemClips.find((clip) => clip.kind !== 'video') || null;
+		const requestedTrack = findTrack(project, placement.trackId ?? state.selectedTrackId);
 		const commands = [];
-		const trackId = track?.id || createStableId('track');
-		if (!track) {
+		let videoTrack = requestedTrack?.type === 'video' ? requestedTrack : null;
+		let audioTrack = requestedTrack?.type === 'audio' ? requestedTrack : null;
+		if (requestedTrack?.laneGroupId) {
+			videoTrack ||= project.tracks.find((track) => (
+				track.type === 'video' && track.laneGroupId === requestedTrack.laneGroupId
+			)) || null;
+			audioTrack ||= project.tracks.find((track) => (
+				track.type === 'audio' && track.laneGroupId === requestedTrack.laneGroupId
+			)) || null;
+		}
+		if (
+			videoClip
+			&& audioClip
+			&& (
+				!videoTrack?.laneGroupId
+				|| videoTrack.laneGroupId !== audioTrack?.laneGroupId
+			)
+		) {
+			videoTrack = null;
+			audioTrack = null;
+		}
+		if (videoClip && !videoTrack) {
+			const laneGroupId = createStableId('media-lane');
+			const videoTrackId = createStableId('video-track');
+			const audioTrackId = createStableId('track');
+			const insertion = project.tracks.length;
+			commands.push({
+				...createAddTrackCommand({
+					schemaVersion: 4,
+					type: 'video',
+					id: videoTrackId,
+					name: binClip.title || 'Video',
+					laneGroupId,
+				}),
+				index: insertion,
+			}, {
+				...createAddTrackCommand({
+					schemaVersion: 4,
+					type: 'audio',
+					id: audioTrackId,
+					name: `${binClip.title || copy.track} Audio`,
+					laneGroupId,
+					armed: false,
+				}),
+				index: insertion + 1,
+			});
+			videoTrack = { id: videoTrackId, type: 'video', laneGroupId };
+			audioTrack = { id: audioTrackId, type: 'audio', laneGroupId };
+		} else if (audioClip && !audioTrack) {
+			const audioTrackId = createStableId('track');
 			commands.push(createAddTrackCommand({
-				schemaVersion: 2,
+				schemaVersion: project.schemaVersion,
 				type: 'audio',
-				id: trackId,
+				id: audioTrackId,
 				name: binClip.title || `${copy.track} ${project.tracks.length + 1}`,
 			}));
+			audioTrack = { id: audioTrackId, type: 'audio', laneGroupId: null };
 		}
-		const clipId = createStableId('clip');
 		const timelineStartFrame = normalizeImportTimelineStartFrame(
 			placement.timelineStartFrame ?? engine.getPositionFrames(),
 		);
+		const placements = itemClips.map((itemClip) => ({
+			binClipId: itemClip.id,
+			trackId: itemClip.kind === 'video' ? videoTrack?.id : audioTrack?.id,
+			clipId: createStableId('clip'),
+		}));
+		const selectedPlacement = placements.find((candidate) => candidate.binClipId === videoClip?.id)
+			|| placements[0];
 		commands.push({
 			type: 'project-bin/place',
 			binClipId: binClip.id,
-			trackId,
 			timelineStartFrame,
-			clipId,
+			placements,
+			...(itemClips.length === 2 ? { avLinkId: createStableId('av-link') } : {}),
 		});
 		commit(commands.length === 1 ? commands[0] : { type: 'batch', commands }, {
-			selectTrackId: trackId,
-			selectClipId: clipId,
+			selectTrackId: videoClip ? videoTrack.id : audioTrack.id,
+			selectClipId: selectedPlacement.clipId,
 		});
-		return clipId;
+		return selectedPlacement.clipId;
 	}
 
 	function renameProjectBinClip(clipId, requestedName) {
@@ -2103,7 +2258,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		let track = null;
 		if (importOptions.trackId) {
 			track = findTrack(project, importOptions.trackId);
-			if (!track || !Array.isArray(track.clipIds)) throw new Error(copy.audioTrackNotFound);
+			if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
 		}
 		const trackId = track?.id || createStableId('track');
 		if (!track) {
@@ -2136,7 +2291,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function validateImportTimelineTrack(importOptions) {
 		if (importOptions.destination !== 'timeline' || !importOptions.trackId) return null;
 		const track = findTrack(project, importOptions.trackId);
-		if (!track || !Array.isArray(track.clipIds)) throw new Error(copy.audioTrackNotFound);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
 		return track;
 	}
 
@@ -2145,6 +2300,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 			return importStructuredAudacityProject(file);
 		}
+		if (isAudioEditorVideoFile(file)) return importVideoFile(file, importOptions);
 		validateImportTimelineTrack(importOptions);
 		const incrementalWav = await inspectIncrementalWav(file);
 		if (incrementalWav) return importIncrementalWav(file, incrementalWav, importOptions);
@@ -2209,6 +2365,268 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		warnEnvelope();
 		return prepared.result;
+	}
+
+	async function importVideoFile(file, importOptions = normalizeImportOptions()) {
+		await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
+		const extractor = await createAudioEditorVideoFrameExtractor(file);
+		const sampleRate = projectSampleRate();
+		const durationFrames = Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate));
+		const videoSourceId = createStableId('video-source');
+		const videoClipId = createStableId('video-clip');
+		const binItemId = createStableId('bin-item');
+		const trackName = stripExtension(file.name) || `Video ${project.tracks.filter((track) => track.type === 'video').length + 1}`;
+		const sourceName = file.name || `${trackName}.mp4`;
+		let audioSourceId = null;
+		let audioClipId = null;
+		let canonicalAudio = null;
+		let originalAudioSampleRate = sampleRate;
+		let mediaPersisted = false;
+		let audioPersisted = false;
+		try {
+			await store.writeMediaAsset(videoSourceId, file, {
+				name: sourceName,
+				mimeType: file.type || 'video/mp4',
+				width: extractor.metadata.width,
+				height: extractor.metadata.height,
+				durationSeconds: extractor.metadata.durationSeconds,
+			});
+			mediaPersisted = true;
+			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
+			try {
+				const poster = await extractor.capture(0, { maximumWidth: 640, maximumHeight: 360 });
+				await store.saveVideoDerivative(videoSourceId, {
+					timestamp: 0,
+					type: 'poster',
+					blob: poster.blob,
+					metadata: {
+						width: poster.width,
+						height: poster.height,
+						mimeType: poster.mimeType,
+					},
+				});
+			} catch {
+				// A preview derivative is disposable; the original media remains importable.
+			}
+			for (const timestamp of thumbnailTimes) {
+				try {
+					const thumbnail = await extractor.capture(timestamp);
+					await store.saveVideoDerivative(videoSourceId, {
+						timestamp: thumbnail.timestampSeconds,
+						type: 'thumbnail',
+						blob: thumbnail.blob,
+						metadata: {
+							width: thumbnail.width,
+							height: thumbnail.height,
+							mimeType: thumbnail.mimeType,
+						},
+					});
+				} catch {
+					// Keep the rest of the filmstrip when one seek/capture fails.
+				}
+			}
+
+			const context = await engine.getAudioContext({ resume: false });
+			try {
+				const decodedAudio = await ffmpeg.decode(file, { sampleRate });
+				if (decodedAudio?.channels?.length) {
+					originalAudioSampleRate = decodedAudio.sampleRate || sampleRate;
+					const decodedBuffer = await bufferFromChannels(
+						decodedAudio.channels,
+						decodedAudio.sampleRate,
+						context,
+						copy,
+					);
+					const resampled = await canonicalizeBuffer(decodedBuffer, context, sampleRate, copy);
+					canonicalAudio = fitAudioBufferToFrames(resampled, durationFrames, context);
+				}
+			} catch {
+				canonicalAudio = null;
+			}
+
+			if (canonicalAudio) {
+				await preflightStorage(
+					canonicalAudio.length * canonicalAudio.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
+					'import',
+				);
+				audioSourceId = createStableId('source');
+				audioClipId = createStableId('clip');
+				const writer = await store.beginSourceWrite(audioSourceId, {
+					name: `${trackName} Audio`,
+					mimeType: 'audio/x-soundscaper-extracted',
+				});
+				try {
+					await writeBuffer(writer, canonicalAudio);
+					await writer.commit({
+						sampleRate: canonicalAudio.sampleRate,
+						channelCount: canonicalAudio.numberOfChannels,
+					});
+					audioPersisted = true;
+				} catch (error) {
+					await writer.abort().catch(() => undefined);
+					throw error;
+				}
+				cacheSourceBuffer(audioSourceId, canonicalAudio);
+				const peaks = await generateWaveformPeaks(audioBufferChannels(canonicalAudio), copy);
+				sourcePeaks.set(audioSourceId, peaks);
+				await store.saveAnalysis(peakCacheKey(audioSourceId), peaks);
+			}
+
+			const videoSource = {
+				kind: 'video',
+				id: videoSourceId,
+				storageKey: videoSourceId,
+				name: sourceName,
+				mimeType: file.type || 'video/mp4',
+				frameCount: durationFrames,
+				sampleRate,
+				width: extractor.metadata.width,
+				height: extractor.metadata.height,
+				frameRate: 30,
+				videoCodec: 'unknown',
+				audioCodec: canonicalAudio ? 'unknown' : null,
+				hasAudio: Boolean(canonicalAudio),
+				posterStorageKey: `${videoSourceId}:poster`,
+				thumbnailStorageKey: `${videoSourceId}:thumbnail`,
+				opaqueExtensions: {},
+			};
+			const audioSource = canonicalAudio ? {
+				kind: 'audio',
+				schemaVersion: 4,
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+				id: audioSourceId,
+				storageKey: audioSourceId,
+				name: `${trackName} Audio`,
+				mimeType: 'audio/x-soundscaper-extracted',
+				frameCount: canonicalAudio.length,
+				channelCount: canonicalAudio.numberOfChannels,
+				sampleRate: canonicalAudio.sampleRate,
+				originalSampleRate: originalAudioSampleRate,
+				opaqueExtensions: { originVideoSourceId: videoSourceId },
+			} : null;
+			const videoClip = {
+				kind: 'video',
+				id: videoClipId,
+				sourceId: videoSourceId,
+				title: trackName,
+				timelineStartFrame: importOptions.timelineStartFrame,
+				sourceStartFrame: 0,
+				sourceDurationFrames: durationFrames,
+				durationFrames,
+				trimStartFrames: 0,
+				trimEndFrames: 0,
+				groupId: null,
+				color: 'auto',
+				speedRatio: 1,
+				avLinkId: null,
+				binItemId: importOptions.destination === 'project-bin' ? binItemId : null,
+				opaqueExtensions: {},
+			};
+			const audioClip = canonicalAudio ? {
+				kind: 'audio',
+				schemaVersion: 4,
+				id: audioClipId,
+				sourceId: audioSourceId,
+				title: `${trackName} Audio`,
+				timelineStartFrame: importOptions.timelineStartFrame,
+				sourceStartFrame: 0,
+				sourceDurationFrames: durationFrames,
+				durationFrames,
+				trimStartFrames: 0,
+				trimEndFrames: 0,
+				groupId: null,
+				avLinkId: null,
+				binItemId: importOptions.destination === 'project-bin' ? binItemId : null,
+			} : null;
+			const commands = [createAddSourceCommand(videoSource)];
+			if (audioSource) commands.push(createAddSourceCommand(audioSource));
+			let selectedTrackId = null;
+			if (importOptions.destination === 'project-bin') {
+				commands.push({ type: 'project-bin/add', clip: videoClip });
+				if (audioClip) commands.push({ type: 'project-bin/add', clip: audioClip });
+			} else {
+				const target = importOptions.trackId ? findTrack(project, importOptions.trackId) : null;
+				const laneGroupId = target?.laneGroupId || createStableId('media-lane');
+				let videoTrack = target?.type === 'video' ? target : null;
+				let audioTrack = target?.type === 'audio' ? target : null;
+				if (target?.laneGroupId) {
+					videoTrack ||= project.tracks.find((track) => (
+						track.type === 'video' && track.laneGroupId === target.laneGroupId
+					)) || null;
+					audioTrack ||= project.tracks.find((track) => (
+						track.type === 'audio' && track.laneGroupId === target.laneGroupId
+					)) || null;
+				}
+				if (!videoTrack || !audioTrack) {
+					const videoTrackId = createStableId('video-track');
+					const audioTrackId = createStableId('track');
+					const index = Number.isSafeInteger(importOptions.trackIndex)
+						? importOptions.trackIndex
+						: project.tracks.length;
+					commands.push({
+						...createAddTrackCommand({
+							schemaVersion: 4,
+							type: 'video',
+							id: videoTrackId,
+							name: trackName,
+							laneGroupId,
+						}),
+						index,
+					}, {
+						...createAddTrackCommand({
+							schemaVersion: 4,
+							type: 'audio',
+							id: audioTrackId,
+							name: `${trackName} Audio`,
+							laneGroupId,
+							armed: false,
+						}),
+						index: index + 1,
+					});
+					videoTrack = { id: videoTrackId };
+					audioTrack = { id: audioTrackId };
+				}
+				selectedTrackId = videoTrack.id;
+				const avLinkId = audioClip ? createStableId('av-link') : null;
+				commands.push(createAddClipCommand(videoTrack.id, { ...videoClip, avLinkId }));
+				if (audioClip) commands.push(createAddClipCommand(audioTrack.id, { ...audioClip, avLinkId }));
+			}
+			await activateVideoSource(videoSource);
+			commit({ type: 'batch', commands }, {
+				selectTrackId: selectedTrackId,
+				selectClipId: videoClipId,
+			});
+			warnEnvelope();
+			return Object.freeze({
+				destination: importOptions.destination,
+				sourceId: videoSourceId,
+				audioSourceId,
+				clipId: videoClipId,
+				audioClipId,
+				trackId: selectedTrackId,
+			});
+		} catch (error) {
+			revokeVideoVisual(videoSourceId);
+			if (audioSourceId) {
+				sourceBuffers.delete(audioSourceId);
+				sourcePeaks.delete(audioSourceId);
+				if (audioPersisted) await store.deleteSource(audioSourceId).catch(() => undefined);
+			}
+			if (mediaPersisted) await store.deleteMediaAsset(videoSourceId).catch(() => undefined);
+			throw error;
+		} finally {
+			extractor.dispose();
+		}
+	}
+
+	function fitAudioBufferToFrames(buffer, frameCount, context) {
+		if (buffer.length === frameCount) return buffer;
+		const output = context.createBuffer(buffer.numberOfChannels, frameCount, buffer.sampleRate);
+		for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+			output.getChannelData(channel).set(buffer.getChannelData(channel).subarray(0, frameCount));
+		}
+		return output;
 	}
 
 	async function inspectIncrementalWav(file) {
@@ -2386,10 +2804,47 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return trackId;
 	}
 
+	function addVideoTrackPair(options = {}) {
+		if (editingBlocked()) return null;
+		const laneGroupId = options.laneGroupId || createStableId('media-lane');
+		const videoTrackId = options.videoTrackId || options.id || createStableId('video-track');
+		const audioTrackId = options.audioTrackId || createStableId('track');
+		const requestedIndex = options.index == null
+			? project.tracks.length
+			: Math.max(0, Math.min(project.tracks.length, Math.round(Number(options.index))));
+		if (!Number.isSafeInteger(requestedIndex)) throw new TypeError(copy.trackDestinationInvalid);
+		const baseName = String(options.name || `Video ${project.tracks.filter((track) => track.type === 'video').length + 1}`).trim();
+		const commands = [
+			{
+				...createAddTrackCommand({
+					schemaVersion: 4,
+					type: 'video',
+					id: videoTrackId,
+					name: baseName,
+					laneGroupId,
+				}),
+				index: requestedIndex,
+			},
+			{
+				...createAddTrackCommand({
+					schemaVersion: 4,
+					type: 'audio',
+					id: audioTrackId,
+					name: `${baseName} Audio`,
+					laneGroupId,
+					armed: false,
+				}),
+				index: requestedIndex + 1,
+			},
+		];
+		commit({ type: 'batch', commands }, { selectTrackId: videoTrackId });
+		return videoTrackId;
+	}
+
 	function assignPreferredInputToTrack(trackId) {
 		if (!project || state.recordingRouting.routes[trackId]) return false;
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label') return false;
+		if (!track || track.type !== 'audio') return false;
 		const deviceId = state.preferredInputDeviceId || RECORDING_DEFAULT_DEVICE_ID;
 		const displayInput = deviceId === RECORDING_DISPLAY_SOURCE_KEY;
 		const device = state.recordingDevices.find((candidate) => candidate.deviceId === deviceId);
@@ -2474,7 +2929,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion < 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackRequired);
 		if (!['waveform', 'spectrogram', 'multiview', 'half-wave'].includes(displayMode)) throw new RangeError(copy.unknownTrackDisplay);
 		state.timelineView = displayMode;
 		return commit({ type: 'track/update', trackId: track.id, changes: { displayMode } }, { selectTrackId: track.id });
@@ -2488,7 +2943,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion < 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackRequired);
 		if (!['int16', 'int24', 'int32', 'float32', 'float64'].includes(sampleFormat)) {
 			throw new RangeError(copy.unsupportedSampleFormat);
 		}
@@ -2938,7 +3393,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		if (project.schemaVersion < 2) throw new Error(copy.v2Required);
 		const track = findTrack(project, trackId);
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackRequired);
 		const sampleRate = normalizeProjectSampleRate(requestedSampleRate);
 		const clips = track.clipIds.map((clipId) => findClip(project, clipId)).filter(Boolean);
 		const sources = [...new Map(clips.map((clip) => {
@@ -3455,6 +3910,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const clip = state.selectedClipId ? findClip(project, state.selectedClipId) : null;
 				const sourceTrack = clip ? findClipTrack(project, clip.id) : null;
 				if (!clip || !sourceTrack) return;
+				if (clip.avLinkId || clip.kind === 'video') return;
 				const atFrame = engine.getPositionFrames();
 				const split = prepareSplitCommand(clip.id, atFrame);
 				const trackId = createStableId('track');
@@ -3527,15 +3983,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			.map((frame) => normalizeTimelineFrame(frame)))]
 			.sort((left, right) => right - left);
 		const commands = [];
+		const handledLinks = new Set();
 		for (const clipId of targetClipIds) {
 			const clip = findClip(project, clipId);
 			if (!clip) continue;
+			if (clip.avLinkId && handledLinks.has(clip.avLinkId)) continue;
+			if (clip.avLinkId) handledLinks.add(clip.avLinkId);
 			const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 			for (const frame of frames) {
 				if (frame <= clip.timelineStartFrame || frame >= clipEndFrame) continue;
 				// Descending boundaries keep the original ID on the left, so a
 				// second boundary can split that same clip in one atomic batch.
-				commands.push(prepareSplitCommand(clip.id, frame));
+				commands.push(prepareLinkedSplitCommand(project, clip.id, frame));
 			}
 		}
 		if (!commands.length) return null;
@@ -3636,6 +4095,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			return;
 		}
 		const commands = [];
+		if (clip.avLinkId) commands.push({ type: 'clip/unlink-av', clipId: clip.id });
 		for (const [startFrame, endFrame] of timelineRegions.reverse()) {
 			const after = prepareSplitCommand(clip.id, endFrame);
 			const silence = prepareSplitCommand(clip.id, startFrame);
@@ -3654,7 +4114,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return;
 		const selection = activeSelection();
 		let targetTrack = findTrack(project, generatorOptions.trackId || state.selectedTrackId);
-		if (!Array.isArray(targetTrack?.clipIds)) targetTrack = project.tracks.find((track) => Array.isArray(track.clipIds)) || null;
+		if (targetTrack?.type !== 'audio') targetTrack = project.tracks.find((track) => track.type === 'audio') || null;
 		const sampleRate = projectSampleRate();
 		const durationSeconds = generatorOptions.durationSeconds
 			?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 1);
@@ -5373,7 +5833,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		state.timelineView = displayMode;
 		const commands = project.tracks
-			.filter((track) => track.type !== 'label' && track.displayMode !== displayMode)
+			.filter((track) => track.type === 'audio' && track.displayMode !== displayMode)
 			.map((track) => ({ type: 'track/update', trackId: track.id, changes: { displayMode } }));
 		if (!commands.length) {
 			publishDocumentSnapshot();
@@ -5420,7 +5880,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (editingBlocked()) return null;
 		const clip = clipId ? findClip(project, clipId) : null;
 		const oldTrack = clip ? findClipTrack(project, clip.id) : null;
-		const targetTrack = trackId == null ? oldTrack : findTrack(project, trackId);
+		let targetTrack = trackId == null ? oldTrack : findTrack(project, trackId);
+		if (
+			clip
+			&& targetTrack
+			&& project.schemaVersion >= 4
+			&& targetTrack.type !== clip.kind
+			&& targetTrack.laneGroupId
+		) {
+			targetTrack = project.tracks.find((track) => (
+				track.type === clip.kind && track.laneGroupId === targetTrack.laneGroupId
+			)) || targetTrack;
+		}
 		if (!clip || !oldTrack || !targetTrack || !Array.isArray(targetTrack.clipIds)) throw new Error(copy.audioClipNotFound);
 		const requestedStartFrame = snapTimelineFrame(timelineStartFrame);
 		const clipIds = collectClipTransformIds(project, clip.id);
@@ -5482,16 +5953,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			audioTracks.findIndex((track) => track.clipIds.includes(item.id))
 		));
 		if (sourceTrackIndices.some((index) => index < 0)) throw new Error(copy.audioClipNotFound);
-		const trackDelta = audioTracks.length - activeTrackIndex;
-		const newTrackCount = Math.max(...sourceTrackIndices) + trackDelta - audioTracks.length + 1;
-		const newTrackCommands = Array.from({ length: newTrackCount }, (_, index) => createAddTrackCommand({
-			schemaVersion: 2,
-			type: 'audio',
-			id: createStableId('track'),
-			name: `${copy.track} ${project.tracks.length + index + 1}`,
-			armed: false,
-		}));
-		const virtualTracks = [...audioTracks, ...newTrackCommands.map((command) => command.track)];
 		const requestedStartFrame = snapTimelineFrame(timelineStartFrame);
 		const selection = activeSelection();
 		const clipSelection = project.selection;
@@ -5502,6 +5963,99 @@ export function createAudioEditorController(_root = null, options = {}) {
 			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
+		if (project.schemaVersion >= 4 && clips.some((item) => item.kind === 'video')) {
+			const movingTrackIds = new Set(clips
+				.map((item) => findClipTrack(project, item.id)?.id)
+				.filter(Boolean));
+			const destinationTrackIds = new Map();
+			const newTrackCommands = [];
+			for (const track of project.tracks) {
+				if (!movingTrackIds.has(track.id) || destinationTrackIds.has(track.id)) continue;
+				if (track.type === 'video') {
+					const companion = track.laneGroupId
+						? project.tracks.find((candidate) => (
+							candidate.type === 'audio' && candidate.laneGroupId === track.laneGroupId
+						))
+						: null;
+					const laneGroupId = createStableId('media-lane');
+					const videoTrackId = createStableId('video-track');
+					const audioTrackId = createStableId('track');
+					newTrackCommands.push(
+						createAddTrackCommand({
+							schemaVersion: 4,
+							type: 'video',
+							id: videoTrackId,
+							name: track.name,
+							height: track.height,
+							laneGroupId,
+						}),
+						createAddTrackCommand({
+							schemaVersion: 4,
+							type: 'audio',
+							id: audioTrackId,
+							name: companion?.name || `${track.name} Audio`,
+							channelCount: companion?.channelCount || 2,
+							color: companion?.color,
+							armed: false,
+							laneGroupId,
+						}),
+					);
+					destinationTrackIds.set(track.id, videoTrackId);
+					if (companion) destinationTrackIds.set(companion.id, audioTrackId);
+					continue;
+				}
+				if (track.type === 'audio') {
+					const trackId = createStableId('track');
+					newTrackCommands.push(createAddTrackCommand({
+						schemaVersion: 4,
+						type: 'audio',
+						id: trackId,
+						name: `${copy.track} ${project.tracks.length + newTrackCommands.length + 1}`,
+						channelCount: track.channelCount,
+						color: track.color,
+						armed: false,
+					}));
+					destinationTrackIds.set(track.id, trackId);
+				}
+			}
+			const transforms = clips.map((item) => {
+				const itemSourceTrack = findClipTrack(project, item.id);
+				const trackId = destinationTrackIds.get(itemSourceTrack?.id);
+				if (!trackId) throw new RangeError('The selected media clips cannot move to new tracks.');
+				return {
+					clipId: item.id,
+					trackId,
+					changes: { timelineStartFrame: item.timelineStartFrame + deltaFrames },
+				};
+			});
+			const targetTrackId = destinationTrackIds.get(sourceTrack.id);
+			const commands = [
+				...newTrackCommands,
+				{ type: 'clip/transform-many', transforms, overwrite: false, splitClipIds: {} },
+			];
+			if (movesClipSelection) commands.push({
+				type: 'selection/set',
+				startFrame: selection ? selection.startFrame + deltaFrames : clipSelection.startFrame,
+				endFrame: selection ? selection.endFrame + deltaFrames : clipSelection.endFrame,
+				trackIds: [...new Set(clipSelection.trackIds.map((trackId) => (
+					destinationTrackIds.get(trackId) || trackId
+				)))],
+				clipIds: clipSelection.clipIds,
+				frequencyRange: clipSelection.frequencyRange,
+			});
+			commit({ type: 'batch', commands }, { selectTrackId: targetTrackId, selectClipId: clip.id });
+			return targetTrackId;
+		}
+		const trackDelta = audioTracks.length - activeTrackIndex;
+		const newTrackCount = Math.max(...sourceTrackIndices) + trackDelta - audioTracks.length + 1;
+		const newTrackCommands = Array.from({ length: newTrackCount }, (_, index) => createAddTrackCommand({
+			schemaVersion: 2,
+			type: 'audio',
+			id: createStableId('track'),
+			name: `${copy.track} ${project.tracks.length + index + 1}`,
+			armed: false,
+		}));
+		const virtualTracks = [...audioTracks, ...newTrackCommands.map((command) => command.track)];
 		const transforms = clips.map((item, index) => ({
 			clipId: item.id,
 			trackId: virtualTracks[sourceTrackIndices[index] + trackDelta].id,
@@ -5832,6 +6386,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!snapshot || snapshot.schemaVersion < 2) return [];
 		const pairs = [];
 		for (const clip of snapshot.clips || []) {
+			if (clip.kind === 'video') continue;
 			if (!clipNeedsTimePitchRender(clip)) continue;
 			const source = findSource(snapshot, clip.sourceId);
 			if (source) pairs.push({ clip, source });
@@ -5948,12 +6503,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const scope = ['master', 'group', 'send'].includes(request.scope) ? request.scope : 'track';
 		const trackId = request.trackId ?? request.busId ?? state.selectedTrackId;
 		if (scope === 'track' && !trackId) return handleError(new Error(copy.selectTrackFirst));
+		if (scope === 'track' && findTrack(project, trackId)?.type !== 'audio') {
+			return handleError(new Error(copy.audioTrackRequired));
+		}
 		if ((scope === 'group' || scope === 'send') && !trackId) throw new TypeError('A mixer bus ID is required.');
 		const type = request.type;
 		if (!audioEffectTypes().includes(type)) throw new Error(copy.effectUnsupported);
 		const effectOptions = { ...(request.options || {}) };
 		if (type === 'audacity-auto-duck') {
-			const candidates = project.tracks.filter((track) => scope === 'master' || track.id !== trackId);
+			const candidates = project.tracks.filter((track) => (
+				track.type === 'audio' && (scope === 'master' || track.id !== trackId)
+			));
 			const requestedControlTrackId = effectOptions.context?.controlTrackId || state.audacityControlTrackId;
 			const controlTrackId = candidates.some((track) => track.id === requestedControlTrackId)
 				? requestedControlTrackId
@@ -6053,7 +6613,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		if (scope !== 'track') throw new RangeError('Effect stack scope must be track, master, group, or send.');
 		const track = findTrack(snapshot, trackId);
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackNotFound);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
 		return track.effects || [];
 	}
 
@@ -6101,7 +6661,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (effect.type === 'audacity-auto-duck') {
 			const requestedControlTrackId = effectOptions.context?.controlTrackId || state.audacityControlTrackId;
 			const candidates = project.tracks.filter((track) => (
-				track.type !== 'label' && (scope === 'master' || track.id !== trackId)
+				track.type === 'audio' && (scope === 'master' || track.id !== trackId)
 			));
 			const controlTrackId = candidates.some((track) => track.id === requestedControlTrackId)
 				? requestedControlTrackId
@@ -6569,7 +7129,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const selectedClip = state.selectedClipId ? findClip(project, state.selectedClipId) : null;
 		const clipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, state.selectedTrackId) || clipTrack;
-		if (!track || track.type === 'label') throw new Error(copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackRequired);
 		const current = activeSelection();
 		const trackRange = selectedTracksTimeRange();
 		const startFrame = current?.startFrame ?? selectedClip?.timelineStartFrame ?? trackRange?.startFrame;
@@ -7151,7 +7711,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				RATE: sampleRate,
 				TEMPO: Number(project?.tempo?.bpm ?? project?.tempo) || 120,
 				TRACKS: project?.tracks?.length || 0,
-				WAVETRACKS: project?.tracks?.filter((candidate) => candidate.type !== 'label').length || 0,
+				WAVETRACKS: project?.tracks?.filter((candidate) => candidate.type === 'audio').length || 0,
 				LABELTRACKS: project?.tracks?.filter((candidate) => candidate.type === 'label').length || 0,
 				PREVIEW_DURATION: 6,
 			},
@@ -7251,7 +7811,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				originalSampleRate: sampleRate,
 			};
 			let targetTrack = findTrack(project, options.trackId || state.selectedTrackId);
-			if (!Array.isArray(targetTrack?.clipIds)) targetTrack = project.tracks.find((track) => Array.isArray(track.clipIds)) || null;
+			if (targetTrack?.type !== 'audio') targetTrack = project.tracks.find((track) => track.type === 'audio') || null;
 			const startFrame = snapTimelineFrame(options.atFrame ?? selection?.startFrame ?? engine.getPositionFrames());
 			const endFrame = startFrame + frameCount;
 			let command = { type: 'batch', commands: [createAddSourceCommand(source)] };
@@ -7652,9 +8212,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		let snapshot = cloneProject(project);
 		if (scope === 'track') {
 			const selectedTrack = findTrack(snapshot, state.selectedTrackId);
-			if (!selectedTrack || selectedTrack.type === 'label') throw new Error(copy.audioTrackRequired);
+			if (!selectedTrack || selectedTrack.type !== 'audio') throw new Error(copy.audioTrackRequired);
 			for (const track of snapshot.tracks) {
-				if (track.type === 'label') continue;
+				if (track.type !== 'audio') continue;
 				track.mute = track.id !== selectedTrack.id;
 				track.solo = false;
 			}
@@ -7686,6 +8246,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			toggleExport(false);
 			publishDocumentSnapshot();
 			return;
+		}
+		if (String(requestedSettings?.format || '').startsWith('video-')) {
+			return exportVideo(requestedSettings);
 		}
 		if (!project.clips.length || state.exportAbort) return;
 		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
@@ -7784,6 +8347,119 @@ export function createAudioEditorController(_root = null, options = {}) {
 				toggleExport(false);
 			}
 		}
+	}
+
+	async function exportVideo(requestedSettings = {}) {
+		if (state.exportAbort) return null;
+		const hasTimelineVideo = project.tracks.some((track) => (
+			track.type === 'video'
+			&& track.hidden !== true
+			&& (track.clipIds || []).some((clipId) => findClip(project, clipId)?.kind === 'video')
+		));
+		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');
+		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
+		const generation = ++state.exportGeneration;
+		const abort = new AbortController();
+		state.exportAbort = abort;
+		toggleExport(true);
+		const exportProject = cloneProject(project);
+		let pendingCleanup = null;
+		try {
+			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
+			const includeAudio = exportProject.clips.some((clip) => clip.kind !== 'video');
+			const plan = createVideoExportPlan(exportProject, {
+				format,
+				range: requestedSettings.range || 'project',
+				includeAudio,
+				canvas: requestedSettings.canvas,
+			});
+			const rawVideoBytes = plan.inputs
+				.filter((input) => input.kind === 'video-source')
+				.reduce((total, input) => {
+					const source = findSource(exportProject, input.sourceId);
+					return total + Math.max(0, Number(source?.opaqueExtensions?.byteLength) || 0);
+				}, 0);
+			await preflightStorage(Math.max(rawVideoBytes, 16 * 1024 * 1024), 'export');
+			setStatus(copy.rendering);
+			const videoBlobs = new Map();
+			for (const input of plan.inputs.filter((candidate) => candidate.kind === 'video-source')) {
+				throwIfAborted(abort.signal);
+				const blob = await store.loadMediaAsset(input.storageKey || input.sourceId);
+				if (!blob) throw new Error(copy.localSourcesMissing);
+				videoBlobs.set(input.sourceId, blob);
+			}
+			let audioMixBlob = null;
+			if (includeAudio) {
+				const rendered = await renderSnapshot(exportProject, {
+					startFrame: plan.range.startFrame,
+					endFrame: plan.range.endFrame,
+					includeTail: false,
+					outputFrames: plan.range.durationFrames,
+					preRollFrames: Math.min(plan.range.startFrame, projectSampleRate() * 10),
+				}, sourceBuffers, abort.signal);
+				throwIfAborted(abort.signal);
+				const wav = encodeWav(audioBufferChannels(rendered), {
+					sampleRate: rendered.sampleRate,
+					bitDepth: 32,
+					float: true,
+					dither: 'none',
+				});
+				audioMixBlob = new Blob([wav], { type: 'audio/wav' });
+			}
+			setStatus(copy.encoding);
+			const encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
+				signal: abort.signal,
+			});
+			throwIfAborted(abort.signal);
+			if (generation !== state.exportGeneration) throw abortError();
+			const blob = new Blob([encoded.bytes], { type: encoded.mimeType });
+			const fileName = `${sanitizeVideoFileName(exportProject.title)}.${plan.extension}`;
+			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
+			await state.outputCleanup?.();
+			state.outputUrl = null;
+			state.outputCleanup = null;
+			state.exportOutput = null;
+			const published = await fileService.createDownload({
+				purpose: 'video',
+				suggestedName: fileName,
+				mimeType: encoded.mimeType,
+				blob,
+			});
+			if (published.cancelled) return published;
+			state.outputCleanup = published.cleanup || null;
+			pendingCleanup = state.outputCleanup;
+			state.outputUrl = published.url || null;
+			state.exportOutput = Object.freeze({
+				url: state.outputUrl,
+				fileName: published.fileName || fileName,
+				mimeType: encoded.mimeType,
+				size: blob.size,
+				method: published.method,
+			});
+			pendingCleanup = null;
+			setStatus(copy.done, 'success');
+			publishDocumentSnapshot();
+			return state.exportOutput;
+		} catch (error) {
+			await pendingCleanup?.().catch(() => undefined);
+			if (error?.name !== 'AbortError') handleError(error);
+			return null;
+		} finally {
+			if (generation === state.exportGeneration) {
+				state.exportAbort = null;
+				toggleExport(false);
+			}
+		}
+	}
+
+	function sanitizeVideoFileName(value) {
+		return String(value || 'video-project')
+			.normalize('NFKD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '-')
+			.replace(/-{2,}/g, '-')
+			.replace(/^[-_.]+|[-_.]+$/g, '')
+			.slice(0, 96) || 'video-project';
 	}
 
 	async function renderAndEncode(snapshot, plan, settings, signal, sourceMap = sourceBuffers) {
@@ -8058,7 +8734,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const sampleRate = projectSampleRate();
 		if (options.trackId) {
 			const track = findTrack(project, options.trackId);
-			if (!track || track.type === 'label') throw new Error(copy.armTrackForRecording);
+			if (!track || track.type !== 'audio') throw new Error(copy.armTrackForRecording);
 			const explicitRoute = state.recordingRouting.routes[track.id];
 			const needsRoutedRecording = explicitRoute && (
 				explicitRoute.kind === 'display'
@@ -8092,7 +8768,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			return Object.freeze({ inputKeys: Object.freeze([recordingRouteSourceKey(route)]) });
 		}
 
-		const armedTracks = project.tracks.filter((track) => track.type !== 'label' && track.armed);
+		const armedTracks = project.tracks.filter((track) => track.type === 'audio' && track.armed);
 		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
 		const groups = new Map();
 		for (const track of armedTracks) {
@@ -8444,9 +9120,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const timedStartTimeMs = Number(options.timedStartTimeMs);
 		const timedStart = Number.isFinite(timedStartTimeMs);
 		const explicitTrack = options.trackId ? findTrack(project, options.trackId) : null;
+		if (options.trackId && explicitTrack?.type !== 'audio') throw new Error(copy.armTrackForRecording);
 		const armedTracks = explicitTrack
 			? [explicitTrack]
-			: project.tracks.filter((track) => track.type !== 'label' && track.armed);
+			: project.tracks.filter((track) => track.type === 'audio' && track.armed);
 		if (!armedTracks.length) throw new Error(copy.armTrackForRecording);
 		const routedTracks = [];
 		for (const track of armedTracks) {

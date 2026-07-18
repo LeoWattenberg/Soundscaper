@@ -21,6 +21,13 @@ const {
 	createAudioEditorController,
 } = await import('../src/lib/tools/audio-editor/app.js');
 const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
+const {
+	createAudioClipV4,
+	createAudioEditorProjectV4,
+	createAudioSourceV4,
+	createVideoClipV4,
+	createVideoSourceV4,
+} = await import('../src/lib/tools/audio-editor/project-v4.js');
 const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
 
 const COPY = Object.freeze({
@@ -95,7 +102,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(controller.clipTimePitchCache.maximumResidentChannelBytes, 1_024);
 
 	assert.deepEqual(Object.keys(controller.actions), [
-		'project', 'projectBin', 'edit', 'transport', 'recording', 'metering', 'audioDevices', 'timeline', 'sampleEdit', 'spectral',
+		'project', 'projectBin', 'video', 'edit', 'transport', 'recording', 'metering', 'audioDevices', 'timeline', 'sampleEdit', 'spectral',
 		'track', 'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences', 'clip', 'effects', 'macros', 'analysis', 'export',
 	]);
 	assert.equal(readySnapshot.preferences.workspace.activeId, 'modern');
@@ -396,6 +403,238 @@ test('controller moves transformed selections through the reusable project bin a
 		'project-bin-second',
 	]);
 	await controller.dispose();
+});
+
+test('controller opens persisted compound video bin items, restores visuals, and places paired lanes', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ projectBin: true });
+	store.projects.set(fixture.project.id, structuredClone(fixture.project));
+	store.settings.set('last-project-id', fixture.project.id);
+	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
+	store.videoDerivatives.set(fixture.videoSource.id, [
+		{
+			timestamp: 0,
+			type: 'poster',
+			width: 320,
+			height: 180,
+			blob: new Blob(['poster'], { type: 'image/jpeg' }),
+		},
+		{
+			timestamp: 5,
+			type: 'thumbnail',
+			width: 320,
+			height: 180,
+			blob: new Blob(['thumbnail-five'], { type: 'image/jpeg' }),
+		},
+	]);
+	store.audioSources.set(fixture.audioSource.id, [
+		new Float32Array(fixture.audioSource.frameCount),
+		new Float32Array(fixture.audioSource.frameCount),
+	]);
+
+	const engine = createMemoryEngine();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine,
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	const snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.id, fixture.project.id);
+	assert.deepEqual(snapshot.project.projectBin.clips.map((clip) => [
+		clip.id,
+		clip.kind,
+		clip.binItemId,
+	]), [
+		['persisted-bin-video', 'video', 'persisted-bin-item'],
+		['persisted-bin-audio', 'audio', 'persisted-bin-item'],
+	]);
+	const visual = controller.actions.projectBin.getVisualData('persisted-bin-audio');
+	assert.equal(visual.videoClip.id, 'persisted-bin-video');
+	assert.deepEqual(visual.itemClips.map((clip) => clip.id), [
+		'persisted-bin-video',
+		'persisted-bin-audio',
+	]);
+	assert.equal(visual.available, true);
+	assert.match(visual.mediaUrl, /^blob:/);
+	assert.match(visual.posterUrl, /^blob:/);
+	assert.deepEqual(visual.thumbnails.map((thumbnail) => ({
+		sourceTimeSeconds: thumbnail.sourceTimeSeconds,
+		width: thumbnail.width,
+		height: thumbnail.height,
+		hasUrl: /^blob:/.test(thumbnail.url),
+	})), [{
+		sourceTimeSeconds: 5,
+		width: 320,
+		height: 180,
+		hasUrl: true,
+	}]);
+
+	controller.actions.projectBin.rename('persisted-bin-audio', 'Reusable scene');
+	assert.deepEqual(
+		controller.getSnapshot().project.projectBin.clips.map((clip) => clip.title),
+		['Reusable scene', 'Reusable scene'],
+	);
+	const placedVideoId = controller.actions.projectBin.place('persisted-bin-audio', {
+		timelineStartFrame: 24_000,
+	});
+	const placed = controller.getSnapshot();
+	assert.equal(placed.project.tracks.length, 2);
+	assert.deepEqual(placed.project.tracks.map((track) => track.type), ['video', 'audio']);
+	assert.ok(placed.project.tracks[0].laneGroupId);
+	assert.equal(placed.project.tracks[0].laneGroupId, placed.project.tracks[1].laneGroupId);
+	const placedVideo = placed.project.clips.find((clip) => clip.id === placedVideoId);
+	const placedAudio = placed.project.clips.find((clip) => clip.kind === 'audio');
+	assert.equal(placedVideo.kind, 'video');
+	assert.equal(placedVideo.timelineStartFrame, 24_000);
+	assert.equal(placedAudio.timelineStartFrame, 24_000);
+	assert.ok(placedVideo.avLinkId);
+	assert.equal(placedVideo.avLinkId, placedAudio.avLinkId);
+	assert.equal(placedVideo.binItemId, null);
+	assert.equal(placedAudio.binItemId, null);
+	assert.equal(placed.selectedTrackId, placed.project.tracks[0].id);
+	assert.equal(placed.selectedClipId, placedVideoId);
+	assert.equal(placed.project.projectBin.clips.length, 2);
+
+	assert.equal(controller.actions.projectBin.remove('persisted-bin-video'), 'persisted-bin-video');
+	assert.deepEqual(controller.getSnapshot().project.projectBin.clips, []);
+	await controller.dispose();
+});
+
+test('moving a linked video clip below the timeline creates a fresh paired lane group', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ timeline: true });
+	store.projects.set(fixture.project.id, structuredClone(fixture.project));
+	store.settings.set('last-project-id', fixture.project.id);
+	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
+	store.audioSources.set(fixture.audioSource.id, [
+		new Float32Array(fixture.audioSource.frameCount),
+		new Float32Array(fixture.audioSource.frameCount),
+	]);
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	const targetTrackId = controller.actions.clip.moveToNewTrack('persisted-timeline-video', 12_000);
+	const snapshot = controller.getSnapshot();
+	assert.deepEqual(snapshot.project.tracks.map((track) => track.type), [
+		'video',
+		'audio',
+		'video',
+		'audio',
+	]);
+	assert.deepEqual(snapshot.project.tracks.slice(0, 2).map((track) => track.clipIds), [[], []]);
+	assert.deepEqual(snapshot.project.tracks.slice(2).map((track) => track.clipIds), [
+		['persisted-timeline-video'],
+		['persisted-timeline-audio'],
+	]);
+	assert.equal(targetTrackId, snapshot.project.tracks[2].id);
+	assert.equal(snapshot.selectedTrackId, targetTrackId);
+	assert.notEqual(snapshot.project.tracks[2].laneGroupId, 'persisted-lane-group');
+	assert.equal(snapshot.project.tracks[2].laneGroupId, snapshot.project.tracks[3].laneGroupId);
+	assert.deepEqual(
+		snapshot.project.clips.map((clip) => [clip.kind, clip.timelineStartFrame, clip.avLinkId]),
+		[
+			['video', 12_000, 'persisted-av-link'],
+			['audio', 12_000, 'persisted-av-link'],
+		],
+	);
+	await controller.dispose();
+});
+
+test('video export API and generic export dispatch stage raw media and audio for MP4 and WebM', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ timeline: true });
+	store.projects.set(fixture.project.id, structuredClone(fixture.project));
+	store.settings.set('last-project-id', fixture.project.id);
+	const rawVideo = new Blob(['raw-video-bytes'], { type: 'video/mp4' });
+	store.mediaAssets.set(fixture.videoSource.id, rawVideo);
+	store.videoDerivatives.set(fixture.videoSource.id, []);
+	store.audioSources.set(fixture.audioSource.id, [
+		new Float32Array(fixture.audioSource.frameCount),
+		new Float32Array(fixture.audioSource.frameCount),
+	]);
+	const ffmpeg = createVideoMemoryFfmpeg();
+	const renderCalls = [];
+	const downloads = [];
+	const cleanups = [];
+	const fileService = {
+		isDesktop: false,
+		async createDownload(request) {
+			downloads.push(request);
+			return {
+				url: null,
+				fileName: request.suggestedName,
+				method: 'test',
+				cleanup: async () => { cleanups.push(request.suggestedName); },
+			};
+		},
+	};
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg,
+		fileService,
+		renderSnapshot: async (project, range, sourceBuffers, signal) => {
+			renderCalls.push({ project, range, sourceBuffers, signal });
+			return new MockAudioBuffer(2, range.outputFrames, project.sampleRate);
+		},
+	});
+	await controller.ready;
+
+	const mp4 = await controller.actions.video.export({ format: 'video-mp4' });
+	assert.deepEqual({
+		fileName: mp4.fileName,
+		mimeType: mp4.mimeType,
+		method: mp4.method,
+	}, {
+		fileName: 'Persisted-video-project.mp4',
+		mimeType: 'video/mp4',
+		method: 'test',
+	});
+	assert.equal(ffmpeg.videoCalls.length, 1);
+	assert.equal(ffmpeg.videoCalls[0].videoBlobs.get(fixture.videoSource.id), rawVideo);
+	assert.equal(ffmpeg.videoCalls[0].audioMixBlob.type, 'audio/wav');
+	assert.ok(ffmpeg.videoCalls[0].audioMixBlob.size > 44);
+	assert.equal(ffmpeg.videoCalls[0].plan.format, 'mp4');
+	assert.equal(ffmpeg.videoCalls[0].plan.mimeType, 'video/mp4');
+	assert.equal(ffmpeg.videoCalls[0].plan.canvas.width, 640);
+	assert.equal(ffmpeg.videoCalls[0].plan.canvas.height, 360);
+	assert.equal(ffmpeg.videoCalls[0].plan.segments[0].clipId, 'persisted-timeline-video');
+	assert.equal(renderCalls[0].range.startFrame, 0);
+	assert.equal(renderCalls[0].range.endFrame, fixture.videoSource.frameCount);
+	assert.equal(renderCalls[0].range.outputFrames, fixture.videoSource.frameCount);
+	assert.equal(downloads[0].purpose, 'video');
+	assert.equal(downloads[0].mimeType, 'video/mp4');
+
+	const webm = await controller.actions.export.start({ format: 'video-webm' });
+	assert.equal(webm.fileName, 'Persisted-video-project.webm');
+	assert.equal(webm.mimeType, 'video/webm');
+	assert.equal(ffmpeg.videoCalls.length, 2);
+	assert.equal(ffmpeg.videoCalls[1].plan.format, 'webm');
+	assert.equal(ffmpeg.videoCalls[1].plan.codecs.videoEncoder, 'libvpx-vp9');
+	assert.equal(downloads[1].mimeType, 'video/webm');
+	assert.deepEqual(cleanups, ['Persisted-video-project.mp4']);
+	assert.equal(controller.getSnapshot().export.output.fileName, 'Persisted-video-project.webm');
+
+	await controller.dispose();
+	assert.deepEqual(cleanups, [
+		'Persisted-video-project.mp4',
+		'Persisted-video-project.webm',
+	]);
 });
 
 test('bin-only missing audio is unavailable without blocking timeline transport', async () => {
@@ -2146,10 +2385,16 @@ function createMemoryStore() {
 	const projects = new Map();
 	const settings = new Map();
 	const analysis = new Map();
+	const mediaAssets = new Map();
+	const videoDerivatives = new Map();
+	const audioSources = new Map();
 	return {
 		projects,
 		settings,
 		analysis,
+		mediaAssets,
+		videoDerivatives,
+		audioSources,
 		pruneCalls: [],
 		closeCalls: 0,
 		async ready() { return this; },
@@ -2178,10 +2423,141 @@ function createMemoryStore() {
 		async saveAnalysis(key, value) { analysis.set(key, structuredClone(value)); },
 		async beginSourceWrite() { throw new Error('The controller test store has no fixture PCM writer.'); },
 		async getSourceMetadata() { return null; },
+		async loadSourceAudioBuffer(sourceId, context) {
+			const channels = audioSources.get(sourceId);
+			if (!channels) throw new Error(`Missing test PCM source ${sourceId}.`);
+			const buffer = context.createBuffer(channels.length, channels[0].length, 48_000);
+			for (let channel = 0; channel < channels.length; channel += 1) {
+				buffer.copyToChannel(channels[channel], channel);
+			}
+			return buffer;
+		},
+		async loadMediaAsset(sourceId) { return mediaAssets.get(sourceId) || null; },
+		async listVideoDerivatives(sourceId) {
+			return (videoDerivatives.get(sourceId) || []).map(({ blob, ...descriptor }) => structuredClone(descriptor));
+		},
+		async loadVideoDerivative(sourceId, descriptor) {
+			const derivative = (videoDerivatives.get(sourceId) || []).find((candidate) => (
+				candidate.type === descriptor.type && candidate.timestamp === descriptor.timestamp
+			));
+			return derivative?.blob || null;
+		},
 		async pruneUnreferencedSources(options = {}) { this.pruneCalls.push(options); return { deletedSourceIds: [] }; },
 		async estimateStorage() { return { usage: 0, quota: 64 * 1024 * 1024 }; },
 		async close() { this.closeCalls += 1; },
 	};
+}
+
+function createPersistedVideoProject({ projectBin = false, timeline = false } = {}) {
+	const frameCount = 48_000;
+	const videoSource = createVideoSourceV4({
+		id: 'persisted-video-source',
+		name: 'persisted-camera.mp4',
+		mimeType: 'video/mp4',
+		storageKey: 'persisted-video-source',
+		frameCount,
+		sampleRate: 48_000,
+		width: 640,
+		height: 360,
+		frameRate: 25,
+		videoCodec: 'h264',
+		audioCodec: 'aac',
+		hasAudio: true,
+		opaqueExtensions: { byteLength: 15 },
+	});
+	const audioSource = createAudioSourceV4({
+		id: 'persisted-audio-source',
+		name: 'persisted camera audio',
+		storageKey: 'persisted-audio-source',
+		frameCount,
+		channelCount: 2,
+		sampleRate: 48_000,
+	});
+	const binClips = projectBin
+		? [
+			createVideoClipV4({
+				id: 'persisted-bin-video',
+				sourceId: videoSource.id,
+				title: 'Persisted scene',
+				sourceStartFrame: 0,
+				sourceDurationFrames: frameCount,
+				durationFrames: frameCount,
+				binItemId: 'persisted-bin-item',
+			}),
+			createAudioClipV4({
+				id: 'persisted-bin-audio',
+				sourceId: audioSource.id,
+				title: 'Persisted scene',
+				sourceStartFrame: 0,
+				sourceDurationFrames: frameCount,
+				durationFrames: frameCount,
+				binItemId: 'persisted-bin-item',
+			}),
+		]
+		: [];
+	const avLinkId = timeline ? 'persisted-av-link' : null;
+	const timelineClips = timeline
+		? [
+			createVideoClipV4({
+				id: 'persisted-timeline-video',
+				sourceId: videoSource.id,
+				title: 'Timeline scene',
+				sourceStartFrame: 0,
+				sourceDurationFrames: frameCount,
+				durationFrames: frameCount,
+				avLinkId,
+			}),
+			createAudioClipV4({
+				id: 'persisted-timeline-audio',
+				sourceId: audioSource.id,
+				title: 'Timeline scene audio',
+				sourceStartFrame: 0,
+				sourceDurationFrames: frameCount,
+				durationFrames: frameCount,
+				avLinkId,
+			}),
+		]
+		: [];
+	const laneGroupId = timeline ? 'persisted-lane-group' : null;
+	const tracks = timeline
+		? [{
+			type: 'video',
+			id: 'persisted-video-track',
+			name: 'Persisted video',
+			clipIds: ['persisted-timeline-video'],
+			mute: false,
+			hidden: false,
+			collapsed: false,
+			height: 96,
+			laneGroupId,
+			opaqueExtensions: {},
+		}, {
+			type: 'audio',
+			id: 'persisted-audio-track',
+			name: 'Persisted audio',
+			clipIds: ['persisted-timeline-audio'],
+			mute: false,
+			solo: false,
+			armed: false,
+			gain: 1,
+			pan: 0,
+			channelCount: 2,
+			color: 'auto',
+			effects: [],
+			laneGroupId,
+			opaqueExtensions: {},
+		}]
+		: [];
+	const project = createAudioEditorProjectV4({
+		id: `persisted-video-project-${projectBin ? 'bin' : 'timeline'}`,
+		title: 'Persisted video project',
+		now: '2026-07-18T12:00:00.000Z',
+		sources: [videoSource, audioSource],
+		clips: timelineClips,
+		tracks,
+		projectBin: { clips: binClips },
+	});
+	return { project, videoSource, audioSource };
 }
 
 function audioBuffer(channels, sampleRate) {
@@ -2394,6 +2770,21 @@ function abortError() {
 function createMemoryFfmpeg() {
 	return {
 		disposeCalls: 0,
+		dispose() { this.disposeCalls += 1; },
+	};
+}
+
+function createVideoMemoryFfmpeg() {
+	return {
+		videoCalls: [],
+		disposeCalls: 0,
+		async encodeVideo(videoBlobs, audioMixBlob, plan, options) {
+			this.videoCalls.push({ videoBlobs, audioMixBlob, plan, options });
+			return {
+				bytes: new Uint8Array([0, 0, 0, 24, ...new TextEncoder().encode(plan.format)]),
+				mimeType: plan.mimeType,
+			};
+		},
 		dispose() { this.disposeCalls += 1; },
 	};
 }

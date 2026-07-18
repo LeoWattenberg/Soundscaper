@@ -10,6 +10,7 @@ import {
 import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV2ToV3,
+	migrateAudioEditorProjectV3ToV4,
 } from '../src/lib/tools/audio-editor/migration.js';
 import {
 	findProjectBinClip,
@@ -117,13 +118,13 @@ test('V3 adds an empty project bin and V2 migration is atomic', () => {
 		reason: 'newer-schema',
 	});
 	assert.deepEqual(migrateAudioEditorProject(v2), {
-		project: migrated,
+		project: migrateAudioEditorProjectV3ToV4(migrated),
 		migrated: true,
 		fromVersion: 2,
 		readOnly: false,
 		reason: null,
 	});
-	assert.equal(migrateAudioEditorProject(migrated).migrated, false);
+	assert.equal(migrateAudioEditorProject(migrated).migrated, true);
 
 	const future = { ...migrated, schemaVersion: 4, futureData: { retained: true } };
 	assert.deepEqual(loadAudioEditorProjectV3(future), {

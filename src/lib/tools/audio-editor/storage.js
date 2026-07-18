@@ -1,6 +1,6 @@
 import { collectProjectSourceIds, compactProjectSourceMetadata } from './retention.js';
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
@@ -63,17 +63,26 @@ export class AudioEditorProjectStore {
 			for (const sourceId of collectProjectSourceIds(snapshot)) {
 				const source = this.memory.sources.get(sourceId);
 				if (source?.pendingProjectUntil) this.memory.sources.set(sourceId, publishSource(source));
+				const mediaAsset = this.memory.mediaAssets.get(sourceId);
+				if (mediaAsset?.pendingProjectUntil) this.memory.mediaAssets.set(sourceId, publishSource(mediaAsset));
 			}
 			await this.#pruneProjectRevisions(snapshot.id);
 			return clone(snapshot);
 		}
 
-		await transact(database, ['projects', 'revisions', 'sources'], 'readwrite', async ({ projects, revisions, sources }) => {
+		await transact(database, ['projects', 'revisions', 'sources', 'mediaAssets'], 'readwrite', async ({
+			projects,
+			revisions,
+			sources,
+			mediaAssets,
+		}) => {
 			projects.put(snapshot);
 			revisions.put(revisionRecord);
 			for (const sourceId of collectProjectSourceIds(snapshot)) {
 				const source = await request(sources.get(sourceId));
 				if (source?.pendingProjectUntil) sources.put(publishSource(source));
+				const mediaAsset = await request(mediaAssets.get(sourceId));
+				if (mediaAsset?.pendingProjectUntil) mediaAssets.put(publishSource(mediaAsset));
 			}
 		});
 		await this.#pruneProjectRevisions(snapshot.id);
@@ -364,6 +373,162 @@ export class AudioEditorProjectStore {
 		return values.map(clone);
 	}
 
+	/**
+	 * Persist the immutable original container for a media source. OPFS keeps
+	 * large files out of IndexedDB when it is available; the Blob-backed record
+	 * is the complete fallback and is also used by the in-memory backend.
+	 */
+	async writeMediaAsset(sourceId, input, metadata = {}) {
+		const id = nonEmptyString(sourceId, 'A media source id is required.');
+		const blob = normalizeBlob(input);
+		if (await this.getMediaAssetMetadata(id)) {
+			throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
+		}
+		const storedFile = await this.#writeOpfsBlob(`media-${id}`, blob);
+		const record = {
+			...binaryMetadata(metadata),
+			sourceId: id,
+			storage: storedFile ? 'opfs' : 'indexeddb-blob',
+			path: storedFile?.path,
+			blob: storedFile ? undefined : blob,
+			size: blob.size,
+			mimeType: String(metadata.mimeType || blob.type || ''),
+			name: String(metadata.name || input?.name || ''),
+			lastModified: nonNegativeInteger(metadata.lastModified ?? input?.lastModified, 0),
+			committedAt: new Date().toISOString(),
+			pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
+		};
+		try {
+			const database = await this.#database();
+			if (!database) this.memory.mediaAssets.set(id, clone(record));
+			else await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => { mediaAssets.put(record); });
+		} catch (error) {
+			if (storedFile) await this.#deleteOpfsPath(storedFile.path);
+			throw error;
+		}
+		return mediaAssetMetadata(record);
+	}
+
+	async loadMediaAsset(sourceId) {
+		const record = await this.#mediaAssetRecord(sourceId);
+		if (!record) return null;
+		return this.#loadBinaryRecord(record, 'The requested local media asset is missing.');
+	}
+
+	async getMediaAssetMetadata(sourceId) {
+		const record = await this.#mediaAssetRecord(sourceId);
+		return record ? mediaAssetMetadata(record) : null;
+	}
+
+	/**
+	 * Remove a raw media asset and all of its cached derivatives. Timeline
+	 * source metadata is deliberately left alone; `deleteSource()` owns that
+	 * complete lifecycle.
+	 */
+	async deleteMediaAsset(sourceId) {
+		const id = nonEmptyString(sourceId, 'A media source id is required.');
+		const database = await this.#database();
+		let record;
+		let derivatives;
+		if (!database) {
+			record = clone(this.memory.mediaAssets.get(id) || null);
+			derivatives = [...this.memory.videoDerivatives.values()]
+				.filter((candidate) => candidate.sourceId === id)
+				.map(clone);
+			this.memory.mediaAssets.delete(id);
+			for (const derivative of derivatives) this.memory.videoDerivatives.delete(derivative.key);
+		} else {
+			({ record, derivatives } = await transact(
+				database,
+				['mediaAssets', 'videoDerivatives'],
+				'readwrite',
+				async ({ mediaAssets, videoDerivatives }) => {
+					const storedRecord = await request(mediaAssets.get(id));
+					const storedDerivatives = await request(videoDerivatives.index('sourceId').getAll(id));
+					mediaAssets.delete(id);
+					await deleteByIndex(videoDerivatives.index('sourceId'), id);
+					return { record: storedRecord || null, derivatives: storedDerivatives };
+				},
+			));
+		}
+		await this.#deleteBinaryRecords([record, ...derivatives]);
+	}
+
+	/**
+	 * Save or replace one derived video artifact (for example, a poster,
+	 * thumbnail, or preview proxy) at an exact source timestamp.
+	 */
+	async saveVideoDerivative(sourceId, {
+		timestamp = 0,
+		type,
+		blob: input,
+		metadata = {},
+	} = {}) {
+		const identity = videoDerivativeIdentity(sourceId, timestamp, type);
+		const blob = normalizeBlob(input);
+		const previous = await this.#videoDerivativeRecord(identity.key);
+		const storedFile = await this.#writeOpfsBlob(`video-${identity.sourceId}-${identity.type}`, blob);
+		const record = {
+			...binaryMetadata(metadata),
+			...identity,
+			storage: storedFile ? 'opfs' : 'indexeddb-blob',
+			path: storedFile?.path,
+			blob: storedFile ? undefined : blob,
+			size: blob.size,
+			mimeType: String(metadata.mimeType || blob.type || ''),
+			committedAt: new Date().toISOString(),
+		};
+		try {
+			const database = await this.#database();
+			if (!database) this.memory.videoDerivatives.set(record.key, clone(record));
+			else await transact(database, 'videoDerivatives', 'readwrite', ({ videoDerivatives }) => { videoDerivatives.put(record); });
+		} catch (error) {
+			if (storedFile) await this.#deleteOpfsPath(storedFile.path);
+			throw error;
+		}
+		if (previous?.path !== record.path) await this.#deleteBinaryRecords([previous]);
+		return videoDerivativeMetadata(record);
+	}
+
+	async loadVideoDerivative(sourceId, { timestamp = 0, type } = {}) {
+		const identity = videoDerivativeIdentity(sourceId, timestamp, type);
+		const record = await this.#videoDerivativeRecord(identity.key);
+		if (!record) return null;
+		return this.#loadBinaryRecord(record, 'The requested local video derivative is missing.');
+	}
+
+	async listVideoDerivatives(sourceId, { type } = {}) {
+		const id = nonEmptyString(sourceId, 'A media source id is required.');
+		const requestedType = type === undefined ? null : nonEmptyString(type, 'A video derivative type is required.');
+		const records = await this.#videoDerivativeRecords(id);
+		return records
+			.filter((record) => requestedType === null || record.type === requestedType)
+			.sort((left, right) => left.timestamp - right.timestamp || left.type.localeCompare(right.type))
+			.map(videoDerivativeMetadata);
+	}
+
+	async deleteVideoDerivative(sourceId, selector = {}) {
+		const id = nonEmptyString(sourceId, 'A media source id is required.');
+		const hasTimestamp = selector.timestamp !== undefined;
+		const hasType = selector.type !== undefined;
+		const timestamp = hasTimestamp ? nonNegativeFiniteNumber(selector.timestamp, 'A non-negative derivative timestamp is required.') : null;
+		const type = hasType ? nonEmptyString(selector.type, 'A video derivative type is required.') : null;
+		const records = (await this.#videoDerivativeRecords(id)).filter((record) => (
+			(timestamp === null || record.timestamp === timestamp)
+			&& (type === null || record.type === type)
+		));
+		if (!records.length) return;
+		const database = await this.#database();
+		if (!database) {
+			for (const record of records) this.memory.videoDerivatives.delete(record.key);
+		} else {
+			await transact(database, 'videoDerivatives', 'readwrite', ({ videoDerivatives }) => {
+				for (const record of records) videoDerivatives.delete(record.key);
+			});
+		}
+		await this.#deleteBinaryRecords(records);
+	}
+
 	async *readSourceChunks(sourceId) {
 		yield* this.#readSourceChunks(sourceId, new Set());
 	}
@@ -457,13 +622,15 @@ export class AudioEditorProjectStore {
 
 	async deleteSource(sourceId) {
 		const source = await this.getSourceMetadata(sourceId);
-		if (!source) return;
-		const dependent = (await this.listSources()).find((candidate) => candidate.baseSourceId === sourceId);
-		if (dependent) throw new Error(`Source ${sourceId} is retained by derived source ${dependent.id}.`);
-		const database = await this.#database();
-		if (!database) this.memory.sources.delete(sourceId);
-		else await transact(database, 'sources', 'readwrite', ({ sources }) => { sources.delete(sourceId); });
-		await this.#deleteStoredSource(source);
+		if (source) {
+			const dependent = (await this.listSources()).find((candidate) => candidate.baseSourceId === sourceId);
+			if (dependent) throw new Error(`Source ${sourceId} is retained by derived source ${dependent.id}.`);
+			const database = await this.#database();
+			if (!database) this.memory.sources.delete(sourceId);
+			else await transact(database, 'sources', 'readwrite', ({ sources }) => { sources.delete(sourceId); });
+			await this.#deleteStoredSource(source);
+		}
+		await this.deleteMediaAsset(sourceId);
 		await this.deleteAnalysis(`audio-editor-peaks-v1:${sourceId}`);
 	}
 
@@ -483,7 +650,14 @@ export class AudioEditorProjectStore {
 	async cleanupTemporaryAssets({ maximumAgeMs = 24 * 60 * 60 * 1000 } = {}) {
 		const sources = await this.listSources();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(Boolean));
-		const paths = new Set(sources.map((source) => source.path).filter(Boolean));
+		const binaryRecords = [
+			...await this.#mediaAssetRecords(),
+			...await this.#allVideoDerivativeRecords(),
+		];
+		const paths = new Set([
+			...sources.map((source) => source.path),
+			...binaryRecords.map((record) => record.path),
+		].filter(Boolean));
 		const cutoff = Date.now() - maximumAgeMs;
 		const database = await this.#database();
 		if (!database) {
@@ -538,18 +712,38 @@ export class AudioEditorProjectStore {
 	}
 
 	async clear() {
-		const opfsSources = [];
+		const opfsRecords = [];
 		const database = await this.#database();
 		if (!database) {
-			opfsSources.push(...[...this.memory.sources.values()].filter((source) => source.storage === 'opfs'));
+			opfsRecords.push(
+				...[...this.memory.sources.values()].filter((source) => source.storage === 'opfs'),
+				...[...this.memory.mediaAssets.values()].filter((record) => record.storage === 'opfs'),
+				...[...this.memory.videoDerivatives.values()].filter((record) => record.storage === 'opfs'),
+			);
 			for (const value of Object.values(this.memory)) value.clear();
 		} else {
-			opfsSources.push(...await transact(database, 'sources', 'readonly', ({ sources }) => request(sources.getAll())));
-			await transact(database, ['projects', 'revisions', 'settings', 'analysis', 'sources', 'sourceChunks'], 'readwrite', (stores) => {
+			opfsRecords.push(
+				...await transact(database, 'sources', 'readonly', ({ sources }) => request(sources.getAll())),
+				...await transact(database, 'mediaAssets', 'readonly', ({ mediaAssets }) => request(mediaAssets.getAll())),
+				...await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => request(videoDerivatives.getAll())),
+			);
+			await transact(database, [
+				'projects',
+				'revisions',
+				'settings',
+				'analysis',
+				'sources',
+				'sourceChunks',
+				'mediaAssets',
+				'videoDerivatives',
+			], 'readwrite', (stores) => {
 				for (const store of Object.values(stores)) store.clear();
 			});
 		}
-		for (const source of opfsSources) if (source.storage === 'opfs') await this.#deleteStoredSource(source);
+		for (const record of opfsRecords) {
+			if (record.sourceToken) await this.#deleteStoredSource(record);
+			else await this.#deleteBinaryRecords([record]);
+		}
 	}
 
 	async close() {
@@ -578,6 +772,8 @@ export class AudioEditorProjectStore {
 		const maximumAge = Math.max(0, Number(minimumAgeMs) || 0);
 		const currentTime = Number.isFinite(Number(now)) ? Number(now) : Date.now();
 		const deletedSources = [];
+		const deletedBinaryRecords = [];
+		const deletedSourceIds = [];
 		const deferredSourceIds = [];
 		let nextEligibleAt = null;
 		const database = await this.#database();
@@ -594,27 +790,55 @@ export class AudioEditorProjectStore {
 				collectProjectSourceIds(compacted, protectedIds);
 			}
 			protectSourceDependencies(protectedIds, [...this.memory.sources.values()]);
-			for (const [sourceId, source] of this.memory.sources) {
+			const candidates = sourceStorageCandidates(
+				[...this.memory.sources.values()],
+				[...this.memory.mediaAssets.values()],
+				[...this.memory.videoDerivatives.values()],
+			);
+			for (const [sourceId, candidate] of candidates) {
 				if (protectedIds.has(sourceId)) continue;
-				const eligibleAt = sourceEligibleAt(source, maximumAge);
+				const eligibleAt = candidateEligibleAt(candidate, maximumAge);
 				if (eligibleAt > currentTime) {
 					deferredSourceIds.push(sourceId);
 					nextEligibleAt = nextEligibleAt === null ? eligibleAt : Math.min(nextEligibleAt, eligibleAt);
 					continue;
 				}
-				deletedSources.push(source);
+				deletedSourceIds.push(sourceId);
+				if (candidate.source) deletedSources.push(candidate.source);
+				if (candidate.mediaAsset) deletedBinaryRecords.push(candidate.mediaAsset);
+				deletedBinaryRecords.push(...candidate.derivatives);
 				this.memory.sources.delete(sourceId);
+				this.memory.mediaAssets.delete(sourceId);
+				for (const derivative of candidate.derivatives) this.memory.videoDerivatives.delete(derivative.key);
 				this.memory.analysis.delete(`audio-editor-peaks-v1:${sourceId}`);
 				for (const [key, chunk] of this.memory.sourceChunks) {
-					if (chunk.sourceToken === source.sourceToken) this.memory.sourceChunks.delete(key);
+					if (candidate.source?.sourceToken && chunk.sourceToken === candidate.source.sourceToken) {
+						this.memory.sourceChunks.delete(key);
+					}
 				}
 			}
 		} else {
 			const result = await transact(
 				database,
-				['projects', 'revisions', 'analysis', 'sources', 'sourceChunks'],
+				[
+					'projects',
+					'revisions',
+					'analysis',
+					'sources',
+					'sourceChunks',
+					'mediaAssets',
+					'videoDerivatives',
+				],
 				'readwrite',
-				async ({ projects, revisions, analysis, sources, sourceChunks }) => {
+				async ({
+					projects,
+					revisions,
+					analysis,
+					sources,
+					sourceChunks,
+					mediaAssets,
+					videoDerivatives,
+				}) => {
 					const savedProjects = await request(projects.getAll());
 					const savedRevisions = await request(revisions.getAll());
 					for (const saved of savedProjects) {
@@ -629,32 +853,53 @@ export class AudioEditorProjectStore {
 					}
 
 					const storedSources = await request(sources.getAll());
+					const storedMediaAssets = await request(mediaAssets.getAll());
+					const storedVideoDerivatives = await request(videoDerivatives.getAll());
 					protectSourceDependencies(protectedIds, storedSources);
-					const removed = [];
-					for (const source of storedSources) {
-						if (protectedIds.has(source.id)) continue;
-						const eligibleAt = sourceEligibleAt(source, maximumAge);
+					const candidates = sourceStorageCandidates(storedSources, storedMediaAssets, storedVideoDerivatives);
+					const removedSources = [];
+					const removedBinaryRecords = [];
+					const removedSourceIds = [];
+					for (const [sourceId, candidate] of candidates) {
+						if (protectedIds.has(sourceId)) continue;
+						const eligibleAt = candidateEligibleAt(candidate, maximumAge);
 						if (eligibleAt > currentTime) {
-							deferredSourceIds.push(source.id);
+							deferredSourceIds.push(sourceId);
 							nextEligibleAt = nextEligibleAt === null ? eligibleAt : Math.min(nextEligibleAt, eligibleAt);
 							continue;
 						}
-						removed.push(source);
-						sources.delete(source.id);
-						analysis.delete(`audio-editor-peaks-v1:${source.id}`);
-						if (source.sourceToken) await deleteByIndex(sourceChunks.index('sourceToken'), source.sourceToken);
+						removedSourceIds.push(sourceId);
+						if (candidate.source) {
+							removedSources.push(candidate.source);
+							sources.delete(sourceId);
+							if (candidate.source.sourceToken) {
+								await deleteByIndex(sourceChunks.index('sourceToken'), candidate.source.sourceToken);
+							}
+						}
+						if (candidate.mediaAsset) {
+							removedBinaryRecords.push(candidate.mediaAsset);
+							mediaAssets.delete(sourceId);
+						}
+						for (const derivative of candidate.derivatives) {
+							removedBinaryRecords.push(derivative);
+							videoDerivatives.delete(derivative.key);
+						}
+						analysis.delete(`audio-editor-peaks-v1:${sourceId}`);
 					}
-					return removed;
+					return { removedSources, removedBinaryRecords, removedSourceIds };
 				},
 			);
-			deletedSources.push(...result);
+			deletedSources.push(...result.removedSources);
+			deletedBinaryRecords.push(...result.removedBinaryRecords);
+			deletedSourceIds.push(...result.removedSourceIds);
 		}
 
 		for (const source of deletedSources) {
 			if (source.storage === 'opfs') await this.#deleteStoredSource(source);
 		}
+		await this.#deleteBinaryRecords(deletedBinaryRecords);
 		return {
-			deletedSourceIds: deletedSources.map((source) => source.id),
+			deletedSourceIds,
 			deferredSourceIds,
 			retainedSourceIds: [...protectedIds],
 			nextEligibleAt,
@@ -684,6 +929,96 @@ export class AudioEditorProjectStore {
 			? this.memory[storeName].get(key)
 			: await transact(database, storeName, 'readonly', (stores) => request(stores[storeName].get(key)));
 		return record ? clone(record.value) : undefined;
+	}
+
+	async #mediaAssetRecord(sourceId) {
+		const database = await this.#database();
+		const record = !database
+			? this.memory.mediaAssets.get(sourceId)
+			: await transact(database, 'mediaAssets', 'readonly', ({ mediaAssets }) => request(mediaAssets.get(sourceId)));
+		return record ? clone(record) : null;
+	}
+
+	async #mediaAssetRecords() {
+		const database = await this.#database();
+		const records = !database
+			? [...this.memory.mediaAssets.values()]
+			: await transact(database, 'mediaAssets', 'readonly', ({ mediaAssets }) => request(mediaAssets.getAll()));
+		return records.map(clone);
+	}
+
+	async #videoDerivativeRecord(key) {
+		const database = await this.#database();
+		const record = !database
+			? this.memory.videoDerivatives.get(key)
+			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => request(videoDerivatives.get(key)));
+		return record ? clone(record) : null;
+	}
+
+	async #videoDerivativeRecords(sourceId) {
+		const database = await this.#database();
+		const records = !database
+			? [...this.memory.videoDerivatives.values()].filter((record) => record.sourceId === sourceId)
+			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => {
+				return request(videoDerivatives.index('sourceId').getAll(sourceId));
+			});
+		return records.map(clone);
+	}
+
+	async #allVideoDerivativeRecords() {
+		const database = await this.#database();
+		const records = !database
+			? [...this.memory.videoDerivatives.values()]
+			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => request(videoDerivatives.getAll()));
+		return records.map(clone);
+	}
+
+	async #loadBinaryRecord(record, missingMessage) {
+		if (record.storage !== 'opfs') {
+			if (!record.blob) throw new Error(missingMessage);
+			return blobWithMimeType(record.blob, record.mimeType);
+		}
+		const directory = await this.#opfsDirectory();
+		try {
+			const handle = await directory?.getFileHandle(record.path);
+			if (!handle) throw new Error(missingMessage);
+			return blobWithMimeType(await handle.getFile(), record.mimeType);
+		} catch {
+			throw new Error(missingMessage);
+		}
+	}
+
+	async #writeOpfsBlob(prefix, blob) {
+		const directory = await this.#opfsDirectory();
+		if (!directory?.getFileHandle) return null;
+		const stem = String(prefix || 'media').replace(/[^a-z0-9._-]+/gi, '-').slice(0, 80);
+		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/gi, '-')}.blob`;
+		let writable;
+		try {
+			const handle = await directory.getFileHandle(path, { create: true });
+			writable = await handle.createWritable();
+			await writable.write(blob);
+			await writable.close();
+			return { path };
+		} catch {
+			try {
+				if (typeof writable?.abort === 'function') await writable.abort();
+			} catch { /* A failed OPFS write may already be closed. */ }
+			await this.#deleteOpfsPath(path);
+			return null;
+		}
+	}
+
+	async #deleteBinaryRecords(records) {
+		for (const record of records || []) {
+			if (record?.storage === 'opfs' && record.path) await this.#deleteOpfsPath(record.path);
+		}
+	}
+
+	async #deleteOpfsPath(path) {
+		if (!path) return;
+		const directory = await this.#opfsDirectory();
+		try { await directory?.removeEntry(path); } catch { /* Missing and orphaned files are harmless. */ }
 	}
 
 	async #writeSourceChunk(record) {
@@ -919,6 +1254,13 @@ function openDatabase(indexedDB, databaseName) {
 				const store = database.createObjectStore('sourceChunks', { keyPath: 'key' });
 				store.createIndex('sourceToken', 'sourceToken', { unique: false });
 			}
+			if (!database.objectStoreNames.contains('mediaAssets')) {
+				database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+			}
+			if (!database.objectStoreNames.contains('videoDerivatives')) {
+				const store = database.createObjectStore('videoDerivatives', { keyPath: 'key' });
+				store.createIndex('sourceId', 'sourceId', { unique: false });
+			}
 		};
 		openRequest.onsuccess = () => resolve(openRequest.result);
 		openRequest.onerror = () => reject(openRequest.error || new Error('Could not open editor storage.'));
@@ -1041,9 +1383,99 @@ function getMemoryDatabase(name) {
 			analysis: new Map(),
 			sources: new Map(),
 			sourceChunks: new Map(),
+			mediaAssets: new Map(),
+			videoDerivatives: new Map(),
 		});
 	}
 	return memoryDatabases.get(name);
+}
+
+function normalizeBlob(input) {
+	if (
+		!input
+		|| typeof input.size !== 'number'
+		|| typeof input.slice !== 'function'
+		|| typeof input.arrayBuffer !== 'function'
+	) {
+		throw new TypeError('A Blob or File is required.');
+	}
+	return input;
+}
+
+function blobWithMimeType(blob, mimeType) {
+	const requestedType = String(mimeType || '');
+	if (!requestedType || blob.type === requestedType) return blob;
+	return blob.slice(0, blob.size, requestedType);
+}
+
+function binaryMetadata(metadata) {
+	const value = metadata && typeof metadata === 'object' ? clone(metadata) : {};
+	for (const key of [
+		'key',
+		'sourceId',
+		'timestamp',
+		'type',
+		'storage',
+		'path',
+		'blob',
+		'size',
+		'mimeType',
+		'committedAt',
+		'pendingProjectUntil',
+	]) delete value[key];
+	return value;
+}
+
+function mediaAssetMetadata(record) {
+	const value = clone(record);
+	delete value.blob;
+	return value;
+}
+
+function videoDerivativeMetadata(record) {
+	const value = clone(record);
+	delete value.blob;
+	return value;
+}
+
+function videoDerivativeIdentity(sourceId, timestamp, type) {
+	const id = nonEmptyString(sourceId, 'A media source id is required.');
+	const derivativeType = nonEmptyString(type, 'A video derivative type is required.');
+	const sourceTimestamp = nonNegativeFiniteNumber(timestamp, 'A non-negative derivative timestamp is required.');
+	return {
+		key: JSON.stringify([id, derivativeType, sourceTimestamp]),
+		sourceId: id,
+		timestamp: sourceTimestamp,
+		type: derivativeType,
+	};
+}
+
+function sourceStorageCandidates(sources, mediaAssets, videoDerivatives) {
+	const candidates = new Map();
+	const candidateFor = (sourceId) => {
+		if (!candidates.has(sourceId)) {
+			candidates.set(sourceId, { source: null, mediaAsset: null, derivatives: [] });
+		}
+		return candidates.get(sourceId);
+	};
+	for (const source of sources || []) {
+		if (source?.id) candidateFor(source.id).source = source;
+	}
+	for (const mediaAsset of mediaAssets || []) {
+		if (mediaAsset?.sourceId) candidateFor(mediaAsset.sourceId).mediaAsset = mediaAsset;
+	}
+	for (const derivative of videoDerivatives || []) {
+		if (derivative?.sourceId) candidateFor(derivative.sourceId).derivatives.push(derivative);
+	}
+	return candidates;
+}
+
+function candidateEligibleAt(candidate, minimumAgeMs) {
+	return Math.max(
+		candidate?.source ? sourceEligibleAt(candidate.source, minimumAgeMs) : 0,
+		candidate?.mediaAsset ? sourceEligibleAt(candidate.mediaAsset, minimumAgeMs) : 0,
+		...(candidate?.derivatives || []).map((record) => sourceEligibleAt(record, minimumAgeMs)),
+	);
 }
 
 function normalizeChannels(input) {
@@ -1116,6 +1548,18 @@ function createId(prefix) {
 
 function nonNegativeInteger(value, fallback) {
 	return Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+}
+
+function nonNegativeFiniteNumber(value, message) {
+	const number = Number(value);
+	if (!Number.isFinite(number) || number < 0) throw new RangeError(message);
+	return number;
+}
+
+function nonEmptyString(value, message) {
+	const text = typeof value === 'string' ? value.trim() : '';
+	if (!text) throw new TypeError(message);
+	return text;
 }
 
 function positiveInteger(value, fallback) {

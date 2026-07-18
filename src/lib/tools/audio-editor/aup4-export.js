@@ -62,7 +62,7 @@ export function createAup4ExportPlan(project) {
 
 	for (let trackIndex = 0; trackIndex < project.tracks.length; trackIndex += 1) {
 		const track = project.tracks[trackIndex];
-		if ((track.type || track.kind || 'audio') === 'label') continue;
+		if (!isAup4AudioTrack(track)) continue;
 		const normalizedTrack = normalizedProject.tracks[trackIndex];
 		const clips = (track.clipIds || []).map((clipId) => {
 			const clip = clipById.get(clipId);
@@ -299,6 +299,7 @@ export function createAup4ExportPlan(project) {
 		));
 		expandSplitTrackSelection(normalizedProject, trackReplacements);
 	}
+	omitVideoContent(normalizedProject, project);
 	normalizedProject.sources = normalizedSourceMetadata;
 	return {
 		project: normalizedProject,
@@ -351,6 +352,38 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 }
 
 function reportOmittedProjectFeatures(project, normalizedProject, report) {
+	const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
+	const videoTrackIds = new Set((project.tracks || [])
+		.filter(isAup4VideoTrack)
+		.map((track) => String(track.id)));
+	const videoTrackClipIds = new Set((project.tracks || [])
+		.filter(isAup4VideoTrack)
+		.flatMap((track) => track.clipIds || [])
+		.map(String));
+	const timelineVideoClips = (project.clips || []).filter((clip) => (
+		isAup4VideoClip(clip, sourceById) || videoTrackClipIds.has(String(clip.id))
+	));
+	const projectBinVideoClips = (project.projectBin?.clips || []).filter((clip) => (
+		isAup4VideoClip(clip, sourceById)
+	));
+	const videoSources = (project.sources || []).filter(isAup4VideoSource);
+	if (videoTrackIds.size || timelineVideoClips.length || projectBinVideoClips.length || videoSources.length) {
+		addAup4CompatibilityItem(report, {
+			code: 'VIDEO_OMITTED',
+			severity: 'warning',
+			disposition: 'omitted',
+			message: 'AUP4 is audio-only. Video tracks, clips, and media were omitted from this exported copy.',
+			scope: { kind: 'project' },
+			data: {
+				reason: 'aup4-audio-only',
+				trackCount: videoTrackIds.size,
+				timelineClipCount: timelineVideoClips.length,
+				projectBinClipCount: projectBinVideoClips.length,
+				sourceCount: videoSources.length,
+			},
+		});
+	}
+
 	const projectBinClips = Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [];
 	if (projectBinClips.length) {
 		addAup4CompatibilityItem(report, {
@@ -456,7 +489,7 @@ function reportOmittedProjectFeatures(project, normalizedProject, report) {
 	}
 	for (let index = 0; index < project.tracks.length; index += 1) {
 		const track = project.tracks[index];
-		if ((track.type || track.kind || 'audio') === 'label') continue;
+		if (!isAup4AudioTrack(track)) continue;
 		if (track.armed) {
 			addAup4CompatibilityItem(report, {
 				code: 'TRACK_ARMED_STATE_OMITTED',
@@ -479,7 +512,7 @@ function reportOmittedProjectFeatures(project, normalizedProject, report) {
 
 function reportAup4EffectCompatibility(project, report) {
 	for (const track of project.tracks || []) {
-		if ((track.type || track.kind || 'audio') === 'label') continue;
+		if (!isAup4AudioTrack(track)) continue;
 		reportRackEffects(track.effects, {
 			kind: 'track',
 			trackId: track.id,
@@ -492,6 +525,88 @@ function reportAup4EffectCompatibility(project, report) {
 		report,
 		project.master?.effectsActive !== false,
 	);
+}
+
+function omitVideoContent(normalizedProject, originalProject) {
+	const sourceById = new Map((originalProject.sources || []).map((source) => [source.id, source]));
+	const videoTrackIds = new Set((originalProject.tracks || [])
+		.filter(isAup4VideoTrack)
+		.map((track) => String(track.id)));
+	const videoClipIds = new Set((originalProject.clips || [])
+		.filter((clip) => isAup4VideoClip(clip, sourceById))
+		.map((clip) => String(clip.id)));
+	for (const track of originalProject.tracks || []) {
+		if (!isAup4VideoTrack(track)) continue;
+		for (const clipId of track.clipIds || []) videoClipIds.add(String(clipId));
+	}
+
+	normalizedProject.clips = (normalizedProject.clips || [])
+		.filter((clip) => !videoClipIds.has(String(clip.id)))
+		.map((clip) => (
+			Object.hasOwn(clip, 'avLinkId') ? { ...clip, avLinkId: null } : clip
+		));
+	normalizedProject.tracks = (normalizedProject.tracks || [])
+		.filter((track) => !videoTrackIds.has(String(track.id)) && !isAup4VideoTrack(track))
+		.map((track) => (
+			Array.isArray(track.clipIds)
+				? {
+					...track,
+					clipIds: track.clipIds.filter((clipId) => !videoClipIds.has(String(clipId))),
+					...(Object.hasOwn(track, 'laneGroupId') ? { laneGroupId: null } : {}),
+				}
+				: track
+		));
+
+	const retainedTrackIds = new Set(normalizedProject.tracks.map((track) => String(track.id)));
+	const retainedClipIds = new Set(normalizedProject.clips.map((clip) => String(clip.id)));
+	if (normalizedProject.selection) {
+		if (Array.isArray(normalizedProject.selection.trackIds)) {
+			normalizedProject.selection.trackIds = filterRetainedIds(
+				normalizedProject.selection.trackIds,
+				retainedTrackIds,
+			);
+		}
+		if (Array.isArray(normalizedProject.selection.clipIds)) {
+			normalizedProject.selection.clipIds = filterRetainedIds(
+				normalizedProject.selection.clipIds,
+				retainedClipIds,
+			);
+		}
+	}
+	if (normalizedProject.view) {
+		if (Array.isArray(normalizedProject.view.selectedTrackIds)) {
+			normalizedProject.view.selectedTrackIds = filterRetainedIds(
+				normalizedProject.view.selectedTrackIds,
+				retainedTrackIds,
+			);
+		}
+		if (Array.isArray(normalizedProject.view.selectedClipIds)) {
+			normalizedProject.view.selectedClipIds = filterRetainedIds(
+				normalizedProject.view.selectedClipIds,
+				retainedClipIds,
+			);
+		}
+	}
+}
+
+function filterRetainedIds(ids, retainedIds) {
+	return ids.filter((id) => retainedIds.has(String(id)));
+}
+
+function isAup4AudioTrack(track) {
+	return !isAup4VideoTrack(track) && (track?.type || track?.kind || 'audio') !== 'label';
+}
+
+function isAup4VideoTrack(track) {
+	return (track?.type || track?.kind) === 'video';
+}
+
+function isAup4VideoClip(clip, sourceById) {
+	return clip?.kind === 'video' || isAup4VideoSource(sourceById.get(clip?.sourceId));
+}
+
+function isAup4VideoSource(source) {
+	return source?.kind === 'video';
 }
 
 function reportRackEffects(effects, scope, report, rackActive) {

@@ -42,7 +42,7 @@ export function createAudioEditorFileService(options = {}) {
 	async function chooseFiles(request = {}) {
 		if (!bridge?.chooseFiles) return [];
 		const descriptors = await bridge.chooseFiles({
-			purpose: normalizePurpose(request.purpose, ['project', 'audio', 'labels']),
+			purpose: normalizePurpose(request.purpose, ['project', 'audio', 'video', 'media', 'labels']),
 			...(request.multiple ? { multiple: true } : {}),
 		});
 		return Array.isArray(descriptors) ? descriptors.filter(isReadDescriptor) : [];
@@ -69,7 +69,7 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function chooseSaveTarget(request = {}) {
-		const purpose = normalizePurpose(request.purpose, ['project', 'audio', 'labels', 'preset', 'macro', 'report']);
+		const purpose = normalizePurpose(request.purpose, ['project', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report']);
 		const suggestedName = sanitizeSuggestedName(request.suggestedName || request.fileName);
 		if (bridge?.chooseSaveTarget) {
 			return bridge.chooseSaveTarget({

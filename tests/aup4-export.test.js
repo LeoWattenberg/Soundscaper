@@ -474,6 +474,124 @@ test('AUP4 export omits project-bin clips and their bin-only PCM with a compatib
 	)));
 });
 
+test('AUP4 export creates an explicit audio-only copy of a V4 video project', () => {
+	const project = fixtureProject({
+		schemaVersion: 4,
+		sources: [
+			{ ...source('audio-source', 48_000, 1, 48), kind: 'audio' },
+			videoSource('video-source', 48),
+			videoSource('bin-video-source', 96),
+		],
+		clips: [
+			{ ...clip('audio-clip', 'audio-source', {
+				sourceDurationFrames: 48,
+				durationFrames: 48,
+			}), kind: 'audio', avLinkId: 'av-1', binItemId: null },
+			videoClip('video-clip', 'video-source', {
+				sourceDurationFrames: 48,
+				durationFrames: 48,
+				avLinkId: 'av-1',
+			}),
+		],
+		tracks: [
+			{
+				id: 'video-track',
+				type: 'video',
+				name: 'Video',
+				clipIds: ['video-clip'],
+				laneGroupId: 'lane-1',
+			},
+			{
+				...track('audio-track', ['audio-clip']),
+				laneGroupId: 'lane-1',
+			},
+		],
+		selection: {
+			startFrame: 0,
+			endFrame: 48,
+			trackIds: ['video-track', 'audio-track'],
+			clipIds: ['video-clip', 'audio-clip'],
+		},
+		view: {
+			selectedTrackIds: ['video-track', 'audio-track'],
+			selectedClipIds: ['video-clip', 'audio-clip'],
+		},
+		projectBin: {
+			clips: [videoClip('bin-video-clip', 'bin-video-source', {
+				sourceDurationFrames: 96,
+				durationFrames: 96,
+				binItemId: 'bin-item',
+			})],
+		},
+	});
+
+	const plan = createAup4ExportPlan(project);
+	assert.deepEqual(requiredAup4SourceIds(plan), ['audio-source']);
+	assert.deepEqual(plan.project.sources.map((item) => item.kind), ['audio']);
+	assert.deepEqual(plan.project.clips.map((item) => item.id), ['audio-clip']);
+	assert.equal(plan.project.clips[0].avLinkId, null);
+	assert.deepEqual(plan.project.tracks.map((item) => item.id), ['audio-track']);
+	assert.equal(plan.project.tracks[0].laneGroupId, null);
+	assert.deepEqual(plan.project.selection.trackIds, ['audio-track']);
+	assert.deepEqual(plan.project.selection.clipIds, ['audio-clip']);
+	assert.deepEqual(plan.project.view.selectedTrackIds, ['audio-track']);
+	assert.deepEqual(plan.project.view.selectedClipIds, ['audio-clip']);
+	assert.deepEqual(plan.project.projectBin, { clips: [] });
+
+	const videoWarning = plan.compatibilityReport.items.find((item) => item.code === 'VIDEO_OMITTED');
+	assert.deepEqual(videoWarning, {
+		code: 'VIDEO_OMITTED',
+		severity: 'warning',
+		disposition: 'omitted',
+		message: 'AUP4 is audio-only. Video tracks, clips, and media were omitted from this exported copy.',
+		scope: { kind: 'project' },
+		data: {
+			reason: 'aup4-audio-only',
+			trackCount: 1,
+			timelineClipCount: 1,
+			projectBinClipCount: 1,
+			sourceCount: 2,
+		},
+	});
+	assert.ok(plan.compatibilityReport.items.some((item) => item.code === 'PROJECT_BIN_OMITTED'));
+
+	const snapshot = normalizeAup4ExportSnapshot(project, [{
+		sourceId: 'audio-source',
+		sampleRate: 48_000,
+		channels: [new Float32Array(48)],
+	}]);
+	assert.equal(snapshot.sources.length, 1);
+	const tree = createAup4ProjectTree(snapshot.project, blockMap(snapshot.sources));
+	assert.equal(audacityXmlChildren(tree, 'wavetrack').length, 1);
+});
+
+test('AUP4 export safely handles a video-only timeline without requesting PCM', () => {
+	const project = fixtureProject({
+		schemaVersion: 4,
+		sources: [videoSource('video-source', 120)],
+		clips: [videoClip('video-clip', 'video-source', {
+			sourceDurationFrames: 120,
+			durationFrames: 120,
+		})],
+		tracks: [{
+			id: 'video-track',
+			type: 'video',
+			name: 'Video',
+			clipIds: ['video-clip'],
+		}],
+		projectBin: { clips: [] },
+	});
+
+	const snapshot = normalizeAup4ExportSnapshot(project, []);
+	assert.deepEqual(snapshot.sources, []);
+	assert.deepEqual(snapshot.project.sources, []);
+	assert.deepEqual(snapshot.project.clips, []);
+	assert.deepEqual(snapshot.project.tracks, []);
+	assert.ok(snapshot.compatibilityReport.items.some((item) => (
+		item.code === 'VIDEO_OMITTED' && item.severity === 'warning'
+	)));
+});
+
 test('AUP4 export report identifies converted source layouts and omitted mixer state', () => {
 	const project = fixtureProject({
 		masterChannels: 6,
@@ -637,6 +755,42 @@ function clip(id, sourceId, overrides = {}) {
 
 function track(id, clipIds) {
 	return { id, type: 'audio', name: id, clipIds, effects: [] };
+}
+
+function videoSource(id, frameCount) {
+	return {
+		kind: 'video',
+		id,
+		name: id,
+		storageKey: id,
+		mimeType: 'video/mp4',
+		sampleRate: 48_000,
+		frameCount,
+		width: 1920,
+		height: 1080,
+		frameRate: 30,
+		videoCodec: 'h264',
+		audioCodec: null,
+		hasAudio: false,
+	};
+}
+
+function videoClip(id, sourceId, overrides = {}) {
+	return {
+		kind: 'video',
+		id,
+		sourceId,
+		title: id,
+		timelineStartFrame: 0,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 1,
+		durationFrames: 1,
+		trimStartFrames: 0,
+		trimEndFrames: 0,
+		avLinkId: null,
+		binItemId: null,
+		...overrides,
+	};
 }
 
 function blockMap(sources) {

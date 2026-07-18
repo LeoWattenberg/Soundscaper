@@ -18,6 +18,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
 const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
+const { createAudioEditorProjectV4 } = await import('../src/lib/tools/audio-editor/project-v4.js');
 const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
 
 const SOURCE_CHUNK_FRAMES = 65_536;
@@ -251,6 +252,94 @@ test('each AUP4 interchange export uses and removes a fresh native database iden
 		assert.notEqual(nativeIds[0], nativeIds[1]);
 		assert.equal(nativeIds.includes(localProjectId), false);
 		assert.deepEqual(deletedIds, nativeIds);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('AUP4 audio-only save does not require or read a referenced video source', async () => {
+	let receivedProject = null;
+	let receivedSources = null;
+	const aup4Client = {
+		async initialize() { return { opfs: false }; },
+		async create() {},
+		async writeSnapshot(_projectId, project, sources) {
+			receivedProject = project;
+			receivedSources = [];
+			for await (const source of sources) receivedSources.push(source);
+			return {
+				compatibilityReport: {
+					schemaVersion: 1,
+					format: 'aup4',
+					direction: 'save',
+					items: [{
+						code: 'VIDEO_OMITTED',
+						severity: 'warning',
+						disposition: 'omitted',
+						scope: { kind: 'project' },
+						data: { reason: 'aup4-audio-only' },
+					}],
+					counts: { preserved: 0, converted: 0, missing: 0, omitted: 1 },
+				},
+			};
+		},
+		async commit() {},
+		async export() {
+			return {
+				bytes: Uint8Array.of(0x41, 0x55, 0x50, 0x34),
+				mimeType: 'application/x-audacity-project',
+			};
+		},
+		async inspect() { return { valid: true }; },
+		async delete() {},
+		dispose() {},
+	};
+	const controller = createTestController({ aup4Client });
+	const videoProject = createAudioEditorProjectV4({
+		id: 'video-only-project',
+		title: 'Video only',
+		sources: [{
+			kind: 'video',
+			id: 'video-source',
+			name: 'video.mp4',
+			mimeType: 'video/mp4',
+			storageKey: 'video-source',
+			frameCount: 240,
+			sampleRate: 48_000,
+			width: 1280,
+			height: 720,
+			frameRate: 30,
+			videoCodec: 'h264',
+			hasAudio: false,
+		}],
+		clips: [{
+			kind: 'video',
+			id: 'video-clip',
+			sourceId: 'video-source',
+			title: 'video.mp4',
+			timelineStartFrame: 0,
+			sourceStartFrame: 0,
+			sourceDurationFrames: 240,
+			durationFrames: 240,
+		}],
+		tracks: [{
+			type: 'video',
+			id: 'video-track',
+			name: 'Video',
+			clipIds: ['video-clip'],
+		}],
+	});
+
+	try {
+		await controller.ready;
+		await controller.actions.project.open(videoProject);
+		assert.deepEqual(controller.getSnapshot().missingSourceIds, ['video-source']);
+
+		const result = await controller.actions.project.saveAup4({ useFileSystemAccess: false });
+
+		assert.equal(receivedProject.id, 'video-only-project');
+		assert.deepEqual(receivedSources, []);
+		assert.equal(result.compatibilityReport.items[0].code, 'VIDEO_OMITTED');
 	} finally {
 		await controller.dispose();
 	}

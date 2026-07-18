@@ -1,6 +1,6 @@
 import { createClipboardDescriptor } from './commands.js';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from './history.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v3.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v4.js';
 import { collectHistorySourceIds } from './retention.js';
 
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;

@@ -105,6 +105,50 @@ test('temporary IndexedDB chunk cleanup enumerates and deletes orphaned records 
 	await interruptedWriter.abort();
 });
 
+test('IndexedDB Blob fallback persists media assets and cascades indexed video derivatives', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = 'indexeddb-video-assets';
+	const store = createProjectStore({
+		indexedDB,
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName,
+	});
+
+	const metadata = await store.writeMediaAsset(
+		'video-source',
+		new Blob(['original'], { type: 'video/webm' }),
+		{ name: 'original.webm' },
+	);
+	await store.saveVideoDerivative('video-source', {
+		timestamp: 0,
+		type: 'poster',
+		blob: new Blob(['poster'], { type: 'image/webp' }),
+	});
+	await store.saveVideoDerivative('video-source', {
+		timestamp: 5,
+		type: 'thumbnail',
+		blob: new Blob(['thumbnail'], { type: 'image/webp' }),
+	});
+
+	assert.equal(metadata.storage, 'indexeddb-blob');
+	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 1);
+	assert.equal(indexedDB.recordCount(databaseName, 'videoDerivatives'), 2);
+	assert.equal(await (await store.loadMediaAsset('video-source')).text(), 'original');
+	assert.equal(
+		await (await store.loadVideoDerivative('video-source', { timestamp: 5, type: 'thumbnail' })).text(),
+		'thumbnail',
+	);
+	assert.deepEqual(
+		(await store.listVideoDerivatives('video-source')).map(({ type }) => type),
+		['poster', 'thumbnail'],
+	);
+
+	await store.deleteSource('video-source');
+	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 0);
+	assert.equal(indexedDB.recordCount(databaseName, 'videoDerivatives'), 0);
+});
+
 function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true } = {}) {
 	const databases = new Map();
 	const stats = {

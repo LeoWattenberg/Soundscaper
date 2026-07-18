@@ -35,7 +35,12 @@ export * from './preferences.js';
 export * from './project.js';
 export * from './project-v2.js';
 export * from './project-v3.js';
-export { AUDIO_EDITOR_PROJECT_SCHEMA_VERSION } from './project-v3.js';
+export * from './project-v4.js';
+export {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
+	AUDIO_EDITOR_TRACK_TYPES,
+} from './project-v4.js';
 export * from './resample.js';
 export * from './sample-edit.js';
 export * from './selection-effects.js';
@@ -51,3 +56,7 @@ export * from './staffpad/index.js';
 export * from './storage.js';
 export * from './wav.js';
 export * from './wav-import.js';
+export * from './video-media.js';
+export * from './video-export.js';
+export * from './video-ffmpeg.js';
+export * from './video-timeline.js';

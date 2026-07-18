@@ -9,11 +9,16 @@ import {
 	validateAudioEditorProjectV2,
 } from './project-v2.js';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV3,
 	loadAudioEditorProjectV3,
 	validateAudioEditorProjectV3,
 } from './project-v3.js';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createAudioEditorProjectV4,
+	loadAudioEditorProjectV4,
+	validateAudioEditorProjectV4,
+} from './project-v4.js';
 
 const PROJECT_V1_KEYS = new Set([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate', 'masterChannels',
@@ -164,9 +169,54 @@ export function migrateAudioEditorProjectV1ToV3(value) {
 	return migrateAudioEditorProjectV2ToV3(migrateAudioEditorProjectV1ToV2(value));
 }
 
+export function migrateAudioEditorProjectV3ToV4(value) {
+	if (!value || typeof value !== 'object' || value.schemaVersion !== 3) {
+		throw new RangeError('An AudioEditorProjectV3 project is required.');
+	}
+	const loaded = loadAudioEditorProjectV3(value);
+	if (loaded.readOnly) throw new RangeError('An AudioEditorProjectV3 project is required.');
+	const project = createAudioEditorProjectV4({
+		...loaded.project,
+		now: loaded.project.createdAt,
+		sources: loaded.project.sources.map((source) => ({
+			...source,
+			kind: 'audio',
+		})),
+		clips: loaded.project.clips.map((clip) => ({
+			...clip,
+			kind: 'audio',
+			avLinkId: null,
+			binItemId: null,
+		})),
+		tracks: loaded.project.tracks.map((track) => ({
+			...track,
+			laneGroupId: null,
+		})),
+		projectBin: {
+			...loaded.project.projectBin,
+			clips: loaded.project.projectBin.clips.map((clip) => ({
+				...clip,
+				kind: 'audio',
+				avLinkId: null,
+				binItemId: clip.id,
+			})),
+		},
+	});
+	validateAudioEditorProjectV4(project);
+	return project;
+}
+
+export function migrateAudioEditorProjectV2ToV4(value) {
+	return migrateAudioEditorProjectV3ToV4(migrateAudioEditorProjectV2ToV3(value));
+}
+
+export function migrateAudioEditorProjectV1ToV4(value) {
+	return migrateAudioEditorProjectV3ToV4(migrateAudioEditorProjectV1ToV3(value));
+}
+
 /**
  * Version-aware load/migration boundary. Future documents are returned intact
- * and read-only; V1/V2 are migrated atomically; V3 is validated and cloned.
+ * and read-only; V1/V2/V3 are migrated atomically; V4 is validated and cloned.
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
@@ -184,7 +234,7 @@ export function migrateAudioEditorProject(value) {
 		};
 	}
 	if (schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		const loaded = loadAudioEditorProjectV3(value);
+		const loaded = loadAudioEditorProjectV4(value);
 		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
 			Object.hasOwn(track, 'channelCount')
 			|| Object.hasOwn(track, 'channelLayout')
@@ -199,9 +249,11 @@ export function migrateAudioEditorProject(value) {
 			reason: null,
 		};
 	}
-	const project = schemaVersion === 2
-		? migrateAudioEditorProjectV2ToV3(value)
-		: migrateAudioEditorProjectV1ToV3(value);
+	const project = schemaVersion === 3
+		? migrateAudioEditorProjectV3ToV4(value)
+		: schemaVersion === 2
+			? migrateAudioEditorProjectV2ToV4(value)
+			: migrateAudioEditorProjectV1ToV4(value);
 	return {
 		project,
 		migrated: true,

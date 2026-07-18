@@ -8,6 +8,8 @@ import {
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
 } from './media-export.js';
+import { getVideoExportFormat } from './video-export.js';
+import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -27,6 +29,19 @@ export class FfmpegEncodingError extends Error {
 		this.code = 'FFMPEG_ENCODING_FAILED';
 		this.format = descriptor.id;
 		this.codec = descriptor.codec;
+		this.exitCode = exitCode;
+	}
+}
+
+export class FfmpegVideoEncodingError extends Error {
+	constructor(format, exitCode) {
+		const descriptor = getVideoExportFormat(format);
+		super(`${descriptor.label} encoding failed because FFmpeg codec ${descriptor.videoEncoder} is unavailable or rejected the video export plan (exit code ${exitCode}).`);
+		this.name = 'FfmpegVideoEncodingError';
+		this.code = 'FFMPEG_VIDEO_ENCODING_FAILED';
+		this.format = descriptor.id;
+		this.videoCodec = descriptor.videoCodec;
+		this.videoEncoder = descriptor.videoEncoder;
 		this.exitCode = exitCode;
 	}
 }
@@ -263,13 +278,60 @@ export function createEditorFfmpeg(options = {}) {
 		});
 	}
 
+	async function encodeVideo(videoBlobsBySourceId, audioMix, plan, settings = {}) {
+		const staged = prepareVideoBlobs(videoBlobsBySourceId, audioMix, plan);
+		const signal = settings.signal;
+		if (signal?.aborted) throw abortError();
+
+		return run(async (instance) => {
+			if (signal?.aborted) throw abortError();
+			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+			const mountPoint = `/editor-video-${stamp}`;
+			const output = `editor-video-${stamp}.${staged.descriptor.extension}`;
+			const videoInputPaths = new Map();
+			let audioInputPath = null;
+			let mounted = false;
+			const onAbort = () => dispose();
+			signal?.addEventListener('abort', onAbort, { once: true });
+
+			try {
+				if (staged.blobs.length) {
+					await instance.createDir(mountPoint);
+					await instance.mount(module.FFFSType.WORKERFS, { blobs: staged.blobs }, mountPoint);
+					mounted = true;
+				}
+				for (const input of staged.inputs) {
+					const path = `${mountPoint}/${input.fileName}`;
+					if (input.kind === 'video-source') videoInputPaths.set(input.sourceId, path);
+					else audioInputPath = path;
+				}
+				const args = buildVideoFfmpegArgs(plan, { videoInputPaths, audioInputPath }, output, settings);
+				const code = await instance.exec(args, -1, { signal });
+				if (code !== 0) throw new FfmpegVideoEncodingError(staged.descriptor.id, code);
+				const data = await instance.readFile(output, undefined, { signal });
+				return {
+					bytes: data instanceof Uint8Array ? data : new TextEncoder().encode(String(data)),
+					extension: `.${staged.descriptor.extension}`,
+					mimeType: staged.descriptor.mimeType,
+				};
+			} finally {
+				signal?.removeEventListener('abort', onAbort);
+				await instance.deleteFile(output).catch(() => undefined);
+				if (mounted) {
+					await instance.unmount(mountPoint).catch(() => undefined);
+					await instance.deleteDir(mountPoint).catch(() => undefined);
+				}
+			}
+		});
+	}
+
 	function dispose() {
 		cancelIdleTeardown();
 		terminateRuntime();
 		queue = Promise.resolve();
 	}
 
-	return { load, encode, encodeFile, decode, dispose, capabilities: () => capabilities };
+	return { load, encode, encodeFile, encodeVideo, decode, dispose, capabilities: () => capabilities };
 }
 
 function normalizeIdleTimeout(value) {
@@ -283,6 +345,52 @@ function normalizeIdleTimeout(value) {
 
 export function encoderArgs(input, output, format, settings = {}) {
 	return buildMediaFfmpegEncoderArgs(input, output, format, settings);
+}
+
+function prepareVideoBlobs(videoBlobsBySourceId, audioMix, plan) {
+	if (!plan || typeof plan !== 'object' || !Array.isArray(plan.inputs)) {
+		throw new TypeError('Expected a video export plan.');
+	}
+	const descriptor = getVideoExportFormat(plan.format);
+	const inputs = [...plan.inputs].sort((left, right) => left.inputIndex - right.inputIndex);
+	const blobs = [];
+	const stagedInputs = [];
+	for (const input of inputs) {
+		let blob;
+		let fileName;
+		if (input?.kind === 'video-source') {
+			blob = mappedBlob(videoBlobsBySourceId, input.sourceId);
+			if (!(blob instanceof Blob)) {
+				throw new TypeError(`Expected a video Blob for source ${input.sourceId}.`);
+			}
+			fileName = `video-${String(input.inputIndex).padStart(3, '0')}.${videoBlobExtension(input.mimeType || blob.type)}`;
+		} else if (input?.kind === 'staged-audio-mix') {
+			if (!(audioMix instanceof Blob)) throw new TypeError('Expected a staged audio mix Blob.');
+			blob = audioMix;
+			fileName = `audio-${String(input.inputIndex).padStart(3, '0')}.wav`;
+		} else {
+			throw new TypeError(`Unsupported video export input kind: ${input?.kind}.`);
+		}
+		blobs.push({ name: fileName, data: blob });
+		stagedInputs.push({ ...input, fileName });
+	}
+	return { descriptor, blobs, inputs: stagedInputs };
+}
+
+function mappedBlob(mapping, key) {
+	if (mapping instanceof Map) return mapping.get(key);
+	if (mapping && typeof mapping === 'object' && Object.prototype.hasOwnProperty.call(mapping, key)) {
+		return mapping[key];
+	}
+	return undefined;
+}
+
+function videoBlobExtension(mimeType) {
+	const normalized = String(mimeType || '').toLowerCase().split(';', 1)[0].trim();
+	if (normalized === 'video/webm') return 'webm';
+	if (normalized === 'video/quicktime') return 'mov';
+	if (normalized === 'video/x-m4v') return 'm4v';
+	return 'mp4';
 }
 
 function toUint8Array(value) {

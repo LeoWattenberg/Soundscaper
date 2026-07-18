@@ -1388,7 +1388,7 @@ function activeRackEffects(owner) {
 /** Iterate every rack location that the project graph can process. */
 export function* projectEffectRacks(project) {
 	for (const [index, track] of (project?.tracks || []).entries()) {
-		if (track?.type === 'label') continue;
+		if (track?.type === 'label' || track?.type === 'video') continue;
 		yield {
 			scope: 'track',
 			targetId: String(track?.id ?? index),
@@ -1461,7 +1461,8 @@ export function projectGraphLatencyFrames(project, {
 	sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
 } = {}) {
 	const tracks = (project?.tracks || []).filter((track) => (
-		track.type !== 'label' && (trackId == null || String(track.id) === String(trackId))
+		track.type !== 'label' && track.type !== 'video'
+			&& (trackId == null || String(track.id) === String(trackId))
 	));
 	const trackLatency = tracks.reduce((maximum, track) => Math.max(
 		maximum,
@@ -1498,7 +1499,9 @@ export function buildProjectGraph(context, destination, project, {
 	const effectNodes = new Map();
 	const effectAnalysers = new Map();
 	const effectMessageSequences = new Map();
-	const tracks = Array.isArray(project?.tracks) ? project.tracks.filter((track) => track.type !== 'label') : [];
+	const tracks = Array.isArray(project?.tracks)
+		? project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video')
+		: [];
 	const mixer = project?.mixer || {};
 	const groups = Array.isArray(mixer.groups) ? mixer.groups : [];
 	const sends = Array.isArray(mixer.sends) ? mixer.sends : [];
@@ -2047,7 +2050,7 @@ async function scheduleProjectClips({
 	const clipsById = new Map(getProjectClips(project).map((clip) => [String(clip.id), clip]));
 	const plans = [];
 	for (const [trackIndex, track] of (project.tracks || []).entries()) {
-		if (track.type === 'label') continue;
+		if (track.type === 'label' || track.type === 'video') continue;
 		const trackInput = trackInputs.get(String(track.id ?? trackIndex));
 		if (!trackInput) continue;
 		const trackClips = getTrackClips(track, clipsById);
@@ -2184,7 +2187,12 @@ function scheduleProjectTrackGains({
 	const timelineRate = sampleRate * transportRate;
 	const durationFrames = Math.max(1, getProjectDurationFrames(project), toFrame);
 	for (const [trackIndex, track] of (project.tracks || []).entries()) {
-		if (track.type === 'label' || !Array.isArray(track.envelope) || !track.envelope.length) continue;
+		if (
+			track.type === 'label'
+			|| track.type === 'video'
+			|| !Array.isArray(track.envelope)
+			|| !track.envelope.length
+		) continue;
 		const scheduled = trackGainParams.get(String(track.id ?? trackIndex));
 		if (!scheduled?.param) continue;
 		const baseGain = Math.max(0, finite(track.gain, 1));
@@ -2837,7 +2845,7 @@ function resolveTailSeconds(project, includeTail, { trackId = null, includeMaste
 	const tracks = (trackId == null
 		? project?.tracks || []
 		: (project?.tracks || []).filter((track) => String(track.id) === String(trackId)))
-		.filter((track) => track.type !== 'label');
+		.filter((track) => track.type !== 'label' && track.type !== 'video');
 	const trackTailFrames = tracks.reduce(
 		(longest, track) => Math.max(longest, rackTailFrames(activeRackEffects(track), project?.sampleRate || DEFAULT_SAMPLE_RATE, MAX_EFFECT_TAIL_SECONDS)),
 		0,

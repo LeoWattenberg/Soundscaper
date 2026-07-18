@@ -21,6 +21,15 @@ import {
 	createLabelTrackV2,
 	createLabelV2,
 } from './project-v2.js';
+import {
+	createAudioClipV4,
+	createAudioSourceV4,
+	createAudioTrackV4,
+	createLabelTrackV4,
+	createMediaClipV4,
+	createMediaSourceV4,
+	createMediaTrackV4,
+} from './project-v4.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 
 /**
@@ -49,7 +58,7 @@ import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
  * @returns {import('./project.js').AudioEditorProjectV1}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (![2, 3].includes(project?.schemaVersion)) {
+	if (![2, 3, 4].includes(project?.schemaVersion)) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') throw new TypeError('A serializable editor command is required.');
@@ -188,6 +197,12 @@ function mutateCommand(project, command) {
 		case 'clip/split':
 			splitClip(project, command);
 			break;
+		case 'clip/link-av':
+			linkAvClips(project, command);
+			break;
+		case 'clip/unlink-av':
+			unlinkAvClips(project, command);
+			break;
 		case 'clip/group':
 			groupClips(project, command.clipIds, command.groupId);
 			break;
@@ -322,14 +337,24 @@ function removeSource(project, sourceId) {
 function updateSource(project, sourceId, changes = {}) {
 	const index = project.sources.findIndex((source) => source.id === sourceId);
 	if (index < 0) throw new ReferenceError(`Unknown source: ${sourceId}.`);
-	const allowed = new Set(['name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions']);
+	const allowed = new Set([
+		'name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions',
+		'videoCodec', 'audioCodec', 'hasAudio', 'posterStorageKey', 'thumbnailStorageKey',
+	]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Source field cannot be updated: ${key}.`);
-	project.sources[index] = createAudioSourceV2({ ...project.sources[index], ...changes, id: sourceId });
+	project.sources[index] = normalizeSourceForProject(project, { ...project.sources[index], ...changes, id: sourceId });
 }
 
 function addProjectBinClip(project, value) {
 	const projectBin = requireProjectBin(project);
-	const clip = normalizeClipForProject(project, { ...value, groupId: null });
+	const clip = normalizeClipForProject(project, {
+		...value,
+		groupId: null,
+		...(project.schemaVersion >= 4 ? {
+			avLinkId: null,
+			binItemId: value?.binItemId || value?.id,
+		} : {}),
+	});
 	assertUnusedClipId(project, clip.id);
 	assertClipSourceBounds(project, clip);
 	projectBin.clips.push(clip);
@@ -340,15 +365,33 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 	const requestedIds = normalizeCommandIds(clipIds, 'clipIds');
 	const requestedClips = requestedIds.map((clipId) => requireClip(project, clipId));
 	const groupIds = new Set(requestedClips.map((clip) => clip.groupId).filter(Boolean));
+	const avLinkIds = new Set(requestedClips.map((clip) => clip.avLinkId).filter(Boolean));
 	const movedIds = new Set(requestedIds);
-	if (groupIds.size) {
+	if (groupIds.size || avLinkIds.size) {
 		for (const clip of project.clips) {
 			if (clip.groupId && groupIds.has(clip.groupId)) movedIds.add(clip.id);
+			if (clip.avLinkId && avLinkIds.has(clip.avLinkId)) movedIds.add(clip.id);
 		}
+	}
+	const binItemByClipId = new Map();
+	for (const clip of project.clips.filter((candidate) => movedIds.has(candidate.id))) {
+		const linked = clip.avLinkId
+			? project.clips.filter((candidate) => movedIds.has(candidate.id) && candidate.avLinkId === clip.avLinkId)
+			: [clip];
+		const binItemId = linked.find((candidate) => candidate.kind === 'video')?.id || linked[0]?.id || clip.id;
+		for (const candidate of linked) binItemByClipId.set(candidate.id, binItemId);
 	}
 	const movedClips = project.clips
 		.filter((clip) => movedIds.has(clip.id))
-		.map((clip) => normalizeClipForProject(project, { ...clip, groupId: null, id: clip.id }));
+		.map((clip) => normalizeClipForProject(project, {
+			...clip,
+			groupId: null,
+			id: clip.id,
+			...(project.schemaVersion >= 4 ? {
+				avLinkId: null,
+				binItemId: binItemByClipId.get(clip.id) || clip.id,
+			} : {}),
+		}));
 	for (const track of project.tracks) {
 		if (!Array.isArray(track.clipIds)) continue;
 		track.clipIds = track.clipIds.filter((clipId) => !movedIds.has(clipId));
@@ -362,27 +405,52 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 
 function placeProjectBinClip(project, command) {
 	const binClip = requireProjectBinClip(project, command.binClipId);
-	const track = requireTrack(project, command.trackId);
-	if (!Array.isArray(track.clipIds)) throw new RangeError('Project-bin clips can only be placed on audio tracks.');
-	const clipId = requireStableCommandId(command.clipId, 'placed clip');
-	assertUnusedClipId(project, clipId);
-	const clip = normalizeClipForProject(project, {
-		...binClip,
-		id: clipId,
-		timelineStartFrame: assertFrame(command.timelineStartFrame, 'project-bin.timelineStartFrame'),
-		groupId: null,
-	});
-	assertClipSourceBounds(project, clip);
-	assertClipSpace(project, track, clip);
-	project.clips.push(clip);
-	track.clipIds.push(clip.id);
-	sortTrack(project, track);
+	const itemClips = project.schemaVersion >= 4
+		? project.projectBin.clips.filter((clip) => clip.binItemId === binClip.binItemId)
+		: [binClip];
+	const timelineStartFrame = assertFrame(command.timelineStartFrame, 'project-bin.timelineStartFrame');
+	const placements = Array.isArray(command.placements)
+		? command.placements
+		: [{
+			binClipId: binClip.id,
+			trackId: command.trackId,
+			clipId: command.clipId,
+		}];
+	if (placements.length !== itemClips.length) {
+		throw new RangeError('Every clip in a Project Bin item needs a timeline placement.');
+	}
+	const avLinkId = itemClips.length === 2
+		? requireStableCommandId(command.avLinkId, 'A/V link')
+		: null;
+	for (const itemClip of itemClips) {
+		const placement = placements.find((candidate) => candidate.binClipId === itemClip.id)
+			|| (placements.length === 1 ? placements[0] : null);
+		if (!placement) throw new ReferenceError(`Missing placement for Project Bin clip ${itemClip.id}.`);
+		const track = requireTrack(project, placement.trackId);
+		if (!Array.isArray(track.clipIds) || (project.schemaVersion >= 4 && track.type !== itemClip.kind)) {
+			throw new RangeError(`A ${itemClip.kind || 'audio'} Project Bin clip needs a matching media track.`);
+		}
+		const clipId = requireStableCommandId(placement.clipId, 'placed clip');
+		assertUnusedClipId(project, clipId);
+		const clip = normalizeClipForProject(project, {
+			...itemClip,
+			id: clipId,
+			timelineStartFrame,
+			groupId: null,
+			...(project.schemaVersion >= 4 ? { avLinkId, binItemId: null } : {}),
+		});
+		assertClipSourceBounds(project, clip);
+		assertClipSpace(project, track, clip);
+		project.clips.push(clip);
+		track.clipIds.push(clip.id);
+		sortTrack(project, track);
+	}
 }
 
 function updateProjectBinClip(project, clipId, changes = {}) {
 	const projectBin = requireProjectBin(project);
-	const index = projectBin.clips.findIndex((clip) => clip.id === clipId);
-	if (index < 0) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
+	const clip = projectBin.clips.find((candidate) => candidate.id === clipId);
+	if (!clip) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
 	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
 		throw new TypeError('Project-bin clip changes must be an object.');
 	}
@@ -393,28 +461,47 @@ function updateProjectBinClip(project, clipId, changes = {}) {
 	if (Object.hasOwn(changes, 'title') && (typeof changes.title !== 'string' || !changes.title.trim())) {
 		throw new TypeError('A project-bin clip title is required.');
 	}
-	projectBin.clips[index] = normalizeClipForProject(project, {
-		...projectBin.clips[index],
-		...changes,
-		id: clipId,
-		groupId: null,
-	});
+	const itemIds = new Set(project.schemaVersion >= 4
+		? projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId).map((candidate) => candidate.id)
+		: [clip.id]);
+	projectBin.clips = projectBin.clips.map((candidate) => itemIds.has(candidate.id)
+		? normalizeClipForProject(project, {
+			...candidate,
+			...changes,
+			id: candidate.id,
+			groupId: null,
+			...(project.schemaVersion >= 4 ? { avLinkId: null, binItemId: candidate.binItemId } : {}),
+		})
+		: candidate);
 }
 
 function removeProjectBinClip(project, clipId) {
 	const projectBin = requireProjectBin(project);
-	const index = projectBin.clips.findIndex((clip) => clip.id === clipId);
-	if (index < 0) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
-	projectBin.clips.splice(index, 1);
+	const clip = projectBin.clips.find((candidate) => candidate.id === clipId);
+	if (!clip) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
+	if (project.schemaVersion >= 4) {
+		projectBin.clips = projectBin.clips.filter((candidate) => candidate.binItemId !== clip.binItemId);
+		return;
+	}
+	projectBin.clips = projectBin.clips.filter((candidate) => candidate.id !== clipId);
 }
 
 function addTrack(project, value, requestedIndex) {
 	if (value?.type === 'label') {
 		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
-		const labelTrack = createLabelTrackV2(value);
+		const labelTrack = project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
 		project.tracks.splice(labelIndex, 0, labelTrack);
+		return;
+	}
+	if (value?.type === 'video') {
+		if (project.schemaVersion < 4) throw new RangeError('Video tracks require an AudioEditorProjectV4 project.');
+		const track = normalizeTrackForProject(project, value);
+		assertUnusedId(project.tracks, track.id, 'track');
+		if (track.clipIds.length) throw new RangeError('Add clips after adding a track.');
+		const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
+		project.tracks.splice(index, 0, track);
 		return;
 	}
 	const effects = Array.isArray(value?.effects) ? value.effects.map(normalizeEffect) : [];
@@ -433,11 +520,19 @@ function addTrack(project, value, requestedIndex) {
 function removeTrack(project, trackId) {
 	const index = project.tracks.findIndex((track) => track.id === trackId);
 	if (index < 0) throw new ReferenceError(`Unknown track: ${trackId}.`);
-	const clipIds = new Set(project.tracks[index].clipIds || []);
+	const requestedTrack = project.tracks[index];
+	const laneGroupId = requestedTrack.laneGroupId;
+	const removedTracks = laneGroupId
+		? project.tracks.filter((track) => track.laneGroupId === laneGroupId)
+		: [requestedTrack];
+	const removedTrackIds = new Set(removedTracks.map((track) => track.id));
+	const clipIds = new Set(removedTracks.flatMap((track) => track.clipIds || []));
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
-	project.tracks.splice(index, 1);
-	if (project.mixer?.routes) delete project.mixer.routes[trackId];
-	disableAutoDuckForRemovedControlTrack(project, trackId);
+	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(track.id));
+	for (const removedTrackId of removedTrackIds) {
+		if (project.mixer?.routes) delete project.mixer.routes[removedTrackId];
+		disableAutoDuckForRemovedControlTrack(project, removedTrackId);
+	}
 }
 
 function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
@@ -464,7 +559,15 @@ function updateTrack(project, trackId, changes = {}) {
 	if (track.type === 'label') {
 		const allowed = new Set(['name', 'collapsed', 'height']);
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label track field cannot be updated: ${key}.`);
-		Object.assign(track, createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
+		Object.assign(track, project.schemaVersion >= 4
+			? createLabelTrackV4({ ...track, ...changes, labels: track.labels })
+			: createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
+		return;
+	}
+	if (track.type === 'video') {
+		const allowed = new Set(['name', 'mute', 'hidden', 'collapsed', 'height']);
+		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
+		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));
 		return;
 	}
 	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive']);
@@ -482,6 +585,36 @@ function reorderTrack(project, trackId, requestedIndex) {
 		throw new RangeError('Track destination is out of bounds.');
 	}
 	if (index === fromIndex) return;
+	if (project.schemaVersion >= 4 && project.tracks.some((track) => track.laneGroupId)) {
+		const blocks = [];
+		const consumedLaneGroups = new Set();
+		for (const track of project.tracks) {
+			if (!track.laneGroupId) {
+				blocks.push([track]);
+				continue;
+			}
+			if (consumedLaneGroups.has(track.laneGroupId)) continue;
+			consumedLaneGroups.add(track.laneGroupId);
+			blocks.push(project.tracks.filter((candidate) => candidate.laneGroupId === track.laneGroupId));
+		}
+		const sourceBlockIndex = blocks.findIndex((block) => block.some((track) => track.id === trackId));
+		const destinationTrackId = project.tracks[index].id;
+		const destinationBlockIndex = blocks.findIndex((block) => (
+			block.some((track) => track.id === destinationTrackId)
+		));
+		if (sourceBlockIndex === destinationBlockIndex) return;
+		const [sourceBlock] = blocks.splice(sourceBlockIndex, 1);
+		const adjustedDestination = blocks.findIndex((block) => (
+			block.some((track) => track.id === destinationTrackId)
+		));
+		blocks.splice(
+			index < fromIndex ? adjustedDestination : adjustedDestination + 1,
+			0,
+			sourceBlock,
+		);
+		project.tracks = blocks.flat();
+		return;
+	}
 	const [track] = project.tracks.splice(fromIndex, 1);
 	project.tracks.splice(index, 0, track);
 }
@@ -639,8 +772,14 @@ function setTimeDisplay(project, command) {
 
 function addClip(project, trackId, value) {
 	const track = requireTrack(project, trackId);
-	if (!Array.isArray(track.clipIds)) throw new RangeError('Audio clips can only be added to audio tracks.');
-	const clip = normalizeClipForProject(project, value);
+	if (!Array.isArray(track.clipIds)) throw new RangeError('Media clips can only be added to media tracks.');
+	const clip = normalizeClipForProject(project, {
+		...value,
+		...(project.schemaVersion >= 4 ? { binItemId: null } : {}),
+	});
+	if (project.schemaVersion >= 4 && track.type !== clip.kind) {
+		throw new RangeError(`A ${clip.kind} clip cannot be added to a ${track.type} track.`);
+	}
 	assertUnusedClipId(project, clip.id);
 	assertClipSourceBounds(project, clip);
 	assertClipSpace(project, track, clip);
@@ -650,16 +789,31 @@ function addClip(project, trackId, value) {
 }
 
 function removeClip(project, clipId) {
-	const track = requireClipTrack(project, clipId);
-	track.clipIds = track.clipIds.filter((id) => id !== clipId);
-	project.clips = project.clips.filter((clip) => clip.id !== clipId);
+	const clip = requireClip(project, clipId);
+	const removedIds = new Set([clip.id]);
+	if (clip.avLinkId) {
+		for (const candidate of project.clips) {
+			if (candidate.avLinkId === clip.avLinkId) removedIds.add(candidate.id);
+		}
+	}
+	for (const track of project.tracks) {
+		if (Array.isArray(track.clipIds)) {
+			track.clipIds = track.clipIds.filter((id) => !removedIds.has(id));
+		}
+	}
+	project.clips = project.clips.filter((candidate) => !removedIds.has(candidate.id));
 }
 
 function updateClip(project, clipId, changes = {}) {
 	const clip = requireClip(project, clipId);
 	const track = requireClipTrack(project, clipId);
-	const allowed = new Set(['gain', 'fadeInFrames', 'fadeOutFrames', 'reversed']);
-	for (const key of ['title', 'envelope', 'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'renderCacheRevision']) allowed.add(key);
+	const allowed = clip.kind === 'video'
+		? new Set(['title', 'groupId', 'color'])
+		: new Set([
+			'gain', 'fadeInFrames', 'fadeOutFrames', 'reversed', 'title', 'envelope',
+			'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants',
+			'stretchToTempo', 'renderCacheRevision',
+		]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Clip field cannot be updated: ${key}.`);
 	const updated = normalizeClipForProject(project, {
 		...clip,
@@ -679,6 +833,9 @@ function replaceClipSource(project, clipId, sourceId) {
 	const track = requireClipTrack(project, clipId);
 	const source = project.sources.find((candidate) => candidate.id === sourceId);
 	if (!source) throw new ReferenceError(`Unknown source: ${sourceId}.`);
+	if (project.schemaVersion >= 4 && source.kind !== clip.kind) {
+		throw new RangeError(`A ${clip.kind} clip cannot reference a ${source.kind} source.`);
+	}
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		sourceId: source.id,
@@ -722,11 +879,24 @@ export function collectClipTransformIds(project, activeClipId) {
 	if (selectedIds.includes(activeClip.id)) {
 		for (const clipId of selectedIds) if (findClip(project, clipId)) ids.add(clipId);
 	}
-	const groupIds = new Set([...ids]
-		.map((clipId) => findClip(project, clipId)?.groupId)
-		.filter(Boolean));
-	if (groupIds.size) {
-		for (const clip of project.clips) if (clip.groupId && groupIds.has(clip.groupId)) ids.add(clip.id);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		const groupIds = new Set([...ids]
+			.map((clipId) => findClip(project, clipId)?.groupId)
+			.filter(Boolean));
+		const avLinkIds = new Set([...ids]
+			.map((clipId) => findClip(project, clipId)?.avLinkId)
+			.filter(Boolean));
+		for (const clip of project.clips) {
+			if (
+				(clip.groupId && groupIds.has(clip.groupId))
+				|| (clip.avLinkId && avLinkIds.has(clip.avLinkId))
+			) {
+				if (!ids.has(clip.id)) changed = true;
+				ids.add(clip.id);
+			}
+		}
 	}
 	return project.clips.filter((clip) => ids.has(clip.id)).map((clip) => clip.id);
 }
@@ -853,7 +1023,10 @@ function buildClipTransformState(project, transforms) {
 		const clip = requireClip(project, ids[index]);
 		const oldTrack = requireClipTrack(project, clip.id);
 		const track = requireTrack(project, transform.trackId || oldTrack.id);
-		if (!Array.isArray(track.clipIds)) throw new RangeError(`Audio clips cannot be transformed onto track ${track.id}.`);
+		if (!Array.isArray(track.clipIds)) throw new RangeError(`Media clips cannot be transformed onto track ${track.id}.`);
+		if (project.schemaVersion >= 4 && track.type !== clip.kind) {
+			throw new RangeError(`A ${clip.kind} clip cannot be transformed onto a ${track.type} track.`);
+		}
 		const changes = transform.changes || {};
 		if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Clip transform changes must be an object.');
 		for (const key of Object.keys(changes)) {
@@ -1034,15 +1207,60 @@ function trimClip(project, command) {
 
 function splitClip(project, command) {
 	const clip = requireClip(project, command.clipId);
-	const track = requireClipTrack(project, clip.id);
 	const atFrame = assertFrame(command.atFrame, 'split.atFrame');
 	if (atFrame <= clip.timelineStartFrame || atFrame >= clipEndFrame(clip)) {
 		throw new RangeError('A split must be inside the clip.');
 	}
 	if (!command.rightClipId) throw new TypeError('A stable rightClipId is required for a replayable split.');
 	assertUnusedClipId(project, command.rightClipId);
+	if (!clip.avLinkId) {
+		splitSingleClip(project, clip, atFrame, command.rightClipId);
+		return;
+	}
+	const linkedClip = project.clips.find((candidate) => (
+		candidate.id !== clip.id && candidate.avLinkId === clip.avLinkId
+	));
+	if (!linkedClip) throw new RangeError(`A/V link ${clip.avLinkId} is incomplete.`);
+	if (
+		linkedClip.timelineStartFrame !== clip.timelineStartFrame
+		|| linkedClip.durationFrames !== clip.durationFrames
+	) {
+		throw new RangeError(`A/V link ${clip.avLinkId} is not aligned.`);
+	}
+	const linkedRightClipId = requireStableCommandId(command.linkedRightClipId, 'linked right clip');
+	const rightAvLinkId = requireStableCommandId(command.rightAvLinkId, 'right A/V link');
+	assertUnusedClipId(project, linkedRightClipId);
+	if (linkedRightClipId === command.rightClipId) throw new RangeError('Split clip IDs must be unique.');
+	splitSingleClip(project, clip, atFrame, command.rightClipId, rightAvLinkId);
+	splitSingleClip(project, linkedClip, atFrame, linkedRightClipId, rightAvLinkId);
+}
+
+export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId) {
+	return { type: 'clip/split', clipId, atFrame, rightClipId: idFactory('clip') };
+}
+
+export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = createStableId) {
+	const clip = requireClip(project, clipId);
+	if (!clip.avLinkId) return prepareSplitCommand(clipId, atFrame, idFactory);
+	const linkedClip = project.clips.find((candidate) => (
+		candidate.id !== clip.id && candidate.avLinkId === clip.avLinkId
+	));
+	if (!linkedClip) throw new RangeError(`A/V link ${clip.avLinkId} is incomplete.`);
+	return {
+		type: 'clip/split',
+		clipId,
+		atFrame,
+		rightClipId: idFactory('clip'),
+		linkedRightClipId: idFactory('clip'),
+		rightAvLinkId: idFactory('av-link'),
+	};
+}
+
+function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = null) {
+	const track = requireClipTrack(project, clip.id);
 	const left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
-	const right = segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame, command.rightClipId);
+	const right = segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame, rightClipId);
+	if (rightAvLinkId) right.avLinkId = rightAvLinkId;
 	replaceClip(project, left);
 	project.clips.push(right);
 	const index = track.clipIds.indexOf(clip.id);
@@ -1050,8 +1268,56 @@ function splitClip(project, command) {
 	sortTrack(project, track);
 }
 
-export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId) {
-	return { type: 'clip/split', clipId, atFrame, rightClipId: idFactory('clip') };
+function linkAvClips(project, command) {
+	if (project.schemaVersion < 4) throw new RangeError('A/V links require an AudioEditorProjectV4 project.');
+	const video = requireClip(project, command.videoClipId);
+	const audio = requireClip(project, command.audioClipId);
+	if (video.kind !== 'video' || audio.kind !== 'audio') {
+		throw new RangeError('An A/V link requires one video clip and one audio clip.');
+	}
+	if (video.avLinkId || audio.avLinkId) throw new RangeError('A clip must be unlinked before it can be relinked.');
+	if (
+		video.timelineStartFrame !== audio.timelineStartFrame
+		|| video.durationFrames !== audio.durationFrames
+	) {
+		throw new RangeError('A/V clips must have aligned timeline ranges.');
+	}
+	const videoTrack = requireClipTrack(project, video.id);
+	const audioTrack = requireClipTrack(project, audio.id);
+	if (!videoTrack.laneGroupId || videoTrack.laneGroupId !== audioTrack.laneGroupId) {
+		throw new RangeError('A/V clips must belong to the same media lane group.');
+	}
+	const avLinkId = requireStableCommandId(command.avLinkId, 'A/V link');
+	for (const candidate of project.clips) {
+		if (candidate.avLinkId === avLinkId) throw new RangeError(`Duplicate A/V link ID: ${avLinkId}.`);
+	}
+	replaceClip(project, normalizeClipForProject(project, { ...video, avLinkId, id: video.id }));
+	replaceClip(project, normalizeClipForProject(project, { ...audio, avLinkId, id: audio.id }));
+}
+
+function unlinkAvClips(project, command) {
+	if (project.schemaVersion < 4) throw new RangeError('A/V links require an AudioEditorProjectV4 project.');
+	const requestedClip = command.clipId ? requireClip(project, command.clipId) : null;
+	const avLinkId = command.avLinkId || requestedClip?.avLinkId;
+	if (!avLinkId) return;
+	const linked = project.clips.filter((clip) => clip.avLinkId === avLinkId);
+	if (!linked.length) throw new ReferenceError(`Unknown A/V link: ${avLinkId}.`);
+	for (const clip of linked) {
+		replaceClip(project, normalizeClipForProject(project, { ...clip, avLinkId: null, id: clip.id }));
+	}
+}
+
+export function prepareLinkAvCommand(videoClipId, audioClipId, idFactory = createStableId) {
+	return {
+		type: 'clip/link-av',
+		videoClipId: requireStableCommandId(videoClipId, 'video clip'),
+		audioClipId: requireStableCommandId(audioClipId, 'audio clip'),
+		avLinkId: idFactory('av-link'),
+	};
+}
+
+export function prepareUnlinkAvCommand(clipId) {
+	return { type: 'clip/unlink-av', clipId: requireStableCommandId(clipId, 'clip') };
 }
 
 export function prepareGroupClipsCommand(clipIds, idFactory = createStableId) {
@@ -1609,7 +1875,11 @@ function reorderEffect(project, command) {
 
 function getRack(project, command) {
 	if (command.scope === 'master') return project.master.effects;
-	if (command.scope === 'track') return requireTrack(project, command.trackId).effects;
+	if (command.scope === 'track') {
+		const track = requireTrack(project, command.trackId);
+		if (track.type !== 'audio') throw new RangeError('Track effects require an audio track.');
+		return track.effects;
+	}
 	if (command.scope === 'group' || command.scope === 'send') {
 		return requireMixerBus(project, command.scope, command.busId || command.trackId).effects;
 	}
@@ -1641,7 +1911,7 @@ function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFr
 			.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
 			.map((point) => ({ ...point, frame: point.frame - offsetFrames }))
 		: undefined;
-	return normalizeClipValue({
+	const value = {
 		...clip,
 		id,
 		timelineStartFrame,
@@ -1653,7 +1923,8 @@ function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFr
 		...(envelope ? { envelope } : {}),
 		fadeInFrames: segmentStartFrame === clip.timelineStartFrame ? Math.min(clip.fadeInFrames, durationFrames) : 0,
 		fadeOutFrames: segmentEndFrame === clipEndFrame(clip) ? Math.min(clip.fadeOutFrames, durationFrames) : 0,
-	});
+	};
+	return clip.kind ? createMediaClipV4(value) : normalizeClipValue(value);
 }
 
 function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames) {
@@ -1751,8 +2022,8 @@ function requireClip(project, clipId) {
 }
 
 function requireProjectBin(project) {
-	if (project.schemaVersion !== 3 || !project.projectBin || !Array.isArray(project.projectBin.clips)) {
-		throw new RangeError('Project-bin commands require an AudioEditorProjectV3 project.');
+	if (project.schemaVersion < 3 || !project.projectBin || !Array.isArray(project.projectBin.clips)) {
+		throw new RangeError('Project-bin commands require an AudioEditorProjectV3 or newer project.');
 	}
 	return project.projectBin;
 }
@@ -1847,26 +2118,40 @@ export function createAddLabelCommand(trackId, options = {}) {
 }
 
 function normalizeSourceValue(value) {
-	return createAudioSourceV2(value);
+	return value?.kind ? createMediaSourceV4(value) : createAudioSourceV2(value);
 }
 
 function normalizeTrackValue(value) {
+	if (value?.type === 'video') return createMediaTrackV4(value);
+	if (value?.schemaVersion >= 4 && value?.type === 'label') return createLabelTrackV4(value);
 	if (value?.type === 'label') return createLabelTrackV2(value);
+	if (value?.schemaVersion >= 4 || value?.laneGroupId) return createAudioTrackV4(value);
 	return createAudioTrackV2(value);
 }
 
 function normalizeClipValue(value) {
-	return createAudioClipV2(value);
+	return value?.kind ? createMediaClipV4(value) : createAudioClipV2(value);
 }
 
-function normalizeSourceForProject(_project, value) {
-	return createAudioSourceV2(value);
+function normalizeSourceForProject(project, value) {
+	return project.schemaVersion >= 4
+		? createMediaSourceV4({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
+		: createAudioSourceV2(value);
 }
 
 function normalizeTrackForProject(project, value) {
-	return createAudioTrackV2(value, project.sampleRate);
+	return project.schemaVersion >= 4
+		? createMediaTrackV4({ ...value, type: value?.type || 'audio' }, project.sampleRate)
+		: createAudioTrackV2(value, project.sampleRate);
 }
 
-function normalizeClipForProject(_project, value) {
-	return createAudioClipV2(value);
+function normalizeClipForProject(project, value) {
+	return project.schemaVersion >= 4
+		? createMediaClipV4({
+			...value,
+			kind: value?.kind || 'audio',
+			binItemId: value?.binItemId ?? null,
+			avLinkId: value?.avLinkId ?? null,
+		})
+		: createAudioClipV2(value);
 }

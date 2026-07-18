@@ -16,6 +16,14 @@ const FILE_PURPOSES = Object.freeze({
 		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
 		filters: Object.freeze([{ name: 'Audio and Audacity 3 projects', extensions: ['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv'] }]),
 	}),
+	video: Object.freeze({
+		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
+		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
+	}),
+	media: Object.freeze({
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio, video, and Audacity 3 projects', extensions: ['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv'] }]),
+	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),
 		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt'] }]),
@@ -28,6 +36,20 @@ const SAVE_PURPOSES = Object.freeze({
 		defaultExtension: 'wav',
 		filters: [
 			{ name: 'Audio and stem archives', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
+			{ name: 'All files', extensions: ['*'] },
+		],
+	}),
+	video: Object.freeze({
+		defaultExtension: 'mp4',
+		filters: [
+			{ name: 'Video', extensions: ['mp4', 'webm'] },
+			{ name: 'All files', extensions: ['*'] },
+		],
+	}),
+	media: Object.freeze({
+		defaultExtension: 'mp4',
+		filters: [
+			{ name: 'Audio and video', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'mp4', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
 			{ name: 'All files', extensions: ['*'] },
 		],
 	}),
@@ -46,8 +68,10 @@ const MIME_TYPES = Object.freeze({
 	'.csv': 'text/csv',
 	'.flac': 'audio/flac',
 	'.m4a': 'audio/mp4',
+	'.m4v': 'video/mp4',
 	'.mp2': 'audio/mpeg',
 	'.mp3': 'audio/mpeg',
+	'.mp4': 'video/mp4',
 	'.oga': 'audio/ogg',
 	'.ogg': 'audio/ogg',
 	'.opus': 'audio/ogg; codecs=opus',
@@ -55,7 +79,7 @@ const MIME_TYPES = Object.freeze({
 	'.txt': 'text/plain',
 	'.vtt': 'text/vtt',
 	'.wav': 'audio/wav',
-	'.webm': 'audio/webm',
+	'.webm': 'video/webm',
 	'.wv': 'audio/x-wavpack',
 });
 

@@ -100,6 +100,9 @@ export function addAup4CompatibilityItem(report, item) {
 		disposition: item.disposition,
 		scope: item.scope == null ? { kind: 'project' } : cloneCompatibilityValue(item.scope),
 		data: item.data == null ? {} : cloneCompatibilityValue(item.data),
+		...(typeof item.message === 'string' && item.message.trim()
+			? { message: item.message.trim() }
+			: {}),
 	};
 	report.items.push(normalized);
 	report.counts[normalized.disposition] += 1;
