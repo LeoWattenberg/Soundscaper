@@ -1860,6 +1860,7 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService
 	const report = snapshot.analysisReport;
 	const blocked = !snapshot.ready || !snapshot.project?.clips?.length || snapshot.importing || snapshot.recording || snapshot.exporting || snapshot.analysisProcessing || snapshot.missingSourceIds?.length > 0;
 	const [error, setError] = useState('');
+	const requestedContentRef = useRef('');
 	const run = (scope) => {
 		setError('');
 		const action = mode === 'spectrum'
@@ -1871,6 +1872,25 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService
 			setError(cause instanceof Error ? cause.message : String(cause));
 		});
 	};
+	const selectedTrackIsAudio = snapshot.project?.tracks?.some((track) => (
+		track.id === snapshot.selectedTrackId && track.type === 'audio'
+	));
+	const contentKey = [
+		mode,
+		snapshot.project?.id,
+		snapshot.project?.revision,
+		snapshot.selectedTrackId,
+		snapshot.selection?.startFrame,
+		snapshot.selection?.endFrame,
+	].join(':');
+	useEffect(() => {
+		if (mode === 'contrast' || blocked || requestedContentRef.current === contentKey) return undefined;
+		const timeout = setTimeout(() => {
+			requestedContentRef.current = contentKey;
+			run(selectedTrackIsAudio ? 'track' : 'master');
+		}, 120);
+		return () => clearTimeout(timeout);
+	}, [blocked, contentKey, mode, selectedTrackIsAudio]);
 	const captureContrast = (role) => {
 		setError('');
 		const scope = snapshot.selectedTrackId ? 'track' : 'master';
@@ -1910,7 +1930,12 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService
 		['clipping', copy.clipping, String(result?.clippedSamples ?? 0)],
 	];
 	return (
-		<div className="audio-editor-analysis-inspector">
+		<div
+			className="audio-editor-analysis-inspector"
+			data-analysis-scope={report?.scope}
+			data-analysis-start-frame={report?.startFrame}
+			data-analysis-end-frame={report?.endFrame}
+		>
 			<h3>{copy.metering}</h3>
 			<div className="audio-editor-analysis-grid" data-analysis-values>
 				{values.map(([key, label, value]) => (
@@ -1938,10 +1963,7 @@ function AnalysisContent({ mode, controller, snapshot, copy, locale, fileService
 						<span data-analyze="contrast-background"><Button disabled={blocked || !snapshot.selection} onClick={() => captureContrast('background')}>{copy.captureContrastBackground}</Button></span>
 					</>
 				) : (
-					<>
-						<span data-analyze="track"><Button disabled={blocked || !snapshot.selectedTrackId} onClick={() => run('track')}>{copy.analyzeTrack}</Button></span>
-						<span data-analyze="master"><Button disabled={blocked} onClick={() => run('master')}>{copy.analyzeMaster}</Button></span>
-					</>
+					<span data-analyze="master"><Button disabled={blocked} onClick={() => run('master')}>{copy.analyzeMaster}</Button></span>
 				)}
 				<Button variant="secondary" disabled={!result && !report} onClick={exportReport}>{copy.export}</Button>
 			</div>

@@ -1919,6 +1919,33 @@
 	font-size: 11px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__panel-dock :is(
+	[data-workspace-panel='analysis'],
+	[data-workspace-panel='spectrum'],
+	[data-workspace-panel='clipping'],
+	[data-workspace-panel='contrast'],
+	[data-workspace-panel='ebu-r128']
+) {
+	width: 100%;
+	height: auto;
+	flex: 1 1 0;
+	resize: none;
+}
+
+#kw-audio-editor-design-system :is(
+	[data-workspace-panel='analysis'],
+	[data-workspace-panel='spectrum'],
+	[data-workspace-panel='clipping'],
+	[data-workspace-panel='contrast'],
+	[data-workspace-panel='ebu-r128']
+) .kw-audio-editor__workspace-panel-content,
+#kw-audio-editor-design-system .audio-editor-analysis-inspector,
+#kw-audio-editor-design-system .kw-audio-editor__ebu-dashboard {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 100%;
+}
+
 #kw-audio-editor-design-system [data-workspace-panel='effects'] .kw-audio-editor__workspace-panel-content {
 	display: flex;
 	padding: 0;

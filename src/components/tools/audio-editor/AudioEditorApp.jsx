@@ -110,6 +110,11 @@ const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	clipping: 'clipping',
 	contrast: 'contrast',
 });
+const ANALYZER_PANEL_IDS = Object.freeze([
+	...Object.values(ANALYSIS_MODE_PANEL_IDS),
+	'ebu-r128',
+]);
+const ANALYZER_PANEL_ID_SET = new Set(ANALYZER_PANEL_IDS);
 const DEFAULT_PLAYBACK_METER_SETTINGS = Object.freeze({
 	position: 'side',
 	style: 'default',
@@ -932,9 +937,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 			},
 			openAnalysis: (mode = 'levels') => {
 				openWorkspacePanel(ANALYSIS_MODE_PANEL_IDS[mode] || 'analysis');
-				const scope = selectedAudioTrack ? 'track' : 'master';
-				if (mode === 'spectrum') run(() => controller.actions.analysis.plotSpectrum(scope));
-				else if (mode === 'clipping') run(() => controller.actions.analysis.findClipping(scope));
 			},
 				openEbuR128: () => openWorkspacePanel('ebu-r128'),
 				setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
@@ -3821,7 +3823,7 @@ function WorkspacePanelDock({
 							}}
 						>⠿</button>
 						<h2>{workspacePanelLabel(copy, panelId)}</h2>
-						{dock === 'floating' && <button
+						{dock === 'floating' && !ANALYZER_PANEL_ID_SET.has(panelId) && <button
 							type="button"
 							className="kw-audio-editor__workspace-resize-handle"
 							data-floating-panel-resize-handle={panelId}
@@ -6907,6 +6909,7 @@ function createApplicationMenus({
 	));
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
 	const preferences = snapshot.preferences;
+	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
 		id: labelKey,
@@ -7124,7 +7127,9 @@ function createApplicationMenus({
 					label: copy.panels,
 					items: [
 						{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel },
-						...WORKSPACE_PANEL_IDS.map((panelId) => panelId === 'effects'
+						...WORKSPACE_PANEL_IDS
+							.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId))
+							.map((panelId) => panelId === 'effects'
 							? {
 								id: 'show-effects',
 								label: copy.showEffects,
@@ -7341,10 +7346,10 @@ function createApplicationMenus({
 			items: [
 				unavailable('repeat-analyzer', copy.repeatLastAnalyzer),
 				divider(),
-				{ id: 'analysis', label: copy.analysisCommand, disabled: blocked || !project?.clips.length, onClick: () => actions.openAnalysis('levels') },
-				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('spectrum') },
-				{ id: 'find-clipping', label: copy.findClipping, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('clipping') },
-				{ id: 'contrast', label: copy.contrast, disabled: blocked || !selectionActive || !selectedAudioTrack, onClick: () => actions.openAnalysis('contrast') },
+				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
+				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
+				{ id: 'find-clipping', label: copy.findClipping, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
+				{ id: 'contrast', label: copy.contrast, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('contrast') },
 				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
 				{ id: 'nyquist-analyzers', label: copy.nyquist, items: nyquistItems('analyze') },
 			],

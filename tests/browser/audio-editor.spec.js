@@ -2256,6 +2256,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await closeEffectsPanel(effectsPanel);
 
 		const analysisPanel = await openAnalysisPanel(page, editor);
+		await expect(analysisPanel.getByRole('button', { name: 'Analyze track', exact: true })).toHaveCount(0);
 		await analysisPanel.getByRole('button', { name: 'Analyze master' }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
 		await expect(analysisPanel.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS');
@@ -2265,7 +2266,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
 		await expect(analysisPanel).toHaveCount(0);
 
-		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		for (const [command, panelId, panelName] of [
 			['Plot spectrum', 'spectrum', 'Plot spectrum'],
 			['Find clipping', 'clipping', 'Find clipping'],
@@ -2275,12 +2275,21 @@ test.describe('audio editor React/design-system workflows', () => {
 			await chooseCommandAction(page, editor, 'Analyze', command);
 			const analyzerPanel = editor.locator(`[data-workspace-panel="${panelId}"]`);
 			await expect(analyzerPanel).toBeVisible();
+			await expect(analyzerPanel).toHaveCSS('resize', 'none');
+			await expect(analyzerPanel.locator('[data-floating-panel-resize-handle]')).toHaveCount(0);
 			if (panelId === 'ebu-r128') {
 				await expect(analyzerPanel.locator('.kw-audio-editor__ebu-dashboard')).toBeVisible();
 			}
 			await analyzerPanel.getByRole('button', { name: `Close: ${panelName}`, exact: true }).click();
 			await expect(analyzerPanel).toHaveCount(0);
 		}
+
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels']);
+		const panelsMenu = page.getByRole('menu', { name: 'Panels', exact: true });
+		for (const analyzerName of ['Analysis', 'Plot spectrum', 'Find clipping', 'Contrast', 'EBU R 128']) {
+			await expect(panelsMenu.getByRole('menuitem', { name: analyzerName, exact: true })).toHaveCount(0);
+		}
+		await page.keyboard.press('Escape');
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
