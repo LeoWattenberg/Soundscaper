@@ -1043,7 +1043,6 @@ test.describe('audio editor React/design-system workflows', () => {
 			'Effect',
 			'Analyze',
 			'Tools',
-			'Project',
 			'Help',
 		];
 
@@ -1144,7 +1143,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		for (const [menuName, labels] of [
-			['File', ['Close project', 'Save project as', 'Export selected audio', 'Quit']],
+			['File', ['Close project', 'Export selected audio', 'Quit']],
 			['View', ['Show piano roll']],
 			['Tracks', ['Sync-lock tracks', 'MIDI track']],
 			['Generate', ['Plugin manager']],
@@ -1350,7 +1349,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('tab', { name: 'Untitled project' })).toHaveAttribute('aria-selected', 'true');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		await expect(menubar).toBeVisible();
-		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Project', 'Help']) {
+		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help']) {
 			await expect(menubar.getByRole('menuitem', { name: menu, exact: true })).toBeVisible();
 		}
 		await expect(menubar.getByRole('menuitem', { name: 'Record', exact: true })).toHaveCount(0);
@@ -2332,7 +2331,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseFileAction(page, editor, 'Save project as');
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Save as AUP4']);
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
@@ -2381,14 +2380,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await closeDialog(missingDialog);
 		await closeEffectsPanel(effectsPanel);
 
-		await chooseCommandAction(page, editor, 'Project', 'AUP4 Compatibility Report');
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
 		let reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
 		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
 		await closeAup4CompatibilityReport(reportDialog);
 
 		await compatibilitySummary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
 		await expect(compatibilitySummary).toBeHidden();
-		await chooseCommandAction(page, editor, 'Project', 'AUP4 Compatibility Report');
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
 		reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
 		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
 		await closeAup4CompatibilityReport(reportDialog);
@@ -2402,7 +2401,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseFileAction(page, editor, 'Save project as');
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Save as AUP4']);
 		const download = await downloadPromise;
 		const snapshotPath = await download.path();
 		expect(snapshotPath).toBeTruthy();

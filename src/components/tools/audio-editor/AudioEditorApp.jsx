@@ -2993,7 +2993,7 @@ function EditorActionBar({
 					disabled={blocked}
 					onClick={onSaveAup4}
 				>
-					{copy.saveAup4}
+					{copy.saveAsAup4}
 				</Button>
 				<Button
 					variant="secondary"
@@ -6722,8 +6722,22 @@ function createApplicationMenus({
 			items: [
 				{ id: 'new-project', label: copy.newProject, shortcut: 'Ctrl+N', disabled: blocked, onClick: actions.newProject },
 				{ id: 'open-project', label: copy.openProject, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openProjects },
-				{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
-				{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
+				{
+					id: 'audacity-projects',
+					label: copy.audacityProjects,
+					disabled: blocked,
+					items: [
+						{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
+						{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
+						{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveAup4 },
+						{
+							id: 'aup4-compatibility-report',
+							label: copy.aup4CompatibilityReport,
+							disabled: !snapshot.aup4Compatibility?.report,
+							onClick: actions.openAup4CompatibilityReport,
+						},
+					],
+				},
 				{
 					id: 'recent-projects',
 					label: copy.recentProjects,
@@ -6741,8 +6755,7 @@ function createApplicationMenus({
 				{ id: 'file-close', label: copy.closeProject, shortcut: 'Ctrl+W', disabled: blocked, onClick: actions.closeProject },
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: snapshot.readOnly || blocked, onClick: actions.saveProject },
-				{ id: 'save-project-as', label: copy.saveAup4, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveAup4 },
-					divider(),
+				divider(),
 					{ id: 'import-audio', label: copy.importAudio, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importAudio },
 				{ id: 'import-labels', label: copy.importLabels, disabled: editBlocked, onClick: actions.importLabels },
 				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
@@ -6769,18 +6782,6 @@ function createApplicationMenus({
 				{ id: 'duplicate-project', label: copy.duplicateProject, disabled: blocked, onClick: actions.duplicateProject },
 				{ id: 'delete-project', label: copy.deleteProject, disabled: editBlocked, onClick: actions.deleteProject },
 				{ id: 'clear-data', label: copy.clearData, disabled: blocked, onClick: actions.clearData },
-			],
-		},
-		{
-			id: 'project',
-			label: copy.project,
-			items: [
-				{
-					id: 'aup4-compatibility-report',
-					label: copy.aup4CompatibilityReport,
-					disabled: !snapshot.aup4Compatibility?.report,
-					onClick: actions.openAup4CompatibilityReport,
-				},
 			],
 		},
 		{
@@ -6954,10 +6955,6 @@ function createApplicationMenus({
 						{ id: 'expand-all-tracks', label: copy.expandAllTracks, disabled: !project?.tracks.length, onClick: actions.expandAllTracks },
 					],
 				},
-				{ id: 'skip-to', label: copy.skipTo, items: [
-					unavailable('skip-to-selection-start', copy.selectionStart),
-					unavailable('skip-to-selection-end', copy.selectionEnd),
-				] },
 				divider(),
 				{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 			],

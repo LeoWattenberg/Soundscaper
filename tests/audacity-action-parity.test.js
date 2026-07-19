@@ -230,7 +230,7 @@ test('every existing disabled application-menu placeholder has a parity classifi
 	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
 	assert.ok(
-		placeholderIds.length >= 18,
+		placeholderIds.length >= 16,
 		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
 	);
 	assert.deepEqual(
