@@ -176,7 +176,7 @@ test('OPFS stores raw media and derivatives alongside PCM and cascades only requ
 
 	await store.deleteMediaAsset('opfs-media');
 	assert.equal(files.size, 1, 'the PCM file remains after deleting only the media asset');
-	assert.equal((await store.getSourceMetadata('opfs-media')).storage, 'opfs');
+	assert.equal((await store.getSourceMetadata('opfs-media')).storage, 'opfs-pcm-v1');
 	await store.deleteSource('opfs-media');
 	assert.equal(files.size, 0);
 });

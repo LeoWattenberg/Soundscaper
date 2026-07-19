@@ -1,4 +1,25 @@
 import { collectProjectSourceIds, compactProjectSourceMetadata } from './retention.js';
+import {
+	PCM_CONTAINER_EXTENSION,
+	PCM_CONTAINER_STORAGE_TYPE,
+	PCM_ENCODING_RAW_F32LE,
+	PCM_ENCODING_WAVPACK_F32_V1,
+	PcmContainerWriter,
+	PcmStorageCorruptionError,
+	WAVPACK_PCM_MAXIMUM_FRAMES,
+	WavPackCodecClient,
+	compressionStatistics,
+	containerCodecToEncoding,
+	crc32,
+	exactArrayBuffer,
+	minimumWavPackSavings,
+	normalizePcmSampleRate,
+	packPlanarFloat32,
+	parsePcmContainerIndex,
+	pcmRawByteLength,
+	readPcmContainerPayload,
+	unpackPlanarFloat32,
+} from './wavpack/index.js';
 
 const DATABASE_VERSION = 2;
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
@@ -24,6 +45,9 @@ export class AudioEditorProjectStore {
 		opfsRoot = null,
 		preferOpfs = true,
 		revisionLimit = 20,
+		pcmCodec = null,
+		pcmCodecFactory = null,
+		migrateLegacyPcmOnAccess = true,
 	} = {}) {
 		this.databaseName = databaseName;
 		this.indexedDB = indexedDB;
@@ -37,6 +61,15 @@ export class AudioEditorProjectStore {
 		this.databasePromise = null;
 		this.memory = getMemoryDatabase(databaseName);
 		this.sourcePrunePromise = Promise.resolve();
+		this.pcmCodec = pcmCodec;
+		this.pcmCodecFactory = pcmCodecFactory || (() => new WavPackCodecClient());
+		this.ownsPcmCodec = !pcmCodec;
+		this.pcmCodecCircuitOpen = false;
+		this.migrateLegacyPcmOnAccess = Boolean(migrateLegacyPcmOnAccess);
+		this.pcmContainerIndexCache = new Map();
+		this.legacyMigrationPromises = new Map();
+		this.legacyMigrationFailures = new Set();
+		this.legacyMigrationControllers = new Map();
 	}
 
 	async ready() {
@@ -188,15 +221,25 @@ export class AudioEditorProjectStore {
 	 */
 	async beginSourceWrite(sourceId, metadata = {}) {
 		if (!sourceId) throw new Error('A source id is required.');
-		await this.#database();
+		const writeSampleRate = normalizePcmSampleRate(metadata.sampleRate ?? 48_000);
+		const declaredChunkFrames = metadata.chunkFrames == null
+			? null
+			: normalizePcmChunkFrames(metadata.chunkFrames);
+		const database = await this.#database();
 		const token = `${sourceId}:pending:${createId('write')}`;
-		const opfsWriter = await this.#createOpfsWriter(token);
+		const opfsWriter = await this.#createOpfsWriter(token, metadata);
+		const persistEncodedChunks = Boolean(opfsWriter || database);
 		let chunkIndex = 0;
 		let totalFrames = 0;
 		let channelCount = null;
 		let nominalChunkFrames = null;
+		let opfsChunkFrames = null;
 		let previousChunkFrames = null;
 		let regularChunkLayout = true;
+		let uncompressedBytes = 0;
+		let storedBytes = 0;
+		let wavpackChunkCount = 0;
+		let rawChunkCount = 0;
 		let closed = false;
 		const store = this;
 
@@ -215,38 +258,118 @@ export class AudioEditorProjectStore {
 				if (nominalChunkFrames === null) nominalChunkFrames = frameLength;
 				else if (previousChunkFrames !== nominalChunkFrames || frameLength > nominalChunkFrames) regularChunkLayout = false;
 				previousChunkFrames = frameLength;
+				let storedChunk;
+				if (persistEncodedChunks) {
+					const rawPayload = packPlanarFloat32(channels);
+					storedChunk = await store.#encodePcmPayload(rawPayload, {
+						frames: frameLength,
+						channelCount,
+						sampleRate: writeSampleRate,
+						priority: 'foreground',
+						allowRawOnFailure: true,
+					});
+				} else {
+					const snapshots = channels.map((channel) => channel.slice());
+					const rawBytes = snapshots.reduce((sum, channel) => sum + channel.byteLength, 0);
+					storedChunk = {
+						encoding: null,
+						channels: snapshots.map((channel) => channel.buffer),
+						pcmCrc32: crc32(packPlanarFloat32(snapshots)),
+						uncompressedBytes: rawBytes,
+						storedBytes: rawBytes,
+					};
+				}
 				const record = {
 					key: `${token}:${String(chunkIndex).padStart(10, '0')}`,
 					sourceToken: token,
 					index: chunkIndex,
 					frames: frameLength,
-					channels: channels.map((channel) => channel.slice().buffer),
+					...(storedChunk.encoding
+						? {
+							encoding: storedChunk.encoding,
+							payload: storedChunk.payload,
+							pcmCrc32: storedChunk.pcmCrc32,
+						}
+						: { channels: storedChunk.channels }),
 					createdAt: Date.now(),
 				};
-				if (opfsWriter) await opfsWriter.write(channels);
-				else await store.#writeSourceChunk(record);
+				if (opfsWriter) {
+					const writerChunkFrames = positiveInteger(
+						declaredChunkFrames ?? nominalChunkFrames,
+						0,
+					);
+					if (!writerChunkFrames) throw new RangeError('A positive source chunk size is required.');
+					if (opfsChunkFrames === null) opfsChunkFrames = writerChunkFrames;
+					await opfsWriter.write({
+						...storedChunk,
+						frames: frameLength,
+						channelCount,
+						sampleRate: writeSampleRate,
+						chunkFrames: opfsChunkFrames,
+					});
+				} else {
+					await store.#writeSourceChunk(record);
+				}
 				chunkIndex += 1;
 				totalFrames += frameLength;
+				uncompressedBytes += storedChunk.uncompressedBytes;
+				storedBytes += storedChunk.storedBytes;
+				if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
+				else rawChunkCount += 1;
 			},
 			async commit(extraMetadata = {}) {
 				if (closed) throw new Error('The source writer is closed.');
+				if (!chunkIndex || !channelCount || !totalFrames) {
+					throw new Error('A persisted audio source must contain at least one PCM frame.');
+				}
+				if (extraMetadata.sampleRate != null
+					&& normalizePcmSampleRate(extraMetadata.sampleRate) !== writeSampleRate) {
+					throw new Error('Source sample rate changed between beginSourceWrite() and commit().');
+				}
+				const declaredChannelCount = extraMetadata.channelCount ?? metadata.channelCount;
+				if (declaredChannelCount != null && Number(declaredChannelCount) !== channelCount) {
+					throw new Error('Source channel count changed between beginSourceWrite() and commit().');
+				}
+				const requestedChunkFrames = extraMetadata.chunkFrames
+					?? declaredChunkFrames
+					?? (opfsWriter ? opfsChunkFrames : (regularChunkLayout ? nominalChunkFrames : null));
+				const committedChunkFrames = requestedChunkFrames == null
+					? null
+					: normalizePcmChunkFrames(requestedChunkFrames);
+				if (opfsWriter && opfsChunkFrames !== null && committedChunkFrames !== opfsChunkFrames) {
+					throw new Error('Source chunk size changed between beginSourceWrite() and commit().');
+				}
 				closed = true;
+				await store.#cancelLegacyPcmMigration(sourceId);
 				const previous = await store.getSourceMetadata(sourceId);
-				if (opfsWriter) await opfsWriter.close();
+				let writerStatistics;
+				try {
+					writerStatistics = opfsWriter ? await opfsWriter.close() : null;
+				} catch (error) {
+					await opfsWriter?.abort().catch(() => undefined);
+					throw error;
+				}
+				const statistics = writerStatistics || compressionStatistics({
+					uncompressedBytes,
+					storedBytes,
+					wavpackChunkCount,
+					rawChunkCount,
+				});
 				const record = {
 					...clone(metadata),
 					...clone(extraMetadata),
 					id: sourceId,
-					storage: opfsWriter ? 'opfs' : 'indexeddb-chunks',
+					storage: opfsWriter ? PCM_CONTAINER_STORAGE_TYPE : 'indexeddb-chunks',
 					sourceToken: token,
 					path: opfsWriter?.path,
 					channelCount: channelCount || nonNegativeInteger(metadata.channelCount, 0),
+					sampleRate: writeSampleRate,
 					frameLength: totalFrames,
 					frameCount: totalFrames,
-					chunkFrames: extraMetadata.chunkFrames
-						?? metadata.chunkFrames
-						?? (regularChunkLayout ? nominalChunkFrames : null),
+					chunkFrames: committedChunkFrames,
 					chunkCount: chunkIndex,
+					pcmEncodingVersion: persistEncodedChunks ? 1 : undefined,
+					...statistics,
 					committedAt: new Date().toISOString(),
 					pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 				};
@@ -276,20 +399,24 @@ export class AudioEditorProjectStore {
 	async writeDerivedSource(sourceId, baseSourceId, replacementChunks, metadata = {}) {
 		if (!sourceId || !baseSourceId || sourceId === baseSourceId) throw new Error('Distinct source and base source ids are required.');
 		if (!Array.isArray(replacementChunks) || !replacementChunks.length) throw new Error('At least one replacement source chunk is required.');
+		const incomingChunks = replacementChunks.map((input) => ({
+			index: input?.index,
+			channels: normalizeChannels(input?.channels).map((channel) => channel.slice()),
+		}));
 		const base = await this.getSourceMetadata(baseSourceId);
 		if (!base) throw new Error('The immutable base source could not be found.');
 		if (await this.getSourceMetadata(sourceId)) throw new Error('Immutable source ids cannot be overwritten.');
 		const channelCount = positiveInteger(base.channelCount, 64);
 		const frameCount = positiveInteger(base.frameCount ?? base.frameLength, Number.MAX_SAFE_INTEGER);
-		const chunkFrames = positiveInteger(metadata.chunkFrames ?? base.chunkFrames ?? 65_536, 65_536);
+		const chunkFrames = normalizePcmChunkFrames(metadata.chunkFrames ?? base.chunkFrames ?? 65_536);
 		const expectedChunkCount = Math.ceil(frameCount / chunkFrames);
 		const token = `${sourceId}:cow:${createId('write')}`;
 		const seenIndices = new Set();
-		const chunks = replacementChunks.map((input, replacementIndex) => {
+		const chunks = incomingChunks.map((input, replacementIndex) => {
 			const index = nonNegativeInteger(input?.index, -1);
 			if (index < 0 || index >= expectedChunkCount || seenIndices.has(index)) throw new Error('A derived source contains an invalid replacement chunk index.');
 			seenIndices.add(index);
-			const channels = normalizeChannels(input.channels);
+			const channels = input.channels;
 			if (channels.length !== channelCount) throw new Error('A derived source replacement has the wrong channel count.');
 			const expectedFrames = index === expectedChunkCount - 1 ? frameCount - index * chunkFrames : chunkFrames;
 			if (channels[0]?.length !== expectedFrames) throw new Error('A derived source replacement has the wrong frame count.');
@@ -298,9 +425,65 @@ export class AudioEditorProjectStore {
 				sourceToken: token,
 				index,
 				frames: expectedFrames,
-				channels: channels.map((channel) => channel.slice().buffer),
+				channels,
 				createdAt: Date.now() + replacementIndex,
 			};
+		});
+		const database = await this.#database();
+		let uncompressedBytes = 0;
+		let storedBytes = 0;
+		let wavpackChunkCount = 0;
+		let rawChunkCount = 0;
+		try {
+			for (const chunk of chunks) {
+				let record;
+				if (database) {
+					const storedChunk = await this.#encodePcmPayload(packPlanarFloat32(chunk.channels), {
+						frames: chunk.frames,
+						channelCount,
+						sampleRate: metadata.sampleRate ?? base.sampleRate ?? 48_000,
+						priority: 'foreground',
+						allowRawOnFailure: true,
+					});
+					record = {
+						key: chunk.key,
+						sourceToken: token,
+						index: chunk.index,
+						frames: chunk.frames,
+						encoding: storedChunk.encoding,
+						payload: storedChunk.payload,
+						pcmCrc32: storedChunk.pcmCrc32,
+						createdAt: chunk.createdAt,
+					};
+					uncompressedBytes += storedChunk.uncompressedBytes;
+					storedBytes += storedChunk.storedBytes;
+					if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
+					else rawChunkCount += 1;
+				} else {
+					record = {
+						key: chunk.key,
+						sourceToken: token,
+						index: chunk.index,
+						frames: chunk.frames,
+						channels: chunk.channels.map((channel) => channel.buffer.slice(0)),
+						createdAt: chunk.createdAt,
+					};
+					const rawBytes = chunk.frames * channelCount * Float32Array.BYTES_PER_ELEMENT;
+					uncompressedBytes += rawBytes;
+					storedBytes += rawBytes;
+					rawChunkCount += 1;
+				}
+				await this.#writeSourceChunk(record);
+			}
+		} catch (error) {
+			await this.#deleteSourceChunks(token);
+			throw error;
+		}
+		const statistics = compressionStatistics({
+			uncompressedBytes,
+			storedBytes,
+			wavpackChunkCount,
+			rawChunkCount,
 		});
 		const record = {
 			...clone(metadata),
@@ -315,19 +498,17 @@ export class AudioEditorProjectStore {
 			chunkCount: expectedChunkCount,
 			overrideChunkCount: chunks.length,
 			sampleRate: metadata.sampleRate ?? base.sampleRate,
+			pcmEncodingVersion: database ? 1 : undefined,
+			...statistics,
 			committedAt: new Date().toISOString(),
 			pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 		};
-		const database = await this.#database();
-		if (!database) {
-			for (const chunk of chunks) this.memory.sourceChunks.set(chunk.key, cloneChunk(chunk));
-			this.memory.sources.set(sourceId, clone(record));
-			return clone(record);
+		try {
+			await this.#putSourceMetadata(record);
+		} catch (error) {
+			await this.#deleteSourceChunks(token);
+			throw error;
 		}
-		await transact(database, ['sources', 'sourceChunks'], 'readwrite', ({ sources, sourceChunks }) => {
-			for (const chunk of chunks) sourceChunks.put(chunk);
-			sources.put(record);
-		});
 		return clone(record);
 	}
 
@@ -336,11 +517,12 @@ export class AudioEditorProjectStore {
 		if (!audioBuffer?.numberOfChannels || !audioBuffer?.length || !audioBuffer?.getChannelData) {
 			throw new TypeError('A non-empty AudioBuffer is required.');
 		}
-		const boundedChunkFrames = positiveInteger(chunkFrames, 65_536);
+		const boundedChunkFrames = normalizePcmChunkFrames(chunkFrames ?? 65_536);
 		const writer = await this.beginSourceWrite(sourceId, {
 			...metadata,
 			sampleRate: audioBuffer.sampleRate,
 			channelCount: audioBuffer.numberOfChannels,
+			chunkFrames: boundedChunkFrames,
 		});
 		try {
 			for (let offset = 0; offset < audioBuffer.length; offset += boundedChunkFrames) {
@@ -556,13 +738,25 @@ export class AudioEditorProjectStore {
 		throwIfAborted(signal);
 		if (source.storage === 'copy-on-write') {
 			const replacement = await this.#sourceChunkRecord(source.sourceToken, chunkIndex);
-			if (!replacement) return this.#readSourceChunk(source.baseSourceId, chunkIndex, nextAncestors, signal);
-			return sourceChunkFromRecord(replacement);
+			const chunk = replacement
+				? await this.#sourceChunkFromRecord(replacement, source, signal)
+				: await this.#readSourceChunk(source.baseSourceId, chunkIndex, nextAncestors, signal);
+			this.#queueLegacyPcmMigration(source);
+			return chunk;
 		}
-		if (source.storage === 'opfs') return this.#readOpfsSourceChunk(source, chunkIndex, signal);
+		if (source.storage === PCM_CONTAINER_STORAGE_TYPE) {
+			return this.#readPcmContainerSourceChunk(source, chunkIndex, signal);
+		}
+		if (source.storage === 'opfs') {
+			const chunk = await this.#readLegacyOpfsSourceChunk(source, chunkIndex, signal);
+			this.#queueLegacyPcmMigration(source);
+			return chunk;
+		}
 		const record = await this.#sourceChunkRecord(source.sourceToken, chunkIndex);
 		if (!record) throw new Error(`Source storage chunk ${chunkIndex} is missing.`);
-		return sourceChunkFromRecord(record);
+		const chunk = await this.#sourceChunkFromRecord(record, source, signal);
+		this.#queueLegacyPcmMigration(source);
+		return chunk;
 	}
 
 	async *#readSourceChunks(sourceId, ancestors) {
@@ -573,16 +767,26 @@ export class AudioEditorProjectStore {
 		if (source.storage === 'copy-on-write') {
 			const replacementIterator = this.#sourceChunkRecords(source.sourceToken)[Symbol.asyncIterator]();
 			let replacement = await replacementIterator.next();
+			let migrationQueued = false;
 			try {
 				for await (const baseChunk of this.#readSourceChunks(source.baseSourceId, nextAncestors)) {
 					if (!replacement.done && replacement.value.index < baseChunk.index) {
 						throw new Error('A derived source replacement points beyond its base source.');
 					}
 					if (replacement.done || replacement.value.index !== baseChunk.index) {
+						if (!migrationQueued) {
+							migrationQueued = true;
+							this.#queueLegacyPcmMigration(source);
+						}
 						yield baseChunk;
 						continue;
 					}
-					yield sourceChunkFromRecord(replacement.value);
+					const chunk = await this.#sourceChunkFromRecord(replacement.value, source);
+					if (!migrationQueued) {
+						migrationQueued = true;
+						this.#queueLegacyPcmMigration(source);
+					}
+					yield chunk;
 					replacement = await replacementIterator.next();
 				}
 				if (!replacement.done) throw new Error('A derived source replacement points beyond its base source.');
@@ -591,11 +795,30 @@ export class AudioEditorProjectStore {
 			}
 			return;
 		}
-		if (source.storage === 'opfs') {
-			yield* this.#readOpfsSourceChunks(source);
+		if (source.storage === PCM_CONTAINER_STORAGE_TYPE) {
+			yield* this.#readPcmContainerSourceChunks(source);
 			return;
 		}
-		for await (const record of this.#sourceChunkRecords(source.sourceToken)) yield sourceChunkFromRecord(record);
+		if (source.storage === 'opfs') {
+			let migrationQueued = false;
+			for await (const chunk of this.#readLegacyOpfsSourceChunks(source)) {
+				if (!migrationQueued) {
+					migrationQueued = true;
+					this.#queueLegacyPcmMigration(source);
+				}
+				yield chunk;
+			}
+			return;
+		}
+		let migrationQueued = false;
+		for await (const record of this.#sourceChunkRecords(source.sourceToken)) {
+			const chunk = await this.#sourceChunkFromRecord(record, source);
+			if (!migrationQueued) {
+				migrationQueued = true;
+				this.#queueLegacyPcmMigration(source);
+			}
+			yield chunk;
+		}
 	}
 
 	/** Rehydrate a persisted source directly into its destination AudioBuffer. */
@@ -621,6 +844,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async deleteSource(sourceId) {
+		await this.#cancelLegacyPcmMigration(sourceId);
 		const source = await this.getSourceMetadata(sourceId);
 		if (source) {
 			const dependent = (await this.listSources()).find((candidate) => candidate.baseSourceId === sourceId);
@@ -687,7 +911,10 @@ export class AudioEditorProjectStore {
 			if (paths.has(name) || handle.kind !== 'file') continue;
 			try {
 				const file = await handle.getFile();
-				if (file.lastModified < cutoff) await directory.removeEntry(name);
+				if (file.lastModified < cutoff) {
+					this.pcmContainerIndexCache.delete(name);
+					await directory.removeEntry(name);
+				}
 			} catch { /* A concurrently removed file needs no cleanup. */ }
 		}
 	}
@@ -712,11 +939,12 @@ export class AudioEditorProjectStore {
 	}
 
 	async clear() {
+		await this.#stopPcmBackgroundWork();
 		const opfsRecords = [];
 		const database = await this.#database();
 		if (!database) {
-			opfsRecords.push(
-				...[...this.memory.sources.values()].filter((source) => source.storage === 'opfs'),
+				opfsRecords.push(
+					...[...this.memory.sources.values()].filter((source) => isOpfsPcmStorage(source.storage)),
 				...[...this.memory.mediaAssets.values()].filter((record) => record.storage === 'opfs'),
 				...[...this.memory.videoDerivatives.values()].filter((record) => record.storage === 'opfs'),
 			);
@@ -747,8 +975,10 @@ export class AudioEditorProjectStore {
 	}
 
 	async close() {
-		if (!this.databasePromise) return;
-		const database = await this.databasePromise.catch(() => null);
+		await this.#stopPcmBackgroundWork({ closeCodec: true });
+		const database = this.databasePromise
+			? await this.databasePromise.catch(() => null)
+			: null;
 		database?.close();
 		this.databasePromise = null;
 	}
@@ -767,6 +997,8 @@ export class AudioEditorProjectStore {
 		minimumAgeMs = 60_000,
 		now = Date.now(),
 	} = {}) {
+		const migrationsToResume = [...this.legacyMigrationPromises.keys()];
+		await this.#stopPcmBackgroundWork({ clearFailures: false });
 		const protectedIds = new Set(protectedSourceIds || []);
 		for (const project of protectedProjects || []) collectProjectSourceIds(project, protectedIds);
 		const maximumAge = Math.max(0, Number(minimumAgeMs) || 0);
@@ -895,9 +1127,16 @@ export class AudioEditorProjectStore {
 		}
 
 		for (const source of deletedSources) {
-			if (source.storage === 'opfs') await this.#deleteStoredSource(source);
+			if (isOpfsPcmStorage(source.storage)) await this.#deleteStoredSource(source);
 		}
 		await this.#deleteBinaryRecords(deletedBinaryRecords);
+		const deletedSourceIdSet = new Set(deletedSourceIds);
+		for (const sourceId of deletedSourceIdSet) this.legacyMigrationFailures.delete(sourceId);
+		for (const sourceId of migrationsToResume) {
+			if (deletedSourceIdSet.has(sourceId)) continue;
+			const source = await this.getSourceMetadata(sourceId);
+			if (source) this.#queueLegacyPcmMigration(source);
+		}
 		return {
 			deletedSourceIds,
 			deferredSourceIds,
@@ -1017,8 +1256,92 @@ export class AudioEditorProjectStore {
 
 	async #deleteOpfsPath(path) {
 		if (!path) return;
+		this.pcmContainerIndexCache.delete(path);
 		const directory = await this.#opfsDirectory();
 		try { await directory?.removeEntry(path); } catch { /* Missing and orphaned files are harmless. */ }
+	}
+
+	#pcmCodecInstance() {
+		if (!this.pcmCodec) this.pcmCodec = this.pcmCodecFactory();
+		if (!this.pcmCodec?.encode || !this.pcmCodec?.decode) {
+			throw new TypeError('pcmCodec must provide encode() and decode() methods.');
+		}
+		return this.pcmCodec;
+	}
+
+	async #encodePcmPayload(rawInput, {
+		frames,
+		channelCount,
+		sampleRate,
+		priority,
+		signal,
+		allowRawOnFailure,
+	} = {}) {
+		const rawPayload = exactArrayBuffer(rawInput);
+		const rawBytes = pcmRawByteLength(frames, channelCount);
+		if (rawPayload.byteLength !== rawBytes) {
+			throw new RangeError('Raw PCM payload does not match its declared geometry.');
+		}
+		const pcmCrc32 = crc32(rawPayload);
+		const rawResult = () => ({
+			encoding: PCM_ENCODING_RAW_F32LE,
+			payload: rawPayload,
+			pcmCrc32,
+			uncompressedBytes: rawBytes,
+			storedBytes: rawBytes,
+		});
+		if (rawBytes <= minimumWavPackSavings(rawBytes)) return rawResult();
+		if (this.pcmCodecCircuitOpen) {
+			if (allowRawOnFailure) return rawResult();
+			throw new Error('WavPack encoding is disabled for this session after a codec failure.');
+		}
+		try {
+			const codecInput = rawPayload.slice(0);
+			const encoded = await this.#pcmCodecInstance().encode(codecInput, {
+				frames,
+				channelCount,
+				sampleRate,
+				priority,
+				signal,
+				transferInput: true,
+			});
+			const encoding = encoded?.encoding;
+			const payload = exactArrayBuffer(encoded?.payload);
+			const resultCrc32 = Number(encoded?.pcmCrc32 ?? pcmCrc32) >>> 0;
+			if (resultCrc32 !== pcmCrc32) throw new Error('PCM codec returned an unexpected source CRC-32.');
+			if (encoding === PCM_ENCODING_WAVPACK_F32_V1) {
+				const minimumSavings = minimumWavPackSavings(rawBytes);
+				if (!payload.byteLength
+					|| payload.byteLength > rawBytes - minimumSavings) {
+					return rawResult();
+				}
+				return {
+					encoding,
+					payload,
+					pcmCrc32,
+					uncompressedBytes: rawBytes,
+					storedBytes: payload.byteLength,
+				};
+			}
+			if (encoding === PCM_ENCODING_RAW_F32LE) {
+				if (payload.byteLength !== rawBytes || crc32(payload) !== pcmCrc32) {
+					throw new Error('PCM codec returned invalid raw fallback data.');
+				}
+				return {
+					encoding,
+					payload,
+					pcmCrc32,
+					uncompressedBytes: rawBytes,
+					storedBytes: rawBytes,
+				};
+			}
+			throw new Error(`PCM codec returned unsupported encoding ${String(encoding)}.`);
+		} catch (error) {
+			if (error?.name === 'AbortError') throw error;
+			this.pcmCodecCircuitOpen = true;
+			if (allowRawOnFailure) return rawResult();
+			throw error;
+		}
 	}
 
 	async #writeSourceChunk(record) {
@@ -1033,7 +1356,7 @@ export class AudioEditorProjectStore {
 			const records = [...this.memory.sourceChunks.values()]
 				.filter((record) => record.sourceToken === token)
 				.sort((left, right) => left.index - right.index);
-			for (const record of records) yield record;
+			for (const record of records) yield cloneChunk(record);
 			return;
 		}
 		let afterPrimaryKey;
@@ -1057,7 +1380,7 @@ export class AudioEditorProjectStore {
 		const record = !database
 			? this.memory.sourceChunks.get(key)
 			: await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => request(sourceChunks.get(key)));
-		return record || null;
+		return record ? cloneChunk(record) : null;
 	}
 
 	async #putSourceMetadata(record) {
@@ -1079,7 +1402,8 @@ export class AudioEditorProjectStore {
 	}
 
 	async #deleteStoredSource(source) {
-		if (source?.storage === 'opfs' && source.path) {
+		if (isOpfsPcmStorage(source?.storage) && source.path) {
+			this.pcmContainerIndexCache.delete(source.path);
 			const directory = await this.#opfsDirectory();
 			try { await directory?.removeEntry(source.path); } catch { /* Missing and orphaned files are harmless. */ }
 			return;
@@ -1087,30 +1411,38 @@ export class AudioEditorProjectStore {
 		if (source?.sourceToken) await this.#deleteSourceChunks(source.sourceToken);
 	}
 
-	async #createOpfsWriter(token) {
+	async #createOpfsWriter(token, metadata = {}) {
 		const directory = await this.#opfsDirectory();
 		if (!directory?.getFileHandle) return null;
-		const path = `${token.replace(/[^a-z0-9._-]+/gi, '-')}.pcm`;
+		const store = this;
+		const path = `${token.replace(/[^a-z0-9._-]+/gi, '-')}${PCM_CONTAINER_EXTENSION}`;
 		try {
 			const handle = await directory.getFileHandle(path, { create: true });
 			const writable = await handle.createWritable();
+			let container = null;
 			let closed = false;
 			return {
 				path,
-				async write(channels) {
+				async write(chunk) {
 					if (closed) throw new Error('The OPFS source writer is closed.');
-					const header = new Uint8Array(8);
-					const view = new DataView(header.buffer);
-					view.setUint32(0, channels[0]?.length || 0, true);
-					view.setUint16(4, channels.length, true);
-					await writable.write(new Blob([header, ...channels]));
+					if (!container) {
+						container = new PcmContainerWriter(writable, {
+							channelCount: chunk.channelCount,
+							sampleRate: chunk.sampleRate ?? metadata.sampleRate ?? 48_000,
+							chunkFrames: chunk.chunkFrames ?? metadata.chunkFrames ?? chunk.frames,
+						});
+					}
+					await container.write(chunk);
 				},
 				async close() {
-					if (closed) return;
+					if (closed) return container?.statistics() || compressionStatistics();
 					closed = true;
+					if (container) return container.close();
 					await writable.close();
+					return compressionStatistics();
 				},
 				async remove() {
+					store.pcmContainerIndexCache.delete(path);
 					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
 				},
 				async abort() {
@@ -1119,6 +1451,7 @@ export class AudioEditorProjectStore {
 						if (typeof writable.abort === 'function') await writable.abort();
 						else await writable.close();
 					}
+					store.pcmContainerIndexCache.delete(path);
 					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
 				},
 			};
@@ -1128,16 +1461,68 @@ export class AudioEditorProjectStore {
 		}
 	}
 
-	async *#readOpfsSourceChunks(source) {
+	async *#readPcmContainerSourceChunks(source, { priority = 'foreground', signal } = {}) {
+		const file = await this.#opfsSourceFile(source);
+		const index = await this.#pcmContainerIndex(source, file);
+		for (const entry of index.entries) {
+			throwIfAborted(signal);
+			const payload = await readPcmContainerPayload(file, entry, { signal });
+			yield this.#pcmContainerChunk(source, entry, payload, { signal, priority });
+		}
+	}
+
+	async #readPcmContainerSourceChunk(source, chunkIndex, signal, priority = 'foreground') {
+		const file = await this.#opfsSourceFile(source);
+		const index = await this.#pcmContainerIndex(source, file);
+		const entry = index.entries[chunkIndex];
+		if (!entry) throw new RangeError(`Source storage chunk ${chunkIndex} does not exist.`);
+		const payload = await readPcmContainerPayload(file, entry, { signal });
+		return this.#pcmContainerChunk(source, entry, payload, { signal, priority });
+	}
+
+	async #pcmContainerChunk(source, entry, payload, { signal, priority }) {
+		return this.#sourceChunkFromRecord({
+			index: entry.index,
+			frames: entry.frames,
+			encoding: containerCodecToEncoding(entry.codec),
+			payload,
+			pcmCrc32: entry.pcmCrc32,
+		}, source, signal, priority);
+	}
+
+	async #pcmContainerIndex(source, file) {
+		let cached = this.pcmContainerIndexCache.get(source.path);
+		if (!cached) {
+			cached = parsePcmContainerIndex(file, {
+				expectedChannelCount: source.channelCount,
+				expectedSampleRate: source.sampleRate,
+				expectedChunkFrames: source.chunkFrames,
+				expectedChunkCount: source.chunkCount,
+				expectedFrameCount: source.frameCount ?? source.frameLength,
+			});
+			this.pcmContainerIndexCache.set(source.path, cached);
+			cached.catch(() => {
+				if (this.pcmContainerIndexCache.get(source.path) === cached) {
+					this.pcmContainerIndexCache.delete(source.path);
+				}
+			});
+		}
+		return cached;
+	}
+
+	async #opfsSourceFile(source) {
 		const directory = await this.#opfsDirectory();
 		if (!directory) throw new Error('Origin-private audio storage is unavailable.');
-		let file;
 		try {
 			const handle = await directory.getFileHandle(source.path);
-			file = await handle.getFile();
+			return await handle.getFile();
 		} catch {
 			throw new Error('The requested local audio source is missing.');
 		}
+	}
+
+	async *#readLegacyOpfsSourceChunks(source) {
+		const file = await this.#opfsSourceFile(source);
 		let offset = 0;
 		let index = 0;
 		while (offset < file.size) {
@@ -1160,25 +1545,17 @@ export class AudioEditorProjectStore {
 		}
 	}
 
-	async #readOpfsSourceChunk(source, chunkIndex, signal) {
+	async #readLegacyOpfsSourceChunk(source, chunkIndex, signal) {
 		const chunkFrames = nonNegativeInteger(source.chunkFrames, 0);
 		const channelCount = nonNegativeInteger(source.channelCount, 0);
 		if (!chunkFrames || !channelCount) {
-			for await (const chunk of this.#readOpfsSourceChunks(source)) {
+			for await (const chunk of this.#readLegacyOpfsSourceChunks(source)) {
 				throwIfAborted(signal);
 				if (chunk.index === chunkIndex) return chunk;
 			}
 			throw new RangeError(`Source storage chunk ${chunkIndex} does not exist.`);
 		}
-		const directory = await this.#opfsDirectory();
-		if (!directory) throw new Error('Origin-private audio storage is unavailable.');
-		let file;
-		try {
-			const handle = await directory.getFileHandle(source.path);
-			file = await handle.getFile();
-		} catch {
-			throw new Error('The requested local audio source is missing.');
-		}
+		const file = await this.#opfsSourceFile(source);
 		throwIfAborted(signal);
 		const fullChunkBytes = 8 + chunkFrames * channelCount * Float32Array.BYTES_PER_ELEMENT;
 		let offset = chunkIndex * fullChunkBytes;
@@ -1199,6 +1576,403 @@ export class AudioEditorProjectStore {
 			offset += channelBytes;
 		}
 		return { index: chunkIndex, frames, channels };
+	}
+
+	async #sourceChunkFromRecord(record, source, signal, priority = 'foreground') {
+		throwIfAborted(signal);
+		if (Array.isArray(record?.channels)) return sourceChunkFromLegacyRecord(record);
+		let frames;
+		let channelCount;
+		let rawBytes;
+		let payload;
+		let expectedCrc32;
+		try {
+			frames = Number(record?.frames);
+			channelCount = Number(source?.channelCount);
+			rawBytes = pcmRawByteLength(frames, channelCount);
+			payload = exactArrayBuffer(record?.payload);
+			expectedCrc32 = Number(record?.pcmCrc32);
+			if (!Number.isSafeInteger(expectedCrc32)
+				|| expectedCrc32 < 0
+				|| expectedCrc32 > 0xffffffff) {
+				throw new RangeError('PCM CRC-32 is outside its unsigned 32-bit range.');
+			}
+		} catch (error) {
+			throw new PcmStorageCorruptionError(
+				'Persisted PCM record has invalid geometry.',
+				'PCM_RECORD_GEOMETRY',
+				{ cause: error },
+			);
+		}
+		let rawPayload;
+		if (record.encoding === PCM_ENCODING_RAW_F32LE) {
+			if (payload.byteLength !== rawBytes) {
+				throw new PcmStorageCorruptionError(
+					'Raw persisted PCM has invalid geometry.',
+					'PCM_RECORD_GEOMETRY',
+				);
+			}
+			rawPayload = payload;
+			if (crc32(rawPayload) !== expectedCrc32) {
+				throw new PcmStorageCorruptionError(
+					'Raw persisted PCM failed its CRC-32.',
+					'PCM_CRC_MISMATCH',
+				);
+			}
+		} else if (record.encoding === PCM_ENCODING_WAVPACK_F32_V1) {
+			if (!payload.byteLength || payload.byteLength > rawBytes) {
+				throw new PcmStorageCorruptionError(
+					'Persisted WavPack PCM has invalid bounded geometry.',
+					'PCM_RECORD_GEOMETRY',
+				);
+			}
+			try {
+				const decoded = await this.#pcmCodecInstance().decode(payload, {
+					encoding: record.encoding,
+					frames,
+					channelCount,
+					sampleRate: source.sampleRate || 48_000,
+					pcmCrc32: expectedCrc32,
+					priority,
+					signal,
+					transferInput: true,
+				});
+				rawPayload = exactArrayBuffer(decoded?.payload);
+			} catch (error) {
+				if (error?.name === 'AbortError') throw error;
+				throw new PcmStorageCorruptionError(
+					'Persisted WavPack PCM could not be decoded losslessly.',
+					error?.code || 'PCM_WAVPACK_DECODE',
+					{ cause: error },
+				);
+			}
+			if (rawPayload.byteLength !== rawBytes || crc32(rawPayload) !== expectedCrc32) {
+				throw new PcmStorageCorruptionError(
+					'Decoded WavPack PCM failed its geometry or CRC-32.',
+					'PCM_CRC_MISMATCH',
+				);
+			}
+		} else {
+			throw new PcmStorageCorruptionError(
+				`Persisted PCM uses unsupported encoding ${String(record.encoding)}.`,
+				'PCM_RECORD_ENCODING',
+			);
+		}
+		throwIfAborted(signal);
+		return {
+			index: record.index,
+			frames,
+			channels: unpackPlanarFloat32(rawPayload, frames, channelCount),
+		};
+	}
+
+	#queueLegacyPcmMigration(source) {
+		if (!this.migrateLegacyPcmOnAccess
+			|| !sourceNeedsLegacyPcmMigration(source)
+			|| (this.backend === 'memory' && source.storage !== 'opfs')
+			|| this.legacyMigrationFailures.has(source.id)
+			|| this.legacyMigrationPromises.has(source.id)) {
+			return;
+		}
+		const controller = new AbortController();
+		this.legacyMigrationControllers.set(source.id, controller);
+		const promise = new Promise((resolve) => setTimeout(resolve, 0))
+			.then(async () => {
+				throwIfAborted(controller.signal);
+				await this.#migrateLegacyPcmSource(clone(source), controller.signal);
+			})
+			.catch((error) => {
+				if (error?.name !== 'AbortError') this.legacyMigrationFailures.add(source.id);
+			})
+			.finally(() => {
+				if (this.legacyMigrationPromises.get(source.id) === promise) {
+					this.legacyMigrationPromises.delete(source.id);
+					this.legacyMigrationControllers.delete(source.id);
+				}
+			});
+		this.legacyMigrationPromises.set(source.id, promise);
+	}
+
+	async #migrateLegacyPcmSource(source, signal) {
+		const current = await this.getSourceMetadata(source.id);
+		if (!sameStoredSourceIdentity(current, source)
+			|| !sourceNeedsLegacyPcmMigration(current)) return;
+		if (source.storage === 'opfs') {
+			await this.#migrateLegacyOpfsSource(source, signal);
+			return;
+		}
+		if (source.storage === 'indexeddb-chunks'
+			|| source.storage === 'copy-on-write') {
+			await this.#migrateLegacyIndexedDbSource(source, signal);
+		}
+	}
+
+	async #migrateLegacyOpfsSource(source, signal) {
+		const channelCount = positiveInteger(source.channelCount, 0);
+		const frameCount = positiveInteger(source.frameCount ?? source.frameLength, 0);
+		const chunkFrames = positiveInteger(source.chunkFrames, 0);
+		const chunkCount = positiveInteger(source.chunkCount, 0);
+		if (!channelCount || !frameCount || !chunkFrames || !chunkCount) {
+			throw new PcmStorageCorruptionError(
+				'Legacy OPFS source metadata is incomplete.',
+				'PCM_MIGRATION_GEOMETRY',
+			);
+		}
+		await this.#requireLegacyOpfsMigrationHeadroom({
+			frameCount,
+			channelCount,
+			chunkCount,
+		});
+		throwIfAborted(signal);
+		const token = `${source.id}:migration:${createId('write')}`;
+		const writer = await this.#createOpfsWriter(token, source);
+		if (!writer) throw new Error('Origin-private audio storage is unavailable for PCM migration.');
+		let published = false;
+		try {
+			let index = 0;
+			let migratedFrames = 0;
+			for await (const chunk of this.#readLegacyOpfsSourceChunks(source)) {
+				throwIfAborted(signal);
+				if (chunk.index !== index
+					|| chunk.channels.length !== channelCount
+					|| chunk.frames > chunkFrames) {
+					throw new PcmStorageCorruptionError(
+						'Legacy OPFS source contains invalid chunk geometry.',
+						'PCM_MIGRATION_GEOMETRY',
+					);
+				}
+				const stored = await this.#encodePcmPayload(packPlanarFloat32(chunk.channels), {
+					frames: chunk.frames,
+					channelCount,
+					sampleRate: source.sampleRate || 48_000,
+					priority: 'migration',
+					signal,
+					allowRawOnFailure: false,
+				});
+				await writer.write({
+					...stored,
+					frames: chunk.frames,
+					channelCount,
+					sampleRate: source.sampleRate || 48_000,
+					chunkFrames,
+				});
+				index += 1;
+				migratedFrames += chunk.frames;
+				await yieldMigration(signal);
+			}
+			if (index !== chunkCount || migratedFrames !== frameCount) {
+				throw new PcmStorageCorruptionError(
+					'Legacy OPFS source does not match its chunk or frame count.',
+					'PCM_MIGRATION_GEOMETRY',
+				);
+			}
+			const statistics = await writer.close();
+			const replacement = {
+				...source,
+				storage: PCM_CONTAINER_STORAGE_TYPE,
+				sourceToken: token,
+				path: writer.path,
+				pcmEncodingVersion: 1,
+				...statistics,
+				migratedAt: new Date().toISOString(),
+			};
+			this.pcmContainerIndexCache.delete(writer.path);
+			let verifiedChunks = 0;
+			let verifiedFrames = 0;
+			for await (const chunk of this.#readPcmContainerSourceChunks(replacement, {
+				priority: 'migration',
+				signal,
+			})) {
+				verifiedChunks += 1;
+				verifiedFrames += chunk.frames;
+				await yieldMigration(signal);
+			}
+			if (verifiedChunks !== chunkCount || verifiedFrames !== frameCount) {
+				throw new PcmStorageCorruptionError(
+					'Migrated OPFS source failed complete verification.',
+					'PCM_MIGRATION_VERIFY',
+				);
+			}
+			throwIfAborted(signal);
+			published = await this.#compareAndSwapSourceMetadata(source, replacement);
+			if (!published) throw new Error('PCM migration lost a source metadata compare-and-swap race.');
+			await this.#deleteOpfsPath(source.path);
+		} finally {
+			if (!published) {
+				this.pcmContainerIndexCache.delete(writer.path);
+				await writer.abort().catch(() => undefined);
+			}
+		}
+	}
+
+	async #migrateLegacyIndexedDbSource(source, signal) {
+		const database = await this.#database();
+		if (!database) throw new Error('IndexedDB is unavailable for PCM migration.');
+		const channelCount = positiveInteger(source.channelCount, 0);
+		const expectedRecords = source.storage === 'copy-on-write'
+			? nonNegativeInteger(source.overrideChunkCount, -1)
+			: nonNegativeInteger(source.chunkCount, -1);
+		if (!channelCount || expectedRecords < 0) {
+			throw new PcmStorageCorruptionError(
+				'Legacy IndexedDB source metadata is incomplete.',
+				'PCM_MIGRATION_GEOMETRY',
+			);
+		}
+		let recordCount = 0;
+		let uncompressedBytes = 0;
+		let storedBytes = 0;
+		let wavpackChunkCount = 0;
+		let rawChunkCount = 0;
+		for await (const storedRecord of this.#sourceChunkRecords(source.sourceToken)) {
+			throwIfAborted(signal);
+			let record = storedRecord;
+			if (Array.isArray(record.channels)) {
+				const legacyChunk = sourceChunkFromLegacyRecord(record);
+				if (legacyChunk.channels.length !== channelCount) {
+					throw new PcmStorageCorruptionError(
+						'Legacy IndexedDB source has an invalid channel count.',
+						'PCM_MIGRATION_GEOMETRY',
+					);
+				}
+				const encoded = await this.#encodePcmPayload(packPlanarFloat32(legacyChunk.channels), {
+					frames: legacyChunk.frames,
+					channelCount,
+					sampleRate: source.sampleRate || 48_000,
+					priority: 'migration',
+					signal,
+					allowRawOnFailure: false,
+				});
+				const { channels: _legacyChannels, ...preserved } = record;
+				record = {
+					...preserved,
+					encoding: encoded.encoding,
+					payload: encoded.payload,
+					pcmCrc32: encoded.pcmCrc32,
+				};
+				await this.#sourceChunkFromRecord({
+					...record,
+					payload: exactArrayBuffer(record.payload).slice(0),
+				}, source, signal, 'migration');
+				if (!await this.#replaceSourceChunkIfCurrent(source, record)) {
+					throw new Error('PCM migration lost a source-record compare-and-swap race.');
+				}
+			} else {
+				await this.#sourceChunkFromRecord({
+					...record,
+					payload: exactArrayBuffer(record.payload).slice(0),
+				}, source, signal, 'migration');
+			}
+			const rawBytes = pcmRawByteLength(record.frames, channelCount);
+			const payloadBytes = Array.isArray(record.channels)
+				? rawBytes
+				: exactArrayBuffer(record.payload).byteLength;
+			uncompressedBytes += rawBytes;
+			storedBytes += payloadBytes;
+			if (record.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
+			else rawChunkCount += 1;
+			recordCount += 1;
+			await yieldMigration(signal);
+		}
+		if (recordCount !== expectedRecords) {
+			throw new PcmStorageCorruptionError(
+				'Legacy IndexedDB source does not match its expected record count.',
+				'PCM_MIGRATION_GEOMETRY',
+			);
+		}
+		const replacement = {
+			...source,
+			pcmEncodingVersion: 1,
+			...compressionStatistics({
+				uncompressedBytes,
+				storedBytes,
+				wavpackChunkCount,
+				rawChunkCount,
+			}),
+			migratedAt: new Date().toISOString(),
+		};
+		throwIfAborted(signal);
+		if (!await this.#compareAndSwapSourceMetadata(source, replacement)) {
+			throw new Error('PCM migration lost a source metadata compare-and-swap race.');
+		}
+	}
+
+	async #replaceSourceChunkIfCurrent(expectedSource, record) {
+		const database = await this.#database();
+		if (!database) return false;
+		return transact(database, ['sources', 'sourceChunks'], 'readwrite', async ({
+			sources,
+			sourceChunks,
+		}) => {
+			const current = await request(sources.get(expectedSource.id));
+			if (!sameStoredSourceIdentity(current, expectedSource)) return false;
+			sourceChunks.put(record);
+			return true;
+		});
+	}
+
+	async #compareAndSwapSourceMetadata(expected, replacement) {
+		const database = await this.#database();
+		if (!database) {
+			const current = this.memory.sources.get(expected.id);
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			this.memory.sources.set(replacement.id, clone(replacement));
+			return true;
+		}
+		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
+			const current = await request(sources.get(expected.id));
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			sources.put(replacement);
+			return true;
+		});
+	}
+
+	async #requireLegacyOpfsMigrationHeadroom({
+		frameCount,
+		channelCount,
+		chunkCount,
+	}) {
+		const rawBytes = frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT;
+		const containerBytes = rawBytes
+			+ 32
+			+ chunkCount * 24
+			+ 32;
+		if (!Number.isSafeInteger(containerBytes)) {
+			throw new RangeError('Legacy PCM migration exceeds safe browser storage bounds.');
+		}
+		const required = Math.ceil(containerBytes * 1.1);
+		const estimate = await this.estimateStorage();
+		if (Number.isFinite(estimate.usage)
+			&& Number.isFinite(estimate.quota)
+			&& estimate.quota - estimate.usage < required) {
+			const error = new Error(`PCM migration requires ${required} bytes of temporary storage headroom.`);
+			error.name = 'QuotaExceededError';
+			error.code = 'PCM_MIGRATION_QUOTA';
+			throw error;
+		}
+	}
+
+	async #cancelLegacyPcmMigration(sourceId) {
+		const id = String(sourceId);
+		this.legacyMigrationControllers.get(id)?.abort();
+		const promise = this.legacyMigrationPromises.get(id);
+		if (promise) await promise.catch(() => undefined);
+		this.legacyMigrationPromises.delete(id);
+		this.legacyMigrationControllers.delete(id);
+		this.legacyMigrationFailures.delete(id);
+	}
+
+	async #stopPcmBackgroundWork({ closeCodec = false, clearFailures = true } = {}) {
+		for (const controller of this.legacyMigrationControllers.values()) controller.abort();
+		await Promise.allSettled(this.legacyMigrationPromises.values());
+		this.legacyMigrationPromises.clear();
+		this.legacyMigrationControllers.clear();
+		if (clearFailures) this.legacyMigrationFailures.clear();
+		this.pcmContainerIndexCache.clear();
+		if (closeCodec && this.ownsPcmCodec) {
+			this.pcmCodec?.close?.();
+			this.pcmCodec = null;
+			this.pcmCodecCircuitOpen = false;
+		}
 	}
 
 	async #opfsDirectory() {
@@ -1510,18 +2284,93 @@ function publishSource(source) {
 }
 
 function cloneChunk(record) {
+	const copy = { ...record };
+	if (Array.isArray(record.channels)) {
+		copy.channels = record.channels.map((buffer) => buffer.slice(0));
+	}
+	if (record.payload instanceof ArrayBuffer) copy.payload = record.payload.slice(0);
+	else if (ArrayBuffer.isView(record.payload)) {
+		copy.payload = record.payload.buffer.slice(
+			record.payload.byteOffset,
+			record.payload.byteOffset + record.payload.byteLength,
+		);
+	}
+	return copy;
+}
+
+function sourceChunkFromLegacyRecord(record) {
+	if (!Array.isArray(record?.channels) || !record.channels.length) {
+		throw new PcmStorageCorruptionError(
+			'Legacy PCM record has no planar channels.',
+			'PCM_RECORD_GEOMETRY',
+		);
+	}
+	const frames = Number(record.frames);
+	const index = Number(record.index);
+	let channelBytes;
+	try {
+		channelBytes = pcmRawByteLength(frames, record.channels.length) / record.channels.length;
+		if (!Number.isSafeInteger(index) || index < 0) {
+			throw new RangeError('Legacy PCM chunk index is invalid.');
+		}
+	} catch (error) {
+		throw new PcmStorageCorruptionError(
+			'Legacy PCM record has invalid geometry.',
+			'PCM_RECORD_GEOMETRY',
+			{ cause: error },
+		);
+	}
+	const channels = record.channels.map((input) => {
+		let buffer;
+		try {
+			buffer = exactArrayBuffer(input);
+		} catch (error) {
+			throw new PcmStorageCorruptionError(
+				'Legacy PCM channel payload is invalid.',
+				'PCM_RECORD_GEOMETRY',
+				{ cause: error },
+			);
+		}
+		if (buffer.byteLength !== channelBytes) {
+			throw new PcmStorageCorruptionError(
+				'Legacy PCM channel payload does not match its declared frame count.',
+				'PCM_RECORD_GEOMETRY',
+			);
+		}
+		return new Float32Array(buffer.slice(0));
+	});
 	return {
-		...record,
-		channels: record.channels.map((buffer) => buffer.slice(0)),
+		index,
+		frames,
+		channels,
 	};
 }
 
-function sourceChunkFromRecord(record) {
-	return {
-		index: record.index,
-		frames: record.frames,
-		channels: record.channels.map((buffer) => new Float32Array(buffer.slice(0))),
-	};
+function isOpfsPcmStorage(storage) {
+	return storage === 'opfs' || storage === PCM_CONTAINER_STORAGE_TYPE;
+}
+
+function sourceNeedsLegacyPcmMigration(source) {
+	if (!source) return false;
+	if (source.storage === 'opfs') return true;
+	return (source.storage === 'indexeddb-chunks' || source.storage === 'copy-on-write')
+		&& source.pcmEncodingVersion !== 1;
+}
+
+function sameStoredSourceIdentity(left, right) {
+	return Boolean(left && right
+		&& left.id === right.id
+		&& left.storage === right.storage
+		&& (left.sourceToken || null) === (right.sourceToken || null)
+		&& (left.path || null) === (right.path || null)
+		&& (left.baseSourceId || null) === (right.baseSourceId || null)
+		&& (left.pcmEncodingVersion ?? null) === (right.pcmEncodingVersion ?? null));
+}
+
+async function yieldMigration(signal) {
+	throwIfAborted(signal);
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	throwIfAborted(signal);
 }
 
 function throwIfAborted(signal) {
@@ -1564,6 +2413,16 @@ function nonEmptyString(value, message) {
 
 function positiveInteger(value, fallback) {
 	return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+function normalizePcmChunkFrames(value) {
+	const frames = Number(value);
+	if (!Number.isSafeInteger(frames)
+		|| frames < 1
+		|| frames > WAVPACK_PCM_MAXIMUM_FRAMES) {
+		throw new RangeError(`PCM chunk size must be an integer between 1 and ${WAVPACK_PCM_MAXIMUM_FRAMES} frames.`);
+	}
+	return frames;
 }
 
 function sortProjects(left, right) {

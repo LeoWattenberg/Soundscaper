@@ -60,3 +60,4 @@ export * from './video-media.js';
 export * from './video-export.js';
 export * from './video-ffmpeg.js';
 export * from './video-timeline.js';
+export * from './wavpack/index.js';

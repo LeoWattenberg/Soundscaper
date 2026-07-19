@@ -35,6 +35,8 @@
 		"audit:nyquist": "node scripts/audit-nyquist-wasm.mjs",
 		"build:parametric-eq": "node scripts/build-parametric-eq-wasm.mjs",
 		"audit:parametric-eq": "node scripts/audit-parametric-eq-wasm.mjs",
+		"build:wavpack": "node scripts/build-wavpack-wasm.mjs",
+		"audit:wavpack": "node scripts/audit-wavpack-wasm.mjs",
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
 		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
 		"audit:ebu-r128": "node scripts/audit-ebu-r128.mjs",

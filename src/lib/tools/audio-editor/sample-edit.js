@@ -162,6 +162,7 @@ export async function persistImmutableSampleEdit({
 		mimeType: source.mimeType,
 		sampleRate: source.sampleRate,
 		channelCount: source.channelCount,
+		chunkFrames: source.chunkFrames,
 		derivedFromSourceId: source.id,
 	});
 	let committed = false;

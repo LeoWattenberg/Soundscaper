@@ -394,7 +394,9 @@ test('project store prefers OPFS for bounded source writes when it is available'
 	await writer.write([Float32Array.of(0.1, 0.2)]);
 	await writer.write([Float32Array.of(0.3)]);
 	const metadata = await writer.commit();
-	assert.equal(metadata.storage, 'opfs');
+	assert.equal(metadata.storage, 'opfs-pcm-v1');
+	assert.match(metadata.path, /\.scpcm$/);
+	assert.equal(metadata.pcmEncodingVersion, 1);
 	assert.equal(files.size, 1);
 	const chunks = [];
 	for await (const chunk of store.readSourceChunks('opfs-source')) chunks.push([...chunk.channels[0]]);

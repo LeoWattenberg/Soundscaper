@@ -1596,6 +1596,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					mimeType: source.mimeType,
 					sampleRate: source.sampleRate,
 					channelCount: source.channelCount,
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 				});
 				try {
 					for (let offset = 0; offset < source.frameCount; offset += SOURCE_CHUNK_FRAMES) {
@@ -2334,7 +2335,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const trackName = stripExtension(file.name) || `${copy.track} ${project.tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = file.type || 'audio/wav';
-		const writer = await store.beginSourceWrite(sourceId, { name: sourceName, mimeType });
+		const writer = await store.beginSourceWrite(sourceId, {
+			name: sourceName,
+			mimeType,
+			sampleRate: canonical.sampleRate,
+			channelCount: canonical.numberOfChannels,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
+		});
 		try {
 			await writeBuffer(writer, canonical);
 			await writer.commit({ sampleRate: canonical.sampleRate, channelCount: canonical.numberOfChannels });
@@ -2484,6 +2491,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const writer = await store.beginSourceWrite(audioSourceId, {
 					name: `${trackName} Audio`,
 					mimeType: 'audio/x-soundscaper-extracted',
+					sampleRate: canonicalAudio.sampleRate,
+					channelCount: canonicalAudio.numberOfChannels,
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 				});
 				try {
 					await writeBuffer(writer, canonicalAudio);
@@ -2684,6 +2694,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			mimeType,
 			sampleRate: descriptor.sampleRate,
 			channelCount: descriptor.channelCount,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
 		});
 		let metadata;
 		try {
@@ -2779,6 +2790,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					mimeType: source.mimeType,
 					sampleRate: source.sampleRate,
 					channelCount: source.channelCount,
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 				});
 				try {
 					for (let offset = 0; offset < source.frameCount; offset += SOURCE_CHUNK_FRAMES) {
@@ -3245,6 +3257,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			mimeType: 'audio/wav',
 			sampleRate,
 			channelCount: channels.length,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
 		});
 		try {
 			await writeBuffer(writer, rendered);
@@ -3301,6 +3314,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				mimeType: 'audio/wav',
 				sampleRate,
 				channelCount: 2,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
 			}));
 			renderEngine.loadProject(snapshot, sourceBuffers);
 			const result = await renderEngine.renderMixToSink({
@@ -3458,6 +3472,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					mimeType: source.mimeType || 'audio/wav',
 					sampleRate,
 					channelCount: source.channelCount,
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 				});
 				try {
 					await writeBuffer(writer, buffer);
@@ -3732,6 +3747,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			mimeType: template.mimeType || 'audio/wav',
 			sampleRate,
 			channelCount: channels.length,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
 		});
 		try {
 			await writeBuffer(writer, buffer);
@@ -4268,7 +4284,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const name = generatorName(type, copy);
 		const context = await engine.getAudioContext({ resume: false });
 		const buffer = await bufferFromChannels(generated.channels, sampleRate, context, copy);
-		const writer = await store.beginSourceWrite(sourceId, { name, mimeType: 'audio/wav', sampleRate, channelCount });
+		const writer = await store.beginSourceWrite(sourceId, {
+			name,
+			mimeType: 'audio/wav',
+			sampleRate,
+			channelCount,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
+		});
 		try {
 			await writeBuffer(writer, buffer);
 			await writer.commit({ sampleRate, channelCount });
@@ -6456,6 +6478,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				mimeType: 'audio/wav',
 				sampleRate: buffer.sampleRate,
 				channelCount: buffer.numberOfChannels,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
 			});
 			try {
 				await writeBuffer(writer, buffer);
@@ -7982,7 +8005,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		throwIfAborted(signal);
 		const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
 		throwIfAborted(signal);
-		const writer = await store.beginSourceWrite(sourceId, { name, mimeType: 'audio/wav', sampleRate, channelCount: channels.length });
+		const writer = await store.beginSourceWrite(sourceId, {
+			name,
+			mimeType: 'audio/wav',
+			sampleRate,
+			channelCount: channels.length,
+			chunkFrames: SOURCE_CHUNK_FRAMES,
+		});
 		try {
 			throwIfAborted(signal);
 			await writeBuffer(writer, buffer, signal);
@@ -8143,6 +8172,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const writer = await store.beginSourceWrite(entry.sourceId, {
 					name: entry.sourceName,
 					mimeType: 'audio/wav',
+					sampleRate,
+					channelCount: entry.buffer.numberOfChannels,
+					chunkFrames: SOURCE_CHUNK_FRAMES,
 				});
 				try {
 					throwIfAborted(signal);
@@ -9177,6 +9209,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				mimeType: 'audio/wav',
 				sampleRate: captureSampleRate,
 				channelCount,
+				chunkFrames: SOURCE_CHUNK_FRAMES,
 			}));
 			assertRecordingStartActive(token);
 			const previewResampler = createStreamingWindowedSincResampler(captureSampleRate, sampleRate, channelCount);
@@ -9479,6 +9512,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 						mimeType: 'audio/wav',
 						sampleRate: captureSampleRate,
 						channelCount: route.channelCount,
+						chunkFrames: SOURCE_CHUNK_FRAMES,
 					}));
 					const preview = createRecordingPreview({
 						trackId: track.id,

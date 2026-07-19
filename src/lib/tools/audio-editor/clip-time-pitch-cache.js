@@ -632,6 +632,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			mimeType: 'audio/x-kw-staffpad-cache',
 			sampleRate: plan.sampleRate,
 			channelCount: plan.channelCount,
+			chunkFrames: this.chunkFrames,
 			cacheKey: plan.finalKey,
 			cacheSchemaVersion: CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION,
 			algorithmRevision: plan.algorithmRevision,

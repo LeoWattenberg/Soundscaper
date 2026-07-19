@@ -4530,48 +4530,36 @@ async function effectSourceMetadata(page) {
 
 async function effectSourcePeak(page, name) {
 	return page.evaluate(async (effectName) => {
-		const sources = await new Promise((resolve, reject) => {
+		const { source, peaks } = await new Promise((resolve, reject) => {
 			const openRequest = indexedDB.open('kw-media-audio-editor', 2);
 			openRequest.onerror = () => reject(openRequest.error);
 			openRequest.onsuccess = () => {
 				const database = openRequest.result;
-				const request = database.transaction('sources', 'readonly').objectStore('sources').getAll();
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => {
-					database.close();
-					resolve(request.result);
+				const sourcesRequest = database.transaction('sources', 'readonly').objectStore('sources').getAll();
+				sourcesRequest.onerror = () => reject(sourcesRequest.error);
+				sourcesRequest.onsuccess = () => {
+					const source = sourcesRequest.result.find((candidate) => candidate.name?.includes(effectName));
+					if (!source) {
+						database.close();
+						resolve({ source: null, peaks: null });
+						return;
+					}
+					const peaksRequest = database.transaction('analysis', 'readonly')
+						.objectStore('analysis').get(`audio-editor-peaks-v1:${source.id}`);
+					peaksRequest.onerror = () => reject(peaksRequest.error);
+					peaksRequest.onsuccess = () => {
+						database.close();
+						resolve({ source, peaks: peaksRequest.result?.value || null });
+					};
 				};
 			};
 		});
-		const source = sources.find((candidate) => candidate.name?.includes(effectName));
-		if (!source) return 0;
-		let samples;
-		if (source.storage === 'opfs') {
-			const root = await navigator.storage.getDirectory();
-			const directory = await root.getDirectoryHandle('audio-editor-sources');
-			const file = await (await directory.getFileHandle(source.path)).getFile();
-			const header = new DataView(await file.slice(0, 8).arrayBuffer());
-			const frames = header.getUint32(0, true);
-			samples = new Float32Array(await file.slice(8, 8 + frames * Float32Array.BYTES_PER_ELEMENT).arrayBuffer());
-		} else {
-			samples = await new Promise((resolve, reject) => {
-				const openRequest = indexedDB.open('kw-media-audio-editor', 2);
-				openRequest.onerror = () => reject(openRequest.error);
-				openRequest.onsuccess = () => {
-					const database = openRequest.result;
-					const request = database.transaction('sourceChunks', 'readonly')
-						.objectStore('sourceChunks').index('sourceToken').getAll(source.sourceToken);
-					request.onerror = () => reject(request.error);
-					request.onsuccess = () => {
-						database.close();
-						const first = request.result.sort((left, right) => left.index - right.index)[0];
-						resolve(first ? new Float32Array(first.channels[0]) : new Float32Array(0));
-					};
-				};
-			});
-		}
+		if (!source || !peaks?.levels?.length) return 0;
 		let peak = 0;
-		for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+		for (const level of peaks.levels) {
+			for (const sample of level.minimums || []) peak = Math.max(peak, Math.abs(sample));
+			for (const sample of level.maximums || []) peak = Math.max(peak, Math.abs(sample));
+		}
 		return peak;
 	}, name);
 }

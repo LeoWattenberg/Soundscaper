@@ -1,0 +1,113 @@
+{
+	"schemaVersion": 1,
+	"wavpack": {
+		"repository": "https://github.com/dbry/WavPack.git",
+		"tag": "5.9.0",
+		"revision": "5803634a030e2a11dba602ba057b89cc34486c67",
+		"license": "BSD-3-Clause"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"sourceDateEpoch": "1768696955"
+	},
+	"buildFeatures": {
+		"tags": false,
+		"dsd": false,
+		"legacyDecoder": false,
+		"seekApi": false,
+		"simd": false,
+		"threads": false
+	},
+	"buildDefinitions": [
+		"NO_TAGS=1",
+		"NDEBUG=1",
+		"HAVE___BUILTIN_CLZ=1",
+		"_POSIX_C_SOURCE=200809L"
+	],
+	"licenseFiles": [
+		{ "path": "NOTICE.md", "sha256": "4b613f8eb245574cd63b272917f23223b6b4d7887c52a564e127646d708928ac" },
+		{ "path": "licenses/WAVPACK.txt", "sha256": "1703dd391c9b422910287add8483a27d9bead0b0b5ccd6d5017e995a7192b3e2" },
+		{ "path": "../staffpad/licenses/COMPILER_RT.txt", "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d" },
+		{ "path": "../staffpad/licenses/EMSCRIPTEN.txt", "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86" },
+		{ "path": "../staffpad/licenses/MUSL.txt", "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af" }
+	],
+	"sourceFiles": [
+		{ "path": "common_utils.c", "sha256": "cebbeaddba2982100d4cbc8bba53fa623189dac90f7342196bff9e74c5631a38", "origin": "wavpack" },
+		{ "path": "decorr_tables.h", "sha256": "70ece1cdaa2873763f88fb9d9d9671f37705afe2fa49af33af34648a7664e84a", "origin": "wavpack" },
+		{ "path": "decorr_utils.c", "sha256": "3dc93ee065ed9459dfc534614112dcf420c0aa59d222b743157128f4df166110", "origin": "wavpack" },
+		{ "path": "entropy_utils.c", "sha256": "3d750a714829230d09a09701943c40ac10d8d3a8e4145fe9ca353205a18320d1", "origin": "wavpack" },
+		{ "path": "extra1.c", "sha256": "37dc7b599f08a04e7c29488dadd825b95520dc689cf295df79ec1b2f43138fed", "origin": "wavpack" },
+		{ "path": "extra2.c", "sha256": "37ffa156128773736b2702e5ed3aaee65a362ce0cf1ad6ed0b9d422f32f75c2f", "origin": "wavpack" },
+		{ "path": "open_utils.c", "sha256": "d1d198ba6d0b6efd11745856dd8a988bf770bccf659ca6aaea557a110c6acaee", "origin": "wavpack" },
+		{ "path": "pack.c", "sha256": "4a3793bd93a23db67ac2e0407e7f86d30633470dc7962b1a8ef568b0369f536b", "origin": "wavpack" },
+		{ "path": "pack_dns.c", "sha256": "653bf024ef462136f9f4218728f24b36e0630bc08b9e551445e647952379518a", "origin": "wavpack" },
+		{ "path": "pack_floats.c", "sha256": "626cf1aef8fa7f4e1440400fc08336c834443b7d53f9cbb0c072a5c5747d12a9", "origin": "wavpack" },
+		{ "path": "pack_utils.c", "sha256": "b8540ef73bb39bed9a32e5065b4b4a985a236102293d6f43cd59df1b06bac987", "origin": "wavpack" },
+		{ "path": "read_words.c", "sha256": "f35764aebeb8f0a304b453b4a86b4193093551f629f9c5cc8dcb4f444ff6cc1b", "origin": "wavpack" },
+		{ "path": "soundscaper_wavpack.c", "sha256": "1eb205017371af4f44522c078d16c71ba405063de1189720dc0e71524372eec3", "origin": "soundscaper" },
+		{ "path": "unpack.c", "sha256": "bba495a5c33f432d8acd82a36a52d79d0d2ff7d05a1a5bc6e110ab7a92a9391c", "origin": "wavpack" },
+		{ "path": "unpack_floats.c", "sha256": "d4b7c9664d43bc284909835cf38e0a70c3a518f7eb10dc4f92e78d559505b3d1", "origin": "wavpack" },
+		{ "path": "unpack_utils.c", "sha256": "5e5487d7d97f33334f5b3e5ce719ce06dcec01ee9a08e08e3b7adacd2730190f", "origin": "wavpack" },
+		{ "path": "wavpack.h", "sha256": "3c61d65511e258c5dc120a6daaee626d6a1051f3254ca9b67ac654a8f6212a97", "origin": "wavpack" },
+		{ "path": "wavpack_local.h", "sha256": "51e187bb5ddb91723808a37c570e661b258e99947dd986481163a27d8f12fd01", "origin": "wavpack" },
+		{ "path": "wavpack_version.h", "sha256": "bfc6435383f32d4ce39d28dd82f17e823e4df63d392b0e7c2b069b3ddfbd5874", "origin": "wavpack" },
+		{ "path": "write_words.c", "sha256": "31423f8fbd9fea313172f35865235dd624f2f97f778925e25c6cefb457228b0c", "origin": "wavpack" }
+	],
+	"compiledSources": [
+		"common_utils.c",
+		"decorr_utils.c",
+		"entropy_utils.c",
+		"extra1.c",
+		"extra2.c",
+		"open_utils.c",
+		"pack.c",
+		"pack_dns.c",
+		"pack_floats.c",
+		"pack_utils.c",
+		"read_words.c",
+		"unpack.c",
+		"unpack_floats.c",
+		"unpack_utils.c",
+		"write_words.c",
+		"soundscaper_wavpack.c"
+	],
+	"localExtensions": [
+		{ "path": "client.js", "sha256": "e45c7fd5f40b0b034f697a41af507f336bc25d2530e8b6c9a7df1ff0d4aa5871" },
+		{ "path": "container.js", "sha256": "dbddcaba8d7e6f7a11a14f939835dd5d78e2db26fbf3cf57c5ef8d79bab869d5" },
+		{ "path": "index.js", "sha256": "18faaa40904cb5f581f2463aa4ffd6b057a474815afca31b37818fcf08e5bfce" },
+		{ "path": "operations.js", "sha256": "aa8ce719ceb58c353dfcad3f84c8f3ca221bb62562473ae371c66f6a26482e17" },
+		{ "path": "pcm.js", "sha256": "658f9db7988edb6296dc2a63a3c3176c965320347accf367454dc2b7940642e4" },
+		{ "path": "runtime.js", "sha256": "2edd3c45e3b0184f29c6c1d4e5d847bd52371a5fdda1f082e93e26b0412cb8b4" },
+		{ "path": "worker.js", "sha256": "f16c4666c803c25e21bce2880f1eff16c41ece6b09b11b2af6e0ee2ea538117b" }
+	],
+	"wasm": {
+		"path": "wavpack.wasm",
+		"sha256": "c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908",
+		"maximumBytes": 1048576,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 134217728,
+		"stackBytes": 131072,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"scwp_abi_version",
+			"scwp_maximum_channels",
+			"scwp_maximum_frames",
+			"scwp_initial_memory_bytes",
+			"scwp_maximum_memory_bytes",
+			"scwp_allocate",
+			"scwp_free",
+			"scwp_encode_float32",
+			"scwp_decode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"env.abort",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_write",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.proc_exit"
+		]
+	}
+}
