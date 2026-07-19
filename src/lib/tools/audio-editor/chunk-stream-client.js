@@ -403,9 +403,8 @@ export async function ensureChunkStreamWorklet(audioContext) {
 	if (loadedWorkletContexts.has(audioContext)) return;
 	let load = pendingWorkletLoads.get(audioContext);
 	if (!load) {
-		load = Promise.resolve().then(() => (
-			audioContext.audioWorklet.addModule(new URL('./chunk-stream-worklet.js', import.meta.url))
-		));
+		load = Promise.resolve(chunkStreamWorkletUrl())
+			.then((url) => audioContext.audioWorklet.addModule(url));
 		pendingWorkletLoads.set(audioContext, load);
 	}
 	try {
@@ -416,6 +415,18 @@ export async function ensureChunkStreamWorklet(audioContext) {
 		if (pendingWorkletLoads.get(audioContext) === load) pendingWorkletLoads.delete(audioContext);
 		throw error;
 	}
+}
+
+function chunkStreamWorkletUrl() {
+	// Vite copies generic `new URL(..., import.meta.url)` assets without
+	// bundling their relative imports. Emit a self-contained worker chunk so
+	// the worklet does not request a missing `/_astro/chunk-stream.js`.
+	if (import.meta.env?.DEV || import.meta.env?.PROD) {
+		return import('./chunk-stream-worklet.js?worker&url')
+			.then((module) => module.default);
+	}
+	// Node tests do not run through Vite and use mocked AudioWorklet loading.
+	return new URL('./chunk-stream-worklet.js', import.meta.url);
 }
 
 export async function createChunkStreamAudioNode(audioContext, options = {}) {
