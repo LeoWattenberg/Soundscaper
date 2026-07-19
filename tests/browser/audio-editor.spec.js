@@ -2671,14 +2671,21 @@ test.describe('audio editor React/design-system workflows', () => {
 		const zoomedClip = clipByName(editor, longTone.name);
 		await zoomedClip.click({ position: { x: 48, y: 48 } });
 		await expect(zoomedClip.locator('.clip-display')).not.toHaveClass(/clip-display--selected/);
+		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
 		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 		await waveform.evaluate((canvas) => {
 			const prototype = CanvasRenderingContext2D.prototype;
-			globalThis.__audacityWaveformStrokes = 0;
-			globalThis.__audacityWaveformOriginalStroke = prototype.stroke;
-			prototype.stroke = function countAudacityWaveformStrokes(...args) {
-				if (this.canvas === canvas) globalThis.__audacityWaveformStrokes += 1;
-				return globalThis.__audacityWaveformOriginalStroke.apply(this, args);
+			globalThis.__waveformClearsAfterPointerDown = 0;
+			globalThis.__waveformStrokesAfterPointerDown = 0;
+			globalThis.__waveformOriginalClearRect = prototype.clearRect;
+			globalThis.__waveformOriginalStroke = prototype.stroke;
+			prototype.clearRect = function countWaveformClears(...args) {
+				if (this.canvas === canvas) globalThis.__waveformClearsAfterPointerDown += 1;
+				return globalThis.__waveformOriginalClearRect.apply(this, args);
+			};
+			prototype.stroke = function countWaveformStrokes(...args) {
+				if (this.canvas === canvas) globalThis.__waveformStrokesAfterPointerDown += 1;
+				return globalThis.__waveformOriginalStroke.apply(this, args);
 			};
 		});
 		const clipHeader = zoomedClip.locator('.clip-header');
@@ -2687,13 +2694,26 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.move(clipHeaderBox.x + 24, clipHeaderBox.y + clipHeaderBox.height / 2);
 		await page.mouse.down();
 		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-		expect(await page.evaluate(() => globalThis.__audacityWaveformStrokes)).toBeGreaterThan(10);
+		expect(await page.evaluate(() => globalThis.__waveformStrokesAfterPointerDown)).toBeGreaterThan(10);
+		await page.mouse.up();
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		await page.evaluate(() => {
+			globalThis.__waveformClearsAfterPointerDown = 0;
+			globalThis.__waveformStrokesAfterPointerDown = 0;
+		});
+		await page.mouse.down();
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		expect(await page.evaluate(() => globalThis.__waveformClearsAfterPointerDown)).toBe(0);
+		expect(await page.evaluate(() => globalThis.__waveformStrokesAfterPointerDown)).toBe(0);
 		await page.mouse.up();
 		await waveform.evaluate(() => {
 			const prototype = CanvasRenderingContext2D.prototype;
-			prototype.stroke = globalThis.__audacityWaveformOriginalStroke;
-			delete globalThis.__audacityWaveformOriginalStroke;
-			delete globalThis.__audacityWaveformStrokes;
+			prototype.clearRect = globalThis.__waveformOriginalClearRect;
+			prototype.stroke = globalThis.__waveformOriginalStroke;
+			delete globalThis.__waveformOriginalClearRect;
+			delete globalThis.__waveformOriginalStroke;
+			delete globalThis.__waveformClearsAfterPointerDown;
+			delete globalThis.__waveformStrokesAfterPointerDown;
 		});
 		const connectedPixels = await waveform.evaluate((canvas) => {
 			const context = canvas.getContext('2d');
@@ -2713,6 +2733,45 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		expect(connectedPixels.width).toBeGreaterThan(40);
 		expect(connectedPixels.blankColumns).toBe(0);
+
+		const track = zoomedClip.locator('xpath=ancestor::div[@data-track-row]');
+		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
+		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Multi-view', exact: true }).click();
+		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
+		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
+		const spectrogramColors = await waveform.evaluate((canvas) => {
+			const context = canvas.getContext('2d');
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, Math.floor(canvas.height / 2));
+			const colors = new Set();
+			for (let offset = 0; offset < data.length; offset += 4) {
+				if (data[offset + 3] === 0) continue;
+				colors.add(`${data[offset]}:${data[offset + 1]}:${data[offset + 2]}`);
+				if (colors.size > 4) break;
+			}
+			return { colors: colors.size, width, height };
+		});
+		expect(spectrogramColors.width).toBeGreaterThan(40);
+		expect(spectrogramColors.height).toBeGreaterThan(10);
+		expect(spectrogramColors.colors).toBeGreaterThan(1);
+		await waveform.evaluate((canvas) => {
+			const prototype = CanvasRenderingContext2D.prototype;
+			globalThis.__multiviewWaveformClears = 0;
+			globalThis.__multiviewOriginalClearRect = prototype.clearRect;
+			prototype.clearRect = function countMultiviewWaveformClears(...args) {
+				if (this.canvas === canvas) globalThis.__multiviewWaveformClears += 1;
+				return globalThis.__multiviewOriginalClearRect.apply(this, args);
+			};
+		});
+		await page.mouse.move(clipHeaderBox.x + 24, clipHeaderBox.y + clipHeaderBox.height / 2);
+		await page.mouse.down();
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		expect(await page.evaluate(() => globalThis.__multiviewWaveformClears)).toBe(0);
+		await page.mouse.up();
+		await waveform.evaluate(() => {
+			CanvasRenderingContext2D.prototype.clearRect = globalThis.__multiviewOriginalClearRect;
+			delete globalThis.__multiviewOriginalClearRect;
+			delete globalThis.__multiviewWaveformClears;
+		});
 		expect(errors).toEqual([]);
 	});
 

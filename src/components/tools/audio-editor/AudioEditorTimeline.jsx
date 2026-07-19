@@ -11,6 +11,7 @@ import {
 	LabelMarker,
 	Menu,
 	PlayheadCursor,
+	renderMonoSpectrogram,
 	RulerFlyout,
 	TextInput,
 	TimelineRuler,
@@ -80,6 +81,7 @@ const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 const EMPTY_TIMELINE_CLIPS = Object.freeze([]);
+const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
 
 function dataTransferHasType(dataTransfer, type) {
 	return Array.from(dataTransfer?.types || []).includes(type);
@@ -2893,7 +2895,15 @@ function TrackRow({
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
 	const projectedClips = projection.clips.map((clip) => clip.isRecordingPreview
-		? toDesignRecordingPreview(clip, recordingPreview, projection.overscanStartFrame, pixelsPerSecond, sampleRate, copy)
+		? toDesignRecordingPreview(
+			clip,
+			recordingPreview,
+			projection.overscanStartFrame,
+			pixelsPerSecond,
+			sampleRate,
+			copy,
+			displayMode === 'multiview',
+		)
 		: toDesignClip(
 			controller,
 			sourceLookup,
@@ -2910,6 +2920,8 @@ function TrackRow({
 			movingPreviewClipIds.has(String(clip.id)),
 			displayMode === 'waveform' || displayMode === 'half-wave',
 			displayMode !== 'spectrogram',
+			displayMode === 'spectrogram',
+			displayMode === 'multiview',
 		)).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {
@@ -3290,6 +3302,7 @@ function TrackRow({
 						timeSelection={selectedTrackId === track.id ? projectedSelection : null}
 						showRms={showRms}
 						halfWave={displayMode === 'half-wave'}
+						spectrogramScale={spectrogramScale}
 					/>
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
@@ -3501,13 +3514,13 @@ function AudacityWaveformCanvases({
 	timeSelection,
 	showRms,
 	halfWave,
+	spectrogramScale,
 }) {
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root || displayMode === 'spectrogram') return undefined;
 		let animationFrame = 0;
-		let forceNextDraw = false;
-		const draw = (force = false) => {
+		const draw = () => {
 			animationFrame = 0;
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 			const drawKey = [
@@ -3515,6 +3528,7 @@ function AudacityWaveformCanvases({
 				pixelsPerSecond,
 				showRms,
 				halfWave,
+				spectrogramScale,
 				timeSelection?.startTime ?? '',
 				timeSelection?.endTime ?? '',
 			].join('|');
@@ -3523,39 +3537,32 @@ function AudacityWaveformCanvases({
 				if (!clip?.audacityWaveform) continue;
 				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
 				if (!canvas) continue;
-				const canvasDrawKey = `${drawKey}|${canvas.style.width}|${canvas.style.height}|${canvas.width}|${canvas.height}`;
-				if (
-					!force
-					&& canvas.__kwWaveformPlan === clip.audacityWaveform
-					&& canvas.__kwWaveformDrawKey === canvasDrawKey
-				) continue;
+				const canvasDrawKey = [
+					drawKey,
+					canvas.clientWidth,
+					canvas.clientHeight,
+					window.devicePixelRatio || 1,
+				].join('|');
+				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
 				drawAudacityClipCanvas(canvas, clip, {
 					displayMode,
 					pixelsPerSecond,
 					timeSelection,
 					showRms,
 					halfWave,
+					spectrogramScale,
 				});
 				canvas.__kwWaveformPlan = clip.audacityWaveform;
 				canvas.__kwWaveformDrawKey = canvasDrawKey;
 			}
 		};
-		const scheduleDraw = (force = false) => {
-			forceNextDraw ||= force;
+		const scheduleDraw = () => {
 			if (animationFrame) window.cancelAnimationFrame(animationFrame);
-			animationFrame = window.requestAnimationFrame(() => {
-				const shouldForce = forceNextDraw;
-				forceNextDraw = false;
-				draw(shouldForce);
-			});
+			animationFrame = window.requestAnimationFrame(draw);
 		};
 
-		// TrackNew owns the canvas element and its legacy waveform effect can
-		// repaint it whenever unrelated clip props (selection, drag state, or
-		// envelope arrays) change. Reassert the Audacity renderer after every
-		// TrackNew commit even when the cached plan itself is unchanged.
-		draw(true);
-		scheduleDraw(true);
+		draw();
+		scheduleDraw();
 		const observer = new MutationObserver(scheduleDraw);
 		observer.observe(root, {
 			attributes: true,
@@ -3567,7 +3574,7 @@ function AudacityWaveformCanvases({
 			observer.disconnect();
 			if (animationFrame) window.cancelAnimationFrame(animationFrame);
 		};
-	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, timeSelection]);
+	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, spectrogramScale, timeSelection]);
 	return null;
 }
 
@@ -3578,6 +3585,11 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	const width = Number.parseFloat(canvas.style.width) || canvas.clientWidth || rendering.pixelWidth;
 	const height = Number.parseFloat(canvas.style.height) || canvas.clientHeight;
 	if (!(width > 0) || !(height > 0)) return;
+	const devicePixelRatio = window.devicePixelRatio || 1;
+	const deviceWidth = Math.max(1, Math.round(width * devicePixelRatio));
+	const deviceHeight = Math.max(1, Math.round(height * devicePixelRatio));
+	if (canvas.width !== deviceWidth) canvas.width = deviceWidth;
+	if (canvas.height !== deviceHeight) canvas.height = deviceHeight;
 	const pixelRatioX = canvas.width / width;
 	const pixelRatioY = canvas.height / height;
 	if (!(pixelRatioX > 0) || !(pixelRatioY > 0)) return;
@@ -3620,7 +3632,16 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	context.setTransform(pixelRatioX, 0, 0, pixelRatioY, 0, 0);
 	context.globalAlpha = 1;
 	context.globalCompositeOperation = 'source-over';
-	context.clearRect(0, splitY, width, waveformHeight);
+	context.clearRect(0, 0, width, height);
+	if (splitY > 0) {
+		drawAudacityClipSpectrogram(context, clip.spectrogramWaveform, {
+			width,
+			height: splitY,
+			backgroundColor: cssColor(style, '--spectrogram-background', '#010101'),
+			dividerColor: divider,
+			scale: options.spectrogramScale,
+		});
+	}
 	if (selection.end > selection.start) {
 		context.fillStyle = cssColor(style, `--clip-${color}-time-selection-body`, 'rgba(255, 255, 255, 0.15)');
 		context.fillRect(selection.start, splitY, selection.end - selection.start, waveformHeight);
@@ -3649,6 +3670,38 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	context.restore();
 	canvas.dataset.waveformRenderer = 'audacity';
 	canvas.dataset.waveformMode = rendering.mode;
+	canvas.dataset.waveformOwner = 'audacity';
+}
+
+function drawAudacityClipSpectrogram(context, channels, options) {
+	context.fillStyle = options.backgroundColor;
+	context.fillRect(0, 0, options.width, options.height);
+	if (!channels?.length || !channels[0]?.length) return;
+	const spectrogramOptions = {
+		frequencyBands: 16,
+		fftWindowSize: 64,
+		intensityMultiplier: 1.5,
+		pixelSkip: 4,
+		scale: options.scale,
+	};
+	const channelCount = Math.min(2, channels.length);
+	const channelHeight = options.height / channelCount;
+	for (let channel = 0; channel < channelCount; channel += 1) {
+		renderMonoSpectrogram(
+			context,
+			channels[channel],
+			0,
+			channel * channelHeight,
+			options.width,
+			channelHeight,
+			spectrogramOptions,
+		);
+	}
+	if (channelCount > 1) {
+		context.strokeStyle = options.dividerColor;
+		context.lineWidth = 1;
+		drawHorizontalCanvasLine(context, channelHeight, options.width);
+	}
 }
 
 function clipSelectionPixels(clip, selection, pixelsPerSecond, width) {
@@ -4355,7 +4408,15 @@ function recordingPreviewId(trackId) {
 	return `recording-preview-${trackId}`;
 }
 
-function toDesignRecordingPreview(clip, preview, overscanStartFrame, pixelsPerSecond, sampleRate, copy) {
+function toDesignRecordingPreview(
+	clip,
+	preview,
+	overscanStartFrame,
+	pixelsPerSecond,
+	sampleRate,
+	copy,
+	provideAudacitySpectrogram = false,
+) {
 	const output = {
 		id: clip.id,
 		name: copy.recordingLabel,
@@ -4376,12 +4437,8 @@ function toDesignRecordingPreview(clip, preview, overscanStartFrame, pixelsPerSe
 		clip,
 		output.duration * pixelsPerSecond,
 	);
-	if (waveformChannels.length > 1) {
-		output.waveformLeft = waveformChannels[0];
-		output.waveformRight = waveformChannels[1];
-	} else {
-		output.waveform = waveformChannels[0];
-	}
+	output.waveform = EMPTY_DESIGN_SYSTEM_WAVEFORM;
+	if (provideAudacitySpectrogram) output.spectrogramWaveform = waveformChannels;
 	return output;
 }
 
@@ -4451,6 +4508,8 @@ function toDesignClip(
 	freezeWaveform = false,
 	reuseSummaryForCompatibility = false,
 	allowPeakPyramid = true,
+	provideDesignSystemSpectrogram = true,
+	provideAudacitySpectrogram = false,
 ) {
 	const visual = controller.getClipVisualData(clip.id)
 		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
@@ -4498,6 +4557,8 @@ function toDesignClip(
 			halfWave,
 			pixelsPerSecond,
 			reuseSummaryForCompatibility,
+			provideDesignSystemSpectrogram,
+			provideAudacitySpectrogram,
 		].join('|');
 		const cacheSignature = [
 			contentSignature,
@@ -4542,19 +4603,29 @@ function toDesignClip(
 				envelope: clip.envelope || [],
 			},
 		};
-		const visualChannels = halfWave
-			? waveform.channels.map((channel) => channel.map((sample) => Math.max(0, sample)))
-			: waveform.channels;
-		if (visualChannels.length > 1) {
-			waveformData.waveformLeft = [...visualChannels[0]];
-			waveformData.waveformRight = [...visualChannels[1]];
-			if (showRms && visual.buffer) {
-				waveformData.waveformLeftRms = rmsEnvelope(visualChannels[0]);
-				waveformData.waveformRightRms = rmsEnvelope(visualChannels[1]);
-			}
+		if (!provideDesignSystemSpectrogram && !provideAudacitySpectrogram) {
+			// TrackNew requires waveformData to create its canvas, but an empty
+			// mono array makes its legacy drawing effect return before touching
+			// the context. The Audacity renderer is the sole canvas owner.
+			waveformData.waveform = EMPTY_DESIGN_SYSTEM_WAVEFORM;
 		} else {
-			waveformData.waveform = [...visualChannels[0]];
-			if (showRms && visual.buffer) waveformData.waveformRms = rmsEnvelope(visualChannels[0]);
+			const visualChannels = halfWave
+				? waveform.channels.map((channel) => channel.map((sample) => Math.max(0, sample)))
+				: waveform.channels;
+			if (provideAudacitySpectrogram) {
+				waveformData.waveform = EMPTY_DESIGN_SYSTEM_WAVEFORM;
+				waveformData.spectrogramWaveform = visualChannels.map((channel) => [...channel]);
+			} else if (visualChannels.length > 1) {
+				waveformData.waveformLeft = [...visualChannels[0]];
+				waveformData.waveformRight = [...visualChannels[1]];
+				if (showRms && visual.buffer) {
+					waveformData.waveformLeftRms = rmsEnvelope(visualChannels[0]);
+					waveformData.waveformRightRms = rmsEnvelope(visualChannels[1]);
+				}
+			} else {
+				waveformData.waveform = [...visualChannels[0]];
+				if (showRms && visual.buffer) waveformData.waveformRms = rmsEnvelope(visualChannels[0]);
+			}
 		}
 		waveformCache?.set(String(clip.id), {
 			source: waveformSource,
