@@ -3506,7 +3506,8 @@ function AudacityWaveformCanvases({
 		const root = rootRef.current;
 		if (!root || displayMode === 'spectrogram') return undefined;
 		let animationFrame = 0;
-		const draw = () => {
+		let forceNextDraw = false;
+		const draw = (force = false) => {
 			animationFrame = 0;
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 			const drawKey = [
@@ -3523,7 +3524,11 @@ function AudacityWaveformCanvases({
 				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
 				if (!canvas) continue;
 				const canvasDrawKey = `${drawKey}|${canvas.style.width}|${canvas.style.height}|${canvas.width}|${canvas.height}`;
-				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
+				if (
+					!force
+					&& canvas.__kwWaveformPlan === clip.audacityWaveform
+					&& canvas.__kwWaveformDrawKey === canvasDrawKey
+				) continue;
 				drawAudacityClipCanvas(canvas, clip, {
 					displayMode,
 					pixelsPerSecond,
@@ -3535,13 +3540,22 @@ function AudacityWaveformCanvases({
 				canvas.__kwWaveformDrawKey = canvasDrawKey;
 			}
 		};
-		const scheduleDraw = () => {
+		const scheduleDraw = (force = false) => {
+			forceNextDraw ||= force;
 			if (animationFrame) window.cancelAnimationFrame(animationFrame);
-			animationFrame = window.requestAnimationFrame(draw);
+			animationFrame = window.requestAnimationFrame(() => {
+				const shouldForce = forceNextDraw;
+				forceNextDraw = false;
+				draw(shouldForce);
+			});
 		};
 
-		draw();
-		scheduleDraw();
+		// TrackNew owns the canvas element and its legacy waveform effect can
+		// repaint it whenever unrelated clip props (selection, drag state, or
+		// envelope arrays) change. Reassert the Audacity renderer after every
+		// TrackNew commit even when the cached plan itself is unchanged.
+		draw(true);
+		scheduleDraw(true);
 		const observer = new MutationObserver(scheduleDraw);
 		observer.observe(root, {
 			attributes: true,
