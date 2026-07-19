@@ -2945,15 +2945,33 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!trackId) return null;
 		const index = project.tracks.findIndex((track) => track.id === trackId);
 		if (index < 0) throw new Error(copy.trackNotFound);
+		const blocks = [];
+		const consumedLaneGroups = new Set();
+		for (const track of project.tracks) {
+			if (!track.laneGroupId) {
+				blocks.push([track]);
+				continue;
+			}
+			if (consumedLaneGroups.has(track.laneGroupId)) continue;
+			consumedLaneGroups.add(track.laneGroupId);
+			blocks.push(project.tracks.filter((candidate) => candidate.laneGroupId === track.laneGroupId));
+		}
+		const blockIndex = blocks.findIndex((block) => block.some((track) => track.id === trackId));
+		const adjacentBlock = direction === 'up'
+			? blocks[blockIndex - 1]
+			: direction === 'down'
+				? blocks[blockIndex + 1]
+				: null;
 		const destination = direction === 'top'
 			? 0
 			: direction === 'bottom'
 				? project.tracks.length - 1
 				: direction === 'up'
-					? Math.max(0, index - 1)
+					? project.tracks.findIndex((track) => track.id === adjacentBlock?.[0]?.id)
 					: direction === 'down'
-						? Math.min(project.tracks.length - 1, index + 1)
+						? project.tracks.findIndex((track) => track.id === adjacentBlock?.[0]?.id)
 						: index;
+		if (destination < 0) return trackId;
 		return reorderTrack(trackId, destination);
 	}
 

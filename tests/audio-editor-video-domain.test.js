@@ -173,12 +173,13 @@ test('automatic video canvas preserves aspect ratio and caps dimensions and fram
 	assert.equal(portrait.height % 2, 0);
 });
 
-test('video export plan describes MP4/WebM codecs, composition filters, and staged audio', () => {
+test('video export plan describes layered composition, codecs, transparent fitting, and staged audio', () => {
 	const project = layeredProject();
 	const plan = createVideoExportPlan(project, {
 		format: 'webm',
 		range: { startFrame: 0, endFrame: 25_000 },
 	});
+	assert.equal(plan.version, 2);
 	assert.equal(plan.format, 'webm');
 	assert.equal(plan.mimeType, 'video/webm');
 	assert.deepEqual(plan.codecs, {
@@ -195,19 +196,48 @@ test('video export plan describes MP4/WebM codecs, composition filters, and stag
 		['video-source', 'top-source', 1],
 		['staged-audio-mix', undefined, 2],
 	]);
-	assert.deepEqual(plan.segments.map((segment) => [segment.kind, segment.clipId, segment.inputIndex]), [
-		['video', 'lower-clip', 0],
-		['video', 'top-clip', 1],
-		['video', 'lower-clip', 0],
-		['black', undefined, undefined],
+	assert.deepEqual(plan.intervals.map((interval) => [
+		interval.kind,
+		interval.timelineStartFrame,
+		interval.timelineEndFrame,
+		interval.layers.map((layer) => [
+			layer.trackId,
+			layer.clips.map((clip) => [clip.clipId, clip.inputIndex]),
+		]),
+	]), [
+		['composition', 0, 5_000, [['lower-track', [['lower-clip', 0]]]]],
+		['composition', 5_000, 15_000, [
+			['lower-track', [['lower-clip', 0]]],
+			['top-track', [['top-clip', 1]]],
+		]],
+		['composition', 15_000, 20_000, [['lower-track', [['lower-clip', 0]]]]],
+		['black', 20_000, 25_000, []],
 	]);
-	assert.equal(plan.filterPlan.strategy, 'timeline-segments');
-	assert.deepEqual(plan.filterPlan.segments[0].operations.map((operation) => operation.name), [
-		'trim', 'setpts', 'scale', 'pad', 'fps', 'setsar',
+	assert.equal(plan.filterPlan.strategy, 'layered-composition');
+	assert.deepEqual(
+		plan.filterPlan.intervals[0].layers[0].clips[0].operations.map((operation) => operation.name),
+		['trim', 'setpts', 'scale', 'format', 'pad', 'fps', 'setsar'],
+	);
+	assert.equal(
+		plan.filterPlan.intervals[0].layers[0].clips[0].operations[1].playbackRate,
+		0.5,
+	);
+	assert.deepEqual(plan.filterPlan.intervals[0].layers[0].clips[0].operations[4], {
+		name: 'pad',
+		width: 1_280,
+		height: 720,
+		x: '(ow-iw)/2',
+		y: '(oh-ih)/2',
+		color: 'black@0',
+	});
+	assert.equal(plan.filterPlan.intervals[3].kind, 'black');
+	assert.equal(plan.filterPlan.intervals[3].base.name, 'color');
+	assert.deepEqual(plan.filterPlan.concat.inputLabels, [
+		'video_interval_0',
+		'video_interval_1',
+		'video_interval_2',
+		'video_interval_3',
 	]);
-	assert.equal(plan.filterPlan.segments[0].operations[1].playbackRate, 0.5);
-	assert.equal(plan.filterPlan.segments[3].kind, 'color');
-	assert.equal(plan.filterPlan.concat.inputLabels.length, 4);
 	assert.deepEqual(plan.filterPlan.audio, {
 		strategy: 'staged-mix',
 		inputIndex: 2,
@@ -217,7 +247,8 @@ test('video export plan describes MP4/WebM codecs, composition filters, and stag
 		codec: 'opus',
 	});
 	assert.ok(Object.isFrozen(plan));
-	assert.ok(Object.isFrozen(plan.filterPlan.segments[0].operations));
+	assert.ok(Object.isFrozen(plan.intervals[1].layers[0].clips[0]));
+	assert.ok(Object.isFrozen(plan.filterPlan.intervals[0].layers[0].clips[0].operations));
 
 	const silentMp4 = createVideoExportPlan(project, {
 		format: 'h264',
@@ -228,6 +259,81 @@ test('video export plan describes MP4/WebM codecs, composition filters, and stag
 	assert.equal(silentMp4.codecs.videoEncoder, 'libx264');
 	assert.equal(silentMp4.codecs.audio, null);
 	assert.deepEqual(silentMp4.filterPlan.audio, { strategy: 'none' });
+});
+
+test('video export ranges retain absolute crossfade progress and deduplicate source inputs', () => {
+	const project = layeredProject();
+	project.clips.push(videoClip({
+		id: 'top-incoming',
+		sourceId: 'top-source',
+		timelineStartFrame: 10_000,
+		durationFrames: 10_000,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 10_000,
+	}));
+	project.tracks[0].clipIds.push('top-incoming');
+
+	const plan = createVideoExportPlan(project, {
+		includeAudio: false,
+		range: { startFrame: 12_000, endFrame: 14_000 },
+	});
+	assert.deepEqual(plan.inputs.map((input) => [input.sourceId, input.inputIndex]), [
+		['lower-source', 0],
+		['top-source', 1],
+	]);
+	assert.equal(plan.intervals.length, 1);
+	assert.deepEqual(
+		plan.intervals[0].layers.map((layer) => [
+			layer.trackId,
+			layer.clips.map((clip) => ({
+				role: clip.role,
+				clipId: clip.clipId,
+				sourceStartFrame: clip.sourceStartFrame,
+				sourceEndFrame: clip.sourceEndFrame,
+				opacityStart: Number(clip.opacityStart.toFixed(6)),
+				opacityEnd: Number(clip.opacityEnd.toFixed(6)),
+			})),
+		]),
+		[
+			['lower-track', [{
+				role: 'single',
+				clipId: 'lower-clip',
+				sourceStartFrame: 6_000,
+				sourceEndFrame: 7_000,
+				opacityStart: 1,
+				opacityEnd: 1,
+			}]],
+			['top-track', [
+				{
+					role: 'outgoing',
+					clipId: 'top-clip',
+					sourceStartFrame: 9_000,
+					sourceEndFrame: 11_000,
+					opacityStart: 0.6,
+					opacityEnd: 0.2,
+				},
+				{
+					role: 'incoming',
+					clipId: 'top-incoming',
+					sourceStartFrame: 2_000,
+					sourceEndFrame: 4_000,
+					opacityStart: 0.4,
+					opacityEnd: 0.8,
+				},
+			]],
+		],
+	);
+	assert.deepEqual({
+		...plan.filterPlan.intervals[0].layers[1].blend,
+		opacityStart: plan.filterPlan.intervals[0].layers[1].blend.opacityStart
+			.map((opacity) => Number(opacity.toFixed(6))),
+		opacityEnd: plan.filterPlan.intervals[0].layers[1].blend.opacityEnd
+			.map((opacity) => Number(opacity.toFixed(6))),
+	}, {
+		name: 'blend',
+		opacityStart: [0.6, 0.4],
+		opacityEnd: [0.2, 0.8],
+	});
 });
 
 test('video export format inventory is frozen and rejects unknown containers', () => {

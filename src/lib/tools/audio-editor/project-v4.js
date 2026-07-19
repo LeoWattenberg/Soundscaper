@@ -1,4 +1,5 @@
 import { createStableId } from './project.js';
+import { validateVideoTrackComposition } from './video-timeline.js';
 import {
 	AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE,
 	AUDIO_EDITOR_TRACK_COLORS,
@@ -446,7 +447,7 @@ function validateMediaGraph(project) {
 			}
 			assignedClipTrack.set(clipId, track);
 		}
-		if (track.type === 'video') validateVideoTrackClipOverlaps(track, timelineClipById);
+		if (track.type === 'video') validateVideoTrackComposition(track, timelineClipById);
 	}
 	if (assignedClipTrack.size !== project.clips.length) {
 		throw new RangeError('Every clip must belong to exactly one media track.');
@@ -456,18 +457,6 @@ function validateMediaGraph(project) {
 	validateLaneGroups(project.tracks);
 	validateAvLinks(project.clips, assignedClipTrack);
 	validateBinItems(project.projectBin.clips);
-}
-
-function validateVideoTrackClipOverlaps(track, clipById) {
-	const clips = track.clipIds
-		.map((clipId) => clipById.get(clipId))
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
-	for (let index = 1; index < clips.length; index += 1) {
-		const previous = clips[index - 1];
-		if (clips[index].timelineStartFrame < previous.timelineStartFrame + previous.durationFrames) {
-			throw new RangeError(`Video clips overlap on track ${track.id}.`);
-		}
-	}
 }
 
 function validateClipSourceBounds(clip, sourceById) {

@@ -61,6 +61,7 @@ import {
 	playbackMeterPercent,
 } from '../../../lib/tools/audio-editor/playback-meter.js';
 import { projectDurationFrames } from '../../../lib/tools/audio-editor/project.js';
+import { resolveActiveVideoLayers } from '../../../lib/tools/audio-editor/video-timeline.js';
 import {
 	getNyquistPlugin,
 	listNyquistPlugins,
@@ -867,10 +868,30 @@ function AudioEditorWorkspace({ locale, copy }) {
 			addLabelTrack: () => run(() => controller.actions.track.addLabel()),
 			duplicateTrack: () => snapshot.selectedTrackId && run(() => controller.actions.track.duplicate(snapshot.selectedTrackId)),
 			removeTrack: () => snapshot.selectedTrackId && run(() => controller.actions.track.remove(snapshot.selectedTrackId)),
-			moveTrackUp: () => snapshot.selectedTrackId && run(() => controller.actions.track.moveUp(snapshot.selectedTrackId)),
-			moveTrackDown: () => snapshot.selectedTrackId && run(() => controller.actions.track.moveDown(snapshot.selectedTrackId)),
-			moveTrackTop: () => snapshot.selectedTrackId && run(() => controller.actions.track.moveTop(snapshot.selectedTrackId)),
-			moveTrackBottom: () => snapshot.selectedTrackId && run(() => controller.actions.track.moveBottom(snapshot.selectedTrackId)),
+			moveTrackUp: () => snapshot.selectedTrackId && run(() => moveAudioEditorTrackBlock(
+				controller,
+				project?.tracks || [],
+				snapshot.selectedTrackId,
+				'up',
+			)),
+			moveTrackDown: () => snapshot.selectedTrackId && run(() => moveAudioEditorTrackBlock(
+				controller,
+				project?.tracks || [],
+				snapshot.selectedTrackId,
+				'down',
+			)),
+			moveTrackTop: () => snapshot.selectedTrackId && run(() => moveAudioEditorTrackBlock(
+				controller,
+				project?.tracks || [],
+				snapshot.selectedTrackId,
+				'top',
+			)),
+			moveTrackBottom: () => snapshot.selectedTrackId && run(() => moveAudioEditorTrackBlock(
+				controller,
+				project?.tracks || [],
+				snapshot.selectedTrackId,
+				'bottom',
+			)),
 			makeStereoTrack: () => run(() => controller.actions.track.makeStereo(snapshot.selectedTrackId)),
 			swapTrackChannels: () => run(() => controller.actions.track.swapChannels(snapshot.selectedTrackId)),
 			splitStereoLr: () => run(() => controller.actions.track.splitStereoLR(snapshot.selectedTrackId)),
@@ -4103,7 +4124,6 @@ function WorkspacePanelContent({
 }
 
 function VideoPreviewPanel({ controller, snapshot, copy }) {
-	const videoRef = useRef(null);
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
 		(value) => Math.max(0, Number(value.positionFrame) || 0),
@@ -4116,79 +4136,153 @@ function VideoPreviewPanel({ controller, snapshot, copy }) {
 		controller,
 		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
 	);
-	const telemetry = { positionFrame, transportState, playbackRate };
 	const project = snapshot.project;
-	const clipById = useMemo(() => new Map(
-		(project?.clips || []).map((clip) => [clip.id, clip]),
-	), [project?.clips]);
-	const active = useMemo(() => {
-		const frame = telemetry.positionFrame;
-		for (const track of project?.tracks || []) {
-			if (track.type !== 'video' || track.hidden) continue;
-			const clip = (track.clipIds || [])
-				.map((clipId) => clipById.get(clipId))
-				.find((candidate) => (
-					candidate
-					&& candidate.timelineStartFrame <= frame
-					&& candidate.timelineStartFrame + candidate.durationFrames > frame
-				));
-			if (clip) return { track, clip };
+	const layers = useMemo(() => {
+		if (!project) return [];
+		try {
+			return resolveActiveVideoLayers(project, positionFrame);
+		} catch {
+			return [];
 		}
-		return null;
-	}, [clipById, project?.tracks, telemetry.positionFrame]);
-	const visual = active
-		? controller.actions.video?.getClipVisualData?.(active.clip.id)
-			|| controller.actions.timeline.getClipVisualData?.(active.clip.id)
-		: null;
-	const source = active
-		? project?.sources?.find((candidate) => candidate.id === active.clip.sourceId) || null
-		: null;
-	const sourceUrl = visual?.mediaUrl || visual?.url || null;
-	const unavailable = Boolean(active && (!source || !sourceUrl || snapshot.missingSourceIds?.includes(source.id)));
+	}, [positionFrame, project]);
+	const missingSourceIds = useMemo(
+		() => new Set(snapshot.missingSourceIds || []),
+		[snapshot.missingSourceIds],
+	);
+	const resolvedLayers = layers.map((layer) => ({
+		...layer,
+		clips: (layer.clips || []).map((entry) => {
+			const visual = controller.actions.video?.getClipVisualData?.(entry.clipId)
+				|| controller.actions.timeline.getClipVisualData?.(entry.clipId);
+			const sourceUrl = visual?.mediaUrl || visual?.url || null;
+			return {
+				...entry,
+				sourceUrl,
+				available: Boolean(
+					entry.source
+					&& sourceUrl
+					&& visual?.available !== false
+					&& !missingSourceIds.has(entry.sourceId),
+				),
+			};
+		}),
+	}));
+	const activeEntries = resolvedLayers.flatMap((layer) => layer.clips);
+	const renderableEntries = activeEntries.filter((entry) => entry.available);
+	const unavailableCount = activeEntries.length - renderableEntries.length;
+	const topActiveEntry = [...activeEntries].reverse().find((entry) => entry.opacity > 0) || null;
 
-	useEffect(() => {
+	return (
+		<div
+			className="kw-audio-editor__video-preview"
+			data-video-preview
+			data-active-clip-id={topActiveEntry?.clipId || ''}
+			data-active-clip-ids={activeEntries.map((entry) => entry.clipId).join(' ')}
+			data-active-track-count={resolvedLayers.length}
+			data-renderable-clip-count={renderableEntries.length}
+			data-unavailable-clip-count={unavailableCount}
+		>
+			{resolvedLayers.map((layer) => {
+				const renderableClips = layer.clips.filter((entry) => entry.available);
+				return (
+					<div
+						key={layer.trackId}
+						className="kw-audio-editor__video-preview-layer"
+						data-video-preview-layer
+						data-track-id={layer.trackId}
+						data-track-index={layer.trackIndex}
+					>
+						{renderableClips.map((entry) => (
+							<VideoPreviewClip
+								key={entry.clipId}
+								entry={entry}
+								transportState={transportState}
+								transportPlaybackRate={playbackRate}
+								copy={copy}
+							/>
+						))}
+					</div>
+				);
+			})}
+			{!renderableEntries.length && (
+				<div className="kw-audio-editor__video-preview-empty" role="status">
+					{activeEntries.length ? copy.videoPreviewUnavailable : copy.videoPreviewEmpty}
+				</div>
+			)}
+			{unavailableCount > 0 && renderableEntries.length > 0 && (
+				<div
+					className="kw-audio-editor__video-preview-status"
+					data-video-preview-unavailable
+					role="status"
+				>
+					{copy.videoPreviewUnavailable}
+				</div>
+			)}
+		</div>
+	);
+}
+
+function VideoPreviewClip({
+	entry,
+	transportState,
+	transportPlaybackRate,
+	copy,
+}) {
+	const videoRef = useRef(null);
+	const syncVideo = useCallback(() => {
 		const video = videoRef.current;
-		if (!video || !active || !sourceUrl) return;
-		const clip = active.clip;
-		const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || clip.durationFrames);
-		const timelineOffsetFrames = Math.max(0, telemetry.positionFrame - clip.timelineStartFrame);
-		const sourceFrame = (Number(clip.sourceStartFrame) || 0)
-			+ timelineOffsetFrames * sourceDurationFrames / Math.max(1, clip.durationFrames);
-		const targetTime = sourceFrame / Math.max(1, Number(source.sampleRate) || project.sampleRate || 48_000);
+		if (!video) return;
+		const targetTime = Math.max(0, Number(entry.sourceTimeSeconds) || 0);
 		if (Math.abs((Number(video.currentTime) || 0) - targetTime) > 0.08) {
 			try {
-				video.currentTime = Math.max(0, targetTime);
+				video.currentTime = targetTime;
 			} catch {
-				// Metadata can still be loading; loadedmetadata retries through the next telemetry update.
+				// Metadata can still be loading; media readiness callbacks retry the seek.
 			}
 		}
 		video.playbackRate = Math.max(
 			0.0625,
-			Math.min(16, sourceDurationFrames / Math.max(1, clip.durationFrames) * telemetry.playbackRate),
+			Math.min(16, (Number(entry.playbackRate) || 1) * transportPlaybackRate),
 		);
-		if (telemetry.transportState === 'playing') {
+		if (transportState === 'playing') {
 			void video.play?.().catch(() => undefined);
 		} else video.pause?.();
-	}, [active, project?.sampleRate, source, sourceUrl, telemetry.playbackRate, telemetry.positionFrame, telemetry.transportState]);
+	}, [
+		entry.playbackRate,
+		entry.sourceTimeSeconds,
+		transportPlaybackRate,
+		transportState,
+	]);
 
+	useEffect(() => {
+		syncVideo();
+	}, [syncVideo]);
+
+	useEffect(() => () => {
+		videoRef.current?.pause?.();
+	}, []);
+
+	const opacity = Math.max(0, Math.min(1, Number(entry.opacity) || 0));
 	return (
-		<div className="kw-audio-editor__video-preview" data-video-preview data-active-clip-id={active?.clip.id || ''}>
-			{active && sourceUrl && !unavailable ? (
-				<video
-					key={sourceUrl}
-					ref={videoRef}
-					src={sourceUrl}
-					muted
-					playsInline
-					preload="auto"
-					aria-label={`${copy.panelVideoPreview}: ${active.clip.title || source?.name || copy.videoClip}`}
-				/>
-			) : (
-				<div className="kw-audio-editor__video-preview-empty" role="status">
-					{unavailable ? copy.videoPreviewUnavailable : copy.videoPreviewEmpty}
-				</div>
-			)}
-		</div>
+		<video
+			ref={videoRef}
+			className="kw-audio-editor__video-preview-clip"
+			data-video-preview-clip
+			data-clip-id={entry.clipId}
+			data-transition-role={entry.role || 'single'}
+			data-opacity={opacity}
+			src={entry.sourceUrl}
+			muted
+			playsInline
+			preload="auto"
+			aria-label={`${copy.panelVideoPreview}: ${entry.clip?.title || entry.source?.name || copy.videoClip}`}
+			style={{
+				opacity,
+				mixBlendMode: entry.role === 'incoming' ? 'plus-lighter' : 'normal',
+			}}
+			onLoadedMetadata={syncVideo}
+			onCanPlay={syncVideo}
+		/>
 	);
 }
 
@@ -6494,6 +6588,35 @@ function trackSources(project, track) {
 	}).filter(([, source]) => source)).values()];
 }
 
+function audioEditorTrackBlockBounds(tracks, trackId) {
+	const index = tracks.findIndex((track) => track.id === trackId);
+	if (index < 0) return null;
+	const laneGroupId = tracks[index].laneGroupId;
+	if (!laneGroupId) return { start: index, end: index };
+	const indexes = tracks
+		.map((track, trackIndex) => track.laneGroupId === laneGroupId ? trackIndex : -1)
+		.filter((trackIndex) => trackIndex >= 0);
+	return {
+		start: Math.min(...indexes),
+		end: Math.max(...indexes),
+	};
+}
+
+function moveAudioEditorTrackBlock(controller, tracks, trackId, direction) {
+	const bounds = audioEditorTrackBlockBounds(tracks, trackId);
+	if (!bounds) return null;
+	const destination = direction === 'top'
+		? 0
+		: direction === 'bottom'
+			? tracks.length - 1
+			: direction === 'up'
+				? Math.max(0, bounds.start - 1)
+				: direction === 'down'
+					? Math.min(tracks.length - 1, bounds.end + 1)
+					: bounds.start;
+	return controller.actions.track.reorder(trackId, destination);
+}
+
 function trackSourceChannelCount(project, track) {
 	return trackSources(project, track).reduce((maximum, source) => Math.max(maximum, Number(source.channelCount) || 0), 0);
 }
@@ -6529,7 +6652,7 @@ function createApplicationMenus({
 	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
-	const selectedTrackIndex = selectedTrack ? project.tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
+	const selectedTrackBlock = selectedTrack ? audioEditorTrackBlockBounds(project.tracks, selectedTrack.id) : null;
 	const selectedAudioChannelCount = trackSourceChannelCount(project, selectedAudioTrack);
 	const selectedAudioSources = trackSources(project, selectedAudioTrack);
 	const selectedAudioSampleRates = new Set(selectedAudioSources.map((source) => source.sampleRate));
@@ -6869,10 +6992,10 @@ function createApplicationMenus({
 					label: copy.moveTrack,
 					disabled: editBlocked || !selectedTrack,
 					items: [
-						{ id: 'track-move-top', label: copy.moveTrackTop, disabled: selectedTrackIndex <= 0, onClick: actions.moveTrackTop },
-						{ id: 'track-move-up', label: copy.moveTrackUp, disabled: selectedTrackIndex <= 0, onClick: actions.moveTrackUp },
-						{ id: 'track-move-down', label: copy.moveTrackDown, disabled: selectedTrackIndex < 0 || selectedTrackIndex >= project.tracks.length - 1, onClick: actions.moveTrackDown },
-						{ id: 'track-move-bottom', label: copy.moveTrackBottom, disabled: selectedTrackIndex < 0 || selectedTrackIndex >= project.tracks.length - 1, onClick: actions.moveTrackBottom },
+						{ id: 'track-move-top', label: copy.moveTrackTop, disabled: !selectedTrackBlock || selectedTrackBlock.start === 0, onClick: actions.moveTrackTop },
+						{ id: 'track-move-up', label: copy.moveTrackUp, disabled: !selectedTrackBlock || selectedTrackBlock.start === 0, onClick: actions.moveTrackUp },
+						{ id: 'track-move-down', label: copy.moveTrackDown, disabled: !selectedTrackBlock || selectedTrackBlock.end === project.tracks.length - 1, onClick: actions.moveTrackDown },
+						{ id: 'track-move-bottom', label: copy.moveTrackBottom, disabled: !selectedTrackBlock || selectedTrackBlock.end === project.tracks.length - 1, onClick: actions.moveTrackBottom },
 					],
 				},
 				{

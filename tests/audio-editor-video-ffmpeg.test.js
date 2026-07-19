@@ -40,7 +40,7 @@ test.afterEach(() => {
 	else globalThis.__soundscaperVideoFfmpegTestRuntime = originalTestRuntime;
 });
 
-test('video FFmpeg arguments deterministically compose trimmed video, black gaps, and mixed audio', () => {
+test('legacy version-1 video FFmpeg arguments remain compatible', () => {
 	const plan = webmPlan();
 	const args = buildVideoFfmpegArgs(plan, {
 		videoInputPaths: new Map([
@@ -81,6 +81,115 @@ test('video FFmpeg arguments deterministically compose trimmed video, black gaps
 	]);
 });
 
+test('legacy version-1 graphs split a source referenced by multiple sequential segments', () => {
+	const plan = webmPlan();
+	plan.inputs.splice(1, 1);
+	plan.inputs[1].inputIndex = 1;
+	plan.filterPlan.audio.inputIndex = 1;
+	plan.segments[2].inputIndex = 0;
+	plan.segments[2].sourceId = 'source-a';
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: { 'source-a': '/stage/video-a.mp4' },
+		audioInputPath: '/stage/mix.wav',
+	}, 'output.webm');
+	const graph = args[args.indexOf('-filter_complex') + 1];
+
+	assert.match(
+		graph,
+		/^\[0:v:0\]split=2\[video_input_0_split_0\]\[video_input_0_split_1\];/,
+	);
+	assert.equal(graph.match(/\[0:v:0\]/g)?.length, 1);
+	for (let branchIndex = 0; branchIndex < 2; branchIndex += 1) {
+		assert.equal(
+			graph.match(new RegExp(`\\[video_input_0_split_${branchIndex}\\]`, 'g'))?.length,
+			2,
+		);
+	}
+	assert.match(graph, /\[video_input_0_split_0\]trim=start=0\.5:end=2\.5/);
+	assert.match(graph, /\[video_input_0_split_1\]trim=start=0:end=1/);
+	assert.match(graph, /\[1:a:0\]atrim=start=0:duration=2\.25/);
+});
+
+test('version-2 FFmpeg arguments composite layers and preserve absolute crossfade progress', () => {
+	const plan = layeredWebmPlan();
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: new Map([
+			['source-a', '/stage/video-a.mp4'],
+			['source-b', '/stage/video-b.webm'],
+			['source-c', '/stage/video-c.mp4'],
+		]),
+		audioInputPath: '/stage/mix.wav',
+	}, 'layered.webm');
+
+	assert.deepEqual(args, [
+		'-i', '/stage/video-a.mp4',
+		'-i', '/stage/video-b.webm',
+		'-i', '/stage/video-c.mp4',
+		'-i', '/stage/mix.wav',
+		'-filter_complex',
+		'color=c=0x112233:s=640x360:r=24:d=1,format=pix_fmts=rgba,setsar=1[video_interval_0_base];'
+			+ '[0:v:0]trim=start=1:end=2,setpts=(PTS-STARTPTS)/1,scale=w=640:h=360:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=24,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_0_track_0_clip_0];'
+			+ '[video_interval_0_base][video_interval_0_track_0_clip_0]overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied[video_interval_0_stack_0];'
+			+ '[1:v:0]trim=start=2.5:end=3.5,setpts=(PTS-STARTPTS)/1,scale=w=640:h=360:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=24,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_0_track_1_clip_0];'
+			+ '[2:v:0]trim=start=0.5:end=2.5,setpts=(PTS-STARTPTS)/2,scale=w=640:h=360:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=24,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_0_track_1_clip_1];'
+			+ "[video_interval_0_track_1_clip_0][video_interval_0_track_1_clip_1]blend=all_expr='A*(0.75-0.5*T/1)+B*(0.25+0.5*T/1)'[video_interval_0_track_1];"
+			+ '[video_interval_0_stack_0][video_interval_0_track_1]overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied[video_interval_0_stack_1];'
+			+ '[video_interval_0_stack_1]format=pix_fmts=yuv420p,setsar=1[video_interval_0];'
+			+ 'color=c=0x112233:s=640x360:r=24:d=0.5,format=pix_fmts=rgba,setsar=1[video_interval_1_base];'
+			+ '[video_interval_1_base]format=pix_fmts=yuv420p,setsar=1[video_interval_1];'
+			+ '[video_interval_0][video_interval_1]concat=n=2:v=1:a=0[video_out];'
+			+ '[3:a:0]atrim=start=0:duration=1.5,asetpts=PTS-STARTPTS[audio_out]',
+		'-map', '[video_out]',
+		'-map', '[audio_out]',
+		'-map_metadata', '-1',
+		'-map_chapters', '-1',
+		'-sn',
+		'-dn',
+		'-c:v', 'libvpx-vp9',
+		'-crf', '31',
+		'-b:v', '0',
+		'-deadline', 'good',
+		'-cpu-used', '4',
+		'-pix_fmt', 'yuv420p',
+		'-r', '24',
+		'-c:a', 'libopus',
+		'-b:a', '160k',
+		'-t', '1.5',
+		'-f', 'webm',
+		'-y', 'layered.webm',
+	]);
+});
+
+test('version-2 FFmpeg graph splits a source used across crossfade clips and intervals', () => {
+	const args = buildVideoFfmpegArgs(reusedSourceMp4Plan(), {
+		videoInputPaths: { shared: '/stage/shared.mp4' },
+	}, 'shared.mp4');
+
+	assert.deepEqual(args.slice(0, 3), ['-i', '/stage/shared.mp4', '-filter_complex']);
+	assert.equal(
+		args[3],
+		'[0:v:0]split=3[video_input_0_split_0][video_input_0_split_1][video_input_0_split_2];'
+			+ 'color=c=black:s=320x180:r=30:d=1,format=pix_fmts=rgba,setsar=1[video_interval_0_base];'
+			+ '[video_input_0_split_0]trim=start=0:end=1,setpts=(PTS-STARTPTS)/1,scale=w=320:h=180:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=320:h=180:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=30,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_0_track_0_clip_0];'
+			+ '[video_input_0_split_1]trim=start=1:end=2,setpts=(PTS-STARTPTS)/1,scale=w=320:h=180:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=320:h=180:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=30,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_0_track_0_clip_1];'
+			+ "[video_interval_0_track_0_clip_0][video_interval_0_track_0_clip_1]blend=all_expr='A*(1-1*T/1)+B*(0+1*T/1)'[video_interval_0_track_0];"
+			+ '[video_interval_0_base][video_interval_0_track_0]overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied[video_interval_0_stack_0];'
+			+ '[video_interval_0_stack_0]format=pix_fmts=yuv420p,setsar=1[video_interval_0];'
+			+ 'color=c=black:s=320x180:r=30:d=1,format=pix_fmts=rgba,setsar=1[video_interval_1_base];'
+			+ '[video_input_0_split_2]trim=start=2:end=3,setpts=(PTS-STARTPTS)/1,scale=w=320:h=180:force_original_aspect_ratio=decrease,format=pix_fmts=rgba,pad=w=320:h=180:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,fps=fps=30,setsar=1,trim=duration=1,setpts=PTS-STARTPTS[video_interval_1_track_0_clip_0];'
+			+ '[video_interval_1_base][video_interval_1_track_0_clip_0]overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied[video_interval_1_stack_0];'
+			+ '[video_interval_1_stack_0]format=pix_fmts=yuv420p,setsar=1[video_interval_1];'
+			+ '[video_interval_0][video_interval_1]concat=n=2:v=1:a=0[video_out]',
+	);
+	assert.equal(args[3].match(/\[0:v:0\]/g)?.length, 1);
+	for (let branchIndex = 0; branchIndex < 3; branchIndex += 1) {
+		assert.equal(
+			args[3].match(new RegExp(`\\[video_input_0_split_${branchIndex}\\]`, 'g'))?.length,
+			2,
+		);
+	}
+});
+
 test('silent MP4 arguments use an encoder-safe color source and do not add an audio stream', () => {
 	const plan = silentMp4Plan();
 	const args = buildVideoFfmpegArgs(plan, { videoInputPaths: new Map() }, 'output.mp4');
@@ -112,6 +221,20 @@ test('video plan validation rejects missing media and unsafe filter colors', () 
 	assert.throws(
 		() => buildVideoFfmpegArgs(unsafe, { videoInputPaths: {} }, 'output.mp4'),
 		/Unsupported FFmpeg video color/,
+	);
+
+	const invalidCrossfade = layeredWebmPlan();
+	invalidCrossfade.intervals[0].layers[1].clips[1].opacityStart = 0.5;
+	assert.throws(
+		() => buildVideoFfmpegArgs(invalidCrossfade, {
+			videoInputPaths: {
+				'source-a': '/stage/video-a.mp4',
+				'source-b': '/stage/video-b.webm',
+				'source-c': '/stage/video-c.mp4',
+			},
+			audioInputPath: '/stage/mix.wav',
+		}, 'output.webm'),
+		/crossfade opacities must be complementary/,
 	);
 });
 
@@ -334,6 +457,167 @@ function webmPlan() {
 			},
 		],
 		filterPlan: { audio: { strategy: 'staged-mix', inputIndex: 2 } },
+	};
+}
+
+function layeredWebmPlan() {
+	return {
+		version: 2,
+		format: 'webm',
+		container: 'webm',
+		extension: 'webm',
+		mimeType: 'video/webm',
+		durationSeconds: 1.5,
+		canvas: {
+			width: 640,
+			height: 360,
+			frameRate: 24,
+			pixelFormat: 'yuv420p',
+			backgroundColor: '#112233',
+		},
+		codecs: {
+			video: 'vp9',
+			videoEncoder: 'libvpx-vp9',
+			audio: 'opus',
+			audioEncoder: 'libopus',
+			pixelFormat: 'yuv420p',
+		},
+		inputs: [
+			{ kind: 'video-source', inputIndex: 0, sourceId: 'source-a', mimeType: 'video/mp4' },
+			{ kind: 'video-source', inputIndex: 1, sourceId: 'source-b', mimeType: 'video/webm' },
+			{ kind: 'video-source', inputIndex: 2, sourceId: 'source-c', mimeType: 'video/mp4' },
+			{ kind: 'staged-audio-mix', inputIndex: 3, fileName: 'audio-mix.wav' },
+		],
+		intervals: [
+			{
+				kind: 'composition',
+				durationSeconds: 1,
+				layers: [
+					{
+						trackId: 'lower-track',
+						clips: [{
+							role: 'single',
+							inputIndex: 0,
+							sourceId: 'source-a',
+							sourceStartTimeSeconds: 1,
+							sourceEndTimeSeconds: 2,
+							playbackRate: 1,
+							opacityStart: 1,
+							opacityEnd: 1,
+						}],
+					},
+					{
+						trackId: 'top-track',
+						clips: [
+							{
+								role: 'outgoing',
+								inputIndex: 1,
+								sourceId: 'source-b',
+								sourceStartTimeSeconds: 2.5,
+								sourceEndTimeSeconds: 3.5,
+								playbackRate: 1,
+								opacityStart: 0.75,
+								opacityEnd: 0.25,
+							},
+							{
+								role: 'incoming',
+								inputIndex: 2,
+								sourceId: 'source-c',
+								sourceStartTimeSeconds: 0.5,
+								sourceEndTimeSeconds: 2.5,
+								playbackRate: 2,
+								opacityStart: 0.25,
+								opacityEnd: 0.75,
+							},
+						],
+					},
+				],
+			},
+			{
+				kind: 'black',
+				color: '#112233',
+				durationSeconds: 0.5,
+				layers: [],
+			},
+		],
+		filterPlan: { audio: { strategy: 'staged-mix', inputIndex: 3 } },
+	};
+}
+
+function reusedSourceMp4Plan() {
+	return {
+		version: 2,
+		format: 'mp4',
+		container: 'mp4',
+		extension: 'mp4',
+		mimeType: 'video/mp4',
+		durationSeconds: 2,
+		canvas: {
+			width: 320,
+			height: 180,
+			frameRate: 30,
+			pixelFormat: 'yuv420p',
+			backgroundColor: 'black',
+		},
+		codecs: {
+			video: 'h264',
+			videoEncoder: 'libx264',
+			audio: null,
+			audioEncoder: null,
+			pixelFormat: 'yuv420p',
+		},
+		inputs: [
+			{ kind: 'video-source', inputIndex: 0, sourceId: 'shared', mimeType: 'video/mp4' },
+		],
+		intervals: [
+			{
+				kind: 'composition',
+				durationSeconds: 1,
+				layers: [{
+					trackId: 'video-track',
+					clips: [
+						{
+							role: 'outgoing',
+							inputIndex: 0,
+							sourceId: 'shared',
+							sourceStartTimeSeconds: 0,
+							sourceEndTimeSeconds: 1,
+							playbackRate: 1,
+							opacityStart: 1,
+							opacityEnd: 0,
+						},
+						{
+							role: 'incoming',
+							inputIndex: 0,
+							sourceId: 'shared',
+							sourceStartTimeSeconds: 1,
+							sourceEndTimeSeconds: 2,
+							playbackRate: 1,
+							opacityStart: 0,
+							opacityEnd: 1,
+						},
+					],
+				}],
+			},
+			{
+				kind: 'composition',
+				durationSeconds: 1,
+				layers: [{
+					trackId: 'video-track',
+					clips: [{
+						role: 'single',
+						inputIndex: 0,
+						sourceId: 'shared',
+						sourceStartTimeSeconds: 2,
+						sourceEndTimeSeconds: 3,
+						playbackRate: 1,
+						opacityStart: 1,
+						opacityEnd: 1,
+					}],
+				}],
+			},
+		],
+		filterPlan: { audio: { strategy: 'none' } },
 	};
 }
 

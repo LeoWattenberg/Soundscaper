@@ -1,3 +1,5 @@
+import { validateVideoTrackComposition } from './video-timeline.js';
+
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_MASTER_CHANNELS = 2;
@@ -571,7 +573,7 @@ function validateProjectV4Shape(project) {
 			if (assignedClipTrack.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
 			assignedClipTrack.set(clipId, track);
 		}
-		if (track.type === 'video') validateV4VideoTrackClipOverlaps(track, timelineClipById);
+		if (track.type === 'video') validateVideoTrackComposition(track, timelineClipById);
 	}
 	if (assignedClipTrack.size !== project.clips.length) {
 		throw new RangeError('Every clip must belong to exactly one media track.');
@@ -589,18 +591,6 @@ function validateProjectV4Shape(project) {
 	validateV4AvLinks(project.clips, assignedClipTrack);
 	validateV4BinItems(project.projectBin.clips);
 	return true;
-}
-
-function validateV4VideoTrackClipOverlaps(track, clipById) {
-	const clips = track.clipIds
-		.map((clipId) => clipById.get(clipId))
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
-	for (let index = 1; index < clips.length; index += 1) {
-		const previous = clips[index - 1];
-		if (clips[index].timelineStartFrame < previous.timelineStartFrame + previous.durationFrames) {
-			throw new RangeError(`Video clips overlap on track ${track.id}.`);
-		}
-	}
 }
 
 function validateV4ClipBounds(clip, sourceById) {

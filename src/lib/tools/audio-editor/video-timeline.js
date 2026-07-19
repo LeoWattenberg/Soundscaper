@@ -16,6 +16,62 @@ export function videoClipEndFrame(clip) {
 }
 
 /**
+ * Validate the transition geometry for one video track.
+ *
+ * Video clips may be disjoint, touch at their edges, or overlap as a proper
+ * transition where the later clip also ends later. Nested/equal-boundary
+ * overlaps and any interval with three active clips are ambiguous and rejected.
+ */
+export function validateVideoTrackComposition(track, clipById) {
+	if (!track || track.type !== 'video') throw new TypeError('A video track is required.');
+	if (!Array.isArray(track.clipIds)) throw new TypeError(`Video track ${track.id} must contain clip IDs.`);
+	const lookup = normalizeClipLookup(clipById);
+	const clips = track.clipIds.map((clipId) => {
+		const clip = lookup.get(clipId);
+		if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
+		if (clip.kind !== 'video') {
+			throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
+		}
+		return clip;
+	}).sort(compareVideoClips);
+	const active = [];
+
+	for (const clip of clips) {
+		const startFrame = nonNegativeSafeInteger(
+			clip.timelineStartFrame,
+			`clip ${clip.id} timelineStartFrame`,
+		);
+		const endFrame = startFrame + positiveSafeInteger(
+			clip.durationFrames,
+			`clip ${clip.id} durationFrames`,
+		);
+		for (let index = active.length - 1; index >= 0; index -= 1) {
+			if (active[index].endFrame <= startFrame) active.splice(index, 1);
+		}
+		if (active.length >= 2) {
+			throw new RangeError(
+				`Video clips overlap on track ${track.id}; overlapping clips cannot create a three-way transition.`,
+			);
+		}
+		if (active.length === 1) {
+			const earlier = active[0];
+			if (!(
+				earlier.startFrame < startFrame
+				&& startFrame < earlier.endFrame
+				&& earlier.endFrame < endFrame
+			)) {
+				throw new RangeError(
+					`Video clips overlap on track ${track.id}; overlapping clips must form a proper edge transition.`,
+				);
+			}
+		}
+		active.push({ startFrame, endFrame });
+	}
+
+	return true;
+}
+
+/**
  * The source range is the active, trimmed range. Comparing its wall-clock
  * duration with the timeline duration accounts for both source/project sample
  * rate differences and clip stretching.
@@ -93,12 +149,10 @@ export function mapVideoSourceFrameToTimeline(clip, sourceFrame, options = {}) {
 }
 
 /**
- * Resolve the picture at a timeline frame. Project track order is visual order:
- * the first visible video track is the top layer. A gap is an explicit black
- * result rather than a missing value, which keeps preview/export behavior
- * identical.
+ * Resolve every visible video track at a timeline frame. Project track order is
+ * foreground-first, while the returned array is bottom-to-top painter order.
  */
-export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
+export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 	const frame = nonNegativeFiniteNumber(timelineFrame, 'timelineFrame');
 	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
 	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
@@ -107,52 +161,179 @@ export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
 	const visible = typeof options.isTrackVisible === 'function'
 		? options.isTrackVisible
 		: isVisibleVideoTrack;
-	const orderedTrackIndexes = tracks.map((_, index) => index);
-	if (options.topTrackFirst === false) orderedTrackIndexes.reverse();
+	const orderedTrackIndexes = tracks.map((_, index) => index).reverse();
+	const layers = [];
 
 	for (const trackIndex of orderedTrackIndexes) {
 		const track = tracks[trackIndex];
-		if (!visible(track)) continue;
-		const activeClips = [];
-		for (const clipId of track.clipIds || []) {
-			const clip = clipById.get(clipId);
-			if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
-			if (clip.kind !== 'video') {
-				throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
-			}
-			const startFrame = nonNegativeSafeInteger(clip.timelineStartFrame, `clip ${clip.id} timelineStartFrame`);
-			const endFrame = startFrame + positiveSafeInteger(clip.durationFrames, `clip ${clip.id} durationFrames`);
-			if (frame >= startFrame && frame < endFrame) activeClips.push(clip);
-		}
-		if (activeClips.length > 1) {
-			throw new RangeError(`Video track ${track.id} has overlapping clips at timeline frame ${frame}.`);
-		}
+		if (track?.type !== 'video' || !visible(track)) continue;
+		validateVideoTrackComposition(track, clipById);
+		const activeClips = orderedVideoTrackClips(track, clipById)
+			.filter((clip) => frame >= clip.timelineStartFrame && frame < videoClipEndFrame(clip));
 		if (!activeClips.length) continue;
 
-		const clip = activeClips[0];
-		const source = sourceById.get(clip.sourceId);
-		if (!source) throw new ReferenceError(`Video clip ${clip.id} references missing source ${clip.sourceId}.`);
-		if (source.kind !== 'video') {
-			throw new TypeError(`Video clip ${clip.id} references non-video source ${source.id}.`);
-		}
-		const mapping = mapVideoTimelineFrameToSource(clip, frame, {
-			projectSampleRate: sampleRate,
-			sourceSampleRate: source.sampleRate,
+		const transition = activeClips.length === 2
+			? videoTransition(activeClips[0], activeClips[1])
+			: null;
+		const clips = activeClips.map((clip, clipIndex) => {
+			const source = videoSourceForClip(sourceById, clip);
+			const mapping = mapVideoTimelineFrameToSource(clip, frame, {
+				projectSampleRate: sampleRate,
+				sourceSampleRate: source.sampleRate,
+			});
+			const role = transition == null
+				? 'single'
+				: clipIndex === 0 ? 'outgoing' : 'incoming';
+			return Object.freeze({
+				kind: 'video',
+				role,
+				clip,
+				clipId: clip.id,
+				source,
+				sourceId: source.id,
+				sourceFrame: mapping.sourceFrame,
+				sourceTimeSeconds: mapping.sourceTimeSeconds,
+				playbackRate: videoClipPlaybackRate(clip, sampleRate, source.sampleRate),
+				opacity: transition == null
+					? 1
+					: videoTransitionOpacity(transition, role, frame),
+			});
 		});
-		return Object.freeze({
-			kind: 'video',
+		layers.push(Object.freeze({
+			kind: 'video-track',
 			timelineFrame: frame,
 			timelineTimeSeconds: frame / sampleRate,
 			track,
 			trackId: track.id,
 			trackIndex,
-			clip,
-			clipId: clip.id,
-			source,
-			sourceId: source.id,
-			sourceFrame: mapping.sourceFrame,
-			sourceTimeSeconds: mapping.sourceTimeSeconds,
-			playbackRate: videoClipPlaybackRate(clip, sampleRate, source.sampleRate),
+			clips: Object.freeze(clips),
+		}));
+	}
+
+	return Object.freeze(layers);
+}
+
+/**
+ * Resolve layered composition intervals over a requested timeline range.
+ * Opacity values are evaluated at absolute interval boundaries so a range that
+ * begins partway through a transition retains the correct fade progress.
+ */
+export function resolveVideoCompositionIntervals(project, options = {}) {
+	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
+	const startFrame = nonNegativeSafeInteger(options.startFrame ?? 0, 'startFrame');
+	const endFrame = nonNegativeSafeInteger(
+		options.endFrame ?? videoTimelineDurationFrames(project),
+		'endFrame',
+	);
+	if (endFrame < startFrame) throw new RangeError('endFrame cannot precede startFrame.');
+	if (endFrame === startFrame) return Object.freeze([]);
+
+	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
+	const visible = typeof options.isTrackVisible === 'function'
+		? options.isTrackVisible
+		: isVisibleVideoTrack;
+	const boundaries = new Set([startFrame, endFrame]);
+	for (const track of project?.tracks || []) {
+		if (track?.type !== 'video' || !visible(track)) continue;
+		validateVideoTrackComposition(track, clipById);
+		for (const clip of orderedVideoTrackClips(track, clipById)) {
+			const clipStart = clip.timelineStartFrame;
+			const clipEnd = videoClipEndFrame(clip);
+			if (clipEnd <= startFrame || clipStart >= endFrame) continue;
+			boundaries.add(Math.max(startFrame, clipStart));
+			boundaries.add(Math.min(endFrame, clipEnd));
+		}
+	}
+
+	const sortedBoundaries = [...boundaries].sort((left, right) => left - right);
+	const blackColor = normalizeBlackColor(options.blackColor);
+	const intervals = [];
+	for (let index = 0; index < sortedBoundaries.length - 1; index += 1) {
+		const intervalStart = sortedBoundaries[index];
+		const intervalEnd = sortedBoundaries[index + 1];
+		if (intervalEnd <= intervalStart) continue;
+		const midpoint = intervalStart + (intervalEnd - intervalStart) / 2;
+		const activeLayers = resolveActiveVideoLayers(project, midpoint, options);
+		const layers = activeLayers.map((layer) => Object.freeze({
+			kind: 'video-track',
+			track: layer.track,
+			trackId: layer.trackId,
+			trackIndex: layer.trackIndex,
+			clips: Object.freeze(layer.clips.map((activeClip) => {
+				const sourceStart = mapVideoTimelineFrameToSource(activeClip.clip, intervalStart, {
+					sourceSampleRate: activeClip.source.sampleRate,
+				});
+				const sourceEnd = mapVideoTimelineFrameToSource(activeClip.clip, intervalEnd, {
+					sourceSampleRate: activeClip.source.sampleRate,
+				});
+				const transition = layer.clips.length === 2
+					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
+					: null;
+				return Object.freeze({
+					kind: 'video',
+					role: activeClip.role,
+					clip: activeClip.clip,
+					clipId: activeClip.clipId,
+					source: activeClip.source,
+					sourceId: activeClip.sourceId,
+					sourceStartFrame: sourceStart.sourceFrame,
+					sourceEndFrame: sourceEnd.sourceFrame,
+					sourceDurationFrames: sourceEnd.sourceFrame - sourceStart.sourceFrame,
+					sourceStartTimeSeconds: sourceStart.sourceTimeSeconds,
+					sourceEndTimeSeconds: sourceEnd.sourceTimeSeconds,
+					playbackRate: activeClip.playbackRate,
+					opacityStart: transition == null
+						? 1
+						: videoTransitionOpacity(transition, activeClip.role, intervalStart),
+					opacityEnd: transition == null
+						? 1
+						: videoTransitionOpacity(transition, activeClip.role, intervalEnd),
+				});
+			})),
+		}));
+		const interval = {
+			kind: layers.length ? 'composition' : 'black',
+			timelineStartFrame: intervalStart,
+			timelineEndFrame: intervalEnd,
+			durationFrames: intervalEnd - intervalStart,
+			layers: Object.freeze(layers),
+		};
+		if (!layers.length) interval.color = blackColor;
+		intervals.push(Object.freeze(interval));
+	}
+	return Object.freeze(intervals);
+}
+
+/**
+ * Resolve the foreground picture for compatibility with the original
+ * single-video API. Layer-aware preview/export code should use
+ * resolveActiveVideoLayers().
+ *
+ * @deprecated Use resolveActiveVideoLayers().
+ */
+export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
+	const frame = nonNegativeFiniteNumber(timelineFrame, 'timelineFrame');
+	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
+	const layers = resolveActiveVideoLayers(project, frame, options);
+	const layer = options.topTrackFirst === false ? layers[0] : layers.at(-1);
+	if (layer) {
+		const active = layer.clips.reduce((selected, candidate) => (
+			selected == null || candidate.opacity >= selected.opacity ? candidate : selected
+		), null);
+		return Object.freeze({
+			kind: 'video',
+			timelineFrame: frame,
+			timelineTimeSeconds: frame / sampleRate,
+			track: layer.track,
+			trackId: layer.trackId,
+			trackIndex: layer.trackIndex,
+			clip: active.clip,
+			clipId: active.clipId,
+			source: active.source,
+			sourceId: active.sourceId,
+			sourceFrame: active.sourceFrame,
+			sourceTimeSeconds: active.sourceTimeSeconds,
+			playbackRate: active.playbackRate,
 		});
 	}
 
@@ -167,6 +348,8 @@ export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
 /**
  * Resolve a range into complete, non-overlapping picture segments. The result
  * covers the whole requested range, including explicit black gaps.
+ *
+ * @deprecated Use resolveVideoCompositionIntervals().
  */
 export function resolveVideoTimelineSegments(project, options = {}) {
 	const startFrame = nonNegativeSafeInteger(options.startFrame ?? 0, 'startFrame');
@@ -355,6 +538,47 @@ export function videoTimelineDurationFrames(project) {
 		durationFrames = Math.max(durationFrames, videoClipEndFrame(clip));
 	}
 	return durationFrames;
+}
+
+function normalizeClipLookup(value) {
+	if (value instanceof Map) return value;
+	if (Array.isArray(value)) return new Map(value.map((clip) => [clip.id, clip]));
+	if (value && typeof value.get === 'function') return value;
+	throw new TypeError('clipById must be a clip map or array.');
+}
+
+function compareVideoClips(left, right) {
+	return left.timelineStartFrame - right.timelineStartFrame
+		|| videoClipEndFrame(left) - videoClipEndFrame(right)
+		|| String(left.id).localeCompare(String(right.id));
+}
+
+function orderedVideoTrackClips(track, clipById) {
+	return track.clipIds.map((clipId) => clipById.get(clipId)).sort(compareVideoClips);
+}
+
+function videoSourceForClip(sourceById, clip) {
+	const source = sourceById.get(clip.sourceId);
+	if (!source) throw new ReferenceError(`Video clip ${clip.id} references missing source ${clip.sourceId}.`);
+	if (source.kind !== 'video') {
+		throw new TypeError(`Video clip ${clip.id} references non-video source ${source.id}.`);
+	}
+	return source;
+}
+
+function videoTransition(outgoing, incoming) {
+	return {
+		startFrame: incoming.timelineStartFrame,
+		endFrame: videoClipEndFrame(outgoing),
+	};
+}
+
+function videoTransitionOpacity(transition, role, frame) {
+	const progress = Math.max(0, Math.min(
+		1,
+		(frame - transition.startFrame) / (transition.endFrame - transition.startFrame),
+	));
+	return role === 'outgoing' ? 1 - progress : progress;
 }
 
 function sameVisual(segment, active) {

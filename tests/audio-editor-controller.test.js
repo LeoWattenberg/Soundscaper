@@ -621,6 +621,157 @@ test('moving a linked video clip below the timeline creates a fresh paired lane 
 	await controller.dispose();
 });
 
+test('linked video moves create crossfades with aligned audio and reject a third overlap atomically', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ timeline: true });
+	const project = structuredClone(fixture.project);
+	for (const [suffix, timelineStartFrame] of [['second', 48_000], ['third', 96_000]]) {
+		const avLinkId = `${suffix}-av-link`;
+		const videoClip = createVideoClipV4({
+			id: `${suffix}-timeline-video`,
+			sourceId: fixture.videoSource.id,
+			title: `${suffix} video`,
+			timelineStartFrame,
+			sourceStartFrame: 0,
+			sourceDurationFrames: 48_000,
+			durationFrames: 48_000,
+			avLinkId,
+		});
+		const audioClip = createAudioClipV4({
+			id: `${suffix}-timeline-audio`,
+			sourceId: fixture.audioSource.id,
+			title: `${suffix} audio`,
+			timelineStartFrame,
+			sourceStartFrame: 0,
+			sourceDurationFrames: 48_000,
+			durationFrames: 48_000,
+			avLinkId,
+		});
+		project.clips.push(videoClip, audioClip);
+		project.tracks[0].clipIds.push(videoClip.id);
+		project.tracks[1].clipIds.push(audioClip.id);
+	}
+	store.projects.set(project.id, project);
+	store.settings.set('last-project-id', project.id);
+	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
+	store.audioSources.set(fixture.audioSource.id, [
+		new Float32Array(fixture.audioSource.frameCount),
+		new Float32Array(fixture.audioSource.frameCount),
+	]);
+	let controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	controller.actions.clip.move('persisted-timeline-video', 'persisted-video-track', 24_000);
+	let snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame, 24_000);
+	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-audio').timelineStartFrame, 24_000);
+
+	controller.actions.edit.undo();
+	snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame, 0);
+	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-audio').timelineStartFrame, 0);
+	controller.actions.edit.redo();
+	assert.equal(
+		controller.getSnapshot().project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame,
+		24_000,
+	);
+
+	await controller.actions.project.flush();
+	await controller.dispose();
+	controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	assert.equal(
+		controller.getSnapshot().project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame,
+		24_000,
+	);
+
+	const beforeInvalidMove = controller.getSnapshot().project;
+	assert.throws(() => (
+		controller.actions.clip.move('third-timeline-video', 'persisted-video-track', 60_000)
+	));
+	assert.strictEqual(controller.getSnapshot().project, beforeInvalidMove);
+	assert.equal(
+		controller.getSnapshot().project.clips.find((clip) => clip.id === 'third-timeline-audio').timelineStartFrame,
+		96_000,
+	);
+	await controller.dispose();
+});
+
+test('track move actions reorder paired video and audio lanes as one layer block', async () => {
+	const store = createMemoryStore();
+	const fixture = createPersistedVideoProject({ timeline: true });
+	const project = structuredClone(fixture.project);
+	project.tracks.push({
+		type: 'video',
+		id: 'background-video-track',
+		name: 'Background video',
+		clipIds: [],
+		mute: false,
+		hidden: false,
+		collapsed: false,
+		height: 96,
+		laneGroupId: 'background-lane-group',
+		opaqueExtensions: {},
+	}, {
+		type: 'audio',
+		id: 'background-audio-track',
+		name: 'Background audio',
+		clipIds: [],
+		mute: false,
+		solo: false,
+		armed: false,
+		gain: 1,
+		pan: 0,
+		channelCount: 2,
+		color: 'auto',
+		effects: [],
+		laneGroupId: 'background-lane-group',
+		opaqueExtensions: {},
+	});
+	store.projects.set(project.id, project);
+	store.settings.set('last-project-id', project.id);
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+
+	controller.actions.track.moveDown('persisted-video-track');
+	assert.deepEqual(controller.getSnapshot().project.tracks.map((track) => track.id), [
+		'background-video-track',
+		'background-audio-track',
+		'persisted-video-track',
+		'persisted-audio-track',
+	]);
+
+	controller.actions.track.moveUp('persisted-audio-track');
+	assert.deepEqual(controller.getSnapshot().project.tracks.map((track) => track.id), [
+		'persisted-video-track',
+		'persisted-audio-track',
+		'background-video-track',
+		'background-audio-track',
+	]);
+	await controller.dispose();
+});
+
 test('cross-project video paste creates one adjacent paired lane group with fresh relationships', async () => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });
@@ -729,7 +880,11 @@ test('video export API and generic export dispatch stage raw media and audio for
 	assert.equal(ffmpeg.videoCalls[0].plan.mimeType, 'video/mp4');
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.width, 640);
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.height, 360);
-	assert.equal(ffmpeg.videoCalls[0].plan.segments[0].clipId, 'persisted-timeline-video');
+	assert.equal(ffmpeg.videoCalls[0].plan.version, 2);
+	assert.equal(
+		ffmpeg.videoCalls[0].plan.intervals[0].layers[0].clips[0].clipId,
+		'persisted-timeline-video',
+	);
 	assert.equal(renderCalls[0].range.startFrame, 0);
 	assert.equal(renderCalls[0].range.endFrame, fixture.videoSource.frameCount);
 	assert.equal(renderCalls[0].range.outputFrames, fixture.videoSource.frameCount);

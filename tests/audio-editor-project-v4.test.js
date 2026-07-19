@@ -287,16 +287,39 @@ test('V4 rejects cross-media references and partial A/V or lane relationships', 
 		nonAdjacentLane.tracks[1],
 	];
 	assert.throws(() => validateAudioEditorProjectV4(nonAdjacentLane), /adjacent video\/audio track pair/);
+});
 
-	const overlap = structuredClone(project);
-	overlap.clips.push({
-		...overlap.clips.find((clip) => clip.kind === 'video'),
+test('V4 accepts proper video crossfades and rejects ambiguous overlap geometry', () => {
+	const edgeOverlap = createVideoProjectFixture();
+	edgeOverlap.clips.push({
+		...edgeOverlap.clips.find((clip) => clip.kind === 'video'),
 		id: 'overlapping-video',
 		avLinkId: null,
 		timelineStartFrame: 96_000,
 	});
-	overlap.tracks[0].clipIds.push('overlapping-video');
-	assert.throws(() => validateAudioEditorProjectV4(overlap), /Video clips overlap/);
+	edgeOverlap.tracks[0].clipIds.push('overlapping-video');
+	assert.equal(validateAudioEditorProjectV4(edgeOverlap), true);
+	assert.equal(validateAudioEditorProject(edgeOverlap), true);
+	assert.equal(loadAudioEditorProjectV4(edgeOverlap).readOnly, false);
+
+	const nested = structuredClone(edgeOverlap);
+	nested.clips.find((clip) => clip.id === 'overlapping-video').durationFrames = 48_000;
+	assert.throws(() => validateAudioEditorProjectV4(nested), /proper edge transition/);
+	assert.throws(() => validateAudioEditorProject(nested), /proper edge transition/);
+
+	const equalEnd = structuredClone(edgeOverlap);
+	equalEnd.clips.find((clip) => clip.id === 'overlapping-video').durationFrames = 192_000;
+	assert.throws(() => validateAudioEditorProjectV4(equalEnd), /proper edge transition/);
+
+	const threeWay = structuredClone(edgeOverlap);
+	threeWay.clips.push({
+		...threeWay.clips.find((clip) => clip.id === 'overlapping-video'),
+		id: 'third-video',
+		timelineStartFrame: 144_000,
+	});
+	threeWay.tracks[0].clipIds.push('third-video');
+	assert.throws(() => validateAudioEditorProjectV4(threeWay), /three-way transition/);
+	assert.throws(() => validateAudioEditorProject(threeWay), /three-way transition/);
 });
 
 test('V4 keeps timeline and Project Bin relationship IDs in separate domains', () => {

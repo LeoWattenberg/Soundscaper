@@ -58,7 +58,10 @@ import {
 	getActiveProjectBinDragPayload,
 	parseProjectBinDragPayload,
 } from '../../../lib/tools/audio-editor/project-bin-dnd.js';
-import { selectVideoThumbnailTimestamps } from '../../../lib/tools/audio-editor/video-timeline.js';
+import {
+	selectVideoThumbnailTimestamps,
+	validateVideoTrackComposition,
+} from '../../../lib/tools/audio-editor/video-timeline.js';
 import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
 import { useAudioEditorTelemetrySelector, useElementSize } from './DesignSystemRuntime.jsx';
 import AudioEditorSampleTools from './AudioEditorSampleTools.jsx';
@@ -1004,18 +1007,31 @@ export default function AudioEditorTimeline({
 			const movingClips = session.clipIds
 				.map((clipId) => project.clips.find((clip) => clip.id === clipId))
 				.filter(Boolean);
-			const audioTracks = project.tracks.filter((track) => Array.isArray(track.clipIds));
-			const sourceTrackIndices = movingClips.map((clip) => audioTracks.findIndex((track) => track.clipIds.includes(clip.id)));
-			const activeTrackIndex = audioTracks.findIndex((track) => track.id === session.trackId);
-			const requestedTrackId = trackAtClientY(event.clientY, session.trackId);
-			const createsTrack = requestedTrackId === NEW_AUDIO_TRACK_DROP_TARGET;
+			const mediaTracks = project.tracks.filter((track) => Array.isArray(track.clipIds));
+			const sourceTrackIndices = movingClips.map((clip) => mediaTracks.findIndex((track) => track.clipIds.includes(clip.id)));
+			const activeClip = movingClips.find((clip) => clip.id === session.clipId);
+			const activeTrackIndex = mediaTracks.findIndex((track) => track.id === session.trackId);
+			const rawRequestedTrackId = trackAtClientY(event.clientY, session.trackId);
+			const createsTrack = rawRequestedTrackId === NEW_AUDIO_TRACK_DROP_TARGET;
+			const compatibleTrack = createsTrack
+				? null
+				: compatibleMediaTrack(project, rawRequestedTrackId, activeClip?.kind);
+			const requestedTrackId = compatibleTrack?.id || session.trackId;
 			const requestedTrackIndex = createsTrack
-				? audioTracks.length
-				: audioTracks.findIndex((track) => track.id === requestedTrackId);
+				? mediaTracks.length
+				: mediaTracks.findIndex((track) => track.id === requestedTrackId);
 			const minimumTrackDelta = -Math.min(...sourceTrackIndices);
-			const maximumTrackDelta = audioTracks.length - 1 - Math.max(...sourceTrackIndices);
+			const maximumTrackDelta = mediaTracks.length - 1 - Math.max(...sourceTrackIndices);
+			const movingAvLinks = new Set(movingClips.map((clip) => clip.avLinkId).filter(Boolean));
+			const movesLinkedAvPair = [...movingAvLinks].some((avLinkId) => {
+				const linked = movingClips.filter((clip) => clip.avLinkId === avLinkId);
+				return linked.some((clip) => clip.kind === 'video')
+					&& linked.some((clip) => clip.kind === 'audio');
+			});
 			const trackDelta = createsTrack
-				? requestedTrackIndex - activeTrackIndex
+				? movesLinkedAvPair
+					? mediaTracks.length - Math.min(...sourceTrackIndices)
+					: requestedTrackIndex - activeTrackIndex
 				: Math.max(
 					minimumTrackDelta,
 					Math.min(maximumTrackDelta, requestedTrackIndex - activeTrackIndex),
@@ -1032,7 +1048,7 @@ export default function AudioEditorTimeline({
 				const destinationIndex = sourceTrackIndices[index] + trackDelta;
 				return {
 					clipId: clip.id,
-					trackId: audioTracks[destinationIndex]?.id || `${NEW_AUDIO_TRACK_DROP_TARGET}-${destinationIndex}`,
+					trackId: mediaTracks[destinationIndex]?.id || `${NEW_AUDIO_TRACK_DROP_TARGET}-${destinationIndex}`,
 					timelineStartFrame: clip.timelineStartFrame + clampedDeltaFrames,
 				};
 			});
@@ -1159,12 +1175,30 @@ export default function AudioEditorTimeline({
 			return;
 		}
 		const target = timelineDropTargetAt(event);
+		const itemClips = clip.binItemId
+			? project.projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId)
+			: [clip];
+		const compatibleTracks = itemClips.map((itemClip) => (
+			target.trackId ? compatibleMediaTrack(project, target.trackId, itemClip.kind) : null
+		));
+		const previewCreatesTrack = target.createTrack
+			|| Boolean(target.trackId && compatibleTracks.some((candidate) => !candidate));
+		const previews = itemClips.map((itemClip, index) => {
+			const previewTrack = compatibleTracks[index];
+			return {
+				clip: itemClip,
+				clipId: itemClip.id,
+				trackId: previewCreatesTrack
+					? `${NEW_AUDIO_TRACK_DROP_TARGET}-${index}`
+					: previewTrack?.id || target.trackId,
+				timelineStartFrame: target.timelineStartFrame,
+			};
+		});
+		const activePreview = previews.find((preview) => preview.clipId === clip.id) || previews[0];
 		const preview = {
-			clip,
-			clipId: clip.id,
-			trackId: target.trackId,
-			timelineStartFrame: target.timelineStartFrame,
-			createTrack: target.createTrack,
+			...activePreview,
+			createTrack: previewCreatesTrack,
+			previews,
 		};
 		setProjectBinDragPreview((current) => (
 			current?.clipId === preview.clipId
@@ -1175,9 +1209,10 @@ export default function AudioEditorTimeline({
 				: preview
 		));
 		setDraggingClipIds((current) => (
-			current?.size === 1 && current.has(String(clip.id))
+			current?.size === previews.length
+			&& previews.every((item) => current.has(String(item.clipId)))
 				? current
-				: new Set([String(clip.id)])
+				: new Set(previews.map((item) => String(item.clipId)))
 		));
 	}, [clearProjectBinDragState, mutationsBlocked, project, timelineDropTargetAt]);
 
@@ -1231,6 +1266,7 @@ export default function AudioEditorTimeline({
 	}
 
 	const menuTrack = trackMenu ? project.tracks.find((track) => track.id === trackMenu.trackId) : null;
+	const menuTrackBlock = menuTrack ? mediaTrackBlockBounds(project.tracks, menuTrack.id) : null;
 	const colorMenuTrack = trackColorMenu ? project.tracks.find((track) => track.id === trackColorMenu.trackId) : null;
 	const menuClip = clipMenu ? project.clips.find((clip) => clip.id === clipMenu.clipId) : null;
 	const rulerFlyoutTrack = trackRulerFlyout
@@ -1283,20 +1319,20 @@ export default function AudioEditorTimeline({
 			onClick: () => run(() => controller.actions.track.duplicate(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveTop, copy.moveTrackTop, {
-			disabled: snapshot.readOnly || project.tracks[0]?.id === menuTrack.id,
-			onClick: () => run(() => controller.actions.track.moveTop(menuTrack.id)),
+			disabled: snapshot.readOnly || menuTrackBlock?.start === 0,
+			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'top')),
 		}, contextLocale, unavailableReason),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveUp, copy.moveTrackUp, {
-			disabled: snapshot.readOnly || project.tracks[0]?.id === menuTrack.id,
-			onClick: () => run(() => controller.actions.track.moveUp(menuTrack.id)),
+			disabled: snapshot.readOnly || menuTrackBlock?.start === 0,
+			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'up')),
 		}, contextLocale, unavailableReason),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveDown, copy.moveTrackDown, {
-			disabled: snapshot.readOnly || project.tracks.at(-1)?.id === menuTrack.id,
-			onClick: () => run(() => controller.actions.track.moveDown(menuTrack.id)),
+			disabled: snapshot.readOnly || menuTrackBlock?.end === project.tracks.length - 1,
+			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'down')),
 		}, contextLocale, unavailableReason),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveBottom, copy.moveTrackBottom, {
-			disabled: snapshot.readOnly || project.tracks.at(-1)?.id === menuTrack.id,
-			onClick: () => run(() => controller.actions.track.moveBottom(menuTrack.id)),
+			disabled: snapshot.readOnly || menuTrackBlock?.end === project.tracks.length - 1,
+			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'bottom')),
 		}, contextLocale, unavailableReason),
 		...(menuTrack.type === 'audio' ? [
 			{ divider: true, label: '' },
@@ -2188,15 +2224,13 @@ function VideoTrackRow({
 				if (draggedClip?.kind === 'video') projected.push({ ...draggedClip, ...preview });
 			}
 		}
-		if (
-			projectBinDragPreview?.trackId === track.id
-			&& projectBinDragPreview.clip?.kind === 'video'
-		) {
+		for (const preview of projectBinDragPreview?.previews || (projectBinDragPreview ? [projectBinDragPreview] : [])) {
+			if (preview.trackId !== track.id || preview.clip?.kind !== 'video') continue;
 			projected.push({
-				...projectBinDragPreview.clip,
-				timelineStartFrame: projectBinDragPreview.timelineStartFrame,
+				...preview.clip,
+				timelineStartFrame: preview.timelineStartFrame,
 				groupId: null,
-				projectBinClipId: projectBinDragPreview.clip.id,
+				projectBinClipId: preview.clip.id,
 			});
 		}
 		return projected;
@@ -2209,6 +2243,24 @@ function VideoTrackRow({
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
+	const overlapPresentation = useMemo(() => createVideoOverlapPresentation(
+		clips,
+		projection.overscanStartFrame,
+		projection.overscanEndFrame,
+		pixelsPerSecond,
+		sampleRate,
+	), [
+		clips,
+		pixelsPerSecond,
+		projection.overscanEndFrame,
+		projection.overscanStartFrame,
+		sampleRate,
+	]);
+	const overlapState = overlapPresentation.invalid
+		? 'invalid'
+		: overlapPresentation.overlays.length
+			? 'crossfade'
+			: 'none';
 	const tabIndexFor = (offset) => isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4 + offset;
 
 	useEffect(() => {
@@ -2254,6 +2306,8 @@ function VideoTrackRow({
 			data-track-index={trackIndex}
 			data-collapsed={track.collapsed ? 'true' : 'false'}
 			data-hidden={track.hidden ? 'true' : 'false'}
+			data-video-overlap-state={overlapState}
+			data-video-overlap-valid={overlapPresentation.invalid ? 'false' : 'true'}
 			style={{ height: trackHeight }}
 		>
 			<VideoTrackControls
@@ -2278,6 +2332,7 @@ function VideoTrackRow({
 				data-track-lane
 				data-track-id={track.id}
 				data-selected={selectedTrackId === track.id}
+				aria-invalid={overlapPresentation.invalid ? 'true' : undefined}
 				aria-label={track.name}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
 				onClick={(event) => {
@@ -2368,6 +2423,7 @@ function VideoTrackRow({
 									? selectedClipIdSet.has(clip.id)
 									: String(selectedClipId) === String(clip.id)}
 								dragging={Boolean(draggingClipIds?.has(clip.id))}
+								invalidOverlap={overlapPresentation.invalidClipIds.has(clip.id)}
 								hidden={track.hidden}
 								blocked={blocked}
 								copy={copy}
@@ -2375,6 +2431,7 @@ function VideoTrackRow({
 							/>
 						))}
 					</div>
+					<AutomaticCrossfadeOverlays overlays={overlapPresentation.overlays} />
 				</div>
 			</div>
 		</div>
@@ -2498,6 +2555,7 @@ function VideoFilmstripClip({
 	sampleRate,
 	selected,
 	dragging,
+	invalidOverlap,
 	hidden,
 	blocked,
 	copy,
@@ -2543,6 +2601,7 @@ function VideoFilmstripClip({
 			data-clip-kind="video"
 			data-dragging={dragging ? 'true' : 'false'}
 			data-project-bin-preview={clip.projectBinClipId ? 'true' : undefined}
+			data-invalid-overlap={invalidOverlap ? 'true' : undefined}
 			role="group"
 			tabIndex={-1}
 			aria-label={`${copy.videoClip || 'Video clip'}: ${clip.title}`}
@@ -2806,12 +2865,13 @@ function TrackRow({
 				if (draggedClip) projected.push({ ...draggedClip, ...preview });
 			}
 		}
-		if (projectBinDragPreview?.trackId === track.id && projectBinDragPreview.clip) {
+		for (const preview of projectBinDragPreview?.previews || (projectBinDragPreview ? [projectBinDragPreview] : [])) {
+			if (preview.trackId !== track.id || preview.clip?.kind !== track.type) continue;
 			projected.push({
-				...projectBinDragPreview.clip,
-				timelineStartFrame: projectBinDragPreview.timelineStartFrame,
+				...preview.clip,
+				timelineStartFrame: preview.timelineStartFrame,
 				groupId: null,
-				projectBinClipId: projectBinDragPreview.clip.id,
+				projectBinClipId: preview.clip.id,
 			});
 		}
 		return projected;
@@ -2819,7 +2879,7 @@ function TrackRow({
 	const movingPreviewClipIds = useMemo(() => new Set(
 		[
 			...(clipDragPreview?.previews || (clipDragPreview ? [clipDragPreview] : [])),
-			...(projectBinDragPreview?.clip ? [{ clipId: projectBinDragPreview.clip.id }] : []),
+			...(projectBinDragPreview?.previews || (projectBinDragPreview ? [projectBinDragPreview] : [])),
 		]
 			.filter((preview) => !Object.hasOwn(preview, 'durationFrames'))
 			.map((preview) => String(preview.clipId)),
@@ -3323,6 +3383,75 @@ function TrackRow({
 	);
 }
 
+function createVideoOverlapPresentation(
+	clips,
+	overscanStartFrame,
+	overscanEndFrame,
+	pixelsPerSecond,
+	sampleRate,
+) {
+	const ordered = clips
+		.filter((clip) => !clip.isRecordingPreview && Number(clip.durationFrames) > 0)
+		.slice()
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || String(left.id).localeCompare(String(right.id)));
+	const overlaps = [];
+	const invalidClipIds = new Set();
+	let invalid = false;
+	try {
+		validateVideoTrackComposition({
+			id: 'video-drag-preview',
+			type: 'video',
+			clipIds: ordered.map((clip) => clip.id),
+		}, new Map(ordered.map((clip) => [clip.id, clip])));
+	} catch {
+		invalid = true;
+	}
+	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
+		const left = ordered[leftIndex];
+		const leftStart = left.timelineStartFrame;
+		const leftEnd = leftStart + left.durationFrames;
+		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
+			const right = ordered[rightIndex];
+			const rightStart = right.timelineStartFrame;
+			const rightEnd = rightStart + right.durationFrames;
+			if (rightStart >= leftEnd) break;
+			const startFrame = Math.max(leftStart, rightStart);
+			const endFrame = Math.min(leftEnd, rightEnd);
+			if (endFrame <= startFrame) continue;
+			const thirdClipActive = ordered.some((candidate, candidateIndex) => {
+				if (candidateIndex === leftIndex || candidateIndex === rightIndex) return false;
+				const candidateStart = candidate.timelineStartFrame;
+				const candidateEnd = candidateStart + candidate.durationFrames;
+				return candidateStart < endFrame && candidateEnd > startFrame;
+			});
+			const valid = leftStart < rightStart && leftEnd < rightEnd && !thirdClipActive;
+			if (!valid) {
+				invalid = true;
+				invalidClipIds.add(left.id);
+				invalidClipIds.add(right.id);
+			}
+			const visibleStartFrame = Math.max(startFrame, overscanStartFrame);
+			const visibleEndFrame = Math.min(endFrame, overscanEndFrame);
+			if (visibleEndFrame <= visibleStartFrame) continue;
+			overlaps.push({
+				id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
+				left: CLIP_CONTENT_OFFSET
+					+ (visibleStartFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
+				width: Math.max(2, (visibleEndFrame - visibleStartFrame) / sampleRate * pixelsPerSecond),
+				valid,
+				label: valid
+					? `Automatic crossfade between ${left.title || left.id} and ${right.title || right.id}`
+					: `Invalid video overlap between ${left.title || left.id} and ${right.title || right.id}`,
+			});
+		}
+	}
+	return {
+		invalid,
+		invalidClipIds,
+		overlays: overlaps,
+	};
+}
+
 function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSecond, sampleRate) {
 	const ordered = clips
 		.filter((clip) => !clip.isRecordingPreview && clip.isVisible)
@@ -3353,8 +3482,9 @@ function AutomaticCrossfadeOverlays({ overlays }) {
 	return overlays.map((overlay) => (
 		<div
 			key={overlay.id}
-			className="audio-editor-automatic-crossfade"
-			data-automatic-crossfade="true"
+			className={`audio-editor-automatic-crossfade${overlay.valid === false ? ' audio-editor-automatic-crossfade--invalid' : ''}`}
+			data-automatic-crossfade={overlay.valid === false ? undefined : 'true'}
+			data-invalid-video-overlap={overlay.valid === false ? 'true' : undefined}
 			style={{ left: overlay.left, width: overlay.width }}
 			role="img"
 			aria-label={overlay.label}
@@ -4601,6 +4731,45 @@ function secondsDeltaToFrames(seconds, sampleRate = 48_000) {
 	const value = Number(seconds);
 	if (!Number.isFinite(value) || value === 0) return 0;
 	return secondsToFrames(Math.abs(value), { sampleRate }) * Math.sign(value);
+}
+
+function compatibleMediaTrack(project, requestedTrackId, clipKind) {
+	const requested = project?.tracks.find((track) => track.id === requestedTrackId);
+	if (!requested || !Array.isArray(requested.clipIds)) return null;
+	if (!clipKind || requested.type === clipKind) return requested;
+	if (!requested.laneGroupId) return null;
+	return project.tracks.find((track) => (
+		track.type === clipKind && track.laneGroupId === requested.laneGroupId
+	)) || null;
+}
+
+function mediaTrackBlockBounds(tracks, trackId) {
+	const index = tracks.findIndex((track) => track.id === trackId);
+	if (index < 0) return null;
+	const laneGroupId = tracks[index].laneGroupId;
+	if (!laneGroupId) return { start: index, end: index };
+	const indexes = tracks
+		.map((track, trackIndex) => track.laneGroupId === laneGroupId ? trackIndex : -1)
+		.filter((trackIndex) => trackIndex >= 0);
+	return {
+		start: Math.min(...indexes),
+		end: Math.max(...indexes),
+	};
+}
+
+function moveMediaTrackBlock(controller, tracks, trackId, direction) {
+	const bounds = mediaTrackBlockBounds(tracks, trackId);
+	if (!bounds) return null;
+	const destination = direction === 'top'
+		? 0
+		: direction === 'bottom'
+			? tracks.length - 1
+			: direction === 'up'
+				? Math.max(0, bounds.start - 1)
+				: direction === 'down'
+					? Math.min(tracks.length - 1, bounds.end + 1)
+					: bounds.start;
+	return controller.actions.track.reorder(trackId, destination);
 }
 
 function trackVisualHeight(track, showArmControls = false) {

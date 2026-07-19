@@ -1,6 +1,6 @@
 import {
 	isVisibleVideoTrack,
-	resolveVideoTimelineSegments,
+	resolveVideoCompositionIntervals,
 	videoClipEndFrame,
 } from './video-timeline.js';
 
@@ -106,7 +106,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const range = resolveExportRange(project, options.range || 'project');
 	if (range.durationFrames <= 0) throw new RangeError('Video export range must contain at least one frame.');
 	const canvas = resolveVideoExportCanvas(project, options.canvas || {});
-	const timelineSegments = resolveVideoTimelineSegments(project, {
+	const compositionIntervals = resolveVideoCompositionIntervals(project, {
 		startFrame: range.startFrame,
 		endFrame: range.endFrame,
 		blackColor: canvas.backgroundColor,
@@ -115,17 +115,21 @@ export function createVideoExportPlan(project, options = {}) {
 	});
 	const inputs = [];
 	const inputIndexBySourceId = new Map();
-	for (const segment of timelineSegments) {
-		if (segment.kind !== 'video' || inputIndexBySourceId.has(segment.sourceId)) continue;
-		const inputIndex = inputs.length;
-		inputIndexBySourceId.set(segment.sourceId, inputIndex);
-		inputs.push(Object.freeze({
-			kind: 'video-source',
-			inputIndex,
-			sourceId: segment.sourceId,
-			storageKey: segment.source.storageKey,
-			mimeType: segment.source.mimeType,
-		}));
+	for (const interval of compositionIntervals) {
+		for (const layer of interval.layers) {
+			for (const clip of layer.clips) {
+				if (inputIndexBySourceId.has(clip.sourceId)) continue;
+				const inputIndex = inputs.length;
+				inputIndexBySourceId.set(clip.sourceId, inputIndex);
+				inputs.push(Object.freeze({
+					kind: 'video-source',
+					inputIndex,
+					sourceId: clip.sourceId,
+					storageKey: clip.source.storageKey,
+					mimeType: clip.source.mimeType,
+				}));
+			}
+		}
 	}
 
 	const includeAudio = options.includeAudio !== false;
@@ -142,36 +146,42 @@ export function createVideoExportPlan(project, options = {}) {
 		: null;
 	if (audioInput) inputs.push(audioInput);
 
-	const segments = timelineSegments.map((segment, index) => Object.freeze({
+	const intervals = compositionIntervals.map((interval, index) => Object.freeze({
 		index,
-		kind: segment.kind,
-		timelineStartFrame: segment.timelineStartFrame,
-		timelineEndFrame: segment.timelineEndFrame,
-		outputStartFrame: segment.timelineStartFrame - range.startFrame,
-		durationFrames: segment.durationFrames,
-		durationSeconds: segment.durationFrames / projectSampleRate,
-		...(segment.kind === 'black'
-			? { color: segment.color }
-			: {
-				trackId: segment.trackId,
-				clipId: segment.clipId,
-				sourceId: segment.sourceId,
-				inputIndex: inputIndexBySourceId.get(segment.sourceId),
-				sourceStartFrame: segment.sourceStartFrame,
-				sourceEndFrame: segment.sourceEndFrame,
-				sourceStartTimeSeconds: segment.sourceStartTimeSeconds,
-				sourceEndTimeSeconds: segment.sourceEndTimeSeconds,
-				playbackRate: segment.playbackRate,
-			}),
+		kind: interval.kind,
+		timelineStartFrame: interval.timelineStartFrame,
+		timelineEndFrame: interval.timelineEndFrame,
+		outputStartFrame: interval.timelineStartFrame - range.startFrame,
+		durationFrames: interval.durationFrames,
+		durationSeconds: interval.durationFrames / projectSampleRate,
+		...(interval.kind === 'black' ? { color: interval.color } : {}),
+		layers: interval.layers.map((layer) => Object.freeze({
+			trackId: layer.trackId,
+			trackIndex: layer.trackIndex,
+			clips: layer.clips.map((clip) => Object.freeze({
+				role: clip.role,
+				clipId: clip.clipId,
+				sourceId: clip.sourceId,
+				inputIndex: inputIndexBySourceId.get(clip.sourceId),
+				sourceStartFrame: clip.sourceStartFrame,
+				sourceEndFrame: clip.sourceEndFrame,
+				sourceDurationFrames: clip.sourceDurationFrames,
+				sourceStartTimeSeconds: clip.sourceStartTimeSeconds,
+				sourceEndTimeSeconds: clip.sourceEndTimeSeconds,
+				playbackRate: clip.playbackRate,
+				opacityStart: clip.opacityStart,
+				opacityEnd: clip.opacityEnd,
+			})),
+		})),
 	}));
-	const filterPlan = createFilterPlan(segments, canvas, projectSampleRate, {
+	const filterPlan = createFilterPlan(intervals, canvas, projectSampleRate, {
 		audioInput,
 		format,
 	});
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 1,
+		version: 2,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,
@@ -188,66 +198,86 @@ export function createVideoExportPlan(project, options = {}) {
 		outputFrameCount: Math.max(1, Math.ceil(durationSeconds * canvas.frameRate)),
 		canvas,
 		inputs,
-		segments,
+		intervals,
 		filterPlan,
 	});
 }
 
-function createFilterPlan(segments, canvas, projectSampleRate, options) {
-	const filters = segments.map((segment) => {
-		const outputLabel = `video_segment_${segment.index}`;
-		if (segment.kind === 'black') {
-			return {
-				kind: 'color',
-				segmentIndex: segment.index,
-				outputLabel,
-				color: segment.color,
-				width: canvas.width,
-				height: canvas.height,
-				frameRate: canvas.frameRate,
-				durationSeconds: segment.durationSeconds,
-			};
-		}
-		return {
-			kind: 'input',
-			segmentIndex: segment.index,
-			inputIndex: segment.inputIndex,
-			outputLabel,
-			operations: [
-				{
-					name: 'trim',
-					startSeconds: segment.sourceStartTimeSeconds,
-					endSeconds: segment.sourceEndTimeSeconds,
-				},
-				{
-					name: 'setpts',
-					origin: 'PTS-STARTPTS',
-					playbackRate: segment.playbackRate,
-					multiplier: 1 / segment.playbackRate,
-				},
-				{
-					name: 'scale',
-					width: canvas.width,
-					height: canvas.height,
-					forceOriginalAspectRatio: 'decrease',
-				},
-				{
-					name: 'pad',
-					width: canvas.width,
-					height: canvas.height,
-					x: '(ow-iw)/2',
-					y: '(oh-ih)/2',
-					color: canvas.backgroundColor,
-				},
-				{ name: 'fps', frameRate: canvas.frameRate },
-				{ name: 'setsar', value: 1 },
-			],
-		};
-	});
+function createFilterPlan(intervals, canvas, projectSampleRate, options) {
+	const filters = intervals.map((interval) => ({
+		kind: interval.kind,
+		intervalIndex: interval.index,
+		outputLabel: `video_interval_${interval.index}`,
+		durationSeconds: interval.durationSeconds,
+		base: {
+			name: 'color',
+			color: interval.color || canvas.backgroundColor,
+			width: canvas.width,
+			height: canvas.height,
+			frameRate: canvas.frameRate,
+			pixelFormat: 'rgba',
+		},
+		layers: interval.layers.map((layer, layerIndex) => ({
+			trackId: layer.trackId,
+			trackIndex: layer.trackIndex,
+			outputLabel: `video_interval_${interval.index}_track_${layerIndex}`,
+			clips: layer.clips.map((clip, clipIndex) => ({
+				clipId: clip.clipId,
+				sourceId: clip.sourceId,
+				inputIndex: clip.inputIndex,
+				role: clip.role,
+				opacityStart: clip.opacityStart,
+				opacityEnd: clip.opacityEnd,
+				outputLabel: `video_interval_${interval.index}_track_${layerIndex}_clip_${clipIndex}`,
+				operations: [
+					{
+						name: 'trim',
+						startSeconds: clip.sourceStartTimeSeconds,
+						endSeconds: clip.sourceEndTimeSeconds,
+					},
+					{
+						name: 'setpts',
+						origin: 'PTS-STARTPTS',
+						playbackRate: clip.playbackRate,
+						multiplier: 1 / clip.playbackRate,
+					},
+					{
+						name: 'scale',
+						width: canvas.width,
+						height: canvas.height,
+						forceOriginalAspectRatio: 'decrease',
+					},
+					{ name: 'format', pixelFormat: 'rgba' },
+					{
+						name: 'pad',
+						width: canvas.width,
+						height: canvas.height,
+						x: '(ow-iw)/2',
+						y: '(oh-ih)/2',
+						color: 'black@0',
+					},
+					{ name: 'fps', frameRate: canvas.frameRate },
+					{ name: 'setsar', value: 1 },
+				],
+			})),
+			blend: layer.clips.length === 2
+				? {
+					name: 'blend',
+					opacityStart: layer.clips.map((clip) => clip.opacityStart),
+					opacityEnd: layer.clips.map((clip) => clip.opacityEnd),
+				}
+				: null,
+		})),
+		overlays: interval.layers.map((layer) => ({
+			name: 'overlay',
+			trackId: layer.trackId,
+			alpha: 'premultiplied',
+		})),
+	}));
 	return {
-		strategy: 'timeline-segments',
+		strategy: 'layered-composition',
 		backgroundColor: canvas.backgroundColor,
-		segments: filters,
+		intervals: filters,
 		concat: {
 			name: 'concat',
 			inputLabels: filters.map((filter) => filter.outputLabel),
