@@ -36,6 +36,11 @@ import {
 	validateAudioEditorProject,
 } from '../src/lib/tools/audio-editor/index.js';
 import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
+import {
+	createAudioClipV4,
+	createAudioEditorProjectV4,
+	createAudioSourceV4,
+} from '../src/lib/tools/audio-editor/project-v4.js';
 
 const NOW = '2026-07-12T10:00:00.000Z';
 
@@ -83,6 +88,111 @@ test('audio editor projects use a normalized, frame-accurate v2 document', () =>
 	assert.throws(() => apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'bad', sourceId: 'source-1', timelineStartFrame: 0.5, sourceStartFrame: 0, durationFrames: 100,
 	} }), /safe integer greater than or equal to 0/);
+});
+
+test('Project Bin media replacement preserves spacing or contracts shortened instances atomically', () => {
+	const oldSource = createAudioSourceV4({
+		id: 'bin-old-source',
+		name: 'old.wav',
+		storageKey: 'bin-old-source',
+		frameCount: 48_000,
+		channelCount: 1,
+		sampleRate: 48_000,
+	});
+	const laterSource = createAudioSourceV4({
+		id: 'later-source',
+		name: 'later.wav',
+		storageKey: 'later-source',
+		frameCount: 4_800,
+		channelCount: 1,
+		sampleRate: 48_000,
+	});
+	const replacementSource = createAudioSourceV4({
+		id: 'bin-new-source',
+		name: 'new.wav',
+		storageKey: 'bin-new-source',
+		frameCount: 24_000,
+		channelCount: 1,
+		sampleRate: 48_000,
+	});
+	const binClip = createAudioClipV4({
+		id: 'bin-template',
+		sourceId: oldSource.id,
+		title: 'Reusable take',
+		color: 'green',
+		sourceStartFrame: 0,
+		sourceDurationFrames: 48_000,
+		durationFrames: 48_000,
+		binItemId: 'bin-template',
+	});
+	const timelineClip = createAudioClipV4({
+		id: 'timeline-instance',
+		sourceId: oldSource.id,
+		title: 'Edited instance',
+		color: 'red',
+		timelineStartFrame: 0,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 48_000,
+		durationFrames: 48_000,
+		fadeOutFrames: 30_000,
+	});
+	const laterClip = createAudioClipV4({
+		id: 'later-clip',
+		sourceId: laterSource.id,
+		timelineStartFrame: 60_000,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 4_800,
+		durationFrames: 4_800,
+	});
+	const project = createAudioEditorProjectV4({
+		id: 'replacement-project',
+		now: NOW,
+		sources: [oldSource, laterSource],
+		clips: [timelineClip, laterClip],
+		tracks: [{
+			type: 'audio',
+			id: 'replacement-track',
+			name: 'Replacement track',
+			clipIds: [timelineClip.id, laterClip.id],
+		}],
+		projectBin: { clips: [binClip] },
+	});
+	const replacementTemplate = createAudioClipV4({
+		id: 'staged-template',
+		sourceId: replacementSource.id,
+		title: replacementSource.name,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 24_000,
+		durationFrames: 24_000,
+		binItemId: 'staged-template',
+	});
+	const replace = (shortfallMode) => apply(project, {
+		type: 'batch',
+		commands: [{
+			type: 'source/add',
+			source: replacementSource,
+		}, {
+			type: 'project-bin/replace-media',
+			clipId: binClip.id,
+			replacements: [{ oldSourceId: oldSource.id, newSourceId: replacementSource.id }],
+			templates: [replacementTemplate],
+			shortfallMode,
+		}],
+	});
+
+	const spaced = replace('keep-spacing');
+	assert.equal(findClip(spaced, timelineClip.id).durationFrames, 24_000);
+	assert.equal(findClip(spaced, timelineClip.id).fadeOutFrames, 24_000);
+	assert.equal(findClip(spaced, laterClip.id).timelineStartFrame, 60_000);
+	assert.equal(spaced.projectBin.clips[0].sourceId, replacementSource.id);
+	assert.equal(spaced.projectBin.clips[0].title, 'Reusable take');
+	assert.equal(spaced.projectBin.clips[0].color, 'green');
+	assert.equal(spaced.sources.some((source) => source.id === oldSource.id), false);
+
+	const contracted = replace('contract-gaps');
+	assert.equal(findClip(contracted, timelineClip.id).durationFrames, 24_000);
+	assert.equal(findClip(contracted, laterClip.id).timelineStartFrame, 36_000);
+	assert.equal(validateAudioEditorProject(contracted), true);
 });
 
 test('V2 clip commands preserve layered overlaps and source bounds while moving and trimming', () => {

@@ -2195,7 +2195,8 @@
 	border-radius: 5px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__project-bin-video img {
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-video img,
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-video video {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -2308,9 +2309,74 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__project-bin-card-actions {
 	display: flex;
-	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
 	gap: 5px;
 	padding: 0 4px 2px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-card-actions-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-icon-button {
+	display: inline-grid;
+	width: 27px;
+	height: 25px;
+	padding: 0;
+	place-items: center;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-icon-button:hover:not(:disabled) {
+	color: var(--kw-editor-accent);
+	background: color-mix(in srgb, var(--kw-editor-accent) 10%, var(--kw-editor-panel));
+	border-color: color-mix(in srgb, var(--kw-editor-accent) 55%, var(--kw-editor-line));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-icon-button:focus-visible {
+	outline: 2px solid var(--kw-editor-accent);
+	outline-offset: 1px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-icon-button:disabled {
+	opacity: .42;
+	cursor: not-allowed;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-ibeam {
+	position: relative;
+	display: block;
+	width: 10px;
+	height: 15px;
+	border-top: 2px solid currentcolor;
+	border-bottom: 2px solid currentcolor;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-ibeam::after {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 4px;
+	width: 2px;
+	content: '';
+	background: currentcolor;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-confirm {
+	width: min(460px, calc(100vw - 32px));
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-confirm p {
+	margin: 0;
+	line-height: 1.5;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-bin-empty {

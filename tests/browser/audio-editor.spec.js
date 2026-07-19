@@ -1813,10 +1813,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await name.press('Enter');
 		await expect(name).toHaveValue('Reusable browser tone');
 
-		await card.getByRole('button', { name: 'Add to timeline', exact: true }).click();
+		await card.getByRole('button', { name: /Add to timeline/ }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
-		await card.getByRole('button', { name: /Delete from Project bin/ }).click();
+		await card.getByRole('button', { name: /More file actions/ }).click();
+		await page.getByRole('menuitem', { name: 'Remove from Project bin', exact: true }).click();
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(0);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
@@ -1833,6 +1834,51 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.locator('[data-import-input]').setInputFiles([toneB]);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await expect(clipByName(editor, toneB.name)).toBeVisible();
+	});
+
+	test('exposes Project bin icon controls, source selection, preview, replacement, and project removal', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const projectBin = editor.locator('[data-project-bin-drop-target]');
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
+		const card = projectBin.locator('[data-project-bin-item]').first();
+		const add = card.getByRole('button', { name: /Add to timeline/ });
+		const selectInstances = card.getByRole('button', { name: /Select all instances/ });
+		const preview = card.getByRole('button', { name: /^Play:/ });
+		const more = card.getByRole('button', { name: /More file actions/ });
+
+		await expect(add).toBeVisible();
+		await expect(selectInstances).toBeDisabled();
+		await expect(preview).toBeVisible();
+		await expect(more).toBeVisible();
+		const [moreBox, addBox] = await Promise.all([more.boundingBox(), add.boundingBox()]);
+		expect(moreBox.x).toBeLessThan(addBox.x);
+
+		await preview.click();
+		await expect(card.getByRole('button', { name: /^Pause:/ })).toHaveAttribute('aria-pressed', 'true');
+		await card.getByRole('button', { name: /^Pause:/ }).click();
+		await expect(card.getByRole('button', { name: /^Play:/ })).toHaveAttribute('aria-pressed', 'false');
+
+		await add.click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(selectInstances).toBeEnabled();
+		await selectInstances.click();
+		await expect(clipByName(editor, toneA.name).locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+
+		await more.click();
+		const fileChooserPromise = page.waitForEvent('filechooser');
+		await page.getByRole('menuitem', { name: 'Replace', exact: true }).click();
+		const fileChooser = await fileChooserPromise;
+		await fileChooser.setFiles(toneB);
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+
+		await more.click();
+		await page.getByRole('menuitem', { name: 'Remove from project', exact: true }).click();
+		const dialog = page.locator('[data-project-bin-remove-dialog]');
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Remove from project', exact: true }).click();
+		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(0);
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
 	});
 
 	test('reveals the Project bin for context moves and supports atomic pointer moves with Escape cancellation', async ({ page }) => {

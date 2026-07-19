@@ -464,6 +464,20 @@ test('controller moves transformed selections through the reusable project bin a
 	assert.equal(snapshot.selectedClipId, placedClipId);
 	assert.equal(snapshot.selectedTrackId, firstTrackId);
 
+	assert.equal(controller.actions.projectBin.setColor('project-bin-first', 'green'), 'green');
+	snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.projectBin.clips.find((clip) => clip.id === 'project-bin-first').color, 'green');
+	assert.equal(snapshot.project.clips.find((clip) => clip.id === placedClipId).color, 'magenta');
+	assert.equal(controller.actions.projectBin.instanceCount('project-bin-first'), 1);
+	assert.deepEqual(controller.actions.projectBin.selectInstances('project-bin-first'), [placedClipId]);
+	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, [placedClipId]);
+	assert.deepEqual(controller.actions.projectBin.removeFromProject('project-bin-first'), [placedClipId]);
+	snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.clips.length, 0);
+	assert.equal(snapshot.project.projectBin.clips.length, 0);
+	assert.equal(snapshot.project.sources.some((source) => source.id === 'project-bin-source'), false);
+	controller.actions.edit.undo();
+
 	assert.equal(controller.actions.projectBin.remove('project-bin-second'), 'project-bin-second');
 	assert.deepEqual(controller.getSnapshot().project.projectBin.clips.map((clip) => clip.id), ['project-bin-first']);
 	controller.actions.edit.undo();

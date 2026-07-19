@@ -306,6 +306,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		leadInRecording: false,
 		importing: false,
+		projectBinPreview: null,
 		recordingSourceId: null,
 		recordingStartFrame: 0,
 		recordingSourceOffsetFrames: 0,
@@ -420,6 +421,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let microphoneMeterTargetKey = null;
 	let routedInputLoudnessMeter = null;
 	let routedInputLoudnessMeterKey = null;
+	let projectBinPreviewEngine = null;
+	const projectBinReplacementStages = new Map();
 	let removeDeviceChangeListener = () => {};
 	let project = null;
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
@@ -498,6 +501,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.projectLock = null;
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await state.outputCleanup?.();
+			await stopProjectBinPreview({ dispose: true });
+			for (const token of [...projectBinReplacementStages.keys()]) {
+				await cancelProjectBinReplacement(token);
+			}
 			ffmpeg.dispose();
 			aup4Client?.dispose();
 			aup4Client = null;
@@ -576,6 +583,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			selectedClipId: state.selectedClipId,
 			selection,
 			transportState: state.transportState,
+			projectBinPreview: state.projectBinPreview
+				? Object.freeze({ ...state.projectBinPreview })
+				: null,
 			playbackOptions: Object.freeze({
 				rate: state.playAtSpeedRate,
 				mode: state.preferences.playback?.playAtSpeedMode || 'naive',
@@ -894,7 +904,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 				moveFromTimeline: moveClipsToProjectBin,
 				place: placeProjectBinClip,
 				rename: renameProjectBinClip,
+				setColor: setProjectBinClipColor,
 				remove: removeProjectBinClip,
+				removeFromBin: removeProjectBinClip,
+				removeFromProject: removeProjectBinSource,
+				selectInstances: selectProjectBinInstances,
+				instanceCount: projectBinInstanceCount,
+				prepareReplacement: prepareProjectBinReplacement,
+				applyReplacement: applyProjectBinReplacement,
+				cancelReplacement: cancelProjectBinReplacement,
+				playPause: playPauseProjectBinClip,
+				stopPreview: stopProjectBinPreview,
 				getVisualData: getProjectBinClipVisualData,
 			}),
 			video: Object.freeze({
@@ -2163,6 +2183,282 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!findProjectBinClip(project, clipId)) throw new Error(copy.audioClipNotFound);
 		commit({ type: 'project-bin/remove', clipId });
 		return clipId;
+	}
+
+	function setProjectBinClipColor(clipId, color) {
+		if (editingBlocked()) return null;
+		if (!findProjectBinClip(project, clipId)) throw new Error(copy.audioClipNotFound);
+		if (!AUDIO_EDITOR_TRACK_COLORS.includes(color)) throw new RangeError('Unsupported Project Bin color.');
+		commit({ type: 'project-bin/update', clipId, changes: { color } });
+		return color;
+	}
+
+	function projectBinSourceIds(clipId, snapshot = project) {
+		const clip = findProjectBinClip(snapshot, clipId);
+		if (!clip) throw new Error(copy.audioClipNotFound);
+		const itemClips = snapshot.schemaVersion >= 4
+			? projectBinClips(snapshot).filter((candidate) => candidate.binItemId === clip.binItemId)
+			: [clip];
+		return new Set(itemClips.map((candidate) => candidate.sourceId));
+	}
+
+	function projectBinInstanceIds(clipId, snapshot = project) {
+		const sourceIds = projectBinSourceIds(clipId, snapshot);
+		return snapshot.clips
+			.filter((clip) => sourceIds.has(clip.sourceId))
+			.map((clip) => clip.id);
+	}
+
+	function projectBinInstanceCount(clipId) {
+		return projectBinInstanceIds(clipId).length;
+	}
+
+	function selectProjectBinInstances(clipId) {
+		const clipIds = collectRelatedClipIds(project, projectBinInstanceIds(clipId));
+		if (!clipIds.length) return Object.freeze([]);
+		const trackIds = [...new Set(clipIds
+			.map((id) => findClipTrack(project, id)?.id)
+			.filter(Boolean))];
+		state.selectedClipId = clipIds[0] || null;
+		state.selectedTrackId = trackIds[0] || null;
+		updateSelection({
+			type: 'selection/set',
+			startFrame: 0,
+			endFrame: 0,
+			trackIds,
+			clipIds,
+			frequencyRange: null,
+		});
+		return Object.freeze(clipIds);
+	}
+
+	function removeProjectBinSource(clipId) {
+		if (editingBlocked()) return null;
+		const instanceIds = projectBinInstanceIds(clipId);
+		commit({ type: 'project-bin/remove-from-project', clipId }, {
+			selectClipId: null,
+		});
+		return Object.freeze(instanceIds);
+	}
+
+	async function prepareProjectBinReplacement(clipId, file) {
+		if (!file || editingBlocked()) return null;
+		const target = findProjectBinClip(project, clipId);
+		if (!target) throw new Error(copy.audioClipNotFound);
+		const baseHistory = state.history;
+		const baseProject = project;
+		state.importing = true;
+		publishDocumentSnapshot();
+		let result;
+		let importedProject;
+		try {
+			result = await importFile(file, normalizeImportOptions({ destination: 'project-bin' }));
+			importedProject = project;
+		} finally {
+			state.history = baseHistory;
+			project = baseProject;
+			state.importing = false;
+			projectChanged();
+			publishDocumentSnapshot();
+		}
+		if (!result || !importedProject) return null;
+		const importedClip = findProjectBinClip(importedProject, result.clipId);
+		const importedItemClips = importedClip && importedProject.schemaVersion >= 4
+			? importedProject.projectBin.clips.filter((clip) => clip.binItemId === importedClip.binItemId)
+			: importedClip ? [importedClip] : [];
+		const targetItemClips = baseProject.schemaVersion >= 4
+			? baseProject.projectBin.clips.filter((clip) => clip.binItemId === target.binItemId)
+			: [target];
+		const importedKinds = importedItemClips.map((clip) => clip.kind || 'audio').sort();
+		const targetKinds = targetItemClips.map((clip) => clip.kind || 'audio').sort();
+		const importedSources = importedItemClips.map((clip) => findSource(importedProject, clip.sourceId)).filter(Boolean);
+		if (JSON.stringify(importedKinds) !== JSON.stringify(targetKinds) || importedSources.length !== targetItemClips.length) {
+			await discardImportedReplacement(importedSources);
+			throw new Error(copy.projectBinReplacementIncompatible || 'The replacement file is not compatible with this Project Bin item.');
+		}
+		const importedByKind = new Map(importedItemClips.map((clip) => [clip.kind || 'audio', clip]));
+		const replacements = targetItemClips.map((clip) => ({
+			oldSourceId: clip.sourceId,
+			newSourceId: importedByKind.get(clip.kind || 'audio').sourceId,
+		}));
+		const newSourceByOldId = new Map(replacements.map((entry) => [
+			entry.oldSourceId,
+			findSource(importedProject, entry.newSourceId),
+		]));
+		const sourceIds = new Set(replacements.map((entry) => entry.oldSourceId));
+		const affectedClips = [...baseProject.clips, ...baseProject.projectBin.clips]
+			.filter((clip) => sourceIds.has(clip.sourceId));
+		const shortenedClipIds = affectedClips.filter((clip) => {
+			const oldSource = findSource(baseProject, clip.sourceId);
+			const newSource = newSourceByOldId.get(clip.sourceId);
+			if (!oldSource || !newSource) return true;
+			const newRate = Math.max(1, newSource.sampleRate || baseProject.sampleRate);
+			const oldRate = Math.max(1, oldSource.sampleRate || baseProject.sampleRate);
+			const start = Math.round(clip.sourceStartFrame / oldRate * newRate);
+			const duration = Math.round(clip.sourceDurationFrames / oldRate * newRate);
+			return start + duration > newSource.frameCount;
+		}).map((clip) => clip.id);
+		const token = createStableId('project-bin-replacement');
+		projectBinReplacementStages.set(token, Object.freeze({
+			token,
+			projectId: baseProject.id,
+			baseProject,
+			clipId,
+			replacements: Object.freeze(replacements),
+			sources: Object.freeze(importedSources),
+			templates: Object.freeze(importedItemClips),
+			shortenedClipIds: Object.freeze(shortenedClipIds),
+		}));
+		return Object.freeze({
+			token,
+			requiresChoice: shortenedClipIds.some((id) => baseProject.clips.some((clip) => clip.id === id)),
+			shortenedClipIds: Object.freeze(shortenedClipIds),
+		});
+	}
+
+	function applyProjectBinReplacement(token, shortfallMode = 'keep-spacing') {
+		if (editingBlocked()) return null;
+		const stage = projectBinReplacementStages.get(token);
+		if (!stage) throw new Error('The staged Project Bin replacement is no longer available.');
+		if (project !== stage.baseProject || project.id !== stage.projectId) {
+			void cancelProjectBinReplacement(token);
+			throw new Error('The project changed before the replacement could be applied.');
+		}
+		const commands = [
+			...stage.sources.map((source) => createAddSourceCommand(source)),
+			{
+				type: 'project-bin/replace-media',
+				clipId: stage.clipId,
+				replacements: stage.replacements,
+				templates: stage.templates,
+				shortfallMode,
+			},
+		];
+		commit({ type: 'batch', commands });
+		projectBinReplacementStages.delete(token);
+		return stage.clipId;
+	}
+
+	async function cancelProjectBinReplacement(token) {
+		const stage = projectBinReplacementStages.get(token);
+		if (!stage) return false;
+		projectBinReplacementStages.delete(token);
+		await discardImportedReplacement(stage.sources);
+		return true;
+	}
+
+	async function discardImportedReplacement(sources) {
+		for (const source of sources || []) {
+			sourceBuffers.delete(source.id);
+			sourceChunkProviders.delete(source.id);
+			sourcePeaks.delete(source.id);
+			state.missingSourceIds.delete(source.id);
+			if (source.kind === 'video') {
+				revokeVideoVisual(source.id);
+				await store.deleteMediaAsset?.(source.id).catch(() => undefined);
+			} else {
+				await store.deleteSource(source.id).catch(() => undefined);
+			}
+		}
+	}
+
+	async function playPauseProjectBinClip(clipId) {
+		const clip = findProjectBinClip(project, clipId);
+		if (!clip) throw new Error(copy.audioClipNotFound);
+		const itemClips = project.schemaVersion >= 4
+			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
+			: [clip];
+		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') || null;
+		const active = state.projectBinPreview;
+		if (active?.clipId === clipId) {
+			if (active.state === 'playing') {
+				if (projectBinPreviewEngine) projectBinPreviewEngine.pause();
+				state.projectBinPreview = { ...active, state: 'paused' };
+				publishDocumentSnapshot();
+				return state.projectBinPreview;
+			}
+			if (videoClip) {
+				state.projectBinPreview = { ...active, state: 'playing' };
+				publishDocumentSnapshot();
+				return state.projectBinPreview;
+			}
+			await projectBinPreviewEngine?.play();
+			state.projectBinPreview = { ...active, state: 'playing' };
+			publishDocumentSnapshot();
+			return state.projectBinPreview;
+		}
+		await stopProjectBinPreview();
+		if (engine.getState().state === 'playing') engine.stop();
+		if (videoClip) {
+			const visual = getProjectBinClipVisualData(clipId);
+			state.projectBinPreview = {
+				clipId,
+				binItemId: clip.binItemId || clip.id,
+				state: 'playing',
+				kind: 'video',
+				mediaUrl: visual?.mediaUrl || null,
+			};
+			publishDocumentSnapshot();
+			return state.projectBinPreview;
+		}
+		const audioClip = itemClips.find((candidate) => candidate.kind !== 'video') || clip;
+		const source = findSource(project, audioClip.sourceId);
+		if (!source || state.missingSourceIds.has(source.id)) throw new Error(copy.localSourcesMissing);
+		projectBinPreviewEngine ||= renderEngineFactory({
+			onState: (previewState) => {
+				if (!state.projectBinPreview || previewState === 'playing') return;
+				state.projectBinPreview = { ...state.projectBinPreview, state: previewState === 'paused' ? 'paused' : 'stopped' };
+				publishDocumentSnapshot();
+			},
+		});
+		projectBinPreviewEngine.setSourceResolver?.(clipTimePitchSourceResolver);
+		const previewTrackId = createStableId('project-bin-preview-track');
+		const previewClip = {
+			...audioClip,
+			id: createStableId('project-bin-preview-clip'),
+			timelineStartFrame: 0,
+			groupId: null,
+			avLinkId: null,
+			binItemId: null,
+		};
+		const previewProject = createAudioEditorProjectV4({
+			title: 'Project Bin preview',
+			sampleRate: project.sampleRate,
+			sources: [source],
+			clips: [previewClip],
+			tracks: [{
+				type: 'audio',
+				id: previewTrackId,
+				name: previewClip.title,
+				clipIds: [previewClip.id],
+				armed: false,
+			}],
+			projectBin: { clips: [] },
+		});
+		projectBinPreviewEngine.loadProject(previewProject, sourceBuffers, { chunkSources: sourceChunkProviders });
+		state.projectBinPreview = {
+			clipId,
+			binItemId: clip.binItemId || clip.id,
+			state: 'playing',
+			kind: 'audio',
+		};
+		publishDocumentSnapshot();
+		await projectBinPreviewEngine.play();
+		return state.projectBinPreview;
+	}
+
+	async function stopProjectBinPreview({ dispose = false } = {}) {
+		if (projectBinPreviewEngine) {
+			projectBinPreviewEngine.stop?.();
+			if (dispose) {
+				await projectBinPreviewEngine.dispose?.();
+				projectBinPreviewEngine = null;
+			}
+		}
+		const changed = Boolean(state.projectBinPreview);
+		state.projectBinPreview = null;
+		if (changed && !state.disposed) publishDocumentSnapshot();
+		return changed;
 	}
 
 	async function importFiles(fileList, requestedOptions = {}) {
@@ -4464,6 +4760,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function handleTransport(action) {
 		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
 			&& action !== 'stop' && action !== 'record') return;
+		if ((action === 'play' || action === 'record') && state.projectBinPreview) {
+			await stopProjectBinPreview();
+		}
 		if (hasMissingTimelineSources() && action === 'play') throw new Error(copy.localSourcesMissing);
 		if (action === 'play') {
 			cancelPlayAtSpeedPreparation();
@@ -5853,6 +6152,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function projectChanged(options = {}) {
+		if (state.projectBinPreview) void stopProjectBinPreview();
 		compactLiveSourceState(true);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		const normalizedRouting = normalizeRecordingRouting(state.recordingRouting, project.tracks);
@@ -9159,6 +9459,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			&& state.timedRecording?.generation === options.timedGeneration;
 		if (state.readOnly || state.recordingStarting || state.recordingStartPromise || state.recorder
 			|| (!timedStart && (state.timedRecordingPreparing || state.timedRecording))) return;
+		if (state.projectBinPreview) void stopProjectBinPreview();
 		const token = Object.freeze({
 			generation: ++state.recordingStartGeneration,
 			projectId: project?.id,

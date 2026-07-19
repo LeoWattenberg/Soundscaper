@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import readmeMarkdown from '../../../../README.md?raw';
 import {
 	Button,
+	ContextMenu,
 	ContextMenuItem,
 	DialogHeader,
 	DialogSideNav,
@@ -62,6 +63,7 @@ import {
 	playbackMeterPercent,
 } from '../../../lib/tools/audio-editor/playback-meter.js';
 import { projectDurationFrames } from '../../../lib/tools/audio-editor/project.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../../lib/tools/audio-editor/project-v2.js';
 import { resolveActiveVideoLayers } from '../../../lib/tools/audio-editor/video-timeline.js';
 import {
 	getNyquistPlugin,
@@ -4289,8 +4291,13 @@ function VideoPreviewClip({
 
 function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
+	const replacementInputRef = useRef(null);
 	const dragDepthRef = useRef(0);
 	const [dropActive, setDropActive] = useState(false);
+	const [itemMenu, setItemMenu] = useState(null);
+	const [replacementClipId, setReplacementClipId] = useState(null);
+	const [replacementChoice, setReplacementChoice] = useState(null);
+	const [removeConfirmation, setRemoveConfirmation] = useState(null);
 	const project = snapshot.project;
 	const clips = project?.projectBin?.clips || [];
 	const items = projectBinItems(clips);
@@ -4304,6 +4311,7 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
+	const menuItem = items.find((item) => item.id === itemMenu?.itemId) || null;
 
 	const importFiles = (files) => {
 		if (mutationBlocked || !files.length) return undefined;
@@ -4329,8 +4337,33 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 		setDropActive(false);
 		element?.removeAttribute('data-drop-active');
 	};
+	const openReplacementPicker = (clipId) => {
+		setItemMenu(null);
+		setReplacementClipId(clipId);
+		replacementInputRef.current?.click();
+	};
+	const stageReplacement = async (clipId, file) => {
+		const prepared = await controller.actions.projectBin.prepareReplacement(clipId, file);
+		if (!prepared) return;
+		if (prepared.requiresChoice) {
+			setReplacementChoice(prepared);
+			return;
+		}
+		controller.actions.projectBin.applyReplacement(prepared.token, 'keep-spacing');
+	};
+	const cancelReplacementChoice = () => {
+		const token = replacementChoice?.token;
+		setReplacementChoice(null);
+		if (token) run(() => controller.actions.projectBin.cancelReplacement(token));
+	};
+	const applyReplacementChoice = (shortfallMode) => {
+		const token = replacementChoice?.token;
+		setReplacementChoice(null);
+		if (token) run(() => controller.actions.projectBin.applyReplacement(token, shortfallMode));
+	};
 
 	return (
+		<>
 		<div
 			className="kw-audio-editor__project-bin"
 			data-project-bin-drop-target
@@ -4382,6 +4415,22 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 					if (files.length) run(() => importFiles(files));
 				}}
 			/>
+			<input
+				ref={replacementInputRef}
+				className="kw-audio-editor__file-input"
+				data-project-bin-replacement-input
+				aria-label={copy.projectBinReplace}
+				type="file"
+				tabIndex={-1}
+				accept={AUDIO_EDITOR_AUDIO_FILE_ACCEPT}
+				onChange={(event) => {
+					const file = event.currentTarget.files?.[0] || null;
+					event.currentTarget.value = '';
+					const clipId = replacementClipId;
+					setReplacementClipId(null);
+					if (file && clipId) run(() => stageReplacement(clipId, file));
+				}}
+			/>
 			<div className="kw-audio-editor__project-bin-import" data-project-bin-import>
 				<div aria-hidden="true" className="kw-audio-editor__project-bin-import-icon">＋</div>
 				<p>
@@ -4415,7 +4464,16 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 							missing={item.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
 							selectedMediaTrack={selectedMediaTrack}
 							positionFrame={positionFrame}
+							preview={snapshot.projectBinPreview}
 							run={run}
+							onOpenMenu={(event) => {
+								const rect = event.currentTarget.getBoundingClientRect();
+								setItemMenu({
+									itemId: item.id,
+									x: rect.left,
+									y: rect.bottom + 4,
+								});
+							}}
 							onDragEnd={(element) => resetDropState(element)}
 						/>
 					))}
@@ -4426,6 +4484,92 @@ function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run,
 				</p>
 			)}
 		</div>
+		<ContextMenu
+			isOpen={Boolean(itemMenu && menuItem)}
+			x={itemMenu?.x || 0}
+			y={itemMenu?.y || 0}
+			autoFocus
+			onClose={() => setItemMenu(null)}
+			className="kw-audio-editor__project-bin-menu"
+		>
+			<ContextMenuItem label={copy.clipColor} hasSubmenu onClose={() => setItemMenu(null)}>
+				{AUDIO_EDITOR_TRACK_COLORS.map((color) => (
+					<ContextMenuItem
+						key={color}
+						label={projectBinColorName(copy, color)}
+						checked={menuItem?.primaryClip.color === color}
+						disabled={mutationBlocked}
+						onClick={() => {
+							if (menuItem) run(() => controller.actions.projectBin.setColor(menuItem.primaryClip.id, color));
+						}}
+						onClose={() => setItemMenu(null)}
+					/>
+				))}
+			</ContextMenuItem>
+			<ContextMenuItem isDivider />
+			<ContextMenuItem
+				label={copy.projectBinRemoveFromBin}
+				disabled={mutationBlocked}
+				onClick={() => menuItem && run(() => controller.actions.projectBin.removeFromBin(menuItem.primaryClip.id))}
+				onClose={() => setItemMenu(null)}
+			/>
+			<ContextMenuItem
+				label={copy.projectBinRemoveFromProject}
+				disabled={mutationBlocked}
+				onClick={() => {
+					if (menuItem) setRemoveConfirmation({
+						clipId: menuItem.primaryClip.id,
+						name: menuItem.primaryClip.title || copy.clip,
+						count: controller.actions.projectBin.instanceCount(menuItem.primaryClip.id),
+					});
+				}}
+				onClose={() => setItemMenu(null)}
+			/>
+			<ContextMenuItem
+				label={copy.projectBinReplace}
+				disabled={mutationBlocked || !menuItem || menuItem.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
+				onClick={() => menuItem && openReplacementPicker(menuItem.primaryClip.id)}
+				onClose={() => setItemMenu(null)}
+			/>
+		</ContextMenu>
+		{removeConfirmation && (
+			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
+				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
+					<DialogHeader title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
+					<div className="kw-audio-editor-dialog__body">
+						<p id="project-bin-remove-title">
+							{copy.projectBinRemoveConfirm
+								.replace('{name}', removeConfirmation.name)
+								.replace('{count}', String(removeConfirmation.count))}
+						</p>
+						<div className="kw-audio-editor-dialog__actions">
+							<Button variant="secondary" onClick={() => setRemoveConfirmation(null)}>{copy.cancel}</Button>
+							<Button variant="primary" onClick={() => {
+								const clipId = removeConfirmation.clipId;
+								setRemoveConfirmation(null);
+								run(() => controller.actions.projectBin.removeFromProject(clipId));
+							}}>{copy.projectBinRemoveFromProject}</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		)}
+		{replacementChoice && (
+			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-replacement-dialog>
+				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-replacement-title">
+					<DialogHeader title={copy.projectBinReplacementShortTitle} onClose={cancelReplacementChoice} />
+					<div className="kw-audio-editor-dialog__body">
+						<p id="project-bin-replacement-title">{copy.projectBinReplacementShortMessage}</p>
+						<div className="kw-audio-editor-dialog__actions">
+							<Button variant="secondary" onClick={cancelReplacementChoice}>{copy.cancel}</Button>
+							<Button variant="secondary" onClick={() => applyReplacementChoice('keep-spacing')}>{copy.projectBinKeepSpacing}</Button>
+							<Button variant="primary" onClick={() => applyReplacementChoice('contract-gaps')}>{copy.projectBinContractGaps}</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		)}
+		</>
 	);
 }
 
@@ -4442,9 +4586,12 @@ function ProjectBinCard({
 	missing,
 	selectedMediaTrack,
 	positionFrame,
+	preview,
 	run,
+	onOpenMenu,
 	onDragEnd,
 }) {
+	const videoRef = useRef(null);
 	let visual = null;
 	try {
 		visual = controller.actions.projectBin.getVisualData(clip.id);
@@ -4462,6 +4609,32 @@ function ProjectBinCard({
 	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
 	const posterUrl = visual?.posterUrl || visual?.thumbnails?.[0]?.url || null;
+	const previewActive = preview?.clipId === clip.id;
+	const previewPlaying = previewActive && preview.state === 'playing';
+	const instanceCount = controller.actions.projectBin.instanceCount(clip.id);
+	const videoSource = videoClip
+		? sources[itemClips.indexOf(videoClip)] || project?.sources?.find((candidate) => candidate.id === videoClip.sourceId)
+		: null;
+	const videoStartSeconds = videoClip && videoSource
+		? videoClip.sourceStartFrame / Math.max(1, videoSource.sampleRate || project?.sampleRate || 48_000)
+		: 0;
+	const videoEndSeconds = videoClip && videoSource
+		? (videoClip.sourceStartFrame + videoClip.sourceDurationFrames) / Math.max(1, videoSource.sampleRate || project?.sampleRate || 48_000)
+		: 0;
+
+	useEffect(() => {
+		const media = videoRef.current;
+		if (!media) return;
+		if (!previewActive) {
+			media.pause();
+			return;
+		}
+		if (Math.abs(media.currentTime - videoStartSeconds) > .1 && (media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds)) {
+			media.currentTime = videoStartSeconds;
+		}
+		if (previewPlaying) void media.play().catch(() => controller.actions.projectBin.stopPreview());
+		else media.pause();
+	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds]);
 
 	return (
 		<li
@@ -4497,7 +4670,23 @@ function ProjectBinCard({
 					aria-label={`${copy.videoClip}: ${name}`}
 					role="img"
 				>
-					{posterUrl
+					{previewActive && visual?.mediaUrl ? (
+						<video
+							ref={videoRef}
+							src={visual.mediaUrl}
+							poster={posterUrl || undefined}
+							playsInline
+							preload="metadata"
+							onTimeUpdate={(event) => {
+								if (videoEndSeconds && event.currentTarget.currentTime >= videoEndSeconds) {
+									event.currentTarget.pause();
+									event.currentTarget.currentTime = videoStartSeconds;
+									run(() => controller.actions.projectBin.stopPreview());
+								}
+							}}
+							onEnded={() => run(() => controller.actions.projectBin.stopPreview())}
+						/>
+					) : posterUrl
 						? <img src={posterUrl} alt="" draggable="false" />
 						: <span aria-hidden="true">▶</span>}
 					<span>{itemClips.some((itemClip) => itemClip.kind === 'audio') ? copy.videoHasAudio : copy.videoSilent}</span>
@@ -4539,24 +4728,51 @@ function ProjectBinCard({
 					</p>
 				)}
 				<div className="kw-audio-editor__project-bin-card-actions">
-					<Button
-						variant="secondary"
+					<button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button kw-audio-editor__project-bin-overflow"
+						aria-label={`${copy.projectBinMoreActions}: ${name}`}
+						title={copy.projectBinMoreActions}
+						onClick={onOpenMenu}
+					>
+						<Icon name="menu" size={15} />
+					</button>
+					<div className="kw-audio-editor__project-bin-card-actions-right">
+					<button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
 						disabled={disabled}
+						aria-label={`${copy.projectBinAddToTimeline}: ${name}`}
+						title={copy.projectBinAddToTimeline}
 						onClick={() => run(() => controller.actions.projectBin.place(clip.id, {
 							...(selectedMediaTrack ? { trackId: selectedMediaTrack.id } : {}),
 							timelineStartFrame: positionFrame,
 						}))}
 					>
-						{copy.projectBinAddToTimeline}
-					</Button>
-					<Button
-						variant="secondary"
-						disabled={mutationBlocked}
-						aria-label={`${copy.projectBinDelete}: ${name}`}
-						onClick={() => run(() => controller.actions.projectBin.remove(clip.id))}
+						<Icon name="plus" size={15} />
+					</button>
+					<button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
+						disabled={mutationBlocked || instanceCount === 0}
+						aria-label={`${copy.projectBinSelectInstances}: ${name}`}
+						title={copy.projectBinSelectInstances}
+						onClick={() => run(() => controller.actions.projectBin.selectInstances(clip.id))}
 					>
-						{copy.projectBinDelete}
-					</Button>
+						<span className="kw-audio-editor__project-bin-ibeam" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
+						disabled={unavailable}
+						aria-label={`${previewPlaying ? copy.pause : copy.play}: ${name}`}
+						title={previewPlaying ? copy.pause : copy.play}
+						aria-pressed={previewPlaying}
+						onClick={() => run(() => controller.actions.projectBin.playPause(clip.id))}
+					>
+						<Icon name={previewPlaying ? 'pause' : 'play'} size={15} />
+					</button>
+					</div>
 				</div>
 			</div>
 		</li>
@@ -4576,6 +4792,11 @@ function projectBinItems(clips) {
 		clips: Object.freeze(itemClips),
 		primaryClip: itemClips.find((clip) => clip.kind === 'video') || itemClips[0],
 	}));
+}
+
+function projectBinColorName(copy, color) {
+	const key = `color${color.charAt(0).toUpperCase()}${color.slice(1)}`;
+	return copy[key] || color;
 }
 
 function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
@@ -6932,7 +7153,7 @@ function createApplicationMenus({
 						...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
 					],
 				},
-				{ id: 'show-arm-controls', label: copy.enableMultiTrackRecording, checked: showArmControls, onClick: actions.toggleArmControls },
+				{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
 				{ id: 'show-rms', label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 				{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },

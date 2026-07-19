@@ -140,6 +140,12 @@ function mutateCommand(project, command) {
 		case 'project-bin/remove':
 			removeProjectBinClip(project, command.clipId);
 			break;
+		case 'project-bin/remove-from-project':
+			removeProjectBinSourceFromProject(project, command.clipId);
+			break;
+		case 'project-bin/replace-media':
+			replaceProjectBinMedia(project, command);
+			break;
 		case 'track/add':
 			addTrack(project, command.track, command.index);
 			break;
@@ -463,12 +469,15 @@ function updateProjectBinClip(project, clipId, changes = {}) {
 	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
 		throw new TypeError('Project-bin clip changes must be an object.');
 	}
-	const allowed = new Set(['title']);
+	const allowed = new Set(['title', 'color']);
 	for (const key of Object.keys(changes)) {
 		if (!allowed.has(key)) throw new RangeError(`Project-bin clip field cannot be updated: ${key}.`);
 	}
 	if (Object.hasOwn(changes, 'title') && (typeof changes.title !== 'string' || !changes.title.trim())) {
 		throw new TypeError('A project-bin clip title is required.');
+	}
+	if (Object.hasOwn(changes, 'color') && (typeof changes.color !== 'string' || !changes.color.trim())) {
+		throw new TypeError('A project-bin clip color is required.');
 	}
 	const itemIds = new Set(project.schemaVersion >= 4
 		? projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId).map((candidate) => candidate.id)
@@ -493,6 +502,174 @@ function removeProjectBinClip(project, clipId) {
 		return;
 	}
 	projectBin.clips = projectBin.clips.filter((candidate) => candidate.id !== clipId);
+}
+
+function removeProjectBinSourceFromProject(project, clipId) {
+	const projectBin = requireProjectBin(project);
+	const clip = requireProjectBinClip(project, clipId);
+	const itemClips = project.schemaVersion >= 4
+		? projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId)
+		: [clip];
+	const sourceIds = new Set(itemClips.map((candidate) => candidate.sourceId));
+	const timelineIds = collectRelatedClipIds(
+		project,
+		project.clips.filter((candidate) => sourceIds.has(candidate.sourceId)).map((candidate) => candidate.id),
+	);
+	if (timelineIds.length) removeClips(project, timelineIds);
+	projectBin.clips = projectBin.clips.filter((candidate) => !sourceIds.has(candidate.sourceId));
+	for (const sourceId of sourceIds) {
+		const inUse = [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
+		if (!inUse) project.sources = project.sources.filter((source) => source.id !== sourceId);
+	}
+}
+
+function replaceProjectBinMedia(project, command) {
+	const projectBin = requireProjectBin(project);
+	const target = requireProjectBinClip(project, command.clipId);
+	const replacements = Array.isArray(command.replacements) ? command.replacements : [];
+	if (!replacements.length) throw new TypeError('Project Bin replacement mappings are required.');
+	if (!['keep-spacing', 'contract-gaps'].includes(command.shortfallMode)) {
+		throw new RangeError(`Unsupported Project Bin replacement mode: ${command.shortfallMode}.`);
+	}
+	const replacementBySourceId = new Map(replacements.map((entry) => {
+		const oldSource = requireSource(project, entry.oldSourceId);
+		const newSource = requireSource(project, entry.newSourceId);
+		if ((oldSource.kind || 'audio') !== (newSource.kind || 'audio')) {
+			throw new RangeError('Project Bin replacement media kinds must match.');
+		}
+		return [oldSource.id, { oldSource, newSource }];
+	}));
+	const targetItemId = target.binItemId || target.id;
+	const newTemplates = Array.isArray(command.templates)
+		? command.templates.map((clip) => normalizeClipForProject(project, clip))
+		: [];
+	if (newTemplates.length !== replacements.length) {
+		throw new RangeError('Every replacement source needs a Project Bin template.');
+	}
+	const templateByKind = new Map(newTemplates.map((clip) => [clip.kind || 'audio', clip]));
+	const targetTitle = target.title;
+	const targetColor = target.color;
+	const removedDurationsByTrack = new Map();
+	const removedTimelineIds = new Set();
+
+	project.clips = project.clips.flatMap((clip) => {
+		const replacement = replacementBySourceId.get(clip.sourceId);
+		if (!replacement) return [clip];
+		const next = remapReplacementClip(project, clip, replacement.oldSource, replacement.newSource);
+		if (!next) {
+			removedTimelineIds.add(clip.id);
+			recordReplacementContraction(project, clip, clip.durationFrames, removedDurationsByTrack);
+			return [];
+		}
+		const reduction = clip.durationFrames - next.durationFrames;
+		if (reduction > 0) recordReplacementContraction(project, clip, reduction, removedDurationsByTrack);
+		return [next];
+	});
+	for (const track of project.tracks) {
+		if (!Array.isArray(track.clipIds)) continue;
+		track.clipIds = track.clipIds.filter((clipId) => !removedTimelineIds.has(clipId));
+	}
+
+	projectBin.clips = projectBin.clips.flatMap((clip) => {
+		const replacement = replacementBySourceId.get(clip.sourceId);
+		if (!replacement) return [clip];
+		const itemId = clip.binItemId || clip.id;
+		if (itemId === targetItemId) {
+			const template = templateByKind.get(clip.kind || 'audio');
+			if (!template) return [];
+			return [normalizeClipForProject(project, {
+				...template,
+				...clip,
+				id: clip.id,
+				sourceId: template.sourceId,
+				sourceStartFrame: template.sourceStartFrame,
+				sourceDurationFrames: template.sourceDurationFrames,
+				durationFrames: template.durationFrames,
+				title: targetTitle,
+				color: targetColor,
+				fadeInFrames: Math.min(clip.fadeInFrames || 0, template.durationFrames),
+				fadeOutFrames: Math.min(clip.fadeOutFrames || 0, template.durationFrames),
+				envelope: (clip.envelope || []).filter((point) => point.frame <= template.durationFrames),
+				trimStartFrames: Math.min(clip.trimStartFrames || 0, template.sourceStartFrame),
+				trimEndFrames: Math.min(
+					clip.trimEndFrames || 0,
+					Math.max(0, replacement.newSource.frameCount - template.sourceStartFrame - template.sourceDurationFrames),
+				),
+				groupId: null,
+				...(project.schemaVersion >= 4 ? {
+					avLinkId: null,
+					binItemId: clip.binItemId,
+				} : {}),
+			})];
+		}
+		const next = remapReplacementClip(project, clip, replacement.oldSource, replacement.newSource);
+		return next ? [{
+			...next,
+			groupId: null,
+			...(project.schemaVersion >= 4 ? { avLinkId: null, binItemId: clip.binItemId } : {}),
+		}] : [];
+	});
+
+	if (command.shortfallMode === 'contract-gaps') {
+		for (const track of project.tracks) {
+			if (!Array.isArray(track.clipIds)) continue;
+			const contractions = removedDurationsByTrack.get(track.id) || [];
+			if (!contractions.length) continue;
+			for (const clipId of track.clipIds) {
+				const clip = requireClip(project, clipId);
+				const shift = contractions.reduce((sum, entry) => (
+					clip.timelineStartFrame >= entry.endFrame ? sum + entry.frames : sum
+				), 0);
+				if (shift > 0) replaceClip(project, normalizeClipForProject(project, {
+					...clip,
+					timelineStartFrame: Math.max(0, clip.timelineStartFrame - shift),
+					id: clip.id,
+				}));
+			}
+			sortTrack(project, track);
+		}
+	}
+
+	for (const { oldSource } of replacementBySourceId.values()) {
+		const inUse = [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
+		if (!inUse) project.sources = project.sources.filter((source) => source.id !== oldSource.id);
+	}
+}
+
+function remapReplacementClip(project, clip, oldSource, newSource) {
+	const oldRate = Math.max(1, Number(oldSource.sampleRate) || project.sampleRate);
+	const newRate = Math.max(1, Number(newSource.sampleRate) || project.sampleRate);
+	const sourceStartFrame = Math.max(0, Math.round(clip.sourceStartFrame / oldRate * newRate));
+	if (sourceStartFrame >= newSource.frameCount) return null;
+	const requestedSourceDuration = Math.max(1, Math.round(clip.sourceDurationFrames / oldRate * newRate));
+	const sourceDurationFrames = Math.min(requestedSourceDuration, newSource.frameCount - sourceStartFrame);
+	const durationFrames = Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / requestedSourceDuration));
+	return normalizeClipForProject(project, {
+		...clip,
+		sourceId: newSource.id,
+		sourceStartFrame,
+		sourceDurationFrames,
+		durationFrames,
+		fadeInFrames: Math.min(clip.fadeInFrames || 0, durationFrames),
+		fadeOutFrames: Math.min(clip.fadeOutFrames || 0, durationFrames),
+		envelope: (clip.envelope || []).filter((point) => point.frame <= durationFrames),
+		trimStartFrames: Math.min(clip.trimStartFrames || 0, sourceStartFrame),
+		trimEndFrames: Math.min(
+			clip.trimEndFrames || 0,
+			Math.max(0, newSource.frameCount - sourceStartFrame - sourceDurationFrames),
+		),
+		id: clip.id,
+	});
+}
+
+function recordReplacementContraction(project, clip, frames, contractionsByTrack) {
+	const track = requireClipTrack(project, clip.id);
+	const contractions = contractionsByTrack.get(track.id) || [];
+	contractions.push({
+		endFrame: clip.timelineStartFrame + clip.durationFrames,
+		frames,
+	});
+	contractionsByTrack.set(track.id, contractions);
 }
 
 function addTrack(project, value, requestedIndex) {
