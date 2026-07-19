@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import readmeMarkdown from '../../../../README.md?raw';
 import {
 	Button,
 	ContextMenuItem,
@@ -6300,9 +6301,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 					)}
 					{type === 'about' && (
 						<>
-							<p>{copy.intro}</p>
-							<p>{copy.privacy}</p>
-							<p><code>{copy.audacityParityRevision.replace('{revision}', AUDACITY_ACTION_SOURCE.commit)}</code></p>
+							<pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit' }}>{readmeMarkdown}</pre>
 							<div className="kw-audio-editor-dialog__actions"><Button onClick={onClose}>{copy.close}</Button></div>
 						</>
 					)}
@@ -6904,14 +6903,22 @@ function createApplicationMenus({
 					label: copy.panels,
 					items: [
 						{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel },
-						...WORKSPACE_PANEL_IDS.map((panelId) => ({
-							id: `panel-${panelId}`,
-							label: workspacePanelLabel(copy, panelId),
-							checked: panelId === 'project-bin'
-								? projectBinEffectivelyOpen
-								: preferences.workspace.panels[panelId].visible,
-							onClick: () => actions.togglePanel(panelId),
-						})),
+						...WORKSPACE_PANEL_IDS.map((panelId) => panelId === 'effects'
+							? {
+								id: 'show-effects',
+								label: copy.showEffects,
+								checked: effectsPanelOpen,
+								disabled: !selectedAudioTrack,
+								onClick: actions.openEffects,
+							}
+							: {
+								id: `panel-${panelId}`,
+								label: workspacePanelLabel(copy, panelId),
+								checked: panelId === 'project-bin'
+									? projectBinEffectivelyOpen
+									: preferences.workspace.panels[panelId].visible,
+								onClick: () => actions.togglePanel(panelId),
+							}),
 					],
 				},
 				{
@@ -6925,19 +6932,13 @@ function createApplicationMenus({
 						...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
 					],
 				},
-				{ id: 'show-effects', label: copy.showEffects, checked: effectsPanelOpen, disabled: !selectedAudioTrack, onClick: actions.openEffects },
-				{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
+				{ id: 'show-arm-controls', label: copy.enableMultiTrackRecording, checked: showArmControls, onClick: actions.toggleArmControls },
 				{ id: 'show-rms', label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 				{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },
 				{ id: 'show-master-track', label: copy.masterTrack, checked: uiFlags.masterTrack },
 				{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar },
 				divider(),
-				{ id: 'waveform-view', label: copy.waveformView, checked: snapshot.timeline?.view === 'waveform', onClick: () => actions.setTimelineView('waveform') },
-				{ id: 'action://trackedit/global-view-spectrogram', label: copy.spectrogramView, checked: snapshot.timeline?.view === 'spectrogram', onClick: () => actions.setTimelineView(snapshot.timeline?.view === 'spectrogram' ? 'waveform' : 'spectrogram') },
-				{ id: 'toggle-update-display-while-playing', label: copy.updateDisplayWhilePlaying, checked: snapshot.timeline?.updateDisplayWhilePlaying !== false, onClick: actions.toggleUpdateWhilePlaying },
-				{ id: 'toggle-pinned-play-head', label: copy.pinnedPlayhead, checked: Boolean(snapshot.timeline?.pinnedPlayhead), onClick: actions.togglePinnedPlayhead },
-				{ id: 'toggle-playback-on-ruler-click-enabled', label: copy.playbackOnRulerClick, checked: snapshot.timeline?.playbackOnRulerClick !== false, onClick: actions.toggleRulerPlayback },
 				createSnapMenu(copy, project, editBlocked, actions.setSnap),
 				{
 					id: 'zoom',
