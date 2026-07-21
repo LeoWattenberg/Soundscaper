@@ -566,9 +566,13 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 	const visibleSourceEnd = endFrame * sourceSamplesPerTimelineFrame;
 	const visibleSourceSamples = frameCount * sourceSamplesPerTimelineFrame;
 	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
+	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
 	const level = selectWaveformPeakLevel(levels, sourceSamplesPerPixel);
 	const minimum = new Float32Array(columnCount);
 	const maximum = new Float32Array(columnCount);
+	const rms = level.rms && pixelsPerSample > 0 && audacityWaveformMode(pixelsPerSample) === 'summary'
+		? new Float32Array(columnCount)
+		: null;
 	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
@@ -609,12 +613,13 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 		}
 		minimum[column] = bucketMinimum;
 		maximum[column] = bucketMaximum;
+		if (rms) rms[column] = Math.abs(range.rms * scale);
 	}
 
 	const rendering = {
 		mode: 'summary',
 		pixelWidth,
-		pixelsPerSample: visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0,
+		pixelsPerSample,
 		startFrame,
 		endFrame,
 		frameCount,
@@ -622,7 +627,7 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 		channels: Array.from({ length: channelCount }, (_, channel) => ({
 			minimum: channel ? minimum.slice() : minimum,
 			maximum: channel ? maximum.slice() : maximum,
-			rms: null,
+			rms: channel && rms ? rms.slice() : rms,
 		})),
 	};
 	if (!frameCount) {
@@ -705,6 +710,7 @@ function validateWaveformPeakLevels(peaks) {
 		const blockSize = positiveSafeInteger(level.blockSize, 'peak level blockSize');
 		const minimums = level.minimums;
 		const maximums = level.maximums;
+		const rms = level.rms;
 		if (
 			(!Array.isArray(minimums) && !ArrayBuffer.isView(minimums))
 			|| (!Array.isArray(maximums) && !ArrayBuffer.isView(maximums))
@@ -714,7 +720,13 @@ function validateWaveformPeakLevels(peaks) {
 		if (!minimums.length || minimums.length !== maximums.length) {
 			throw new RangeError('Waveform peak extrema must be non-empty equally sized arrays.');
 		}
-		return { blockSize, minimums, maximums };
+		if (rms != null && (
+			(!Array.isArray(rms) && !ArrayBuffer.isView(rms))
+			|| rms.length !== minimums.length
+		)) {
+			throw new RangeError('Waveform RMS values must match the peak extrema.');
+		}
+		return { blockSize, minimums, maximums, rms: rms || null };
 	});
 	if (!levels.length) throw new RangeError('peaks.levels must contain at least one level.');
 	return levels.sort((left, right) => left.blockSize - right.blockSize);
@@ -741,11 +753,14 @@ function aggregateWaveformPeakRange(level, absoluteStart, absoluteEnd) {
 	}
 	let minimum = Number.POSITIVE_INFINITY;
 	let maximum = Number.NEGATIVE_INFINITY;
+	let squareSum = 0;
 	for (let block = startBlock; block < endBlock; block += 1) {
 		minimum = Math.min(minimum, finiteWaveformSample(level.minimums[block]));
 		maximum = Math.max(maximum, finiteWaveformSample(level.maximums[block]));
+		const blockRms = finiteWaveformSample(level.rms?.[block]);
+		squareSum += blockRms * blockRms;
 	}
-	return { minimum, maximum };
+	return { minimum, maximum, rms: Math.sqrt(squareSum / (endBlock - startBlock)) };
 }
 
 function maximumFadeEnvelope(startFrame, endFrame, durationFrames, fadeInFrames, fadeOutFrames) {

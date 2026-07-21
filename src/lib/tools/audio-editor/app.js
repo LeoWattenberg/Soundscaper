@@ -1835,7 +1835,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
-					if (!peaks?.levels) {
+					if (!waveformPeaksHaveRms(peaks)) {
 						peaks = await generateStoredWaveformPeaks(store, source, copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
@@ -1843,7 +1843,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					const buffer = sourceBuffers.get(source.id) || await readStoredAudioBuffer(store, source, context);
 					if (!buffer) continue;
 					cacheSourceBuffer(source.id, buffer);
-					if (!peaks?.levels) {
+					if (!waveformPeaksHaveRms(peaks)) {
 						peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
@@ -10742,7 +10742,7 @@ async function generateStoredWaveformPeaks(store, source, copy) {
 		}
 		worker.postMessage({ type: 'finish' });
 		const message = await waitForAnalysisWorker(worker, 'result', copy);
-		return { version: 1, levels: message.levels };
+		return { version: 2, levels: message.levels };
 	} finally {
 		worker.terminate();
 	}
@@ -10754,6 +10754,8 @@ async function generateStoredWaveformPeaksFallback(store, source) {
 		blockSize,
 		minimums: new Float32Array(Math.ceil(source.frameCount / blockSize)).fill(1),
 		maximums: new Float32Array(Math.ceil(source.frameCount / blockSize)).fill(-1),
+		squareSums: new Float64Array(Math.ceil(source.frameCount / blockSize)),
+		counts: new Uint32Array(Math.ceil(source.frameCount / blockSize)),
 	}));
 	let frameOffset = 0;
 	for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
@@ -10765,12 +10767,24 @@ async function generateStoredWaveformPeaksFallback(store, source) {
 				const block = Math.floor(absoluteFrame / level.blockSize);
 				level.minimums[block] = Math.min(level.minimums[block], sample);
 				level.maximums[block] = Math.max(level.maximums[block], sample);
+				level.squareSums[block] += sample * sample;
+				level.counts[block] += 1;
 			}
 		}
 		frameOffset += chunk.frames;
 	}
 	if (frameOffset !== source.frameCount) throw new Error('The stored audio source frame count does not match its metadata.');
-	return { version: 1, levels };
+	return {
+		version: 2,
+		levels: levels.map(({ blockSize, minimums, maximums, squareSums, counts }) => ({
+			blockSize,
+			minimums,
+			maximums,
+			rms: Float32Array.from(squareSums, (squareSum, block) => (
+				counts[block] ? Math.sqrt(squareSum / counts[block]) : 0
+			)),
+		})),
+	};
 }
 
 async function canonicalizeBuffer(input, context, targetSampleRate = AUDIO_EDITOR_SAMPLE_RATE, copy) {
@@ -10900,7 +10914,7 @@ async function generateWaveformPeaks(channels, copy, chunkFrames = 65_536) {
 		}
 		worker.postMessage({ type: 'finish' });
 		const message = await waitForAnalysisWorker(worker, 'result', copy);
-		return { version: 1, levels: message.levels };
+		return { version: 2, levels: message.levels };
 	} finally {
 		worker.terminate();
 	}
@@ -10908,26 +10922,37 @@ async function generateWaveformPeaks(channels, copy, chunkFrames = 65_536) {
 function generateWaveformPeaksFallback(channels) {
 	const blockSizes = [64, 256, 1_024, 4_096, 16_384, 65_536];
 	return {
-		version: 1,
+		version: 2,
 		levels: blockSizes.map((blockSize) => {
 			const count = Math.ceil((channels[0]?.length || 0) / blockSize);
 			const minimums = new Float32Array(count);
 			const maximums = new Float32Array(count);
+			const rms = new Float32Array(count);
 			for (let block = 0; block < count; block += 1) {
 				let minimum = 1;
 				let maximum = -1;
+				let squareSum = 0;
+				let sampleCount = 0;
 				for (let frame = block * blockSize; frame < Math.min(channels[0].length, (block + 1) * blockSize); frame += 1) {
 					let sample = 0;
 					for (const channel of channels) sample += channel[frame] / channels.length;
 					minimum = Math.min(minimum, sample);
 					maximum = Math.max(maximum, sample);
+					squareSum += sample * sample;
+					sampleCount += 1;
 				}
 				minimums[block] = minimum;
 				maximums[block] = maximum;
+				rms[block] = sampleCount ? Math.sqrt(squareSum / sampleCount) : 0;
 			}
-			return { blockSize, minimums, maximums };
+			return { blockSize, minimums, maximums, rms };
 		}),
 	};
+}
+function waveformPeaksHaveRms(peaks) {
+	return Boolean(peaks?.levels?.length && peaks.levels.every((level) => (
+		level?.rms?.length === level?.minimums?.length
+	)));
 }
 function peakCacheKey(sourceId) { return `audio-editor-peaks-v1:${sourceId}`; }
 function waitForAnalysisWorker(worker, expectedType, copy) {

@@ -359,16 +359,19 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 				blockSize: 4,
 				minimums: Float32Array.from({ length: 32 }, (_, index) => -(index + 1) / 100),
 				maximums: Float32Array.from({ length: 32 }, (_, index) => (index + 1) / 100),
+				rms: Float32Array.from({ length: 32 }, (_, index) => (index + 1) / 200),
 			},
 			{
 				blockSize: 16,
 				minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1) / 10),
 				maximums: Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 10),
+				rms: Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 20),
 			},
 			{
 				blockSize: 64,
 				minimums: Float32Array.of(-0.9, -1),
 				maximums: Float32Array.of(0.9, 1),
+				rms: Float32Array.of(0.45, 0.5),
 			},
 		],
 	};
@@ -383,6 +386,25 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 	assert.equal(result.rendering.mode, 'summary');
 	assert.equal(result.rendering.peakBlockSize, 16);
 	assert.equal(result.rendering.channels.length, 2);
+	assert.ok(result.rendering.channels[0].rms, 'peak-only summaries retain RMS display data');
+	assert.equal(result.rendering.channels[0].rms.length, result.rendering.channels[0].minimum.length);
+	assert.deepEqual(
+		[...result.rendering.channels[1].rms],
+		[...result.rendering.channels[0].rms],
+		'stereo lanes retain the same RMS summary when the persisted peaks are mono',
+	);
+	assert.notDeepEqual(
+		[...result.rendering.channels[0].rms],
+		[...result.rendering.channels[0].maximum],
+		'RMS values remain distinct from peak extrema',
+	);
+	const zoomed = preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
+		pixelWidth: 128,
+		channelCount: 2,
+		sourceFrameCount: 128,
+	});
+	assert.equal(zoomed.rendering.channels[0].rms, null, 'RMS disappears at sample-level zoom');
+	assert.equal(zoomed.rendering.channels[1].rms, null, 'stereo RMS uses the same zoom cutoff');
 	assert.deepEqual(
 		[...result.rendering.channels[0].minimum].map((value) => Math.round(value * 10) / 10),
 		[-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8],
