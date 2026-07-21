@@ -86,7 +86,7 @@ const SPECTROGRAM_RULER_WIDTH = 56;
 const CLIP_HEADER_HEIGHT = 20;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
-const CLIP_HEADER_TRACK_RESIZE_HIT_HEIGHT = 4;
+const TRACK_HEADER_RESIZE_HIT_HEIGHT = 4;
 const MINIMUM_TRACK_HEIGHT = 40;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
@@ -909,13 +909,13 @@ export default function AudioEditorTimeline({
 			}
 		}
 		if (event.button !== 0 || mutationsBlocked) return;
-		const clipHeader = event.target.closest?.('.clip-header');
-		const resizeTrackRow = clipHeader?.closest?.('[data-track-row]');
-		if (clipHeader && resizeTrackRow?.dataset.collapsed !== 'true') {
-			const headerRect = clipHeader.getBoundingClientRect();
+		const trackHeader = event.target.closest?.('[data-track-header]');
+		const resizeTrackRow = trackHeader?.closest?.('[data-track-row]');
+		if (trackHeader && resizeTrackRow) {
+			const headerRect = trackHeader.getBoundingClientRect();
 			const distanceFromTop = event.clientY - headerRect.top;
 			const distanceFromBottom = headerRect.bottom - event.clientY;
-			if (Math.min(distanceFromTop, distanceFromBottom) <= CLIP_HEADER_TRACK_RESIZE_HIT_HEIGHT) {
+			if (Math.min(distanceFromTop, distanceFromBottom) <= TRACK_HEADER_RESIZE_HIT_HEIGHT) {
 				const trackId = resizeTrackRow.dataset.trackId;
 				const track = project.tracks.find((item) => item.id === trackId);
 				if (track) {
@@ -4765,7 +4765,7 @@ function LabelTrackRow({
 			data-collapsed="false"
 			style={{ height: trackHeight }}
 		>
-			<div className="audio-editor-label-track-controls" style={{ width: panelWidth }}>
+			<div className="audio-editor-label-track-controls" data-track-header style={{ width: panelWidth }}>
 				<div className="audio-editor-label-track-title">
 					<Icon name="label" size={16} aria-hidden="true" />
 					{editingName ? (

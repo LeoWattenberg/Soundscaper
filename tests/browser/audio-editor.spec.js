@@ -2145,20 +2145,27 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
 	});
 
-	test('resizes tracks from clip-header edges and caps their height to the timeline', async ({ page }) => {
+	test('resizes tracks from track-control-panel edges and caps their height to the timeline', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
 		const trackRow = clipHeader.locator('xpath=ancestor::*[@data-track-row][1]');
+		const trackHeader = trackRow.locator('[data-track-header]');
 		const timelineInner = editor.locator('.audio-editor-timeline-inner');
 		const [headerBounds, initialTrackBounds, timelineBounds] = await Promise.all([
-			clipHeader.boundingBox(),
+			trackHeader.boundingBox(),
 			trackRow.boundingBox(),
 			timelineInner.boundingBox(),
 		]);
 		expect(headerBounds).not.toBeNull();
 		expect(initialTrackBounds).not.toBeNull();
 		expect(timelineBounds).not.toBeNull();
+		const clipHeaderBounds = await clipHeader.boundingBox();
+		await page.mouse.move(clipHeaderBounds.x + clipHeaderBounds.width / 2, clipHeaderBounds.y + clipHeaderBounds.height - 1);
+		await page.mouse.down();
+		await page.mouse.move(clipHeaderBounds.x + clipHeaderBounds.width / 2, clipHeaderBounds.y + clipHeaderBounds.height + 16, { steps: 3 });
+		await page.mouse.up();
+		expect((await trackRow.boundingBox())?.height).toBe(initialTrackBounds.height);
 
 		const resizeX = headerBounds.x + headerBounds.width / 2;
 		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 1);
@@ -2167,7 +2174,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.up();
 		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeGreaterThan(initialTrackBounds.height + 40);
 
-		let resizedHeaderBounds = await clipHeader.boundingBox();
+		let resizedHeaderBounds = await trackHeader.boundingBox();
 		const grownTrackBounds = await trackRow.boundingBox();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + 1);
 		await page.mouse.down();
@@ -2175,7 +2182,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.up();
 		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThan(grownTrackBounds.height - 20);
 
-		resizedHeaderBounds = await clipHeader.boundingBox();
+		resizedHeaderBounds = await trackHeader.boundingBox();
 		const cappedTimelineBounds = await timelineInner.boundingBox();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 1);
 		await page.mouse.down();
@@ -2211,7 +2218,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
 		const resizedTrackRow = clipHeader.locator('xpath=ancestor::*[@data-track-row][1]');
-		const headerBounds = await clipHeader.boundingBox();
+		const trackHeader = resizedTrackRow.locator('[data-track-header]');
+		const headerBounds = await trackHeader.boundingBox();
 		const resizeX = headerBounds.x + headerBounds.width / 2;
 		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 1);
 		await page.mouse.down();
