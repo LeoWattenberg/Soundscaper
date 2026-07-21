@@ -3301,6 +3301,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await expect(clipByName(editor, toneA.name).locator('canvas.clip-body__waveform'))
+			.toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 
 		const rulerCanvas = editor.locator('[data-ruler] canvas.timeline-ruler');
 		await expect.poll(() => rulerCanvas.evaluate((canvas) => canvas.width / canvas.getBoundingClientRect().width)).toBeGreaterThanOrEqual(1);

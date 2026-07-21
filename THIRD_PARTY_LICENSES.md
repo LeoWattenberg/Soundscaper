@@ -154,6 +154,7 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; build scripts and upstream source references: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10>; a complete corresponding-source snapshot for the exact npm binary remains required by the release gate above
 - `@sqlite.org/sqlite-wasm` 3.53.0-build1 — official SQLite WebAssembly distribution; SQLite core is dedicated to the public domain; source and blessing: <https://sqlite.org/wasm/doc/trunk/index.md> and <https://sqlite.org/copyright.html>
 - `fflate` 0.8.3 — MIT; source: <https://github.com/101arrowz/fflate>
+- `pretty-fast-fft` 1.1.0 — MIT wrapper around the BSD-licensed PFFFT WebAssembly build; source: <https://github.com/stagas/pretty-fast-fft/tree/v1.1.0>, upstream PFFFT WebAssembly source: <https://github.com/JorenSix/pffft.wasm>
 - `sql.js` 1.14.1 — MIT; source: <https://github.com/sql-js/sql.js> (retained for unrelated legacy tools; AUP4 uses the official SQLite WASM package)
 
 `@dilsonspickles/components` bundles `MusescoreIcon.ttf` from

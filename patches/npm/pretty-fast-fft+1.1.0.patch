@@ -1,0 +1,20 @@
+diff --git a/node_modules/pretty-fast-fft/dist/esm/index.js b/node_modules/pretty-fast-fft/dist/esm/index.js
+index 3cb8063..f6d68b9 100644
+--- a/node_modules/pretty-fast-fft/dist/esm/index.js
++++ b/node_modules/pretty-fast-fft/dist/esm/index.js
+@@ -1,3 +1,3 @@
+-export * from './pretty-fast-fft';
++export * from './pretty-fast-fft.js';
+ 
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/node_modules/pretty-fast-fft/dist/esm/pretty-fast-fft.js b/node_modules/pretty-fast-fft/dist/esm/pretty-fast-fft.js
+index 0121242..5c84d24 100644
+--- a/node_modules/pretty-fast-fft/dist/esm/pretty-fast-fft.js
++++ b/node_modules/pretty-fast-fft/dist/esm/pretty-fast-fft.js
+@@ -1,4 +1,4 @@
+-import pffft from './vendor/pffft.simd';
++import pffft from './vendor/pffft.simd.js';
+ export async function createRunner(blockSize = 1024, stepSize = 128) {
+     const Module = await pffft();
+     const nDataBytes = blockSize * Float32Array.BYTES_PER_ELEMENT;

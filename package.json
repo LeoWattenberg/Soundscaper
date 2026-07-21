@@ -40,6 +40,7 @@
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
 		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
 		"audit:ebu-r128": "node scripts/audit-ebu-r128.mjs",
+		"benchmark:spectrogram": "node scripts/benchmark-spectrogram.mjs",
 		"deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name soundscaper",
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},
@@ -51,6 +52,7 @@
 		"@sqlite.org/sqlite-wasm": "3.53.0-build1",
 		"astro": "^7.1.1",
 		"fflate": "0.8.3",
+		"pretty-fast-fft": "1.1.0",
 		"react": "19.2.7",
 		"react-dom": "19.2.7",
 		"sql.js": "1.14.1"
