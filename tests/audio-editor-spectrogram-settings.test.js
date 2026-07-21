@@ -13,6 +13,15 @@ function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });
 }
 
+test('legacy spectrogram workspace panels are removed from normalized preferences', () => {
+	const preferences = createAudioEditorPreferencesV1({
+		workspace: {
+			panels: { spectrogram: { visible: true, dock: 'bottom', order: 0, size: 240 } },
+		},
+	});
+	assert.equal(Object.hasOwn(preferences.workspace.panels, 'spectrogram'), false);
+});
+
 test('spectrogram settings are stored per track while preferences remain new-track defaults', () => {
 	const defaults = createAudioEditorPreferencesV1({
 		spectrogram: {

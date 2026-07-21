@@ -3563,10 +3563,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Spectrogram']);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels']);
+		const panelsMenu = page.getByRole('menu', { name: 'Panels', exact: true });
+		await expect(panelsMenu.getByRole('menuitem', { name: 'Spectrogram', exact: true })).toHaveCount(0);
+		await page.keyboard.press('Escape');
 
-		const panel = editor.locator('[data-workspace-panel="spectrogram"]');
-		const settings = panel.locator('[data-spectrogram-settings]');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Spectrogram$/ }).click();
+		const settings = preferences.locator('[data-spectrogram-settings]');
 		await expect(settings).toBeVisible();
 		const targetTrackId = await settings.getAttribute('data-spectrogram-target');
 		expect(targetTrackId).not.toBe('defaults');
@@ -3582,14 +3587,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(targetLane).toHaveAttribute('data-spectrogram-maximum-frequency', '8000');
 		await expect(targetLane).toHaveAttribute('data-spectrogram-window-size', '4096');
 		await expect(targetLane).toHaveAttribute('data-spectrogram-range', '96');
-
-		const defaultTrackLane = editor.locator('.audio-editor-track-row [data-track-lane]').filter({ hasNot: editor.locator('[data-clip-id]') }).first();
-		await defaultTrackLane.click({ position: { x: 8, y: 54 } });
-		await expect(settings).toHaveAttribute('data-spectrogram-target', /^(?!defaults$).+/);
-		await expect(settings.getByLabel('Scale', { exact: true })).toHaveValue('mel');
-		await clipByName(editor, toneA.name).click({ position: { x: 24, y: 10 } });
-		await expect(settings).toHaveAttribute('data-spectrogram-target', targetTrackId);
-		await expect(settings.getByLabel('Scale', { exact: true })).toHaveValue('linear');
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(editor.locator('[data-workspace-panel="spectrogram"]')).toHaveCount(0);
 
 		const ruler = editor.locator('[data-ruler]');
 		const rulerBox = await ruler.boundingBox();

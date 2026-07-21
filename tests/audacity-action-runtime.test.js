@@ -84,6 +84,10 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		runtime.actions.panels.labels();
 		assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.visible, true);
 		assert.equal(uiController.getSnapshot().request.type, 'focus-panel');
+		runtime.actions.track.openSpectrogramSettings();
+		assert.equal(uiController.getSnapshot().request.type, 'open-surface');
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'preferences');
+		assert.equal(uiController.getSnapshot().request.payload.section, 'spectrogram');
 		assert.equal(runtime.actions.tools.toggleSplitTool(), true);
 		assert.equal(uiController.getSnapshot().flags.splitTool, true);
 		runtime.actions.track.setColor('#123456');

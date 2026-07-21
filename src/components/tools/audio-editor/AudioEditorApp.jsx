@@ -599,11 +599,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
 			const requestedSection = options?.section;
-			setPreferencesPage(requestedSection === 'workspace'
-				? 'workspace'
-				: requestedSection === 'snap' || requestedSection === 'editing'
-					? 'editing'
-					: 'shortcuts');
+			setPreferencesPage(['appearance', 'editing', 'workspace', 'panels', 'shortcuts', 'spectrogram'].includes(requestedSection)
+				? requestedSection
+				: requestedSection === 'snap' ? 'editing' : 'shortcuts');
 		}
 		setActiveSurface(surface);
 	}, []);
@@ -3235,7 +3233,6 @@ const WORKSPACE_PANEL_IDS = Object.freeze([
 	'metadata',
 	'effects',
 	'mixer',
-	'spectrogram',
 	'analysis',
 	'spectrum',
 	'clipping',
@@ -4072,63 +4069,7 @@ function WorkspacePanelContent({
 	if (panelId === 'mixer') {
 		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} />;
 	}
-	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio') || null;
-	const defaultSpectrogram = snapshot.preferences?.spectrogram || {};
-	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
-	const spectrogram = { ...defaultSpectrogram, ...(selectedTrack?.spectrogram || {}) };
-	const updateSpectrogram = (changes) => {
-		if (selectedTrack) {
-			return controller.actions.track.update(selectedTrack.id, {
-				spectrogram: { ...spectrogram, ...changes },
-			});
-		}
-		return controller.actions.preferences.update({
-			spectrogram: { ...defaultSpectrogram, ...changes },
-		});
-	};
-	const updateFrequency = (name, requestedValue) => {
-		const value = Number(requestedValue);
-		if (!Number.isFinite(value) || value < 0 || value > nyquist) return;
-		const next = { ...spectrogram, [name]: value };
-		if (next.maximumFrequency <= next.minimumFrequency) return;
-		run(() => updateSpectrogram({ [name]: value }));
-	};
-	return (
-		<div
-			className="kw-audio-editor__spectrogram-settings"
-			data-spectrogram-settings
-			data-spectrogram-target={selectedTrack ? selectedTrack.id : 'defaults'}
-		>
-			<p data-spectrogram-target-name>{selectedTrack?.name || copy.spectrogramDefaults}</p>
-			<Button
-				variant="secondary"
-				onClick={() => run(() => selectedTrack
-					? controller.actions.track.setSpectrogramView(selectedTrack.id)
-					: controller.actions.timeline.setView('spectrogram'))}
-			>{copy.spectrogramView}</Button>
-			<label><span>{copy.spectrogramScale}</span>
-				<select aria-label={copy.spectrogramScale} disabled={snapshot.readOnly} value={spectrogram.scale} onChange={(event) => run(() => updateSpectrogram({ scale: event.currentTarget.value }))}>
-					<option value="mel">{copy.spectrogramMel}</option><option value="linear">{copy.linear}</option><option value="log">{copy.logarithmic}</option>
-				</select>
-			</label>
-			<label><span>{copy.minimumFrequency}</span><input aria-label={copy.minimumFrequency} disabled={snapshot.readOnly} type="number" min="0" max={Math.max(0, spectrogram.maximumFrequency - 1)} step="1" value={spectrogram.minimumFrequency} onChange={(event) => updateFrequency('minimumFrequency', event.currentTarget.value)} /></label>
-			<label><span>{copy.maximumFrequency}</span><input aria-label={copy.maximumFrequency} disabled={snapshot.readOnly} type="number" min={Math.min(nyquist, spectrogram.minimumFrequency + 1)} max={nyquist} step="1" value={spectrogram.maximumFrequency} onChange={(event) => updateFrequency('maximumFrequency', event.currentTarget.value)} /></label>
-			<label><span>{copy.spectrogramRange}</span><input aria-label={copy.spectrogramRange} disabled={snapshot.readOnly} type="number" min="1" max="240" value={spectrogram.range} onChange={(event) => {
-				const value = Number(event.currentTarget.value);
-				if (Number.isFinite(value) && value >= 1 && value <= 240) run(() => updateSpectrogram({ range: value }));
-			}} /></label>
-			<label><span>{copy.spectrogramWindow}</span>
-				<select aria-label={copy.spectrogramWindow} disabled={snapshot.readOnly} value={spectrogram.windowSize} onChange={(event) => run(() => updateSpectrogram({ windowSize: Number(event.currentTarget.value) }))}>
-					{[512, 1024, 2048, 4096, 8192].map((value) => <option key={value} value={value}>{value}</option>)}
-				</select>
-			</label>
-			<label><span>{copy.spectrogramWindowType}</span>
-				<select aria-label={copy.spectrogramWindowType} disabled={snapshot.readOnly} value={spectrogram.windowType} onChange={(event) => run(() => updateSpectrogram({ windowType: event.currentTarget.value }))}>
-					<option value="hann">{copy.spectrogramWindowHann}</option><option value="hamming">{copy.spectrogramWindowHamming}</option><option value="blackman">{copy.spectrogramWindowBlackman}</option>
-				</select>
-			</label>
-		</div>
-	);
+	return null;
 }
 
 function VideoPreviewPanel({ controller, snapshot, copy }) {
@@ -5266,6 +5207,7 @@ function WorkspacePreferencesDialog({
 	const pages = [
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
+		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
 		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
@@ -5277,6 +5219,25 @@ function WorkspacePreferencesDialog({
 	const setAppearanceTheme = (theme) => run(() => controller.actions.preferences.setTheme(theme));
 	const renderedThemeIsDark = () => darkAppearanceTheme
 		|| (appearanceTheme === 'system' && document.documentElement.dataset.theme === 'dark');
+	const selectedSpectrogramTrack = snapshot.project?.tracks.find((track) => (
+		track.id === snapshot.selectedTrackId && track.type === 'audio'
+	)) || null;
+	const defaultSpectrogram = preferences.spectrogram;
+	const spectrogram = { ...defaultSpectrogram, ...(selectedSpectrogramTrack?.spectrogram || {}) };
+	const spectrogramSettingsDisabled = Boolean(selectedSpectrogramTrack && snapshot.readOnly);
+	const spectrogramNyquist = Math.max(1, (snapshot.project?.sampleRate || 48_000) / 2);
+	const updateSpectrogram = (changes) => run(() => selectedSpectrogramTrack
+		? controller.actions.track.update(selectedSpectrogramTrack.id, {
+			spectrogram: { ...spectrogram, ...changes },
+		})
+		: controller.actions.preferences.update({ spectrogram: changes }));
+	const updateSpectrogramFrequency = (name, requestedValue) => {
+		const value = Number(requestedValue);
+		if (!Number.isFinite(value) || value < 0 || value > spectrogramNyquist) return;
+		const next = { ...spectrogram, [name]: value };
+		if (next.maximumFrequency <= next.minimumFrequency) return;
+		updateSpectrogram({ [name]: value });
+	};
 	useEffect(() => setSelectedPage(initialPage), [initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -5444,6 +5405,35 @@ function WorkspacePreferencesDialog({
 									}}>{copy.workspaceCreate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
+								</div>
+							</PreferencePanel>
+						)}
+
+						{selectedPage === 'spectrogram' && (
+							<PreferencePanel title={copy.panelSpectrogram}>
+								<div className="kw-audio-editor__spectrogram-settings" data-spectrogram-settings data-spectrogram-target={selectedSpectrogramTrack?.id || 'defaults'}>
+									<p data-spectrogram-target-name>{selectedSpectrogramTrack?.name || copy.spectrogramDefaults}</p>
+									<label><span>{copy.spectrogramScale}</span>
+										<select aria-label={copy.spectrogramScale} disabled={spectrogramSettingsDisabled} value={spectrogram.scale} onChange={(event) => updateSpectrogram({ scale: event.currentTarget.value })}>
+											<option value="mel">{copy.spectrogramMel}</option><option value="linear">{copy.linear}</option><option value="log">{copy.logarithmic}</option>
+										</select>
+									</label>
+									<label><span>{copy.minimumFrequency}</span><input aria-label={copy.minimumFrequency} disabled={spectrogramSettingsDisabled} type="number" min="0" max={Math.max(0, spectrogram.maximumFrequency - 1)} step="1" value={spectrogram.minimumFrequency} onChange={(event) => updateSpectrogramFrequency('minimumFrequency', event.currentTarget.value)} /></label>
+									<label><span>{copy.maximumFrequency}</span><input aria-label={copy.maximumFrequency} disabled={spectrogramSettingsDisabled} type="number" min={Math.min(spectrogramNyquist, spectrogram.minimumFrequency + 1)} max={spectrogramNyquist} step="1" value={spectrogram.maximumFrequency} onChange={(event) => updateSpectrogramFrequency('maximumFrequency', event.currentTarget.value)} /></label>
+									<label><span>{copy.spectrogramRange}</span><input aria-label={copy.spectrogramRange} disabled={spectrogramSettingsDisabled} type="number" min="1" max="240" value={spectrogram.range} onChange={(event) => {
+										const value = Number(event.currentTarget.value);
+										if (Number.isFinite(value) && value >= 1 && value <= 240) updateSpectrogram({ range: value });
+									}} /></label>
+									<label><span>{copy.spectrogramWindow}</span>
+										<select aria-label={copy.spectrogramWindow} disabled={spectrogramSettingsDisabled} value={spectrogram.windowSize} onChange={(event) => updateSpectrogram({ windowSize: Number(event.currentTarget.value) })}>
+											{[512, 1024, 2048, 4096, 8192].map((value) => <option key={value} value={value}>{value}</option>)}
+										</select>
+									</label>
+									<label><span>{copy.spectrogramWindowType}</span>
+										<select aria-label={copy.spectrogramWindowType} disabled={spectrogramSettingsDisabled} value={spectrogram.windowType} onChange={(event) => updateSpectrogram({ windowType: event.currentTarget.value })}>
+											<option value="hann">{copy.spectrogramWindowHann}</option><option value="hamming">{copy.spectrogramWindowHamming}</option><option value="blackman">{copy.spectrogramWindowBlackman}</option>
+										</select>
+									</label>
 								</div>
 							</PreferencePanel>
 						)}

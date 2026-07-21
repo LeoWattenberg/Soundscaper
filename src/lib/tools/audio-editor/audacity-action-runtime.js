@@ -471,7 +471,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				return track ? controllerActions.track.setSampleFormat(track.id, sampleFormat) : null;
 			},
 			setCustomRate: (rate) => rate == null ? ui.issue('set-custom-track-rate', { trackId: selectedAudioTrack()?.id || null }) : runtime.track.setRate(rate),
-			openSpectrogramSettings: () => openPanel('spectrogram'),
+			openSpectrogramSettings: () => openSurface('preferences', { section: 'spectrogram' }),
 			setHalfWaveView: () => {
 				const track = selectedAudioTrack();
 				return track ? controllerActions.track.setDisplayMode(track.id, 'half-wave') : null;

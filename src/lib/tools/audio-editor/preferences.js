@@ -100,7 +100,6 @@ const DEFAULT_PANELS = Object.freeze({
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
 	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
-	spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
 	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),
 	spectrum: Object.freeze({ visible: false, dock: 'right', order: 7, size: 380 }),
 	clipping: Object.freeze({ visible: false, dock: 'right', order: 8, size: 380 }),
@@ -116,7 +115,6 @@ const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
 	effects: Object.freeze({ x: 96, y: 40, width: 400, height: 440 }),
 	mixer: Object.freeze({ x: 40, y: 96, width: 560, height: 360 }),
-	spectrogram: Object.freeze({ x: 120, y: 64, width: 400, height: 360 }),
 	analysis: Object.freeze({ x: 144, y: 88, width: 520, height: 600 }),
 	spectrum: Object.freeze({ x: 168, y: 112, width: 520, height: 600 }),
 	clipping: Object.freeze({ x: 192, y: 136, width: 520, height: 600 }),
@@ -140,7 +138,6 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
 			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
-			spectrogram: Object.freeze({ visible: false, dock: 'bottom', order: 5, size: 240 }),
 		}),
 	}),
 	music: Object.freeze({
@@ -299,7 +296,7 @@ function normalizeToolbarButtonEntries(value = {}) {
 function normalizePanelEntries(value = {}) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.panels must be an object.');
 	const entries = {};
-	const ids = new Set([...Object.keys(DEFAULT_PANELS), ...Object.keys(value)]);
+	const ids = new Set([...Object.keys(DEFAULT_PANELS), ...Object.keys(value)].filter((id) => id !== 'spectrogram'));
 	for (const id of ids) {
 		nonEmptyString(id, 'panel ID');
 		const defaults = DEFAULT_PANELS[id] || { visible: false, dock: 'right', order: Object.keys(entries).length, size: 320 };
