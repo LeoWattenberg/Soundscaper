@@ -83,6 +83,7 @@ const COLLAPSED_TRACK_HEIGHT = 54;
 const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
+const CLIP_HEADER_HEIGHT = 20;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
 const CLIP_HEADER_TRACK_RESIZE_HIT_HEIGHT = 4;
@@ -4107,6 +4108,7 @@ function TrackRow({
 					role="region"
 					aria-label={`${track.name}: ${displayMode === 'spectrogram' ? copy.spectrogramView : displayMode === 'multiview' ? copy.multiview : copy.waveformView}`}
 					tabIndex={tabIndexFor(3)}
+					style={{ paddingTop: CLIP_HEADER_HEIGHT }}
 					onContextMenu={(event) => onOpenRulerFlyout(displayMode, event)}
 					onKeyDown={(event) => {
 						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
@@ -4127,7 +4129,7 @@ function TrackRow({
 				>
 					{displayMode === 'spectrogram' ? (
 						<FrequencyRuler
-							height={trackHeight}
+							height={Math.max(0, trackHeight - CLIP_HEADER_HEIGHT)}
 							minFreq={track.spectrogram?.minimumFrequency || 0}
 							maxFreq={track.spectrogram?.maximumFrequency || sampleRate / 2}
 							scale={spectrogramScale}
@@ -4136,7 +4138,7 @@ function TrackRow({
 					) : displayMode === 'multiview' ? (
 						<>
 							<FrequencyRuler
-								height={Math.floor(trackHeight / 2)}
+								height={Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2)}
 								minFreq={track.spectrogram?.minimumFrequency || 0}
 								maxFreq={track.spectrogram?.maximumFrequency || sampleRate / 2}
 								scale={spectrogramScale}
@@ -4144,7 +4146,7 @@ function TrackRow({
 							/>
 							{renderAmplitudeRulers(
 								rulerChannelCount,
-								trackHeight - Math.floor(trackHeight / 2),
+								trackHeight - CLIP_HEADER_HEIGHT - Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2),
 								verticalRulerWidth,
 								displayMode,
 								waveformRulerFormat,
@@ -4154,7 +4156,7 @@ function TrackRow({
 					) : (
 						renderAmplitudeRulers(
 							rulerChannelCount,
-							trackHeight,
+							Math.max(0, trackHeight - CLIP_HEADER_HEIGHT),
 							verticalRulerWidth,
 							displayMode,
 							waveformRulerFormat,
