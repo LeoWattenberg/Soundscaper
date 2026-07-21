@@ -117,7 +117,13 @@
 	background: var(--kw-editor-line);
 }
 
+#kw-audio-editor-design-system .add-track-flyout__row {
+	display: flex;
+	width: 100%;
+}
+
 #kw-audio-editor-design-system .add-track-flyout__checkbox {
+	width: 100%;
 	display: grid;
 	grid-template-columns: 16px minmax(0, 1fr);
 }

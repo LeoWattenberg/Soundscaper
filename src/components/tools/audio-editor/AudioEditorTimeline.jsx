@@ -211,17 +211,19 @@ function ContainerAddTrackFlyout({
 					</button>
 				))}
 				<div className="add-track-flyout__separator" role="separator" />
-				<button
-					type="button"
-					className="add-track-flyout__option add-track-flyout__checkbox"
-					role="menuitemcheckbox"
-					aria-checked={showMasterTrack}
-					tabIndex={-1}
-					onClick={onToggleMasterTrack}
-				>
-					<span className="add-track-flyout__check" aria-hidden="true">{showMasterTrack ? '✓' : ''}</span>
-					<span className="add-track-flyout__option-label">{copy.masterTrack}</span>
-				</button>
+				<div className="add-track-flyout__row">
+					<button
+						type="button"
+						className="add-track-flyout__option add-track-flyout__checkbox"
+						role="menuitemcheckbox"
+						aria-checked={showMasterTrack}
+						tabIndex={-1}
+						onClick={onToggleMasterTrack}
+					>
+						<span className="add-track-flyout__check" aria-hidden="true">{showMasterTrack ? '✓' : ''}</span>
+						<span className="add-track-flyout__option-label">{copy.masterTrack}</span>
+					</button>
+				</div>
 			</div>
 		</div>
 	);

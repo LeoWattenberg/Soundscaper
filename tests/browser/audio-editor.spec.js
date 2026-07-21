@@ -359,8 +359,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await addTrack.click();
 		let flyout = page.locator('.add-track-flyout');
 		const showMaster = flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
-		await expect(flyout.getByRole('menuitem', { name: 'Add send track', exact: true })).toBeVisible();
+		await expect(flyout.getByRole('menuitem', { name: 'Send track', exact: true })).toBeVisible();
 		await expect(showMaster).toHaveAttribute('aria-checked', 'false');
+		await expect(flyout.locator('.add-track-flyout__row')).toHaveCount(1);
+		await expect(flyout.locator('.add-track-flyout__row').getByRole('menuitemcheckbox', { name: 'Show master track', exact: true })).toHaveCount(1);
 		await showMaster.click();
 		await expect(flyout).toBeVisible();
 		await expect(showMaster).toHaveAttribute('aria-checked', 'true');
@@ -382,10 +384,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		flyout = page.locator('.add-track-flyout');
 		await expect(flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true }).click();
-		await flyout.getByRole('menuitem', { name: 'Add send track', exact: true }).click();
+		await flyout.getByRole('menuitem', { name: 'Send track', exact: true }).click();
 		for (let index = 0; index < 4; index += 1) {
 			await addTrack.click();
-			await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Add send track', exact: true }).click();
+			await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Send track', exact: true }).click();
 		}
 
 		const dock = editor.locator('[data-output-track-dock]');
@@ -454,7 +456,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
 		await addTrack.click();
 		await page.locator('.add-track-flyout').getByRole('menuitem', {
-			name: 'Add send track',
+			name: 'Send track',
 			exact: true,
 		}).click();
 
@@ -498,7 +500,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		for (let index = 0; index < 2; index += 1) {
 			await addTrack.click();
 			await page.locator('.add-track-flyout').getByRole('menuitem', {
-				name: 'Add send track',
+				name: 'Send track',
 				exact: true,
 			}).click();
 		}
