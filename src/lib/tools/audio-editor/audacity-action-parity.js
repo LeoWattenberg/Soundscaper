@@ -185,6 +185,7 @@ const definitions = [
 	implemented('zoom-to-selection', 'Zoom to selection', ['View > Zoom'], 'timeline.zoomSelection', { enableWhen: 'selection', source: UPSTREAM.projectScene }),
 	implemented('zoom-toggle', 'Zoom toggle', ['View > Zoom'], 'timeline.zoomToggle', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('zoom-to-fit-project', 'Fit project to width', ['View > Zoom'], 'timeline.zoomFit', { shortcut: 'Ctrl+F', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('fit-height', 'Fit height', ['View > Zoom'], 'timeline.fitHeight', { enableWhen: 'project-opened' }),
 	implemented('center-view-on-playhead', 'Center view on playhead', ['View > Zoom'], 'timeline.centerOnPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('collapse-all-tracks', 'Collapse all tracks', ['View > Zoom'], 'track.collapseAll', { enableWhen: 'project-opened' }),
 	implemented('expand-all-tracks', 'Expand all tracks', ['View > Zoom'], 'track.expandAll', { enableWhen: 'project-opened' }),

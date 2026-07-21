@@ -2176,11 +2176,57 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThan(grownTrackBounds.height - 20);
 
 		resizedHeaderBounds = await clipHeader.boundingBox();
+		const cappedTimelineBounds = await timelineInner.boundingBox();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 1);
 		await page.mouse.down();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + timelineBounds.height * 2, { steps: 4 });
 		await page.mouse.up();
-		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThanOrEqual(Math.floor(timelineBounds.height * 0.9));
+		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThanOrEqual(Math.floor(cappedTimelineBounds.height * 0.9));
+	});
+
+	test('auto-fits new track heights until manual resizing and re-engages from View Zoom', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('[data-timeline]');
+		const trackRows = editor.locator('[data-track-list] > [data-track-row]');
+		const addAudioTrack = async () => {
+			await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+			await page.getByRole('menu', { name: 'Add track', exact: true })
+				.getByRole('menuitem', { name: 'Audio track', exact: true })
+				.click();
+		};
+
+		await expect(trackRows).toHaveCount(1);
+		expect((await trackRows.first().boundingBox())?.height).toBe(300);
+		await importFiles(editor, [toneA]);
+		let trackCount = await trackRows.count();
+		while ((await trackRows.first().boundingBox())?.height > 114 && trackCount < 10) {
+			await addAudioTrack();
+			trackCount += 1;
+			await expect(trackRows).toHaveCount(trackCount);
+		}
+		expect(trackCount).toBeLessThan(10);
+		await expect.poll(() => trackRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height)))
+			.toEqual(Array(trackCount).fill(114));
+		await expect.poll(() => timeline.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+
+		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
+		const resizedTrackRow = clipHeader.locator('xpath=ancestor::*[@data-track-row][1]');
+		const headerBounds = await clipHeader.boundingBox();
+		const resizeX = headerBounds.x + headerBounds.width / 2;
+		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 1);
+		await page.mouse.down();
+		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height + 24, { steps: 3 });
+		await page.mouse.up();
+		await expect.poll(async () => (await resizedTrackRow.boundingBox())?.height).toBeGreaterThan(114);
+
+		await addAudioTrack();
+		trackCount += 1;
+		await expect(trackRows).toHaveCount(trackCount);
+		expect((await trackRows.last().boundingBox())?.height).toBe(300);
+
+		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Fit height']);
+		await expect.poll(() => trackRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height)))
+			.toEqual(Array(trackCount).fill(114));
 	});
 
 	test('previews reusable bin clips on timeline drag and routes external drops by surface', async ({ page }) => {
@@ -2268,7 +2314,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await zoomItem.click();
 		const zoomMenu = zoomItem.getByRole('menu');
 		await expect(zoomMenu).toBeVisible();
-		for (const label of ['Zoom normal', 'Zoom to selection', 'Zoom toggle', 'Center view on playhead']) {
+		for (const label of ['Zoom normal', 'Zoom to selection', 'Zoom toggle', 'Fit height', 'Center view on playhead']) {
 			await expect(getMenuItem(zoomMenu, label)).toBeVisible();
 		}
 		await page.keyboard.press('Escape');

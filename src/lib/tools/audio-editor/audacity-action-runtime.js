@@ -415,6 +415,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				alternateZoom = current;
 				return controllerActions.timeline.setZoom(target);
 			},
+			fitHeight: controllerActions.timeline.fitHeight,
 			centerOnPlayhead: () => ui.issue('center-playhead'),
 			configureSnap: () => openSurface('preferences', { section: 'snap' }),
 			setSecondsRuler: () => controllerActions.project.setTimeDisplay('hh:mm:ss+milliseconds'),

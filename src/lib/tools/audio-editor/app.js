@@ -282,6 +282,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		effectClipboard: null,
 		pixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
 		timelineViewportWidth: 0,
+		autoFitTrackHeight: true,
 		mobile: classifyMobile(),
 	timelineWidth: EDITOR_TIMELINE_MINIMUM_SECONDS * DEFAULT_PIXELS_PER_SECOND,
 		timelineView: 'waveform',
@@ -629,6 +630,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				playbackOnRulerClick: state.playbackOnRulerClick,
 				pixelsPerSecond: state.pixelsPerSecond,
 				width: state.timelineWidth,
+				autoFitTrackHeight: state.autoFitTrackHeight,
 			}),
 			sampleEdit: Object.freeze({
 				available: sampleEditingAvailable(),
@@ -1059,6 +1061,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				zoomIn: () => updateZoom('in'),
 				zoomOut: () => updateZoom('out'),
 				zoomFit: (viewportWidth) => updateZoom('fit', viewportWidth),
+				fitHeight: () => setAutoFitTrackHeight(true),
+				resizeTrackHeight,
 				getClipVisualData,
 				getVisibleClips,
 			}),
@@ -1461,6 +1465,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			type: 'audio',
 			name: `${copy.track} 1`,
 			armed: true,
+			height: 300,
 		});
 		const history = executeEditorCommand(createEditorHistory(nextProject), track);
 		await switchProject(history.present, { save: true, skipFlush: options.skipFlush });
@@ -3137,6 +3142,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			name: String(options.name || `${copy.track} ${project.tracks.length + 1}`).trim() || copy.track,
 			color: options.color || AUDIO_EDITOR_TRACK_COLORS[project.tracks.filter((item) => item.type === 'audio').length % AUDIO_EDITOR_TRACK_COLORS.length],
 			armed: options.armed ?? project.tracks.length === 0,
+			height: options.height ?? 300,
 		});
 		commit(track, { selectTrackId: trackId });
 		assignPreferredInputToTrack(trackId);
@@ -3161,6 +3167,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					id: videoTrackId,
 					name: baseName,
 					laneGroupId,
+					height: options.height ?? options.videoHeight ?? 300,
 				}),
 				index: requestedIndex,
 			},
@@ -3172,6 +3179,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					name: `${baseName} Audio`,
 					laneGroupId,
 					armed: false,
+					height: options.height ?? options.audioHeight ?? 300,
 				}),
 				index: requestedIndex + 1,
 			},
@@ -3222,6 +3230,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			...options,
 			id: trackId,
 			name: String(options.name || copy.labels).trim(),
+			height: options.height ?? 300,
 		});
 		commit(command, { selectTrackId: trackId });
 		return trackId;
@@ -10407,6 +10416,33 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.timelineViewportWidth = nextWidth;
 		publishProjectState();
 		return nextWidth;
+	}
+
+	function setAutoFitTrackHeight(enabled) {
+		state.autoFitTrackHeight = Boolean(enabled);
+		publishProjectState();
+		return state.autoFitTrackHeight;
+	}
+
+	function resizeTrackHeight(trackId, requestedHeight, fittedHeights = {}) {
+		if (editingBlocked()) return null;
+		const selectedTrack = findTrack(project, trackId);
+		if (!selectedTrack) throw new Error(copy.trackNotFound);
+		const commands = project.tracks
+			.map((track) => {
+				const value = track.id === trackId ? requestedHeight : fittedHeights[track.id];
+				const height = Math.max(40, Math.round(Number(value) || track.height || 114));
+				return height === track.height ? null : {
+					type: 'track/update',
+					trackId: track.id,
+					changes: { height },
+				};
+			})
+			.filter(Boolean);
+		state.autoFitTrackHeight = false;
+		if (commands.length) commit({ type: 'batch', commands }, { selectTrackId: trackId });
+		else publishProjectState();
+		return selectedTrack.id;
 	}
 
 	function normalizeExportSettings(value = {}) {

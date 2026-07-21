@@ -78,6 +78,7 @@ import RecordingInputSelectors from './RecordingInputSelectors.jsx';
 const DESKTOP_TRACK_PANEL_WIDTH = 268;
 const COMPACT_TRACK_PANEL_WIDTH = 164;
 const TRACK_HEIGHT = 114;
+const AUTO_FIT_TRACK_HEIGHT = 300;
 const COLLAPSED_TRACK_HEIGHT = 54;
 const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 const VERTICAL_RULER_WIDTH = 40;
@@ -421,6 +422,21 @@ export default function AudioEditorTimeline({
 		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
 	);
 	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
+	const autoFitTrackHeightEnabled = snapshot.timeline?.autoFitTrackHeight !== false;
+	const collapsedTrackHeight = project?.tracks.reduce((total, track) => (
+		track.collapsed ? total + trackVisualHeight(track, showArmControls) : total
+	), 0) || 0;
+	const expandedTrackCount = project?.tracks.filter((track) => !track.collapsed).length || 0;
+	const availableTrackHeight = Math.max(
+		TRACK_HEIGHT,
+		Math.floor((timelineSize.height || AUTO_FIT_TRACK_HEIGHT + 34) - outputDockHeight - 34),
+	);
+	const fittedTrackHeight = expandedTrackCount > 0
+		? Math.max(TRACK_HEIGHT, Math.min(
+			AUTO_FIT_TRACK_HEIGHT,
+			Math.floor((availableTrackHeight - collapsedTrackHeight) / expandedTrackCount),
+		))
+		: AUTO_FIT_TRACK_HEIGHT;
 	const timelineView = snapshot.timeline?.view;
 	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
 		&& project?.tracks.some((track) => {
@@ -472,11 +488,13 @@ export default function AudioEditorTimeline({
 			endTime: framesToSeconds(documentSelection.endFrame, { sampleRate }),
 		}
 		: null;
-	const visualTrackHeight = useCallback((track) => trackVisualHeight(
-		track,
-		showArmControls,
-		trackResizePreview?.trackId === track.id ? trackResizePreview.height : undefined,
-	), [showArmControls, trackResizePreview]);
+	const visualTrackHeight = useCallback((track) => {
+		if (trackResizePreview?.trackId === track.id) {
+			return trackVisualHeight(track, showArmControls, trackResizePreview.height);
+		}
+		if (autoFitTrackHeightEnabled && !track.collapsed) return fittedTrackHeight;
+		return trackVisualHeight(track, showArmControls);
+	}, [autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
 	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
 	const splitToolActive = Boolean(splitToolEnabled || splitToolHeld);
 
@@ -758,7 +776,11 @@ export default function AudioEditorTimeline({
 		setTrackResizePreview(null);
 		if (session?.kind === 'track-resize') {
 			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
-				run(() => controller.actions.track.update(session.trackId, { height: session.height }));
+				run(() => controller.actions.timeline.resizeTrackHeight(
+					session.trackId,
+					session.height,
+					session.fittedHeights,
+				));
 			}
 			return;
 		}
@@ -893,11 +915,11 @@ export default function AudioEditorTimeline({
 				const track = project.tracks.find((item) => item.id === trackId);
 				if (track) {
 					const edge = distanceFromTop <= distanceFromBottom ? 'top' : 'bottom';
+					const originalVisualHeight = visualTrackHeight(track);
 					const controlsHeight = showArmControls && track.type === 'audio'
 						? RECORDING_INPUT_CONTROLS_HEIGHT
 						: 0;
-					const originalHeight = Math.max(MINIMUM_TRACK_HEIGHT, Number(track.height) || TRACK_HEIGHT);
-					const originalVisualHeight = trackVisualHeight(track, showArmControls);
+					const originalHeight = Math.max(MINIMUM_TRACK_HEIGHT, originalVisualHeight - controlsHeight);
 					const timelineInnerHeight = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect().height || originalVisualHeight;
 					pointerSession.current = {
 						kind: 'track-resize',
@@ -909,6 +931,16 @@ export default function AudioEditorTimeline({
 						minimumHeight: MINIMUM_TRACK_HEIGHT + controlsHeight,
 						maximumHeight: Math.max(MINIMUM_TRACK_HEIGHT + controlsHeight, Math.floor(timelineInnerHeight * 0.9)),
 						height: originalHeight,
+						fittedHeights: Object.fromEntries(project.tracks.flatMap((candidate) => {
+							if (candidate.collapsed) return [];
+							const candidateControlsHeight = showArmControls && candidate.type === 'audio' && !candidate.collapsed
+								? RECORDING_INPUT_CONTROLS_HEIGHT
+								: 0;
+							return [[candidate.id, Math.max(
+								MINIMUM_TRACK_HEIGHT,
+								visualTrackHeight(candidate) - candidateControlsHeight,
+							)]];
+						})),
 					};
 					event.preventDefault();
 					event.stopPropagation();
@@ -1052,7 +1084,7 @@ export default function AudioEditorTimeline({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
+	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView, visualTrackHeight]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
