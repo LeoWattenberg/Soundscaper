@@ -574,6 +574,28 @@
 	background-color: var(--kw-editor-accent-strong) !important;
 }
 
+@media (max-width: 540px) {
+	#kw-audio-editor-design-system .kw-audio-editor__action-bar {
+		overflow-x: auto;
+		overflow-y: hidden;
+		justify-content: flex-start;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor__action-bar-center,
+	#kw-audio-editor-design-system .kw-audio-editor__action-bar-right {
+		flex: 0 0 auto;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor__action-bar-right {
+		position: static;
+		top: auto;
+		right: auto;
+		transform: none;
+	}
+}
+
 #kw-audio-editor-design-system [data-editor-tool-toolbar] {
 	min-width: 0;
 }
