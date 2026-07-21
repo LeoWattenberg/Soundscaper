@@ -3328,6 +3328,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const importedTrack = clipByName(editor, toneA.name).locator('xpath=ancestor::div[@data-track-row]');
 		const verticalRuler = importedTrack.locator('[data-track-ruler]');
+		await expect(verticalRuler).toHaveAttribute('data-ruler-format', 'linear-db');
 		await verticalRuler.click({ button: 'right', position: { x: 20, y: 70 } });
 		const rulerFlyout = page.locator('.audio-editor-ruler-flyout');
 		await expect(rulerFlyout).toBeVisible();
