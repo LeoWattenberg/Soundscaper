@@ -84,6 +84,8 @@ const VERTICAL_RULER_WIDTH = 40;
 const SPECTROGRAM_RULER_WIDTH = 56;
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
+const CLIP_HEADER_TRACK_RESIZE_HIT_HEIGHT = 4;
+const MINIMUM_TRACK_HEIGHT = 40;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-amp', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
@@ -393,6 +395,7 @@ export default function AudioEditorTimeline({
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
+	const [trackResizePreview, setTrackResizePreview] = useState(null);
 	const [projectBinDragPreview, setProjectBinDragPreview] = useState(null);
 	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();
@@ -469,7 +472,12 @@ export default function AudioEditorTimeline({
 			endTime: framesToSeconds(documentSelection.endFrame, { sampleRate }),
 		}
 		: null;
-	const totalTrackHeight = project?.tracks.reduce((total, track) => total + trackVisualHeight(track, showArmControls), 0) || TRACK_HEIGHT;
+	const visualTrackHeight = useCallback((track) => trackVisualHeight(
+		track,
+		showArmControls,
+		trackResizePreview?.trackId === track.id ? trackResizePreview.height : undefined,
+	), [showArmControls, trackResizePreview]);
+	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
 	const splitToolActive = Boolean(splitToolEnabled || splitToolHeld);
 
 	useEffect(() => {
@@ -747,6 +755,13 @@ export default function AudioEditorTimeline({
 		setProjectBinDropActive(false);
 		const dragPreview = session?.preview;
 		setClipDragPreview(null);
+		setTrackResizePreview(null);
+		if (session?.kind === 'track-resize') {
+			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
+				run(() => controller.actions.track.update(session.trackId, { height: session.height }));
+			}
+			return;
+		}
 		if (session?.kind === 'loop') {
 			setLoopPreview(null);
 			if (cancelled || pinchSession.current || !project) return;
@@ -867,6 +882,41 @@ export default function AudioEditorTimeline({
 			}
 		}
 		if (event.button !== 0 || mutationsBlocked) return;
+		const clipHeader = event.target.closest?.('.clip-header');
+		const resizeTrackRow = clipHeader?.closest?.('[data-track-row]');
+		if (clipHeader && resizeTrackRow?.dataset.collapsed !== 'true') {
+			const headerRect = clipHeader.getBoundingClientRect();
+			const distanceFromTop = event.clientY - headerRect.top;
+			const distanceFromBottom = headerRect.bottom - event.clientY;
+			if (Math.min(distanceFromTop, distanceFromBottom) <= CLIP_HEADER_TRACK_RESIZE_HIT_HEIGHT) {
+				const trackId = resizeTrackRow.dataset.trackId;
+				const track = project.tracks.find((item) => item.id === trackId);
+				if (track) {
+					const edge = distanceFromTop <= distanceFromBottom ? 'top' : 'bottom';
+					const controlsHeight = showArmControls && track.type === 'audio'
+						? RECORDING_INPUT_CONTROLS_HEIGHT
+						: 0;
+					const originalHeight = Math.max(MINIMUM_TRACK_HEIGHT, Number(track.height) || TRACK_HEIGHT);
+					const originalVisualHeight = trackVisualHeight(track, showArmControls);
+					const timelineInnerHeight = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect().height || originalVisualHeight;
+					pointerSession.current = {
+						kind: 'track-resize',
+						trackId,
+						edge,
+						startY: event.clientY,
+						originalHeight,
+						originalVisualHeight,
+						minimumHeight: MINIMUM_TRACK_HEIGHT + controlsHeight,
+						maximumHeight: Math.max(MINIMUM_TRACK_HEIGHT + controlsHeight, Math.floor(timelineInnerHeight * 0.9)),
+						height: originalHeight,
+					};
+					event.preventDefault();
+					event.stopPropagation();
+					event.currentTarget.setPointerCapture?.(event.pointerId);
+					return;
+				}
+			}
+		}
 		const interactiveControl = event.target.closest?.('button, input, textarea, select, [role="menuitem"]');
 		if (interactiveControl && !interactiveControl.classList.contains('clip-display__handle')) return;
 		if (event.target.closest?.('[data-label-id]')) return;
@@ -1002,7 +1052,7 @@ export default function AudioEditorTimeline({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
+	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
@@ -1024,6 +1074,18 @@ export default function AudioEditorTimeline({
 			return;
 		}
 		const session = pointerSession.current;
+		if (session?.kind === 'track-resize') {
+			const delta = (event.clientY - session.startY) * (session.edge === 'top' ? -1 : 1);
+			const visualHeight = Math.max(
+				session.minimumHeight,
+				Math.min(session.maximumHeight, Math.round(session.originalVisualHeight + delta)),
+			);
+			const controlsHeight = session.originalVisualHeight - session.originalHeight;
+			session.height = Math.max(MINIMUM_TRACK_HEIGHT, visualHeight - controlsHeight);
+			setTrackResizePreview({ trackId: session.trackId, height: session.height });
+			event.preventDefault();
+			return;
+		}
 		if (session?.kind === 'loop') {
 			const endFrame = frameAtClientX(event.clientX, session.lane);
 			if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) >= 3) {
@@ -1186,6 +1248,7 @@ export default function AudioEditorTimeline({
 		setClipDragPreview(null);
 		setSelectionPreview(null);
 		setLoopPreview(null);
+		setTrackResizePreview(null);
 		setProjectBinDropActive(false);
 		return true;
 	}, [setProjectBinDropActive]);
@@ -1600,6 +1663,7 @@ export default function AudioEditorTimeline({
 								key={track.id}
 								controller={controller}
 								track={track}
+								visualHeight={visualTrackHeight(track)}
 								trackIndex={trackIndex}
 								panelWidth={panelWidth}
 								timelineWidth={timelineWidth}
@@ -1618,6 +1682,7 @@ export default function AudioEditorTimeline({
 								key={track.id}
 								controller={controller}
 								track={track}
+								visualHeight={visualTrackHeight(track)}
 								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
 								clipLookup={projectIndex.clipById}
 								sourceLookup={projectIndex.sourceById}
@@ -1655,6 +1720,7 @@ export default function AudioEditorTimeline({
 								controller={controller}
 								project={project}
 								track={track}
+								visualHeight={visualTrackHeight(track)}
 								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
 								clipLookup={projectIndex.clipById}
 								sourceLookup={projectIndex.sourceById}
@@ -2832,6 +2898,7 @@ function OutputTrackNameEditor({ name: initialName, label, blocked, onCommit, on
 function VideoTrackRow({
 	controller,
 	track,
+	visualHeight,
 	trackClips,
 	clipLookup,
 	sourceLookup,
@@ -2864,7 +2931,7 @@ function VideoTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
-	const trackHeight = trackVisualHeight(track);
+	const trackHeight = visualHeight;
 	const clips = useMemo(() => {
 		const projected = [...trackClips];
 		if (clipDragPreview) {
@@ -3446,6 +3513,7 @@ function TrackRow({
 	controller,
 	project,
 	track,
+	visualHeight,
 	trackClips,
 	clipLookup,
 	sourceLookup,
@@ -3497,7 +3565,7 @@ function TrackRow({
 	const trackWindowRef = useRef(null);
 	const envelopePreviewRef = useRef(new Map());
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
-	const trackHeight = trackVisualHeight(track, showArmControls);
+	const trackHeight = visualHeight;
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
 	const spectrogramScale = normalizeSpectrogramScale(track.spectrogram?.scale);
 	const clips = useMemo(() => {
@@ -4598,6 +4666,7 @@ function SpectralSelectionOverlay({
 function LabelTrackRow({
 	controller,
 	track,
+	visualHeight,
 	trackIndex,
 	panelWidth,
 	timelineWidth,
@@ -4611,7 +4680,7 @@ function LabelTrackRow({
 	run,
 	onMenu,
 }) {
-	const trackHeight = trackVisualHeight(track);
+	const trackHeight = visualHeight;
 	const laneRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
 	const [selectedLabelId, setSelectedLabelId] = useState(null);
@@ -5516,10 +5585,11 @@ function moveMediaTrackBlock(controller, tracks, trackId, direction) {
 	return controller.actions.track.reorder(trackId, destination);
 }
 
-function trackVisualHeight(track, showArmControls = false) {
-	const expandedHeight = track?.type === 'video'
-		? Math.max(40, Number(track.height) || TRACK_HEIGHT)
-		: TRACK_HEIGHT;
+function trackVisualHeight(track, showArmControls = false, heightOverride = undefined) {
+	const expandedHeight = Math.max(
+		MINIMUM_TRACK_HEIGHT,
+		Number(heightOverride ?? track?.height) || TRACK_HEIGHT,
+	);
 	const baseHeight = track?.collapsed ? COLLAPSED_TRACK_HEIGHT : expandedHeight;
 	if (!showArmControls || track?.type !== 'audio') return baseHeight;
 	return track?.collapsed

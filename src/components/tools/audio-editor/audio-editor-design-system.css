@@ -3055,6 +3055,26 @@
 	contain: layout paint;
 }
 
+#kw-audio-editor-design-system [data-track-row][data-collapsed='false'] .clip-header::before,
+#kw-audio-editor-design-system [data-track-row][data-collapsed='false'] .clip-header::after {
+	position: absolute;
+	z-index: 30;
+	right: 0;
+	left: 0;
+	height: 4px;
+	content: '';
+	cursor: ns-resize;
+	touch-action: none;
+}
+
+#kw-audio-editor-design-system [data-track-row][data-collapsed='false'] .clip-header::before {
+	top: 0;
+}
+
+#kw-audio-editor-design-system [data-track-row][data-collapsed='false'] .clip-header::after {
+	bottom: 0;
+}
+
 #kw-audio-editor-design-system .audio-editor-new-track-drop-preview {
 	display: flex;
 	width: 100%;

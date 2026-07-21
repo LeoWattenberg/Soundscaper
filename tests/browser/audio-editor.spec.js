@@ -2145,6 +2145,44 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
 	});
 
+	test('resizes tracks from clip-header edges and caps their height to the timeline', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
+		const trackRow = clipHeader.locator('xpath=ancestor::*[@data-track-row][1]');
+		const timelineInner = editor.locator('.audio-editor-timeline-inner');
+		const [headerBounds, initialTrackBounds, timelineBounds] = await Promise.all([
+			clipHeader.boundingBox(),
+			trackRow.boundingBox(),
+			timelineInner.boundingBox(),
+		]);
+		expect(headerBounds).not.toBeNull();
+		expect(initialTrackBounds).not.toBeNull();
+		expect(timelineBounds).not.toBeNull();
+
+		const resizeX = headerBounds.x + headerBounds.width / 2;
+		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 1);
+		await page.mouse.down();
+		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height + 60, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeGreaterThan(initialTrackBounds.height + 40);
+
+		let resizedHeaderBounds = await clipHeader.boundingBox();
+		const grownTrackBounds = await trackRow.boundingBox();
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + 1);
+		await page.mouse.down();
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + 31, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThan(grownTrackBounds.height - 20);
+
+		resizedHeaderBounds = await clipHeader.boundingBox();
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 1);
+		await page.mouse.down();
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + timelineBounds.height * 2, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThanOrEqual(Math.floor(timelineBounds.height * 0.9));
+	});
+
 	test('previews reusable bin clips on timeline drag and routes external drops by surface', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const projectBin = editor.locator('[data-project-bin-drop-target]');
