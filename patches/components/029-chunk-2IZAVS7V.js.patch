@@ -1,0 +1,11 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-2IZAVS7V.js b/node_modules/@dilsonspickles/components/dist/chunk-2IZAVS7V.js
+--- a/node_modules/@dilsonspickles/components/dist/chunk-2IZAVS7V.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-2IZAVS7V.js
+@@ -62,7 +62,6 @@ function NumberInput({ value, onCommit, min, max, step = 1, width = 72, classNam
+ }
+ var WAVEFORM_OPTIONS = [
+   { value: "linear-amp", label: "Linear (amp)" },
+-  { value: "logarithmic-db", label: "Logarithmic (dB)" },
+   { value: "linear-db", label: "Linear (dB)" }
+ ];
+ var SPECTROGRAM_OPTIONS = [
