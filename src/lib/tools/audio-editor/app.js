@@ -123,6 +123,7 @@ import {
 	audacitySelectionChannelCount,
 	matchAudacitySelectionChannels,
 } from './audacity-selection.js';
+import { initializePffft } from './pffft.js';
 import {
 	assertPlayAtSpeedStaffPadMemorySafe,
 	createAudioEditorEngine,
@@ -7745,7 +7746,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function runSpectralEditWorker(channels, spectralOptions) {
-		if (typeof Worker !== 'function') return applySpectralGain(channels, spectralOptions);
+		if (typeof Worker !== 'function') {
+			await initializePffft();
+			return applySpectralGain(channels, spectralOptions);
+		}
 		const worker = new Worker(new URL('./spectral-edit-worker.js', import.meta.url), { type: 'module' });
 		state.spectralWorker = worker;
 		const workerChannels = channels.map((channel) => Float32Array.from(channel));
@@ -8583,6 +8587,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			: payload;
 		if (typeof Worker !== 'function') {
 			if (request.operation === 'capture-noise-profile') {
+				await initializePffft();
 				return { profile: captureAudacityNoiseProfile(request.channels, request.sampleRate, request.params) };
 			}
 			return {

@@ -6,6 +6,9 @@ import {
 	applySpectralReplacement,
 	deleteSpectralSelection,
 } from '../src/lib/tools/audio-editor/spectral-edit.js';
+import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+
+await initializePffft();
 
 test('spectral Delete attenuates the selected band while preserving other frequencies and time', () => {
 	const sampleRate = 8_192;

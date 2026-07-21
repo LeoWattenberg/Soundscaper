@@ -15,6 +15,7 @@ import {
 	applyAudacityGraphicEq,
 	applyAudacityNoiseReduction,
 } from './spectral.js';
+import { fft } from '../pffft.js';
 
 const CLICK_WINDOW_SIZE = 8_192;
 const CLICK_HOP_SIZE = 4_096;
@@ -1026,40 +1027,6 @@ class NoiseReductionLiveProcessor extends LiveProcessor {
 			this.baseFrame = dropBefore;
 		}
 	}
-}
-
-function fft(real, imaginary, inverse) {
-	const size = real.length;
-	for (let index = 1, reversed = 0; index < size; index += 1) {
-		let bit = size >> 1;
-		for (; reversed & bit; bit >>= 1) reversed ^= bit;
-		reversed ^= bit;
-		if (index < reversed) {
-			let temporary = real[index]; real[index] = real[reversed]; real[reversed] = temporary;
-			temporary = imaginary[index]; imaginary[index] = imaginary[reversed]; imaginary[reversed] = temporary;
-		}
-	}
-	for (let length = 2; length <= size; length *= 2) {
-		const angle = (inverse ? 2 : -2) * Math.PI / length;
-		const stepReal = Math.cos(angle);
-		const stepImaginary = Math.sin(angle);
-		for (let start = 0; start < size; start += length) {
-			let twiddleReal = 1;
-			let twiddleImaginary = 0;
-			for (let offset = 0; offset < length / 2; offset += 1) {
-				const even = start + offset;
-				const odd = even + length / 2;
-				const oddReal = real[odd] * twiddleReal - imaginary[odd] * twiddleImaginary;
-				const oddImaginary = real[odd] * twiddleImaginary + imaginary[odd] * twiddleReal;
-				real[odd] = real[even] - oddReal; imaginary[odd] = imaginary[even] - oddImaginary;
-				real[even] += oddReal; imaginary[even] += oddImaginary;
-				const nextReal = twiddleReal * stepReal - twiddleImaginary * stepImaginary;
-				twiddleImaginary = twiddleReal * stepImaginary + twiddleImaginary * stepReal;
-				twiddleReal = nextReal;
-			}
-		}
-	}
-	if (inverse) for (let index = 0; index < size; index += 1) { real[index] /= size; imaginary[index] /= size; }
 }
 
 function applyLookaheadEnvelope(envelope, lookaheadFrames) {

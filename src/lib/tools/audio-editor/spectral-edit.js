@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { fft } from './pffft.js';
+
 const DEFAULT_WINDOW_SIZE = 2048;
 const DEFAULT_HOP_DIVISOR = 4;
 const MAX_FLOAT32 = 3.4028234663852886e38;
@@ -178,48 +180,6 @@ function createHannWindow(size) {
 		window[index] = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / size);
 	}
 	return window;
-}
-
-function fft(real, imaginary, inverse) {
-	const size = real.length;
-	for (let index = 1, reversed = 0; index < size; index += 1) {
-		let bit = size >> 1;
-		while (reversed & bit) {
-			reversed ^= bit;
-			bit >>= 1;
-		}
-		reversed ^= bit;
-		if (index >= reversed) continue;
-		[real[index], real[reversed]] = [real[reversed], real[index]];
-		[imaginary[index], imaginary[reversed]] = [imaginary[reversed], imaginary[index]];
-	}
-	for (let length = 2; length <= size; length <<= 1) {
-		const angle = (inverse ? 2 : -2) * Math.PI / length;
-		const rootReal = Math.cos(angle);
-		const rootImaginary = Math.sin(angle);
-		for (let offset = 0; offset < size; offset += length) {
-			let phaseReal = 1;
-			let phaseImaginary = 0;
-			for (let index = 0; index < length / 2; index += 1) {
-				const even = offset + index;
-				const odd = even + length / 2;
-				const oddReal = real[odd] * phaseReal - imaginary[odd] * phaseImaginary;
-				const oddImaginary = real[odd] * phaseImaginary + imaginary[odd] * phaseReal;
-				real[odd] = real[even] - oddReal;
-				imaginary[odd] = imaginary[even] - oddImaginary;
-				real[even] += oddReal;
-				imaginary[even] += oddImaginary;
-				const nextPhaseReal = phaseReal * rootReal - phaseImaginary * rootImaginary;
-				phaseImaginary = phaseReal * rootImaginary + phaseImaginary * rootReal;
-				phaseReal = nextPhaseReal;
-			}
-		}
-	}
-	if (!inverse) return;
-	for (let index = 0; index < size; index += 1) {
-		real[index] /= size;
-		imaginary[index] /= size;
-	}
 }
 
 function normalizeChannels(channels) {

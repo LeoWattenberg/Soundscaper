@@ -1,10 +1,12 @@
 import { captureAudacityNoiseProfile } from './audacity-effects/index.js';
 import { applyAudioSelectionEffectAsync } from './selection-effects.js';
+import { initializePffft } from './pffft.js';
 
 globalThis.onmessage = async ({ data }) => {
 	try {
 		const channels = (data.channels || []).map(asFloat32Array);
 		if (data.operation === 'capture-noise-profile') {
+			await initializePffft();
 			const profile = captureAudacityNoiseProfile(channels, data.sampleRate, data.params || {});
 			globalThis.postMessage({ type: 'noise-profile', profile }, transferableBuffers(profile));
 			return;

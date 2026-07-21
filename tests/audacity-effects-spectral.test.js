@@ -10,6 +10,9 @@ import {
 	applyAudacityRepair,
 	captureAudacityNoiseProfile,
 } from '../src/lib/tools/audio-editor/audacity-effects/spectral.js';
+import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+
+await initializePffft();
 
 const GRAPHIC_BANDS = 31;
 

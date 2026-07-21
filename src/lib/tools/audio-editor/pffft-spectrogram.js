@@ -3,9 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-const runners = new Map();
+import { fft, initializePffft, isPffftReady } from './pffft.js';
+
 const listeners = new Set();
 let revision = 0;
+initializePffft().then(() => {
+	revision += 1;
+	for (const listener of listeners) listener(revision);
+}).catch(() => {});
 
 export function subscribePffftSpectrogram(listener) {
 	listeners.add(listener);
@@ -17,43 +22,12 @@ export function pffftSpectrogramRevision() {
 }
 
 export function preparePffftSpectrogram(fftWindowSize) {
-	const size = normalizeWindowSize(fftWindowSize);
-	const existing = runners.get(size);
-	if (existing) return existing.promise;
-	const entry = { runner: null, error: null, promise: null };
-	entry.promise = import('pretty-fast-fft')
-		.then(({ createRunner }) => createRunner(size, size))
-		.then((runner) => {
-			entry.runner = runner;
-			revision += 1;
-			for (const listener of listeners) listener(revision);
-			return runner;
-		})
-		.catch((error) => {
-			entry.error = error;
-			throw error;
-		});
-	runners.set(size, entry);
-	return entry.promise;
+	normalizeWindowSize(fftWindowSize);
+	return initializePffft();
 }
 
 export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) {
-	const fftWindowSize = normalizeWindowSize(options.fftWindowSize);
-	const frequencyBands = normalizeBandCount(options.frequencyBands, fftWindowSize);
-	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
-	const columnCount = Math.max(0, Math.ceil(Math.max(0, width) / pixelSkip));
-	const entry = runners.get(fftWindowSize);
-	if (!entry?.runner || !columnCount) {
-		if (!entry) void preparePffftSpectrogram(fftWindowSize).catch(() => {});
-		return null;
-	}
-
-	const samples = packAnalysisWindows(waveformData, width, columnCount, pixelSkip, fftWindowSize);
-	const magnitudes = entry.runner.processAudio(samples);
-	return magnitudes.slice(0, columnCount).map((spectrum) => groupMagnitudes(spectrum, frequencyBands));
-}
-
-export function javascriptSpectrogramBandEnergies(waveformData, width, options = {}) {
+	if (!isPffftReady()) return null;
 	const fftWindowSize = normalizeWindowSize(options.fftWindowSize);
 	const frequencyBands = normalizeBandCount(options.frequencyBands, fftWindowSize);
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
@@ -62,21 +36,23 @@ export function javascriptSpectrogramBandEnergies(waveformData, width, options =
 	for (let pixel = 0; pixel < width; pixel += pixelSkip) {
 		const sampleIndex = Math.floor(pixel * samplesPerPixel);
 		if (sampleIndex >= waveformData.length) break;
-		const window = new Array(fftWindowSize);
+		const real = new Float32Array(fftWindowSize);
+		const imaginary = new Float32Array(fftWindowSize);
 		for (let index = 0; index < fftWindowSize; index += 1) {
 			const sample = Number(waveformData[sampleIndex + index]) || 0;
-			window[index] = sample * (0.54 - 0.46 * Math.cos(2 * Math.PI * index / (fftWindowSize - 1)));
+			real[index] = sample * (0.54 - 0.46 * Math.cos(2 * Math.PI * index / (fftWindowSize - 1)));
 		}
-		columns.push(groupMagnitudes(powerMagnitudes(fft(window)), frequencyBands));
+		fft(real, imaginary, false);
+		columns.push(groupComplexMagnitudes(real, imaginary, frequencyBands));
 	}
 	return columns;
 }
 
 export function renderPffftSpectrogram(context, waveformData, x, y, width, height, options = {}) {
-	const pffftColumns = pffftSpectrogramBandEnergies(waveformData, width, options);
-	const columns = pffftColumns || javascriptSpectrogramBandEnergies(waveformData, width, options);
+	const columns = pffftSpectrogramBandEnergies(waveformData, width, options);
+	if (!columns) return false;
 	paintSpectrogram(context, columns, x, y, width, height, options);
-	return Boolean(pffftColumns);
+	return true;
 }
 
 export function paintSpectrogram(context, columns, x, y, width, height, options = {}) {
@@ -101,59 +77,18 @@ export function paintSpectrogram(context, columns, x, y, width, height, options 
 	}
 }
 
-function packAnalysisWindows(waveformData, width, columnCount, pixelSkip, fftWindowSize) {
-	// PFFFT's runner advances by one complete block. Packing the requested
-	// windows back-to-back preserves the legacy renderer's exact pixel-to-sample
-	// projection, including fractional samples-per-pixel and zero padding.
-	const packed = new Float32Array((columnCount + 1) * fftWindowSize);
-	const samplesPerPixel = waveformData.length / Math.max(1, width);
-	for (let column = 0; column < columnCount; column += 1) {
-		const sourceStart = Math.floor(column * pixelSkip * samplesPerPixel);
-		const available = Math.max(0, Math.min(fftWindowSize, waveformData.length - sourceStart));
-		if (available <= 0) continue;
-		const targetStart = column * fftWindowSize;
-		for (let index = 0; index < available; index += 1) {
-			packed[targetStart + index] = Number(waveformData[sourceStart + index]) || 0;
-		}
-	}
-	return packed;
-}
-
-function groupMagnitudes(spectrum, frequencyBands) {
+function groupComplexMagnitudes(real, imaginary, frequencyBands) {
 	const bandEnergies = new Array(frequencyBands).fill(0);
-	const binsPerBand = Math.max(1, Math.floor(spectrum.length / frequencyBands));
+	const spectrumLength = real.length / 2;
+	const binsPerBand = Math.max(1, Math.floor(spectrumLength / frequencyBands));
 	for (let band = 0; band < frequencyBands; band += 1) {
 		const start = band * binsPerBand;
-		const end = Math.min(spectrum.length, start + binsPerBand);
+		const end = Math.min(spectrumLength, start + binsPerBand);
 		let sum = 0;
-		for (let index = start; index < end; index += 1) sum += Math.sqrt(Math.max(0, spectrum[index]));
+		for (let index = start; index < end; index += 1) sum += Math.hypot(real[index], imaginary[index]);
 		bandEnergies[band] = sum / Math.max(1, end - start);
 	}
 	return bandEnergies;
-}
-
-function fft(samples) {
-	const count = samples.length;
-	if (count <= 1) return { real: [...samples], imaginary: new Array(count).fill(0) };
-	const even = fft(samples.filter((_, index) => index % 2 === 0));
-	const odd = fft(samples.filter((_, index) => index % 2 === 1));
-	const real = new Array(count);
-	const imaginary = new Array(count);
-	for (let index = 0; index < count / 2; index += 1) {
-		const angle = -2 * Math.PI * index / count;
-		const twiddleReal = Math.cos(angle) * odd.real[index] - Math.sin(angle) * odd.imaginary[index];
-		const twiddleImaginary = Math.cos(angle) * odd.imaginary[index] + Math.sin(angle) * odd.real[index];
-		real[index] = even.real[index] + twiddleReal;
-		imaginary[index] = even.imaginary[index] + twiddleImaginary;
-		real[index + count / 2] = even.real[index] - twiddleReal;
-		imaginary[index + count / 2] = even.imaginary[index] - twiddleImaginary;
-	}
-	return { real, imaginary };
-}
-
-function powerMagnitudes(result) {
-	return Array.from({ length: result.real.length / 2 }, (_, index) =>
-		result.real[index] ** 2 + result.imaginary[index] ** 2);
 }
 
 function normalizedToFrequency(value, minimum, maximum, scale) {

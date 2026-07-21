@@ -11,6 +11,7 @@ import {
 import { processParametricEqChannelsWasm } from './parametric-eq/destructive.js';
 import { PARAMETRIC_EQ_WASM_MEMORY_BYTES } from './parametric-eq/wasm-runtime.js';
 import { applySpectralReplacement } from './spectral-edit.js';
+import { initializePffft } from './pffft.js';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
@@ -52,6 +53,7 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 		throw new RangeError(`Unsupported selection effect: ${type}.`);
 	}
 	if (type !== 'eq') return applyAudacityEffectAsync(type, channels, sampleRate, params, context);
+	await initializePffft();
 	const input = assertAudacityEffectOutput(channels);
 	const normalized = normalizeAudioSelectionEffectParams(type, params);
 	const contextual = prependContextChannels(input, context.beforeChannels);

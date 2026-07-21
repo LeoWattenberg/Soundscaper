@@ -39,6 +39,7 @@ import {
 } from './spectral.js';
 import { applyAudacityBrowserReverb } from './reverb.js';
 import { applySpectralReplacement } from '../spectral-edit.js';
+import { initializePffft } from '../pffft.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectLabel,
@@ -160,6 +161,7 @@ export function audacityStaffPadTransform(type, params = {}) {
 
 export async function applyAudacityEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!isAudacityStaffPadEffect(type)) {
+		await initializePffft();
 		return applyAudacitySpectralContext(
 			channels,
 			applyAudacityEffect(type, channels, sampleRate, params, context),

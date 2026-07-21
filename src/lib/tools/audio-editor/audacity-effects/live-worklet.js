@@ -4,6 +4,7 @@
  */
 
 import { createAudacityLiveProcessor } from './live.js';
+import { initializePffft } from '../pffft.js';
 
 export const AUDACITY_LIVE_WORKLET_NAME = 'kw-audacity-live-effect';
 
@@ -19,20 +20,32 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		const settings = options.processorOptions || {};
 		const sampleRate = Number(settings.sampleRate ?? globalThis.sampleRate ?? 48_000);
 		this.effectType = settings.effectType;
-		this.processor = createAudacityLiveProcessor(
-			this.effectType,
-			sampleRate,
-			settings.params || {},
-			{ noiseProfile: settings.noiseProfile },
-		);
+		this.processor = null;
+		this.pendingMessages = [];
 		this.lastError = null;
 		this.port.onmessage = (event) => this.#handleMessage(event.data || {});
 		this.port.start?.();
-		this.#postStatus('ready');
+		initializePffft().then(() => {
+			this.processor = createAudacityLiveProcessor(
+				this.effectType,
+				sampleRate,
+				settings.params || {},
+				{ noiseProfile: settings.noiseProfile },
+			);
+			for (const message of this.pendingMessages.splice(0)) this.#handleMessage(message);
+			this.#postStatus('ready');
+		}).catch((error) => {
+			this.lastError = error instanceof Error ? error.message : String(error);
+			this.port.postMessage({ type: 'error', effectType: this.effectType, message: this.lastError });
+		});
 	}
 
 	process(inputs, outputs) {
 		const output = outputs[0] || [];
+		if (!this.processor) {
+			for (const channel of output) channel.fill(0);
+			return true;
+		}
 		try {
 			this.processor.process(inputs[0] || [], output, inputs[1] || []);
 			this.lastError = null;
@@ -49,6 +62,10 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 	}
 
 	#handleMessage(message) {
+		if (!this.processor) {
+			this.pendingMessages.push(message);
+			return;
+		}
 		try {
 			if (message.type === 'params') this.processor.updateParams(message.params || {});
 			else if (message.type === 'noise-profile') this.processor.setNoiseProfile(message.profile);

@@ -1,9 +1,11 @@
 /* Repository-owned browser spectral edit worker. SPDX-License-Identifier: AGPL-3.0-only */
 
 import { applySpectralGain } from './spectral-edit.js';
+import { initializePffft } from './pffft.js';
 
-globalThis.onmessage = ({ data = {} }) => {
+globalThis.onmessage = async ({ data = {} }) => {
 	try {
+		await initializePffft();
 		const channels = (data.channels || []).map((channel) => (
 			channel instanceof Float32Array ? channel : new Float32Array(channel)
 		));

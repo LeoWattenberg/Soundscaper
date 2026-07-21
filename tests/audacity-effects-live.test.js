@@ -16,6 +16,9 @@ import {
 import { applyAudacityEffect } from '../src/lib/tools/audio-editor/audacity-effects/index.js';
 import { audacityEffectTypes } from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
 import { captureAudacityNoiseProfile } from '../src/lib/tools/audio-editor/audacity-effects/spectral.js';
+import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+
+await initializePffft();
 
 const SAMPLE_RATE = 48_000;
 const LIVE_TYPES = [
@@ -239,7 +242,7 @@ test('live Noise Reduction accepts persisted profiles and is exact away from fin
 	);
 });
 
-test('AudioWorklet wrapper accepts parameter/reset messages and reports invalid live ranges', () => {
+test('AudioWorklet wrapper accepts parameter/reset messages and reports invalid live ranges', async () => {
 	assert.equal(AUDACITY_LIVE_WORKLET_NAME, 'kw-audacity-live-effect');
 	const worklet = new AudacityLiveEffectProcessor({
 		processorOptions: {
@@ -249,6 +252,7 @@ test('AudioWorklet wrapper accepts parameter/reset messages and reports invalid 
 	});
 	const messages = [];
 	worklet.port.postMessage = (message) => messages.push(message);
+	await Promise.resolve();
 	worklet.port.onmessage({ data: { type: 'params', params: { decay: 0.25 } } });
 	assert.equal(messages.at(-1).type, 'status');
 	assert.equal(messages.at(-1).status, 'updated');
