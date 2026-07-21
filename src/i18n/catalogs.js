@@ -1460,7 +1460,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		volumeAutomation: 'Volume automation',
 		spectralBrush: 'Spectral brush',
 		showEffects: 'Show effects',
-		showArmControls: 'Show arm buttons',
+	showArmControls: 'Enable multi-track recording',
 		enableMultiTrackRecording: 'Enable multi-track recording',
 		showRms: 'Show RMS in waveform',
 		showVerticalRulers: 'Show vertical rulers',

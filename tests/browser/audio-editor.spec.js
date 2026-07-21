@@ -948,7 +948,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		let editor = await bootEditor(page, '/embed/en/');
 
 		await expect(editor.locator('[data-recording-input-selectors]')).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
 
 		const trackSelectors = editor.locator('.kw-recording-input-selectors--track').first();
 		const trackSource = trackSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
@@ -986,7 +986,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.reload();
 		editor = await waitForEditor(page);
 		await expect(editor.locator('[data-recording-input-selectors]')).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
 		await expect(editor.locator('.kw-recording-input-selectors--track').first()
 			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
 
@@ -1134,7 +1134,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const arm = editor.getByRole('button', { name: /^Arm for recording:/ });
 		await expect(arm).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
 		await expect(arm).toHaveCount(1);
 		await expect(arm).toHaveAttribute('aria-pressed', 'true');
 	});
@@ -2244,7 +2244,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const secondImportedTrack = editor.locator('[data-track-row]').nth(2);
 		await secondImportedTrack.getByRole('button', { name: 'Mute' }).click();
 		await secondImportedTrack.getByRole('button', { name: 'Solo' }).click();
-		await chooseCommandAction(page, editor, 'View', 'Show arm buttons');
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
 		await secondImportedTrack.getByRole('button', { name: /^Arm for recording:/ }).click();
 		await expect(secondImportedTrack.getByRole('button', { name: 'Mute' })).toHaveAttribute('aria-pressed', 'true');
 		await expect(secondImportedTrack.getByRole('button', { name: 'Solo' })).toHaveAttribute('aria-pressed', 'true');
@@ -2299,7 +2299,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const restoredSecondTrack = restored.locator('[data-track-row]').nth(2);
 		await expect(restoredSecondTrack.getByRole('button', { name: 'Mute' })).toHaveAttribute('aria-pressed', 'true');
 		await expect(restoredSecondTrack.getByRole('button', { name: 'Solo' })).toHaveAttribute('aria-pressed', 'true');
-		await chooseCommandAction(page, restored, 'View', 'Show arm buttons');
+		await chooseCommandAction(page, restored, 'View', 'Enable multi-track recording');
 		await expect(restoredSecondTrack.getByRole('button', { name: /^Arm for recording:/ })).toHaveAttribute('aria-pressed', 'true');
 		expect(errors).toEqual([]);
 	});
@@ -3143,7 +3143,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(trackMenuBox).not.toBeNull();
 		expect(Math.abs(trackMenuBox.x - trackMenuButtonBox.x)).toBeLessThanOrEqual(1);
 		expect(trackMenuBox.y).toBeGreaterThanOrEqual(trackMenuButtonBox.y + trackMenuButtonBox.height - 1);
-		await page.getByRole('button', { name: 'Show arm buttons' }).click();
+		await page.getByRole('button', { name: 'Enable multi-track recording' }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
 		await trackMenuButton.click();
 		await page.getByRole('button', { name: 'Duplicate track' }).click();
@@ -3167,7 +3167,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			'data-parity-status',
 			'supplemental',
 		);
-		await trackMenu.getByRole('button', { name: 'Show arm buttons', exact: true }).click();
+		await trackMenu.getByRole('button', { name: 'Enable multi-track recording', exact: true }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
 
 		const clip = clipByName(editor, toneA.name);
