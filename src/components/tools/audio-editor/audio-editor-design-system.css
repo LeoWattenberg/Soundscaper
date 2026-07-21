@@ -3423,7 +3423,8 @@
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors--track {
-	grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.55fr) minmax(0, 0.8fr) 8px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.6fr) minmax(0, 0.7fr) 8px;
+	margin-right:20px;
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors--mixer {
@@ -3444,7 +3445,7 @@
 	width: 100%;
 	min-width: 0;
 	height: 23px;
-	padding: 2px 16px 2px 5px;
+	padding: 2px 8px 2px 4px;
 	overflow: hidden;
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-control);
@@ -3467,8 +3468,8 @@
 
 #kw-audio-editor-design-system .kw-recording-input-selectors__health {
 	display: block;
-	width: 7px;
-	height: 7px;
+	width: 6px;
+	height: 6px;
 	background: var(--kw-editor-muted);
 	border-radius: 50%;
 	box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
@@ -3489,7 +3490,7 @@
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors[data-recording-input-health='recording'] .kw-recording-input-selectors__health {
-	box-shadow: 0 0 0 3px color-mix(in srgb, #2a9d61 22%, transparent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, #2a9d61 22%, transparent);
 }
 
 #kw-audio-editor-design-system .kw-recording-input-selectors:is([data-recording-input-health='opening'], [data-recording-input-health='skipped']) .kw-recording-input-selectors__health {
