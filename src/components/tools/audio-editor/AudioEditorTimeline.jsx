@@ -5,6 +5,8 @@ import {
 	ContextMenu,
 	ContextMenuItem,
 	DbRuler,
+	EnvelopeCurve,
+	EnvelopeInteractionLayer,
 	FrequencyRuler,
 	GhostButton,
 	Icon,
@@ -39,6 +41,7 @@ import {
 } from '../../../lib/tools/audio-editor/design-system-adapters.js';
 import {
 	createEnvelopeValueEvaluator,
+	envelopeValueToDb,
 	envelopeFramesToDesignPoints,
 	mergeDesignEnvelopePoints,
 } from '../../../lib/tools/audio-editor/automation.js';
@@ -100,6 +103,9 @@ function projectBinPayloadFromDataTransfer(dataTransfer) {
 function ContainerAddTrackFlyout({
 	isOpen,
 	onSelectTrackType,
+	mutationsBlocked,
+	showMasterTrack,
+	onToggleMasterTrack,
 	onClose,
 	x,
 	y,
@@ -137,7 +143,7 @@ function ContainerAddTrackFlyout({
 				return;
 			}
 			if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
-			const options = [...(flyoutRef.current?.querySelectorAll('.add-track-flyout__option') || [])];
+			const options = [...(flyoutRef.current?.querySelectorAll('.add-track-flyout__option:not(:disabled)') || [])];
 			const currentIndex = options.indexOf(document.activeElement);
 			if (currentIndex < 0 || !options.length) return;
 			event.preventDefault();
@@ -153,7 +159,10 @@ function ContainerAddTrackFlyout({
 
 	useEffect(() => {
 		if (!isOpen || !autoFocus) return undefined;
-		const timer = window.setTimeout(() => firstOptionRef.current?.focus(), 0);
+		const timer = window.setTimeout(() => {
+			const firstEnabled = flyoutRef.current?.querySelector('.add-track-flyout__option:not(:disabled)');
+			(firstEnabled || firstOptionRef.current)?.focus();
+		}, 0);
 		return () => window.clearTimeout(timer);
 	}, [autoFocus, isOpen]);
 
@@ -172,6 +181,7 @@ function ContainerAddTrackFlyout({
 		{ type: 'audio', label: copy.audioTrack, icon: 'microphone' },
 		{ type: 'video', label: copy.videoTrack || 'Video track', icon: 'play' },
 		{ type: 'label', label: copy.labelTrack, icon: 'label' },
+		{ type: 'send', label: copy.addSendTrack || copy.addSendBus, icon: 'automation' },
 	];
 	return (
 		<div
@@ -189,12 +199,25 @@ function ContainerAddTrackFlyout({
 						className="add-track-flyout__option"
 						role="menuitem"
 						tabIndex={index === 0 ? 0 : -1}
+						disabled={mutationsBlocked}
 						onClick={() => onSelectTrackType(option.type)}
 					>
 						<Icon name={option.icon} size={16} />
 						<span className="add-track-flyout__option-label">{option.label}</span>
 					</button>
 				))}
+				<div className="add-track-flyout__separator" role="separator" />
+				<button
+					type="button"
+					className="add-track-flyout__option add-track-flyout__checkbox"
+					role="menuitemcheckbox"
+					aria-checked={showMasterTrack}
+					tabIndex={-1}
+					onClick={onToggleMasterTrack}
+				>
+					<span className="add-track-flyout__check" aria-hidden="true">{showMasterTrack ? '✓' : ''}</span>
+					<span className="add-track-flyout__option-label">{copy.masterTrack}</span>
+				</button>
 			</div>
 		</div>
 	);
@@ -352,6 +375,8 @@ export default function AudioEditorTimeline({
 	const [selectionPreview, setSelectionPreview] = useState(null);
 	const [loopPreview, setLoopPreview] = useState(null);
 	const [trackMenu, setTrackMenu] = useState(null);
+	const [outputMenu, setOutputMenu] = useState(null);
+	const [focusedOutputKey, setFocusedOutputKey] = useState(null);
 	const [trackColorMenu, setTrackColorMenu] = useState(null);
 	const [clipMenu, setClipMenu] = useState(null);
 	const [timelineRulerMenu, setTimelineRulerMenu] = useState(null);
@@ -370,6 +395,23 @@ export default function AudioEditorTimeline({
 	const trackBaseTabIndex = useTabOrder('tracks');
 	const addTrackTabIndex = useTabOrder('add-track');
 	const panelWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
+	const showMasterTrack = Boolean(snapshot.preferences?.view?.showMasterTrack);
+	const outputTracks = useMemo(() => [
+		...(project?.mixer?.groups || []).map((bus) => ({ key: `group:${bus.id}`, scope: 'group', bus })),
+		...(project?.mixer?.sends || []).map((bus) => ({ key: `send:${bus.id}`, scope: 'send', bus })),
+		...(showMasterTrack && project?.master
+			? [{ key: 'master', scope: 'master', bus: project.master }]
+			: []),
+	], [project?.master, project?.mixer?.groups, project?.mixer?.sends, showMasterTrack]);
+	const outputDockContentHeight = outputTracks.reduce(
+		(total, { bus }) => total + (bus.collapsed === false ? TRACK_HEIGHT : COLLAPSED_TRACK_HEIGHT),
+		0,
+	);
+	const outputDockMaximumHeight = Math.max(
+		COLLAPSED_TRACK_HEIGHT,
+		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
+	);
+	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
 	const timelineView = snapshot.timeline?.view;
 	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
 		&& project?.tracks.some((track) => {
@@ -551,8 +593,15 @@ export default function AudioEditorTimeline({
 		if (type === 'audio') return run(() => controller.actions.track.add());
 		if (type === 'video') return run(() => controller.actions.track.addVideo());
 		if (type === 'label') return run(() => controller.actions.track.addLabel());
+		if (type === 'send') return run(() => controller.actions.mixer.addBus('send', {
+			name: `${copy.sendBus} ${(project?.mixer?.sends?.length || 0) + 1}`,
+		}));
 		return undefined;
-	}, [controller, run]);
+	}, [controller, copy.sendBus, project?.mixer?.sends?.length, run]);
+
+	const toggleMasterTrack = useCallback(() => run(() => controller.actions.preferences.update({
+		view: { showMasterTrack: !showMasterTrack },
+	})), [controller, run, showMasterTrack]);
 
 	const openClipMenu = useCallback((clipId, x, y, openedViaKeyboard = false) => {
 		const clip = project?.clips.find((item) => String(item.id) === String(clipId));
@@ -658,6 +707,13 @@ export default function AudioEditorTimeline({
 		return clientX >= rect.left && clientX < rect.right && clientY >= rect.top && clientY < rect.bottom;
 	}, [projectBinDropTarget]);
 
+	const isOverOutputDock = useCallback((clientX, clientY) => {
+		const dock = navigationRootRef.current?.querySelector('[data-output-track-dock]');
+		if (!dock) return false;
+		const rect = dock.getBoundingClientRect();
+		return clientX >= rect.left && clientX < rect.right && clientY >= rect.top && clientY < rect.bottom;
+	}, []);
+
 	const timelineDropTargetAt = useCallback((event) => {
 		const eventLane = event.target?.closest?.('.audio-editor-track-lane[data-track-lane]');
 		const lane = eventLane && !eventLane.closest('[data-label-track]') ? eventLane : null;
@@ -700,6 +756,7 @@ export default function AudioEditorTimeline({
 			return;
 		}
 		if (!session || cancelled || pinchSession.current || !project) return;
+		if (session.kind === 'move' && isOverOutputDock(event.clientX, event.clientY)) return;
 		if (session.kind === 'sample-pencil') {
 			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({
 				clipId: session.clipId,
@@ -786,7 +843,7 @@ export default function AudioEditorTimeline({
 				run(() => controller.actions.clip.trim(clip.id, { durationFrames: nextDurationFrames }));
 			}
 		}
-	}, [controller, frameAtClientX, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
 
 	const onPointerDown = useCallback((event) => {
 		if (event.pointerType === 'touch') {
@@ -990,6 +1047,14 @@ export default function AudioEditorTimeline({
 				endFrame: Math.max(session.startFrame, endFrame),
 			});
 		} else if (session?.kind === 'move') {
+			if (isOverOutputDock(event.clientX, event.clientY)) {
+				session.projectBinDrop = false;
+				session.preview = null;
+				setClipDragPreview(null);
+				setProjectBinDropActive(false);
+				event.preventDefault();
+				return;
+			}
 			if (isOverProjectBin(event.clientX, event.clientY)) {
 				session.projectBinDrop = true;
 				session.preview = null;
@@ -1101,7 +1166,7 @@ export default function AudioEditorTimeline({
 			session.preview = preview;
 			setClipDragPreview(preview);
 		}
-	}, [controller, frameAtClientX, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
+	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
@@ -1373,12 +1438,37 @@ export default function AudioEditorTimeline({
 			onClick: () => run(() => controller.actions.track.remove(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 	].filter(Boolean) : [];
+	const outputMenuTarget = outputMenu?.scope === 'master'
+		? project.master
+		: project.mixer?.[`${outputMenu?.scope || ''}s`]?.find((bus) => bus.id === outputMenu?.busId) || null;
+	const updateOutputMenuTarget = (changes) => {
+		if (!outputMenuTarget || !outputMenu) return undefined;
+		if (outputMenu.scope === 'master') return controller.actions.mixer.updateMaster(changes);
+		return controller.actions.mixer.updateBus(outputMenu.scope, outputMenuTarget.id, changes);
+	};
+	const outputMenuItems = outputMenuTarget ? [
+		{
+			label: outputMenuTarget.collapsed === false ? copy.collapseTrack : copy.expandTrack,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => updateOutputMenuTarget({ collapsed: outputMenuTarget.collapsed === false })),
+		},
+		...(outputMenu?.scope === 'master' ? [] : [
+			{ divider: true, label: '' },
+			{
+				label: copy.removeBus,
+				disabled: mutationsBlocked,
+				onClick: () => run(() => controller.actions.mixer.removeBus(outputMenu.scope, outputMenuTarget.id)),
+			},
+		]),
+	] : [];
 	const displayedLoop = loopPreview || project.loop || {};
 	return (
 		<section
 			className="audio-editor-timeline-panel"
 			aria-label={copy.timeline}
 			ref={setTimelineNode}
+			data-has-output-tracks={outputTracks.length ? 'true' : 'false'}
+			data-output-track-count={outputTracks.length}
 			data-sample-pencil={snapshot.sampleEdit?.mode === 'pencil' ? 'true' : 'false'}
 			data-split-tool={splitToolActive ? 'true' : 'false'}
 			data-automation-tool={automationToolEnabled ? 'true' : 'false'}
@@ -1422,7 +1512,6 @@ export default function AudioEditorTimeline({
 								variant="secondary"
 								size="small"
 								icon={<Icon name="plus" size={14} />}
-								disabled={mutationsBlocked}
 								tabIndex={addTrackTabIndex}
 								onClick={openAddTrackFlyout}
 							>
@@ -1492,6 +1581,9 @@ export default function AudioEditorTimeline({
 						triggerRef={addTrackTriggerRef}
 						className="kw-audio-editor__add-track-flyout"
 						copy={copy}
+						mutationsBlocked={mutationsBlocked}
+						showMasterTrack={showMasterTrack}
+						onToggleMasterTrack={toggleMasterTrack}
 						onSelectTrackType={addTrackFromFlyout}
 						onClose={closeAddTrackFlyout}
 					/>
@@ -1654,6 +1746,39 @@ export default function AudioEditorTimeline({
 				</div>
 			</div>
 
+			{outputTracks.length > 0 && <OutputTrackDock
+				controller={controller}
+				rows={outputTracks}
+				focusedOutputKey={focusedOutputKey}
+				onFocusOutput={setFocusedOutputKey}
+				onMenu={(scope, busId, anchor) => {
+					const rect = anchor?.getBoundingClientRect?.();
+					setOutputMenu({
+						scope,
+						busId,
+						anchor,
+						x: rect?.right || 0,
+						y: rect?.top || 0,
+					});
+				}}
+				panelWidth={panelWidth}
+				verticalRulerWidth={verticalRulerWidth}
+				viewportWidth={viewportWidth}
+				timelineWidth={timelineWidth}
+				scrollX={scrollX}
+				pixelsPerSecond={pixelsPerSecond}
+				sampleRate={sampleRate}
+				durationFrames={durationFrames}
+				selection={timeSelection}
+				height={outputDockHeight}
+				automationToolEnabled={automationToolEnabled}
+				blocked={mutationsBlocked}
+				mobile={mobile}
+				copy={copy}
+				run={run}
+				onOpenEffects={onOpenEffects}
+			/>}
+
 			<AudioEditorSampleTools controller={controller} snapshot={snapshot} copy={copy} run={run} />
 
 			<TimelineRulerContextMenu
@@ -1742,6 +1867,27 @@ export default function AudioEditorTimeline({
 				className="audio-editor-track-menu"
 				items={trackMenuItems}
 			/>
+
+			<ContextMenu
+				isOpen={Boolean(outputMenu && outputMenuTarget)}
+				x={outputMenu?.x || 0}
+				y={outputMenu?.y || 0}
+				autoFocus
+				onClose={() => setOutputMenu(null)}
+				className="audio-editor-output-track-menu"
+			>
+				{outputMenuItems.map((item, index) => item.divider ? (
+					<ContextMenuItem key={`divider-${index}`} isDivider />
+				) : (
+					<ContextMenuItem
+						key={item.label}
+						label={item.label}
+						disabled={item.disabled}
+						onClick={item.onClick}
+						onClose={() => setOutputMenu(null)}
+					/>
+				))}
+			</ContextMenu>
 
 			<TrackColorPicker
 				isOpen={Boolean(trackColorMenu && colorMenuTrack)}
@@ -2174,6 +2320,506 @@ function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, height }
 				height,
 			}}
 		/>
+	);
+}
+
+function OutputTrackDock({
+	controller,
+	rows,
+	focusedOutputKey,
+	onFocusOutput,
+	onMenu,
+	panelWidth,
+	verticalRulerWidth,
+	viewportWidth,
+	timelineWidth,
+	scrollX,
+	pixelsPerSecond,
+	sampleRate,
+	durationFrames,
+	selection,
+	height,
+	automationToolEnabled,
+	blocked,
+	mobile,
+	copy,
+	run,
+	onOpenEffects,
+}) {
+	const dockRef = useRef(null);
+	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
+	const playheadX = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
+	const outputRows = useCallback(() => [
+		...(dockRef.current?.querySelectorAll(':scope > [data-output-track-row]') || []),
+	], []);
+	const focusOutputPanel = useCallback((rowIndex, lastControl = false) => {
+		const panel = outputRows()[rowIndex]?.querySelector('.track-control-panel');
+		return lastControl ? focusPanelControl(panel, true) : focusFirst(panel);
+	}, [outputRows]);
+	const focusOutputLane = useCallback((rowIndex) => (
+		focusFirst(outputRows()[rowIndex]?.querySelector('[data-output-lane]'))
+	), [outputRows]);
+
+	useEffect(() => {
+		const dock = dockRef.current;
+		if (!dock) return undefined;
+		let animationFrame = 0;
+		const update = (frame) => {
+			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
+			dock.style.setProperty('--output-playhead-x', `${x}px`);
+		};
+		const draw = () => {
+			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
+			animationFrame = globalThis.requestAnimationFrame(draw);
+		};
+		update(positionFrame);
+		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
+		return () => {
+			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
+		};
+	}, [controller, pixelsPerSecond, positionFrame, sampleRate, transportState]);
+
+	return (
+		<div
+			ref={dockRef}
+			className="audio-editor-output-dock"
+			data-output-track-dock
+			aria-label={copy.output}
+			style={{ height, '--output-playhead-x': `${playheadX}px` }}
+			onDragEnter={(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			}}
+			onDragOver={(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+			}}
+			onDrop={(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			}}
+		>
+			{rows.map(({ key, scope, bus }, rowIndex) => <OutputTrackRow
+				key={key}
+				controller={controller}
+				rowKey={key}
+				scope={scope}
+				bus={bus}
+				focused={focusedOutputKey === key}
+				onFocus={() => onFocusOutput(key)}
+				onMenu={(anchor) => onMenu(scope, scope === 'master' ? null : bus.id, anchor)}
+				onFocusPanel={(lastControl = false) => focusOutputPanel(rowIndex, lastControl)}
+				onFocusLane={() => focusOutputLane(rowIndex)}
+				onFocusPreviousLane={() => rowIndex > 0 && focusOutputLane(rowIndex - 1)}
+				onFocusNextPanel={() => rowIndex + 1 < rows.length && focusOutputPanel(rowIndex + 1)}
+				onNavigatePanel={(direction) => {
+					const targetIndex = rowIndex + (direction === 'down' ? 1 : -1);
+					return targetIndex >= 0 && targetIndex < rows.length && focusOutputPanel(targetIndex);
+				}}
+				onNavigateLane={(direction) => {
+					const targetIndex = rowIndex + (direction === 'down' ? 1 : -1);
+					return targetIndex >= 0 && targetIndex < rows.length && focusOutputLane(targetIndex);
+				}}
+				panelWidth={panelWidth}
+				verticalRulerWidth={verticalRulerWidth}
+				viewportWidth={viewportWidth}
+				timelineWidth={timelineWidth}
+				scrollX={scrollX}
+				pixelsPerSecond={pixelsPerSecond}
+				sampleRate={sampleRate}
+				durationFrames={durationFrames}
+				selection={selection}
+				automationToolEnabled={automationToolEnabled}
+				blocked={blocked}
+				mobile={mobile}
+				copy={copy}
+				run={run}
+				onOpenEffects={onOpenEffects}
+			/>)}
+		</div>
+	);
+}
+
+function OutputTrackRow({
+	controller,
+	rowKey,
+	scope,
+	bus,
+	focused,
+	onFocus,
+	onMenu,
+	onFocusPanel,
+	onFocusLane,
+	onFocusPreviousLane,
+	onFocusNextPanel,
+	onNavigatePanel,
+	onNavigateLane,
+	panelWidth,
+	verticalRulerWidth,
+	viewportWidth,
+	timelineWidth,
+	scrollX,
+	pixelsPerSecond,
+	sampleRate,
+	durationFrames,
+	selection,
+	automationToolEnabled,
+	blocked,
+	mobile,
+	copy,
+	run,
+	onOpenEffects,
+}) {
+	const canonicalDurationFrames = Math.max(1, durationFrames);
+	const envelopeStartFrame = Math.max(0, Math.min(
+		canonicalDurationFrames - 1,
+		Math.floor(scrollX / pixelsPerSecond * sampleRate),
+	));
+	const envelopeEndFrame = Math.max(
+		envelopeStartFrame + 1,
+		Math.min(
+			canonicalDurationFrames,
+			Math.ceil((scrollX + viewportWidth) / pixelsPerSecond * sampleRate),
+		),
+	);
+	const envelopeDurationFrames = envelopeEndFrame - envelopeStartFrame;
+	const envelopeDurationSeconds = framesToSeconds(envelopeDurationFrames, { sampleRate });
+	const envelopeLeft = CLIP_CONTENT_OFFSET
+		+ framesToSeconds(envelopeStartFrame, { sampleRate }) * pixelsPerSecond;
+	const envelopeWidth = Math.max(1, envelopeDurationSeconds * pixelsPerSecond);
+	const rowHeight = bus.collapsed === false ? TRACK_HEIGHT : COLLAPSED_TRACK_HEIGHT;
+	const canonicalPoints = useMemo(() => {
+		const projected = envelopeFramesToDesignPoints(bus.envelope, sampleRate, {
+			startFrame: envelopeStartFrame,
+			endFrame: envelopeEndFrame,
+		});
+		const evaluate = createEnvelopeValueEvaluator(bus.envelope, canonicalDurationFrames);
+		const withBoundaries = [...projected];
+		if (!withBoundaries.some((point) => point.time === 0)) {
+			withBoundaries.unshift({ time: 0, db: envelopeValueToDb(evaluate(envelopeStartFrame)) });
+		}
+		if (!withBoundaries.some((point) => Math.abs(point.time - envelopeDurationSeconds) < 1e-6)) {
+			withBoundaries.push({
+				time: envelopeDurationSeconds,
+				db: envelopeValueToDb(evaluate(envelopeEndFrame)),
+			});
+		}
+		return withBoundaries;
+	}, [
+		bus.envelope,
+		canonicalDurationFrames,
+		envelopeDurationSeconds,
+		envelopeEndFrame,
+		envelopeStartFrame,
+		sampleRate,
+	]);
+	const previewRef = useRef(null);
+	const rowRef = useRef(null);
+	const [previewPoints, setPreviewPoints] = useState(null);
+	const [envelopeEditActive, setEnvelopeEditActive] = useState(false);
+	const displayedPoints = previewPoints || canonicalPoints;
+	const curvePoints = displayedPoints;
+	const update = useCallback((changes) => {
+		if (scope === 'master') return controller.actions.mixer.updateMaster(changes);
+		return controller.actions.mixer.updateBus(scope, bus.id, changes);
+	}, [bus.id, controller, scope]);
+
+	useEffect(() => {
+		if (!envelopeEditActive) return undefined;
+		const finishEnvelopeEdit = () => globalThis.setTimeout(() => {
+			const points = previewRef.current;
+			setEnvelopeEditActive(false);
+			if (!points) return;
+			previewRef.current = null;
+			setPreviewPoints(null);
+			run(() => update({
+				envelope: mergeDesignEnvelopePoints(
+					bus.envelope,
+					points,
+					sampleRate,
+					canonicalDurationFrames,
+					{
+						startFrame: envelopeStartFrame,
+						endFrame: envelopeEndFrame,
+						maximumValue: 16,
+					},
+				),
+			}));
+		}, 0);
+		document.addEventListener('mouseup', finishEnvelopeEdit);
+		return () => document.removeEventListener('mouseup', finishEnvelopeEdit);
+	}, [bus.envelope, canonicalDurationFrames, envelopeEditActive, envelopeEndFrame, envelopeStartFrame, run, sampleRate, update]);
+
+	useEffect(() => {
+		if (automationToolEnabled) return;
+		previewRef.current = null;
+		setPreviewPoints(null);
+		setEnvelopeEditActive(false);
+	}, [automationToolEnabled]);
+	useEffect(() => {
+		if (previewRef.current === null) setPreviewPoints(null);
+	}, [bus.envelope]);
+
+	const lineColor = scope === 'group' ? '#3975ad' : scope === 'send' ? '#7854b8' : '#7f8996';
+	return (
+		<div
+			ref={rowRef}
+			className="audio-editor-output-track-row"
+			data-output-track-row
+			data-output-scope={scope}
+			data-output-id={scope === 'master' ? 'master' : bus.id}
+			data-output-key={rowKey}
+			data-collapsed={bus.collapsed === false ? 'false' : 'true'}
+			data-focused={focused ? 'true' : 'false'}
+			style={{ height: rowHeight, '--output-track-color': lineColor }}
+		>
+			<OutputTrackControls
+				controller={controller}
+				scope={scope}
+				bus={bus}
+				trackHeight={rowHeight}
+				panelWidth={panelWidth}
+				focused={focused}
+				onFocus={onFocus}
+				onMenu={onMenu}
+				onFocusPanel={onFocusPanel}
+				onTabOut={onFocusLane}
+				onShiftTabOut={onFocusPreviousLane}
+				onNavigateVertical={onNavigatePanel}
+				blocked={blocked}
+				mobile={mobile}
+				copy={copy}
+				run={run}
+				update={update}
+				onOpenEffects={onOpenEffects}
+			/>
+			<div
+				className="audio-editor-output-lane-viewport"
+				style={{ left: panelWidth, right: verticalRulerWidth, width: viewportWidth }}
+			>
+				<div
+					className="audio-editor-output-lane"
+					data-output-lane
+					data-output-scope={scope}
+					data-output-id={scope === 'master' ? 'master' : bus.id}
+					role="region"
+					tabIndex={0}
+					aria-label={`${scope === 'master' ? copy.master : bus.name}: ${copy.volumeEnvelope || copy.clipGain}`}
+					style={{
+						width: timelineWidth,
+						height: rowHeight,
+						transform: `translate3d(${-scrollX}px, 0, 0)`,
+					}}
+					onFocus={onFocus}
+					onKeyDown={(event) => {
+						if (event.key === 'Tab') {
+							const moved = event.shiftKey ? onFocusPanel() : onFocusNextPanel();
+							if (!moved) return;
+							event.preventDefault();
+							event.stopPropagation();
+						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+							if (!onNavigateLane(event.key === 'ArrowDown' ? 'down' : 'up')) return;
+							event.preventDefault();
+							event.stopPropagation();
+						} else if (event.key === 'Escape') {
+							event.preventDefault();
+							event.stopPropagation();
+							onFocusPanel();
+						} else if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') {
+							event.preventDefault();
+							event.stopPropagation();
+							const anchor = rowRef.current?.querySelector('[aria-label="Track menu"]')
+								|| rowRef.current?.querySelector('.track-control-panel');
+							onMenu(anchor);
+						}
+					}}
+				>
+					{selection && <div
+						className="audio-editor-output-time-selection"
+						aria-hidden="true"
+						style={{
+							left: CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond,
+							width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
+						}}
+					/>}
+					<div
+						className="audio-editor-output-envelope"
+						style={{ left: envelopeLeft, width: envelopeWidth }}
+						onMouseDownCapture={(event) => {
+							if (event.button === 0 && automationToolEnabled && !blocked) setEnvelopeEditActive(true);
+						}}
+					>
+						<EnvelopeCurve
+							points={curvePoints}
+							x={0}
+							y={0}
+							width={envelopeWidth}
+							height={rowHeight}
+							startTime={0}
+							duration={envelopeDurationSeconds}
+							pixelsPerSecond={pixelsPerSecond}
+							lineColor={lineColor}
+							pointColor="#ffffff"
+							active={false}
+						/>
+						<EnvelopeInteractionLayer
+							envelopePoints={displayedPoints}
+							onEnvelopePointsChange={(points) => {
+								if (blocked || !automationToolEnabled) return;
+								previewRef.current = points;
+								setPreviewPoints(points);
+								setEnvelopeEditActive(true);
+							}}
+							enabled={automationToolEnabled && !blocked}
+							width={envelopeWidth}
+							height={rowHeight}
+							duration={envelopeDurationSeconds}
+						/>
+					</div>
+					<div
+						className="audio-editor-output-playhead"
+						aria-hidden="true"
+						style={{ transform: 'translate3d(var(--output-playhead-x), 0, 0)' }}
+					/>
+				</div>
+			</div>
+			{verticalRulerWidth > 0 && <div
+				className="audio-editor-output-ruler"
+				aria-hidden="true"
+				style={{ width: verticalRulerWidth }}
+			/>}
+		</div>
+	);
+}
+
+function OutputTrackControls({
+	controller,
+	scope,
+	bus,
+	trackHeight,
+	panelWidth,
+	focused,
+	onFocus,
+	onMenu,
+	onFocusPanel,
+	onTabOut,
+	onShiftTabOut,
+	onNavigateVertical,
+	blocked,
+	mobile,
+	copy,
+	run,
+	update,
+	onOpenEffects,
+}) {
+	const controlsRef = useRef(null);
+	const [editingName, setEditingName] = useState(false);
+	const meter = useAudioEditorTelemetrySelector(controller, (telemetry) => scope === 'master'
+		? telemetry.meters?.master
+		: telemetry.meters?.[`${scope}s`]?.[bus.id]);
+	const meterVolume = meterPercent(meter?.dbfs);
+	const label = scope === 'master' ? copy.master : bus.name;
+	return (
+		<div
+			ref={controlsRef}
+			className="audio-editor-track-controls audio-editor-output-track-controls"
+			data-output-track-header
+			style={{ width: panelWidth }}
+			onKeyDownCapture={(event) => {
+				const panel = controlsRef.current?.querySelector('.track-control-panel');
+				if (event.key !== 'Tab' || event.target !== panel) return;
+				const moved = event.shiftKey ? onShiftTabOut?.() : onTabOut?.();
+				if (moved) event.preventDefault();
+				event.stopPropagation();
+			}}
+			onDoubleClick={(event) => {
+				if (scope === 'master' || blocked || !(event.target instanceof Element)) return;
+				if (event.target.closest('.track-control-panel__track-name-text')) setEditingName(true);
+			}}
+		>
+			<TrackControlPanel
+				trackName={label}
+				trackType="stereo"
+				volume={gainDbToDesignVolume(linearToDb(bus.gain))}
+				pan={panToDesignValue(bus.pan)}
+				isMuted={Boolean(bus.mute)}
+				isSolo={Boolean(bus.solo)}
+				isFocused={focused}
+				height={bus.collapsed === false ? (mobile ? 'truncated' : 'default') : 'collapsed'}
+				trackHeight={trackHeight}
+				meterLevelLeft={meterVolume}
+				meterLevelRight={meterVolume}
+				meterClippedLeft={(meter?.peak || 0) >= 1}
+				meterClippedRight={(meter?.peak || 0) >= 1}
+				tabIndex={0}
+				onVolumeChange={(volume) => !blocked && run(() => update({
+					gain: dbToLinear(designVolumeToGainDb(volume)),
+				}))}
+				onPanChange={(pan) => !blocked && run(() => update({ pan: designValueToPan(pan) }))}
+				onMuteToggle={() => !blocked && run(() => update({ mute: !bus.mute }))}
+				onSoloToggle={() => !blocked && run(() => update({ solo: !bus.solo }))}
+				onEffectsClick={() => onOpenEffects?.(
+					scope === 'master' ? null : bus.id,
+					controlsRef.current?.getBoundingClientRect() || null,
+					scope,
+				)}
+				onMenuClick={(event) => onMenu(event.currentTarget)}
+				onClick={onFocus}
+				onFocusChange={(hasFocus) => hasFocus && onFocus()}
+				onNavigateVertical={onNavigateVertical}
+				onTabOut={onTabOut}
+				onShiftTabOut={() => {
+					const panel = controlsRef.current?.querySelector('.track-control-panel');
+					if (document.activeElement !== panel) return onFocusPanel?.();
+					return onShiftTabOut?.();
+				}}
+			/>
+			{editingName && <OutputTrackNameEditor
+				name={bus.name}
+				label={copy.trackName}
+				blocked={blocked}
+				onCommit={(name) => run(() => update({ name }))}
+				onClose={() => setEditingName(false)}
+			/>}
+		</div>
+	);
+}
+
+function OutputTrackNameEditor({ name: initialName, label, blocked, onCommit, onClose }) {
+	const editorRef = useRef(null);
+	const [name, setName] = useState(initialName);
+	useEffect(() => setName(initialName), [initialName]);
+	useEffect(() => {
+		const input = editorRef.current?.querySelector('input');
+		input?.focus();
+		input?.select();
+	}, []);
+	const commit = () => {
+		const nextName = name.trim();
+		if (nextName && nextName !== initialName) onCommit(nextName);
+		onClose();
+	};
+	return (
+		<label
+			ref={editorRef}
+			className="audio-editor-output-name-editor"
+			onBlur={commit}
+			onKeyDown={(event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					event.currentTarget.querySelector('input')?.blur();
+				} else if (event.key === 'Escape') {
+					event.preventDefault();
+					setName(initialName);
+					onClose();
+				}
+			}}
+		>
+			<span className="kw-audio-editor-sr-only">{label}: {initialName}</span>
+			<TextInput value={name} disabled={blocked} width="100%" onChange={setName} />
+		</label>
 	);
 }
 

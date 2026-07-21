@@ -73,6 +73,14 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 
 		await runtime.actions.workspace.toggleTransportToolbar();
 		assert.equal(controller.getSnapshot().preferences.workspace.toolbars.transport.visible, false);
+		assert.equal(controller.getSnapshot().preferences.view.showMasterTrack, false);
+		await runtime.actions.workspace.toggleMasterTrack();
+		assert.equal(controller.getSnapshot().preferences.view.showMasterTrack, true);
+		assert.equal(store.settings.get('audio-editor-preferences-v1').view.showMasterTrack, true);
+		assert.equal(uiController.getSnapshot().flags.masterTrack, false);
+		await runtime.actions.workspace.toggleMasterTrack();
+		assert.equal(controller.getSnapshot().preferences.view.showMasterTrack, false);
+		assert.equal(store.settings.get('audio-editor-preferences-v1').view.showMasterTrack, false);
 		runtime.actions.panels.labels();
 		assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.visible, true);
 		assert.equal(uiController.getSnapshot().request.type, 'focus-panel');
@@ -201,6 +209,7 @@ function createMemoryStore() {
 	const projects = new Map();
 	const settings = new Map();
 	return {
+		settings,
 		async ready() { return this; },
 		async cleanupTemporaryAssets() {},
 		async requestPersistentStorage() { return false; },

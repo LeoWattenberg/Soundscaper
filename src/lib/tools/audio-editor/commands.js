@@ -15,6 +15,7 @@ import {
 import { createEffect, normalizeEffect, updateEffect } from './effects.js';
 import {
 	createAudioClipV2,
+	createAudioMasterV2,
 	createAudioMixerBusV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
@@ -832,20 +833,10 @@ function removeLabel(project, trackId, labelId) {
 
 function updateMaster(project, changes = {}) {
 	const keys = Object.keys(changes);
-	if (keys.some((key) => !['gain', 'pan', 'mute', 'solo', 'effectsActive'].includes(key))) throw new RangeError('Unsupported master mixer field.');
-	if (Object.hasOwn(changes, 'gain')) {
-		const gain = Number(changes.gain);
-		if (!Number.isFinite(gain) || gain < 0 || gain > 4) throw new RangeError('Master gain must be between 0 and 4.');
-		project.master.gain = gain;
-	}
-	if (Object.hasOwn(changes, 'pan')) {
-		const pan = Number(changes.pan);
-		if (!Number.isFinite(pan) || pan < -1 || pan > 1) throw new RangeError('Master pan must be between -1 and 1.');
-		project.master.pan = pan;
-	}
-	if (Object.hasOwn(changes, 'mute')) project.master.mute = Boolean(changes.mute);
-	if (Object.hasOwn(changes, 'solo')) project.master.solo = Boolean(changes.solo);
-	if (Object.hasOwn(changes, 'effectsActive')) project.master.effectsActive = Boolean(changes.effectsActive);
+	const allowed = new Set(['gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
+	if (keys.some((key) => !allowed.has(key))) throw new RangeError('Unsupported master mixer field.');
+	const normalized = createAudioMasterV2({ ...project.master, ...changes, effects: project.master.effects });
+	for (const key of keys) project.master[key] = normalized[key];
 }
 
 function ensureMixer(project) {
@@ -883,7 +874,7 @@ function addMixerBus(project, command) {
 function updateMixerBus(project, command) {
 	const bus = requireMixerBus(project, command.busType, command.busId);
 	const changes = command.changes || {};
-	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo', 'effectsActive']);
+	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer bus field cannot be updated: ${key}.`);
 	const collection = mixerBusCollection(project, command.busType);
 	const normalized = createAudioMixerBusV2({ ...bus, ...changes, effects: bus.effects }, command.busType, collection.indexOf(bus));

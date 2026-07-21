@@ -637,6 +637,55 @@ test('AUP4 export report identifies converted source layouts and omitted mixer s
 	assert.equal(plan.compatibilityReport.counts.omitted, 12);
 });
 
+test('AUP4 export reports omitted bus and master envelopes without mutating the source project', () => {
+	const project = fixtureProject({
+		master: {
+			gain: 1,
+			pan: 0,
+			mute: false,
+			solo: false,
+			effects: [],
+			envelope: [{ frame: 0, value: 0.75 }, { frame: 96_000, value: 1 }],
+		},
+		mixer: {
+			groups: [
+				{ id: 'group-automated', effects: [], envelope: [{ frame: 48_000, value: 0.5 }] },
+				{ id: 'group-static', effects: [], envelope: [] },
+			],
+			sends: [{
+				id: 'send-automated',
+				effects: [],
+				envelope: [{ frame: 0, value: 0 }, { frame: 24_000, value: 0.5 }, { frame: 48_000, value: 1 }],
+			}],
+			routes: {},
+		},
+		sources: [],
+		clips: [],
+		tracks: [],
+	});
+	const original = structuredClone(project);
+
+	const plan = createAup4ExportPlan(project);
+	const groupItem = plan.compatibilityReport.items.find((item) => item.code === 'MIXER_GROUPS_OMITTED');
+	const sendItem = plan.compatibilityReport.items.find((item) => item.code === 'MIXER_SENDS_OMITTED');
+	const masterItem = plan.compatibilityReport.items.find((item) => item.code === 'MASTER_ENVELOPE_OMITTED');
+
+	assert.deepEqual(groupItem.data, { count: 2, envelopeBusCount: 1, envelopePointCount: 1 });
+	assert.deepEqual(sendItem.data, { count: 1, envelopeBusCount: 1, envelopePointCount: 3 });
+	assert.deepEqual(masterItem, {
+		code: 'MASTER_ENVELOPE_OMITTED',
+		severity: 'warning',
+		disposition: 'omitted',
+		scope: { kind: 'master' },
+		data: { pointCount: 2 },
+	});
+	assert.deepEqual(plan.project.master.envelope, []);
+	assert.deepEqual(plan.project.mixer, { groups: [], sends: [], routes: {} });
+	assert.deepEqual(project, original);
+	assert.notStrictEqual(plan.project, project);
+	assert.equal(plan.compatibilityReport.counts.omitted, 3);
+});
+
 test('AUP4 save analysis reports browser and unavailable effects at their rack positions', () => {
 	const browserEffect = createEffect('reverb', { id: 'browser-reverb' });
 	const missingEffect = createMissingEffect({

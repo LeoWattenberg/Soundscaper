@@ -11,7 +11,7 @@ const STAFFPAD_EFFECT_TYPES = Object.freeze({
 const UI_FLAG_DEFAULTS = Object.freeze({
 	clipping: true,
 	halfWave: false,
-	masterTrack: true,
+	masterTrack: false,
 	selectionToolbar: true,
 	splitTool: false,
 	statusbar: true,
@@ -349,7 +349,9 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			toggleSelectionToolbar: () => ui.toggleFlag('selectionToolbar'),
 			toggleTracksPanel: () => ui.toggleFlag('tracksPanel'),
 			toggleStatusbar: () => ui.toggleFlag('statusbar'),
-			toggleMasterTrack: () => ui.toggleFlag('masterTrack'),
+			toggleMasterTrack: () => controllerActions.preferences.update({
+				view: { showMasterTrack: !Boolean(snapshot().preferences?.view?.showMasterTrack) },
+			}),
 			configure: () => openSurface('preferences', { section: 'workspace' }),
 			fullscreen: () => ui.issue('toggle-fullscreen'),
 			restoreDefault: () => controllerActions.preferences.setWorkspace('modern'),

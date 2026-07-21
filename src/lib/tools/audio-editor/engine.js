@@ -446,6 +446,7 @@ export class WebAudioEditorEngine {
 				sources: this.sources,
 				trackInputs: graph.trackInputs,
 				trackGainParams: graph.trackGainParams,
+				projectGainParams: graph.projectGainParams,
 				fromFrame,
 				toFrame,
 				contextStartTime: context.currentTime,
@@ -817,6 +818,7 @@ export class WebAudioEditorEngine {
 				sources: this.sources,
 				trackInputs: graph.trackInputs,
 				trackGainParams: graph.trackGainParams,
+				projectGainParams: graph.projectGainParams,
 				fromFrame: renderFromFrame,
 				toFrame,
 				contextStartTime: 0,
@@ -944,6 +946,7 @@ export class WebAudioEditorEngine {
 				sources: this.sources,
 				trackInputs: graph.trackInputs,
 				trackGainParams: graph.trackGainParams,
+				projectGainParams: graph.projectGainParams,
 				fromFrame: renderFromFrame,
 				toFrame,
 				contextStartTime: startTime,
@@ -1221,6 +1224,7 @@ export class WebAudioEditorEngine {
 				sources: this.sources,
 				trackInputs: this.graph.trackInputs,
 				trackGainParams: this.graph.trackGainParams,
+				projectGainParams: this.graph.projectGainParams,
 				fromFrame,
 				toFrame: this.playEndFrame,
 				contextStartTime: scheduledTime,
@@ -1326,6 +1330,7 @@ export class WebAudioEditorEngine {
 				sources: this.sources,
 				trackInputs: this.graph.trackInputs,
 				trackGainParams: this.graph.trackGainParams,
+				projectGainParams: this.graph.projectGainParams,
 				fromFrame: this.loop.startFrame,
 				toFrame: this.loop.endFrame,
 				contextStartTime: this.loopScheduleTime,
@@ -1554,6 +1559,8 @@ export function buildProjectGraph(context, destination, project, {
 	const sources = new Set();
 	const trackInputs = new Map();
 	const trackGainParams = new Map();
+	const groupGainParams = new Map();
+	const sendGainParams = new Map();
 	const trackAnalysers = new Map();
 	const groupAnalysers = new Map();
 	const sendAnalysers = new Map();
@@ -1678,7 +1685,7 @@ export function buildProjectGraph(context, destination, project, {
 		}
 	}
 
-	const processBus = (bus, input, analysers, scope) => {
+	const processBus = (bus, input, analysers, gainParams, scope) => {
 		let output = applyEffectRack(context, input, activeRackEffects(bus), nodes, {
 			sidechainInputs: trackInputs,
 			baseSidechainDelayFrames: maximumTrackLatency,
@@ -1694,6 +1701,10 @@ export function buildProjectGraph(context, destination, project, {
 		});
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, finite(bus.gain, 1), context.currentTime);
+		gainParams.set(String(bus.id), {
+			param: gain.gain,
+			latencyFrames: maximumTrackLatency + (busLatencies.get(String(bus.id)) || 0),
+		});
 		connect(output, gain);
 		output = gain;
 		if (typeof context.createStereoPanner === 'function') {
@@ -1713,8 +1724,8 @@ export function buildProjectGraph(context, destination, project, {
 		connect(output, mute);
 		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0);
 	};
-	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers, 'group');
-	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers, 'send');
+	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id)), groupAnalysers, groupGainParams, 'group');
+	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id)), sendAnalysers, sendGainParams, 'send');
 
 	const masterEffects = includeMaster ? activeRackEffects(project?.master) : [];
 	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
@@ -1733,6 +1744,10 @@ export function buildProjectGraph(context, destination, project, {
 	});
 	const masterGain = addNode(nodes, context.createGain());
 	setParam(masterGain.gain, includeMaster ? finite(project?.master?.gain, 1) : 1, context.currentTime);
+	const masterGainParam = includeMaster ? {
+		param: masterGain.gain,
+		latencyFrames: maximumTrackLatency + maximumBusLatency + masterLatency,
+	} : null;
 	connect(masterOutput, masterGain);
 	let finalOutput = masterGain;
 	if (includeMaster && finite(project?.master?.pan, 0) !== 0 && typeof context.createStereoPanner === 'function') {
@@ -1759,6 +1774,12 @@ export function buildProjectGraph(context, destination, project, {
 		abortController: new AbortController(),
 		trackInputs,
 		trackGainParams,
+		projectGainParams: {
+			tracks: trackGainParams,
+			groups: groupGainParams,
+			sends: sendGainParams,
+			master: masterGainParam,
+		},
 		trackAnalysers,
 		groupAnalysers,
 		sendAnalysers,
@@ -2120,6 +2141,7 @@ async function scheduleProjectClips({
 	chunkSources = new Map(),
 	trackInputs,
 	trackGainParams = new Map(),
+	projectGainParams = null,
 	fromFrame,
 	toFrame,
 	contextStartTime,
@@ -2235,10 +2257,10 @@ async function scheduleProjectClips({
 	const actualContextStartTime = streamed.length && deferStartUntilPrimed
 		? Math.max(contextStartTime, (context.currentTime || 0) + 0.02)
 		: contextStartTime;
-	scheduleProjectTrackGains({
+	scheduleProjectGains({
 		context,
 		project,
-		trackGainParams,
+		gainParams: projectGainParams || { tracks: trackGainParams },
 		fromFrame,
 		toFrame,
 		contextStartTime: actualContextStartTime,
@@ -2264,10 +2286,10 @@ async function scheduleProjectClips({
 	return { contextStartTime: actualContextStartTime, streamedClips: streamed.length };
 }
 
-function scheduleProjectTrackGains({
+function scheduleProjectGains({
 	context,
 	project,
-	trackGainParams,
+	gainParams,
 	fromFrame,
 	toFrame,
 	contextStartTime,
@@ -2276,25 +2298,18 @@ function scheduleProjectTrackGains({
 }) {
 	const timelineRate = sampleRate * transportRate;
 	const durationFrames = Math.max(1, getProjectDurationFrames(project), toFrame);
-	for (const [trackIndex, track] of (project.tracks || []).entries()) {
-		if (
-			track.type === 'label'
-			|| track.type === 'video'
-			|| !Array.isArray(track.envelope)
-			|| !track.envelope.length
-		) continue;
-		const scheduled = trackGainParams.get(String(track.id ?? trackIndex));
-		if (!scheduled?.param) continue;
-		const baseGain = Math.max(0, finite(track.gain, 1));
+	const scheduleEnvelope = (owner, scheduled) => {
+		if (!scheduled?.param || !Array.isArray(owner?.envelope) || !owner.envelope.length) return;
+		const baseGain = Math.max(0, finite(owner.gain, 1));
 		const latencySeconds = nonNegativeInteger(scheduled.latencyFrames, 0)
 			/ positiveInteger(context.sampleRate, sampleRate);
 		const startTime = contextStartTime + latencySeconds;
 		setParam(
 			scheduled.param,
-			baseGain * envelopeValueAtFrame(track.envelope, fromFrame, durationFrames),
+			baseGain * envelopeValueAtFrame(owner.envelope, fromFrame, durationFrames),
 			startTime,
 		);
-		for (const point of track.envelope) {
+		for (const point of owner.envelope) {
 			if (point.frame <= fromFrame || point.frame >= toFrame) continue;
 			linearRamp(
 				scheduled.param,
@@ -2305,11 +2320,22 @@ function scheduleProjectTrackGains({
 		if (toFrame > fromFrame) {
 			linearRamp(
 				scheduled.param,
-				baseGain * envelopeValueAtFrame(track.envelope, toFrame, durationFrames),
+				baseGain * envelopeValueAtFrame(owner.envelope, toFrame, durationFrames),
 				startTime + (toFrame - fromFrame) / timelineRate,
 			);
 		}
+	};
+	for (const [trackIndex, track] of (project.tracks || []).entries()) {
+		if (track.type === 'label' || track.type === 'video') continue;
+		scheduleEnvelope(track, gainParams?.tracks?.get(String(track.id ?? trackIndex)));
 	}
+	for (const [index, bus] of (project.mixer?.groups || []).entries()) {
+		scheduleEnvelope(bus, gainParams?.groups?.get(String(bus.id ?? index)));
+	}
+	for (const [index, bus] of (project.mixer?.sends || []).entries()) {
+		scheduleEnvelope(bus, gainParams?.sends?.get(String(bus.id ?? index)));
+	}
+	scheduleEnvelope(project.master, gainParams?.master);
 }
 
 function scheduleBufferPlan({

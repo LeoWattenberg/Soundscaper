@@ -347,6 +347,212 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
 
+	test('pins automated send and master tracks below media tracks', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
+		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
+		const mediaTracks = editor.locator('[data-track-row]');
+
+		await expect(editor.locator('[data-output-track-dock]')).toHaveCount(0);
+		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
+
+		await addTrack.click();
+		let flyout = page.locator('.add-track-flyout');
+		const showMaster = flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
+		await expect(flyout.getByRole('menuitem', { name: 'Add send track', exact: true })).toBeVisible();
+		await expect(showMaster).toHaveAttribute('aria-checked', 'false');
+		await showMaster.click();
+		await expect(flyout).toBeVisible();
+		await expect(showMaster).toHaveAttribute('aria-checked', 'true');
+		await expect(editor.locator('[data-output-track-row][data-output-scope="master"]')).toHaveCount(1);
+		await expect(mediaTracks).toHaveCount(1);
+
+		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+		await menubar.getByRole('menuitem', { name: 'View', exact: true }).click();
+		const viewMenu = page.getByRole('menu', { name: 'View', exact: true });
+		const viewMaster = viewMenu.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
+		await expect(viewMaster).toHaveAttribute('aria-checked', 'true');
+		await expect(viewMenu.locator('[role="menuitem"][aria-checked]')).toHaveCount(0);
+		await viewMaster.focus();
+		await page.keyboard.press('Enter');
+		await expect(editor.locator('[data-output-track-row][data-output-scope="master"]')).toHaveCount(0);
+		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
+
+		await addTrack.click();
+		flyout = page.locator('.add-track-flyout');
+		await expect(flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true }).click();
+		await flyout.getByRole('menuitem', { name: 'Add send track', exact: true }).click();
+		for (let index = 0; index < 4; index += 1) {
+			await addTrack.click();
+			await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Add send track', exact: true }).click();
+		}
+
+		const dock = editor.locator('[data-output-track-dock]');
+		const outputRows = dock.locator('[data-output-track-row]');
+		await expect(outputRows).toHaveCount(6);
+		expect(await outputRows.evaluateAll((rows) => rows.map((row) => row.dataset.outputScope))).toEqual([
+			'send', 'send', 'send', 'send', 'send', 'master',
+		]);
+		await expect(mediaTracks).toHaveCount(1);
+		await expect(dock.locator('[data-clip-id], canvas.audio-editor-waveform-canvas')).toHaveCount(0);
+		await expect(dock.locator('[data-track-row], [data-track-lane]')).toHaveCount(0);
+		await expect.poll(() => dock.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+		const [panelBounds, dockBounds] = await Promise.all([
+			editor.locator('.audio-editor-timeline-panel').boundingBox(),
+			dock.boundingBox(),
+		]);
+		expect(panelBounds).not.toBeNull();
+		expect(dockBounds).not.toBeNull();
+		expect(Math.abs(panelBounds.y + panelBounds.height - dockBounds.y - dockBounds.height)).toBeLessThanOrEqual(2);
+		expect(dockBounds.height).toBeLessThanOrEqual(panelBounds.height / 3 + 2);
+
+		const firstSend = outputRows.first();
+		await expect(firstSend).toHaveAttribute('data-collapsed', 'true');
+		expect((await firstSend.boundingBox())?.height).toBe(54);
+		await firstSend.getByRole('button', { name: 'Track menu', exact: true }).click();
+		await page.locator('.audio-editor-output-track-menu').getByRole('menuitem', { name: 'Expand track', exact: true }).click();
+		await expect(firstSend).toHaveAttribute('data-collapsed', 'false');
+		expect((await firstSend.boundingBox())?.height).toBe(114);
+		await expect(firstSend.getByRole('button', { name: 'Mute', exact: true })).toBeVisible();
+		await expect(firstSend.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
+		await expect(firstSend.getByRole('button', { name: 'Effects', exact: true })).toBeVisible();
+
+		const automation = editor.getByRole('button', { name: 'Clip gain', exact: true });
+		await automation.click();
+		const envelope = firstSend.locator('.audio-editor-output-envelope');
+		await expect(envelope.locator('.envelope-point')).toHaveCount(2);
+		const envelopeBounds = await envelope.boundingBox();
+		expect(envelopeBounds).not.toBeNull();
+		await page.mouse.click(
+			envelopeBounds.x + envelopeBounds.width / 3,
+			envelopeBounds.y + envelopeBounds.height * 0.42,
+		);
+		await expect(envelope.locator('.envelope-point')).toHaveCount(3);
+
+		const transfer = await fileDataTransfer(page, [toneA]);
+		await firstSend.locator('[data-output-lane]').dispatchEvent('drop', { dataTransfer: transfer });
+		await expect(mediaTracks).toHaveCount(1);
+		await expect(firstSend.locator('[data-clip-id]')).toHaveCount(0);
+
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		await page.reload();
+		editor = await waitForEditor(page);
+		const restoredRows = editor.locator('[data-output-track-row]');
+		await expect(restoredRows).toHaveCount(6);
+		await expect(restoredRows.first()).toHaveAttribute('data-collapsed', 'false');
+		await expect(restoredRows.first().locator('.envelope-point')).toHaveCount(3);
+		await expect(restoredRows.last()).toHaveAttribute('data-output-scope', 'master');
+		expect(errors).toEqual([]);
+	});
+
+	test('rejects pointer clip moves onto output tracks', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+
+		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
+		await addTrack.click();
+		await page.locator('.add-track-flyout').getByRole('menuitem', {
+			name: 'Add send track',
+			exact: true,
+		}).click();
+
+		const dock = editor.locator('[data-output-track-dock]');
+		const outputLane = dock.locator('[data-output-lane]').first();
+		const clip = clipByName(editor, toneA.name);
+		await clip.scrollIntoViewIfNeeded();
+		const [clipBox, outputLaneBox] = await Promise.all([
+			clip.boundingBox(),
+			outputLane.boundingBox(),
+		]);
+		expect(clipBox).not.toBeNull();
+		expect(outputLaneBox).not.toBeNull();
+		const trackCount = await editor.getAttribute('data-track-count');
+
+		await page.mouse.move(clipBox.x + 32, clipBox.y + 10);
+		await page.mouse.down();
+		await page.mouse.move(
+			Math.min(outputLaneBox.x + outputLaneBox.width - 24, clipBox.x + 132),
+			outputLaneBox.y + outputLaneBox.height / 2,
+			{ steps: 6 },
+		);
+		await page.mouse.up();
+
+		await expect(clip).toBeVisible();
+		await expect.poll(async () => Math.round((await clip.boundingBox())?.x || 0)).toBe(Math.round(clipBox.x));
+		await expect(editor).toHaveAttribute('data-track-count', trackCount);
+		await expect(dock.locator('[data-clip-id], [data-track-row], [data-track-lane]')).toHaveCount(0);
+		const clipDialog = await openClipProperties(page, editor, clip);
+		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('0');
+		await closeDialog(clipDialog);
+		expect(errors).toEqual([]);
+	});
+
+	test('navigates output tracks and their menus by keyboard', async ({ page }) => {
+		await page.addInitScript(() => {
+			localStorage.setItem('audacity-accessibility-profile', 'au4-tab-groups');
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
+		for (let index = 0; index < 2; index += 1) {
+			await addTrack.click();
+			await page.locator('.add-track-flyout').getByRole('menuitem', {
+				name: 'Add send track',
+				exact: true,
+			}).click();
+		}
+
+		const rows = editor.locator('[data-output-track-row][data-output-scope="send"]');
+		await expect(rows).toHaveCount(2);
+		const firstRow = rows.first();
+		const secondRow = rows.nth(1);
+		const firstPanel = firstRow.locator('.track-control-panel');
+		const secondPanel = secondRow.locator('.track-control-panel');
+		const firstLane = firstRow.locator('[data-output-lane]');
+		const secondLane = secondRow.locator('[data-output-lane]');
+
+		await firstPanel.focus();
+		await page.keyboard.press('Tab');
+		await expect(firstLane).toBeFocused();
+		await page.keyboard.press('Shift+Tab');
+		await expect(firstPanel).toBeFocused();
+		await page.keyboard.press('ArrowDown');
+		await expect(secondPanel).toBeFocused();
+		await page.keyboard.press('ArrowUp');
+		await expect(firstPanel).toBeFocused();
+
+		await firstLane.focus();
+		await page.keyboard.press('ArrowDown');
+		await expect(secondLane).toBeFocused();
+		await page.keyboard.press('ArrowUp');
+		await expect(firstLane).toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(secondPanel).toBeFocused();
+		await page.keyboard.press('Shift+Tab');
+		await expect(firstLane).toBeFocused();
+
+		await firstLane.press('Escape');
+		await expect(firstPanel).toBeFocused();
+		const trackMenuButton = firstRow.getByRole('button', { name: 'Track menu', exact: true });
+		await trackMenuButton.focus();
+		await trackMenuButton.press('Escape');
+		await expect(firstPanel).toBeFocused();
+
+		await firstLane.focus();
+		await firstLane.press('Shift+F10');
+		const menu = page.locator('.audio-editor-output-track-menu[role="menu"]');
+		const expand = menu.getByRole('menuitem', { name: 'Expand track', exact: true });
+		await expect(menu).toBeVisible();
+		await expect(expand).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(firstLane).toBeFocused();
+
+		await firstLane.press('Shift+F10');
+		await menu.getByRole('menuitem', { name: 'Expand track', exact: true }).press('Enter');
+		await expect(firstRow).toHaveAttribute('data-collapsed', 'false');
+	});
+
 	test('keeps time selection available on empty tracks', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const lane = editor.locator('.audio-editor-track-row [data-track-lane]').first();
@@ -921,6 +1127,10 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await mixer.getByRole('button', { name: 'Add group bus', exact: true }).click();
 		await mixer.getByRole('button', { name: 'Add send bus', exact: true }).click();
+		const outputRows = editor.locator('[data-output-track-row]');
+		await expect(outputRows).toHaveCount(2);
+		expect(await outputRows.evaluateAll((rows) => rows.map((row) => row.dataset.outputScope))).toEqual(['group', 'send']);
+		await expect(editor.locator('[data-track-row]')).toHaveCount(1);
 		await expect(mixer.locator('[data-mixer-bus]')).toHaveCount(0);
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--group')).toHaveCount(1);
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send')).toHaveCount(1);
@@ -4532,7 +4742,10 @@ async function chooseNestedCommandAction(page, editor, menu, actions) {
 
 function getMenuItem(menu, label) {
 	const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	return menu.getByRole('menuitem', { name: new RegExp(`^${escapedLabel}(?:\\s|$)`) }).first();
+	const name = new RegExp(`^${escapedLabel}(?:\\s|$)`);
+	return menu.getByRole('menuitem', { name })
+		.or(menu.getByRole('menuitemcheckbox', { name }))
+		.first();
 }
 
 async function expectSurfaceWithinViewport(surface, page) {
@@ -4624,7 +4837,7 @@ async function assertAccessibleBasics(root) {
 				.find(Boolean) || '';
 		};
 		const results = [];
-		for (const element of container.querySelectorAll('button, input, select, textarea, [role="button"], [role="menuitem"], [role="slider"], [role="tab"], [role="dialog"]')) {
+		for (const element of container.querySelectorAll('button, input, select, textarea, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="slider"], [role="tab"], [role="dialog"]')) {
 			if (!visible(element) || element.disabled || element.getAttribute('aria-hidden') === 'true') continue;
 			if (!textAlternative(element)) results.push(`${element.tagName.toLowerCase()}${element.getAttribute('role') ? `[role=${element.getAttribute('role')}]` : ''} has no accessible name`);
 		}

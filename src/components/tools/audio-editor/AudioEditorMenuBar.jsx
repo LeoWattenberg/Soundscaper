@@ -10,6 +10,9 @@ import { withBase } from '../../../lib/url';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
 const applicationMarkDarkSrc = withBase('/logo/logo-klein-weiß.svg');
+const MENU_ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"]';
+const DIRECT_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"], :scope > [role="menuitemcheckbox"]';
+const DIRECT_ENABLED_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])';
 
 export const AUDACITY_MENU_ORDER = Object.freeze([
 	'file',
@@ -42,6 +45,7 @@ export default function AudioEditorMenuBar({
 	const menuButtonsRef = useRef([]);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
+	const menuOpen = Boolean(openMenu);
 	const orderedMenus = useMemo(() => AUDACITY_MENU_ORDER
 		.map((id) => menus.find((menu) => menu.id === id))
 		.filter(Boolean), [menus]);
@@ -101,15 +105,65 @@ export default function AudioEditorMenuBar({
 	}, [focusMenuButton]);
 
 	useEffect(() => {
+		if (!menuOpen) return undefined;
+		const navigateMenuItems = (event) => {
+			if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+			const menu = event.target instanceof Element ? event.target.closest('[role="menu"]') : null;
+			if (!menu?.closest('.kw-audio-editor__application-menu')) return;
+			const items = Array.from(menu.querySelectorAll(DIRECT_ENABLED_MENU_ITEM_SELECTOR));
+			if (!items.length) return;
+			const currentIndex = items.indexOf(event.target);
+			let nextIndex = currentIndex;
+			if (event.key === 'Home') nextIndex = 0;
+			else if (event.key === 'End') nextIndex = items.length - 1;
+			else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+			else nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			items[nextIndex]?.focus?.({ preventScroll: true });
+		};
+		document.addEventListener('keydown', navigateMenuItems, true);
+		return () => document.removeEventListener('keydown', navigateMenuItems, true);
+	}, [menuOpen]);
+
+	useEffect(() => {
 		if (!openMenu) return undefined;
+		let observer;
+		let semanticsFrame;
 		const frame = requestAnimationFrame(() => {
 			const root = document.querySelector('#kw-audio-editor-design-system .kw-audio-editor__application-menu[role="menu"]');
 			root?.setAttribute('aria-label', orderedMenus[openMenu.index]?.label || copy.applicationMenu);
+			const applyCheckedSemantics = () => {
+				for (const marker of root?.querySelectorAll('[data-audio-editor-menu-checked]') || []) {
+					const item = marker.closest(MENU_ITEM_SELECTOR);
+					if (item?.getAttribute('role') !== 'menuitemcheckbox') item?.setAttribute('role', 'menuitemcheckbox');
+					if (item?.getAttribute('aria-checked') !== marker.dataset.audioEditorMenuChecked) {
+						item?.setAttribute('aria-checked', marker.dataset.audioEditorMenuChecked);
+					}
+				}
+			};
+			applyCheckedSemantics();
+			if (root) {
+				observer = new MutationObserver(() => {
+					cancelAnimationFrame(semanticsFrame);
+					semanticsFrame = requestAnimationFrame(applyCheckedSemantics);
+				});
+				observer.observe(root, {
+					attributes: true,
+					attributeFilter: ['role', 'data-audio-editor-menu-checked'],
+					childList: true,
+					subtree: true,
+				});
+			}
 			if (!openMenu.autoFocus) return;
-			const firstEnabled = root?.querySelector(':scope > [role="menuitem"]:not([aria-disabled="true"])');
-			(firstEnabled || root?.querySelector(':scope > [role="menuitem"]'))?.focus?.({ preventScroll: true });
+			const firstEnabled = root?.querySelector(DIRECT_ENABLED_MENU_ITEM_SELECTOR);
+			(firstEnabled || root?.querySelector(DIRECT_MENU_ITEM_SELECTOR))?.focus?.({ preventScroll: true });
 		});
-		return () => cancelAnimationFrame(frame);
+		return () => {
+			cancelAnimationFrame(frame);
+			cancelAnimationFrame(semanticsFrame);
+			observer?.disconnect();
+		};
 	}, [copy.applicationMenu, openMenu, orderedMenus]);
 
 	const onTopLevelKeyDown = (event, index) => {
@@ -137,11 +191,11 @@ export default function AudioEditorMenuBar({
 	const onOpenMenuKeyDownCapture = (event) => {
 		if (!openMenu) return;
 		const inSubmenu = event.target instanceof Element && Boolean(event.target.closest('.context-menu-submenu'));
-		const opensSubmenu = !inSubmenu
-			&& event.target instanceof Element
-			&& Boolean(event.target.closest('.context-menu-item')?.querySelector(
-				':scope > .context-menu-item-content .context-menu-item-arrow',
-			));
+		const submenuItem = event.target instanceof Element ? event.target.closest('.context-menu-item') : null;
+		const hasSubmenu = Boolean(submenuItem?.querySelector(
+			':scope > .context-menu-item-content .context-menu-item-arrow',
+		));
+		const opensSubmenu = !inSubmenu && hasSubmenu;
 		if (!inSubmenu && !opensSubmenu && event.key === 'ArrowRight') {
 			event.preventDefault();
 			event.stopPropagation();
@@ -150,6 +204,13 @@ export default function AudioEditorMenuBar({
 			event.preventDefault();
 			event.stopPropagation();
 			focusMenuButton(openMenu.index - horizontalRightDelta, { open: true });
+		} else if (hasSubmenu && ['ArrowRight', 'Enter'].includes(event.key)) {
+			setTimeout(() => {
+				setTimeout(() => {
+					submenuItem?.querySelector(':scope > .context-menu-submenu')
+						?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
+				}, 0);
+			}, 0);
 		} else if (event.key === 'Tab') {
 			event.preventDefault();
 			event.stopPropagation();
@@ -184,7 +245,7 @@ export default function AudioEditorMenuBar({
 		// Keep an already-open submenu open so a normal pointer click is stable.
 		event.preventDefault();
 		event.stopPropagation();
-		item.querySelector(':scope > .context-menu-submenu [role="menuitem"]')?.focus?.({ preventScroll: true });
+		item.querySelector(':scope > .context-menu-submenu')?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
 	};
 
 	const style = {
@@ -265,12 +326,15 @@ export default function AudioEditorMenuBar({
 function renderMenuItem(item, key, closeMenu) {
 	if (item.divider) return <ContextMenuItem key={key} isDivider />;
 	const children = item.items?.map((child, index) => renderMenuItem(child, `${key}-${index}`, closeMenu));
-	const label = item.disabledReason ? (
+	const plainLabel = item.disabledReason ? (
 		<span title={item.disabledReason} data-disabled-reason={item.disabledReason}>
 			{item.label}
 			<span className="kw-audio-editor-sr-only"> — {item.disabledReason}</span>
 		</span>
 	) : item.label;
+	const label = item.checked === undefined ? plainLabel : (
+		<span data-audio-editor-menu-checked={item.checked ? 'true' : 'false'}>{plainLabel}</span>
+	);
 	return (
 		<ContextMenuItem
 			key={item.id || key}

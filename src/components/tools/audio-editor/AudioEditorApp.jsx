@@ -998,7 +998,6 @@ function AudioEditorWorkspace({ locale, copy }) {
 		toggleRecording,
 		toggleWorkspacePanel,
 		uiFlags.clipping,
-		uiFlags.masterTrack,
 		uiFlags.statusbar,
 		uiFlags.tracksPanel,
 		zoomProject,
@@ -1402,8 +1401,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
 					blocked={blocked}
 				/>
-				{uiFlags.masterTrack
-					&& toolbarButtonPreferences['playback-volume'] !== false
+				{toolbarButtonPreferences['playback-volume'] !== false
 					&& playbackMeterSettings.position === 'side'
 					&& <SidePlaybackMeter
 						controller={controller}
@@ -1720,6 +1718,11 @@ function EditorToolToolbar({
 	const telemetry = { playbackMode, positionFrame, transportState };
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
+	const outputAutomationAvailable = Boolean(
+		project?.mixer?.groups?.length
+		|| project?.mixer?.sends?.length
+		|| snapshot.preferences?.view?.showMasterTrack,
+	);
 	const spectralTrackSelected = Boolean(selectedTrack && (
 		selectedTrack.displayMode === 'spectrogram'
 		|| selectedTrack.displayMode === 'multiview'
@@ -1867,7 +1870,7 @@ function EditorToolToolbar({
 							icon="automation"
 							isActive={automationToolEnabled}
 							ariaLabel={copy.clipGain}
-							disabled={!selectedTrack || blocked}
+							disabled={(!selectedTrack && !outputAutomationAvailable) || blocked}
 							onClick={onToggleAutomationTool}
 						/>
 					</span>
@@ -1981,8 +1984,7 @@ function EditorToolToolbar({
 					onSettingsChange={onRecordingMeterSettingsChange}
 				/>}
 
-				{uiFlags.masterTrack
-					&& isToolbarButtonVisible('playback-volume')
+				{isToolbarButtonVisible('playback-volume')
 					&& playbackMeterSettings.position !== 'side'
 					&& <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
 					<AudacityToolbarFlyoutButton
@@ -7162,7 +7164,7 @@ function createApplicationMenus({
 				{ id: 'show-rms', label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 				{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },
-				{ id: 'show-master-track', label: copy.masterTrack, checked: uiFlags.masterTrack },
+				{ id: 'show-master-track', label: copy.masterTrack, checked: Boolean(snapshot.preferences?.view?.showMasterTrack) },
 				{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar },
 				divider(),
 				createSnapMenu(copy, project, editBlocked, actions.setSnap),

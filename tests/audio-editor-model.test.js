@@ -598,6 +598,53 @@ test('mixer group and send buses persist validated routing and clean up removed 
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
+test('master and bus row envelopes and collapsed state update through undoable mixer commands', () => {
+	let project = createFixture();
+	project = apply(project, {
+		type: 'mixer/bus-add', busType: 'group', bus: { id: 'group-output', name: 'Output' },
+	});
+	assert.deepEqual(project.master.envelope, []);
+	assert.equal(project.master.collapsed, true);
+	assert.deepEqual(project.mixer.groups[0].envelope, []);
+	assert.equal(project.mixer.groups[0].collapsed, true);
+
+	let history = createEditorHistory(project);
+	history = executeEditorCommand(history, {
+		type: 'master/update',
+		changes: { envelope: [{ frame: 0, value: 0.5 }, { frame: 4_800, value: 1 }], collapsed: false },
+	}, { now: NOW });
+	history = executeEditorCommand(history, {
+		type: 'mixer/bus-update', busType: 'group', busId: 'group-output',
+		changes: { envelope: [{ frame: 2_400, value: 0.25 }], collapsed: false },
+	}, { now: NOW });
+	assert.deepEqual(history.present.master.envelope, [
+		{ frame: 0, value: 0.5 },
+		{ frame: 4_800, value: 1 },
+	]);
+	assert.equal(history.present.master.collapsed, false);
+	assert.deepEqual(history.present.mixer.groups[0].envelope, [{ frame: 2_400, value: 0.25 }]);
+	assert.equal(history.present.mixer.groups[0].collapsed, false);
+
+	history = undoEditorCommand(history, { now: NOW });
+	assert.deepEqual(history.present.mixer.groups[0].envelope, []);
+	assert.equal(history.present.mixer.groups[0].collapsed, true);
+	history = undoEditorCommand(history, { now: NOW });
+	assert.deepEqual(history.present.master.envelope, []);
+	assert.equal(history.present.master.collapsed, true);
+	history = redoEditorCommand(history, { now: NOW });
+	history = redoEditorCommand(history, { now: NOW });
+	assert.equal(history.present.master.collapsed, false);
+	assert.equal(history.present.mixer.groups[0].collapsed, false);
+
+	assert.throws(() => apply(history.present, {
+		type: 'master/update', changes: { envelope: [{ frame: 0, value: -1 }] },
+	}), /master\.envelope\[0\]\.value/);
+	assert.throws(() => apply(history.present, {
+		type: 'mixer/bus-update', busType: 'group', busId: 'group-output',
+		changes: { envelope: [{ frame: 10, value: 1 }, { frame: 9, value: 1 }] },
+	}), /strictly increasing frames/);
+});
+
 test('session history caps snapshots, clears redo on edits, and keeps revisions monotonic', () => {
 	let history = createEditorHistory(createFixture());
 	for (let index = 0; index < AUDIO_EDITOR_HISTORY_LIMIT + 5; index += 1) {

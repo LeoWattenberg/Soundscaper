@@ -400,20 +400,24 @@ function reportOmittedProjectFeatures(project, normalizedProject, report) {
 	if (Object.hasOwn(normalizedProject, 'projectBin')) normalizedProject.projectBin = { clips: [] };
 
 	const mixer = project.mixer || {};
-	if (Array.isArray(mixer.groups) && mixer.groups.length) addAup4CompatibilityItem(report, {
-		code: 'MIXER_GROUPS_OMITTED',
-		severity: 'warning',
-		disposition: 'omitted',
-		scope: { kind: 'mixer' },
-		data: { count: mixer.groups.length },
-	});
-	if (Array.isArray(mixer.sends) && mixer.sends.length) addAup4CompatibilityItem(report, {
-		code: 'MIXER_SENDS_OMITTED',
-		severity: 'warning',
-		disposition: 'omitted',
-		scope: { kind: 'mixer' },
-		data: { count: mixer.sends.length },
-	});
+	for (const [buses, code] of [
+		[mixer.groups, 'MIXER_GROUPS_OMITTED'],
+		[mixer.sends, 'MIXER_SENDS_OMITTED'],
+	]) {
+		if (!Array.isArray(buses) || !buses.length) continue;
+		const envelopes = buses.map((bus) => Array.isArray(bus?.envelope) ? bus.envelope : []);
+		addAup4CompatibilityItem(report, {
+			code,
+			severity: 'warning',
+			disposition: 'omitted',
+			scope: { kind: 'mixer' },
+			data: {
+				count: buses.length,
+				envelopeBusCount: envelopes.filter((envelope) => envelope.length > 0).length,
+				envelopePointCount: envelopes.reduce((count, envelope) => count + envelope.length, 0),
+			},
+		});
+	}
 	for (const [busType, buses] of [['group', mixer.groups], ['send', mixer.sends]]) {
 		for (const bus of buses || []) {
 			if (!Array.isArray(bus.effects) || !bus.effects.length) continue;
@@ -453,6 +457,16 @@ function reportOmittedProjectFeatures(project, normalizedProject, report) {
 			data: { value },
 		});
 		normalizedProject.master[field] = nativeDefault;
+	}
+	if (Array.isArray(project.master?.envelope) && project.master.envelope.length) {
+		addAup4CompatibilityItem(report, {
+			code: 'MASTER_ENVELOPE_OMITTED',
+			severity: 'warning',
+			disposition: 'omitted',
+			scope: { kind: 'master' },
+			data: { pointCount: project.master.envelope.length },
+		});
+		normalizedProject.master.envelope = [];
 	}
 	if (Number(project.masterChannels ?? 2) !== 2) {
 		addAup4CompatibilityItem(report, {

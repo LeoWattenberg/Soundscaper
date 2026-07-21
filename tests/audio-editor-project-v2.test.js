@@ -173,6 +173,8 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	});
 	assert.equal(empty.snap.unit, 'seconds');
 	assert.equal(empty.timeDisplay.format, 'hh:mm:ss+milliseconds');
+	assert.deepEqual(empty.master.envelope, []);
+	assert.equal(empty.master.collapsed, true);
 	assert.equal(validateAudioEditorProjectV2(empty), true);
 
 	const project = richV2Fixture();
@@ -190,6 +192,59 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	assert.equal(projectDurationFramesV2(project), 2_400);
 	assert.equal(validateAudioEditorProjectV2(project), true);
 	assert.deepEqual(loadAudioEditorProjectV2(project), { project, readOnly: false, reason: null });
+});
+
+test('master and mixer buses normalize persistent envelope and collapsed row state without extending duration', () => {
+	const project = createAudioEditorProjectV2({
+		id: 'output-envelope-project',
+		now: CREATED_AT,
+		master: {
+			gain: 0.75,
+			envelope: [{ frame: 0, value: 1 }, { frame: 20_000, value: 0.5 }],
+			collapsed: false,
+			effects: [],
+		},
+		mixer: {
+			groups: [{
+				id: 'group-1', envelope: [{ frame: 10_000, value: 0.25 }], collapsed: false,
+				clipIds: ['not-a-media-track'],
+			}],
+			sends: [{ id: 'send-1' }],
+			routes: {},
+		},
+	});
+	assert.deepEqual(project.master.envelope, [
+		{ frame: 0, value: 1 },
+		{ frame: 20_000, value: 0.5 },
+	]);
+	assert.equal(project.master.collapsed, false);
+	assert.deepEqual(project.mixer.groups[0].envelope, [{ frame: 10_000, value: 0.25 }]);
+	assert.equal(project.mixer.groups[0].collapsed, false);
+	assert.deepEqual(project.mixer.sends[0].envelope, []);
+	assert.equal(project.mixer.sends[0].collapsed, true);
+	assert.equal(Object.hasOwn(project.mixer.groups[0], 'clipIds'), false);
+	assert.equal(projectDurationFramesV2(project), 0);
+
+	const legacy = structuredClone(project);
+	delete legacy.master.envelope;
+	delete legacy.master.collapsed;
+	delete legacy.mixer.groups[0].envelope;
+	delete legacy.mixer.groups[0].collapsed;
+	const loaded = loadAudioEditorProjectV2(legacy);
+	assert.deepEqual(loaded.project.master.envelope, []);
+	assert.equal(loaded.project.master.collapsed, true);
+	assert.deepEqual(loaded.project.mixer.groups[0].envelope, []);
+	assert.equal(loaded.project.mixer.groups[0].collapsed, true);
+	assert.equal(loaded.project.schemaVersion, AUDIO_EDITOR_PROJECT_SCHEMA_VERSION);
+
+	assert.throws(() => createAudioEditorProjectV2({
+		id: 'bad-master-envelope', now: CREATED_AT,
+		master: { envelope: [{ frame: 1, value: 1 }, { frame: 1, value: 0.5 }] },
+	}), /strictly increasing frames/);
+	assert.throws(() => createAudioEditorProjectV2({
+		id: 'bad-send-envelope', now: CREATED_AT,
+		mixer: { sends: [{ id: 'send-1', envelope: [{ frame: 0, value: 17 }] }] },
+	}), /mixer\.send\.envelope\[0\]\.value/);
 });
 
 test('V1 migration and V2 validation preserve multiple armed audio tracks', () => {
@@ -303,6 +358,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	);
 	assert.equal(preferences.appearance.theme, 'system');
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
+	assert.equal(preferences.view.showMasterTrack, false);
 	assert.equal(preferences.import.detectTempo, true);
 	assert.equal(preferences.recording.retainInputs, true);
 	assert.equal(preferences.playback.playAtSpeedMode, 'naive');
@@ -313,6 +369,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	const custom = createAudioEditorPreferencesV1({
 		appearance: { theme: 'high-contrast-dark', clipStyle: 'classic' },
 		editing: { rippleMode: 'all-tracks', snapToZeroCrossings: true },
+		view: { showMasterTrack: true },
 		recording: { retainInputs: false },
 		playback: { playAtSpeedMode: 'staffpad' },
 		shortcuts: { 'clip.split': ['S', 'Shift+S'] },
@@ -334,6 +391,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	);
 	assert.equal(custom.recording.retainInputs, false);
 	assert.equal(custom.playback.playAtSpeedMode, 'staffpad');
+	assert.equal(custom.view.showMasterTrack, true);
 	assert.deepEqual(custom.shortcuts['clip.split'], ['S', 'Shift+S']);
 	assert.throws(() => createAudioEditorPreferencesV1({ audioDevice: 'usb-mic' }), /not an editor preference/);
 	assert.throws(() => createAudioEditorPreferencesV1({ cloud: { account: 'ignored' } }), /not an editor preference/);
@@ -342,6 +400,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		preferences: { ...preferences, schemaVersion: 2 }, readOnly: true, reason: 'newer-schema',
 	});
 	const legacyPreferences = structuredClone(preferences);
+	delete legacyPreferences.view;
 	delete legacyPreferences.recording;
 	delete legacyPreferences.playback;
 	for (const panel of Object.values(legacyPreferences.workspace.panels)) {
@@ -351,6 +410,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		delete panel.height;
 	}
 	const loadedLegacyPreferences = loadAudioEditorPreferencesV1(legacyPreferences).preferences;
+	assert.equal(loadedLegacyPreferences.view.showMasterTrack, false);
 	assert.equal(loadedLegacyPreferences.recording.retainInputs, true);
 	assert.equal(loadedLegacyPreferences.playback.playAtSpeedMode, 'naive');
 	assert.deepEqual(
@@ -358,6 +418,10 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
 	);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { recording: { retainInputs: false } }).recording.retainInputs, false);
+	assert.equal(updateAudioEditorPreferencesV1(preferences, { view: { showMasterTrack: true } }).view.showMasterTrack, true);
+	assert.throws(() => validateAudioEditorPreferencesV1({
+		...preferences, view: { showMasterTrack: 'yes' },
+	}), /view\.showMasterTrack must be boolean/);
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, recording: { retainInputs: 'yes' },
 	}), /recording\.retainInputs must be boolean/);
@@ -367,8 +431,9 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 });
 
 test('workspace presets and custom workspace CRUD retain editor-only layout state', () => {
-	const defaults = createAudioEditorPreferencesV1();
+	const defaults = createAudioEditorPreferencesV1({ view: { showMasterTrack: true } });
 	const music = applyAudioEditorWorkspace(defaults, 'music');
+	assert.equal(music.view.showMasterTrack, true);
 	assert.equal(music.workspace.activeId, 'music');
 	assert.equal(music.workspace.panels.effects.visible, true);
 	assert.equal(music.workspace.panels.mixer.visible, true);
@@ -381,13 +446,16 @@ test('workspace presets and custom workspace CRUD retain editor-only layout stat
 		},
 	});
 	const created = createCustomAudioEditorWorkspace(customized, { id: 'editing-suite', name: 'Editing suite' });
+	assert.equal(created.view.showMasterTrack, true);
 	assert.equal(created.workspace.activeId, 'editing-suite');
 	assert.equal(created.workspace.custom[0].layout.panels.labels.visible, true);
 	assert.equal(created.workspace.toolbars.edit.visible, false);
 
 	const updated = updateCustomAudioEditorWorkspace(created, 'editing-suite', { name: 'Dialogue editing' });
+	assert.equal(updated.view.showMasterTrack, true);
 	assert.equal(updated.workspace.custom[0].name, 'Dialogue editing');
 	const classic = deleteCustomAudioEditorWorkspace(updated, 'editing-suite');
+	assert.equal(classic.view.showMasterTrack, true);
 	assert.equal(classic.workspace.activeId, 'modern');
 	assert.deepEqual(classic.workspace.custom, []);
 });

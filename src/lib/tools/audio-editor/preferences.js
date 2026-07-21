@@ -179,6 +179,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful'}} appearance
+ * @property {{showMasterTrack: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
@@ -240,6 +241,7 @@ function mergePreferences(preferences, patch = {}) {
 		editing: { ...preferences.editing, ...patch.editing },
 		shortcuts: patch.shortcuts === undefined ? preferences.shortcuts : patch.shortcuts,
 		appearance: { ...preferences.appearance, ...patch.appearance },
+		view: { ...preferences.view, ...patch.view },
 		workspace: {
 			...preferences.workspace,
 			...patch.workspace,
@@ -363,6 +365,8 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (maximumFrequency <= minimumFrequency) throw new RangeError('Spectrogram preferences must have a positive frequency range.');
 	const windowSize = integer(options.spectrogram?.windowSize ?? 2048, 32, 'spectrogram.windowSize');
 	if ((windowSize & (windowSize - 1)) !== 0) throw new RangeError('spectrogram.windowSize must be a power of two.');
+	const showMasterTrack = options.view?.showMasterTrack ?? false;
+	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
 	return {
 		schemaVersion: AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION,
 		editing: {
@@ -374,6 +378,9 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		appearance: {
 			theme: oneOf(options.appearance?.theme ?? 'system', THEME_SET, 'appearance.theme'),
 			clipStyle: oneOf(options.appearance?.clipStyle ?? 'colorful', CLIP_STYLE_SET, 'appearance.clipStyle'),
+		},
+		view: {
+			showMasterTrack,
 		},
 		workspace: {
 			activeId,
@@ -530,6 +537,14 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		throw new TypeError('editing.snapToZeroCrossings must be boolean.');
 	}
 	if (typeof preferences.import.detectTempo !== 'boolean') throw new TypeError('import.detectTempo must be boolean.');
+	if (preferences.view !== undefined) {
+		if (!preferences.view || typeof preferences.view !== 'object' || Array.isArray(preferences.view)) {
+			throw new TypeError('preferences.view must be an object.');
+		}
+		if (typeof preferences.view.showMasterTrack !== 'boolean') {
+			throw new TypeError('view.showMasterTrack must be boolean.');
+		}
+	}
 	if (preferences.recording !== undefined) {
 		if (!preferences.recording || typeof preferences.recording !== 'object' || Array.isArray(preferences.recording)) {
 			throw new TypeError('preferences.recording must be an object.');
@@ -558,6 +573,7 @@ export function loadAudioEditorPreferencesV1(value) {
 	return {
 		preferences: {
 			...clone(value),
+			view: normalized.view,
 			workspace: { ...clone(value.workspace), panels: normalized.workspace.panels },
 			recording: normalized.recording,
 			playback: normalized.playback,

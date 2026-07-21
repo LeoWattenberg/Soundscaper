@@ -223,8 +223,23 @@ export function createAudioMixerBusV2(value = {}, type = 'group', index = 0) {
 		pan: finiteInRange(value.pan ?? 0, -1, 1, `mixer.${type}.pan`),
 		mute: Boolean(value.mute),
 		solo: Boolean(value.solo),
+		envelope: normalizeEnvelope(value.envelope || [], `mixer.${type}.envelope`),
+		collapsed: value.collapsed === undefined ? true : Boolean(value.collapsed),
 		effectsActive: value.effectsActive !== false,
 		effects: normalizeEffects(value.effects || [], `mixer.${type}.effects`),
+	};
+}
+
+export function createAudioMasterV2(value = {}) {
+	return {
+		gain: finiteInRange(value.gain ?? 1, 0, 4, 'master.gain'),
+		pan: finiteInRange(value.pan ?? 0, -1, 1, 'master.pan'),
+		mute: Boolean(value.mute),
+		solo: Boolean(value.solo),
+		envelope: normalizeEnvelope(value.envelope || [], 'master.envelope'),
+		collapsed: value.collapsed === undefined ? true : Boolean(value.collapsed),
+		effectsActive: value.effectsActive !== false,
+		effects: normalizeEffects(value.effects || [], 'master.effects'),
 	};
 }
 
@@ -482,7 +497,6 @@ export function createAudioEditorProjectV2(options = {}) {
 		if (!track || !TRACK_TYPE_SET.has(track.type)) throw new RangeError(`Unsupported track type: ${track?.type}.`);
 		return track.type === 'label' ? createLabelTrackV2(track) : createAudioTrackV2(track, sampleRate);
 	});
-	const masterEffects = normalizeEffects(options.master?.effects || [], 'master.effects');
 	return {
 		schemaVersion: AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 		id: options.id || createStableId('project'),
@@ -509,14 +523,7 @@ export function createAudioEditorProjectV2(options = {}) {
 		sources: (options.sources || []).map(createAudioSourceV2),
 		clips: (options.clips || []).map(createAudioClipV2),
 		tracks,
-		master: {
-			gain: finiteInRange(options.master?.gain ?? 1, 0, 4, 'master.gain'),
-			pan: finiteInRange(options.master?.pan ?? 0, -1, 1, 'master.pan'),
-			mute: Boolean(options.master?.mute),
-			solo: Boolean(options.master?.solo),
-			effectsActive: options.master?.effectsActive !== false,
-			effects: masterEffects,
-		},
+		master: createAudioMasterV2(options.master || {}),
 		mixer: normalizeAudioMixerV2(options.mixer || {}),
 		opaqueExtensions: plainClone(options.opaqueExtensions ?? {}),
 	};
