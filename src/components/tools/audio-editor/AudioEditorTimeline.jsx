@@ -65,7 +65,10 @@ import {
 	selectVideoThumbnailTimestamps,
 	validateVideoTrackComposition,
 } from '../../../lib/tools/audio-editor/video-timeline.js';
-import { drawAudacityWaveformChannel } from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
+import {
+	audacityWaveformChannelGeometry,
+	drawAudacityWaveformChannel,
+} from '../../../lib/tools/audio-editor/audacity-waveform-renderer.js';
 import {
 	pffftSpectrogramRevision,
 	renderPffftSpectrogram,
@@ -4425,11 +4428,15 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 		context.fillRect(selection.start, splitY, selection.end - selection.start, waveformHeight);
 	}
 	for (let channel = 0; waveformHeight > 0 && channel < channelCount; channel += 1) {
+		const geometry = audacityWaveformChannelGeometry(
+			splitY + channelHeight * channel,
+			channelHeight,
+			options.halfWave,
+		);
 		drawAudacityWaveformChannel(context, rendering, {
 			channel,
 			width,
-			centerY: splitY + channelHeight * (channel + 0.5),
-			maxAmplitude: Math.max(0, channelHeight / 2 - 2),
+			...geometry,
 			halfWave: options.halfWave,
 			envelopeGain,
 			sampleColor: waveformColor,
@@ -5478,24 +5485,35 @@ function renderAmplitudeRulers(
 		const rulerHeight = channel === normalizedChannelCount - 1
 			? height - channelHeight * channel
 			: channelHeight;
-		const ruler = (Ruler, props) => halfWave ? (
-			<div className="audio-editor-half-wave-ruler" style={{ height: rulerHeight, overflow: 'hidden' }}>
-				<Ruler {...props} height={rulerHeight / 2} />
-			</div>
-		) : <Ruler {...props} height={rulerHeight} />;
 		if (rulerFormat !== 'linear-amp') {
-			return React.cloneElement(ruler(DbRuler, {
-				scale: rulerFormat === 'linear-db' ? 'linear' : 'logarithmic',
-				width,
-			}), { key: channel });
+			const ruler = <DbRuler
+				height={halfWave ? rulerHeight * 2 : rulerHeight}
+				scale={rulerFormat === 'linear-db' ? 'linear' : 'logarithmic'}
+				width={width}
+			/>;
+			return halfWave ? (
+				<div
+					className="audio-editor-half-wave-ruler"
+					key={channel}
+					style={{ height: rulerHeight, overflow: 'hidden' }}
+				>
+					{ruler}
+				</div>
+			) : React.cloneElement(ruler, { key: channel });
 		}
-		return React.cloneElement(ruler(VerticalRuler, {
-			min: minimum,
-			max: maximum,
-			majorDivisions: halfWave ? 2 : 3,
-			minorDivisions: 1,
-			width,
-		}), { key: channel });
+		const ruler = <VerticalRuler
+			height={rulerHeight}
+			min={minimum}
+			max={maximum}
+			majorDivisions={halfWave ? 2 : 3}
+			minorDivisions={1}
+			width={width}
+		/>;
+		return halfWave ? (
+			<div className="audio-editor-half-wave-ruler" key={channel} style={{ height: rulerHeight }}>
+				{ruler}
+			</div>
+		) : React.cloneElement(ruler, { key: channel });
 	});
 }
 

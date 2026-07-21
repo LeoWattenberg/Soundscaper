@@ -29,6 +29,23 @@ export function audacityWaveformShowsPoints(pixelsPerSample) {
 	return scale >= STEM_THRESHOLD;
 }
 
+/** Return the vertical drawing geometry for a full or positive-only waveform channel. */
+export function audacityWaveformChannelGeometry(top, height, halfWave = false) {
+	const channelTop = finite(top, 'top');
+	const channelHeight = positiveFinite(height, 'height');
+	const padding = Math.min(2, channelHeight / 2);
+	if (halfWave) {
+		return {
+			centerY: channelTop + channelHeight - padding,
+			maxAmplitude: Math.max(0, channelHeight - padding * 2),
+		};
+	}
+	return {
+		centerY: channelTop + channelHeight / 2,
+		maxAmplitude: Math.max(0, channelHeight / 2 - padding),
+	};
+}
+
 /**
  * Draw one channel from a waveform plan produced by
  * `prepareBoundedWaveformWindow`. Summary mode paints one complete min/max

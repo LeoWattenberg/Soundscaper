@@ -3758,16 +3758,6 @@
 	filter: saturate(1.03) brightness(1.04);
 }
 
-#kw-audio-editor-design-system .audio-editor-track-window .clip-body[data-half-wave='true'][data-waveform-channels='1'] {
-	mask-image: linear-gradient(to bottom, #000 0 50%, transparent 50% 100%);
-	-webkit-mask-image: linear-gradient(to bottom, #000 0 50%, transparent 50% 100%);
-}
-
-#kw-audio-editor-design-system .audio-editor-track-window .clip-body[data-half-wave='true'][data-waveform-channels='2'] {
-	mask-image: repeating-linear-gradient(to bottom, #000 0 25%, transparent 25% 50%);
-	-webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 25%, transparent 25% 50%);
-}
-
 #kw-audio-editor-design-system .audio-editor-track-window .clip-display--selected {
 	outline: 2px solid #fff;
 	outline-offset: -3px;

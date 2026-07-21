@@ -2,11 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	audacityWaveformChannelGeometry,
 	audacityWaveformMode,
 	audacityWaveformShowsPoints,
 	drawAudacityWaveformChannel,
 } from '../src/lib/tools/audio-editor/audacity-waveform-renderer.js';
 import { prepareBoundedWaveformWindow } from '../src/lib/tools/audio-editor/design-system-adapters.js';
+
+test('half-wave geometry expands the positive range across the full channel height', () => {
+	assert.deepEqual(audacityWaveformChannelGeometry(10, 100), {
+		centerY: 60,
+		maxAmplitude: 48,
+	});
+	assert.deepEqual(audacityWaveformChannelGeometry(10, 100, true), {
+		centerY: 108,
+		maxAmplitude: 96,
+	});
+});
 
 function clip(durationFrames, options = {}) {
 	return {
