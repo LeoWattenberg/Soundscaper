@@ -423,10 +423,7 @@ export default function AudioEditorTimeline({
 	);
 	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
 	const autoFitTrackHeightEnabled = snapshot.timeline?.autoFitTrackHeight !== false;
-	const collapsedTrackHeight = project?.tracks.reduce((total, track) => (
-		track.collapsed ? total + trackVisualHeight(track, showArmControls) : total
-	), 0) || 0;
-	const expandedTrackCount = project?.tracks.filter((track) => !track.collapsed).length || 0;
+	const expandedTrackCount = project?.tracks.length || 0;
 	const availableTrackHeight = Math.max(
 		TRACK_HEIGHT,
 		Math.floor((timelineSize.height || AUTO_FIT_TRACK_HEIGHT + 34) - outputDockHeight - 34),
@@ -434,7 +431,7 @@ export default function AudioEditorTimeline({
 	const fittedTrackHeight = expandedTrackCount > 0
 		? Math.max(TRACK_HEIGHT, Math.min(
 			AUTO_FIT_TRACK_HEIGHT,
-			Math.floor((availableTrackHeight - collapsedTrackHeight) / expandedTrackCount),
+			Math.floor(availableTrackHeight / expandedTrackCount),
 		))
 		: AUTO_FIT_TRACK_HEIGHT;
 	const timelineView = snapshot.timeline?.view;
@@ -492,11 +489,18 @@ export default function AudioEditorTimeline({
 		if (trackResizePreview?.trackId === track.id) {
 			return trackVisualHeight(track, showArmControls, trackResizePreview.height);
 		}
-		if (autoFitTrackHeightEnabled && !track.collapsed) return fittedTrackHeight;
+		if (autoFitTrackHeightEnabled) return fittedTrackHeight;
 		return trackVisualHeight(track, showArmControls);
 	}, [autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
 	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
 	const splitToolActive = Boolean(splitToolEnabled || splitToolHeld);
+
+	useEffect(() => {
+		controller.actions.timeline.setVisibleTrackHeights(Object.fromEntries((project?.tracks || []).map((track) => {
+			const controlsHeight = showArmControls && track.type === 'audio' ? RECORDING_INPUT_CONTROLS_HEIGHT : 0;
+			return [track.id, Math.max(MINIMUM_TRACK_HEIGHT, visualTrackHeight(track) - controlsHeight)];
+		})));
+	}, [controller, project?.tracks, showArmControls, visualTrackHeight]);
 
 	useEffect(() => {
 		const editableTarget = (target) => target instanceof Element && Boolean(target.closest(
@@ -931,15 +935,14 @@ export default function AudioEditorTimeline({
 						minimumHeight: MINIMUM_TRACK_HEIGHT + controlsHeight,
 						maximumHeight: Math.max(MINIMUM_TRACK_HEIGHT + controlsHeight, Math.floor(timelineInnerHeight * 0.9)),
 						height: originalHeight,
-						fittedHeights: Object.fromEntries(project.tracks.flatMap((candidate) => {
-							if (candidate.collapsed) return [];
-							const candidateControlsHeight = showArmControls && candidate.type === 'audio' && !candidate.collapsed
+						fittedHeights: Object.fromEntries(project.tracks.map((candidate) => {
+							const candidateControlsHeight = showArmControls && candidate.type === 'audio'
 								? RECORDING_INPUT_CONTROLS_HEIGHT
 								: 0;
-							return [[candidate.id, Math.max(
+							return [candidate.id, Math.max(
 								MINIMUM_TRACK_HEIGHT,
 								visualTrackHeight(candidate) - candidateControlsHeight,
-							)]];
+							)];
 						})),
 					};
 					event.preventDefault();
@@ -1529,9 +1532,13 @@ export default function AudioEditorTimeline({
 				onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)),
 			}, contextLocale, unavailableReason),
 		] : []),
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.toggleCollapsed, menuTrack.collapsed ? copy.expandTrack : copy.collapseTrack, {
+		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.decreaseHeight, copy.decreaseTrackHeight, {
 			disabled: snapshot.readOnly,
-			onClick: () => run(() => controller.actions.track.update(menuTrack.id, { collapsed: !menuTrack.collapsed })),
+			onClick: () => run(() => controller.actions.track.decreaseHeight(menuTrack.id)),
+		}, contextLocale, unavailableReason),
+		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.increaseHeight, copy.increaseTrackHeight, {
+			disabled: snapshot.readOnly,
+			onClick: () => run(() => controller.actions.track.increaseHeight(menuTrack.id)),
 		}, contextLocale, unavailableReason),
 		{ divider: true, label: '' },
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.remove, copy.deleteTrack, {
@@ -3057,7 +3064,7 @@ function VideoTrackRow({
 			data-video-track
 			data-track-id={track.id}
 			data-track-index={trackIndex}
-			data-collapsed={track.collapsed ? 'true' : 'false'}
+			data-collapsed="false"
 			data-hidden={track.hidden ? 'true' : 'false'}
 			data-video-overlap-state={overlapState}
 			data-video-overlap-valid={overlapPresentation.invalid ? 'false' : 'true'}
@@ -3282,16 +3289,28 @@ function VideoTrackControls({
 				<button
 					type="button"
 					className="audio-editor-video-track-control"
-					data-track-action="collapse"
-					aria-expanded={!track.collapsed}
+					data-track-action="decrease-height"
 					disabled={blocked}
 					tabIndex={controlTabIndex}
 					onClick={(event) => {
 						event.stopPropagation();
-						run(() => controller.actions.track.update(track.id, { collapsed: !track.collapsed }));
+						run(() => controller.actions.track.decreaseHeight(track.id));
 					}}
 				>
-					{track.collapsed ? copy.expandTrack : copy.collapseTrack}
+					{copy.decreaseTrackHeight}
+				</button>
+				<button
+					type="button"
+					className="audio-editor-video-track-control"
+					data-track-action="increase-height"
+					disabled={blocked}
+					tabIndex={controlTabIndex}
+					onClick={(event) => {
+						event.stopPropagation();
+						run(() => controller.actions.track.increaseHeight(track.id));
+					}}
+				>
+					{copy.increaseTrackHeight}
 				</button>
 			</div>
 		</div>
@@ -3905,7 +3924,7 @@ function TrackRow({
 			data-track-id={track.id}
 			data-track-index={trackIndex}
 			data-track-color={resolveAudioEditorColor(track.color)}
-			data-collapsed={track.collapsed ? 'true' : 'false'}
+			data-collapsed="false"
 			data-display-mode={displayMode || 'waveform'}
 			style={{ height: trackHeight }}
 		>
@@ -4741,7 +4760,7 @@ function LabelTrackRow({
 			data-label-track
 			data-track-id={track.id}
 			data-track-index={trackIndex}
-			data-collapsed={track.collapsed ? 'true' : 'false'}
+			data-collapsed="false"
 			style={{ height: trackHeight }}
 		>
 			<div className="audio-editor-label-track-controls" style={{ width: panelWidth }}>
@@ -5622,11 +5641,8 @@ function trackVisualHeight(track, showArmControls = false, heightOverride = unde
 		MINIMUM_TRACK_HEIGHT,
 		Number(heightOverride ?? track?.height) || TRACK_HEIGHT,
 	);
-	const baseHeight = track?.collapsed ? COLLAPSED_TRACK_HEIGHT : expandedHeight;
-	if (!showArmControls || track?.type !== 'audio') return baseHeight;
-	return track?.collapsed
-		? Math.min(70, baseHeight + RECORDING_INPUT_CONTROLS_HEIGHT)
-		: baseHeight + RECORDING_INPUT_CONTROLS_HEIGHT;
+	if (!showArmControls || track?.type !== 'audio') return expandedHeight;
+	return expandedHeight + RECORDING_INPUT_CONTROLS_HEIGHT;
 }
 
 function linearToDb(value) {

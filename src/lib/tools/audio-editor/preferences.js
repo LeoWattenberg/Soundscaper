@@ -495,6 +495,7 @@ export function normalizeAudioEditorShortcut(binding) {
 	const aliases = new Map([
 		['control', 'Ctrl'], ['ctrl', 'Ctrl'], ['cmd', 'Meta'], ['command', 'Meta'], ['meta', 'Meta'],
 		['option', 'Alt'], ['alt', 'Alt'], ['shift', 'Shift'], ['spacebar', 'Space'], [' ', 'Space'],
+		['arrowdown', 'Down'], ['arrowup', 'Up'], ['arrowleft', 'Left'], ['arrowright', 'Right'],
 	]);
 	const parts = value.split('+').map((part) => part.trim()).filter(Boolean);
 	const key = parts.pop() || value;

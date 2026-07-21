@@ -2230,10 +2230,13 @@ test('V2 controller exposes model-backed track creation, ordering, display, and 
 	assert.equal(snapshot.timeline.view, 'spectrogram');
 	controller.actions.track.setMultiView(stereoId);
 	assert.equal(controller.getSnapshot().project.tracks.find((track) => track.id === stereoId).displayMode, 'multiview');
-	controller.actions.track.collapseAll();
-	assert.ok(controller.getSnapshot().project.tracks.every((track) => track.collapsed));
-	controller.actions.track.expandAll();
-	assert.ok(controller.getSnapshot().project.tracks.every((track) => !track.collapsed));
+	const initialHeights = controller.getSnapshot().project.tracks.map((track) => track.height);
+	controller.actions.track.decreaseAllHeights();
+	assert.deepEqual(controller.getSnapshot().project.tracks.map((track) => track.height), initialHeights.map((height) => height - 16));
+	controller.actions.track.increaseAllHeights();
+	assert.deepEqual(controller.getSnapshot().project.tracks.map((track) => track.height), initialHeights);
+	controller.actions.track.decreaseHeight(stereoId);
+	assert.equal(controller.getSnapshot().project.tracks.find((track) => track.id === stereoId).height, initialHeights[0] - 16);
 	await controller.dispose();
 });
 

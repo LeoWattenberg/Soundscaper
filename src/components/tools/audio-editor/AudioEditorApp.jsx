@@ -905,8 +905,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 			swapTrackChannels: () => run(() => controller.actions.track.swapChannels(snapshot.selectedTrackId)),
 			splitStereoLr: () => run(() => controller.actions.track.splitStereoLR(snapshot.selectedTrackId)),
 			splitStereoCenter: () => run(() => controller.actions.track.splitStereoCenter(snapshot.selectedTrackId)),
-			collapseAllTracks: () => run(() => controller.actions.track.collapseAll()),
-			expandAllTracks: () => run(() => controller.actions.track.expandAll()),
+			decreaseAllTrackHeights: () => run(() => controller.actions.track.decreaseAllHeights()),
+			increaseAllTrackHeights: () => run(() => controller.actions.track.increaseAllHeights()),
 			setTrackDisplay: (mode) => snapshot.selectedTrackId && run(() => controller.actions.track.setDisplayMode(snapshot.selectedTrackId, mode)),
 			setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
 			setTrackSampleFormat: (sampleFormat) => snapshot.selectedTrackId && run(() => controller.actions.track.setSampleFormat(snapshot.selectedTrackId, sampleFormat)),
@@ -7182,8 +7182,8 @@ function createApplicationMenus({
 						{ id: 'fit-height', label: copy.fitHeight, onClick: actions.fitHeight },
 						{ id: 'center-view-on-playhead', label: copy.centerViewOnPlayhead, onClick: actions.centerOnPlayhead },
 						divider(),
-						{ id: 'collapse-all-tracks', label: copy.collapseAllTracks, disabled: !project?.tracks.length, onClick: actions.collapseAllTracks },
-						{ id: 'expand-all-tracks', label: copy.expandAllTracks, disabled: !project?.tracks.length, onClick: actions.expandAllTracks },
+						{ id: 'decrease-all-track-heights', label: copy.decreaseAllTrackHeights, shortcut: 'Ctrl+Shift+Down', disabled: !project?.tracks.length, onClick: actions.decreaseAllTrackHeights },
+						{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: actions.increaseAllTrackHeights },
 					],
 				},
 				divider(),
@@ -7414,7 +7414,7 @@ function matchAudioEditorShortcut(event, shortcuts) {
 	if (event.ctrlKey || event.metaKey) modifiers.push('Ctrl');
 	if (event.altKey) modifiers.push('Alt');
 	if (event.shiftKey) modifiers.push('Shift');
-	const binding = [...modifiers, key].join('+').toLowerCase();
+	const binding = normalizeAudioEditorShortcut([...modifiers, key].join('+')).toLowerCase();
 	for (const [actionId, bindings] of Object.entries(shortcuts)) {
 		if (bindings.some((candidate) => normalizeAudioEditorShortcut(candidate).toLowerCase() === binding)) return actionId;
 	}

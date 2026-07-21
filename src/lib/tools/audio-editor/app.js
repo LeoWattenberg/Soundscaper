@@ -283,6 +283,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
 		timelineViewportWidth: 0,
 		autoFitTrackHeight: true,
+		visibleTrackHeights: {},
 		mobile: classifyMobile(),
 	timelineWidth: EDITOR_TIMELINE_MINIMUM_SECONDS * DEFAULT_PIXELS_PER_SECOND,
 		timelineView: 'waveform',
@@ -1063,6 +1064,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				zoomFit: (viewportWidth) => updateZoom('fit', viewportWidth),
 				fitHeight: () => setAutoFitTrackHeight(true),
 				resizeTrackHeight,
+				setVisibleTrackHeights,
 				getClipVisualData,
 				getVisibleClips,
 			}),
@@ -1095,8 +1097,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 				swapChannels: swapTrackChannels,
 				splitStereoLR: (trackId = state.selectedTrackId) => splitStereoTrack(trackId, true),
 				splitStereoCenter: (trackId = state.selectedTrackId) => splitStereoTrack(trackId, false),
-				collapseAll: () => setAllTracksCollapsed(true),
-				expandAll: () => setAllTracksCollapsed(false),
+				decreaseHeight: (trackId = state.selectedTrackId) => adjustTrackHeight(trackId, -16),
+				increaseHeight: (trackId = state.selectedTrackId) => adjustTrackHeight(trackId, 16),
+				decreaseAllHeights: () => adjustAllTrackHeights(-16),
+				increaseAllHeights: () => adjustAllTrackHeights(16),
 				setDisplayMode: setTrackDisplayMode,
 				setRate: setTrackRate,
 				setSampleFormat: setTrackSampleFormat,
@@ -3279,16 +3283,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 						: index;
 		if (destination < 0) return trackId;
 		return reorderTrack(trackId, destination);
-	}
-
-	function setAllTracksCollapsed(collapsed) {
-		if (editingBlocked()) return null;
-		if (project.schemaVersion < 2) throw new Error(copy.v2Required);
-		const commands = project.tracks
-			.filter((track) => track.collapsed !== Boolean(collapsed))
-			.map((track) => ({ type: 'track/update', trackId: track.id, changes: { collapsed: Boolean(collapsed) } }));
-		if (!commands.length) return project;
-		return commit({ type: 'batch', commands });
 	}
 
 	function setTrackDisplayMode(trackId, displayMode) {
@@ -10422,6 +10416,37 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.autoFitTrackHeight = Boolean(enabled);
 		publishProjectState();
 		return state.autoFitTrackHeight;
+	}
+
+	function setVisibleTrackHeights(heights = {}) {
+		state.visibleTrackHeights = Object.fromEntries(Object.entries(heights)
+			.filter(([trackId, height]) => project?.tracks.some((track) => track.id === trackId)
+				&& Number.isFinite(Number(height)))
+			.map(([trackId, height]) => [trackId, Math.max(40, Math.round(Number(height)))]));
+		return state.visibleTrackHeights;
+	}
+
+	function adjustTrackHeight(trackId, delta) {
+		const track = findTrack(project, trackId);
+		if (!track) throw new Error(copy.trackNotFound);
+		const currentHeight = state.visibleTrackHeights[track.id] ?? track.height ?? 114;
+		return resizeTrackHeight(track.id, currentHeight + delta, state.visibleTrackHeights);
+	}
+
+	function adjustAllTrackHeights(delta) {
+		if (editingBlocked()) return null;
+		const commands = project.tracks.map((track) => {
+			const currentHeight = state.visibleTrackHeights[track.id] ?? track.height ?? 114;
+			return {
+				type: 'track/update',
+				trackId: track.id,
+				changes: { height: Math.max(40, Math.round(currentHeight + delta)) },
+			};
+		});
+		state.autoFitTrackHeight = false;
+		if (commands.length) return commit({ type: 'batch', commands });
+		publishProjectState();
+		return project;
 	}
 
 	function resizeTrackHeight(trackId, requestedHeight, fittedHeights = {}) {

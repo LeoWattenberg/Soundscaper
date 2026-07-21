@@ -2227,6 +2227,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Fit height']);
 		await expect.poll(() => trackRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height)))
 			.toEqual(Array(trackCount).fill(114));
+
+		const timelinePanel = editor.locator('.audio-editor-timeline-panel');
+		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
+		await page.keyboard.press('Control+Shift+ArrowDown');
+		await expect.poll(() => trackRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height)))
+			.toEqual(Array(trackCount).fill(98));
+		await page.keyboard.press('Control+Shift+ArrowUp');
+		await expect.poll(() => trackRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height)))
+			.toEqual(Array(trackCount).fill(114));
+
+		const firstTrackMenuButton = trackRows.first().getByRole('button', { name: 'Track menu', exact: true });
+		await firstTrackMenuButton.click();
+		const trackMenu = page.locator('.audio-editor-track-menu');
+		await expect(trackMenu.getByRole('button', { name: 'Collapse track', exact: true })).toHaveCount(0);
+		await trackMenu.getByRole('button', { name: 'Decrease track height', exact: true }).click();
+		await expect.poll(async () => (await trackRows.first().boundingBox())?.height).toBe(98);
+		await firstTrackMenuButton.click();
+		await trackMenu.getByRole('button', { name: 'Increase track height', exact: true }).click();
+		await expect.poll(async () => (await trackRows.first().boundingBox())?.height).toBe(114);
 	});
 
 	test('previews reusable bin clips on timeline drag and routes external drops by surface', async ({ page }) => {
@@ -2314,7 +2333,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await zoomItem.click();
 		const zoomMenu = zoomItem.getByRole('menu');
 		await expect(zoomMenu).toBeVisible();
-		for (const label of ['Zoom normal', 'Zoom to selection', 'Zoom toggle', 'Fit height', 'Center view on playhead']) {
+		for (const label of ['Zoom normal', 'Zoom to selection', 'Zoom toggle', 'Fit height', 'Decrease all track heights', 'Increase all track heights', 'Center view on playhead']) {
 			await expect(getMenuItem(zoomMenu, label)).toBeVisible();
 		}
 		await page.keyboard.press('Escape');

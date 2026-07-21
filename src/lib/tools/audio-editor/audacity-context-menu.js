@@ -17,7 +17,8 @@ export const AUDACITY_TRACK_CONTEXT_ACTION_IDS = Object.freeze({
 	spectrogram: 'action://trackedit/track-view-spectrogram',
 	multiview: 'action://trackedit/track-view-multi',
 	changeColor: 'action://trackedit/track/change-color?colorindex=%1',
-	toggleCollapsed: 'local://toggle-track-collapsed',
+	decreaseHeight: 'local://decrease-track-height',
+	increaseHeight: 'local://increase-track-height',
 	remove: 'remove-tracks',
 });
 
