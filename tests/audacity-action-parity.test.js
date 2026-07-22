@@ -168,7 +168,7 @@ test('legacy UI aliases resolve to stable upstream IDs and share one policy reco
 test('Nyquist spectral processors require an editable frequency selection', () => {
 	assert.equal(audacityActionDefinition('nyquist:spectral-delete').enableWhen, 'editable-frequency-selection');
 	assert.equal(audacityActionDefinition('nyquist:spectraleditmulti').enableWhen, 'editable-frequency-selection');
-	assert.equal(audacityActionDefinition('nyquist:lowpass').enableWhen, 'editable-selection');
+	assert.equal(audacityActionDefinition('nyquist:lowpass').enableWhen, 'editable-selection-or-clip');
 });
 
 test('the complete enableWhen vocabulary evaluates from runtime state', () => {
@@ -223,6 +223,16 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	assert.equal(evaluateAudacityActionEnablement('duplicate-track', readOnlyContext), false);
 	assert.equal(evaluateAudacityActionEnablement('action://copy', readOnlyContext), true);
 	assert.equal(evaluateAudacityActionEnablement('action://cut', readOnlyContext), false);
+	const clipOnlyContext = structuredClone(context);
+	clipOnlyContext.snapshot.project.selection.startFrame = 0;
+	clipOnlyContext.snapshot.project.selection.endFrame = 0;
+	assert.equal(evaluateAudacityActionEnablement('delete-leave-gap', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('delete-all-tracks-ripple', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('silence-audio-selection', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('effect://builtin/processors', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('repeat-last-effect', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('trim-audio-outside-selection', clipOnlyContext), false);
+	assert.equal(evaluateAudacityActionEnablement('zero-cross', clipOnlyContext), false);
 	assert.throws(() => evaluateAudacityEnableWhen('not-a-predicate', context), /Unknown Audacity/);
 });
 

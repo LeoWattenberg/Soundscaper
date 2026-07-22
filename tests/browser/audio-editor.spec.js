@@ -2697,7 +2697,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export audio-only Audacity interchange (.aup4)']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export AUP4']);
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
@@ -2767,7 +2767,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export audio-only Audacity interchange (.aup4)']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export AUP4']);
 		const download = await downloadPromise;
 		const snapshotPath = await download.path();
 		expect(snapshotPath).toBeTruthy();
@@ -2942,6 +2942,38 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
 		await clip.click({ position: { x: 48, y: 48 } });
 		await expect(clip.locator('.clip-display')).not.toHaveClass(/clip-display--selected/);
+		expect(errors).toEqual([]);
+	});
+
+	test('enables delete menus and shortcuts for a clip-only selection', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		let clip = clipByName(editor, toneA.name);
+		await clip.locator('.clip-header').click();
+		await editor.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'Edit', exact: true }).click();
+		const editMenu = page.getByRole('menu', { name: 'Edit', exact: true });
+		await getMenuItem(editMenu, 'Delete').hover();
+		for (const label of [
+			'Delete and leave gap',
+			'Delete and close gap per clip',
+			'Delete and close gap per track',
+			'Delete and close gap on all tracks',
+		]) await expect(getMenuItem(editMenu, label)).toBeEnabled();
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Escape');
+		await clip.locator('.clip-header').click();
+		await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+
+		await editor.getByRole('region', { name: 'Timeline', exact: true }).first().press('Delete');
+		await expect(clipByName(editor, toneA.name)).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		clip = clipByName(editor, toneA.name);
+		await expect(clip).toHaveCount(1);
+		await clip.locator('.clip-header').click();
+		await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await editor.getByRole('region', { name: 'Timeline', exact: true }).first().press('Control+Delete');
+		await expect(clipByName(editor, toneA.name)).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 

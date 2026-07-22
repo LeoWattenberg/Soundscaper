@@ -90,7 +90,7 @@ const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
 	const enableWhen = plugin.spectral
 		? 'editable-frequency-selection'
 		: plugin.category === 'generate' ? 'project-writable'
-			: plugin.category === 'legacy' ? 'editable-selection' : 'audio-selection';
+			: plugin.category === 'legacy' ? 'editable-selection-or-clip' : 'audio-selection-or-clip';
 	return implemented(plugin.id, plugin.name, [location], `nyquist.plugins.${plugin.id}`, {
 		enableWhen,
 		source: `plug-ins/${plugin.fileName}`,
@@ -130,16 +130,16 @@ const definitions = [
 	implemented('action://trackedit/paste-overlap', 'Paste', ['Edit > Paste'], 'edit.pasteOverlap', { enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/paste-insert', 'Insert', ['Edit > Paste'], 'edit.pasteInsert', { shortcut: 'Insert', enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/paste-insert-all-tracks-ripple', 'Insert and preserve synchronisation', ['Edit > Paste'], 'edit.pasteAllTracksRipple', { shortcut: 'Ctrl+Insert', enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.trackEdit }),
-	implemented('cut-leave-gap', 'Cut and leave gap', ['Edit > Cut'], 'edit.cutLeaveGap', { shortcut: 'Ctrl+X', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('cut-per-clip-ripple', 'Cut and close gap per clip', ['Edit > Cut'], 'edit.cutPerClipRipple', { enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('cut-per-track-ripple', 'Cut and close gap per track', ['Edit > Cut'], 'edit.cutPerTrackRipple', { shortcut: 'Shift+X', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('cut-all-tracks-ripple', 'Cut and close gap on all tracks', ['Edit > Cut'], 'edit.cutAllTracksRipple', { shortcut: 'Shift+Ctrl+X', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('delete-leave-gap', 'Delete and leave gap', ['Edit > Delete'], 'edit.deleteLeaveGap', { shortcut: 'Delete', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('delete-per-clip-ripple', 'Delete and close gap per clip', ['Edit > Delete'], 'edit.deletePerClipRipple', { enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('delete-per-track-ripple', 'Delete and close gap per track', ['Edit > Delete'], 'edit.deletePerTrackRipple', { shortcut: 'Backspace', enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('delete-all-tracks-ripple', 'Delete and close gap on all tracks', ['Edit > Delete'], 'edit.deleteAllTracksRipple', { enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
+	implemented('cut-leave-gap', 'Cut and leave gap', ['Edit > Cut'], 'edit.cutLeaveGap', { shortcut: 'Ctrl+X', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('cut-per-clip-ripple', 'Cut and close gap per clip', ['Edit > Cut'], 'edit.cutPerClipRipple', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('cut-per-track-ripple', 'Cut and close gap per track', ['Edit > Cut'], 'edit.cutPerTrackRipple', { shortcut: 'Shift+X', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('cut-all-tracks-ripple', 'Cut and close gap on all tracks', ['Edit > Cut'], 'edit.cutAllTracksRipple', { shortcut: 'Shift+Ctrl+X', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('delete-leave-gap', 'Delete and leave gap', ['Edit > Delete'], 'edit.deleteLeaveGap', { shortcut: 'Delete', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('delete-per-clip-ripple', 'Delete and close gap per clip', ['Edit > Delete'], 'edit.deletePerClipRipple', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('delete-per-track-ripple', 'Delete and close gap per track', ['Edit > Delete'], 'edit.deletePerTrackRipple', { shortcut: 'Backspace', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
+	implemented('delete-all-tracks-ripple', 'Delete and close gap on all tracks', ['Edit > Delete'], 'edit.deleteAllTracksRipple', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
 	implemented('trim-audio-outside-selection', 'Trim audio outside selection', ['Edit > Remove special'], 'edit.trimOutsideSelection', { enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
-	implemented('silence-audio-selection', 'Silence audio selection', ['Edit > Remove special'], 'edit.silenceSelection', { enableWhen: 'editable-selection', source: UPSTREAM.trackEdit }),
+	implemented('silence-audio-selection', 'Silence audio selection', ['Edit > Remove special'], 'edit.silenceSelection', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
 	implemented('split', 'Split', ['Edit > Clip', 'Clip context'], 'edit.split', { shortcut: 'S', enableWhen: 'editable-selection-or-clip', source: UPSTREAM.trackEdit }),
 	implemented('split-into-new-track', 'Split into new track', ['Edit > Clip'], 'edit.splitIntoNewTrack', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.project }),
 	implemented('join', 'Join selected clips', ['Edit > Clip'], 'edit.join', { enableWhen: 'multiple-editable-clips', source: UPSTREAM.trackEdit }),
@@ -319,7 +319,7 @@ const definitions = [
 
 	// Built-in effect menus use dynamically generated upstream action URIs. These
 	// stable browser IDs are reconciled with the separate effect parameter manifest.
-	implemented('effect://builtin/processors', 'Built-in processors', ['Effect'], 'effects.openProcessor', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic processor action' }),
+	implemented('effect://builtin/processors', 'Built-in processors', ['Effect'], 'effects.openProcessor', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic processor action' }),
 	implemented('effect://builtin/generators', 'Built-in generators', ['Generate'], 'effects.openGenerator', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic generator action' }),
 	implemented('add-realtime-effects', 'Add track effects', ['Effect'], 'effects.openRealtimeRack', { enableWhen: 'audio-track-selected', source: UPSTREAM.effects }),
 	implemented('repeat-last-effect', 'Repeat last effect', ['Effect'], 'effects.repeatLast', { enableWhen: 'repeatable-effect-and-editable-selection', source: UPSTREAM.effects }),
@@ -336,10 +336,10 @@ const definitions = [
 	implemented('action://effects/realtime-add?effectId=%1', 'Add realtime effect', ['Realtime effect rack'], 'effects.addRealtimeById', { enableWhen: 'audio-track-selected', source: UPSTREAM.effects, upstreamAction: 'dynamic ActionQuery realtime-add action' }),
 	implemented('action://effects/realtime-replace?effectId=%1', 'Replace realtime effect', ['Realtime effect context'], 'effects.replaceRealtimeById', { enableWhen: 'realtime-effect-selected', source: UPSTREAM.effects, upstreamAction: 'dynamic ActionQuery realtime-replace action' }),
 	implemented('manage-macros', 'Manage macros', ['Tools'], 'macros.openManager', { enableWhen: 'project-opened', source: UPSTREAM.menu }),
-	implemented('effect://builtin/change-pitch', 'Change pitch', ['Effect > Pitch and tempo'], 'effects.changePitch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Change Pitch effect action' }),
-	implemented('effect://builtin/change-tempo', 'Change tempo', ['Effect > Pitch and tempo'], 'effects.changeTempo', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Tempo effect adapted to StaffPad' }),
-	implemented('effect://builtin/change-speed-pitch', 'Change speed and pitch', ['Effect > Pitch and tempo'], 'effects.changeSpeedPitch', { enableWhen: 'editable-selection', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Speed and Pitch effect adapted to StaffPad' }),
-	implemented('effect://builtin/sliding-stretch', 'Sliding stretch', ['Effect > Pitch and tempo'], 'effects.slidingStretch', { enableWhen: 'editable-selection', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Sliding Stretch effect action' }),
+	implemented('effect://builtin/change-pitch', 'Change pitch', ['Effect > Pitch and tempo'], 'effects.changePitch', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Change Pitch effect action' }),
+	implemented('effect://builtin/change-tempo', 'Change tempo', ['Effect > Pitch and tempo'], 'effects.changeTempo', { enableWhen: 'editable-selection-or-clip', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Tempo effect adapted to StaffPad' }),
+	implemented('effect://builtin/change-speed-pitch', 'Change speed and pitch', ['Effect > Pitch and tempo'], 'effects.changeSpeedPitch', { enableWhen: 'editable-selection-or-clip', source: 'au3/lib-src/au3-time-and-pitch/StaffPad/TimeAndPitch.cpp', upstreamAction: 'legacy Change Speed and Pitch effect adapted to StaffPad' }),
+	implemented('effect://builtin/sliding-stretch', 'Sliding stretch', ['Effect > Pitch and tempo'], 'effects.slidingStretch', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Sliding Stretch effect action' }),
 	implemented('generator://silence', 'Silence', ['Generate'], 'generators.silence', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Silence effect action' }),
 	implemented('generator://tone', 'Tone', ['Generate'], 'generators.tone', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Tone effect action' }),
 	implemented('generator://chirp', 'Chirp', ['Generate'], 'generators.chirp', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Chirp effect action' }),
@@ -655,6 +655,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		selection: hasSelection,
 		'time-selection': timeSelection,
 		'audio-selection': audioSelection,
+		'audio-selection-or-clip': audioSelection || Boolean(selectedClip),
 		'editable-selection': editable && audioSelection,
 		'editable-selection-or-clip': editable && (audioSelection || Boolean(selectedClip)),
 		'clipboard-and-project-writable': projectWritable && Boolean(snapshot.history?.hasClipboard),
@@ -683,7 +684,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 			|| snapshot.timeline?.view === 'spectrogram'
 		)),
 		'editable-frequency-selection': editable && Boolean(selectedAudioTrack) && frequencySelection,
-		'repeatable-effect-and-editable-selection': editable && audioSelection && Boolean(snapshot.effects?.canRepeatLast),
+		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedClip)) && Boolean(snapshot.effects?.canRepeatLast),
 		'effect-opened': effectOpened,
 		'effect-preset-selected': effectPresetSelected,
 		'editable-effect-preset-selected': projectWritable && effectPresetSelected,

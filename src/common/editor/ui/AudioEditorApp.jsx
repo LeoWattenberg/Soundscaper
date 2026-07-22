@@ -7527,13 +7527,13 @@ function createApplicationMenus({
 						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteAllTracksRipple') },
 					],
 				},
-				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('duplicate') },
+				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('duplicate') },
 				{
 					id: 'remove-special',
 					label: copy.removeSpecial,
 					items: [
 						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
-						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('silenceSelection') },
+						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('silenceSelection') },
 					],
 				},
 				{
@@ -7795,7 +7795,7 @@ function createApplicationMenus({
 			label: copy.effectMenu,
 			items: [
 				{ id: 'realtime-effects', label: copy.addRealtimeEffects, disabled: !selectedAudioTrack, onClick: actions.openEffects },
-				{ id: 'repeat-effect', label: copy.repeatLastEffect, disabled: editBlocked || !selectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
+				{ id: 'repeat-effect', label: copy.repeatLastEffect, disabled: editBlocked || !editSelectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
 				divider(),
 				...effectGroups,
 				{ id: 'pitch-tempo', label: copy.pitchTempo, items: [

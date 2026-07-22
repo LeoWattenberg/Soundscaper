@@ -11,7 +11,9 @@ import {
 	prepareLinkedSplitCommand,
 	prepareLinkAvCommand,
 	preparePasteCommand,
+	prepareDisjointRangeDeleteCommand,
 	prepareRangeDeleteCommand,
+	resolveEditingSelection,
 	prepareTransformClipsCommand,
 	prepareUnlinkAvCommand,
 } from '../src/common/editor/commands.js';
@@ -123,6 +125,77 @@ function createTimelinePairProject(options = {}) {
 		},
 	});
 }
+
+test('editing selection expands linked clips and preserves disjoint intervals', () => {
+	let project = createTimelinePairProject({ timelineStartFrame: 100 });
+	project = apply(project, {
+		type: 'clip/add',
+		trackId: 'audio-track',
+		clip: createAudioClipV4({
+			id: 'later-audio',
+			sourceId: 'audio-source',
+			timelineStartFrame: 1_000,
+			sourceStartFrame: 1_000,
+			sourceDurationFrames: 200,
+			durationFrames: 200,
+		}),
+	});
+	project = apply(project, {
+		type: 'selection/set',
+		startFrame: 0,
+		endFrame: 0,
+		trackIds: ['video-track', 'audio-track'],
+		clipIds: ['video-clip', 'later-audio'],
+	});
+	const resolved = resolveEditingSelection(project);
+	assert.equal(resolved.kind, 'clips');
+	assert.deepEqual(new Set(resolved.clipIds), new Set(['video-clip', 'audio-clip', 'later-audio']));
+	assert.deepEqual(resolved.ranges, [
+		{ startFrame: 100, endFrame: 700, durationFrames: 600 },
+		{ startFrame: 1_000, endFrame: 1_200, durationFrames: 200 },
+	]);
+
+	const deleted = apply(project, prepareDisjointRangeDeleteCommand(project, {
+		ranges: resolved.ranges,
+		trackIds: ['video-track', 'audio-track'],
+		rippleMode: 'track',
+	}));
+	assert.deepEqual(deleted.clips, []);
+});
+
+test('rendered clip replacement retimes A/V companions and later material atomically', () => {
+	let project = createTimelinePairProject({ timelineStartFrame: 100 });
+	project = apply(project, {
+		type: 'batch',
+		commands: [
+			{ type: 'clip/add', trackId: 'video-track', clip: createVideoClipV4({
+				id: 'later-video', sourceId: 'video-source', timelineStartFrame: 1_000,
+				sourceStartFrame: 1_000, sourceDurationFrames: 200, durationFrames: 200,
+			}) },
+			{ type: 'clip/add', trackId: 'audio-track', clip: createAudioClipV4({
+				id: 'later-audio', sourceId: 'audio-source', timelineStartFrame: 1_000,
+				sourceStartFrame: 1_000, sourceDurationFrames: 200, durationFrames: 200,
+			}) },
+		],
+	});
+	project = apply(project, {
+		type: 'clip/render-replace-many',
+		entries: [{
+			clipId: 'audio-clip',
+			source: createAudioSourceV4({
+				id: 'processed-audio', name: 'Processed audio', storageKey: 'pcm/processed-audio',
+				frameCount: 300, channelCount: 2, sampleRate: 48_000,
+			}),
+		}],
+	});
+	const clips = Object.fromEntries(project.clips.map((clip) => [clip.id, clip]));
+	assert.equal(clips['audio-clip'].durationFrames, 300);
+	assert.equal(clips['video-clip'].durationFrames, 300);
+	assert.equal(clips['audio-clip'].avLinkId, 'av-original');
+	assert.equal(clips['video-clip'].avLinkId, 'av-original');
+	assert.equal(clips['later-audio'].timelineStartFrame, 700);
+	assert.equal(clips['later-video'].timelineStartFrame, 700);
+});
 
 function createOverwritePairProject({ linkedMover = true } = {}) {
 	const [videoSource, audioSource] = createMediaSources();

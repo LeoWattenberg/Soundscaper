@@ -84,12 +84,14 @@ import {
 	normalizeRecordingInputGain,
 	RECORDING_INPUT_GAIN_DEFAULT,
 	prepareCut,
+	prepareDisjointRangeDeleteCommand,
 	prepareGroupClipsCommand,
 	prepareKeepRangeCommand,
 	preparePasteCommand,
 	preparePunchCommand,
 	prepareRangeDeleteCommand,
 	prepareRangeReplacementCommand,
+	resolveEditingSelection,
 	prepareOverwriteClipCommand,
 	prepareTransformClipsCommand,
 	prepareSplitCommand,
@@ -4341,19 +4343,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			const audioTrackIds = project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 			const selectedTrack = findTrack(project, state.selectedTrackId);
 			const baseSelection = activeSelection();
-			const selectedClipCandidates = expandSelectedClipIds(project.selection?.clipIds?.length
-				? project.selection.clipIds
-				: state.selectedClipId
-					? [state.selectedClipId]
-					: []);
+			const editingSelection = resolveEditingSelection(project, { selectedClipId: state.selectedClipId });
+			const selectedClipCandidates = editingSelection?.kind === 'clips' ? editingSelection.clipIds : [];
 			const selectedClips = selectedClipCandidates
 				.map((clipId) => findClip(project, clipId))
 				.filter(Boolean);
 			const selectedClipIds = selectedClips.map((clip) => clip.id);
-			const selectedClipRange = selectedClips.length
+			const selectedClipRange = editingSelection?.kind === 'clips'
 				? {
-					startFrame: Math.min(...selectedClips.map((clip) => clip.timelineStartFrame)),
-					endFrame: Math.max(...selectedClips.map((clip) => clip.timelineStartFrame + clip.durationFrames)),
+					startFrame: editingSelection.startFrame,
+					endFrame: editingSelection.endFrame,
 					clipIds: selectedClipIds,
 				}
 				: null;
@@ -4374,14 +4373,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			};
 			if (action === 'copy' || Object.hasOwn(cutModes, action)) {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
-				const exactClipEdit = !baseSelection
-					&& selectedClipIds.length > 0
-					&& action !== 'cut-all-tracks-ripple';
+				const exactClipSelection = !baseSelection && selectedClipIds.length > 0;
+				const exactClipEdit = exactClipSelection && action !== 'cut-all-tracks-ripple';
 				const affectedTrackIds = action === 'cut-all-tracks-ripple' ? audioTrackIds : trackIds;
 				const clipboardOptions = {
 					...selection,
-					trackIds: exactClipEdit ? selectedClipTrackIds : affectedTrackIds,
-					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
+					trackIds: exactClipSelection ? selectedClipTrackIds : affectedTrackIds,
+					...(exactClipSelection ? { clipIds: selectedClipIds } : {}),
 				};
 				if (action === 'copy') {
 					setSessionClipboard(createClipboardDescriptor(project, clipboardOptions));
@@ -4396,11 +4394,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 							clipIds: selectedClipIds,
 							rippleMode: cutModes[action],
 						}
+						: !baseSelection && action === 'cut-all-tracks-ripple'
+							? prepareDisjointRangeDeleteCommand(project, {
+								ranges: editingSelection.ranges,
+								trackIds: audioTrackIds,
+								rippleMode: 'track',
+							})
 						: prepareRangeDeleteCommand(project, {
 							...selection,
 							trackIds: affectedTrackIds,
 							rippleMode: cutModes[action],
 						}));
+					if (!baseSelection) state.selectedClipId = null;
 				}
 				publishDocumentSnapshot();
 				return;
@@ -4423,7 +4428,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 					trackIds: exactClipEdit ? selectedClipTrackIds : trackIds,
 					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
 				}));
-				commit(prepareControllerPaste('overlap', selection.endFrame));
+				const duplicateCommand = prepareControllerPaste('overlap', selection.endFrame);
+				if (exactClipEdit) {
+					const pasteCommand = duplicateCommand.type === 'clipboard/paste'
+						? duplicateCommand
+						: duplicateCommand.commands.find((command) => command.type === 'clipboard/paste');
+					const pastedClipIds = Object.values(pasteCommand?.clipIds || {});
+					const pastedTrackIds = [...new Set(Object.values(pasteCommand?.trackMap || {}))];
+					commit({
+						type: 'batch',
+						commands: [
+							...(duplicateCommand.type === 'batch' ? duplicateCommand.commands : [duplicateCommand]),
+							{
+								type: 'selection/set',
+								startFrame: 0,
+								endFrame: 0,
+								trackIds: pastedTrackIds,
+								clipIds: pastedClipIds,
+								frequencyRange: null,
+							},
+						],
+					}, { selectClipId: pastedClipIds[0] || null });
+				} else commit(duplicateCommand);
 				return;
 			}
 			if (action === 'split') {
@@ -4463,8 +4489,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 				commit({ type: 'clip/ungroup', clipIds: selectedClipIds });
 				return;
 			}
-			if (action === 'trim-outside-selection' && selection) {
-				commit(prepareKeepRangeCommand(project, { ...selection, trackIds }));
+			if (action === 'trim-outside-selection' && baseSelection) {
+				commit(prepareKeepRangeCommand(project, { ...baseSelection, trackIds }));
 				return;
 			}
 			const deleteModes = {
@@ -4490,11 +4516,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 				return;
 			}
 			if (selection && Object.hasOwn(deleteModes, action)) {
-				commit(prepareRangeDeleteCommand(project, {
-					...selection,
-					trackIds: action === 'delete-all-tracks-ripple' ? audioTrackIds : trackIds,
-					rippleMode: deleteModes[action],
-				}));
+				commit(!baseSelection && action === 'delete-all-tracks-ripple'
+					? prepareDisjointRangeDeleteCommand(project, {
+						ranges: editingSelection.ranges,
+						trackIds: audioTrackIds,
+						rippleMode: 'track',
+					})
+					: prepareRangeDeleteCommand(project, {
+						...selection,
+						trackIds: action === 'delete-all-tracks-ripple' ? audioTrackIds : trackIds,
+						rippleMode: deleteModes[action],
+					}));
+				if (!baseSelection) state.selectedClipId = null;
 			}
 		} catch (error) {
 			handleError(error);
@@ -4718,7 +4751,28 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function generateSelectionSilence() {
 		const selection = activeSelection();
-		if (!selection) throw new Error(copy.timeSelectionRequired);
+		if (!selection) {
+			const targets = audacityEffectTargets();
+			if (!targets.length) throw new Error(copy.timeSelectionRequired);
+			const results = targets.map((target) => ({
+				target,
+				channels: Array.from({ length: target.channelCount }, () => new Float32Array(target.durationFrames)),
+			}));
+			await preflightStorage(results.reduce((sum, result) => (
+				sum + result.target.durationFrames * result.target.channelCount * Float32Array.BYTES_PER_ELEMENT
+			), 0), 'effect');
+			state.audacityEffectProcessing = true;
+			setStatus(copy.generatingAudio);
+			publishDocumentSnapshot();
+			try {
+				await persistAudacityEffectResults(results, null, { effectName: copy.silenceAudio });
+				setStatus(copy.done, 'success');
+				return true;
+			} finally {
+				state.audacityEffectProcessing = false;
+				publishDocumentSnapshot();
+			}
+		}
 		return generateSignal('silence', { durationSeconds: (selection.endFrame - selection.startFrame) / projectSampleRate() });
 	}
 
@@ -7761,7 +7815,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus(copy.audacityPreviewProcessing || copy.audacityProcessing);
 		publishDocumentSnapshot();
 		try {
-			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount);
+			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds);
 			requireCurrentPreview();
 			params = resolveInteractiveAudacityParams(type, params, channels);
 			if (type === 'eq') {
@@ -7814,12 +7868,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (contextFrames > 0) {
 				const beforeStart = Math.max(0, target.startFrame - contextFrames);
 				effectContext.beforeChannels = beforeStart < target.startFrame
-					? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount)
+					? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
 					: channels.map(() => new Float32Array(0));
 				if (afterContextFrames > 0) {
 					const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + afterContextFrames);
 					effectContext.afterChannels = target.endFrame < afterEnd
-						? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
+						? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
 						: channels.map(() => new Float32Array(0));
 				}
 			}
@@ -7907,7 +7961,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function audacityEffectTarget(requestedTrackId = state.selectedTrackId) {
-		const selectedClip = state.selectedClipId ? findClip(project, state.selectedClipId) : null;
+		const editingSelection = resolveEditingSelection(project, { selectedClipId: state.selectedClipId });
+		const selectedClip = editingSelection?.kind === 'clips'
+			? editingSelection.clipIds.map((clipId) => findClip(project, clipId)).find((clip) => (
+				clip?.kind !== 'video'
+				&& (!requestedTrackId || findClipTrack(project, clip.id)?.id === requestedTrackId)
+			)) || null
+			: null;
 		const selectedClipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, requestedTrackId) || selectedClipTrack;
 		if (!track) return null;
@@ -7919,6 +7979,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		const channelCount = audacitySelectionChannelCount(project, track.id, startFrame, endFrame);
 		return channelCount ? {
 			track,
+			...(trackClip ? { clipId: trackClip.id, clipIds: [trackClip.id] } : {}),
 			startFrame,
 			endFrame,
 			durationFrames: endFrame - startFrame,
@@ -7928,7 +7989,31 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function audacityEffectTargets(options = {}) {
+		const editingSelection = resolveEditingSelection(project, { selectedClipId: state.selectedClipId });
 		const selection = activeSelection();
+		if (editingSelection?.kind === 'clips') {
+			return editingSelection.clipIds
+				.map((clipId) => {
+					const clip = findClip(project, clipId);
+					const track = clip ? findClipTrack(project, clip.id) : null;
+					if (!clip || clip.kind === 'video' || track?.type !== 'audio') return null;
+					const startFrame = clip.timelineStartFrame;
+					const endFrame = clip.timelineStartFrame + clip.durationFrames;
+					const channelCount = audacitySelectionChannelCount(project, track.id, startFrame, endFrame)
+						|| audioTrackChannelCountV2(project, track, 1);
+					return {
+						track,
+						clipId: clip.id,
+						clipIds: [clip.id],
+						startFrame,
+						endFrame,
+						durationFrames: clip.durationFrames,
+						channelCount,
+						hasAudio: true,
+					};
+				})
+				.filter(Boolean);
+		}
 		if (!selection) {
 			const target = audacityEffectTarget();
 			return target ? [target] : [];
@@ -7961,11 +8046,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function audacityEffectSelectionDetails(selection, targets) {
+		const clipIds = targets.map((target) => target.clipId).filter(Boolean);
 		return {
 			trackIds: selection?.trackIds?.length
 				? [...selection.trackIds]
 				: targets.map((target) => target.track.id),
-			clipIds: [],
+			clipIds,
 			frequencyRange: selection?.frequencyRange || null,
 		};
 	}
@@ -8048,6 +8134,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					target.startFrame,
 					target.endFrame,
 					target.channelCount,
+					target.clipIds,
 				);
 				const processed = await runSpectralEditWorker(channels, {
 					sampleRate: projectSampleRate(),
@@ -8121,7 +8208,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus(copy.audacityProfileProcessing);
 		publishDocumentSnapshot();
 		try {
-			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount);
+			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds);
 			const result = await runSelectionEffectWorker({
 				operation: 'capture-noise-profile',
 				channels,
@@ -8297,6 +8384,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					target.startFrame,
 					target.endFrame,
 					target.channelCount,
+					target.clipIds,
 				);
 				dryResults.push({ target, channels });
 			}
@@ -8305,7 +8393,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				params,
 				dryResults.flatMap(({ channels }) => channels),
 			);
-			const controlChannels = definition.requiresControlTrack
+			const controlChannels = definition.requiresControlTrack && !targets.some((target) => target.clipId)
 				? await renderDryTrackRange(
 					state.audacityControlTrackId,
 					targets[0].startFrame,
@@ -8314,6 +8402,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				: null;
 			const linkedTruncateSilence = type === 'audacity-truncate-silence'
 				&& params.independent === false
+				&& !targets.some((target) => target.clipId)
 				&& dryResults.length > 1;
 			let results = [];
 			if (linkedTruncateSilence) {
@@ -8334,17 +8423,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 					const effectContext = {};
 					const spectralSelection = spectralSelections.get(target.track.id);
 					if (spectralSelection) effectContext.spectralSelection = spectralSelection;
-					if (controlChannels) effectContext.controlChannels = controlChannels;
+					if (definition.requiresControlTrack) {
+						effectContext.controlChannels = controlChannels || await renderDryTrackRange(
+							state.audacityControlTrackId,
+							target.startFrame,
+							target.endFrame,
+						);
+					}
 					if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
 					if (contextFrames > 0) {
 						const beforeStart = Math.max(0, target.startFrame - contextFrames);
 						effectContext.beforeChannels = beforeStart < target.startFrame
-							? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount)
+							? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
 							: channels.map(() => new Float32Array(0));
 						if (afterContextFrames > 0) {
 							const afterEnd = Math.min(projectDurationFrames(project), target.endFrame + afterContextFrames);
 							effectContext.afterChannels = target.endFrame < afterEnd
-								? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount)
+								? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
 								: channels.map(() => new Float32Array(0));
 						}
 					}
@@ -8370,15 +8465,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 	}
 
-	async function renderDryTrackRange(trackId, startFrame, endFrame, requestedChannelCount = null) {
+	async function renderDryTrackRange(trackId, startFrame, endFrame, requestedChannelCount = null, requestedClipIds = null) {
 		const track = findTrack(project, trackId);
 		if (!track) throw new Error(copy.audioTrackNotFound);
 		const channelCount = requestedChannelCount ?? (audacitySelectionChannelCount(project, trackId, startFrame, endFrame) || 1);
 		const snapshot = cloneProject(project);
+		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
 		snapshot.tracks = snapshot.tracks
 			.filter((candidate) => candidate.id === trackId)
 			.map((candidate) => ({
 				...candidate,
+				...(clipIdSet ? { clipIds: candidate.clipIds.filter((clipId) => clipIdSet.has(clipId)) } : {}),
 				gain: 1,
 				pan: 0,
 				mute: false,
@@ -8435,10 +8532,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				const channels = runTarget
 					? await renderDryTrackRange(
 						runTarget.track.id,
-						runTarget.startFrame,
-						runTarget.endFrame,
-						runTarget.channelCount,
-					)
+							runTarget.startFrame,
+							runTarget.endFrame,
+							runTarget.channelCount,
+							runTarget.clipIds,
+						)
 					: [];
 				throwIfAborted(abort.signal);
 				const maxOutputFrames = nyquistMaximumOutputFrames({
@@ -8796,7 +8894,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				sampleRate,
 				originalSampleRate: sampleRate,
 			};
-			const replacement = prepareRangeReplacementCommand(project, {
+			const replacement = target.clipId ? null : prepareRangeReplacementCommand(project, {
 				trackId: target.track.id,
 				startFrame: target.startFrame,
 				endFrame: target.endFrame,
@@ -8805,8 +8903,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			entries.push({ target, channels, frameCount, buffer, sourceId, sourceName, replacement, command: replacement });
 		}
 		const firstEntry = entries[0];
-		if (entries.some((entry) => entry.target.startFrame !== firstEntry.target.startFrame)
-			|| (!options.allowIndependentLengths && entries.some((entry) => entry.frameCount !== firstEntry.frameCount))) {
+		const exactClipReplacement = entries.every((entry) => Boolean(entry.target.clipId));
+		if (!exactClipReplacement && (entries.some((entry) => entry.target.startFrame !== firstEntry.target.startFrame)
+			|| (!options.allowIndependentLengths && entries.some((entry) => entry.frameCount !== firstEntry.frameCount)))) {
 			throw new Error(copy.effectTrackLengthsMismatch || 'Selected tracks produced different effect lengths and cannot be rippled together.');
 		}
 		const selectionFrameCount = options.allowIndependentLengths
@@ -8848,17 +8947,45 @@ export function createAudioEditorController(_root = null, options = {}) {
 				throwIfAborted(signal);
 			}
 			throwIfAborted(signal);
+			const replacementCommands = exactClipReplacement
+				? [{
+					type: 'clip/render-replace-many',
+					entries: entries.map((entry) => ({
+						clipId: entry.target.clipId,
+						source: entry.replacement?.source || {
+							id: entry.sourceId,
+							storageKey: entry.sourceId,
+							name: entry.sourceName,
+							mimeType: 'audio/wav',
+							frameCount: entry.frameCount,
+							channelCount: entry.channels.length,
+							sampleRate,
+							originalSampleRate: sampleRate,
+						},
+					})),
+				}]
+				: entries.map((entry) => entry.command).filter(Boolean);
+			const selectionCommand = exactClipReplacement
+				? {
+					type: 'selection/set',
+					startFrame: 0,
+					endFrame: 0,
+					trackIds: [...new Set(entries.map((entry) => entry.target.track.id))],
+					clipIds: entries.map((entry) => entry.target.clipId),
+					frequencyRange: null,
+				}
+				: {
+					type: 'selection/set',
+					startFrame: firstEntry.target.startFrame,
+					endFrame: firstEntry.target.startFrame + selectionFrameCount,
+					...(options.selectionDetails || {}),
+				};
 			commit({
 					type: 'batch',
 					commands: [
-						...entries.map((entry) => entry.command).filter(Boolean),
-					{
-						type: 'selection/set',
-						startFrame: firstEntry.target.startFrame,
-						endFrame: firstEntry.target.startFrame + selectionFrameCount,
-						...(options.selectionDetails || {}),
-					},
-				],
+						...replacementCommands,
+						selectionCommand,
+					],
 			}, {
 				selectTrackId: entries.find((entry) => entry.target.track.id === state.selectedTrackId)?.target.track.id
 					|| firstEntry.target.track.id,

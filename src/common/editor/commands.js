@@ -209,6 +209,9 @@ function mutateCommand(project, command) {
 		case 'clip/replace-source':
 			replaceClipSource(project, command.clipId, command.sourceId);
 			break;
+		case 'clip/render-replace-many':
+			replaceRenderedClips(project, command);
+			break;
 		case 'clip/move':
 			moveClip(project, command);
 			break;
@@ -1076,6 +1079,95 @@ function replaceClipSource(project, clipId, sourceId) {
 	replaceClip(project, updated);
 }
 
+function replaceRenderedClips(project, command) {
+	if (!Array.isArray(command.entries) || !command.entries.length) {
+		throw new TypeError('Rendered clip replacement entries are required.');
+	}
+	const originals = new Map(project.clips.map((clip) => [clip.id, { ...clip }]));
+	const entries = command.entries.map((entry) => {
+		const clip = requireClip(project, entry.clipId);
+		if (clip.kind === 'video') throw new RangeError('Rendered audio cannot replace a video clip.');
+		const source = normalizeRangeReplacementSource(project, entry.source);
+		assertUnusedId(project.sources, source.id, 'source');
+		return { clip, source, ratio: source.frameCount / clip.durationFrames };
+	});
+	const processedIds = new Set(entries.map(({ clip }) => clip.id));
+	const remaining = new Set(processedIds);
+	const components = [];
+	while (remaining.size) {
+		const seed = remaining.values().next().value;
+		const relatedIds = new Set(collectRelatedClipIds(project, [seed]));
+		const targets = entries.filter(({ clip }) => relatedIds.has(clip.id));
+		for (const { clip } of targets) remaining.delete(clip.id);
+		const ratio = targets[0].ratio;
+		if (targets.some((target) => Math.abs(target.ratio - ratio) > 1 / Math.max(1, target.clip.durationFrames))) {
+			throw new RangeError('Related clips produced inconsistent effect duration ratios.');
+		}
+		components.push({ relatedIds, targets, ratio });
+	}
+
+	for (const component of components) {
+		const related = [...component.relatedIds].map((clipId) => originals.get(clipId)).filter(Boolean);
+		const anchor = Math.min(...related.map((clip) => clip.timelineStartFrame));
+		const oldEnd = Math.max(...related.map(clipEndFrame));
+		const newEnd = anchor + Math.max(1, Math.round((oldEnd - anchor) * component.ratio));
+		const delta = newEnd - oldEnd;
+		const relatedTrackIds = new Set(related.map((clip) => requireClipTrack(project, clip.id).id));
+		for (const clip of project.clips) {
+			if (component.relatedIds.has(clip.id)) continue;
+			const track = requireClipTrack(project, clip.id);
+			if (relatedTrackIds.has(track.id) && clip.timelineStartFrame >= oldEnd) {
+				clip.timelineStartFrame += delta;
+			}
+		}
+		for (const original of related) {
+			const current = requireClip(project, original.id);
+			const target = component.targets.find(({ clip }) => clip.id === original.id);
+			const durationFrames = target
+				? target.source.frameCount
+				: Math.max(1, Math.round(original.durationFrames * component.ratio));
+			const timelineStartFrame = anchor + Math.round((original.timelineStartFrame - anchor) * component.ratio);
+			const updated = target
+				? normalizeClipForProject(project, {
+					...current,
+					sourceId: target.source.id,
+					timelineStartFrame,
+					sourceStartFrame: 0,
+					sourceDurationFrames: durationFrames,
+					durationFrames,
+					gain: 1,
+					fadeInFrames: 0,
+					fadeOutFrames: 0,
+					reversed: false,
+					envelope: [],
+					pitchCents: 0,
+					speedRatio: 1,
+					preserveFormants: false,
+					stretchToTempo: false,
+					renderCacheRevision: (current.renderCacheRevision || 0) + 1,
+					id: current.id,
+				})
+				: normalizeClipForProject(project, {
+					...current,
+					timelineStartFrame,
+					durationFrames,
+					speedRatio: (current.sourceDurationFrames || current.durationFrames) / durationFrames,
+					fadeInFrames: Math.min(current.fadeInFrames || 0, durationFrames),
+					fadeOutFrames: Math.min(current.fadeOutFrames || 0, durationFrames),
+					envelope: (current.envelope || []).map((point) => ({
+						...point,
+						frame: Math.min(durationFrames, Math.round(point.frame * component.ratio)),
+					})),
+					renderCacheRevision: (current.renderCacheRevision || 0) + 1,
+					id: current.id,
+				});
+			replaceClip(project, updated);
+		}
+	}
+	project.sources.push(...entries.map(({ source }) => source));
+	for (const track of project.tracks.filter((candidate) => Array.isArray(candidate.clipIds))) sortTrack(project, track);
+}
+
 function moveClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const oldTrack = requireClipTrack(project, clip.id);
@@ -1139,6 +1231,71 @@ export function collectRelatedClipIds(project, clipIds) {
 		}
 	}
 	return project.clips.filter((clip) => ids.has(clip.id)).map((clip) => clip.id);
+}
+
+/**
+ * Resolve the document's editing selection without collapsing disjoint clip
+ * selections into one destructive time range. A real time range always wins;
+ * otherwise the selected clips are expanded through edit groups and A/V links.
+ */
+export function resolveEditingSelection(project, options = {}) {
+	const selection = options.selection || project?.selection || null;
+	if (
+		Number.isSafeInteger(selection?.startFrame)
+		&& Number.isSafeInteger(selection?.endFrame)
+		&& selection.endFrame > selection.startFrame
+	) {
+		const trackIds = (selection.trackIds || [])
+			.filter((trackId) => project.tracks.some((track) => track.id === trackId && Array.isArray(track.clipIds)));
+		return Object.freeze({
+			kind: 'range',
+			startFrame: selection.startFrame,
+			endFrame: selection.endFrame,
+			ranges: Object.freeze([Object.freeze({
+				startFrame: selection.startFrame,
+				endFrame: selection.endFrame,
+				durationFrames: selection.endFrame - selection.startFrame,
+			})]),
+			trackIds: Object.freeze(trackIds),
+			clipIds: Object.freeze([]),
+		});
+	}
+	const requestedClipIds = Array.isArray(options.clipIds) && options.clipIds.length
+		? options.clipIds
+		: selection?.clipIds?.length
+			? selection.clipIds
+			: options.selectedClipId ? [options.selectedClipId] : [];
+	const clipIds = collectRelatedClipIds(project, requestedClipIds);
+	if (!clipIds.length) return null;
+	const clips = clipIds.map((clipId) => requireClip(project, clipId));
+	const trackIds = [...new Set(clips.map((clip) => requireClipTrack(project, clip.id).id))];
+	const ranges = mergeEditingRanges(clips.map((clip) => ({
+		startFrame: clip.timelineStartFrame,
+		endFrame: clipEndFrame(clip),
+	})));
+	return Object.freeze({
+		kind: 'clips',
+		startFrame: ranges[0].startFrame,
+		endFrame: ranges.at(-1).endFrame,
+		ranges: Object.freeze(ranges.map(Object.freeze)),
+		trackIds: Object.freeze(trackIds),
+		clipIds: Object.freeze(clipIds),
+	});
+}
+
+function mergeEditingRanges(ranges) {
+	const sorted = ranges
+		.map((range) => normalizeFrameRange(range.startFrame, range.endFrame, 'editing selection'))
+		.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
+	const merged = [];
+	for (const range of sorted) {
+		const previous = merged.at(-1);
+		if (previous && range.startFrame <= previous.endFrame) {
+			previous.endFrame = Math.max(previous.endFrame, range.endFrame);
+			previous.durationFrames = previous.endFrame - previous.startFrame;
+		} else merged.push({ ...range });
+	}
+	return merged;
 }
 
 /**
@@ -2016,6 +2173,28 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 		}
 	}
 	return { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
+}
+
+/**
+ * Prepare several independent range deletions as one replay-safe command.
+ * Commands are prepared and simulated from right to left so every subsequent
+ * command references the clip IDs produced by the preceding split/ripple.
+ */
+export function prepareDisjointRangeDeleteCommand(project, options = {}, idFactory = createStableId) {
+	const ranges = mergeEditingRanges(options.ranges || []);
+	if (!ranges.length) throw new RangeError('At least one delete range is required.');
+	let working = project;
+	const commands = [];
+	for (const range of [...ranges].reverse()) {
+		const command = prepareRangeDeleteCommand(working, {
+			...range,
+			trackIds: options.trackIds,
+			rippleMode: options.rippleMode,
+		}, idFactory);
+		commands.push(command);
+		working = applyEditorCommand(working, command);
+	}
+	return commands.length === 1 ? commands[0] : { type: 'batch', commands };
 }
 
 export function prepareKeepRangeCommand(project, options = {}) {

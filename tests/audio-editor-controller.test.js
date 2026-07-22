@@ -1476,11 +1476,16 @@ test('group selection expands atomically while horizontal and vertical trim rela
 });
 
 test('cut and delete accept clip selections without a time range', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `controller-clip-selection-${Date.now()}-${Math.random()}`,
+	});
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,
 		locale: 'en',
-		store: createMemoryStore(),
+		store,
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
 	});
@@ -1519,6 +1524,39 @@ test('cut and delete accept clip selections without a time range', async () => {
 	controller.actions.edit.deleteLeaveGap();
 	assert.equal(controller.getSnapshot().project.clips.some((clip) => clip.id === 'clip-edit-target'), false);
 	assert.deepEqual(controller.getSnapshot().project.clips.map((clip) => clip.id), ['clip-edit-gap']);
+	controller.actions.edit.undo();
+	controller.actions.timeline.selectClip('clip-edit-target');
+	controller.actions.edit.deleteAllTracksRipple();
+	let remaining = controller.getSnapshot().project.clips;
+	assert.deepEqual(remaining.map((clip) => clip.id), ['clip-edit-gap']);
+	assert.equal(remaining[0].timelineStartFrame, 1_000);
+	controller.actions.edit.undo();
+	controller.actions.timeline.selectClip('clip-edit-target');
+	controller.actions.edit.cutAllTracksRipple();
+	remaining = controller.getSnapshot().project.clips;
+	assert.deepEqual(remaining.map((clip) => clip.id), ['clip-edit-gap']);
+	assert.equal(remaining[0].timelineStartFrame, 1_000);
+	assert.equal(controller.getSnapshot().history.hasClipboard, true);
+	controller.actions.edit.undo();
+	controller.actions.timeline.selectClip('clip-edit-target');
+	const originalSources = new Map(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip.sourceId]));
+	await controller.actions.edit.silenceSelection();
+	const silenced = new Map(controller.getSnapshot().project.clips.map((clip) => [clip.id, clip]));
+	assert.notEqual(silenced.get('clip-edit-target').sourceId, originalSources.get('clip-edit-target'));
+	assert.notEqual(silenced.get('clip-edit-companion').sourceId, originalSources.get('clip-edit-companion'));
+	assert.equal(silenced.get('clip-edit-gap').sourceId, originalSources.get('clip-edit-gap'));
+	assert.deepEqual(
+		new Set(controller.getSnapshot().project.selection.clipIds),
+		new Set(['clip-edit-target', 'clip-edit-companion']),
+	);
+	controller.actions.edit.undo();
+	controller.actions.timeline.selectClip('clip-edit-target');
+	controller.actions.edit.duplicate();
+	const duplicateSelection = controller.getSnapshot().project.selection.clipIds;
+	assert.equal(duplicateSelection.length, 2);
+	assert.equal(duplicateSelection.includes('clip-edit-target'), false);
+	assert.equal(duplicateSelection.includes('clip-edit-companion'), false);
+	assert.equal(controller.getSnapshot().project.clips.length, 5);
 	await controller.dispose();
 });
 
