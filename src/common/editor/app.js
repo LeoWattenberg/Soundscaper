@@ -1085,7 +1085,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			audioDevices: Object.freeze({
 				requestAccess: requestInputAccess,
-				refresh: () => refreshAudioDevices({ probe: false }),
+				refresh: () => refreshAudioDevices({ probe: true }),
 				setPreferredInput: setPreferredInputDevice,
 				setPreferredInputChannelCount,
 				configureDisplayInput,

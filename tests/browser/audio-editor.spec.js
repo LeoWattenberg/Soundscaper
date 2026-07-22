@@ -745,7 +745,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA, toneB]);
 		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio setup', exact: true }).click();
 		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
-		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Allow microphone access', exact: true });
+		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Enable microphones', exact: true });
 		await expect(allowMicrophone).toBeVisible();
 		await allowMicrophone.click();
 		await expect(allowMicrophone).toHaveCount(0);
@@ -1175,7 +1175,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const releaseInputs = editor.getByRole('button', { name: 'Audio setup', exact: true });
 		await releaseInputs.click();
 		const audioSetup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
-		const releaseInputButton = audioSetup.getByRole('button', { name: 'Release inputs', exact: true });
+		const releaseInputButton = audioSetup.getByRole('button', { name: 'Disable microphones', exact: true });
 		await expect(releaseInputButton).toBeVisible();
 		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'open');
 		await releaseInputButton.click();
@@ -1193,7 +1193,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		if (!await mixer.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
 		await expect(mixer.locator('.kw-recording-input-selectors--mixer').first()
 			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
-		await expect(mixer.getByRole('button', { name: 'Release inputs', exact: true })).toHaveCount(0);
+		await expect(mixer.getByRole('button', { name: 'Disable microphones', exact: true })).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 

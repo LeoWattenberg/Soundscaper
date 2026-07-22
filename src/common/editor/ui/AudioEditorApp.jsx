@@ -2475,17 +2475,21 @@ function AudioDevicesFlyout({
 			</label>
 			{outputMessage && <p className="kw-audio-editor__audio-devices-note" role="status">{outputMessage}</p>}
 			<div className="kw-audio-editor__audio-devices-actions">
-				{!displayInputSelected && !devices.inputAccess && devices.microphoneInputSupported && (
-					<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.requestAccess())}>
-						{copy.audioDeviceAllowAccess}
-					</Button>
-				)}
+				{!snapshot.recordingInputs?.hasOpenInputs && typeof controller.actions.recording.requestInputAccess === 'function' && <Button
+					variant="secondary"
+					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
+					onClick={() => run(() => controller.actions.recording.requestInputAccess())}
+				>{copy.recordingAllowInputs}</Button>}
 				{snapshot.recordingInputs?.hasOpenInputs && <Button
 					variant="secondary"
 					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
 					onClick={() => run(() => controller.actions.recording.releaseInputs())}
 				>{copy.recordingReleaseInputs}</Button>}
-				<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.refresh())}>
+				<Button
+					variant="secondary"
+					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
+					onClick={() => run(() => controller.actions.audioDevices.refresh())}
+				>
 					{copy.audioDeviceRefresh}
 				</Button>
 			</div>
@@ -3008,7 +3012,7 @@ function RecordFlyout({
 		},
 		{ divider: true },
 		{
-			label: snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs,
+			label: snapshot.recordingInputs?.hasOpenInputs ? copy.audioDeviceRefresh : copy.recordingAllowInputs,
 			disabled: recordingInputBlocked,
 			onClick: () => run(() => snapshot.recordingInputs?.hasOpenInputs
 				? controller.actions.recording.refreshInputs()
@@ -5484,13 +5488,6 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 		<div className="kw-audio-editor__mixer" data-mixer-panel>
 			<div className="kw-audio-editor__mixer-toolbar">
 				<strong>{copy.mixerRouting}</strong>
-				{showArmControls && <Button
-					variant="secondary"
-					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording || typeof controller.actions.recording.requestInputAccess !== 'function'}
-					onClick={() => run(() => snapshot.recordingInputs?.hasOpenInputs
-						? controller.actions.recording.refreshInputs()
-						: controller.actions.recording.requestInputAccess())}
-				>{snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs}</Button>}
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
 				{mixerBuses.length > 0 && <select aria-label={copy.removeBus} disabled={snapshot.readOnly} value="" onChange={(event) => {
