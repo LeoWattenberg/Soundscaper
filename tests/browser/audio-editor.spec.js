@@ -4389,15 +4389,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondPage.close();
 	});
 
-	test('refreshes an untouched default project without becoming read-only', async ({ page, context }) => {
-		await bootEditor(page, '/en/');
-		const devtools = await context.newCDPSession(page);
-		await devtools.send('Storage.clearDataForOrigin', {
-			origin: new URL(page.url()).origin,
-			storageTypes: 'all',
-		});
-		await page.reload();
-		let editor = await waitForEditor(page);
+	test('refreshes an untouched default project without becoming read-only', async ({ page }) => {
+		let editor = await bootEditor(page, '/en/');
 		let record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(record).toBeEnabled();
 
@@ -4413,13 +4406,6 @@ test.describe('audio editor React/design-system workflows', () => {
 			Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
 		});
 		await bootEditor(page, '/en/');
-		const devtools = await context.newCDPSession(page);
-		await devtools.send('Storage.clearDataForOrigin', {
-			origin: new URL(page.url()).origin,
-			storageTypes: 'all',
-		});
-		await page.reload();
-		await waitForEditor(page);
 
 		await page.reload();
 		const editor = await waitForEditor(page);

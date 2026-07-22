@@ -88,6 +88,82 @@ test('project lease makes a second writer read-only and releases ownership', asy
 	third.release();
 });
 
+test('project lease probes the owner before reclaiming a live or abandoned lease', async () => {
+	const values = new Map();
+	const channels = new Map();
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	class FakeBroadcastChannel {
+		constructor(name) {
+			this.name = name;
+			const peers = channels.get(name) ?? new Set();
+			peers.add(this);
+			channels.set(name, peers);
+		}
+
+		postMessage(data) {
+			for (const peer of [...channels.get(this.name)]) {
+				if (peer !== this) peer.onmessage?.({ data });
+			}
+		}
+
+		close() {
+			channels.get(this.name)?.delete(this);
+		}
+	}
+	const immediateTimeout = (callback) => {
+		callback();
+		return 1;
+	};
+	const first = await acquireProjectLock('live-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setInterval: () => 1, clearInterval: () => {}, setTimeout: immediateTimeout, now: () => 100,
+	});
+	const contender = await acquireProjectLock('live-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setInterval: () => 2, clearInterval: () => {}, setTimeout: immediateTimeout, now: () => 101,
+	});
+	assert.equal(first.readOnly, false);
+	assert.equal(contender.readOnly, true);
+	first.release();
+
+	const abandoned = await acquireProjectLock('abandoned-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 3, clearInterval: () => {}, now: () => 100,
+	});
+	const replacement = await acquireProjectLock('abandoned-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setInterval: () => 4, clearInterval: () => {}, setTimeout: immediateTimeout, now: () => 101,
+	});
+	assert.equal(abandoned.readOnly, false);
+	assert.equal(replacement.readOnly, false);
+	abandoned.release();
+	const nextContender = await acquireProjectLock('abandoned-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setInterval: () => 5, clearInterval: () => {}, setTimeout: immediateTimeout, now: () => 102,
+	});
+	assert.equal(nextContender.readOnly, true);
+	replacement.release();
+
+	const legacyOwner = await acquireProjectLock('legacy-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 6, clearInterval: () => {}, now: () => 100,
+	});
+	const [legacyKey] = [...values.keys()];
+	const legacyLease = JSON.parse(values.get(legacyKey));
+	delete legacyLease.protocol;
+	values.set(legacyKey, JSON.stringify(legacyLease));
+	const legacyContender = await acquireProjectLock('legacy-owner', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setInterval: () => 7, clearInterval: () => {}, setTimeout: immediateTimeout, now: () => 101,
+	});
+	assert.equal(legacyContender.readOnly, true);
+	legacyOwner.release();
+});
+
 test('an expired project lease is reclaimed without letting its former owner remove the replacement', async () => {
 	const values = new Map();
 	const storage = {

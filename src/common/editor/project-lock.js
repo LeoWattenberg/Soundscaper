@@ -2,6 +2,8 @@ const LOCK_PREFIX = 'kw-media-audio-editor-lock:';
 const LEASE_DURATION_MS = 15_000;
 const HEARTBEAT_MS = 5_000;
 const NAVIGATOR_LOCK_HANDOFF_MS = 150;
+const LEASE_OWNER_PROBE_MS = 500;
+const LEASE_PROTOCOL_VERSION = 1;
 
 /**
  * Acquire a single-writer project lease. Navigator Locks is authoritative;
@@ -139,7 +141,18 @@ async function acquireLease(projectId, options) {
 	if (!storage) return { projectId, readOnly: false, method: 'unavailable', retryAt: null, release() {} };
 	const existing = readLease(storage, key);
 	if (existing && existing.expiresAt > now()) {
-		return { projectId, readOnly: true, method: 'lease', retryAt: existing.expiresAt, release() {} };
+		const ownerAlive = existing.protocol === LEASE_PROTOCOL_VERSION
+			? await probeLeaseOwner(BroadcastChannelClass, key, existing.owner, setTimeoutFn)
+			: null;
+		const current = readLease(storage, key);
+		const stale = !current
+			|| current.expiresAt <= now()
+			|| (current.owner === existing.owner && ownerAlive === false);
+		if (stale) {
+			if (current?.owner === existing.owner) removeLease(storage, key);
+		} else {
+			return { projectId, readOnly: true, method: 'lease', retryAt: current.expiresAt, release() {} };
+		}
 	}
 
 	writeLease(storage, key, owner, now());
@@ -153,6 +166,13 @@ async function acquireLease(projectId, options) {
 		channel = BroadcastChannelClass ? new BroadcastChannelClass(key) : null;
 		if (channel) channel.onmessage = ({ data = {} }) => {
 			if (data.type === 'claimed' && data.owner) claimants.add(data.owner);
+			if (data.type === 'probe' && data.owner === owner) {
+				try {
+					channel.postMessage({ type: 'owned', owner });
+				} catch {
+					// Teardown can close the channel while a probe is being delivered.
+				}
+			}
 		};
 		channel?.postMessage({ type: 'claimed', owner });
 	} catch {
@@ -178,7 +198,7 @@ async function acquireLease(projectId, options) {
 			if (current?.owner !== owner) {
 				released = true;
 				if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
-				lifecycleTarget?.removeEventListener?.('pagehide', handlePageHide);
+				removeLifecycleListeners();
 				channel?.close();
 				return;
 			}
@@ -199,11 +219,15 @@ async function acquireLease(projectId, options) {
 		releaseLease();
 	}
 
+	function removeLifecycleListeners() {
+		lifecycleTarget?.removeEventListener?.('pagehide', handlePageHide);
+	}
+
 	function releaseLease() {
 		if (released) return;
 		released = true;
 		if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
-		lifecycleTarget?.removeEventListener?.('pagehide', handlePageHide);
+		removeLifecycleListeners();
 		const current = readLease(storage, key);
 		if (current?.owner === owner) removeLease(storage, key);
 		channel?.postMessage({ type: 'released', owner });
@@ -211,9 +235,42 @@ async function acquireLease(projectId, options) {
 	}
 }
 
+async function probeLeaseOwner(BroadcastChannelClass, key, owner, setTimeoutFn) {
+	if (!BroadcastChannelClass || typeof setTimeoutFn !== 'function') return null;
+	let channel;
+	try {
+		channel = new BroadcastChannelClass(key);
+	} catch {
+		return null;
+	}
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (alive) => {
+			if (settled) return;
+			settled = true;
+			channel.close();
+			resolve(alive);
+		};
+		channel.onmessage = ({ data = {} }) => {
+			if (data.type === 'owned' && data.owner === owner) finish(true);
+		};
+		try {
+			channel.postMessage({ type: 'probe', owner });
+		} catch {
+			finish(null);
+			return;
+		}
+		setTimeoutFn(() => finish(false), LEASE_OWNER_PROBE_MS);
+	});
+}
+
 function writeLease(storage, key, owner, timestamp) {
 	try {
-		storage.setItem(key, JSON.stringify({ owner, expiresAt: timestamp + LEASE_DURATION_MS }));
+		storage.setItem(key, JSON.stringify({
+			owner,
+			expiresAt: timestamp + LEASE_DURATION_MS,
+			protocol: LEASE_PROTOCOL_VERSION,
+		}));
 	} catch {
 		// A failed refresh will naturally expire and never mutates the project.
 	}
