@@ -224,34 +224,29 @@ function ContainerAddTrackFlyout({
 		>
 			<div className="add-track-flyout__triangle" style={{ left: 88 }} />
 			<div className="add-track-flyout__body" role="menu" aria-label={copy.addTrack}>
-				{options.map((option, index) => (
-					<button
-						key={option.type}
-						ref={index === 0 ? firstOptionRef : undefined}
-						type="button"
-						className="add-track-flyout__option"
-						role="menuitem"
-						tabIndex={index === 0 ? 0 : -1}
-						disabled={mutationsBlocked}
-						onClick={() => onSelectTrackType(option.type)}
-					>
-						<Icon name={option.icon} size={16} />
-						<span className="add-track-flyout__option-label">{option.label}</span>
-					</button>
-				))}
+				<div className="add-track-flyout__options">
+					{options.map((option, index) => (
+						<button
+							key={option.type}
+							ref={index === 0 ? firstOptionRef : undefined}
+							type="button"
+							className="add-track-flyout__option"
+							role="menuitem"
+							tabIndex={index === 0 ? 0 : -1}
+							disabled={mutationsBlocked}
+							onClick={() => onSelectTrackType(option.type)}
+						>
+							<Icon name={option.icon} size={16} />
+							<span className="add-track-flyout__option-label">{option.label}</span>
+						</button>
+					))}
+				</div>
 				<div className="add-track-flyout__separator" role="separator" />
 				<div className="add-track-flyout__row">
-					<button
-						type="button"
-						className="add-track-flyout__option add-track-flyout__checkbox"
-						role="menuitemcheckbox"
-						aria-checked={showMasterTrack}
-						tabIndex={-1}
-						onClick={onToggleMasterTrack}
-					>
-						<span className="add-track-flyout__check" aria-hidden="true">{showMasterTrack ? '✓' : ''}</span>
-						<span className="add-track-flyout__option-label">{copy.masterTrack}</span>
-					</button>
+					<label className="add-track-flyout__checkbox-control">
+						<input type="checkbox" checked={showMasterTrack} disabled={mutationsBlocked} onChange={onToggleMasterTrack} />
+						<span>{copy.masterTrack}</span>
+					</label>
 				</div>
 			</div>
 		</div>
