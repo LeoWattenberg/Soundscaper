@@ -743,8 +743,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
-		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio devices', exact: true }).click();
-		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio devices', exact: true });
+		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio setup', exact: true }).click();
+		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
 		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Allow microphone access', exact: true });
 		await expect(allowMicrophone).toBeVisible();
 		await allowMicrophone.click();
@@ -1018,11 +1018,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-		const audioDevicesButton = editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio devices', exact: true });
+		const audioDevicesButton = editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio setup', exact: true });
 		await expect(audioDevicesButton).toBeVisible();
-		await expect(editor.locator('[data-editor-tool-toolbar]').getByRole('button', { name: 'Audio devices', exact: true })).toHaveCount(0);
+		await expect(editor.locator('[data-editor-tool-toolbar]').getByRole('button', { name: 'Audio setup', exact: true })).toHaveCount(0);
 		await audioDevicesButton.click();
-		const flyout = editor.getByRole('dialog', { name: 'Audio devices', exact: true });
+		const flyout = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
 		await expect(flyout).toBeVisible();
 		const actionBarZ = Number(await editor.locator('[data-action-bar]').evaluate((element) => getComputedStyle(element).zIndex));
 		const toolbarsZ = Number(await editor.locator('[data-toolbar-dock="top"]').evaluate((element) => getComputedStyle(element).zIndex));
@@ -1172,11 +1172,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(mixerChannel).toHaveValue('0');
 		await expect.poll(() => page.evaluate(() => globalThis.__soundscaperDisplayCaptureRequests)).toBe(1);
 
-		const releaseInputs = mixer.getByRole('button', { name: 'Release inputs', exact: true });
-		await expect(releaseInputs).toBeVisible();
-		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'open');
+		const releaseInputs = editor.getByRole('button', { name: 'Audio setup', exact: true });
 		await releaseInputs.click();
-		await expect(releaseInputs).toHaveCount(0);
+		const audioSetup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+		const releaseInputButton = audioSetup.getByRole('button', { name: 'Release inputs', exact: true });
+		await expect(releaseInputButton).toBeVisible();
+		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'open');
+		await releaseInputButton.click();
+		await expect(releaseInputButton).toHaveCount(0);
 		await expect(trackSelectors).toHaveAttribute('data-recording-input-health', 'unavailable');
 
 		await page.reload();

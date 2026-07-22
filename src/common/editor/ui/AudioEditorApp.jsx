@@ -2480,6 +2480,11 @@ function AudioDevicesFlyout({
 						{copy.audioDeviceAllowAccess}
 					</Button>
 				)}
+				{snapshot.recordingInputs?.hasOpenInputs && <Button
+					variant="secondary"
+					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
+					onClick={() => run(() => controller.actions.recording.releaseInputs())}
+				>{copy.recordingReleaseInputs}</Button>}
 				<Button variant="secondary" onClick={() => run(() => controller.actions.audioDevices.refresh())}>
 					{copy.audioDeviceRefresh}
 				</Button>
@@ -5486,11 +5491,6 @@ function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControl
 						? controller.actions.recording.refreshInputs()
 						: controller.actions.recording.requestInputAccess())}
 				>{snapshot.recordingInputs?.hasOpenInputs ? copy.recordingRefreshInputs : copy.recordingAllowInputs}</Button>}
-				{snapshot.recordingInputs?.hasOpenInputs && <Button
-					variant="secondary"
-					disabled={snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording}
-					onClick={() => run(() => controller.actions.recording.releaseInputs())}
-				>{copy.recordingReleaseInputs}</Button>}
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
 				{mixerBuses.length > 0 && <select aria-label={copy.removeBus} disabled={snapshot.readOnly} value="" onChange={(event) => {
