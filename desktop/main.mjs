@@ -232,7 +232,7 @@ function assertTrustedIpc(event) {
 async function chooseFiles(value) {
 	const choice = validateFileChoice(value);
 	const result = await dialog.showOpenDialog(mainWindow, {
-		title: choice.purpose === 'project' ? 'Import Audacity interchange' : 'Import files',
+		title: choice.purpose === 'project' ? 'Open project' : 'Import files',
 		properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
 		filters: choice.filters,
 	});

@@ -110,6 +110,7 @@ const EBU_METER_SCALES = Object.freeze(['plus9', 'plus18']);
 const EBU_METER_UNITS = Object.freeze(['absolute', 'relative']);
 const EBU_METER_LIVE_VALUES = Object.freeze(['momentary', 'short-term']);
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.aup3,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
+const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip`;
 const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	levels: 'analysis',
 	spectrum: 'spectrum',
@@ -217,7 +218,6 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 	const toolbarDragRef = useRef(null);
 	const floatingToolbarRef = useRef(null);
 	const importInputRef = useRef(null);
-	const labelInputRef = useRef(null);
 	const aup4InputRef = useRef(null);
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
@@ -621,6 +621,26 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			setScapeCollision({ file, inspected });
 		});
 	}, [controller]);
+	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
+		? openScapeFile(file)
+		: controller.actions.project.openAup4(file)), [controller, openScapeFile]);
+	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
+		const mediaFiles = [];
+		const labelFiles = [];
+		for (const file of files) {
+			if (/\.(?:srt|txt|vtt)$/iu.test(file?.name || '')) labelFiles.push(file);
+			else mediaFiles.push(file);
+		}
+		if (mediaFiles.length) {
+			await controller.actions.project.importFiles(mediaFiles, {
+				destination: 'auto',
+				projectBinVisible: projectBinEffectivelyOpen,
+				...importOptions,
+			});
+		}
+		for (const file of labelFiles) await controller.actions.labels.importFile(file);
+		return files.length;
+	}, [controller, projectBinEffectivelyOpen]);
 	const settleScapeCollision = useCallback((choice) => {
 		const pending = scapeCollisionResolverRef.current;
 		const file = scapeCollision?.file;
@@ -639,21 +659,10 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		const files = [];
 		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
 		if (purpose === 'project') {
-			for (const file of files) {
-				if (/\.scape$/iu.test(file.name || '')) await openScapeFile(file);
-				else await controller.actions.project.openAup4(file);
-			}
-		} else if (purpose === 'labels') {
-			for (const file of files) await controller.actions.labels.importFile(file);
-		} else if (files.length) {
-			await controller.actions.project.importFiles(files, {
-				destination: 'auto',
-				projectBinVisible: projectBinEffectivelyOpen,
-				...importOptions,
-			});
-		}
+			for (const file of files) await openProjectFile(file);
+		} else if (files.length) await importRoutedFiles(files, importOptions);
 		return files.length;
-	}, [controller, fileService, openScapeFile, projectBinEffectivelyOpen]);
+	}, [fileService, importRoutedFiles, openProjectFile]);
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
@@ -854,16 +863,16 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		projectBinEffectivelyOpen,
 		uiFlags,
 		actionRuntime: parityRuntime.actions,
-			actions: {
+		actions: {
 			newProject: () => run(() => controller.actions.project.create()),
 			openProjects,
+			openFile: () => fileService.isDesktop
+				? run(() => openDesktopFiles('project'))
+				: aup4InputRef.current?.click(),
 			openRecentProject: (projectId) => run(() => controller.actions.project.openRecent(projectId)),
 			clearRecentProjects: () => run(() => controller.actions.project.clearRecent()),
 			closeProject: () => run(() => controller.actions.project.close()),
 			openAup4: () => fileService.isDesktop
-				? run(() => openDesktopFiles('project'))
-				: aup4InputRef.current?.click(),
-			openScape: () => fileService.isDesktop
 				? run(() => openDesktopFiles('project'))
 				: aup4InputRef.current?.click(),
 			openLegacyAup: () => legacyAupInputRef.current?.click(),
@@ -871,14 +880,11 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
 			saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 			openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
-				importAudio: () => fileService.isDesktop
-					? run(() => openDesktopFiles('media', true))
-					: importInputRef.current?.click(),
-				importLabels: () => fileService.isDesktop
-					? run(() => openDesktopFiles('labels', true))
-					: labelInputRef.current?.click(),
-				exportAudio: () => openSurface('export'),
-				exportLabels: (format) => run(() => controller.actions.labels.export({ format })),
+			importFiles: () => fileService.isDesktop
+				? run(() => openDesktopFiles('media', true))
+				: importInputRef.current?.click(),
+			exportAudio: () => openSurface('export'),
+			exportLabels: (format) => run(() => controller.actions.labels.export({ format })),
 			renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
 			duplicateProject: () => run(() => controller.actions.project.duplicate()),
 			deleteProject: () => setDialog('delete'),
@@ -1080,9 +1086,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			const operation = desktopOpenQueueRef.current
 				.catch(() => undefined)
 				.then(() => fileService.openReadDescriptor(descriptor))
-				.then((file) => /\.scape$/iu.test(file.name || '')
-					? openScapeFile(file)
-					: controller.actions.project.openAup4(file));
+				.then(openProjectFile);
 			desktopOpenQueueRef.current = operation;
 			void operation.catch(onError);
 		};
@@ -1159,7 +1163,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			active = false;
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
-	}, [controller, fileService, onError, openDesktopFiles, openScapeFile, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	}, [controller, fileService, onError, openDesktopFiles, openProjectFile, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 	const editorToolbar = (
 		<EditorToolToolbar
 			capabilities={capabilities}
@@ -1240,16 +1244,14 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				ref={aup4InputRef}
 				className="kw-audio-editor__file-input"
 				data-aup4-input
-				aria-label={copy.openAup4}
+				aria-label={copy.open}
 				type="file"
 				tabIndex={-1}
 				accept=".scape,.aup4,application/vnd.soundscaper.scape+zip,application/x-audacity-project"
 				onChange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					event.currentTarget.value = '';
-					if (file) run(() => /\.scape$/iu.test(file.name || '')
-						? openScapeFile(file)
-						: controller.actions.project.openAup4(file));
+					if (file) run(() => openProjectFile(file));
 				}}
 			/>
 
@@ -1293,33 +1295,15 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				ref={importInputRef}
 				className="kw-audio-editor__file-input"
 				data-import-input
-				aria-label={copy.importAudio}
+				aria-label={copy.importFile}
 				type="file"
 				tabIndex={-1}
-				accept={AUDIO_EDITOR_AUDIO_FILE_ACCEPT}
+				accept={AUDIO_EDITOR_IMPORT_FILE_ACCEPT}
 				multiple
 				onChange={(event) => {
 					const files = [...event.currentTarget.files];
 					event.currentTarget.value = '';
-					if (files.length) run(() => controller.actions.project.importFiles(files, {
-						destination: 'auto',
-						projectBinVisible: projectBinEffectivelyOpen,
-					}));
-				}}
-			/>
-
-			<input
-				ref={labelInputRef}
-				className="kw-audio-editor__file-input"
-				data-label-input
-				aria-label={copy.importLabels}
-				type="file"
-				tabIndex={-1}
-				accept=".txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip"
-				onChange={(event) => {
-					const file = event.currentTarget.files?.[0];
-					event.currentTarget.value = '';
-					if (file) run(() => controller.actions.labels.importFile(file));
+					if (files.length) run(() => importRoutedFiles(files));
 				}}
 			/>
 
@@ -7441,8 +7425,7 @@ function createApplicationMenus({
 			label: copy.fileMenu,
 			items: [
 				{ id: 'new-project', label: copy.newProject, shortcut: 'Ctrl+N', disabled: blocked, onClick: actions.newProject },
-				{ id: 'open-project', label: copy.openProject, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openProjects },
-				{ id: 'open-scape', label: copy.openScape, disabled: blocked, onClick: actions.openScape },
+				{ id: 'open-project', label: copy.open, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openFile },
 				{
 					id: 'audacity-projects',
 					label: copy.audacityProjects,
@@ -7473,14 +7456,14 @@ function createApplicationMenus({
 						{ id: 'clear-recent', label: copy.clearRecentProjects, disabled: !snapshot.recentProjects?.length, onClick: actions.clearRecentProjects },
 					],
 				},
+				{ id: 'local-projects', label: copy.projectsTitle, disabled: blocked, onClick: actions.openProjects },
 				{ id: 'file-close', label: copy.closeProject, shortcut: 'Ctrl+W', disabled: blocked, onClick: actions.closeProject },
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: snapshot.readOnly || blocked, onClick: actions.saveProject },
 				{ id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveScape },
 				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: snapshot.readOnly || blocked, onClick: actions.switchProduct },
 				divider(),
-					{ id: 'import-audio', label: copy.importAudio, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importAudio },
-				{ id: 'import-labels', label: copy.importLabels, disabled: editBlocked, onClick: actions.importLabels },
+				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
 				{
 					id: 'export-other',

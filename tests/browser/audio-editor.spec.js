@@ -1554,7 +1554,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(selectionToolbar.getByRole('toolbar', { name: 'Selection toolbar' })).toBeVisible();
 		await expect(selectionToolbar.locator('[data-status]')).toHaveText('Editor ready. Create a project or import audio.');
 
+		const openChooserPromise = page.waitForEvent('filechooser');
 		await chooseFileAction(page, editor, 'Open');
+		await (await openChooserPromise).setFiles([]);
+		await page.keyboard.press('Escape');
+		await chooseFileAction(page, editor, 'Local projects');
 		const projectsDialog = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projectsDialog).toBeVisible();
 		await projectsDialog.getByRole('button', { name: 'Close' }).click();
@@ -2459,7 +2463,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await test.step('import an SRT file as an editable label track', async () => {
 			const fileChooserPromise = page.waitForEvent('filechooser');
-			await chooseFileAction(page, editor, 'Import labels');
+			await chooseFileAction(page, editor, 'Import');
 			await (await fileChooserPromise).setFiles(captionLabels);
 			await expect(editor.locator('[data-status]')).toHaveText('Imported 2 label(s).');
 			await expect(editor).toHaveAttribute('data-track-count', '2');
@@ -3637,7 +3641,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(confirm).not.toBeVisible();
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 
-		await chooseFileAction(page, editor, 'Open');
+		await chooseFileAction(page, editor, 'Local projects');
 		const projects = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projects).toBeVisible();
 		await expect(projects.locator('[data-project-list] li')).not.toHaveCount(0);
@@ -4417,7 +4421,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'File', exact: true }).click();
 		await assertAccessibleBasics(page.locator('body'));
 		await assertNoSeriousAxeViolations(page);
-		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Open').click();
+		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Local projects').click();
 		await assertAccessibleBasics(page.getByRole('dialog', { name: 'Local projects' }));
 		await assertNoSeriousAxeViolations(page);
 		await page.getByRole('dialog', { name: 'Local projects' }).getByRole('button', { name: 'Close' }).click();

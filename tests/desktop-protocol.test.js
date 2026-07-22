@@ -86,6 +86,8 @@ test('file association arguments accept only unique Scape and AUP4 paths', () =>
 test('native file filters cover the editor import and export formats', () => {
 	assert.equal(acceptsFile('audio', '/tmp/session.AUP3'), true);
 	assert.equal(acceptsFile('audio', '/tmp/take.wv'), true);
+	assert.equal(acceptsFile('media', '/tmp/captions.srt'), true);
+	assert.equal(acceptsFile('media', '/tmp/labels.TXT'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.vtt'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.csv'), false);
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.zip' }).suggestedName, 'stems.zip');
