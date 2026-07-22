@@ -4858,7 +4858,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (targetTrack?.type !== 'audio') targetTrack = project.tracks.find((track) => track.type === 'audio') || null;
 		const sampleRate = projectSampleRate();
 		const durationSeconds = generatorOptions.durationSeconds
-			?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 1);
+			?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 30);
 		const channelCount = Number(generatorOptions.channelCount
 			|| audioTrackChannelCountV2(project, targetTrack, project.masterChannels || 2));
 		const generated = generateAudioEditorSignal(type, {

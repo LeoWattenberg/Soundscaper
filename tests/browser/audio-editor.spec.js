@@ -2593,6 +2593,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await chooseCommandAction(page, editor, 'Generate', 'Tone');
 			const dialog = page.getByRole('dialog', { name: 'Tone', exact: true });
 			await expect(dialog).toBeVisible();
+			await expect(dialog.locator('[data-generator-field="durationSeconds"] input')).toHaveValue('30');
 			await commitInput(dialog.locator('[data-generator-field="frequency"] input'), '880');
 			await commitInput(dialog.locator('[data-generator-field="amplitude"] input'), '0.4');
 			await commitInput(dialog.locator('[data-generator-field="durationSeconds"] input'), '0.25');

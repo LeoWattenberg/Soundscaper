@@ -6754,7 +6754,7 @@ function generatorDtmfTiming(params) {
 	const dutyPercent = toneSeconds + silenceSeconds > 0
 		? toneSeconds / (toneSeconds + silenceSeconds) * 100
 		: 100;
-	const totalSeconds = Number(params.durationSeconds) > 0 ? Number(params.durationSeconds) : 1;
+	const totalSeconds = Number(params.durationSeconds) > 0 ? Number(params.durationSeconds) : 30;
 	const durations = generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount);
 	return {
 		symbolCount,
@@ -6802,15 +6802,15 @@ function generatorLayoutLabels(copy) {
 }
 
 function generatorDefaults(type) {
-	const common = { durationSeconds: 1, amplitude: 0.8 };
+	const common = { durationSeconds: 30, amplitude: 0.8 };
 	if (type === 'tone') return { ...common, frequency: 440, waveform: 'sine' };
 	if (type === 'chirp') return { ...common, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic' };
 	if (type === 'noise') return { ...common, color: 'white' };
 	if (type === 'dtmf') {
-		const durations = generatorDtmfDurations(1, 2 / 3 * 100, 3);
+		const durations = generatorDtmfDurations(30, 2 / 3 * 100, 3);
 		return { ...common, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
-	return { durationSeconds: 1 };
+	return { durationSeconds: 30 };
 }
 
 function generatorLabel(type, copy) {
