@@ -36,12 +36,13 @@ import {
 	createAddLabelTrackCommand,
 	createAddSourceCommand,
 	createAddTrackCommand,
-	createAudioEditorProjectV4,
+	createAudioEditorProjectV5,
 	createAudioEditorVideoFrameExtractor,
 	convertStructuredAup3ToProjectV2,
 	createClipboardDescriptor,
 	createEditorHistory,
 	createEffect,
+	createVideoEffect,
 	createExportPlan,
 	createVideoExportPlan,
 	createAudioEditorFileService,
@@ -76,6 +77,10 @@ import {
 	normalizeAudioEditorShortcut,
 	normalizeAudioSelectionEffectParams,
 	normalizeEffect,
+	normalizeVideoEffect,
+	cloneVideoEffects,
+	VIDEO_EFFECT_DEFINITIONS,
+	VIDEO_EFFECT_TYPES,
 	normalizeRecordingInputGain,
 	RECORDING_INPUT_GAIN_DEFAULT,
 	prepareCut,
@@ -358,6 +363,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		effectPresets: createAudioEditorEffectPresets(),
 		rackEffectGestures: new Map(),
 		parametricEqGestures: new Map(),
+		videoEffectGestures: new Map(),
 		audacityControlTrackId: null,
 		audacityNoiseProfile: null,
 		audacityEffectProcessing: false,
@@ -559,7 +565,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function buildDocumentSnapshot() {
-		const currentProject = state.history?.present ?? null;
+		const currentProject = projectWithVideoEffectGestures(state.history?.present ?? null);
 		const currentTabMetadata = currentProject ? sessionTab(currentProject.id)?.metadata || {} : {};
 		const selection = currentProject?.selection && currentProject.selection.endFrame > currentProject.selection.startFrame
 			? currentProject.selection
@@ -661,6 +667,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 			effects: Object.freeze({
 				rackTypes: Object.freeze(audioEffectTypes().map((type) => Object.freeze({ type, label: audioEffectLabel(type, copy) }))),
+				videoTypes: Object.freeze(VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type])),
 				hasStackClipboard: state.effectClipboard !== null,
 				selectionTypes: Object.freeze(audioSelectionEffectTypes().map((type) => Object.freeze({
 					type,
@@ -694,6 +701,25 @@ export function createAudioEditorController(_root = null, options = {}) {
 			missingSourceIds: Object.freeze([...state.missingSourceIds]),
 			disposed: state.disposed,
 		});
+	}
+
+	function projectWithVideoEffectGestures(currentProject) {
+		if (!currentProject || !state.videoEffectGestures.size) return currentProject;
+		let changed = false;
+		const clips = currentProject.clips.map((clip) => {
+			if (clip.kind !== 'video' || !Array.isArray(clip.videoEffects)) return clip;
+			let clipChanged = false;
+			const videoEffects = clip.videoEffects.map((effect) => {
+				const gesture = state.videoEffectGestures.get(videoEffectGestureKey(clip.id, effect.id));
+				if (!gesture) return effect;
+				clipChanged = true;
+				return { ...effect, params: structuredClone(gesture.params) };
+			});
+			if (!clipChanged) return clip;
+			changed = true;
+			return { ...clip, videoEffects };
+		});
+		return changed ? { ...currentProject, clips } : currentProject;
 	}
 
 	function buildTelemetrySnapshot() {
@@ -924,6 +950,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			video: Object.freeze({
 				getClipVisualData,
 				export: exportVideo,
+				effects: Object.freeze({
+					add: addVideoClipEffect,
+					update: updateVideoClipEffect,
+					bypass: bypassVideoClipEffect,
+					toggle: toggleVideoClipEffect,
+					reorder: reorderVideoClipEffect,
+					remove: removeVideoClipEffect,
+					beginGesture: beginVideoEffectGesture,
+					preview: previewVideoEffectGesture,
+					commit: commitVideoEffectGesture,
+					cancel: cancelVideoEffectGesture,
+				}),
 				link: (videoClipId, audioClipId) => commit({
 					type: 'clip/link-av',
 					videoClipId,
@@ -1463,7 +1501,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function newProject(options = {}) {
 		const title = String(options.title || copy.untitledProject).trim() || copy.untitledProject;
-		const nextProject = createAudioEditorProjectV4({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) });
+		const nextProject = createAudioEditorProjectV5({ title, sampleRate: normalizeProjectSampleRate(options.sampleRate) });
 		const track = createAddTrackCommand({
 			schemaVersion: 2,
 			type: 'audio',
@@ -1492,6 +1530,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function performProjectSwitch(nextProject, options = {}) {
 		state.rackEffectGestures.clear();
 		state.parametricEqGestures.clear();
+		state.videoEffectGestures.clear();
 		cancelTimedRecording({ publish: false, status: false });
 		cancelRecordingStart();
 		state.exportAbort?.abort();
@@ -2162,6 +2201,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			binClipId: itemClip.id,
 			trackId: itemClip.kind === 'video' ? videoTrack?.id : audioTrack?.id,
 			clipId: createStableId('clip'),
+			...(itemClip.kind === 'video' && itemClip.videoEffects?.length ? {
+				videoEffectIds: itemClip.videoEffects.map(() => createStableId('video-effect')),
+			} : {}),
 		}));
 		const selectedPlacement = placements.find((candidate) => candidate.binClipId === videoClip?.id)
 			|| placements[0];
@@ -2431,7 +2473,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			avLinkId: null,
 			binItemId: null,
 		};
-		const previewProject = createAudioEditorProjectV4({
+		const previewProject = createAudioEditorProjectV5({
 			title: 'Project Bin preview',
 			sampleRate: project.sampleRate,
 			sources: [source],
@@ -4185,11 +4227,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!state.history || editingBlocked()) return;
 		try {
 			if (action === 'undo') {
+				state.videoEffectGestures.clear();
 				state.history = undoEditorCommand(state.history);
 				projectChanged();
 				return;
 			}
 			if (action === 'redo') {
+				state.videoEffectGestures.clear();
 				state.history = redoEditorCommand(state.history);
 				projectChanged();
 				return;
@@ -6322,18 +6366,33 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function duplicateTrack(track) {
 		if (editingBlocked() || !track) return;
 		const trackId = createStableId('track');
-		const effects = track.effects.map((effect) => ({
+		const effects = (track.effects || []).map((effect) => ({
 			...structuredClone(effect),
 			id: createStableId('effect'),
 		}));
-		const commands = [createAddTrackCommand({ ...track, id: trackId, name: `${track.name} ${copy.projectCopySuffix}`, armed: false, effects, clipIds: [] })];
+		const commands = [createAddTrackCommand({
+			...track,
+			id: trackId,
+			name: `${track.name} ${copy.projectCopySuffix}`,
+			armed: false,
+			effects,
+			clipIds: [],
+			laneGroupId: null,
+		})];
 		let selectedClipId = null;
 		for (const clipId of track.clipIds) {
 			const clip = findClip(project, clipId);
 			if (!clip) continue;
 			const nextClipId = createStableId('clip');
 			selectedClipId ||= nextClipId;
-			commands.push(createAddClipCommand(trackId, { ...clip, id: nextClipId }));
+			commands.push(createAddClipCommand(trackId, {
+				...clip,
+				id: nextClipId,
+				avLinkId: null,
+				...(clip.kind === 'video' ? {
+					videoEffects: cloneVideoEffects(clip.videoEffects || [], { regenerateIds: true }),
+				} : {}),
+			}));
 		}
 		commit({ type: 'batch', commands }, { selectTrackId: trackId, selectClipId: selectedClipId });
 	}
@@ -6973,6 +7032,120 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function handlePlaybackCacheError(error) {
 		if (error?.name !== 'AbortError') handleError(error);
+	}
+
+	function videoClipEffect(clipId, effectId) {
+		const clip = findClip(project, clipId);
+		if (!clip || clip.kind !== 'video') throw new Error('Video clip not found.');
+		const effect = (clip.videoEffects || []).find((candidate) => candidate.id === effectId);
+		if (!effect) throw new Error('Video effect not found.');
+		return { clip, effect };
+	}
+
+	function videoEffectGestureKey(clipId, effectId) {
+		return `${clipId}:${effectId}`;
+	}
+
+	function addVideoClipEffect(clipId = state.selectedClipId, type, options = {}) {
+		if (editingBlocked()) return null;
+		const clip = findClip(project, clipId);
+		if (!clip || clip.kind !== 'video') throw new Error('Video clip not found.');
+		const effect = createVideoEffect(type, options);
+		commit({
+			type: 'video-effect/add',
+			clipId: clip.id,
+			effect,
+			...(options.index == null ? {} : { index: options.index }),
+		}, { selectClipId: clip.id });
+		return effect.id;
+	}
+
+	function updateVideoClipEffect(clipId, effectId, changes = {}) {
+		if (editingBlocked()) return null;
+		videoClipEffect(clipId, effectId);
+		state.videoEffectGestures.delete(videoEffectGestureKey(clipId, effectId));
+		return commit({ type: 'video-effect/update', clipId, effectId, changes }, { selectClipId: clipId });
+	}
+
+	function toggleVideoClipEffect(clipId, effectId, enabled = undefined) {
+		const { effect } = videoClipEffect(clipId, effectId);
+		if (enabled != null && typeof enabled !== 'boolean') throw new TypeError('Video effect enabled state must be boolean.');
+		return updateVideoClipEffect(clipId, effectId, { enabled: enabled ?? !effect.enabled });
+	}
+
+	function bypassVideoClipEffect(clipId, effectId, bypassed = true) {
+		if (typeof bypassed !== 'boolean') throw new TypeError('Video effect bypass state must be boolean.');
+		return updateVideoClipEffect(clipId, effectId, { enabled: !bypassed });
+	}
+
+	function reorderVideoClipEffect(clipId, effectId, toIndex) {
+		if (editingBlocked()) return null;
+		videoClipEffect(clipId, effectId);
+		return commit({ type: 'video-effect/reorder', clipId, effectId, toIndex }, { selectClipId: clipId });
+	}
+
+	function removeVideoClipEffect(clipId, effectId) {
+		if (editingBlocked()) return null;
+		videoClipEffect(clipId, effectId);
+		state.videoEffectGestures.delete(videoEffectGestureKey(clipId, effectId));
+		return commit({ type: 'video-effect/remove', clipId, effectId }, { selectClipId: clipId });
+	}
+
+	function beginVideoEffectGesture(clipId, effectId) {
+		if (editingBlocked()) return null;
+		const { effect } = videoClipEffect(clipId, effectId);
+		const key = videoEffectGestureKey(clipId, effectId);
+		if (!state.videoEffectGestures.has(key)) {
+			state.videoEffectGestures.set(key, {
+				original: structuredClone(effect.params),
+				params: structuredClone(effect.params),
+			});
+		}
+		return structuredClone(state.videoEffectGestures.get(key).original);
+	}
+
+	function previewVideoEffectGesture(clipId, effectId, params = {}) {
+		if (editingBlocked()) return null;
+		const { effect } = videoClipEffect(clipId, effectId);
+		const key = videoEffectGestureKey(clipId, effectId);
+		if (!state.videoEffectGestures.has(key)) beginVideoEffectGesture(clipId, effectId);
+		const gesture = state.videoEffectGestures.get(key);
+		const normalized = normalizeVideoEffect({
+			...effect,
+			params: { ...gesture.params, ...params },
+		}).params;
+		gesture.params = structuredClone(normalized);
+		publishDocumentSnapshot();
+		return structuredClone(normalized);
+	}
+
+	function commitVideoEffectGesture(clipId, effectId, params = {}) {
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		const { effect } = videoClipEffect(clipId, effectId);
+		const key = videoEffectGestureKey(clipId, effectId);
+		const gesture = state.videoEffectGestures.get(key);
+		const normalized = normalizeVideoEffect({
+			...effect,
+			params: { ...effect.params, ...(gesture?.params || {}), ...params },
+		}).params;
+		state.videoEffectGestures.delete(key);
+		if (JSON.stringify(effect.params) === JSON.stringify(normalized)) {
+			publishDocumentSnapshot();
+			return project;
+		}
+		return commit({
+			type: 'video-effect/update',
+			clipId,
+			effectId,
+			changes: { params: normalized },
+		}, { selectClipId: clipId });
+	}
+
+	function cancelVideoEffectGesture(clipId, effectId) {
+		const key = videoEffectGestureKey(clipId, effectId);
+		const removed = state.videoEffectGestures.delete(key);
+		if (removed) publishDocumentSnapshot();
+		return removed;
 	}
 
 	function addEffect(request = {}) {

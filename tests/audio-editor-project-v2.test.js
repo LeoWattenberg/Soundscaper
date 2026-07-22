@@ -30,7 +30,7 @@ import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV1ToV2,
 	migrateAudioEditorProjectV2ToV3,
-	migrateAudioEditorProjectV2ToV4,
+	migrateAudioEditorProjectV2ToV5,
 	migrateAudioEditorStateV1ToV2,
 } from '../src/lib/tools/audio-editor/migration.js';
 import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
@@ -502,7 +502,7 @@ test('V1 migration preserves identity, PCM roots, revisions, timestamps, racks, 
 	assert.equal(result.migrated, true);
 	assert.equal(result.fromVersion, 1);
 	assert.equal(result.readOnly, false);
-	assert.deepEqual(result.project, migrateAudioEditorProjectV2ToV4(migrated));
+	assert.deepEqual(result.project, migrateAudioEditorProjectV2ToV5(migrated));
 	const alreadyV2 = migrateAudioEditorProject(migrated);
 	assert.equal(alreadyV2.migrated, true);
 	assert.notEqual(alreadyV2.project, migrated);
@@ -597,8 +597,8 @@ test('history and state migration are atomic and future schemas stay intact and 
 	const rollback = structuredClone(history);
 	const migrated = migrateAudioEditorHistoryV1ToV2(history);
 	assert.deepEqual(history, rollback);
-	assert.equal(migrated.present.schemaVersion, 4);
-	assert.equal(migrated.undoStack[0].project.schemaVersion, 4);
+	assert.equal(migrated.present.schemaVersion, 5);
+	assert.equal(migrated.undoStack[0].project.schemaVersion, 5);
 	assert.deepEqual(migrated.undoStack[0].command, command);
 	assert.notEqual(migrated.undoStack[0].command, command);
 
@@ -613,10 +613,10 @@ test('history and state migration are atomic and future schemas stay intact and 
 
 	const stateResult = migrateAudioEditorStateV1ToV2({ project: present, history, clipboard: { sourceIds: ['source-1'] } });
 	assert.equal(stateResult.migrated, true);
-	assert.equal(stateResult.state.project.schemaVersion, 4);
+	assert.equal(stateResult.state.project.schemaVersion, 5);
 	assert.deepEqual(stateResult.state.clipboard, { sourceIds: ['source-1'] });
 
-	const future = { ...richV2Fixture(), schemaVersion: 5, opaqueFutureData: new Uint8Array([9, 8, 7]) };
+	const future = { ...richV2Fixture(), schemaVersion: 6, opaqueFutureData: new Uint8Array([9, 8, 7]) };
 	const futureResult = migrateAudioEditorProject(future);
 	assert.equal(futureResult.readOnly, true);
 	assert.equal(futureResult.reason, 'newer-schema');

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV3ToV4,
+	migrateAudioEditorProjectV4ToV5,
 } from '../src/lib/tools/audio-editor/migration.js';
 import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
 import {
@@ -230,14 +231,16 @@ test('V3 to V4 migration preserves project state and adds audio/bin discriminato
 	});
 	assert.equal(validateAudioEditorProjectV4(migrated), true);
 	assert.equal(validateAudioEditorProject(migrated), true);
+	const current = migrateAudioEditorProjectV4ToV5(migrated);
 	assert.deepEqual(migrateAudioEditorProject(v3), {
-		project: migrated,
+		project: current,
 		migrated: true,
 		fromVersion: 3,
 		readOnly: false,
 		reason: null,
 	});
-	assert.equal(migrateAudioEditorProject(migrated).migrated, false);
+	assert.equal(migrateAudioEditorProject(migrated).migrated, true);
+	assert.equal(migrateAudioEditorProject(current).migrated, false);
 });
 
 test('V4 validates paired lanes, linked timeline clips, and compound Project Bin items', () => {
@@ -250,7 +253,7 @@ test('V4 validates paired lanes, linked timeline clips, and compound Project Bin
 		reason: null,
 	});
 
-	const future = { ...project, schemaVersion: 5, futureData: { retained: true } };
+	const future = { ...project, schemaVersion: 6, futureData: { retained: true } };
 	assert.deepEqual(loadAudioEditorProjectV4(future), {
 		project: future,
 		readOnly: true,
@@ -259,7 +262,7 @@ test('V4 validates paired lanes, linked timeline clips, and compound Project Bin
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 5,
+		fromVersion: 6,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

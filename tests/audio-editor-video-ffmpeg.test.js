@@ -160,6 +160,105 @@ test('version-2 FFmpeg arguments composite layers and preserve absolute crossfad
 	]);
 });
 
+test('version-3 FFmpeg graphs serialize the ordered allowlisted video effect stack before padding', () => {
+	const plan = layeredWebmPlan();
+	plan.version = 3;
+	plan.intervals[0].layers[0].clips[0].videoEffects = [
+		videoEffect('color', 'color-adjust', {
+			brightness: 0.25,
+			contrast: 1.5,
+			saturation: 0.75,
+			gamma: 1.25,
+			hueDegrees: -30,
+		}),
+		videoEffect('pixel', 'pixelate', { blockSize: 12 }),
+		videoEffect('vignette', 'vignette', { amount: 0.5 }),
+		videoEffect('blur', 'gaussian-blur', { sigma: 6 }),
+		videoEffect('sharpen', 'sharpen', { amount: 1.25 }),
+		videoEffect('split', 'rgb-split', { offsetX: 7, offsetY: -3 }),
+		videoEffect('bypassed', 'pixelate', { blockSize: 99 }, false),
+	];
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: {
+			'source-a': '/stage/video-a.mp4',
+			'source-b': '/stage/video-b.webm',
+			'source-c': '/stage/video-c.mp4',
+		},
+		audioInputPath: '/stage/mix.wav',
+	}, 'effects.webm');
+	const graph = args[args.indexOf('-filter_complex') + 1];
+
+	const orderedFilters = [
+		'format=pix_fmts=yuva444p',
+		'eq=brightness=0.25:contrast=1.5:saturation=0.75:gamma=1.25:eval=init',
+		'hue=h=-30',
+		'limiter=min=16:max=235:planes=1',
+		'limiter=min=16:max=240:planes=6',
+		'pixelize=w=12:h=12:mode=avg:planes=15',
+		'vignette=angle=0.7848981633974483:x0=w/2:y0=h/2:mode=forward:eval=init:dither=0',
+		'gblur=sigma=6:sigmaV=6:steps=1:planes=15',
+		'unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=1.25:chroma_msize_x=5:chroma_msize_y=5:chroma_amount=0',
+		'rgbashift=rh=7:rv=-3:gh=0:gv=0:bh=-7:bv=3:ah=0:av=0:edge=smear',
+		'pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0',
+		'premultiply=inplace=1',
+	];
+	let previousIndex = -1;
+	for (const filter of orderedFilters) {
+		const filterIndex = graph.indexOf(filter, previousIndex + 1);
+		assert.ok(filterIndex > previousIndex, `${filter} must follow the preceding effect.`);
+		previousIndex = filterIndex;
+	}
+	assert.match(graph, /format=pix_fmts=rgba,split=2\[[^\]]+_color\]\[[^\]]+_alpha_source\]/);
+	assert.match(graph, /\[[^\]]+_alpha_source\]alphaextract\[[^\]]+_alpha\]/);
+	assert.match(graph, /vignette=[^;]+,format=pix_fmts=rgb24\[[^\]]+_filtered_color\]/);
+	assert.match(
+		graph,
+		/\[[^\]]+_filtered_color\]\[[^\]]+_alpha\]alphamerge,format=pix_fmts=rgba,setpts=PTS-STARTPTS\[[^\]]+\]/,
+	);
+	assert.match(
+		graph,
+		/format=pix_fmts=rgba,fps=fps=24\[[^\]]+_effect_input\]/,
+	);
+	assert.match(
+		graph,
+		/pad=[^;]+,premultiply=inplace=1,setsar=1/,
+	);
+	assert.doesNotMatch(graph, /pixelize=w=99/);
+});
+
+test('version-3 FFmpeg validation rejects malformed effects and ignores effects injected into version 2', () => {
+	const unsafe = layeredWebmPlan();
+	unsafe.version = 3;
+	unsafe.intervals[0].layers[0].clips[0].videoEffects = [
+		videoEffect('unsafe', 'pixelate;movie=secret', { blockSize: 16 }),
+	];
+	assert.throws(
+		() => buildVideoFfmpegArgs(unsafe, {
+			videoInputPaths: {
+				'source-a': '/stage/video-a.mp4',
+				'source-b': '/stage/video-b.webm',
+				'source-c': '/stage/video-c.mp4',
+			},
+			audioInputPath: '/stage/mix.wav',
+		}, 'unsafe.webm'),
+		/Unsupported video effect type/,
+	);
+
+	const legacy = layeredWebmPlan();
+	legacy.intervals[0].layers[0].clips[0].videoEffects = [
+		videoEffect('ignored', 'pixelate', { blockSize: 64 }),
+	];
+	const legacyArgs = buildVideoFfmpegArgs(legacy, {
+		videoInputPaths: {
+			'source-a': '/stage/video-a.mp4',
+			'source-b': '/stage/video-b.webm',
+			'source-c': '/stage/video-c.mp4',
+		},
+		audioInputPath: '/stage/mix.wav',
+	}, 'legacy.webm');
+	assert.doesNotMatch(legacyArgs[legacyArgs.indexOf('-filter_complex') + 1], /pixelize/);
+});
+
 test('version-2 FFmpeg graph splits a source used across crossfade clips and intervals', () => {
 	const args = buildVideoFfmpegArgs(reusedSourceMp4Plan(), {
 		videoInputPaths: { shared: '/stage/shared.mp4' },
@@ -649,4 +748,8 @@ function silentMp4Plan() {
 		],
 		filterPlan: { audio: { strategy: 'none' } },
 	};
+}
+
+function videoEffect(id, type, params, enabled = true) {
+	return { id, type, enabled, params };
 }

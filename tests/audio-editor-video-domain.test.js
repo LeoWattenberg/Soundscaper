@@ -179,7 +179,7 @@ test('video export plan describes layered composition, codecs, transparent fitti
 		format: 'webm',
 		range: { startFrame: 0, endFrame: 25_000 },
 	});
-	assert.equal(plan.version, 2);
+	assert.equal(plan.version, 3);
 	assert.equal(plan.format, 'webm');
 	assert.equal(plan.mimeType, 'video/webm');
 	assert.deepEqual(plan.codecs, {
@@ -216,13 +216,13 @@ test('video export plan describes layered composition, codecs, transparent fitti
 	assert.equal(plan.filterPlan.strategy, 'layered-composition');
 	assert.deepEqual(
 		plan.filterPlan.intervals[0].layers[0].clips[0].operations.map((operation) => operation.name),
-		['trim', 'setpts', 'scale', 'format', 'pad', 'fps', 'setsar'],
+		['trim', 'setpts', 'scale', 'format', 'fps', 'pad', 'premultiply', 'setsar'],
 	);
 	assert.equal(
 		plan.filterPlan.intervals[0].layers[0].clips[0].operations[1].playbackRate,
 		0.5,
 	);
-	assert.deepEqual(plan.filterPlan.intervals[0].layers[0].clips[0].operations[4], {
+	assert.deepEqual(plan.filterPlan.intervals[0].layers[0].clips[0].operations[5], {
 		name: 'pad',
 		width: 1_280,
 		height: 720,
@@ -259,6 +259,53 @@ test('video export plan describes layered composition, codecs, transparent fitti
 	assert.equal(silentMp4.codecs.videoEncoder, 'libx264');
 	assert.equal(silentMp4.codecs.audio, null);
 	assert.deepEqual(silentMp4.filterPlan.audio, { strategy: 'none' });
+});
+
+test('video export plan carries ordered normalized effects and omits bypassed operations', () => {
+	const project = layeredProject();
+	project.clips.find((clip) => clip.id === 'lower-clip').videoEffects = [
+		{
+			id: 'pixelate-enabled',
+			type: 'pixelate',
+			enabled: true,
+			params: { blockSize: 24 },
+		},
+		{
+			id: 'blur-bypassed',
+			type: 'gaussian-blur',
+			enabled: false,
+			params: { sigma: 8 },
+		},
+	];
+
+	const plan = createVideoExportPlan(project, {
+		includeAudio: false,
+		range: { startFrame: 0, endFrame: 1_000 },
+	});
+	const clip = plan.intervals[0].layers[0].clips[0];
+	assert.equal(plan.version, 3);
+	assert.deepEqual(clip.videoEffects, [
+		{
+			id: 'pixelate-enabled',
+			type: 'pixelate',
+			enabled: true,
+			params: { blockSize: 24 },
+		},
+		{
+			id: 'blur-bypassed',
+			type: 'gaussian-blur',
+			enabled: false,
+			params: { sigma: 8 },
+		},
+	]);
+	assert.deepEqual(
+		plan.filterPlan.intervals[0].layers[0].clips[0].operations.map((operation) => (
+			operation.name === 'video-effect' ? operation.effect.id : operation.name
+		)),
+		['trim', 'setpts', 'scale', 'format', 'fps', 'pixelate-enabled', 'pad', 'premultiply', 'setsar'],
+	);
+	assert.ok(Object.isFrozen(clip.videoEffects));
+	assert.ok(clip.videoEffects.every(Object.isFrozen));
 });
 
 test('video export ranges retain absolute crossfade progress and deduplicate source inputs', () => {

@@ -132,6 +132,28 @@ complete, audited, digest-pinned bundle is described by
 `desktop/ffmpeg-corresponding-source.json`; the release assembler refuses to run
 while that manifest is absent.
 
+## Video-effect behavioral references
+
+Soundscaper's clip video effects are independently authored AGPL-3.0-only
+WebGL shaders and bounded FFmpeg filter plans. No MLT, GStreamer, frei0r,
+OpenFX, or GStreamer plug-in source code or binaries are included.
+
+The initial effect inventory and parameter behavior were researched against:
+
+- MLT `v7.40.0`: <https://github.com/mltframework/mlt/tree/v7.40.0>;
+  project license policy: <https://www.mltframework.org/docs/copyrightpolicy/>.
+- GStreamer `1.28.5`: <https://gitlab.freedesktop.org/gstreamer/gstreamer/-/tree/1.28.5>;
+  project licensing FAQ:
+  <https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html>.
+- FFmpeg filter behavior shipped through the separately noticed
+  `@ffmpeg/core` `0.12.10` runtime above:
+  <https://ffmpeg.org/ffmpeg-filters.html>.
+
+MLT and GStreamer are catalog and behavior references only. Any future reuse
+or close translation of their source, modules, shaders, metadata, or plug-ins
+requires a new per-file copyright and license audit, retained notices, exact
+source pinning, and an update to this document before distribution.
+
 ## Desktop runtime and build tooling
 
 - Electron 43.1.1 — MIT; source: <https://github.com/electron/electron/tree/v43.1.1>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.

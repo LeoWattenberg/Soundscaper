@@ -4497,6 +4497,28 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('encodes a local MP3 with the self-hosted FFmpeg core', async ({ page }) => {
 		test.skip(process.env.AUDIO_EDITOR_FFMPEG_BROWSER !== '1', 'Enable for the 31 MB FFmpeg integration check.');
+		// Exercise the production runtime URL contract with the exact pinned npm
+		// bytes so CDN availability and CORS configuration cannot make CI flaky.
+		const runtimeRoot = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10';
+		const runtimeFiles = new Map([
+			['ffmpeg-core.js', {
+				file: new URL('../../node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js', import.meta.url),
+				contentType: 'text/javascript',
+			}],
+			['ffmpeg-core.wasm', {
+				file: new URL('../../node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm', import.meta.url),
+				contentType: 'application/wasm',
+			}],
+		]);
+		await page.route(`${runtimeRoot}/**`, async (route) => {
+			const fixture = runtimeFiles.get(new URL(route.request().url()).pathname.split('/').at(-1));
+			if (!fixture) return route.fulfill({ status: 404, body: 'Unknown FFmpeg runtime asset.' });
+			return route.fulfill({
+				status: 200,
+				contentType: fixture.contentType,
+				body: await readFile(fixture.file),
+			});
+		});
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

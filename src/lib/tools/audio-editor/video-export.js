@@ -3,6 +3,7 @@ import {
 	resolveVideoCompositionIntervals,
 	videoClipEndFrame,
 } from './video-timeline.js';
+import { normalizeVideoEffects } from './video-effects.js';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -171,6 +172,10 @@ export function createVideoExportPlan(project, options = {}) {
 				playbackRate: clip.playbackRate,
 				opacityStart: clip.opacityStart,
 				opacityEnd: clip.opacityEnd,
+				videoEffects: normalizeVideoEffects(
+					clip.clip?.videoEffects ?? [],
+					`clip ${clip.clipId}.videoEffects`,
+				),
 			})),
 		})),
 	}));
@@ -181,7 +186,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 2,
+		version: 3,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,
@@ -248,6 +253,10 @@ function createFilterPlan(intervals, canvas, projectSampleRate, options) {
 						forceOriginalAspectRatio: 'decrease',
 					},
 					{ name: 'format', pixelFormat: 'rgba' },
+					{ name: 'fps', frameRate: canvas.frameRate },
+					...clip.videoEffects
+						.filter((effect) => effect.enabled)
+						.map((effect) => ({ name: 'video-effect', effect })),
 					{
 						name: 'pad',
 						width: canvas.width,
@@ -256,7 +265,7 @@ function createFilterPlan(intervals, canvas, projectSampleRate, options) {
 						y: '(oh-ih)/2',
 						color: 'black@0',
 					},
-					{ name: 'fps', frameRate: canvas.frameRate },
+					{ name: 'premultiply', inplace: true },
 					{ name: 'setsar', value: 1 },
 				],
 			})),
@@ -423,7 +432,7 @@ function positiveSafeInteger(value, name) {
 }
 
 function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+	if (!value || typeof value !== 'object') return value;
 	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
+	return Object.isFrozen(value) ? value : Object.freeze(value);
 }

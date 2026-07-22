@@ -31,6 +31,17 @@ import {
 	createMediaSourceV4,
 	createMediaTrackV4,
 } from './project-v4.js';
+import {
+	createMediaClipV5,
+	createMediaSourceV5,
+	createMediaTrackV5,
+} from './project-v5.js';
+import {
+	cloneVideoEffects,
+	createVideoEffect,
+	normalizeVideoEffect,
+	updateVideoEffect,
+} from './video-effects.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 
 /**
@@ -65,7 +76,7 @@ import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
  * @returns {import('./project.js').AudioEditorProjectV1}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (![2, 3, 4].includes(project?.schemaVersion)) {
+	if (![2, 3, 4, 5].includes(project?.schemaVersion)) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') throw new TypeError('A serializable editor command is required.');
@@ -261,6 +272,18 @@ function mutateCommand(project, command) {
 		case 'effect/reorder':
 			reorderEffect(project, command);
 			break;
+		case 'video-effect/add':
+			addVideoEffect(project, command);
+			break;
+		case 'video-effect/update':
+			updateClipVideoEffect(project, command);
+			break;
+		case 'video-effect/remove':
+			removeVideoEffect(project, command);
+			break;
+		case 'video-effect/reorder':
+			reorderVideoEffect(project, command);
+			break;
 		default:
 			throw new RangeError(`Unsupported editor command: ${command.type}.`);
 	}
@@ -448,11 +471,19 @@ function placeProjectBinClip(project, command) {
 		}
 		const clipId = requireStableCommandId(placement.clipId, 'placed clip');
 		assertUnusedClipId(project, clipId);
+		const videoEffects = itemClip.kind === 'video' && project.schemaVersion >= 5
+			? cloneVideoEffectsWithCommandIds(
+				itemClip.videoEffects,
+				placement.videoEffectIds,
+				`Project Bin placement ${itemClip.id}`,
+			)
+			: undefined;
 		const clip = normalizeClipForProject(project, {
 			...itemClip,
 			id: clipId,
 			timelineStartFrame,
 			groupId: null,
+			...(videoEffects ? { videoEffects } : {}),
 			...(project.schemaVersion >= 4 ? { avLinkId, binItemId: null } : {}),
 		});
 		assertClipSourceBounds(project, clip);
@@ -1140,6 +1171,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 	validateClipTransformState(project, state, overwrite);
 	const splitClipIds = {};
 	const splitAvLinkIds = {};
+	const videoEffectIds = {};
 	if (overwrite) {
 		const rangesByClipId = overwriteClipRanges(project, state);
 		const splitCountsByAvLinkId = new Map();
@@ -1148,6 +1180,10 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 			const splitCount = Math.max(0, (ranges?.length || 0) - 1);
 			if (!splitCount) continue;
 			splitClipIds[clip.id] = Array.from({ length: splitCount }, () => idFactory('clip'));
+			for (const splitId of splitClipIds[clip.id]) {
+				const effectIds = prepareVideoEffectIds(clip, idFactory);
+				if (effectIds) videoEffectIds[splitId] = effectIds;
+			}
 			if (clip.avLinkId) {
 				const previousCount = splitCountsByAvLinkId.get(clip.avLinkId);
 				if (previousCount != null && previousCount !== splitCount) {
@@ -1170,6 +1206,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 		overwrite,
 		splitClipIds,
 		splitAvLinkIds,
+		videoEffectIds,
 	};
 }
 
@@ -1224,7 +1261,14 @@ function transformClips(project, command) {
 			if (!ranges) continue;
 			const ids = [clip.id, ...(command.splitClipIds?.[clip.id] || [])];
 			replacementsById.set(clip.id, ranges.map(([startFrame, endFrame], index) => {
-				let segment = segmentOfClip(clip, startFrame, endFrame, startFrame, ids[index]);
+				let segment = segmentOfClip(
+					clip,
+					startFrame,
+					endFrame,
+					startFrame,
+					ids[index],
+					command.videoEffectIds?.[ids[index]],
+				);
 				if (clip.avLinkId && index > 0) {
 					segment = normalizeClipForProject(project, {
 						...segment,
@@ -1459,7 +1503,14 @@ function overwriteClip(project, command) {
 			const id = hasLeadingSegment ? command.splitClipIds?.[inactiveClip.id] : inactiveClip.id;
 			if (!id) throw new TypeError(`A stable split clip ID is required for ${inactiveClip.id}.`);
 			if (hasLeadingSegment) assertUnusedClipId(project, id);
-			replacements.push(segmentOfClip(inactiveClip, activeEnd, inactiveEnd, activeEnd, id));
+			replacements.push(segmentOfClip(
+				inactiveClip,
+				activeEnd,
+				inactiveEnd,
+				activeEnd,
+				id,
+				command.videoEffectIds?.[id],
+			));
 		}
 	}
 
@@ -1480,6 +1531,7 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 	if (!targetTrack) throw new ReferenceError(`Unknown target track for clip ${clipId}.`);
 	const candidate = normalizeClipForProject(project, { ...clip, ...(options.changes || {}), id: clip.id });
 	const splitClipIds = {};
+	const videoEffectIds = {};
 	for (const targetClipId of targetTrack.clipIds) {
 		if (targetClipId === clip.id) continue;
 		const inactiveClip = requireClip(project, targetClipId);
@@ -1489,6 +1541,8 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 			&& clipEndFrame(inactiveClip) > clipEndFrame(candidate)
 		) {
 			splitClipIds[inactiveClip.id] = idFactory('clip');
+			const effectIds = prepareVideoEffectIds(inactiveClip, idFactory);
+			if (effectIds) videoEffectIds[splitClipIds[inactiveClip.id]] = effectIds;
 		}
 	}
 	return {
@@ -1497,6 +1551,7 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 		trackId: targetTrack.id,
 		changes: { ...(options.changes || {}) },
 		splitClipIds,
+		videoEffectIds,
 	};
 }
 
@@ -1537,7 +1592,7 @@ function splitClip(project, command) {
 	if (!command.rightClipId) throw new TypeError('A stable rightClipId is required for a replayable split.');
 	assertUnusedClipId(project, command.rightClipId);
 	if (!clip.avLinkId) {
-		splitSingleClip(project, clip, atFrame, command.rightClipId);
+		splitSingleClip(project, clip, atFrame, command.rightClipId, null, command.rightVideoEffectIds);
 		return;
 	}
 	const linkedClip = project.clips.find((candidate) => (
@@ -1554,17 +1609,25 @@ function splitClip(project, command) {
 	const rightAvLinkId = requireStableCommandId(command.rightAvLinkId, 'right A/V link');
 	assertUnusedClipId(project, linkedRightClipId);
 	if (linkedRightClipId === command.rightClipId) throw new RangeError('Split clip IDs must be unique.');
-	splitSingleClip(project, clip, atFrame, command.rightClipId, rightAvLinkId);
-	splitSingleClip(project, linkedClip, atFrame, linkedRightClipId, rightAvLinkId);
+	splitSingleClip(project, clip, atFrame, command.rightClipId, rightAvLinkId, command.rightVideoEffectIds);
+	splitSingleClip(project, linkedClip, atFrame, linkedRightClipId, rightAvLinkId, command.linkedRightVideoEffectIds);
 }
 
-export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId) {
-	return { type: 'clip/split', clipId, atFrame, rightClipId: idFactory('clip') };
+export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId, videoEffects = []) {
+	return {
+		type: 'clip/split',
+		clipId,
+		atFrame,
+		rightClipId: idFactory('clip'),
+		...(videoEffects.length ? {
+			rightVideoEffectIds: videoEffects.map(() => idFactory('video-effect')),
+		} : {}),
+	};
 }
 
 export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = createStableId) {
 	const clip = requireClip(project, clipId);
-	if (!clip.avLinkId) return prepareSplitCommand(clipId, atFrame, idFactory);
+	if (!clip.avLinkId) return prepareSplitCommand(clipId, atFrame, idFactory, clip.videoEffects || []);
 	const linkedClip = project.clips.find((candidate) => (
 		candidate.id !== clip.id && candidate.avLinkId === clip.avLinkId
 	));
@@ -1576,13 +1639,26 @@ export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = 
 		rightClipId: idFactory('clip'),
 		linkedRightClipId: idFactory('clip'),
 		rightAvLinkId: idFactory('av-link'),
+		...(clip.videoEffects?.length ? {
+			rightVideoEffectIds: clip.videoEffects.map(() => idFactory('video-effect')),
+		} : {}),
+		...(linkedClip.videoEffects?.length ? {
+			linkedRightVideoEffectIds: linkedClip.videoEffects.map(() => idFactory('video-effect')),
+		} : {}),
 	};
 }
 
-function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = null) {
+function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = null, rightVideoEffectIds = undefined) {
 	const track = requireClipTrack(project, clip.id);
 	const left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
-	const right = segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame, rightClipId);
+	const right = segmentOfClip(
+		clip,
+		atFrame,
+		clipEndFrame(clip),
+		atFrame,
+		rightClipId,
+		rightVideoEffectIds,
+	);
 	if (rightAvLinkId) right.avLinkId = rightAvLinkId;
 	replaceClip(project, left);
 	project.clips.push(right);
@@ -1755,12 +1831,26 @@ function clipsHaveContiguousSource(left, right) {
 		|| (left.speedRatio ?? 1) !== (right.speedRatio ?? 1)
 		|| Boolean(left.preserveFormants) !== Boolean(right.preserveFormants)
 		|| Boolean(left.stretchToTempo) !== Boolean(right.stretchToTempo)
+		|| !videoEffectStacksEquivalent(left.videoEffects, right.videoEffects)
 	) return false;
 	const leftDuration = left.sourceDurationFrames ?? left.durationFrames;
 	const rightDuration = right.sourceDurationFrames ?? right.durationFrames;
 	return left.reversed
 		? right.sourceStartFrame + rightDuration === left.sourceStartFrame
 		: left.sourceStartFrame + leftDuration === right.sourceStartFrame;
+}
+
+function videoEffectStacksEquivalent(left, right) {
+	const leftStack = Array.isArray(left) ? left : [];
+	const rightStack = Array.isArray(right) ? right : [];
+	if (leftStack.length !== rightStack.length) return false;
+	return leftStack.every((effect, index) => {
+		const candidate = rightStack[index];
+		return Boolean(candidate)
+			&& effect.type === candidate.type
+			&& effect.enabled === candidate.enabled
+			&& JSON.stringify(effect.params) === JSON.stringify(candidate.params);
+	});
 }
 
 function joinClipEnvelopes(clips) {
@@ -1792,6 +1882,7 @@ function deleteRange(project, command, rippleMode) {
 			rippleMode,
 			command.splitClipIds || {},
 			command.splitAvLinkIds || {},
+			command.videoEffectIds || {},
 			affectedClipIds,
 		);
 	}
@@ -1804,6 +1895,7 @@ function processTrackRange(
 	rippleMode,
 	splitClipIds,
 	splitAvLinkIds = {},
+	videoEffectIds = {},
 	affectedClipIds = null,
 ) {
 	const originals = track.clipIds.map((clipId) => requireClip(project, clipId));
@@ -1840,7 +1932,14 @@ function processTrackRange(
 				: rippleMode === 'clip'
 					? Math.max(start, range.startFrame)
 					: range.endFrame;
-			let right = segmentOfClip(clip, range.endFrame, end, timelineStartFrame, rightId);
+			let right = segmentOfClip(
+				clip,
+				range.endFrame,
+				end,
+				timelineStartFrame,
+				rightId,
+				videoEffectIds[rightId],
+			);
 			if (hasLeft && clip.avLinkId) {
 				const rightAvLinkId = splitAvLinkIds[clip.avLinkId];
 				if (!rightAvLinkId) throw new TypeError(`A stable split A/V link ID is required for ${clip.avLinkId}.`);
@@ -1901,19 +2000,22 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 	const clipIdSet = new Set(clipIds);
 	const splitClipIds = {};
 	const splitAvLinkIds = {};
+	const videoEffectIds = {};
 	for (const trackId of trackIds) {
 		for (const clipId of requireTrack(project, trackId).clipIds) {
 			if (!clipIdSet.has(clipId)) continue;
 			const clip = requireClip(project, clipId);
 			if (clip.timelineStartFrame < range.startFrame && clipEndFrame(clip) > range.endFrame) {
 				splitClipIds[clip.id] = idFactory('clip');
+				const effectIds = prepareVideoEffectIds(clip, idFactory);
+				if (effectIds) videoEffectIds[splitClipIds[clip.id]] = effectIds;
 				if (clip.avLinkId && !splitAvLinkIds[clip.avLinkId]) {
 					splitAvLinkIds[clip.avLinkId] = idFactory('av-link');
 				}
 			}
 		}
 	}
-	return { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds };
+	return { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
 }
 
 export function prepareKeepRangeCommand(project, options = {}) {
@@ -2046,6 +2148,9 @@ export function createClipboardDescriptor(project, options = {}) {
 					preserveFormants: segment.preserveFormants,
 					stretchToTempo: segment.stretchToTempo,
 					renderCacheRevision: segment.renderCacheRevision,
+					...(segment.kind === 'video' && Array.isArray(segment.videoEffects) ? {
+						videoEffects: cloneVideoEffects(segment.videoEffects),
+					} : {}),
 				}];
 			});
 			return {
@@ -2068,11 +2173,15 @@ export function preparePasteCommand(clipboard, options = {}, idFactory = createS
 	const clipIds = {};
 	const groupIds = {};
 	const avLinkIds = {};
+	const videoEffectIds = {};
 	for (const track of clipboard.tracks || []) {
 		for (const clip of track.clips || []) {
 			clipIds[clip.key] = idFactory('clip');
 			if (clip.groupId && !groupIds[clip.groupId]) groupIds[clip.groupId] = idFactory('clip-group');
 			if (clip.avLinkId && !avLinkIds[clip.avLinkId]) avLinkIds[clip.avLinkId] = idFactory('av-link');
+			if (clip.kind === 'video' && clip.videoEffects?.length) {
+				videoEffectIds[clip.key] = clip.videoEffects.map(() => idFactory('video-effect'));
+			}
 		}
 	}
 	const command = {
@@ -2083,6 +2192,7 @@ export function preparePasteCommand(clipboard, options = {}, idFactory = createS
 		clipIds,
 		groupIds,
 		avLinkIds,
+		videoEffectIds,
 		mode,
 		splitClipIds: {},
 		splitAvLinkIds: {},
@@ -2119,7 +2229,15 @@ function pasteClipboard(project, command) {
 	}
 	if (mode === 'overlap' && project.schemaVersion < 2) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
-		for (const track of targetTracks) processTrackRange(project, track, range, 'none', command.splitClipIds || {});
+		for (const track of targetTracks) processTrackRange(
+			project,
+			track,
+			range,
+			'none',
+			command.splitClipIds || {},
+			{},
+			command.videoEffectIds || {},
+		);
 	} else if (mode === 'overlap' && command.collisionClipIds?.length) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
 		const affectedClipIds = new Set(command.collisionClipIds);
@@ -2131,6 +2249,7 @@ function pasteClipboard(project, command) {
 				'none',
 				command.splitClipIds || {},
 				command.splitAvLinkIds || {},
+				command.videoEffectIds || {},
 				affectedClipIds,
 			);
 		}
@@ -2149,6 +2268,7 @@ function pasteClipboard(project, command) {
 				pastedDurationFrames,
 				command.splitClipIds || {},
 				command.splitAvLinkIds || {},
+				command.videoEffectIds || {},
 				affectedClipIds,
 			);
 		}
@@ -2167,6 +2287,7 @@ function pasteClipboard(project, command) {
 				id,
 				command.groupIds || {},
 				command.avLinkIds || {},
+				command.videoEffectIds?.[descriptor.key],
 			));
 			assertClipSourceBounds(project, clip);
 			if (mode === 'reject') {
@@ -2231,6 +2352,8 @@ function preparePasteCollisionIds(project, command, idFactory) {
 					&& clip.timelineStartFrame < command.atFrame && clipEndFrame(clip) > command.atFrame;
 			if (spansBoundary) {
 				command.splitClipIds[clip.id] = idFactory('clip');
+				const effectIds = prepareVideoEffectIds(clip, idFactory);
+				if (effectIds) command.videoEffectIds[command.splitClipIds[clip.id]] = effectIds;
 				if (clip.avLinkId && !command.splitAvLinkIds[clip.avLinkId]) {
 					command.splitAvLinkIds[clip.avLinkId] = idFactory('av-link');
 				}
@@ -2246,6 +2369,7 @@ function insertSpaceOnTrack(
 	durationFrames,
 	splitClipIds,
 	splitAvLinkIds = {},
+	videoEffectIds = {},
 	affectedClipIds = null,
 ) {
 	const originals = track.clipIds.map((clipId) => requireClip(project, clipId));
@@ -2272,7 +2396,14 @@ function insertSpaceOnTrack(
 		if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
 		assertUnusedClipId(project, rightId);
 		replacements.push(segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id));
-		let right = segmentOfClip(clip, atFrame, clipEndFrame(clip), atFrame + durationFrames, rightId);
+		let right = segmentOfClip(
+			clip,
+			atFrame,
+			clipEndFrame(clip),
+			atFrame + durationFrames,
+			rightId,
+			videoEffectIds[rightId],
+		);
 		if (clip.avLinkId) {
 			const rightAvLinkId = splitAvLinkIds[clip.avLinkId];
 			if (!rightAvLinkId) throw new TypeError(`A stable split A/V link ID is required for ${clip.avLinkId}.`);
@@ -2287,7 +2418,7 @@ function insertSpaceOnTrack(
 		.map((clip) => clip.id);
 }
 
-function scaleClipboardClip(descriptor, scale, atFrame, id, groupIds, avLinkIds) {
+function scaleClipboardClip(descriptor, scale, atFrame, id, groupIds, avLinkIds, videoEffectIds = undefined) {
 	const durationFrames = Math.max(1, Math.round(descriptor.durationFrames * scale));
 	return {
 		...descriptor,
@@ -2299,6 +2430,13 @@ function scaleClipboardClip(descriptor, scale, atFrame, id, groupIds, avLinkIds)
 		durationFrames,
 		fadeInFrames: Math.min(durationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
 		fadeOutFrames: Math.min(durationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),
+		...(descriptor.kind === 'video' && Array.isArray(descriptor.videoEffects) ? {
+			videoEffects: cloneVideoEffectsWithCommandIds(
+				descriptor.videoEffects,
+				videoEffectIds,
+				`Pasted clip ${descriptor.key}`,
+			),
+		} : {}),
 		...(Array.isArray(descriptor.envelope) ? {
 			envelope: descriptor.envelope.map((point) => ({
 				...point,
@@ -2328,6 +2466,7 @@ export function preparePunchCommand(project, options = {}, idFactory = createSta
 		...(options.sourceDurationFrames == null ? {} : { sourceDurationFrames: options.sourceDurationFrames }),
 		clipId: options.clipId || idFactory('clip'),
 		splitClipIds: rangeCommand.splitClipIds,
+		videoEffectIds: rangeCommand.videoEffectIds,
 	};
 }
 
@@ -2346,12 +2485,15 @@ export function prepareRangeReplacementCommand(project, options = {}, idFactory 
 	const generatedClipIds = new Set();
 	reserveReplacementClipId(project, clipId, generatedClipIds);
 	const splitClipIds = {};
+	const videoEffectIds = {};
 	for (const existingClipId of track.clipIds) {
 		const clip = requireClip(project, existingClipId);
 		if (clip.timelineStartFrame < range.startFrame && clipEndFrame(clip) > range.endFrame) {
 			const rightId = requireStableCommandId(idFactory('clip'), `right segment for ${clip.id}`);
 			reserveReplacementClipId(project, rightId, generatedClipIds);
 			splitClipIds[clip.id] = rightId;
+			const effectIds = prepareVideoEffectIds(clip, idFactory);
+			if (effectIds) videoEffectIds[rightId] = effectIds;
 		}
 	}
 	return {
@@ -2361,6 +2503,7 @@ export function prepareRangeReplacementCommand(project, options = {}, idFactory 
 		source,
 		clipId,
 		splitClipIds,
+		videoEffectIds,
 	};
 }
 
@@ -2407,6 +2550,7 @@ function replaceRange(project, command) {
 				endFrame,
 				range.startFrame + source.frameCount,
 				rightId,
+				command.videoEffectIds?.[rightId],
 			));
 		}
 	}
@@ -2431,7 +2575,15 @@ function replaceRange(project, command) {
 function punchReplace(project, command) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'punch range');
 	const track = requireTrack(project, command.trackId);
-	processTrackRange(project, track, range, false, command.splitClipIds || {});
+	processTrackRange(
+		project,
+		track,
+		range,
+		false,
+		command.splitClipIds || {},
+		{},
+		command.videoEffectIds || {},
+	);
 	addClip(project, track.id, {
 		id: command.clipId,
 		sourceId: command.sourceId,
@@ -2496,7 +2648,53 @@ function allEffects(project) {
 	];
 }
 
-function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id) {
+function requireVideoEffectStack(project, clipId) {
+	if (project.schemaVersion < 5) throw new RangeError('Video effects require an AudioEditorProjectV5 project.');
+	const clip = requireClip(project, clipId);
+	if (clip.kind !== 'video') throw new RangeError(`Clip ${clipId} is not a video clip.`);
+	if (!Array.isArray(clip.videoEffects)) throw new TypeError(`Video clip ${clipId} has no effect stack.`);
+	return clip.videoEffects;
+}
+
+function addVideoEffect(project, command) {
+	const stack = requireVideoEffectStack(project, command.clipId);
+	const effect = command.effect?.type
+		? normalizeVideoEffect(command.effect)
+		: createVideoEffect(command.effectType, command.effect || {});
+	if (stack.some((candidate) => candidate.id === effect.id)) {
+		throw new RangeError(`Duplicate video effect ID: ${effect.id}.`);
+	}
+	const index = command.index == null ? stack.length : insertionIndex(command.index, stack.length);
+	stack.splice(index, 0, effect);
+}
+
+function updateClipVideoEffect(project, command) {
+	const stack = requireVideoEffectStack(project, command.clipId);
+	const index = stack.findIndex((effect) => effect.id === command.effectId);
+	if (index < 0) throw new ReferenceError(`Unknown video effect: ${command.effectId}.`);
+	stack[index] = updateVideoEffect(stack[index], command.changes || {});
+}
+
+function removeVideoEffect(project, command) {
+	const stack = requireVideoEffectStack(project, command.clipId);
+	const index = stack.findIndex((effect) => effect.id === command.effectId);
+	if (index < 0) throw new ReferenceError(`Unknown video effect: ${command.effectId}.`);
+	stack.splice(index, 1);
+}
+
+function reorderVideoEffect(project, command) {
+	const stack = requireVideoEffectStack(project, command.clipId);
+	const index = stack.findIndex((effect) => effect.id === command.effectId);
+	if (index < 0) throw new ReferenceError(`Unknown video effect: ${command.effectId}.`);
+	const toIndex = Number(command.toIndex);
+	if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= stack.length) {
+		throw new RangeError('Video effect destination is out of bounds.');
+	}
+	const [effect] = stack.splice(index, 1);
+	stack.splice(toIndex, 0, effect);
+}
+
+function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id, videoEffectIds = undefined) {
 	const offsetFrames = segmentStartFrame - clip.timelineStartFrame;
 	const durationFrames = segmentEndFrame - segmentStartFrame;
 	const sourceDuration = clip.sourceDurationFrames ?? clip.durationFrames;
@@ -2525,7 +2723,15 @@ function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFr
 		fadeInFrames: segmentStartFrame === clip.timelineStartFrame ? Math.min(clip.fadeInFrames, durationFrames) : 0,
 		fadeOutFrames: segmentEndFrame === clipEndFrame(clip) ? Math.min(clip.fadeOutFrames, durationFrames) : 0,
 	};
-	return clip.kind ? createMediaClipV4(value) : normalizeClipValue(value);
+	if (!clip.kind) return normalizeClipValue(value);
+	if (clip.kind === 'video' && id !== clip.id && clip.videoEffects?.length) {
+		value.videoEffects = cloneVideoEffectsWithCommandIds(
+			clip.videoEffects,
+			videoEffectIds,
+			`Segment ${id}`,
+		);
+	}
+	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
 }
 
 function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames) {
@@ -2576,6 +2782,25 @@ function normalizeRangeReplacementSource(project, value) {
 function requireStableCommandId(value, name) {
 	if (typeof value !== 'string' || !value) throw new TypeError(`A stable ${name} ID is required.`);
 	return value;
+}
+
+function cloneVideoEffectsWithCommandIds(effects, ids, name) {
+	const stack = Array.isArray(effects) ? effects : [];
+	if (!stack.length) return [];
+	if (!Array.isArray(ids) || ids.length !== stack.length) {
+		throw new TypeError(`${name} requires one stable ID for every video effect.`);
+	}
+	let index = 0;
+	return cloneVideoEffects(stack, {
+		regenerateIds: true,
+		idFactory: () => requireStableCommandId(ids[index++], `${name} video effect`),
+	});
+}
+
+function prepareVideoEffectIds(clip, idFactory) {
+	return clip.kind === 'video' && clip.videoEffects?.length
+		? clip.videoEffects.map(() => idFactory('video-effect'))
+		: undefined;
 }
 
 function reserveReplacementClipId(project, id, reservedIds) {
@@ -2710,6 +2935,49 @@ export function createReplaceClipSourceCommand(clipId, sourceId) {
 	};
 }
 
+export function createAddVideoEffectCommand(clipId, effectType, options = {}) {
+	return {
+		type: 'video-effect/add',
+		clipId: requireStableCommandId(clipId, 'video clip'),
+		effect: createVideoEffect(effectType, options),
+		...(options.index == null ? {} : { index: options.index }),
+	};
+}
+
+export function createUpdateVideoEffectCommand(clipId, effectId, changes = {}) {
+	return {
+		type: 'video-effect/update',
+		clipId: requireStableCommandId(clipId, 'video clip'),
+		effectId: requireStableCommandId(effectId, 'video effect'),
+		changes: { ...changes },
+	};
+}
+
+export function createBypassVideoEffectCommand(clipId, effectId, bypassed = true) {
+	if (typeof bypassed !== 'boolean') throw new TypeError('Video effect bypass state must be boolean.');
+	return createUpdateVideoEffectCommand(clipId, effectId, { enabled: !bypassed });
+}
+
+export function createReorderVideoEffectCommand(clipId, effectId, toIndex) {
+	if (!Number.isSafeInteger(toIndex) || toIndex < 0) {
+		throw new RangeError('Video effect destination must be a non-negative safe integer.');
+	}
+	return {
+		type: 'video-effect/reorder',
+		clipId: requireStableCommandId(clipId, 'video clip'),
+		effectId: requireStableCommandId(effectId, 'video effect'),
+		toIndex,
+	};
+}
+
+export function createRemoveVideoEffectCommand(clipId, effectId) {
+	return {
+		type: 'video-effect/remove',
+		clipId: requireStableCommandId(clipId, 'video clip'),
+		effectId: requireStableCommandId(effectId, 'video effect'),
+	};
+}
+
 export function createAddLabelTrackCommand(options = {}) {
 	return { type: 'track/add', track: createLabelTrackV2(options) };
 }
@@ -2719,10 +2987,12 @@ export function createAddLabelCommand(trackId, options = {}) {
 }
 
 function normalizeSourceValue(value) {
+	if (value?.schemaVersion >= 5) return createMediaSourceV5(value);
 	return value?.kind ? createMediaSourceV4(value) : createAudioSourceV2(value);
 }
 
 function normalizeTrackValue(value) {
+	if (value?.schemaVersion >= 5) return createMediaTrackV5(value);
 	if (value?.type === 'video') return createMediaTrackV4(value);
 	if (value?.schemaVersion >= 4 && value?.type === 'label') return createLabelTrackV4(value);
 	if (value?.type === 'label') return createLabelTrackV2(value);
@@ -2731,23 +3001,35 @@ function normalizeTrackValue(value) {
 }
 
 function normalizeClipValue(value) {
+	if (Array.isArray(value?.videoEffects) || value?.schemaVersion >= 5) return createMediaClipV5(value);
 	return value?.kind ? createMediaClipV4(value) : createAudioClipV2(value);
 }
 
 function normalizeSourceForProject(project, value) {
-	return project.schemaVersion >= 4
+	return project.schemaVersion >= 5
+		? createMediaSourceV5({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
+		: project.schemaVersion >= 4
 		? createMediaSourceV4({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
 		: createAudioSourceV2(value);
 }
 
 function normalizeTrackForProject(project, value) {
-	return project.schemaVersion >= 4
+	return project.schemaVersion >= 5
+		? createMediaTrackV5({ ...value, type: value?.type || 'audio' }, project.sampleRate)
+		: project.schemaVersion >= 4
 		? createMediaTrackV4({ ...value, type: value?.type || 'audio' }, project.sampleRate)
 		: createAudioTrackV2(value, project.sampleRate);
 }
 
 function normalizeClipForProject(project, value) {
-	return project.schemaVersion >= 4
+	return project.schemaVersion >= 5
+		? createMediaClipV5({
+			...value,
+			kind: value?.kind || 'audio',
+			binItemId: value?.binItemId ?? null,
+			avLinkId: value?.avLinkId ?? null,
+		})
+		: project.schemaVersion >= 4
 		? createMediaClipV4({
 			...value,
 			kind: value?.kind || 'audio',

@@ -2050,7 +2050,7 @@ export default function AudioEditorTimeline({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.properties}
 					label={copy.clipPropertiesCommand}
-					disabled={!menuClip || menuClip.kind !== 'audio'}
+					disabled={!menuClip || (menuClip.kind !== 'audio' && menuClip.kind !== 'video')}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => {

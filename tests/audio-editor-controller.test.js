@@ -894,7 +894,7 @@ test('video export API and generic export dispatch stage raw media and audio for
 	assert.equal(ffmpeg.videoCalls[0].plan.mimeType, 'video/mp4');
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.width, 640);
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.height, 360);
-	assert.equal(ffmpeg.videoCalls[0].plan.version, 2);
+	assert.equal(ffmpeg.videoCalls[0].plan.version, 3);
 	assert.equal(
 		ffmpeg.videoCalls[0].plan.intervals[0].layers[0].clips[0].clipId,
 		'persisted-timeline-video',
@@ -1605,6 +1605,170 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 		controller.getSnapshot().project.tracks.find((track) => track.id === destinationTrackId).effects.map((effect) => effect.type),
 		['highpass', 'delay'],
 	);
+	await controller.dispose();
+});
+
+test('video effect gestures publish transient previews and commit one undo entry or cancel cleanly', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	controller.actions.edit.commit({
+		type: 'batch',
+		commands: [
+			{ type: 'source/add', source: {
+				kind: 'video', id: 'gesture-video-source', storageKey: 'gesture-video-source',
+				name: 'gesture.webm', mimeType: 'video/webm', frameCount: 48_000, sampleRate: 48_000,
+				width: 1_280, height: 720, frameRate: 30, videoCodec: 'vp9', hasAudio: false,
+			} },
+			{ type: 'track/add', track: {
+				type: 'video', id: 'gesture-video-track', name: 'Video', clipIds: [],
+			} },
+			{ type: 'clip/add', trackId: 'gesture-video-track', clip: {
+				kind: 'video', id: 'gesture-video-clip', sourceId: 'gesture-video-source', title: 'Gesture',
+				timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 48_000,
+				durationFrames: 48_000, videoEffects: [],
+			} },
+		],
+	});
+	const effectId = controller.actions.video.effects.add(
+		'gesture-video-clip',
+		'pixelate',
+		{ id: 'gesture-pixelate' },
+	);
+	assert.equal(effectId, 'gesture-pixelate');
+	const historyBeforeBypass = controller.getSnapshot().history.undoEntries.length;
+	assert.throws(
+		() => controller.actions.video.effects.bypass('gesture-video-clip', effectId, 'yes'),
+		/must be boolean/,
+	);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeBypass);
+	controller.actions.video.effects.bypass('gesture-video-clip', effectId);
+	assert.equal(controller.project.clips[0].videoEffects[0].enabled, false);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeBypass + 1);
+	controller.actions.edit.undo();
+	assert.equal(controller.project.clips[0].videoEffects[0].enabled, true);
+	controller.actions.edit.redo();
+	assert.equal(controller.project.clips[0].videoEffects[0].enabled, false);
+	controller.actions.video.effects.bypass('gesture-video-clip', effectId, false);
+	assert.equal(controller.project.clips[0].videoEffects[0].enabled, true);
+	const historyBeforeGesture = controller.getSnapshot().history.undoEntries.length;
+
+	assert.deepEqual(controller.actions.video.effects.beginGesture('gesture-video-clip', effectId), { blockSize: 16 });
+	controller.actions.video.effects.preview('gesture-video-clip', effectId, { blockSize: 24 });
+	controller.actions.video.effects.preview('gesture-video-clip', effectId, { blockSize: 32 });
+	assert.equal(
+		controller.getSnapshot().project.clips[0].videoEffects[0].params.blockSize,
+		32,
+		'the document snapshot exposes the transient preview',
+	);
+	assert.equal(
+		controller.project.clips[0].videoEffects[0].params.blockSize,
+		16,
+		'the persisted history project remains unchanged during preview',
+	);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeGesture);
+
+	controller.actions.video.effects.commit('gesture-video-clip', effectId);
+	assert.equal(controller.project.clips[0].videoEffects[0].params.blockSize, 32);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeGesture + 1);
+	controller.actions.edit.undo();
+	assert.equal(controller.project.clips[0].videoEffects[0].params.blockSize, 16);
+	controller.actions.edit.redo();
+	assert.equal(controller.project.clips[0].videoEffects[0].params.blockSize, 32);
+
+	const historyBeforeCancel = controller.getSnapshot().history.undoEntries.length;
+	controller.actions.video.effects.beginGesture('gesture-video-clip', effectId);
+	controller.actions.video.effects.preview('gesture-video-clip', effectId, { blockSize: 64 });
+	assert.equal(controller.getSnapshot().project.clips[0].videoEffects[0].params.blockSize, 64);
+	assert.equal(controller.actions.video.effects.cancel('gesture-video-clip', effectId), true);
+	assert.equal(controller.getSnapshot().project.clips[0].videoEffects[0].params.blockSize, 32);
+	assert.equal(controller.project.clips[0].videoEffects[0].params.blockSize, 32);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyBeforeCancel);
+
+	const colorEffectId = controller.actions.video.effects.add(
+		'gesture-video-clip',
+		'color-adjust',
+		{ id: 'gesture-color-adjust' },
+	);
+	const historyBeforeMultiParameterGesture = controller.getSnapshot().history.undoEntries.length;
+	controller.actions.video.effects.beginGesture('gesture-video-clip', colorEffectId);
+	controller.actions.video.effects.preview('gesture-video-clip', colorEffectId, { brightness: 0.25 });
+	controller.actions.video.effects.preview('gesture-video-clip', colorEffectId, { contrast: 1.5 });
+	assert.deepEqual(controller.getSnapshot().project.clips[0].videoEffects[1].params, {
+		brightness: 0.25,
+		contrast: 1.5,
+		saturation: 1,
+		gamma: 1,
+		hueDegrees: 0,
+	});
+	assert.deepEqual(controller.project.clips[0].videoEffects[1].params, {
+		brightness: 0,
+		contrast: 1,
+		saturation: 1,
+		gamma: 1,
+		hueDegrees: 0,
+	});
+	controller.actions.video.effects.commit('gesture-video-clip', colorEffectId);
+	assert.deepEqual(controller.project.clips[0].videoEffects[1].params, {
+		brightness: 0.25,
+		contrast: 1.5,
+		saturation: 1,
+		gamma: 1,
+		hueDegrees: 0,
+	});
+	assert.equal(
+		controller.getSnapshot().history.undoEntries.length,
+		historyBeforeMultiParameterGesture + 1,
+	);
+
+	controller.actions.track.duplicate('gesture-video-track');
+	const duplicatedSnapshot = controller.getSnapshot();
+	const duplicatedTrack = duplicatedSnapshot.project.tracks.find((track) => (
+		track.type === 'video' && track.id !== 'gesture-video-track'
+	));
+	assert.ok(duplicatedTrack);
+	assert.equal(duplicatedTrack.laneGroupId, null);
+	const originalClip = duplicatedSnapshot.project.clips.find((clip) => clip.id === 'gesture-video-clip');
+	const duplicatedClip = duplicatedSnapshot.project.clips.find((clip) => duplicatedTrack.clipIds.includes(clip.id));
+	assert.ok(duplicatedClip);
+	assert.equal(duplicatedClip.avLinkId, null);
+	assert.deepEqual(
+		duplicatedClip.videoEffects.map((effect) => ({
+			type: effect.type,
+			enabled: effect.enabled,
+			params: effect.params,
+		})),
+		originalClip.videoEffects.map((effect) => ({
+			type: effect.type,
+			enabled: effect.enabled,
+			params: effect.params,
+		})),
+	);
+	assert.equal(
+		duplicatedClip.videoEffects.some((effect) => (
+			originalClip.videoEffects.some((originalEffect) => originalEffect.id === effect.id)
+		)),
+		false,
+	);
+
+	controller.actions.video.effects.beginGesture('gesture-video-clip', effectId);
+	controller.actions.video.effects.preview('gesture-video-clip', effectId, { blockSize: 48 });
+	assert.equal(controller.getSnapshot().project.clips
+		.find((clip) => clip.id === 'gesture-video-clip').videoEffects[0].params.blockSize, 48);
+	controller.actions.edit.undo();
+	assert.equal(controller.getSnapshot().project.tracks.filter((track) => track.type === 'video').length, 1);
+	assert.equal(controller.getSnapshot().project.clips
+		.find((clip) => clip.id === 'gesture-video-clip').videoEffects[0].params.blockSize, 32);
+	controller.actions.edit.redo();
+	assert.equal(controller.getSnapshot().project.tracks.filter((track) => track.type === 'video').length, 2);
+	assert.equal(controller.getSnapshot().project.clips
+		.find((clip) => clip.id === 'gesture-video-clip').videoEffects[0].params.blockSize, 32);
 	await controller.dispose();
 });
 

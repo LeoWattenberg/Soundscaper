@@ -160,6 +160,144 @@ test.describe('audio editor video composition workflow', () => {
 		await expect(preview.locator('[data-video-preview-layer]').last()).toHaveAttribute('data-track-id', thirdVideoId);
 		expect(errors).toEqual([]);
 	});
+
+	test('edits the selected video effect rack and falls back cleanly if WebGL is interrupted', async ({ page }) => {
+		test.setTimeout(90_000);
+		await page.setViewportSize({ width: 1_280, height: 960 });
+		const fixture = await createGeneratedVideoFixture(page, {
+			name: 'effects-source.webm',
+			color: '#7c3aed',
+			accent: '#f5d0fe',
+			frequency: 330,
+			width: 96,
+			height: 54,
+		});
+		const errors = collectClientErrors(page);
+		const editor = await bootVideoEditor(page);
+		await importTimelineFiles(editor, [fixture]);
+
+		const videoClip = editor.locator('[data-clip-kind="video"]').first();
+		await videoClip.click({ button: 'right' });
+		const clipMenu = page.locator('.audio-editor-clip-context-menu');
+		await expect(clipMenu).toBeVisible();
+		await clipMenu.locator('[data-action-id="clip-properties"]').click();
+
+		const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const rack = dialog.locator('[data-video-effect-rack]');
+		await expect(rack).toBeVisible();
+		await expect(rack.locator('[data-video-effect-empty]')).toBeVisible();
+
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		await expect(rack.locator('[data-video-effect-type="color-adjust"]')).toHaveCount(1);
+
+		const picker = rack.locator('[data-video-effect-picker]');
+		await picker.getByRole('button').click();
+		await page.getByRole('option', { name: 'Pixelate', exact: true }).click();
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		await expect(rack.locator('[data-video-effect-id]')).toHaveCount(2);
+		await expect(rack.locator('[data-video-effect-id]').nth(1)).toHaveAttribute('data-video-effect-type', 'pixelate');
+
+		await rack.getByRole('button', { name: 'Move effect up: Pixelate', exact: true }).click();
+		await expect(rack.locator('[data-video-effect-id]').first()).toHaveAttribute('data-video-effect-type', 'pixelate');
+		const pixelate = rack.locator('[data-video-effect-type="pixelate"]');
+		await pixelate.getByRole('checkbox', { name: 'Pixelate', exact: true }).uncheck();
+		await expect(pixelate).toHaveAttribute('data-enabled', 'false');
+		await expect(pixelate.locator('[data-video-effect-param="blockSize"] input[type="range"]')).toBeDisabled();
+
+		const colorAdjust = rack.locator('[data-video-effect-type="color-adjust"]');
+		const brightnessValue = colorAdjust.locator('[data-video-effect-param="brightness"] input[type="number"]');
+		await brightnessValue.fill('0.25');
+		await brightnessValue.press('Enter');
+		await expect(brightnessValue).toHaveValue('0.25');
+		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(dialog).toBeHidden();
+
+		const preview = editor.locator('[data-video-preview]');
+		const canvas = preview.locator('[data-video-preview-canvas]');
+		await expect(preview).toHaveAttribute('data-active-video-effect-count', '1');
+		await expect(canvas).toHaveCount(1);
+		await expect.poll(() => preview.getAttribute('data-video-preview-renderer')).toMatch(/^(ready|fallback)$/);
+		await expect(canvas).toHaveAttribute('data-renderer-state', /^(ready|fallback)$/);
+
+		if (await preview.getAttribute('data-video-preview-renderer') === 'ready') {
+			const canLoseContext = await canvas.evaluate((element) => {
+				const context = element.getContext('webgl2');
+				const extension = context?.getExtension('WEBGL_lose_context');
+				if (!extension) return false;
+				globalThis.__soundscaperVideoPreviewContext = extension;
+				extension.loseContext();
+				return true;
+			});
+			if (canLoseContext) {
+				await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback');
+				const warning = preview.locator('[data-video-preview-renderer-warning]');
+				await expect(warning).toContainText(/export still applies/i);
+				await canvas.evaluate(() => globalThis.__soundscaperVideoPreviewContext.restoreContext());
+				await expect.poll(() => preview.getAttribute('data-video-preview-renderer')).toMatch(/^(webgl|ready)$/);
+			}
+		}
+
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		await page.reload();
+		const restoredEditor = await waitForVideoEditor(page);
+		const restoredClip = restoredEditor.locator('[data-clip-kind="video"]').first();
+		await restoredClip.click({ button: 'right' });
+		const restoredClipMenu = page.locator('.audio-editor-clip-context-menu');
+		await expect(restoredClipMenu).toBeVisible();
+		await restoredClipMenu.locator('[data-action-id="clip-properties"]').click();
+		const restoredDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const restoredRack = restoredDialog.locator('[data-video-effect-rack]');
+		const restoredEffects = restoredRack.locator('[data-video-effect-id]');
+		await expect(restoredEffects).toHaveCount(2);
+		await expect(restoredEffects.nth(0)).toHaveAttribute('data-video-effect-type', 'pixelate');
+		await expect(restoredEffects.nth(0)).toHaveAttribute('data-enabled', 'false');
+		await expect(restoredEffects.nth(1)).toHaveAttribute('data-video-effect-type', 'color-adjust');
+		await expect(restoredEffects.nth(1).locator(
+			'[data-video-effect-param="brightness"] input[type="number"]',
+		)).toHaveValue('0.25');
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps the DOM preview and warns when WebGL2 is unavailable', async ({ page }) => {
+		test.setTimeout(60_000);
+		const fixture = await createGeneratedVideoFixture(page, {
+			name: 'effects-fallback.webm',
+			color: '#0f766e',
+			accent: '#ccfbf1',
+			frequency: 275,
+			width: 96,
+			height: 54,
+		});
+		await page.addInitScript(() => {
+			const originalGetContext = HTMLCanvasElement.prototype.getContext;
+			HTMLCanvasElement.prototype.getContext = function getContext(type, ...args) {
+				if (type === 'webgl2' && this.hasAttribute('data-video-preview-canvas')) return null;
+				return originalGetContext.call(this, type, ...args);
+			};
+		});
+		const errors = collectClientErrors(page);
+		const editor = await bootVideoEditor(page);
+		await importTimelineFiles(editor, [fixture]);
+
+		const videoClip = editor.locator('[data-clip-kind="video"]').first();
+		await videoClip.click({ button: 'right' });
+		const clipMenu = page.locator('.audio-editor-clip-context-menu');
+		await clipMenu.locator('[data-action-id="clip-properties"]').click();
+		const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const rack = dialog.locator('[data-video-effect-rack]');
+		const picker = rack.locator('[data-video-effect-picker]');
+		await picker.getByRole('button').click();
+		await page.getByRole('option', { name: 'Pixelate', exact: true }).click();
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+		const preview = editor.locator('[data-video-preview]');
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback');
+		await expect(preview.locator('[data-video-preview-canvas]')).toHaveCSS('opacity', '0');
+		await expect(preview.locator('[data-video-preview-clip]')).toBeVisible();
+		await expect(preview.locator('[data-video-preview-renderer-warning]')).toContainText(/export still applies/i);
+		expect(errors).toEqual([]);
+	});
 });
 
 async function createGeneratedVideoFixture(page, options) {
@@ -225,6 +363,10 @@ async function createGeneratedVideoFixture(page, options) {
 
 async function bootVideoEditor(page) {
 	await page.goto('/en/');
+	return waitForVideoEditor(page);
+}
+
+async function waitForVideoEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');

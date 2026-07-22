@@ -14,11 +14,16 @@ import {
 	validateAudioEditorProjectV3,
 } from './project-v3.js';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV4,
 	loadAudioEditorProjectV4,
 	validateAudioEditorProjectV4,
 } from './project-v4.js';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createAudioEditorProjectV5,
+	loadAudioEditorProjectV5,
+	validateAudioEditorProjectV5,
+} from './project-v5.js';
 
 const PROJECT_V1_KEYS = new Set([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate', 'masterChannels',
@@ -214,9 +219,43 @@ export function migrateAudioEditorProjectV1ToV4(value) {
 	return migrateAudioEditorProjectV3ToV4(migrateAudioEditorProjectV1ToV3(value));
 }
 
+export function migrateAudioEditorProjectV4ToV5(value) {
+	if (!value || typeof value !== 'object' || value.schemaVersion !== 4) {
+		throw new RangeError('An AudioEditorProjectV4 project is required.');
+	}
+	const loaded = loadAudioEditorProjectV4(value);
+	if (loaded.readOnly) throw new RangeError('An AudioEditorProjectV4 project is required.');
+	const addVideoEffectStack = (clip) => clip.kind === 'video'
+		? { ...clip, videoEffects: [] }
+		: clip;
+	const project = createAudioEditorProjectV5({
+		...loaded.project,
+		now: loaded.project.createdAt,
+		clips: loaded.project.clips.map(addVideoEffectStack),
+		projectBin: {
+			...loaded.project.projectBin,
+			clips: loaded.project.projectBin.clips.map(addVideoEffectStack),
+		},
+	});
+	validateAudioEditorProjectV5(project);
+	return project;
+}
+
+export function migrateAudioEditorProjectV3ToV5(value) {
+	return migrateAudioEditorProjectV4ToV5(migrateAudioEditorProjectV3ToV4(value));
+}
+
+export function migrateAudioEditorProjectV2ToV5(value) {
+	return migrateAudioEditorProjectV3ToV5(migrateAudioEditorProjectV2ToV3(value));
+}
+
+export function migrateAudioEditorProjectV1ToV5(value) {
+	return migrateAudioEditorProjectV3ToV5(migrateAudioEditorProjectV1ToV3(value));
+}
+
 /**
  * Version-aware load/migration boundary. Future documents are returned intact
- * and read-only; V1/V2/V3 are migrated atomically; V4 is validated and cloned.
+ * and read-only; V1-V4 are migrated atomically; V5 is validated and cloned.
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
@@ -234,7 +273,7 @@ export function migrateAudioEditorProject(value) {
 		};
 	}
 	if (schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		const loaded = loadAudioEditorProjectV4(value);
+		const loaded = loadAudioEditorProjectV5(value);
 		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
 			Object.hasOwn(track, 'channelCount')
 			|| Object.hasOwn(track, 'channelLayout')
@@ -249,11 +288,13 @@ export function migrateAudioEditorProject(value) {
 			reason: null,
 		};
 	}
-	const project = schemaVersion === 3
-		? migrateAudioEditorProjectV3ToV4(value)
-		: schemaVersion === 2
-			? migrateAudioEditorProjectV2ToV4(value)
-			: migrateAudioEditorProjectV1ToV4(value);
+	const project = schemaVersion === 4
+		? migrateAudioEditorProjectV4ToV5(value)
+		: schemaVersion === 3
+			? migrateAudioEditorProjectV3ToV5(value)
+			: schemaVersion === 2
+				? migrateAudioEditorProjectV2ToV5(value)
+				: migrateAudioEditorProjectV1ToV5(value);
 	return {
 		project,
 		migrated: true,

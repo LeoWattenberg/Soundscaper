@@ -1,11 +1,13 @@
 import { validateVideoTrackComposition } from './video-timeline.js';
+import { createStableId } from './stable-id.js';
+import { normalizeVideoEffects } from './video-effects.js';
+
+export { createStableId } from './stable-id.js';
 
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_MASTER_CHANNELS = 2;
 export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
-
-const ID_FALLBACK_RANDOM_LENGTH = 10;
 
 /**
  * @typedef {Object} AudioEditorSourceV1
@@ -85,16 +87,6 @@ function isoTimestamp(value = new Date()) {
 	const date = value instanceof Date ? value : new Date(value);
 	if (Number.isNaN(date.getTime())) throw new TypeError('A valid timestamp is required.');
 	return date.toISOString();
-}
-
-export function createStableId(prefix = 'item') {
-	const safePrefix = String(prefix || 'item').replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'item';
-	if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-		return `${safePrefix}-${globalThis.crypto.randomUUID()}`;
-	}
-
-	const random = Math.random().toString(36).slice(2, 2 + ID_FALLBACK_RANDOM_LENGTH);
-	return `${safePrefix}-${Date.now().toString(36)}-${random}`;
 }
 
 /** @param {AudioEditorProjectV1} project @returns {AudioEditorProjectV1} */
@@ -290,6 +282,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 2) return validateProjectV2Shape(project);
 	if (project.schemaVersion === 3) return validateProjectV3Shape(project);
 	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
+	if (project.schemaVersion === 5) return validateProjectV5Shape(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -590,6 +583,18 @@ function validateProjectV4Shape(project) {
 	validateV4LaneGroups(project.tracks);
 	validateV4AvLinks(project.clips, assignedClipTrack);
 	validateV4BinItems(project.projectBin.clips);
+	return true;
+}
+
+function validateProjectV5Shape(project) {
+	validateProjectV4Shape(project);
+	for (const clip of [...project.clips, ...project.projectBin.clips]) {
+		if (clip.kind !== 'video') continue;
+		if (!Array.isArray(clip.videoEffects)) {
+			throw new TypeError(`Video clip ${clip.id}.videoEffects must be an array.`);
+		}
+		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`);
+	}
 	return true;
 }
 
