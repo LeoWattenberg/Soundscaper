@@ -12,18 +12,21 @@ const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
 
 let module = null;
 let initializationError = null;
+let ready = null;
 const plans = new Map();
-const ready = createPffftModule()
-	.then((value) => {
-		module = value;
-		return value;
-	})
-	.catch((error) => {
-		initializationError = error;
-		throw error;
-	});
 
 export function initializePffft() {
+	if (!ready) {
+		ready = createPffftModule()
+			.then((value) => {
+				module = value;
+				return value;
+			})
+			.catch((error) => {
+				initializationError = error;
+				throw error;
+			});
+	}
 	return ready;
 }
 

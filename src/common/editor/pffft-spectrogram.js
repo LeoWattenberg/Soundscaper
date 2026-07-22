@@ -7,10 +7,7 @@ import { fft, initializePffft, isPffftReady } from './pffft.js';
 
 const listeners = new Set();
 let revision = 0;
-initializePffft().then(() => {
-	revision += 1;
-	for (const listener of listeners) listener(revision);
-}).catch(() => {});
+let preparation = null;
 
 export function subscribePffftSpectrogram(listener) {
 	listeners.add(listener);
@@ -23,7 +20,16 @@ export function pffftSpectrogramRevision() {
 
 export function preparePffftSpectrogram(fftWindowSize) {
 	normalizeWindowSize(fftWindowSize);
-	return initializePffft();
+	if (!preparation) {
+		preparation = initializePffft().then(() => {
+			revision += 1;
+			for (const listener of listeners) listener(revision);
+		}).catch((error) => {
+			preparation = null;
+			throw error;
+		});
+	}
+	return preparation;
 }
 
 export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) {

@@ -60,13 +60,19 @@ export function applyDocumentRoute(route) {
 
 function updateProductHead(productId) {
 	document.title = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
-	for (const link of document.querySelectorAll('link[data-product-icon]')) link.remove();
 	const icons = productId === 'framescaper'
 		? [{ href: '/logo/framescaper-icon.svg' }]
 		: [
 			{ href: '/logo/logo-klein-schwarz.svg', media: '(prefers-color-scheme: light)' },
 			{ href: '/logo/logo-klein-weiß.svg', media: '(prefers-color-scheme: dark)' },
 		];
+	const existing = [...document.querySelectorAll('link[data-product-icon]')];
+	const matches = existing.length === icons.length && icons.every((icon, index) => (
+		existing[index].getAttribute('href') === icon.href
+			&& (existing[index].getAttribute('media') || '') === (icon.media || '')
+	));
+	if (matches) return;
+	for (const link of existing) link.remove();
 	for (const icon of icons) {
 		const link = document.createElement('link');
 		link.rel = 'icon';

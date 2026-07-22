@@ -63,9 +63,7 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 .brand { display: grid; gap: 8px; color: var(--color-ink); text-decoration: none; }
 .brand img { width: min(190px, 100%); height: auto; }
 .brand strong { color: var(--color-accent-dark); font-size: 1.05rem; letter-spacing: 0.02em; }
-.logo-dark, .logo-small { display: none; }
-:root[data-theme='dark'] .logo-light { display: none; }
-:root[data-theme='dark'] .logo-dark.logo-wide { display: block; }
+.logo-small { display: none; }
 .sidebar-collapse {
 	align-self: flex-end;
 	width: 32px;
@@ -130,9 +128,7 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 .site-sidebar[data-collapsed='true'] .brand { align-items: center; }
 .site-sidebar[data-collapsed='true'] .logo-wide,
 .site-sidebar[data-collapsed='true'] .brand strong { display: none; }
-.site-sidebar[data-collapsed='true'] .logo-light.logo-small { display: block; width: 42px; }
-:root[data-theme='dark'] .site-sidebar[data-collapsed='true'] .logo-light.logo-small { display: none; }
-:root[data-theme='dark'] .site-sidebar[data-collapsed='true'] .logo-dark.logo-small { display: block; width: 42px; }
+.site-sidebar[data-collapsed='true'] .logo-small { display: block; width: 42px; }
 .site-sidebar[data-collapsed='true'] .sidebar-collapse { align-self: center; margin-top: 16px; }
 .site-sidebar[data-collapsed='true'] .sidebar-collapse span { display: block; transform: rotate(180deg); }
 :root[dir='rtl'] .site-sidebar[data-collapsed='true'] .sidebar-collapse span { transform: rotate(180deg) scaleX(-1); }
@@ -146,9 +142,7 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 	.site-sidebar[data-collapsed='true'] .sidebar-content { display: contents; }
 	.brand { grid-template-columns: auto 1fr; align-items: center; }
 	.brand .logo-wide { display: none !important; }
-	.brand .logo-light.logo-small { display: block; width: 42px; }
-	:root[data-theme='dark'] .brand .logo-light.logo-small { display: none; }
-	:root[data-theme='dark'] .brand .logo-dark.logo-small { display: block; width: 42px; }
+	.brand .logo-small { display: block; width: 42px; }
 	.sidebar-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
 	.sidebar-link { flex: 0 0 auto; }
 	.sidebar-settings { margin-top: 12px; padding-top: 0; }

@@ -47,7 +47,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	useEffect(() => {
 		const controller = new AbortController();
 		const timeout = window.setTimeout(() => controller.abort(), 5_000);
-		fetch(`${TRANSLATIONS_BASE_URL.replace(/\/+$/u, '')}/latest.json`, { cache: 'no-store', signal: controller.signal })
+		fetch(`${TRANSLATIONS_BASE_URL.replace(/\/+$/u, '')}/latest.json`, { cache: 'default', signal: controller.signal })
 			.then((response) => {
 				if (!response.ok) throw new Error(`Translation manifest request failed (${response.status})`);
 				return response.json();
@@ -93,14 +93,13 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 		}
 	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
+	const darkTheme = theme === 'dark';
 
 	return (
 		<aside className="site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
 			<a className="brand" href={productLocalePath(productId, locale)} aria-label={profile.name}>
-				<img className="logo-light logo-wide" src="/logo/logo-schwarz.svg" alt="kw.media" width="230" height="91" />
-				<img className="logo-dark logo-wide" src="/logo/logo-weiß.svg" alt="kw.media" width="230" height="91" />
-				<img className="logo-light logo-small" src="/logo/logo-klein-schwarz.svg" alt="" width="48" height="48" />
-				<img className="logo-dark logo-small" src="/logo/logo-klein-weiß.svg" alt="" width="48" height="48" />
+				<img className="logo-wide" src={darkTheme ? '/logo/logo-weiß.svg' : '/logo/logo-schwarz.svg'} alt="kw.media" width="230" height="91" />
+				<img className="logo-small" src={darkTheme ? '/logo/logo-klein-weiß.svg' : '/logo/logo-klein-schwarz.svg'} alt="" width="48" height="48" />
 				<strong>{profile.name}</strong>
 			</a>
 			<button className="sidebar-collapse" type="button" data-sidebar-collapse aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={String(!collapsed)} onClick={toggleCollapsed}>

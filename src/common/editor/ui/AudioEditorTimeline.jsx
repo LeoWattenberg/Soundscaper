@@ -71,6 +71,7 @@ import {
 } from '../audacity-waveform-renderer.js';
 import {
 	pffftSpectrogramRevision,
+	preparePffftSpectrogram,
 	renderPffftSpectrogram,
 	subscribePffftSpectrogram,
 } from '../pffft-spectrogram.js';
@@ -4325,6 +4326,10 @@ function AudacityWaveformCanvases({
 }) {
 	const [spectrogramRevision, setSpectrogramRevision] = useState(pffftSpectrogramRevision);
 	useEffect(() => subscribePffftSpectrogram(setSpectrogramRevision), []);
+	useEffect(() => {
+		if (displayMode !== 'spectrogram' && displayMode !== 'multiview') return;
+		preparePffftSpectrogram(64).catch(() => {});
+	}, [displayMode]);
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;

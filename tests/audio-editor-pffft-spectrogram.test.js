@@ -3,11 +3,19 @@ import { test } from 'node:test';
 
 import {
 	pffftSpectrogramBandEnergies,
+	pffftSpectrogramRevision,
 	preparePffftSpectrogram,
 } from '../src/common/editor/pffft-spectrogram.js';
+import { isPffftReady } from '../src/common/editor/pffft.js';
 
 test('PFFFT spectrogram analysis returns bounded finite frequency bands', async () => {
+	assert.equal(isPffftReady(), false);
+	assert.equal(pffftSpectrogramRevision(), 0);
 	await preparePffftSpectrogram(64);
+	assert.equal(isPffftReady(), true);
+	assert.equal(pffftSpectrogramRevision(), 1);
+	await preparePffftSpectrogram(64);
+	assert.equal(pffftSpectrogramRevision(), 1);
 	const samples = Float32Array.from({ length: 512 }, (_, index) => Math.sin(2 * Math.PI * index / 8));
 	const columns = pffftSpectrogramBandEnergies(samples, 128, {
 		fftWindowSize: 64,
