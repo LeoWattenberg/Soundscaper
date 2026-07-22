@@ -54,6 +54,9 @@ npm install
 npm run dev
 ```
 
+`npm run preview` serves the production build on port 4321. Playwright keeps
+its isolated preview server on port 4322 (or `PLAYWRIGHT_PORT` when overridden).
+
 Application source is organized by ownership: `src/soundscaper/` and
 `src/framescaper/` contain the product profiles and entry configuration, while
 `src/common/` contains the shared React shell, editor domain, browser workers,

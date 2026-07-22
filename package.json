@@ -15,7 +15,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs",
-		"preview": "vite preview",
+		"preview": "vite preview --port 4321",
 		"test": "node --test",
 		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/common/editor/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
 		"pretest:browser": "npm run build",
