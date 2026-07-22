@@ -185,6 +185,7 @@ const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
+const PROJECT_LOCK_RETRY_MAX_MS = 30_000;
 const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
 
 export function calculateAudioEditorMetronomeSchedule({
@@ -308,6 +309,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		timelineView: 'waveform',
 		readOnly: false,
 		projectLock: null,
+		projectLockRetryTimer: 0,
 		autosaveTimer: 0,
 		sourceGcTimer: 0,
 		saveGeneration: 0,
@@ -438,6 +440,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		onChange: handleRecordingPoolChange,
 	});
 	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
+	const acquireLock = options.acquireProjectLock || acquireProjectLock;
 	let microphoneMeterSession = null;
 	let microphoneMeterStartPromise = null;
 	let microphoneMeterGeneration = 0;
@@ -520,8 +523,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			stopMicrophoneMetering({ releaseInput: false });
 			await stopRecording().catch(() => undefined);
 			await Promise.resolve(recordingCapturePool.dispose?.());
-			state.projectLock?.release();
-			state.projectLock = null;
+			await releaseProjectLock();
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await state.outputCleanup?.();
 			await stopProjectBinPreview({ dispose: true });
@@ -1568,6 +1570,65 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return operation;
 	}
 
+	async function releaseProjectLock(lock = state.projectLock) {
+		globalThis.clearTimeout(state.projectLockRetryTimer);
+		state.projectLockRetryTimer = 0;
+		if (!lock) return;
+		if (state.projectLock === lock) state.projectLock = null;
+		lock.release();
+		await Promise.resolve(lock.finished).catch(() => undefined);
+	}
+
+	function scheduleProjectLockRecovery(projectId, lock) {
+		globalThis.clearTimeout(state.projectLockRetryTimer);
+		state.projectLockRetryTimer = 0;
+		if (!lock?.readOnly || state.disposed || state.projectLock !== lock || project?.id !== projectId) return;
+		const retryAt = Number.isFinite(lock.retryAt) ? lock.retryAt : Date.now() + 1_000;
+		const delay = Math.max(100, Math.min(PROJECT_LOCK_RETRY_MAX_MS, retryAt - Date.now() + 25));
+		state.projectLockRetryTimer = globalThis.setTimeout(() => {
+			state.projectLockRetryTimer = 0;
+			void recoverProjectLock(projectId, lock).catch((error) => {
+				if (state.projectLock === lock && project?.id === projectId && !state.disposed) {
+					scheduleProjectLockRecovery(projectId, lock);
+					handleError(error);
+				}
+			});
+		}, delay);
+	}
+
+	async function recoverProjectLock(projectId, previousLock) {
+		if (state.disposed || state.projectLock !== previousLock || project?.id !== projectId) return;
+		const nextLock = await acquireLock(projectId);
+		if (state.disposed || state.projectLock !== previousLock || project?.id !== projectId) {
+			nextLock.release();
+			await Promise.resolve(nextLock.finished).catch(() => undefined);
+			return;
+		}
+		previousLock.release();
+		state.projectLock = nextLock;
+		if (nextLock.readOnly) {
+			sessionController.setProjectReadOnly(projectId, {
+				readOnly: true,
+				reason: 'project-lock',
+				lockMethod: nextLock.method,
+			});
+			scheduleProjectLockRecovery(projectId, nextLock);
+			return;
+		}
+
+		const metadata = sessionTab(projectId)?.metadata || {};
+		const intrinsicReadOnly = Boolean(metadata.intrinsicReadOnly);
+		const intrinsicReadOnlyReason = metadata.intrinsicReadOnlyReason || null;
+		state.readOnly = intrinsicReadOnly;
+		sessionController.setProjectReadOnly(projectId, {
+			readOnly: intrinsicReadOnly,
+			reason: intrinsicReadOnlyReason,
+			lockMethod: nextLock.method,
+		});
+		publishProjectState();
+		setStatus(intrinsicReadOnly ? intrinsicReadOnlyReason || copy.projectReadOnly : copy.ready, intrinsicReadOnly ? 'error' : 'success');
+	}
+
 	async function performProjectSwitch(nextProject, options = {}) {
 		state.rackEffectGestures.clear();
 		state.parametricEqGestures.clear();
@@ -1588,8 +1649,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.autosaveTimer = 0;
 		engine.stop();
 		cancelAudacityEffectPreview({ publish: false });
-		state.projectLock?.release();
-		state.projectLock = await acquireProjectLock(nextProject.id);
+		if (!state.projectLock || state.projectLock.projectId !== nextProject.id || state.projectLock.readOnly) {
+			await releaseProjectLock();
+			state.projectLock = await acquireLock(nextProject.id);
+		}
 		const lockReadOnly = Boolean(state.projectLock.readOnly);
 		const existingTab = sessionTab(nextProject.id);
 		const existingMetadata = existingTab?.metadata || {};
@@ -1664,6 +1727,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		await garbageCollectSources();
 		if (lockReadOnly) setStatus(copy.projectOpenOtherTab, 'error');
 		else if (state.readOnly) setStatus(options.readOnlyReason || copy.projectReadOnly, 'error');
+		scheduleProjectLockRecovery(nextProject.id, state.projectLock);
 	}
 
 	async function getAup4Client() {
@@ -2055,8 +2119,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
 		await flushProject();
 		const projectId = project.id;
-		state.projectLock?.release();
-		state.projectLock = null;
+		await releaseProjectLock();
 		return Object.freeze({ projectId, revision: project.revision });
 	}
 
@@ -2092,8 +2155,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 		globalThis.clearTimeout(state.autosaveTimer);
 		state.autosaveTimer = 0;
-		state.projectLock?.release();
-		state.projectLock = null;
+		await releaseProjectLock();
 		engine.stop();
 		state.history = null;
 		project = null;
@@ -2132,8 +2194,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!project || state.readOnly) return;
 		await stopRecording();
 		const id = project.id;
-		state.projectLock?.release();
-		state.projectLock = null;
+		await releaseProjectLock();
 		await store.deleteProject(id);
 		await store.saveSetting(recordingRoutingSettingKey(id), null);
 		sessionController.closeProject(id, { force: true });
@@ -2183,8 +2244,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function clearLocalData() {
 		await stopRecording();
 		cancelPlaybackCachePreparation();
-		state.projectLock?.release();
-		state.projectLock = null;
+		await releaseProjectLock();
 		engine.stop();
 		clipTimePitchCache.clear?.();
 		sourceBuffers.clear();

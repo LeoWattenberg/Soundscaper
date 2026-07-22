@@ -27,8 +27,10 @@ async function acquireNavigatorLock(projectId, locks) {
 	const writable = await acquired;
 	let released = false;
 	return {
+		projectId,
 		readOnly: !writable,
 		method: 'navigator-locks',
+		retryAt: writable ? null : Date.now() + 1_000,
 		release() {
 			if (released) return;
 			released = true;
@@ -45,22 +47,23 @@ async function acquireLease(projectId, options) {
 	const setIntervalFn = options.setInterval ?? globalThis.setInterval;
 	const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;
 	const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout;
+	const lifecycleTarget = options.lifecycleTarget ?? globalThis;
 	const key = `${LOCK_PREFIX}${projectId}`;
 	const owner = createOwner();
 	let channel = null;
 	let heartbeat = 0;
 	let released = false;
 
-	if (!storage) return { readOnly: false, method: 'unavailable', release() {} };
+	if (!storage) return { projectId, readOnly: false, method: 'unavailable', retryAt: null, release() {} };
 	const existing = readLease(storage, key);
 	if (existing && existing.expiresAt > now()) {
-		return { readOnly: true, method: 'lease', release() {} };
+		return { projectId, readOnly: true, method: 'lease', retryAt: existing.expiresAt, release() {} };
 	}
 
 	writeLease(storage, key, owner, now());
 	const verified = readLease(storage, key);
 	if (verified?.owner !== owner) {
-		return { readOnly: true, method: 'lease', release() {} };
+		return { projectId, readOnly: true, method: 'lease', retryAt: verified?.expiresAt ?? now() + LEASE_DURATION_MS, release() {} };
 	}
 
 	const claimants = new Set([owner]);
@@ -79,9 +82,9 @@ async function acquireLease(projectId, options) {
 		if (current?.expiresAt > now()) claimants.add(current.owner);
 		const winner = [...claimants].sort()[0];
 		if (winner !== owner) {
-			if (current?.owner === owner) storage.removeItem(key);
+			if (current?.owner === owner) removeLease(storage, key);
 			channel.close();
-			return { readOnly: true, method: 'lease', release() {} };
+			return { projectId, readOnly: true, method: 'lease', retryAt: current?.expiresAt ?? now() + LEASE_DURATION_MS, release() {} };
 		}
 		writeLease(storage, key, owner, now());
 	}
@@ -93,26 +96,37 @@ async function acquireLease(projectId, options) {
 			if (current?.owner !== owner) {
 				released = true;
 				if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
+				lifecycleTarget?.removeEventListener?.('pagehide', handlePageHide);
 				channel?.close();
 				return;
 			}
 			writeLease(storage, key, owner, now());
 		}, HEARTBEAT_MS);
 	}
+	lifecycleTarget?.addEventListener?.('pagehide', handlePageHide, { once: true });
 
 	return {
+		projectId,
 		readOnly: false,
 		method: 'lease',
-		release() {
-			if (released) return;
-			released = true;
-			if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
-			const current = readLease(storage, key);
-			if (current?.owner === owner) storage.removeItem(key);
-			channel?.postMessage({ type: 'released', owner });
-			channel?.close();
-		},
+		retryAt: null,
+		release: releaseLease,
 	};
+
+	function handlePageHide() {
+		releaseLease();
+	}
+
+	function releaseLease() {
+		if (released) return;
+		released = true;
+		if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
+		lifecycleTarget?.removeEventListener?.('pagehide', handlePageHide);
+		const current = readLease(storage, key);
+		if (current?.owner === owner) removeLease(storage, key);
+		channel?.postMessage({ type: 'released', owner });
+		channel?.close();
+	}
 }
 
 function writeLease(storage, key, owner, timestamp) {
@@ -129,6 +143,14 @@ function readLease(storage, key) {
 		return parsed && typeof parsed.owner === 'string' && Number.isFinite(parsed.expiresAt) ? parsed : null;
 	} catch {
 		return null;
+	}
+}
+
+function removeLease(storage, key) {
+	try {
+		storage.removeItem(key);
+	} catch {
+		// The lease still expires if storage becomes unavailable during teardown.
 	}
 }
 

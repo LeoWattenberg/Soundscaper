@@ -2923,6 +2923,65 @@ test('bootstrap preserves the project-lock status for a second controller', asyn
 	}
 });
 
+test('reopening the active project retains its writer lock', async () => {
+	let acquisitions = 0;
+	let releases = 0;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+		acquireProjectLock: async (projectId) => {
+			acquisitions += 1;
+			return {
+				projectId,
+				readOnly: false,
+				method: 'test',
+				release() { releases += 1; },
+			};
+		},
+	});
+	await controller.ready;
+	const projectId = controller.getSnapshot().project.id;
+	await controller.actions.project.openById(projectId);
+	assert.equal(controller.getSnapshot().readOnly, false);
+	assert.equal(acquisitions, 1);
+	assert.equal(releases, 0);
+	await controller.dispose();
+	assert.equal(releases, 1);
+});
+
+test('a read-only project automatically becomes writable after its competing lock disappears', async () => {
+	let acquisitions = 0;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+		acquireProjectLock: async (projectId) => {
+			acquisitions += 1;
+			return {
+				projectId,
+				readOnly: acquisitions === 1,
+				method: 'test',
+				retryAt: Date.now(),
+				release() {},
+			};
+		},
+	});
+	await controller.ready;
+	assert.equal(controller.getSnapshot().readOnly, true);
+	await new Promise((resolve) => setTimeout(resolve, 150));
+	assert.equal(controller.getSnapshot().readOnly, false);
+	assert.equal(controller.getSnapshot().status.message, COPY.ready);
+	assert.equal(acquisitions, 2);
+	await controller.dispose();
+});
+
 test('project flush serializes the latest snapshot and rejects persistence failures', async () => {
 	const store = createMemoryStore();
 	const controller = createAudioEditorController(null, {

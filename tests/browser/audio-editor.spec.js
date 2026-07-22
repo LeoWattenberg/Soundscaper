@@ -4382,6 +4382,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		const readOnlyRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(readOnlyRecord).toBeDisabled();
 		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
+
+		await page.close();
+		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 5_000 });
+		await expect(readOnlyRecord).toBeEnabled();
 		await secondPage.close();
 	});
 

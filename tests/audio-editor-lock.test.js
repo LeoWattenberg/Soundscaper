@@ -44,3 +44,52 @@ test('project lease makes a second writer read-only and releases ownership', asy
 	assert.equal(third.readOnly, false);
 	third.release();
 });
+
+test('an expired project lease is reclaimed without letting its former owner remove the replacement', async () => {
+	const values = new Map();
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	const abandoned = await acquireProjectLock('stale', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 1, clearInterval: () => {}, now: () => 100,
+	});
+	const replacement = await acquireProjectLock('stale', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 2, clearInterval: () => {}, now: () => 15_101,
+	});
+	assert.equal(replacement.readOnly, false);
+	abandoned.release();
+	const contender = await acquireProjectLock('stale', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 3, clearInterval: () => {}, now: () => 15_102,
+	});
+	assert.equal(contender.readOnly, true);
+	replacement.release();
+});
+
+test('a page lifecycle exit releases a fallback lease synchronously', async () => {
+	const values = new Map();
+	const listeners = new Map();
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	const lifecycleTarget = {
+		addEventListener: (type, listener) => listeners.set(type, listener),
+		removeEventListener: (type, listener) => {
+			if (listeners.get(type) === listener) listeners.delete(type);
+		},
+	};
+	await acquireProjectLock('page-exit', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null, lifecycleTarget,
+		setInterval: () => 1, clearInterval: () => {}, now: () => 100,
+	});
+	assert.equal(values.size, 1);
+	listeners.get('pagehide')();
+	assert.equal(values.size, 0);
+	assert.equal(listeners.has('pagehide'), false);
+});
