@@ -4389,6 +4389,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondPage.close();
 	});
 
+	test('refreshes an untouched default project without becoming read-only', async ({ page }) => {
+		let editor = await bootEditor(page, '/embed/en/');
+		let record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		await expect(record).toBeEnabled();
+
+		await page.reload();
+		editor = await waitForEditor(page);
+		record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		await expect(record).toBeEnabled({ timeout: 5_000 });
+		await expect(editor.locator('[data-status]')).not.toContainText('already open in another tab');
+	});
+
 	test('records a bounded AudioWorklet take onto the active track when arm controls are hidden', async ({ page }) => {
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator, 'mediaDevices', {

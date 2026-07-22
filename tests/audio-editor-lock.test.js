@@ -19,6 +19,24 @@ test('project lock holds and releases a navigator lock', async () => {
 	await lock.finished;
 });
 
+test('project lock allows an in-flight navigator lock release to complete before becoming read-only', async () => {
+	let requests = 0;
+	const locks = {
+		request(_name, _options, next) {
+			requests += 1;
+			return next(requests === 1 ? null : { name: 'project' });
+		},
+	};
+	const lock = await acquireProjectLock('handoff', {
+		navigator: { locks },
+		navigatorLockHandoffMs: 0,
+	});
+	assert.equal(requests, 2);
+	assert.equal(lock.readOnly, false);
+	lock.release();
+	await lock.finished;
+});
+
 test('project lease makes a second writer read-only and releases ownership', async () => {
 	const values = new Map();
 	const storage = {

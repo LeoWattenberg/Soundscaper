@@ -1,6 +1,7 @@
 const LOCK_PREFIX = 'kw-media-audio-editor-lock:';
 const LEASE_DURATION_MS = 15_000;
 const HEARTBEAT_MS = 5_000;
+const NAVIGATOR_LOCK_HANDOFF_MS = 150;
 
 /**
  * Acquire a single-writer project lease. Navigator Locks is authoritative;
@@ -10,32 +11,55 @@ export async function acquireProjectLock(projectId, options = {}) {
 	if (!projectId) throw new Error('A project id is required.');
 	const navigatorObject = options.navigator ?? globalThis.navigator;
 	if (navigatorObject?.locks?.request) {
-		return acquireNavigatorLock(projectId, navigatorObject.locks);
+		return acquireNavigatorLock(projectId, navigatorObject.locks, options);
 	}
 	return acquireLease(projectId, options);
 }
 
-async function acquireNavigatorLock(projectId, locks) {
+async function acquireNavigatorLock(projectId, locks, options) {
+	let attempt = await requestNavigatorLock(projectId, locks);
+	if (!attempt.writable) {
+		await attempt.finished;
+		const handoffMs = Number.isFinite(options.navigatorLockHandoffMs)
+			? Math.max(0, options.navigatorLockHandoffMs)
+			: NAVIGATOR_LOCK_HANDOFF_MS;
+		if (handoffMs > 0) await new Promise((resolve) => (options.setTimeout ?? globalThis.setTimeout)(resolve, handoffMs));
+		attempt = await requestNavigatorLock(projectId, locks);
+	}
+	let released = false;
+	return {
+		projectId,
+		readOnly: !attempt.writable,
+		method: 'navigator-locks',
+		retryAt: attempt.writable ? null : Date.now() + 1_000,
+		release() {
+			if (released) return;
+			released = true;
+			attempt.releaseHold();
+		},
+		finished: attempt.finished,
+	};
+}
+
+async function requestNavigatorLock(projectId, locks) {
 	let releaseHold;
 	let resolveAcquired;
 	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
 	const hold = new Promise((resolve) => { releaseHold = resolve; });
-	const finished = locks.request(`${LOCK_PREFIX}${projectId}`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
-		resolveAcquired(Boolean(lock));
-		if (lock) await hold;
-	}).catch(() => resolveAcquired(false));
+	let finished;
+	try {
+		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
+			resolveAcquired(Boolean(lock));
+			if (lock) await hold;
+		})).catch(() => resolveAcquired(false));
+	} catch {
+		resolveAcquired(false);
+		finished = Promise.resolve();
+	}
 	const writable = await acquired;
-	let released = false;
 	return {
-		projectId,
-		readOnly: !writable,
-		method: 'navigator-locks',
-		retryAt: writable ? null : Date.now() + 1_000,
-		release() {
-			if (released) return;
-			released = true;
-			releaseHold();
-		},
+		writable,
+		releaseHold,
 		finished,
 	};
 }
