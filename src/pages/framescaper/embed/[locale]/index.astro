@@ -1,0 +1,14 @@
+---
+import EditorPage from '../../../../components/EditorPage.astro';
+import { getStaticLocalePaths } from '../../../../i18n/locales.js';
+
+export const getStaticPaths = getStaticLocalePaths;
+
+interface Props {
+	locale: string;
+}
+
+const { locale } = Astro.props;
+---
+
+<EditorPage locale={locale} embedded productId="framescaper" />

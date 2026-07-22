@@ -74,7 +74,10 @@ const api = Object.freeze({
 	onFullscreenChanged: (listener) => subscribe(CHANNELS.fullscreenChanged, listener, (value) => Object.freeze({ fullscreen: value?.fullscreen === true })),
 });
 
-contextBridge.exposeInMainWorld('soundscaperDesktop', Object.freeze({ v1: api }));
+const bridge = Object.freeze({ v1: api });
+contextBridge.exposeInMainWorld('scapeDesktop', bridge);
+contextBridge.exposeInMainWorld('soundscaperDesktop', bridge);
+contextBridge.exposeInMainWorld('framescaperDesktop', bridge);
 
 function subscribe(channel, listener, sanitize) {
 	if (typeof listener !== 'function') throw new TypeError('Event listener must be a function');
@@ -96,7 +99,7 @@ function sanitizeReadDescriptor(value) {
 
 function trustedCapabilityUrl(value, id) {
 	const url = new URL(String(value || ''));
-	if (url.protocol !== 'soundscaper-app:' || url.hostname !== 'bundle' || !url.pathname.startsWith(`/_desktop/read/${opaqueId(id, 64)}/`)) {
+	if (!['soundscaper-app:', 'framescaper-app:'].includes(url.protocol) || url.hostname !== 'bundle' || !url.pathname.startsWith(`/_desktop/read/${opaqueId(id, 64)}/`)) {
 		throw new TypeError('Invalid read capability URL');
 	}
 	return url.href;

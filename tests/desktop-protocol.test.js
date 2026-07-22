@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { extractAup4Paths } from '../desktop/file-associations.js';
+import { extractAup4Paths, extractProjectPaths } from '../desktop/file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from '../desktop/display-capture.js';
 import {
 	ProtocolError,
@@ -77,9 +77,10 @@ test('CSP hashes exact inline script bodies and byte ranges are bounded', () => 
 	assert.throws(() => parseSingleRange('bytes=1-2,4-5', 10), (error) => error.status === 416);
 });
 
-test('file association arguments accept only unique AUP4 paths', () => {
-	const paths = extractAup4Paths(['electron', '--inspect', 'demo.aup4', 'track.wav', 'demo.aup4'], '/projects');
-	assert.deepEqual(paths, ['/projects/demo.aup4']);
+test('file association arguments accept only unique Scape and AUP4 paths', () => {
+	const paths = extractProjectPaths(['electron', '--inspect', 'demo.aup4', 'movie.scape', 'track.wav', 'demo.aup4'], '/projects');
+	assert.deepEqual(paths, ['/projects/demo.aup4', '/projects/movie.scape']);
+	assert.deepEqual(extractAup4Paths(['movie.scape'], '/projects'), ['/projects/movie.scape']);
 });
 
 test('native file filters cover the editor import and export formats', () => {
@@ -88,6 +89,8 @@ test('native file filters cover the editor import and export formats', () => {
 	assert.equal(acceptsFile('labels', '/tmp/captions.vtt'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.csv'), false);
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.zip' }).suggestedName, 'stems.zip');
+	assert.equal(validateSaveChoice({ purpose: 'project', suggestedName: 'session' }).suggestedName, 'session.scape');
+	assert.equal(validateSaveChoice({ purpose: 'aup4', suggestedName: 'session' }).suggestedName, 'session.aup4');
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'custom.caf' }).filters.at(-1).extensions[0], '*');
 	assert.equal(validateSaveChoice({ purpose: 'labels', suggestedName: 'captions.srt' }).suggestedName, 'captions.srt');
 	assert.equal(validateSaveChoice({ purpose: 'macro', suggestedName: 'cleanup' }).suggestedName, 'cleanup.txt');
@@ -111,7 +114,7 @@ test('Windows system-audio capture requires a trusted user gesture and selects l
 
 test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const calls = [];
-	let exposed;
+	const exposed = new Map();
 	const ipcRenderer = {
 		invoke: (channel, value) => {
 			calls.push({ method: 'invoke', channel, value });
@@ -134,14 +137,17 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		require: (specifier) => {
 			assert.equal(specifier, 'electron');
 			return {
-				contextBridge: { exposeInMainWorld: (name, value) => { exposed = { name, value }; } },
+				contextBridge: { exposeInMainWorld: (name, value) => { exposed.set(name, value); } },
 				ipcRenderer,
 			};
 		},
 	});
-	assert.equal(exposed.name, 'soundscaperDesktop');
+	assert.deepEqual([...exposed.keys()], ['scapeDesktop', 'soundscaperDesktop', 'framescaperDesktop']);
+	assert.equal(exposed.get('scapeDesktop'), exposed.get('soundscaperDesktop'));
+	assert.equal(exposed.get('scapeDesktop'), exposed.get('framescaperDesktop'));
+	const bridge = exposed.get('scapeDesktop');
 	assert.deepEqual(
-		Object.keys(exposed.value.v1).sort(),
+		Object.keys(bridge.v1).sort(),
 		[
 			'abortWrite', 'beginWrite', 'checkForUpdates', 'chooseFiles', 'chooseSaveTarget',
 			'editText', 'finishWrite', 'getEnvironment', 'onCloseRequested', 'onFullscreenChanged',
@@ -149,12 +155,12 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk',
 		].sort(),
 	);
-	assert.equal(Object.isFrozen(exposed.value.v1), true);
-	exposed.value.v1.signalReady();
+	assert.equal(Object.isFrozen(bridge.v1), true);
+	bridge.v1.signalReady();
 	assert.deepEqual(calls[0], { method: 'send', channel: 'soundscaper:v1:renderer:ready', value: undefined });
-	await exposed.value.v1.editText('copy');
+	await bridge.v1.editText('copy');
 	assert.deepEqual(calls[1], { method: 'invoke', channel: 'soundscaper:v1:text:edit', value: 'copy' });
-	await exposed.value.v1.editText('selectAll');
+	await bridge.v1.editText('selectAll');
 	assert.deepEqual(calls[2], { method: 'invoke', channel: 'soundscaper:v1:text:edit', value: 'selectAll' });
-	assert.throws(() => exposed.value.v1.editText('select-all'), /Unsupported text edit command/);
+	assert.throws(() => bridge.v1.editText('select-all'), /Unsupported text edit command/);
 });

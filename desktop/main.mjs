@@ -20,13 +20,15 @@ import {
 	APP_NAME,
 	APP_ORIGIN,
 	APP_SCHEME,
+	EDITOR_PATH_PREFIX,
 	EXTERNAL_DESTINATIONS,
 	IPC,
 	SESSION_PARTITION,
 	SUPPORTED_LOCALES,
+	UPDATE_TAG_PREFIX,
 } from './constants.js';
 import { ReadCapabilityStore } from './file-capabilities.js';
-import { extractAup4Paths } from './file-associations.js';
+import { extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
@@ -69,14 +71,14 @@ if (!app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
 	app.on('second-instance', (_event, argv, workingDirectory) => {
-		for (const filePath of extractAup4Paths(argv, workingDirectory)) enqueueProjectPath(filePath);
+		for (const filePath of extractProjectPaths(argv, workingDirectory)) enqueueProjectPath(filePath);
 		if (mainWindow && !mainWindow.isDestroyed()) {
 			if (mainWindow.isMinimized()) mainWindow.restore();
 			mainWindow.show();
 			mainWindow.focus();
 		}
 	});
-	for (const filePath of extractAup4Paths(process.argv, process.cwd())) enqueueProjectPath(filePath);
+	for (const filePath of extractProjectPaths(process.argv, process.cwd())) enqueueProjectPath(filePath);
 	void startApplication().catch((error) => {
 		console.error('Soundscaper desktop failed to start:', cleanError(error));
 		app.exit(1);
@@ -89,7 +91,7 @@ async function startApplication() {
 	const resources = resourceRoots();
 	settings = new DesktopSettingsStore(resolve(app.getPath('userData'), 'desktop-settings.json'));
 	await settings.load([app.getLocale(), ...app.getPreferredSystemLanguages()]);
-	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings });
+	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
 
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
@@ -159,7 +161,7 @@ async function createWindow() {
 		rendererReady = false;
 		pendingClose = null;
 	});
-	await mainWindow.loadURL(`${APP_ORIGIN}/embed/${encodeURIComponent(locale)}/`);
+	await mainWindow.loadURL(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/${encodeURIComponent(locale)}/`);
 	return mainWindow;
 }
 
@@ -183,7 +185,7 @@ function registerIpcHandlers() {
 		const locale = validateLocale(value);
 		await settings.setLocale(locale);
 		rendererReady = false;
-		await mainWindow.loadURL(`${APP_ORIGIN}/embed/${encodeURIComponent(locale)}/`);
+		await mainWindow.loadURL(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/${encodeURIComponent(locale)}/`);
 		return locale;
 	});
 	handle(IPC.setFullscreen, (_event, enabled) => {
@@ -281,7 +283,7 @@ async function dispatchPendingProjects() {
 			void dialog.showMessageBox(mainWindow, {
 				type: 'error',
 				title: 'Could not open project',
-				message: 'Soundscaper could not read the selected project.',
+				message: `${APP_NAME} could not read the selected project.`,
 				detail: cleanError(error),
 			});
 		}
@@ -289,7 +291,7 @@ async function dispatchPendingProjects() {
 }
 
 function enqueueProjectPath(filePath) {
-	if (!filePath || extname(filePath).toLowerCase() !== '.aup4') return;
+	if (!filePath || !['.aup4', '.scape'].includes(extname(filePath).toLowerCase())) return;
 	const absolutePath = isAbsolute(filePath) ? filePath : resolve(filePath);
 	if (!pendingOpenPaths.includes(absolutePath)) pendingOpenPaths.push(absolutePath);
 	if (rendererReady) void dispatchPendingProjects();
@@ -353,7 +355,7 @@ function installArtifactSmokeProbe(window) {
 				hasEditor: Boolean(document.querySelector('main')),
 				nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
 			})`);
-			const valid = result.url.startsWith(`${APP_ORIGIN}/embed/`)
+			const valid = result.url.startsWith(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/`)
 				&& result.title === APP_NAME
 				&& result.hasEditor
 				&& !result.nodeExposed
@@ -407,7 +409,7 @@ function installMenu() {
 		{
 			label: 'Help',
 			submenu: [
-				{ label: 'Soundscaper Help', click: () => void shell.openExternal(EXTERNAL_DESTINATIONS.help) },
+				{ label: `${APP_NAME} Help`, click: () => void shell.openExternal(EXTERNAL_DESTINATIONS.help) },
 				{ label: 'Check for Updates…', click: () => void checkForUpdates(true) },
 				{ label: 'View Source', click: () => void shell.openExternal(EXTERNAL_DESTINATIONS.source) },
 			],
@@ -421,8 +423,8 @@ async function checkForUpdates(manual) {
 	if (result.status === 'available' && mainWindow) {
 		const response = await dialog.showMessageBox(mainWindow, {
 			type: 'info',
-			title: 'Soundscaper update available',
-			message: `Soundscaper ${result.version} is available.`,
+			title: `${APP_NAME} update available`,
+			message: `${APP_NAME} ${result.version} is available.`,
 			detail: 'Updates are never downloaded or installed automatically.',
 			buttons: ['View Release', 'Later'],
 			defaultId: 0,
@@ -430,7 +432,7 @@ async function checkForUpdates(manual) {
 		});
 		if (response.response === 0) await shell.openExternal(EXTERNAL_DESTINATIONS.releases);
 	} else if (manual && result.status === 'current' && mainWindow) {
-		await dialog.showMessageBox(mainWindow, { type: 'info', title: 'Soundscaper is up to date', message: 'You are using the newest available release.' });
+		await dialog.showMessageBox(mainWindow, { type: 'info', title: `${APP_NAME} is up to date`, message: 'You are using the newest available release.' });
 	} else if (manual && result.status === 'error' && mainWindow) {
 		await dialog.showMessageBox(mainWindow, { type: 'warning', title: 'Could not check for updates', message: result.message });
 	}

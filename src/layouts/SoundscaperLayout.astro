@@ -2,43 +2,54 @@
 import BrandSidebar from '../components/BrandSidebar.astro';
 import { bundledCopyForLocale } from '../i18n/catalogs.js';
 import { getLocaleDescriptor, localePath, ROUTE_LOCALES } from '../i18n/locales.js';
+import { productLocalePath, productProfile } from '../lib/products.js';
 
 interface Props {
 	locale: string;
 	embedded?: boolean;
+	productId?: 'soundscaper' | 'framescaper';
 }
 
-const { locale, embedded = false } = Astro.props;
+const { locale, embedded = false, productId = 'soundscaper' } = Astro.props;
 const localeDescriptor = getLocaleDescriptor(locale);
-if (!localeDescriptor) throw new Error(`Unknown Soundscaper locale: ${locale}`);
-const title = 'Soundscaper';
+if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
+const profile = productProfile(productId);
+const title = profile.name;
 const copy = bundledCopyForLocale(localeDescriptor.locale);
-const description = copy.metaDescription;
+const description = productId === 'framescaper' ? copy.framescaperMetaDescription : copy.metaDescription;
 const site = Astro.site ?? new URL('https://soundscaper.org');
-const canonical = new URL(localePath(localeDescriptor.locale, { embedded }), site);
+const canonical = new URL(productLocalePath(productId, localeDescriptor.locale, { embedded }), site);
 const alternateLocales = ROUTE_LOCALES.map((descriptor) => ({
 	...descriptor,
-	href: new URL(localePath(descriptor.locale, { embedded }), site),
+	href: new URL(productLocalePath(productId, descriptor.locale, { embedded }), site),
 }));
-const xDefault = new URL(localePath('en', { embedded }), site);
+const xDefault = new URL(productLocalePath(productId, 'en', { embedded }), site);
 ---
 
 <!doctype html>
-<html lang={localeDescriptor.locale} dir={localeDescriptor.direction} data-embedded={embedded ? 'true' : undefined}>
+<html lang={localeDescriptor.locale} dir={localeDescriptor.direction} data-embedded={embedded ? 'true' : undefined} data-product={productId}>
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="light dark" />
 		<meta name="description" content={description} />
-		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-schwarz.svg" media="(prefers-color-scheme: light)" />
-		<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" />
+		{productId === 'framescaper' ? (
+			<link rel="icon" type="image/svg+xml" href="/logo/framescaper-icon.svg" />
+		) : (
+			<>
+				<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-schwarz.svg" media="(prefers-color-scheme: light)" />
+				<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" />
+			</>
+		)}
 		<link rel="canonical" href={canonical} />
 		{alternateLocales.map(({ locale: alternateLocale, href }) => <link rel="alternate" hreflang={alternateLocale} href={href} />)}
 		<link rel="alternate" hreflang="x-default" href={xDefault} />
 		<script>
 			(() => {
 				try {
-					const stored = localStorage.getItem('soundscaper_theme');
+					const productId = document.documentElement.dataset.product || 'soundscaper';
+					localStorage.setItem('scape_last_active_product', productId);
+					const stored = localStorage.getItem(`${productId}_theme`) || localStorage.getItem('soundscaper_theme');
 					const theme = stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 					document.documentElement.dataset.theme = theme;
 					document.documentElement.style.colorScheme = theme;
@@ -49,7 +60,7 @@ const xDefault = new URL(localePath('en', { embedded }), site);
 	</head>
 	<body>
 		<div class:list={['site-shell', { embedded }]}>
-			{!embedded && <BrandSidebar locale={localeDescriptor.locale} />}
+			{!embedded && <BrandSidebar locale={localeDescriptor.locale} productId={productId} />}
 			<main><slot /></main>
 		</div>
 	</body>

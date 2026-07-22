@@ -3,14 +3,15 @@ import { extname } from 'node:path';
 import {
 	APP_HOST,
 	APP_SCHEME,
+	EDITOR_PATH_PREFIX,
 	MAX_SAVE_BYTES,
 	SUPPORTED_LOCALES,
 } from './constants.js';
 
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
-		extensions: Object.freeze(['aup4']),
-		filters: Object.freeze([{ name: 'Audacity interchange', extensions: ['aup4'] }]),
+		extensions: Object.freeze(['scape', 'aup4']),
+		filters: Object.freeze([{ name: 'Scape and Audacity projects', extensions: ['scape', 'aup4'] }]),
 	}),
 	audio: Object.freeze({
 		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
@@ -31,7 +32,8 @@ const FILE_PURPOSES = Object.freeze({
 });
 
 const SAVE_PURPOSES = Object.freeze({
-	project: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
+	project: Object.freeze({ defaultExtension: 'scape', filters: [{ name: 'Scape project', extensions: ['scape'] }] }),
+	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	audio: Object.freeze({
 		defaultExtension: 'wav',
 		filters: [
@@ -76,6 +78,7 @@ const MIME_TYPES = Object.freeze({
 	'.ogg': 'audio/ogg',
 	'.opus': 'audio/ogg; codecs=opus',
 	'.srt': 'application/x-subrip',
+	'.scape': 'application/vnd.soundscaper.scape+zip',
 	'.txt': 'text/plain',
 	'.vtt': 'text/vtt',
 	'.wav': 'audio/wav',
@@ -108,7 +111,8 @@ export function isAppUrl(candidate) {
 export function assertEditorDocumentUrl(candidate) {
 	const url = assertAppUrl(candidate);
 	if (url.search || url.hash) throw new Error('Untrusted renderer document');
-	const match = /^\/embed\/([^/]+)\/$/u.exec(url.pathname);
+	const prefix = EDITOR_PATH_PREFIX.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+	const match = new RegExp(`^${prefix}/embed/([^/]+)/$`, 'u').exec(url.pathname);
 	if (!match || !SUPPORTED_LOCALES.includes(decodeURIComponent(match[1]))) throw new Error('Untrusted renderer document');
 	return url;
 }

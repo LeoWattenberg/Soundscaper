@@ -45,6 +45,7 @@ export {
 } from './project-v5.js';
 export * from './resample.js';
 export * from './sample-edit.js';
+export * from './scape-project.js';
 export * from './selection-effects.js';
 export * from './engine.js';
 export * from './recording.js';

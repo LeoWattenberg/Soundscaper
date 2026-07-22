@@ -1,7 +1,10 @@
+const framescaper = process.env.SCAPE_PRODUCT === 'framescaper';
+const productName = framescaper ? 'Framescaper' : 'Soundscaper';
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-	appId: 'org.soundscaper.desktop',
-	productName: 'Soundscaper',
+	appId: framescaper ? 'org.framescaper.desktop' : 'org.soundscaper.desktop',
+	productName,
 	artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
 	compression: 'maximum',
 	asar: true,
@@ -25,13 +28,22 @@ module.exports = {
 		{ from: 'THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
-	fileAssociations: [{
-		ext: 'aup4',
-		name: 'Soundscaper Project',
-		description: 'Soundscaper/Audacity project copy',
-		mimeType: 'application/x-audacity-project',
-		role: 'Editor',
-	}],
+	fileAssociations: [
+		{
+			ext: 'scape',
+			name: 'Scape Project',
+			description: 'Soundscaper/Framescaper project',
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+			role: 'Editor',
+		},
+		...(!framescaper ? [{
+			ext: 'aup4',
+			name: 'Soundscaper Project',
+			description: 'Soundscaper/Audacity project copy',
+			mimeType: 'application/x-audacity-project',
+			role: 'Editor',
+		}] : []),
+	],
 	win: {
 		icon: '.desktop-build/icons/icon.png',
 		target: ['nsis', 'zip'],
@@ -50,22 +62,24 @@ module.exports = {
 		identity: '-',
 		hardenedRuntime: false,
 		gatekeeperAssess: false,
-		category: 'public.app-category.music',
+		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
 		target: ['dmg'],
-		extendInfo: {
+		...(!framescaper ? { extendInfo: {
 			NSMicrophoneUsageDescription: 'Soundscaper records audio only when you start recording.',
-		},
+		} } : {}),
 	},
 	dmg: {
 		artifactName: '${productName}-${version}-mac-${arch}.${ext}',
 	},
 	linux: {
 		icon: '.desktop-build/icons',
-		executableName: 'soundscaper',
+		executableName: framescaper ? 'framescaper' : 'soundscaper',
 		syncDesktopName: true,
-		category: 'AudioVideo;Audio',
-		synopsis: 'Local-first multitrack audio editor',
-		description: 'Soundscaper is a local-first multitrack audio editor with offline project and media export support.',
+		category: framescaper ? 'AudioVideo;Video' : 'AudioVideo;Audio',
+		synopsis: framescaper ? 'Local-first video editor' : 'Local-first multitrack audio editor',
+		description: framescaper
+			? 'Framescaper is a local-first video editor with offline project and media export support.'
+			: 'Soundscaper is a local-first multitrack audio editor with offline project and media export support.',
 		maintainer: 'kw.media',
 		target: ['AppImage', 'deb'],
 	},

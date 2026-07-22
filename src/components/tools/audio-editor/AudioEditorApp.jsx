@@ -31,8 +31,9 @@ import '@dilsonspickles/components/style.css';
 
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
-import { createAudioEditorController } from '../../../lib/tools/audio-editor/app.js';
+import { createEditorController } from '../../../lib/editor/index.js';
 import { createAudioEditorFileService } from '../../../lib/tools/audio-editor/file-service.js';
+import { otherProductId, productLocalePath, productProfile } from '../../../lib/products.js';
 import {
 	applyAudacityParityToMenus,
 	AUDACITY_ACTION_SOURCE,
@@ -175,15 +176,18 @@ function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
 }
 
-function AudioEditorWorkspace({ locale, copy }) {
+function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
+	const product = useMemo(() => productProfile(productId), [productId]);
+	const capabilities = product.capabilities;
 	const editorThemeVariables = useAudioEditorThemeVariables();
 	const fileService = useMemo(() => createAudioEditorFileService(), []);
-	const controller = useMemo(() => createAudioEditorController(null, {
+	const controller = useMemo(() => createEditorController(null, {
 		headless: true,
 		locale,
 		copy,
 		fileService,
-	}), [copy, fileService, locale]);
+		productId,
+	}), [copy, fileService, locale, productId]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const snapshot = useAudioEditorSnapshot(controller);
@@ -194,6 +198,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');
+	const [scapeCollision, setScapeCollision] = useState(null);
 	const [localError, setLocalError] = useState('');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
@@ -206,8 +211,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const [projectBinSessionOpened, setProjectBinSessionOpened] = useState(false);
 	const [toolbarDock, setToolbarDock] = useState('top');
 	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
-	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(loadPlaybackMeterSettings);
-	const [recordingMeterSettings, setRecordingMeterSettings] = useState(loadRecordingMeterSettings);
+	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(() => loadPlaybackMeterSettings(productId));
+	const [recordingMeterSettings, setRecordingMeterSettings] = useState(() => loadRecordingMeterSettings(productId));
 	const meterWorkspaceRef = useRef(null);
 	const toolbarDragRef = useRef(null);
 	const floatingToolbarRef = useRef(null);
@@ -217,6 +222,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
+	const scapeCollisionResolverRef = useRef(null);
+	const requestedProjectOpenedRef = useRef(false);
 	const desktopReadySignalledRef = useRef(false);
 	const desktopOpenQueueRef = useRef(Promise.resolve());
 	const editorRef = useRef(null);
@@ -359,23 +366,23 @@ function AudioEditorWorkspace({ locale, copy }) {
 	useEffect(() => {
 		try {
 			globalThis.localStorage?.setItem(
-				PLAYBACK_METER_SETTINGS_STORAGE_KEY,
+				productStorageKey(PLAYBACK_METER_SETTINGS_STORAGE_KEY, productId),
 				JSON.stringify(playbackMeterSettings),
 			);
 		} catch {
 			// Meter presentation preferences are best-effort in restricted storage contexts.
 		}
-	}, [playbackMeterSettings]);
+	}, [playbackMeterSettings, productId]);
 	useEffect(() => {
 		try {
 			globalThis.localStorage?.setItem(
-				RECORDING_METER_SETTINGS_STORAGE_KEY,
+				productStorageKey(RECORDING_METER_SETTINGS_STORAGE_KEY, productId),
 				JSON.stringify(recordingMeterSettings),
 			);
 		} catch {
 			// Meter presentation preferences are best-effort in restricted storage contexts.
 		}
-	}, [recordingMeterSettings]);
+	}, [productId, recordingMeterSettings]);
 	useEffect(() => {
 		const activeWorkspaceId = preferences?.workspace?.activeId || 'modern';
 		const previousWorkspaceId = meterWorkspaceRef.current;
@@ -394,6 +401,15 @@ function AudioEditorWorkspace({ locale, copy }) {
 		const message = error instanceof Error ? error.message : String(error || copy.unknownError);
 		setLocalError(copy.genericError.replace('{message}', message));
 	}, [copy.genericError, copy.unknownError]);
+	useEffect(() => {
+		if (requestedProjectOpenedRef.current) return;
+		requestedProjectOpenedRef.current = true;
+		const projectId = new URL(globalThis.location?.href || 'http://localhost/').searchParams.get('project');
+		if (!projectId || projectId.length > 256 || !/^[a-z0-9_-]+$/iu.test(projectId)) return;
+		void controller.ready
+			.then(() => controller.actions.project.openById(projectId))
+			.catch(onError);
+	}, [controller, onError]);
 
 	const run = useCallback((action) => {
 		setLocalError('');
@@ -407,10 +423,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 		}
 	}, [onError]);
 	const workspaceSwitcherOptions = useMemo(() => [
-		{ id: 'modern', name: copy.workspaceModern },
-		{ id: 'music', name: copy.workspaceMusic },
-		{ id: 'classic', name: copy.workspaceClassic },
-		{ id: 'video-editor', name: copy.workspaceVideo },
+		...(productId === 'soundscaper' ? [
+			{ id: 'modern', name: copy.workspaceModern },
+			{ id: 'music', name: copy.workspaceMusic },
+			{ id: 'classic', name: copy.workspaceClassic },
+		] : [{ id: 'video-editor', name: copy.workspaceVideo }]),
 		...(preferences?.workspace?.custom || []).map(({ id, name }) => ({ id, name })),
 	], [
 		copy.workspaceClassic,
@@ -418,29 +435,42 @@ function AudioEditorWorkspace({ locale, copy }) {
 		copy.workspaceMusic,
 		copy.workspaceVideo,
 		preferences?.workspace?.custom,
+		productId,
 	]);
 	const publishWorkspaceSwitcherState = useCallback(() => {
+		const detail = {
+			productId,
+			activeId: preferences?.workspace?.activeId || product.defaultWorkspace,
+			workspaces: workspaceSwitcherOptions,
+		};
+		globalThis.dispatchEvent?.(new CustomEvent('scape:workspace-state', {
+			detail,
+		}));
 		globalThis.dispatchEvent?.(new CustomEvent('soundscaper:workspace-state', {
 			detail: {
-				activeId: preferences?.workspace?.activeId || 'modern',
-				workspaces: workspaceSwitcherOptions,
+				...detail,
 			},
 		}));
-	}, [preferences?.workspace?.activeId, workspaceSwitcherOptions]);
+	}, [preferences?.workspace?.activeId, product.defaultWorkspace, productId, workspaceSwitcherOptions]);
 	useEffect(() => {
 		const handleWorkspaceRequest = (event) => {
+			if (event?.detail?.productId && event.detail.productId !== productId) return;
 			const workspaceId = event?.detail?.workspaceId;
 			if (!workspaceSwitcherOptions.some(({ id }) => id === workspaceId)) return;
 			run(() => controller.actions.preferences.setWorkspace(workspaceId));
 		};
+		globalThis.addEventListener?.('scape:workspace-request', handleWorkspaceRequest);
 		globalThis.addEventListener?.('soundscaper:workspace-request', handleWorkspaceRequest);
+		globalThis.addEventListener?.('scape:workspace-ready', publishWorkspaceSwitcherState);
 		globalThis.addEventListener?.('soundscaper:workspace-ready', publishWorkspaceSwitcherState);
 		publishWorkspaceSwitcherState();
 		return () => {
+			globalThis.removeEventListener?.('scape:workspace-request', handleWorkspaceRequest);
 			globalThis.removeEventListener?.('soundscaper:workspace-request', handleWorkspaceRequest);
+			globalThis.removeEventListener?.('scape:workspace-ready', publishWorkspaceSwitcherState);
 			globalThis.removeEventListener?.('soundscaper:workspace-ready', publishWorkspaceSwitcherState);
 		};
-	}, [controller, publishWorkspaceSwitcherState, run, workspaceSwitcherOptions]);
+	}, [controller, productId, publishWorkspaceSwitcherState, run, workspaceSwitcherOptions]);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
@@ -583,12 +613,36 @@ function AudioEditorWorkspace({ locale, copy }) {
 		setDialog('projects');
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
+	const openScapeFile = useCallback(async (file) => {
+		const inspected = await controller.actions.project.inspectScape(file);
+		if (!inspected.exists) return controller.actions.project.openScape(file, { collision: 'copy' });
+		return new Promise((resolve, reject) => {
+			scapeCollisionResolverRef.current = { resolve, reject };
+			setScapeCollision({ file, inspected });
+		});
+	}, [controller]);
+	const settleScapeCollision = useCallback((choice) => {
+		const pending = scapeCollisionResolverRef.current;
+		const file = scapeCollision?.file;
+		scapeCollisionResolverRef.current = null;
+		setScapeCollision(null);
+		if (!pending) return;
+		if (choice === 'cancel') {
+			pending.resolve({ cancelled: true });
+			return;
+		}
+		Promise.resolve(controller.actions.project.openScape(file, { collision: choice }))
+			.then(pending.resolve, pending.reject);
+	}, [controller, scapeCollision]);
 	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
 		const files = [];
 		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
 		if (purpose === 'project') {
-			for (const file of files) await controller.actions.project.openAup4(file);
+			for (const file of files) {
+				if (/\.scape$/iu.test(file.name || '')) await openScapeFile(file);
+				else await controller.actions.project.openAup4(file);
+			}
 		} else if (purpose === 'labels') {
 			for (const file of files) await controller.actions.labels.importFile(file);
 		} else if (files.length) {
@@ -599,7 +653,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			});
 		}
 		return files.length;
-	}, [controller, fileService, projectBinEffectivelyOpen]);
+	}, [controller, fileService, openScapeFile, projectBinEffectivelyOpen]);
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
@@ -783,6 +837,8 @@ function AudioEditorWorkspace({ locale, copy }) {
 		.map(({ id, title }) => `${id}:${title}`)
 		.join('\n');
 	const applicationMenus = useMemo(() => createApplicationMenus({
+		productId,
+		capabilities,
 		locale,
 		copy,
 		project,
@@ -807,8 +863,12 @@ function AudioEditorWorkspace({ locale, copy }) {
 			openAup4: () => fileService.isDesktop
 				? run(() => openDesktopFiles('project'))
 				: aup4InputRef.current?.click(),
+			openScape: () => fileService.isDesktop
+				? run(() => openDesktopFiles('project'))
+				: aup4InputRef.current?.click(),
 			openLegacyAup: () => legacyAupInputRef.current?.click(),
 			saveProject: () => run(() => controller.actions.project.save()),
+			saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
 			saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 			openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
 				importAudio: () => fileService.isDesktop
@@ -823,6 +883,11 @@ function AudioEditorWorkspace({ locale, copy }) {
 			duplicateProject: () => run(() => controller.actions.project.duplicate()),
 			deleteProject: () => setDialog('delete'),
 			clearData: () => setDialog('clear'),
+			switchProduct: () => run(async () => {
+				const handoff = await controller.actions.project.prepareHandoff();
+				const destination = otherProductId(productId);
+				globalThis.location.assign(`${productLocalePath(destination, locale)}?project=${encodeURIComponent(handoff.projectId)}`);
+			}),
 			executeEdit,
 			openLabels: () => openWorkspacePanel('labels'),
 			openMetadata: () => openWorkspacePanel('metadata'),
@@ -952,6 +1017,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			},
 	}), [
 		blocked,
+		capabilities,
 		controller,
 		copy,
 		durationFrames,
@@ -974,6 +1040,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 		parityRuntime.actions,
 		project,
 		projectBinEffectivelyOpen,
+		productId,
 		recentProjectsMenuKey,
 		recordLabel,
 		run,
@@ -1013,7 +1080,9 @@ function AudioEditorWorkspace({ locale, copy }) {
 			const operation = desktopOpenQueueRef.current
 				.catch(() => undefined)
 				.then(() => fileService.openReadDescriptor(descriptor))
-				.then((file) => controller.actions.project.openAup4(file));
+				.then((file) => /\.scape$/iu.test(file.name || '')
+					? openScapeFile(file)
+					: controller.actions.project.openAup4(file));
 			desktopOpenQueueRef.current = operation;
 			void operation.catch(onError);
 		};
@@ -1024,7 +1093,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			const actions = {
 				'project:open': () => openDesktopFiles('project'),
 				'project:save': () => controller.actions.project.flush(),
-				'project:save-as': () => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }),
+				'project:save-as': () => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly }),
 				'audio:export': () => openSurface('export'),
 				'edit:undo': () => edit('undo'),
 				'edit:redo': () => edit('redo'),
@@ -1090,9 +1159,10 @@ function AudioEditorWorkspace({ locale, copy }) {
 			active = false;
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
-	}, [controller, fileService, onError, openDesktopFiles, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	}, [controller, fileService, onError, openDesktopFiles, openScapeFile, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 	const editorToolbar = (
 		<EditorToolToolbar
+			capabilities={capabilities}
 			controller={controller}
 			snapshot={snapshot}
 			locale={locale}
@@ -1117,7 +1187,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			onToggleAutomationTool={toggleAutomationTool}
 			actionRuntime={parityRuntime.actions}
 			onOpenSpectralSelection={openSpectralSelection}
-				onOpenRecordingOffset={openRecordingOffset}
+			onOpenRecordingOffset={openRecordingOffset}
 			onOpenTimedRecording={openTimedRecording}
 			onJumpToStart={jumpToStart}
 			onJumpToEnd={jumpToEnd}
@@ -1133,6 +1203,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 			className={`kw-audio-editor ${isCompact ? 'kw-audio-editor--compact' : ''}${isFullscreen ? ' kw-audio-editor--viewport-fullscreen' : ''}`}
 			data-audio-editor
 			data-audio-editor-bound="true"
+			data-product={productId}
 			data-project-id={project?.id || ''}
 			data-track-count={project?.tracks.length || 0}
 			data-clip-count={project?.clips.length || 0}
@@ -1172,11 +1243,13 @@ function AudioEditorWorkspace({ locale, copy }) {
 				aria-label={copy.openAup4}
 				type="file"
 				tabIndex={-1}
-				accept=".aup4,application/x-audacity-project"
+				accept=".scape,.aup4,application/vnd.soundscaper.scape+zip,application/x-audacity-project"
 				onChange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					event.currentTarget.value = '';
-					if (file) run(() => controller.actions.project.openAup4(file));
+					if (file) run(() => /\.scape$/iu.test(file.name || '')
+						? openScapeFile(file)
+						: controller.actions.project.openAup4(file));
 				}}
 			/>
 
@@ -1416,7 +1489,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 						clippingEnabled={uiFlags.clipping}
 						run={run}
 					/>}
-				{toolbarButtonPreferences.monitor !== false
+				{capabilities.audioRecording && toolbarButtonPreferences.monitor !== false
 					&& recordingMeterSettings.position === 'side'
 					&& <SideRecordingMeter
 						controller={controller}
@@ -1473,7 +1546,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 
 			</div>
 
-			{effectWindow && (
+			{capabilities.audioEffects && effectWindow && (
 				<div data-effects-window-host>
 					<React.Suspense fallback={null}>
 						<AudioEditorEffectsOverlay
@@ -1532,7 +1605,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					</React.Suspense>
 				</div>
 			)}
-			{activeSurface === 'selection-effect' && (
+			{capabilities.audioEffects && activeSurface === 'selection-effect' && (
 				<div data-editor-surface="selection-effect">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<SelectionEffectsDialog
@@ -1547,7 +1620,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					</React.Suspense>
 				</div>
 			)}
-			{activeSurface === 'macro-manager' && (
+			{capabilities.audioMacros && activeSurface === 'macro-manager' && (
 				<div data-editor-surface="macro-manager">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<AudioEditorMacroManagerDialog
@@ -1564,7 +1637,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					</React.Suspense>
 				</div>
 			)}
-			{activeSurface === 'spectral-selection' && (
+			{capabilities.audioSpectralEditing && activeSurface === 'spectral-selection' && (
 				<div data-editor-surface="spectral-selection">
 					<SpectralSelectionDialog
 						isOpen
@@ -1576,7 +1649,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					/>
 				</div>
 			)}
-			{activeSurface === 'generator' && (
+			{capabilities.audioGenerators && activeSurface === 'generator' && (
 				<div data-editor-surface="generator">
 					<GeneratorDialog
 						isOpen
@@ -1589,7 +1662,7 @@ function AudioEditorWorkspace({ locale, copy }) {
 					/>
 				</div>
 			)}
-			{activeSurface === 'nyquist' && (
+			{capabilities.audioEffects && activeSurface === 'nyquist' && (
 				<div data-editor-surface="nyquist">
 					<NyquistDialog
 						controller={controller}
@@ -1654,6 +1727,23 @@ function AudioEditorWorkspace({ locale, copy }) {
 					onClose={() => setDialog(null)}
 				/>
 			)}
+			{scapeCollision && (
+				<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => {
+					if (event.target === event.currentTarget) settleScapeCollision('cancel');
+				}}>
+					<section className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={copy.scapeCollisionTitle}>
+						<DialogHeader title={copy.scapeCollisionTitle} os="windows" onClose={() => settleScapeCollision('cancel')} />
+						<div className="kw-audio-editor-dialog__body">
+							<p>{copy.scapeCollisionMessage.replace('{title}', scapeCollision.inspected.title)}</p>
+							<div className="kw-audio-editor-dialog__actions">
+								<Button autoFocus onClick={() => settleScapeCollision('copy')}>{copy.scapeOpenAsCopy}</Button>
+								<Button variant="secondary" onClick={() => settleScapeCollision('replace')}>{copy.projectBinReplace}</Button>
+								<Button variant="secondary" onClick={() => settleScapeCollision('cancel')}>{copy.cancel}</Button>
+							</div>
+						</div>
+					</section>
+				</div>
+			)}
 			<AudioEditorButtonTooltips rootRef={editorRef} />
 		</div>
 	);
@@ -1685,6 +1775,7 @@ function ProjectTabs({ projects, activeProjectId, copy, disabled, onSelect, onNe
 }
 
 function EditorToolToolbar({
+	capabilities,
 	controller,
 	snapshot,
 	locale,
@@ -1744,7 +1835,7 @@ function EditorToolToolbar({
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
-	const transportButtonsVisible = ['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop']
+	const transportButtonsVisible = ['play', 'stop', ...(capabilities.audioRecording ? ['record'] : []), 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
@@ -1752,21 +1843,23 @@ function EditorToolToolbar({
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
-		{ id: 'record', label: recordLabel, icon: 'record' },
+		...(capabilities.audioRecording ? [{ id: 'record', label: recordLabel, icon: 'record' }] : []),
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
-		{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
-		{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
-		{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'brush' },
+		...(capabilities.audioSpectralEditing ? [
+			{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
+			{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
+			{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'brush' },
+		] : []),
 		{ id: 'zoom-in', label: copy.zoomIn, icon: 'zoom-in' },
 		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
 		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
 		{ id: 'time-display', label: copy.playhead, icon: 'playhead' },
-		{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') },
+		...(capabilities.audioRecording ? [{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') }] : []),
 		{ id: 'playback-volume', label: copy.playbackVolume, icon: iconNameToChar('AUDIO') },
 	];
 	const openToolbarSettings = () => {
@@ -1815,7 +1908,7 @@ function EditorToolToolbar({
 						{({ close }) => <PlaySpeedFlyout copy={copy} snapshot={snapshot} telemetry={telemetry} blocked={blocked} controller={controller} run={run} close={close} />}
 					</AudioEditorSplitButton>}
 					{isToolbarButtonVisible('stop') && <TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />}
-					{isToolbarButtonVisible('record') && <span data-transport="record">
+					{capabilities.audioRecording && isToolbarButtonVisible('record') && <span data-transport="record">
 						<AudioEditorSplitButton
 							icon="record"
 							className="kw-audio-editor__transport-record kw-audio-editor__transport-record-split"
@@ -1879,7 +1972,7 @@ function EditorToolToolbar({
 						/>
 					</span>
 					}
-					{isToolbarButtonVisible('spectrogram-view') && <AudioEditorSplitButton
+					{capabilities.audioSpectralEditing && isToolbarButtonVisible('spectrogram-view') && <AudioEditorSplitButton
 						icon="spectrogram"
 						toggle
 						pressed={snapshot.timeline?.view === 'spectrogram'}
@@ -1979,7 +2072,7 @@ function EditorToolToolbar({
 					</span>
 				</label>}
 
-				{isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
+				{capabilities.audioRecording && isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
 					copy={copy}
 					snapshot={snapshot}
 					controller={controller}
@@ -3368,6 +3461,8 @@ function WorkspacePanelDock({
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([id, panel]) => (
 			panel?.visible
+			&& (snapshot.capabilities?.audioEffects || id !== 'effects')
+			&& (snapshot.capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& panel.dock === dock
 			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
 				&& (id === 'project-bin' || id === 'video-preview'))
@@ -7247,6 +7342,8 @@ function trackSourceRate(project, track, fallback) {
 }
 
 function createApplicationMenus({
+	productId,
+	capabilities,
 	locale,
 	copy,
 	project,
@@ -7336,13 +7433,14 @@ function createApplicationMenus({
 		.filter((plugin) => plugin.category === category)
 		.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin)));
 
-	return applyAudacityParityToMenus([
+	const menus = applyAudacityParityToMenus([
 		{
 			id: 'file',
 			label: copy.fileMenu,
 			items: [
 				{ id: 'new-project', label: copy.newProject, shortcut: 'Ctrl+N', disabled: blocked, onClick: actions.newProject },
 				{ id: 'open-project', label: copy.openProject, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openProjects },
+				{ id: 'open-scape', label: copy.openScape, disabled: blocked, onClick: actions.openScape },
 				{
 					id: 'audacity-projects',
 					label: copy.audacityProjects,
@@ -7350,7 +7448,7 @@ function createApplicationMenus({
 					items: [
 						{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
 						{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
-						{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveAup4 },
+						{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 },
 						{
 							id: 'aup4-compatibility-report',
 							label: copy.aup4CompatibilityReport,
@@ -7376,6 +7474,8 @@ function createApplicationMenus({
 				{ id: 'file-close', label: copy.closeProject, shortcut: 'Ctrl+W', disabled: blocked, onClick: actions.closeProject },
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: snapshot.readOnly || blocked, onClick: actions.saveProject },
+				{ id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveScape },
+				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: snapshot.readOnly || blocked, onClick: actions.switchProduct },
 				divider(),
 					{ id: 'import-audio', label: copy.importAudio, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importAudio },
 				{ id: 'import-labels', label: copy.importLabels, disabled: editBlocked, onClick: actions.importLabels },
@@ -7526,7 +7626,9 @@ function createApplicationMenus({
 					items: [
 						{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel },
 						...WORKSPACE_PANEL_IDS
-							.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId))
+							.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
+								&& (capabilities.audioEffects || panelId !== 'effects')
+								&& (capabilities.audioAnalysis || panelId !== 'ebu-r128'))
 							.map((panelId) => panelId === 'effects'
 							? {
 								id: 'show-effects',
@@ -7774,6 +7876,41 @@ function createApplicationMenus({
 			],
 		},
 	], { locale, copy, materializeDisabled: true, actionRuntime });
+	return filterProductMenus(menus, capabilities, productId);
+}
+
+function filterProductMenus(menus, capabilities, productId) {
+	const hiddenTopLevel = new Set();
+	if (!capabilities.audioGenerators) hiddenTopLevel.add('generate');
+	if (!capabilities.audioEffects) hiddenTopLevel.add('effect');
+	if (!capabilities.audioAnalysis) hiddenTopLevel.add('analyze');
+	return menus
+		.filter((menu) => !hiddenTopLevel.has(menu.id))
+		.map((menu) => {
+			if (menu.id === 'tracks' && !capabilities.audioEffects) {
+				const hiddenTrackItems = new Set(['track-rate', 'track-format', 'track-channels', 'mix', 'resample']);
+				return { ...menu, items: menu.items.filter((item) => !hiddenTrackItems.has(item.id)) };
+			}
+			if (menu.id === 'tools' && !capabilities.audioMacros) {
+				return { ...menu, items: menu.items.filter((item) => !['manage-macros', 'nyquist-prompt'].includes(item.id)) };
+			}
+			if (menu.id === 'transport-menu' && !capabilities.audioRecording) {
+				return { ...menu, items: menu.items.filter((item) => !String(item.id || '').includes('record')) };
+			}
+			if (menu.id !== 'view') return menu;
+			return {
+				...menu,
+				items: menu.items.map((item) => {
+					if (item.id !== 'workspace-preset') return item;
+					return {
+						...item,
+						items: item.items.filter((workspace) => productId === 'framescaper'
+							? !['workspace-modern', 'workspace-music', 'workspace-classic'].includes(workspace.id)
+							: workspace.id !== 'workspace-video-editor'),
+					};
+				}).filter((item) => capabilities.audioRecording || item.id !== 'show-arm-controls'),
+			};
+		});
 }
 
 function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
@@ -7912,18 +8049,18 @@ function playbackMeterTicks(type, range, meterSize) {
 	});
 }
 
-function loadPlaybackMeterSettings() {
+function loadPlaybackMeterSettings(productId = 'soundscaper') {
 	return loadMeterSettings(
-		PLAYBACK_METER_SETTINGS_STORAGE_KEY,
-		LEGACY_PLAYBACK_METER_SETTINGS_STORAGE_KEY,
+		productStorageKey(PLAYBACK_METER_SETTINGS_STORAGE_KEY, productId),
+		productId === 'soundscaper' ? LEGACY_PLAYBACK_METER_SETTINGS_STORAGE_KEY : null,
 		DEFAULT_PLAYBACK_METER_SETTINGS,
 	);
 }
 
-function loadRecordingMeterSettings() {
+function loadRecordingMeterSettings(productId = 'soundscaper') {
 	return loadMeterSettings(
-		RECORDING_METER_SETTINGS_STORAGE_KEY,
-		LEGACY_RECORDING_METER_SETTINGS_STORAGE_KEY,
+		productStorageKey(RECORDING_METER_SETTINGS_STORAGE_KEY, productId),
+		productId === 'soundscaper' ? LEGACY_RECORDING_METER_SETTINGS_STORAGE_KEY : null,
 		DEFAULT_RECORDING_METER_SETTINGS,
 	);
 }
@@ -7933,7 +8070,7 @@ function loadMeterSettings(storageKey, legacyStorageKey, defaults) {
 		return normalizeMeterSettings(
 			JSON.parse(
 				globalThis.localStorage?.getItem(storageKey)
-				|| globalThis.localStorage?.getItem(legacyStorageKey)
+				|| (legacyStorageKey ? globalThis.localStorage?.getItem(legacyStorageKey) : null)
 				|| 'null',
 			),
 			defaults,
@@ -7941,6 +8078,10 @@ function loadMeterSettings(storageKey, legacyStorageKey, defaults) {
 	} catch {
 		return { ...defaults };
 	}
+}
+
+function productStorageKey(soundscaperKey, productId) {
+	return productId === 'framescaper' ? soundscaperKey.replace(/^soundscaper-/u, 'framescaper-') : soundscaperKey;
 }
 
 function normalizeMeterSettings(value, defaults) {

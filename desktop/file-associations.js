@@ -1,7 +1,7 @@
 import { extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export function extractAup4Paths(argv, workingDirectory = process.cwd()) {
+export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 	const paths = [];
 	for (const argument of Array.isArray(argv) ? argv : []) {
 		if (typeof argument !== 'string' || argument.startsWith('-')) continue;
@@ -13,9 +13,11 @@ export function extractAup4Paths(argv, workingDirectory = process.cwd()) {
 				continue;
 			}
 		}
-		if (extname(candidate).toLowerCase() !== '.aup4') continue;
+		if (!['.aup4', '.scape'].includes(extname(candidate).toLowerCase())) continue;
 		const absolutePath = isAbsolute(candidate) ? candidate : resolve(workingDirectory, candidate);
 		if (!paths.includes(absolutePath)) paths.push(absolutePath);
 	}
 	return paths;
 }
+
+export const extractAup4Paths = extractProjectPaths;

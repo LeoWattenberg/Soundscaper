@@ -1,7 +1,9 @@
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
-	const bridge = scope?.window?.soundscaperDesktop?.v1 || scope?.soundscaperDesktop?.v1;
+	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
+		|| scope?.window?.soundscaperDesktop?.v1 || scope?.soundscaperDesktop?.v1
+		|| scope?.window?.framescaperDesktop?.v1 || scope?.framescaperDesktop?.v1;
 	return bridge && typeof bridge === 'object' ? bridge : null;
 }
 
@@ -69,7 +71,7 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function chooseSaveTarget(request = {}) {
-		const purpose = normalizePurpose(request.purpose, ['project', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report']);
+		const purpose = normalizePurpose(request.purpose, ['project', 'aup4', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report']);
 		const suggestedName = sanitizeSuggestedName(request.suggestedName || request.fileName);
 		if (bridge?.chooseSaveTarget) {
 			return bridge.chooseSaveTarget({

@@ -2,12 +2,15 @@
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
 import { bundledCopyForLocale } from '../i18n/catalogs.js';
 import { localeLanguage } from '../i18n/locale.js';
+import { productLocalePath, productProfile } from '../lib/products.js';
 
 interface Props {
 	locale: string;
+	productId?: 'soundscaper' | 'framescaper';
 }
 
-const { locale } = Astro.props;
+const { locale, productId = 'soundscaper' } = Astro.props;
+const profile = productProfile(productId);
 const localeDescriptor = getLocaleDescriptor(locale);
 if (!localeDescriptor) throw new Error(`Unknown Soundscaper locale: ${locale}`);
 const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';
@@ -43,13 +46,13 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 ---
 
-<aside class="site-sidebar" data-sidebar data-locale={localeDescriptor.locale} data-translations-base-url={translationsBaseUrl} aria-label={copy.label}>
-	<a class="brand" href={`/${locale}/`} aria-label={catalog.brandAccessibilityLabel}>
+<aside class="site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-translations-base-url={translationsBaseUrl} aria-label={copy.label}>
+	<a class="brand" href={productLocalePath(productId, locale)} aria-label={profile.name}>
 		<img class="logo-light logo-wide" src="/logo/logo-schwarz.svg" alt="kw.media" width="230" height="91" />
 		<img class="logo-dark logo-wide" src="/logo/logo-weiß.svg" alt="kw.media" width="230" height="91" />
 		<img class="logo-light logo-small" src="/logo/logo-klein-schwarz.svg" alt="" width="48" height="48" />
 		<img class="logo-dark logo-small" src="/logo/logo-klein-weiß.svg" alt="" width="48" height="48" />
-		<strong>Soundscaper</strong>
+		<strong>{profile.name}</strong>
 	</a>
 
 	<button class="sidebar-collapse" type="button" data-sidebar-collapse data-collapse={copy.collapse} data-expand={copy.expand} aria-label={copy.collapse} aria-expanded="true">
@@ -58,7 +61,7 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 
 	<div class="sidebar-content" data-sidebar-content>
 		<nav class="sidebar-nav" aria-label={copy.label}>
-			<a class="sidebar-link is-active" href={`/${locale}/`} aria-current="page">{copy.editor}</a>
+			<a class="sidebar-link is-active" href={productLocalePath(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
 			<a class="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
 			<a class="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
 			<a class="sidebar-link" href={`https://kw.media/${chromeLocale}/legal/`}>{copy.legal}</a>
@@ -73,7 +76,7 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 					<option value="modern">{copy.workspaceModern}</option>
 					<option value="music">{copy.workspaceMusic}</option>
 					<option value="classic">{copy.workspaceClassic}</option>
-					<option value="video-editor">{copy.workspaceVideo}</option>
+					{productId === 'framescaper' && <option value="video-editor">{copy.workspaceVideo}</option>}
 				</select>
 			</label>
 
@@ -97,15 +100,16 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 <script>
 	const sidebar = document.querySelector<HTMLElement>('[data-sidebar]');
 	const sidebarCollapse = document.querySelector<HTMLButtonElement>('[data-sidebar-collapse]');
+	const productId = sidebar?.dataset.product === 'framescaper' ? 'framescaper' : 'soundscaper';
 	if (sidebar && sidebarCollapse) {
 		const setSidebarCollapsed = (collapsed: boolean, persist = false) => {
 			sidebar.dataset.collapsed = String(collapsed);
 			sidebarCollapse.setAttribute('aria-expanded', String(!collapsed));
 			sidebarCollapse.setAttribute('aria-label', collapsed ? sidebarCollapse.dataset.expand! : sidebarCollapse.dataset.collapse!);
-			if (persist) localStorage.setItem('soundscaper_sidebar_collapsed', String(collapsed));
+			if (persist) localStorage.setItem(`${productId}_sidebar_collapsed`, String(collapsed));
 		};
 		try {
-			setSidebarCollapsed(localStorage.getItem('soundscaper_sidebar_collapsed') === 'true');
+			setSidebarCollapsed((localStorage.getItem(`${productId}_sidebar_collapsed`) || localStorage.getItem('soundscaper_sidebar_collapsed')) === 'true');
 		} catch {}
 		sidebarCollapse.addEventListener('click', () => setSidebarCollapsed(sidebar.dataset.collapsed !== 'true', true));
 	}
@@ -120,7 +124,7 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 		const apply = (theme: 'light' | 'dark') => {
 			document.documentElement.dataset.theme = theme;
 			document.documentElement.style.colorScheme = theme;
-			localStorage.setItem('soundscaper_theme', theme);
+			localStorage.setItem(`${productId}_theme`, theme);
 			sync(theme);
 		};
 		sync(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -133,7 +137,7 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 			activeId?: string;
 			workspaces?: Array<{ id?: string; name?: string }>;
 		};
-		window.addEventListener('soundscaper:workspace-state', (event) => {
+		const handleWorkspaceState = (event: Event) => {
 			const detail = (event as CustomEvent<WorkspaceState>).detail;
 			const workspaces = Array.isArray(detail?.workspaces) ? detail.workspaces : [];
 			const options = workspaces
@@ -149,13 +153,15 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 				workspaceSelect.value = detail.activeId;
 			}
 			workspaceSelect.disabled = false;
-		});
+		};
+		window.addEventListener('scape:workspace-state', handleWorkspaceState);
+		window.addEventListener('soundscaper:workspace-state', handleWorkspaceState);
 		workspaceSelect.addEventListener('change', () => {
-			window.dispatchEvent(new CustomEvent('soundscaper:workspace-request', {
-				detail: { workspaceId: workspaceSelect.value },
+			window.dispatchEvent(new CustomEvent('scape:workspace-request', {
+				detail: { productId, workspaceId: workspaceSelect.value },
 			}));
 		});
-		window.dispatchEvent(new CustomEvent('soundscaper:workspace-ready'));
+		window.dispatchEvent(new CustomEvent('scape:workspace-ready', { detail: { productId } }));
 	}
 
 	const localeSelect = sidebar?.querySelector<HTMLSelectElement>('[data-locale-select]');
@@ -180,7 +186,10 @@ const translationsBaseUrl = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 			localeSelect.value = localeTags.has(currentLocale) ? currentLocale : 'en';
 		};
 		localeSelect.addEventListener('change', () => {
-			if (routeLocaleByTag.has(localeSelect.value)) window.location.assign(`/${localeSelect.value}/`);
+			if (routeLocaleByTag.has(localeSelect.value)) {
+				const base = productId === 'framescaper' ? '/framescaper' : '';
+				window.location.assign(`${base}/${localeSelect.value}/`);
+			}
 		});
 		const baseUrl = sidebar.dataset.translationsBaseUrl;
 		if (baseUrl) {

@@ -348,7 +348,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<CommitField label={`${copy.fadeOut} (s)`} name="fadeOut" value={clip ? framesToSecondsText(clip.fadeOutFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
 					</div>
 				</section>}
-				{!isVideoClip && <section className="audio-editor-clip-properties__card">
+				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.pitchTempo}</h3>
 					<div className="audio-editor-clip-properties__stack">
 						<CommitField label={copy.clipPitchCents} name="pitchCents" value={clip?.pitchCents ?? 0} type="number" disabled={disabled} onCommit={commitField} />
@@ -357,7 +357,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)} /></div>
 					</div>
 				</section>}
-				{isVideoClip && <VideoEffectRack
+				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack
 					clip={clip}
 					controller={controller}
 					copy={copy}
@@ -366,7 +366,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 				/>}
 			</div>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
-			{!isVideoClip && <div className="audio-editor-panel-actions">
+			{!isVideoClip && snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions">
 				<ActionHook hook="reverse"><Button disabled={disabled} onClick={() => run(controller.actions.clip.reverse)}>{copy.reverse}</Button></ActionHook>
 				<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
 				<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>

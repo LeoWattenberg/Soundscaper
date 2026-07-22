@@ -6,17 +6,23 @@ import ToolIntro from './shared/ToolIntro.astro';
 
 interface Props {
 	locale: Locale;
+	productId?: 'soundscaper' | 'framescaper';
 }
 
-const { locale } = Astro.props;
+const { locale, productId = 'soundscaper' } = Astro.props;
 const copy = bundledCopyForLocale(locale);
+const intro = productId === 'framescaper' ? {
+	eyebrow: copy.framescaperEyebrow,
+	title: copy.framescaperTitle,
+	intro: copy.framescaperIntro,
+} : copy;
 ---
 
-<ToolIntro eyebrow={copy.eyebrow} title={copy.title} intro={copy.intro} note={copy.privacy} />
+<ToolIntro eyebrow={intro.eyebrow} title={intro.title} intro={intro.intro} note={copy.privacy} />
 
 <section class="section audio-editor-section tool-workspace">
 	<div class="container audio-editor-container">
-		<AudioEditorBootstrap client:only="react" locale={locale} fallbackCopy={copy}>
+		<AudioEditorBootstrap client:only="react" locale={locale} fallbackCopy={copy} productId={productId}>
 			<div slot="fallback" role="status" aria-live="polite">{copy.loading}</div>
 		</AudioEditorBootstrap>
 	</div>

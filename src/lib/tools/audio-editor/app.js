@@ -101,6 +101,10 @@ import {
 	persistImmutableSampleEdit,
 	requestAup4FileHandle,
 	saveAup4Result,
+	exportScapeProject,
+	importScapeProject,
+	inspectScapeProject,
+	SCAPE_MIME_TYPE,
 	serializeAudioEditorLabels,
 	snapAudioEditorFrameWithProject,
 	updateAudioEditorPreferencesV1,
@@ -117,6 +121,7 @@ import {
 	undoEditorCommand,
 	audioEditorVideoThumbnailTimes,
 } from './index.js';
+import { productProfile } from '../../products.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 	applyAudacityEffectAsync,
@@ -206,6 +211,13 @@ export function calculateAudioEditorMetronomeSchedule({
 export function createAudioEditorController(_root = null, options = {}) {
 	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
 	const locale = normalizeBcp47Locale(options.locale);
+	const product = productProfile(options.productId || options.product?.id || 'soundscaper');
+	const productId = product.id;
+	const capabilities = product.capabilities;
+	const preferenceSettingKey = `${productId}:audio-editor-preferences-v1`;
+	const recentProjectsSettingKey = `${productId}:audio-editor-recent-project-ids`;
+	const lastProjectSettingKey = `${productId}:last-project-id`;
+	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const documentListeners = new Set();
 	const telemetryListeners = new Set();
 	let documentSnapshot = null;
@@ -279,7 +291,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	));
 	const state = {
 		history: null,
-		preferences: createAudioEditorPreferencesV1(),
+		preferences: createAudioEditorPreferencesV1({ workspace: { activeId: product.defaultWorkspace } }),
 		preferencesReadOnly: false,
 		selectedTrackId: null,
 		selectedClipId: null,
@@ -571,6 +583,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			? currentProject.selection
 			: null;
 		return Object.freeze({
+			product,
+			productId,
+			capabilities,
 			ready: state.phase === 'ready',
 			phase: state.phase,
 			headless: true,
@@ -890,6 +905,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function createControllerActions() {
+		const restricted = (capability, action) => (...args) => {
+			if (!capabilities[capability]) {
+				throw new RangeError(`${product.name} does not support ${capability}.`);
+			}
+			return action(...args);
+		};
 		return Object.freeze({
 			project: Object.freeze({
 				create: (projectOptions) => newProject(projectOptions),
@@ -907,8 +928,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				},
 				clearRecent: clearRecentProjects,
 				openAup4,
+				openScape,
+				inspectScape: (file) => inspectScapeProject(file, store),
 				saveAup4,
-				saveAs: saveAup4,
+				saveScape,
+				saveAs: saveScape,
 				dismissAup4CompatibilitySummary,
 				close: closeProjectTab,
 				openById: async (projectId) => {
@@ -921,6 +945,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				list: listProjects,
 				save: saveNow,
 				flush: flushProject,
+				prepareHandoff: prepareProjectHandoff,
 				rename: (title) => renameProject(title),
 				duplicate: (title) => duplicateProject(title),
 				remove: deleteProject,
@@ -951,16 +976,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 				getClipVisualData,
 				export: exportVideo,
 				effects: Object.freeze({
-					add: addVideoClipEffect,
-					update: updateVideoClipEffect,
-					bypass: bypassVideoClipEffect,
-					toggle: toggleVideoClipEffect,
-					reorder: reorderVideoClipEffect,
-					remove: removeVideoClipEffect,
-					beginGesture: beginVideoEffectGesture,
-					preview: previewVideoEffectGesture,
-					commit: commitVideoEffectGesture,
-					cancel: cancelVideoEffectGesture,
+					add: restricted('videoEffects', addVideoClipEffect),
+					update: restricted('videoEffects', updateVideoClipEffect),
+					bypass: restricted('videoEffects', bypassVideoClipEffect),
+					toggle: restricted('videoEffects', toggleVideoClipEffect),
+					reorder: restricted('videoEffects', reorderVideoClipEffect),
+					remove: restricted('videoEffects', removeVideoClipEffect),
+					beginGesture: restricted('videoEffects', beginVideoEffectGesture),
+					preview: restricted('videoEffects', previewVideoEffectGesture),
+					commit: restricted('videoEffects', commitVideoEffectGesture),
+					cancel: restricted('videoEffects', cancelVideoEffectGesture),
 				}),
 				link: (videoClipId, audioClipId) => commit({
 					type: 'clip/link-av',
@@ -1000,7 +1025,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				deletePerTrackRipple: () => handleEdit('delete-per-track-ripple'),
 				deleteAllTracksRipple: () => handleEdit('delete-all-tracks-ripple'),
 				trimOutsideSelection: () => handleEdit('trim-outside-selection'),
-				silenceSelection: () => generateSelectionSilence(),
+				silenceSelection: restricted('audioGenerators', () => generateSelectionSilence()),
 			}),
 			transport: Object.freeze({
 				playPause: () => handleTransport('play'),
@@ -1032,23 +1057,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 				toggleMetronome,
 			}),
 			recording: Object.freeze({
-				start: startRecording,
-				startNewTrack: startRecordingOnNewTrack,
-				schedule: scheduleTimedRecording,
+				start: restricted('audioRecording', startRecording),
+				startNewTrack: restricted('audioRecording', startRecordingOnNewTrack),
+				schedule: restricted('audioRecording', scheduleTimedRecording),
 				cancelScheduled: cancelTimedRecording,
 				pause: toggleRecordingPause,
 				stop: stopRecording,
-				toggleLeadIn: toggleLeadInRecording,
-				setMonitoring,
-				setMetering: setMicrophoneMetering,
-				setLevel: setRecordingInputGain,
-				setLatencyOffset,
-				requestInputAccess,
-				refreshInputs: refreshRecordingInputs,
-				setTrackInput: setRecordingTrackInput,
-				clearTrackInput: (trackId) => setRecordingTrackInput(trackId, null),
-				setSourceOffset: setRecordingSourceLatency,
-				setRetainInputs,
+				toggleLeadIn: restricted('audioRecording', toggleLeadInRecording),
+				setMonitoring: restricted('audioRecording', setMonitoring),
+				setMetering: restricted('audioRecording', setMicrophoneMetering),
+				setLevel: restricted('audioRecording', setRecordingInputGain),
+				setLatencyOffset: restricted('audioRecording', setLatencyOffset),
+				requestInputAccess: restricted('audioRecording', requestInputAccess),
+				refreshInputs: restricted('audioRecording', refreshRecordingInputs),
+				setTrackInput: restricted('audioRecording', setRecordingTrackInput),
+				clearTrackInput: restricted('audioRecording', (trackId) => setRecordingTrackInput(trackId, null)),
+				setSourceOffset: restricted('audioRecording', setRecordingSourceLatency),
+				setRetainInputs: restricted('audioRecording', setRetainInputs),
 				releaseInputs,
 			}),
 			metering: Object.freeze({
@@ -1107,15 +1132,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 				getVisibleClips,
 			}),
 			sampleEdit: Object.freeze({
-				setMode: setSampleEditMode,
-				pencil: applySamplePencil,
-				smooth: smoothSelectedSamples,
+				setMode: restricted('audioSampleEditing', setSampleEditMode),
+				pencil: restricted('audioSampleEditing', applySamplePencil),
+				smooth: restricted('audioSampleEditing', smoothSelectedSamples),
 				cancel: cancelSampleEdit,
 			}),
 			spectral: Object.freeze({
-				boxSelect: setSpectralBoxSelection,
-				delete: () => applySpectralSelection(-Infinity),
-				amplify: (gainDb = 6) => applySpectralSelection(gainDb),
+				boxSelect: restricted('audioSpectralEditing', setSpectralBoxSelection),
+				delete: restricted('audioSpectralEditing', () => applySpectralSelection(-Infinity)),
+				amplify: restricted('audioSpectralEditing', (gainDb = 6) => applySpectralSelection(gainDb)),
 			}),
 			track: Object.freeze({
 				add: addTrack,
@@ -1131,22 +1156,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 				moveDown: (trackId = state.selectedTrackId) => moveTrack(trackId, 'down'),
 				moveTop: (trackId = state.selectedTrackId) => moveTrack(trackId, 'top'),
 				moveBottom: (trackId = state.selectedTrackId) => moveTrack(trackId, 'bottom'),
-				makeStereo: makeStereoTrack,
-				swapChannels: swapTrackChannels,
-				splitStereoLR: (trackId = state.selectedTrackId) => splitStereoTrack(trackId, true),
-				splitStereoCenter: (trackId = state.selectedTrackId) => splitStereoTrack(trackId, false),
+				makeStereo: restricted('audioEffects', makeStereoTrack),
+				swapChannels: restricted('audioEffects', swapTrackChannels),
+				splitStereoLR: restricted('audioEffects', (trackId = state.selectedTrackId) => splitStereoTrack(trackId, true)),
+				splitStereoCenter: restricted('audioEffects', (trackId = state.selectedTrackId) => splitStereoTrack(trackId, false)),
 				decreaseHeight: (trackId = state.selectedTrackId) => adjustTrackHeight(trackId, -16),
 				increaseHeight: (trackId = state.selectedTrackId) => adjustTrackHeight(trackId, 16),
 				decreaseAllHeights: () => adjustAllTrackHeights(-16),
 				increaseAllHeights: () => adjustAllTrackHeights(16),
 				setDisplayMode: setTrackDisplayMode,
-				setRate: setTrackRate,
-				setSampleFormat: setTrackSampleFormat,
+				setRate: restricted('audioEffects', setTrackRate),
+				setSampleFormat: restricted('audioEffects', setTrackSampleFormat),
 				setWaveformView: (trackId = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform'),
-				setSpectrogramView: (trackId = state.selectedTrackId) => setTrackDisplayMode(trackId, 'spectrogram'),
-				setMultiView: (trackId = state.selectedTrackId) => setTrackDisplayMode(trackId, 'multiview'),
-				mixAndRender: mixAndRenderTracks,
-				resample: resampleTrack,
+				setSpectrogramView: restricted('audioSpectralEditing', (trackId = state.selectedTrackId) => setTrackDisplayMode(trackId, 'spectrogram')),
+				setMultiView: restricted('audioSpectralEditing', (trackId = state.selectedTrackId) => setTrackDisplayMode(trackId, 'multiview')),
+				mixAndRender: restricted('audioEffects', mixAndRenderTracks),
+				resample: restricted('audioEffects', resampleTrack),
 				duplicate: (trackId) => duplicateTrack(findTrack(project, trackId)),
 				remove: (trackId) => commit({ type: 'track/remove', trackId }),
 			}),
@@ -1165,11 +1190,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 				updateMaster: (changes) => commit({ type: 'master/update', changes }),
 			}),
 			generators: Object.freeze({
-				generate: generateSignal,
+				generate: restricted('audioGenerators', generateSignal),
 			}),
 			nyquist: Object.freeze({
-				evaluate: (request) => runNyquistEvaluation(request),
-				preview: (request) => runNyquistEvaluation({ ...request, preview: true }),
+				evaluate: restricted('audioEffects', (request) => runNyquistEvaluation(request)),
+				preview: restricted('audioEffects', (request) => runNyquistEvaluation({ ...request, preview: true })),
 				cancel: cancelNyquistEvaluation,
 			}),
 			labels: Object.freeze({
@@ -1201,9 +1226,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			clip: Object.freeze({
 				update: (clipId, changes) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
-				setTimePitch: setClipTimePitch,
-				stretch: stretchClip,
-				toggleStretchToTempo: (clipId = state.selectedClipId) => {
+				setTimePitch: restricted('audioEffects', setClipTimePitch),
+				stretch: restricted('audioEffects', stretchClip),
+				toggleStretchToTempo: restricted('audioEffects', (clipId = state.selectedClipId) => {
 					const clip = clipId ? findClip(project, clipId) : null;
 					if (!clip) throw new Error(copy.audioClipNotFound);
 					return commit({
@@ -1211,29 +1236,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 						clipId: clip.id,
 						changes: { stretchToTempo: !clip.stretchToTempo, renderCacheRevision: (clip.renderCacheRevision || 0) + 1 },
 					}, { selectClipId: clip.id });
-				},
-				resetPitchSpeed: resetClipPitchSpeed,
-				renderPitchSpeed: renderClipPitchSpeed,
+				}),
+				resetPitchSpeed: restricted('audioEffects', resetClipPitchSpeed),
+				renderPitchSpeed: restricted('audioEffects', renderClipPitchSpeed),
 				move: moveClips,
 				moveToNewTrack: moveClipsToNewTrack,
 				trim: trimClips,
 				overwrite: overwriteClips,
 				remove: (clipId) => commit({ type: 'clip/remove', clipId }),
-				reverse: (clipId) => handleClipAction('reverse', clipId),
-				normalizePeak: (clipId) => handleClipAction('normalize-peak', clipId),
-				normalizeLoudness: (clipId) => handleClipAction('normalize-lufs', clipId),
+				reverse: restricted('audioEffects', (clipId) => handleClipAction('reverse', clipId)),
+				normalizePeak: restricted('audioEffects', (clipId) => handleClipAction('normalize-peak', clipId)),
+				normalizeLoudness: restricted('audioEffects', (clipId) => handleClipAction('normalize-lufs', clipId)),
 			}),
 			effects: Object.freeze({
-				add: addEffect,
-				update: updateRackEffect,
-				beginRackEffectGesture,
-				previewRackEffect,
-				commitRackEffectGesture,
-				cancelRackEffectGesture,
-				beginParametricEqGesture,
-				previewParametricEq,
-				commitParametricEqGesture,
-				cancelParametricEqGesture,
+				add: restricted('audioEffects', addEffect),
+				update: restricted('audioEffects', updateRackEffect),
+				beginRackEffectGesture: restricted('audioEffects', beginRackEffectGesture),
+				previewRackEffect: restricted('audioEffects', previewRackEffect),
+				commitRackEffectGesture: restricted('audioEffects', commitRackEffectGesture),
+				cancelRackEffectGesture: restricted('audioEffects', cancelRackEffectGesture),
+				beginParametricEqGesture: restricted('audioEffects', beginParametricEqGesture),
+				previewParametricEq: restricted('audioEffects', previewParametricEq),
+				commitParametricEqGesture: restricted('audioEffects', commitParametricEqGesture),
+				cancelParametricEqGesture: restricted('audioEffects', cancelParametricEqGesture),
 				auditionParametricEq: (scope, trackId, effectId, bandId) => engine.auditionParametricEq?.(scope, trackId, effectId, bandId) ?? false,
 				readParametricEqSpectrum: (scope, trackId, effectId, which, target) => engine.readParametricEqSpectrum?.(scope, trackId, effectId, which, target) ?? null,
 				readSelectionParametricEqSpectrum: (which, target) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
@@ -1241,38 +1266,38 @@ export function createAudioEditorController(_root = null, options = {}) {
 					state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
 					return state.audacityPreviewSource?.audition?.(state.audacityPreviewAuditionBandId) ?? false;
 				},
-				remove: (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId }),
-				reorder: (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex }),
-				copyStack: copyEffectStack,
-				pasteStack: pasteEffectStack,
+				remove: restricted('audioEffects', (scope, trackId, effectId) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId })),
+				reorder: restricted('audioEffects', (scope, trackId, effectId, toIndex) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex })),
+				copyStack: restricted('audioEffects', copyEffectStack),
+				pasteStack: restricted('audioEffects', pasteEffectStack),
 				setMasterGain: (gain) => commit({ type: 'master/update', changes: { gain: Math.max(0, Math.min(4, Number(gain))) } }),
-				setSelectionType: setAudacityEffectType,
-				setSelectionParams: setAudacityEffectParamsFromController,
-				setControlTrack: setAudacityControlTrack,
-				captureNoiseProfile: captureSelectedNoiseProfile,
-				captureRackNoiseProfile: captureRackNoiseProfileFromController,
-				applySelection: applyAudacityEffectFromController,
-				previewSelection: previewAudacityEffectFromController,
+				setSelectionType: restricted('audioEffects', setAudacityEffectType),
+				setSelectionParams: restricted('audioEffects', setAudacityEffectParamsFromController),
+				setControlTrack: restricted('audioEffects', setAudacityControlTrack),
+				captureNoiseProfile: restricted('audioEffects', captureSelectedNoiseProfile),
+				captureRackNoiseProfile: restricted('audioEffects', captureRackNoiseProfileFromController),
+				applySelection: restricted('audioEffects', applyAudacityEffectFromController),
+				previewSelection: restricted('audioEffects', previewAudacityEffectFromController),
 				cancelPreview: () => cancelAudacityEffectPreview(),
-				repeatLast: repeatLastAudacityEffect,
+				repeatLast: restricted('audioEffects', repeatLastAudacityEffect),
 				presets: Object.freeze({
 					list: (effectType = state.audacityEffectType) => listAudioEditorEffectPresets(state.effectPresets, effectType),
-					apply: applyEffectPreset,
-					save: saveEffectPreset,
-					saveAs: (name, params = currentAudacityEffectParams()) => saveEffectPreset({ name, params }),
-					delete: deleteEffectPreset,
-					import: importEffectPresets,
-					export: exportEffectPreset,
+					apply: restricted('audioEffects', applyEffectPreset),
+					save: restricted('audioEffects', saveEffectPreset),
+					saveAs: restricted('audioEffects', (name, params = currentAudacityEffectParams()) => saveEffectPreset({ name, params })),
+					delete: restricted('audioEffects', deleteEffectPreset),
+					import: restricted('audioEffects', importEffectPresets),
+					export: restricted('audioEffects', exportEffectPreset),
 				}),
 			}),
 			macros: Object.freeze({
-				run: runEffectMacro,
+				run: restricted('audioMacros', runEffectMacro),
 			}),
 			analysis: Object.freeze({
-				run: runAnalysis,
-				plotSpectrum: (scope = 'master') => runSpecializedAnalysis('spectrum', scope),
-				findClipping: (scope = 'master', options) => runSpecializedAnalysis('clipping', scope, options),
-				contrast: captureContrastSelection,
+				run: restricted('audioAnalysis', runAnalysis),
+				plotSpectrum: restricted('audioAnalysis', (scope = 'master') => runSpecializedAnalysis('spectrum', scope)),
+				findClipping: restricted('audioAnalysis', (scope = 'master', options) => runSpecializedAnalysis('clipping', scope, options)),
+				contrast: restricted('audioAnalysis', captureContrastSelection),
 			}),
 			export: Object.freeze({
 				start: (settings) => handleExportAction('start', settings),
@@ -1282,7 +1307,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function loadPreferences() {
-		const saved = await store.loadSetting('audio-editor-preferences-v1', null);
+		let saved = await store.loadSetting(preferenceSettingKey, null);
+		if (!saved && productId === 'soundscaper') {
+			saved = await store.loadSetting('audio-editor-preferences-v1', null);
+		}
 		if (!saved) return state.preferences;
 		try {
 			const loaded = loadAudioEditorPreferencesV1(saved);
@@ -1290,11 +1318,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 				state.preferencesReadOnly = true;
 				return state.preferences;
 			}
-			state.preferences = loaded.preferences;
+			state.preferences = productId === 'soundscaper' && loaded.preferences.workspace.activeId === 'video-editor'
+				? applyAudioEditorWorkspace(loaded.preferences, 'modern')
+				: loaded.preferences;
+			await store.saveSetting(preferenceSettingKey, state.preferences);
 			return state.preferences;
 		} catch {
-			state.preferences = createAudioEditorPreferencesV1();
-			await store.saveSetting('audio-editor-preferences-v1', state.preferences);
+			state.preferences = createAudioEditorPreferencesV1({ workspace: { activeId: product.defaultWorkspace } });
+			await store.saveSetting(preferenceSettingKey, state.preferences);
 			return state.preferences;
 		}
 	}
@@ -1305,7 +1336,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		state.preferences = nextPreferences;
 		publishDocumentSnapshot();
-		return Promise.resolve(store.saveSetting('audio-editor-preferences-v1', nextPreferences))
+		return Promise.all([
+			store.saveSetting(preferenceSettingKey, nextPreferences),
+			...(productId === 'soundscaper' ? [store.saveSetting('audio-editor-preferences-v1', nextPreferences)] : []),
+		])
 			.then(() => nextPreferences)
 			.catch((error) => {
 				handleError(error);
@@ -1459,15 +1493,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}
 		state.latencyOffsetMs = normalizeLatencyOffset(await store.loadSetting('recording-latency-offset-ms', 0));
 		state.leadInRecording = Boolean(await store.loadSetting('recording-lead-in', false));
-		state.showRms = Boolean(await store.loadSetting('waveform-show-rms', false));
-		state.showVerticalRulers = Boolean(await store.loadSetting('timeline-show-vertical-rulers', true));
-		state.updateDisplayWhilePlaying = Boolean(await store.loadSetting('timeline-update-while-playing', true));
-		state.pinnedPlayhead = Boolean(await store.loadSetting('timeline-pinned-playhead', false));
-		state.playbackOnRulerClick = Boolean(await store.loadSetting('timeline-ruler-playback', true));
-		state.metronomeEnabled = Boolean(await store.loadSetting('transport-metronome', false));
-		state.selectionFollowsLoop = Boolean(await store.loadSetting('selection-follows-loop', false));
+		state.showRms = Boolean(await store.loadSetting(productSettingKey('waveform-show-rms'), false));
+		state.showVerticalRulers = Boolean(await store.loadSetting(productSettingKey('timeline-show-vertical-rulers'), true));
+		state.updateDisplayWhilePlaying = Boolean(await store.loadSetting(productSettingKey('timeline-update-while-playing'), true));
+		state.pinnedPlayhead = Boolean(await store.loadSetting(productSettingKey('timeline-pinned-playhead'), false));
+		state.playbackOnRulerClick = Boolean(await store.loadSetting(productSettingKey('timeline-ruler-playback'), true));
+		state.metronomeEnabled = Boolean(await store.loadSetting(productSettingKey('transport-metronome'), false));
+		state.selectionFollowsLoop = Boolean(await store.loadSetting(productSettingKey('selection-follows-loop'), false));
 		const savedAudioDevices = normalizeAudioDevicePreferences(await store.loadSetting(
-			AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
+			productSettingKey(AUDIO_DEVICE_PREFERENCES_SETTING_KEY),
 			null,
 		));
 		state.preferredInputDeviceId = savedAudioDevices.inputDeviceId;
@@ -1484,11 +1518,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			mediaDevices.addEventListener('devicechange', handleDeviceChange);
 			removeDeviceChangeListener = () => mediaDevices.removeEventListener?.('devicechange', handleDeviceChange);
 		}
-		const storedRecentProjectIds = await store.loadSetting('audio-editor-recent-project-ids', []);
+		let storedRecentProjectIds = await store.loadSetting(recentProjectsSettingKey, null);
+		if (!storedRecentProjectIds && productId === 'soundscaper') {
+			storedRecentProjectIds = await store.loadSetting('audio-editor-recent-project-ids', []);
+		}
+		storedRecentProjectIds ||= [];
 		state.recentProjectIds = Array.isArray(storedRecentProjectIds)
 			? [...new Set(storedRecentProjectIds.filter((projectId) => typeof projectId === 'string' && projectId))]
 			: [];
-		const lastProjectId = await store.loadSetting('last-project-id', null);
+		let lastProjectId = await store.loadSetting(lastProjectSettingKey, null);
+		if (!lastProjectId && productId === 'soundscaper') lastProjectId = await store.loadSetting('last-project-id', null);
 		const saved = lastProjectId ? await store.loadProject(lastProjectId) : null;
 		if (saved) await openProject(saved);
 		else await newProject();
@@ -1607,9 +1646,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
 		engine.loadProject(project, sourceBuffers, { chunkSources: sourceChunkProviders });
-		await store.saveSetting('last-project-id', nextProject.id);
+		await store.saveSetting(lastProjectSettingKey, nextProject.id);
+		if (productId === 'soundscaper') await store.saveSetting('last-project-id', nextProject.id);
 		state.recentProjectIds = [nextProject.id, ...state.recentProjectIds.filter((projectId) => projectId !== nextProject.id)].slice(0, 20);
-		await store.saveSetting('audio-editor-recent-project-ids', state.recentProjectIds);
+		await store.saveSetting(recentProjectsSettingKey, state.recentProjectIds);
+		if (productId === 'soundscaper') await store.saveSetting('audio-editor-recent-project-ids', state.recentProjectIds);
 		if (options.save && !state.readOnly) {
 			await store.saveProject(project);
 			sessionController.markProjectSaved(project.id);
@@ -1630,6 +1671,54 @@ export function createAudioEditorController(_root = null, options = {}) {
 			aup4Initialized = true;
 		}
 		return aup4Client;
+	}
+
+	async function openScape(file, openOptions = {}) {
+		if (!file || !/\.scape$/i.test(String(file.name || ''))) throw new TypeError('Choose a .scape project file.');
+		if (editingBlocked()) return null;
+		state.importing = true;
+		publishDocumentSnapshot();
+		try {
+			const imported = await importScapeProject(file, store, { collision: openOptions.collision || 'copy' });
+			await switchProject(imported.project, {
+				readOnly: imported.readOnly,
+				readOnlyReason: imported.readOnly ? copy.futureProjectReadOnly : null,
+				skipFlush: false,
+			});
+			setStatus(`${copy.projectSaved}`, 'success');
+			return imported;
+		} finally {
+			state.importing = false;
+			publishDocumentSnapshot();
+		}
+	}
+
+	async function saveScape(options = {}) {
+		if (!project) throw new Error(copy.projectNotFound);
+		if (state.readOnly && !options.saveCopy) throw new Error(copy.projectReadOnly);
+		if (hasMissingTimelineSources(project)) throw new Error(copy.missingSourcesPreventSave);
+		await flushProject();
+		state.saveState = 'saving';
+		publishDocumentSnapshot();
+		try {
+			const exported = await exportScapeProject(project, store);
+			const saved = await fileService.saveFile({
+				purpose: 'project',
+				blob: exported.blob,
+				suggestedName: ensureScapeFileName(options.fileName || project.title),
+				mimeType: SCAPE_MIME_TYPE,
+				target: options.saveTarget,
+				useFileSystemAccess: options.useFileSystemAccess !== false,
+			});
+			state.saveState = 'saved';
+			setStatus(copy.projectSaved, 'success');
+			publishDocumentSnapshot();
+			return { ...saved, manifest: exported.manifest };
+		} catch (error) {
+			state.saveState = 'dirty';
+			publishDocumentSnapshot();
+			throw error;
+		}
 	}
 
 	async function openAup4(file) {
@@ -1734,7 +1823,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (fileService.isDesktop && saveTarget === undefined) {
 			try {
 				saveTarget = await fileService.chooseSaveTarget({
-					purpose: 'project',
+					purpose: 'aup4',
 					suggestedName: ensureAup4FileName(options.fileName || project.title),
 					mimeType: 'application/x-audacity-project',
 				});
@@ -1959,9 +2048,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return state.projects;
 	}
 
+	async function prepareProjectHandoff() {
+		if (!project) throw new Error(copy.projectNotFound);
+		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		await flushProject();
+		const projectId = project.id;
+		state.projectLock?.release();
+		state.projectLock = null;
+		return Object.freeze({ projectId, revision: project.revision });
+	}
+
 	async function clearRecentProjects() {
 		state.recentProjectIds = [];
-		await store.saveSetting('audio-editor-recent-project-ids', state.recentProjectIds);
+		await store.saveSetting(recentProjectsSettingKey, state.recentProjectIds);
+		if (productId === 'soundscaper') await store.saveSetting('audio-editor-recent-project-ids', state.recentProjectIds);
 		publishDocumentSnapshot();
 		return state.recentProjectIds;
 	}
@@ -4897,7 +4997,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function toggleSelectionFollowsLoop() {
 		state.selectionFollowsLoop = !state.selectionFollowsLoop;
-		void store.saveSetting('selection-follows-loop', state.selectionFollowsLoop);
+		void store.saveSetting(productSettingKey('selection-follows-loop'), state.selectionFollowsLoop);
 		if (state.selectionFollowsLoop && project.loop?.enabled) setSelectionToLoopRegion();
 		else publishDocumentSnapshot();
 		return state.selectionFollowsLoop;
@@ -4924,7 +5024,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function toggleMetronome() {
 		state.metronomeEnabled = !state.metronomeEnabled;
-		void store.saveSetting('transport-metronome', state.metronomeEnabled);
+		void store.saveSetting(productSettingKey('transport-metronome'), state.metronomeEnabled);
 		syncMetronome();
 		publishDocumentSnapshot();
 		return state.metronomeEnabled;
@@ -5174,35 +5274,35 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function toggleRmsWaveform() {
 		state.showRms = !state.showRms;
-		void store.saveSetting('waveform-show-rms', state.showRms);
+		void store.saveSetting(productSettingKey('waveform-show-rms'), state.showRms);
 		publishDocumentSnapshot();
 		return state.showRms;
 	}
 
 	function toggleVerticalRulers() {
 		state.showVerticalRulers = !state.showVerticalRulers;
-		void store.saveSetting('timeline-show-vertical-rulers', state.showVerticalRulers);
+		void store.saveSetting(productSettingKey('timeline-show-vertical-rulers'), state.showVerticalRulers);
 		publishDocumentSnapshot();
 		return state.showVerticalRulers;
 	}
 
 	function toggleUpdateWhilePlaying() {
 		state.updateDisplayWhilePlaying = !state.updateDisplayWhilePlaying;
-		void store.saveSetting('timeline-update-while-playing', state.updateDisplayWhilePlaying);
+		void store.saveSetting(productSettingKey('timeline-update-while-playing'), state.updateDisplayWhilePlaying);
 		publishDocumentSnapshot();
 		return state.updateDisplayWhilePlaying;
 	}
 
 	function togglePinnedPlayhead() {
 		state.pinnedPlayhead = !state.pinnedPlayhead;
-		void store.saveSetting('timeline-pinned-playhead', state.pinnedPlayhead);
+		void store.saveSetting(productSettingKey('timeline-pinned-playhead'), state.pinnedPlayhead);
 		publishDocumentSnapshot();
 		return state.pinnedPlayhead;
 	}
 
 	function toggleRulerPlayback() {
 		state.playbackOnRulerClick = !state.playbackOnRulerClick;
-		void store.saveSetting('timeline-ruler-playback', state.playbackOnRulerClick);
+		void store.saveSetting(productSettingKey('timeline-ruler-playback'), state.playbackOnRulerClick);
 		publishDocumentSnapshot();
 		return state.playbackOnRulerClick;
 	}
@@ -5646,7 +5746,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function persistAudioDevicePreferences() {
-		return store.saveSetting(AUDIO_DEVICE_PREFERENCES_SETTING_KEY, {
+		return store.saveSetting(productSettingKey(AUDIO_DEVICE_PREFERENCES_SETTING_KEY), {
 			inputDeviceId: state.preferredInputDeviceId,
 			inputChannelCount: state.preferredInputChannelCount,
 			outputDeviceId: state.preferredOutputDeviceId,
@@ -6180,12 +6280,60 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function commit(command, selection = {}, options = {}) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		assertCommandCapabilities(command);
 		state.history = executeEditorCommand(state.history, command);
 		project = state.history.present;
 		if (Object.hasOwn(selection, 'selectTrackId')) state.selectedTrackId = selection.selectTrackId;
 		if (Object.hasOwn(selection, 'selectClipId')) state.selectedClipId = selection.selectClipId;
 		projectChanged(options);
 		return project;
+	}
+
+	function assertCommandCapabilities(command) {
+		if (!command || typeof command !== 'object') return;
+		if (command.type === 'batch') {
+			for (const child of command.commands || []) assertCommandCapabilities(child);
+			return;
+		}
+		if (!capabilities.videoEffects && String(command.type || '').startsWith('video-effect/')) {
+			throw new RangeError(`${product.name} does not support videoEffects.`);
+		}
+		if (!capabilities.audioEffects && String(command.type || '').startsWith('effect/')) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.videoEffects && command.type === 'clip/update' && Object.hasOwn(command.changes || {}, 'videoEffects')) {
+			throw new RangeError(`${product.name} does not support videoEffects.`);
+		}
+		if (!capabilities.videoEffects && command.type === 'clip/add' && command.clip?.videoEffects?.length) {
+			throw new RangeError(`${product.name} does not support videoEffects.`);
+		}
+		if (!capabilities.audioEffects && ['track/add', 'clip/add'].includes(command.type) && command.track?.effects?.length) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'track/update' && Object.hasOwn(command.changes || {}, 'effects')) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'clip/update' && ['pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'reversed'].some((key) => Object.hasOwn(command.changes || {}, key))) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'track/update' && ['sampleRate', 'sampleFormat'].some((key) => Object.hasOwn(command.changes || {}, key))) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'master/update' && Object.hasOwn(command.changes || {}, 'effects')) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'mixer/bus-add' && command.bus?.effects?.length) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioEffects && command.type === 'mixer/bus-update' && Object.hasOwn(command.changes || {}, 'effects')) {
+			throw new RangeError(`${product.name} does not support audioEffects.`);
+		}
+		if (!capabilities.audioSpectralEditing && command.type === 'track/update' && ['displayMode', 'spectrogram'].some((key) => Object.hasOwn(command.changes || {}, key))) {
+			throw new RangeError(`${product.name} does not support audioSpectralEditing.`);
+		}
+		if (!capabilities.audioRecording && command.type === 'track/update' && Object.hasOwn(command.changes || {}, 'armed')) {
+			throw new RangeError(`${product.name} does not support audioRecording.`);
+		}
 	}
 
 	function updateSelection(command) {
@@ -6266,7 +6414,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		try {
 			await store.saveProject(snapshot);
 			state.pendingSaveSnapshots.delete(snapshot);
-			if (project?.id === snapshot.id) await store.saveSetting('last-project-id', snapshot.id);
+			if (project?.id === snapshot.id) {
+				await store.saveSetting(lastProjectSettingKey, snapshot.id);
+				if (productId === 'soundscaper') await store.saveSetting('last-project-id', snapshot.id);
+			}
 			if (project?.id === snapshot.id && generation === state.saveGeneration) {
 				if (sessionTab(snapshot.id)) sessionController.markProjectSaved(snapshot.id);
 				state.saveState = 'saved';
@@ -11540,6 +11691,11 @@ function labelExportFileName(value, format) {
 function ensureAup4FileName(value) {
 	const base = String(value || 'audacity-project').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'audacity-project';
 	return /\.aup4$/i.test(base) ? base : `${base}.aup4`;
+}
+
+function ensureScapeFileName(value) {
+	const base = String(value || 'project').trim() || 'project';
+	return /\.scape$/i.test(base) ? base : `${base}.scape`;
 }
 function normalizeAup4CompatibilityReport(report, direction) {
 	const value = report && typeof report === 'object' ? structuredClone(report) : {};

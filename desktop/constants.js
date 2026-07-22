@@ -1,9 +1,14 @@
-export const APP_NAME = 'Soundscaper';
-export const APP_ID = 'org.soundscaper.desktop';
-export const APP_SCHEME = 'soundscaper-app';
+import productConfig from './product.json' with { type: 'json' };
+
+export const PRODUCT_ID = (process.env.SCAPE_PRODUCT || productConfig.id) === 'framescaper' ? 'framescaper' : 'soundscaper';
+export const APP_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+export const APP_ID = PRODUCT_ID === 'framescaper' ? 'org.framescaper.desktop' : 'org.soundscaper.desktop';
+export const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 export const APP_HOST = 'bundle';
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
-export const SESSION_PARTITION = 'persist:soundscaper-v1';
+export const SESSION_PARTITION = PRODUCT_ID === 'framescaper' ? 'persist:framescaper-v1' : 'persist:soundscaper-v1';
+export const EDITOR_PATH_PREFIX = PRODUCT_ID === 'framescaper' ? '/framescaper' : '';
+export const UPDATE_TAG_PREFIX = PRODUCT_ID === 'framescaper' ? 'framescaper-v' : 'v';
 export const SETTINGS_SCHEMA_VERSION = 1;
 
 export const SUPPORTED_LOCALES = Object.freeze([
@@ -54,11 +59,11 @@ export const IPC = Object.freeze({
 });
 
 export const EXTERNAL_DESTINATIONS = Object.freeze({
-	homepage: 'https://soundscaper.org/',
+	homepage: PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/' : 'https://soundscaper.org/',
 	help: 'https://github.com/LeoWattenberg/Soundscaper#readme',
 	manual: 'https://support.audacityteam.org/au4',
 	tutorials: 'https://support.audacityteam.org/au4',
-	support: 'mailto:team@kw.media?subject=Soundscaper%20support',
+	support: `mailto:team@kw.media?subject=${APP_NAME}%20support`,
 	source: 'https://github.com/LeoWattenberg/Soundscaper',
 	releases: 'https://github.com/LeoWattenberg/Soundscaper/releases',
 	issues: 'https://github.com/LeoWattenberg/Soundscaper/issues',

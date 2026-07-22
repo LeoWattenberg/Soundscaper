@@ -1611,6 +1611,7 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 test('video effect gestures publish transient previews and commit one undo entry or cancel cleanly', async () => {
 	const controller = createAudioEditorController(null, {
 		headless: true,
+		productId: 'framescaper',
 		copy: COPY,
 		locale: 'en',
 		store: createMemoryStore(),

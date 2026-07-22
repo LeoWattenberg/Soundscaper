@@ -5,11 +5,12 @@ import SoundscaperLayout from '../layouts/SoundscaperLayout.astro';
 interface Props {
 	locale: string;
 	embedded?: boolean;
+	productId?: 'soundscaper' | 'framescaper';
 }
 
-const { locale, embedded = false } = Astro.props;
+const { locale, embedded = false, productId = 'soundscaper' } = Astro.props;
 ---
 
-<SoundscaperLayout locale={locale} embedded={embedded}>
-	<AudioEditor locale={locale} />
+<SoundscaperLayout locale={locale} embedded={embedded} productId={productId}>
+	<AudioEditor locale={locale} productId={productId} />
 </SoundscaperLayout>

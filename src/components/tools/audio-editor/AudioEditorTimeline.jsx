@@ -1527,14 +1527,14 @@ export default function AudioEditorTimeline({
 				checked: menuTrack.displayMode === 'waveform',
 				onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)),
 			}, contextLocale, unavailableReason),
-			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, {
+			...(snapshot.capabilities?.audioSpectralEditing ? [manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, {
 				checked: menuTrack.displayMode === 'spectrogram',
 				onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)),
 			}, contextLocale, unavailableReason),
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, {
 				checked: menuTrack.displayMode === 'multiview',
 				onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)),
-			}, contextLocale, unavailableReason),
+			}, contextLocale, unavailableReason)] : []),
 		] : []),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.decreaseHeight, copy.decreaseTrackHeight, {
 			disabled: snapshot.readOnly,

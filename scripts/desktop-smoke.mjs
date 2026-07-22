@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_ROOT = resolve(ROOT, 'release/desktop');
+const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
+const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
+const EDITOR_PATH_PREFIX = PRODUCT_ID === 'framescaper' ? '/framescaper' : '';
 const EXPECTED_BRIDGE = Object.freeze([
 	'abortWrite',
 	'beginWrite',
@@ -33,7 +37,7 @@ const EXPECTED_BRIDGE = Object.freeze([
 const executable = await findPackagedExecutable();
 const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
 const command = useXvfb ? 'xvfb-run' : executable;
-const profile = await mkdtemp(join(tmpdir(), 'soundscaper-desktop-smoke-'));
+const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
 const appArgs = [`--user-data-dir=${profile}`, '--soundscaper-smoke'];
 const args = useXvfb ? ['-a', executable, ...appArgs] : appArgs;
 let result;
@@ -46,8 +50,8 @@ if (result.code !== 0) throw new Error(`Packaged desktop smoke exited with code 
 const line = result.output.split(/\r?\n/u).find((value) => value.startsWith('SOUNDSCAPER_DESKTOP_SMOKE '));
 if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${result.output}`);
 const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
-assert(/^soundscaper-app:\/\/bundle\/embed\/[^/]+\/$/u.test(payload.url), 'Smoke loaded an unexpected URL.');
-assert(payload.title === 'Soundscaper', 'Smoke loaded an unexpected document title.');
+assert(new RegExp(`^${APP_SCHEME}://bundle${EDITOR_PATH_PREFIX}/embed/[^/]+/$`, 'u').test(payload.url), 'Smoke loaded an unexpected URL.');
+assert(payload.title === PRODUCT_NAME, 'Smoke loaded an unexpected document title.');
 assert(payload.hasEditor === true, 'Smoke did not render the editor document.');
 assert(payload.nodeExposed === false, 'Smoke exposed Node.js globals to the renderer.');
 assert(JSON.stringify(payload.bridge) === JSON.stringify(EXPECTED_BRIDGE), 'Smoke bridge surface does not match the reviewed v1 contract.');
@@ -57,17 +61,17 @@ async function findPackagedExecutable() {
 	const archSuffix = process.arch === 'x64' ? '' : `-${process.arch}`;
 	const candidates = process.platform === 'win32'
 		? [
-			resolve(OUTPUT_ROOT, `win${archSuffix}-unpacked/Soundscaper.exe`),
-			resolve(OUTPUT_ROOT, 'win-unpacked/Soundscaper.exe'),
+			resolve(OUTPUT_ROOT, `win${archSuffix}-unpacked/${PRODUCT_NAME}.exe`),
+			resolve(OUTPUT_ROOT, `win-unpacked/${PRODUCT_NAME}.exe`),
 		]
 		: process.platform === 'darwin'
 			? [
-				resolve(OUTPUT_ROOT, `mac${archSuffix}/Soundscaper.app/Contents/MacOS/Soundscaper`),
-				resolve(OUTPUT_ROOT, 'mac/Soundscaper.app/Contents/MacOS/Soundscaper'),
+				resolve(OUTPUT_ROOT, `mac${archSuffix}/${PRODUCT_NAME}.app/Contents/MacOS/${PRODUCT_NAME}`),
+				resolve(OUTPUT_ROOT, `mac/${PRODUCT_NAME}.app/Contents/MacOS/${PRODUCT_NAME}`),
 			]
 			: [
-				resolve(OUTPUT_ROOT, `linux${archSuffix}-unpacked/soundscaper`),
-				resolve(OUTPUT_ROOT, 'linux-unpacked/soundscaper'),
+				resolve(OUTPUT_ROOT, `linux${archSuffix}-unpacked/${PRODUCT_ID}`),
+				resolve(OUTPUT_ROOT, `linux-unpacked/${PRODUCT_ID}`),
 			];
 	for (const candidate of candidates) {
 		try {
@@ -77,7 +81,7 @@ async function findPackagedExecutable() {
 			// Try the next electron-builder output convention.
 		}
 	}
-	throw new Error(`No packaged ${process.platform}/${process.arch} Soundscaper executable was found.`);
+	throw new Error(`No packaged ${process.platform}/${process.arch} ${PRODUCT_NAME} executable was found.`);
 }
 
 function run(binary, args) {

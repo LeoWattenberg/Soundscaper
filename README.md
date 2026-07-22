@@ -2,6 +2,10 @@
 
 [Soundscaper](https://soundscaper.org) is a re-implementation of Audacity 4 on the web. It aims to be fully compatible to Audacity 4, keeping layout, design and features closely aligned, while also introducing a range of new features, such as basic video editing capabilities. 
 
+The repository now builds two focused products from the same local-first mixed-media editor and canonical project schema. Soundscaper provides the complete audio/DAW surface at `/<locale>/`; Framescaper provides video effects and compositing at `/framescaper/<locale>/`. On the web, both routes deliberately share the same origin, IndexedDB/OPFS library, and project locks. Either product can preserve, render, and hand a project to the other without copying its media.
+
+`.scape` is the lossless portable project format for both products. Audacity `.aup4` remains an explicitly audio-only interchange format.
+
 ## Why Soundscaper
 
 Soundscaper was created by [Leo Wattenberg](https://leo.wattenberg.dk) from [kw.media](https://kw.media). He previously worked as a designer on Audacity. Previously to this project, Leo attempted to add various features found here to Audacity itself, however, due Audacity's ancient codebase, of which only the UI and UX are getting majorly updated for Audacity 4, he found himself (and the robot) to be increasingly frustrated trying to produce inclusion-worthy features. 
@@ -36,4 +40,3 @@ I don't want anything to do with your data. Soundscaper works entirely locally o
 * The Audacity team & contributors for various features, including translations and effects, I was able to directly port over
 
 See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for detailed credits
-

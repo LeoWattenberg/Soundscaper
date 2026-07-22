@@ -6,12 +6,14 @@ export class ReleaseChecker {
 	#fetch;
 	#now;
 	#settings;
+	#tagPrefix;
 
-	constructor({ currentVersion, settings, fetchImpl = fetch, now = Date.now }) {
+	constructor({ currentVersion, settings, fetchImpl = fetch, now = Date.now, tagPrefix = 'v' }) {
 		this.#currentVersion = currentVersion;
 		this.#settings = settings;
 		this.#fetch = fetchImpl;
 		this.#now = now;
+		this.#tagPrefix = String(tagPrefix || 'v');
 	}
 
 	async check({ manual = false } = {}) {
@@ -32,9 +34,9 @@ export class ReleaseChecker {
 			});
 			if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
 			const releases = await response.json();
-			const release = selectUpdate(releases, this.#currentVersion);
+			const release = selectUpdate(releases, this.#currentVersion, this.#tagPrefix);
 			return release
-				? Object.freeze({ status: 'available', version: normalizeVersion(release.tag_name), prerelease: release.prerelease === true })
+				? Object.freeze({ status: 'available', version: normalizeVersion(String(release.tag_name).slice(this.#tagPrefix.length)), prerelease: release.prerelease === true })
 				: Object.freeze({ status: 'current' });
 		} catch {
 			return manual
@@ -44,13 +46,13 @@ export class ReleaseChecker {
 	}
 }
 
-export function selectUpdate(releases, currentVersion) {
+export function selectUpdate(releases, currentVersion, tagPrefix = 'v') {
 	const current = parseVersion(currentVersion);
 	if (!current) return null;
 	const includePrereleases = current.prerelease.length > 0;
 	return (Array.isArray(releases) ? releases : [])
-		.filter((release) => release && !release.draft && (!release.prerelease || includePrereleases))
-		.map((release) => ({ release, version: parseVersion(release.tag_name) }))
+		.filter((release) => release && !release.draft && (!release.prerelease || includePrereleases) && String(release.tag_name || '').startsWith(tagPrefix))
+		.map((release) => ({ release, version: parseVersion(String(release.tag_name).slice(tagPrefix.length)) }))
 		.filter(({ version }) => version && compareVersions(version, current) > 0)
 		.sort((left, right) => compareVersions(right.version, left.version))[0]?.release || null;
 }

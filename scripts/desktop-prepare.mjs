@@ -24,6 +24,9 @@ const RENDERER_ROOT = resolve(BUILD_ROOT, 'renderer');
 const RUNTIME_ROOT = resolve(BUILD_ROOT, 'runtime');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
+const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
+const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const FFMPEG_VERSION = '0.12.10';
 const FFMPEG_FILES = Object.freeze({
 	'ffmpeg-core.js': '67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3',
@@ -42,7 +45,9 @@ async function main() {
 	await mkdir(BUILD_ROOT, { recursive: true });
 	const ffmpeg = await stageFfmpeg();
 	const translations = await stageTranslations();
-	await generateDesktopIcon();
+	await generateDesktopIcon({
+		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
+	});
 	await buildRenderer();
 	await stageApplication(projectPackage);
 
@@ -53,7 +58,7 @@ async function main() {
 		translations,
 	};
 	await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
-	console.log(`Prepared Soundscaper desktop ${projectPackage.version} in ${BUILD_ROOT}`);
+	console.log(`Prepared ${PRODUCT_NAME} desktop ${projectPackage.version} in ${BUILD_ROOT}`);
 }
 
 async function stageFfmpeg() {
@@ -181,27 +186,29 @@ async function buildRenderer() {
 		env: {
 			...process.env,
 			PUBLIC_AUDIO_EDITOR_V2: 'true',
-			PUBLIC_FFMPEG_CORE_BASE_URL: 'soundscaper-app://bundle/runtime/ffmpeg/0.12.10',
-			PUBLIC_TRANSLATIONS_BASE_URL: 'soundscaper-app://bundle/runtime/translations/audacity/4/',
+			SCAPE_PRODUCT: PRODUCT_ID,
+			PUBLIC_FFMPEG_CORE_BASE_URL: `${APP_SCHEME}://bundle/runtime/ffmpeg/0.12.10`,
+			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,
 		},
 	});
-	await assertFile(resolve(RENDERER_ROOT, 'embed/en/index.html'), 'desktop English editor route');
+	await assertFile(resolve(RENDERER_ROOT, PRODUCT_ID === 'framescaper' ? 'framescaper/embed/en/index.html' : 'embed/en/index.html'), 'desktop English editor route');
 }
 
 async function stageApplication(projectPackage) {
 	await mkdir(APP_ROOT, { recursive: true });
 	await cp(resolve(ROOT, 'desktop'), resolve(APP_ROOT, 'desktop'), { recursive: true });
+	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), { id: PRODUCT_ID });
 	await writeJson(resolve(APP_ROOT, 'package.json'), {
-		name: 'soundscaper-desktop',
-		productName: 'Soundscaper',
-		desktopName: 'org.soundscaper.desktop',
+		name: `${PRODUCT_ID}-desktop`,
+		productName: PRODUCT_NAME,
+		desktopName: `org.${PRODUCT_ID}.desktop`,
 		version: projectPackage.version,
-		description: 'Local-first multitrack audio editor',
+		description: PRODUCT_ID === 'framescaper' ? 'Local-first video editor' : 'Local-first multitrack audio editor',
 		main: 'desktop/main.mjs',
 		type: 'module',
 		license: 'AGPL-3.0-only',
 		author: { name: 'kw.media', url: 'https://kw.media' },
-		homepage: 'https://soundscaper.org',
+		homepage: `https://${PRODUCT_ID}.org`,
 	});
 }
 

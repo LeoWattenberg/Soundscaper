@@ -118,8 +118,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
 	});
 
-	test('switches to the video editor workspace from the site sidebar', async ({ page }) => {
-		await page.goto('/en/');
+	test('uses the Framescaper video workspace from the site sidebar', async ({ page }) => {
+		await page.goto('/framescaper/en/');
 		const editor = await waitForEditor(page);
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
 		const settingsSection = page.locator('[data-sidebar] .sidebar-settings');
@@ -135,21 +135,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(sidebarBounds).not.toBeNull();
 		expect(settingsBounds).not.toBeNull();
 		expect(sidebarBounds.y + sidebarBounds.height - settingsBounds.y - settingsBounds.height).toBeLessThanOrEqual(32);
-		await expect(workspaceSelect.locator('option')).toHaveText([
-			'Modern',
-			'Music',
-			'Classic',
-			'Video editor',
-		]);
+		await expect(workspaceSelect.locator('option')).toHaveText(['Video editor']);
 		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
 		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
 
-		await workspaceSelect.selectOption('music');
-		await expect(editor).toHaveAttribute('data-workspace-preset', 'music');
-		await expect(editor.locator('[data-action-id="playback-bpm"]')).toBeVisible();
-		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toBeVisible();
-
-		await workspaceSelect.selectOption('video-editor');
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'video-editor');
 		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
 		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
@@ -178,13 +167,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(projectBinBounds.y + projectBinBounds.height).toBeLessThanOrEqual(toolbarBounds.y + 1);
 		expect(toolbarBounds.y + toolbarBounds.height).toBeLessThanOrEqual(workspaceBounds.y + 1);
 
-		await workspaceSelect.selectOption('modern');
-		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
-		await expect(editor.locator('[data-action-id="playback-bpm"]')).toHaveCount(0);
-		await expect(editor.locator('[data-action-id="playback-time-signature"]')).toHaveCount(0);
-		await expect(videoWorkspace).toHaveCount(0);
 		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
-		await expect(editor.locator('[data-side-recording-meter]')).toBeVisible();
+		await expect(editor.locator('[data-side-recording-meter]')).toHaveCount(0);
 	});
 
 	test('persists sidebar collapse and synchronizes the initial dark-mode toggle state', async ({ page }) => {
@@ -4457,10 +4441,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await assertNoSeriousAxeViolations(page);
 		await closeDialog(effectDialog);
 
-		const analysisPanel = await openAnalysisPanel(page, editor);
-		await assertAccessibleBasics(analysisPanel);
-		await assertNoSeriousAxeViolations(page);
-		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await expect(page.getByRole('menuitem', { name: 'Analyze', exact: true })).toHaveCount(0);
 
 		const exportDialog = await openExportDialog(page, editor);
 		await assertAccessibleBasics(exportDialog);

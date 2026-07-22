@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Framescaper">
+	<rect x="92" y="152" width="840" height="720" rx="112" fill="#241913" />
+	<rect x="164" y="224" width="696" height="576" rx="52" fill="#fff6ed" />
+	<path d="M438 350 690 512 438 674Z" fill="#ff6900" />
+	<circle cx="212" cy="512" r="24" fill="#ff6900" />
+	<circle cx="812" cy="512" r="24" fill="#ff6900" />
+</svg>

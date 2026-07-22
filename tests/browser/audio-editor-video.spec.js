@@ -362,7 +362,7 @@ async function createGeneratedVideoFixture(page, options) {
 }
 
 async function bootVideoEditor(page) {
-	await page.goto('/en/');
+	await page.goto('/framescaper/en/');
 	return waitForVideoEditor(page);
 }
 
