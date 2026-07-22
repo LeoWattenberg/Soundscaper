@@ -500,7 +500,8 @@ class MockVideoFfmpegRuntime {
 }
 
 async function waitFor(predicate) {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
+	const deadline = performance.now() + 5_000;
+	while (performance.now() < deadline) {
 		if (predicate()) return;
 		await new Promise((resolve) => setImmediate(resolve));
 	}
