@@ -1,7 +1,10 @@
+import { lazy, Suspense } from 'react';
+
 import { bundledCopyForLocale } from '../i18n/catalogs.js';
-import AudioEditorBootstrap from '../editor/ui/AudioEditorBootstrap.jsx';
 import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
+
+const AudioEditorBootstrap = lazy(() => import('../editor/ui/AudioEditorBootstrap.jsx'));
 
 export default function App({ route }) {
 	const { direction, embedded, locale, productId } = route;
@@ -26,7 +29,9 @@ export default function App({ route }) {
 				</section>
 				<section className="section audio-editor-section tool-workspace">
 					<div className="container audio-editor-container">
-						<AudioEditorBootstrap locale={locale} fallbackCopy={copy} productId={productId} />
+						<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
+							<AudioEditorBootstrap locale={locale} fallbackCopy={copy} productId={productId} />
+						</Suspense>
 					</div>
 				</section>
 			</main>

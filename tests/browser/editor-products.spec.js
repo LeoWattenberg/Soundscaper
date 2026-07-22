@@ -10,6 +10,23 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		}));
 	});
 
+	test('renders the product shell while the editor chunk is still loading', async ({ page }) => {
+		let releaseEditorChunk;
+		const editorChunkGate = new Promise((resolve) => { releaseEditorChunk = resolve; });
+		await page.route(/\/assets\/AudioEditorBootstrap-[^/]+\.js$/u, async (route) => {
+			await editorChunkGate;
+			await route.continue();
+		});
+
+		await page.goto('/en/', { waitUntil: 'domcontentloaded' });
+		await expect(page.locator('[data-sidebar] .brand strong')).toHaveText('Soundscaper');
+		await expect(page.locator('.tool-intro h1')).toBeVisible();
+		await expect(page.locator('.audio-editor-section').getByRole('status')).toHaveText('Loading project');
+
+		releaseEditorChunk();
+		await readyEditor(page, 'soundscaper');
+	});
+
 	test('profiles select distinct branding, workspaces, and authoring controls', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
