@@ -23,6 +23,7 @@ test('product profiles are immutable and resolve distinct routes and capability 
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.videoEffects, true);
 	assert.deepEqual(PRODUCT_PROFILES.framescaper.panels.includes('analysis'), false);
 	assert.deepEqual(PRODUCT_PROFILES.soundscaper.exportChoices.includes('aup4-audio-only'), true);
+	assert.deepEqual(PRODUCT_PROFILES.framescaper.exportChoices.includes('aup4-audio-only'), false);
 	assert.equal(Object.isFrozen(productProfile('framescaper').capabilities), true);
 	assert.equal(Object.isFrozen(productProfile('framescaper').shortcuts.disabledCommandIds), true);
 });

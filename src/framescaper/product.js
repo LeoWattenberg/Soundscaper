@@ -9,7 +9,7 @@ export const FRAMESCAPER_PROFILE = {
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'video-basic', 'video-effects', 'video-compositing', 'export-audio', 'export-video'],
 	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'video-effects', 'playback-meter'],
 	importChoices: ['scape', 'aup4', 'aup3', 'audio', 'video', 'labels'],
-	exportChoices: ['scape', 'aup4-audio-only', 'audio', 'video', 'labels'],
+	exportChoices: ['scape', 'audio', 'video', 'labels'],
 	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt'] },
 	capabilities: {
 		...SHARED_CAPABILITIES,

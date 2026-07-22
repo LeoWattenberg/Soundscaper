@@ -1327,6 +1327,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				copy={copy}
 				snapshot={snapshot}
 				controller={controller}
+				showAup4={productId === 'soundscaper'}
 				run={run}
 				editBlocked={editBlocked}
 				blocked={blocked}
@@ -3075,6 +3076,7 @@ function EditorActionBar({
 	copy,
 	snapshot,
 	controller,
+	showAup4,
 	run,
 	editBlocked,
 	blocked,
@@ -3089,7 +3091,7 @@ function EditorActionBar({
 	return (
 		<div className="kw-audio-editor__action-bar" data-action-bar role="toolbar" aria-label={copy.actionBar}>
 			<div className="kw-audio-editor__action-bar-center">
-				<Button
+				{showAup4 && <Button
 					variant="secondary"
 					size="small"
 					className="kw-audio-editor__action-bar-button"
@@ -3098,7 +3100,7 @@ function EditorActionBar({
 					onClick={onSaveAup4}
 				>
 					{copy.saveAsAup4}
-				</Button>
+				</Button>}
 				<Button
 					variant="secondary"
 					size="small"
@@ -7448,7 +7450,7 @@ function createApplicationMenus({
 					items: [
 						{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
 						{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
-						{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 },
+						...(productId === 'soundscaper' ? [{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
 							id: 'aup4-compatibility-report',
 							label: copy.aup4CompatibilityReport,
