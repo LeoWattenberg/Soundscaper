@@ -1,8 +1,8 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-import { createEbuR128Meter } from '../src/lib/tools/audio-editor/ebu-r128.js';
-import { inspectWavBlobPcm, streamWavBlobPcm } from '../src/lib/tools/audio-editor/wav-import.js';
+import { createEbuR128Meter } from '../src/common/editor/ebu-r128.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from '../src/common/editor/wav-import.js';
 
 const root = process.argv[2] || process.env.EBU_LOUDNESS_TEST_SET;
 if (!root) {

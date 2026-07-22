@@ -16,9 +16,9 @@ import {
 	parsePcmContainerIndex,
 	readPcmContainerPayload,
 	unpackPlanarFloat32,
-} from '../src/lib/tools/audio-editor/wavpack/index.js';
+} from '../src/common/editor/wavpack/index.js';
 
-const WASM_PATH = new URL('../src/lib/tools/audio-editor/wavpack/wavpack.wasm', import.meta.url);
+const WASM_PATH = new URL('../src/common/editor/wavpack/wavpack.wasm', import.meta.url);
 
 test('the pinned WavPack artifact has the audited narrow ABI and memory budget', async () => {
 	const audit = await auditWavPackWasm();

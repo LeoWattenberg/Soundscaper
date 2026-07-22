@@ -16,7 +16,7 @@ import {
 	projectClipsToViewport,
 	rightmostVisibleClip,
 	secondsToFrames,
-} from '../src/lib/tools/audio-editor/design-system-adapters.js';
+} from '../src/common/editor/design-system-adapters.js';
 
 function closeTo(actual, expected, tolerance = 1e-10) {
 	assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} should be within ${tolerance} of ${expected}`);

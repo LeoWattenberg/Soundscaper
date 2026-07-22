@@ -8,14 +8,14 @@ import {
 	envelopeValueAtFrame,
 	envelopeValueToDb,
 	mergeDesignEnvelopePoints,
-} from '../src/lib/tools/audio-editor/automation.js';
-import { applyEditorCommand } from '../src/lib/tools/audio-editor/commands.js';
+} from '../src/common/editor/automation.js';
+import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
 	createAudioClipV2,
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
-} from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/project-v2.js';
 
 test('volume automation converts between frame-linear gain and design-system dB points', () => {
 	assert.equal(envelopeValueToDb(0), -Infinity);

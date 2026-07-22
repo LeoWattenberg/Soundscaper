@@ -9,7 +9,7 @@ import {
 	playbackMeterFullSteps,
 	playbackMeterGainFromPosition,
 	playbackMeterPercent,
-} from '../src/lib/tools/audio-editor/playback-meter.js';
+} from '../src/common/editor/playback-meter.js';
 
 test('EBU +9/+18 rulers preserve the -23 LUFS target in absolute and relative units', () => {
 	assert.deepEqual(ebuMeterBounds('plus9'), { minimumLufs: -41, maximumLufs: -14 });

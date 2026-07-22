@@ -19,7 +19,7 @@ import {
 	normalizeMediaChannelMapping,
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
-} from '../src/lib/tools/audio-editor/index.js';
+} from '../src/common/editor/index.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [

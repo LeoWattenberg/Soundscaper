@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { audacityXmlAttribute, audacityXmlChildren } from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
-import { decodeAup4ProjectTree } from '../src/lib/tools/audio-editor/aup4-conversion.js';
+import { audacityXmlAttribute, audacityXmlChildren } from '../src/common/editor/audacity-binary-xml.js';
+import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import {
 	createAup4ExportPlan,
 	normalizeAup4ExportSnapshot,
 	normalizeAup4ExportSource,
 	requiredAup4SourceIds,
-} from '../src/lib/tools/audio-editor/aup4-export.js';
-import { createAup4ProjectTree, createAup4SampleBlock } from '../src/lib/tools/audio-editor/aup4-profile.js';
-import { createEffect, createMissingEffect } from '../src/lib/tools/audio-editor/effects.js';
+} from '../src/common/editor/aup4-export.js';
+import { createAup4ProjectTree, createAup4SampleBlock } from '../src/common/editor/aup4-profile.js';
+import { createEffect, createMissingEffect } from '../src/common/editor/effects.js';
 
 test('AUP4 export normalizes mixed-rate mono and stereo clips to one fixed track profile', async () => {
 	const mono = Float32Array.from({ length: 441 }, (_, frame) => Math.sin(frame / 17));

@@ -11,8 +11,8 @@ import {
 	captureAudacityNoiseProfile,
 	estimateAudacityEffectOutputFrames,
 	estimateAudacityEffectPeakBytes,
-} from '../src/lib/tools/audio-editor/audacity-effects/index.js';
-import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+} from '../src/common/editor/audacity-effects/index.js';
+import { initializePffft } from '../src/common/editor/pffft.js';
 
 await initializePffft();
 

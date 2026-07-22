@@ -15,7 +15,7 @@ import {
 	applyAudacityRepeat,
 	applyAudacityReverse,
 	applyAudacityTruncateSilence,
-} from '../src/lib/tools/audio-editor/audacity-effects/basic.js';
+} from '../src/common/editor/audacity-effects/basic.js';
 
 const floats = (...values) => new Float32Array(values);
 

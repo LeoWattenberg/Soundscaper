@@ -5,7 +5,7 @@ import {
 	fft,
 	initializePffft,
 	pffftSimdSize,
-} from '../src/lib/tools/audio-editor/pffft.js';
+} from '../src/common/editor/pffft.js';
 
 await initializePffft();
 

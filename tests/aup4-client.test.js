@@ -6,7 +6,7 @@ import {
 	createAup4Client,
 	requestAup4FileHandle,
 	saveAup4Result,
-} from '../src/lib/tools/audio-editor/aup4-client.js';
+} from '../src/common/editor/aup4-client.js';
 
 test('AUP4 client routes results, progress, structured errors, and cancellation', async () => {
 	const worker = new FakeWorker();

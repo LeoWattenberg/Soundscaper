@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const nyquistDirectory = join(root, 'src/lib/tools/audio-editor/nyquist');
+const nyquistDirectory = join(root, 'src/common/editor/nyquist');
 const nativeDirectory = join(nyquistDirectory, 'native');
 const manifest = JSON.parse(readFileSync(join(nyquistDirectory, 'source-manifest.json'), 'utf8'));
 const outputIndex = process.argv.indexOf('--output');

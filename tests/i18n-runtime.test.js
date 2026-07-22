@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 
-import { ENGLISH_COPY, GERMAN_COPY } from '../src/i18n/catalogs.js';
-import { AUDACITY_ACTION_MANIFEST } from '../src/lib/tools/audio-editor/audacity-action-parity.js';
+import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 import {
 	loadTranslationManifest,
 	mergeCatalog,
 	normalizeLocale,
 	resolveCatalog,
-} from '../src/i18n/runtime.js';
+} from '../src/common/i18n/runtime.js';
 
 const BASE_URL = 'https://translations.example.test/runtime/translations/audacity/4/';
 

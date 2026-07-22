@@ -7,7 +7,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const eqDirectory = join(root, 'src/lib/tools/audio-editor/parametric-eq');
+const eqDirectory = join(root, 'src/common/editor/parametric-eq');
 const nativeDirectory = join(eqDirectory, 'native');
 const manifestPath = join(eqDirectory, 'source-manifest.json');
 const wasmPageBytes = 65_536;

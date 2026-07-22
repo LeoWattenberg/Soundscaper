@@ -5,7 +5,7 @@ import {
 	audioEditorVideoThumbnailTimes,
 	createAudioEditorVideoFrameExtractor,
 	isAudioEditorVideoFile,
-} from '../src/lib/tools/audio-editor/video-media.js';
+} from '../src/common/editor/video-media.js';
 
 test('video-file detection accepts the initial MP4 and WebM containers', () => {
 	assert.equal(isAudioEditorVideoFile({ name: 'clip.mp4', type: '' }), true);

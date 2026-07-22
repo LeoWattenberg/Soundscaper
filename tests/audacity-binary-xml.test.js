@@ -9,7 +9,7 @@ import {
 	createAudacityXmlNode,
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
+} from '../src/common/editor/audacity-binary-xml.js';
 import {
 	AUP4_BINARY_XML_ORACLE,
 	decodeBase64Bytes,

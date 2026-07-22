@@ -4,12 +4,12 @@ import test from 'node:test';
 import {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_STATUS,
-} from '../src/lib/tools/audio-editor/audacity-action-parity.js';
+} from '../src/common/editor/audacity-action-parity.js';
 import {
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
 	createAudioEditorPreferencesV1,
 	findAudioEditorShortcutConflicts,
-} from '../src/lib/tools/audio-editor/preferences.js';
+} from '../src/common/editor/preferences.js';
 
 test('default editor shortcuts are derived from implemented pinned-manifest actions', () => {
 	const expected = Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)

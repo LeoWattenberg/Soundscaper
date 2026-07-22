@@ -6,7 +6,7 @@ import {
 	editImmutablePcmSamples,
 	readImmutablePcmRange,
 	smoothImmutablePcmRange,
-} from '../src/lib/tools/audio-editor/pcm-chunks.js';
+} from '../src/common/editor/pcm-chunks.js';
 
 test('sample pencil edits clone only touched 65,536-frame chunks', () => {
 	const input = Float32Array.from({ length: 140_000 }, (_, frame) => frame / 140_000);

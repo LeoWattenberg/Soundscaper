@@ -10,7 +10,7 @@ import {
 	applyAudacityParityToMenus,
 	audacityActionDefinition,
 	resolveAudacityActionId,
-} from '../src/lib/tools/audio-editor/audacity-action-parity.js';
+} from '../src/common/editor/audacity-action-parity.js';
 
 import {
 	AUDACITY_PINNED_APP_MENU_ACTIONS,
@@ -22,9 +22,9 @@ import {
 	AUDACITY_PINNED_UI_AUDIT,
 	AUDACITY_PINNED_UI_COMMIT,
 	AUDACITY_PINNED_UI_SOURCES,
-} from '../src/lib/tools/audio-editor/audacity-pinned-ui-inventory.js';
-import { AUDACITY_EFFECT_DEFINITIONS } from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
-import { AUDIO_EDITOR_GENERATOR_TYPES } from '../src/lib/tools/audio-editor/generators.js';
+} from '../src/common/editor/audacity-pinned-ui-inventory.js';
+import { AUDACITY_EFFECT_DEFINITIONS } from '../src/common/editor/audacity-effects/manifest.js';
+import { AUDIO_EDITOR_GENERATOR_TYPES } from '../src/common/editor/generators.js';
 
 const PINNED_COMMIT = '908ad0a526e5bfdab68de780e893cebe172d27eb';
 
@@ -169,7 +169,7 @@ test('excluded menu actions disappear and disabled actions remain inert and expl
 });
 
 test('no implemented pinned action is surfaced as an unavailable application-menu placeholder', async () => {
-	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
+	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const unavailableIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
 	assert.deepEqual(
 		unavailableIds.filter((id) => audacityActionDefinition(id)?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED),

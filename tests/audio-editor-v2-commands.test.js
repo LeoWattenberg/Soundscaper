@@ -17,7 +17,7 @@ import {
 	prepareRangeDeleteCommand,
 	prepareSplitCommand,
 	validateAudioEditorProject,
-} from '../src/lib/tools/audio-editor/index.js';
+} from '../src/common/editor/index.js';
 
 function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });

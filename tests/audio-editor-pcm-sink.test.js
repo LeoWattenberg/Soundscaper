@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createAudioEditorEngine } from '../src/lib/tools/audio-editor/engine.js';
+import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import {
 	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS,
 	createAsyncPlanarPcmSinkQueue,
-} from '../src/lib/tools/audio-editor/pcm-sink.js';
+} from '../src/common/editor/pcm-sink.js';
 
 function packet(...values) {
 	return [Float32Array.from(values)];

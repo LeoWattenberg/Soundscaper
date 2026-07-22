@@ -5,7 +5,7 @@ import {
 	SourceBufferCache,
 	createSourceBufferCache,
 	estimateAudioBufferBytes,
-} from '../src/lib/tools/audio-editor/source-buffer-cache.js';
+} from '../src/common/editor/source-buffer-cache.js';
 
 function audioBuffer(length, numberOfChannels = 2, name = '') {
 	return { length, numberOfChannels, name };

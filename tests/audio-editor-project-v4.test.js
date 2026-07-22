@@ -5,14 +5,14 @@ import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV3ToV4,
 	migrateAudioEditorProjectV4ToV5,
-} from '../src/lib/tools/audio-editor/migration.js';
-import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
+} from '../src/common/editor/migration.js';
+import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
 	createAudioClipV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
-} from '../src/lib/tools/audio-editor/project-v2.js';
-import { createAudioEditorProjectV3 } from '../src/lib/tools/audio-editor/project-v3.js';
+} from '../src/common/editor/project-v2.js';
+import { createAudioEditorProjectV3 } from '../src/common/editor/project-v3.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioClipV4,
@@ -25,7 +25,7 @@ import {
 	createVideoTrackV4,
 	loadAudioEditorProjectV4,
 	validateAudioEditorProjectV4,
-} from '../src/lib/tools/audio-editor/project-v4.js';
+} from '../src/common/editor/project-v4.js';
 
 const NOW = '2026-07-18T10:00:00.000Z';
 

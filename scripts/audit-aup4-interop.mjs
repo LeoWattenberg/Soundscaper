@@ -22,7 +22,7 @@ import {
 	audacityXmlChildren,
 	createAudacityXmlNode,
 	encodeAudacityBinaryXml,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
+} from '../src/common/editor/audacity-binary-xml.js';
 import {
 	initializeAup4Database,
 	insertAup4SampleBlock,
@@ -30,14 +30,14 @@ import {
 	readAup4SampleBlock,
 	validateAup4Database,
 	writeAup4Document,
-} from '../src/lib/tools/audio-editor/aup4-database.js';
-import { decodeAup4ProjectTree } from '../src/lib/tools/audio-editor/aup4-conversion.js';
+} from '../src/common/editor/aup4-database.js';
+import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import {
 	AUP4_SAMPLE_FORMAT_FLOAT32,
 	createAup4ProjectTree,
 	createAup4SampleBlock,
 	decodeAup4Float32Samples,
-} from '../src/lib/tools/audio-editor/aup4-profile.js';
+} from '../src/common/editor/aup4-profile.js';
 import {
 	AUP4_NATIVE_RICH_SHA256,
 	aup4NativeRichFixture,

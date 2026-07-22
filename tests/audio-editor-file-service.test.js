@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorFileService } from '../src/lib/tools/audio-editor/file-service.js';
+import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 
 test('desktop file service streams acknowledged chunks and applies backpressure', async () => {
 	const calls = [];

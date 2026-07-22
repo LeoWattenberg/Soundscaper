@@ -176,7 +176,7 @@ async function serveStaticFile(request, root, pathname) {
 	let html = null;
 	if (isHtml) html = await import('node:fs/promises').then(({ readFile }) => readFile(file.path, 'utf8'));
 	const headers = {
-		...securityHeaders({ html, immutable: pathname.startsWith('_astro/') }),
+		...securityHeaders({ html, immutable: pathname.startsWith('assets/') }),
 		'Content-Type': MIME_TYPES[extension] || 'application/octet-stream',
 		'Content-Length': String(file.size),
 	};

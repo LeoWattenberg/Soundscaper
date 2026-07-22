@@ -16,14 +16,14 @@ import {
 	inspectAup4Header,
 	readAup4ProjectSummary,
 	validateAup4SchemaObjects,
-} from '../src/lib/tools/audio-editor/aup4-profile.js';
+} from '../src/common/editor/aup4-profile.js';
 import {
 	audacityXmlAttribute,
 	audacityXmlAttributes,
 	audacityXmlChildren,
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
+} from '../src/common/editor/audacity-binary-xml.js';
 import { AUP4_SAMPLEBLOCK_ORACLE } from './fixtures/aup4-sampleblock-oracle.js';
 
 test('AUP4 sample blocks use upstream Float32 layout and padded summaries', () => {

@@ -10,8 +10,8 @@ import {
 	applyAudacityEcho,
 	applyAudacityPhaser,
 	applyAudacityWahwah,
-} from '../src/lib/tools/audio-editor/audacity-effects/realtime.js';
-import { audacityEffectDefaults } from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
+} from '../src/common/editor/audacity-effects/realtime.js';
+import { audacityEffectDefaults } from '../src/common/editor/audacity-effects/manifest.js';
 
 const SAMPLE_RATE = 48_000;
 

@@ -10,13 +10,13 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { createAudioEditorProjectV5 } from '../src/lib/tools/audio-editor/project-v5.js';
+import { createAudioEditorProjectV5 } from '../src/common/editor/project-v5.js';
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
 	importScapeProject,
-} from '../src/lib/tools/audio-editor/scape-project.js';
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+} from '../src/common/editor/scape-project.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('scape archives round-trip mixed projects, original media, PCM, effects, and project-bin content', async () => {
 	const sourceStore = memoryStore('scape-roundtrip-source');

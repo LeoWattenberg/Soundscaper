@@ -10,30 +10,30 @@ import {
 	prepareLinkedSplitCommand,
 	preparePasteCommand,
 	prepareRangeDeleteCommand,
-} from '../src/lib/tools/audio-editor/commands.js';
+} from '../src/common/editor/commands.js';
 import {
 	createEditorHistory,
 	executeEditorCommand,
 	redoEditorCommand,
 	undoEditorCommand,
-} from '../src/lib/tools/audio-editor/history.js';
+} from '../src/common/editor/history.js';
 import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV4ToV5,
-} from '../src/lib/tools/audio-editor/migration.js';
-import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
+} from '../src/common/editor/migration.js';
+import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
 	createAudioEditorProjectV4,
 	createVideoClipV4,
 	createVideoSourceV4,
 	createVideoTrackV4,
-} from '../src/lib/tools/audio-editor/project-v4.js';
+} from '../src/common/editor/project-v4.js';
 import {
 	createAudioEditorProjectV5,
 	createVideoClipV5,
 	loadAudioEditorProjectV5,
 	validateAudioEditorProjectV5,
-} from '../src/lib/tools/audio-editor/project-v5.js';
+} from '../src/common/editor/project-v5.js';
 import {
 	VIDEO_EFFECT_DEFINITIONS,
 	VIDEO_EFFECT_TYPES,
@@ -45,7 +45,7 @@ import {
 	updateVideoEffect,
 	validateVideoEffectParams,
 	videoEffectDefaults,
-} from '../src/lib/tools/audio-editor/video-effects.js';
+} from '../src/common/editor/video-effects.js';
 
 const NOW = '2026-07-21T10:00:00.000Z';
 const EDITED_AT = '2026-07-21T10:01:00.000Z';

@@ -4,17 +4,17 @@ import assert from 'node:assert/strict';
 import {
 	applyEditorCommand,
 	createAddTrackCommand,
-} from '../src/lib/tools/audio-editor/commands.js';
-import { createEffect, createMissingEffect } from '../src/lib/tools/audio-editor/effects.js';
+} from '../src/common/editor/commands.js';
+import { createEffect, createMissingEffect } from '../src/common/editor/effects.js';
 import {
 	createEditorHistory,
 	executeEditorCommand,
 	undoEditorCommand,
-} from '../src/lib/tools/audio-editor/history.js';
+} from '../src/common/editor/history.js';
 import {
 	findTrack,
-} from '../src/lib/tools/audio-editor/project.js';
-import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/project.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 
 const NOW = '2026-07-13T12:00:00.000Z';
 

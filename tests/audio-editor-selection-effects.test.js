@@ -5,8 +5,8 @@ import {
 	applyAudioSelectionEffectAsync,
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
-} from '../src/lib/tools/audio-editor/selection-effects.js';
-import { loadParametricEqWasmModule } from '../src/lib/tools/audio-editor/parametric-eq/wasm-loader.js';
+} from '../src/common/editor/selection-effects.js';
+import { loadParametricEqWasmModule } from '../src/common/editor/parametric-eq/wasm-loader.js';
 
 const wasmModule = await loadParametricEqWasmModule();
 

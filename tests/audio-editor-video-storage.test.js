@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('memory storage persists immutable media assets and timestamped video derivatives', async () => {
 	const store = createProjectStore({

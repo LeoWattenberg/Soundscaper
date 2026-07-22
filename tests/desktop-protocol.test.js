@@ -25,10 +25,10 @@ import {
 } from '../desktop/validation.js';
 
 test('desktop document and locale validation accepts only committed editor routes', () => {
-	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/embed/de/').pathname, '/embed/de/');
-	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/embed/en/'), true);
+	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
+	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/'), true);
 	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/runtime/ffmpeg-core.js'), false);
-	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/embed/en/?untrusted=1'), false);
+	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/?untrusted=1'), false);
 	assert.equal(isAppUrl('https://bundle/embed/en/'), false);
 	assert.equal(resolveLocale(['fr-CA']), 'fr');
 	assert.equal(resolveLocale(['unknown-locale']), 'en');
@@ -99,7 +99,7 @@ test('native file filters cover the editor import and export formats', () => {
 test('Windows system-audio capture requires a trusted user gesture and selects loopback', () => {
 	const request = {
 		securityOrigin: 'soundscaper-app://bundle/',
-		frame: { url: 'soundscaper-app://bundle/embed/en/' },
+		frame: { url: 'soundscaper-app://bundle/' },
 		userGesture: true,
 		audioRequested: true,
 		videoRequested: true,

@@ -6,7 +6,7 @@ import {
 	createExportDialogRequest,
 	isVideoExportDialogFormat,
 	projectHasTimelineVideo,
-} from '../src/components/tools/audio-editor/export-dialog-model.js';
+} from '../src/common/editor/ui/export-dialog-model.js';
 
 test('video export formats only apply when a video clip is assigned to a timeline video track', () => {
 	const project = {

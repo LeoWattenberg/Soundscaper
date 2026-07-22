@@ -13,9 +13,9 @@ import {
 	loadNyquistPlugin,
 	normalizeNyquistRequest,
 	normalizeNyquistResult,
-} from '../src/lib/tools/audio-editor/nyquist/index.js';
+} from '../src/common/editor/nyquist/index.js';
 
-const NYQUIST_WASM_PATH = new URL('../src/lib/tools/audio-editor/nyquist/nyquist.wasm', import.meta.url);
+const NYQUIST_WASM_PATH = new URL('../src/common/editor/nyquist/nyquist.wasm', import.meta.url);
 
 test('Nyquist requests strip Audacity headers and safely bind controls and host properties', () => {
 	const source = [

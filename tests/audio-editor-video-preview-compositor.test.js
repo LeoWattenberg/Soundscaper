@@ -7,7 +7,7 @@ import {
 	videoEffectPasses,
 	videoPreviewBlurViewport,
 	videoPreviewViewports,
-} from '../src/components/tools/audio-editor/video-preview-compositor.js';
+} from '../src/common/editor/ui/video-preview-compositor.js';
 
 function effect(type, params, enabled = true) {
 	return { id: `effect-${type}`, type, enabled, params };

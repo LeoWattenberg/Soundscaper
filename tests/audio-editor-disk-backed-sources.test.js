@@ -35,7 +35,7 @@ test.after(() => {
 	else globalThis.Worker = previousWorker;
 });
 
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
 
 const SOURCE_CHUNK_FRAMES = 65_536;
 const LONG_MONO_SOURCE_FRAMES = (32 * 1024 * 1024 / Float32Array.BYTES_PER_ELEMENT) + 1;

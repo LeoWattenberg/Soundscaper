@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import {
 	pffftSpectrogramBandEnergies,
 	preparePffftSpectrogram,
-} from '../src/lib/tools/audio-editor/pffft-spectrogram.js';
+} from '../src/common/editor/pffft-spectrogram.js';
 
 test('PFFFT spectrogram analysis returns bounded finite frequency bands', async () => {
 	await preparePffftSpectrogram(64);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	PCM_ENCODING_RAW_F32LE,
 	PCM_ENCODING_WAVPACK_F32_V1,
@@ -11,7 +11,7 @@ import {
 	loadWavPackWasm,
 	packPlanarFloat32,
 	parsePcmContainerIndex,
-} from '../src/lib/tools/audio-editor/wavpack/index.js';
+} from '../src/common/editor/wavpack/index.js';
 
 test('IndexedDB source iteration is ordered, bounded, and closes each page transaction before yielding', async () => {
 	const indexedDB = createInstrumentedIndexedDB();
@@ -809,7 +809,7 @@ let directRuntimePromise;
 
 async function createDirectCodec() {
 	directRuntimePromise ||= readFile(
-		new URL('../src/lib/tools/audio-editor/wavpack/wavpack.wasm', import.meta.url),
+		new URL('../src/common/editor/wavpack/wavpack.wasm', import.meta.url),
 	).then((bytes) => loadWavPackWasm(bytes));
 	const runtime = await directRuntimePromise;
 	return {

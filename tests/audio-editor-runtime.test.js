@@ -14,18 +14,18 @@ import {
 	getProjectTimelineDurationFrames,
 	projectEffectRacks,
 	projectGraphLatencyFrames,
-} from '../src/lib/tools/audio-editor/engine.js';
-import { createRecordingController } from '../src/lib/tools/audio-editor/recording.js';
-import { StreamingRecorderProcessor } from '../src/lib/tools/audio-editor/recording-worklet.js';
-import { RenderCaptureProcessor } from '../src/lib/tools/audio-editor/render-capture-worklet.js';
-import { DynamicsProcessor } from '../src/lib/tools/audio-editor/dynamics-worklet.js';
-import { DelayProcessor } from '../src/lib/tools/audio-editor/delay-worklet.js';
+} from '../src/common/editor/engine.js';
+import { createRecordingController } from '../src/common/editor/recording.js';
+import { StreamingRecorderProcessor } from '../src/common/editor/recording-worklet.js';
+import { RenderCaptureProcessor } from '../src/common/editor/render-capture-worklet.js';
+import { DynamicsProcessor } from '../src/common/editor/dynamics-worklet.js';
+import { DelayProcessor } from '../src/common/editor/delay-worklet.js';
 import {
 	createStreamingLinearResampler,
 	createStreamingWindowedSincResampler,
-} from '../src/lib/tools/audio-editor/resample.js';
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
-import { createWavStreamEncoder, encodeWav } from '../src/lib/tools/audio-editor/wav.js';
+} from '../src/common/editor/resample.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
+import { createWavStreamEncoder, encodeWav } from '../src/common/editor/wav.js';
 
 function concatenateFloat32(parts) {
 	const output = new Float32Array(parts.reduce((length, part) => length + part.length, 0));

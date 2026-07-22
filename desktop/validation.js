@@ -3,7 +3,6 @@ import { extname } from 'node:path';
 import {
 	APP_HOST,
 	APP_SCHEME,
-	EDITOR_PATH_PREFIX,
 	MAX_SAVE_BYTES,
 	SUPPORTED_LOCALES,
 } from './constants.js';
@@ -111,9 +110,7 @@ export function isAppUrl(candidate) {
 export function assertEditorDocumentUrl(candidate) {
 	const url = assertAppUrl(candidate);
 	if (url.search || url.hash) throw new Error('Untrusted renderer document');
-	const prefix = EDITOR_PATH_PREFIX.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-	const match = new RegExp(`^${prefix}/embed/([^/]+)/$`, 'u').exec(url.pathname);
-	if (!match || !SUPPORTED_LOCALES.includes(decodeURIComponent(match[1]))) throw new Error('Untrusted renderer document');
+	if (url.pathname !== '/') throw new Error('Untrusted renderer document');
 	return url;
 }
 

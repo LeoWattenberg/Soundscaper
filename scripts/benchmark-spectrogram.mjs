@@ -2,8 +2,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { performance } from 'node:perf_hooks';
-import { fft as pffft, initializePffft, pffftSimdSize } from '../src/lib/tools/audio-editor/pffft.js';
-import { pffftSpectrogramBandEnergies } from '../src/lib/tools/audio-editor/pffft-spectrogram.js';
+import { fft as pffft, initializePffft, pffftSimdSize } from '../src/common/editor/pffft.js';
+import { pffftSpectrogramBandEnergies } from '../src/common/editor/pffft-spectrogram.js';
 
 const workloads = [
 	{ name: 'Live partitioned convolution', size: 256, transforms: 4_096, inverse: true },

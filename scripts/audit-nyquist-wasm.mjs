@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const nyquistDirectory = join(root, 'src/lib/tools/audio-editor/nyquist');
+const nyquistDirectory = join(root, 'src/common/editor/nyquist');
 const manifestPath = join(nyquistDirectory, 'source-manifest.json');
 const wasmPageBytes = 65_536;
 

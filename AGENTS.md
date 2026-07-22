@@ -1,14 +1,14 @@
 # AGENTS.md
 
-- Soundscaper is an Astro/React local-first browser audio editor.
+- Soundscaper is a Vite/React local-first browser audio editor.
 - Use npm and preserve `package-lock.json`.
-- Application UI lives in `src/components/tools/audio-editor/`.
+- Application UI lives in `src/common/editor/ui/`.
 - Audio models, workers, storage, effects, import/export, and WASM integration
-  live in `src/lib/tools/audio-editor/`.
+  live in `src/common/editor/`.
 - Do not commit generated `dist/`, `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are
   versioned under `https://assets.soundscaper.org/runtime/ffmpeg/`.
-- Run `npm test` after helper changes, `npm run build` after Astro/UI changes, and
+- Run `npm test` after helper changes, `npm run build` after Vite/UI changes, and
   `npm run test:browser` for interactive workflows.
 - Browser tests live in `tests/browser/` and use `playwright.config.mjs`.
   Playwright runs Chromium headlessly and starts its own loopback preview server

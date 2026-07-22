@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyEditorCommand } from '../src/lib/tools/audio-editor/commands.js';
-import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
+import { applyEditorCommand } from '../src/common/editor/commands.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import {
 	AUDIO_EDITOR_SESSION_SCHEMA_VERSION,
 	createAudioEditorSessionClipboard,
 	createAudioEditorSessionController,
-} from '../src/lib/tools/audio-editor/session.js';
+} from '../src/common/editor/session.js';
 
 const NOW = '2026-07-13T10:00:00.000Z';
 const LATER = '2026-07-13T11:00:00.000Z';

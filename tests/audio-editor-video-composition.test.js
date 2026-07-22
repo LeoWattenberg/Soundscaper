@@ -5,7 +5,7 @@ import {
 	resolveActiveVideoLayers,
 	resolveVideoCompositionIntervals,
 	validateVideoTrackComposition,
-} from '../src/lib/tools/audio-editor/video-timeline.js';
+} from '../src/common/editor/video-timeline.js';
 
 test('video composition validation permits only proper two-clip edge overlaps', () => {
 	const clips = [

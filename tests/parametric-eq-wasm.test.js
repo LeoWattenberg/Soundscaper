@@ -6,15 +6,15 @@ import { auditParametricEqWasm } from '../scripts/audit-parametric-eq-wasm.mjs';
 import {
 	designParametricEq,
 	sectionMagnitudeSquared,
-} from '../src/lib/tools/audio-editor/parametric-eq/design.js';
-import { processParametricEqChannels } from '../src/lib/tools/audio-editor/parametric-eq/core.js';
+} from '../src/common/editor/parametric-eq/design.js';
+import { processParametricEqChannels } from '../src/common/editor/parametric-eq/core.js';
 import {
 	ParametricEqWasmRuntime,
 	compileParametricEqWasm,
-} from '../src/lib/tools/audio-editor/parametric-eq/wasm-runtime.js';
+} from '../src/common/editor/parametric-eq/wasm-runtime.js';
 
 const WASM_URL = new URL(
-	'../src/lib/tools/audio-editor/parametric-eq/parametric-eq.wasm',
+	'../src/common/editor/parametric-eq/parametric-eq.wasm',
 	import.meta.url,
 );
 

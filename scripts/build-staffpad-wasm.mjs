@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const staffpadDirectory = join(root, 'src/lib/tools/audio-editor/staffpad');
+const staffpadDirectory = join(root, 'src/common/editor/staffpad');
 const nativeDirectory = join(staffpadDirectory, 'native');
 const manifest = JSON.parse(readFileSync(join(staffpadDirectory, 'source-manifest.json'), 'utf8'));
 const outputArgumentIndex = process.argv.indexOf('--output');

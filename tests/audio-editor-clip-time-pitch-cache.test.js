@@ -8,9 +8,9 @@ import {
 	deriveClipTimePitchCachePlan,
 	describeClipTimePitchRender,
 	loadStoredSourceChannels,
-} from '../src/lib/tools/audio-editor/clip-time-pitch-cache.js';
-import { createAudioClipV2, createAudioSourceV2 } from '../src/lib/tools/audio-editor/project-v2.js';
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+} from '../src/common/editor/clip-time-pitch-cache.js';
+import { createAudioClipV2, createAudioSourceV2 } from '../src/common/editor/project-v2.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('clip StaffPad plans key every immutable input and chain sequential extreme-speed passes', async () => {
 	const source = sourceFixture();

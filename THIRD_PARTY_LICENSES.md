@@ -2,7 +2,7 @@
 
 ## Audacity-derived native audio effects
 
-Parts of `src/lib/tools/audio-editor/audacity-effects/` are JavaScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:
+Parts of `src/common/editor/audacity-effects/` are JavaScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:
 
 - source: <https://github.com/audacity/audacity/tree/Audacity-3.7.7>
 - upstream license and notices: <https://github.com/audacity/audacity/blob/Audacity-3.7.7/LICENSE.txt>
@@ -24,7 +24,7 @@ The effect registry covers Audacity's menu-visible native processors and browser
 
 ## Audacity-derived waveform rendering
 
-Parts of `src/lib/tools/audio-editor/audacity-waveform-renderer.js`, the waveform-window preparation in `src/lib/tools/audio-editor/design-system-adapters.js`, and the canvas/recording-preview integration in `src/components/tools/audio-editor/AudioEditorTimeline.jsx` are JavaScript translations and browser adaptations of Audacity waveform rendering at exact commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
+Parts of `src/common/editor/audacity-waveform-renderer.js`, the waveform-window preparation in `src/common/editor/design-system-adapters.js`, and the canvas/recording-preview integration in `src/common/editor/ui/AudioEditorTimeline.jsx` are JavaScript translations and browser adaptations of Audacity waveform rendering at exact commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
 
 - source: <https://github.com/audacity/audacity/tree/908ad0a526e5bfdab68de780e893cebe172d27eb>
 - rendering-mode and sample-painter sources: `src/projectscene/view/tracksitemsview/au3/wavepainterutils.cpp`, `src/projectscene/view/tracksitemsview/au3/connectingdotspainter.cpp`, `src/projectscene/view/tracksitemsview/au3/samplespainterutils.cpp`, and `src/projectscene/view/tracksitemsview/au3/samplespainter.cpp`
@@ -89,7 +89,7 @@ are available from <https://github.com/lddubeau/saxes/tree/v6.0.0> and
 
 ## StaffPad time-and-pitch WebAssembly
 
-The committed scalar, single-threaded StaffPad module and its preferred source are in `src/lib/tools/audio-editor/staffpad/`:
+The committed scalar, single-threaded StaffPad module and its preferred source are in `src/common/editor/staffpad/`:
 
 - Audacity revision: `908ad0a526e5bfdab68de780e893cebe172d27eb`; GPL-2.0-or-later with GPLv3 selected for this distribution
 - PFFFT revision: `09796885cd5b`; archive SHA-256 `fdc80563de8c31d6380886bc1ba0ffb897abde58611707ac94eb8edab850cbb`; UCAR/NCAR permissive license
@@ -97,7 +97,7 @@ The committed scalar, single-threaded StaffPad module and its preferred source a
 - Emscripten toolchain/runtime: `3.1.64`, including the retained musl, libc++, libc++abi, and compiler-rt notices
 - committed `staffpad.wasm` SHA-256: `6b7e3fa86ddd90ddd6c358cf431742bd890fb76354509aa5732e4d3686791b7b`
 
-The exact allowlist, per-file hashes, imports, exports, toolchain image, modifications, and license-file hashes are recorded in [`source-manifest.json`](src/lib/tools/audio-editor/staffpad/source-manifest.json). Detailed notices are in [`NOTICE.md`](src/lib/tools/audio-editor/staffpad/NOTICE.md). Rebuild with `npm run build:staffpad`; verify sources, binary imports, the absence of prohibited library symbols, and the artifact hash with `npm run audit:staffpad`.
+The exact allowlist, per-file hashes, imports, exports, toolchain image, modifications, and license-file hashes are recorded in [`source-manifest.json`](src/common/editor/staffpad/source-manifest.json). Detailed notices are in [`NOTICE.md`](src/common/editor/staffpad/NOTICE.md). Rebuild with `npm run build:staffpad`; verify sources, binary imports, the absence of prohibited library symbols, and the artifact hash with `npm run audit:staffpad`.
 
 Audacity is a registered trademark. This project is not affiliated with or endorsed by the Audacity project or Muse Group.
 
@@ -120,7 +120,7 @@ The exact configuration string embedded in the shipped core is:
 
 That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance is why desktop binary publication remains gated below. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
 
-The npm core artifacts themselves are unpatched. Local integration is confined to `src/lib/tools/audio-editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
+The npm core artifacts themselves are unpatched. Local integration is confined to `src/common/editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
 
 The desktop release tooling retrieves the exact `v0.12.10` ffmpeg.wasm build
 repository archive and verifies that it is 1,115,568 bytes with SHA-256
@@ -192,6 +192,6 @@ The browser editor also ports the MuseScore framework icon-code inventory from
 `framework/ui/view/iconcodes.h` at MuseScore framework commit
 `3e6bfd62701992303dc22f1bae6f81bde1670ef9` (GPL-3.0-only). The port retains the
 upstream notice and source hash in
-`src/lib/tools/audio-editor/audacity-iconcodes.js`.
+`src/common/editor/audacity-iconcodes.js`.
 
 Except for identified third-party portions under compatible licenses, the repository is distributed under AGPL-3.0-only. Before deploying the FFmpeg core, the release process must archive the exact corresponding source and build configuration alongside the deployed version and verify the enabled codec libraries and their notices.

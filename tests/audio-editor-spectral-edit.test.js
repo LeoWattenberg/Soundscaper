@@ -5,8 +5,8 @@ import {
 	applySpectralGain,
 	applySpectralReplacement,
 	deleteSpectralSelection,
-} from '../src/lib/tools/audio-editor/spectral-edit.js';
-import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+} from '../src/common/editor/spectral-edit.js';
+import { initializePffft } from '../src/common/editor/pffft.js';
 
 await initializePffft();
 

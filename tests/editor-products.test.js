@@ -6,10 +6,10 @@ import {
 	otherProductId,
 	productLocalePath,
 	productProfile,
-} from '../src/lib/products.js';
-import { createEditorController } from '../src/lib/editor/index.js';
-import { createEffect } from '../src/lib/tools/audio-editor/effects.js';
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+} from '../src/common/products.js';
+import { createEditorController } from '../src/common/editor/index.js';
+import { createEffect } from '../src/common/editor/effects.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('product profiles are immutable and resolve distinct routes and capability sets', () => {
 	assert.equal(productLocalePath('soundscaper', 'en'), '/en/');

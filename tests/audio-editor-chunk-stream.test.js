@@ -6,17 +6,17 @@ import {
 	AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
 	TransferableAudioChunkQueue,
 	transferListForAudioChannels,
-} from '../src/lib/tools/audio-editor/chunk-stream.js';
+} from '../src/common/editor/chunk-stream.js';
 import {
 	ChunkStreamClient,
 	ensureChunkStreamWorklet,
-} from '../src/lib/tools/audio-editor/chunk-stream-client.js';
+} from '../src/common/editor/chunk-stream-client.js';
 import {
 	ChunkStreamPlaybackProcessor,
-} from '../src/lib/tools/audio-editor/chunk-stream-worklet.js';
-import { installChunkStreamWorker } from '../src/lib/tools/audio-editor/chunk-stream-worker.js';
-import { createImmutablePcmChunks } from '../src/lib/tools/audio-editor/pcm-chunks.js';
-import { createStreamingWindowedSincResampler } from '../src/lib/tools/audio-editor/resample.js';
+} from '../src/common/editor/chunk-stream-worklet.js';
+import { installChunkStreamWorker } from '../src/common/editor/chunk-stream-worker.js';
+import { createImmutablePcmChunks } from '../src/common/editor/pcm-chunks.js';
+import { createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 
 test('chunk stream worklet loading coalesces per context and remains retryable', async () => {
 	const pending = deferred();

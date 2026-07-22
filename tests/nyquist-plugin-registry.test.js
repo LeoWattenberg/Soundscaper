@@ -7,14 +7,14 @@ import {
 	parseNyquistPlugin,
 	parseNyquistPluginHeader,
 	stripNyquistPluginHeader,
-} from '../src/lib/tools/audio-editor/nyquist/plugin-parser.js';
+} from '../src/common/editor/nyquist/plugin-parser.js';
 import {
 	NYQUIST_BUNDLED_PLUGINS,
 	getNyquistPlugin,
 	listNyquistPlugins,
 	loadNyquistPlugin,
 	loadNyquistPluginSource,
-} from '../src/lib/tools/audio-editor/nyquist/plugin-registry.js';
+} from '../src/common/editor/nyquist/plugin-registry.js';
 
 const SOURCE_COMMIT = '5ef610ed23260d6d648175735bb16b32536eb30b';
 const EXCLUDED_FILES = [
@@ -34,7 +34,7 @@ test('bundled Nyquist inventory pins all 25 browser-compatible Audacity 3.7.7 sc
 	assert.ok(Object.isFrozen(NYQUIST_BUNDLED_PLUGINS[0].controls));
 
 	const manifest = JSON.parse(await readFile(
-		new URL('../src/lib/tools/audio-editor/nyquist/plugins/source-manifest.json', import.meta.url),
+		new URL('../src/common/editor/nyquist/plugins/source-manifest.json', import.meta.url),
 		'utf8',
 	));
 	assert.equal(manifest.upstream.commit, SOURCE_COMMIT);

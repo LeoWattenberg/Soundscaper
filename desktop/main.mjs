@@ -20,7 +20,6 @@ import {
 	APP_NAME,
 	APP_ORIGIN,
 	APP_SCHEME,
-	EDITOR_PATH_PREFIX,
 	EXTERNAL_DESTINATIONS,
 	IPC,
 	SESSION_PARTITION,
@@ -161,7 +160,7 @@ async function createWindow() {
 		rendererReady = false;
 		pendingClose = null;
 	});
-	await mainWindow.loadURL(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/${encodeURIComponent(locale)}/`);
+	await mainWindow.loadURL(`${APP_ORIGIN}/`);
 	return mainWindow;
 }
 
@@ -185,7 +184,7 @@ function registerIpcHandlers() {
 		const locale = validateLocale(value);
 		await settings.setLocale(locale);
 		rendererReady = false;
-		await mainWindow.loadURL(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/${encodeURIComponent(locale)}/`);
+		await mainWindow.loadURL(`${APP_ORIGIN}/`);
 		return locale;
 	});
 	handle(IPC.setFullscreen, (_event, enabled) => {
@@ -355,7 +354,7 @@ function installArtifactSmokeProbe(window) {
 				hasEditor: Boolean(document.querySelector('main')),
 				nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
 			})`);
-			const valid = result.url.startsWith(`${APP_ORIGIN}${EDITOR_PATH_PREFIX}/embed/`)
+			const valid = result.url === `${APP_ORIGIN}/`
 				&& result.title === APP_NAME
 				&& result.hasEditor
 				&& !result.nodeExposed

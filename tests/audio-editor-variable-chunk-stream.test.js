@@ -4,9 +4,9 @@ import test from 'node:test';
 import {
 	AUDIO_EDITOR_STORAGE_CHUNK_FRAMES,
 	AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-} from '../src/lib/tools/audio-editor/chunk-stream.js';
-import { createImmutablePcmStreamSource } from '../src/lib/tools/audio-editor/chunk-stream-client.js';
-import { installChunkStreamWorker } from '../src/lib/tools/audio-editor/chunk-stream-worker.js';
+} from '../src/common/editor/chunk-stream.js';
+import { createImmutablePcmStreamSource } from '../src/common/editor/chunk-stream-client.js';
+import { installChunkStreamWorker } from '../src/common/editor/chunk-stream-worker.js';
 
 test('long-source descriptors accept bounded legacy recording chunk sizes', () => {
 	const source = createImmutablePcmStreamSource({

@@ -16,9 +16,9 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
-const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
+const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('Mix-down to renders whole selected tracks, replaces them atomically, and round-trips undo', async () => {
 	const store = createTestStore('multi');

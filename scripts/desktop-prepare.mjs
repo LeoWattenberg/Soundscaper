@@ -14,7 +14,7 @@ import {
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { COMMITTED_LOCALE_TAGS } from '../src/i18n/locales.js';
+import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 import { generateDesktopIcon } from './desktop-icons.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -182,8 +182,8 @@ async function ensureTranslationObject(descriptor, label, localSource) {
 }
 
 async function buildRenderer() {
-	const astro = resolve(ROOT, 'node_modules/astro/bin/astro.mjs');
-	await run(process.execPath, [astro, 'build', '--outDir', RENDERER_ROOT], {
+	const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
+	await run(process.execPath, [vite, 'build', '--outDir', RENDERER_ROOT], {
 		env: {
 			...process.env,
 			PUBLIC_AUDIO_EDITOR_V2: 'true',
@@ -192,7 +192,7 @@ async function buildRenderer() {
 			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,
 		},
 	});
-	await assertFile(resolve(RENDERER_ROOT, PRODUCT_ID === 'framescaper' ? 'framescaper/embed/en/index.html' : 'embed/en/index.html'), 'desktop English editor route');
+	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');
 }
 
 async function stageApplication(projectPackage) {

@@ -16,18 +16,18 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_STATUS,
 	applyAudacityParityToMenus,
 	auditAudacityActionRuntime,
 	resolveAudacityActionHandler,
-} = await import('../src/lib/tools/audio-editor/audacity-action-parity.js');
+} = await import('../src/common/editor/audacity-action-parity.js');
 const {
 	createAudacityActionRuntime,
 	createAudioEditorUiActionController,
-} = await import('../src/lib/tools/audio-editor/audacity-action-runtime.js');
+} = await import('../src/common/editor/audacity-action-runtime.js');
 
 test('every implemented manifest action resolves on the concrete editor runtime', async () => {
 	const store = createMemoryStore();

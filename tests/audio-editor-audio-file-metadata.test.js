@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { inspectEncodedAudioSampleRate } from '../src/lib/tools/audio-editor/audio-file-metadata.js';
-import { encodeWav } from '../src/lib/tools/audio-editor/wav.js';
+import { inspectEncodedAudioSampleRate } from '../src/common/editor/audio-file-metadata.js';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 test('encoded audio metadata preserves rates from common native decode containers', () => {
 	const wav = encodeWav([Float32Array.of(0)], {

@@ -8,9 +8,9 @@ import { pathToFileURL } from 'node:url';
 import {
 	AUDACITY_QT_MAPPING,
 	AUDACITY_QT_MAPPING_VERSION,
-} from '../src/i18n/audacity-qt-mapping.js';
-import { ENGLISH_COPY } from '../src/i18n/catalogs.js';
-import { COMMITTED_LOCALE_TAGS, LOCALE_BY_TAG } from '../src/i18n/locales.js';
+} from '../src/common/i18n/audacity-qt-mapping.js';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { COMMITTED_LOCALE_TAGS, LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
 
 const AUDACITY = Object.freeze({
 	repository: 'audacity/audacity',

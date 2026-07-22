@@ -11,7 +11,7 @@ import {
 	createAudacityXmlNode,
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
+} from '../src/common/editor/audacity-binary-xml.js';
 import {
 	commitAup4Autosave,
 	deleteAup4SampleBlocks,
@@ -28,8 +28,8 @@ import {
 	upgradeAup4Database,
 	validateAup4Database,
 	writeAup4Document,
-} from '../src/lib/tools/audio-editor/aup4-database.js';
-import { decodeAup4ProjectTree } from '../src/lib/tools/audio-editor/aup4-conversion.js';
+} from '../src/common/editor/aup4-database.js';
+import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import {
 	AUP4_BINARY_XML_VERSION,
 	AUP4_SCHEMA_SQL,
@@ -38,7 +38,7 @@ import {
 	createAup4SampleBlock,
 	decodeAup4Float32Samples,
 	readAup4ProjectSummary,
-} from '../src/lib/tools/audio-editor/aup4-profile.js';
+} from '../src/common/editor/aup4-profile.js';
 import {
 	AUP4_NATIVE_EMPTY_SHA256,
 	aup4NativeEmptyFixture,

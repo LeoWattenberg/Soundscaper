@@ -5,8 +5,8 @@ import {
 	AUDACITY_CLIP_CONTEXT_ACTION_IDS,
 	AUDACITY_TRACK_CONTEXT_ACTION_IDS,
 	audacityContextMenuAction,
-} from '../src/lib/tools/audio-editor/audacity-context-menu.js';
-import { audacityActionDefinition } from '../src/lib/tools/audio-editor/audacity-action-parity.js';
+} from '../src/common/editor/audacity-context-menu.js';
+import { audacityActionDefinition } from '../src/common/editor/audacity-action-parity.js';
 
 test('track and clip context mappings use canonical manifest IDs or explicit supplemental IDs', () => {
 	for (const actionId of [

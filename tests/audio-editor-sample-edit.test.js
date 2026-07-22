@@ -8,20 +8,20 @@ import {
 	createSmoothSampleRange,
 	persistImmutableSampleEdit,
 	timelineFrameToSourceFrame,
-} from '../src/lib/tools/audio-editor/sample-edit.js';
+} from '../src/common/editor/sample-edit.js';
 import {
 	createAddSourceCommand,
 	createReplaceClipSourceCommand,
-} from '../src/lib/tools/audio-editor/commands.js';
+} from '../src/common/editor/commands.js';
 import {
 	createEditorHistory,
 	executeEditorCommand,
 	redoEditorCommand,
 	undoEditorCommand,
-} from '../src/lib/tools/audio-editor/history.js';
-import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
-import { collectHistorySourceIds } from '../src/lib/tools/audio-editor/retention.js';
-import { createProjectStore } from '../src/lib/tools/audio-editor/storage.js';
+} from '../src/common/editor/history.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import { collectHistorySourceIds } from '../src/common/editor/retention.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 
 const SOURCE = Object.freeze({
 	id: 'source-original',

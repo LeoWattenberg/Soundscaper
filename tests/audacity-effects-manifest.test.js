@@ -16,7 +16,7 @@ import {
 	formatAudacityCurve,
 	normalizeAudacityEffectParams,
 	parseAudacityCurve,
-} from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
+} from '../src/common/editor/audacity-effects/manifest.js';
 
 const INCLUDED_EFFECTS = [
 	'audacity-amplify',

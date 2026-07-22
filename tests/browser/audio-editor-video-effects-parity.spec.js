@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { buildVideoFfmpegArgs } from '../../src/lib/tools/audio-editor/video-ffmpeg.js';
+import { buildVideoFfmpegArgs } from '../../src/common/editor/video-ffmpeg.js';
 import {
 	VIDEO_EFFECT_TYPES,
 	videoEffectDefaults,
-} from '../../src/lib/tools/audio-editor/video-effects.js';
+} from '../../src/common/editor/video-effects.js';
 import {
 	VIDEO_EFFECT_PARITY_HEIGHT,
 	VIDEO_EFFECT_PARITY_MAXIMUM_CHANNEL_MAE,
@@ -17,7 +17,7 @@ import {
 const PARITY_ROUTE_ROOT = '/__video-effect-parity__';
 const RUNTIME_ROUTES = new Map([
 	[`${PARITY_ROUTE_ROOT}/compositor.js`, {
-		file: new URL('../../src/components/tools/audio-editor/video-preview-compositor.js', import.meta.url),
+		file: new URL('../../src/common/editor/ui/video-preview-compositor.js', import.meta.url),
 		contentType: 'text/javascript',
 	}],
 	[`${PARITY_ROUTE_ROOT}/ffmpeg/classes.js`, {

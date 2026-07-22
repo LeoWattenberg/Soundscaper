@@ -9,7 +9,7 @@ import {
 	importAudioEditorEffectPresets,
 	listAudioEditorEffectPresets,
 	saveAudioEditorEffectPreset,
-} from '../src/lib/tools/audio-editor/effect-presets.js';
+} from '../src/common/editor/effect-presets.js';
 
 test('effect preset CRUD normalizes through the pinned effect registry', () => {
 	const empty = createAudioEditorEffectPresets();

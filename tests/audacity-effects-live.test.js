@@ -8,15 +8,15 @@ import {
 	audacityLiveEffectTailFrames,
 	createAudacityLiveProcessor,
 	isAudacityLiveEffect,
-} from '../src/lib/tools/audio-editor/audacity-effects/live.js';
+} from '../src/common/editor/audacity-effects/live.js';
 import {
 	AUDACITY_LIVE_WORKLET_NAME,
 	AudacityLiveEffectProcessor,
-} from '../src/lib/tools/audio-editor/audacity-effects/live-worklet.js';
-import { applyAudacityEffect } from '../src/lib/tools/audio-editor/audacity-effects/index.js';
-import { audacityEffectTypes } from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
-import { captureAudacityNoiseProfile } from '../src/lib/tools/audio-editor/audacity-effects/spectral.js';
-import { initializePffft } from '../src/lib/tools/audio-editor/pffft.js';
+} from '../src/common/editor/audacity-effects/live-worklet.js';
+import { applyAudacityEffect } from '../src/common/editor/audacity-effects/index.js';
+import { audacityEffectTypes } from '../src/common/editor/audacity-effects/manifest.js';
+import { captureAudacityNoiseProfile } from '../src/common/editor/audacity-effects/spectral.js';
+import { initializePffft } from '../src/common/editor/pffft.js';
 
 await initializePffft();
 

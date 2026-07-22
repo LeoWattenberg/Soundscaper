@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import {
 	createEbuR128Meter,
-} from '../src/lib/tools/audio-editor/ebu-r128.js';
+} from '../src/common/editor/ebu-r128.js';
 import {
 	createEbuR128MeterNode,
-} from '../src/lib/tools/audio-editor/ebu-r128-node.js';
+} from '../src/common/editor/ebu-r128-node.js';
 
 const LOUDNESS_SAMPLE_RATE = 24_000;
 const TRUE_PEAK_SAMPLE_RATE = 48_000;
@@ -216,7 +216,7 @@ test('AudioWorklet processing is transparent and emits meter telemetry at 10 Hz'
 	globalThis.registerProcessor = (_name, constructor) => { Processor = constructor; };
 	globalThis.sampleRate = TRUE_PEAK_SAMPLE_RATE;
 	try {
-		await import(`../src/lib/tools/audio-editor/ebu-r128-worklet.js?test=${Date.now()}`);
+		await import(`../src/common/editor/ebu-r128-worklet.js?test=${Date.now()}`);
 		const processor = new Processor({
 			processorOptions: {
 				sampleRate: TRUE_PEAK_SAMPLE_RATE,

@@ -7,12 +7,12 @@ import {
 	normalizeEffectMacroDraft,
 	parseAudacityEffectMacro,
 	serializeAudacityEffectMacro,
-} from '../src/lib/tools/audio-editor/effect-macros.js';
+} from '../src/common/editor/effect-macros.js';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDACITY_RACK_EFFECT_TYPES,
 	createEffect,
-} from '../src/lib/tools/audio-editor/effects.js';
+} from '../src/common/editor/effects.js';
 
 test('Audacity effect macro export uses scripting IDs, stable parameter names, and settings only', () => {
 	const effects = [

@@ -12,7 +12,7 @@ import {
 	loadAudioEditorProjectV2,
 	projectDurationFramesV2,
 	validateAudioEditorProjectV2,
-} from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/project-v2.js';
 import {
 	applyAudioEditorWorkspace,
 	createAudioEditorPreferencesV1,
@@ -24,7 +24,7 @@ import {
 	updateAudioEditorPreferencesV1,
 	updateCustomAudioEditorWorkspace,
 	validateAudioEditorPreferencesV1,
-} from '../src/lib/tools/audio-editor/preferences.js';
+} from '../src/common/editor/preferences.js';
 import {
 	migrateAudioEditorHistoryV1ToV2,
 	migrateAudioEditorProject,
@@ -32,8 +32,8 @@ import {
 	migrateAudioEditorProjectV2ToV3,
 	migrateAudioEditorProjectV2ToV5,
 	migrateAudioEditorStateV1ToV2,
-} from '../src/lib/tools/audio-editor/migration.js';
-import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
+} from '../src/common/editor/migration.js';
+import { validateAudioEditorProject } from '../src/common/editor/project.js';
 
 const CREATED_AT = '2026-07-12T10:00:00.000Z';
 const UPDATED_AT = '2026-07-13T11:30:00.000Z';

@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
 	inspectWavBlobPcm,
 	streamWavBlobPcm,
-} from '../src/lib/tools/audio-editor/wav-import.js';
+} from '../src/common/editor/wav-import.js';
 
 test('incremental WAV import parses padded RIFF chunks and emits ordered planar packets with backpressure', async () => {
 	const blob = createWaveBlob({

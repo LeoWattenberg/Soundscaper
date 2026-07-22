@@ -16,9 +16,9 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
-const { createRecordingCapturePool } = await import('../src/lib/tools/audio-editor/recording.js');
-const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createRecordingCapturePool } = await import('../src/common/editor/recording.js');
+const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('legacy recording reuses a retained mono default input between takes', async () => {
 	const store = createProjectStore();

@@ -8,8 +8,8 @@ import {
 	RECORDING_CHANNEL_COUNT_MAXIMUM,
 	requestDisplayInput,
 	requestHardwareInput,
-} from '../src/lib/tools/audio-editor/recording.js';
-import { StreamingRecorderProcessor } from '../src/lib/tools/audio-editor/recording-worklet.js';
+} from '../src/common/editor/recording.js';
+import { StreamingRecorderProcessor } from '../src/common/editor/recording-worklet.js';
 
 test('hardware input requests exact devices with bounded multichannel constraints and speech processing disabled', async () => {
 	let received = null;

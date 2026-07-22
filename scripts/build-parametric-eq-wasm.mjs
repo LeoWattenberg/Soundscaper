@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const eqDirectory = join(root, 'src/lib/tools/audio-editor/parametric-eq');
+const eqDirectory = join(root, 'src/common/editor/parametric-eq');
 const nativeDirectory = join(eqDirectory, 'native');
 const manifest = JSON.parse(readFileSync(join(eqDirectory, 'source-manifest.json'), 'utf8'));
 const outputArgumentIndex = process.argv.indexOf('--output');

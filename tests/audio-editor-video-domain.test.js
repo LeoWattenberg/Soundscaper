@@ -9,13 +9,13 @@ import {
 	selectVideoThumbnailTimestamps,
 	videoClipPlaybackRate,
 	videoThumbnailIntervalSeconds,
-} from '../src/lib/tools/audio-editor/video-timeline.js';
+} from '../src/common/editor/video-timeline.js';
 import {
 	VIDEO_EXPORT_FORMATS,
 	createVideoExportPlan,
 	getVideoExportFormat,
 	resolveVideoExportCanvas,
-} from '../src/lib/tools/audio-editor/video-export.js';
+} from '../src/common/editor/video-export.js';
 
 test('video time mapping treats source range as trim and duration as stretch', () => {
 	const clip = videoClip({

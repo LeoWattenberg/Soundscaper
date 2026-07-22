@@ -11,7 +11,6 @@ const OUTPUT_ROOT = resolve(ROOT, 'release/desktop');
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
-const EDITOR_PATH_PREFIX = PRODUCT_ID === 'framescaper' ? '/framescaper' : '';
 const EXPECTED_BRIDGE = Object.freeze([
 	'abortWrite',
 	'beginWrite',
@@ -50,7 +49,7 @@ if (result.code !== 0) throw new Error(`Packaged desktop smoke exited with code 
 const line = result.output.split(/\r?\n/u).find((value) => value.startsWith('SOUNDSCAPER_DESKTOP_SMOKE '));
 if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${result.output}`);
 const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
-assert(new RegExp(`^${APP_SCHEME}://bundle${EDITOR_PATH_PREFIX}/embed/[^/]+/$`, 'u').test(payload.url), 'Smoke loaded an unexpected URL.');
+assert(payload.url === `${APP_SCHEME}://bundle/`, 'Smoke loaded an unexpected URL.');
 assert(payload.title === PRODUCT_NAME, 'Smoke loaded an unexpected document title.');
 assert(payload.hasEditor === true, 'Smoke did not render the editor document.');
 assert(payload.nodeExposed === false, 'Smoke exposed Node.js globals to the renderer.');

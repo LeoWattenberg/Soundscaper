@@ -25,18 +25,18 @@ import {
 	rackTailFrames,
 	updateEffect,
 	validateEffect,
-} from '../src/lib/tools/audio-editor/effects.js';
+} from '../src/common/editor/effects.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectDefaults,
 	audacityEffectLabel,
 	audacityEffectTypes,
-} from '../src/lib/tools/audio-editor/audacity-effects/manifest.js';
+} from '../src/common/editor/audacity-effects/manifest.js';
 import {
 	AUDACITY_LIVE_EFFECT_CAPABILITIES,
 	audacityLiveEffectCapability,
 	isAudacityLiveEffect,
-} from '../src/lib/tools/audio-editor/audacity-effects/live.js';
+} from '../src/common/editor/audacity-effects/live.js';
 
 const EXPECTED_AUDACITY_RACK_TYPES = [
 	'audacity-auto-duck',

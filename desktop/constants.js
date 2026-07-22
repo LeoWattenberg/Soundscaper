@@ -7,7 +7,6 @@ export const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'so
 export const APP_HOST = 'bundle';
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 export const SESSION_PARTITION = PRODUCT_ID === 'framescaper' ? 'persist:framescaper-v1' : 'persist:soundscaper-v1';
-export const EDITOR_PATH_PREFIX = PRODUCT_ID === 'framescaper' ? '/framescaper' : '';
 export const UPDATE_TAG_PREFIX = PRODUCT_ID === 'framescaper' ? 'framescaper-v' : 'v';
 export const SETTINGS_SCHEMA_VERSION = 1;
 

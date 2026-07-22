@@ -9,13 +9,13 @@ import {
 	normalizeParametricEqParams,
 	packParametricEqParams,
 	processParametricEqChannels,
-} from '../src/lib/tools/audio-editor/parametric-eq/index.js';
+} from '../src/common/editor/parametric-eq/index.js';
 import {
 	biquadToTpt,
 	designMatchedShelf,
 	designParametricEq,
 	sectionMagnitudeSquared,
-} from '../src/lib/tools/audio-editor/parametric-eq/design.js';
+} from '../src/common/editor/parametric-eq/design.js';
 
 test('parametric EQ migrates legacy bands and emits a bounded versioned DSP packet', () => {
 	const bands = Array.from({ length: 14 }, (_, index) => ({
@@ -198,9 +198,9 @@ test('realtime smoothing advances once per frame, preserves channels, and keeps 
 });
 
 test('worklet wrapper registers the stable processor name and accepts revisioned messages', async () => {
-	const module = await import(`../src/lib/tools/audio-editor/parametric-eq/worklet.js?test=${Date.now()}`);
+	const module = await import(`../src/common/editor/parametric-eq/worklet.js?test=${Date.now()}`);
 	const wasmModule = await WebAssembly.compile(await readFile(new URL(
-		'../src/lib/tools/audio-editor/parametric-eq/parametric-eq.wasm',
+		'../src/common/editor/parametric-eq/parametric-eq.wasm',
 		import.meta.url,
 	)));
 	assert.equal(PARAMETRIC_EQ_WORKLET_NAME, 'kw-parametric-eq');
@@ -260,9 +260,9 @@ test('worklet wrapper registers the stable processor name and accepts revisioned
 });
 
 test('WASM worklet uses its fixed channel capacity and coalesces structural edits', async () => {
-	const module = await import(`../src/lib/tools/audio-editor/parametric-eq/worklet.js?coalesce=${Date.now()}`);
+	const module = await import(`../src/common/editor/parametric-eq/worklet.js?coalesce=${Date.now()}`);
 	const wasmModule = await WebAssembly.compile(await readFile(new URL(
-		'../src/lib/tools/audio-editor/parametric-eq/parametric-eq.wasm',
+		'../src/common/editor/parametric-eq/parametric-eq.wasm',
 		import.meta.url,
 	)));
 	const processor = new module.ParametricEqWorkletProcessor({

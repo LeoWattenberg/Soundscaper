@@ -12,7 +12,7 @@ import {
 	recordingRoutingSettingKey,
 	setRecordingSourceOffset,
 	setRecordingTrackRoute,
-} from '../src/lib/tools/audio-editor/recording-routing.js';
+} from '../src/common/editor/recording-routing.js';
 
 const MONO_TRACK = Object.freeze({ type: 'audio', id: 'mono' });
 const STEREO_TRACK = Object.freeze({ type: 'audio', id: 'stereo' });

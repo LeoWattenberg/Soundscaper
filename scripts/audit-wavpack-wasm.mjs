@@ -7,7 +7,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const wavpackDirectory = join(root, 'src/lib/tools/audio-editor/wavpack');
+const wavpackDirectory = join(root, 'src/common/editor/wavpack');
 const nativeDirectory = join(wavpackDirectory, 'native');
 const manifestPath = join(wavpackDirectory, 'source-manifest.json');
 const wasmPageBytes = 65_536;

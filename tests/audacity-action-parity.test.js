@@ -14,7 +14,7 @@ import {
 	evaluateAudacityActionEnablement,
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
-} from '../src/lib/tools/audio-editor/audacity-action-parity.js';
+} from '../src/common/editor/audacity-action-parity.js';
 
 const PINNED_COMMIT = '908ad0a526e5bfdab68de780e893cebe172d27eb';
 
@@ -227,7 +227,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 });
 
 test('every existing disabled application-menu placeholder has a parity classification', async () => {
-	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
+	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
 	assert.ok(
 		placeholderIds.length >= 16,
@@ -240,7 +240,7 @@ test('every existing disabled application-menu placeholder has a parity classifi
 });
 
 test('implemented parity actions are never represented by unavailable menu placeholders', async () => {
-	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
+	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
 	assert.deepEqual(
 		placeholderIds.filter((id) => audacityActionDefinition(id)?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED),
@@ -249,7 +249,7 @@ test('implemented parity actions are never represented by unavailable menu place
 });
 
 test('critical functional manifest surfaces have explicit menu command IDs', async () => {
-	const source = await readFile(new URL('../src/components/tools/audio-editor/AudioEditorApp.jsx', import.meta.url), 'utf8');
+	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const explicitIds = new Set(
 		[...source.matchAll(/(?:id:\s*|unavailable\()'([^']+)'/g)]
 			.map((match) => resolveAudacityActionId(match[1])),

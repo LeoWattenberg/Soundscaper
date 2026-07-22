@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
 	AUDIO_EDITOR_PCM_CHUNK_FRAMES,
 	createPlanarPcmChunkCoalescer,
-} from '../src/lib/tools/audio-editor/pcm-chunks.js';
+} from '../src/common/editor/pcm-chunks.js';
 
 test('recording-sized packets coalesce into 65,536-frame planar chunks and one remainder', async () => {
 	const chunks = [];

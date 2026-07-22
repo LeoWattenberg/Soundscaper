@@ -1,42 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyEditorCommand } from '../src/lib/tools/audio-editor/commands.js';
+import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
 	createEditorHistory,
 	executeEditorCommand,
 	undoEditorCommand,
-} from '../src/lib/tools/audio-editor/history.js';
+} from '../src/common/editor/history.js';
 import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV2ToV3,
 	migrateAudioEditorProjectV3ToV4,
 	migrateAudioEditorProjectV4ToV5,
-} from '../src/lib/tools/audio-editor/migration.js';
+} from '../src/common/editor/migration.js';
 import {
 	findProjectBinClip,
 	projectDurationFrames,
 	validateAudioEditorProject,
-} from '../src/lib/tools/audio-editor/project.js';
+} from '../src/common/editor/project.js';
 import {
 	createAudioClipV2,
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
 	loadAudioEditorProjectV2,
-} from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/project-v2.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV3,
 	loadAudioEditorProjectV3,
 	validateAudioEditorProjectV3,
-} from '../src/lib/tools/audio-editor/project-v3.js';
+} from '../src/common/editor/project-v3.js';
 import {
 	collectHistorySourceIds,
 	collectProjectSourceIds,
 	compactProjectSourceMetadata,
-} from '../src/lib/tools/audio-editor/retention.js';
-import { createAudioEditorSessionController } from '../src/lib/tools/audio-editor/session.js';
+} from '../src/common/editor/retention.js';
+import { createAudioEditorSessionController } from '../src/common/editor/session.js';
 
 const NOW = '2026-07-18T10:00:00.000Z';
 const LATER = '2026-07-18T10:01:00.000Z';

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { decodeAuBlockFile, decodeLegacyAupProject } from '../src/lib/tools/audio-editor/aup-legacy.js';
+import { decodeAuBlockFile, decodeLegacyAupProject } from '../src/common/editor/aup-legacy.js';
 
 test('legacy AUP import decodes AU blocks into structured tracks and labels', async () => {
 	const block = auFloatBlock([0, 0.5, -0.5, 1], 44_100);

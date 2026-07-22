@@ -8,17 +8,17 @@ import {
 	createAudacityXmlNode,
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
-import { decodeAup4ProjectTree } from '../src/lib/tools/audio-editor/aup4-conversion.js';
-import { aup4NativeEffectId } from '../src/lib/tools/audio-editor/aup4-effects.js';
-import { createAup4ProjectTree, createAup4SampleBlock } from '../src/lib/tools/audio-editor/aup4-profile.js';
+} from '../src/common/editor/audacity-binary-xml.js';
+import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
+import { aup4NativeEffectId } from '../src/common/editor/aup4-effects.js';
+import { createAup4ProjectTree, createAup4SampleBlock } from '../src/common/editor/aup4-profile.js';
 import {
 	createAudioClipV2,
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
 	createLabelTrackV2,
-} from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/project-v2.js';
 
 test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and selection', async () => {
 	const source = createAudioSourceV2({

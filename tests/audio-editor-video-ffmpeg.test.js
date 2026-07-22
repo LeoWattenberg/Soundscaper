@@ -25,8 +25,8 @@ const {
 	FfmpegVideoEncodingError,
 	createEditorFfmpeg,
 	encoderArgs,
-} = await import('../src/lib/tools/audio-editor/ffmpeg.js');
-const { buildVideoFfmpegArgs } = await import('../src/lib/tools/audio-editor/video-ffmpeg.js');
+} = await import('../src/common/editor/ffmpeg.js');
+const { buildVideoFfmpegArgs } = await import('../src/common/editor/video-ffmpeg.js');
 
 const originalTestRuntime = globalThis.__soundscaperVideoFfmpegTestRuntime;
 

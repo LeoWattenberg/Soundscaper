@@ -5,24 +5,24 @@ import { readFile } from 'node:fs/promises';
 import initSqlJs from 'sql.js';
 import { createAup3Fixture } from '../aup3-fixture.js';
 import { aup4NativeRichFixture } from '../fixtures/aup4-native-rich.js';
-import { encodeAudacityBinaryXml } from '../../src/lib/tools/audio-editor/audacity-binary-xml.js';
+import { encodeAudacityBinaryXml } from '../../src/common/editor/audacity-binary-xml.js';
 import {
 	initializeAup4Database,
 	insertAup4SampleBlock,
 	prepareAup4PortableExport,
 	writeAup4Document,
-} from '../../src/lib/tools/audio-editor/aup4-database.js';
-import { createEffect, createMissingEffect } from '../../src/lib/tools/audio-editor/effects.js';
+} from '../../src/common/editor/aup4-database.js';
+import { createEffect, createMissingEffect } from '../../src/common/editor/effects.js';
 import {
 	createAup4ProjectDocument,
 	createAup4SampleBlock,
-} from '../../src/lib/tools/audio-editor/aup4-profile.js';
+} from '../../src/common/editor/aup4-profile.js';
 import {
 	createAudioClipV2,
 	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
-} from '../../src/lib/tools/audio-editor/project-v2.js';
+} from '../../src/common/editor/project-v2.js';
 
 const AUDIO_EDITOR_PATHS = [
 	{

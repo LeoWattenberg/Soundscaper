@@ -12,7 +12,7 @@ import {
 	snapAudioEditorFrameWithProject,
 	snapAudioEditorProjectFrame,
 	stepAudioEditorSnappedFrame,
-} from '../src/lib/tools/audio-editor/snap-grid.js';
+} from '../src/common/editor/snap-grid.js';
 
 test('snap grid inventory matches all pinned Audacity 4 types in numeric order', () => {
 	assert.equal(AUDIO_EDITOR_SNAP_UPSTREAM_MIN, 0);

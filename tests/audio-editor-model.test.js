@@ -34,13 +34,13 @@ import {
 	sanitizeExportName,
 	undoEditorCommand,
 	validateAudioEditorProject,
-} from '../src/lib/tools/audio-editor/index.js';
-import { createAudioEditorProjectV2 } from '../src/lib/tools/audio-editor/project-v2.js';
+} from '../src/common/editor/index.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import {
 	createAudioClipV4,
 	createAudioEditorProjectV4,
 	createAudioSourceV4,
-} from '../src/lib/tools/audio-editor/project-v4.js';
+} from '../src/common/editor/project-v4.js';
 
 const NOW = '2026-07-12T10:00:00.000Z';
 

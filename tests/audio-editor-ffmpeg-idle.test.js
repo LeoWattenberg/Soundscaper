@@ -21,8 +21,8 @@ const ffmpegLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(ffmpegLoader)}`, import.meta.url);
 
-const { createEditorFfmpeg } = await import('../src/lib/tools/audio-editor/ffmpeg.js');
-const { encodeWav } = await import('../src/lib/tools/audio-editor/wav.js');
+const { createEditorFfmpeg } = await import('../src/common/editor/ffmpeg.js');
+const { encodeWav } = await import('../src/common/editor/wav.js');
 
 const originalTestRuntime = globalThis.__soundscaperFfmpegTestRuntime;
 

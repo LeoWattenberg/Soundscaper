@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const wavpackDirectory = join(root, 'src/lib/tools/audio-editor/wavpack');
+const wavpackDirectory = join(root, 'src/common/editor/wavpack');
 const nativeDirectory = join(wavpackDirectory, 'native');
 const manifest = JSON.parse(readFileSync(join(wavpackDirectory, 'source-manifest.json'), 'utf8'));
 const outputArgumentIndex = process.argv.indexOf('--output');

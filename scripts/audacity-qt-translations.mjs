@@ -10,9 +10,9 @@ import { SaxesParser } from 'saxes';
 import {
 	AUDACITY_QT_MAPPING,
 	AUDACITY_QT_MAPPING_VERSION,
-} from '../src/i18n/audacity-qt-mapping.js';
-import { ENGLISH_COPY } from '../src/i18n/catalogs.js';
-import { AUDACITY_TO_BCP47, LOCALE_BY_TAG } from '../src/i18n/locales.js';
+} from '../src/common/i18n/audacity-qt-mapping.js';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { AUDACITY_TO_BCP47, LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
 import {
 	DEFAULT_TRANSLATION_ARCHIVE_LIMITS,
 	TranslationArtifactError,

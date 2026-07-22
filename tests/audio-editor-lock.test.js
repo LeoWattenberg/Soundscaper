@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { acquireProjectLock } from '../src/lib/tools/audio-editor/project-lock.js';
+import { acquireProjectLock } from '../src/common/editor/project-lock.js';
 
 test('project lock holds and releases a navigator lock', async () => {
 	let callback;

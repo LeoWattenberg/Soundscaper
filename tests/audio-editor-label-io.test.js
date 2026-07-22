@@ -13,7 +13,7 @@ import {
 	serializeAudioEditorLabels,
 	serializeSubRipLabels,
 	serializeWebVttLabels,
-} from '../src/lib/tools/audio-editor/label-io.js';
+} from '../src/common/editor/label-io.js';
 
 test('label formats are stable and detection honors explicit values, extensions, and content', () => {
 	assert.deepEqual(AUDIO_EDITOR_LABEL_FORMATS, ['txt', 'srt', 'vtt']);

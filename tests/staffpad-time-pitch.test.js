@@ -4,13 +4,13 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { auditStaffPadWasm } from '../scripts/audit-staffpad-wasm.mjs';
-import { StaffPadRenderClient as BarrelStaffPadRenderClient } from '../src/lib/tools/audio-editor/index.js';
+import { StaffPadRenderClient as BarrelStaffPadRenderClient } from '../src/common/editor/index.js';
 import {
 	AudacityStaffPadError,
 	applyAudacityEffect,
 	applyAudacityEffectAsync,
 	estimateAudacityEffectOutputFrames,
-} from '../src/lib/tools/audio-editor/audacity-effects/index.js';
+} from '../src/common/editor/audacity-effects/index.js';
 import {
 	STAFFPAD_ALGORITHM_ID,
 	STAFFPAD_AUDACITY_REVISION,
@@ -28,10 +28,10 @@ import {
 	renderStaffPad,
 	staffPadRenderCacheKey,
 	staffPadTransformOutputFrames,
-} from '../src/lib/tools/audio-editor/staffpad/index.js';
+} from '../src/common/editor/staffpad/index.js';
 import { STAFFPAD_NATIVE_GOLDEN } from './fixtures/staffpad-native-golden.js';
 
-const WASM_PATH = new URL('../src/lib/tools/audio-editor/staffpad/staffpad.wasm', import.meta.url);
+const WASM_PATH = new URL('../src/common/editor/staffpad/staffpad.wasm', import.meta.url);
 
 test('StaffPad mappings preserve Audacity pitch, tempo, speed, and sliding duration semantics', () => {
 	assert.equal(BarrelStaffPadRenderClient, StaffPadRenderClient);

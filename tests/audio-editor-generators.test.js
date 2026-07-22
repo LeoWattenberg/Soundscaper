@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { generateAudioEditorSignal } from '../src/lib/tools/audio-editor/generators.js';
+import { generateAudioEditorSignal } from '../src/common/editor/generators.js';
 
 test('built-in generators honor arbitrary project rates and channel layouts', () => {
 	const silence = generateAudioEditorSignal('silence', { sampleRate: 44_100, durationSeconds: 0.5, channelCount: 2 });

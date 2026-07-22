@@ -7,7 +7,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const staffpadDirectory = join(root, 'src/lib/tools/audio-editor/staffpad');
+const staffpadDirectory = join(root, 'src/common/editor/staffpad');
 const nativeDirectory = join(staffpadDirectory, 'native');
 const manifestPath = join(staffpadDirectory, 'source-manifest.json');
 const wasmPageBytes = 65_536;

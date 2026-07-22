@@ -7,8 +7,8 @@ import {
 	RECORDING_INPUT_GAIN_DEFAULT,
 	RECORDING_INPUT_GAIN_MAXIMUM,
 	RECORDING_INPUT_GAIN_MINIMUM,
-} from '../src/lib/tools/audio-editor/recording.js';
-import { StreamingRecorderProcessor } from '../src/lib/tools/audio-editor/recording-worklet.js';
+} from '../src/common/editor/recording.js';
+import { StreamingRecorderProcessor } from '../src/common/editor/recording-worklet.js';
 
 test('recording input gain contract is a bounded linear multiplier', () => {
 	assert.equal(RECORDING_INPUT_GAIN_MINIMUM, 0);

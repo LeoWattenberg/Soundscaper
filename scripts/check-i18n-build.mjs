@@ -3,17 +3,18 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { localePath, ROUTE_LOCALES } from '../src/i18n/locales.js';
+import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
+import { PRODUCT_IDS, productLocalePath } from '../src/common/products.js';
 
 const outputRoot = resolve('dist');
-const site = new URL(process.env.ASTRO_SITE || 'https://soundscaper.org');
+const site = new URL(process.env.SOUNDSCAPER_SITE || 'https://soundscaper.org');
 const translationsBaseUrl = new URL(process.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/');
 let routeCount = 0;
 
-for (const descriptor of ROUTE_LOCALES) {
-	for (const embedded of [false, true]) {
-		verifyRoute(descriptor, embedded);
+for (const productId of PRODUCT_IDS) {
+	for (const descriptor of ROUTE_LOCALES) {
+		verifyRoute(productId, descriptor);
 		routeCount += 1;
 	}
 }
@@ -21,8 +22,8 @@ for (const descriptor of ROUTE_LOCALES) {
 verifyTranslationCsp();
 console.log(`Verified ${routeCount} localized routes and the translation CSP.`);
 
-function verifyRoute(descriptor, embedded) {
-	const route = localePath(descriptor.locale, { embedded });
+function verifyRoute(productId, descriptor) {
+	const route = productLocalePath(productId, descriptor.locale);
 	const html = readFileSync(resolve(outputRoot, `.${route}index.html`), 'utf8');
 	const htmlTag = html.match(/<html\b[^>]*>/iu)?.[0];
 	assert(htmlTag, `${route} has no html element`);
@@ -41,9 +42,9 @@ function verifyRoute(descriptor, embedded) {
 	const alternates = links.filter((attributes) => attributes.rel === 'alternate' && attributes.hreflang);
 	const expectedAlternates = new Map(ROUTE_LOCALES.map(({ locale }) => [
 		locale,
-		new URL(localePath(locale, { embedded }), site).href,
+		new URL(productLocalePath(productId, locale), site).href,
 	]));
-	expectedAlternates.set('x-default', new URL(localePath('en', { embedded }), site).href);
+	expectedAlternates.set('x-default', new URL(productLocalePath(productId, 'en'), site).href);
 	assert(alternates.length === expectedAlternates.size,
 		`${route} has ${alternates.length} locale alternates; expected ${expectedAlternates.size}`);
 	const seen = new Set();

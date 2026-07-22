@@ -4,14 +4,14 @@ import initSqlJs from 'sql.js';
 import {
 	decodeAup3SampleBlock,
 	parseAup3BinaryXml,
-} from '../src/lib/tools/aup3.js';
+} from '../src/common/aup3.js';
 import {
 	aup3OutputName,
 	decodeAup3Bytes,
 	getAup3MemoryLimits,
 	isAup3FileName,
 	requiresAup3LargeProjectConfirmation,
-} from '../src/lib/tools/aup3-browser.js';
+} from '../src/common/aup3-browser.js';
 import {
 	AUP3_SAMPLE_FORMAT,
 	createAup3Fixture,

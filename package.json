@@ -13,11 +13,11 @@
 	},
 	"license": "AGPL-3.0-only",
 	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs",
-		"preview": "astro preview",
+		"dev": "vite",
+		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs",
+		"preview": "vite preview",
 		"test": "node --test",
-		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/lib/tools/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
+		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/common/editor/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
 		"test:desktop": "node --test tests/desktop-*.test.js tests/audio-editor-file-service.test.js",
@@ -49,7 +49,6 @@
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},
 	"dependencies": {
-		"@astrojs/react": "6.0.1",
 		"@dilsonspickles/components": "0.9.0",
 		"@echogarden/pffft-wasm": "0.4.2",
 		"@ffmpeg/core": "0.12.10",
@@ -57,13 +56,13 @@
 		"@noble/hashes": "^2.2.0",
 		"@sqlite.org/sqlite-wasm": "3.53.0-build1",
 		"@zip.js/zip.js": "^2.8.33",
-		"astro": "^7.1.1",
 		"fflate": "0.8.3",
 		"react": "19.2.7",
 		"react-dom": "19.2.7",
 		"sql.js": "1.14.1"
 	},
 	"devDependencies": {
+		"@vitejs/plugin-react": "5.2.0",
 		"@axe-core/playwright": "4.12.1",
 		"@electron/fuses": "2.1.3",
 		"@playwright/test": "^1.61.1",
@@ -74,6 +73,7 @@
 		"electron-builder": "26.15.6",
 		"patch-package": "^8.0.1",
 		"postcss": "8.5.19",
+		"vite": "8.1.2",
 		"saxes": "6.0.0"
 	},
 	"overrides": {

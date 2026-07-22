@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
 	audacitySelectionChannelCount,
 	matchAudacitySelectionChannels,
-} from '../src/lib/tools/audio-editor/audacity-selection.js';
+} from '../src/common/editor/audacity-selection.js';
 
 const PROJECT = {
 	sources: [

@@ -6,8 +6,8 @@ import {
 	audacityWaveformMode,
 	audacityWaveformShowsPoints,
 	drawAudacityWaveformChannel,
-} from '../src/lib/tools/audio-editor/audacity-waveform-renderer.js';
-import { prepareBoundedWaveformWindow } from '../src/lib/tools/audio-editor/design-system-adapters.js';
+} from '../src/common/editor/audacity-waveform-renderer.js';
+import { prepareBoundedWaveformWindow } from '../src/common/editor/design-system-adapters.js';
 
 test('half-wave geometry expands the positive range across the full channel height', () => {
 	assert.deepEqual(audacityWaveformChannelGeometry(10, 100), {

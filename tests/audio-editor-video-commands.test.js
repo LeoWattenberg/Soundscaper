@@ -14,8 +14,8 @@ import {
 	prepareRangeDeleteCommand,
 	prepareTransformClipsCommand,
 	prepareUnlinkAvCommand,
-} from '../src/lib/tools/audio-editor/commands.js';
-import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
+} from '../src/common/editor/commands.js';
+import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
 	createAudioClipV4,
 	createAudioEditorProjectV4,
@@ -24,7 +24,7 @@ import {
 	createVideoClipV4,
 	createVideoSourceV4,
 	createVideoTrackV4,
-} from '../src/lib/tools/audio-editor/project-v4.js';
+} from '../src/common/editor/project-v4.js';
 
 const NOW = '2026-07-18T12:00:00.000Z';
 const EDITED_AT = '2026-07-18T12:01:00.000Z';

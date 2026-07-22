@@ -6,7 +6,7 @@ import {
 	calculateAudioSpectrum,
 	findAudioClippingRegions,
 	findNearestAudioZeroCrossing,
-} from '../src/lib/tools/audio-editor/analysis.js';
+} from '../src/common/editor/analysis.js';
 
 test('Find Clipping returns linked regions with configurable consecutive samples', () => {
 	const left = Float32Array.of(0, 1.1, 1.2, 1.3, 0, 1.1, 0);

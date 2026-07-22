@@ -54,9 +54,16 @@ npm install
 npm run dev
 ```
 
+Application source is organized by ownership: `src/soundscaper/` and
+`src/framescaper/` contain the product profiles and entry configuration, while
+`src/common/` contains the shared React shell, editor domain, browser workers,
+WASM integrations, and localization runtime. `src/main.jsx` is the Vite
+bootstrap that selects the product and locale from the web route or Electron
+environment.
+
 English and German are always available at `/en/` and `/de/`. Additional
 Audacity-backed static locale routes are generated from the reviewed allowlist
-in `src/i18n/locales.js`. Embedding views without the Soundscaper sidebar use
+in `src/common/i18n/locales.js`. Embedding views without the Soundscaper sidebar use
 the same tags under `/embed/<locale>/`.
 
 The production FFmpeg runtime is loaded lazily from the versioned URL configured
@@ -203,7 +210,7 @@ in that case Wrangler can misleadingly report an existing bucket as nonexistent.
 2. In Workers & Pages, choose **Create application → Pages → Connect to Git**.
 3. Authorize the Cloudflare GitHub app for `LeoWattenberg/Soundscaper` and select
    that repository.
-4. Use production branch `main`, the Astro framework preset, build command
+4. Use production branch `main`, the Vite framework preset, build command
    `npm run build`, and output directory `dist`. Leave the root directory empty.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 
@@ -215,7 +222,7 @@ deployments for other selected branches.
 In the Pages project, open **Settings → Variables and Secrets**. Add these to
 both Production and Preview unless noted otherwise:
 
-- `ASTRO_SITE` = `https://soundscaper.org`
+- `SOUNDSCAPER_SITE` = `https://soundscaper.org`
 - `PUBLIC_FFMPEG_CORE_BASE_URL` =
   `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10`
 - `PUBLIC_TRANSLATIONS_BASE_URL` =
@@ -338,7 +345,7 @@ set -a
 set +a
 previous=()
 if [ -f "$work/previous/latest.json" ]; then previous=(--previous-root "$work/previous"); fi
-exposed_locales="$(node --input-type=module -e "import { COMMITTED_LOCALE_TAGS } from './src/i18n/locales.js'; process.stdout.write(COMMITTED_LOCALE_TAGS.join(','));")"
+exposed_locales="$(node --input-type=module -e "import { COMMITTED_LOCALE_TAGS } from './src/common/i18n/locales.js'; process.stdout.write(COMMITTED_LOCALE_TAGS.join(','));")"
 node scripts/audacity-qt-translations.mjs prepare \
   --archive "$work/source/$AUDACITY_TRANSLATION_ARCHIVE_NAME" \
   --output "$work/staged" \
@@ -366,7 +373,7 @@ mapping reasons. A locale may be exposed only when its manifest descriptor has
 `eligible: true` and it appears in `pendingLocales`.
 
 After review, add its canonical tag to `COMMITTED_LOCALE_TAGS` in
-`src/i18n/locales.js`. The existing `[locale]` and `embed/[locale]` pages then
+`src/common/i18n/locales.js`. The generated localized pages and embedded Vite routes then
 generate both static routes. Run `npm test`, `npm run build`, and
 `npm run test:browser`; deploy the Pages change normally, then manually dispatch
 the translation workflow with `operation=sync` so the next manifest records the
@@ -426,7 +433,7 @@ oriented plug-in installer and sample-data import/export scripts are excluded.
 Tools → Nyquist prompt accepts Lisp and SAL and stores its source locally.
 
 Use the pinned toolchain and source checkout recorded in
-`src/lib/tools/audio-editor/nyquist/source-manifest.json`:
+`src/common/editor/nyquist/source-manifest.json`:
 
 ```sh
 npm run build:nyquist -- --audacity-source /path/to/audacity-3.7.7

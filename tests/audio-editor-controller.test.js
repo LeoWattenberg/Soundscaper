@@ -19,16 +19,16 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 const {
 	calculateAudioEditorMetronomeSchedule,
 	createAudioEditorController,
-} = await import('../src/lib/tools/audio-editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
+} = await import('../src/common/editor/app.js');
+const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
 const {
 	createAudioClipV4,
 	createAudioEditorProjectV4,
 	createAudioSourceV4,
 	createVideoClipV4,
 	createVideoSourceV4,
-} = await import('../src/lib/tools/audio-editor/project-v4.js');
-const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
+} = await import('../src/common/editor/project-v4.js');
+const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 const COPY = Object.freeze({
 	ready: 'Ready',

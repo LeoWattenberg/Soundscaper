@@ -5,14 +5,14 @@ import {
 	audacityXmlAttribute,
 	audacityXmlChildren,
 	createAudacityXmlNode,
-} from '../src/lib/tools/audio-editor/audacity-binary-xml.js';
+} from '../src/common/editor/audacity-binary-xml.js';
 import {
 	AUP4_REALTIME_EFFECT_PROFILES,
 	aup4NativeEffectId,
 	createAup4EffectsNode,
 	readAup4EffectsNode,
-} from '../src/lib/tools/audio-editor/aup4-effects.js';
-import { createEffect } from '../src/lib/tools/audio-editor/effects.js';
+} from '../src/common/editor/aup4-effects.js';
+import { createEffect } from '../src/common/editor/effects.js';
 
 test('AUP4 realtime effect IDs use Audacity stable family, vendor, symbol, and path fields', () => {
 	assert.equal(Object.keys(AUP4_REALTIME_EFFECT_PROFILES).length, 14);

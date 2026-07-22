@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { convertStructuredAup3ToProjectV2 } from '../src/lib/tools/audio-editor/aup3-conversion.js';
-import { validateAudioEditorProject } from '../src/lib/tools/audio-editor/project.js';
+import { convertStructuredAup3ToProjectV2 } from '../src/common/editor/aup3-conversion.js';
+import { validateAudioEditorProject } from '../src/common/editor/project.js';
 
 test('structured AUP3 conversion materializes audio and labels without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];

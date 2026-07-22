@@ -16,10 +16,10 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const { ENGLISH_COPY } = await import('../src/i18n/catalogs.js');
-const { createAudioEditorController } = await import('../src/lib/tools/audio-editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/lib/tools/audio-editor/project-v2.js');
-const { createProjectStore } = await import('../src/lib/tools/audio-editor/storage.js');
+const { ENGLISH_COPY } = await import('../src/common/i18n/catalogs.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
+const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('Nyquist processors receive selected PCM and persist their returned audio as one destructive edit', async () => {
 	const sampleRate = 8_000;
