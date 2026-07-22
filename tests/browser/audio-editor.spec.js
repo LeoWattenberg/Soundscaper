@@ -2159,7 +2159,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect((await trackRow.boundingBox())?.height).toBe(initialTrackBounds.height);
 
 		const resizeX = headerBounds.x + headerBounds.width / 2;
-		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 1);
+		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height - 2);
 		await page.mouse.down();
 		await page.mouse.move(resizeX, headerBounds.y + headerBounds.height + 60, { steps: 4 });
 		await page.mouse.up();
@@ -2167,7 +2167,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		let resizedHeaderBounds = await trackHeader.boundingBox();
 		const grownTrackBounds = await trackRow.boundingBox();
-		await page.mouse.move(resizeX, resizedHeaderBounds.y + 1);
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + 2);
 		await page.mouse.down();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + 31, { steps: 4 });
 		await page.mouse.up();
@@ -2175,7 +2175,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		resizedHeaderBounds = await trackHeader.boundingBox();
 		const cappedTimelineBounds = await timelineInner.boundingBox();
-		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 1);
+		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 2);
 		await page.mouse.down();
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + timelineBounds.height * 2, { steps: 4 });
 		await page.mouse.up();
@@ -4389,15 +4389,42 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondPage.close();
 	});
 
-	test('refreshes an untouched default project without becoming read-only', async ({ page }) => {
-		let editor = await bootEditor(page, '/embed/en/');
+	test('refreshes an untouched default project without becoming read-only', async ({ page, context }) => {
+		await bootEditor(page, '/en/');
+		const devtools = await context.newCDPSession(page);
+		await devtools.send('Storage.clearDataForOrigin', {
+			origin: new URL(page.url()).origin,
+			storageTypes: 'all',
+		});
+		await page.reload();
+		let editor = await waitForEditor(page);
 		let record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(record).toBeEnabled();
 
 		await page.reload();
 		editor = await waitForEditor(page);
 		record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await expect(record).toBeEnabled({ timeout: 5_000 });
+		expect(await record.isEnabled()).toBe(true);
+		await expect(editor.locator('[data-status]')).not.toContainText('already open in another tab');
+	});
+
+	test('refreshes an untouched default project with fallback leases', async ({ page, context }) => {
+		await context.addInitScript(() => {
+			Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
+		});
+		await bootEditor(page, '/en/');
+		const devtools = await context.newCDPSession(page);
+		await devtools.send('Storage.clearDataForOrigin', {
+			origin: new URL(page.url()).origin,
+			storageTypes: 'all',
+		});
+		await page.reload();
+		await waitForEditor(page);
+
+		await page.reload();
+		const editor = await waitForEditor(page);
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		expect(await record.isEnabled()).toBe(true);
 		await expect(editor.locator('[data-status]')).not.toContainText('already open in another tab');
 	});
 
@@ -4523,6 +4550,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			{ label: 'mobile', width: 390, height: 844 },
 		]) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
+			await waitForResponsiveEditorLayout(editor);
 			for (const theme of ['light', 'dark']) {
 				await setDocumentTheme(page, theme);
 				await expect(editor).toHaveScreenshot(`audio-editor-${viewport.label}-${theme}.png`, {
@@ -4947,8 +4975,17 @@ async function expectSurfaceWithinViewport(surface, page) {
 async function setDocumentTheme(page, theme) {
 	await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
 	await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-	await expect.poll(() => page.locator('[data-audio-editor]').evaluate((root) => root.className)).toContain('kw-audio-editor');
+	await expect.poll(() => page.locator('[data-audio-editor]').evaluate((root) => root.style.colorScheme)).toBe(theme);
 	await page.waitForTimeout(50);
+}
+
+async function waitForResponsiveEditorLayout(editor) {
+	await expect.poll(() => editor.evaluate((root) => (
+		root.classList.contains('kw-audio-editor--compact') === window.matchMedia('(max-width: 900px)').matches
+	))).toBe(true);
+	await editor.evaluate(() => new Promise((resolve) => {
+		requestAnimationFrame(() => requestAnimationFrame(resolve));
+	}));
 }
 
 async function dispatchPinch(timeline) {

@@ -37,6 +37,31 @@ test('project lock allows an in-flight navigator lock release to complete before
 	await lock.finished;
 });
 
+test('an unavailable navigator lock exposes its queued ownership handoff', async () => {
+	let grant;
+	const locks = {
+		request(_name, options, next) {
+			if (options.ifAvailable) return next(null);
+			return new Promise((resolve) => {
+				grant = () => Promise.resolve(next({ name: 'project' })).then(resolve);
+			});
+		},
+	};
+	const lock = await acquireProjectLock('queued', {
+		navigator: { locks },
+		navigatorLockHandoffMs: 0,
+	});
+	assert.equal(lock.readOnly, true);
+	assert.equal(typeof grant, 'function');
+	const granted = grant();
+	const available = await lock.available;
+	assert.notStrictEqual(available, lock);
+	assert.equal(lock.readOnly, true);
+	assert.equal(available.readOnly, false);
+	available.release();
+	await Promise.all([lock.finished, granted]);
+});
+
 test('project lease makes a second writer read-only and releases ownership', async () => {
 	const values = new Map();
 	const storage = {

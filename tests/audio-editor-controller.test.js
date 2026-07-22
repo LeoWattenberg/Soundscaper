@@ -2982,6 +2982,37 @@ test('a read-only project automatically becomes writable after its competing loc
 	await controller.dispose();
 });
 
+test('a queued project lock promotes the existing read-only controller without polling', async () => {
+	let resolveAvailable;
+	const available = new Promise((resolve) => { resolveAvailable = resolve; });
+	let lock;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+		acquireProjectLock: async (projectId) => {
+			lock = {
+				projectId,
+				readOnly: true,
+				method: 'test-queued',
+				available,
+				release() {},
+			};
+			return lock;
+		},
+	});
+	await controller.ready;
+	assert.equal(controller.getSnapshot().readOnly, true);
+	lock.readOnly = false;
+	resolveAvailable(lock);
+	await waitFor(() => controller.getSnapshot().readOnly === false);
+	assert.equal(controller.getSnapshot().status.message, COPY.ready);
+	await controller.dispose();
+});
+
 test('project flush serializes the latest snapshot and rejects persistence failures', async () => {
 	const store = createMemoryStore();
 	const controller = createAudioEditorController(null, {

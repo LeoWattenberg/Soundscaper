@@ -1583,28 +1583,43 @@ export function createAudioEditorController(_root = null, options = {}) {
 		globalThis.clearTimeout(state.projectLockRetryTimer);
 		state.projectLockRetryTimer = 0;
 		if (!lock?.readOnly || state.disposed || state.projectLock !== lock || project?.id !== projectId) return;
+		if (lock.available) {
+			void lock.available.then((availableLock) => {
+				if (availableLock) return recoverProjectLock(projectId, lock, availableLock);
+				if (state.projectLock === lock && project?.id === projectId && !state.disposed) {
+					lock.available = null;
+					lock.retryAt = Date.now() + 1_000;
+					scheduleProjectLockRecovery(projectId, lock);
+				}
+				return undefined;
+			}).catch((error) => handleProjectLockRecoveryError(projectId, lock, error));
+			return;
+		}
 		const retryAt = Number.isFinite(lock.retryAt) ? lock.retryAt : Date.now() + 1_000;
 		const delay = Math.max(100, Math.min(PROJECT_LOCK_RETRY_MAX_MS, retryAt - Date.now() + 25));
 		state.projectLockRetryTimer = globalThis.setTimeout(() => {
 			state.projectLockRetryTimer = 0;
-			void recoverProjectLock(projectId, lock).catch((error) => {
-				if (state.projectLock === lock && project?.id === projectId && !state.disposed) {
-					scheduleProjectLockRecovery(projectId, lock);
-					handleError(error);
-				}
-			});
+			void recoverProjectLock(projectId, lock)
+				.catch((error) => handleProjectLockRecoveryError(projectId, lock, error));
 		}, delay);
 	}
 
-	async function recoverProjectLock(projectId, previousLock) {
+	function handleProjectLockRecoveryError(projectId, lock, error) {
+		if (state.projectLock === lock && project?.id === projectId && !state.disposed) {
+			scheduleProjectLockRecovery(projectId, lock);
+			handleError(error);
+		}
+	}
+
+	async function recoverProjectLock(projectId, previousLock, availableLock = null) {
 		if (state.disposed || state.projectLock !== previousLock || project?.id !== projectId) return;
-		const nextLock = await acquireLock(projectId);
+		const nextLock = availableLock || await acquireLock(projectId);
 		if (state.disposed || state.projectLock !== previousLock || project?.id !== projectId) {
 			nextLock.release();
 			await Promise.resolve(nextLock.finished).catch(() => undefined);
 			return;
 		}
-		previousLock.release();
+		if (previousLock !== nextLock && nextLock.handoffFrom !== previousLock) previousLock.release();
 		state.projectLock = nextLock;
 		if (nextLock.readOnly) {
 			sessionController.setProjectReadOnly(projectId, {

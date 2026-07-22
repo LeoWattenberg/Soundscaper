@@ -17,25 +17,49 @@ export async function acquireProjectLock(projectId, options = {}) {
 }
 
 async function acquireNavigatorLock(projectId, locks, options) {
-	let attempt = await requestNavigatorLock(projectId, locks);
-	if (!attempt.writable) {
-		await attempt.finished;
-		const handoffMs = Number.isFinite(options.navigatorLockHandoffMs)
-			? Math.max(0, options.navigatorLockHandoffMs)
-			: NAVIGATOR_LOCK_HANDOFF_MS;
-		if (handoffMs > 0) await new Promise((resolve) => (options.setTimeout ?? globalThis.setTimeout)(resolve, handoffMs));
-		attempt = await requestNavigatorLock(projectId, locks);
-	}
+	const attempt = await requestNavigatorLock(projectId, locks);
+	if (attempt.writable) return navigatorLockResult(projectId, attempt);
+	await attempt.finished;
+
+	const queued = requestQueuedNavigatorLock(projectId, locks);
+	const handoffMs = Number.isFinite(options.navigatorLockHandoffMs)
+		? Math.max(0, options.navigatorLockHandoffMs)
+		: NAVIGATOR_LOCK_HANDOFF_MS;
+	const acquiredDuringHandoff = await Promise.race([
+		queued.acquired,
+		new Promise((resolve) => (options.setTimeout ?? globalThis.setTimeout)(() => resolve(false), handoffMs)),
+	]);
+	if (acquiredDuringHandoff) return navigatorLockResult(projectId, queued);
+
+	const pending = {
+		projectId,
+		readOnly: true,
+		method: 'navigator-locks',
+		retryAt: null,
+		release: queued.release,
+		finished: queued.finished,
+		available: null,
+	};
+	pending.available = queued.acquired.then((writable) => {
+		if (!writable) return null;
+		const available = navigatorLockResult(projectId, queued);
+		available.handoffFrom = pending;
+		return available;
+	});
+	return pending;
+}
+
+function navigatorLockResult(projectId, attempt) {
 	let released = false;
 	return {
 		projectId,
-		readOnly: !attempt.writable,
+		readOnly: false,
 		method: 'navigator-locks',
-		retryAt: attempt.writable ? null : Date.now() + 1_000,
+		retryAt: null,
 		release() {
 			if (released) return;
 			released = true;
-			attempt.releaseHold();
+			attempt.release();
 		},
 		finished: attempt.finished,
 	};
@@ -59,8 +83,42 @@ async function requestNavigatorLock(projectId, locks) {
 	const writable = await acquired;
 	return {
 		writable,
-		releaseHold,
+		release: releaseHold,
 		finished,
+	};
+}
+
+function requestQueuedNavigatorLock(projectId, locks) {
+	const controller = new AbortController();
+	let acquiredLock = false;
+	let released = false;
+	let releaseHold;
+	let resolveAcquired;
+	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
+	const hold = new Promise((resolve) => { releaseHold = resolve; });
+	let finished;
+	try {
+		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, {
+			mode: 'exclusive',
+			signal: controller.signal,
+		}, async (lock) => {
+			acquiredLock = Boolean(lock);
+			resolveAcquired(acquiredLock);
+			if (lock) await hold;
+		})).catch(() => resolveAcquired(false));
+	} catch {
+		resolveAcquired(false);
+		finished = Promise.resolve();
+	}
+	return {
+		acquired,
+		finished,
+		release() {
+			if (released) return;
+			released = true;
+			if (acquiredLock) releaseHold();
+			else controller.abort();
+		},
 	};
 }
 
