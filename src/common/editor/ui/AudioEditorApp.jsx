@@ -49,6 +49,7 @@ import {
 	findAudioEditorShortcutConflicts,
 	normalizeAudioEditorShortcut,
 } from '../preferences.js';
+import { createAudioEditorSearchEntries } from '../search.js';
 import {
 	AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,
 	clearActiveProjectBinDragPayload,
@@ -211,6 +212,8 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
 	const [draggedWorkspacePanelId, setDraggedWorkspacePanelId] = useState(null);
 	const [projectBinSessionOpened, setProjectBinSessionOpened] = useState(false);
+	const [timelineSearchReveal, setTimelineSearchReveal] = useState(null);
+	const [projectBinSearchReveal, setProjectBinSearchReveal] = useState(null);
 	const [toolbarDock, setToolbarDock] = useState('top');
 	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(() => loadPlaybackMeterSettings(productId));
@@ -224,6 +227,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
 	const scapeCollisionResolverRef = useRef(null);
+	const searchRevealRevisionRef = useRef(0);
 	const requestedProjectOpenedRef = useRef(false);
 	const desktopReadySignalledRef = useRef(false);
 	const desktopOpenQueueRef = useRef(Promise.resolve());
@@ -759,6 +763,25 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		() => openWorkspacePanel('project-bin'),
 		[openWorkspacePanel],
 	);
+	useEffect(() => {
+		const binItemId = projectBinSearchReveal?.binItemId;
+		if (!binItemId) return undefined;
+		let frame = 0;
+		let attempts = 0;
+		const revealItem = () => {
+			attempts += 1;
+			const item = [...(workspaceRef.current?.querySelectorAll('[data-project-bin-item]') || [])]
+				.find((candidate) => String(candidate.dataset.projectBinItem) === String(binItemId));
+			if (item) {
+				item.focus({ preventScroll: true });
+				item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+				return;
+			}
+			if (attempts < 8) frame = requestAnimationFrame(revealItem);
+		};
+		frame = requestAnimationFrame(revealItem);
+		return () => cancelAnimationFrame(frame);
+	}, [projectBinSearchReveal]);
 	const openExternal = useCallback((url) => {
 		if (fileService.isDesktop) return fileService.openExternal(desktopExternalDestination(url));
 		const opened = globalThis.open?.(url, '_blank', 'noopener,noreferrer');
@@ -1082,6 +1105,32 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		uiFlags.tracksPanel,
 		zoomProject,
 	]);
+	const searchEntries = useMemo(() => createAudioEditorSearchEntries({
+		menus: applicationMenus,
+		project,
+	}), [applicationMenus, project]);
+	const activateSearchEntry = useCallback((entry) => {
+		if (!entry || entry.disabled) return;
+		if (entry.kind === 'command') {
+			if (typeof entry.handler === 'function') run(entry.handler);
+			return;
+		}
+		const revision = searchRevealRevisionRef.current + 1;
+		searchRevealRevisionRef.current = revision;
+		if (entry.kind === 'timeline') {
+			const clipId = entry.target?.clipId;
+			if (!clipId) return;
+			run(() => controller.actions.timeline.selectClip(clipId));
+			setTimelineSearchReveal({ clipId, revision });
+			return;
+		}
+		if (entry.kind === 'project-bin') {
+			const binItemId = entry.target?.binItemId;
+			if (!binItemId) return;
+			openWorkspacePanel('project-bin');
+			setProjectBinSearchReveal({ binItemId, revision });
+		}
+	}, [controller, openWorkspacePanel, run]);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
@@ -1230,8 +1279,10 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				locale={locale}
 				menus={applicationMenus}
 				projectName={project?.title || copy.untitledProject}
+				searchEntries={searchEntries}
 				saveState={snapshot.save?.state || 'saved'}
 				saveText={saveText}
+				onSearchActivate={activateSearchEntry}
 				onFullscreen={() => run(toggleFullscreen)}
 				projectTabs={<ProjectTabs
 					projects={snapshot.projectTabs || snapshot.projects || []}
@@ -1419,6 +1470,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 						}}
 						onRevealProjectBin={revealProjectBin}
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
+						searchRevealRequest={timelineSearchReveal}
 					/>
 					<p className="kw-audio-editor__keyboard-help" tabIndex={-1}>{copy.keyboardHelp}</p>
 				</main>
@@ -5088,6 +5140,8 @@ function ProjectBinCard({
 			data-project-bin-media-kind={videoClip ? 'video' : 'audio'}
 			data-source-id={clip.sourceId}
 			data-unavailable={unavailable ? 'true' : 'false'}
+			tabIndex={-1}
+			aria-label={`${copy.panelProjectBin}: ${name}`}
 			draggable={!disabled}
 			onDragStart={(event) => {
 				if (disabled) {
@@ -7662,7 +7716,7 @@ function createApplicationMenus({
 						{ id: 'zoom-out', label: copy.zoomOut, shortcut: 'Ctrl+3', onClick: actions.zoomOut },
 						{ id: 'zoom-to-selection', label: copy.zoomSelection, disabled: !selectionActive, onClick: actions.zoomSelection },
 						{ id: 'zoom-toggle', label: copy.zoomToggle, onClick: actions.zoomToggle },
-						{ id: 'zoom-fit', label: copy.zoomFit, shortcut: 'Ctrl+F', onClick: actions.zoomFit },
+						{ id: 'zoom-fit', label: copy.zoomFit, shortcut: 'Ctrl+0', onClick: actions.zoomFit },
 						{ id: 'fit-height', label: copy.fitHeight, onClick: actions.fitHeight },
 						{ id: 'center-view-on-playhead', label: copy.centerViewOnPlayhead, onClick: actions.centerOnPlayhead },
 						divider(),

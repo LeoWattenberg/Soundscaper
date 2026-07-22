@@ -377,6 +377,7 @@ export default function AudioEditorTimeline({
 	onExportClip,
 	onRevealProjectBin,
 	onToggleArmControls,
+	searchRevealRequest = null,
 }) {
 	const project = snapshot.project;
 	const mutationsBlocked = snapshot.readOnly
@@ -609,6 +610,37 @@ export default function AudioEditorTimeline({
 		const selectionToolbar = editor?.querySelector('[data-selection-toolbar] .selection-toolbar');
 		return focusCandidate(selectionToolbar, '[role="group"], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
 	}, []);
+	useEffect(() => {
+		const clipId = searchRevealRequest?.clipId;
+		if (!clipId || !project) return undefined;
+		const clip = project.clips.find((candidate) => String(candidate.id) === String(clipId));
+		const trackIndex = project.tracks.findIndex((track) => track.clipIds?.includes(clip?.id));
+		const scroll = scrollRef.current;
+		if (!clip || trackIndex < 0 || !scroll) return undefined;
+		const clipCenterPixels = framesToSeconds(
+			clip.timelineStartFrame + clip.durationFrames / 2,
+			{ sampleRate },
+		) * pixelsPerSecond;
+		const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+		scroll.scrollLeft = Math.max(0, Math.min(maximumScroll, clipCenterPixels - viewportWidth / 2));
+
+		let frame = 0;
+		let attempts = 0;
+		const focusRevealedClip = () => {
+			attempts += 1;
+			if (focusTrackClip(trackIndex, false, clip.id) || attempts >= 8) return;
+			frame = globalThis.requestAnimationFrame(focusRevealedClip);
+		};
+		frame = globalThis.requestAnimationFrame(focusRevealedClip);
+		return () => globalThis.cancelAnimationFrame(frame);
+	}, [
+		focusTrackClip,
+		pixelsPerSecond,
+		project,
+		sampleRate,
+		searchRevealRequest?.revision,
+		viewportWidth,
+	]);
 	const setTimelineNode = useCallback((node) => {
 		timelineRef(node);
 		navigationRootRef.current = node;

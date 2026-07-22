@@ -184,7 +184,7 @@ const definitions = [
 	implemented('zoom-default', 'Zoom normal', ['View > Zoom'], 'timeline.zoomDefault', { shortcut: 'Ctrl+2', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('zoom-to-selection', 'Zoom to selection', ['View > Zoom'], 'timeline.zoomSelection', { enableWhen: 'selection', source: UPSTREAM.projectScene }),
 	implemented('zoom-toggle', 'Zoom toggle', ['View > Zoom'], 'timeline.zoomToggle', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('zoom-to-fit-project', 'Fit project to width', ['View > Zoom'], 'timeline.zoomFit', { shortcut: 'Ctrl+F', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('zoom-to-fit-project', 'Fit project to width', ['View > Zoom'], 'timeline.zoomFit', { shortcut: 'Ctrl+0', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('fit-height', 'Fit height', ['View > Zoom'], 'timeline.fitHeight', { enableWhen: 'project-opened' }),
 	implemented('center-view-on-playhead', 'Center view on playhead', ['View > Zoom'], 'timeline.centerOnPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('decrease-all-track-heights', 'Decrease all track heights', ['View > Zoom'], 'track.decreaseAllHeights', { shortcut: 'Ctrl+Shift+Down', enableWhen: 'project-opened' }),

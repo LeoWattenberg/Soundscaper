@@ -7,6 +7,7 @@ import {
 } from '@dilsonspickles/components';
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
+import AudioEditorSearch from './AudioEditorSearch.jsx';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
 const applicationMarkDarkSrc = withBase('/logo/logo-klein-weiß.svg');
@@ -35,16 +36,19 @@ export default function AudioEditorMenuBar({
 	locale,
 	menus,
 	onFullscreen,
+	onSearchActivate,
 	projectTabs,
 	projectName,
 	saveState,
 	saveText,
+	searchEntries = [],
 }) {
 	const { theme } = useTheme();
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
+	const [searchOpen, setSearchOpen] = useState(false);
 	const menuOpen = Boolean(openMenu);
 	const orderedMenus = useMemo(() => AUDACITY_MENU_ORDER
 		.map((id) => menus.find((menu) => menu.id === id))
@@ -66,6 +70,7 @@ export default function AudioEditorMenuBar({
 		const trigger = menuButtonsRef.current[index];
 		if (!trigger) return;
 		const rect = trigger.getBoundingClientRect();
+		setSearchOpen(false);
 		setActiveIndex(index);
 		setOpenMenu({
 			id: orderedMenus[index].id,
@@ -75,6 +80,11 @@ export default function AudioEditorMenuBar({
 			autoFocus: keyboard,
 		});
 	}, [orderedMenus]);
+
+	const onSearchOpenChange = useCallback((nextOpen) => {
+		if (nextOpen) closeMenu(false);
+		setSearchOpen(nextOpen);
+	}, [closeMenu]);
 
 	const focusMenuButton = useCallback((index, { open = Boolean(openMenu) } = {}) => {
 		const count = orderedMenus.length;
@@ -273,35 +283,45 @@ export default function AudioEditorMenuBar({
 				<span className="kw-audio-editor-sr-only" data-save-state data-state={saveState}>{saveText}</span>
 			</div>
 
-			<div
-				className="application-header__windows-menubar kw-audio-editor__menubar-scroll"
-				role="menubar"
-				aria-label={copy.applicationMenu}
-				data-application-menubar
-				onBlur={(event) => {
-					if (flatNavigation || event.currentTarget.contains(event.relatedTarget)) return;
-					if (event.relatedTarget instanceof Element && event.relatedTarget.closest('.kw-audio-editor__application-menu')) return;
-					setActiveIndex(0);
-				}}
-			>
-				{orderedMenus.map((menu, index) => (
-					<button
-						key={menu.id}
-						ref={(element) => { menuButtonsRef.current[index] = element; }}
-						type="button"
-						className={`application-header__menu-item${openMenu?.index === index ? ' application-header__menu-item--open' : ''}`}
-						role="menuitem"
-						aria-haspopup="menu"
-						aria-expanded={openMenu?.index === index}
-						tabIndex={flatNavigation ? 0 : index === activeIndex ? menuTabIndex : -1}
-						onFocus={() => setActiveIndex(index)}
-						onMouseEnter={() => { if (openMenu) openMenuAt(index); }}
-						onClick={() => openMenu?.index === index ? closeMenu(false) : openMenuAt(index)}
-						onKeyDown={(event) => onTopLevelKeyDown(event, index)}
-					>
-						{menu.label}
-					</button>
-				))}
+			<div className="application-header__windows-menu-row" data-application-menu-row>
+				<div
+					className="application-header__windows-menubar kw-audio-editor__menubar-scroll"
+					role="menubar"
+					aria-label={copy.applicationMenu}
+					data-application-menubar
+					onBlur={(event) => {
+						if (flatNavigation || event.currentTarget.contains(event.relatedTarget)) return;
+						if (event.relatedTarget instanceof Element && event.relatedTarget.closest('.kw-audio-editor__application-menu')) return;
+						setActiveIndex(0);
+					}}
+				>
+					{orderedMenus.map((menu, index) => (
+						<button
+							key={menu.id}
+							ref={(element) => { menuButtonsRef.current[index] = element; }}
+							type="button"
+							className={`application-header__menu-item${openMenu?.index === index ? ' application-header__menu-item--open' : ''}`}
+							role="menuitem"
+							aria-haspopup="menu"
+							aria-expanded={openMenu?.index === index}
+							tabIndex={flatNavigation ? 0 : index === activeIndex ? menuTabIndex : -1}
+							onFocus={() => setActiveIndex(index)}
+							onMouseEnter={() => { if (openMenu) openMenuAt(index); }}
+							onClick={() => openMenu?.index === index ? closeMenu(false) : openMenuAt(index)}
+							onKeyDown={(event) => onTopLevelKeyDown(event, index)}
+						>
+							{menu.label}
+						</button>
+					))}
+				</div>
+				<AudioEditorSearch
+					copy={copy}
+					entries={searchEntries}
+					locale={locale}
+					onActivate={onSearchActivate}
+					onOpenChange={onSearchOpenChange}
+					open={searchOpen}
+				/>
 			</div>
 
 			<span className="kw-audio-editor-sr-only" data-project-name>{projectName}</span>

@@ -2318,6 +2318,161 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBinPanel).toBeVisible();
 	});
 
+	test('opens unified search from fixed shortcuts with an owned keyboard-accessible listbox', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
+		const sourceInput = editor.locator('[data-project-bin-name]');
+		const search = editor.locator('[data-editor-search-input]');
+		const popup = editor.locator('[data-editor-search-popup]');
+		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+
+		await expect(sourceInput).toBeVisible();
+		await sourceInput.focus();
+		await page.keyboard.press('Control+f');
+		await expect(search).toBeFocused();
+		await expect(search).toHaveAttribute('role', 'combobox');
+		await expect(search).toHaveAttribute('aria-expanded', 'true');
+		await expect(popup).toBeVisible();
+		await expect(popup).toHaveAttribute('role', 'listbox');
+		await expect(menubar.locator('[data-editor-search]')).toHaveCount(0);
+		await expect(popup.getByRole('group', { name: 'Commands', exact: true })).toBeVisible();
+		const initialActiveId = await search.getAttribute('aria-activedescendant');
+		expect(initialActiveId).toBeTruthy();
+		await expect(page.locator(`#${initialActiveId}`)).toHaveAttribute('aria-selected', 'true');
+		await search.press('ArrowDown');
+		await expect.poll(() => search.getAttribute('aria-activedescendant')).not.toBe(initialActiveId);
+		await assertNoSeriousAxeViolations(page, '[data-editor-search]');
+
+		await search.press('Escape');
+		await expect(popup).toBeHidden();
+		await expect(search).toHaveValue('');
+		await expect(sourceInput).toBeFocused();
+
+		for (const shortcut of ['F3', 'Meta+f']) {
+			await page.keyboard.press(shortcut);
+			await expect(search).toBeFocused();
+			await expect(popup).toBeVisible();
+			await search.press('Escape');
+			await expect(sourceInput).toBeFocused();
+		}
+
+		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
+		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
+		await expect(fileMenu).toBeVisible();
+		await page.keyboard.press('Control+f');
+		await expect(fileMenu).toBeHidden();
+		await expect(search).toBeFocused();
+		await menubar.getByRole('menuitem', { name: 'View', exact: true }).click();
+		await expect(popup).toBeHidden();
+		await expect(page.getByRole('menu', { name: 'View', exact: true })).toBeVisible();
+		await page.keyboard.press('Escape');
+	});
+
+	test('keeps disabled search commands inert and maps a louder request to Amplify without editing', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const search = editor.locator('[data-editor-search-input]');
+		const popup = editor.locator('[data-editor-search-popup]');
+
+		await page.keyboard.press('Control+f');
+		await search.fill('reset-configuration');
+		const disabledCommand = popup.locator('[data-editor-search-key="command:reset-configuration"]');
+		await expect(disabledCommand).toBeVisible();
+		await expect(disabledCommand).toHaveAttribute('aria-disabled', 'true');
+		await expect(popup.getByRole('option')).toHaveCount(1);
+		await expect(search).not.toHaveAttribute('aria-activedescendant', /.+/);
+		await search.press('Enter');
+		await expect(popup).toBeVisible();
+		await disabledCommand.click({ force: true });
+		await expect(popup).toBeVisible();
+		await search.press('Escape');
+
+		await importFiles(editor, [toneA]);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		const countsBefore = await editor.evaluate((root) => ({
+			clips: root.dataset.clipCount,
+			tracks: root.dataset.trackCount,
+		}));
+		await page.keyboard.press('Control+f');
+		await search.fill('I want to make this louder');
+		const amplify = popup.locator('[data-editor-search-key="command:audacity-amplify"]');
+		await expect(amplify).toBeVisible();
+		await expect(amplify).toContainText('Amplify');
+		await expect(amplify).toHaveAttribute('aria-selected', 'true');
+		await search.press('Enter');
+
+		const effectDialog = page.locator('[data-selection-effects-dialog]');
+		await expect(effectDialog).toBeVisible();
+		await expect(effectDialog).toContainText(/Amplification|audacity-amplify/i);
+		await expect(editor).toHaveAttribute('data-clip-count', countsBefore.clips);
+		await expect(editor).toHaveAttribute('data-track-count', countsBefore.tracks);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await closeDialog(effectDialog);
+	});
+
+	test('reveals a compact Project Bin search result without previewing or inserting it', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		const editor = await bootEditor(page, '/embed/en/');
+		const trigger = editor.locator('[data-editor-search-trigger]');
+		const search = editor.locator('[data-editor-search-input]');
+		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
+
+		await expect(trigger).toBeVisible();
+		await expect(search).toBeHidden();
+		await trigger.click();
+		await expect(search).toBeFocused();
+		await search.press('Escape');
+		await expect(trigger).toBeFocused();
+
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await expect(projectBinPanel).toBeVisible();
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
+		let card = projectBinPanel.locator('[data-project-bin-item]').first();
+		await expect(card).toBeVisible();
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
+		await expect(projectBinPanel).toBeHidden();
+
+		await trigger.click();
+		await search.fill(toneA.name);
+		const binResult = editor.locator('[data-editor-search-option][data-editor-search-kind="project-bin"]');
+		await expect(binResult).toHaveCount(1);
+		await expect(binResult).toContainText(toneA.name);
+		await search.press('Enter');
+
+		await expect(projectBinPanel).toBeVisible();
+		card = projectBinPanel.locator('[data-project-bin-item]').first();
+		await expect(card).toBeFocused();
+		await expect(card.getByRole('button', { name: /^Play:/ })).toHaveAttribute('aria-pressed', 'false');
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+	});
+
+	test('centers and focuses an offscreen timeline clip activated from search', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const clipDialog = await openClipProperties(page, editor, clipByName(editor, toneB.name));
+		await commitInput(clipField(clipDialog, 'startFrame'), '4800000');
+		await closeDialog(clipDialog);
+
+		const timelineScroll = editor.locator('.audio-editor-timeline-scroll');
+		await timelineScroll.evaluate((element) => {
+			element.scrollLeft = 0;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await expect(clipByName(editor, toneB.name)).toHaveCount(0);
+		await page.keyboard.press('Control+f');
+		const search = editor.locator('[data-editor-search-input]');
+		await search.fill(toneB.name);
+		const timelineResult = editor
+			.locator('[data-editor-search-option][data-editor-search-kind="timeline"]')
+			.filter({ hasText: toneB.name });
+		await expect(timelineResult).toHaveCount(1);
+		await search.press('Enter');
+
+		await expect.poll(() => timelineScroll.evaluate((element) => element.scrollLeft)).toBeGreaterThan(1_000);
+		await expect(clipByName(editor, toneB.name)).toBeVisible();
+		await expect(clipByName(editor, toneB.name)).toBeFocused();
+	});
+
 	test('exposes the complete zoom menu and executes custom shortcuts through the action registry', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -2335,11 +2490,23 @@ test.describe('audio editor React/design-system workflows', () => {
 		for (const label of ['Zoom normal', 'Zoom to selection', 'Zoom toggle', 'Fit height', 'Decrease all track heights', 'Increase all track heights', 'Center view on playhead']) {
 			await expect(getMenuItem(zoomMenu, label)).toBeVisible();
 		}
+		const fitProject = getMenuItem(zoomMenu, 'Fit project to width');
+		await expect(fitProject).toBeVisible();
+		await expect(fitProject).toContainText('Ctrl+0');
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await expect(editor.getByRole('button', { name: 'Loop selection', exact: true })).toBeEnabled();
+		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom to selection']);
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
+		await editor.locator('.audio-editor-timeline-panel').evaluate((element) => {
+			element.tabIndex = -1;
+			element.focus();
+		});
+		await page.keyboard.press('Control+0');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeLessThan(normalWidth);
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(4);
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom to selection']);
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom normal']);
@@ -5056,9 +5223,9 @@ async function assertAccessibleBasics(root) {
 	expect(violations).toEqual([]);
 }
 
-async function assertNoSeriousAxeViolations(page) {
+async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-editor-design-system') {
 	const results = await new AxeBuilder({ page })
-		.include('#kw-audio-editor-design-system')
+		.include(selector)
 		.analyze();
 	const violations = results.violations
 		.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')

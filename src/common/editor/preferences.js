@@ -28,6 +28,12 @@ export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze({
 	'delete-all-tracks-ripple': Object.freeze(['Ctrl+Delete', 'Ctrl+Backspace']),
 });
 
+export const AUDIO_EDITOR_SEARCH_ACTION_ID = 'application-search';
+export const AUDIO_EDITOR_SEARCH_SHORTCUTS = Object.freeze(['Ctrl+F', 'F3']);
+export const AUDIO_EDITOR_RESERVED_SHORTCUTS = Object.freeze({
+	[AUDIO_EDITOR_SEARCH_ACTION_ID]: AUDIO_EDITOR_SEARCH_SHORTCUTS,
+});
+
 const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 	play: 'action://playback/play',
 	'quick-help': 'online-handbook',
@@ -502,12 +508,57 @@ export function normalizeAudioEditorShortcut(binding) {
 	return [...ordered, normalizedKey].join('+');
 }
 
+function normalizedShortcutKey(binding) {
+	return normalizeAudioEditorShortcut(binding).toLowerCase();
+}
+
+function migrateLoadedAudioEditorShortcuts(shortcuts) {
+	const normalized = normalizeShortcuts(shortcuts);
+	const zoomActionId = 'zoom-to-fit-project';
+	const formerZoomBinding = normalizedShortcutKey('Ctrl+F');
+	const replacementZoomBinding = normalizedShortcutKey('Ctrl+0');
+	const reservedBindings = new Set(AUDIO_EDITOR_SEARCH_SHORTCUTS.map(normalizedShortcutKey));
+	const zoomBindings = normalized[zoomActionId] || [];
+	const migrateZoomBinding = zoomBindings
+		.some((binding) => normalizedShortcutKey(binding) === formerZoomBinding);
+	const zoomOwnsReplacementBinding = migrateZoomBinding || zoomBindings
+		.some((binding) => normalizedShortcutKey(binding) === replacementZoomBinding);
+	const migrated = {};
+
+	for (const [actionId, bindings] of Object.entries(normalized)) {
+		const nextBindings = [];
+		const seen = new Set();
+		for (const binding of bindings) {
+			const key = normalizedShortcutKey(binding);
+			let nextBinding = binding;
+			let nextKey = key;
+			if (actionId === zoomActionId && key === formerZoomBinding) {
+				nextBinding = 'Ctrl+0';
+				nextKey = replacementZoomBinding;
+			} else if (reservedBindings.has(key)) {
+				continue;
+			}
+			if (zoomOwnsReplacementBinding && actionId !== zoomActionId && nextKey === replacementZoomBinding) continue;
+			if (seen.has(nextKey)) continue;
+			seen.add(nextKey);
+			nextBindings.push(nextBinding);
+		}
+		migrated[actionId] = nextBindings;
+	}
+
+	return migrated;
+}
+
 export function findAudioEditorShortcutConflicts(shortcuts) {
 	const normalized = normalizeShortcuts(shortcuts);
 	const byBinding = new Map();
-	for (const [actionId, bindings] of Object.entries(normalized)) {
+	const allShortcuts = {
+		...normalized,
+		...AUDIO_EDITOR_RESERVED_SHORTCUTS,
+	};
+	for (const [actionId, bindings] of Object.entries(allShortcuts)) {
 		for (const binding of bindings) {
-			const key = normalizeAudioEditorShortcut(binding).toLowerCase();
+			const key = normalizedShortcutKey(binding);
 			if (!byBinding.has(key)) byBinding.set(key, { binding: normalizeAudioEditorShortcut(binding), actionIds: [] });
 			byBinding.get(key).actionIds.push(actionId);
 		}
@@ -571,6 +622,7 @@ export function loadAudioEditorPreferencesV1(value) {
 	return {
 		preferences: {
 			...clone(value),
+			shortcuts: migrateLoadedAudioEditorShortcuts(normalized.shortcuts),
 			view: normalized.view,
 			workspace: { ...clone(value.workspace), panels: normalized.workspace.panels },
 			recording: normalized.recording,
