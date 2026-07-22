@@ -8,11 +8,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSET_ROOT = resolve(process.argv[2] || resolve(ROOT, 'release/desktop'));
 const TRANSLATION_BASE_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
-const FFMPEG_BUILD_SOURCE_URL = 'https://github.com/ffmpegwasm/ffmpeg.wasm/archive/refs/tags/v0.12.10.tar.gz';
-const FFMPEG_BUILD_SOURCE = Object.freeze({
-	byteLength: 1_115_568,
-	sha256: '3f1c3f94143d11e3bbb322bd8a1a3189965f31162cf7e889fd3b7e21a928d1ea',
-});
 const FFMPEG_SOURCE_MANIFEST = resolve(ROOT, 'desktop/ffmpeg-corresponding-source.json');
 const FFMPEG_RUNTIME = Object.freeze({
 	package: '@ffmpeg/core',
@@ -63,16 +58,16 @@ async function main() {
 		'translation source archive',
 	);
 	await fetchVerified(
-		new URL(FFMPEG_BUILD_SOURCE_URL),
-		resolve(ASSET_ROOT, 'ffmpeg.wasm-v0.12.10-build-source.tar.gz'),
-		FFMPEG_BUILD_SOURCE,
+		new URL(ffmpegCorrespondingSource.buildSource.url),
+		resolve(ASSET_ROOT, ffmpegCorrespondingSource.buildSource.fileName),
+		ffmpegCorrespondingSource.buildSource,
 		'ffmpeg.wasm build-script source archive',
 	);
 	await fetchVerified(
-		new URL(ffmpegCorrespondingSource.url),
-		resolve(ASSET_ROOT, ffmpegCorrespondingSource.fileName),
-		ffmpegCorrespondingSource,
-		'FFmpeg complete corresponding-source bundle',
+		new URL(ffmpegCorrespondingSource.source.url),
+		resolve(ASSET_ROOT, ffmpegCorrespondingSource.source.fileName),
+		ffmpegCorrespondingSource.source,
+		'FFmpeg corresponding-source archive',
 	);
 	await copyFile(resolve(ROOT, 'LICENSE'), resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'));
 	await copyFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md'), resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'));
@@ -121,18 +116,20 @@ async function loadFfmpegCorrespondingSource() {
 		assert(manifest.runtime?.[key] === expected,
 			`FFmpeg corresponding-source manifest runtime field ${key} does not match the shipped core.`);
 	}
-	const source = manifest.source;
-	assert(source && typeof source === 'object' && !Array.isArray(source),
-		'FFmpeg corresponding-source manifest has no source descriptor.');
-	const url = new URL(String(source.url || ''));
-	assert(url.protocol === 'https:' && !url.username && !url.password && !url.hash,
-		'FFmpeg corresponding-source bundle must use a clean HTTPS URL.');
-	assert(typeof source.fileName === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u.test(source.fileName),
-		'FFmpeg corresponding-source bundle filename is invalid.');
-	assert(/^[a-f\d]{64}$/u.test(source.sha256), 'FFmpeg corresponding-source bundle digest is invalid.');
-	assert(Number.isSafeInteger(source.byteLength) && source.byteLength > 0 && source.byteLength <= 2 * 1024 * 1024 * 1024,
-		'FFmpeg corresponding-source bundle byte length is invalid.');
-	return source;
+	for (const [key, label] of [['source', 'FFmpeg corresponding-source archive'], ['buildSource', 'ffmpeg.wasm build-script source archive']]) {
+		const source = manifest[key];
+		assert(source && typeof source === 'object' && !Array.isArray(source),
+			`FFmpeg corresponding-source manifest has no ${key} descriptor.`);
+		const url = new URL(String(source.url || ''));
+		assert(url.protocol === 'https:' && !url.username && !url.password && !url.hash,
+			`${label} must use a clean HTTPS URL.`);
+		assert(typeof source.fileName === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u.test(source.fileName),
+			`${label} filename is invalid.`);
+		assert(/^[a-f\d]{64}$/u.test(source.sha256), `${label} digest is invalid.`);
+		assert(Number.isSafeInteger(source.byteLength) && source.byteLength > 0 && source.byteLength <= 2 * 1024 * 1024 * 1024,
+			`${label} byte length is invalid.`);
+	}
+	return manifest;
 }
 
 async function fetchVerified(url, output, descriptor, label) {

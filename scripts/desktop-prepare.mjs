@@ -28,6 +28,7 @@ const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' :
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const FFMPEG_VERSION = '0.12.10';
+const FFMPEG_BUILD_SOURCE_VERSION = '12.15';
 const FFMPEG_FILES = Object.freeze({
 	'ffmpeg-core.js': '67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3',
 	'ffmpeg-core.wasm': '9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7',
@@ -83,7 +84,7 @@ async function stageFfmpeg() {
 		package: '@ffmpeg/core',
 		version: FFMPEG_VERSION,
 		license: 'GPL-2.0-or-later',
-		source: `https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v${FFMPEG_VERSION}`,
+		source: `https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v${FFMPEG_BUILD_SOURCE_VERSION}`,
 		files,
 	};
 	await writeJson(resolve(outputRoot, 'manifest.json'), manifest);

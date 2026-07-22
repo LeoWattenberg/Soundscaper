@@ -1,6 +1,10 @@
-name: Desktop preview
+name: Desktop preview and nightly
 
 on:
+  schedule:
+    # Run from the default branch every night at 02:17 UTC. The offset avoids
+    # the heavy load GitHub Actions commonly sees at the top of the hour.
+    - cron: '17 2 * * *'
   push:
     tags:
       - 'v*-beta.*'
@@ -10,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-preview-${{ github.ref }}
+  group: desktop-preview-and-nightly-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -66,12 +70,14 @@ jobs:
         run: npm run test:browser
 
   package:
+    name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: quality
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        include:
+        product: [soundscaper, framescaper]
+        target:
           - runner: windows-2025
             platform: win
             arch: x64
@@ -90,7 +96,9 @@ jobs:
           - runner: ubuntu-24.04-arm
             platform: linux
             arch: arm64
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.target.runner }}
+    env:
+      SCAPE_PRODUCT: ${{ matrix.product }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -111,8 +119,8 @@ jobs:
       - name: Stage the offline renderer and runtimes
         run: node scripts/desktop-prepare.mjs
 
-      - name: Package ${{ matrix.platform }} ${{ matrix.arch }}
-        run: npx electron-builder --config electron-builder.config.cjs --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+      - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
+        run: npx electron-builder --config electron-builder.config.cjs --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
@@ -129,10 +137,20 @@ jobs:
 
       - name: Retain the verified runtime manifest
         shell: bash
-        run: cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.platform }}-${{ matrix.arch }}.json"
+        run: |
+          cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
+          cp desktop/ffmpeg-corresponding-source.json release/desktop/ffmpeg-corresponding-source.json
 
-      # Do not upload or publish the generated binaries yet. The shipped GPL
-      # FFmpeg core still needs a complete, digest-pinned corresponding-source
-      # bundle covering every enabled dependency. Local packaging and this
-      # matrix remain useful release-readiness checks without distributing an
-      # artifact that does not yet satisfy that source obligation.
+      - name: Upload ${{ matrix.product }} packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: |
+            release/desktop/*.AppImage
+            release/desktop/*.deb
+            release/desktop/*.dmg
+            release/desktop/*.exe
+            release/desktop/*.zip
+            release/desktop/*.json
+          if-no-files-found: error
+          retention-days: 14

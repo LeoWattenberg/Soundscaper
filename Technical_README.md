@@ -132,12 +132,15 @@ and the referenced source license; every descriptor is rechecked before use.
 
 Pushing a beta tag that exactly matches `package.json` (for example,
 `v0.2.0-beta.1`) runs unit, reproducibility, browser, and native packaging
-checks, but does not upload or publish the generated binaries yet. Public
-desktop distribution is gated on assembling and auditing a complete,
-digest-pinned corresponding-source bundle for FFmpeg and every enabled codec
-dependency; the upstream ffmpeg.wasm tag alone is only the build recipe and is
-not sufficient. A future stable tag must additionally pass
-`npm run audit:aup4-interop:release` and use Windows signing plus macOS Developer
+checks. The same build runs nightly from the default branch at 02:17 UTC and
+can be started manually from the **Desktop preview and nightly** GitHub Actions
+workflow. Soundscaper and Framescaper are prepared, packaged, and smoke-tested
+in separate jobs for every supported OS/architecture. Each packaging job uploads
+its verified installers to the Actions run for 14 days; these are CI artifacts,
+not a public release channel. Public
+desktop distribution still requires the release provenance recorded in
+`desktop/ffmpeg-corresponding-source.json`, plus a future stable tag that passes
+`npm run audit:aup4-interop:release`, uses Windows signing plus macOS Developer
 ID signing/notarization; the compiled-native AUP4 gate is intentionally still
 pending for this preview.
 

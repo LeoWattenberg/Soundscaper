@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"runtime": {
+		"package": "@ffmpeg/core",
+		"version": "0.12.10",
+		"javascriptSha256": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3",
+		"wasmSha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7"
+	},
+	"source": {
+		"url": "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n5.1.4.tar.gz",
+		"fileName": "ffmpeg-n5.1.4-source.tar.gz",
+		"byteLength": 14419343,
+		"sha256": "6ed8ba17d513955cd9a03d0d87195b8eac3d148dcb61ef30ebddf1a3cd718de8"
+	},
+	"buildSource": {
+		"url": "https://github.com/ffmpegwasm/ffmpeg.wasm/archive/refs/tags/v12.15.tar.gz",
+		"fileName": "ffmpeg.wasm-v12.15-build-source.tar.gz",
+		"byteLength": 1329034,
+		"sha256": "98e473f975e4aa6e5836d99078c40db5d8f4ea52685e6411025f2d7b876a7569"
+	}
+}
