@@ -34,6 +34,8 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(soundscaper).toHaveAttribute('data-workspace-preset', 'modern');
 		await expect(soundscaper.locator('[data-transport="record"]')).toBeVisible();
 		await expect(page.locator('[data-workspace-select] option[value="video-editor"]')).toHaveCount(0);
+		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
+		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Soundscaper', exact: true })).toBeVisible();
 
 		await page.goto('/framescaper/en/');
 		const framescaper = await readyEditor(page, 'framescaper');
@@ -41,6 +43,8 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(framescaper).toHaveAttribute('data-workspace-preset', 'video-editor');
 		await expect(framescaper.locator('[data-transport="record"]')).toHaveCount(0);
 		await expect(page.locator('[data-workspace-select] option[value="video-editor"]')).toHaveCount(1);
+		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
+		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
 	test('a project opens across product routes without copying its shared library entry', async ({ page }) => {

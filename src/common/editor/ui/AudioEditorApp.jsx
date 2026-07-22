@@ -180,6 +180,7 @@ function LazyInspectorFallback({ copy }) {
 function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
 	const capabilities = product.capabilities;
+	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
 	const fileService = useMemo(() => createAudioEditorFileService(), []);
 	const controller = useMemo(() => createEditorController(null, {
@@ -847,6 +848,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		.join('\n');
 	const applicationMenus = useMemo(() => createApplicationMenus({
 		productId,
+		aboutLabel,
 		capabilities,
 		locale,
 		copy,
@@ -1022,6 +1024,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				about: () => setDialog('about'),
 			},
 	}), [
+		aboutLabel,
 		blocked,
 		capabilities,
 		controller,
@@ -1373,6 +1376,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}
+					aboutLabel={aboutLabel}
 					locale={locale}
 					fileService={fileService}
 					playbackMeterSettings={playbackMeterSettings}
@@ -6759,7 +6763,7 @@ function generatorLabel(type, copy) {
 	return { silence: copy.silenceGenerator, tone: copy.toneGenerator, chirp: copy.chirpGenerator, noise: copy.noiseGenerator, dtmf: copy.dtmfGenerator }[type] || copy.generateMenu;
 }
 
-function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, locale, run, showArmControls = false, onClose }) {
+function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
 	const panelRef = useRef(null);
 	const cancelTimedRecordingOnClose = useRef(false);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
@@ -6815,7 +6819,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 		'track-rate': copy.sampleRate,
 		resample: copy.resample,
 		'aup4-compatibility': copy.aup4CompatibilityReport,
-		about: copy.aboutEditor,
+		about: aboutLabel,
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
 	const offsetSources = recordingOffsetSources(snapshot, copy);
@@ -7326,6 +7330,7 @@ function trackSourceRate(project, track, fallback) {
 
 function createApplicationMenus({
 	productId,
+	aboutLabel,
 	capabilities,
 	locale,
 	copy,
@@ -7854,7 +7859,7 @@ function createApplicationMenus({
 					{ id: 'manual', label: copy.manual, onClick: actions.manual },
 				{ id: 'support', label: copy.support, onClick: actions.support },
 				divider(),
-				{ id: 'about', label: copy.aboutEditor, onClick: actions.about },
+				{ id: 'about', label: aboutLabel, preserveLabel: true, onClick: actions.about },
 			],
 		},
 	], { locale, copy, materializeDisabled: true, actionRuntime });
