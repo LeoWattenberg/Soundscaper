@@ -11,6 +11,9 @@ export default defineConfig({
 		'/': '/en/',
 	},
 	vite: {
+		worker: {
+			format: 'es',
+		},
 		build: {
 			assetsInlineLimit: 0,
 		},

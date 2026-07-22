@@ -2693,7 +2693,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Save as AUP4']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export audio-only Audacity interchange (.aup4)']);
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
@@ -2763,7 +2763,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Save as AUP4']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export audio-only Audacity interchange (.aup4)']);
 		const download = await downloadPromise;
 		const snapshotPath = await download.path();
 		expect(snapshotPath).toBeTruthy();
@@ -4441,7 +4441,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await assertNoSeriousAxeViolations(page);
 		await closeDialog(effectDialog);
 
-		await expect(page.getByRole('menuitem', { name: 'Analyze', exact: true })).toHaveCount(0);
+		const analysisPanel = await openAnalysisPanel(page, editor);
+		await assertAccessibleBasics(analysisPanel);
+		await assertNoSeriousAxeViolations(page);
+		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
 
 		const exportDialog = await openExportDialog(page, editor);
 		await assertAccessibleBasics(exportDialog);

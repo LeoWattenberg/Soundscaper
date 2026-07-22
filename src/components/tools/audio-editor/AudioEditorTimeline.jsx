@@ -92,6 +92,8 @@ const CLIP_TRIM_EDGE_HIT_WIDTH = 6;
 const TRACK_HEADER_RESIZE_HIT_HEIGHT = 4;
 const MINIMUM_TRACK_HEIGHT = 40;
 const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
+const NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT = 48;
+const VIEWPORT_MENU_MARGIN = 8;
 const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({ format: 'linear-db', zoom: 0 });
 const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 const EMPTY_TIMELINE_CLIPS = Object.freeze([]);
@@ -99,6 +101,25 @@ const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
 
 function dataTransferHasType(dataTransfer, type) {
 	return Array.from(dataTransfer?.types || []).includes(type);
+}
+
+function viewportMenuAnchor(anchor, items) {
+	if (!anchor?.getBoundingClientRect) return null;
+	return {
+		getBoundingClientRect() {
+			const rect = anchor.getBoundingClientRect();
+			const menuHeight = 10 + (items || []).reduce((height, item) => height + (item.divider ? 9 : 32), 0);
+			const menuWidth = 220;
+			const top = rect.bottom + menuHeight <= globalThis.innerHeight - VIEWPORT_MENU_MARGIN
+				? rect.bottom
+				: Math.max(VIEWPORT_MENU_MARGIN, rect.top - menuHeight);
+			const left = Math.max(
+				VIEWPORT_MENU_MARGIN,
+				Math.min(rect.left, globalThis.innerWidth - menuWidth - VIEWPORT_MENU_MARGIN),
+			);
+			return { ...rect, top, bottom: top, left, right: left + rect.width };
+		},
+	};
 }
 
 function projectBinPayloadFromDataTransfer(dataTransfer) {
@@ -710,7 +731,15 @@ export default function AudioEditorTimeline({
 		});
 	}, [durationFrames, pixelsPerSecond, sampleRate, scrollX]);
 
+	const isInNewTrackDropZone = useCallback((clientY) => {
+		const rect = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect();
+		return Boolean(rect
+			&& clientY >= Math.max(rect.top, rect.bottom - NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT)
+			&& clientY < rect.bottom);
+	}, []);
+
 	const trackAtClientY = useCallback((clientY, fallbackTrackId) => {
+		if (isInNewTrackDropZone(clientY)) return NEW_AUDIO_TRACK_DROP_TARGET;
 		for (const lane of scrollRef.current?.querySelectorAll('[data-track-lane]') || []) {
 			if (lane.closest('[data-label-track]')) continue;
 			const rect = lane.getBoundingClientRect();
@@ -726,7 +755,7 @@ export default function AudioEditorTimeline({
 			return NEW_AUDIO_TRACK_DROP_TARGET;
 		}
 		return fallbackTrackId;
-	}, []);
+	}, [isInNewTrackDropZone]);
 
 	const projectBinDropTarget = useCallback(() => {
 		const editor = navigationRootRef.current?.closest('#kw-audio-editor-design-system');
@@ -756,8 +785,10 @@ export default function AudioEditorTimeline({
 
 	const timelineDropTargetAt = useCallback((event) => {
 		const eventLane = event.target?.closest?.('.audio-editor-track-lane[data-track-lane]');
-		const lane = eventLane && !eventLane.closest('[data-label-track]') ? eventLane : null;
-		const coordinateLane = lane
+		const lane = eventLane && !eventLane.closest('[data-label-track]') && !isInNewTrackDropZone(event.clientY)
+			? eventLane
+			: null;
+		const coordinateLane = eventLane
 			|| scrollRef.current?.querySelector('.audio-editor-track-lane[data-track-lane]')
 			|| scrollRef.current?.querySelector('[data-ruler-interaction]');
 		return {
@@ -765,7 +796,7 @@ export default function AudioEditorTimeline({
 			timelineStartFrame: coordinateLane ? frameAtClientX(event.clientX, coordinateLane) : 0,
 			createTrack: !lane,
 		};
-	}, [frameAtClientX]);
+	}, [frameAtClientX, isInNewTrackDropZone]);
 
 	const clearProjectBinDragState = useCallback((clearPayload = false) => {
 		setProjectBinDragPreview(null);
@@ -1977,7 +2008,7 @@ export default function AudioEditorTimeline({
 
 			<Menu
 				isOpen={Boolean(trackMenu && menuTrack)}
-				anchorEl={trackMenu?.anchor || null}
+				anchorEl={viewportMenuAnchor(trackMenu?.anchor, trackMenuItems)}
 				onClose={() => setTrackMenu(null)}
 				className="audio-editor-track-menu"
 				items={trackMenuItems}
