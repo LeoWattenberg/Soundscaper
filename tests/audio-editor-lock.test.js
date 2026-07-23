@@ -62,6 +62,50 @@ test('an unavailable navigator lock exposes its queued ownership handoff', async
 	await Promise.all([lock.finished, granted]);
 });
 
+test('a forced navigator lock invalidates the previous holder and takes ownership', async () => {
+	const requests = [];
+	const locks = {
+		request(_name, options, next) {
+			requests.push(options);
+			return next({ name: 'project' });
+		},
+	};
+	const lock = await acquireProjectLock('forced', {
+		navigator: { locks },
+		BroadcastChannel: null,
+		force: true,
+	});
+	assert.equal(lock.readOnly, false);
+	assert.equal(requests.length, 1);
+	assert.deepEqual(requests[0], { mode: 'exclusive', steal: true });
+	lock.release();
+	await lock.finished;
+});
+
+test('a forced fallback lease replaces the previous owner immediately', async () => {
+	const values = new Map();
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	const first = await acquireProjectLock('forced-lease', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 1, clearInterval: () => {}, now: () => 100,
+	});
+	const firstOwner = JSON.parse([...values.values()][0]).owner;
+	const replacement = await acquireProjectLock('forced-lease', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: () => 2, clearInterval: () => {}, now: () => 101, force: true,
+	});
+	const replacementOwner = JSON.parse([...values.values()][0]).owner;
+	assert.equal(replacement.readOnly, false);
+	assert.notEqual(replacementOwner, firstOwner);
+	first.release();
+	assert.equal(JSON.parse([...values.values()][0]).owner, replacementOwner);
+	replacement.release();
+});
+
 test('project lease makes a second writer read-only and releases ownership', async () => {
 	const values = new Map();
 	const storage = {

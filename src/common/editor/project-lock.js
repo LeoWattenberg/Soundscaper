@@ -19,8 +19,14 @@ export async function acquireProjectLock(projectId, options = {}) {
 }
 
 async function acquireNavigatorLock(projectId, locks, options) {
+	if (options.force) {
+		const forced = requestForcedNavigatorLock(projectId, locks);
+		const writable = await forced.acquired;
+		if (!writable) return acquireNavigatorLock(projectId, locks, { ...options, force: false });
+		return navigatorLockResult(projectId, forced, options, true);
+	}
 	const attempt = await requestNavigatorLock(projectId, locks);
-	if (attempt.writable) return navigatorLockResult(projectId, attempt);
+	if (attempt.writable) return navigatorLockResult(projectId, attempt, options);
 	await attempt.finished;
 
 	const queued = requestQueuedNavigatorLock(projectId, locks);
@@ -31,7 +37,7 @@ async function acquireNavigatorLock(projectId, locks, options) {
 		queued.acquired,
 		new Promise((resolve) => (options.setTimeout ?? globalThis.setTimeout)(() => resolve(false), handoffMs)),
 	]);
-	if (acquiredDuringHandoff) return navigatorLockResult(projectId, queued);
+	if (acquiredDuringHandoff) return navigatorLockResult(projectId, queued, options);
 
 	const pending = {
 		projectId,
@@ -44,27 +50,81 @@ async function acquireNavigatorLock(projectId, locks, options) {
 	};
 	pending.available = queued.acquired.then((writable) => {
 		if (!writable) return null;
-		const available = navigatorLockResult(projectId, queued);
+		const available = navigatorLockResult(projectId, queued, options);
 		available.handoffFrom = pending;
 		return available;
 	});
 	return pending;
 }
 
-function navigatorLockResult(projectId, attempt) {
+function navigatorLockResult(projectId, attempt, options, force = false) {
 	let released = false;
-	return {
+	let resolveLost;
+	const lost = new Promise((resolve) => { resolveLost = resolve; });
+	const owner = createOwner();
+	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
+	let channel = null;
+	try {
+		channel = BroadcastChannelClass ? new BroadcastChannelClass(`${LOCK_PREFIX}${projectId}`) : null;
+		if (channel) {
+			channel.onmessage = ({ data = {} }) => {
+				if (data.type === 'takeover' && data.owner !== owner) loseLock();
+			};
+			if (force) channel.postMessage({ type: 'takeover', owner });
+		}
+	} catch {
+		channel = null;
+	}
+	const result = {
 		projectId,
 		readOnly: false,
 		method: 'navigator-locks',
 		retryAt: null,
+		lost,
 		release() {
 			if (released) return;
 			released = true;
+			channel?.close();
 			attempt.release();
 		},
 		finished: attempt.finished,
 	};
+	void attempt.finished.then(() => {
+		if (released) return;
+		released = true;
+		channel?.close();
+		resolveLost();
+	});
+	return result;
+
+	function loseLock() {
+		if (released) return;
+		released = true;
+		channel?.close();
+		attempt.release();
+		resolveLost();
+	}
+}
+
+function requestForcedNavigatorLock(projectId, locks) {
+	let releaseHold;
+	let resolveAcquired;
+	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
+	const hold = new Promise((resolve) => { releaseHold = resolve; });
+	let finished;
+	try {
+		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, {
+			mode: 'exclusive',
+			steal: true,
+		}, async (lock) => {
+			resolveAcquired(Boolean(lock));
+			if (lock) await hold;
+		})).catch(() => resolveAcquired(false));
+	} catch {
+		resolveAcquired(false);
+		finished = Promise.resolve();
+	}
+	return { acquired, finished, release: releaseHold };
 }
 
 async function requestNavigatorLock(projectId, locks) {
@@ -137,10 +197,11 @@ async function acquireLease(projectId, options) {
 	let channel = null;
 	let heartbeat = 0;
 	let released = false;
+	let resolveLost;
 
 	if (!storage) return { projectId, readOnly: false, method: 'unavailable', retryAt: null, release() {} };
 	const existing = readLease(storage, key);
-	if (existing && existing.expiresAt > now()) {
+	if (!options.force && existing && existing.expiresAt > now()) {
 		const ownerAlive = existing.protocol === LEASE_PROTOCOL_VERSION
 			? await probeLeaseOwner(BroadcastChannelClass, key, existing.owner, setTimeoutFn)
 			: null;
@@ -165,6 +226,10 @@ async function acquireLease(projectId, options) {
 	try {
 		channel = BroadcastChannelClass ? new BroadcastChannelClass(key) : null;
 		if (channel) channel.onmessage = ({ data = {} }) => {
+			if (data.type === 'takeover' && data.owner !== owner) {
+				loseLease();
+				return;
+			}
 			if (data.type === 'claimed' && data.owner) claimants.add(data.owner);
 			if (data.type === 'probe' && data.owner === owner) {
 				try {
@@ -174,6 +239,7 @@ async function acquireLease(projectId, options) {
 				}
 			}
 		};
+		if (options.force) channel?.postMessage({ type: 'takeover', owner });
 		channel?.postMessage({ type: 'claimed', owner });
 	} catch {
 		channel = null;
@@ -212,6 +278,7 @@ async function acquireLease(projectId, options) {
 		readOnly: false,
 		method: 'lease',
 		retryAt: null,
+		lost: new Promise((resolve) => { resolveLost = resolve; }),
 		release: releaseLease,
 	};
 
@@ -232,6 +299,15 @@ async function acquireLease(projectId, options) {
 		if (current?.owner === owner) removeLease(storage, key);
 		channel?.postMessage({ type: 'released', owner });
 		channel?.close();
+	}
+
+	function loseLease() {
+		if (released) return;
+		released = true;
+		if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
+		removeLifecycleListeners();
+		channel?.close();
+		resolveLost?.();
 	}
 }
 

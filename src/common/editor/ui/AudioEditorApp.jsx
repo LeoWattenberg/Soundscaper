@@ -1637,7 +1637,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				}}
 			>{editorToolbar}</div>}
 
-			{(uiFlags.selectionToolbar || uiFlags.statusbar) && <AccessibleSelectionToolbar
+			{(uiFlags.selectionToolbar || uiFlags.statusbar || snapshot.lockReadOnly) && <AccessibleSelectionToolbar
 				controller={controller}
 				snapshot={snapshot}
 				copy={copy}
@@ -3298,6 +3298,7 @@ function AccessibleSelectionToolbar({
 	run,
 }) {
 	const wrapperRef = useRef(null);
+	const [claimingLock, setClaimingLock] = useState(false);
 	const [format, setFormat] = useState('hh:mm:ss+milliseconds');
 	const [durationFormat, setDurationFormat] = useState('hh:mm:ss+milliseconds');
 	const selection = snapshot.selection;
@@ -3352,6 +3353,23 @@ function AccessibleSelectionToolbar({
 		});
 		run(() => controller.actions.timeline.setSelection(selection.startFrame, endFrame));
 	};
+	const claimProjectLock = async () => {
+		if (claimingLock) return;
+		setClaimingLock(true);
+		try {
+			await run(() => controller.actions.project.claimLock());
+		} finally {
+			setClaimingLock(false);
+		}
+	};
+	const lockNotice = snapshot.lockReadOnly ? (
+		<div className="kw-audio-editor__project-lock-notice" data-project-lock-notice>
+			<span>{copy.projectOpenOtherTab}</span>
+			<Button variant="secondary" disabled={claimingLock} onClick={claimProjectLock}>
+				{claimingLock ? copy.claimingProjectLock : copy.claimProjectLock}
+			</Button>
+		</div>
+	) : null;
 	if (!showSelectionToolbar) {
 		return (
 			<div
@@ -3359,6 +3377,7 @@ function AccessibleSelectionToolbar({
 				className="kw-audio-editor__selection-surface kw-audio-editor__selection-surface--status-only"
 				data-selection-toolbar
 			>
+				{lockNotice}
 				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite">
 					{showStatusbar ? statusMessage : ''}
 				</p>
@@ -3371,8 +3390,9 @@ function AccessibleSelectionToolbar({
 			ref={wrapperRef}
 			className="kw-audio-editor__selection-surface"
 			data-selection-toolbar
-			aria-disabled={disabled ? 'true' : 'false'}
+			aria-disabled={disabled && !snapshot.lockReadOnly ? 'true' : 'false'}
 		>
+			{lockNotice}
 			<SelectionToolbar
 				selectionStart={selectionStart}
 				selectionEnd={selectionEnd}

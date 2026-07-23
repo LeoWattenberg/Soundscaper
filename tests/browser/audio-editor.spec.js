@@ -4601,7 +4601,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens the same project read-only in another tab', async ({ page, context }) => {
+	test('opens the same project read-only in another tab and can claim its lock', async ({ page, context }) => {
 		const first = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
@@ -4619,6 +4619,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		const readOnlyRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(readOnlyRecord).toBeDisabled();
 		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
+		await second.getByRole('button', { name: 'Edit here' }).click();
+		await expect(readOnlyRecord).toBeEnabled();
+		const firstRecord = first.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		await expect(firstRecord).toBeDisabled({ timeout: 5_000 });
+		await expect(first.locator('[data-status]')).toContainText('already open in another tab');
 
 		await page.close();
 		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 5_000 });

@@ -620,6 +620,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				preparing: Boolean(state.playAtSpeedAbort),
 			}),
 			readOnly: state.readOnly,
+			lockReadOnly: Boolean(state.projectLock?.readOnly),
 			importing: state.importing,
 			recordingStarting: state.recordingStarting,
 			recordingScheduling: state.timedRecordingPreparing,
@@ -950,6 +951,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				save: saveNow,
 				flush: flushProject,
 				prepareHandoff: prepareProjectHandoff,
+				claimLock: claimProjectLock,
 				rename: (title) => renameProject(title),
 				duplicate: (title) => duplicateProject(title),
 				remove: deleteProject,
@@ -1604,6 +1606,46 @@ export function createAudioEditorController(_root = null, options = {}) {
 		}, delay);
 	}
 
+	function watchProjectLockLoss(projectId, lock) {
+		if (!lock?.lost) return;
+		void lock.lost.then(() => {
+			if (state.disposed || state.projectLock !== lock || project?.id !== projectId) return;
+			return recoverProjectLock(projectId, lock);
+		}).catch((error) => handleProjectLockRecoveryError(projectId, lock, error));
+	}
+
+	async function claimProjectLock() {
+		const projectId = project?.id;
+		const previousLock = state.projectLock;
+		const metadata = projectId ? sessionTab(projectId)?.metadata || {} : {};
+		if (!projectId || !previousLock?.readOnly || metadata.intrinsicReadOnly) return false;
+		await releaseProjectLock(previousLock);
+		const nextLock = await acquireLock(projectId, { force: true });
+		if (state.disposed || project?.id !== projectId) {
+			nextLock.release();
+			await Promise.resolve(nextLock.finished).catch(() => undefined);
+			return false;
+		}
+		state.projectLock = nextLock;
+		if (nextLock.readOnly) {
+			state.readOnly = true;
+			scheduleProjectLockRecovery(projectId, nextLock);
+			publishProjectState();
+			setStatus(copy.projectOpenOtherTab, 'error');
+			return false;
+		}
+		watchProjectLockLoss(projectId, nextLock);
+		state.readOnly = false;
+		sessionController.setProjectReadOnly(projectId, {
+			readOnly: false,
+			reason: null,
+			lockMethod: nextLock.method,
+		});
+		publishProjectState();
+		setStatus(copy.ready, 'success');
+		return true;
+	}
+
 	function handleProjectLockRecoveryError(projectId, lock, error) {
 		if (state.projectLock === lock && project?.id === projectId && !state.disposed) {
 			scheduleProjectLockRecovery(projectId, lock);
@@ -1622,14 +1664,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (previousLock !== nextLock && nextLock.handoffFrom !== previousLock) previousLock.release();
 		state.projectLock = nextLock;
 		if (nextLock.readOnly) {
+			state.readOnly = true;
 			sessionController.setProjectReadOnly(projectId, {
 				readOnly: true,
 				reason: 'project-lock',
 				lockMethod: nextLock.method,
 			});
 			scheduleProjectLockRecovery(projectId, nextLock);
+			publishProjectState();
+			setStatus(copy.projectOpenOtherTab, 'error');
 			return;
 		}
+		watchProjectLockLoss(projectId, nextLock);
 
 		const metadata = sessionTab(projectId)?.metadata || {};
 		const intrinsicReadOnly = Boolean(metadata.intrinsicReadOnly);
@@ -1668,6 +1714,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await releaseProjectLock();
 			state.projectLock = await acquireLock(nextProject.id);
 		}
+		watchProjectLockLoss(nextProject.id, state.projectLock);
 		const lockReadOnly = Boolean(state.projectLock.readOnly);
 		const existingTab = sessionTab(nextProject.id);
 		const existingMetadata = existingTab?.metadata || {};
