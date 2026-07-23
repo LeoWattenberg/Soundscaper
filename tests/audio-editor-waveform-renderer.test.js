@@ -127,6 +127,58 @@ test('summary plans retain a continuous complete min/max column for every CSS pi
 	}
 });
 
+test('summary plans cover a resized canvas instead of painting only a stale prefix', () => {
+	const context = recordingContext();
+	drawAudacityWaveformChannel(context, {
+		mode: 'summary',
+		pixelWidth: 2,
+		pixelsPerSample: 0.1,
+		channels: [{
+			minimum: Float32Array.of(-0.25, -1),
+			maximum: Float32Array.of(0.25, 1),
+			rms: Float32Array.of(0.1, 0.8),
+		}],
+	}, {
+		width: 4,
+		centerY: 20,
+		maxAmplitude: 18,
+		sampleColor: '#000',
+		showRms: true,
+		rmsColor: '#888',
+	});
+
+	assert.deepEqual(
+		[...new Set(context.calls.fills.map(({ x }) => x))],
+		[0, 1, 2, 3],
+		'the complete live width is painted even while its plan still has the previous width',
+	);
+	assert.ok(
+		context.calls.fills.filter(({ x }) => x >= 2).some(({ height }) => height > 20),
+		'the right half uses the final source column instead of repeating the left prefix',
+	);
+});
+
+test('individual sample plans scale their complete x range to a resized canvas', () => {
+	const context = recordingContext();
+	drawAudacityWaveformChannel(context, {
+		mode: 'connecting-dots',
+		pixelWidth: 4,
+		pixelsPerSample: 2,
+		channels: [{
+			firstSampleX: 0,
+			samples: Float32Array.of(0, 0.5, -0.5),
+		}],
+	}, {
+		width: 8,
+		centerY: 20,
+		maxAmplitude: 18,
+		sampleColor: '#000',
+	});
+
+	assert.deepEqual(context.calls.strokes.map((path) => path[0][1]), [0, 4]);
+	assert.deepEqual(context.calls.strokes.map((path) => path[1][1]), [4, 8]);
+});
+
 test('rendering reuse derives bounded compatibility samples without rescanning source PCM', () => {
 	const frameCount = 256;
 	const values = Array.from({ length: frameCount }, (_, frame) => {

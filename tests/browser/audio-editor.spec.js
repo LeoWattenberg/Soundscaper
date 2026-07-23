@@ -3234,6 +3234,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const waveform = clipByName(editor, longTone.name).locator('canvas.clip-body__waveform');
 		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await expect(waveform).toHaveAttribute('data-waveform-mode', 'summary');
+		await expect(waveform).toHaveAttribute('data-waveform-source', 'peaks');
 
 		const summaryPixels = await waveform.evaluate((canvas) => {
 			const context = canvas.getContext('2d');
@@ -3269,6 +3270,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			sampleMode = await waveform.getAttribute('data-waveform-mode');
 		}
 		expect(sampleMode).toBe('connecting-dots');
+		await expect(waveform).toHaveAttribute('data-waveform-source', 'pcm');
 		const zoomedClip = clipByName(editor, longTone.name);
 		await zoomedClip.click({ position: { x: 48, y: 48 } });
 		await expect(zoomedClip.locator('.clip-display')).not.toHaveClass(/clip-display--selected/);

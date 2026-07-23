@@ -66,11 +66,13 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 	const sampleColor = typeof options.sampleColor === 'function' ? options.sampleColor : () => options.sampleColor || '#000';
 	const rmsColor = typeof options.rmsColor === 'function' ? options.rmsColor : () => options.rmsColor || '#000';
 	const centerLineColor = options.centerLineColor || null;
+	const horizontalScale = width / positiveFinite(rendering.pixelWidth, 'rendering.pixelWidth');
 
 	if (rendering.mode === 'connecting-dots' || rendering.mode === 'stem') {
 		drawIndividualSamples(context, channel, {
 			width,
-			pixelsPerSample: rendering.pixelsPerSample,
+			pixelsPerSample: rendering.pixelsPerSample * horizontalScale,
+			firstSampleX: channel.firstSampleX * horizontalScale,
 			centerY,
 			maxAmplitude,
 			halfWave,
@@ -95,15 +97,33 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 }
 
 function drawSummaryColumns(context, channel, options) {
-	const columnCount = Math.min(
-		Math.ceil(options.width),
+	const sourceColumnCount = Math.min(
 		channel.minimum.length,
 		channel.maximum.length,
 	);
+	const columnCount = Math.ceil(options.width);
+	if (!sourceColumnCount) return;
 	for (let x = 0; x < columnCount; x += 1) {
+		const sourceStart = Math.min(
+			sourceColumnCount - 1,
+			Math.floor(x * sourceColumnCount / columnCount),
+		);
+		const sourceEnd = Math.min(
+			sourceColumnCount,
+			Math.max(sourceStart + 1, Math.ceil((x + 1) * sourceColumnCount / columnCount)),
+		);
+		let minimum = Number.POSITIVE_INFINITY;
+		let maximum = Number.NEGATIVE_INFINITY;
+		let rmsSquareSum = 0;
+		for (let sourceColumn = sourceStart; sourceColumn < sourceEnd; sourceColumn += 1) {
+			minimum = Math.min(minimum, finiteSample(channel.minimum[sourceColumn]));
+			maximum = Math.max(maximum, finiteSample(channel.maximum[sourceColumn]));
+			const sourceRms = finiteSample(channel.rms?.[sourceColumn]);
+			rmsSquareSum += sourceRms * sourceRms;
+		}
 		const gain = finiteGain(options.envelopeGain(x, columnCount));
-		let minimum = finiteSample(channel.minimum[x]) * gain;
-		let maximum = finiteSample(channel.maximum[x]) * gain;
+		minimum *= gain;
+		maximum *= gain;
 		if (minimum > maximum) [minimum, maximum] = [maximum, minimum];
 		if (options.halfWave) {
 			minimum = Math.max(0, minimum);
@@ -112,7 +132,7 @@ function drawSummaryColumns(context, channel, options) {
 		fillAmplitudeSpan(context, x, minimum, maximum, options.centerY, options.maxAmplitude, options.sampleColor(x));
 
 		if (!options.showRms || !channel.rms) continue;
-		const rms = Math.max(0, finiteSample(channel.rms[x]) * gain);
+		const rms = Math.max(0, Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain);
 		const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
 		const rmsMaximum = Math.min(maximum, rms);
 		if (rmsMinimum <= rmsMaximum) {
@@ -125,7 +145,7 @@ function drawIndividualSamples(context, channel, options) {
 	const samples = channel.samples;
 	if (!samples?.length) return;
 	const pixelsPerSample = positiveFinite(options.pixelsPerSample, 'pixelsPerSample');
-	const firstSampleX = finite(channel.firstSampleX, 'firstSampleX');
+	const firstSampleX = finite(options.firstSampleX, 'firstSampleX');
 	const points = new Array(samples.length);
 	for (let index = 0; index < samples.length; index += 1) {
 		const x = firstSampleX + index * pixelsPerSample;

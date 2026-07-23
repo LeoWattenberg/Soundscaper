@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
 	CLIP_CONTENT_OFFSET,
@@ -66,6 +66,7 @@ import {
 	validateVideoTrackComposition,
 } from '../video-timeline.js';
 import {
+	audacityWaveformMode,
 	audacityWaveformChannelGeometry,
 	drawAudacityWaveformChannel,
 } from '../audacity-waveform-renderer.js';
@@ -4357,7 +4358,7 @@ function AudacityWaveformCanvases({
 		if (displayMode !== 'spectrogram' && displayMode !== 'multiview') return;
 		preparePffftSpectrogram(64).catch(() => {});
 	}, [displayMode]);
-	useEffect(() => {
+	useLayoutEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
 		let animationFrame = 0;
@@ -4387,7 +4388,7 @@ function AudacityWaveformCanvases({
 					window.devicePixelRatio || 1,
 				].join('|');
 				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
-				drawAudacityClipCanvas(canvas, clip, {
+				const drawn = drawAudacityClipCanvas(canvas, clip, {
 					displayMode,
 					pixelsPerSecond,
 					timeSelection,
@@ -4395,8 +4396,10 @@ function AudacityWaveformCanvases({
 					halfWave,
 					spectrogramScale,
 				});
-				canvas.__kwWaveformPlan = clip.audacityWaveform;
-				canvas.__kwWaveformDrawKey = canvasDrawKey;
+				if (drawn) {
+					canvas.__kwWaveformPlan = clip.audacityWaveform;
+					canvas.__kwWaveformDrawKey = canvasDrawKey;
+				}
 			}
 		};
 		const scheduleDraw = () => {
@@ -4438,11 +4441,11 @@ function AudacityWaveformCanvases({
 function drawAudacityClipCanvas(canvas, clip, options) {
 	const rendering = clip.audacityWaveform;
 	const context = canvas.getContext('2d', { alpha: true });
-	if (!context || !rendering.channels.length) return;
+	if (!context || !rendering.channels.length) return false;
 	const bounds = canvas.getBoundingClientRect();
 	const width = bounds.width || canvas.clientWidth || rendering.pixelWidth;
 	const height = bounds.height || canvas.clientHeight;
-	if (!(width > 0) || !(height > 0)) return;
+	if (!(width > 0) || !(height > 0)) return false;
 	const devicePixelRatio = window.devicePixelRatio || 1;
 	const deviceWidth = Math.max(1, Math.round(width * devicePixelRatio));
 	const deviceHeight = Math.max(1, Math.round(height * devicePixelRatio));
@@ -4450,7 +4453,7 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	if (canvas.height !== deviceHeight) canvas.height = deviceHeight;
 	const pixelRatioX = canvas.width / width;
 	const pixelRatioY = canvas.height / height;
-	if (!(pixelRatioX > 0) || !(pixelRatioY > 0)) return;
+	if (!(pixelRatioX > 0) || !(pixelRatioY > 0)) return false;
 
 	const body = canvas.closest('.clip-body');
 	const color = body?.dataset.color || 'blue';
@@ -4535,6 +4538,8 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	canvas.dataset.waveformRenderer = 'audacity';
 	canvas.dataset.waveformMode = rendering.mode;
 	canvas.dataset.waveformOwner = 'audacity';
+	canvas.dataset.waveformSource = rendering.peakBlockSize ? 'peaks' : 'pcm';
+	return true;
 }
 
 function drawAudacityClipSpectrogram(context, channels, options) {
@@ -5407,10 +5412,16 @@ function toDesignClip(
 			endFrame: clip.waveformEndFrame,
 		}),
 	};
-	const waveformSource = visual?.buffer || (allowPeakPyramid ? visual?.peaks : null);
+	const waveformBuffer = visual?.buffer || null;
+	const waveformPeaks = allowPeakPyramid ? visual?.peaks : null;
+	const visibleSourceSamples = (clip.waveformEndFrame - clip.waveformStartFrame)
+		* sourceDurationFrames / clip.durationFrames;
+	const pixelWidth = output.duration * pixelsPerSecond;
+	const usePeakPyramid = Boolean(waveformPeaks && visibleSourceSamples > 0
+		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary');
+	const waveformSource = usePeakPyramid ? waveformPeaks : waveformBuffer || waveformPeaks;
 	if (!waveformSource || !clip.isVisible) return output;
 	try {
-		const pixelWidth = output.duration * pixelsPerSecond;
 		const contentSignature = [
 			clip.sourceId,
 			clip.durationFrames,
@@ -5444,7 +5455,7 @@ function toDesignClip(
 			return output;
 		}
 		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
-		const waveform = visual.buffer
+		const waveform = waveformSource === waveformBuffer
 			? prepareBoundedWaveformWindow(Array.from(
 				{ length: visual.buffer.numberOfChannels },
 				(_, channel) => visual.buffer.getChannelData(channel),
