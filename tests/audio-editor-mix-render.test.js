@@ -415,6 +415,15 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 	});
 	await store.saveProject(project);
 	await store.saveSetting('last-project-id', project.id);
+	await store.saveAnalysis('audio-editor-peaks-v1:stereo-source', {
+		version: 2,
+		levels: [{
+			blockSize: 64,
+			minimums: Float32Array.of(-0.05),
+			maximums: Float32Array.of(0.05),
+			rms: Float32Array.of(0.05),
+		}],
+	});
 	const renderedLeft = Float32Array.from([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]);
 	const renderedRight = Float32Array.from([-0.6, -0.5, -0.4, -0.3, -0.2, -0.1]);
 	const controller = createAudioEditorController(null, {
@@ -427,6 +436,12 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 
 	try {
 		await controller.ready;
+		assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:stereo-source'), null);
+		const regeneratedPeaks = await store.loadAnalysis('audio-editor-peaks-v2:stereo-source');
+		assert.equal(regeneratedPeaks.version, 3);
+		assert.equal(regeneratedPeaks.channelCount, 2);
+		assert.equal(regeneratedPeaks.levels[0].channels[0].maximums[0], inputLeft[0]);
+		assert.equal(regeneratedPeaks.levels[0].channels[1].minimums[0], inputRight[0]);
 		controller.actions.timeline.selectTrack('stereo-track');
 		const result = await controller.actions.track.mixAndRender();
 		const snapshot = controller.getSnapshot();
@@ -434,6 +449,16 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 		assert.equal(mixedSource.channelCount, 2);
 		assert.equal(await storedSample(store, result.sourceId, 0, 4), renderedLeft[4]);
 		assert.equal(await storedSample(store, result.sourceId, 1, 4), renderedRight[4]);
+		const peaks = await store.loadAnalysis(`audio-editor-peaks-v2:${result.sourceId}`);
+		assert.equal(peaks.version, 3);
+		assert.equal(peaks.channelCount, 2);
+		assert.equal(peaks.levels[0].channels.length, 2);
+		assert.equal(peaks.levels[0].channels[0].maximums[0], renderedLeft[5]);
+		assert.equal(peaks.levels[0].channels[1].minimums[0], renderedRight[0]);
+		assert.notDeepEqual(
+			[...peaks.levels[0].channels[0].maximums],
+			[...peaks.levels[0].channels[1].maximums],
+		);
 	} finally {
 		await controller.dispose();
 	}
@@ -525,6 +550,11 @@ test('oversized Mix-down streams stereo packets directly into canonical storage'
 			chunkCount: metadata.chunkCount,
 		}, { frameCount: 8, channelCount: 2, chunkFrames: 65_536, chunkCount: 1 });
 		assert.deepEqual(controller.sourceBufferCacheStats, { byteLength: 0, maxBytes: 0, entryCount: 0 });
+		const peaks = await store.loadAnalysis(`audio-editor-peaks-v2:${result.sourceId}`);
+		assert.equal(peaks.version, 3);
+		assert.equal(peaks.channelCount, 2);
+		assert.equal(peaks.levels[0].channels[0].maximums[0], left[7]);
+		assert.equal(peaks.levels[0].channels[1].minimums[0], right[7]);
 		assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
 
 		controller.actions.edit.undo();
@@ -694,7 +724,7 @@ test('a streamed Mix-down removes committed PCM when analysis activation fails',
 		assert.equal(controller.getSnapshot().history.undoEntries.length, historyBefore);
 		assert.equal(attemptedSourceIds.length, 1);
 		assert.equal(await store.getSourceMetadata(attemptedSourceIds[0]), null);
-		assert.equal(await store.loadAnalysis(`audio-editor-peaks-v1:${attemptedSourceIds[0]}`), null);
+		assert.equal(await store.loadAnalysis(`audio-editor-peaks-v2:${attemptedSourceIds[0]}`), null);
 	} finally {
 		await controller.dispose();
 	}

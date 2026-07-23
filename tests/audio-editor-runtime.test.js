@@ -287,6 +287,7 @@ test('source pruning preserves live history and retained revisions before removi
 		await writer.write([Float32Array.of(0.1, 0.2)]);
 		await writer.commit();
 		await store.saveAnalysis(`audio-editor-peaks-v1:${sourceId}`, { levels: [sourceId] });
+		await store.saveAnalysis(`audio-editor-peaks-v2:${sourceId}`, { levels: [sourceId] });
 	}
 	const project = (revision, sourceId, extraSources = []) => ({
 		id: 'retained-project',
@@ -313,6 +314,7 @@ test('source pruning preserves live history and retained revisions before removi
 	assert.equal(await store.getSourceMetadata('effect-2') != null, true);
 	assert.equal(await store.getSourceMetadata('abandoned'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:abandoned'), null);
+	assert.equal(await store.loadAnalysis('audio-editor-peaks-v2:abandoned'), null);
 	assert.deepEqual((await store.loadProject('retained-project', { revision: 1 })).sources.map((source) => source.id), ['original']);
 
 	await store.saveProject(project(3, 'effect-2'));
@@ -321,6 +323,7 @@ test('source pruning preserves live history and retained revisions before removi
 	assert.deepEqual(result.deletedSourceIds, ['original']);
 	assert.equal(await store.getSourceMetadata('original'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:original'), null);
+	assert.equal(await store.loadAnalysis('audio-editor-peaks-v2:original'), null);
 	await assert.rejects(async () => {
 		for await (const _chunk of store.readSourceChunks('original')) { /* consume */ }
 	}, /could not be found/);

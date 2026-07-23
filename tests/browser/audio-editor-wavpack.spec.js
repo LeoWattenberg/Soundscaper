@@ -339,6 +339,7 @@ async function seedLegacyIndexedDbSource(page, name) {
 			delete legacy.migratedAt;
 			transaction.objectStore('sources').put(legacy);
 			transaction.objectStore('analysis').delete(`audio-editor-peaks-v1:${source.id}`);
+			transaction.objectStore('analysis').delete(`audio-editor-peaks-v2:${source.id}`);
 			await transactionDone(transaction);
 			return { sourceId: source.id, token, chunkCount, oldPath };
 		} finally {

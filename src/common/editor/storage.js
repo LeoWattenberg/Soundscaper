@@ -25,6 +25,7 @@ const DATABASE_VERSION = 2;
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
+const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 const memoryDatabases = new Map();
 
 /**
@@ -855,7 +856,7 @@ export class AudioEditorProjectStore {
 			await this.#deleteStoredSource(source);
 		}
 		await this.deleteMediaAsset(sourceId);
-		await this.deleteAnalysis(`audio-editor-peaks-v1:${sourceId}`);
+		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) await this.deleteAnalysis(`${prefix}${sourceId}`);
 	}
 
 	/**
@@ -1042,7 +1043,7 @@ export class AudioEditorProjectStore {
 				this.memory.sources.delete(sourceId);
 				this.memory.mediaAssets.delete(sourceId);
 				for (const derivative of candidate.derivatives) this.memory.videoDerivatives.delete(derivative.key);
-				this.memory.analysis.delete(`audio-editor-peaks-v1:${sourceId}`);
+				for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) this.memory.analysis.delete(`${prefix}${sourceId}`);
 				for (const [key, chunk] of this.memory.sourceChunks) {
 					if (candidate.source?.sourceToken && chunk.sourceToken === candidate.source.sourceToken) {
 						this.memory.sourceChunks.delete(key);
@@ -1116,7 +1117,7 @@ export class AudioEditorProjectStore {
 							removedBinaryRecords.push(derivative);
 							videoDerivatives.delete(derivative.key);
 						}
-						analysis.delete(`audio-editor-peaks-v1:${sourceId}`);
+						for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) analysis.delete(`${prefix}${sourceId}`);
 					}
 					return { removedSources, removedBinaryRecords, removedSourceIds };
 				},

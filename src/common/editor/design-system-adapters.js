@@ -497,15 +497,19 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
  * pixel is selected automatically, keeping aggregation bounded without
  * smearing peaks across multiple columns.
  *
- * Peak cache version 1 stores a mono fold-down. `channelCount` may be supplied
- * to preserve a stereo lane layout; in that case the mono summary is repeated
- * for each displayed channel.
+ * Peak cache version 3 stores independent extrema and RMS values for every
+ * source channel at each pyramid level.
  *
  * @param {{
+ *   version: 3,
+ *   channelCount: number,
  *   levels: Array<{
  *     blockSize: number,
- *     minimums: Float32Array | number[],
- *     maximums: Float32Array | number[],
+ *     channels: Array<{
+ *       minimums: Float32Array | number[],
+ *       maximums: Float32Array | number[],
+ *       rms: Float32Array | number[],
+ *     }>,
  *   }>,
  * }} peaks
  * @param {import('./project.js').AudioEditorClipV1 | {
@@ -537,7 +541,8 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
  */
 export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 	if (!clip || typeof clip !== 'object') throw new TypeError('clip must be an object.');
-	const levels = validateWaveformPeakLevels(peaks);
+	const validatedPeaks = validateWaveformPeakLevels(peaks);
+	const levels = validatedPeaks.levels;
 	const sourceStartFrame = nonNegativeSafeInteger(clip.sourceStartFrame, 'clip.sourceStartFrame');
 	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
 	const sourceDurationFrames = positiveSafeInteger(clip.sourceDurationFrames ?? durationFrames, 'clip.sourceDurationFrames');
@@ -557,9 +562,12 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 	);
 	const pixelWidth = positiveFiniteNumber(options.pixelWidth, 'pixelWidth');
 	const channelCount = positiveSafeInteger(
-		Math.floor(options.channelCount ?? 1),
+		Math.floor(options.channelCount ?? validatedPeaks.channelCount),
 		'channelCount',
 	);
+	if (channelCount > validatedPeaks.channelCount) {
+		throw new RangeError('channelCount exceeds the channels stored in the waveform peak pyramid.');
+	}
 	const columnCount = frameCount ? Math.max(1, Math.ceil(pixelWidth)) : 0;
 	const sourceSamplesPerTimelineFrame = sourceDurationFrames / durationFrames;
 	const visibleSourceStart = startFrame * sourceSamplesPerTimelineFrame;
@@ -568,53 +576,57 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
 	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
 	const level = selectWaveformPeakLevel(levels, sourceSamplesPerPixel);
-	const minimum = new Float32Array(columnCount);
-	const maximum = new Float32Array(columnCount);
-	const rms = level.rms && pixelsPerSample > 0 && audacityWaveformMode(pixelsPerSample) === 'summary'
-		? new Float32Array(columnCount)
-		: null;
 	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
 	const reversed = Boolean(clip.reversed);
 
-	for (let column = 0; column < columnCount; column += 1) {
-		const visualStart = Math.min(
-			visibleSourceEnd,
-			visibleSourceStart + column * sourceSamplesPerPixel,
-		);
-		const visualEnd = Math.min(
-			visibleSourceEnd,
-			visibleSourceStart + (column + 1) * sourceSamplesPerPixel,
-		);
-		const absoluteStart = sourceStartFrame + (reversed
-			? sourceDurationFrames - visualEnd
-			: visualStart);
-		const absoluteEnd = sourceStartFrame + (reversed
-			? sourceDurationFrames - visualStart
-			: visualEnd);
-		const range = aggregateWaveformPeakRange(level, absoluteStart, absoluteEnd);
-		const localStart = visualStart / sourceSamplesPerTimelineFrame;
-		const localEnd = visualEnd / sourceSamplesPerTimelineFrame;
-		const scale = gain * maximumFadeEnvelope(
-			localStart,
-			localEnd,
-			durationFrames,
-			fadeInFrames,
-			fadeOutFrames,
-		);
-		let bucketMinimum = Math.min(range.minimum * scale, range.maximum * scale);
-		let bucketMaximum = Math.max(range.minimum * scale, range.maximum * scale);
-		if (column > 0 && minimum[column - 1] > bucketMaximum) {
-			bucketMaximum = minimum[column - 1];
+	const renderingChannels = Array.from({ length: channelCount }, (_, channel) => {
+		const channelLevel = level.channels[channel];
+		const minimum = new Float32Array(columnCount);
+		const maximum = new Float32Array(columnCount);
+		const rms = channelLevel.rms && pixelsPerSample > 0 && audacityWaveformMode(pixelsPerSample) === 'summary'
+			? new Float32Array(columnCount)
+			: null;
+		for (let column = 0; column < columnCount; column += 1) {
+			const visualStart = Math.min(
+				visibleSourceEnd,
+				visibleSourceStart + column * sourceSamplesPerPixel,
+			);
+			const visualEnd = Math.min(
+				visibleSourceEnd,
+				visibleSourceStart + (column + 1) * sourceSamplesPerPixel,
+			);
+			const absoluteStart = sourceStartFrame + (reversed
+				? sourceDurationFrames - visualEnd
+				: visualStart);
+			const absoluteEnd = sourceStartFrame + (reversed
+				? sourceDurationFrames - visualStart
+				: visualEnd);
+			const range = aggregateWaveformPeakRange(channelLevel, absoluteStart, absoluteEnd);
+			const localStart = visualStart / sourceSamplesPerTimelineFrame;
+			const localEnd = visualEnd / sourceSamplesPerTimelineFrame;
+			const scale = gain * maximumFadeEnvelope(
+				localStart,
+				localEnd,
+				durationFrames,
+				fadeInFrames,
+				fadeOutFrames,
+			);
+			let bucketMinimum = Math.min(range.minimum * scale, range.maximum * scale);
+			let bucketMaximum = Math.max(range.minimum * scale, range.maximum * scale);
+			if (column > 0 && minimum[column - 1] > bucketMaximum) {
+				bucketMaximum = minimum[column - 1];
+			}
+			if (column > 0 && maximum[column - 1] < bucketMinimum) {
+				bucketMinimum = maximum[column - 1];
+			}
+			minimum[column] = bucketMinimum;
+			maximum[column] = bucketMaximum;
+			if (rms) rms[column] = Math.abs(range.rms * scale);
 		}
-		if (column > 0 && maximum[column - 1] < bucketMinimum) {
-			bucketMinimum = maximum[column - 1];
-		}
-		minimum[column] = bucketMinimum;
-		maximum[column] = bucketMaximum;
-		if (rms) rms[column] = Math.abs(range.rms * scale);
-	}
+		return { minimum, maximum, rms };
+	});
 
 	const rendering = {
 		mode: 'summary',
@@ -624,11 +636,7 @@ export function preparePeakPyramidWaveformWindow(peaks, clip, options = {}) {
 		endFrame,
 		frameCount,
 		peakBlockSize: level.blockSize,
-		channels: Array.from({ length: channelCount }, (_, channel) => ({
-			minimum: channel ? minimum.slice() : minimum,
-			maximum: channel ? maximum.slice() : maximum,
-			rms: channel && rms ? rms.slice() : rms,
-		})),
+		channels: renderingChannels,
 	};
 	if (!frameCount) {
 		return withWaveformRendering({
@@ -702,34 +710,41 @@ function finiteWaveformSample(value) {
 }
 
 function validateWaveformPeakLevels(peaks) {
-	if (!peaks || typeof peaks !== 'object' || !Array.isArray(peaks.levels)) {
-		throw new TypeError('peaks.levels must be an array.');
+	if (!peaks || typeof peaks !== 'object' || peaks.version !== 3 || !Array.isArray(peaks.levels)) {
+		throw new TypeError('A version 3 waveform peak pyramid is required.');
 	}
+	const channelCount = positiveSafeInteger(peaks.channelCount, 'peaks.channelCount');
 	const levels = peaks.levels.map((level) => {
 		if (!level || typeof level !== 'object') throw new TypeError('Each waveform peak level must be an object.');
 		const blockSize = positiveSafeInteger(level.blockSize, 'peak level blockSize');
-		const minimums = level.minimums;
-		const maximums = level.maximums;
-		const rms = level.rms;
-		if (
-			(!Array.isArray(minimums) && !ArrayBuffer.isView(minimums))
-			|| (!Array.isArray(maximums) && !ArrayBuffer.isView(maximums))
-		) {
-			throw new TypeError('Waveform peak extrema must be array-like.');
+		if (!Array.isArray(level.channels) || level.channels.length !== channelCount) {
+			throw new RangeError('Each waveform peak level must contain every source channel.');
 		}
-		if (!minimums.length || minimums.length !== maximums.length) {
-			throw new RangeError('Waveform peak extrema must be non-empty equally sized arrays.');
-		}
-		if (rms != null && (
-			(!Array.isArray(rms) && !ArrayBuffer.isView(rms))
-			|| rms.length !== minimums.length
-		)) {
-			throw new RangeError('Waveform RMS values must match the peak extrema.');
-		}
-		return { blockSize, minimums, maximums, rms: rms || null };
+		const channels = level.channels.map((channel) => {
+			const minimums = channel?.minimums;
+			const maximums = channel?.maximums;
+			const rms = channel?.rms;
+			if (
+				(!Array.isArray(minimums) && !ArrayBuffer.isView(minimums))
+				|| (!Array.isArray(maximums) && !ArrayBuffer.isView(maximums))
+			) {
+				throw new TypeError('Waveform peak extrema must be array-like.');
+			}
+			if (!minimums.length || minimums.length !== maximums.length) {
+				throw new RangeError('Waveform peak extrema must be non-empty equally sized arrays.');
+			}
+			if (rms != null && (
+				(!Array.isArray(rms) && !ArrayBuffer.isView(rms))
+				|| rms.length !== minimums.length
+			)) {
+				throw new RangeError('Waveform RMS values must match the peak extrema.');
+			}
+			return { blockSize, minimums, maximums, rms: rms || null };
+		});
+		return { blockSize, channels };
 	});
 	if (!levels.length) throw new RangeError('peaks.levels must contain at least one level.');
-	return levels.sort((left, right) => left.blockSize - right.blockSize);
+	return { channelCount, levels: levels.sort((left, right) => left.blockSize - right.blockSize) };
 }
 
 function selectWaveformPeakLevel(levels, sourceSamplesPerPixel) {

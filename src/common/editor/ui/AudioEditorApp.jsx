@@ -5446,14 +5446,26 @@ function projectBinPeakRanges(visual, clip, maximumColumns) {
 			break;
 		}
 	}
-	if (level?.minimums?.length && level?.maximums?.length) {
+	const peakChannels = level?.channels || [];
+	const peakLength = peakChannels[0]?.minimums?.length || 0;
+	if (peakLength && peakChannels.every((channel) => (
+		channel.minimums?.length === peakLength && channel.maximums?.length === peakLength
+	))) {
 		const blockSize = Math.max(1, Number(level.blockSize) || 1);
 		const start = Math.max(0, Math.floor(sourceStartFrame / blockSize));
 		const end = Math.min(
-			level.minimums.length,
+			peakLength,
 			Math.max(start + 1, Math.ceil((sourceStartFrame + sourceDurationFrames) / blockSize)),
 		);
-		return aggregateProjectBinRanges(level.minimums, level.maximums, start, end, maximumColumns);
+		const minimums = new Float32Array(peakLength).fill(1);
+		const maximums = new Float32Array(peakLength).fill(-1);
+		for (const channel of peakChannels) {
+			for (let block = 0; block < peakLength; block += 1) {
+				minimums[block] = Math.min(minimums[block], channel.minimums[block]);
+				maximums[block] = Math.max(maximums[block], channel.maximums[block]);
+			}
+		}
+		return aggregateProjectBinRanges(minimums, maximums, start, end, maximumColumns);
 	}
 	const buffer = visual.buffer;
 	if (!buffer?.numberOfChannels || !buffer.length || typeof buffer.getChannelData !== 'function') return [];

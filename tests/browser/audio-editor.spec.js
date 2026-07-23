@@ -43,7 +43,7 @@ const AUDIO_EDITOR_PATHS = [
 	},
 ];
 
-function createWavFixture({ name, frequency, duration = 0.8, sampleRate = 48_000, channelCount = 2 }) {
+function createWavFixture({ name, frequency, duration = 0.8, sampleRate = 48_000, channelCount = 2, channelAmplitudes = null }) {
 	const frameCount = Math.round(duration * sampleRate);
 	const bytesPerSample = 2;
 	const dataLength = frameCount * channelCount * bytesPerSample;
@@ -66,7 +66,8 @@ function createWavFixture({ name, frequency, duration = 0.8, sampleRate = 48_000
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		for (let channel = 0; channel < channelCount; channel += 1) {
 			const phase = channel === 0 ? 0 : Math.PI / 3;
-			const sample = Math.sin(2 * Math.PI * frequency * frame / sampleRate + phase) * 0.35;
+			const amplitude = channelAmplitudes?.[channel] ?? 0.35;
+			const sample = Math.sin(2 * Math.PI * frequency * frame / sampleRate + phase) * amplitude;
 			const offset = 44 + (frame * channelCount + channel) * bytesPerSample;
 			buffer.writeInt16LE(Math.round(sample * 32767), offset);
 		}
@@ -79,6 +80,11 @@ const toneA = createWavFixture({ name: 'browser-tone-a.wav', frequency: 330 });
 const toneB = createWavFixture({ name: 'browser-tone-b.wav', frequency: 660 });
 const monoTone = createWavFixture({ name: 'browser-mono-tone.wav', frequency: 440, channelCount: 1 });
 const longTone = createWavFixture({ name: 'browser-long-tone.wav', frequency: 220, duration: 8, channelCount: 1 });
+const asymmetricStereoTone = createWavFixture({
+	name: 'browser-asymmetric-stereo-tone.wav',
+	frequency: 275,
+	channelAmplitudes: [0.1, 0.7],
+});
 const captionLabels = {
 	name: 'browser-captions.srt',
 	mimeType: 'application/x-subrip',
@@ -3252,6 +3258,22 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('persists independent waveform peak pyramids for stereo channels', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [asymmetricStereoTone]);
+		const peaks = await sourcePeakChannels(page, asymmetricStereoTone.name);
+		expect(peaks.version).toBe(3);
+		expect(peaks.channelCount).toBe(2);
+		expect(peaks.channels).toHaveLength(2);
+		expect(peaks.channels[0].maximum).toBeGreaterThan(0.09);
+		expect(peaks.channels[0].maximum).toBeLessThan(0.11);
+		expect(peaks.channels[1].maximum).toBeGreaterThan(0.69);
+		expect(peaks.channels[1].maximum).toBeLessThan(0.71);
+		expect(peaks.channels[1].maximum).toBeGreaterThan(peaks.channels[0].maximum * 6);
+		expect(errors).toEqual([]);
+	});
+
 	test('renders solid Audacity summary columns and connected samples across zoom levels', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -5361,6 +5383,42 @@ async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-editor-d
 	expect(violations).toEqual([]);
 }
 
+async function sourcePeakChannels(page, sourceName) {
+	return page.evaluate((name) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open('kw-media-audio-editor', 2);
+		openRequest.onerror = () => reject(openRequest.error);
+		openRequest.onsuccess = () => {
+			const database = openRequest.result;
+			const sourcesRequest = database.transaction('sources', 'readonly').objectStore('sources').getAll();
+			sourcesRequest.onerror = () => reject(sourcesRequest.error);
+			sourcesRequest.onsuccess = () => {
+				const source = sourcesRequest.result.find((candidate) => candidate.name === name);
+				if (!source) {
+					database.close();
+					reject(new Error(`Source ${name} was not found.`));
+					return;
+				}
+				const peaksRequest = database.transaction('analysis', 'readonly')
+					.objectStore('analysis').get(`audio-editor-peaks-v2:${source.id}`);
+				peaksRequest.onerror = () => reject(peaksRequest.error);
+				peaksRequest.onsuccess = () => {
+					database.close();
+					const peaks = peaksRequest.result?.value;
+					const level = peaks?.levels?.[0];
+					resolve({
+						version: peaks?.version,
+						channelCount: peaks?.channelCount,
+						channels: (level?.channels || []).map((channel) => ({
+							minimum: Math.min(...channel.minimums),
+							maximum: Math.max(...channel.maximums),
+						})),
+					});
+				};
+			};
+		};
+	}), sourceName);
+}
+
 async function effectSourceMetadata(page) {
 	return page.evaluate(() => new Promise((resolve, reject) => {
 		const openRequest = indexedDB.open('kw-media-audio-editor', 2);
@@ -5397,7 +5455,7 @@ async function effectSourcePeak(page, name) {
 						return;
 					}
 					const peaksRequest = database.transaction('analysis', 'readonly')
-						.objectStore('analysis').get(`audio-editor-peaks-v1:${source.id}`);
+						.objectStore('analysis').get(`audio-editor-peaks-v2:${source.id}`);
 					peaksRequest.onerror = () => reject(peaksRequest.error);
 					peaksRequest.onsuccess = () => {
 						database.close();
@@ -5409,8 +5467,10 @@ async function effectSourcePeak(page, name) {
 		if (!source || !peaks?.levels?.length) return 0;
 		let peak = 0;
 		for (const level of peaks.levels) {
-			for (const sample of level.minimums || []) peak = Math.max(peak, Math.abs(sample));
-			for (const sample of level.maximums || []) peak = Math.max(peak, Math.abs(sample));
+			for (const channel of level.channels || []) {
+				for (const sample of channel.minimums || []) peak = Math.max(peak, Math.abs(sample));
+				for (const sample of channel.maximums || []) peak = Math.max(peak, Math.abs(sample));
+			}
 		}
 		return peak;
 	}, name);

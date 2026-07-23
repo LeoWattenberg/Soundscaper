@@ -8,33 +8,33 @@ self.onmessage = ({ data = {} }) => {
 			channelCount = data.channelCount;
 			levels = (data.blockSizes || DEFAULT_LEVELS).map((blockSize) => ({
 				blockSize,
-				count: 0,
-				minimum: 1,
-				maximum: -1,
-				squareSum: 0,
-				minimums: [],
-				maximums: [],
-				rms: [],
+				channels: Array.from({ length: channelCount }, () => createChannelLevel()),
 			}));
 			self.postMessage({ type: 'ready' });
 		} else if (data.type === 'chunk') {
 			const channels = (data.channels || []).map((channel) => new Float32Array(channel));
 			if (channels.length !== channelCount) throw new Error('Peak channel count changed.');
 			for (let frame = 0; frame < (channels[0]?.length || 0); frame += 1) {
-				let sample = 0;
-				for (const channel of channels) sample += channel[frame] / channelCount;
-				for (const level of levels) pushSample(level, sample);
+				for (let channel = 0; channel < channelCount; channel += 1) {
+					for (const level of levels) pushSample(level.channels[channel], channels[channel][frame], level.blockSize);
+				}
 			}
 			self.postMessage({ type: 'ack' });
 		} else if (data.type === 'finish') {
-			for (const level of levels) flushLevel(level);
+			for (const level of levels) {
+				for (const channel of level.channels) flushLevel(channel);
+			}
 			const result = levels.map((level) => ({
 				blockSize: level.blockSize,
-				minimums: Float32Array.from(level.minimums),
-				maximums: Float32Array.from(level.maximums),
-				rms: Float32Array.from(level.rms),
+				channels: level.channels.map((channel) => ({
+					minimums: Float32Array.from(channel.minimums),
+					maximums: Float32Array.from(channel.maximums),
+					rms: Float32Array.from(channel.rms),
+				})),
 			}));
-			const transfers = result.flatMap((level) => [level.minimums.buffer, level.maximums.buffer, level.rms.buffer]);
+			const transfers = result.flatMap((level) => level.channels.flatMap(
+				(channel) => [channel.minimums.buffer, channel.maximums.buffer, channel.rms.buffer],
+			));
 			self.postMessage({ type: 'result', levels: result }, transfers);
 			levels = [];
 		}
@@ -43,12 +43,24 @@ self.onmessage = ({ data = {} }) => {
 	}
 };
 
-function pushSample(level, sample) {
+function createChannelLevel() {
+	return {
+		count: 0,
+		minimum: 1,
+		maximum: -1,
+		squareSum: 0,
+		minimums: [],
+		maximums: [],
+		rms: [],
+	};
+}
+
+function pushSample(level, sample, blockSize) {
 	level.minimum = Math.min(level.minimum, sample);
 	level.maximum = Math.max(level.maximum, sample);
 	level.squareSum += sample * sample;
 	level.count += 1;
-	if (level.count >= level.blockSize) flushLevel(level);
+	if (level.count >= blockSize) flushLevel(level);
 }
 
 function flushLevel(level) {

@@ -117,7 +117,7 @@ test('selection effects replace every selected audio track in one atomic history
 		assert.equal(createdSourceIds.length, 2);
 		for (const sourceId of createdSourceIds) {
 			assert.equal(await store.getSourceMetadata(sourceId), null);
-			assert.equal(await store.loadAnalysis(`audio-editor-peaks-v1:${sourceId}`), null);
+			assert.equal(await store.loadAnalysis(`audio-editor-peaks-v2:${sourceId}`), null);
 		}
 	} finally {
 		await controller.dispose();

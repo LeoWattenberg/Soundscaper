@@ -353,25 +353,32 @@ test('bounded waveform preprocessing clamps windows and validates channel/source
 
 test('peak-pyramid waveform rendering selects the finest bounded viewport level without source PCM', () => {
 	const peaks = {
-		version: 1,
+		version: 3,
+		channelCount: 2,
 		levels: [
 			{
 				blockSize: 4,
-				minimums: Float32Array.from({ length: 32 }, (_, index) => -(index + 1) / 100),
-				maximums: Float32Array.from({ length: 32 }, (_, index) => (index + 1) / 100),
-				rms: Float32Array.from({ length: 32 }, (_, index) => (index + 1) / 200),
+				channels: [1, 2].map((scale) => ({
+					minimums: Float32Array.from({ length: 32 }, (_, index) => -scale * (index + 1) / 100),
+					maximums: Float32Array.from({ length: 32 }, (_, index) => scale * (index + 1) / 100),
+					rms: Float32Array.from({ length: 32 }, (_, index) => scale * (index + 1) / 200),
+				})),
 			},
 			{
 				blockSize: 16,
-				minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1) / 10),
-				maximums: Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 10),
-				rms: Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 20),
+				channels: [1, 0.5].map((scale) => ({
+					minimums: Float32Array.from({ length: 8 }, (_, index) => -scale * (index + 1) / 10),
+					maximums: Float32Array.from({ length: 8 }, (_, index) => scale * (index + 1) / 10),
+					rms: Float32Array.from({ length: 8 }, (_, index) => scale * (index + 1) / 20),
+				})),
 			},
 			{
 				blockSize: 64,
-				minimums: Float32Array.of(-0.9, -1),
-				maximums: Float32Array.of(0.9, 1),
-				rms: Float32Array.of(0.45, 0.5),
+				channels: [1, 0.5].map((scale) => ({
+					minimums: Float32Array.of(-0.9 * scale, -scale),
+					maximums: Float32Array.of(0.9 * scale, scale),
+					rms: Float32Array.of(0.45 * scale, 0.5 * scale),
+				})),
 			},
 		],
 	};
@@ -388,10 +395,10 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 	assert.equal(result.rendering.channels.length, 2);
 	assert.ok(result.rendering.channels[0].rms, 'peak-only summaries retain RMS display data');
 	assert.equal(result.rendering.channels[0].rms.length, result.rendering.channels[0].minimum.length);
-	assert.deepEqual(
-		[...result.rendering.channels[1].rms],
-		[...result.rendering.channels[0].rms],
-		'stereo lanes retain the same RMS summary when the persisted peaks are mono',
+	assert.notDeepEqual(
+		[...result.rendering.channels[1].maximum],
+		[...result.rendering.channels[0].maximum],
+		'stereo lanes retain their independent peak summaries',
 	);
 	assert.notDeepEqual(
 		[...result.rendering.channels[0].rms],
@@ -414,22 +421,23 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 		[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
 	);
 	assert.deepEqual(
-		[...result.rendering.channels[1].minimum],
-		[...result.rendering.channels[0].minimum],
-		'version 1 mono peaks preserve the known stereo lane layout',
+		[...result.rendering.channels[1].maximum].map((value) => Math.round(value * 20) / 20),
+		[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
 	);
-	assert.notEqual(result.rendering.channels[1].minimum, result.rendering.channels[0].minimum);
 	assert.equal(result.channels[0].length, 16);
 	assert.equal(result.channels[1].length, 16);
 });
 
 test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gain, and viewport windows', () => {
 	const peaks = {
-		version: 1,
+		version: 3,
+		channelCount: 1,
 		levels: [{
 			blockSize: 4,
-			minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1)),
-			maximums: Float32Array.from({ length: 8 }, (_, index) => index + 1),
+			channels: [{
+				minimums: Float32Array.from({ length: 8 }, (_, index) => -(index + 1)),
+				maximums: Float32Array.from({ length: 8 }, (_, index) => index + 1),
+			}],
 		}],
 	};
 	const result = preparePeakPyramidWaveformWindow(peaks, clip({
@@ -455,20 +463,25 @@ test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gai
 
 test('peak-pyramid waveform rendering validates cache geometry and clip source bounds', () => {
 	const valid = {
+		version: 3,
+		channelCount: 1,
 		levels: [{
 			blockSize: 4,
-			minimums: Float32Array.of(-1),
-			maximums: Float32Array.of(1),
+			channels: [{ minimums: Float32Array.of(-1), maximums: Float32Array.of(1) }],
 		}],
 	};
-	assert.throws(() => preparePeakPyramidWaveformWindow({ levels: [] }, clip({
+	assert.throws(() => preparePeakPyramidWaveformWindow({ version: 3, channelCount: 1, levels: [] }, clip({
 		durationFrames: 4,
 	}), { pixelWidth: 1 }), /at least one level/);
 	assert.throws(() => preparePeakPyramidWaveformWindow({
+		version: 3,
+		channelCount: 1,
 		levels: [{
 			blockSize: 4,
-			minimums: Float32Array.of(-1),
-			maximums: Float32Array.of(1, 1),
+			channels: [{
+				minimums: Float32Array.of(-1),
+				maximums: Float32Array.of(1, 1),
+			}],
 		}],
 	}, clip({ durationFrames: 4 }), { pixelWidth: 1 }), /equally sized/);
 	assert.throws(() => preparePeakPyramidWaveformWindow(valid, clip({
