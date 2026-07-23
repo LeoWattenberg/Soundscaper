@@ -10919,7 +10919,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function updateZoom(action, requestedViewportWidth) {
 		if (action === 'fit') {
 			const viewport = Math.max(320, Number(requestedViewportWidth) || state.timelineViewportWidth || 960);
-			state.pixelsPerSecond = Math.max(1, viewport / (editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate()));
+			const sampleRate = projectSampleRate();
+			const editorDurationSeconds = editorTimelineDurationFrames(project, sampleRate) / sampleRate;
+			const contentDurationFrames = projectDurationFrames(project);
+			const fitDurationSeconds = contentDurationFrames > 0
+				? contentDurationFrames / sampleRate
+				: editorDurationSeconds;
+			const maximum = Math.min(MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS / editorDurationSeconds);
+			state.pixelsPerSecond = Math.max(1, Math.min(maximum, viewport / fitDurationSeconds));
 		} else {
 			const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 			const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import readmeMarkdown from '../../../../README.md?raw';
 import {
 	Button,
+	CLIP_CONTENT_OFFSET,
 	ContextMenu,
 	ContextMenuItem,
 	DialogHeader,
@@ -495,18 +496,21 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		const timeline = scroll?.closest('.audio-editor-timeline-panel');
 		if (!scroll || !timeline) return undefined;
 		const rect = scroll.getBoundingClientRect();
-		const panelWidth = Number.parseFloat(getComputedStyle(timeline).getPropertyValue('--track-panel-width')) || 0;
+		const timelineStyle = getComputedStyle(timeline);
+		const panelWidth = Number.parseFloat(timelineStyle.getPropertyValue('--track-panel-width')) || 0;
+		const viewportWidth = Number.parseFloat(timelineStyle.getPropertyValue('--timeline-viewport-width'))
+			|| Math.max(0, scroll.clientWidth - panelWidth);
 		const currentZoom = snapshot.timeline?.pixelsPerSecond || 120;
 		let anchorSeconds;
 		let anchorOffset;
 		if (anchor === 'playhead') {
 			const positionFrame = controller.getTelemetrySnapshot?.().positionFrame || 0;
 			anchorSeconds = positionFrame / (project?.sampleRate || 48_000);
-			anchorOffset = panelWidth + Math.max(0, scroll.clientWidth - panelWidth) / 2;
+			anchorOffset = viewportWidth / 2;
 		} else {
 			const clientX = anchor?.clientX ?? rect.left + scroll.clientWidth / 2;
-			anchorSeconds = (scroll.scrollLeft + clientX - rect.left - panelWidth) / currentZoom;
-			anchorOffset = clientX - rect.left;
+			anchorOffset = clientX - rect.left - panelWidth;
+			anchorSeconds = (scroll.scrollLeft + anchorOffset - CLIP_CONTENT_OFFSET) / currentZoom;
 		}
 		const action = direction === 'in'
 			? controller.actions.timeline.zoomIn
@@ -517,7 +521,10 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			if (!element) return;
 			const appliedZoom = Number(nextZoom) || currentZoom * (direction === 'in' ? 2 : 0.5);
 			const maximumScroll = Math.max(0, element.scrollWidth - element.clientWidth);
-			element.scrollLeft = Math.max(0, Math.min(maximumScroll, anchorSeconds * appliedZoom - anchorOffset));
+			element.scrollLeft = Math.max(0, Math.min(
+				maximumScroll,
+				CLIP_CONTENT_OFFSET + anchorSeconds * appliedZoom - anchorOffset,
+			));
 		});
 		return nextZoom;
 	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond]);
@@ -1105,6 +1112,16 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		uiFlags.tracksPanel,
 		zoomProject,
 	]);
+	useEffect(() => {
+		const handleBrowserZoomShortcut = (event) => {
+			handleProjectZoomShortcut(event, run, {
+				actionRuntime: parityRuntime.actions,
+				menus: applicationMenus,
+			});
+		};
+		document.addEventListener('keydown', handleBrowserZoomShortcut, true);
+		return () => document.removeEventListener('keydown', handleBrowserZoomShortcut, true);
+	}, [applicationMenus, parityRuntime.actions, run]);
 	const searchEntries = useMemo(() => createAudioEditorSearchEntries({
 		menus: applicationMenus,
 		project,
@@ -7956,15 +7973,7 @@ function filterProductMenus(menus, capabilities, productId) {
 
 function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
 	if (event.defaultPrevented) return;
-	const zoomActionId = projectZoomShortcut(event);
-	if (zoomActionId) {
-		const handler = resolveAudioEditorShortcutHandler(zoomActionId, registry);
-		if (handler) {
-			run(handler);
-			event.preventDefault();
-		}
-		return;
-	}
+	if (handleProjectZoomShortcut(event, run, registry)) return;
 	if (event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
 	const shortcutAction = matchAudioEditorShortcut(event, snapshot.preferences?.shortcuts || {});
 	const handler = shortcutAction ? resolveAudioEditorShortcutHandler(shortcutAction, registry) : null;
@@ -7974,10 +7983,20 @@ function handleWorkspaceKeyboard(event, snapshot, run, registry = {}) {
 	}
 }
 
+function handleProjectZoomShortcut(event, run, registry = {}) {
+	const zoomActionId = projectZoomShortcut(event);
+	if (!zoomActionId) return false;
+	const handler = resolveAudioEditorShortcutHandler(zoomActionId, registry);
+	if (!handler) return false;
+	event.preventDefault();
+	run(handler);
+	return true;
+}
+
 function projectZoomShortcut(event) {
 	if (event.altKey || (!event.ctrlKey && !event.metaKey)) return null;
-	if (event.key === '+' || event.key === '=') return 'zoom-in';
-	if (event.key === '-' || event.key === '_') return 'zoom-out';
+	if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 'zoom-in';
+	if (event.key === '-' || event.key === '_' || event.code === 'Minus' || event.code === 'NumpadSubtract') return 'zoom-out';
 	return null;
 }
 

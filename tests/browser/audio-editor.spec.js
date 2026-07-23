@@ -589,20 +589,71 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('routes browser zoom gestures to the project timeline', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
 		const timeline = editor.locator('[data-timeline]');
 		const timelinePanel = editor.locator('.audio-editor-timeline-panel');
 		const normalWidth = await timeline.evaluate((element) => element.scrollWidth);
 
+		const ruler = editor.locator('[data-ruler]');
+		const rulerBox = await ruler.boundingBox();
+		expect(rulerBox).not.toBeNull();
+		await clipByName(editor, longTone.name).click({ position: { x: rulerBox.width * 0.75, y: 48 } });
 		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
 		await page.keyboard.down('Control');
 		await page.keyboard.press('=');
 		await page.keyboard.up('Control');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
-
+		await expect.poll(async () => {
+			const [viewport, playhead] = await Promise.all([
+				ruler.boundingBox(),
+				editor.locator('[data-playhead] .playhead-cursor__line').boundingBox(),
+			]);
+			if (!viewport || !playhead) return Number.POSITIVE_INFINITY;
+			return Math.abs(playhead.x - (viewport.x + viewport.width / 2));
+		}).toBeLessThanOrEqual(2);
+		const waveform = clipByName(editor, longTone.name).locator('canvas.clip-body__waveform');
 		await page.keyboard.down('Control');
+		for (let step = 0; step < 6; step += 1) await page.keyboard.press('=');
+		await page.keyboard.up('Control');
+		await expect.poll(() => waveform.evaluate((canvas) => {
+			const context = canvas.getContext('2d');
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+			const center = Math.floor(height / 2);
+			const paintedQuarters = Array.from({ length: 4 }, (_, quarter) => {
+				let painted = 0;
+				for (let x = Math.floor(width * quarter / 4); x < Math.floor(width * (quarter + 1) / 4); x += 1) {
+					for (let y = 0; y < height; y += 1) {
+						if (Math.abs(y - center) <= 2 || data[(y * width + x) * 4 + 3] === 0) continue;
+						painted += 1;
+						break;
+					}
+				}
+				return painted;
+			});
+			return Math.min(...paintedQuarters);
+		})).toBeGreaterThan(40);
+
+		await page.evaluate(() => {
+			const externalFocus = document.createElement('button');
+			externalFocus.id = 'external-zoom-focus';
+			document.body.append(externalFocus);
+			externalFocus.focus();
+			globalThis.__projectZoomOutDefaultPrevented = false;
+		});
+		await page.keyboard.down('Control');
+		await page.evaluate(() => {
+			document.addEventListener('keydown', (event) => {
+				if (event.key === '-') globalThis.__projectZoomOutDefaultPrevented = event.defaultPrevented;
+			}, { once: true });
+		});
 		await page.keyboard.press('-');
 		await page.keyboard.up('Control');
+		expect(await page.evaluate(() => globalThis.__projectZoomOutDefaultPrevented)).toBe(true);
+		await page.keyboard.down('Control');
+		for (let step = 0; step < 6; step += 1) await page.keyboard.press('-');
+		await page.keyboard.up('Control');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
+		await page.locator('#external-zoom-focus').evaluate((element) => element.remove());
 
 		await timeline.hover();
 		await page.keyboard.down('Control');
@@ -2505,8 +2556,26 @@ test.describe('audio editor React/design-system workflows', () => {
 			element.focus();
 		});
 		await page.keyboard.press('Control+0');
-		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeLessThan(normalWidth);
-		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(4);
+		const ruler = editor.locator('[data-ruler]');
+		const fittedClip = clipByName(editor, toneA.name);
+		await expect.poll(async () => {
+			const [viewport, clip] = await Promise.all([ruler.boundingBox(), fittedClip.boundingBox()]);
+			if (!viewport || !clip) return 0;
+			return clip.width / viewport.width;
+		}).toBeGreaterThan(0.95);
+		await expect.poll(() => fittedClip.locator('canvas.clip-body__waveform').evaluate((canvas) => {
+			const context = canvas.getContext('2d');
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+			let paintedRightHalf = 0;
+			for (let x = Math.floor(width / 2); x < width; x += 1) {
+				for (let y = 0; y < height; y += 1) {
+					if (data[(y * width + x) * 4 + 3] === 0) continue;
+					paintedRightHalf += 1;
+					break;
+				}
+			}
+			return paintedRightHalf;
+		})).toBeGreaterThan(40);
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom to selection']);
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom normal']);

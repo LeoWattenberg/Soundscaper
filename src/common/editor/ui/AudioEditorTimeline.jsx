@@ -4379,10 +4379,11 @@ function AudacityWaveformCanvases({
 				if (!clip?.audacityWaveform) continue;
 				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
 				if (!canvas) continue;
+				const bounds = canvas.getBoundingClientRect();
 				const canvasDrawKey = [
 					drawKey,
-					canvas.clientWidth,
-					canvas.clientHeight,
+					bounds.width,
+					bounds.height,
 					window.devicePixelRatio || 1,
 				].join('|');
 				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
@@ -4402,10 +4403,23 @@ function AudacityWaveformCanvases({
 			if (animationFrame) window.cancelAnimationFrame(animationFrame);
 			animationFrame = window.requestAnimationFrame(draw);
 		};
+		const resizeObserver = typeof ResizeObserver === 'function'
+			? new ResizeObserver(scheduleDraw)
+			: null;
+		const observeWaveformCanvases = () => {
+			resizeObserver?.observe(root);
+			for (const canvas of root.querySelectorAll('canvas.clip-body__waveform')) {
+				resizeObserver?.observe(canvas);
+			}
+		};
 
 		draw();
+		observeWaveformCanvases();
 		scheduleDraw();
-		const observer = new MutationObserver(scheduleDraw);
+		const observer = new MutationObserver(() => {
+			observeWaveformCanvases();
+			scheduleDraw();
+		});
 		observer.observe(root, {
 			attributes: true,
 			attributeFilter: ['width', 'height'],
@@ -4414,6 +4428,7 @@ function AudacityWaveformCanvases({
 		});
 		return () => {
 			observer.disconnect();
+			resizeObserver?.disconnect();
 			if (animationFrame) window.cancelAnimationFrame(animationFrame);
 		};
 	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, spectrogramRevision, spectrogramScale, timeSelection]);
@@ -4424,8 +4439,9 @@ function drawAudacityClipCanvas(canvas, clip, options) {
 	const rendering = clip.audacityWaveform;
 	const context = canvas.getContext('2d', { alpha: true });
 	if (!context || !rendering.channels.length) return;
-	const width = Number.parseFloat(canvas.style.width) || canvas.clientWidth || rendering.pixelWidth;
-	const height = Number.parseFloat(canvas.style.height) || canvas.clientHeight;
+	const bounds = canvas.getBoundingClientRect();
+	const width = bounds.width || canvas.clientWidth || rendering.pixelWidth;
+	const height = bounds.height || canvas.clientHeight;
 	if (!(width > 0) || !(height > 0)) return;
 	const devicePixelRatio = window.devicePixelRatio || 1;
 	const deviceWidth = Math.max(1, Math.round(width * devicePixelRatio));
