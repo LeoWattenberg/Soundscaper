@@ -2017,7 +2017,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(preferences.getByRole('tab', { name: /Toolbars$/ })).toHaveCount(0);
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(preferences).toBeHidden();
-		await expect(editor.locator('[data-workspace-toolbar]')).toHaveCount(4);
+		await expect(editor.locator('[data-workspace-toolbar="transport"]')).toHaveCount(1);
+		await expect(editor.locator('[data-workspace-toolbar="tools"]')).toHaveCount(1);
+		await expect(editor.locator('[data-workspace-toolbar="edit"]')).toHaveCount(0);
+		await expect(editor.locator('[data-workspace-toolbar="meter"]')).toHaveCount(1);
 	});
 
 	test('drags workspace panels between docks without subgroup toolbar grabbers', async ({ page }) => {
