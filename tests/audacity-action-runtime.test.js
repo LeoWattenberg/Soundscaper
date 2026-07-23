@@ -106,6 +106,8 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 120);
 		runtime.actions.timeline.centerOnPlayhead();
 		assert.equal(uiController.getSnapshot().request.type, 'center-playhead');
+		runtime.actions.help.revertFactorySettings();
+		assert.equal(uiController.getSnapshot().request.type, 'revert-factory');
 
 		const originalTrackId = controller.getSnapshot().selectedTrackId;
 		const originalTrackCount = controller.getSnapshot().project.tracks.length;

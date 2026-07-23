@@ -1412,6 +1412,7 @@ test.describe('audio editor React/design-system workflows', () => {
 				'Screenshot tools',
 				'Run benchmark',
 				'Import raw data',
+				'Reset configuration',
 				'Sample data import',
 				'Sample data export',
 			]],
@@ -1429,6 +1430,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		const projectProperties = getMenuItem(fileMenu, 'Project properties');
 		await expect(projectProperties).toHaveAttribute('aria-disabled', 'true');
 		await expect(projectProperties.locator('[data-disabled-reason]')).toHaveAttribute('title', /does not provide a usable handler/);
+	});
+
+	test('reverts editor preferences from Help after confirmation without deleting the project', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const projectId = await editor.getAttribute('data-project-id');
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Appearance$/ }).click();
+		await preferences.getByRole('radio', { name: 'Dark', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+
+		await chooseCommandAction(page, editor, 'Help', 'Revert to factory settings');
+		const confirmation = page.getByRole('dialog', { name: 'Revert to factory settings', exact: true });
+		await expect(confirmation).toContainText('Projects and audio files will not be deleted.');
+		await confirmation.getByRole('button', { name: 'Revert settings', exact: true }).click();
+
+		await expect(confirmation).toBeHidden();
+		await expect(editor).toHaveAttribute('data-editor-theme', 'system');
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
+		await expect(editor).toHaveAttribute('data-project-id', projectId);
 	});
 
 	test('opens timer recording as a reachable future-time workflow', async ({ page }) => {
@@ -2436,8 +2459,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const popup = editor.locator('[data-editor-search-popup]');
 
 		await page.keyboard.press('Control+f');
-		await search.fill('reset-configuration');
-		const disabledCommand = popup.locator('[data-editor-search-key="command:reset-configuration"]');
+		await search.fill('project-properties');
+		const disabledCommand = popup.locator('[data-editor-search-key="command:project-properties"]');
 		await expect(disabledCommand).toBeVisible();
 		await expect(disabledCommand).toHaveAttribute('aria-disabled', 'true');
 		await expect(popup.getByRole('option')).toHaveCount(1);

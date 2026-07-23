@@ -113,7 +113,7 @@ const definitions = [
 	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.menu, { source: UPSTREAM.menu }),
 	disabled('insert', 'Insert', ['Command inventory'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('project-properties', 'Project properties', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('revert-factory', 'Revert to factory settings', ['Help'], DISABLED_REASONS.todo, { source: UPSTREAM.application }),
+	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
 	implemented('toggle-tracks', 'Tracks panel', ['View > Panels'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
 	implemented('toggle-statusbar', 'Status bar', ['View'], 'workspace.toggleStatusbar', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
@@ -361,7 +361,10 @@ const definitions = [
 		source: UPSTREAM.project,
 		menuVisible: false,
 	}),
-	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, {
+		source: UPSTREAM.project,
+		menuVisible: false,
+	}),
 	implemented('nyquist-prompt', 'Nyquist prompt', ['Tools'], 'nyquist.openPrompt', {
 		enableWhen: 'project-opened',
 		source: 'libraries/lib-nyquist-effects/NyquistBase.cpp',

@@ -548,6 +548,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			openTutorials: () => ui.openExternal('https://support.audacityteam.org/au4'),
 			openManual: () => ui.openExternal('https://support.audacityteam.org/au4'),
 			openSupport: () => ui.openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
+			revertFactorySettings: () => ui.issue('revert-factory'),
 			openAbout: () => ui.issue('open-about'),
 		},
 	};

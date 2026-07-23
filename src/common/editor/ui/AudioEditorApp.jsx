@@ -813,6 +813,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		else if (request.type === 'toggle-fullscreen') toggleFullscreen();
 		else if (request.type === 'choose-audio-files') importInputRef.current?.click();
 		else if (request.type === 'open-about') setDialog('about');
+		else if (request.type === 'revert-factory') setDialog('revert-factory');
 		else if (request.type === 'open-timed-recording') openTimedRecording();
 		else if (request.type === 'close-project') run(() => controller.actions.project.close(payload.projectId, payload));
 		else if (request.type === 'set-custom-track-rate') {
@@ -1051,6 +1052,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 				manual: () => openExternal('https://support.audacityteam.org/au4'),
 				tutorials: () => openExternal('https://support.audacityteam.org/au4'),
 				support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
+				revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 				about: () => setDialog('about'),
 			},
 	}), [
@@ -6911,6 +6913,7 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 		resample: copy.resample,
 		'aup4-compatibility': copy.aup4CompatibilityReport,
 		about: aboutLabel,
+		'revert-factory': copy.revertFactorySettings,
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
 	const offsetSources = recordingOffsetSources(snapshot, copy);
@@ -7105,6 +7108,20 @@ function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSour
 							copy={copy}
 							onClose={onClose}
 						/>
+					)}
+					{type === 'revert-factory' && (
+						<>
+							<p>{copy.revertFactorySettingsDescription}</p>
+							<div className="kw-audio-editor-dialog__actions">
+								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+								<Button onClick={() => {
+									const operation = run(() => controller.actions.preferences.revertFactorySettings());
+									if (operation && typeof operation.then === 'function') {
+										operation.then(onClose, () => undefined);
+									} else if (operation !== undefined) onClose();
+								}}>{copy.confirmRevertFactorySettings}</Button>
+							</div>
+						</>
 					)}
 					{(type === 'delete' || type === 'clear') && (
 						<>
@@ -7939,16 +7956,16 @@ function createApplicationMenus({
 			items: [
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
-				unavailable('reset-configuration', copy.resetConfiguration),
 			],
 		},
-			{
-				id: 'help',
-				label: copy.helpMenu,
-				items: [
-					{ id: 'tutorials', label: copy.tutorials, onClick: actions.tutorials },
-					{ id: 'manual', label: copy.manual, onClick: actions.manual },
+		{
+			id: 'help',
+			label: copy.helpMenu,
+			items: [
+				{ id: 'tutorials', label: copy.tutorials, onClick: actions.tutorials },
+				{ id: 'manual', label: copy.manual, onClick: actions.manual },
 				{ id: 'support', label: copy.support, onClick: actions.support },
+				{ id: 'revert-factory', label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),
 				{ id: 'about', label: aboutLabel, preserveLabel: true, onClick: actions.about },
 			],

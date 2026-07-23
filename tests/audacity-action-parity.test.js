@@ -92,18 +92,25 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 	}
 });
 
-test('raw and sample-data handling remain auditable without entering application menus', () => {
+test('superseded tools and raw-data actions remain auditable without entering application menus', () => {
 	const rawImport = audacityActionDefinition('raw-data-import');
 	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(rawImport.menuVisible, false);
+	const resetConfiguration = audacityActionDefinition('reset-configuration');
+	assert.equal(resetConfiguration.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
+	assert.equal(resetConfiguration.menuVisible, false);
 
 	const menus = applyAudacityParityToMenus([{
 		id: 'tools',
 		label: 'Tools',
-		items: [{ id: 'raw-data-import', label: 'Import raw data' }],
+		items: [
+			{ id: 'raw-data-import', label: 'Import raw data' },
+			{ id: 'reset-configuration', label: 'Reset configuration' },
+		],
 	}], { materializeDisabled: true });
 	const serialized = JSON.stringify(menus);
 	assert.doesNotMatch(serialized, /raw-data-import/);
+	assert.doesNotMatch(serialized, /reset-configuration/);
 	assert.doesNotMatch(serialized, /sample-data-(?:import|export)/);
 });
 
@@ -240,7 +247,7 @@ test('every existing disabled application-menu placeholder has a parity classifi
 	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
 	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
 	assert.ok(
-		placeholderIds.length >= 16,
+		placeholderIds.length >= 15,
 		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
 	);
 	assert.deepEqual(
@@ -271,7 +278,7 @@ test('critical functional manifest surfaces have explicit menu command IDs', asy
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
 		'toggle-rms-in-waveform', 'record-on-new-track', 'action://record/pause',
 		'action://record/lead-in-recording', 'metronome', 'track-resample', 'repeat-last-effect',
-		'online-handbook', 'local://support', 'about-audacity',
+		'online-handbook', 'local://support', 'revert-factory', 'about-audacity',
 	];
 	assert.deepEqual(critical.filter((id) => !explicitIds.has(id)), []);
 	for (const id of critical) {

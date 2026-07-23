@@ -262,6 +262,7 @@ const COPY_ENTRIES = Object.freeze([
 	["audacityParityLabelMP3Conversion","MP3 conversion","MP3-Konvertierung"],
 	["audacityParityLabelImportRawData","Import raw data","Rohdaten importieren"],
 	["audacityParityLabelResetConfiguration","Reset configuration","Konfiguration zurücksetzen"],
+	["audacityParityLabelRevertToFactorySettings","Revert to factory settings","Auf Werkseinstellungen zurücksetzen"],
 	["options","Options","Optionen"],
 	["audacityParityMatchExportOther","Export other","Export other"],
 	["spectrogramMel","Mel","Mel"],

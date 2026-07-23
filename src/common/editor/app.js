@@ -1215,6 +1215,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			}),
 			preferences: Object.freeze({
 				update: updatePreferences,
+				revertFactorySettings,
 				setWorkspace: setWorkspacePreference,
 				setTheme: (theme) => updatePreferences({ appearance: { theme } }),
 				setClipStyle: (clipStyle) => updatePreferences({ appearance: { clipStyle } }),
@@ -1355,6 +1356,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function updatePreferences(patch) {
 		return persistPreferences(updateAudioEditorPreferencesV1(state.preferences, patch));
+	}
+
+	function revertFactorySettings() {
+		state.preferencesReadOnly = false;
+		return persistPreferences(createAudioEditorPreferencesV1({
+			workspace: { activeId: product.defaultWorkspace },
+		}));
 	}
 
 	function setWorkspacePreference(workspaceId) {
