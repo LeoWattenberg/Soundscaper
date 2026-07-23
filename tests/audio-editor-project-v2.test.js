@@ -343,6 +343,9 @@ test('one audio track accepts sequential clips backed by mixed-rate mono and ste
 test('editor preferences default to Modern/system/Colorful and exclude OS, cloud, and plugin state', () => {
 	const preferences = createAudioEditorPreferencesV1();
 	assert.equal(preferences.workspace.activeId, 'modern');
+	for (const buttonId of ['cutPerTrackRipple', 'copy', 'paste', 'split', 'deletePerTrackRipple']) {
+		assert.equal(preferences.workspace.toolbarButtons[buttonId], false);
+	}
 	assert.deepEqual(
 		preferences.workspace.panels['project-bin'],
 		{

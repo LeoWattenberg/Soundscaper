@@ -98,6 +98,15 @@ const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'playback-volume': true,
 });
 
+const MODERN_TOOLBAR_BUTTONS = Object.freeze({
+	...DEFAULT_TOOLBAR_BUTTONS,
+	cutPerTrackRipple: false,
+	copy: false,
+	paste: false,
+	split: false,
+	deletePerTrackRipple: false,
+});
+
 const DEFAULT_PANELS = Object.freeze({
 	'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
 	'video-preview': Object.freeze({ visible: true, dock: 'floating', order: 0, size: 560 }),
@@ -162,7 +171,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 	}),
 	modern: Object.freeze({
 		toolbars: DEFAULT_TOOLBARS,
-		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
+		toolbarButtons: MODERN_TOOLBAR_BUTTONS,
 		panels: DEFAULT_PANELS,
 	}),
 	'video-editor': Object.freeze({

@@ -742,8 +742,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(flyout).toBeVisible();
 		await expect(flyout).toHaveCSS('position', 'fixed');
 		await expect(flyout.locator('.musescore-icon').first()).toBeVisible();
-		await expect(flyout.getByRole('checkbox', { name: 'Cut and close gap per track', exact: true })).toHaveAttribute('aria-checked', 'true');
-		await expect(flyout.getByRole('checkbox', { name: 'Delete and close gap per track', exact: true })).toHaveAttribute('aria-checked', 'true');
+		for (const label of [
+			'Cut and close gap per track',
+			'Copy',
+			'Paste',
+			'Split at playhead',
+			'Delete and close gap per track',
+		]) {
+			await expect(flyout.getByRole('checkbox', { name: label, exact: true })).toHaveAttribute('aria-checked', 'false');
+			await expect(editor.getByRole('button', { name: label, exact: true })).toHaveCount(0);
+		}
 		await expect(flyout.getByRole('checkbox', { name: 'Cut and leave gap', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await expect(flyout.getByRole('checkbox', { name: 'Delete and leave gap', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await expect(flyout.getByRole('checkbox', { name: 'Cut and close gap on all tracks', exact: true })).toHaveAttribute('aria-checked', 'false');
@@ -2768,6 +2776,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('imports, edits, mixes track states, analyzes, and restores the autosaved project', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		await showToolbarButton(page, editor, 'Split at playhead');
 
 		await importFiles(editor, [toneA, toneB]);
 		await expect(editor).toHaveAttribute('data-track-count', '3');
@@ -4455,11 +4464,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
-		await editor.getByRole('button', { name: 'Copy', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Edit', 'Copy');
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await expect(editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab')).toHaveCount(2);
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
-		await editor.getByRole('button', { name: 'Paste', exact: true }).click();
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
 		expect(errors).toEqual([]);
@@ -4468,6 +4477,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('keeps playback smooth without redrawing clip waveforms or producing long tasks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		await showToolbarButton(page, editor, 'Split at playhead');
 		await importFiles(editor, [toneA]);
 		await seekOnRuler(editor, 60);
 		await editor.getByRole('button', { name: 'Split at playhead' }).click();
@@ -5142,6 +5152,17 @@ async function openEffectStackMenu(panel, scope) {
 
 async function chooseFileAction(page, editor, action) {
 	await chooseCommandAction(page, editor, 'File', action);
+}
+
+async function showToolbarButton(page, editor, label) {
+	await editor.getByRole('button', { name: 'Customize toolbar', exact: true }).click();
+	const flyout = page.getByRole('dialog', { name: 'Customize toolbar', exact: true });
+	const toggle = flyout.getByRole('checkbox', { name: label, exact: true });
+	await expect(toggle).toHaveAttribute('aria-checked', 'false');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-checked', 'true');
+	await page.keyboard.press('Escape');
+	await expect(flyout).toBeHidden();
 }
 
 async function chooseCommandAction(page, editor, menu, action) {
