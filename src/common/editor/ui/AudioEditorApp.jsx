@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import readmeMarkdown from '../../../../README.md?raw';
 import {
 	Button,
@@ -234,6 +234,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 	const desktopOpenQueueRef = useRef(Promise.resolve());
 	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
+	const pendingZoomAnchorRef = useRef(null);
 	const isCompact = useMediaQuery('(max-width: 900px)');
 	const isProjectBinCompact = useMediaQuery('(max-width: 520px)');
 	const project = snapshot.project;
@@ -515,19 +516,28 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 		const action = direction === 'in'
 			? controller.actions.timeline.zoomIn
 			: controller.actions.timeline.zoomOut;
+		pendingZoomAnchorRef.current = { anchorSeconds, anchorOffset };
 		const nextZoom = run(() => action());
-		requestAnimationFrame(() => {
-			const element = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
-			if (!element) return;
-			const appliedZoom = Number(nextZoom) || currentZoom * (direction === 'in' ? 2 : 0.5);
-			const maximumScroll = Math.max(0, element.scrollWidth - element.clientWidth);
-			element.scrollLeft = Math.max(0, Math.min(
-				maximumScroll,
-				CLIP_CONTENT_OFFSET + anchorSeconds * appliedZoom - anchorOffset,
-			));
-		});
+		if (!Number.isFinite(Number(nextZoom)) || Number(nextZoom) === currentZoom) {
+			pendingZoomAnchorRef.current = null;
+		}
 		return nextZoom;
 	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond]);
+	useLayoutEffect(() => {
+		const pending = pendingZoomAnchorRef.current;
+		if (!pending) return;
+		pendingZoomAnchorRef.current = null;
+		const element = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
+		if (!element) return;
+		const maximumScroll = Math.max(0, element.scrollWidth - element.clientWidth);
+		element.scrollLeft = Math.max(0, Math.min(
+			maximumScroll,
+			CLIP_CONTENT_OFFSET
+				+ pending.anchorSeconds * (snapshot.timeline?.pixelsPerSecond || 120)
+				- pending.anchorOffset,
+		));
+		element.dispatchEvent(new Event('scroll', { bubbles: true }));
+	}, [snapshot.timeline?.pixelsPerSecond]);
 	const jumpTransport = useCallback((action) => {
 		const value = run(action);
 		requestAnimationFrame(() => {
@@ -1243,6 +1253,7 @@ function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
 			locale={locale}
 			copy={copy}
 			isCompact={isCompact}
+			zoomProject={zoomProject}
 			blocked={blocked}
 			selectionActive={selectionActive}
 			durationFrames={durationFrames}
@@ -1841,6 +1852,7 @@ function EditorToolToolbar({
 	locale,
 	copy,
 	isCompact,
+	zoomProject,
 	blocked,
 	selectionActive,
 	durationFrames,
@@ -2064,8 +2076,8 @@ function EditorToolToolbar({
 				}
 
 				{zoomButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__zoom-actions" gap={2}>
-					{isToolbarButtonVisible('zoom-in') && <ToolButton icon="zoom-in" ariaLabel={copy.zoomIn} onClick={() => run(() => controller.actions.timeline.zoomIn())} />}
-					{isToolbarButtonVisible('zoom-out') && <ToolButton icon="zoom-out" ariaLabel={copy.zoomOut} onClick={() => run(() => controller.actions.timeline.zoomOut())} />}
+					{isToolbarButtonVisible('zoom-in') && <ToolButton icon="zoom-in" ariaLabel={copy.zoomIn} onClick={() => zoomProject('in', 'playhead')} />}
+					{isToolbarButtonVisible('zoom-out') && <ToolButton icon="zoom-out" ariaLabel={copy.zoomOut} onClick={() => zoomProject('out', 'playhead')} />}
 					{isToolbarButtonVisible('zoom-fit') && <ToolButton icon="zoom-to-fit" ariaLabel={copy.zoomFit} onClick={() => run(() => controller.actions.timeline.zoomFit())} />}
 				</ToolbarButtonGroup>
 				}

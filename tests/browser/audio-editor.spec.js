@@ -592,7 +592,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(name).toHaveText('Renamed track');
 	});
 
-	test('routes browser zoom gestures to the project timeline', async ({ page }) => {
+	test('anchors toolbar and browser zoom gestures to the project timeline', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
@@ -604,10 +604,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const rulerBox = await ruler.boundingBox();
 		expect(rulerBox).not.toBeNull();
 		await clipByName(editor, longTone.name).click({ position: { x: rulerBox.width * 0.75, y: 48 } });
-		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
-		await page.keyboard.down('Control');
-		await page.keyboard.press('=');
-		await page.keyboard.up('Control');
+		await editor.getByRole('button', { name: 'Zoom in', exact: true }).click();
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
 		await expect.poll(async () => {
 			const [viewport, playhead] = await Promise.all([
@@ -617,6 +614,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			if (!viewport || !playhead) return Number.POSITIVE_INFINITY;
 			return Math.abs(playhead.x - (viewport.x + viewport.width / 2));
 		}).toBeLessThanOrEqual(2);
+		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
 		const waveform = clipByName(editor, longTone.name).locator('canvas.clip-body__waveform');
 		await page.keyboard.down('Control');
 		for (let step = 0; step < 6; step += 1) await page.keyboard.press('=');

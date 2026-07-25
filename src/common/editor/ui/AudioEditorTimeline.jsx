@@ -399,6 +399,7 @@ export default function AudioEditorTimeline({
 	const pointerSession = useRef(null);
 	const touchPointers = useRef(new Map());
 	const pinchSession = useRef(null);
+	const pendingPinchAnchorRef = useRef(null);
 	const splitToolTimer = useRef(0);
 	const splitToolPress = useRef(null);
 	const splitToolHeldRef = useRef(false);
@@ -470,6 +471,17 @@ export default function AudioEditorTimeline({
 		: (hasFrequencyRuler ? SPECTROGRAM_RULER_WIDTH : VERTICAL_RULER_WIDTH);
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
+	useLayoutEffect(() => {
+		const pending = pendingPinchAnchorRef.current;
+		if (!pending) return;
+		pendingPinchAnchorRef.current = null;
+		if (!scrollRef.current) return;
+		scrollRef.current.scrollLeft = Math.max(
+			0,
+			pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset,
+		);
+		scrollRef.current.dispatchEvent(new Event('scroll', { bubbles: true }));
+	}, [pixelsPerSecond]);
 	const sampleRate = project?.sampleRate || 48_000;
 	const recordingPreviews = snapshot.recordingPreviews?.length
 		? snapshot.recordingPreviews
@@ -1166,10 +1178,14 @@ export default function AudioEditorTimeline({
 				const nextZoom = session.pixelsPerSecond * distance / session.distance;
 				const rect = scrollRef.current?.getBoundingClientRect();
 				const anchorSeconds = (session.scrollLeft + session.midpoint - (rect?.left || 0) - panelWidth) / session.pixelsPerSecond;
-				run(() => controller.actions.timeline.setZoom(nextZoom));
-				requestAnimationFrame(() => {
-					if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, anchorSeconds * nextZoom - (midpoint - (rect?.left || 0) - panelWidth));
-				});
+				pendingPinchAnchorRef.current = {
+					anchorSeconds,
+					anchorOffset: midpoint - (rect?.left || 0) - panelWidth,
+				};
+				const appliedZoom = run(() => controller.actions.timeline.setZoom(nextZoom));
+				if (!Number.isFinite(Number(appliedZoom)) || Number(appliedZoom) === pixelsPerSecond) {
+					pendingPinchAnchorRef.current = null;
+				}
 			}
 			return;
 		}
