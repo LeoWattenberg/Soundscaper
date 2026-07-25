@@ -3426,6 +3426,91 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps the Audacity waveform canvas intact across viewport overscan', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const timeline = editor.locator('[data-timeline]');
+		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
+		for (let step = 0; step < 4; step += 1) await zoomIn.click();
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+
+		const waveform = clipByName(editor, longTone.name).locator('canvas.clip-body__waveform');
+		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		const initial = await waveform.evaluate((canvas) => {
+			globalThis.__waveformOverscanCanvas = canvas;
+			const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+			let checksum = 2_166_136_261;
+			for (const value of data) checksum = Math.imul(checksum ^ value, 16_777_619) >>> 0;
+			return {
+				checksum,
+				width: canvas.width,
+				height: canvas.height,
+				inlineWidth: canvas.style.width,
+				inlineHeight: canvas.style.height,
+			};
+		});
+		expect(initial.checksum).not.toBe(2_166_136_261);
+		expect(initial.inlineWidth).toBe('');
+		expect(initial.inlineHeight).toBe('');
+
+		await waveform.evaluate(async (canvas) => {
+			const scroll = canvas.closest('.audio-editor-timeline-panel').querySelector('[data-timeline]');
+			const panel = scroll.closest('.audio-editor-timeline-panel');
+			const panelWidth = Number.parseFloat(getComputedStyle(panel).getPropertyValue('--track-panel-width')) || 0;
+			const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+			const scrollStep = Math.max(1, (scroll.clientWidth - panelWidth) / 2);
+			for (let step = 0; step < 100; step += 1) {
+				scroll.scrollLeft = Math.min(maximumScroll, scroll.scrollLeft + scrollStep);
+				scroll.dispatchEvent(new Event('scroll', { bubbles: true }));
+				await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+				if (canvas !== globalThis.__waveformOverscanCanvas || !canvas.isConnected) {
+					throw new Error('The waveform canvas was replaced before leaving the viewport.');
+				}
+				if (canvas.closest('[data-clip-id]').getBoundingClientRect().right
+					<= scroll.getBoundingClientRect().left + panelWidth + 1) return;
+				if (scroll.scrollLeft >= maximumScroll) break;
+			}
+			throw new Error('The waveform did not reach viewport overscan.');
+		});
+		await expect.poll(() => waveform.evaluate((canvas) => {
+			const panel = canvas.closest('.audio-editor-timeline-panel');
+			const scroll = panel.querySelector('[data-timeline]');
+			const panelWidth = Number.parseFloat(getComputedStyle(panel).getPropertyValue('--track-panel-width')) || 0;
+			return {
+				sameCanvas: canvas === globalThis.__waveformOverscanCanvas,
+				offscreen: canvas.closest('[data-clip-id]').getBoundingClientRect().right
+					<= scroll.getBoundingClientRect().left + panelWidth + 1,
+				owner: canvas.dataset.waveformOwner,
+				inlineWidth: canvas.style.width,
+				inlineHeight: canvas.style.height,
+			};
+		})).toEqual({
+			sameCanvas: true,
+			offscreen: true,
+			owner: 'audacity',
+			inlineWidth: '',
+			inlineHeight: '',
+		});
+
+		await timeline.evaluate((element) => {
+			element.scrollLeft = 0;
+			element.dispatchEvent(new Event('scroll', { bubbles: true }));
+		});
+		await expect.poll(() => waveform.evaluate((canvas) => canvas === globalThis.__waveformOverscanCanvas)).toBe(true);
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		const restored = await waveform.evaluate((canvas) => {
+			const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+			let checksum = 2_166_136_261;
+			for (const value of data) checksum = Math.imul(checksum ^ value, 16_777_619) >>> 0;
+			delete globalThis.__waveformOverscanCanvas;
+			return { checksum, width: canvas.width, height: canvas.height };
+		});
+		expect(restored).toEqual({ checksum: initial.checksum, width: initial.width, height: initial.height });
+		expect(errors).toEqual([]);
+	});
+
 	test('mixes selected tracks through the real browser graph and restores them with undo', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
