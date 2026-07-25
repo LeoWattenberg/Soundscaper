@@ -798,18 +798,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (!clip) return null;
 		const source = findSource(project, clip.sourceId);
 		const video = clip.kind === 'video' ? videoVisuals.get(clip.sourceId) : null;
-		return Object.freeze({
+		const visual = {
 			clip,
 			track: findClipTrack(project, clip.id),
 			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
-			pcmWindow: clipWaveformPcmWindows.get(String(clip.id)) || null,
 			available: Boolean(source && !state.missingSourceIds.has(source.id)),
 			mediaUrl: video?.mediaUrl || null,
 			posterUrl: video?.posterUrl || null,
 			thumbnails: video?.thumbnails || Object.freeze([]),
-		});
+		};
+		const pcmWindow = clipWaveformPcmWindows.get(String(clip.id));
+		if (pcmWindow) visual.pcmWindow = pcmWindow;
+		return Object.freeze(visual);
 	}
 
 	function getProjectBinClipVisualData(clipId) {
@@ -827,7 +829,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
-			pcmWindow: clipWaveformPcmWindows.get(String(clip.id)) || null,
 			available: Boolean(source && !state.missingSourceIds.has(source.id)),
 		};
 		if (videoClip) Object.assign(visual, {
