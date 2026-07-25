@@ -314,6 +314,7 @@ export function boundedCanvasDimensions(cssWidth, cssHeight, options = {}) {
  *   endFrame?: number,
  *   maxSamples?: number,
  *   pixelWidth?: number,
+ *   sourceFrameOffset?: number,
  *   reuseSummaryForCompatibility?: boolean,
  * }} [options]
  * @returns {{
@@ -332,13 +333,28 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 	const sourceStartFrame = nonNegativeSafeInteger(clip.sourceStartFrame, 'clip.sourceStartFrame');
 	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
 	const sourceDurationFrames = positiveSafeInteger(clip.sourceDurationFrames ?? durationFrames, 'clip.sourceDurationFrames');
-	const sourceEndFrame = addFrames(sourceStartFrame, sourceDurationFrames, 'clip source range');
-	if (sourceEndFrame > sourceLength) throw new RangeError('The clip exceeds the supplied source channels.');
+	const sourceFrameOffset = nonNegativeSafeInteger(options.sourceFrameOffset ?? 0, 'sourceFrameOffset');
 
 	const startFrame = clampedLocalFrame(options.startFrame ?? 0, durationFrames, 'startFrame');
 	const endFrame = clampedLocalFrame(options.endFrame ?? durationFrames, durationFrames, 'endFrame');
 	if (endFrame < startFrame) throw new RangeError('endFrame must not be before startFrame.');
 	const frameCount = endFrame - startFrame;
+	const reversed = Boolean(clip.reversed);
+	if (frameCount) {
+		const sourceSamplesPerTimelineFrame = sourceDurationFrames / durationFrames;
+		const visibleSourceStart = startFrame * sourceSamplesPerTimelineFrame;
+		const visibleSourceEnd = endFrame * sourceSamplesPerTimelineFrame;
+		const absoluteStart = sourceStartFrame + (reversed
+			? sourceDurationFrames - visibleSourceEnd
+			: visibleSourceStart);
+		const absoluteEnd = sourceStartFrame + (reversed
+			? sourceDurationFrames - visibleSourceStart
+			: visibleSourceEnd);
+		if (Math.floor(absoluteStart) < sourceFrameOffset
+			|| Math.ceil(absoluteEnd) > sourceFrameOffset + sourceLength) {
+			throw new RangeError('The requested clip window exceeds the supplied source channels.');
+		}
+	}
 	const maximumSamples = positiveSafeInteger(
 		Math.floor(options.maxSamples ?? DEFAULT_MAXIMUM_WAVEFORM_SAMPLES),
 		'maxSamples',
@@ -372,12 +388,11 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
-	const reversed = Boolean(clip.reversed);
 	const transformSample = (channel, localFrame) => {
 		const mappedFrame = Math.min(sourceDurationFrames - 1, Math.floor(localFrame * sourceDurationFrames / durationFrames));
 		const sourceLocalFrame = reversed ? sourceDurationFrames - mappedFrame - 1 : mappedFrame;
 		const sourceFrame = sourceStartFrame + sourceLocalFrame;
-		const sample = Number(sourceChannels[channel][sourceFrame]);
+		const sample = Number(sourceChannels[channel][sourceFrame - sourceFrameOffset]);
 		return (Number.isFinite(sample) ? sample : 0)
 			* gain
 			* fadeEnvelope(localFrame, durationFrames, fadeInFrames, fadeOutFrames);
@@ -394,6 +409,7 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
 		fadeInFrames,
 		fadeOutFrames,
 		reversed,
+		sourceFrameOffset,
 	});
 	if (rendering?.mode === 'summary' && options.reuseSummaryForCompatibility) {
 		const compatibility = waveformCompatibilityFromSummary(rendering, frameCount, maximumSamples);
@@ -811,7 +827,7 @@ function prepareAudacityWaveformRendering(sourceChannels, options) {
 		const sourceLocalFrame = options.reversed
 			? options.sourceDurationFrames - visualOrdinal - 1
 			: visualOrdinal;
-		const sample = Number(sourceChannels[channel][options.sourceStartFrame + sourceLocalFrame]);
+		const sample = Number(sourceChannels[channel][options.sourceStartFrame + sourceLocalFrame - options.sourceFrameOffset]);
 		const timelineFrame = visualOrdinal / sourceSamplesPerTimelineFrame;
 		return (Number.isFinite(sample) ? sample : 0)
 			* options.gain

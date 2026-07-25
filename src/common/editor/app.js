@@ -186,6 +186,8 @@ const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
+const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
+const MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES = 32;
 const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
 const PROJECT_LOCK_RETRY_MAX_MS = 30_000;
 const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
@@ -238,6 +240,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	);
 	const sourceChunkProviders = new Map();
 	const sourcePeaks = new Map();
+	const clipWaveformPcmWindows = new Map();
+	const clipWaveformPcmRequests = new Map();
 	const videoVisuals = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
@@ -542,6 +546,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceBuffers.clear();
 			sourceChunkProviders.clear();
 			sourcePeaks.clear();
+			clipWaveformPcmWindows.clear();
+			clipWaveformPcmRequests.clear();
 			revokeVideoVisuals();
 			await store.close?.();
 			documentListeners.clear();
@@ -798,6 +804,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
+			pcmWindow: clipWaveformPcmWindows.get(String(clip.id)) || null,
 			available: Boolean(source && !state.missingSourceIds.has(source.id)),
 			mediaUrl: video?.mediaUrl || null,
 			posterUrl: video?.posterUrl || null,
@@ -820,6 +827,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			source,
 			buffer: sourceBuffers.get(clip.sourceId) || null,
 			peaks: sourcePeaks.get(clip.sourceId) || null,
+			pcmWindow: clipWaveformPcmWindows.get(String(clip.id)) || null,
 			available: Boolean(source && !state.missingSourceIds.has(source.id)),
 		};
 		if (videoClip) Object.assign(visual, {
@@ -1138,6 +1146,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				setVisibleTrackHeights,
 				getClipVisualData,
 				getVisibleClips,
+				requestWaveformPcmWindow,
 			}),
 			sampleEdit: Object.freeze({
 				setMode: restricted('audioSampleEditing', setSampleEditMode),
@@ -1779,6 +1788,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.exportOutput = null;
 		state.missingSourceIds.clear();
 		revokeVideoVisuals();
+		clearWaveformPcmWindows();
 		await loadProjectSources(project);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
@@ -2094,6 +2104,70 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return false;
 	}
 
+	async function requestWaveformPcmWindow(clipId, options = {}) {
+		const clip = project ? findClip(project, clipId) : null;
+		const source = clip ? findSource(project, clip.sourceId) : null;
+		if (!clip || !source || source.kind === 'video' || sourceBuffers.has(source.id)) return null;
+		const cacheKey = String(clip.id);
+		const startFrame = Math.max(0, Math.min(clip.durationFrames, Math.round(Number(options.startFrame) || 0)));
+		const endFrame = Math.max(startFrame, Math.min(
+			clip.durationFrames,
+			Math.round(Number(options.endFrame) || clip.durationFrames),
+		));
+		if (endFrame <= startFrame) return null;
+		const range = clipSourceWindowRange(clip, startFrame, endFrame, source.frameCount);
+		if (range.endFrame - range.startFrame > MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES) return null;
+		const cached = clipWaveformPcmWindows.get(cacheKey);
+		if (waveformPcmWindowContains(cached, range)) {
+			clipWaveformPcmWindows.delete(cacheKey);
+			clipWaveformPcmWindows.set(cacheKey, cached);
+			return cached;
+		}
+		const pending = clipWaveformPcmRequests.get(cacheKey);
+		if (pending && waveformPcmWindowContains(pending, range)) return pending.promise;
+
+		let provider = sourceChunkProviders.get(source.id);
+		if (!provider) {
+			const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+			provider = registerStoredChunkProvider(source, metadata);
+		}
+		if (!provider) return null;
+		const request = {
+			startFrame: range.startFrame,
+			endFrame: range.endFrame,
+			promise: null,
+		};
+		request.promise = readWaveformPcmWindow(provider, range).then((channels) => {
+			if (clipWaveformPcmRequests.get(cacheKey) !== request) return null;
+			clipWaveformPcmRequests.delete(cacheKey);
+			if (!project || !findSource(project, source.id)) return null;
+			const window = Object.freeze({
+				clipId: cacheKey,
+				sourceId: source.id,
+				startFrame: range.startFrame,
+				endFrame: range.endFrame,
+				channels: Object.freeze(channels),
+			});
+			clipWaveformPcmWindows.delete(cacheKey);
+			clipWaveformPcmWindows.set(cacheKey, window);
+			while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
+				clipWaveformPcmWindows.delete(clipWaveformPcmWindows.keys().next().value);
+			}
+			publishDocumentSnapshot();
+			return window;
+		}).catch((error) => {
+			if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
+			throw error;
+		});
+		clipWaveformPcmRequests.set(cacheKey, request);
+		return request.promise;
+	}
+
+	function clearWaveformPcmWindows() {
+		clipWaveformPcmWindows.clear();
+		clipWaveformPcmRequests.clear();
+	}
+
 	async function loadProjectSources(project) {
 		const usedSourceIds = new Set(allProjectClips(project).map((clip) => clip.sourceId));
 		if (!usedSourceIds.size) return;
@@ -2111,7 +2185,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
-					if (!waveformPeaksHaveRms(peaks)) {
+					if (!waveformPeaksHaveRms(peaks, source)) {
 						peaks = await generateStoredWaveformPeaks(store, source, copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
@@ -2119,7 +2193,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 					const buffer = sourceBuffers.get(source.id) || await readStoredAudioBuffer(store, source, context);
 					if (!buffer) continue;
 					cacheSourceBuffer(source.id, buffer);
-					if (!waveformPeaksHaveRms(peaks)) {
+					if (!waveformPeaksHaveRms(peaks, source)) {
 						peaks = await generateWaveformPeaks(audioBufferChannels(buffer), copy);
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
@@ -2323,6 +2397,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers.clear();
 		sourceChunkProviders.clear();
 		sourcePeaks.clear();
+		clearWaveformPcmWindows();
 		revokeVideoVisuals();
 		await store.clear();
 		sessionController.clearClipboard();
@@ -6536,6 +6611,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function projectChanged(options = {}) {
 		if (state.projectBinPreview) void stopProjectBinPreview();
+		clearWaveformPcmWindows();
 		compactLiveSourceState(true);
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		const normalizedRouting = normalizeRecordingRouting(state.recordingRouting, project.tracks);
@@ -11386,6 +11462,57 @@ function createStoredChunkProvider(store, source, metadata) {
 	});
 }
 
+function clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount) {
+	const durationFrames = Math.max(1, Number(clip.durationFrames) || 1);
+	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || durationFrames);
+	const sourceFramesPerTimelineFrame = sourceDurationFrames / durationFrames;
+	const visualStart = startFrame * sourceFramesPerTimelineFrame;
+	const visualEnd = endFrame * sourceFramesPerTimelineFrame;
+	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
+	const absoluteStart = sourceStartFrame + (clip.reversed
+		? sourceDurationFrames - visualEnd
+		: visualStart);
+	const absoluteEnd = sourceStartFrame + (clip.reversed
+		? sourceDurationFrames - visualStart
+		: visualEnd);
+	return {
+		startFrame: Math.max(0, Math.floor(Math.min(absoluteStart, absoluteEnd)) - 2),
+		endFrame: Math.min(sourceFrameCount, Math.ceil(Math.max(absoluteStart, absoluteEnd)) + 2),
+	};
+}
+
+function waveformPcmWindowContains(window, range) {
+	return Boolean(window
+		&& window.startFrame <= range.startFrame
+		&& window.endFrame >= range.endFrame);
+}
+
+async function readWaveformPcmWindow(provider, range) {
+	const output = Array.from(
+		{ length: provider.channelCount },
+		() => new Float32Array(range.endFrame - range.startFrame),
+	);
+	const firstChunk = Math.floor(range.startFrame / provider.chunkFrames);
+	const lastChunk = Math.max(firstChunk, Math.ceil(range.endFrame / provider.chunkFrames) - 1);
+	let outputOffset = 0;
+	for (let chunkIndex = firstChunk; chunkIndex <= lastChunk; chunkIndex += 1) {
+		const value = await provider.readStorageChunk(chunkIndex);
+		const channels = value?.channels || value;
+		const chunkStart = chunkIndex * provider.chunkFrames;
+		const from = Math.max(range.startFrame, chunkStart) - chunkStart;
+		const to = Math.min(range.endFrame, chunkStart + (channels[0]?.length || 0)) - chunkStart;
+		if (to <= from) continue;
+		for (let channel = 0; channel < provider.channelCount; channel += 1) {
+			output[channel].set(channels[channel].subarray(from, to), outputOffset);
+		}
+		outputOffset += to - from;
+	}
+	if (outputOffset !== range.endFrame - range.startFrame) {
+		throw new Error('The waveform PCM window is incomplete.');
+	}
+	return output;
+}
+
 async function generateStoredWaveformPeaks(store, source, copy) {
 	if (typeof Worker !== 'function') return generateStoredWaveformPeaksFallback(store, source);
 	const worker = new Worker(new URL('./peaks-worker.js', import.meta.url), { type: 'module' });
@@ -11616,18 +11743,22 @@ function generateWaveformPeaksFallback(channels) {
 		}),
 	};
 }
-function waveformPeaksHaveRms(peaks) {
+function waveformPeaksHaveRms(peaks, source = null) {
 	return Boolean(
 		peaks?.version === WAVEFORM_PEAKS_VERSION
 		&& Number.isSafeInteger(peaks.channelCount)
 		&& peaks.channelCount > 0
+		&& (!source || peaks.channelCount === source.channelCount)
 		&& peaks.levels?.length
-		&& peaks.levels.every((level) => (
-			level?.channels?.length === peaks.channelCount
+		&& peaks.levels.every((level, index, levels) => (
+			Number.isSafeInteger(level?.blockSize)
+			&& level.blockSize > (levels[index - 1]?.blockSize || 0)
+			&& level?.channels?.length === peaks.channelCount
 			&& level.channels.every((channel) => (
 				channel?.minimums?.length > 0
 				&& channel.maximums?.length === channel.minimums.length
 				&& channel.rms?.length === channel.minimums.length
+				&& (!source || channel.minimums.length === Math.ceil(source.frameCount / level.blockSize))
 			))
 		)),
 	);

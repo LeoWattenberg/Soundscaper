@@ -294,6 +294,37 @@ test('bounded waveform preprocessing handles source offsets, stereo windows, and
 	assert.equal(result.frameCount, 2);
 });
 
+test('bounded waveform preprocessing reads a demand-loaded PCM source window', () => {
+	const window = Float32Array.of(2, 3, 4, 5, 6, 7);
+	const sourceClip = clip({
+		sourceStartFrame: 100,
+		durationFrames: 8,
+	});
+	const forward = prepareBoundedWaveformWindow([window], sourceClip, {
+		startFrame: 2,
+		endFrame: 6,
+		maxSamples: 8,
+		pixelWidth: 8,
+		sourceFrameOffset: 102,
+	});
+	assert.deepEqual([...forward.channels[0]], [2, 3, 4, 5]);
+	assert.equal(forward.rendering.mode, 'connecting-dots');
+	assert.deepEqual([...forward.rendering.channels[0].samples], [2, 3, 4, 5, 6]);
+
+	const reversed = prepareBoundedWaveformWindow([window], { ...sourceClip, reversed: true }, {
+		startFrame: 2,
+		endFrame: 6,
+		maxSamples: 8,
+		sourceFrameOffset: 102,
+	});
+	assert.deepEqual([...reversed.channels[0]], [5, 4, 3, 2]);
+	assert.throws(() => prepareBoundedWaveformWindow([window], sourceClip, {
+		startFrame: 0,
+		endFrame: 6,
+		sourceFrameOffset: 102,
+	}), /requested clip window/);
+});
+
 test('bounded waveform preprocessing maps stretched timeline frames onto source frames', () => {
 	const source = Float32Array.of(1, 2, 3, 4);
 	const result = prepareBoundedWaveformWindow([source], clip({

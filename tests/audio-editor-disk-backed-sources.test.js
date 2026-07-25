@@ -146,6 +146,46 @@ test('an imported source over 32 MiB is persisted and immediately represented by
 	}
 });
 
+test('sample-level waveform zoom demand-loads a bounded PCM window across stored chunks', async () => {
+	const store = new LogicalPcmStore();
+	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
+	const engine = new ControllerEngine({ decoded: [decoded] });
+	const controller = createTestController({
+		store,
+		engine,
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+
+	try {
+		await controller.ready;
+		await controller.actions.project.importFiles([audioFile('sample-zoom.wav')]);
+		const clip = controller.getSnapshot().project.clips[0];
+		store.readSourceChunkCalls.length = 0;
+
+		const window = await controller.actions.timeline.requestWaveformPcmWindow(clip.id, {
+			startFrame: SOURCE_CHUNK_FRAMES - 2,
+			endFrame: SOURCE_CHUNK_FRAMES + 4,
+		});
+
+		assert.equal(window.sourceId, clip.sourceId);
+		assert.equal(window.startFrame, SOURCE_CHUNK_FRAMES - 4);
+		assert.equal(window.endFrame, SOURCE_CHUNK_FRAMES + 6);
+		assert.equal(window.channels.length, 1);
+		assert.equal(window.channels[0].length, 10);
+		assert.deepEqual(store.readSourceChunkCalls.map(({ index }) => index), [0, 1]);
+		assert.equal(controller.getClipVisualData(clip.id).pcmWindow, window);
+
+		const cached = await controller.actions.timeline.requestWaveformPcmWindow(clip.id, {
+			startFrame: SOURCE_CHUNK_FRAMES - 1,
+			endFrame: SOURCE_CHUNK_FRAMES + 1,
+		});
+		assert.equal(cached, window);
+		assert.equal(store.readSourceChunkCalls.length, 2);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('large PCM WAV imports are decoded from bounded slices directly into storage', async () => {
 	const store = new LogicalPcmStore();
 	const engine = new ControllerEngine();
