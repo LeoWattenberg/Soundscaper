@@ -50,9 +50,15 @@ pair is explicitly unlinked.
 ## Local development
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
+
+Use Node.js 22 and npm 10.9.4. A fresh install needs `NODE_AUTH_TOKEN` with
+read access to the GitHub Packages component dependency. Contributor workflow
+and architecture boundaries are documented in
+[`CONTRIBUTING.md`](CONTRIBUTING.md) and
+[`docs/architecture.md`](docs/architecture.md).
 
 `npm run preview` serves the production build on port 4321. Playwright keeps
 its isolated preview server on port 4322 (or `PLAYWRIGHT_PORT` when overridden).
@@ -77,15 +83,18 @@ the versioned root configured by `PUBLIC_TRANSLATIONS_BASE_URL`. Copy
 ## Checks
 
 ```sh
-npm test
-npm run audit:staffpad
-npm run build
+npm run check
 npm run test:browser
 ```
 
+The canonical non-browser command includes lint, strict type checks,
+architecture/size guardrails, reproducibility and notice audits, unit coverage,
+and a production build. `npm run audit:ebu-r128` remains separate because it
+requires the external conformance test set.
+
 `npm run build` fails when any generated Pages asset exceeds Cloudflare's 25 MiB
-limit. FFmpeg's larger WASM runtime is therefore published to R2 rather than
-included in `dist/`.
+limit or any emitted JavaScript chunk exceeds 500,000 bytes. FFmpeg's larger
+WASM runtime is therefore published to R2 rather than included in `dist/`.
 
 ## Desktop preview
 

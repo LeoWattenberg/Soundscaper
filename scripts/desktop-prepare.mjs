@@ -11,7 +11,7 @@ import {
 	stat,
 	writeFile,
 } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
@@ -186,7 +186,6 @@ async function buildRenderer() {
 	await run(process.execPath, [vite, 'build', '--outDir', RENDERER_ROOT], {
 		env: {
 			...process.env,
-			PUBLIC_AUDIO_EDITOR_V2: 'true',
 			SCAPE_PRODUCT: PRODUCT_ID,
 			PUBLIC_FFMPEG_CORE_BASE_URL: `${APP_SCHEME}://bundle/runtime/ffmpeg/0.12.10`,
 			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,

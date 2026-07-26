@@ -59,7 +59,7 @@
 		{ "path": "native/nyquist_wasm.c", "sha256": "bcabdb74b8de71a62f8cf2154f485f17ed5a7c4d3346767efcf19c395a4a96d0", "origin": "soundscaper-browser-adaptation" },
 		{ "path": "native/patches/nyx-browser.patch", "sha256": "bfc271cc3a888402ba2dc74c622158745d730bcf2635aa4f966ec71467bd4dc4", "origin": "soundscaper-browser-adaptation" },
 		{ "path": "native/sndfile.h", "sha256": "751908e307b1c444ed8e216f18d05a4e778df8b47b06dad306fe349de36ab6ba", "origin": "soundscaper-browser-adaptation" },
-		{ "path": "../../../../scripts/build-nyquist-wasm.mjs", "sha256": "8da6f810dfbbdada9698cee608b9a00fd24b6893bdc9657de572f137b858ffd6", "origin": "soundscaper-reproducibility" },
+		{ "path": "../../../../scripts/build-nyquist-wasm.mjs", "sha256": "f11498a4e5aed1b639bc5fa0eeaeb5585cbf25928d87e7a4325046d15ea0c73a", "origin": "soundscaper-reproducibility" },
 		{ "path": "../../../../scripts/audit-nyquist-wasm.mjs", "sha256": "7d503c04f240c56a14fa7b3936e61f23825b586975a382ac8e7bf85b32e14667", "origin": "soundscaper-reproducibility" }
 	],
 	"forbiddenArtifactTokens": [

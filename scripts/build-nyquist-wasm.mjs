@@ -63,7 +63,7 @@ const temporaryDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-nyquist-wasm-
 try {
 	const patchedLibnyquist = join(temporaryDirectory, 'libnyquist');
 	cpSync(libnyquist, patchedLibnyquist, { recursive: true });
-	run('git', ['apply', '--unsafe-paths', join(nativeDirectory, 'patches/nyx-browser.patch')], patchedLibnyquist);
+	run('git', ['apply', join(nativeDirectory, 'patches/nyx-browser.patch')], patchedLibnyquist);
 	const generatedRuntime = join(temporaryDirectory, 'nyquist_runtime.c');
 	writeFileSync(generatedRuntime, generateRuntimeSource());
 

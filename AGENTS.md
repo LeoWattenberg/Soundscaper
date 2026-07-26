@@ -2,15 +2,28 @@
 
 - Soundscaper is a Vite/React local-first browser audio editor.
 - Use test-driven development principles.
-- Use npm and preserve `package-lock.json`.
+- Use Node.js 22 and npm 10.9.4. Use npm and preserve `package-lock.json`;
+  never edit dependency metadata without updating the lockfile.
 - Application UI lives in `src/common/editor/ui/`.
 - Audio models, workers, storage, effects, import/export, and WASM integration
   live in `src/common/editor/`.
-- Do not commit generated `dist/`, `test-results/`, or `node_modules/` content.
+- Do not commit generated `dist/`, `coverage/`, `playwright-report/`,
+  `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are
   versioned under `https://assets.soundscaper.org/runtime/ffmpeg/`.
-- Run `npm test` after helper changes, `npm run build` after Vite/UI changes, and
+- `npm run check` is the canonical non-browser gate. During development, run
+  `npm test` after helper changes, `npm run build` after Vite/UI changes, and
   `npm run test:browser` for interactive workflows.
+- New controller/domain modules and their tests should be strict TypeScript.
+  Keep imports at the owning module instead of adding broad barrel dependencies.
+- TypeScript linting is type-aware: await, catch, return, or explicitly `void`
+  every promise, and do not pass promise callbacks to void-returning APIs.
+- Do not grow files listed in `config/maintainability-allowlist.json`; extract a
+  focused module instead. New maintained source files have a 600-line ceiling;
+  browser specs have an 800-line ceiling.
+- Production JavaScript chunks have a 500,000-byte ceiling. Preserve the
+  semantic chunk groups in `vite.config.mjs`; split module ownership instead of
+  weakening the build-output guard.
 - Browser tests live in `tests/browser/` and use `playwright.config.mjs`.
   Playwright runs Chromium headlessly and starts its own loopback preview server
   at `http://127.0.0.1:4322`; no IDE browser, graphical session, or separately
