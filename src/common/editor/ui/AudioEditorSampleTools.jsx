@@ -1,24 +1,21 @@
-import React from 'react';
 import {
 	Button,
 	Icon,
 	ToggleToolButton,
 } from '@dilsonspickles/components';
+import { selectAudioEditorEditBlock } from './edit-blocking.ts';
 
 export default function AudioEditorSampleTools({ controller, snapshot, copy, run }) {
 	const sampleEdit = snapshot.sampleEdit;
 	if (!sampleEdit?.available) return null;
-	const blocked = snapshot.readOnly
-		|| snapshot.importing
-		|| snapshot.recording
-		|| snapshot.recordingStarting
-		|| snapshot.exporting
-		|| snapshot.processingEffect;
-	const smoothingDisabled = blocked || sampleEdit.processing || !snapshot.selectedClipId || !snapshot.selection;
+	const editBlock = selectAudioEditorEditBlock(snapshot);
+	const blocked = editBlock.blocked;
+	const smoothingDisabled = blocked || !snapshot.selectedClipId || !snapshot.selection;
 	return (
 		<div
 			className="audio-editor-sample-tools"
 			data-sample-edit-tools
+			data-edit-block-reason={editBlock.reason || undefined}
 			role="toolbar"
 			aria-label={copy.sampleTools}
 		>

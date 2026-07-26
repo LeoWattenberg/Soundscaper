@@ -46,8 +46,10 @@ export default function AudioEditorMenuBar({
 	const { theme } = useTheme();
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
+	const openMenuRef = useRef(null);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
+	openMenuRef.current = openMenu;
 	const [searchOpen, setSearchOpen] = useState(false);
 	const menuOpen = Boolean(openMenu);
 	const orderedMenus = useMemo(() => AUDACITY_MENU_ORDER
@@ -58,12 +60,16 @@ export default function AudioEditorMenuBar({
 	const horizontalRightDelta = getLocaleDescriptor(locale)?.direction === 'rtl' ? -1 : 1;
 
 	const closeMenu = useCallback((restoreFocus = true) => {
-		setOpenMenu((current) => {
-			if (restoreFocus && current) {
-				requestAnimationFrame(() => menuButtonsRef.current[current.index]?.focus?.({ preventScroll: true }));
-			}
-			return null;
-		});
+		const current = openMenuRef.current;
+		if (restoreFocus && current) {
+			const trigger = menuButtonsRef.current[current.index];
+			// Restore before an activated command can mount a modal. Its layout
+			// effect then captures the stable menu trigger instead of document.body.
+			trigger?.focus?.({ preventScroll: true });
+			requestAnimationFrame(() => trigger?.focus?.({ preventScroll: true }));
+		}
+		openMenuRef.current = null;
+		setOpenMenu(null);
 	}, []);
 
 	const openMenuAt = useCallback((index, { keyboard = false } = {}) => {
@@ -346,6 +352,12 @@ export default function AudioEditorMenuBar({
 function renderMenuItem(item, key, closeMenu) {
 	if (item.divider) return <ContextMenuItem key={key} isDivider />;
 	const children = item.items?.map((child, index) => renderMenuItem(child, `${key}-${index}`, closeMenu));
+	const activate = item.disabled || typeof item.onClick !== 'function' ? undefined : (...args) => {
+		// The vendor item invokes onClose after its action. Close first so a
+		// dialog opened by the action captures the top-level menu as its return target.
+		closeMenu();
+		return item.onClick(...args);
+	};
 	const plainLabel = item.disabledReason ? (
 		<span title={item.disabledReason} data-disabled-reason={item.disabledReason}>
 			{item.label}
@@ -363,7 +375,7 @@ function renderMenuItem(item, key, closeMenu) {
 			disabled={item.disabled}
 			checked={item.checked}
 			hasSubmenu={Boolean(children?.length)}
-			onClick={item.disabled ? undefined : item.onClick}
+			onClick={activate}
 			onClose={() => closeMenu()}
 		>
 			{children}

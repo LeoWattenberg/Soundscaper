@@ -28,6 +28,13 @@ test('bundled catalogs are complete and user-visible values contain no ellipses'
 	}
 });
 
+test('recording preparation failures are localized in English and German', () => {
+	assert.equal(ENGLISH_COPY.recordingAssignInput, 'Assign an input to at least one armed track before recording.');
+	assert.equal(GERMAN_COPY.recordingAssignInput, 'Weise vor der Aufnahme mindestens einer aktivierten Spur einen Eingang zu.');
+	assert.equal(ENGLISH_COPY.timedRecordingAssignedInputsUnavailable, 'Every assigned recording input must remain available for timer recording.');
+	assert.equal(GERMAN_COPY.timedRecordingAssignedInputsUnavailable, 'Alle zugewiesenen Aufnahme-Eingänge müssen für die zeitgesteuerte Aufnahme verfügbar bleiben.');
+});
+
 test('normalizes explicit BCP-47 locales without a German/English clamp', () => {
 	assert.equal(normalizeLocale('pt_BR'), 'pt-BR');
 	assert.equal(normalizeLocale('ar'), 'ar');

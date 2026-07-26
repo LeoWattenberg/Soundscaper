@@ -4,10 +4,12 @@ import test from 'node:test';
 import {
 	applyEditorCommand,
 	createAddTrackCommand,
+} from '../src/common/editor/commands.js';
+import {
 	createAudioEditorPreferencesV1,
-	createAudioEditorProjectV2,
 	updateAudioEditorPreferencesV1,
-} from '../src/common/editor/index.js';
+} from '../src/common/editor/preferences.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 
 function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });

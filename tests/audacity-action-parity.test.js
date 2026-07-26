@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 
 import {
 	AUDACITY_ACTION_ALIASES,
@@ -15,6 +14,11 @@ import {
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
 } from '../src/common/editor/audacity-action-parity.js';
+import {
+	AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS,
+	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
+	createUnavailableApplicationMenuItem,
+} from '../src/common/editor/ui/application-menu-registry.ts';
 
 const PINNED_COMMIT = '908ad0a526e5bfdab68de780e893cebe172d27eb';
 
@@ -243,34 +247,38 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	assert.throws(() => evaluateAudacityEnableWhen('not-a-predicate', context), /Unknown Audacity/);
 });
 
-test('every existing disabled application-menu placeholder has a parity classification', async () => {
-	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
-	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
+test('every registered unavailable application-menu action has a parity classification', () => {
+	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
 	assert.ok(
 		placeholderIds.length >= 15,
 		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
 	);
+	assert.equal(new Set(placeholderIds).size, placeholderIds.length);
+	assert.ok(Object.isFrozen(placeholderIds));
 	assert.deepEqual(
 		placeholderIds.filter((id) => !audacityActionDefinition(id)),
 		[],
 	);
+	for (const id of placeholderIds) {
+		assert.deepEqual(createUnavailableApplicationMenuItem(id, id), { id, label: id, disabled: true });
+	}
+	assert.throws(
+		() => createUnavailableApplicationMenuItem('not-in-the-registry', 'Unknown'),
+		/Unknown unavailable application-menu action/,
+	);
 });
 
-test('implemented parity actions are never represented by unavailable menu placeholders', async () => {
-	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
-	const placeholderIds = [...source.matchAll(/unavailable\('([^']+)'/g)].map((match) => match[1]);
+test('implemented parity actions are never registered as unavailable menu placeholders', () => {
 	assert.deepEqual(
-		placeholderIds.filter((id) => audacityActionDefinition(id)?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED),
+		AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS.filter(
+			(id) => audacityActionDefinition(id)?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED,
+		),
 		[],
 	);
 });
 
-test('critical functional manifest surfaces have explicit menu command IDs', async () => {
-	const source = await readFile(new URL('../src/common/editor/ui/AudioEditorApp.jsx', import.meta.url), 'utf8');
-	const explicitIds = new Set(
-		[...source.matchAll(/(?:id:\s*|unavailable\()'([^']+)'/g)]
-			.map((match) => resolveAudacityActionId(match[1])),
-	);
+test('critical functional manifest surfaces have semantic menu registry entries', () => {
+	const explicitIds = new Set(AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS.map(resolveAudacityActionId));
 	const critical = [
 		'open-label-editor', 'open-metadata-editor', 'select-all-tracks',
 		'select-left-of-playback-position', 'select-right-of-playback-position',
@@ -280,6 +288,7 @@ test('critical functional manifest surfaces have explicit menu command IDs', asy
 		'action://record/lead-in-recording', 'metronome', 'track-resample', 'repeat-last-effect',
 		'online-handbook', 'local://support', 'revert-factory', 'about-audacity',
 	];
+	assert.equal(explicitIds.size, critical.length);
 	assert.deepEqual(critical.filter((id) => !explicitIds.has(id)), []);
 	for (const id of critical) {
 		assert.equal(AUDACITY_ACTION_MANIFEST[id]?.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);

@@ -264,6 +264,8 @@ const COPY_ENTRIES = Object.freeze([
 	["audacityParityLabelResetConfiguration","Reset configuration","Konfiguration zurücksetzen"],
 	["audacityParityLabelRevertToFactorySettings","Revert to factory settings","Auf Werkseinstellungen zurücksetzen"],
 	["options","Options","Optionen"],
+	["optionsFor","{name} options","Optionen für {name}"],
+	["resizeFor","Resize: {name}","Größe ändern: {name}"],
 	["audacityParityMatchExportOther","Export other","Export other"],
 	["spectrogramMel","Mel","Mel"],
 	["spectrogramWindowHann","Hann","Hann"],
@@ -276,6 +278,10 @@ const COPY_ENTRIES = Object.freeze([
 	["clipPitchRange","Clip pitch must be between -1200 and 1200 cents.","Die Clip-Tonhöhe muss zwischen -1200 und 1200 Cent liegen."],
 	["clipSpeedPositive","Clip speed must be finite and positive.","Die Clip-Geschwindigkeit muss endlich und positiv sein."],
 	["spectralGainInvalid","Spectral gain must be between -120 dB and 120 dB.","Die spektrale Verstärkung muss zwischen -120 dB und 120 dB liegen."],
+	["recordingAssignInput","Assign an input to at least one armed track before recording.","Weise vor der Aufnahme mindestens einer aktivierten Spur einen Eingang zu."],
+	["recordingPreparedInputClosed","The prepared recording input closed before the timer was armed.","Der vorbereitete Aufnahme-Eingang wurde geschlossen, bevor die Zeitsteuerung aktiviert war."],
+	["recordingNoInputsAvailable","None of the assigned recording inputs are available.","Keiner der zugewiesenen Aufnahme-Eingänge ist verfügbar."],
+	["timedRecordingAssignedInputsUnavailable","Every assigned recording input must remain available for timer recording.","Alle zugewiesenen Aufnahme-Eingänge müssen für die zeitgesteuerte Aufnahme verfügbar bleiben."],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

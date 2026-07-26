@@ -10,8 +10,10 @@ import {
 	VIDEO_EFFECT_PARITY_MAXIMUM_CHANNEL_MAE,
 	VIDEO_EFFECT_PARITY_MINIMUM_SSIM,
 	VIDEO_EFFECT_PARITY_WIDTH,
+	auditVignetteAlpha,
 	compareVideoEffectFrames,
 	createVideoEffectParityFixture,
+	rgbaToPpm,
 } from './video-effect-parity-helpers.js';
 
 const PARITY_ROUTE_ROOT = '/__video-effect-parity__';
@@ -689,133 +691,4 @@ async function renderCompositionParityCase(page, parity) {
 			return btoa(binary);
 		}
 	}, parity);
-}
-
-async function auditVignetteAlpha(page, audit) {
-	return page.evaluate(async ({
-		width,
-		height,
-		inputBase64,
-		vignetteExpression,
-		clipGraph,
-		filePrefix = '',
-	}) => {
-		const runtime = window.__videoEffectParity;
-		const input = Uint8Array.from(atob(inputBase64), (value) => value.charCodeAt(0));
-		const inputName = `${filePrefix}vignette-alpha-input.rgba`;
-		const outputName = `${filePrefix}vignette-alpha-output.rgba`;
-		const referenceName = `${filePrefix}vignette-color-reference.rgba`;
-		const premultipliedName = `${filePrefix}vignette-premultiplied.rgba`;
-		const productionClipName = `${filePrefix}vignette-production-clip.rgba`;
-		const graph = '[0:v]format=pix_fmts=rgba,split=2[color][alpha_source];'
-			+ '[alpha_source]alphaextract[alpha];'
-			+ `[color]${vignetteExpression},format=pix_fmts=rgb24[filtered_color];`
-			+ '[filtered_color][alpha]alphamerge,format=pix_fmts=rgba[video_out]';
-		const referenceGraph = `[0:v]format=pix_fmts=rgba,${vignetteExpression},`
-			+ 'format=pix_fmts=rgb24,format=pix_fmts=rgba[video_out]';
-		const premultipliedGraph = '[0:v]format=pix_fmts=rgba,split=2[color][alpha_source];'
-			+ '[alpha_source]alphaextract[alpha];'
-			+ `[color]${vignetteExpression},format=pix_fmts=rgb24[filtered_color];`
-			+ '[filtered_color][alpha]alphamerge,format=pix_fmts=rgba,'
-			+ 'premultiply=inplace=1,format=pix_fmts=rgba[video_out]';
-		try {
-			await runtime.ffmpeg.writeFile(inputName, input.slice());
-			const runGraph = (filterGraph, target, outputLabel = 'video_out') => runtime.ffmpeg.exec([
-				'-f', 'rawvideo',
-				'-pixel_format', 'rgba',
-				'-video_size', `${width}x${height}`,
-				'-framerate', '1',
-				'-i', inputName,
-				'-filter_complex', filterGraph,
-				'-map', `[${outputLabel}]`,
-				'-frames:v', '1',
-				'-c:v', 'rawvideo',
-				'-pix_fmt', 'rgba',
-				'-f', 'rawvideo',
-				target,
-			]);
-			let exitCode = await runGraph(graph, outputName);
-			if (exitCode !== 0) throw new Error(`FFmpeg alpha audit exited with ${exitCode}.`);
-			exitCode = await runGraph(referenceGraph, referenceName);
-			if (exitCode !== 0) throw new Error(`FFmpeg vignette reference exited with ${exitCode}.`);
-			exitCode = await runGraph(premultipliedGraph, premultipliedName);
-			if (exitCode !== 0) throw new Error(`FFmpeg vignette premultiplication audit exited with ${exitCode}.`);
-			exitCode = await runGraph(clipGraph.graph, productionClipName, clipGraph.outputLabel);
-			if (exitCode !== 0) throw new Error(`FFmpeg production clip audit exited with ${exitCode}.`);
-			const output = await runtime.ffmpeg.readFile(outputName);
-			const reference = await runtime.ffmpeg.readFile(referenceName);
-			const premultiplied = await runtime.ffmpeg.readFile(premultipliedName);
-			const productionClip = await runtime.ffmpeg.readFile(productionClipName);
-			let mismatchedPixels = 0;
-			let maximumDelta = 0;
-			let mismatchedColorValues = 0;
-			let maximumColorDelta = 0;
-			let referenceRgbMaximum = 0;
-			let outputRgbMaximum = 0;
-			let premultipliedRgbMaximum = 0;
-			let productionClipRgbMaximum = 0;
-			let productionClipAlphaMinimum = 255;
-			let productionClipAlphaMaximum = 0;
-			for (let offset = 3; offset < input.length; offset += 4) {
-				const delta = Math.abs(input[offset] - output[offset]);
-				if (delta) mismatchedPixels += 1;
-				maximumDelta = Math.max(maximumDelta, delta);
-			}
-			for (let offset = 0; offset < input.length; offset += 4) {
-				for (let channel = 0; channel < 3; channel += 1) {
-					const colorDelta = Math.abs(reference[offset + channel] - output[offset + channel]);
-					if (colorDelta) mismatchedColorValues += 1;
-					maximumColorDelta = Math.max(maximumColorDelta, colorDelta);
-					referenceRgbMaximum = Math.max(referenceRgbMaximum, reference[offset + channel]);
-					outputRgbMaximum = Math.max(outputRgbMaximum, output[offset + channel]);
-					premultipliedRgbMaximum = Math.max(
-						premultipliedRgbMaximum,
-						premultiplied[offset + channel],
-					);
-					productionClipRgbMaximum = Math.max(
-						productionClipRgbMaximum,
-						productionClip[offset + channel] ?? 0,
-					);
-				}
-				productionClipAlphaMinimum = Math.min(
-					productionClipAlphaMinimum,
-					productionClip[offset + 3] ?? 0,
-				);
-				productionClipAlphaMaximum = Math.max(
-					productionClipAlphaMaximum,
-					productionClip[offset + 3] ?? 0,
-				);
-			}
-			return {
-				mismatchedPixels,
-				maximumDelta,
-				mismatchedColorValues,
-				maximumColorDelta,
-				referenceRgbMaximum,
-				outputRgbMaximum,
-				premultipliedRgbMaximum,
-				productionClipByteLength: productionClip.length,
-				productionClipRgbMaximum,
-				productionClipAlphaMinimum,
-				productionClipAlphaMaximum,
-			};
-		} finally {
-			await runtime.ffmpeg.deleteFile(inputName).catch(() => undefined);
-			await runtime.ffmpeg.deleteFile(outputName).catch(() => undefined);
-			await runtime.ffmpeg.deleteFile(referenceName).catch(() => undefined);
-			await runtime.ffmpeg.deleteFile(premultipliedName).catch(() => undefined);
-			await runtime.ffmpeg.deleteFile(productionClipName).catch(() => undefined);
-		}
-	}, audit);
-}
-
-function rgbaToPpm(rgba, width, height) {
-	const header = Buffer.from(`P6\n${width} ${height}\n255\n`);
-	const rgb = Buffer.alloc(width * height * 3);
-	for (let source = 0, target = 0; source < rgba.length; source += 4, target += 3) {
-		rgb[target] = rgba[source];
-		rgb[target + 1] = rgba[source + 1];
-		rgb[target + 2] = rgba[source + 2];
-	}
-	return Buffer.concat([header, rgb]);
 }

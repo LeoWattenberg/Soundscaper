@@ -1,0 +1,16 @@
+diff --git a/node_modules/@dilsonspickles/components/dist/chunk-URVJBJH4.js b/node_modules/@dilsonspickles/components/dist/chunk-URVJBJH4.js
+--- a/node_modules/@dilsonspickles/components/dist/chunk-URVJBJH4.js
++++ b/node_modules/@dilsonspickles/components/dist/chunk-URVJBJH4.js
+@@ -116,9 +116,10 @@ function useContainerTabGroup({
+       if (!isRoving) return;
+       if (focusingRef.current) return;
+       const relatedTarget = e.relatedTarget;
+-      if (_optionalChain([containerRef, 'access', _4 => _4.current, 'optionalAccess', _5 => _5.contains, 'call', _6 => _6(relatedTarget)])) return;
++      const container = containerRef.current;
++      if (!container || container.contains(relatedTarget)) return;
+       activeIndexRef.current = 0;
+-      const focusables = getFocusables(containerRef.current, selector, filter);
++      const focusables = getFocusables(container, selector, filter);
+       focusables.forEach((el, index) => {
+         el.tabIndex = index === 0 ? startTabIndex : -1;
+       });

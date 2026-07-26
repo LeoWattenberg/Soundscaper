@@ -1,0 +1,177 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useAccessibilityProfile, useTabOrder } from '@dilsonspickles/components';
+
+import {
+	createTimelineProjectIndex,
+	framesToSeconds,
+	secondsToFrames,
+} from '../../design-system-adapters.js';
+import { editorTimelineDurationFrames } from '../../project.js';
+import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
+import {
+	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
+	trackVisualHeight,
+} from './geometry.ts';
+import {
+	AUTO_FIT_TRACK_HEIGHT,
+	COLLAPSED_TRACK_HEIGHT,
+	COMPACT_TRACK_PANEL_WIDTH,
+	DESKTOP_TRACK_PANEL_WIDTH,
+	SPECTROGRAM_RULER_WIDTH,
+	VERTICAL_RULER_WIDTH,
+} from './constants.ts';
+
+export function useTimelineViewportModel({
+	controller,
+	snapshot,
+	mobile,
+	showArmControls,
+	state,
+}) {
+	const {
+		timelineSize,
+		pendingPinchAnchorRef,
+		scrollRef,
+		waveformCacheRef,
+		scrollX,
+		selectionPreview,
+		trackResizePreview,
+	} = state;
+	const project = snapshot.project;
+	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
+	const { activeProfile } = useAccessibilityProfile();
+	const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';
+	const timelineRulerTabIndex = useTabOrder('timeline-ruler');
+	const trackBaseTabIndex = useTabOrder('tracks');
+	const addTrackTabIndex = useTabOrder('add-track');
+	const panelWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
+	const showMasterTrack = Boolean(snapshot.preferences?.view?.showMasterTrack);
+	const outputTracks = useMemo(() => [
+		...(project?.mixer?.groups || []).map((bus) => ({ key: `group:${bus.id}`, scope: 'group', bus })),
+		...(project?.mixer?.sends || []).map((bus) => ({ key: `send:${bus.id}`, scope: 'send', bus })),
+		...(showMasterTrack && project?.master
+			? [{ key: 'master', scope: 'master', bus: project.master }]
+			: []),
+	], [project?.master, project?.mixer?.groups, project?.mixer?.sends, showMasterTrack]);
+	const outputDockContentHeight = outputTracks.reduce(
+		(total, { bus }) => total + (bus.collapsed === false ? TRACK_HEIGHT : COLLAPSED_TRACK_HEIGHT),
+		0,
+	);
+	const outputDockMaximumHeight = Math.max(
+		COLLAPSED_TRACK_HEIGHT,
+		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
+	);
+	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
+	const autoFitTrackHeightEnabled = snapshot.timeline?.autoFitTrackHeight !== false;
+	const expandedTrackCount = project?.tracks.length || 0;
+	const availableTrackHeight = Math.max(
+		TRACK_HEIGHT,
+		Math.floor((timelineSize.height || AUTO_FIT_TRACK_HEIGHT + 34) - outputDockHeight - 34),
+	);
+	const fittedTrackHeight = expandedTrackCount > 0
+		? Math.max(TRACK_HEIGHT, Math.min(
+			AUTO_FIT_TRACK_HEIGHT,
+			Math.floor(availableTrackHeight / expandedTrackCount),
+		))
+		: AUTO_FIT_TRACK_HEIGHT;
+	const timelineView = snapshot.timeline?.view;
+	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
+		&& project?.tracks.some((track) => {
+			if (track.type !== 'audio') return false;
+			const mode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
+			return mode === 'spectrogram' || mode === 'multiview';
+		});
+	const verticalRulerWidth = snapshot.timeline?.showVerticalRulers === false
+		? 0
+		: (hasFrequencyRuler ? SPECTROGRAM_RULER_WIDTH : VERTICAL_RULER_WIDTH);
+	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
+	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
+	useLayoutEffect(() => {
+		const pending = pendingPinchAnchorRef.current;
+		if (!pending) return;
+		pendingPinchAnchorRef.current = null;
+		if (!scrollRef.current) return;
+		scrollRef.current.scrollLeft = Math.max(
+			0,
+			pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset,
+		);
+		scrollRef.current.dispatchEvent(new Event('scroll', { bubbles: true }));
+	}, [pendingPinchAnchorRef, pixelsPerSecond, scrollRef]);
+	const sampleRate = project?.sampleRate || 48_000;
+	const recordingPreviews = snapshot.recordingPreviews?.length
+		? snapshot.recordingPreviews
+		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
+	const durationFrames = Math.max(
+		project ? editorTimelineDurationFrames(project, sampleRate) : sampleRate * 30,
+		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
+	);
+	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
+	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
+	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
+	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
+	const projectIndex = useMemo(
+		() => createTimelineProjectIndex(project),
+		[project?.clips, project?.sources, project?.tracks],
+	);
+	const projectClipIds = useMemo(
+		() => new Set([...projectIndex.clipById.keys()].map(String)),
+		[projectIndex],
+	);
+	const selectedClipIdSet = useMemo(
+		() => new Set(project?.selection?.clipIds || []),
+		[project?.selection?.clipIds],
+	);
+	for (const clipId of waveformCacheRef.current.keys()) {
+		if (!projectClipIds.has(clipId)) waveformCacheRef.current.delete(clipId);
+	}
+
+	useEffect(() => {
+		controller.actions.timeline.setViewportWidth(viewportWidth);
+	}, [controller, viewportWidth]);
+
+	const documentSelection = selectionPreview || snapshot.selection;
+	const timeSelection = documentSelection && documentSelection.endFrame > documentSelection.startFrame
+		? {
+			startTime: framesToSeconds(documentSelection.startFrame, { sampleRate }),
+			endTime: framesToSeconds(documentSelection.endFrame, { sampleRate }),
+		}
+		: null;
+	const visualTrackHeight = useCallback((track) => {
+		if (trackResizePreview?.trackId === track.id) {
+			return trackVisualHeight(track, showArmControls, trackResizePreview.height);
+		}
+		if (autoFitTrackHeightEnabled) return fittedTrackHeight;
+		return trackVisualHeight(track, showArmControls);
+	}, [autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
+	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
+
+	return {
+		project,
+		transportState,
+		isFlatNavigation,
+		timelineRulerTabIndex,
+		trackBaseTabIndex,
+		addTrackTabIndex,
+		panelWidth,
+		showMasterTrack,
+		outputTracks,
+		outputDockHeight,
+		timelineView,
+		verticalRulerWidth,
+		viewportWidth,
+		pixelsPerSecond,
+		sampleRate,
+		recordingPreviews,
+		durationFrames,
+		durationSeconds,
+		timelineWidth,
+		viewportStartFrame,
+		viewportDurationFrames,
+		projectIndex,
+		selectedClipIdSet,
+		documentSelection,
+		timeSelection,
+		visualTrackHeight,
+		totalTrackHeight,
+	};
+}
