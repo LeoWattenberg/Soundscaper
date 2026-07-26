@@ -1,6 +1,7 @@
 # AGENTS.md
 
 - Soundscaper is a Vite/React local-first browser audio editor.
+- Use test-driven development principles.
 - Use npm and preserve `package-lock.json`.
 - Application UI lives in `src/common/editor/ui/`.
 - Audio models, workers, storage, effects, import/export, and WASM integration
@@ -16,12 +17,13 @@
   running development server is required.
 - Run the full browser suite with `npm run test:browser`. For a focused run,
   build first, then use `npx playwright test tests/browser/<file>.spec.js
-  --project=chromium` and optionally `--grep='test name'`. When loopback binding
-  fails with `listen EPERM` in a sandboxed environment, request permission to
-  rerun the browser test outside the sandbox.
+  --project=chromium` and optionally `--grep='test name'`. Loopback binding
+  fails with `listen EPERM` in a sandboxed environment, always request permission to
+  run the browser test outside the sandbox.
 - If port 4322 is occupied, set `PLAYWRIGHT_PORT` for the command (for example,
   `PLAYWRIGHT_PORT=4323 npm run test:browser`). Inspect failed-run diagnostics in
   `test-results/`, but do not edit or commit that generated directory.
 - Preserve AGPL and third-party notices, pinned source hashes, and the StaffPad
   reproducibility/audit workflow.
 - Use tabs in existing JavaScript/JSX sources and keep changes narrowly scoped.
+- Make atomic commits.
