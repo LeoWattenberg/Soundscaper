@@ -106,38 +106,49 @@ export class ChunkStreamClient {
 		}
 		this.streams.set(streamId, stream);
 
-		outputPort.postMessage({
-			type: 'configure-stream',
-			protocolVersion: AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
-			streamId,
-			channelCount: source.channelCount,
-			startFrame,
-			endFrame,
-			sourceStartFrame,
-			sourceEndFrame,
-			resample: outputFrameCount != null,
-			packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-			highWaterMark,
-		});
-		worker.postMessage({
-			type: 'open-stream',
-			protocolVersion: AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
-			streamId,
-			source: {
+		let outputConfigured = false;
+		try {
+			outputPort.postMessage({
+				type: 'configure-stream',
+				protocolVersion: AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
+				streamId,
 				channelCount: source.channelCount,
-				frameCount: source.frameCount,
-				chunkFrames: source.chunkFrames,
-			},
-			startFrame,
-			endFrame,
-			sourceStartFrame,
-			sourceEndFrame,
-			resampleInputFrames,
-			resampleInputOffset,
-			resample: outputFrameCount != null,
-			packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-			highWaterMark,
-		});
+				startFrame,
+				endFrame,
+				sourceStartFrame,
+				sourceEndFrame,
+				resample: outputFrameCount != null,
+				packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
+				highWaterMark,
+			});
+			outputConfigured = true;
+			worker.postMessage({
+				type: 'open-stream',
+				protocolVersion: AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
+				streamId,
+				source: {
+					channelCount: source.channelCount,
+					frameCount: source.frameCount,
+					chunkFrames: source.chunkFrames,
+				},
+				startFrame,
+				endFrame,
+				sourceStartFrame,
+				sourceEndFrame,
+				resampleInputFrames,
+				resampleInputOffset,
+				resample: outputFrameCount != null,
+				packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
+				highWaterMark,
+			});
+		} catch (error) {
+			this.#detachStream(stream);
+			try { worker.postMessage({ type: 'cancel-stream', streamId, reason: error.message }); } catch {}
+			if (outputConfigured) {
+				try { outputPort.postMessage({ type: 'cancel-stream', streamId, reason: error.message }); } catch {}
+			}
+			throw error;
+		}
 
 		const handle = {
 			streamId,
@@ -150,17 +161,25 @@ export class ChunkStreamClient {
 				await primed.promise;
 				if (!stream.settled && !stream.playing) {
 					stream.playing = true;
-					outputPort.postMessage({
-						type: 'play-stream',
-						streamId,
-						contextStartFrame: stream.playContextStartFrame,
-					});
+					try {
+						outputPort.postMessage({
+							type: 'play-stream',
+							streamId,
+							contextStartFrame: stream.playContextStartFrame,
+						});
+					} catch (error) {
+						this.#failStream(stream, error);
+						throw error;
+					}
 				}
 			},
 			pause: () => {
 				stream.playRequested = false;
 				stream.playing = false;
-				if (!stream.settled) outputPort.postMessage({ type: 'pause-stream', streamId });
+				if (!stream.settled) {
+					try { outputPort.postMessage({ type: 'pause-stream', streamId }); }
+					catch (error) { this.#failStream(stream, error); }
+				}
 			},
 			cancel: (reason) => this.#cancelStream(
 				stream,
@@ -183,7 +202,7 @@ export class ChunkStreamClient {
 		for (const stream of [...this.streams.values()]) {
 			this.#cancelStream(stream, createChunkStreamAbortError('Audio streaming client was disposed.'));
 		}
-		this.worker?.terminate?.();
+		try { this.worker?.terminate?.(); } catch {}
 		this.worker = null;
 	}
 
@@ -193,102 +212,110 @@ export class ChunkStreamClient {
 		if (!worker || typeof worker.postMessage !== 'function' || typeof worker.addEventListener !== 'function') {
 			throw new TypeError('workerFactory must return a Worker-like object.');
 		}
-		worker.addEventListener('message', (event) => this.#handleWorkerMessage(event.data));
+		worker.addEventListener('message', (event) => this.#handleWorkerMessage(worker, event.data));
 		worker.addEventListener('error', (event) => {
-			this.#handleWorkerFailure(event.error || new Error(event.message || 'Audio streaming worker failed.'));
+			this.#handleWorkerFailure(worker, event.error || new Error(event.message || 'Audio streaming worker failed.'));
 		});
-		worker.addEventListener('messageerror', () => this.#handleWorkerFailure(new Error('Audio streaming worker sent an unreadable message.')));
+		worker.addEventListener('messageerror', () => this.#handleWorkerFailure(
+			worker,
+			new Error('Audio streaming worker sent an unreadable message.'),
+		));
 		this.worker = worker;
 		return worker;
 	}
 
-	#handleWorkerMessage(message) {
+	#handleWorkerMessage(worker, message) {
+		if (worker !== this.worker) return;
 		if (!message || typeof message !== 'object') return;
 		const stream = this.streams.get(message.streamId);
 		if (!stream) return;
-		if (message.type === 'stream-ready') {
-			if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
-				this.#failStream(stream, new Error(`Unsupported worker protocol version ${message.protocolVersion}.`));
-				return;
-			}
-			stream.workerReady = true;
-			this.#startIfReady(stream);
-		} else if (message.type === 'need-storage-chunk') {
-			this.#provideStorageChunk(stream, message);
-		} else if (message.type === 'audio-packet') {
-			try {
+		try {
+			if (message.type === 'stream-ready') {
+				if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
+					this.#failStream(stream, new Error(`Unsupported worker protocol version ${message.protocolVersion}.`));
+					return;
+				}
+				stream.workerReady = true;
+				this.#startIfReady(stream);
+			} else if (message.type === 'need-storage-chunk') {
+				this.#provideStorageChunk(stream, message);
+			} else if (message.type === 'audio-packet') {
 				const transfer = transferListForAudioChannels(message.channels);
 				stream.outputPort.postMessage(message, transfer);
-			} catch (error) {
-				this.#failStream(stream, error);
+			} else if (message.type === 'source-ended') {
+				stream.outputPort.postMessage(message);
+			} else if (message.type === 'stream-progress') {
+				stream.onProgress?.({
+					frames: Number(message.frames) || 0,
+					totalFrames: Number(message.totalFrames) || 0,
+					progress: clamp(Number(message.progress) || 0, 0, 1),
+				});
+			} else if (message.type === 'stream-complete') {
+				stream.workerComplete = true;
+				this.#completeIfFinished(stream);
+			} else if (message.type === 'stream-error') {
+				this.#failStream(stream, deserializeChunkStreamError(message.error));
+			} else if (message.type === 'stream-cancelled') {
+				this.#failStream(stream, createChunkStreamAbortError());
 			}
-		} else if (message.type === 'source-ended') {
-			stream.outputPort.postMessage(message);
-		} else if (message.type === 'stream-progress') {
-			stream.onProgress?.({
-				frames: Number(message.frames) || 0,
-				totalFrames: Number(message.totalFrames) || 0,
-				progress: clamp(Number(message.progress) || 0, 0, 1),
-			});
-		} else if (message.type === 'stream-complete') {
-			stream.workerComplete = true;
-			this.#completeIfFinished(stream);
-		} else if (message.type === 'stream-error') {
-			this.#failStream(stream, deserializeChunkStreamError(message.error));
-		} else if (message.type === 'stream-cancelled') {
-			this.#failStream(stream, createChunkStreamAbortError());
+		} catch (error) {
+			this.#failStream(stream, error);
 		}
 	}
 
 	#handleWorkletMessage(stream, message) {
 		if (!message || typeof message !== 'object') return;
 		if (message.streamId && message.streamId !== stream.id) return;
-		if (message.type === 'worklet-ready') {
-			if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
-				this.#failStream(stream, new Error(`Unsupported worklet protocol version ${message.protocolVersion}.`));
-				return;
-			}
-			stream.workletReady = true;
-			stream.workletCapacity = boundedInteger(
-				message.capacity ?? stream.highWaterMark,
-				1,
-				64,
-				'worklet.capacity',
-			);
-			this.#startIfReady(stream);
-		} else if (message.type === 'stream-primed') {
-			stream.primed.resolve({ packets: message.packets, frames: message.frames });
-			if (stream.playRequested && !stream.playing) {
-				stream.playing = true;
-				stream.outputPort.postMessage({
-					type: 'play-stream',
+		try {
+			if (message.type === 'worklet-ready') {
+				if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
+					this.#failStream(stream, new Error(`Unsupported worklet protocol version ${message.protocolVersion}.`));
+					return;
+				}
+				stream.workletReady = true;
+				stream.workletCapacity = boundedInteger(
+					message.capacity ?? stream.highWaterMark,
+					1,
+					64,
+					'worklet.capacity',
+				);
+				this.#startIfReady(stream);
+			} else if (message.type === 'stream-primed') {
+				stream.primed.resolve({ packets: message.packets, frames: message.frames });
+				if (stream.playRequested && !stream.playing) {
+					stream.playing = true;
+					stream.outputPort.postMessage({
+						type: 'play-stream',
+						streamId: stream.id,
+						contextStartFrame: stream.playContextStartFrame,
+					});
+				}
+			} else if (message.type === 'packet-consumed') {
+				this.worker?.postMessage({
+					type: 'packet-consumed',
 					streamId: stream.id,
-					contextStartFrame: stream.playContextStartFrame,
+					packetId: message.packetId,
+					status: message.status,
 				});
+			} else if (message.type === 'stream-ended') {
+				stream.workletEnded = true;
+				stream.playing = false;
+				this.#completeIfFinished(stream);
+			} else if (message.type === 'stream-underrun') {
+				stream.onUnderrun?.({
+					frame: Number(message.frame) || 0,
+					frames: Number(message.frames) || 0,
+					sourceEnded: Boolean(message.sourceEnded),
+				});
+			} else if (message.type === 'stream-playhead') {
+				stream.onPlayhead?.(Number(message.frame) || 0);
+			} else if (message.type === 'stream-error') {
+				this.#failStream(stream, deserializeChunkStreamError(message.error));
+			} else if (message.type === 'worklet-cancelled') {
+				this.#failStream(stream, createChunkStreamAbortError());
 			}
-		} else if (message.type === 'packet-consumed') {
-			this.worker?.postMessage({
-				type: 'packet-consumed',
-				streamId: stream.id,
-				packetId: message.packetId,
-				status: message.status,
-			});
-		} else if (message.type === 'stream-ended') {
-			stream.workletEnded = true;
-			stream.playing = false;
-			this.#completeIfFinished(stream);
-		} else if (message.type === 'stream-underrun') {
-			stream.onUnderrun?.({
-				frame: Number(message.frame) || 0,
-				frames: Number(message.frames) || 0,
-				sourceEnded: Boolean(message.sourceEnded),
-			});
-		} else if (message.type === 'stream-playhead') {
-			stream.onPlayhead?.(Number(message.frame) || 0);
-		} else if (message.type === 'stream-error') {
-			this.#failStream(stream, deserializeChunkStreamError(message.error));
-		} else if (message.type === 'worklet-cancelled') {
-			this.#failStream(stream, createChunkStreamAbortError());
+		} catch (error) {
+			this.#failStream(stream, error);
 		}
 	}
 
@@ -301,11 +328,15 @@ export class ChunkStreamClient {
 			endFrame: stream.endFrame,
 			channelCount: stream.source.channelCount,
 		});
-		this.worker.postMessage({
-			type: 'start-stream',
-			streamId: stream.id,
-			highWaterMark: Math.min(stream.highWaterMark, stream.workletCapacity),
-		});
+		try {
+			this.worker.postMessage({
+				type: 'start-stream',
+				streamId: stream.id,
+				highWaterMark: Math.min(stream.highWaterMark, stream.workletCapacity),
+			});
+		} catch (error) {
+			this.#failStream(stream, error);
+		}
 	}
 
 	async #provideStorageChunk(stream, message) {
@@ -332,14 +363,18 @@ export class ChunkStreamClient {
 			}, transferListForAudioChannels(channels));
 		} catch (error) {
 			if (stream.settled || stream.abortController.signal.aborted) return;
-			this.worker.postMessage({
-				type: 'storage-error',
-				streamId: stream.id,
-				requestId: message.requestId,
-				chunkIndex: message.chunkIndex,
-				message: error instanceof Error ? error.message : String(error),
-				error: serializeChunkStreamError(error),
-			});
+			try {
+				this.worker?.postMessage({
+					type: 'storage-error',
+					streamId: stream.id,
+					requestId: message.requestId,
+					chunkIndex: message.chunkIndex,
+					message: error instanceof Error ? error.message : String(error),
+					error: serializeChunkStreamError(error),
+				});
+			} catch (postError) {
+				this.#failStream(stream, postError);
+			}
 		}
 	}
 
@@ -359,8 +394,8 @@ export class ChunkStreamClient {
 		const worker = this.worker;
 		const outputPort = stream.outputPort;
 		this.#rejectAndDetach(stream, error);
-		worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message });
-		outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message });
+		try { worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
+		try { outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
 	}
 
 	#failStream(stream, error) {
@@ -368,8 +403,8 @@ export class ChunkStreamClient {
 		const worker = this.worker;
 		const outputPort = stream.outputPort;
 		this.#rejectAndDetach(stream, error);
-		worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message });
-		outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message });
+		try { worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
+		try { outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
 	}
 
 	#rejectAndDetach(stream, error) {
@@ -391,9 +426,10 @@ export class ChunkStreamClient {
 		this.streams.delete(stream.id);
 	}
 
-	#handleWorkerFailure(error) {
+	#handleWorkerFailure(worker, error) {
+		if (worker !== this.worker) return;
 		for (const stream of [...this.streams.values()]) this.#failStream(stream, error);
-		this.worker?.terminate?.();
+		try { worker.terminate?.(); } catch {}
 		this.worker = null;
 	}
 }

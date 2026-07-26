@@ -4,6 +4,8 @@ dist/
 .wrangler/
 test-results/
 playwright-report/
+coverage/
+.nyc_output/
 .desktop-build/
 release/desktop/
 .env

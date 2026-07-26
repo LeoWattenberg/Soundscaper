@@ -190,6 +190,37 @@ test('cancelling an active encode terminates immediately and does not arm an idl
 	ffmpeg.dispose();
 });
 
+test('disposing during FFmpeg core loading is terminal and cannot resurrect the runtime', async () => {
+	MockFfmpegRuntime.pauseLoadByDefault = true;
+	const ready = [];
+	const ffmpeg = createEditorFfmpeg({ onReady: () => ready.push('ready') });
+	const loading = ffmpeg.load();
+	await waitFor(() => MockFfmpegRuntime.instances[0]?.pendingLoad.length === 1);
+	const runtime = MockFfmpegRuntime.instances[0];
+
+	ffmpeg.dispose();
+	assert.equal(runtime.terminateCalls, 1);
+	runtime.resolveNextLoad();
+	await assert.rejects(loading, (error) => error.code === 'FFMPEG_DISPOSED');
+	assert.deepEqual(ready, []);
+	await assert.rejects(ffmpeg.load(), (error) => error.code === 'FFMPEG_DISPOSED');
+	await assert.rejects(ffmpeg.encode(Uint8Array.of(1), 'mp3'), (error) => error.code === 'FFMPEG_DISPOSED');
+	assert.equal(MockFfmpegRuntime.instances.length, 1);
+});
+
+test('disposing FFmpeg rejects queued work without creating a replacement runtime', async () => {
+	MockFfmpegRuntime.pauseExecByDefault = true;
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const active = ffmpeg.encode(Uint8Array.of(1), 'mp3');
+	const queued = ffmpeg.encode(Uint8Array.of(2), 'mp3');
+	await waitFor(() => MockFfmpegRuntime.instances[0]?.pendingExec.length === 1);
+
+	ffmpeg.dispose();
+	await assert.rejects(active);
+	await assert.rejects(withTimeout(queued), (error) => error.code === 'FFMPEG_DISPOSED');
+	assert.equal(MockFfmpegRuntime.instances.length, 1);
+});
+
 test('invalid idle timeout configuration fails early', () => {
 	assert.throws(() => createEditorFfmpeg({ idleTimeoutMs: -1 }), /non-negative finite number/);
 	assert.throws(() => createEditorFfmpeg({ idleTimeoutMs: Number.POSITIVE_INFINITY }), /non-negative finite number/);
@@ -199,14 +230,18 @@ test('invalid idle timeout configuration fails early', () => {
 class MockFfmpegRuntime {
 	static instances = [];
 	static pauseExecByDefault = false;
+	static pauseLoadByDefault = false;
 
 	static reset() {
 		this.instances = [];
 		this.pauseExecByDefault = false;
+		this.pauseLoadByDefault = false;
 	}
 
 	constructor() {
 		this.loaded = false;
+		this.pendingLoad = [];
+		this.pauseLoad = MockFfmpegRuntime.pauseLoadByDefault;
 		this.pendingExec = [];
 		this.pauseExec = MockFfmpegRuntime.pauseExecByDefault;
 		this.terminateCalls = 0;
@@ -217,8 +252,19 @@ class MockFfmpegRuntime {
 
 	off() {}
 
-	async load() {
+	load() {
+		if (!this.pauseLoad) {
+			this.loaded = true;
+			return Promise.resolve();
+		}
+		return new Promise((resolve) => this.pendingLoad.push({ resolve }));
+	}
+
+	resolveNextLoad() {
+		const pending = this.pendingLoad.shift();
+		if (!pending) throw new Error('No pending FFmpeg load request.');
 		this.loaded = true;
+		pending.resolve();
 	}
 
 	async writeFile() {}
@@ -301,4 +347,18 @@ async function waitFor(predicate) {
 		await new Promise((resolve) => setImmediate(resolve));
 	}
 	throw new Error('Timed out waiting for the FFmpeg runtime fixture.');
+}
+
+async function withTimeout(promise, milliseconds = 100) {
+	let timeout;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise((_, reject) => {
+				timeout = setTimeout(() => reject(new Error('Test operation timed out.')), milliseconds);
+			}),
+		]);
+	} finally {
+		clearTimeout(timeout);
+	}
 }

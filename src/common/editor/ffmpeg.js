@@ -22,6 +22,14 @@ export class FfmpegCoreUnavailableError extends Error {
 	}
 }
 
+export class FfmpegDisposedError extends Error {
+	constructor() {
+		super('The browser FFmpeg runtime has been disposed.');
+		this.name = 'FfmpegDisposedError';
+		this.code = 'FFMPEG_DISPOSED';
+	}
+}
+
 export class FfmpegEncodingError extends Error {
 	constructor(format, exitCode) {
 		const descriptor = getMediaExportFormat(format);
@@ -58,9 +66,13 @@ export function createEditorFfmpeg(options = {}) {
 	let ffmpeg = null;
 	let module = null;
 	let loading = null;
+	let loadingInstance = null;
 	let queue = Promise.resolve();
 	let pendingOperations = 0;
 	let idleTeardown = null;
+	let disposed = false;
+	let generation = 0;
+	const terminatedInstances = new WeakSet();
 	const idleTimeoutMs = normalizeIdleTimeout(options.idleTimeoutMs);
 	const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout?.bind(globalThis);
 	const clearTimeoutFn = options.clearTimeout ?? globalThis.clearTimeout?.bind(globalThis);
@@ -85,17 +97,22 @@ export function createEditorFfmpeg(options = {}) {
 		if (scheduled && typeof clearTimeoutFn === 'function') clearTimeoutFn(scheduled.handle);
 	}
 
+	function terminateInstance(instance) {
+		if (!instance || terminatedInstances.has(instance)) return;
+		terminatedInstances.add(instance);
+		try { instance.off('progress', handleProgress); } catch {}
+		try { instance.terminate(); } catch {}
+	}
+
 	function terminateRuntime() {
-		if (ffmpeg) {
-			ffmpeg.off('progress', handleProgress);
-			ffmpeg.terminate();
-		}
+		const instance = ffmpeg;
 		ffmpeg = null;
 		loading = null;
+		terminateInstance(instance);
 	}
 
 	function scheduleIdleTeardown() {
-		if (idleTimeoutMs === null || typeof setTimeoutFn !== 'function' || pendingOperations !== 0 || !ffmpeg) return;
+		if (disposed || idleTimeoutMs === null || typeof setTimeoutFn !== 'function' || pendingOperations !== 0 || !ffmpeg) return;
 		cancelIdleTeardown();
 		const target = ffmpeg;
 		const scheduled = { handle: null };
@@ -111,6 +128,7 @@ export function createEditorFfmpeg(options = {}) {
 	}
 
 	async function load() {
+		assertActive();
 		cancelIdleTeardown();
 		if (ffmpeg?.loaded) {
 			scheduleIdleTeardown();
@@ -118,38 +136,66 @@ export function createEditorFfmpeg(options = {}) {
 		}
 		if (loading) {
 			const instance = await loading;
+			assertActive();
 			scheduleIdleTeardown();
 			return instance;
 		}
 
-		loading = import('@ffmpeg/ffmpeg').then(async (loadedModule) => {
-			module = loadedModule;
-			const instance = new loadedModule.FFmpeg();
-			instance.on('progress', handleProgress);
-			options.onLoading?.();
-			await instance.load({ coreURL, wasmURL });
-			ffmpeg = instance;
-			options.onReady?.();
+		const loadGeneration = generation;
+		const loadPromise = (async () => {
+			let instance = null;
+			try {
+				const loadedModule = await import('@ffmpeg/ffmpeg');
+				assertGeneration(loadGeneration);
+				module = loadedModule;
+				instance = new loadedModule.FFmpeg();
+				loadingInstance = instance;
+				instance.on('progress', handleProgress);
+				options.onLoading?.();
+				assertGeneration(loadGeneration);
+				await instance.load({ coreURL, wasmURL });
+				assertGeneration(loadGeneration);
+				ffmpeg = instance;
+				loadingInstance = null;
+				options.onReady?.();
+				return instance;
+			} catch (error) {
+				if (loadingInstance === instance) loadingInstance = null;
+				if (ffmpeg === instance) ffmpeg = null;
+				terminateInstance(instance);
+				if (error instanceof FfmpegDisposedError) throw error;
+				throw error instanceof FfmpegCoreUnavailableError
+					? error
+					: new FfmpegCoreUnavailableError(error);
+			}
+		})();
+		loading = loadPromise;
+		try {
+			const instance = await loadPromise;
+			assertGeneration(loadGeneration);
+			scheduleIdleTeardown();
 			return instance;
-		}).catch((error) => {
-			loading = null;
-			throw error instanceof FfmpegCoreUnavailableError ? error : new FfmpegCoreUnavailableError(error);
-		});
-
-		const instance = await loading;
-		scheduleIdleTeardown();
-		return instance;
+		} finally {
+			if (loading === loadPromise) loading = null;
+		}
 	}
 
 	function run(task) {
+		assertActive();
 		cancelIdleTeardown();
+		const operationGeneration = generation;
 		pendingOperations += 1;
-		const execute = async () => task(await load());
+		const execute = async () => {
+			assertGeneration(operationGeneration);
+			const instance = await load();
+			assertGeneration(operationGeneration);
+			return task(instance);
+		};
 		const result = queue.then(execute, execute);
 		queue = result.catch(() => undefined);
 		return result.finally(() => {
 			pendingOperations -= 1;
-			if (pendingOperations === 0) scheduleIdleTeardown();
+			if (!disposed && pendingOperations === 0) scheduleIdleTeardown();
 		});
 	}
 
@@ -168,7 +214,7 @@ export function createEditorFfmpeg(options = {}) {
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const input = `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
-			const onAbort = () => dispose();
+			const onAbort = () => terminateRuntime();
 			signal?.addEventListener('abort', onAbort, { once: true });
 
 			try {
@@ -210,7 +256,7 @@ export function createEditorFfmpeg(options = {}) {
 				? file.name.replace(/[\\/\u0000]/g, '-')
 				: `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
-			const onAbort = () => dispose();
+			const onAbort = () => terminateRuntime();
 			signal?.addEventListener('abort', onAbort, { once: true });
 			await instance.createDir(mountPoint);
 			try {
@@ -296,7 +342,7 @@ export function createEditorFfmpeg(options = {}) {
 			const videoInputPaths = new Map();
 			let audioInputPath = null;
 			let mounted = false;
-			const onAbort = () => dispose();
+			const onAbort = () => terminateRuntime();
 			signal?.addEventListener('abort', onAbort, { once: true });
 
 			try {
@@ -331,9 +377,25 @@ export function createEditorFfmpeg(options = {}) {
 	}
 
 	function dispose() {
+		if (disposed) return;
+		disposed = true;
+		generation += 1;
 		cancelIdleTeardown();
-		terminateRuntime();
+		const instances = new Set([ffmpeg, loadingInstance].filter(Boolean));
+		ffmpeg = null;
+		loadingInstance = null;
+		loading = null;
+		module = null;
+		for (const instance of instances) terminateInstance(instance);
 		queue = Promise.resolve();
+	}
+
+	function assertActive() {
+		if (disposed) throw new FfmpegDisposedError();
+	}
+
+	function assertGeneration(expected) {
+		if (disposed || generation !== expected) throw new FfmpegDisposedError();
 	}
 
 	return { load, encode, encodeFile, encodeVideo, decode, dispose, capabilities: () => capabilities };

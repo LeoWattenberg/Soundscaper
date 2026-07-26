@@ -7,6 +7,11 @@ import {
 	pcmRawByteLength,
 	validatePcmGeometry,
 } from './pcm.js';
+import {
+	DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
+	normalizeWorkerRequestTimeout,
+} from '../worker-request-broker.ts';
+import { createWorkerRequestId } from '../worker-protocol.ts';
 
 let nextRequestId = 1;
 
@@ -24,6 +29,11 @@ export class WavPackCodecClient {
 		this.migrationQueue = [];
 		this.active = null;
 		this.closed = false;
+		this.defaultTimeoutMs = normalizeWorkerRequestTimeout(
+			options.timeoutMs ?? DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
+		);
+		this.setTimeout = options.setTimeout ?? globalThis.setTimeout?.bind(globalThis);
+		this.clearTimeout = options.clearTimeout ?? globalThis.clearTimeout?.bind(globalThis);
 	}
 
 	encode(payload, options = {}) {
@@ -46,27 +56,34 @@ export class WavPackCodecClient {
 	close() {
 		if (this.closed) return;
 		this.closed = true;
-		this.worker?.terminate();
+		const worker = this.worker;
 		this.worker = null;
 		const error = new Error('WavPack codec client is closed.');
-		for (const request of [...this.foregroundQueue, ...this.migrationQueue]) {
-			this.#finish(request, error);
+		try {
+			worker?.terminate();
+		} catch { /* Worker termination is best effort. */ }
+		try {
+			for (const request of [...this.foregroundQueue, ...this.migrationQueue]) {
+				this.#finish(request, error);
+			}
+			this.foregroundQueue.length = 0;
+			this.migrationQueue.length = 0;
+			if (this.active) this.#finish(this.active, error);
+		} finally {
+			this.active = null;
 		}
-		this.foregroundQueue.length = 0;
-		this.migrationQueue.length = 0;
-		if (this.active) this.#finish(this.active, error);
-		this.active = null;
 	}
 
 	#enqueue(type, message, options) {
 		if (this.closed) return Promise.reject(new Error('WavPack codec client is closed.'));
 		if (options.signal?.aborted) return Promise.reject(abortError());
 		const transferInput = options.transferInput === true;
+		const timeoutMs = normalizeWorkerRequestTimeout(options.timeoutMs ?? this.defaultTimeoutMs);
 		const source = exactArrayBuffer(message.payload);
 		const payload = transferInput ? source : source.slice(0);
 		return new Promise((resolve, reject) => {
 			const request = {
-				id: `wavpack-${nextRequestId++}`,
+				id: createWorkerRequestId('wavpack', nextRequestId++),
 				type,
 				message: { ...message, payload },
 				resolve,
@@ -74,11 +91,13 @@ export class WavPackCodecClient {
 				signal: options.signal || null,
 				onAbort: null,
 				finished: false,
+				timer: null,
+				timeoutMs,
 			};
 			if (request.signal) {
 				request.onAbort = () => {
 					if (request === this.active) {
-						request.aborted = true;
+						this.#terminateActive(request, abortError());
 					} else {
 						removeQueued(this.foregroundQueue, request);
 						removeQueued(this.migrationQueue, request);
@@ -108,6 +127,7 @@ export class WavPackCodecClient {
 			return;
 		}
 		this.active = request;
+		this.#armTimeout(request);
 		const message = {
 			type: request.type,
 			id: request.id,
@@ -129,18 +149,19 @@ export class WavPackCodecClient {
 		if (!worker || typeof worker.postMessage !== 'function') {
 			throw new TypeError('workerFactory must return a Worker-like object.');
 		}
-		worker.addEventListener('message', (event) => this.#handleMessage(event.data));
+		worker.addEventListener('message', (event) => this.#handleMessage(worker, event.data));
 		worker.addEventListener('error', (event) => {
-			this.#handleWorkerFailure(event.error || new Error(event.message || 'WavPack worker failed.'));
+			this.#handleWorkerFailure(worker, event.error || new Error(event.message || 'WavPack worker failed.'));
 		});
 		worker.addEventListener('messageerror', () => {
-			this.#handleWorkerFailure(new Error('WavPack worker sent an unreadable message.'));
+			this.#handleWorkerFailure(worker, new Error('WavPack worker sent an unreadable message.'));
 		});
 		this.worker = worker;
 		return worker;
 	}
 
-	#handleMessage(message) {
+	#handleMessage(worker, message) {
+		if (worker !== this.worker) return;
 		if (!message || typeof message !== 'object' || message.id !== this.active?.id) return;
 		const request = this.active;
 		this.active = null;
@@ -151,18 +172,44 @@ export class WavPackCodecClient {
 		this.#dispatch();
 	}
 
-	#handleWorkerFailure(error) {
+	#handleWorkerFailure(worker, error) {
+		if (worker !== this.worker) return;
 		const active = this.active;
 		this.active = null;
-		this.worker?.terminate();
+		try { worker.terminate(); } catch {}
 		this.worker = null;
 		if (active) this.#finish(active, error);
 		this.#dispatch();
 	}
 
+	#armTimeout(request) {
+		if (typeof this.setTimeout !== 'function') return;
+		request.timer = this.setTimeout(() => {
+			if (request !== this.active || request.finished) return;
+			request.timer = null;
+			const error = new Error(`WavPack worker received no activity for ${request.timeoutMs} milliseconds.`);
+			error.name = 'TimeoutError';
+			error.code = 'WORKER_INACTIVITY_TIMEOUT';
+			this.#terminateActive(request, error);
+		}, request.timeoutMs);
+		request.timer?.unref?.();
+	}
+
+	#terminateActive(request, error) {
+		if (request !== this.active || request.finished) return;
+		const worker = this.worker;
+		this.active = null;
+		this.worker = null;
+		try { worker?.terminate(); } catch {}
+		this.#finish(request, error);
+		queueMicrotask(() => this.#dispatch());
+	}
+
 	#finish(request, error, result) {
 		if (request.finished) return;
 		request.finished = true;
+		if (request.timer != null && typeof this.clearTimeout === 'function') this.clearTimeout(request.timer);
+		request.timer = null;
 		if (request.signal && request.onAbort) {
 			request.signal.removeEventListener('abort', request.onAbort);
 		}

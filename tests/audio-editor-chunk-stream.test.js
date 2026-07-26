@@ -379,6 +379,38 @@ test('client cancellation aborts a pending storage read and rejects completion',
 	client.dispose();
 });
 
+test('client rolls back stream registration when initial worker posting fails', () => {
+	const worker = createThrowingEndpoint({ throwTypes: new Set(['open-stream']) });
+	const outputPort = createThrowingEndpoint();
+	const client = new ChunkStreamClient({ workerFactory: () => worker });
+	const source = createImmutablePcmChunks([new Float32Array(128)]);
+
+	assert.throws(() => client.open({ source, outputPort }), /post failed: open-stream/);
+	assert.equal(client.streams.size, 0);
+	assert.equal(outputPort.listenerCount('message'), 0);
+	assert.doesNotThrow(() => client.dispose());
+	assert.equal(worker.terminated, true);
+});
+
+test('client disposal remains terminal when worker and port cancellation posts fail', async () => {
+	const throwTypes = new Set(['cancel-stream']);
+	const worker = createThrowingEndpoint({ throwTypes });
+	const outputPort = createThrowingEndpoint({ throwTypes });
+	const client = new ChunkStreamClient({ workerFactory: () => worker });
+	const source = createImmutablePcmChunks([new Float32Array(128)]);
+	const handle = client.open({ source, outputPort });
+	const rejections = [handle.ready, handle.primed, handle.done]
+		.map((promise) => assert.rejects(promise, { name: 'AbortError' }));
+
+	assert.doesNotThrow(() => client.dispose());
+	await Promise.all(rejections);
+	assert.equal(handle.state, 'closed');
+	assert.equal(client.streams.size, 0);
+	assert.equal(outputPort.listenerCount('message'), 0);
+	assert.equal(worker.terminated, true);
+	assert.throws(() => client.open({ source, outputPort }), /disposed/);
+});
+
 function packet(packetId, frameStart, left, right = left) {
 	return {
 		packetId,
@@ -455,6 +487,27 @@ function createEventPort() {
 			this.peer?.onmessage?.(event);
 			for (const listener of this.peer?.listeners || []) listener(event);
 		},
+	};
+}
+
+function createThrowingEndpoint({ throwTypes = new Set() } = {}) {
+	const listeners = new Map();
+	return {
+		messages: [],
+		terminated: false,
+		addEventListener(type, listener) {
+			let typeListeners = listeners.get(type);
+			if (!typeListeners) listeners.set(type, typeListeners = new Set());
+			typeListeners.add(listener);
+		},
+		removeEventListener(type, listener) { listeners.get(type)?.delete(listener); },
+		listenerCount(type) { return listeners.get(type)?.size || 0; },
+		start() {},
+		postMessage(message) {
+			if (throwTypes.has(message.type)) throw new Error(`post failed: ${message.type}`);
+			this.messages.push(message);
+		},
+		terminate() { this.terminated = true; },
 	};
 }
 

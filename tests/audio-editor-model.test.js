@@ -2,39 +2,45 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-	AUDIO_EDITOR_HISTORY_LIMIT,
-	AUDIO_EDITOR_SAMPLE_RATE,
-	aggregateStereoMinutes,
 	analyzeAudioChannels,
-	applyEditorCommand,
-	canRedo,
-	canUndo,
-	chooseRenderStrategy,
-	collectClipTransformIds,
-	collectHistorySourceIds,
-	compactEditorHistorySourceMetadata,
-	createClipboardDescriptor,
-	createEditorHistory,
-	createEffect,
-	createExportPlan,
 	createStreamingAudioAnalyzer,
-	executeEditorCommand,
-	evictUnreferencedSourceCaches,
-	findClip,
+} from '../src/common/editor/analysis.js';
+import {
+	applyEditorCommand,
+	collectClipTransformIds,
+	createClipboardDescriptor,
+	prepareOverwriteClipCommand,
 	preparePasteCommand,
 	preparePunchCommand,
-	prepareOverwriteClipCommand,
 	prepareRangeDeleteCommand,
 	prepareRangeReplacementCommand,
 	prepareSplitCommand,
 	prepareTransformClipsCommand,
+} from '../src/common/editor/commands.js';
+import { createEffect } from '../src/common/editor/effects.js';
+import { chooseRenderStrategy, createExportPlan, sanitizeExportName } from '../src/common/editor/export.js';
+import {
+	AUDIO_EDITOR_HISTORY_LIMIT,
+	canRedo,
+	canUndo,
+	createEditorHistory,
+	executeEditorCommand,
+	redoEditorCommand,
+	undoEditorCommand,
+} from '../src/common/editor/history.js';
+import {
+	AUDIO_EDITOR_SAMPLE_RATE,
+	aggregateStereoMinutes,
+	findClip,
 	projectDurationFrames,
 	projectEnvelope,
-	redoEditorCommand,
-	sanitizeExportName,
-	undoEditorCommand,
 	validateAudioEditorProject,
-} from '../src/common/editor/index.js';
+} from '../src/common/editor/project.js';
+import {
+	collectHistorySourceIds,
+	compactEditorHistorySourceMetadata,
+	evictUnreferencedSourceCaches,
+} from '../src/common/editor/retention.js';
 import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import {
 	createAudioClipV4,

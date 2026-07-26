@@ -1,0 +1,103 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { KeyValueRepository } from './key-value-repository.ts';
+import { MediaRepository } from './media-repository.ts';
+import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
+import { OpfsRepository } from './opfs-repository.ts';
+import { PcmMigrationRepository } from './pcm-migration-repository.ts';
+import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
+import { ProjectRepository } from './project-repository.ts';
+import { RetentionRepository } from './retention-repository.ts';
+import type { StorageRepositoryPort } from './repository-port.ts';
+import { SourceReadRepository } from './source-read-repository.ts';
+import { SourceRecordRepository } from './source-record-repository.ts';
+import { SourceRepository } from './source-repository.ts';
+import { SourceWriteRepository } from './source-write-repository.ts';
+
+export interface StorageRepositories {
+	readonly projects: ProjectRepository;
+	readonly settings: KeyValueRepository;
+	readonly analysis: KeyValueRepository;
+	readonly sources: SourceRepository;
+	readonly media: MediaRepository;
+	readonly opfs: OpfsRepository;
+	readonly pcm: PcmRepository;
+	readonly retention: RetentionRepository;
+}
+
+export interface StorageRepositoryOptions {
+	readonly revisionLimit: number;
+	readonly preferOpfs: boolean;
+	readonly storageManager?: StorageManager | null;
+	readonly opfsRoot?: FileSystemDirectoryHandle | null;
+	readonly pcmCodec?: PcmRepositoryOptions['codec'];
+	readonly pcmCodecFactory?: PcmRepositoryOptions['codecFactory'];
+	readonly migrateLegacyPcmOnAccess: boolean;
+	readonly estimateStorage: () => Promise<{ usage: number | null; quota: number | null }>;
+	readonly isMemoryBackend: () => boolean;
+}
+
+export type StorageRepositoryFactory = (
+	port: StorageRepositoryPort,
+	options: StorageRepositoryOptions,
+) => StorageRepositories;
+
+/** Compose storage domains once while keeping their backend port narrow. */
+export function createStorageRepositories(
+	port: StorageRepositoryPort,
+	options: StorageRepositoryOptions,
+): StorageRepositories {
+	const opfs = new OpfsRepository({
+		preferOpfs: options.preferOpfs,
+		storageManager: options.storageManager,
+		opfsRoot: options.opfsRoot,
+	});
+	const pcm = new PcmRepository({
+		codec: options.pcmCodec,
+		codecFactory: options.pcmCodecFactory,
+	});
+	const sourceRecords = new SourceRecordRepository(port);
+	const migrations = new PcmMigrationRepository({
+		records: sourceRecords,
+		pcm,
+		opfs,
+		database: port.database,
+		estimateStorage: options.estimateStorage,
+		isMemoryBackend: options.isMemoryBackend,
+		migrateOnAccess: options.migrateLegacyPcmOnAccess,
+	});
+	const analysis = new KeyValueRepository(port, 'analysis');
+	const media = new MediaRepository(port, opfs);
+	const deleteStoredSource = async (source: StorageRecord): Promise<void> => {
+		if (isOpfsPcmStorage(source.storage) && source.path) await opfs.deletePath(source.path);
+		else if (source.sourceToken) await sourceRecords.deleteChunks(source.sourceToken);
+	};
+	const writer = new SourceWriteRepository({
+		records: sourceRecords,
+		pcm,
+		opfs,
+		migrations,
+		database: port.database,
+		deleteStoredSource,
+	});
+	const reader = new SourceReadRepository({ records: sourceRecords, pcm, opfs, migrations });
+	const sources = new SourceRepository({
+		records: sourceRecords,
+		writer,
+		reader,
+		migrations,
+		media,
+		analysis,
+		opfs,
+	});
+	return Object.freeze({
+		projects: new ProjectRepository(port, options.revisionLimit),
+		settings: new KeyValueRepository(port, 'settings'),
+		analysis,
+		sources,
+		media,
+		opfs,
+		pcm,
+		retention: new RetentionRepository({ port, sourceRecords, sources, media, opfs }),
+	});
+}

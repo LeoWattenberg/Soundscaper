@@ -1,73 +1,93 @@
-export * from './analysis.js';
-export * from './aiff.js';
-export * from './aup-legacy.js';
-export * from './audacity-action-parity.js';
-export * from './audacity-action-runtime.js';
-export * from './audacity-pinned-ui-inventory.js';
-export * from './effect-presets.js';
-export * from './effect-macros.js';
-export * from './audacity-binary-xml.js';
-export * from './audacity-effects/index.js';
-export * from './aup4-effects.js';
-export * from './aup4-client.js';
-export * from './aup3-conversion.js';
-export * from './aup4-conversion.js';
-export * from './aup4-database.js';
-export * from './aup4-export.js';
-export * from './aup4-profile.js';
-export * from './aup4-sanitization.js';
-export * from './commands.js';
-export * from './chunk-stream.js';
-export * from './chunk-stream-client.js';
-export * from './clip-time-pitch-cache.js';
-export * from './effects.js';
-export * from './export.js';
-export * from './file-service.js';
-export * from './generators.js';
-export * from './history.js';
-export * from './id3-metadata.js';
-export * from './label-io.js';
-export * from './migration.js';
-export * from './media-export.js';
-export * from './pcm-chunks.js';
-export * from './pcm-sink.js';
-export * from './preferences.js';
-export * from './project.js';
-export * from './project-v2.js';
-export * from './project-v3.js';
-export * from './project-v4.js';
-export * from './project-v5.js';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+// Public editor facade. Production internals import their owning domain module
+// directly; adding an export here is an API decision, not a convenience barrel.
+export * from './facade.ts';
+export * from './types.ts';
+export * from './controller/lifecycle.ts';
+export * from './storage/status.ts';
+export * from './worker-protocol.ts';
+export {
+	DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
+	WorkerRequestBroker,
+	normalizeWorkerRequestTimeout,
+} from './worker-request-broker.ts';
+export * from './commands/protocol.ts';
+export {
+	EDITOR_COMMAND_DOMAINS_EXHAUSTIVE,
+	defineEditorCommandHandlerRegistry,
+	dispatchEditorCommand,
+} from './commands/registry.ts';
+export {
+	applyEditorCommand,
+	createAddClipCommand,
+	createAddLabelCommand,
+	createAddLabelTrackCommand,
+	createAddSourceCommand,
+	createAddTrackCommand,
+	createReplaceClipSourceCommand,
+	prepareCut,
+	prepareGroupClipsCommand,
+	prepareKeepRangeCommand,
+	prepareLinkedSplitCommand,
+	prepareOverwriteClipCommand,
+	preparePasteCommand,
+	preparePunchCommand,
+	prepareRangeDeleteCommand,
+	prepareRangeReplacementCommand,
+	prepareSplitCommand,
+	prepareTransformClipsCommand,
+} from './commands.js';
 export {
 	AUDIO_EDITOR_MEDIA_KINDS,
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	AUDIO_EDITOR_TRACK_TYPES,
+	cloneAudioEditorProjectV5,
+	createAudioClipV5,
+	createAudioEditorProjectV5,
+	createAudioSourceV5,
+	createAudioTrackV5,
+	createLabelTrackV5,
+	createMediaClipV5,
+	createMediaSourceV5,
+	createMediaTrackV5,
+	createProjectBinV5,
+	createVideoClipV5,
+	createVideoSourceV5,
+	createVideoTrackV5,
+	loadAudioEditorProjectV5,
+	validateAudioEditorProjectV5,
 } from './project-v5.js';
-export * from './resample.js';
-export * from './sample-edit.js';
-export * from './scape-project.js';
-export * from './selection-effects.js';
-export * from './engine.js';
-export * from './recording.js';
-export * from './recording-routing.js';
-export * from './retention.js';
-export * from './session.js';
-export * from './source-buffer-cache.js';
-export * from './snap-grid.js';
-export * from './spectral-edit.js';
-export * from './staffpad/index.js';
-export * from './storage.js';
-export * from './wav.js';
-export * from './wav-import.js';
-export * from './video-media.js';
-export * from './video-effects.js';
-export * from './video-export.js';
-export * from './video-ffmpeg.js';
-export * from './video-timeline.js';
-export * from './wavpack/index.js';
-
-export { createAudioEditorController as createEditorController } from './app.js';
-export { createProjectStore as createEditorProjectStore } from './storage.js';
+export {
+	AUDIO_EDITOR_SAMPLE_RATE,
+	cloneProject,
+	createStableId,
+	findClip,
+	findClipTrack,
+	findSource,
+	findTrack,
+	projectDurationFrames,
+	validateAudioEditorProject,
+} from './project.js';
+export {
+	AudioEditorEngineDisposedError,
+	WebAudioEditorEngine,
+	createAudioEditorEngine,
+	isAudioEditorEngineSupported,
+} from './engine.js';
+export { AudioEditorProjectStore } from './storage.js';
+export {
+	FfmpegCoreUnavailableError,
+	FfmpegDisposedError,
+	FfmpegEncodingError,
+	FfmpegVideoEncodingError,
+	createEditorFfmpeg,
+} from './ffmpeg.js';
+export { Aup4ClientError, Aup4WorkerClient, createAup4Client } from './aup4-client.js';
+export { StaffPadRenderClient } from './staffpad/client.js';
+export { WavPackCodecClient } from './wavpack/client.js';
+export { ChunkStreamClient } from './chunk-stream-client.js';
 export {
 	PRODUCT_IDS,
 	PRODUCT_PROFILES,

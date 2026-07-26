@@ -1,12 +1,10 @@
 {
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"allowJs": true,
-		"jsx": "react-jsx",
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
-		"strict": true,
-		"target": "ES2022"
+		"incremental": true,
+		"tsBuildInfoFile": "./node_modules/.cache/typescript/app.tsbuildinfo",
+		"types": ["vite/client"]
 	},
-	"include": ["src/**/*", "vite.config.mjs"],
-	"exclude": ["dist"]
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/vite-env.d.ts"],
+	"exclude": ["dist", "node_modules"]
 }

@@ -93,6 +93,9 @@ export async function createRecordingController({
 	maxPendingChunks = 32,
 	discreteChannels = true,
 	nodeFactory,
+	stopTimeoutMs = 2_000,
+	setTimeout: setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
+	clearTimeout: clearTimeoutFn = globalThis.clearTimeout?.bind(globalThis),
 } = {}) {
 	if (!context?.audioWorklet?.addModule || !context?.createMediaStreamSource) {
 		throw new Error('AudioWorklet recording is not supported by this AudioContext.');
@@ -100,6 +103,7 @@ export async function createRecordingController({
 	if (!stream) throw new Error('An audio MediaStream is required.');
 	const normalizedChannelCount = normalizeRecordingChannelCount(channelCount);
 	let currentInputGain = normalizeRecordingInputGain(inputGain);
+	const normalizedStopTimeoutMs = normalizeRecordingStopTimeout(stopTimeoutMs);
 	await loadRecordingWorklet(context, workletUrl);
 
 	const createNode = nodeFactory || ((audioContext, name, options) => {
@@ -126,13 +130,20 @@ export async function createRecordingController({
 
 	let state = 'ready';
 	let disposed = false;
+	let disposing = false;
 	let acceptingChunks = true;
 	let pendingChunks = 0;
 	let writeQueue = Promise.resolve();
 	let writeError = null;
-	let stopResolver = null;
-	let stopRejecter = null;
+	let stopRequest = null;
+	let disposePromise = null;
 	node.port.onmessage = (event) => handleMessage(event.data || {});
+	node.port.onmessageerror = (event) => failRecording(
+		event?.error || new Error('The recording worklet sent an unreadable message.'),
+	);
+	node.onprocessorerror = (event) => failRecording(
+		event?.error || new Error('The recording worklet stopped unexpectedly.'),
+	);
 	node.port.start?.();
 
 	const controller = {
@@ -143,11 +154,12 @@ export async function createRecordingController({
 		resume,
 		stop,
 		setMonitoring(enabled) {
+			assertMutable();
 			node.port.postMessage({ type: 'monitor', enabled: Boolean(enabled) });
 		},
 		get inputGain() { return currentInputGain; },
 		setInputGain(value) {
-			if (disposed) throw new Error('The recording controller has been disposed.');
+			assertMutable();
 			currentInputGain = normalizeRecordingInputGain(value);
 			node.port.postMessage({ type: 'input-gain', value: currentInputGain });
 			return currentInputGain;
@@ -159,45 +171,89 @@ export async function createRecordingController({
 	};
 	return controller;
 
-	async function dispose({ stopTracks = true } = {}) {
-		if (disposed) return;
-		if (state === 'recording' || state === 'paused' || state === 'stopping') await stop().catch(() => {});
-		disposed = true;
-		state = 'disposed';
-		node.port.onmessage = null;
-		try { source.disconnect(); } catch { /* Already disconnected. */ }
-		try { node.disconnect(); } catch { /* Already disconnected. */ }
-		if (stopTracks) {
-			for (const track of stream.getTracks?.() || []) track.stop();
-		}
-		onState?.(state);
+	function dispose({ stopTracks = true } = {}) {
+		if (disposePromise) return disposePromise;
+		const shouldStop = state === 'recording' || state === 'paused' || state === 'stopping';
+		const completion = shouldStop
+			? beginStop()
+			: state === 'failed' && writeError
+				? Promise.reject(writeError)
+				: writeQueue;
+		disposing = true;
+		state = 'disposing';
+		notifyState();
+		disposePromise = (async () => {
+			let failure = null;
+			try {
+				await completion;
+			} catch (error) {
+				failure = error;
+			} finally {
+				disposed = true;
+				acceptingChunks = false;
+				if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') {
+					clearTimeoutFn(stopRequest.timer);
+					stopRequest.timer = null;
+				}
+				node.port.onmessage = null;
+				node.port.onmessageerror = null;
+				node.onprocessorerror = null;
+				try { source.disconnect(); } catch { /* Already disconnected. */ }
+				try { node.disconnect(); } catch { /* Already disconnected. */ }
+				if (stopTracks) {
+					for (const track of stream.getTracks?.() || []) {
+						try { track.stop(); } catch { /* A track may already have ended. */ }
+					}
+				}
+				state = 'disposed';
+				notifyState();
+			}
+			if (failure) throw failure;
+		})();
+		return disposePromise;
 	}
 
 	function start({ startFrame, stopFrame } = {}) {
-		if (disposed) throw new Error('The recording controller has been disposed.');
+		assertMutable();
 		if (state === 'recording' || state === 'stopping') throw new Error('Recording is already active.');
 		acceptingChunks = true;
 		writeError = null;
+		stopRequest = null;
 		state = 'recording';
-		node.port.postMessage({ type: 'start', startFrame, stopFrame });
-		onState?.(state);
+		try {
+			node.port.postMessage({ type: 'start', startFrame, stopFrame });
+		} catch (error) {
+			failRecording(error);
+			throw error;
+		}
+		notifyState();
 	}
 
 	function pause() {
-		if (disposed) throw new Error('The recording controller has been disposed.');
+		assertMutable();
 		if (state !== 'recording') return false;
+		try {
+			node.port.postMessage({ type: 'pause' });
+		} catch (error) {
+			failRecording(error);
+			throw error;
+		}
 		state = 'paused';
-		node.port.postMessage({ type: 'pause' });
-		onState?.(state);
+		notifyState();
 		return true;
 	}
 
 	function resume() {
-		if (disposed) throw new Error('The recording controller has been disposed.');
+		assertMutable();
 		if (state !== 'paused') return false;
+		try {
+			node.port.postMessage({ type: 'resume' });
+		} catch (error) {
+			failRecording(error);
+			throw error;
+		}
 		state = 'recording';
-		node.port.postMessage({ type: 'resume' });
-		onState?.(state);
+		notifyState();
 		return true;
 	}
 
@@ -205,21 +261,36 @@ export async function createRecordingController({
 		if (disposed || state === 'ready' || state === 'stopped') {
 			return writeError ? Promise.reject(writeError) : writeQueue;
 		}
-		if (state === 'stopping') return new Promise((resolve, reject) => chainStopWaiter(resolve, reject));
-		state = 'stopping';
-		node.port.postMessage({ type: 'stop' });
-		onState?.(state);
-		return new Promise((resolve, reject) => {
-			stopResolver = resolve;
-			stopRejecter = reject;
-		});
+		if (disposing) return stopRequest?.promise || Promise.reject(writeError || new Error('The recording controller is being disposed.'));
+		if (state === 'failed') return Promise.reject(writeError || new Error('The recording worklet failed.'));
+		return beginStop();
 	}
 
-	function chainStopWaiter(resolve, reject) {
-		const previousResolve = stopResolver;
-		const previousReject = stopRejecter;
-		stopResolver = (value) => { previousResolve?.(value); resolve(value); };
-		stopRejecter = (error) => { previousReject?.(error); reject(error); };
+	function beginStop() {
+		if (stopRequest) return stopRequest.promise;
+		let resolve;
+		let reject;
+		const promise = new Promise((resolvePromise, rejectPromise) => {
+			resolve = resolvePromise;
+			reject = rejectPromise;
+		});
+		stopRequest = { promise, resolve, reject, settled: false, timer: null };
+		state = 'stopping';
+		notifyState();
+		if (typeof setTimeoutFn === 'function') {
+			stopRequest.timer = setTimeoutFn(() => {
+				const error = new Error(`The recording worklet did not stop within ${normalizedStopTimeoutMs} milliseconds.`);
+				error.name = 'TimeoutError';
+				error.code = 'RECORDING_STOP_TIMEOUT';
+				failRecording(error);
+			}, normalizedStopTimeoutMs);
+		}
+		try {
+			node.port.postMessage({ type: 'stop' });
+		} catch (error) {
+			failRecording(error);
+		}
+		return promise;
 	}
 
 	function handleMessage(message) {
@@ -229,11 +300,11 @@ export async function createRecordingController({
 			pendingChunks += 1;
 			if (pendingChunks > maxPendingChunks) {
 				pendingChunks -= 1;
-				acceptingChunks = false;
 				const error = new Error('Recording storage could not keep up with the audio input.');
+				acceptingChunks = false;
 				writeError = error;
-				onError?.(error);
-				node.port.postMessage({ type: 'stop' });
+				try { onError?.(error); } catch { /* Error observers cannot block cleanup. */ }
+				try { node.port.postMessage({ type: 'stop' }); } catch { /* Failure is already recorded. */ }
 				return;
 			}
 			const chunk = {
@@ -242,28 +313,73 @@ export async function createRecordingController({
 				channels: (message.channels || []).map((channel) => channel instanceof Float32Array ? channel : new Float32Array(channel)),
 			};
 			writeQueue = writeQueue.then(() => onChunk?.(chunk)).catch((error) => {
-				acceptingChunks = false;
-				writeError = error;
-				onError?.(error);
-				node.port.postMessage({ type: 'stop' });
+				failRecording(error);
+				try { node.port.postMessage({ type: 'stop' }); } catch { /* Failure is already recorded. */ }
 			}).finally(() => { pendingChunks -= 1; });
 		} else if (message.type === 'stopped') {
+			acceptingChunks = false;
 			writeQueue.then(() => {
-				state = 'stopped';
-				onState?.(state);
-				if (writeError) stopRejecter?.(writeError);
-				else stopResolver?.({ frame: message.frame });
-				stopResolver = null;
-				stopRejecter = null;
+				if (!disposing) {
+					state = 'stopped';
+					notifyState();
+				}
+				if (writeError) settleStop(writeError);
+				else settleStop(null, { frame: message.frame });
 			});
-		} else if (message.type === 'paused') {
+		} else if (message.type === 'paused' && !disposing) {
 			state = 'paused';
-			onState?.(state);
-		} else if (message.type === 'resumed') {
+			notifyState();
+		} else if (message.type === 'resumed' && !disposing) {
 			state = 'recording';
-			onState?.(state);
+			notifyState();
 		}
 	}
+
+	function failRecording(error) {
+		if (disposed) return;
+		const failure = error instanceof Error ? error : new Error(String(error));
+		const firstFailure = writeError == null;
+		if (firstFailure) writeError = failure;
+		acceptingChunks = false;
+		if (!disposing) {
+			state = 'failed';
+			notifyState();
+		}
+		if (firstFailure) {
+			try { onError?.(writeError); } catch { /* Error observers cannot block cleanup. */ }
+		}
+		settleStop(writeError);
+	}
+
+	function settleStop(error, result) {
+		if (!stopRequest || stopRequest.settled) return;
+		stopRequest.settled = true;
+		if (stopRequest.timer != null && typeof clearTimeoutFn === 'function') clearTimeoutFn(stopRequest.timer);
+		stopRequest.timer = null;
+		if (error) stopRequest.reject(error);
+		else stopRequest.resolve(result);
+	}
+
+	function assertMutable() {
+		if (disposed || disposing) throw new Error('The recording controller has been disposed.');
+		if (state === 'failed') throw writeError || new Error('The recording worklet failed.');
+	}
+
+	function notifyState() {
+		try {
+			onState?.(state);
+		} catch (error) {
+			try { onError?.(error); } catch { /* State observers cannot block cleanup. */ }
+		}
+	}
+}
+
+function normalizeRecordingStopTimeout(value) {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 1 || number > 60_000) {
+		throw new RangeError('Recording stopTimeoutMs must be between 1 and 60000 milliseconds.');
+	}
+	return number;
 }
 
 async function loadRecordingWorklet(context, workletUrl) {

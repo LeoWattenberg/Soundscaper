@@ -1,0 +1,520 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { fitAudioBufferToFrames } from '../src/common/editor/controller/audio-buffer-frame-fit.ts';
+import {
+	createProjectBinService,
+	type ProjectBinServiceDependencies,
+} from '../src/common/editor/controller/project-bin-service.ts';
+import type { ProjectBinPreviewEngine } from '../src/common/editor/controller/project-bin-preview-service.ts';
+import {
+	EditorControllerLifetime,
+	EditorProjectGeneration,
+} from '../src/common/editor/controller/lifecycle.ts';
+import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import type {
+	ProjectBinClip,
+	ProjectBinPreview,
+	ProjectBinProject,
+} from '../src/common/editor/controller/project-bin-types.ts';
+
+test('project-bin operations preserve grouped moves and prepare atomic A/V placement IDs', () => {
+	const timelineProject = projectFixture({
+		clips: [
+			clipFixture({ id: 'first', groupId: 'group' }),
+			clipFixture({ id: 'second', groupId: 'group', timelineStartFrame: 2_000 }),
+		],
+		selectionClipIds: ['first'],
+	});
+	const move = createHarness(timelineProject);
+	assert.deepEqual(move.service.moveClipsToProjectBin('first'), ['first', 'second']);
+	assert.deepEqual(move.commits, [{
+		command: { type: 'project-bin/move-from-timeline', clipIds: ['first', 'second'] },
+		selection: { selectClipId: null },
+	}]);
+
+	const audio = clipFixture({ id: 'bin-audio', sourceId: 'audio', binItemId: 'media' });
+	const video = clipFixture({
+		id: 'bin-video',
+		sourceId: 'video',
+		kind: 'video',
+		binItemId: 'media',
+		videoEffects: [{ id: 'effect' }],
+	});
+	const placement = createHarness(projectFixture({
+		clips: [],
+		projectBinClips: [video, audio],
+		sources: [
+			{ id: 'audio', kind: 'audio', sampleRate: 48_000, frameCount: 8_000, channelCount: 2 },
+			{ id: 'video', kind: 'video', sampleRate: 48_000, frameCount: 8_000 },
+		],
+	}));
+	const placedId = placement.service.placeProjectBinClip('bin-video', { timelineStartFrame: 42 });
+	assert.match(placedId ?? '', /^clip-/);
+	const placementCommit = placement.commits[0];
+	assert.equal(placementCommit?.command.type, 'batch');
+	if (placementCommit?.command.type !== 'batch') assert.fail('Expected an atomic placement batch.');
+	assert.deepEqual(placementCommit.command.commands.map((command) => command.type), [
+		'track/add', 'track/add', 'project-bin/place',
+	]);
+	const placeCommand = placementCommit.command.commands[2];
+	assert.equal(placeCommand?.type, 'project-bin/place');
+	if (placeCommand?.type !== 'project-bin/place') assert.fail('Expected a project-bin placement command.');
+	assert.equal(placeCommand.timelineStartFrame, 42);
+	assert.equal(placeCommand.placements?.length, 2);
+	assert.match(placeCommand.avLinkId ?? '', /^av-link-/);
+	assert.match(String(placeCommand.placements?.[0]?.videoEffectIds), /video-effect-/);
+	assert.equal(placementCommit.selection?.selectClipId, placedId);
+});
+
+test('project-bin metadata and instance actions use one semantic source inventory', () => {
+	const binClip = clipFixture({ id: 'bin', sourceId: 'shared', binItemId: 'item' });
+	const first = clipFixture({ id: 'first', sourceId: 'shared', groupId: 'group' });
+	const companion = clipFixture({ id: 'companion', sourceId: 'other', groupId: 'group' });
+	const harness = createHarness(projectFixture({
+		clips: [first, companion],
+		projectBinClips: [binClip],
+		sources: [
+			{ id: 'shared', kind: 'audio', sampleRate: 48_000, frameCount: 8_000, channelCount: 1 },
+			{ id: 'other', kind: 'audio', sampleRate: 48_000, frameCount: 8_000, channelCount: 1 },
+		],
+	}));
+
+	assert.equal(harness.service.renameProjectBinClip('bin', '  Reusable  '), 'Reusable');
+	assert.throws(() => harness.service.renameProjectBinClip('bin', '  '), TypeError);
+	assert.equal(harness.service.setProjectBinClipColor('bin', 'green'), 'green');
+	assert.throws(() => harness.service.setProjectBinClipColor('bin', 'orange'), RangeError);
+	assert.equal(harness.service.projectBinInstanceCount('bin'), 1);
+	assert.deepEqual(harness.service.selectProjectBinInstances('bin'), ['first', 'companion']);
+	assert.equal(harness.selectedClipId, 'first');
+	assert.equal(harness.selectedTrackId, 'track');
+	assert.deepEqual(harness.selectionCommands[0]?.clipIds, ['first', 'companion']);
+	assert.deepEqual(harness.service.removeProjectBinSource('bin'), ['first']);
+	assert.equal(harness.service.removeProjectBinClip('bin'), 'bin');
+	assert.throws(() => harness.service.removeProjectBinClip('missing'), /Audio clip not found/);
+
+	const blocked = createHarness(harness.project, { editingBlocked: () => true });
+	assert.equal(blocked.service.moveClipsToProjectBin('first'), null);
+	assert.equal(blocked.service.placeProjectBinClip('bin'), null);
+	assert.equal(blocked.service.renameProjectBinClip('bin', 'Name'), null);
+	assert.equal(blocked.service.removeProjectBinClip('bin'), null);
+	assert.equal(blocked.service.setProjectBinClipColor('bin', 'green'), null);
+	assert.equal(blocked.service.removeProjectBinSource('bin'), null);
+});
+
+test('replacement staging restores the active document and applies compatible media atomically', async () => {
+	const originalClip = clipFixture({
+		id: 'bin',
+		sourceId: 'old-source',
+		binItemId: 'bin-item',
+		sourceDurationFrames: 800,
+		durationFrames: 800,
+	});
+	const timelineClip = clipFixture({
+		id: 'instance',
+		sourceId: 'old-source',
+		sourceDurationFrames: 800,
+		durationFrames: 800,
+	});
+	const base = projectFixture({
+		clips: [timelineClip],
+		projectBinClips: [originalClip],
+		sources: [{
+			id: 'old-source', kind: 'audio', sampleRate: 48_000, frameCount: 1_000, channelCount: 1,
+		}],
+	});
+	const imported = projectFixture({
+		id: base.id,
+		clips: base.clips,
+		projectBinClips: [clipFixture({
+			id: 'imported-bin', sourceId: 'new-source', binItemId: 'imported-item',
+		})],
+		sources: [...base.sources, {
+			id: 'new-source', kind: 'audio', sampleRate: 48_000, frameCount: 400, channelCount: 1,
+		}],
+	});
+	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
+	const harness = createHarness(base, {
+		importProjectBinFile: async () => {
+			harnessRef.current?.replaceImportedDocument(imported);
+			return { clipId: 'imported-bin' };
+		},
+	});
+	harnessRef.current = harness;
+
+	const prepared = await harness.service.prepareProjectBinReplacement('bin', { name: 'short.wav' });
+	assert.equal(harness.project, base);
+	assert.equal(harness.importing, false);
+	assert.equal(harness.restoreCount, 1);
+	assert.deepEqual(prepared?.shortenedClipIds, ['instance', 'bin']);
+	assert.equal(prepared?.requiresChoice, true);
+	assert.equal(harness.service.applyProjectBinReplacement(prepared?.token ?? ''), 'bin');
+	const applied = harness.commits.at(-1)?.command;
+	assert.equal(applied?.type, 'batch');
+	if (applied?.type !== 'batch') assert.fail('Expected an atomic replacement batch.');
+	assert.deepEqual(applied.commands.map((command) => command.type), [
+		'source/add', 'project-bin/replace-media',
+	]);
+});
+
+test('late replacement completion cannot restore or publish into a switched project', async () => {
+	let resolveImport!: (result: { clipId: string }) => void;
+	const imported = new Promise<{ clipId: string }>((resolve) => { resolveImport = resolve; });
+	const base = projectFixture({
+		projectBinClips: [clipFixture({ id: 'bin', binItemId: 'item' })],
+	});
+	const harness = createHarness(base, {
+		importProjectBinFile: async () => imported,
+	});
+	const pending = harness.service.prepareProjectBinReplacement('bin', { name: 'late.wav' });
+	await Promise.resolve();
+	const publicationsBeforeSwitch = harness.publishCount;
+	const switched = projectFixture({ id: 'other-project', projectBinClips: [] });
+	harness.switchProject(switched);
+	resolveImport({ clipId: 'imported-bin' });
+
+	await assert.rejects(pending, { name: 'AbortError', code: 'PROJECT_CHANGED' });
+	assert.equal(harness.project, switched);
+	assert.equal(harness.restoreCount, 0);
+	assert.equal(harness.publishCount, publicationsBeforeSwitch);
+	assert.equal(harness.importing, false);
+});
+
+test('replacement cancellation removes staged audio/video assets and rejects stale application', async () => {
+	const target = clipFixture({ id: 'bin', sourceId: 'old', binItemId: 'item' });
+	const base = projectFixture({
+		projectBinClips: [target],
+		sources: [{ id: 'old', kind: 'audio', sampleRate: 48_000, frameCount: 1_000, channelCount: 1 }],
+	});
+	const importedAudio = projectFixture({
+		id: base.id,
+		projectBinClips: [clipFixture({ id: 'new-bin', sourceId: 'new', binItemId: 'new-item' })],
+		sources: [{ id: 'new', kind: 'audio', sampleRate: 48_000, frameCount: 1_000, channelCount: 1 }],
+	});
+	const audioRef: { current?: ReturnType<typeof createHarness> } = {};
+	const audioHarness = createHarness(base, {
+		importProjectBinFile: async () => {
+			audioRef.current?.replaceImportedDocument(importedAudio);
+			return { clipId: 'new-bin' };
+		},
+	});
+	audioRef.current = audioHarness;
+	const prepared = await audioHarness.service.prepareProjectBinReplacement('bin', { name: 'new.wav' });
+	assert.equal(await audioHarness.service.cancelProjectBinReplacement(prepared?.token ?? ''), true);
+	assert.deepEqual(audioHarness.deletedSources, ['new']);
+	assert.equal(await audioHarness.service.cancelProjectBinReplacement(prepared?.token ?? ''), false);
+
+	const staleRef: { current?: ReturnType<typeof createHarness> } = {};
+	const staleHarness = createHarness(base, {
+		importProjectBinFile: async () => {
+			staleRef.current?.replaceImportedDocument(importedAudio);
+			return { clipId: 'new-bin' };
+		},
+	});
+	staleRef.current = staleHarness;
+	const stale = await staleHarness.service.prepareProjectBinReplacement('bin', { name: 'new.wav' });
+	staleHarness.switchProject(projectFixture({ id: 'different' }));
+	assert.throws(
+		() => staleHarness.service.applyProjectBinReplacement(stale?.token ?? ''),
+		/project changed/,
+	);
+	await Promise.resolve();
+	assert.deepEqual(staleHarness.deletedSources, ['new']);
+
+	const importedVideo = projectFixture({
+		id: base.id,
+		projectBinClips: [clipFixture({
+			id: 'video-bin', sourceId: 'video', kind: 'video', binItemId: 'video-item',
+		})],
+		sources: [{ id: 'video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+	});
+	const videoRef: { current?: ReturnType<typeof createHarness> } = {};
+	const videoHarness = createHarness(base, {
+		importProjectBinFile: async () => {
+			videoRef.current?.replaceImportedDocument(importedVideo);
+			return { clipId: 'video-bin' };
+		},
+	});
+	videoRef.current = videoHarness;
+	await assert.rejects(
+		videoHarness.service.prepareProjectBinReplacement('bin', { name: 'video.mp4' }),
+		/Replacement incompatible/,
+	);
+	assert.deepEqual(videoHarness.deletedMedia, ['video']);
+});
+
+test('video and resumed audio previews follow explicit pause, resume, stop, and engine-state policies', async () => {
+	const video = clipFixture({ id: 'video-bin', sourceId: 'video', kind: 'video', binItemId: 'video-item' });
+	const videoHarness = createHarness(projectFixture({
+		projectBinClips: [video],
+		sources: [{ id: 'video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+	}), {
+		playbackState: 'playing',
+		visualMediaUrl: 'blob:video',
+	});
+	assert.deepEqual(await videoHarness.service.playPauseProjectBinClip('video-bin'), {
+		clipId: 'video-bin',
+		binItemId: 'video-item',
+		state: 'playing',
+		kind: 'video',
+		mediaUrl: 'blob:video',
+	});
+	assert.equal(videoHarness.playbackStopCount, 1);
+	assert.equal((await videoHarness.service.playPauseProjectBinClip('video-bin')).state, 'paused');
+	assert.equal((await videoHarness.service.playPauseProjectBinClip('video-bin')).state, 'playing');
+	assert.equal(await videoHarness.service.stopProjectBinPreview(), true);
+	assert.equal(await videoHarness.service.stopProjectBinPreview(), false);
+
+	const audioEngine = createPreviewEngine(Promise.resolve());
+	const audioHarness = createHarness(projectFixture({
+		projectBinClips: [clipFixture({ id: 'audio-bin', sourceId: 'audio', binItemId: 'audio-item' })],
+	}), { previewEngine: audioEngine });
+	await audioHarness.service.playPauseProjectBinClip('audio-bin');
+	assert.equal((await audioHarness.service.playPauseProjectBinClip('audio-bin')).state, 'paused');
+	assert.equal(audioEngine.pauseCalls, 1);
+	assert.equal((await audioHarness.service.playPauseProjectBinClip('audio-bin')).state, 'playing');
+	audioEngine.emit('paused');
+	assert.equal(audioHarness.preview?.state, 'paused');
+	audioEngine.emit('stopped');
+	assert.equal(audioHarness.preview?.state, 'stopped');
+	audioEngine.emit('playing');
+	assert.equal(audioHarness.preview?.state, 'stopped');
+	await audioHarness.service.dispose();
+	assert.equal(audioEngine.disposeCalls, 1);
+
+	const missing = createHarness(projectFixture({
+		projectBinClips: [clipFixture({ id: 'missing-bin', sourceId: 'missing' })],
+	}));
+	missing.missingSourceIds.add('missing');
+	await assert.rejects(missing.service.playPauseProjectBinClip('missing-bin'), /Local sources missing/);
+	await assert.rejects(missing.service.playPauseProjectBinClip('unknown'), /Audio clip not found/);
+});
+
+test('preview playback rejects late completion after disposal without a late publication', async () => {
+	let resolvePlay!: () => void;
+	const play = new Promise<void>((resolve) => { resolvePlay = resolve; });
+	const previewEngine = createPreviewEngine(play);
+	const project = projectFixture({
+		projectBinClips: [clipFixture({ id: 'preview', sourceId: 'source', binItemId: 'preview-item' })],
+	});
+	const harness = createHarness(project, { previewEngine });
+	const pending = harness.service.playPauseProjectBinClip('preview');
+	await Promise.resolve();
+	assert.equal(harness.preview?.state, 'playing');
+	const publishedBeforeDisposal = harness.publishCount;
+	harness.lifetime.beginDisposal();
+	resolvePlay();
+
+	await assert.rejects(pending, { code: 'DISPOSED' });
+	assert.equal(harness.publishCount, publishedBeforeDisposal);
+	assert.equal(await harness.service.stopProjectBinPreview({ dispose: true }), true);
+	assert.equal(harness.preview, null);
+	assert.equal(previewEngine.disposeCalls, 1);
+});
+
+test('audio-buffer fitting preserves an exact buffer and truncates or zero-pads channel data', () => {
+	const original = testAudioBuffer([[1, 2, 3], [4, 5, 6]], 48_000);
+	const context = { createBuffer: (channels: number, frames: number, sampleRate: number) => (
+		testAudioBuffer(Array.from({ length: channels }, () => Array(frames).fill(0)), sampleRate)
+	) };
+	assert.equal(fitAudioBufferToFrames(original, 3, context), original);
+	const truncated = fitAudioBufferToFrames(original, 2, context);
+	assert.deepEqual([...truncated.getChannelData(0)], [1, 2]);
+	assert.deepEqual([...truncated.getChannelData(1)], [4, 5]);
+	const padded = fitAudioBufferToFrames(original, 5, context);
+	assert.deepEqual([...padded.getChannelData(0)], [1, 2, 3, 0, 0]);
+});
+
+interface HarnessOptions {
+	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];
+	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
+	readonly editingBlocked?: () => boolean;
+	readonly playbackState?: string;
+	readonly visualMediaUrl?: string | null;
+}
+
+function createHarness(initialProject: ProjectBinProject, options: HarnessOptions = {}) {
+	const lifetime = new EditorControllerLifetime();
+	const projects = new EditorProjectGeneration();
+	projects.activate(initialProject.id);
+	let project = initialProject;
+	let history: unknown = { present: project };
+	let selectedClipId: string | null = null;
+	let selectedTrackId: string | null = null;
+	let preview: ProjectBinPreview | null = null;
+	let importing = false;
+	let publishCount = 0;
+	let restoreCount = 0;
+	let playbackStopCount = 0;
+	let id = 0;
+	const missingSourceIds = new Set<string>();
+	const deletedSources: string[] = [];
+	const deletedMedia: string[] = [];
+	const selectionCommands: Array<Extract<AudioEditorCommand, { type: 'selection/set' }>> = [];
+	const commits: Array<{
+		command: AudioEditorCommand;
+		selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>;
+	}> = [];
+	const previewEngine = options.previewEngine ?? createPreviewEngine(Promise.resolve());
+	const dependencies: ProjectBinServiceDependencies = {
+		lifetime,
+		copy: {
+			audioClipNotFound: 'Audio clip not found.',
+			localSourcesMissing: 'Local sources missing.',
+			track: 'Track',
+			projectBinReplacementIncompatible: 'Replacement incompatible.',
+		},
+		trackColors: ['blue', 'green'],
+		playbackEngine: {
+			getState: () => ({ state: options.playbackState ?? 'stopped' }),
+			stop: () => { playbackStopCount += 1; },
+		},
+		sourceBuffers: new Map<string, AudioBuffer>(),
+		sourceChunkProviders: new Map<string, unknown>(),
+		sourcePeaks: new Map<string, unknown>(),
+		missingSourceIds,
+		store: {
+			deleteSource: async (sourceId) => { deletedSources.push(sourceId); },
+			deleteMediaAsset: async (sourceId) => { deletedMedia.push(sourceId); },
+		},
+		createPreviewEngine: ({ onState }) => {
+			previewEngine.setOnState(onState);
+			return previewEngine;
+		},
+		createId: (prefix) => `${prefix}-${++id}`,
+		captureProject: () => projects.capture(project.id),
+		assertProject: (token) => projects.assertCurrent(token),
+		getProject: () => project,
+		getSelectedClipId: () => selectedClipId,
+		getSelectedTrackId: () => selectedTrackId,
+		setSelectedClipId: (value) => { selectedClipId = value; },
+		setSelectedTrackId: (value) => { selectedTrackId = value; },
+		getPreview: () => preview,
+		setPreview: (value) => { preview = value; },
+		editingBlocked: options.editingBlocked ?? (() => false),
+		commit: (command, selection) => { commits.push({ command, selection }); },
+		updateSelection: (command) => { selectionCommands.push(command); },
+		getPositionFrames: () => 128,
+		normalizeTimelineStartFrame: (value) => Math.max(0, Math.round(Number(value))),
+		getVisualData: () => options.visualMediaUrl == null ? null : { mediaUrl: options.visualMediaUrl },
+		captureActiveDocument: () => ({ history, project }),
+		restoreActiveDocument: (snapshot) => {
+			history = snapshot.history;
+			project = snapshot.project;
+			restoreCount += 1;
+		},
+		setImporting: (value) => { importing = value; },
+		importProjectBinFile: options.importProjectBinFile ?? (async () => null),
+		projectChanged: () => undefined,
+		publish: () => { publishCount += 1; },
+		revokeVideoVisual: () => undefined,
+	};
+	const service = createProjectBinService(dependencies);
+	return {
+		service,
+		lifetime,
+		commits,
+		selectionCommands,
+		missingSourceIds,
+		deletedSources,
+		deletedMedia,
+		get project() { return project; },
+		get preview() { return preview; },
+		get selectedClipId() { return selectedClipId; },
+		get selectedTrackId() { return selectedTrackId; },
+		get importing() { return importing; },
+		get publishCount() { return publishCount; },
+		get restoreCount() { return restoreCount; },
+		get playbackStopCount() { return playbackStopCount; },
+		replaceImportedDocument(value: ProjectBinProject) {
+			project = value;
+			history = { present: value };
+		},
+		switchProject(value: ProjectBinProject) {
+			project = value;
+			history = { present: value };
+			projects.activate(value.id);
+		},
+	};
+}
+
+function projectFixture(options: Readonly<{
+	id?: string;
+	clips?: readonly ProjectBinClip[];
+	projectBinClips?: readonly ProjectBinClip[];
+	selectionClipIds?: readonly string[];
+	sources?: ProjectBinProject['sources'];
+}> = {}): ProjectBinProject {
+	const clips = options.clips ?? [];
+	const sourceIds = new Set([
+		...clips.map((clip) => clip.sourceId),
+		...(options.projectBinClips ?? []).map((clip) => clip.sourceId),
+	]);
+	return {
+		schemaVersion: 5,
+		id: options.id ?? 'project',
+		sampleRate: 48_000,
+		sources: options.sources ?? [...sourceIds].map((sourceId) => ({
+			id: sourceId, kind: 'audio', sampleRate: 48_000, frameCount: 8_000, channelCount: 1,
+		})),
+		clips,
+		tracks: [{ id: 'track', type: 'audio', name: 'Track', clipIds: clips.map((clip) => clip.id) }],
+		projectBin: { clips: options.projectBinClips ?? [] },
+		selection: { clipIds: options.selectionClipIds ?? [] },
+	};
+}
+
+function clipFixture(overrides: Partial<ProjectBinClip> = {}): ProjectBinClip {
+	return {
+		id: 'clip',
+		sourceId: 'source',
+		title: 'Clip',
+		kind: 'audio',
+		timelineStartFrame: 0,
+		sourceStartFrame: 0,
+		sourceDurationFrames: 1_000,
+		durationFrames: 1_000,
+		...overrides,
+	};
+}
+
+function createPreviewEngine(play: Promise<void>) {
+	let disposeCalls = 0;
+	let pauseCalls = 0;
+	let onState: (state: string) => void = () => undefined;
+	const engine: ProjectBinPreviewEngine & {
+		readonly disposeCalls: number;
+		readonly pauseCalls: number;
+		setOnState(listener: (state: string) => void): void;
+		emit(state: string): void;
+	} = {
+		loadProject: () => undefined,
+		setSourceResolver: () => undefined,
+		play: async () => play,
+		pause: () => { pauseCalls += 1; },
+		stop: () => undefined,
+		dispose: async () => { disposeCalls += 1; },
+		get disposeCalls() { return disposeCalls; },
+		get pauseCalls() { return pauseCalls; },
+		setOnState: (listener) => { onState = listener; },
+		emit: (state) => { onState(state); },
+	};
+	return engine;
+}
+
+interface TestAudioBuffer {
+	readonly length: number;
+	readonly numberOfChannels: number;
+	readonly sampleRate: number;
+	getChannelData(channel: number): Float32Array;
+}
+
+function testAudioBuffer(channels: readonly (readonly number[])[], sampleRate: number): TestAudioBuffer {
+	const data = channels.map((channel) => Float32Array.from(channel));
+	return {
+		length: data[0]?.length ?? 0,
+		numberOfChannels: data.length,
+		sampleRate,
+		getChannelData: (channel) => data[channel] ?? new Float32Array(),
+	};
+}

@@ -1,0 +1,277 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	createProjectAdminService,
+	type ProjectAdminServiceRuntime,
+} from '../src/common/editor/controller/project-admin-service.ts';
+
+interface Project {
+	readonly id: string;
+	readonly title: string;
+	readonly revision: number;
+}
+
+function createFixture() {
+	let project: Project | null = { id: 'project-a', title: 'Project A', revision: 3 };
+	let closeResult: { closed: boolean; activeProjectId?: string } = { closed: true };
+	let pruneResult: { deletedSourceIds?: string[]; nextEligibleAt?: number | null } = {};
+	const calls: string[] = [];
+	let stopRecording = async () => { calls.push('stop-recording'); };
+	const savedProjects: Project[] = [];
+	const scheduled: Array<{ callback: () => void; delay: number }> = [];
+	const tabs = new Map<string, { projectId: string; dirty: boolean; readOnly: boolean; history: { present: Project } }>();
+	tabs.set('project-a', {
+		projectId: 'project-a', dirty: false, readOnly: false,
+		history: { present: project },
+	});
+	const sourceBuffers = new Map<string, unknown>([['buffer', {}], ['deleted', {}]]);
+	const sourceChunkProviders = new Map<string, unknown>([['deleted', {}]]);
+	const sourcePeaks = new Map<string, unknown>([['peak', {}], ['deleted', {}]]);
+	const state = {
+		readOnly: false,
+		recordingRouting: { input: 'mic' },
+		missingSourceIds: new Set(['deleted']),
+		disposed: false,
+		sourceGcTimer: 7,
+		history: {},
+		projects: [] as readonly Project[],
+		selectedTrackId: 'track',
+		selectedClipId: 'clip',
+	};
+	const projectSaveService = {
+		cancelScheduled: () => { calls.push('cancel-save'); },
+		pendingSnapshots: [{ id: 'pending' }],
+	};
+	const sessionController = {
+		getSnapshot: () => ({ tabs: [...tabs.values()] }),
+		closeProject(projectId: string) {
+			calls.push(`close:${projectId}`);
+			return closeResult;
+		},
+		clearClipboard: () => { calls.push('clear-clipboard'); },
+		markProjectSaved: (projectId: string) => { calls.push(`marked:${projectId}`); },
+	};
+	const store = {
+		async duplicateProject(_projectId: string, options: { title: string }) {
+			calls.push(`duplicate:${options.title}`);
+			return { id: 'copy', title: options.title, revision: 1 };
+		},
+		async listProjects() {
+			calls.push('list');
+			return [{ id: 'listed', title: 'Listed', revision: 1 }];
+		},
+		async saveProject(value: Project) {
+			savedProjects.push(value);
+		},
+		async deleteProject(projectId: string) { calls.push(`delete:${projectId}`); },
+		async pruneUnreferencedSources(options: unknown) {
+			calls.push('prune');
+			assert.ok(options);
+			return pruneResult;
+		},
+		async clear() { calls.push('clear-store'); },
+	};
+	const runtime: ProjectAdminServiceRuntime = {
+		cancelPlaybackCachePreparation: () => { calls.push('cancel-cache'); },
+		clearScheduledTimer: (timer: number) => { calls.push(`clear-timer:${timer}`); },
+		clearWaveformPcmWindows: () => { calls.push('clear-windows'); },
+		clipTimePitchCache: {
+			retainClipIds: () => { calls.push('retain-clips'); },
+			clear: () => { calls.push('clear-time-pitch'); },
+		},
+		commit: (command: { title: string }) => { calls.push(`rename:${command.title}`); },
+		copy: {
+			projectNotFound: 'Project not found.',
+			projectReadOnly: 'Project is read-only.',
+			projectTitleRequired: 'A title is required.',
+			projectCopySuffix: 'copy',
+		},
+		currentTimeMs: () => 1_000,
+		editorHistoryProjects: (history: { present: Project }) => [history.present],
+		engine: { stop: () => { calls.push('stop-engine'); } },
+		evictUnreferencedSourceCaches: () => { calls.push('evict'); },
+		flushProject: async () => { calls.push('flush'); },
+		getProject: () => project,
+		handleError: (error: unknown) => { calls.push(`error:${String(error)}`); },
+		liveSessionClipIds: () => new Set(['clip']),
+		liveSessionSourceIds: () => new Set<string>(['live']),
+		newProject: async () => { calls.push('new-project'); },
+		openProject: async (value: Project) => { calls.push(`open:${value.id}`); },
+		persistSetting: async (key: string, value: unknown) => { calls.push(`persist:${key}:${String(value)}`); },
+		projectSaveService,
+		projectSessionService: {
+			clearRecentProjects: async () => {
+				calls.push('clear-recents');
+				return [];
+			},
+		},
+		publishDocumentSnapshot: () => { calls.push('publish'); },
+		recordingRoutingSettingKey: (id: string) => `routing:${id}`,
+		releaseProjectLock: async () => { calls.push('release'); },
+		revokeVideoVisuals: () => { calls.push('revoke-video'); },
+		saveNow: async () => { calls.push('save'); },
+		scheduleTimer: (callback: () => void, delay: number) => {
+			scheduled.push({ callback, delay });
+			return 9;
+		},
+		sessionController,
+		sessionTab: (projectId: string) => tabs.get(projectId) || null,
+		setProject: (value: Project | null) => { project = value; },
+		sourceBuffers,
+		sourceChunkProviders,
+		sourcePeaks,
+		state,
+		stopRecording: () => stopRecording(),
+		store,
+		switchProject: async (value: Project) => { calls.push(`switch:${value.id}`); },
+	};
+	return {
+		calls,
+		project: () => project,
+		setProject: (value: Project | null) => { project = value; },
+		setStopRecording: (value: () => Promise<void>) => { stopRecording = value; },
+		closeResult: (value: typeof closeResult) => { closeResult = value; },
+		pruneResult: (value: typeof pruneResult) => { pruneResult = value; },
+		runtime,
+		savedProjects,
+		scheduled,
+		sourceBuffers,
+		sourceChunkProviders,
+		sourcePeaks,
+		state,
+		tabs,
+	};
+}
+
+test('project administration lists, renames, duplicates, and clears recents', async () => {
+	const fixture = createFixture();
+	const service = createProjectAdminService(fixture.runtime);
+
+	assert.equal(Object.isFrozen(await service.listProjects()), true);
+	await service.renameProject('  Renamed  ');
+	await service.renameProject('   ');
+	await assert.rejects(() => service.renameProject(null), /title is required/iu);
+	fixture.state.readOnly = true;
+	await service.renameProject('Ignored');
+	fixture.state.readOnly = false;
+
+	const duplicated = await service.duplicateProject(null);
+	assert.equal(duplicated.title, 'Project A copy');
+	assert.equal(fixture.calls.includes('persist:routing:copy:[object Object]'), true);
+	assert.deepEqual(await service.clearRecentProjects(), []);
+
+	fixture.setProject(null);
+	assert.equal(await service.duplicateProject('Unused'), undefined);
+});
+
+test('closing inactive tabs persists dirty history and prunes session-only sources', async () => {
+	const fixture = createFixture();
+	const other = { id: 'project-b', title: 'Project B', revision: 2 };
+	fixture.tabs.set('project-b', {
+		projectId: 'project-b', dirty: true, readOnly: false, history: { present: other },
+	});
+	fixture.pruneResult({ deletedSourceIds: ['deleted'] });
+	const service = createProjectAdminService(fixture.runtime);
+
+	const result = await service.closeProjectTab('project-b');
+	assert.equal(result.closed, true);
+	assert.deepEqual(fixture.savedProjects, [other]);
+	assert.equal(fixture.calls.includes('marked:project-b'), true);
+	assert.equal(fixture.calls.includes('release'), false);
+	assert.equal(fixture.sourceBuffers.has('deleted'), false);
+	assert.equal(fixture.sourceChunkProviders.has('deleted'), false);
+	assert.equal(fixture.sourcePeaks.has('deleted'), false);
+	assert.equal(fixture.state.missingSourceIds.has('deleted'), false);
+});
+
+test('closing the active tab saves it and selects the next session project', async () => {
+	const fixture = createFixture();
+	const activeTab = fixture.tabs.get('project-a');
+	assert.ok(activeTab);
+	activeTab.dirty = true;
+	const next = { id: 'project-b', title: 'Project B', revision: 1 };
+	fixture.tabs.set('project-b', {
+		projectId: 'project-b', dirty: false, readOnly: false, history: { present: next },
+	});
+	fixture.closeResult({ closed: true, activeProjectId: 'project-b' });
+	const result = await createProjectAdminService(fixture.runtime).closeProjectTab();
+
+	assert.equal(result.closed, true);
+	assert.equal(fixture.calls.includes('save'), true);
+	assert.equal(fixture.calls.includes('cancel-save'), true);
+	assert.equal(fixture.calls.includes('switch:project-b'), true);
+	assert.equal(fixture.project(), null);
+});
+
+test('close validation and refusal leave project state untouched', async () => {
+	const missing = createFixture();
+	await assert.rejects(() => createProjectAdminService(missing.runtime).closeProjectTab('missing'), /not found/iu);
+
+	const refused = createFixture();
+	refused.closeResult({ closed: false });
+	const result = await createProjectAdminService(refused.runtime).closeProjectTab('project-a', { discard: true });
+	assert.equal(result.closed, false);
+	assert.equal(refused.project()?.id, 'project-a');
+
+	const newProject = createFixture();
+	await createProjectAdminService(newProject.runtime).closeProjectTab('project-a', { discard: true });
+	assert.equal(newProject.calls.includes('new-project'), true);
+});
+
+test('project deletion validates ownership and then clears project-specific state', async () => {
+	const fixture = createFixture();
+	const service = createProjectAdminService(fixture.runtime);
+	await service.deleteProject();
+	assert.equal(fixture.calls.includes('delete:project-a'), true);
+	assert.equal(fixture.calls.includes('persist:routing:project-a:null'), true);
+	assert.equal(fixture.project(), null);
+
+	const readOnly = createFixture();
+	readOnly.state.readOnly = true;
+	await createProjectAdminService(readOnly.runtime).deleteProject();
+	assert.equal(readOnly.calls.includes('stop-recording'), false);
+
+	const replaced = createFixture();
+	replaced.setStopRecording(async () => { replaced.setProject({ id: 'replacement', title: 'Other', revision: 1 }); });
+	assert.equal(await createProjectAdminService(replaced.runtime).deleteProject(), null);
+});
+
+test('source garbage collection protects live state and schedules the next pass', async () => {
+	const fixture = createFixture();
+	fixture.pruneResult({ deletedSourceIds: ['deleted'], nextEligibleAt: 2_000 });
+	const service = createProjectAdminService(fixture.runtime);
+	await service.garbageCollectSources();
+	assert.equal(fixture.scheduled[0]?.delay, 1_050);
+	assert.equal(fixture.state.sourceGcTimer, 9);
+	fixture.scheduled[0]?.callback();
+	assert.equal(fixture.state.sourceGcTimer, 0);
+	await Promise.resolve();
+	assert.equal(service.sessionHistoryProjects().length, 1);
+
+	const noPrune = createFixture();
+	noPrune.runtime.store.pruneUnreferencedSources = undefined;
+	await createProjectAdminService(noPrune.runtime).garbageCollectSources();
+	assert.equal(noPrune.calls.includes('prune'), false);
+});
+
+test('handoff guards missing and read-only projects, while local reset clears all runtime data', async () => {
+	const missing = createFixture();
+	missing.setProject(null);
+	await assert.rejects(() => createProjectAdminService(missing.runtime).prepareProjectHandoff(), /not found/iu);
+
+	const readOnly = createFixture();
+	readOnly.state.readOnly = true;
+	await assert.rejects(() => createProjectAdminService(readOnly.runtime).prepareProjectHandoff(), /read-only/iu);
+
+	const fixture = createFixture();
+	await createProjectAdminService(fixture.runtime).clearLocalData();
+	assert.equal(fixture.sourceBuffers.size, 0);
+	assert.equal(fixture.sourceChunkProviders.size, 0);
+	assert.equal(fixture.sourcePeaks.size, 0);
+	assert.equal(fixture.calls.includes('clear-store'), true);
+	assert.equal(fixture.calls.includes('clear-clipboard'), true);
+	assert.equal(Object.isFrozen(fixture.state.projects), true);
+});

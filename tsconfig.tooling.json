@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"checkJs": false,
+		"incremental": true,
+		"tsBuildInfoFile": "./node_modules/.cache/typescript/tooling.tsbuildinfo",
+		"types": ["node"]
+	},
+	"include": ["vite.config.mjs", "playwright.config.mjs", "electron-builder.config.cjs"],
+	"exclude": ["dist", "node_modules"]
+}

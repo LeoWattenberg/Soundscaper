@@ -12,14 +12,24 @@
 		"url": "https://github.com/LeoWattenberg/Soundscaper.git"
 	},
 	"license": "AGPL-3.0-only",
+	"packageManager": "npm@10.9.4",
+	"engines": {
+		"node": ">=22.13.0 <23",
+		"npm": "10.9.4"
+	},
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs",
+		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs && node scripts/check-build-chunks.mjs",
 		"preview": "vite preview --port 4321",
-		"test": "node --test",
-		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/common/editor/**/*.js' --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=80 tests/*.test.js",
+		"lint": "eslint --max-warnings 0 .",
+		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tests.json && tsc -p tsconfig.tooling.json",
+		"check:architecture": "dependency-cruiser src && node scripts/check-file-size.mjs",
+		"check:notices": "node scripts/check-third-party-notices.mjs",
+		"test": "node scripts/run-node-tests.mjs",
+		"test:coverage": "c8 --all --include=\"src/common/editor/**/*.js\" --include=\"src/common/editor/**/*.cjs\" --include=\"src/common/editor/**/*.mjs\" --include=\"src/common/editor/**/*.ts\" --include=\"src/common/editor/**/*.cts\" --include=\"src/common/editor/**/*.mts\" --exclude=\"src/common/editor/**/native/**\" --check-coverage --lines=80 --branches=70 --functions=80 node scripts/run-node-tests.mjs",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
+		"test:browser:built": "playwright test",
 		"test:desktop": "node --test tests/desktop-*.test.js tests/audio-editor-file-service.test.js",
 		"desktop:icons": "node scripts/desktop-icons.mjs",
 		"desktop:prepare": "node scripts/desktop-prepare.mjs",
@@ -43,9 +53,11 @@
 		"audit:aup4-interop": "node scripts/audit-aup4-interop.mjs",
 		"audit:aup4-interop:release": "node scripts/audit-aup4-interop.mjs --require-native",
 		"audit:ebu-r128": "node scripts/audit-ebu-r128.mjs",
+		"audit:ci": "npm run audit:staffpad && npm run audit:nyquist && npm run audit:parametric-eq && npm run audit:wavpack && npm run audit:aup4-interop && npm run check:notices",
+		"check": "npm run lint && npm run typecheck && npm run check:architecture && npm run audit:ci && npm run test:coverage && npm run build",
 		"benchmark:spectrogram": "node scripts/benchmark-spectrogram.mjs",
 		"benchmark:fft": "node scripts/benchmark-spectrogram.mjs",
-		"deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name soundscaper",
+		"deploy": "npm run build && wrangler pages deploy dist --project-name soundscaper",
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},
 	"dependencies": {
@@ -62,19 +74,30 @@
 		"sql.js": "1.14.1"
 	},
 	"devDependencies": {
-		"@vitejs/plugin-react": "5.2.0",
 		"@axe-core/playwright": "4.12.1",
 		"@electron/fuses": "2.1.3",
+		"@eslint/js": "10.0.1",
 		"@playwright/test": "^1.61.1",
 		"@resvg/resvg-js": "2.6.2",
+		"@types/node": "22.20.1",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
+		"@vitejs/plugin-react": "5.2.0",
+		"c8": "12.0.0",
+		"dependency-cruiser": "18.1.0",
 		"electron": "43.1.1",
 		"electron-builder": "26.15.6",
+		"eslint": "10.8.0",
+		"eslint-plugin-react-hooks": "7.1.1",
+		"globals": "17.7.0",
 		"patch-package": "^8.0.1",
 		"postcss": "8.5.19",
+		"saxes": "6.0.0",
+		"tsx": "4.23.1",
+		"typescript": "6.0.3",
+		"typescript-eslint": "8.65.0",
 		"vite": "8.1.2",
-		"saxes": "6.0.0"
+		"wrangler": "4.114.0"
 	},
 	"overrides": {
 		"@electron/asar": "4.2.0",

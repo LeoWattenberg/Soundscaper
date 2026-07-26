@@ -1934,7 +1934,6 @@ test('parametric EQ selection previews expose transient controls, spectra, and p
 			{ type: 'audition', bandId: 'preview-band', revision: 2, sequence: 2 },
 			{ type: 'audition', bandId: null, revision: 3, sequence: 3 },
 		]);
-
 		const spectrum = new Float32Array(PARAMETRIC_EQ_SPECTRUM_FFT_SIZE / 2);
 		assert.deepEqual(preview.readSpectrum('input', spectrum), {
 			sampleRate: 48_000,
@@ -1948,9 +1947,9 @@ test('parametric EQ selection previews expose transient controls, spectra, and p
 			() => preview.readSpectrum('output', new Float32Array(8)),
 			/2048 bins/,
 		);
-
 		let previewError = null;
 		preview.onerror = (error) => { previewError = error; };
+		assert.equal(typeof preview.onerror, 'function');
 		processor.onprocessorerror();
 		assert.deepEqual(errors, [{
 			type: 'error',
@@ -1960,7 +1959,8 @@ test('parametric EQ selection previews expose transient controls, spectra, and p
 			effectId: 'selection-preview-eq',
 		}]);
 		assert.strictEqual(previewError, errors[0]);
-
+		preview.onended = () => {};
+		assert.strictEqual(preview.onended, preview.source.onended);
 		preview.start(0);
 		assert.deepEqual(preview.source.started, [0, undefined, undefined]);
 		preview.disconnect();

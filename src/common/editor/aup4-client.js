@@ -1,4 +1,6 @@
 import { effectiveAup4SaveLimit } from './aup4-profile.js';
+import { WorkerRequestBroker } from './worker-request-broker.ts';
+import { createWorkerRequestId } from './worker-protocol.ts';
 
 export class Aup4ClientError extends Error {
 	constructor(message, code = 'AUP4_CLIENT_ERROR', options = {}) {
@@ -14,15 +16,25 @@ export function createAup4Client(options = {}) {
 }
 
 export class Aup4WorkerClient {
-	constructor({ worker, workerFactory = defaultWorkerFactory } = {}) {
+	constructor({
+		worker,
+		workerFactory = defaultWorkerFactory,
+		timeoutMs,
+		setTimeout,
+		clearTimeout,
+	} = {}) {
 		this.worker = worker || workerFactory();
 		this.sequence = 0;
-		this.pending = new Map();
+		this.requests = new WorkerRequestBroker({ timeoutMs, setTimeout, clearTimeout });
+		// Retain the diagnostic surface used by existing tests and integrations.
+		this.pending = this.requests.entries;
 		this.disposed = false;
 		this.onMessage = (event) => this.#handleMessage(event.data || {});
 		this.onError = (event) => this.#handleFatal(event.error || new Error(event.message || 'The AUP4 worker stopped.'));
+		this.onMessageError = () => this.#handleFatal(new Error('The AUP4 worker sent an unreadable message.'));
 		this.worker.addEventListener('message', this.onMessage);
 		this.worker.addEventListener('error', this.onError);
+		this.worker.addEventListener('messageerror', this.onMessageError);
 	}
 
 	initialize(options = {}) { return this.call('initialize', {}, options); }
@@ -94,20 +106,22 @@ export class Aup4WorkerClient {
 
 	call(type, args = {}, options = {}) {
 		if (this.disposed) return Promise.reject(new Aup4ClientError('The AUP4 client has been disposed.', 'DISPOSED'));
-		const id = `aup4-${Date.now().toString(36)}-${++this.sequence}`;
-		return new Promise((resolve, reject) => {
-			const signal = options.signal;
-			const abort = () => {
-				this.worker.postMessage({ type: 'cancel', id });
-				this.#settle(id, false, new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED'));
-			};
-			if (signal?.aborted) {
-				reject(new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED'));
-				return;
-			}
-			this.pending.set(id, { resolve, reject, onProgress: options.onProgress, signal, abort });
-			signal?.addEventListener('abort', abort, { once: true });
-			this.worker.postMessage({ id, type, args }, options.transfer || []);
+		const id = createWorkerRequestId('aup4', `${Date.now().toString(36)}-${++this.sequence}`);
+		return this.requests.request({
+			id,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs,
+			context: { onProgress: options.onProgress },
+			abortError: () => new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED'),
+			timeoutError: (timeout) => {
+				const error = new Aup4ClientError(`The AUP4 worker received no activity for ${timeout} milliseconds.`, 'TIMEOUT', {
+					name: 'TimeoutError',
+				});
+				return error;
+			},
+			onAbort: () => this.worker.postMessage({ type: 'cancel', id }),
+			onTimeout: () => this.worker.postMessage({ type: 'cancel', id }),
+			post: () => this.worker.postMessage({ id, type, args }, options.transfer || []),
 		});
 	}
 
@@ -116,35 +130,36 @@ export class Aup4WorkerClient {
 		this.disposed = true;
 		this.worker.removeEventListener('message', this.onMessage);
 		this.worker.removeEventListener('error', this.onError);
-		this.worker.terminate?.();
-		this.#handleFatal(new Aup4ClientError('The AUP4 client was disposed.', 'DISPOSED'));
+		this.worker.removeEventListener('messageerror', this.onMessageError);
+		try {
+			this.worker.terminate?.();
+		} finally {
+			this.requests.dispose(new Aup4ClientError('The AUP4 client was disposed.', 'DISPOSED'));
+		}
 	}
 
 	#handleMessage(message) {
-		const pending = this.pending.get(message.id);
+		const pending = this.requests.get(message.id);
 		if (!pending) return;
 		if (message.progress) {
-			pending.onProgress?.(message.progress);
+			this.requests.touch(message.id);
+			try {
+				pending.context?.onProgress?.(message.progress);
+			} catch (error) {
+				this.requests.reject(message.id, error);
+			}
 			return;
 		}
 		if (message.error) {
-			this.#settle(message.id, false, new Aup4ClientError(message.error.message, message.error.code, {
+			this.requests.reject(message.id, new Aup4ClientError(message.error.message, message.error.code, {
 				name: message.error.name,
 				details: message.error.details,
 			}));
-		} else this.#settle(message.id, true, message.result);
-	}
-
-	#settle(id, success, value) {
-		const pending = this.pending.get(id);
-		if (!pending) return;
-		this.pending.delete(id);
-		pending.signal?.removeEventListener('abort', pending.abort);
-		(success ? pending.resolve : pending.reject)(value);
+		} else this.requests.resolve(message.id, message.result);
 	}
 
 	#handleFatal(error) {
-		for (const id of [...this.pending.keys()]) this.#settle(id, false, error);
+		this.requests.rejectAll(error);
 	}
 }
 

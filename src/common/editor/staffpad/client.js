@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeStaffPadRenderRequest } from './parameters.js';
+import { WorkerRequestBroker } from '../worker-request-broker.ts';
+import { createWorkerRequestId } from '../worker-protocol.ts';
 
 let nextJobId = 1;
 
@@ -9,7 +11,12 @@ export class StaffPadRenderClient {
 		this.workerFactory = options.workerFactory || defaultWorkerFactory;
 		this.wasmUrl = options.wasmUrl == null ? null : String(options.wasmUrl);
 		this.worker = null;
-		this.jobs = new Map();
+		this.requests = new WorkerRequestBroker({
+			timeoutMs: options.timeoutMs,
+			setTimeout: options.setTimeout,
+			clearTimeout: options.clearTimeout,
+		});
+		this.jobs = this.requests.entries;
 		this.disposed = false;
 	}
 
@@ -17,52 +24,51 @@ export class StaffPadRenderClient {
 		if (this.disposed) return Promise.reject(new Error('StaffPadRenderClient is disposed.'));
 		const normalized = normalizeStaffPadRenderRequest(request);
 		if (options.signal?.aborted) return Promise.reject(abortError());
-		const id = `staffpad-${nextJobId++}`;
+		const id = createWorkerRequestId('staffpad', nextJobId++);
 		const output = Array.from(
 			{ length: normalized.channels.length },
 			() => new Float32Array(normalized.outputFrames),
 		);
 		const worker = this.getWorker();
-		return new Promise((resolve, reject) => {
-			const job = {
-				id,
-				output,
-				nextFrame: 0,
-				resolve,
-				reject,
-				onChunk: typeof options.onChunk === 'function' ? options.onChunk : null,
-				onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
-				signal: options.signal || null,
-				onAbort: null,
-			};
-			if (job.signal) {
-				job.onAbort = () => {
-					worker.postMessage({ type: 'cancel', id });
-					this.finishJob(job, abortError());
-				};
-				job.signal.addEventListener('abort', job.onAbort, { once: true });
-			}
-			this.jobs.set(id, job);
-			const transfer = options.transferInput === true
-				? [...new Set(normalized.channels.map((channel) => channel.buffer))]
-					.filter((buffer) => buffer instanceof ArrayBuffer)
-				: [];
-			worker.postMessage({
+		const job = {
+			id,
+			output,
+			nextFrame: 0,
+			onChunk: typeof options.onChunk === 'function' ? options.onChunk : null,
+			onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
+		};
+		const transfer = options.transferInput === true
+			? [...new Set(normalized.channels.map((channel) => channel.buffer))]
+				.filter((buffer) => buffer instanceof ArrayBuffer)
+			: [];
+		return this.requests.request({
+			id,
+			context: job,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs,
+			abortError,
+			onAbort: () => worker.postMessage({ type: 'cancel', id }),
+			onTimeout: () => worker.postMessage({ type: 'cancel', id }),
+			post: () => worker.postMessage({
 				type: 'render',
 				id,
 				request: normalized,
 				cacheKey: typeof options.cacheKey === 'string' ? options.cacheKey : null,
 				wasmUrl: this.wasmUrl,
-			}, transfer);
+			}, transfer),
 		});
 	}
 
 	dispose() {
 		if (this.disposed) return;
 		this.disposed = true;
-		this.worker?.terminate();
+		const worker = this.worker;
 		this.worker = null;
-		for (const job of this.jobs.values()) this.finishJob(job, new Error('StaffPadRenderClient was disposed.'));
+		try {
+			worker?.terminate();
+		} finally {
+			this.requests.dispose(new Error('StaffPadRenderClient was disposed.'));
+		}
 	}
 
 	getWorker() {
@@ -70,25 +76,39 @@ export class StaffPadRenderClient {
 		const worker = this.workerFactory();
 		if (!worker || typeof worker.postMessage !== 'function') throw new TypeError('workerFactory must return a Worker-like object.');
 		worker.addEventListener('message', (event) => this.handleMessage(event.data));
-		worker.addEventListener('error', (event) => this.handleWorkerFailure(event.error || new Error(event.message || 'StaffPad worker failed.')));
-		worker.addEventListener('messageerror', () => this.handleWorkerFailure(new Error('StaffPad worker sent an unreadable message.')));
+		worker.addEventListener('error', (event) => this.handleWorkerFailure(
+			worker,
+			event.error || new Error(event.message || 'StaffPad worker failed.'),
+		));
+		worker.addEventListener('messageerror', () => this.handleWorkerFailure(
+			worker,
+			new Error('StaffPad worker sent an unreadable message.'),
+		));
 		this.worker = worker;
 		return worker;
 	}
 
 	handleMessage(message) {
 		if (!message || typeof message !== 'object') return;
-		const job = this.jobs.get(message.id);
+		const entry = this.requests.get(message.id);
+		const job = entry?.context;
 		if (!job) return;
 		if (message.type === 'progress') {
-			job.onProgress?.(Math.max(0, Math.min(1, Number(message.progress) || 0)));
+			this.requests.touch(job.id);
+			try {
+				job.onProgress?.(Math.max(0, Math.min(1, Number(message.progress) || 0)));
+			} catch (error) {
+				try { this.worker?.postMessage({ type: 'cancel', id: job.id }); } catch {}
+				this.finishJob(job, error);
+			}
 			return;
 		}
 		if (message.type === 'chunk') {
+			this.requests.touch(job.id);
 			try {
 				this.acceptChunk(job, message);
 			} catch (error) {
-				this.worker?.postMessage({ type: 'cancel', id: job.id });
+				try { this.worker?.postMessage({ type: 'cancel', id: job.id }); } catch {}
 				this.finishJob(job, error);
 			}
 			return;
@@ -136,17 +156,18 @@ export class StaffPadRenderClient {
 	}
 
 	finishJob(job, error, result) {
-		if (!this.jobs.has(job.id)) return;
-		this.jobs.delete(job.id);
-		if (job.signal && job.onAbort) job.signal.removeEventListener('abort', job.onAbort);
-		if (error) job.reject(error);
-		else job.resolve(result);
+		if (error) this.requests.reject(job.id, error);
+		else this.requests.resolve(job.id, result);
 	}
 
-	handleWorkerFailure(error) {
-		for (const job of Array.from(this.jobs.values())) this.finishJob(job, error);
-		this.worker?.terminate();
+	handleWorkerFailure(worker, error) {
+		if (worker !== this.worker) return;
 		this.worker = null;
+		try {
+			worker.terminate();
+		} finally {
+			this.requests.rejectAll(error);
+		}
 	}
 }
 

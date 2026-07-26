@@ -3,21 +3,20 @@ import test from 'node:test';
 
 import {
 	applyEditorCommand,
-	aggregateStereoMinutes,
 	createAddClipCommand,
 	createAddLabelCommand,
 	createAddLabelTrackCommand,
 	createAddSourceCommand,
 	createAddTrackCommand,
-	createAudioEditorProjectV2,
 	createClipboardDescriptor,
 	prepareGroupClipsCommand,
 	prepareKeepRangeCommand,
 	preparePasteCommand,
 	prepareRangeDeleteCommand,
 	prepareSplitCommand,
-	validateAudioEditorProject,
-} from '../src/common/editor/index.js';
+} from '../src/common/editor/commands.js';
+import { aggregateStereoMinutes, validateAudioEditorProject } from '../src/common/editor/project.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 
 function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });

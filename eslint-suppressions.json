@@ -1,0 +1,152 @@
+{
+  "desktop/file-capabilities.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/main.mjs": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "desktop/preload.mjs": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/validation.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "scripts/desktop-prepare.mjs": {
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "scripts/desktop-release-assets.mjs": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/aup3.js": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/app.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/audacity-action-runtime.js": {
+    "no-extra-boolean-cast": {
+      "count": 1
+    }
+  },
+  "src/common/editor/aup4-client.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/aup4-conversion.js": {
+    "no-extra-boolean-cast": {
+      "count": 1
+    }
+  },
+  "src/common/editor/aup4-export.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/aup4-worker.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/effect-macros.js": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/effect-presets.js": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ffmpeg.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/file-service.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/media-export.js": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/common/editor/project-v4.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/AudacityEffectLayout.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/AudioEditorBootstrap.jsx": {
+    "react-hooks/exhaustive-deps": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/AudioEditorMenuBar.jsx": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/ParametricEqEditor.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/RecordingInputSelectors.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-ffmpeg.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-timeline.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/products.js": {
+    "no-constant-binary-expression": {
+      "count": 1
+    }
+  },
+  "src/common/site/App.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-project-v2.test.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "tests/browser/audio-editor-video-effects-parity.spec.js": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  }
+}

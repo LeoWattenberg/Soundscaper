@@ -24,7 +24,7 @@ The effect registry covers Audacity's menu-visible native processors and browser
 
 ## Audacity-derived waveform rendering
 
-Parts of `src/common/editor/audacity-waveform-renderer.js`, the waveform-window preparation in `src/common/editor/design-system-adapters.js`, and the canvas/recording-preview integration in `src/common/editor/ui/AudioEditorTimeline.jsx` are JavaScript translations and browser adaptations of Audacity waveform rendering at exact commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
+Parts of `src/common/editor/audacity-waveform-renderer.js`, the waveform-window adapters under `src/common/editor/design-system-adapters/`, and the canvas/recording-preview integration under `src/common/editor/ui/timeline/` are JavaScript and TypeScript translations and browser adaptations of Audacity waveform rendering at exact commit `908ad0a526e5bfdab68de780e893cebe172d27eb`:
 
 - source: <https://github.com/audacity/audacity/tree/908ad0a526e5bfdab68de780e893cebe172d27eb>
 - rendering-mode and sample-painter sources: `src/projectscene/view/tracksitemsview/au3/wavepainterutils.cpp`, `src/projectscene/view/tracksitemsview/au3/connectingdotspainter.cpp`, `src/projectscene/view/tracksitemsview/au3/samplespainterutils.cpp`, and `src/projectscene/view/tracksitemsview/au3/samplespainter.cpp`
@@ -157,7 +157,7 @@ source pinning, and an update to this document before distribution.
 ## Desktop runtime and build tooling
 
 - Electron 43.1.1 — MIT; source: <https://github.com/electron/electron/tree/v43.1.1>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.
-- electron-builder 26.15.3 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.15.3.tgz> (`sha512-a1KM5heqS3gQCZzizXEI8RjJy3QVogULPdeSknt76uLDpBIW/HDGsMg/XgP0riP6PI9COsRvFITKKGDqA8fJxA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
+- electron-builder 26.15.6 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.15.6.tgz> (`sha512-jxlHRjqYrlTgLVo/aoACGpiki3QFYv8s4f2djsqaEbwTBZ9PcTBK03Tj/HMa65kiE0hdZxxbZdmVFo22eou2wA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
 - `@electron/fuses` 2.1.3 — MIT; build-time hardening tool used to disable unsafe Electron runtime switches before signing; source: <https://github.com/electron/fuses/tree/v2.1.3>.
 - `@resvg/resvg-js` 2.6.2 — MPL-2.0; unmodified build-time rasterizer used only to derive platform icons from the existing Soundscaper SVG mark; source: <https://github.com/yisibl/resvg-js/tree/v2.6.2>.
 

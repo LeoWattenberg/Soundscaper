@@ -8,18 +8,17 @@ import {
 	assertMediaExportAvailable,
 	buildMediaFfmpegDecoderArgs,
 	buildMediaFfmpegEncoderArgs,
-	createAiffStreamEncoder,
-	createAudioEditorProjectV2,
-	createExportPlan,
 	createMediaExportCapabilities,
-	encodeAiff,
-	encodeWav,
 	listMediaExportFormats,
 	mediaChannelMappingToFfmpegFilter,
 	normalizeMediaChannelMapping,
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
-} from '../src/common/editor/index.js';
+} from '../src/common/editor/media-export.js';
+import { createAiffStreamEncoder, encodeAiff } from '../src/common/editor/aiff.js';
+import { createExportPlan } from '../src/common/editor/export.js';
+import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [

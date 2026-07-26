@@ -2872,7 +2872,7 @@ test('parametric EQ selection preview errors stop the source and cannot be overw
 	}
 });
 
-test('headless controller publishes disposal once and closes injected runtimes', async () => {
+test('headless controller publishes disposing and disposed phases and closes injected runtimes', async () => {
 	const store = createMemoryStore();
 	const engine = createMemoryEngine();
 	const ffmpeg = createMemoryFfmpeg();
@@ -2892,13 +2892,13 @@ test('headless controller publishes disposal once and closes injected runtimes',
 	assert.equal(disposed.phase, 'disposed');
 	assert.equal(disposed.ready, false);
 	assert.equal(disposed.disposed, true);
-	assert.equal(notifications, 1);
+	assert.equal(notifications, 2);
 	assert.equal(store.closeCalls, 1);
 	assert.equal(engine.disposeCalls, 1);
 	assert.equal(ffmpeg.disposeCalls, 1);
 
 	await controller.dispose();
-	assert.equal(notifications, 1);
+	assert.equal(notifications, 2);
 	assert.equal(store.closeCalls, 1);
 	assert.equal(engine.disposeCalls, 1);
 	assert.equal(ffmpeg.disposeCalls, 1);
@@ -3091,7 +3091,8 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 	await assert.rejects(() => controller.actions.project.flush(), /disk full/);
 	assert.equal(controller.getSnapshot().save.state, 'dirty');
 	assert.match(controller.getSnapshot().status.message, /disk full/);
-	await controller.dispose();
+	await assert.rejects(() => controller.dispose(), /disk full/);
+	assert.equal(controller.getSnapshot().phase, 'disposed');
 });
 
 function createMemoryStore() {

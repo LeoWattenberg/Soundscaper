@@ -1,0 +1,335 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	EditorControllerLifetime,
+	EditorProjectGeneration,
+	isEditorDisposedError,
+} from '../src/common/editor/controller/lifecycle.ts';
+import type {
+	ProjectLifecycleHistory,
+	ProjectLifecycleLock,
+	ProjectLifecycleProject,
+	ProjectLifecycleTab,
+} from '../src/common/editor/controller/project-lifecycle-types.ts';
+import {
+	createProjectSwitchService,
+	type ProjectSwitchServiceRuntime,
+	type ProjectSwitchState,
+} from '../src/common/editor/controller/project-switch-service.ts';
+
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
+interface TestTrack {
+	readonly id: string;
+	readonly type: string;
+	readonly name?: string;
+}
+
+interface TestProject extends ProjectLifecycleProject {
+	readonly title: string;
+	readonly sampleRate: number;
+	readonly tracks: readonly TestTrack[];
+	readonly clips: readonly Readonly<{ id: string }>[];
+}
+
+interface TestHistory extends ProjectLifecycleHistory<TestProject> {
+	readonly present: TestProject;
+}
+
+type TestTab = ProjectLifecycleTab<TestProject, TestHistory>;
+
+interface TestLock extends ProjectLifecycleLock {
+	releases: number;
+}
+
+function project(
+	id: string,
+	tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }],
+): TestProject {
+	return { id, title: id, sampleRate: 48_000, tracks, clips: [] };
+}
+
+function lock(projectId: string, readOnly = false): TestLock {
+	return {
+		projectId,
+		readOnly,
+		method: 'test',
+		releases: 0,
+		release() { this.releases += 1; },
+	};
+}
+
+function createFixture() {
+	const lifetime = new EditorControllerLifetime();
+	const projectGeneration = new EditorProjectGeneration();
+	const oldProject = project('old-project');
+	let currentProject: TestProject | null = oldProject;
+	let createdSequence = 0;
+	let migrationReadOnly = false;
+	let acquire: (projectId: string) => Promise<ProjectLifecycleLock> = async (projectId) => lock(projectId);
+	let loadSources: (value: TestProject) => Promise<unknown> = async () => undefined;
+	const events: string[] = [];
+	const statuses: Array<readonly [string, string]> = [];
+	const assignedTracks: string[] = [];
+	const revokedUrls: string[] = [];
+	const readOnlyUpdates: Array<Readonly<Record<string, unknown>>> = [];
+	const tabs = new Map<string, TestTab>([[oldProject.id, {
+		projectId: oldProject.id,
+		history: { present: oldProject },
+		metadata: {},
+		dirty: false,
+	}]]);
+	const initialLock = lock(oldProject.id);
+	const state: ProjectSwitchState<TestProject, TestHistory> = {
+		projectQueue: Promise.resolve(),
+		projectLock: initialLock,
+		readOnly: false,
+		history: { present: oldProject },
+		selectedTrackId: oldProject.tracks[0]?.id ?? null,
+		selectedClipId: null,
+		clipboard: null,
+		rackEffectGestures: new Map([['old', {}]]),
+		parametricEqGestures: new Map([['old', {}]]),
+		videoEffectGestures: new Map([['old', {}]]),
+		exportAbort: new AbortController(),
+		sampleEditAbort: new AbortController(),
+		sampleEditMode: 'pencil',
+		sampleEditAvailable: true,
+		audacityNoiseProfile: {},
+		audacityControlTrackId: 'control',
+		analysisResult: {},
+		analysisVisuals: {},
+		analysisReport: {},
+		analysisProcessing: true,
+		contrastSelections: { foreground: {}, background: {} },
+		outputUrl: 'blob:old-output',
+		outputCleanup: () => { events.push('output-cleanup'); },
+		exportOutput: {},
+		missingSourceIds: new Set(['missing']),
+		saveState: 'dirty',
+		projects: [],
+	};
+	const session = {
+		switchProject(projectId: string) {
+			events.push(`session-switch:${projectId}`);
+		},
+		openProject(value: TestProject, options: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['openProject']>[1]) {
+			events.push(`session-open:${value.id}`);
+			tabs.set(value.id, {
+				projectId: value.id,
+				history: options.history ?? { present: value },
+				metadata: options.metadata,
+				dirty: false,
+			});
+		},
+		updateProjectMetadata(projectId: string, metadata: Readonly<Record<string, unknown>>) {
+			const tab = tabs.get(projectId);
+			if (!tab) return;
+			tabs.set(projectId, { ...tab, metadata: { ...tab.metadata, ...metadata } });
+		},
+		setProjectReadOnly(projectId: string, update: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['setProjectReadOnly']>[1]) {
+			readOnlyUpdates.push({ projectId, ...update });
+		},
+		getProjectHistory(projectId: string) {
+			const history = tabs.get(projectId)?.history;
+			if (!history) throw new Error(`Missing session history for ${projectId}.`);
+			return history;
+		},
+		clipboardForProject() { return { descriptor: { type: 'clip' } }; },
+		markProjectSaved(projectId: string) { events.push(`marked-saved:${projectId}`); },
+	};
+	const runtime = {
+		state,
+		lifetime,
+		projectGeneration,
+		copy: {
+			ready: 'Ready',
+			projectOpenOtherTab: 'Open elsewhere',
+			projectReadOnly: 'Read-only',
+			futureProjectReadOnly: 'Future project',
+			untitledProject: 'Untitled',
+			track: 'Track',
+		},
+		getProject: () => currentProject,
+		setProject: (value: TestProject | null) => { currentProject = value; },
+		createProject: ({ title, sampleRate }: Readonly<{ title: string; sampleRate: number }>) => ({
+			id: `created-${++createdSequence}`, title, sampleRate, tracks: [], clips: [],
+		}),
+		normalizeProjectSampleRate: (value: unknown) => Number(value) || 48_000,
+		createInitialAudioTrackCommand: (options: Readonly<Record<string, unknown>>) => ({
+			...options, id: 'prepared-track',
+		}),
+		createHistory: (value: TestProject): TestHistory => ({ present: value }),
+		executeCommand: (history: TestHistory, command: unknown): TestHistory => {
+			const prepared = command as Readonly<{ id: string; type: string; name?: string }>;
+			return { present: { ...history.present, tracks: [...history.present.tracks, prepared] } };
+		},
+		migrateProject: (value: unknown) => ({ project: value as TestProject, readOnly: migrationReadOnly }),
+		assignPreferredInputToTrack: (trackId: string) => { assignedTracks.push(trackId); },
+		cancelTimedRecording: () => { events.push('cancel-timed'); },
+		cancelRecordingStart: () => { events.push('cancel-recording-start'); },
+		cancelPlaybackCachePreparation: () => { events.push('cancel-cache'); },
+		cancelPlayAtSpeedPreparation: () => { events.push('cancel-speed'); },
+		stopRecording: async () => { events.push('stop-recording'); },
+		persistActiveSessionUiState: () => { events.push('persist-session'); },
+		saveNow: async () => { events.push('save-now'); },
+		cancelScheduledSave: () => { events.push('cancel-save'); },
+		stopEngine: () => { events.push('stop-engine'); },
+		cancelEffectPreview: () => { events.push('cancel-preview'); },
+		releaseProjectLock: async (value: ProjectLifecycleLock | null = state.projectLock) => {
+			events.push('release-lock');
+			if (!value) return;
+			if (state.projectLock === value) state.projectLock = null;
+			value.release();
+			await Promise.resolve(value.finished);
+		},
+		acquireProjectLock: async (projectId: string) => {
+			events.push(`acquire-lock:${projectId}`);
+			return acquire(projectId);
+		},
+		watchProjectLockLoss: (projectId: string) => { events.push(`watch-lock:${projectId}`); },
+		scheduleProjectLockRecovery: (projectId: string) => { events.push(`schedule-lock:${projectId}`); },
+		sessionTab: (projectId: string) => tabs.get(projectId) ?? null,
+		session,
+		loadRecordingRouting: async (value: TestProject) => { events.push(`load-routing:${value.id}`); },
+		findTrack: (value: TestProject, trackId: string | null | undefined) => (
+			value.tracks.find((candidate) => candidate.id === trackId) ?? null
+		),
+		findClip: (value: TestProject, clipId: string | null | undefined) => (
+			value.clips.find((candidate) => candidate.id === clipId) ?? null
+		),
+		revokeOutputUrl: (url: string) => { revokedUrls.push(url); },
+		revokeVideoVisuals: () => { events.push('revoke-video'); },
+		clearWaveformPcmWindows: () => { events.push('clear-waveform'); },
+		loadProjectSources: async (value: TestProject) => {
+			events.push(`load-sources:${value.id}`);
+			await loadSources(value);
+		},
+		retainLiveClipIds: () => { events.push('retain-clips'); },
+		evictUnreferencedSourceCaches: () => { events.push('evict-sources'); },
+		loadEngineProject: (value: TestProject) => { events.push(`engine-load:${value.id}`); },
+		recordOpenedProject: async (projectId: string, guard: <Value>(value: Value | PromiseLike<Value>) => Promise<Value>) => {
+			await guard(Promise.resolve());
+			events.push(`record-opened:${projectId}`);
+		},
+		saveProject: async (value: TestProject) => { events.push(`save-project:${value.id}`); },
+		listProjects: async () => currentProject ? [currentProject] : [],
+		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },
+		publishProjectState: () => { events.push('publish'); },
+		garbageCollectSources: async () => { events.push('gc'); },
+		setStatus: (message: string, status: 'error' | 'success') => { statuses.push([message, status]); },
+		isDisposedError: (error: unknown) => isEditorDisposedError(error),
+		clearSourceCaches: () => { events.push('clear-source-caches'); },
+	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
+	return {
+		assignedTracks,
+		events,
+		initialLock,
+		lifetime,
+		projectGeneration,
+		readOnlyUpdates,
+		revokedUrls,
+		service: createProjectSwitchService(runtime),
+		state,
+		statuses,
+		getProject: () => currentProject,
+		setAcquire(value: typeof acquire) { acquire = value; },
+		setLoadSources(value: typeof loadSources) { loadSources = value; },
+		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
+	};
+}
+
+test('project activation resets scoped state and publishes only after sources are loaded', async () => {
+	const fixture = createFixture();
+	const next = project('next-project', [
+		{ id: 'labels', type: 'label' },
+		{ id: 'audio', type: 'audio' },
+	]);
+
+	await fixture.service.switchProject(next, { save: true });
+
+	assert.equal(fixture.getProject(), next);
+	assert.equal(fixture.state.selectedTrackId, 'audio');
+	assert.equal(fixture.state.analysisResult, null);
+	assert.equal(fixture.state.sampleEditMode, null);
+	assert.equal(fixture.state.missingSourceIds.size, 0);
+	assert.equal(fixture.state.outputUrl, null);
+	assert.deepEqual(fixture.revokedUrls, ['blob:old-output']);
+	assert.equal(fixture.initialLock.releases, 1);
+	assert.ok(fixture.events.indexOf('load-sources:next-project') < fixture.events.indexOf('engine-load:next-project'));
+	assert.ok(fixture.events.indexOf('engine-load:next-project') < fixture.events.indexOf('publish'));
+	assert.ok(fixture.events.includes('save-now'));
+	assert.ok(fixture.events.includes('save-project:next-project'));
+	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
+});
+
+test('the project queue prevents a second activation from overlapping source loading', async () => {
+	const fixture = createFixture();
+	const firstGate = deferred<void>();
+	const firstStarted = deferred<void>();
+	fixture.setLoadSources(async (value) => {
+		if (value.id !== 'first') return;
+		firstStarted.resolve();
+		await firstGate.promise;
+	});
+
+	const first = fixture.service.switchProject(project('first'));
+	await firstStarted.promise;
+	const second = fixture.service.switchProject(project('second'));
+	await Promise.resolve();
+	assert.equal(fixture.events.includes('acquire-lock:second'), false);
+
+	firstGate.resolve();
+	await Promise.all([first, second]);
+	assert.deepEqual(
+		fixture.events.filter((event) => event.startsWith('engine-load:')),
+		['engine-load:first', 'engine-load:second'],
+	);
+	assert.equal(fixture.getProject()?.id, 'second');
+});
+
+test('a lock acquired after terminal disposal is released without activating the project', async () => {
+	const fixture = createFixture();
+	const acquired = deferred<ProjectLifecycleLock>();
+	const acquisitionStarted = deferred<void>();
+	const lateLock = lock('late-project');
+	fixture.setAcquire(async () => {
+		acquisitionStarted.resolve();
+		return acquired.promise;
+	});
+
+	const activation = fixture.service.switchProject(project('late-project'));
+	await acquisitionStarted.promise;
+	fixture.lifetime.beginDisposal();
+	acquired.resolve(lateLock);
+
+	await assert.rejects(() => activation, { code: 'DISPOSED' });
+	assert.equal(lateLock.releases, 1);
+	assert.equal(fixture.getProject()?.id, 'old-project');
+	assert.equal(fixture.events.includes('engine-load:late-project'), false);
+	assert.ok(fixture.events.includes('clear-source-caches'));
+});
+
+test('new and migrated projects preserve preparation and read-only semantics', async () => {
+	const fixture = createFixture();
+	await fixture.service.newProject({ title: '   ', sampleRate: 44_100 });
+
+	assert.equal(fixture.getProject()?.title, 'Untitled');
+	assert.equal(fixture.getProject()?.sampleRate, 44_100);
+	assert.equal(fixture.getProject()?.tracks[0]?.name, 'Track 1');
+	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
+
+	fixture.setMigrationReadOnly(true);
+	const future = project('future-project');
+	await fixture.service.openProject(future);
+	assert.equal(fixture.getProject(), future);
+	assert.equal(fixture.state.readOnly, true);
+	assert.deepEqual(fixture.statuses.at(-1), ['Future project', 'error']);
+});
