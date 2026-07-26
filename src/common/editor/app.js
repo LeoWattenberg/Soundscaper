@@ -1733,7 +1733,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		cancelAudacityEffectPreview({ publish: false });
 		if (!state.projectLock || state.projectLock.projectId !== nextProject.id || state.projectLock.readOnly) {
 			await releaseProjectLock();
-			state.projectLock = await acquireLock(nextProject.id);
+			// Deliberate project activation is latest-tab-wins. Recovery stays non-forced
+			// so a displaced tab becomes read-only instead of stealing ownership back.
+			state.projectLock = await acquireLock(nextProject.id, { force: true });
 		}
 		watchProjectLockLoss(nextProject.id, state.projectLock);
 		const lockReadOnly = Boolean(state.projectLock.readOnly);

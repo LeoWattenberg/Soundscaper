@@ -2905,15 +2905,19 @@ test('headless controller publishes disposal once and closes injected runtimes',
 	assert.strictEqual(controller.getSnapshot(), disposed);
 });
 
-test('bootstrap preserves the project-lock status for a second controller', async () => {
+test('bootstrap gives the newest controller the writer lock and makes the previous controller read-only', async () => {
 	const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
-	const heldLocks = new Set();
+	const heldLocks = new Map();
+	const requests = [];
 	const locks = {
 		request(name, options, callback) {
-			assert.equal(options.ifAvailable, true);
-			if (heldLocks.has(name)) return Promise.resolve(callback(null));
-			heldLocks.add(name);
-			return Promise.resolve(callback({ name })).finally(() => heldLocks.delete(name));
+			requests.push(options);
+			if (!options.steal && heldLocks.has(name)) return Promise.resolve(callback(null));
+			const owner = {};
+			heldLocks.set(name, owner);
+			return Promise.resolve(callback({ name })).finally(() => {
+				if (heldLocks.get(name) === owner) heldLocks.delete(name);
+			});
 		},
 	};
 	Object.defineProperty(globalThis, 'navigator', {
@@ -2943,9 +2947,11 @@ test('bootstrap preserves the project-lock status for a second controller', asyn
 		});
 		const snapshot = await second.ready;
 		assert.equal(snapshot.ready, true);
-		assert.equal(snapshot.readOnly, true);
-		assert.equal(snapshot.status.state, 'error');
-		assert.equal(snapshot.status.message, 'This project is already open in another tab.');
+		assert.equal(snapshot.readOnly, false);
+		await waitFor(() => first.getSnapshot().readOnly === true);
+		assert.equal(first.getSnapshot().status.state, 'error');
+		assert.equal(first.getSnapshot().status.message, 'This project is already open in another tab.');
+		assert.equal(requests.filter((options) => options.steal).length, 2);
 	} finally {
 		await second?.dispose();
 		await first.dispose();
@@ -2957,6 +2963,7 @@ test('bootstrap preserves the project-lock status for a second controller', asyn
 test('reopening the active project retains its writer lock', async () => {
 	let acquisitions = 0;
 	let releases = 0;
+	const acquisitionOptions = [];
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,
@@ -2964,8 +2971,9 @@ test('reopening the active project retains its writer lock', async () => {
 		store: createMemoryStore(),
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
-		acquireProjectLock: async (projectId) => {
+		acquireProjectLock: async (projectId, options) => {
 			acquisitions += 1;
+			acquisitionOptions.push(options);
 			return {
 				projectId,
 				readOnly: false,
@@ -2980,6 +2988,7 @@ test('reopening the active project retains its writer lock', async () => {
 	assert.equal(controller.getSnapshot().readOnly, false);
 	assert.equal(acquisitions, 1);
 	assert.equal(releases, 0);
+	assert.deepEqual(acquisitionOptions, [{ force: true }]);
 	await controller.dispose();
 	assert.equal(releases, 1);
 });

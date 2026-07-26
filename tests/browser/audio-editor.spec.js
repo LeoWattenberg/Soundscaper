@@ -4767,7 +4767,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens the same project read-only in another tab and can claim its lock', async ({ page, context }) => {
+	test('automatically moves the project lock to the newest tab', async ({ page, context }) => {
 		const first = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
@@ -4776,24 +4776,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondPage.goto('/embed/en/');
 		const second = secondPage.locator('[data-audio-editor]');
 		await expect(second).toHaveAttribute('data-audio-editor-bound', 'true');
-		await expect(second.locator('[data-status]')).toContainText('already open in another tab');
-		await second.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'Tracks', exact: true }).click();
-		const tracksMenu = secondPage.getByRole('menu', { name: 'Tracks', exact: true });
-		const addNewTrack = getMenuItem(tracksMenu, 'Add new track');
-		await addNewTrack.click();
-		await expect(getMenuItem(addNewTrack.getByRole('menu'), 'Audio track')).toHaveAttribute('aria-disabled', 'true');
-		const readOnlyRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await expect(readOnlyRecord).toBeDisabled();
-		await expect(readOnlyRecord).toHaveAttribute('aria-label', /read-only/i);
-		await second.getByRole('button', { name: 'Edit here' }).click();
-		await expect(readOnlyRecord).toBeEnabled();
+		const secondRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		await expect(secondRecord).toBeEnabled();
+		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success');
 		const firstRecord = first.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(firstRecord).toBeDisabled({ timeout: 5_000 });
+		await expect(firstRecord).toHaveAttribute('aria-label', /read-only/i);
 		await expect(first.locator('[data-status]')).toContainText('already open in another tab');
 
 		await page.close();
 		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 5_000 });
-		await expect(readOnlyRecord).toBeEnabled();
+		await expect(secondRecord).toBeEnabled();
 		await secondPage.close();
 	});
 
