@@ -54,7 +54,7 @@ npm ci
 npm run dev
 ```
 
-Use Node.js 22 and npm 10.9.4. A fresh install needs `NODE_AUTH_TOKEN` with
+Use Node.js 26.5.0 and npm 12.0.1. A fresh install needs `NODE_AUTH_TOKEN` with
 read access to the GitHub Packages component dependency. Contributor workflow
 and architecture boundaries are documented in
 [`CONTRIBUTING.md`](CONTRIBUTING.md) and
@@ -239,7 +239,7 @@ both Production and Preview unless noted otherwise:
   `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10`
 - `PUBLIC_TRANSLATIONS_BASE_URL` =
   `https://translations.soundscaper.org/runtime/translations/audacity/4`
-- `NODE_VERSION` = `22`
+- `NODE_VERSION` = `26.5.0`
 - Encrypted secret `NODE_AUTH_TOKEN` = a GitHub personal access token (classic)
   with `read:packages` and read access to the Audacity Design System package.
 
@@ -344,7 +344,7 @@ See GitHub's [scheduled workflow documentation](https://docs.github.com/en/actio
 #### Credential-free translation dry run
 
 The preparation and audit path needs no GitHub or Cloudflare credential. From a
-checkout with Node.js 22, run:
+checkout with Node.js 26.5.0, run:
 
 ```bash
 work="$(mktemp -d)"

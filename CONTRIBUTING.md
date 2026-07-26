@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node.js 22 and npm 10.9.4 (the versions pinned by `.nvmrc`, `package.json`,
+Use Node.js 26.5.0 and npm 12.0.1 (the versions pinned by `.nvmrc`, `package.json`,
 and CI). The component package is read from GitHub Packages, so set a
 `NODE_AUTH_TOKEN` with package-read access before a fresh install.
 

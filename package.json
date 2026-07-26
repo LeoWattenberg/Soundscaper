@@ -12,10 +12,10 @@
 		"url": "https://github.com/LeoWattenberg/Soundscaper.git"
 	},
 	"license": "AGPL-3.0-only",
-	"packageManager": "npm@10.9.4",
+	"packageManager": "npm@12.0.1",
 	"engines": {
-		"node": ">=22.13.0 <23",
-		"npm": "10.9.4"
+		"node": ">=26.5.0 <27",
+		"npm": "12.0.1"
 	},
 	"scripts": {
 		"dev": "vite",
@@ -79,7 +79,7 @@
 		"@eslint/js": "10.0.1",
 		"@playwright/test": "^1.61.1",
 		"@resvg/resvg-js": "2.6.2",
-		"@types/node": "22.20.1",
+		"@types/node": "26.1.1",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
 		"@vitejs/plugin-react": "5.2.0",

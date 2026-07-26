@@ -2,7 +2,7 @@
 
 - Soundscaper is a Vite/React local-first browser audio editor.
 - Use test-driven development principles.
-- Use Node.js 22 and npm 10.9.4. Use npm and preserve `package-lock.json`;
+- Use Node.js 26.5.0 and npm 12.0.1. Use npm and preserve `package-lock.json`;
   never edit dependency metadata without updating the lockfile.
 - Application UI lives in `src/common/editor/ui/`.
 - Audio models, workers, storage, effects, import/export, and WASM integration

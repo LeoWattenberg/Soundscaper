@@ -44,7 +44,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Pin npm
-        run: npm install --global npm@10.9.4
+        run: npm install --global npm@12.0.1
 
       - name: Install the public Qt parser only
         run: npm install --prefix scripts --no-save --package-lock=false --ignore-scripts --no-audit --no-fund saxes@6.0.0 xmlchars@2.2.0
@@ -122,7 +122,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Pin npm
-        run: npm install --global npm@10.9.4
+        run: npm install --global npm@12.0.1
 
       - name: Download the prepared release
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -175,7 +175,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Pin npm
-        run: npm install --global npm@10.9.4
+        run: npm install --global npm@12.0.1
 
       - name: Verify and promote the requested release
         env:
