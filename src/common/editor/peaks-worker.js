@@ -1,4 +1,4 @@
-const DEFAULT_LEVELS = [64, 256, 1_024, 4_096, 16_384, 65_536];
+const DEFAULT_LEVELS = [8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536];
 let levels = [];
 let channelCount = 0;
 

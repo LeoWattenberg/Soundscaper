@@ -9,6 +9,7 @@ const DEFAULT_MAXIMUM_BACKING_PIXELS = 16_777_216;
 const DEFAULT_MAXIMUM_PIXEL_RATIO = 2;
 const DEFAULT_MAXIMUM_WAVEFORM_SAMPLES = 4_096;
 const MAXIMUM_FRAME = Number.MAX_SAFE_INTEGER;
+const WAVEFORM_PEAKS_VERSION = 4;
 
 /**
  * Convert design-system seconds to the editor's canonical 48 kHz frames.
@@ -513,11 +514,11 @@ export function prepareBoundedWaveformWindow(sourceChannels, clip, options = {})
  * pixel is selected automatically, keeping aggregation bounded without
  * smearing peaks across multiple columns.
  *
- * Peak cache version 3 stores independent extrema and RMS values for every
+ * Peak cache version 4 stores independent extrema and RMS values for every
  * source channel at each pyramid level.
  *
  * @param {{
- *   version: 3,
+ *   version: 4,
  *   channelCount: number,
  *   levels: Array<{
  *     blockSize: number,
@@ -726,8 +727,8 @@ function finiteWaveformSample(value) {
 }
 
 function validateWaveformPeakLevels(peaks) {
-	if (!peaks || typeof peaks !== 'object' || peaks.version !== 3 || !Array.isArray(peaks.levels)) {
-		throw new TypeError('A version 3 waveform peak pyramid is required.');
+	if (!peaks || typeof peaks !== 'object' || peaks.version !== WAVEFORM_PEAKS_VERSION || !Array.isArray(peaks.levels)) {
+		throw new TypeError(`A version ${WAVEFORM_PEAKS_VERSION} waveform peak pyramid is required.`);
 	}
 	const channelCount = positiveSafeInteger(peaks.channelCount, 'peaks.channelCount');
 	const levels = peaks.levels.map((level) => {

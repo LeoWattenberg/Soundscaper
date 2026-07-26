@@ -384,15 +384,15 @@ test('bounded waveform preprocessing clamps windows and validates channel/source
 
 test('peak-pyramid waveform rendering selects the finest bounded viewport level without source PCM', () => {
 	const peaks = {
-		version: 3,
+		version: 4,
 		channelCount: 2,
 		levels: [
 			{
-				blockSize: 4,
+				blockSize: 8,
 				channels: [1, 2].map((scale) => ({
-					minimums: Float32Array.from({ length: 32 }, (_, index) => -scale * (index + 1) / 100),
-					maximums: Float32Array.from({ length: 32 }, (_, index) => scale * (index + 1) / 100),
-					rms: Float32Array.from({ length: 32 }, (_, index) => scale * (index + 1) / 200),
+					minimums: Float32Array.from({ length: 16 }, (_, index) => -scale * (index + 1) / 100),
+					maximums: Float32Array.from({ length: 16 }, (_, index) => scale * (index + 1) / 100),
+					rms: Float32Array.from({ length: 16 }, (_, index) => scale * (index + 1) / 200),
 				})),
 			},
 			{
@@ -401,6 +401,14 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 					minimums: Float32Array.from({ length: 8 }, (_, index) => -scale * (index + 1) / 10),
 					maximums: Float32Array.from({ length: 8 }, (_, index) => scale * (index + 1) / 10),
 					rms: Float32Array.from({ length: 8 }, (_, index) => scale * (index + 1) / 20),
+				})),
+			},
+			{
+				blockSize: 32,
+				channels: [1, 0.5].map((scale) => ({
+					minimums: Float32Array.from({ length: 4 }, (_, index) => -scale * (index + 1) / 5),
+					maximums: Float32Array.from({ length: 4 }, (_, index) => scale * (index + 1) / 5),
+					rms: Float32Array.from({ length: 4 }, (_, index) => scale * (index + 1) / 10),
 				})),
 			},
 			{
@@ -436,11 +444,18 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 		[...result.rendering.channels[0].maximum],
 		'RMS values remain distinct from peak extrema',
 	);
+	const coarser = preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
+		pixelWidth: 4,
+		channelCount: 2,
+		sourceFrameCount: 128,
+	});
+	assert.equal(coarser.rendering.peakBlockSize, 32);
 	const zoomed = preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
 		pixelWidth: 128,
 		channelCount: 2,
 		sourceFrameCount: 128,
 	});
+	assert.equal(zoomed.rendering.peakBlockSize, 8);
 	assert.equal(zoomed.rendering.channels[0].rms, null, 'RMS disappears at sample-level zoom');
 	assert.equal(zoomed.rendering.channels[1].rms, null, 'stereo RMS uses the same zoom cutoff');
 	assert.deepEqual(
@@ -461,7 +476,7 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 
 test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gain, and viewport windows', () => {
 	const peaks = {
-		version: 3,
+		version: 4,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,
@@ -494,18 +509,18 @@ test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gai
 
 test('peak-pyramid waveform rendering validates cache geometry and clip source bounds', () => {
 	const valid = {
-		version: 3,
+		version: 4,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,
 			channels: [{ minimums: Float32Array.of(-1), maximums: Float32Array.of(1) }],
 		}],
 	};
-	assert.throws(() => preparePeakPyramidWaveformWindow({ version: 3, channelCount: 1, levels: [] }, clip({
+	assert.throws(() => preparePeakPyramidWaveformWindow({ version: 4, channelCount: 1, levels: [] }, clip({
 		durationFrames: 4,
 	}), { pixelWidth: 1 }), /at least one level/);
 	assert.throws(() => preparePeakPyramidWaveformWindow({
-		version: 3,
+		version: 4,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,

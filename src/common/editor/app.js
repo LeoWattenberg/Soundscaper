@@ -180,8 +180,9 @@ const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_SAMPLE_RATE;
 const MAX_TIMELINE_PIXELS = 16_000_000;
 const SOURCE_CHUNK_FRAMES = 65_536;
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
-const WAVEFORM_PEAKS_VERSION = 3;
+const WAVEFORM_PEAKS_VERSION = 4;
 const WAVEFORM_PEAK_CACHE_PREFIX = 'audio-editor-peaks-v2:';
+const WAVEFORM_PEAK_BLOCK_SIZES = Object.freeze([8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536]);
 const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
@@ -11534,8 +11535,7 @@ async function generateStoredWaveformPeaks(store, source, copy) {
 }
 
 async function generateStoredWaveformPeaksFallback(store, source) {
-	const blockSizes = [64, 256, 1_024, 4_096, 16_384, 65_536];
-	const levels = blockSizes.map((blockSize) => ({
+	const levels = WAVEFORM_PEAK_BLOCK_SIZES.map((blockSize) => ({
 		blockSize,
 		channels: Array.from({ length: source.channelCount }, () => ({
 			minimums: new Float32Array(Math.ceil(source.frameCount / blockSize)).fill(1),
@@ -11712,11 +11712,10 @@ async function generateWaveformPeaks(channels, copy, chunkFrames = 65_536) {
 	}
 }
 function generateWaveformPeaksFallback(channels) {
-	const blockSizes = [64, 256, 1_024, 4_096, 16_384, 65_536];
 	return {
 		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: channels.length,
-		levels: blockSizes.map((blockSize) => {
+		levels: WAVEFORM_PEAK_BLOCK_SIZES.map((blockSize) => {
 			const count = Math.ceil((channels[0]?.length || 0) / blockSize);
 			const channelLevels = channels.map((channel) => {
 				const minimums = new Float32Array(count);
@@ -11750,9 +11749,10 @@ function waveformPeaksHaveRms(peaks, source = null) {
 		&& Number.isSafeInteger(peaks.channelCount)
 		&& peaks.channelCount > 0
 		&& (!source || peaks.channelCount === source.channelCount)
-		&& peaks.levels?.length
+		&& peaks.levels?.length === WAVEFORM_PEAK_BLOCK_SIZES.length
 		&& peaks.levels.every((level, index, levels) => (
 			Number.isSafeInteger(level?.blockSize)
+			&& level.blockSize === WAVEFORM_PEAK_BLOCK_SIZES[index]
 			&& level.blockSize > (levels[index - 1]?.blockSize || 0)
 			&& level?.channels?.length === peaks.channelCount
 			&& level.channels.every((channel) => (
