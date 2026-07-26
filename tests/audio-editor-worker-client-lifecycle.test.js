@@ -76,7 +76,13 @@ test('AUP4 client cleans failed posts, isolates callback failures, and handles m
 
 test('AUP4 abort and inactivity timeout settle even when cancellation cannot be posted', async () => {
 	const worker = new FakeWorker();
-	const client = new Aup4WorkerClient({ worker, timeoutMs: 5 });
+	const timers = createManualTimers();
+	const client = new Aup4WorkerClient({
+		worker,
+		timeoutMs: 5,
+		setTimeout: timers.setTimeout,
+		clearTimeout: timers.clearTimeout,
+	});
 	const controller = new AbortController();
 	const aborted = client.initialize({ signal: controller.signal });
 	worker.throwPost = true;
@@ -85,18 +91,30 @@ test('AUP4 abort and inactivity timeout settle even when cancellation cannot be 
 	assert.equal(client.pending.size, 0);
 
 	worker.throwPost = false;
-	await assert.rejects(client.initialize(), (error) => error.name === 'TimeoutError' && error.code === 'TIMEOUT');
+	const timedOut = client.initialize();
+	assert.equal(timers.active().length, 1);
+	timers.fire(timers.active()[0].id);
+	await assert.rejects(timedOut, (error) => error.name === 'TimeoutError' && error.code === 'TIMEOUT');
 	assert.equal(client.pending.size, 0);
 	client.dispose();
 });
 
 test('StaffPad client rolls back failed posts and times out inactive jobs', async () => {
 	const worker = new FakeWorker({ throwPost: true });
-	const client = new StaffPadRenderClient({ workerFactory: () => worker, timeoutMs: 5 });
+	const timers = createManualTimers();
+	const client = new StaffPadRenderClient({
+		workerFactory: () => worker,
+		timeoutMs: 5,
+		setTimeout: timers.setTimeout,
+		clearTimeout: timers.clearTimeout,
+	});
 	await assert.rejects(client.render(staffPadRequest()), /clone failed/);
 	assert.equal(client.jobs.size, 0);
 	worker.throwPost = false;
-	await assert.rejects(client.render(staffPadRequest()), (error) => (
+	const timedOut = client.render(staffPadRequest());
+	assert.equal(timers.active().length, 1);
+	timers.fire(timers.active()[0].id);
+	await assert.rejects(timedOut, (error) => (
 		error.name === 'TimeoutError' && error.code === 'WORKER_INACTIVITY_TIMEOUT'
 	));
 	assert.equal(client.jobs.size, 0);
@@ -132,8 +150,11 @@ test('StaffPad callback failures settle jobs and stale worker failures cannot ki
 
 test('WavPack active abort and inactivity timeout terminate the worker and allow queued recovery', async () => {
 	const workers = [];
+	const timers = createManualTimers();
 	const client = new WavPackCodecClient({
 		timeoutMs: 5,
+		setTimeout: timers.setTimeout,
+		clearTimeout: timers.clearTimeout,
 		workerFactory() {
 			const worker = new FakeWorker();
 			workers.push(worker);
@@ -151,8 +172,11 @@ test('WavPack active abort and inactivity timeout terminate the worker and allow
 	workers[1].emit({ type: 'result', id: queuedMessage.id, result: { payload: Uint8Array.of(1) } });
 	await queued;
 
+	const timedOut = client.encode(new ArrayBuffer(4), codecOptions());
+	assert.equal(timers.active().length, 1);
+	timers.fire(timers.active()[0].id);
 	await assert.rejects(
-		client.encode(new ArrayBuffer(4), codecOptions()),
+		timedOut,
 		(error) => error.name === 'TimeoutError' && error.code === 'WORKER_INACTIVITY_TIMEOUT',
 	);
 	assert.equal(workers[1].terminated, true);
