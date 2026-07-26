@@ -661,11 +661,13 @@ export default function AudioEditorTimeline({
 	}, [timelineRef]);
 
 	const handleTimelineScroll = useCallback((event) => {
-		const nextScrollX = Math.max(0, event.currentTarget.scrollLeft);
+		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
+		const nextScrollX = Math.max(0, Math.min(maximumScroll, event.currentTarget.scrollLeft));
+		if (event.currentTarget.scrollLeft !== nextScrollX) event.currentTarget.scrollLeft = nextScrollX;
 		event.currentTarget.closest('.audio-editor-timeline-panel')?.style
 			.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
 		setScrollX(nextScrollX);
-	}, []);
+	}, [timelineWidth, viewportWidth]);
 
 	const run = useCallback((action) => {
 		try {

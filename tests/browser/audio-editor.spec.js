@@ -691,6 +691,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('clamps timeline scrolling at the project boundaries', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('[data-timeline]');
+		await expect(timeline).toHaveCSS('overscroll-behavior-x', 'none');
+
+		const clampedScroll = await timeline.evaluate(async (element) => {
+			const inner = element.querySelector('.audio-editor-timeline-inner');
+			const originalWidth = inner.style.width;
+			const projectMaximum = Math.max(0, element.scrollWidth - element.clientWidth);
+			inner.style.width = `${element.scrollWidth + 1_000}px`;
+			element.scrollLeft = projectMaximum + 500;
+			element.dispatchEvent(new Event('scroll'));
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+			const result = element.scrollLeft;
+			inner.style.width = originalWidth;
+			return { projectMaximum, result };
+		});
+		expect(clampedScroll.result).toBeLessThanOrEqual(clampedScroll.projectMaximum);
+		expect(errors).toEqual([]);
+	});
+
 	test('discards invalid legacy accessibility profiles and preserves valid preferences', async ({ page }) => {
 		await page.addInitScript(() => {
 			if (sessionStorage.getItem('kw-accessibility-test-initialized')) return;
