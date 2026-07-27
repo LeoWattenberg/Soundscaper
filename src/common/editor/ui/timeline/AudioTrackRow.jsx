@@ -184,7 +184,9 @@ export function AudioTrackRow({
 				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
 			},
 			cache: waveformCache,
-			reuseCachedWaveform: Boolean(draggingClipIds?.has(clip.id)),
+			reuseCachedWaveform: Boolean(
+				draggingClipIds?.has(clip.id) && clip.waveformPreviewKind !== 'trim',
+			),
 		})).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
 			return preview ? {

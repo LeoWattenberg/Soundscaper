@@ -94,6 +94,7 @@ export function createClipTrimPreview(projectIndex, session, requestedDelta, edg
 		return {
 			clipId: clip.id,
 			trackId: track?.id,
+			waveformPreviewKind: 'trim',
 			...(edge === 'left' ? {
 				timelineStartFrame: clip.timelineStartFrame + deltaFrames,
 				sourceStartFrame: clip.sourceStartFrame + (clip.reversed ? 0 : removedSourceFrames),
