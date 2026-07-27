@@ -9,6 +9,7 @@ import {
 	AUDIO_EDITOR_SNAP_UPSTREAM_MAX,
 	audioEditorSnapGrid,
 } from './snap-grid.js';
+import { getPortableProjectSizeLimit } from '../project-size-limits.ts';
 
 export const AUP4_APPLICATION_ID = 0x41554459;
 export const AUP4_USER_VERSION = 0x04000001;
@@ -201,14 +202,7 @@ export function decodeAup4Float32Samples(input) {
 }
 
 export function getAup4SaveLimit(options = {}) {
-	const mebibyte = 1024 * 1024;
-	const opfs = options.opfs !== false;
-	if (!opfs) return 64 * mebibyte;
-	const mobile = Boolean(options.mobile);
-	const memory = Number(options.deviceMemory);
-	if (mobile || (Number.isFinite(memory) && memory <= 4)) return 128 * mebibyte;
-	if (Number.isFinite(memory) && memory >= 8) return 512 * mebibyte;
-	return 256 * mebibyte;
+	return getPortableProjectSizeLimit(options);
 }
 
 export function effectiveAup4SaveLimit(options = {}) {

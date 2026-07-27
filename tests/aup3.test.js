@@ -10,7 +10,6 @@ import {
 	decodeAup3Bytes,
 	getAup3MemoryLimits,
 	isAup3FileName,
-	requiresAup3LargeProjectConfirmation,
 } from '../src/common/aup3-browser.js';
 import {
 	AUP3_SAMPLE_FORMAT,
@@ -20,7 +19,8 @@ import {
 const SQL = await initSqlJs();
 const MEBIBYTE = 1024 * 1024;
 
-test('selects adaptive AUP3 memory limits and an explicit large-project profile', () => {
+test('selects the AUP4 file-size tiers for AUP3 memory limits', () => {
+	assert.equal(getAup3MemoryLimits({ opfs: false }).databaseBytes, 64 * MEBIBYTE);
 	assert.deepEqual(getAup3MemoryLimits({ navigator: { deviceMemory: 4, userAgent: 'Desktop' } }), {
 		databaseBytes: 128 * MEBIBYTE,
 		decodedAudioBytes: 256 * MEBIBYTE,
@@ -31,20 +31,14 @@ test('selects adaptive AUP3 memory limits and an explicit large-project profile'
 		128 * MEBIBYTE,
 	);
 	assert.deepEqual(getAup3MemoryLimits({ navigator: { deviceMemory: 8, userAgent: 'Desktop' } }), {
-		databaseBytes: 256 * MEBIBYTE,
+		databaseBytes: 512 * MEBIBYTE,
 		decodedAudioBytes: 384 * MEBIBYTE,
 		mixBytes: 512 * MEBIBYTE,
 	});
-	assert.deepEqual(getAup3MemoryLimits({ allowLargeProject: true }), {
-		databaseBytes: 512 * MEBIBYTE,
-		decodedAudioBytes: 512 * MEBIBYTE,
-		mixBytes: 768 * MEBIBYTE,
-	});
-});
-
-test('requires confirmation only for AUP3 files larger than 256 MB', () => {
-	assert.equal(requiresAup3LargeProjectConfirmation(256 * MEBIBYTE), false);
-	assert.equal(requiresAup3LargeProjectConfirmation(256 * MEBIBYTE + 1), true);
+	assert.equal(
+		getAup3MemoryLimits({ navigator: { deviceMemory: 6, userAgent: 'Desktop' } }).databaseBytes,
+		256 * MEBIBYTE,
+	);
 });
 
 test('decodes all Audacity sample block formats', () => {

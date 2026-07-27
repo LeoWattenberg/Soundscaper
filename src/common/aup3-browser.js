@@ -1,16 +1,16 @@
 import { Aup3Error, decodeAup3Database } from './aup3.js';
+import { getPortableProjectSizeLimit } from './project-size-limits.ts';
 
 const SQLITE_HEADER = Uint8Array.from([
 	0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
 	0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
 ]);
 const MEBIBYTE = 1024 * 1024;
-export const AUP3_LARGE_PROJECT_THRESHOLD_BYTES = 256 * MEBIBYTE;
 const MEMORY_PROFILES = Object.freeze({
 	constrained: Object.freeze({ databaseBytes: 128 * MEBIBYTE, decodedAudioBytes: 256 * MEBIBYTE, mixBytes: 384 * MEBIBYTE }),
 	standard: Object.freeze({ databaseBytes: 256 * MEBIBYTE, decodedAudioBytes: 384 * MEBIBYTE, mixBytes: 512 * MEBIBYTE }),
-	large: Object.freeze({ databaseBytes: 512 * MEBIBYTE, decodedAudioBytes: 512 * MEBIBYTE, mixBytes: 768 * MEBIBYTE }),
 });
+const MAX_MEMORY_LIMITS = Object.freeze({ databaseBytes: 512 * MEBIBYTE, decodedAudioBytes: 512 * MEBIBYTE, mixBytes: 768 * MEBIBYTE });
 
 let sqlJsPromise;
 
@@ -18,7 +18,7 @@ let sqlJsPromise;
  * Read and dry-mix an AUP3 file entirely in the browser.
  *
  * @param {{ name?: string, size?: number, arrayBuffer: () => Promise<ArrayBuffer> }} file
- * @param {{ onProgress?: Function, signal?: AbortSignal, SQL?: { Database: Function }, allowLargeProject?: boolean, memoryLimits?: Aup3MemoryLimits }} [options]
+ * @param {{ onProgress?: Function, signal?: AbortSignal, SQL?: { Database: Function }, memoryLimits?: Aup3MemoryLimits }} [options]
  */
 export async function decodeAup3File(file, options = {}) {
 	if (!file || typeof file.arrayBuffer !== 'function') {
@@ -47,7 +47,7 @@ export async function decodeAup3File(file, options = {}) {
  * an initialized sql.js module through `SQL`.
  *
  * @param {ArrayBuffer | ArrayBufferView | number[]} input
- * @param {{ fileName?: string, onProgress?: Function, SQL?: { Database: Function }, allowLargeProject?: boolean, memoryLimits?: Aup3MemoryLimits }} [options]
+ * @param {{ fileName?: string, onProgress?: Function, SQL?: { Database: Function }, memoryLimits?: Aup3MemoryLimits }} [options]
  */
 export async function decodeAup3Bytes(input, options = {}) {
 	const bytes = toBytes(input);
@@ -87,18 +87,21 @@ export function aup3OutputName(name) {
 	return `${base}.wav`;
 }
 
-export function requiresAup3LargeProjectConfirmation(fileSize) {
-	return Number(fileSize) > AUP3_LARGE_PROJECT_THRESHOLD_BYTES;
-}
-
 export function getAup3MemoryLimits(options = {}) {
-	if (options.allowLargeProject) return MEMORY_PROFILES.large;
 	const navigatorLike = options.navigator ?? globalThis.navigator;
 	const deviceMemory = Number(navigatorLike?.deviceMemory);
 	const mobile = Boolean(navigatorLike?.userAgentData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigatorLike?.userAgent || ''));
-	return mobile || (Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= 4)
+	const profile = mobile || (Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= 4)
 		? MEMORY_PROFILES.constrained
 		: MEMORY_PROFILES.standard;
+	return Object.freeze({
+		...profile,
+		databaseBytes: getPortableProjectSizeLimit({
+			opfs: options.opfs !== false,
+			mobile,
+			...(Number.isFinite(deviceMemory) && deviceMemory > 0 ? { deviceMemory } : {}),
+		}),
+	});
 }
 
 async function loadSqlJs() {
@@ -159,9 +162,9 @@ function decodeInWorker(buffer, { fileName, memoryLimits, onProgress, signal, st
 function resolveMemoryLimits(options) {
 	const selected = options.memoryLimits || getAup3MemoryLimits(options);
 	return {
-		databaseBytes: boundedLimit(selected.databaseBytes, MEMORY_PROFILES.standard.databaseBytes, MEMORY_PROFILES.large.databaseBytes),
-		decodedAudioBytes: boundedLimit(selected.decodedAudioBytes, MEMORY_PROFILES.standard.decodedAudioBytes, MEMORY_PROFILES.large.decodedAudioBytes),
-		mixBytes: boundedLimit(selected.mixBytes, MEMORY_PROFILES.standard.mixBytes, MEMORY_PROFILES.large.mixBytes),
+		databaseBytes: boundedLimit(selected.databaseBytes, MEMORY_PROFILES.standard.databaseBytes, MAX_MEMORY_LIMITS.databaseBytes),
+		decodedAudioBytes: boundedLimit(selected.decodedAudioBytes, MEMORY_PROFILES.standard.decodedAudioBytes, MAX_MEMORY_LIMITS.decodedAudioBytes),
+		mixBytes: boundedLimit(selected.mixBytes, MEMORY_PROFILES.standard.mixBytes, MAX_MEMORY_LIMITS.mixBytes),
 	};
 }
 

@@ -17,7 +17,7 @@
 		"src/common/editor/aup4-database.js": { "maxLines": 728, "reason": "Legacy SQLite AUP4 codec with strict schema validation." },
 		"src/common/editor/aup4-effects.js": { "maxLines": 912, "reason": "Audacity effect mapping and compatibility policy." },
 		"src/common/editor/aup4-export.js": { "maxLines": 1094, "reason": "AUP4 exporter with interoperability fixtures and release audit." },
-		"src/common/editor/aup4-profile.js": { "maxLines": 973, "reason": "Audacity profile and plug-in metadata compatibility mapping." },
+		"src/common/editor/aup4-profile.js": { "maxLines": 967, "reason": "Audacity profile and plug-in metadata compatibility mapping." },
 		"src/common/editor/aup4-worker.js": { "maxLines": 787, "reason": "Legacy worker-side AUP4 database command boundary." },
 		"src/common/editor/chunk-stream-client.js": { "maxLines": 629, "reason": "Legacy bounded-stream worker client and lifecycle coordination." },
 		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 895, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
