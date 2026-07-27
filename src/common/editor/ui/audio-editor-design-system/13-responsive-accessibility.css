@@ -6,9 +6,9 @@
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor__video-workspace {
-		height: 220px;
-		min-height: 180px;
-		flex-basis: 220px;
+		height: clamp(72px, 28%, 220px);
+		min-height: 72px;
+		flex-basis: clamp(72px, 28%, 220px);
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
 	}
 

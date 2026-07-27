@@ -87,13 +87,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(videoPreview).toBeVisible();
 		await expect(videoPreview.locator('[data-video-preview]')).toContainText('Add video to the timeline to see a preview.');
 
-		const [projectBinBounds, videoPreviewBounds, actionBarBounds, toolbarBounds, workspaceBounds] = await Promise.all([
+		const [videoWorkspaceBounds, projectBinBounds, videoPreviewBounds, actionBarBounds, toolbarBounds, workspaceBounds] = await Promise.all([
+			videoWorkspace.boundingBox(),
 			projectBin.boundingBox(),
 			videoPreview.boundingBox(),
 			editor.locator('.kw-audio-editor__action-bar').boundingBox(),
 			editor.locator('[data-toolbar-dock="top"]').boundingBox(),
 			editor.locator('.kw-audio-editor__workspace').boundingBox(),
 		]);
+		expect(videoWorkspaceBounds).not.toBeNull();
 		expect(projectBinBounds).not.toBeNull();
 		expect(videoPreviewBounds).not.toBeNull();
 		expect(actionBarBounds).not.toBeNull();
@@ -104,6 +106,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(actionBarBounds.y + actionBarBounds.height).toBeLessThanOrEqual(projectBinBounds.y + 1);
 		expect(projectBinBounds.y + projectBinBounds.height).toBeLessThanOrEqual(toolbarBounds.y + 1);
 		expect(toolbarBounds.y + toolbarBounds.height).toBeLessThanOrEqual(workspaceBounds.y + 1);
+		expect(videoWorkspaceBounds.height).toBeLessThanOrEqual(130);
+		expect(workspaceBounds.height).toBeGreaterThanOrEqual(96);
 
 		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
 		await expect(editor.locator('[data-side-recording-meter]')).toHaveCount(0);

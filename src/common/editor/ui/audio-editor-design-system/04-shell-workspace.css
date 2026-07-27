@@ -246,17 +246,17 @@
 	position: relative;
 	z-index: 1;
 	display: grid;
-	height: min(300px, 38%);
-	min-height: 220px;
+	height: clamp(72px, 28%, 300px);
+	min-height: 72px;
 	max-height: 320px;
-	flex: 0 1 300px;
+	flex: 0 1 clamp(72px, 28%, 300px);
 	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 	overflow: hidden;
 	background: var(--kw-editor-panel);
 	border-bottom: 1px solid var(--kw-editor-line);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__video-workspace-panel {
+#kw-audio-editor-design-system .kw-audio-editor__video-workspace > .kw-audio-editor__video-workspace-panel {
 	width: auto;
 	height: 100%;
 	min-width: 0;
@@ -274,6 +274,10 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__video-workspace-panel .kw-audio-editor__workspace-panel-content {
+	min-height: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__video-workspace .kw-audio-editor__video-preview {
 	min-height: 0;
 }
 

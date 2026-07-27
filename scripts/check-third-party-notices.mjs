@@ -15,6 +15,8 @@ const trackedVersions = [
 	'@electron/fuses',
 	'@ffmpeg/core',
 	'@ffmpeg/ffmpeg',
+	'@fontsource/inter',
+	'@fontsource/ubuntu',
 	'@noble/hashes',
 	'@resvg/resvg-js',
 	'@sqlite.org/sqlite-wasm',
