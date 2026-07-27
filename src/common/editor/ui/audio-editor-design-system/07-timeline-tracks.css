@@ -279,7 +279,7 @@
 	border-radius: 4px;
 	background: var(--kw-editor-control);
 	color: var(--kw-editor-text);
-	font: 650 9px/1.1 system-ui, sans-serif;
+	font: 650 9px/1.1 Inter, sans-serif;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	cursor: pointer;
@@ -468,7 +468,7 @@
 #kw-audio-editor-design-system .audio-editor-video-clip__thumbnail-time {
 	padding: 2px 4px;
 	color: rgb(245 248 252 / 76%);
-	font: 650 9px/1 system-ui, sans-serif;
+	font: 650 9px/1 Inter, sans-serif;
 	font-variant-numeric: tabular-nums;
 	text-shadow: 0 1px 2px #000;
 	white-space: nowrap;

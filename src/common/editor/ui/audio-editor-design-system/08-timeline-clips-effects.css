@@ -164,7 +164,7 @@
 	background: var(--kw-editor-control);
 	border: 1px solid var(--kw-editor-line);
 	border-radius: 4px;
-	font: 650 9px/1.15 system-ui, sans-serif;
+	font: 650 9px/1.15 Inter, sans-serif;
 	text-overflow: ellipsis;
 }
 
