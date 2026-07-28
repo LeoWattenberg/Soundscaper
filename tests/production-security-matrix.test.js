@@ -27,7 +27,6 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 ];
 const PENDING_ARCHIVE_EXPANSION_GATES = [
 	'bounded-streaming-media-extraction',
-	'compression-ratio-or-store-policy',
 	'local-header-and-overlap-validation',
 ];
 const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
@@ -52,6 +51,13 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/scape-project.js',
 		'tests/audio-editor-scape-expansion.test.ts',
+	],
+	'compression-ratio-or-store-policy': [
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-archive-envelope.test.ts',
+		'tests/audio-editor-scape-expansion.test.ts',
+		'tests/audio-editor-scape-project.test.js',
 	],
 };
 
@@ -169,7 +175,12 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 		implementedControls.get('zipjs-local-header-and-pairwise-overlap-preflight').summary,
 		/pairwise entry-range overlap/iu,
 	);
+	assert.match(
+		implementedControls.get('compression-ratio-or-store-policy').summary,
+		/central-directory.*ZIP STORE.*before.*body reads/iu,
+	);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
+	assert.equal(residuals.has('compression-amplification-policy'), false);
 	assert.match(
 		residuals.get('incomplete-zip-layout-validation').exposure,
 		/zero-valued local CRC.*central-directory/iu,

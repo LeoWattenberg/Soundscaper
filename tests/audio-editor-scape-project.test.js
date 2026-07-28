@@ -29,6 +29,12 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	assert.equal(exported.manifest.format, SCAPE_FORMAT);
 	assert.equal(exported.manifest.assets.length, 2);
 	assert.ok(exported.blob.size > 0);
+	const archiveReader = new ZipReader(new BlobReader(exported.blob), { useWebWorkers: false });
+	const archiveEntries = await archiveReader.getEntries();
+	assert.ok(archiveEntries.every((entry) => (
+		entry.compressionMethod === 0 && entry.compressedSize === entry.uncompressedSize
+	)));
+	await archiveReader.close();
 
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.project.id, project.id);

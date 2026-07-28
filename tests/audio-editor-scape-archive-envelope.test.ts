@@ -91,6 +91,30 @@ test('strict .scape envelope rejects encrypted entries and cumulative expansion 
 	});
 });
 
+test('strict .scape envelope rejects compressed and inconsistent STORE entries before local reads', async (context) => {
+	await context.test('compressed entry', async () => {
+		const fixture = envelopeFixture();
+		fixture.entry('project.json').entry.compressionMethod = 8;
+
+		await assert.rejects(
+			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
+			/portable \.scape entries must use STORE/iu,
+		);
+		assert.equal(fixture.totalCalls(), 0);
+	});
+
+	await context.test('STORE size mismatch', async () => {
+		const fixture = envelopeFixture();
+		fixture.entry('project.json').entry.compressedSize -= 1;
+
+		await assert.rejects(
+			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
+			/STORE entry.*inconsistent compressed and uncompressed sizes/iu,
+		);
+		assert.equal(fixture.totalCalls(), 0);
+	});
+});
+
 test('strict .scape envelope bounds manifest and project JSON before storage work', async (context) => {
 	await context.test('manifest central-directory size', async () => {
 		const fixture = envelopeFixture();
@@ -108,6 +132,7 @@ test('strict .scape envelope bounds manifest and project JSON before storage wor
 	await context.test('manifest emitted bytes', async () => {
 		const fixture = envelopeFixture();
 		const manifest = fixture.entry('manifest.json');
+		manifest.entry.compressedSize -= 1;
 		manifest.entry.uncompressedSize -= 1;
 
 		await assert.rejects(
@@ -136,6 +161,7 @@ test('strict .scape envelope bounds manifest and project JSON before storage wor
 	await context.test('project emitted bytes', async () => {
 		const fixture = envelopeFixture((manifest) => { manifest.project.size -= 1; });
 		const project = fixture.entry('project.json');
+		project.entry.compressedSize -= 1;
 		project.entry.uncompressedSize -= 1;
 
 		await assert.rejects(
@@ -232,6 +258,7 @@ test('inspect and import share fail-closed envelope validation before storage wr
 interface EntryFixture {
 	entry: ScapeArchiveEntry;
 	bytes: Uint8Array;
+	calls: number;
 	reads: number;
 }
 
@@ -242,9 +269,11 @@ function entryFixture(filename: string, contents: string | Uint8Array): EntryFix
 			filename,
 			directory: false,
 			encrypted: false,
+			compressionMethod: 0,
 			compressedSize: bytes.byteLength,
 			uncompressedSize: bytes.byteLength,
 			getData: async (writable, options) => {
+				fixture.calls += 1;
 				if (options?.checkOverlappingEntryOnly) return;
 				fixture.reads += 1;
 				const writer = writable.getWriter();
@@ -253,6 +282,7 @@ function entryFixture(filename: string, contents: string | Uint8Array): EntryFix
 			},
 		},
 		bytes,
+		calls: 0,
 		reads: 0,
 	};
 	return fixture;
@@ -302,6 +332,7 @@ function envelopeFixture(
 			if (!fixture) throw new Error(`Missing test entry ${filename}`);
 			return fixture;
 		},
+		totalCalls: () => entries.reduce((sum, entry) => sum + entry.calls, 0),
 		totalReads: () => entries.reduce((sum, entry) => sum + entry.reads, 0),
 	};
 }

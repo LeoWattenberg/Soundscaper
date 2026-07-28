@@ -439,6 +439,17 @@
 					]
 				},
 				{
+					"id": "compression-ratio-or-store-policy",
+					"summary": "Central-directory indexing requires ZIP STORE and equal compressed/uncompressed sizes before local-header preflight or body reads; canonical exports pin the same policy.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
+				},
+				{
 					"id": "abort-signal-propagation-and-rollback",
 					"summary": "The tested .scape open/save path propagates one task AbortSignal through ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes readers, returns source iterators, aborts unpublished destinations and audio writers, deletes provisional media, and restores the prior project plus its retained revisions.",
 					"evidence": [
@@ -469,13 +480,6 @@
 					"acceptanceCriteria": ["Zeroed local-field and entry-into-central-directory fixtures reject before manifest extraction, alongside the existing method-mismatch and pairwise-overlap regressions."]
 				},
 				{
-					"id": "compression-amplification-policy",
-					"exposure": "Declared and actual expanded-byte totals are capped, but highly compressed entries can still spend substantial CPU and reach the configured expanded-byte ceiling before rejection.",
-					"requiredControl": "Enforce a fail-fast compression-ratio ceiling or require STORE for portable project entries.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Compression-amplification fixtures reject from central metadata before decompression or storage work."]
-				},
-				{
 					"id": "whole-blob-video-extraction",
 					"exposure": "Original video extraction is counted against the aggregate budget but still materializes the complete asset as a renderer Blob before staged storage publication.",
 					"requiredControl": "Stream video through a bounded transactional storage sink without retaining the complete asset in renderer memory.",
@@ -488,7 +492,6 @@
 				"status": "pending",
 				"requiredControlIds": [
 					"local-header-and-overlap-validation",
-					"compression-ratio-or-store-policy",
 					"bounded-streaming-media-extraction"
 				]
 			}

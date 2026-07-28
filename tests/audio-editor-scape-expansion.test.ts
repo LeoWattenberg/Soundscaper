@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	BlobReader,
 	BlobWriter,
 	Uint8ArrayReader,
+	Uint8ArrayWriter,
+	ZipReader,
 	ZipWriter,
 } from '@zip.js/zip.js';
 
@@ -223,6 +226,33 @@ test('overlapping local entry ranges are rejected before manifest or storage pub
 	assert.deepEqual(await inventory(targetStore), before);
 });
 
+test('compressed Scape entries reject from metadata before decompression or storage work', async () => {
+	const sourceStore = memoryStore('scape-compression-source');
+	const project = createAudioEditorProjectV6({
+		id: 'compressed-scape',
+		title: 'Compressed Scape',
+		sources: [],
+		clips: [],
+		tracks: [],
+		opaqueExtensions: { padding: 'repetitive-project-metadata-'.repeat(8_192) },
+	});
+	const canonical = (await exportScapeProject(project, sourceStore)).blob as Blob;
+	const compressed = await rewriteArchive(canonical, 9);
+	const reader = new ZipReader(new BlobReader(compressed), { useWebWorkers: false });
+	const entries = await reader.getEntries();
+	assert.ok(entries.some((entry) => (
+		entry.compressionMethod === 8
+		&& entry.compressedSize * 10 < entry.uncompressedSize
+	)));
+	await reader.close();
+	const targetStore = memoryStore('scape-compression-target');
+	const before = await inventory(targetStore);
+
+	await assert.rejects(inspectScapeProject(compressed), /portable \.scape entries must use STORE/iu);
+	await assert.rejects(importScapeProject(compressed, targetStore), /portable \.scape entries must use STORE/iu);
+	assert.deepEqual(await inventory(targetStore), before);
+});
+
 function syntheticArchive(
 	project: ReturnType<typeof audioProject> | ReturnType<typeof videoProject>,
 	asset: Readonly<{
@@ -276,6 +306,7 @@ function syntheticEntry(filename: string, bytes: Uint8Array, declaredSize = byte
 		filename,
 		directory: false,
 		encrypted: false,
+		compressionMethod: 0,
 		compressedSize: declaredSize,
 		uncompressedSize: declaredSize,
 		async getData(writable, options) {
@@ -321,6 +352,25 @@ async function writeZip(entries: readonly (readonly [string, Uint8Array])[]): Pr
 		await writer.add(filename, new Uint8ArrayReader(bytes), { level: 0 });
 	}
 	return await writer.close() as Blob;
+}
+
+async function rewriteArchive(input: Blob, level: number): Promise<Blob> {
+	const reader = new ZipReader(new BlobReader(input), { useWebWorkers: false });
+	const entries = await reader.getEntries();
+	const writer = new ZipWriter(new BlobWriter('application/zip'), {
+		level,
+		useWebWorkers: false,
+		zip64: true,
+	});
+	for (const entry of entries) {
+		if (!('getData' in entry) || typeof entry.getData !== 'function') {
+			throw new Error(`Missing ZIP reader for ${entry.filename}.`);
+		}
+		const bytes = await entry.getData(new Uint8ArrayWriter());
+		await writer.add(entry.filename, new Uint8ArrayReader(bytes), { level, zip64: true });
+	}
+	await reader.close();
+	return await writer.close(undefined, { zip64: true }) as Blob;
 }
 
 function findCentralRecord(bytes: Uint8Array, filename: string): number {

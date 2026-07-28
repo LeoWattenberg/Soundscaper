@@ -26,6 +26,7 @@ export interface ScapeArchiveEntry {
 	filename: string;
 	directory: boolean;
 	encrypted: boolean;
+	compressionMethod: number;
 	compressedSize: number;
 	uncompressedSize: number;
 	getData?: (
@@ -157,6 +158,16 @@ function indexEntries(
 		if (entry.encrypted) throw new Error(`The .scape archive contains ${entry.filename}; encrypted entries are not supported.`);
 		validateEntrySize(entry.compressedSize, entry.filename, 'compressed');
 		validateEntrySize(entry.uncompressedSize, entry.filename, 'uncompressed');
+		if (entry.compressionMethod !== 0) {
+			throw new Error(
+				`The .scape entry ${entry.filename} uses unsupported ZIP compression method ${String(entry.compressionMethod)}; portable .scape entries must use STORE.`,
+			);
+		}
+		if (entry.compressedSize !== entry.uncompressedSize) {
+			throw new Error(
+				`The .scape STORE entry ${entry.filename} has inconsistent compressed and uncompressed sizes.`,
+			);
+		}
 		if (entry.uncompressedSize > limits.maximumExpandedBytes - declaredExpandedBytes) {
 			throw new RangeError('The .scape archive exceeds the declared expansion limit.');
 		}

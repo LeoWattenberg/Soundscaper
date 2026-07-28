@@ -88,6 +88,7 @@ test('video extraction passes its signal into ZIP work and stops between emitted
 		filename: 'media/video/original',
 		directory: false,
 		encrypted: false,
+		compressionMethod: 0,
 		compressedSize: 2,
 		uncompressedSize: 2,
 		async getData(writable: WritableStream<Uint8Array>, options?: { signal?: AbortSignal }) {

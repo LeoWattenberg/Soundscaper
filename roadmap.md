@@ -279,12 +279,16 @@ models or native implementations.
   Non-raiseable ceilings of 4,096 archive entries and 65,536 PCM chunks per
   archive also bound pairwise layout comparisons and semantic writer work;
   export preflights the same ceilings before destination or asset work and
-  rejects noncanonical or truncated backing-store PCM. The
+  rejects noncanonical or truncated backing-store PCM. Central-directory
+  indexing now requires ZIP STORE with equal compressed and uncompressed sizes
+  before local-header preflight or body reads, and canonical export pins the
+  same policy. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
-  proves cumulative overrun, unsafe PCM headers, local-method disagreement, and
-  pairwise entry overlap fail without publication. The tested native open/save
-  path also carries one controller task signal through incremental archive
-  work, PCM source reads/writes, streamed archive output, and the
+  proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
+  local-method disagreement, and pairwise entry overlap fail without
+  publication. The tested native open/save path also carries one controller
+  task signal through incremental archive work, PCM source reads/writes,
+  streamed archive output, and the
   file-publication boundary; its
   [cancellation regression](tests/audio-editor-scape-cancellation.test.ts)
   proves reader and iterator closure, unpublished-output abort, provisional
@@ -312,8 +316,8 @@ models or native implementations.
   assembles the non-streaming result, while no production file service yet
   supplies the explicit streaming destination. Exact no-descriptor local
   CRC/size checks and classic/Zip64 central-directory boundaries,
-  compression-ratio or STORE import policy, bounded streaming video extraction,
-  and production direct-to-target save wiring remain open in the
+  bounded streaming video extraction, and production direct-to-target save
+  wiring remain open in the
   [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a
