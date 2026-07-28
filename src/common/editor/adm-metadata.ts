@@ -447,8 +447,10 @@ function normalizedName(value: unknown, fallback: string, field: string): string
 
 function normalizedLanguage(value: unknown): string {
 	if (typeof value !== 'string') throw new TypeError('ADM language must be a string.');
-	const language = value.trim().toLowerCase();
-	if (language && !/^[a-z]{2,3}$/u.test(language)) throw new RangeError('ADM language must be an ISO 639 two- or three-letter language code.');
+	const language = boundedString(value, 'ADM language', 128);
+	if (language && !/^[A-Za-z]{2,8}(?:-[A-Za-z\d]{1,8})*$/u.test(language)) {
+		throw new RangeError('ADM language must be a conservative BCP 47 language tag.');
+	}
 	return language;
 }
 
