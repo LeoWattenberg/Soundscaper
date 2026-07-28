@@ -396,6 +396,19 @@
 					]
 				},
 				{
+					"id": "local-header-and-overlap-validation",
+					"summary": "A bounded raw-layout preflight, under a shared non-raiseable 33 MiB central-directory cap, anchors exact classic/Zip64 end and central-directory records, validates every central/local header and data descriptor without reading payloads, and rejects gaps, overlap, or entry ranges crossing the central directory before zip.js construction. Export admission reserves the pinned writer's greater-than-4-GiB Zip64 offset branch so produced archives remain admissible.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-layout.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-zip-profile.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-estimate.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-layout.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-export-estimate.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" }
+					]
+				},
+				{
 					"id": "bounded-archive-operation-counts",
 					"summary": "Archive enumeration is hard-capped at 4,096 entries, bounding zip.js pairwise layout comparisons, and one archive-wide budget is capped at 65,536 canonical PCM chunks before another source-writer call or chunk allocation.",
 					"evidence": [
@@ -473,13 +486,6 @@
 			],
 			"residualRisks": [
 				{
-					"id": "incomplete-zip-layout-validation",
-					"exposure": "zip.js strict mode accepts zero-valued local CRC and size fields after the data-descriptor flag is cleared, and its pairwise range check does not compare entry data against the central-directory or end-record ranges.",
-					"requiredControl": "Require exact local CRC and size equality when no data descriptor is declared, locate classic and Zip64 central-directory boundaries, and reject every entry or descriptor range that crosses them.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Zeroed local-field and entry-into-central-directory fixtures reject before manifest extraction, alongside the existing method-mismatch and pairwise-overlap regressions."]
-				},
-				{
 					"id": "whole-blob-video-extraction",
 					"exposure": "Original video extraction is counted against the aggregate budget but still materializes the complete asset as a renderer Blob before staged storage publication.",
 					"requiredControl": "Stream video through a bounded transactional storage sink without retaining the complete asset in renderer memory.",
@@ -491,7 +497,6 @@
 				"id": "scape-archive-expansion-qualification",
 				"status": "pending",
 				"requiredControlIds": [
-					"local-header-and-overlap-validation",
 					"bounded-streaming-media-extraction"
 				]
 			}

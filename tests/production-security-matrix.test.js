@@ -27,7 +27,6 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 ];
 const PENDING_ARCHIVE_EXPANSION_GATES = [
 	'bounded-streaming-media-extraction',
-	'local-header-and-overlap-validation',
 ];
 const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	'cumulative-actual-expanded-byte-limit': [
@@ -44,6 +43,15 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	],
 	'zipjs-local-header-and-pairwise-overlap-preflight': [
 		'src/common/editor/scape-archive-envelope.ts',
+		'tests/audio-editor-scape-expansion.test.ts',
+	],
+	'local-header-and-overlap-validation': [
+		'src/common/editor/scape-archive-layout.ts',
+		'src/common/editor/scape-archive-reader.ts',
+		'src/common/editor/scape-archive-zip-profile.ts',
+		'src/common/editor/scape-export-estimate.ts',
+		'tests/audio-editor-scape-archive-layout.test.ts',
+		'tests/audio-editor-scape-export-estimate.test.ts',
 		'tests/audio-editor-scape-expansion.test.ts',
 	],
 	'bounded-archive-operation-counts': [
@@ -176,15 +184,16 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 		/pairwise entry-range overlap/iu,
 	);
 	assert.match(
+		implementedControls.get('local-header-and-overlap-validation').summary,
+		/33 MiB.*exact classic\/Zip64.*data descriptor.*before zip\.js construction.*greater-than-4-GiB/iu,
+	);
+	assert.match(
 		implementedControls.get('compression-ratio-or-store-policy').summary,
 		/central-directory.*ZIP STORE.*before.*body reads/iu,
 	);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
 	assert.equal(residuals.has('compression-amplification-policy'), false);
-	assert.match(
-		residuals.get('incomplete-zip-layout-validation').exposure,
-		/zero-valued local CRC.*central-directory/iu,
-	);
+	assert.equal(residuals.has('incomplete-zip-layout-validation'), false);
 	const cancellationControl = implementedControls.get('abort-signal-propagation-and-rollback');
 	assert.ok(cancellationControl, 'tested archive cancellation must remain recorded as implemented');
 	for (const path of [

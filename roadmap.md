@@ -282,7 +282,20 @@ models or native implementations.
   rejects noncanonical or truncated backing-store PCM. Central-directory
   indexing now requires ZIP STORE with equal compressed and uncompressed sizes
   before local-header preflight or body reads, and canonical export pins the
-  same policy. The
+  same policy. Before zip.js allocation or enumeration, a bounded strict-TS
+  [raw-layout validator](src/common/editor/scape-archive-layout.ts) now anchors
+  exact classic/Zip64 end and central-directory records, resolves required
+  Zip64 fields in order, compares each local header and signed or unsigned data
+  descriptor with its central owner, and requires checked entry ranges to
+  partition the payload region without overlap, gaps, or central-directory
+  crossing. A shared non-raiseable 33 MiB central-directory ceiling applies
+  before zip.js construction and to export admission; the conservative export
+  bound includes the pinned writer's greater-than-4-GiB Zip64 local-offset
+  field so a canonical save remains importable. Its
+  [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
+  offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
+  zeroed no-descriptor fields, and boundary crossing with bounded cancellable
+  reads. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without
@@ -314,10 +327,8 @@ models or native implementations.
   This bounds final archive bytes, not total renderer heap or process RSS:
   current saves can retain admitted native video Blob handles and zip.js still
   assembles the non-streaming result, while no production file service yet
-  supplies the explicit streaming destination. Exact no-descriptor local
-  CRC/size checks and classic/Zip64 central-directory boundaries,
-  bounded streaming video extraction, and production direct-to-target save
-  wiring remain open in the
+  supplies the explicit streaming destination. Bounded streaming video
+  extraction and production direct-to-target save wiring remain open in the
   [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a
