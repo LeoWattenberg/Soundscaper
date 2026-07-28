@@ -2,6 +2,7 @@
 
 export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true } = {}) {
 	const databases = new Map();
+	const pendingPutFailures = new Map();
 	const stats = {
 		activeTransactions: 0,
 		maximumActiveTransactions: 0,
@@ -14,57 +15,116 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 	};
 	return {
 		stats,
-		open(name) {
-			const request = { result: null, error: null, onsuccess: null, onerror: null, onupgradeneeded: null };
+		open(name, version) {
+			const requestedVersion = normalizeVersion(version);
+			const request = {
+				result: null,
+				error: null,
+				transaction: null,
+				onsuccess: null,
+				onerror: null,
+				onblocked: null,
+				onupgradeneeded: null,
+			};
 			queueMicrotask(() => {
 				let database = databases.get(name);
-				const needsUpgrade = !database;
 				if (!database) {
-					database = new FakeDatabase(stats);
+					database = new FakeDatabase(stats, (storeName) => {
+						const failure = pendingPutFailures.get(storeName);
+						if (failure) pendingPutFailures.delete(storeName);
+						return failure;
+					});
 					databases.set(name, database);
 				}
+				const nextVersion = requestedVersion ?? (database.version || 1);
+				if (nextVersion < database.version) {
+					failOpenRequest(request, new DOMException('The requested version is lower than the current version.', 'VersionError'));
+					return;
+				}
 				request.result = database;
-				if (needsUpgrade) request.onupgradeneeded?.();
-				queueMicrotask(() => request.onsuccess?.());
+				if (nextVersion === database.version) {
+					queueMicrotask(() => request.onsuccess?.(requestEvent('success', request)));
+					return;
+				}
+				const oldVersion = database.version;
+				const snapshot = snapshotDatabase(database);
+				const transaction = new FakeTransaction(
+					database,
+					[...database.stores.keys()],
+					'versionchange',
+					{
+						onComplete() {
+							database.upgradeTransaction = null;
+							request.transaction = null;
+							request.onsuccess?.(requestEvent('success', request));
+						},
+						onAbort(error) {
+							database.upgradeTransaction = null;
+							request.transaction = null;
+							request.error = error || new DOMException('The version change transaction was aborted.', 'AbortError');
+							request.onerror?.(requestEvent('error', request));
+						},
+						snapshot,
+					},
+				);
+				database.version = nextVersion;
+				database.upgradeTransaction = transaction;
+				request.transaction = transaction;
+				try {
+					request.onupgradeneeded?.({
+						...requestEvent('upgradeneeded', request),
+						oldVersion,
+						newVersion: nextVersion,
+					});
+				} catch (error) {
+					transaction.fail(error);
+				}
 			});
 			return request;
+		},
+		failNextPutForStore(storeName, error = new Error(`Planned put failure for ${storeName}.`)) {
+			pendingPutFailures.set(storeName, error);
 		},
 		recordCount(databaseName, storeName) {
 			return databases.get(databaseName)?.stores.get(storeName)?.records.size || 0;
 		},
 		records(databaseName, storeName) {
-			return [...(databases.get(databaseName)?.stores.get(storeName)?.records.values() || [])]
-				.map(clone)
-				.sort((left, right) => compareKeys(
-					left[databases.get(databaseName).stores.get(storeName).keyPath],
-					right[databases.get(databaseName).stores.get(storeName).keyPath],
-				));
+			const records = databases.get(databaseName)?.stores.get(storeName)?.records;
+			return [...(records?.entries() || [])]
+				.sort(([left], [right]) => compareKeys(left, right))
+				.map(([, value]) => clone(value));
 		},
-		seedRecord(databaseName, storeName, value) {
+		seedRecord(databaseName, storeName, value, primaryKey) {
 			const store = databases.get(databaseName)?.stores.get(storeName);
 			if (!store) throw new Error(`Store ${storeName} has not been created.`);
 			const stored = clone(value);
-			store.records.set(stored[store.keyPath], stored);
+			store.records.set(primaryKey ?? stored[store.keyPath], stored);
 		},
 	};
 }
 
 class FakeDatabase {
-	constructor(stats) {
+	constructor(stats, takePutFailure) {
 		this.stats = stats;
+		this.takePutFailure = takePutFailure;
+		this.version = 0;
 		this.stores = new Map();
+		this.upgradeTransaction = null;
 		this.objectStoreNames = { contains: (name) => this.stores.has(name) };
 	}
 
 	createObjectStore(name, { keyPath }) {
+		if (!this.upgradeTransaction || this.upgradeTransaction.finished) {
+			throw new DOMException('Object stores can only be created during a version upgrade.', 'InvalidStateError');
+		}
+		if (this.stores.has(name)) throw new DOMException(`Store ${name} already exists.`, 'ConstraintError');
 		const data = { name, keyPath, records: new Map(), indexes: new Map() };
 		this.stores.set(name, data);
-		return {
-			createIndex: (indexName, indexKeyPath) => data.indexes.set(indexName, indexKeyPath),
-		};
+		this.upgradeTransaction.addObjectStore(name);
+		return new FakeObjectStore(this.upgradeTransaction, data);
 	}
 
-	transaction(storeNames, mode) {
+	transaction(storeNames, mode = 'readonly') {
 		return new FakeTransaction(this, Array.isArray(storeNames) ? storeNames : [storeNames], mode);
 	}
 
@@ -72,10 +132,14 @@ class FakeDatabase {
 }
 
 class FakeTransaction {
-	constructor(database, storeNames, mode) {
+	constructor(database, storeNames, mode, { onComplete, onAbort, snapshot } = {}) {
 		this.database = database;
 		this.storeNames = new Set(storeNames);
 		this.mode = mode;
+		this.onInternalComplete = onComplete;
+		this.onInternalAbort = onAbort;
+		this.databaseSnapshot = snapshot;
+		this.recordSnapshot = mode === 'readwrite' ? snapshotRecords(database, storeNames) : null;
 		this.pending = 0;
 		this.finished = false;
 		this.completionScheduled = false;
@@ -91,9 +155,15 @@ class FakeTransaction {
 		this.scheduleCompletion();
 	}
 
+	addObjectStore(name) {
+		this.storeNames.add(name);
+	}
+
 	objectStore(name) {
 		if (!this.storeNames.has(name)) throw new Error(`Store ${name} is outside this transaction.`);
-		return new FakeObjectStore(this, this.database.stores.get(name));
+		const data = this.database.stores.get(name);
+		if (!data) throw new DOMException(`Store ${name} does not exist.`, 'NotFoundError');
+		return new FakeObjectStore(this, data);
 	}
 
 	beginRequest() {
@@ -102,7 +172,7 @@ class FakeTransaction {
 	}
 
 	endRequest() {
-		this.pending -= 1;
+		this.pending = Math.max(0, this.pending - 1);
 		this.scheduleCompletion();
 	}
 
@@ -114,15 +184,35 @@ class FakeTransaction {
 			if (this.finished || this.pending) return;
 			this.finished = true;
 			this.database.stats.activeTransactions -= 1;
-			this.oncomplete?.();
+			try {
+				this.oncomplete?.(requestEvent('complete', this));
+			} finally {
+				this.onInternalComplete?.();
+			}
 		});
 	}
 
-	abort() {
+	fail(error) {
 		if (this.finished) return;
+		const event = cancelableErrorEvent(this);
+		this.onerror?.(event);
+		if (!event.defaultPrevented) this.abort(error);
+	}
+
+	abort(error = null) {
+		if (this.finished) return;
+		this.error = error;
+		if (this.databaseSnapshot) restoreDatabase(this.database, this.databaseSnapshot);
+		else if (this.recordSnapshot) restoreRecords(this.database, this.recordSnapshot);
 		this.finished = true;
 		this.database.stats.activeTransactions -= 1;
-		queueMicrotask(() => this.onabort?.());
+		queueMicrotask(() => {
+			try {
+				this.onabort?.(requestEvent('abort', this));
+			} finally {
+				this.onInternalAbort?.(this.error);
+			}
+		});
 	}
 }
 
@@ -130,14 +220,24 @@ class FakeObjectStore {
 	constructor(transaction, data) {
 		this.transaction = transaction;
 		this.data = data;
+		this.keyPath = data.keyPath;
+		this.indexNames = { contains: (name) => data.indexes.has(name) };
 	}
 
 	put(value) {
 		return fakeRequest(this.transaction, () => {
+			const failure = this.transaction.database.takePutFailure(this.data.name);
+			if (failure) throw failure;
 			const stored = clone(value);
 			this.data.records.set(stored[this.data.keyPath], stored);
 			return stored[this.data.keyPath];
 		});
+	}
+
+	createIndex(name, keyPath) {
+		if (this.data.indexes.has(name)) throw new DOMException(`Index ${name} already exists.`, 'ConstraintError');
+		this.data.indexes.set(name, keyPath);
+		return new FakeIndex(this.transaction, this.data, name);
 	}
 
 	get(key) {
@@ -174,18 +274,18 @@ class FakeObjectStore {
 	}
 
 	openCursor(query) {
-		const entries = valuesForStore(this.data, query).map((value) => ({
-			key: value[this.data.keyPath],
-			primaryKey: value[this.data.keyPath],
+		const entries = entriesForStore(this.data, query).map(([primaryKey, value]) => ({
+			key: primaryKey,
+			primaryKey,
 			value,
 		}));
 		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query });
 	}
 
 	openKeyCursor(query, direction = 'next') {
-		const entries = valuesForStore(this.data, query).map((value) => ({
-			key: value[this.data.keyPath],
-			primaryKey: value[this.data.keyPath],
+		const entries = entriesForStore(this.data, query).map(([primaryKey]) => ({
+			key: primaryKey,
+			primaryKey,
 		}));
 		if (direction === 'prev' || direction === 'prevunique') entries.reverse();
 		return fakeKeyCursorRequest(this.transaction, this.data, entries, { index: null, query, direction });
@@ -206,19 +306,20 @@ class FakeIndex {
 	}
 
 	openCursor(query) {
-		const entries = this.values(query).map((value) => ({
-			key: value[this.keyPath],
-			primaryKey: value[this.data.keyPath],
-			value,
-		}));
+		const entries = this.entries(query);
 		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query });
 	}
 
 	values(query) {
-		return [...this.data.records.values()]
-			.filter((value) => query === undefined || value[this.keyPath] === query)
-			.sort((left, right) => compareKeys(left[this.keyPath], right[this.keyPath])
-				|| compareKeys(left[this.data.keyPath], right[this.data.keyPath]));
+		return this.entries(query).map(({ value }) => value);
+	}
+
+	entries(query) {
+		return [...this.data.records.entries()]
+			.map(([primaryKey, value]) => ({ key: value[this.keyPath], primaryKey, value }))
+			.filter(({ key }) => query === undefined || key === query)
+			.sort((left, right) => compareKeys(left.key, right.key)
+				|| compareKeys(left.primaryKey, right.primaryKey));
 	}
 }
 
@@ -226,12 +327,18 @@ function fakeRequest(transaction, operation) {
 	const request = { result: undefined, error: null, onsuccess: null, onerror: null };
 	transaction.beginRequest();
 	queueMicrotask(() => {
+		if (transaction.finished) {
+			request.error = new DOMException('The transaction was aborted.', 'AbortError');
+			request.onerror?.(requestEvent('error', request));
+			transaction.endRequest();
+			return;
+		}
 		try {
 			request.result = operation();
-			request.onsuccess?.();
+			request.onsuccess?.(requestEvent('success', request));
 		} catch (error) {
 			request.error = error;
-			request.onerror?.();
+			dispatchRequestError(request, transaction);
 		} finally {
 			transaction.endRequest();
 		}
@@ -266,9 +373,15 @@ function fakeCursorRequest(transaction, data, entries, { index, query }) {
 	transaction.beginRequest();
 	let position = 0;
 	const deliver = () => queueMicrotask(() => {
+		if (transaction.finished) {
+			request.error = new DOMException('The transaction was aborted.', 'AbortError');
+			request.onerror?.(requestEvent('error', request));
+			transaction.endRequest();
+			return;
+		}
 		if (position >= entries.length) {
 			request.result = null;
-			request.onsuccess?.();
+			request.onsuccess?.(requestEvent('success', request));
 			transaction.endRequest();
 			return;
 		}
@@ -308,7 +421,7 @@ function fakeCursorRequest(transaction, data, entries, { index, query }) {
 		};
 		if (!transaction.database.stats.supportsContinuePrimaryKey) delete cursor.continuePrimaryKey;
 		request.result = cursor;
-		request.onsuccess?.();
+		request.onsuccess?.(requestEvent('success', request));
 		if (!continued) transaction.endRequest();
 	});
 	deliver();
@@ -322,9 +435,15 @@ function fakeKeyCursorRequest(transaction, data, entries, { index, query, direct
 	transaction.beginRequest();
 	let position = 0;
 	const deliver = () => queueMicrotask(() => {
+		if (transaction.finished) {
+			request.error = new DOMException('The transaction was aborted.', 'AbortError');
+			request.onerror?.(requestEvent('error', request));
+			transaction.endRequest();
+			return;
+		}
 		if (position >= entries.length) {
 			request.result = null;
-			request.onsuccess?.();
+			request.onsuccess?.(requestEvent('success', request));
 			transaction.endRequest();
 			return;
 		}
@@ -341,17 +460,96 @@ function fakeKeyCursorRequest(transaction, data, entries, { index, query, direct
 				deliver();
 			},
 		};
-		request.onsuccess?.();
+		request.onsuccess?.(requestEvent('success', request));
 		if (!continued) transaction.endRequest();
 	});
 	deliver();
 	return request;
 }
 
+function entriesForStore(data, query) {
+	return [...data.records.entries()]
+		.filter(([primaryKey]) => query === undefined || primaryKey === query)
+		.sort(([left], [right]) => compareKeys(left, right));
+}
+
 function valuesForStore(data, query) {
-	return [...data.records.values()]
-		.filter((value) => query === undefined || value[data.keyPath] === query)
-		.sort((left, right) => compareKeys(left[data.keyPath], right[data.keyPath]));
+	return entriesForStore(data, query).map(([, value]) => value);
+}
+
+function normalizeVersion(version) {
+	if (version === undefined) return undefined;
+	const normalized = Number(version);
+	if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+		throw new TypeError('IndexedDB versions must be positive integers.');
+	}
+	return normalized;
+}
+
+function snapshotDatabase(database) {
+	return {
+		version: database.version,
+		stores: cloneStores(database.stores),
+	};
+}
+
+function restoreDatabase(database, snapshot) {
+	database.version = snapshot.version;
+	database.stores = cloneStores(snapshot.stores);
+}
+
+function snapshotRecords(database, storeNames) {
+	return new Map(storeNames.map((name) => {
+		const store = database.stores.get(name);
+		if (!store) throw new DOMException(`Store ${name} does not exist.`, 'NotFoundError');
+		return [name, cloneRecords(store.records)];
+	}));
+}
+
+function restoreRecords(database, snapshot) {
+	for (const [name, records] of snapshot) {
+		const store = database.stores.get(name);
+		if (store) store.records = cloneRecords(records);
+	}
+}
+
+function cloneStores(stores) {
+	return new Map([...stores].map(([name, store]) => [name, {
+		name: store.name,
+		keyPath: store.keyPath,
+		records: cloneRecords(store.records),
+		indexes: new Map(store.indexes),
+	}]));
+}
+
+function cloneRecords(records) {
+	return new Map([...records].map(([key, value]) => [key, clone(value)]));
+}
+
+function failOpenRequest(request, error) {
+	request.error = error;
+	request.onerror?.(requestEvent('error', request));
+}
+
+function dispatchRequestError(request, transaction) {
+	const event = cancelableErrorEvent(request);
+	request.onerror?.(event);
+	if (!event.propagationStopped) transaction.onerror?.(event);
+	if (!event.defaultPrevented) transaction.abort(request.error);
+}
+
+function requestEvent(type, target) {
+	return { type, target, currentTarget: target };
+}
+
+function cancelableErrorEvent(target) {
+	return {
+		...requestEvent('error', target),
+		defaultPrevented: false,
+		propagationStopped: false,
+		preventDefault() { this.defaultPrevented = true; },
+		stopPropagation() { this.propagationStopped = true; },
+	};
 }
 
 function compareKeys(left, right) {
