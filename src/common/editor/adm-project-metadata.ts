@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	normalizeWavAdmRiffChunkSequence,
 	normalizeWavOpaqueRiffChunks,
 	type WavOpaqueRiffChunk,
+	type WavRiffChunkSequenceEntry,
 } from './wav-opaque-chunks.ts';
 import {
 	resolveTerminalChannelWidths,
@@ -59,6 +61,8 @@ export interface AdmPassthroughMetadata {
 		| Readonly<{ kind: 'axml'; xml: string; rawBase64: string }>
 		| Readonly<{ kind: 'bxml'; base64: string }>
 	)[];
+	/** Exact nonstructural source chunks in their order on each side of PCM data. */
+	readonly riffChunkSequence?: readonly WavRiffChunkSequenceEntry[];
 	readonly opaqueRiffChunks?: readonly WavOpaqueRiffChunk[];
 	readonly chna: Readonly<{
 		entries: readonly AdmChnaEntry[];
@@ -286,6 +290,9 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 
 function normalizePassthrough(input: Record<string, unknown>): AdmPassthroughMetadata {
 	const payload = normalizePayload(objectValue(input.payload, 'project.metadata.adm.payload'));
+	const riffChunkSequence = input.riffChunkSequence == null
+		? undefined
+		: normalizeWavAdmRiffChunkSequence(input.riffChunkSequence);
 	const opaqueRiffChunks = input.opaqueRiffChunks == null
 		? undefined
 		: normalizeWavOpaqueRiffChunks(input.opaqueRiffChunks);
@@ -344,6 +351,7 @@ function normalizePassthrough(input: Record<string, unknown>): AdmPassthroughMet
 		payload,
 		...(normalizedSerialPayload ? { serialPayload: normalizedSerialPayload } : {}),
 		...(auxiliaryPayloads?.length ? { auxiliaryPayloads } : {}),
+		...(riffChunkSequence?.length ? { riffChunkSequence } : {}),
 		...(opaqueRiffChunks?.length ? { opaqueRiffChunks } : {}),
 		chna: Object.freeze({ entries: Object.freeze(entries), rawBase64: rawChnaBase64 }),
 		source: Object.freeze({

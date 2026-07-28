@@ -236,6 +236,21 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	assert.equal(noPackReference.mode === 'passthrough'
 		? noPackReference.chna.entries[0]?.audioPackFormatIdRef
 		: null, '');
+	const rawList = riffChunk('LIST', Uint8Array.of(0x49, 0x4e, 0x46, 0x4f, 1));
+	const sequenced = normalizeAdmProjectMetadata(passthroughAdm({
+		riffChunkSequence: [{
+			id: 'LIST', placement: 'after-data', rawBase64: Buffer.from(rawList).toString('base64'),
+		}],
+	}));
+	assert.deepEqual(sequenced.mode === 'passthrough' ? sequenced.riffChunkSequence : null, [{
+		id: 'LIST', placement: 'after-data', rawBase64: Buffer.from(rawList).toString('base64'),
+	}]);
+	const rawFact = riffChunk('fact', Uint8Array.of(1, 0, 0, 0));
+	assert.throws(() => normalizeAdmProjectMetadata(passthroughAdm({
+		riffChunkSequence: [{
+			id: 'fact', placement: 'before-data', rawBase64: Buffer.from(rawFact).toString('base64'),
+		}],
+	})), /fact.*forbidden|forbidden.*fact|structural.*fact/iu);
 });
 
 test('V7 projects require canonical nullable ADM and metadata commands normalize and clear it', () => {
@@ -272,6 +287,14 @@ test('V7 projects require canonical nullable ADM and metadata commands normalize
 		type: 'metadata/update', changes: { adm: authoredAdm() },
 	}, { now: NOW }), /cannot be updated/u);
 });
+
+function riffChunk(id: string, payload: Uint8Array): Uint8Array {
+	const chunk = new Uint8Array(8 + payload.byteLength + (payload.byteLength & 1));
+	chunk.set(new TextEncoder().encode(id));
+	new DataView(chunk.buffer).setUint32(4, payload.byteLength, true);
+	chunk.set(payload, 8);
+	return chunk;
+}
 
 test('V6 migration adds null ADM, preserves stereo routing, and leaves the input untouched', () => {
 	const v6 = createAudioEditorProjectV6({
