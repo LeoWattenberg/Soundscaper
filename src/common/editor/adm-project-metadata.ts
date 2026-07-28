@@ -389,8 +389,8 @@ function normalizePayload(input: Record<string, unknown>): AdmPassthroughMetadat
 
 function normalizeNamedElement(value: Record<string, unknown>, name: string): Readonly<{ name: string; language: string }> {
 	const language = text(value.language ?? '', `ADM ${name} language`, 128);
-	if (language && !/^[A-Za-z]{2,8}(?:-[A-Za-z\d]{1,8})*$/u.test(language)) {
-		throw new RangeError(`ADM ${name} language must be a BCP 47 language tag.`);
+	if (language && !/^[A-Za-z]{2,3}$/u.test(language)) {
+		throw new RangeError(`ADM ${name} language must be a two- or three-letter ISO 639 code.`);
 	}
 	return Object.freeze({
 		name: nonEmptyText(value.name, `ADM ${name} name`, MAX_ADM_NAME_BYTES),

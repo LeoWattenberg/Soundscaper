@@ -93,6 +93,10 @@ test('authored ADM normalizes one programme, content, DirectSpeakers bed, and te
 		...authoredAdm(),
 		bed: { ...authoredAdm().bed, assignments: [authoredAdm().bed.assignments[0], authoredAdm().bed.assignments[0]] },
 	}), /duplicate ADM assignment/i);
+	assert.throws(() => normalizeAdmProjectMetadata({
+		...authoredAdm(),
+		programme: { ...authoredAdm().programme, language: 'en-GB' },
+	}), /ISO 639|language/iu);
 });
 
 test('authored ADM routing reports missing, non-terminal, and out-of-range assignments without rejecting drafts', () => {

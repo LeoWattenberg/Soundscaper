@@ -31,13 +31,15 @@ interface DraftFieldProps {
 	readonly value: string;
 	readonly disabled: boolean;
 	readonly maxLength?: number;
+	readonly pattern?: string;
 	readonly onCommit: (value: string) => void;
 }
 
-function DraftField({ name, label, value, disabled, maxLength = 512, onCommit }: DraftFieldProps) {
+function DraftField({ name, label, value, disabled, maxLength = 512, pattern, onCommit }: DraftFieldProps) {
 	const [draft, setDraft] = useState(value);
 	useEffect(() => setDraft(value), [value]);
-	const commit = () => {
+	const commit = (input: HTMLInputElement) => {
+		if (!input.checkValidity()) return;
 		if (draft !== value) onCommit(draft);
 	};
 	return (
@@ -48,8 +50,9 @@ function DraftField({ name, label, value, disabled, maxLength = 512, onCommit }:
 				value={draft}
 				disabled={disabled}
 				maxLength={maxLength}
+				pattern={pattern}
 				onChange={(event) => setDraft(event.currentTarget.value)}
-				onBlur={commit}
+				onBlur={(event) => commit(event.currentTarget)}
 				onKeyDown={(event) => {
 					if (event.key === 'Escape') {
 						setDraft(value);
@@ -119,9 +122,9 @@ export function AdmMetadataFields({
 		<div className="audio-editor-adm-fields" data-adm-metadata-editor data-adm-mode="authored">
 		<p className="audio-editor-panel-hint">{copy.admDirectSpeakersHint}</p>
 		<DraftField name="adm-programme-name" label={copy.admProgrammeName} value={authored.programme.name} disabled={disabled} onCommit={(next) => commitNamed('programme', 'name', next)} />
-		<DraftField name="adm-programme-language" label={copy.admProgrammeLanguage} value={authored.programme.language} disabled={disabled} maxLength={128} onCommit={(next) => commitNamed('programme', 'language', next)} />
+		<DraftField name="adm-programme-language" label={copy.admProgrammeLanguage} value={authored.programme.language} disabled={disabled} maxLength={3} pattern="[A-Za-z]{2,3}" onCommit={(next) => commitNamed('programme', 'language', next)} />
 		<DraftField name="adm-content-name" label={copy.admContentName} value={authored.content.name} disabled={disabled} onCommit={(next) => commitNamed('content', 'name', next)} />
-		<DraftField name="adm-content-language" label={copy.admContentLanguage} value={authored.content.language} disabled={disabled} maxLength={128} onCommit={(next) => commitNamed('content', 'language', next)} />
+		<DraftField name="adm-content-language" label={copy.admContentLanguage} value={authored.content.language} disabled={disabled} maxLength={3} pattern="[A-Za-z]{2,3}" onCommit={(next) => commitNamed('content', 'language', next)} />
 		<DraftField name="adm-bed-name" label={copy.admBedName} value={authored.bed.name} disabled={disabled} onCommit={commitBedName} />
 		<label>
 			<span>{copy.admBedLayout}</span>
