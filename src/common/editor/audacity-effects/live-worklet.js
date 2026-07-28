@@ -8,6 +8,10 @@ import { initializePffft } from '../pffft.js';
 
 export const AUDACITY_LIVE_WORKLET_NAME = 'kw-audacity-live-effect';
 
+// AudioWorklet.addModule() does not resolve until module evaluation finishes.
+// Compile PFFFT here so every processor is ready before its first render quantum.
+await initializePffft();
+
 const ProcessorBase = globalThis.AudioWorkletProcessor || class {
 	constructor() {
 		this.port = { postMessage() {}, onmessage: null, start() {} };
@@ -21,23 +25,21 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		const sampleRate = Number(settings.sampleRate ?? globalThis.sampleRate ?? 48_000);
 		this.effectType = settings.effectType;
 		this.processor = null;
-		this.pendingMessages = [];
 		this.lastError = null;
 		this.port.onmessage = (event) => this.#handleMessage(event.data || {});
 		this.port.start?.();
-		initializePffft().then(() => {
+		try {
 			this.processor = createAudacityLiveProcessor(
 				this.effectType,
 				sampleRate,
 				settings.params || {},
 				{ noiseProfile: settings.noiseProfile },
 			);
-			for (const message of this.pendingMessages.splice(0)) this.#handleMessage(message);
 			this.#postStatus('ready');
-		}).catch((error) => {
+		} catch (error) {
 			this.lastError = error instanceof Error ? error.message : String(error);
 			this.port.postMessage({ type: 'error', effectType: this.effectType, message: this.lastError });
-		});
+		}
 	}
 
 	process(inputs, outputs) {
@@ -62,10 +64,7 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 	}
 
 	#handleMessage(message) {
-		if (!this.processor) {
-			this.pendingMessages.push(message);
-			return;
-		}
+		if (!this.processor) return;
 		try {
 			if (message.type === 'params') this.processor.updateParams(message.params || {});
 			else if (message.type === 'noise-profile') this.processor.setNoiseProfile(message.profile);

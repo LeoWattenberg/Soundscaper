@@ -252,6 +252,11 @@ test('AudioWorklet wrapper accepts parameter/reset messages and reports invalid 
 	});
 	const messages = [];
 	worklet.port.postMessage = (message) => messages.push(message);
+	const immediateInput = new Float32Array(32);
+	immediateInput[0] = 1;
+	const immediateOutput = new Float32Array(32);
+	assert.equal(worklet.process([[immediateInput]], [[immediateOutput]]), true);
+	assert.equal(immediateOutput[0], 1, 'the processor is ready before the first render quantum');
 	await Promise.resolve();
 	worklet.port.onmessage({ data: { type: 'params', params: { decay: 0.25 } } });
 	assert.equal(messages.at(-1).type, 'status');
