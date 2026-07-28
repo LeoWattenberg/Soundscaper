@@ -245,12 +245,18 @@ models or native implementations.
   clamps claims to prerequisites, verifies the exact desktop bridge groups,
   deep-freezes every snapshot, and keeps deferred MIDI and Framescaper capture
   fields absent.
-- **Shared — Planned:** define narrow, abortable ports for streaming media reads
-  and writes, probing, decode/encode, render jobs, audio devices, and audio-effect
-  hosts. Keep implementations out of the project domain and React UI.
-- **Shared — Planned:** do **not** define MIDI events/devices or Framescaper
-  capture contracts in this milestone. Generic adapters must not quietly commit
-  either model ahead of milestone 8.
+- **Shared — Implemented:** focused strict-TS owner modules under
+  [`platform/`](src/common/editor/platform/) define narrow, abortable ports for
+  bounded streaming media reads/writes, probe, decode/encode, render jobs, audio
+  devices, and audio-effect hosts. The
+  [port regression](tests/audio-editor-platform-ports.test.ts) requires an
+  `AbortSignal` on every long-running operation, validates transfer hard limits,
+  and prevents a broad barrel or domain/UI implementation dependency.
+- **Shared — Implemented (fence):** the
+  [platform contract policy](src/common/editor/platform/contract-policy.ts)
+  keeps MIDI events/devices and Framescaper capture contracts explicitly
+  blocked for milestones 8B and 8A; generic adapters cannot quietly commit
+  either model ahead of its entry gate.
 - **Shared / Web Core — In progress:** internal `.scape` import and inspection
   now share a strict-TS
   [archive envelope](src/common/editor/scape-archive-envelope.ts) that bounds
