@@ -161,9 +161,13 @@ reviewable gates before expanding the schema or native boundary.
   The [audit regression](tests/audacity-action-parity.test.js) keeps relevant
   project, selection, alignment, sorting, spectral, recording, and raw-import
   gaps planned and retains explicit reasons for every justified exclusion.
-- **Shared — Planned:** define project compatibility rules: forward read-only
-  behavior, lossless opaque-field preservation, minimum migrations, freeze/proxy
-  fallback, and rules for removing obsolete schema versions.
+- **Shared — Implemented:** the versioned
+  [project compatibility matrix](config/project-compatibility.json) and
+  [compatibility contract](docs/project-compatibility.md) define forward
+  read-only behavior, type-specific opaque preservation, the minimum retained
+  migrations, freeze/proxy fallback requirements, and schema-retirement rules.
+  Its [policy regression](tests/project-compatibility-policy.test.js) keeps
+  unimplemented future-archive and binary-opaque guarantees explicitly planned.
 - **Shared — Planned:** define severity levels and release policy for data loss,
   A/V drift, audio dropout, dropped video frames, inaccessible workflows,
   security boundary failures, and license/provenance failures.

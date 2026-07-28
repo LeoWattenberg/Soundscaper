@@ -1,0 +1,144 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-07-28",
+	"projectSchema": {
+		"currentVersion": 8,
+		"minimumReadableVersion": 1,
+		"retainedMigrationSources": [1, 2, 3, 4, 5, 6, 7]
+	},
+	"portableArchive": {
+		"currentFormatVersion": 1,
+		"futureFormatBehavior": "reject-before-persistence",
+		"roundTripGuarantee": "json-semantic-not-byte-identical"
+	},
+	"forwardReadOnly": {
+		"scope": "raw-project-document",
+		"allowMutation": false,
+		"allowOverwrite": false,
+		"opaqueClone": "structured-clone",
+		"portableArchiveStatus": "planned"
+	},
+	"schemaRetirement": {
+		"currentMinimumVersion": 1,
+		"automaticRemoval": false,
+		"requiredConditions": [
+			"offline-upgrader",
+			"oldest-fixture-to-current-gate",
+			"two-stable-release-deprecation-window",
+			"published-compatibility-notice",
+			"no-unrepresentable-state"
+		],
+		"approval": "separate-versioned-policy-change"
+	},
+	"rules": [
+		{
+			"id": "legacy-schema-migration",
+			"status": "implemented",
+			"requiredOutcome": "Every retained schema migrates atomically to the current editable schema without mutating its input.",
+			"currentBehavior": "Schemas 1 through 7 are validated and migrated to schema 8; a failed migration publishes no partial project.",
+			"evidence": [
+				"src/common/editor/migration.js",
+				"tests/audio-editor-project-v2.test.js"
+			]
+		},
+		{
+			"id": "current-schema-editing",
+			"status": "implemented",
+			"requiredOutcome": "The current schema validates, clones, edits, saves, and reopens as an editable document.",
+			"currentBehavior": "Schema 8 is the maintained writable schema and is cloned at the load boundary.",
+			"evidence": [
+				"src/common/editor/project-v8.ts",
+				"tests/audio-editor-project-v8.test.ts"
+			]
+		},
+		{
+			"id": "future-core-read-only",
+			"status": "implemented",
+			"requiredOutcome": "A raw project document with a newer schema is cloned without normalization and cannot enter a mutation or overwrite path.",
+			"currentBehavior": "The core migration boundary returns newer objects as structured clones with readOnly=true and reason=newer-schema.",
+			"evidence": [
+				"src/common/editor/migration.js",
+				"tests/audio-editor-project-v8.test.ts",
+				"tests/audio-editor-project-v2.test.js"
+			]
+		},
+		{
+			"id": "future-scape-round-trip",
+			"status": "planned",
+			"milestone": "2",
+			"requiredOutcome": "A future-schema portable archive opens read-only and can be exported unchanged without ID, storage-key, binary, or unknown-field loss.",
+			"currentBehavior": "The archive importer traverses known collections and may rewrite project and source identity, so arbitrary future-schema .scape round trips are not yet claimed.",
+			"evidence": [
+				"src/common/editor/scape-project.js",
+				"tests/audio-editor-scape-project.test.js"
+			]
+		},
+		{
+			"id": "json-opaque-extensions",
+			"status": "implemented",
+			"requiredOutcome": "Designated JSON opaque extension fields survive migration, clone, save, and portable archive reopen semantically unchanged.",
+			"currentBehavior": "Legacy unknown JSON fields are collected under opaqueExtensions.legacyV1 and JSON-compatible opaqueExtensions survive current-schema .scape round trips.",
+			"evidence": [
+				"src/common/editor/migration.js",
+				"tests/audio-editor-project-v2.test.js",
+				"tests/audio-editor-scape-project.test.js"
+			]
+		},
+		{
+			"id": "binary-opaque-native-state",
+			"status": "planned",
+			"milestone": "2",
+			"requiredOutcome": "Binary opaque state uses a tagged, bounded JSON encoding and round-trips byte-exactly through .scape.",
+			"currentBehavior": "Structured-clone paths retain typed arrays, but project.json uses plain JSON and does not yet provide a tagged binary codec.",
+			"evidence": [
+				"src/common/editor/aup4-effects.js",
+				"src/common/editor/scape-project.js",
+				"tests/aup4-effects.test.js"
+			]
+		},
+		{
+			"id": "unavailable-native-feature",
+			"status": "planned",
+			"milestone": "2",
+			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
+			"currentBehavior": "AUP4 missing effects preserve focused opaque nodes, but there is no general project feature-requirements and fallback manifest yet.",
+			"evidence": [
+				"src/common/editor/aup4-effects.js",
+				"tests/aup4-effects.test.js",
+				"roadmap.md#2-shared-platform-storage-and-media-foundation"
+			]
+		},
+		{
+			"id": "video-proxy-fallback",
+			"status": "planned",
+			"milestone": "3",
+			"requiredOutcome": "Video originals and reproducible proxies retain an explicit relationship, and proxy use never changes editorial time or original delivery semantics.",
+			"currentBehavior": "Video source originals are retained, but the roadmap proxy relationship and offline/relink model are not implemented.",
+			"evidence": [
+				"src/common/editor/video-media.js",
+				"roadmap.md#3-parallel-editorial-foundations"
+			]
+		},
+		{
+			"id": "audio-freeze-fallback",
+			"status": "planned",
+			"milestone": "4",
+			"requiredOutcome": "Freeze, unfreeze, commit, and rendered fallback state preserve the editable source and native-effect metadata.",
+			"currentBehavior": "Offline rendering exists, but no canonical freeze document state or cross-platform fallback contract is implemented.",
+			"evidence": [
+				"src/common/editor/controller/mix-render-service.ts",
+				"roadmap.md#4-parallel-production-surfaces"
+			]
+		},
+		{
+			"id": "future-archive-format-rejection",
+			"status": "implemented",
+			"requiredOutcome": "An unknown .scape container format is rejected before project or media persistence rather than guessed or partially imported.",
+			"currentBehavior": "The manifest parser accepts only formatVersion 1 and import staging rolls back source writes on failure.",
+			"evidence": [
+				"src/common/editor/scape-project.js",
+				"tests/audio-editor-scape-project.test.js"
+			]
+		}
+	]
+}
