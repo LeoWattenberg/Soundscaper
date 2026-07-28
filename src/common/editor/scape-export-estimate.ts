@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
+import { maximumScapeStoreCentralDirectoryBytes } from './scape-archive-zip-profile.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 const MAXIMUM_SAFE_BYTES = BigInt(Number.MAX_SAFE_INTEGER);
@@ -24,6 +25,7 @@ export function maximumScapeStoreArchiveBytes(
 	entries: readonly ScapeArchiveSizeEntry[],
 ): number {
 	if (!Array.isArray(entries)) throw new TypeError('Scape archive entries are required.');
+	maximumScapeStoreCentralDirectoryBytes(entries);
 	if (entries.length > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
 		throw new RangeError('The Scape archive has too many entries to estimate safely.');
 	}

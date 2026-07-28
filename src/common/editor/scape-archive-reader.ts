@@ -7,6 +7,7 @@ import {
 	type ScapeArchiveEntry,
 } from './scape-archive-envelope.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from './scape-abort.ts';
+import { validateScapeArchiveLayout } from './scape-archive-layout.ts';
 
 export interface ScapeArchiveReader {
 	getEntriesGenerator(options?: Readonly<{ strictness?: 'strict' }>): AsyncGenerator<ScapeArchiveEntry, boolean>;
@@ -16,7 +17,7 @@ export interface ScapeArchiveReader {
 export type ScapeArchiveReaderFactory = (
 	input: Blob,
 	signal?: AbortSignal,
-) => ScapeArchiveReader;
+) => PromiseLike<ScapeArchiveReader> | ScapeArchiveReader;
 
 export async function withScapeArchiveReader<Value>(
 	input: Blob,
@@ -26,10 +27,11 @@ export async function withScapeArchiveReader<Value>(
 ): Promise<Value> {
 	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
 	throwIfScapeAborted(signal);
-	const reader = createReader(input, signal);
+	const reader = await createReader(input, signal);
 	let failure: unknown;
 	let failed = false;
 	try {
+		throwIfScapeAborted(signal);
 		const entries: ScapeArchiveEntry[] = [];
 		for await (const entry of reader.getEntriesGenerator({ strictness: 'strict' })) {
 			throwIfScapeAborted(signal);
@@ -61,7 +63,9 @@ export async function withScapeArchiveReader<Value>(
 	}
 }
 
-function createZipArchiveReader(input: Blob, signal?: AbortSignal): ScapeArchiveReader {
+async function createZipArchiveReader(input: Blob, signal?: AbortSignal): Promise<ScapeArchiveReader> {
+	await validateScapeArchiveLayout(input, signal);
+	throwIfScapeAborted(signal);
 	return new ZipReader(new BlobReader(input), {
 		useWebWorkers: false,
 		strictness: 'strict',
