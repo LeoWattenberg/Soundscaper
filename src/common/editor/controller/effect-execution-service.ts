@@ -21,7 +21,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		preflightStorage, getProject, projectDurationFrames, projectSampleRate,
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
 		setAudacityControlTrack, setAudacityEffectParamsFromController, setAudacityEffectType, setStatus,
-		state, throwIfAborted,
+		state, throwIfAborted, updateTaskProgress,
 	} = runtime;
 	async function previewAudacityEffectFromController(request: RuntimeValue = {}) {
 		if (state.audacityEffectProcessing) return false;
@@ -363,6 +363,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					signal: abort.signal,
 					timeoutMs: request.timeoutMs,
 					transferInput: true,
+					onProgress: updateTaskProgress,
 				});
 				throwIfAborted(abort.signal);
 				if (result?.type === 'audio') {

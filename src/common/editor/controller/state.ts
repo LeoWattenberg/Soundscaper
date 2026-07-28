@@ -148,6 +148,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		sampleEditAvailable: false,
 		sampleEditProcessing: false,
 		sampleEditAbort: null,
+		taskProgress: null,
 		exportProgress: 0,
 		exportOutput: null,
 		monitoring: false,

@@ -12,6 +12,7 @@ globalThis.onmessage = async ({ data }) => {
 			return;
 		}
 		const context = normalizeContext(data.context || {});
+		context.onProgress = (progress) => globalThis.postMessage({ type: 'progress', ratio: progress });
 		if (data.wasmModule !== undefined) context.wasmModule = data.wasmModule;
 		const output = await applyAudioSelectionEffectAsync(
 			data.effectType,

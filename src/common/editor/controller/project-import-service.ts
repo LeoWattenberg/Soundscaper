@@ -32,12 +32,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store,
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
-		writeBuffer,
+		writeBuffer, taskProgress,
 	} = runtime;
+	let activeImportProgress: RuntimeValue = null;
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
 		if (!files.length || editingBlocked()) return;
 		const importOptions = normalizeImportOptions(requestedOptions);
+		const progressTask = taskProgress?.begin?.('import', copy.importing) || null;
+		activeImportProgress = progressTask;
 		state.importing = true;
 		publishDocumentSnapshot();
 		setStatus(copy.importing);
@@ -45,8 +48,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		let successes = 0;
 		const notices = [];
 		let importQueue = files;
+		const progressFiles = files.filter((file: RuntimeValue) => !isLegacyBlockFile(file));
+		const totalBytes = Math.max(1, progressFiles.reduce((sum: number, file: RuntimeValue) => (
+			sum + Math.max(1, Number(file?.size) || 0)
+		), 0));
+		let completedBytes = 0;
 		const legacyProject = files.find(isLegacyAupFile);
 		if (legacyProject) {
+			setImportFileProgress(legacyProject, completedBytes, totalBytes);
 			try {
 				const result = await importLegacyAudacityProject(
 					legacyProject,
@@ -58,12 +67,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				failures += 1;
 				handleError(error);
 			}
+			activeImportProgress?.update?.(1);
+			completedBytes += Math.max(1, Number(legacyProject.size) || 0);
 			// `.au` files selected with a legacy project are its immutable block
 			// store, not independent media imports.
 			importQueue = files.filter((file: RuntimeValue) => file !== legacyProject && !isLegacyAupFile(file) && !isLegacyBlockFile(file));
 		}
 		let audioFileIndex = 0;
 		for (const file of importQueue) {
+			setImportFileProgress(file, completedBytes, totalBytes);
 			try {
 				const result = await importFile(file, importFilePlacement(importOptions, audioFileIndex));
 				if (result?.notice) notices.push(result.notice);
@@ -72,6 +84,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				failures += 1;
 				handleError(error);
 			}
+			activeImportProgress?.update?.(1);
+			completedBytes += Math.max(1, Number(file?.size) || 0);
 			audioFileIndex += 1;
 		}
 		try {
@@ -82,7 +96,18 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		} finally {
 			state.importing = false;
 			publishDocumentSnapshot();
+			progressTask?.finish?.();
+			if (activeImportProgress === progressTask) activeImportProgress = null;
 		}
+	}
+
+	function setImportFileProgress(file: RuntimeValue, completedBytes: number, totalBytes: number) {
+		const fileBytes = Math.max(1, Number(file?.size) || 0);
+		activeImportProgress?.setPhase?.(copy.importing, {
+			start: completedBytes / totalBytes,
+			end: Math.min(1, (completedBytes + fileBytes) / totalBytes),
+			value: null,
+		});
 	}
 
 	function normalizeImportOptions(value: RuntimeValue = {}) {
@@ -418,11 +443,16 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			chunkFrames: SOURCE_CHUNK_FRAMES,
 		});
 		let metadata;
+		let streamedFrames = 0;
 		try {
 			await streamWavBlobPcm(file, {
 				descriptor,
 				chunkFrames: SOURCE_CHUNK_FRAMES,
-				onChunk: (channels: RuntimeValue) => writer.write(channels),
+				onChunk: (channels: RuntimeValue) => {
+					streamedFrames += channels[0]?.length || 0;
+					activeImportProgress?.update?.(streamedFrames / Math.max(1, descriptor.frameCount));
+					return writer.write(channels);
+				},
 			});
 			metadata = await writer.commit({
 				sampleRate: descriptor.sampleRate,
@@ -548,6 +578,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			: Number(progress?.progress ?? progress?.value);
 		if (!Number.isFinite(rawValue)) return;
 		const percentage = rawValue <= 1 ? rawValue * 100 : rawValue;
+		activeImportProgress?.update?.(percentage / 100);
 		setStatus(`${copy.aupImporting} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`);
 	}
 	return Object.freeze({

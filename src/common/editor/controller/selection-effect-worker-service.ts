@@ -84,6 +84,7 @@ export interface SelectionEffectWorkerServiceRuntime {
 	readonly timeoutMs?: number;
 	readonly setTimeout?: (callback: () => void, delay: number) => ReturnType<typeof globalThis.setTimeout>;
 	readonly clearTimeout?: (handle: ReturnType<typeof globalThis.setTimeout>) => void;
+	readonly onProgress?: (value: number) => void;
 }
 
 interface WorkerOwner {
@@ -94,6 +95,7 @@ interface WorkerOwner {
 export interface EffectWorkerRunOptions {
 	readonly signal?: AbortSignal | null;
 	readonly timeoutMs?: number;
+	readonly onProgress?: (value: number) => void;
 }
 
 export function createSelectionEffectWorkerService(runtime: SelectionEffectWorkerServiceRuntime) {
@@ -155,6 +157,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 				if (selectionOwner === owner) selectionOwner = null;
 				if (runtime.state.audacityEffectWorker === worker) runtime.state.audacityEffectWorker = null;
 			},
+			onProgress: options.onProgress ?? runtime.onProgress,
 			scheduleTimeout,
 			clearScheduledTimeout,
 		});
@@ -197,6 +200,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 				if (spectralOwner === owner) spectralOwner = null;
 				if (runtime.state.spectralWorker === worker) runtime.state.spectralWorker = null;
 			},
+			onProgress: options.onProgress ?? runtime.onProgress,
 			scheduleTimeout,
 			clearScheduledTimeout,
 		});
@@ -223,6 +227,7 @@ interface ExecuteWorkerOptions<Result> {
 	readonly acceptMessage: (data: unknown) => Result | Error | null;
 	readonly setOwner: (owner: WorkerOwner) => void;
 	readonly clearOwner: (owner: WorkerOwner) => void;
+	readonly onProgress?: (value: number) => void;
 	readonly scheduleTimeout: (callback: () => void, delay: number) => ReturnType<typeof globalThis.setTimeout>;
 	readonly clearScheduledTimeout: (handle: ReturnType<typeof globalThis.setTimeout>) => void;
 }
@@ -256,6 +261,11 @@ function executeWorker<Result>(options: ExecuteWorkerOptions<Result>): Promise<R
 		options.setOwner(owner);
 		options.signal?.addEventListener('abort', onAbort, { once: true });
 		options.worker.onmessage = ({ data }) => {
+			if (isRecord(data) && data.type === 'progress') {
+				const value = Number(data.ratio ?? data.progress);
+				if (Number.isFinite(value)) options.onProgress?.(Math.max(0, Math.min(1, value)));
+				return;
+			}
 			const outcome = options.acceptMessage(data);
 			if (outcome instanceof Error) settle(null, outcome);
 			else if (outcome !== null) settle(outcome, null);

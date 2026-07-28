@@ -438,6 +438,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		projectToken?: EditorProjectToken,
 	): void {
 		if (task && projectToken) assertOwnership(task, projectToken);
+		runtime.taskProgress?.setActivePhase(prefix, { start: 0, end: 1, value: progress.value });
 		runtime.setStatus(nativeProjectProgressMessage(progress, prefix));
 	}
 

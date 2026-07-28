@@ -186,17 +186,19 @@ test('spectral workers normalize result channels and clean up after reported fai
 
 test('selection workers ignore unrelated messages before accepting a noise profile', async () => {
 	const harness = createHarness();
+	const progress: number[] = [];
 	const pending = harness.service.runSelectionEffectWorker({
 		operation: 'capture-noise-profile',
 		channels: [new Float32Array([0.25, -0.5])],
 		sampleRate: 48_000,
 		params: {},
-	});
+	}, { onProgress: (value) => progress.push(value) });
 	const worker = harness.selectionWorkers[0]!;
 	worker.onmessage?.({ data: null });
 	worker.onmessage?.({ data: { type: 'progress', ratio: 0.5 } });
 	worker.onmessage?.({ data: { type: 'noise-profile', profile: { threshold: -30 } } });
 	assert.deepEqual((await pending).profile, { threshold: -30 });
+	assert.deepEqual(progress, [0.5]);
 	assert.equal(worker.terminated, 1);
 });
 

@@ -1,0 +1,68 @@
+#kw-audio-editor-design-system .selection-toolbar__status {
+	position: relative;
+	padding-bottom: 7px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__task-progress {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system .selection-toolbar__status .kw-audio-editor__task-progress {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__selection-surface--status-only .kw-audio-editor__task-progress {
+	padding: 0 8px 5px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__task-progress-track {
+	position: relative;
+	height: 4px;
+	min-width: 0;
+	flex: 1 1 auto;
+	overflow: hidden;
+	background: color-mix(in srgb, var(--kw-editor-text) 16%, transparent);
+	border-radius: 999px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__task-progress-fill {
+	display: block;
+	height: 100%;
+	background: var(--kw-editor-accent);
+	border-radius: inherit;
+	transition: width 180ms ease-out;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__task-progress[data-indeterminate] .kw-audio-editor__task-progress-fill {
+	width: 38%;
+	animation: kw-editor-task-progress 1.1s ease-in-out infinite;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__task-progress output {
+	min-width: 3ch;
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	text-align: right;
+}
+
+@keyframes kw-editor-task-progress {
+	from { transform: translateX(-110%); }
+	to { transform: translateX(265%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#kw-audio-editor-design-system .kw-audio-editor__task-progress-fill { transition: none; }
+	#kw-audio-editor-design-system .kw-audio-editor__task-progress[data-indeterminate] .kw-audio-editor__task-progress-fill {
+		width: 100%;
+		animation: none;
+		opacity: .65;
+	}
+}

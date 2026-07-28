@@ -276,6 +276,7 @@ import {
 	createEditorTelemetrySnapshot,
 } from './controller/snapshot-model.ts';
 import { createSnapshotChannel } from './controller/snapshot-channel.ts';
+import { createEditorTaskProgressCoordinator } from './controller/task-progress.ts';
 import {
 	SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
 	SOURCE_CHUNK_FRAMES,
@@ -478,6 +479,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		build: buildTelemetrySnapshot,
 		canPublish: () => !state.disposed,
 	});
+	const taskProgress = createEditorTaskProgressCoordinator({ onChange: (progress) => {
+		state.taskProgress = progress;
+		publishTelemetrySnapshot();
+	} });
 	const settingPersistence = createSettingPersistence({
 		write: (key, value) => store.saveSetting(key, value),
 		isInactive: () => state.disposed,
@@ -736,6 +741,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publish: publishDocumentSnapshot,
 		handleError,
 	});
+	const progressAnalysisService = Object.freeze({
+		...analysisService,
+		run: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.run(...args)),
+		plotSpectrum: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.plotSpectrum(...args)),
+		findClipping: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.findClipping(...args)),
+		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)),
+	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
 		: () => {};
@@ -835,7 +847,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy,
 	});
 	const nativeProjectService = createNativeProjectService({
-		lifetime, projectGeneration, state, copy, store, fileService,
+		lifetime, projectGeneration, state, copy, store, fileService, taskProgress,
 		getProject: () => project,
 		switchProject,
 		editingBlocked,
@@ -971,7 +983,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		prepareCommittedOutput: (clip, source, { signal }) => (
-			clipTimePitchCache.prepareCommittedOutput(clip, source, { signal })
+			clipTimePitchCache.prepareCommittedOutput(clip, source, { signal, onProgress: (value) => taskProgress.updateActive(value) })
 		),
 		materializeEntry: (entry, signal) => (
 			clipTimePitchCacheService.materializeTimePitchCacheEntry(entry, signal)
@@ -1081,7 +1093,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
-		updateExportProgress,
+		updateExportProgress, taskProgress,
 	});
 	const mixRenderService = createMixRenderService({
 		lifetime, copy, derivedSources: derivedSourceService,
@@ -1133,6 +1145,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		captureNoiseProfile: captureAudacityNoiseProfile,
 		applySelectionEffect: applyAudioSelectionEffectAsync,
 		applySpectralGain,
+		onProgress: (value) => taskProgress.updateActive(value),
 	});
 	const effectSelectionService = createEffectSelectionService({
 		state,
@@ -1272,7 +1285,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const {
 		applySelectedAudacityEffect,
 		previewAudacityEffectFromController,
-		runNyquistEvaluation,
+		runNyquistEvaluation: runNyquistEvaluationOperation,
 	} = createSelectionEffectExecutionService({
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError,
 		activeSelection, assertAudacityEffectOutput, audacityEffectMemoryError, audacityEffectSelectionDetails,
@@ -1286,7 +1299,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		preflightStorage, getProject: () => project, projectDurationFrames, projectSampleRate,
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
 		setAudacityControlTrack, setAudacityEffectParamsFromController, setAudacityEffectType, setStatus,
-		state, throwIfAborted,
+		state, throwIfAborted, updateTaskProgress: (value) => taskProgress.updateActive(value),
 	});
 	const { persistAudacityEffectResults } = createSelectionEffectResultService({
 		SOURCE_CHUNK_FRAMES, assertAudacityEffectOutput, audioSelectionEffectLabel, bufferFromChannels,
@@ -1384,7 +1397,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store,
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
-		writeBuffer,
+		writeBuffer, taskProgress,
 	});
 	const importVideoFile = createImportVideoFile({
 		SOURCE_CHUNK_FRAMES, activateVideoSource, audioBufferChannels, audioEditorVideoThumbnailTimes,
@@ -1676,7 +1689,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const actions = guardControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
-		adjustTrackHeight, analysisService, applyAudacityEffectFromController, applyEffectPreset,
+		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
 		applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 		beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
 		cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
@@ -1754,6 +1767,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		dispose() {
 			if (disposePromise) return disposePromise;
 			lifetime.beginDisposal();
+			taskProgress.clear();
 			state.disposed = true;
 			state.phase = lifetime.phase;
 			publishDocumentSnapshot({ force: true });
@@ -2017,27 +2031,25 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectLockService.claimProjectLock();
 	}
 
-
 	async function openScape(file, openOptions = {}) {
-		return nativeProjectService.openScape(file, openOptions);
+		return taskProgress.run('project-io', copy.importing, () => nativeProjectService.openScape(file, openOptions));
 	}
 
 	async function saveScape(options = {}) {
-		return nativeProjectService.saveScape(options);
+		return taskProgress.run('project-io', copy.projectSaving, () => nativeProjectService.saveScape(options));
 	}
 
 	async function openAup4(file) { return openAudacityProject(file); }
 
-	async function openAudacityProject(file) { return nativeProjectService.openAudacityProject(file); }
+	async function openAudacityProject(file) { return taskProgress.run('project-io', copy.importing, () => nativeProjectService.openAudacityProject(file)); }
 
 	async function saveAup4(options = {}) {
-		return nativeProjectService.saveAup4(options);
+		return taskProgress.run('project-io', copy.aup4Saving, () => nativeProjectService.saveAup4(options));
 	}
 
 	function dismissAup4CompatibilitySummary() {
 		return nativeProjectService.dismissAup4CompatibilitySummary();
 	}
-
 
 	function cacheSourceBuffer(sourceId, buffer) {
 		return sourceLifecycleService.cacheSourceBuffer(sourceId, buffer);
@@ -2151,14 +2163,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectBinService.stopProjectBinPreview({ dispose });
 	}
 
-
-
-
-
-
-
-
-
 	function addTrack(options = {}) {
 		return trackService.addTrack(options);
 	}
@@ -2195,26 +2199,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return trackService.setTrackSampleFormat(trackId, sampleFormat);
 	}
 
-
 	async function mixAndRenderTracks() {
-		return mixRenderService.mixAndRenderTracks();
+		return taskProgress.run('render', copy.rendering, () => mixRenderService.mixAndRenderTracks());
 	}
 
-
 	async function resampleTrack(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
-		return trackTransformService.resampleTrack(trackId, requestedSampleRate);
+		return taskProgress.run('transform', copy.resamplingTrack || copy.audacityProcessing, () => trackTransformService.resampleTrack(trackId, requestedSampleRate));
 	}
 
 	async function swapTrackChannels(trackId = state.selectedTrackId) {
-		return trackTransformService.swapTrackChannels(trackId);
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.swapTrackChannels(trackId));
 	}
 
 	async function splitStereoTrack(trackId = state.selectedTrackId, panChannels = true) {
-		return trackTransformService.splitStereoTrack(trackId, panChannels);
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.splitStereoTrack(trackId, panChannels));
 	}
 
 	async function makeStereoTrack(trackId = state.selectedTrackId, partnerTrackId = null) {
-		return trackTransformService.makeStereoTrack(trackId, partnerTrackId);
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.makeStereoTrack(trackId, partnerTrackId));
 	}
 
 	function addLabel(trackId, labelOptions = {}) {
@@ -2239,11 +2241,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function generateSelectionSilence(...args) {
-		return audioGeneratorService.generateSelectionSilence(...args);
+		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSelectionSilence(...args));
 	}
 
 	async function generateSignal(...args) {
-		return audioGeneratorService.generateSignal(...args);
+		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSignal(...args));
 	}
 
 	function selectTrack(trackId) {
@@ -2339,11 +2341,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function applySamplePencil(options = {}) {
-		return sampleEditService.applySamplePencil(options);
+		return taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEditService.applySamplePencil(options));
 	}
 
 	function smoothSelectedSamples(options = {}) {
-		return sampleEditService.smoothSelectedSamples(options);
+		return taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEditService.smoothSelectedSamples(options));
 	}
 
 	async function loadRecordingRouting(currentProject = project) {
@@ -2542,7 +2544,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function renderClipPitchSpeed(...args) {
-		return clipTimePitchRenderService.renderClipPitchSpeed(...args);
+		return taskProgress.run('render', copy.rendering, () => clipTimePitchRenderService.renderClipPitchSpeed(...args));
 	}
 
 	function projectHasTimePitchClips(...args) {
@@ -2677,7 +2679,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function runEffectMacro(...args) {
-		return effectMacroService.runEffectMacro(...args);
+		return taskProgress.run('effect', copy.macroProcessing || copy.audacityProcessing, () => effectMacroService.runEffectMacro(...args));
 	}
 
 	function currentAudacityEffectParams(...args) {
@@ -2717,7 +2719,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function applyAudacityEffectFromController(...args) {
-		return effectControlsService.applyAudacityEffectFromController(...args);
+		return taskProgress.run('effect', copy.audacityProcessing, () => effectControlsService.applyAudacityEffectFromController(...args));
 	}
 
 	function cancelAudacityEffectPreview(...args) {
@@ -2725,7 +2727,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function repeatLastAudacityEffect(...args) {
-		return effectControlsService.repeatLastAudacityEffect(...args);
+		return taskProgress.run('effect', copy.audacityProcessing, () => effectControlsService.repeatLastAudacityEffect(...args));
 	}
 
 	function captureRackNoiseProfileFromController(...args) {
@@ -2757,11 +2759,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function applySpectralSelection(...args) {
-		return effectAudioService.applySpectralSelection(...args);
+		return taskProgress.run('effect', copy.spectralProcessing || copy.audacityProcessing, () => effectAudioService.applySpectralSelection(...args));
 	}
 
 	function captureSelectedNoiseProfile(...args) {
-		return effectAudioService.captureSelectedNoiseProfile(...args);
+		return taskProgress.run('effect', copy.audacityProcessing, () => effectAudioService.captureSelectedNoiseProfile(...args));
 	}
 
 	function renderDryTrackRange(...args) {
@@ -2770,6 +2772,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function cancelNyquistEvaluation(...args) {
 		return nyquistHostService.cancelNyquistEvaluation(...args);
+	}
+
+	function runNyquistEvaluation(...args) {
+		return taskProgress.run('effect', copy.nyquistProcessing || copy.audacityProcessing, () => runNyquistEvaluationOperation(...args));
 	}
 
 	function nyquistHostProperties(...args) {
@@ -2791,8 +2797,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function persistAudacityEffectResult(target, type, channels, options = {}) {
 		return persistAudacityEffectResults([{ target, channels }], type, options);
 	}
-
-
 
 	function runSelectionEffectWorker(...args) {
 		return selectionEffectWorkerService.runSelectionEffectWorker(...args);
@@ -2826,13 +2830,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 			preRollFrames: Math.min(range.startFrame, projectSampleRate() * 10),
 		}, sourceBuffers, signal);
 	}
-
-
-
-
-
-
-
 
 	async function startRecordingOnNewTrack(options = {}) {
 		return recordingSessionService.startRecordingOnNewTrack(options);
@@ -2936,6 +2933,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function updateExportProgress(progress) {
 		state.exportProgress = Math.max(0, Math.min(1, Number(progress) || 0));
+		taskProgress.updateActive(state.exportProgress);
 		publishTelemetrySnapshot();
 	}
 

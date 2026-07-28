@@ -42,12 +42,17 @@ test('telemetry snapshots normalize playback defaults and isolate meter maps', (
 		inputMeterDb: -12,
 		inputMeter: null,
 		inputMeters,
+		taskProgress: { id: 'task-1', kind: 'export', label: 'Encoding', value: 0.25 },
 		exportProgress: 0.5,
 	}, { getState: () => ({ playbackRate: 0 }) });
 	assert.equal(snapshot.playbackMode, 'normal');
 	assert.equal(snapshot.playbackRate, 1);
 	assert.equal(snapshot.recording, true);
 	assert.notEqual(snapshot.inputMeters, inputMeters);
+	assert.deepEqual(snapshot.taskProgress, {
+		id: 'task-1', kind: 'export', label: 'Encoding', value: 0.25,
+	});
+	assert.equal(snapshot.exportProgress, 0.25);
 	assert.equal(Object.isFrozen(snapshot), true);
 });
 

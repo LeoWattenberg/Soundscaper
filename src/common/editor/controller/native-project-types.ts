@@ -4,6 +4,7 @@ import type {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 } from './lifecycle.ts';
+import type { EditorTaskProgressCoordinator } from './task-progress.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -236,6 +237,7 @@ export interface NativeProjectServiceRuntime {
 	readonly copy: NativeProjectCopy;
 	readonly store: NativeProjectStore;
 	readonly fileService: NativeProjectFileService;
+	readonly taskProgress?: EditorTaskProgressCoordinator;
 	readonly getProject: () => NativeProjectDocument | null;
 	readonly switchProject: (project: NativeProjectDocument, options: Readonly<{
 		readOnly?: boolean;

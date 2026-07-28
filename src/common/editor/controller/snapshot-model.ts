@@ -19,6 +19,13 @@ interface VideoEffectGesture {
 	readonly params: unknown;
 }
 
+interface TaskProgressLike {
+	readonly id: string;
+	readonly kind: string;
+	readonly label: string;
+	readonly value: number | null;
+}
+
 export function applyVideoEffectGesturePreviews<Project extends VideoGestureProject>(
 	project: Project | null,
 	gestures: ReadonlyMap<string, VideoEffectGesture>,
@@ -53,6 +60,7 @@ export interface EditorTelemetryState {
 	readonly inputMeterDb: number;
 	readonly inputMeter: unknown;
 	readonly inputMeters: Readonly<Record<string, unknown>>;
+	readonly taskProgress?: TaskProgressLike | null;
 	readonly exportProgress: number;
 }
 
@@ -76,7 +84,10 @@ export function createEditorTelemetrySnapshot(
 		inputMeterDb: state.inputMeterDb,
 		inputMeter: state.inputMeter,
 		inputMeters: Object.freeze({ ...state.inputMeters }),
-		exportProgress: state.exportProgress,
+		taskProgress: state.taskProgress ? Object.freeze({ ...state.taskProgress }) : null,
+		exportProgress: state.taskProgress?.kind === 'export'
+			? state.taskProgress.value ?? 0
+			: state.exportProgress,
 	});
 }
 

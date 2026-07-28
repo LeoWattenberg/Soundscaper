@@ -1,6 +1,9 @@
 import type { EditorControllerPhase } from './controller/lifecycle.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
+import type { EditorTaskProgress } from './controller/task-progress.ts';
 import type { ProjectBextMetadata } from './project-bext-metadata.ts';
+
+export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 
 export type EditorId = string;
 export type EditorFrame = number;
@@ -205,6 +208,7 @@ export interface EditorTelemetrySnapshot {
 	readonly playbackMode: string;
 	readonly playbackRate: number;
 	readonly recording: boolean;
+	readonly taskProgress: EditorTaskProgress | null;
 	readonly exportProgress: number;
 	readonly [metric: string]: unknown;
 }

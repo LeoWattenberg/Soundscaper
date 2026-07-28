@@ -8,6 +8,11 @@ export interface ExportServiceRuntime {
 
 type RuntimeValue = ExportServiceRuntime[string];
 
+const NO_TASK_PROGRESS = Object.freeze({
+	setPhase: () => false,
+	finish: () => false,
+});
+
 export function createEditorExportService(runtime: ExportServiceRuntime) {
 	const {
 		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject,
@@ -21,7 +26,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		getProject, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
-		updateExportProgress,
+		updateExportProgress, taskProgress,
 	} = runtime;
 	async function handleExportAction(action: RuntimeValue, requestedSettings: RuntimeValue = null) {
 		if (action === 'cancel') {
@@ -47,6 +52,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		});
 		state.exportAbort = abort;
 		toggleExport(true);
+		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		const exportProject = cloneProject(getProject());
 		const exportSources = new Map(sourceBuffers);
 		let pendingCleanup = null;
@@ -78,7 +84,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 						throwIfAborted(abort.signal);
 						const output = plan.outputs[index];
 						const snapshot = stemProject(exportProject, output.trackId);
-						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportSources);
+						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportSources, {
+							start: index / plan.outputs.length,
+							end: (index + 1) / plan.outputs.length,
+						});
 						try {
 							await archive.add(output.fileName, encoded.blob || encoded.bytes, abort.signal);
 						} finally {
@@ -146,6 +155,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				state.exportAbort = null;
 				toggleExport(false);
 			}
+			progressTask.finish();
 			exportTask.finish();
 		}
 	}
@@ -168,6 +178,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		});
 		state.exportAbort = abort;
 		toggleExport(true);
+		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		const exportProject = cloneProject(getProject());
 		let pendingCleanup = null;
 		try {
@@ -187,6 +198,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				}, 0);
 			await preflightStorage(Math.max(rawVideoBytes, 16 * 1024 * 1024), 'export');
 			setStatus(copy.rendering);
+			progressTask.setPhase(copy.rendering, { start: 0, end: 0.4, value: 0 });
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
@@ -213,6 +225,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				audioMixBlob = new Blob([wav], { type: 'audio/wav' });
 			}
 			setStatus(copy.encoding);
+			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
 			const encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 				signal: abort.signal,
 			});
@@ -262,6 +275,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				state.exportAbort = null;
 				toggleExport(false);
 			}
+			progressTask.finish();
 			exportTask.finish();
 		}
 	}
@@ -276,8 +290,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			.slice(0, 96) || 'video-project';
 	}
 
-	async function renderAndEncode(snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue, sourceMap: RuntimeValue = sourceBuffers) {
+	async function renderAndEncode(snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue, sourceMap: RuntimeValue = sourceBuffers, progressRange: RuntimeValue = { start: 0, end: 1 }) {
 		throwIfAborted(signal);
+		const progressSpan = progressRange.end - progressRange.start;
+		taskProgress?.setActivePhase?.(copy.rendering, {
+			start: progressRange.start,
+			end: progressRange.start + progressSpan * 0.7,
+			value: 0,
+		});
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		if (plan.render.strategy === 'realtime-stream') {
 			setStatus(copy.largeProjectRealtimeExport);
@@ -292,6 +312,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
 			}, sourceMap, signal);
 			throwIfAborted(signal);
+			taskProgress?.setActivePhase?.(copy.encoding, {
+				start: progressRange.start + progressSpan * 0.7,
+				end: progressRange.end,
+				value: 0,
+			});
 			return await encodeRendered(rendered, plan, settings, signal);
 		} catch (error) {
 			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') throw error;
@@ -311,10 +336,23 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const renderEngine = createCacheAwareRenderEngine();
 		try {
 			renderEngine.loadProject(snapshot, sourceMap);
-			const rendered = await renderEngine.renderMix({ ...range, signal });
+			const rendered = await renderEngine.renderMix({ ...withRenderProgress(range), signal });
 			throwIfAborted(signal);
 			return rendered;
 		} finally { await renderEngine.dispose(); }
+	}
+
+	function withRenderProgress(range: RuntimeValue) {
+		const activeKind = taskProgress?.getSnapshot?.()?.kind;
+		if (!activeKind) return range;
+		return {
+			...range,
+			onProgress: (progress: RuntimeValue) => {
+				const value = typeof progress === 'number' ? progress : progress?.progress;
+				if (activeKind === 'export') updateExportProgress(value);
+				else taskProgress.updateActive(value);
+			},
+		};
 	}
 
 	async function encodeRendered(rendered: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue) {

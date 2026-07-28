@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
 	Button,
 	ContextMenuItem,
@@ -15,6 +16,7 @@ import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.j
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from '../application-menu-registry.ts';
 import { formatPlaybackSpeed } from '../meter-settings.ts';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
+import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 
 export function PlaySpeedFlyout({ copy, snapshot, telemetry, blocked, controller, run, close }) {
 	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
@@ -300,6 +302,7 @@ export function AccessibleSelectionToolbar({
 	run,
 }) {
 	const wrapperRef = useRef(null);
+	const [statusTarget, setStatusTarget] = useState(null);
 	const [claimingLock, setClaimingLock] = useState(false);
 	const [format, setFormat] = useState('hh:mm:ss+milliseconds');
 	const [durationFormat, setDurationFormat] = useState('hh:mm:ss+milliseconds');
@@ -325,6 +328,7 @@ export function AccessibleSelectionToolbar({
 			status.setAttribute('role', 'status');
 			status.setAttribute('aria-live', 'polite');
 		}
+		setStatusTarget(root.querySelector('.selection-toolbar__status'));
 		const timecodes = [...root.querySelectorAll('.selection-toolbar__timecodes .timecode')];
 		const timecodeLabels = [
 			copy.selectionStart || `${copy.selection}: ${copy.clipStart}`,
@@ -339,7 +343,7 @@ export function AccessibleSelectionToolbar({
 				`${timecodeLabels[index] || copy.selection}: ${copy.format}`,
 			);
 		});
-	}, [canEdit, copy, format, durationFormat, statusMessage, statusState]);
+	}, [canEdit, copy, format, durationFormat, showSelectionToolbar, statusMessage, statusState]);
 
 	const updateStart = (seconds) => {
 		if (!canEdit) return;
@@ -383,6 +387,7 @@ export function AccessibleSelectionToolbar({
 				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite">
 					{showStatusbar ? statusMessage : ''}
 				</p>
+				{showStatusbar && <EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} />}
 			</div>
 		);
 	}
@@ -409,6 +414,10 @@ export function AccessibleSelectionToolbar({
 				onSelectionEndChange={updateEnd}
 				showDuration
 			/>
+			{showStatusbar && statusTarget && createPortal(
+				<EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} />,
+				statusTarget,
+			)}
 		</div>
 	);
 }
