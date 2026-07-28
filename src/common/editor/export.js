@@ -145,6 +145,11 @@ export function createExportPlan(project, options = {}) {
 			?? options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
 		...(bw64Adm ? { channelMapping: 'preserve' } : {}),
 	});
+	if (bw64Adm?.metadata.mode === 'passthrough'
+		&& bw64Adm.metadata.opaqueRiffChunks?.some(({ id }) => id.toLowerCase() === 'id3 ')
+		&& Object.keys(encoding.metadata).length > 0) {
+		throw new Error('ADM passthrough with a preserved RIFF ID3 chunk cannot add replacement ID3 metadata.');
+	}
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(project, options.range || 'project');
 	const markers = createExportMarkers(project, range, sampleRate, options.markerTrackId);

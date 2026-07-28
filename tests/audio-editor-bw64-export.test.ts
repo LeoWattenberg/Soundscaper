@@ -167,6 +167,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 	];
 	const opaqueAfter = [
 		riffChunk('PEAK', Uint8Array.of(4, 5, 6), 0x7f),
+		riffChunk('id3 ', Uint8Array.of(0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0)),
 		riffChunk('MD5 ', Uint8Array.of(7, 8)),
 	];
 	const project = createAudioEditorProjectV7({
@@ -240,7 +241,12 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 	assert.ok(findAscii(encoded, 'chna') < findAscii(encoded, 'data'));
 	assert.ok(findAscii(encoded, 'data') < findAscii(encoded, 'axml'));
 	assert.ok(findAscii(encoded, 'sxml') < findAscii(encoded, 'PEAK'));
-	assert.ok(findAscii(encoded, 'PEAK') < findAscii(encoded, 'MD5 '));
+	assert.ok(findAscii(encoded, 'PEAK') < findAscii(encoded, 'id3 '));
+	assert.ok(findAscii(encoded, 'id3 ') < findAscii(encoded, 'MD5 '));
+	assert.throws(
+		() => createExportPlan(project, { ...options, metadata: { title: 'Replacement' } }),
+		/preserved.*ID3|ID3.*passthrough/iu,
+	);
 	const structural = riffChunk('data', Uint8Array.of(1, 2));
 	assert.throws(() => createAudioEditorProjectV7({
 		...project,

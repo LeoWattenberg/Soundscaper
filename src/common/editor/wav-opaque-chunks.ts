@@ -21,7 +21,7 @@ const MAX_RIFF_CHUNKS = 4_096;
 const BASE64_PATTERN = /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{2}==|[A-Za-z\d+/]{3}=)?$/u;
 const WRITER_OWNED_CHUNK_IDS = new Set([
 	'RIFF', 'RF64', 'BW64', 'ds64', 'fmt ', 'data', 'fact',
-	'bext', 'cue ', 'iXML', 'cart', 'axml', 'bxml', 'sxml', 'chna', 'id3 ', 'ID3 ',
+	'bext', 'cue ', 'iXML', 'cart', 'axml', 'bxml', 'sxml', 'chna',
 ]);
 
 export function shouldPreserveWavOpaqueRiffChunk(id: string, listType: string | null): boolean {

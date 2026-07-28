@@ -63,6 +63,7 @@ test('BW64 inspection preserves complete unmodeled RIFF chunks in placement orde
 	const beforeOdd = riffChunk('JUNK', Uint8Array.of(1, 2, 3), false, 0xa5);
 	const beforeList = riffChunk('LIST', Uint8Array.of(0x56, 0x45, 0x4e, 0x44, 9));
 	const afterOdd = riffChunk('PEAK', Uint8Array.of(4, 5, 6), false, 0x7f);
+	const afterId3 = riffChunk('id3 ', Uint8Array.of(0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0));
 	const afterEven = riffChunk('MD5 ', Uint8Array.of(7, 8));
 	const descriptor = await inspectWavBlobPcm(createBw64({
 		channelCount: 1,
@@ -72,6 +73,7 @@ test('BW64 inspection preserves complete unmodeled RIFF chunks in placement orde
 			{ id: 'chna', bytes: chna },
 			{ id: 'axml', bytes: new TextEncoder().encode(xml), afterData: true },
 			{ id: 'PEAK', bytes: Uint8Array.of(4, 5, 6), padByte: 0x7f, afterData: true },
+			{ id: 'id3 ', bytes: Uint8Array.of(0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0), afterData: true },
 			{ id: 'MD5 ', bytes: Uint8Array.of(7, 8), afterData: true },
 		],
 	}));
@@ -81,6 +83,7 @@ test('BW64 inspection preserves complete unmodeled RIFF chunks in placement orde
 		{ id: 'JUNK', placement: 'before-data', rawBase64: Buffer.from(beforeOdd).toString('base64') },
 		{ id: 'LIST', placement: 'before-data', rawBase64: Buffer.from(beforeList).toString('base64') },
 		{ id: 'PEAK', placement: 'after-data', rawBase64: Buffer.from(afterOdd).toString('base64') },
+		{ id: 'id3 ', placement: 'after-data', rawBase64: Buffer.from(afterId3).toString('base64') },
 		{ id: 'MD5 ', placement: 'after-data', rawBase64: Buffer.from(afterEven).toString('base64') },
 	]);
 	assert.deepEqual(descriptor.metadataWarnings, []);
