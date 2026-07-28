@@ -461,9 +461,16 @@ function requireFormatDefined(reference: string, ids: ReadonlyMap<string, string
 }
 
 function isCommonDefinition(reference: string): boolean {
-	const match = /^A[PC]_[0-9A-Fa-f]{4}([0-9A-Fa-f]{4})$|^AT_[0-9A-Fa-f]{4}([0-9A-Fa-f]{4})_[0-9A-Fa-f]{2}$/u.exec(reference);
-	const suffix = match?.[1] ?? match?.[2];
-	return suffix !== undefined && Number.parseInt(suffix, 16) <= 0x0fff;
+	const match = /^(?:A[PC]_([0-9A-Fa-f]{4})([0-9A-Fa-f]{4})|AT_([0-9A-Fa-f]{4})([0-9A-Fa-f]{4})_[0-9A-Fa-f]{2})$/u.exec(reference);
+	const typeLabel = match?.[1] ?? match?.[3];
+	const definitionValue = match?.[2] ?? match?.[4];
+	if (typeLabel === undefined || definitionValue === undefined) return false;
+	const type = Number.parseInt(typeLabel, 16);
+	const value = Number.parseInt(definitionValue, 16);
+	// BS.2076 reserves types 0001-0005 and values 0001-0FFF for common
+	// definitions. This validates that namespace, not that BS.2094 assigns a
+	// particular value inside it.
+	return type >= 0x0001 && type <= 0x0005 && value >= 0x0001 && value <= 0x0fff;
 }
 
 function isZeroAdmElementId(value: string): boolean {
@@ -491,7 +498,9 @@ function freezeTrackUid(value: TrackUidBuilder): AdmTrackUid {
 }
 
 function attribute(tag: SaxesTagNS, name: string): string | undefined {
-	return Object.values(tag.attributes).find((candidate) => candidate.local === name)?.value;
+	return Object.values(tag.attributes).find((candidate) => (
+		candidate.local === name && candidate.prefix === '' && candidate.uri === ''
+	))?.value;
 }
 
 function requiredName(tag: SaxesTagNS, name: string): string {

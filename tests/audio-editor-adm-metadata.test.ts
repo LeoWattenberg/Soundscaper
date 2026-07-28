@@ -16,6 +16,7 @@ import {
 	parseRiffAxmlChunk,
 	parseRiffChnaChunk,
 	readAdmBedMetadata,
+	validateAdmCommonDefinitionChna,
 	validateAdmChnaConsistency,
 	type AdmBedLayout,
 } from '../src/common/editor/adm-metadata.ts';
@@ -50,7 +51,12 @@ test('authored ADM beds normalize names, language, layout, and immutable default
 	for (const language of ['e', 'en-GB', 'engl', '1n', ' en ']) {
 		assert.throws(() => normalizeAdmBedMetadata({ language }), /ISO 639|language/u);
 	}
-	assert.throws(() => normalizeAdmBedMetadata({ bedName: 'bad\0name' }), /NUL|control/u);
+	for (const field of ['programmeName', 'contentName', 'bedName'] as const) {
+		assert.throws(
+			() => normalizeAdmBedMetadata({ [field]: 'bad\u0001name' }),
+			/NUL|control/u,
+		);
+	}
 });
 
 test('authored ADM writes ISO 639 language codes while parsing preserves source attributes', () => {
@@ -166,6 +172,20 @@ test('ADM AXML validates identifiers, uniqueness, and local content references',
 	assert.throws(
 		() => parseAdmAxml('<audioFormatExtended><audioTrackUID UID="ATU_00000000" /></audioFormatExtended>'),
 		/zero|reserved/iu,
+	);
+	assert.throws(
+		() => parseAdmAxml(base.replace(
+			'<audioProgramme audioProgrammeID=',
+			'<audioProgramme xmlns:e="urn:example" e:audioProgrammeID=',
+		)),
+		/audioProgrammeID.*missing|invalid/iu,
+	);
+	assert.throws(
+		() => parseAdmAxml(base.replace(
+			'audioProgrammeName=',
+			'xmlns:e="urn:example" e:audioProgrammeName=',
+		)),
+		/audioProgrammeName.*required/iu,
 	);
 });
 
@@ -353,6 +373,42 @@ test('CHNA custom format references must be defined by the static ADM carrier', 
 		() => validateAdmChnaConsistency(parseAdmAxml('<audioFormatExtended />'), customChna, 1),
 		/custom ADM reference AC_00011003.*not defined/iu,
 	);
+});
+
+test('empty AXML accepts only the reserved common-definition ID namespace', () => {
+	const commonEntry = createAdmChna({ layout: 'mono' }).entries[0];
+	assert.ok(commonEntry);
+	assert.equal(validateAdmCommonDefinitionChna({ numTracks: 1, entries: [commonEntry] }, 1), true);
+
+	for (const [field, reference] of [
+		['trackRef', 'AC_00010000'],
+		['packRef', 'AP_00010000'],
+		['trackRef', 'AC_FFFF0001'],
+		['packRef', 'AP_FFFF0001'],
+		['trackRef', 'AC_00060001'],
+		['packRef', 'AP_00060001'],
+		['trackRef', 'AC_00011000'],
+		['packRef', 'AP_00011000'],
+	] as const) {
+		assert.throws(
+			() => validateAdmCommonDefinitionChna({
+				numTracks: 1,
+				entries: [{ ...commonEntry, [field]: reference }],
+			}, 1),
+			/custom.*reference|AXML is empty/iu,
+			reference,
+		);
+	}
+
+	for (const [trackRef, packRef] of [
+		['AC_00010001', 'AP_00010001'],
+		['AC_00050FFF', 'AP_00050FFF'],
+	] as const) {
+		assert.equal(validateAdmCommonDefinitionChna({
+			numTracks: 1,
+			entries: [{ ...commonEntry, trackRef, packRef }],
+		}, 1), true);
+	}
 });
 
 test('CHNA consistency requires every non-silent object UID reference in CHNA', () => {
