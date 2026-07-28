@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
-import { prepareImportedWavMetadata } from './wav-import-metadata.ts';
+import {
+	createImportedAdmPassthroughMetadata,
+	prepareImportedWavMetadata,
+} from './wav-import-metadata.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -168,12 +171,18 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		sourceSampleRate: number = projectSampleRate(),
 		projectIxml: RuntimeValue = null,
 		projectCart: RuntimeValue = null,
+		projectAdmCandidate: RuntimeValue = null,
+		wavDescriptor: RuntimeValue = null,
 	) {
+		const projectAdm = createImportedAdmPassthroughMetadata({
+			candidate: projectAdmCandidate, source, descriptor: wavDescriptor, project: getProject(),
+		});
 		const commands = [];
-		if (projectBext || projectIxml || projectCart) commands.push({ type: 'metadata/update', changes: {
+		if (projectBext || projectIxml || projectCart || projectAdm) commands.push({ type: 'metadata/update', changes: {
 			...(projectBext ? { bext: projectBext } : {}),
 			...(projectIxml ? { ixml: projectIxml } : {}),
 			...(projectCart ? { cart: projectCart } : {}),
+			...(projectAdm ? { adm: projectAdm } : {}),
 		} });
 		commands.push(createAddSourceCommand(source));
 		if (importOptions.destination === 'project-bin') {
@@ -264,15 +273,12 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (isAudioEditorVideoFile(file)) return importVideoFile(file, normalizedImportOptions);
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
-		if (wavSignature === 'BW64') {
-			throw new Error('BW64 WAV files are not supported by the incremental WAV importer.');
-		}
 		const wavDescriptor: RuntimeValue = await inspectWavForImport(
 			file, isWavFile, inspectWavBlobPcm, wavSignature,
 		);
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
-		if (wavSignature === 'RF64') {
-			if (!wavDescriptor) throw new Error('The RF64 WAV file could not be inspected incrementally.');
+		if (wavSignature === 'RF64' || wavSignature === 'BW64') {
+			if (!wavDescriptor) throw new Error(`The ${wavSignature} WAV file could not be inspected incrementally.`);
 			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
 		}
 		if (isIncrementalWav(wavDescriptor)) {
@@ -325,10 +331,11 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: canonical.numberOfChannels,
 			sampleRate: canonical.sampleRate,
 			originalSampleRate: originalSampleRate || decoded.sampleRate,
-			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart) ? { opaqueExtensions: {
+			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
 				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
 				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
 				...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
+				...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
 			} } : {}),
 		}, {
 			schemaVersion: 2,
@@ -339,7 +346,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
-		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart);
+		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
 		cacheSourceBuffer(sourceId, canonical);
 		try {
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
@@ -445,10 +452,11 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: descriptor.channelCount,
 			sampleRate: descriptor.sampleRate,
 			originalSampleRate: descriptor.sampleRate,
-			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart) ? { opaqueExtensions: {
+			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
 				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
 				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
 				...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
+				...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
 			} } : {}),
 		};
 		const prepared = prepareImportedMediaCommand(source, {
@@ -460,7 +468,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
-		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart);
+		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, descriptor);
 		try {
 			await activateStoredSource(source, metadata);
 			commit(prepared.command, prepared.selection);

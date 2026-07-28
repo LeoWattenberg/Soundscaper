@@ -31,8 +31,8 @@ test('authored 5.1 plan encodes an inspectable BW64 with consistent CHNA and AXM
 		metadata: {
 			adm: {
 				mode: 'authored',
-				programme: { name: 'Drama programme', language: 'en-GB' },
-				content: { name: 'German mix', language: 'de-DE' },
+				programme: { name: 'Drama programme', language: 'eng' },
+				content: { name: 'German mix', language: 'deu' },
 				bed: {
 					name: 'Main 5.1 bed',
 					layout: '5.1',
@@ -79,8 +79,8 @@ test('authored 5.1 plan encodes an inspectable BW64 with consistent CHNA and AXM
 	assert.equal(chna.numTracks, 6);
 	assert.equal(chna.entries.length, 6);
 	assert.equal(validateAdmChnaConsistency(axml, chna, 6), true);
-	assert.equal(axml.programmes[0]?.language, 'en-GB');
-	assert.equal(axml.contents[0]?.language, 'de-DE');
+	assert.equal(axml.programmes[0]?.language, 'eng');
+	assert.equal(axml.contents[0]?.language, 'deu');
 });
 
 interface RiffChunkLocation {

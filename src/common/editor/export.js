@@ -18,7 +18,19 @@ import {
 	createAdmChna,
 	createRiffAxmlChunk,
 	createRiffChnaChunk,
+	inspectAdmAxml,
+	parseChnaPayload,
+	validateAdmCommonDefinitionChna,
+	validateAdmChnaConsistency,
 } from './adm-metadata.ts';
+import { inspectBxmlAdmPayload } from './wav-adm-import.ts';
+import { validateAdmSxmlPayload } from './adm-sxml.ts';
+import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
+import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
+import {
+	isNeutralAdmSignalPath,
+	resolveExactAdmPassthroughTimelineSource,
+} from './adm-passthrough-project.ts';
 import {
 	admBedChannelCount,
 	admBedChannelOrder,
@@ -62,9 +74,9 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {'bw64'} [container]
- * @property {{ mode: 'authored'|'passthrough', metadata: import('./adm-project-metadata.ts').AdmProjectMetadata, channelCount: number, channelOrder: readonly string[], preDataChunks: Uint8Array, trailingChunks: Uint8Array }} [adm]
- * @property {Uint8Array} [preDataChunks]
- * @property {Uint8Array} [trailingChunks]
+ * @property {{ mode: 'authored'|'passthrough', metadata: import('./adm-project-metadata.ts').AdmProjectMetadata, channelCount: number, channelOrder: readonly string[], preDataChunks: Uint8Array|readonly Uint8Array[]|undefined, trailingChunks: Uint8Array|readonly Uint8Array[] }} [adm]
+ * @property {Uint8Array|readonly Uint8Array[]} [preDataChunks]
+ * @property {Uint8Array|readonly Uint8Array[]} [trailingChunks]
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
@@ -265,20 +277,98 @@ function resolveBw64Adm(project, options) {
 			masterChannels: transient ? channelCount : masterChannels,
 		});
 		if (issues.length) throw new Error(`ADM routing is incomplete: ${issues.map(({ message }) => message).join(' ')}`);
+		const unsafeEffects = findUnsafeAdmRenderEffects(project, channelCount);
+		if (unsafeEffects.length) {
+			throw new Error(`ADM multichannel export cannot use stereo-only effects: ${unsafeEffects
+				.map(({ effectType, scope, targetId }) => `${effectType} on ${scope}${targetId ? ` ${targetId}` : ''}`)
+				.join(', ')}.`);
+		}
 		return Object.freeze({
 			metadata,
 			channelCount,
 			channelOrder: admBedChannelOrder(metadata.bed.layout),
 		});
 	}
+	const reparsedChna = validateAdmPassthroughPayload(metadata);
 	return Object.freeze({
 		metadata,
 		channelCount,
-		channelOrder: Object.freeze(metadata.chna.entries
-			.slice()
-			.sort((left, right) => left.trackIndex - right.trackIndex)
-			.map(({ audioTrackFormatIdRef }) => audioTrackFormatIdRef)),
+		channelOrder: admChnaChannelOrder(reparsedChna),
 	});
+}
+
+function admChnaChannelOrder(chna) {
+	if (!chna) return Object.freeze([]);
+	const channelOrder = Array.from({ length: chna.numTracks }, () => '');
+	for (const { trackIndex, trackRef } of chna.entries) {
+		if (!channelOrder[trackIndex - 1]) channelOrder[trackIndex - 1] = trackRef;
+	}
+	return Object.freeze(channelOrder);
+}
+
+function validateAdmPassthroughPayload(metadata) {
+	if (metadata.serialPayload) {
+		validateAdmSxmlPayload(decodeBase64(metadata.serialPayload.base64));
+	}
+	const rawChna = metadata.chna.rawBase64
+		? parseChnaPayload(decodeBase64(metadata.chna.rawBase64))
+		: null;
+	if (rawChna && rawChna.numTracks !== metadata.geometry.channelCount) {
+		throw new Error('Persisted ADM CHNA track count does not match its source geometry.');
+	}
+	if (Boolean(rawChna) !== (metadata.chna.entries.length > 0)) {
+		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
+	}
+	if (rawChna && !sameAdmChnaEntries(rawChna.entries, metadata.chna.entries)) {
+		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
+	}
+	const staticPayloads = [
+		...(metadata.payload.kind === 'sxml' ? [] : [metadata.payload]),
+		...(metadata.auxiliaryPayloads ?? []),
+	];
+	const classifiedStatic = staticPayloads.map((payload) => {
+		const bytes = decodeBase64(payload.kind === 'axml' ? payload.rawBase64 : payload.base64);
+		return {
+			payload,
+			empty: payload.kind === 'axml' && bytes.byteLength === 0,
+			document: payload.kind === 'axml'
+				? bytes.byteLength === 0 ? null : inspectAdmAxml(bytes)
+				: inspectBxmlAdmPayload(bytes),
+		};
+	});
+	const documentedStatic = classifiedStatic.filter(({ document }) => document);
+	if (documentedStatic.length > 1) throw new Error('Persisted AXML and BXML both carry static ADM.');
+	const carrier = documentedStatic[0] ?? classifiedStatic.find(({ empty }) => empty);
+	if (metadata.payload.kind === 'sxml') {
+		if (carrier) throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
+		validateAdmSxmlPayload(decodeBase64(metadata.payload.base64));
+		return rawChna;
+	}
+	if (!rawChna) throw new Error('Static ADM passthrough requires CHNA metadata.');
+	if (!carrier || carrier.payload !== metadata.payload) {
+		throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
+	}
+	if (carrier.empty) {
+		validateAdmCommonDefinitionChna(rawChna, metadata.geometry.channelCount);
+		return rawChna;
+	}
+	validateAdmChnaConsistency(carrier.document, rawChna, metadata.geometry.channelCount);
+	return rawChna;
+}
+
+function sameAdmChnaEntries(rawEntries, normalizedEntries) {
+	return rawEntries.length === normalizedEntries.length && rawEntries.every((raw, index) => {
+		const normalized = normalizedEntries[index];
+		return normalized
+			&& raw.trackIndex === normalized.trackIndex
+			&& equalAdmId(raw.uid, normalized.audioTrackUid)
+			&& equalAdmId(raw.trackRef, normalized.audioTrackFormatIdRef)
+			&& equalAdmId(raw.packRef, normalized.audioPackFormatIdRef);
+	});
+}
+
+function equalAdmId(left, right) {
+	return String(left).toUpperCase() === String(right).toUpperCase();
 }
 
 function createBw64AdmExport(project, resolved, { range, outputFrames, encoding }) {
@@ -300,7 +390,19 @@ function createBw64AdmExport(project, resolved, { range, outputFrames, encoding 
 		});
 	} else {
 		if (encoding.dither !== 'none') throw new Error('ADM passthrough export requires dither to be disabled.');
-		const source = soleTimelineAudioSource(project, metadata.source.storageKey);
+		if (!isNeutralAdmSignalPath(project)) {
+			throw new Error('ADM passthrough requires a neutral project signal path.');
+		}
+		const source = resolveExactAdmPassthroughTimelineSource(
+			project,
+			metadata.geometry.frameCount,
+		);
+		if (!source) {
+			throw new Error('ADM passthrough requires one exact full-source timeline clip and track path.');
+		}
+		if (source.storageKey !== metadata.source.storageKey || source.mimeType !== metadata.source.mimeType) {
+			throw new Error('ADM passthrough is not eligible: source-changed.');
+		}
 		const outputEligibility = evaluateAdmPassthroughEligibility(metadata, {
 			projectRevision: project.revision,
 			sourceId: source?.id ?? '',
@@ -329,11 +431,28 @@ function createBw64AdmExport(project, resolved, { range, outputFrames, encoding 
 		if (!sourceEligibility.eligible) {
 			throw new Error(`ADM passthrough is not eligible: ${sourceEligibility.reason}.`);
 		}
-		preDataChunks = createRiffChunk('chna', decodeBase64(metadata.chna.rawBase64));
-		const payload = metadata.payload.kind === 'axml'
-			? new TextEncoder().encode(metadata.payload.xml)
-			: decodeBase64(metadata.payload.base64);
-		trailingChunks = createRiffChunk(metadata.payload.kind, payload);
+		const opaqueBefore = (metadata.opaqueRiffChunks ?? [])
+			.filter(({ placement }) => placement === 'before-data')
+			.map(decodeWavOpaqueRiffChunk);
+		const chnaChunk = metadata.chna.rawBase64
+			? createRiffChunk('chna', decodeBase64(metadata.chna.rawBase64))
+			: undefined;
+		preDataChunks = compactRiffChunks([...opaqueBefore, ...(chnaChunk ? [chnaChunk] : [])]);
+		const payloads = [
+			metadata.payload,
+			...(metadata.auxiliaryPayloads ?? []),
+			...(metadata.serialPayload ? [metadata.serialPayload] : []),
+		];
+		const chunks = payloads.map((payload) => createRiffChunk(
+			payload.kind,
+			payload.kind === 'axml'
+				? decodeBase64(payload.rawBase64)
+				: decodeBase64(payload.base64),
+		));
+		const opaqueAfter = (metadata.opaqueRiffChunks ?? [])
+			.filter(({ placement }) => placement === 'after-data')
+			.map(decodeWavOpaqueRiffChunk);
+		trailingChunks = compactRiffChunks([...chunks, ...opaqueAfter]);
 	}
 	return Object.freeze({
 		mode: metadata.mode,
@@ -345,13 +464,9 @@ function createBw64AdmExport(project, resolved, { range, outputFrames, encoding 
 	});
 }
 
-function soleTimelineAudioSource(project, storageKey) {
-	const sourceIds = new Set(project.clips
-		.filter((clip) => clip.kind !== 'video')
-		.map((clip) => clip.sourceId));
-	if (sourceIds.size !== 1) return null;
-	const sourceId = [...sourceIds][0];
-	return project.sources.find((source) => source.id === sourceId && source.storageKey === storageKey) ?? null;
+function compactRiffChunks(chunks) {
+	if (chunks.length === 0) return undefined;
+	return chunks.length === 1 ? chunks[0] : Object.freeze(chunks);
 }
 
 function decodeBase64(value) {

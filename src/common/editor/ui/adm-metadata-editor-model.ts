@@ -10,6 +10,10 @@ import {
 	type AdmProjectMetadata,
 	type AdmTerminalStripKind,
 } from '../adm-project-metadata.ts';
+import {
+	resolveTerminalChannelWidths,
+	type TerminalWidthProject,
+} from '../terminal-channel-widths.ts';
 
 type UnknownRecord = Readonly<Record<string, unknown>>;
 
@@ -40,29 +44,24 @@ function projectLayout(project: UnknownRecord): AdmBedLayout {
 	return Number(project.masterChannels) === 1 ? 'mono' : Number(project.masterChannels) === 6 ? '5.1' : 'stereo';
 }
 
-function stripChannels(project: UnknownRecord, track: UnknownRecord, fallbackChannelCount: number): number {
-	const clipIds = new Set(Array.isArray(track.clipIds) ? track.clipIds.map(String) : []);
-	const sourceIds = new Set(records(project.clips)
-		.filter((clip) => clipIds.has(String(clip.id)))
-		.map((clip) => String(clip.sourceId)));
-	const widths = records(project.sources)
-		.filter((source) => sourceIds.has(String(source.id)))
-		.map((source) => Number(source.channelCount) || 0);
-	return Math.max(0, ...widths) || fallbackChannelCount;
-}
-
 export function listAdmEditorSourceChannels(
 	projectValue: unknown,
-	fallbackChannelCount = Math.max(1, Number(record(projectValue).masterChannels) || 2),
 ): readonly AdmEditorSourceChannel[] {
 	const project = record(projectValue);
 	const mixer = record(project.mixer);
 	const routes = record(mixer.routes);
+	const widths = resolveTerminalChannelWidths(project as TerminalWidthProject);
 	const channels: AdmEditorSourceChannel[] = [];
 	for (const track of records(project.tracks)) {
 		if (track.type !== 'audio' || typeof track.id !== 'string') continue;
 		if (record(routes[track.id]).groupId != null) continue;
-		appendStripChannels(channels, 'track', track.id, String(track.name || track.id), stripChannels(project, track, fallbackChannelCount));
+		appendStripChannels(
+			channels,
+			'track',
+			track.id,
+			String(track.name || track.id),
+			widths.tracks.get(track.id) ?? 2,
+		);
 	}
 	for (const [kind, key] of [['group', 'groups'], ['send', 'sends']] as const) {
 		for (const strip of records(mixer[key])) if (typeof strip.id === 'string') {
@@ -71,7 +70,7 @@ export function listAdmEditorSourceChannels(
 				kind,
 				strip.id,
 				String(strip.name || strip.id),
-				fallbackChannelCount,
+				(kind === 'group' ? widths.groups : widths.sends).get(strip.id) ?? 2,
 			);
 		}
 	}
@@ -95,13 +94,16 @@ function appendStripChannels(
 
 function defaultAssignments(project: UnknownRecord, layout: AdmBedLayout): AdmAuthoredMetadata['bed']['assignments'] {
 	const bedChannels = ADM_BED_CHANNEL_ORDER[layout];
-	return listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source) => ({
-		stripKind: source.stripKind,
-		stripId: source.stripId,
-		sourceChannel: source.sourceChannel,
-		bedChannel: bedChannels[Math.min(source.sourceChannel, bedChannels.length - 1)],
-		gain: 1,
-	}));
+	return listAdmEditorSourceChannels(project).flatMap((source) => {
+		const bedChannel = defaultBedChannel(bedChannels, source.sourceChannel);
+		return bedChannel === null ? [] : [{
+			stripKind: source.stripKind,
+			stripId: source.stripId,
+			sourceChannel: source.sourceChannel,
+			bedChannel,
+			gain: 1,
+		}];
+	});
 }
 
 export function createDefaultAdmMetadata(projectValue: unknown, layout?: AdmBedLayout): AdmAuthoredMetadata {
@@ -127,20 +129,21 @@ export function setAdmEditorLayout(
 	layout: AdmBedLayout,
 ): AdmAuthoredMetadata {
 	const bedChannels = ADM_BED_CHANNEL_ORDER[layout];
-	const assignments = listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source) => {
+	const assignments = listAdmEditorSourceChannels(project).flatMap((source) => {
 		const current = value.bed.assignments.find((assignment) => (
 			assignment.stripKind === source.stripKind
 			&& assignment.stripId === source.stripId
 			&& assignment.sourceChannel === source.sourceChannel
 		));
-		return {
+		const bedChannel = current && bedChannels.includes(current.bedChannel as never)
+			? current.bedChannel
+			: defaultBedChannel(bedChannels, source.sourceChannel);
+		return bedChannel === null ? [] : [{
 			...source,
 			label: undefined,
-			bedChannel: current && bedChannels.includes(current.bedChannel as never)
-				? current.bedChannel
-				: bedChannels[Math.min(source.sourceChannel, bedChannels.length - 1)],
+			bedChannel,
 			gain: current?.gain ?? 1,
-		};
+		}];
 	}).map(({ label: _label, ...assignment }) => assignment);
 	return normalizeAdmProjectMetadata({
 		...value,
@@ -166,4 +169,12 @@ export function setAdmEditorAssignment(
 
 export function admEditorChannelCount(value: AdmAuthoredMetadata): number {
 	return admBedChannelCount(value.bed.layout);
+}
+
+function defaultBedChannel(
+	bedChannels: readonly AdmBedChannel[],
+	sourceChannel: number,
+): AdmBedChannel | null {
+	if (bedChannels.length === 1) return bedChannels[0] ?? null;
+	return bedChannels[sourceChannel] ?? null;
 }

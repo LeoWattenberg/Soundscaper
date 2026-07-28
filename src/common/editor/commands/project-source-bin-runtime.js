@@ -467,7 +467,16 @@ function updateMetadata(project, changes = {}) {
 		} else if (key === 'adm') {
 			next.adm = changes.adm == null ? null : normalizeAdmProjectMetadata(changes.adm);
 			const authoredChannels = authoredAdmChannelCount(next.adm);
-			if (authoredChannels != null) project.masterChannels = authoredChannels;
+			const passthroughChannels = next.adm?.mode === 'passthrough'
+				&& next.adm.valid
+				&& Number.isSafeInteger(next.adm.geometry.channelCount)
+				&& next.adm.geometry.channelCount >= 1
+				&& next.adm.geometry.channelCount <= 32
+				? next.adm.geometry.channelCount
+				: null;
+			if (authoredChannels != null || passthroughChannels != null) {
+				project.masterChannels = authoredChannels ?? passthroughChannels;
+			}
 		} else if (key === 'tags') {
 			if (!changes.tags || typeof changes.tags !== 'object' || Array.isArray(changes.tags)) {
 				throw new TypeError('metadata.tags must be an object.');

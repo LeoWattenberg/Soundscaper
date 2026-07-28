@@ -5,7 +5,6 @@ import { Button } from '@dilsonspickles/components';
 
 import {
 	ADM_BED_CHANNEL_ORDER,
-	admBedChannelCount,
 	normalizeAdmProjectMetadata,
 	type AdmAuthoredMetadata,
 	type AdmBedLayout,
@@ -105,7 +104,7 @@ export function AdmMetadataFields({
 	}
 
 	const authored = value;
-	const sourceChannels = listAdmEditorSourceChannels(project, admBedChannelCount(authored.bed.layout));
+	const sourceChannels = listAdmEditorSourceChannels(project);
 	const commitNamed = (
 		section: 'programme' | 'content',
 		field: 'name' | 'language',

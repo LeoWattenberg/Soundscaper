@@ -125,12 +125,12 @@ test('malformed RF64 and BW64 stop before browser or FFmpeg decoding', async () 
 	assert.equal(malformed.calls.includes('native-decode'), false);
 	assert.equal(malformed.calls.includes('ffmpeg-decode'), false);
 
-	const bw64 = createRoutingFixture();
+	const bw64 = createRoutingFixture({ inspectError: new Error('invalid BW64') });
 	await assert.rejects(
-		() => createProjectImportService(bw64.runtime).importFile(signedFile('unsupported.bw64', 'BW64')),
-		/BW64 WAV files are not supported/u,
+		() => createProjectImportService(bw64.runtime).importFile(signedFile('broken.bw64', 'BW64')),
+		/invalid BW64/u,
 	);
-	assert.equal(bw64.calls.includes('inspect-wav'), false);
+	assert.equal(bw64.calls.includes('inspect-wav'), true);
 	assert.equal(bw64.calls.includes('native-decode'), false);
 	assert.equal(bw64.calls.includes('ffmpeg-decode'), false);
 });

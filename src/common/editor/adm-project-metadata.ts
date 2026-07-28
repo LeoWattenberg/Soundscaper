@@ -1,5 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	normalizeWavOpaqueRiffChunks,
+	type WavOpaqueRiffChunk,
+} from './wav-opaque-chunks.ts';
+import {
+	resolveTerminalChannelWidths,
+	type TerminalWidthProject,
+} from './terminal-channel-widths.ts';
+
 export const ADM_BED_LAYOUTS = Object.freeze(['mono', 'stereo', '5.1'] as const);
 export type AdmBedLayout = typeof ADM_BED_LAYOUTS[number];
 
@@ -43,8 +52,14 @@ export interface AdmChnaEntry {
 export interface AdmPassthroughMetadata {
 	readonly mode: 'passthrough';
 	readonly payload:
-		| Readonly<{ kind: 'axml'; xml: string }>
+		| Readonly<{ kind: 'axml'; xml: string; rawBase64: string }>
 		| Readonly<{ kind: 'bxml' | 'sxml'; base64: string }>;
+	readonly serialPayload?: Readonly<{ kind: 'sxml'; base64: string }>;
+	readonly auxiliaryPayloads?: readonly (
+		| Readonly<{ kind: 'axml'; xml: string; rawBase64: string }>
+		| Readonly<{ kind: 'bxml'; base64: string }>
+	)[];
+	readonly opaqueRiffChunks?: readonly WavOpaqueRiffChunk[];
 	readonly chna: Readonly<{
 		entries: readonly AdmChnaEntry[];
 		rawBase64: string;
@@ -54,7 +69,7 @@ export interface AdmPassthroughMetadata {
 		sampleRate: number;
 		channelCount: number;
 		frameCount: number;
-		bitDepth: 16 | 24 | 32;
+		bitDepth: 16 | 20 | 24 | 32;
 		float: boolean;
 	}>;
 	readonly pristineRevision: number;
@@ -72,7 +87,7 @@ export interface AdmPassthroughEligibilityContext {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly frameCount: number;
-	readonly bitDepth: 16 | 24 | 32;
+	readonly bitDepth: 16 | 20 | 24 | 32;
 	readonly float: boolean;
 	readonly startFrame: number;
 	readonly endFrame: number;
@@ -271,6 +286,34 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 
 function normalizePassthrough(input: Record<string, unknown>): AdmPassthroughMetadata {
 	const payload = normalizePayload(objectValue(input.payload, 'project.metadata.adm.payload'));
+	const opaqueRiffChunks = input.opaqueRiffChunks == null
+		? undefined
+		: normalizeWavOpaqueRiffChunks(input.opaqueRiffChunks);
+	let normalizedSerialPayload: AdmPassthroughMetadata['serialPayload'];
+	if (input.serialPayload != null) {
+		const candidate = normalizePayload(objectValue(input.serialPayload, 'project.metadata.adm.serialPayload'));
+		if (candidate.kind !== 'sxml') throw new RangeError('ADM serialPayload must contain SXML.');
+		normalizedSerialPayload = Object.freeze({ kind: 'sxml', base64: candidate.base64 });
+	}
+	if (payload.kind === 'sxml' && normalizedSerialPayload) {
+		throw new RangeError('ADM passthrough cannot contain two SXML payloads.');
+	}
+	let auxiliaryPayloads: NonNullable<AdmPassthroughMetadata['auxiliaryPayloads']> | undefined;
+	if (input.auxiliaryPayloads != null) {
+		if (!Array.isArray(input.auxiliaryPayloads) || input.auxiliaryPayloads.length > 2) {
+			throw new RangeError('ADM auxiliaryPayloads must contain at most two static XML payloads.');
+		}
+		const seenKinds = new Set(payload.kind === 'sxml' ? [] : [payload.kind]);
+		auxiliaryPayloads = Object.freeze(input.auxiliaryPayloads.map((value, index) => {
+			const candidate = normalizePayload(objectValue(value, `project.metadata.adm.auxiliaryPayloads[${index}]`));
+			if (candidate.kind === 'sxml') throw new RangeError('ADM auxiliary payloads must be AXML or BXML.');
+			if (seenKinds.has(candidate.kind)) throw new RangeError(`ADM passthrough contains duplicate ${candidate.kind.toUpperCase()} payloads.`);
+			seenKinds.add(candidate.kind);
+			return candidate.kind === 'axml'
+				? candidate
+				: Object.freeze({ kind: 'bxml' as const, base64: candidate.base64 });
+		}));
+	}
 	const chna = objectValue(input.chna, 'project.metadata.adm.chna');
 	const source = objectValue(input.source, 'project.metadata.adm.source');
 	const geometry = objectValue(input.geometry, 'project.metadata.adm.geometry');
@@ -282,17 +325,27 @@ function normalizePassthrough(input: Record<string, unknown>): AdmPassthroughMet
 		const trackIndex = safeInteger(entry.trackIndex, 1, 65_535, `ADM CHNA entry ${index} track index`);
 		const audioTrackUid = admId(entry.audioTrackUid, /^ATU_[\dA-F]{8}$/u, `ADM CHNA entry ${index} audioTrackUid`);
 		const audioTrackFormatIdRef = admTrackRef(entry.audioTrackFormatIdRef, `ADM CHNA entry ${index} audioTrackFormatIdRef`);
-		const audioPackFormatIdRef = admId(entry.audioPackFormatIdRef, /^AP_[\dA-F]{8}$/u, `ADM CHNA entry ${index} audioPackFormatIdRef`);
+		const audioPackFormatIdRef = entry.audioPackFormatIdRef === ''
+			? ''
+			: admId(entry.audioPackFormatIdRef, /^AP_[\dA-F]{8}$/u, `ADM CHNA entry ${index} audioPackFormatIdRef`);
 		if (uids.has(audioTrackUid)) throw new RangeError(`Duplicate ADM CHNA audioTrackUid: ${audioTrackUid}.`);
 		uids.add(audioTrackUid);
 		return Object.freeze({ trackIndex, audioTrackUid, audioTrackFormatIdRef, audioPackFormatIdRef });
 	});
 	if (!Array.isArray(input.warnings)) throw new TypeError('project.metadata.adm.warnings must be an array.');
 	if (input.warnings.length > MAX_ADM_WARNINGS) throw new RangeError(`ADM metadata supports at most ${MAX_ADM_WARNINGS} warnings.`);
+	const rawChnaBase64 = base64(chna.rawBase64, 'ADM CHNA rawBase64');
+	const valid = booleanValue(input.valid, 'ADM validity flag');
+	if (valid && payload.kind !== 'sxml' && (entries.length === 0 || rawChnaBase64 === '')) {
+		throw new RangeError('Static AXML or BXML passthrough requires CHNA metadata.');
+	}
 	return Object.freeze({
 		mode: 'passthrough',
 		payload,
-		chna: Object.freeze({ entries: Object.freeze(entries), rawBase64: base64(chna.rawBase64, 'ADM CHNA rawBase64') }),
+		...(normalizedSerialPayload ? { serialPayload: normalizedSerialPayload } : {}),
+		...(auxiliaryPayloads?.length ? { auxiliaryPayloads } : {}),
+		...(opaqueRiffChunks?.length ? { opaqueRiffChunks } : {}),
+		chna: Object.freeze({ entries: Object.freeze(entries), rawBase64: rawChnaBase64 }),
 		source: Object.freeze({
 			id: nonEmptyText(source.id, 'ADM source ID', MAX_ADM_NAME_BYTES),
 			storageKey: nonEmptyText(source.storageKey, 'ADM source storage key', 4_096),
@@ -302,11 +355,11 @@ function normalizePassthrough(input: Record<string, unknown>): AdmPassthroughMet
 			sampleRate: safeInteger(geometry.sampleRate, 1, 768_000, 'ADM source sample rate'),
 			channelCount: safeInteger(geometry.channelCount, 1, 65_535, 'ADM source channel count'),
 			frameCount: safeInteger(geometry.frameCount, 0, Number.MAX_SAFE_INTEGER, 'ADM source frame count'),
-			bitDepth: enumValue(geometry.bitDepth, [16, 24, 32], 'ADM source bit depth'),
+			bitDepth: enumValue(geometry.bitDepth, [16, 20, 24, 32], 'ADM source bit depth'),
 			float: booleanValue(geometry.float, 'ADM source float flag'),
 		}),
 		pristineRevision: safeInteger(input.pristineRevision, 0, Number.MAX_SAFE_INTEGER, 'ADM pristine project revision'),
-		valid: booleanValue(input.valid, 'ADM validity flag'),
+		valid,
 		warnings: Object.freeze(input.warnings.map((warning, index) => text(warning, `ADM warning ${index}`, 4_096))),
 	});
 }
@@ -318,7 +371,20 @@ function normalizePayload(input: Record<string, unknown>): AdmPassthroughMetadat
 		return Object.freeze({ kind, base64: base64(input.base64, `ADM ${kind.toUpperCase()} base64`) });
 	}
 	if (typeof input.xml !== 'string') throw new TypeError(`ADM ${kind.toUpperCase()} xml payload must be a string.`);
-	return Object.freeze({ kind, xml: text(input.xml, `ADM ${kind.toUpperCase()} XML`, MAX_ADM_PAYLOAD_BYTES) });
+	const xml = text(input.xml, `ADM ${kind.toUpperCase()} XML`, MAX_ADM_PAYLOAD_BYTES);
+	if (!Object.hasOwn(input, 'rawBase64')) throw new RangeError('ADM AXML passthrough requires exact raw AXML bytes.');
+	const rawBase64 = base64(input.rawBase64, 'ADM raw AXML base64');
+	let rawXml: string;
+	try {
+		const binary = atob(rawBase64);
+		const bytes = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+		rawXml = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch (error) {
+		throw new RangeError('ADM raw AXML must contain valid UTF-8.', { cause: error });
+	}
+	if (rawXml !== xml) throw new RangeError('ADM raw AXML bytes must decode to the normalized AXML text.');
+	return Object.freeze({ kind, xml, rawBase64 });
 }
 
 function normalizeNamedElement(value: Record<string, unknown>, name: string): Readonly<{ name: string; language: string }> {
@@ -334,16 +400,18 @@ function normalizeNamedElement(value: Record<string, unknown>, name: string): Re
 
 function collectTerminalStrips(project: RoutingProject): Map<string, { kind: AdmTerminalStripKind; id: string; channelCount: number }> {
 	const terminals = new Map<string, { kind: AdmTerminalStripKind; id: string; channelCount: number }>();
+	const widths = resolveTerminalChannelWidths(project as TerminalWidthProject);
 	for (const track of project.tracks ?? []) {
 		if (track.type !== 'audio' || typeof track.id !== 'string') continue;
 		const route = project.mixer?.routes?.[track.id];
 		if (route?.groupId != null) continue;
-		const channelCount = trackChannelCount(project, track, project.masterChannels);
+		const channelCount = widths.tracks.get(track.id) ?? 2;
 		terminals.set(stripKey('track', track.id), { kind: 'track', id: track.id, channelCount });
 	}
 	for (const [kind, buses] of [['group', project.mixer?.groups], ['send', project.mixer?.sends]] as const) {
 		for (const bus of buses ?? []) if (typeof bus.id === 'string') {
-			terminals.set(stripKey(kind, bus.id), { kind, id: bus.id, channelCount: project.masterChannels });
+			const channelCount = (kind === 'group' ? widths.groups : widths.sends).get(bus.id) ?? 2;
+			terminals.set(stripKey(kind, bus.id), { kind, id: bus.id, channelCount });
 		}
 	}
 	return terminals;
@@ -352,13 +420,6 @@ function collectTerminalStrips(project: RoutingProject): Map<string, { kind: Adm
 function stripExists(project: RoutingProject, kind: AdmTerminalStripKind, id: string): boolean {
 	if (kind === 'track') return Boolean(project.tracks?.some((track) => track.type === 'audio' && track.id === id));
 	return Boolean(project.mixer?.[kind === 'group' ? 'groups' : 'sends']?.some((bus) => bus.id === id));
-}
-
-function trackChannelCount(project: RoutingProject, track: Readonly<Record<string, unknown>>, fallback: number): number {
-	const clipIds = new Set(Array.isArray(track.clipIds) ? track.clipIds : []);
-	const sourceIds = new Set((project.clips ?? []).filter((clip) => clipIds.has(clip.id)).map((clip) => clip.sourceId));
-	const widths = (project.sources ?? []).filter((source) => sourceIds.has(source.id)).map((source) => Number(source.channelCount) || 0);
-	return Math.max(0, ...widths) || fallback;
 }
 
 function canonicalEqual(left: unknown, right: unknown): boolean {

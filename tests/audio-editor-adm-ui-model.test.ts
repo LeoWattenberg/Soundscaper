@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createAdmChna,
+	encodeChnaPayload,
+	generateAdmAxml,
+} from '../src/common/editor/adm-metadata.ts';
+
+import {
 	createDefaultAdmMetadata,
 	createProjectAdmEditorValue,
 	listAdmEditorSourceChannels,
@@ -59,6 +65,36 @@ test('ADM editor restarts the bed mapping for every terminal strip', () => {
 	);
 });
 
+test('ADM editor exposes the width that is routed into a terminal bus', () => {
+	const project = {
+		...PROJECT,
+		masterChannels: 6,
+		sources: [{ id: 'source-1', channelCount: 2 }],
+		mixer: {
+			groups: [{ id: 'group', name: 'Stereo group' }],
+			sends: [],
+			routes: { 'track-1': { groupId: 'group' } },
+		},
+	};
+
+	assert.deepEqual(listAdmEditorSourceChannels(project).map(({ label }) => label), [
+		'Stereo group — channel 1',
+		'Stereo group — channel 2',
+	]);
+});
+
+test('ADM editor leaves surplus multichannel sources unassigned in a smaller bed', () => {
+	const project = {
+		...PROJECT,
+		sources: [{ id: 'source-1', channelCount: 6 }],
+	};
+
+	assert.deepEqual(createDefaultAdmMetadata(project, 'stereo').bed.assignments, [
+		{ stripKind: 'track', stripId: 'track-1', sourceChannel: 0, bedChannel: 'L', gain: 1 },
+		{ stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: 'R', gain: 1 },
+	]);
+});
+
 test('ADM editor layout and routing updates remain normalized', () => {
 	const stereo = createDefaultAdmMetadata(PROJECT);
 	const mono = setAdmEditorLayout(stereo, PROJECT, 'mono');
@@ -78,14 +114,28 @@ test('ADM editor layout and routing updates remain normalized', () => {
 	};
 	const emptyStereo = createDefaultAdmMetadata(emptyTrackProject);
 	assert.equal(emptyStereo.bed.assignments.length, 2);
-	assert.equal(setAdmEditorLayout(emptyStereo, emptyTrackProject, 'mono').bed.assignments.length, 1);
+	assert.equal(setAdmEditorLayout(emptyStereo, emptyTrackProject, 'mono').bed.assignments.length, 2);
 });
 
 test('ADM editor preserves imported passthrough metadata until explicit conversion', () => {
+	const xml = generateAdmAxml({ layout: 'stereo' });
+	const chna = createAdmChna({ layout: 'stereo' });
 	const passthrough = {
 		mode: 'passthrough' as const,
-		payload: { kind: 'axml' as const, xml: '<ebuCoreMain />' },
-		chna: { entries: [], rawBase64: '' },
+		payload: {
+			kind: 'axml' as const,
+			xml,
+			rawBase64: Buffer.from(xml).toString('base64'),
+		},
+		chna: {
+			entries: chna.entries.map((entry) => ({
+				trackIndex: entry.trackIndex,
+				audioTrackUid: entry.uid,
+				audioTrackFormatIdRef: entry.trackRef,
+				audioPackFormatIdRef: entry.packRef,
+			})),
+			rawBase64: Buffer.from(encodeChnaPayload(chna)).toString('base64'),
+		},
 		source: { id: 'source-1', storageKey: 'pcm/source-1', mimeType: 'audio/wav' },
 		geometry: { sampleRate: 48_000, channelCount: 2, frameCount: 10, bitDepth: 24 as const, float: false },
 		pristineRevision: 4,

@@ -28,8 +28,8 @@ const NOW = '2026-07-28T12:34:56.000Z';
 function authoredAdm() {
 	return {
 		mode: 'authored' as const,
-		programme: { name: 'Main programme', language: 'en-GB' },
-		content: { name: 'Main content', language: 'en-GB' },
+		programme: { name: 'Main programme', language: 'eng' },
+		content: { name: 'Main content', language: 'eng' },
 		bed: {
 			name: '5.1 bed',
 			layout: '5.1' as const,
@@ -44,7 +44,11 @@ function authoredAdm() {
 function passthroughAdm(overrides: Record<string, unknown> = {}) {
 	return {
 		mode: 'passthrough' as const,
-		payload: { kind: 'axml' as const, xml: '<ebuCoreMain />' },
+		payload: {
+			kind: 'axml' as const,
+			xml: '<ebuCoreMain />',
+			rawBase64: Buffer.from('<ebuCoreMain />').toString('base64'),
+		},
 		chna: {
 			entries: [{
 				trackIndex: 1,
@@ -122,6 +126,31 @@ test('authored ADM routing reports missing, non-terminal, and out-of-range assig
 	assert.ok(validateAdmAuthoredRouting(outOfRange, project).some((issue) => issue.code === 'source-channel-out-of-range'));
 });
 
+test('authored ADM routing validates terminal bus channels against routed source width', () => {
+	const project = createAudioEditorProjectV7({
+		now: NOW,
+		masterChannels: 6,
+		sources: [{ id: 'source', storageKey: 'pcm/source', frameCount: 4, channelCount: 2 }],
+		clips: [{ id: 'clip', sourceId: 'source', durationFrames: 4 }],
+		tracks: [{ type: 'audio', id: 'dialogue', name: 'Dialogue', clipIds: ['clip'] }],
+		mixer: {
+			groups: [{ id: 'music', name: 'Music' }],
+			routes: { dialogue: { groupId: 'music' } },
+		},
+	});
+	const metadata = normalizeAdmProjectMetadata({
+		...authoredAdm(),
+		bed: {
+			...authoredAdm().bed,
+			assignments: [{ stripKind: 'group', stripId: 'music', sourceChannel: 2, bedChannel: 'L' }],
+		},
+	});
+
+	assert.ok(validateAdmAuthoredRouting(metadata, project).some((issue) => (
+		issue.code === 'source-channel-out-of-range' && issue.stripId === 'music'
+	)));
+});
+
 test('passthrough ADM stays JSON-safe and eligibility requires pristine source geometry and project revision', () => {
 	const metadata = normalizeAdmProjectMetadata(passthroughAdm());
 	assert.deepEqual(JSON.parse(JSON.stringify(metadata)), metadata);
@@ -147,6 +176,12 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	assert.deepEqual(evaluateAdmPassthroughEligibility(metadata, { ...exact, startFrame: 48_000 }), {
 		eligible: false, reason: 'range-changed',
 	});
+	const twentyBit = normalizeAdmProjectMetadata(passthroughAdm({
+		geometry: { ...passthroughAdm().geometry, bitDepth: 20 },
+	}));
+	assert.deepEqual(evaluateAdmPassthroughEligibility(twentyBit, { ...exact, bitDepth: 20 }), {
+		eligible: true, reason: null,
+	});
 	const invalid = normalizeAdmProjectMetadata(passthroughAdm({ valid: false, warnings: ['Broken CHNA reference'] }));
 	assert.deepEqual(evaluateAdmPassthroughEligibility(invalid, exact), {
 		eligible: false, reason: 'invalid-adm',
@@ -154,6 +189,16 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	assert.throws(() => normalizeAdmProjectMetadata(passthroughAdm({
 		payload: { kind: 'bxml', base64: new Uint8Array([1, 2, 3]) },
 	})), /base64.*string/i);
+	assert.throws(() => normalizeAdmProjectMetadata(passthroughAdm({
+		payload: {
+			kind: 'axml',
+			xml: '<ebuCoreMain />',
+			rawBase64: Buffer.from('<different />').toString('base64'),
+		},
+	})), /raw.*AXML|AXML.*raw/iu);
+	assert.throws(() => normalizeAdmProjectMetadata(passthroughAdm({
+		payload: { kind: 'axml', xml: '<ebuCoreMain />' },
+	})), /raw.*AXML|AXML.*raw/iu);
 	const directReferences = normalizeAdmProjectMetadata(passthroughAdm({
 		payload: { kind: 'sxml', base64: 'AQIDBA==' },
 		chna: {
@@ -172,6 +217,21 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	assert.equal(directReferences.payload.kind, 'sxml');
 	assert.equal(directReferences.chna.entries[1]?.trackIndex, 1);
 	assert.equal(directReferences.chna.entries[1]?.audioTrackFormatIdRef, 'AC_00010001');
+	const dualPayload = normalizeAdmProjectMetadata(passthroughAdm({
+		serialPayload: { kind: 'sxml', base64: 'AQIDBA==' },
+	}));
+	assert.equal(dualPayload.mode === 'passthrough' ? dualPayload.serialPayload?.kind : null, 'sxml');
+	const noPackReference = normalizeAdmProjectMetadata(passthroughAdm({
+		chna: {
+			...passthroughAdm().chna,
+			entries: passthroughAdm().chna.entries.map((entry) => ({
+				...entry, audioPackFormatIdRef: '',
+			})),
+		},
+	}));
+	assert.equal(noPackReference.mode === 'passthrough'
+		? noPackReference.chna.entries[0]?.audioPackFormatIdRef
+		: null, '');
 });
 
 test('V7 projects require canonical nullable ADM and metadata commands normalize and clear it', () => {
@@ -193,6 +253,13 @@ test('V7 projects require canonical nullable ADM and metadata commands normalize
 	}, { now: NOW });
 	assert.equal(updated.metadata.adm?.mode, 'authored');
 	assert.equal(updated.metadata.adm?.bed.assignments[0]?.gain, 1);
+	const multichannelPassthrough = applyEditorCommand(empty, {
+		type: 'metadata/update',
+		changes: { adm: passthroughAdm({
+			geometry: { ...passthroughAdm().geometry, channelCount: 6 },
+		}) },
+	}, { now: NOW });
+	assert.equal(multichannelPassthrough.masterChannels, 6);
 	const cleared = applyEditorCommand(updated, {
 		type: 'metadata/update', changes: { adm: null },
 	}, { now: NOW });
