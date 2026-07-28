@@ -10,7 +10,7 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { createAudioEditorProjectV5 } from '../src/common/editor/project-v5.js';
+import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
@@ -33,6 +33,9 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.project.id, project.id);
 	assert.deepEqual(imported.project.clips.find((clip) => clip.kind === 'video').videoEffects, project.clips.find((clip) => clip.kind === 'video').videoEffects);
+	assert.deepEqual(imported.project.metadata.bext, project.metadata.bext);
+	assert.deepEqual(imported.project.sources.find((source) => source.id === 'audio-source').opaqueExtensions,
+		project.sources.find((source) => source.id === 'audio-source').opaqueExtensions);
 	assert.deepEqual(imported.project.opaqueExtensions, project.opaqueExtensions);
 	assert.equal((await targetStore.loadMediaAsset('video-source')).size, 11);
 	const audioChunks = [];
@@ -114,13 +117,28 @@ async function persistAssets(store) {
 }
 
 function mixedProject() {
-	return createAudioEditorProjectV5({
+	return createAudioEditorProjectV6({
 		id: 'mixed-scape-project',
 		title: 'Mixed project',
+		metadata: {
+			title: 'Mixed project',
+			bext: {
+				description: 'Archive broadcast metadata',
+				timeReference: '9007199254740993',
+				originator: 'Soundscaper',
+			},
+		},
 		opaqueExtensions: { preserved: { value: 42 } },
 		sources: [{
 			kind: 'audio', id: 'audio-source', storageKey: 'audio-source', name: 'sound.wav', mimeType: 'audio/wav',
 			frameCount: 4, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+			opaqueExtensions: {
+				bext: {
+					description: 'Original source metadata',
+					timeReference: '48000',
+					version: 1,
+				},
+			},
 		}, {
 			kind: 'video', id: 'video-source', storageKey: 'video-source', name: 'picture.mp4', mimeType: 'video/mp4',
 			frameCount: 48_000, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,

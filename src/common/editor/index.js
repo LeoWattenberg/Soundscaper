@@ -39,10 +39,6 @@ export {
 	prepareTransformClipsCommand,
 } from './commands.js';
 export {
-	AUDIO_EDITOR_MEDIA_KINDS,
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
-	AUDIO_EDITOR_TRACK_TYPES,
 	cloneAudioEditorProjectV5,
 	createAudioClipV5,
 	createAudioEditorProjectV5,
@@ -59,6 +55,7 @@ export {
 	loadAudioEditorProjectV5,
 	validateAudioEditorProjectV5,
 } from './project-v5.js';
+export * from './project-v6.ts';
 export {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	cloneProject,

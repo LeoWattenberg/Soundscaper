@@ -1,5 +1,6 @@
 import type { EditorControllerPhase } from './controller/lifecycle.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
+import type { ProjectBextMetadata } from './project-bext-metadata.ts';
 
 export type EditorId = string;
 export type EditorFrame = number;
@@ -128,6 +129,13 @@ export interface EditorProjectV5 {
 	readonly [extension: string]: unknown;
 }
 
+export type EditorProjectV6 = Omit<EditorProjectV5, 'schemaVersion'> & Readonly<{
+	schemaVersion: 6;
+	metadata: Readonly<Record<string, unknown>> & Readonly<{
+		bext: ProjectBextMetadata | null;
+	}>;
+}>;
+
 export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 	readonly schemaVersion: Version;
 	readonly id: EditorId;
@@ -144,7 +152,7 @@ export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 export type EditorProjectV2 = EditorLegacyProject<2>;
 export type EditorProjectV3 = EditorLegacyProject<3>;
 export type EditorProjectV4 = EditorLegacyProject<4>;
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5;
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

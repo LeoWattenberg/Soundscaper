@@ -7,6 +7,7 @@ import {
 import {
 	normalizeAudioEditorSnapSettings,
 } from '../snap-grid.js';
+import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -451,12 +452,17 @@ function recordReplacementContraction(project, clip, frames, contractionsByTrack
 function updateMetadata(project, changes = {}) {
 	if (project.schemaVersion < 2) throw new RangeError('Metadata editing requires an AudioEditorProjectV2 or newer project.');
 	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Metadata changes must be an object.');
-	const allowed = new Set(['title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags']);
+	const allowed = new Set([
+		'title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags',
+		...(project.schemaVersion >= 6 ? ['bext'] : []),
+	]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Metadata field cannot be updated: ${key}.`);
 	const next = { ...project.metadata };
 	for (const key of allowed) {
 		if (!Object.hasOwn(changes, key)) continue;
-		if (key === 'tags') {
+		if (key === 'bext') {
+			next.bext = changes.bext == null ? null : normalizeProjectBextMetadata(changes.bext);
+		} else if (key === 'tags') {
 			if (!changes.tags || typeof changes.tags !== 'object' || Array.isArray(changes.tags)) {
 				throw new TypeError('metadata.tags must be an object.');
 			}

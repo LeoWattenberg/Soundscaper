@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV5 } from '../project-v5.js';
+import { createAudioEditorProjectV6 } from '../project-v6.ts';
 import type {
 	EngineChunkSourceInput,
 	EngineLoadProjectOptions,
@@ -124,7 +124,7 @@ export function createProjectBinPreviewService(
 				avLinkId: null,
 				binItemId: null,
 			};
-			const previewProject = createAudioEditorProjectV5({
+			const previewProject = createAudioEditorProjectV6({
 				title: 'Project Bin preview',
 				sampleRate: project.sampleRate,
 				sources: [source],
