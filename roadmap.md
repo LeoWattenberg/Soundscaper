@@ -236,9 +236,15 @@ models or native implementations.
 
 ### Deliverables
 
-- **Shared — Planned:** introduce a read-only `PlatformCapabilities` snapshot.
-  Detect APIs and proven adapter support at runtime; never infer support from a
-  user-agent string alone.
+- **Shared — Implemented:** the read-only
+  [`PlatformCapabilities` snapshot](src/common/editor/platform-capabilities.ts)
+  separates detected APIs from affirmative initialized-adapter probes and
+  reports Web Core, Web Enhanced, Electron Enhanced, and Electron Only status
+  without user-agent inference. Its
+  [contract regression](tests/audio-editor-platform-capabilities.test.ts)
+  clamps claims to prerequisites, verifies the exact desktop bridge groups,
+  deep-freezes every snapshot, and keeps deferred MIDI and Framescaper capture
+  fields absent.
 - **Shared — Planned:** define narrow, abortable ports for streaming media reads
   and writes, probing, decode/encode, render jobs, audio devices, and audio-effect
   hosts. Keep implementations out of the project domain and React UI.

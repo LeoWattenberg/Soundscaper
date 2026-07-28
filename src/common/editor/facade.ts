@@ -8,6 +8,18 @@ import type {
 	EditorProjectStore,
 } from './types.ts';
 
+export {
+	createPlatformCapabilitiesSnapshot,
+	type PlatformAdapterProbe,
+	type PlatformCapabilities,
+	type PlatformCapabilityProbe,
+	type PlatformCapabilityScope,
+	type PlatformProjectStoreProbe,
+	type PlatformRuntime,
+	type PlatformStorageBackend,
+	type PlatformTierStatus,
+} from './platform-capabilities.ts';
+
 export type CreateEditorController = (
 	root?: Element | null,
 	options?: EditorControllerOptions,
