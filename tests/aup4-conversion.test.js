@@ -9,7 +9,7 @@ import {
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
 } from '../src/common/editor/audacity-binary-xml.js';
-import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
+import { decodeAudacityProjectTree, decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import { aup4NativeEffectId } from '../src/common/editor/aup4-effects.js';
 import { createAup4ProjectTree, createAup4SampleBlock } from '../src/common/editor/aup4-profile.js';
 import {
@@ -384,28 +384,21 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 	assert.deepEqual(loadedBlockIds, [1, 2, 3]);
 
 	nextId = 0;
-	const missing = await decodeAup4ProjectTree(tree, async () => null, {
-		idFactory: (prefix) => `${prefix}-${++nextId}`,
-	});
-	assert.deepEqual(
-		missing.compatibilityReport.missingAudio.map(({ blockId, reason }) => ({ blockId, reason })),
-		[1, 2, 3].map((blockId) => ({ blockId, reason: 'missing-local-sample-block' })),
-	);
-	assert.equal(
-		missing.compatibilityReport.items.filter((item) => item.code === 'MISSING_LOCAL_AUDIO').length,
-		3,
+	await assert.rejects(
+		decodeAudacityProjectTree(tree, async () => null, {
+			idFactory: (prefix) => `${prefix}-${++nextId}`,
+			sourceGeneration: 'aup3',
+		}),
+		(error) => error.code === 'MISSING_SAMPLE_BLOCK',
 	);
 
 	nextId = 0;
-	const undecodable = await decodeAup4ProjectTree(tree, async () => ({
-		sampleformat: 0x7fff_ffff,
-		samples: Uint8Array.of(0),
-	}), {
-		idFactory: (prefix) => `${prefix}-${++nextId}`,
-	});
-	assert.deepEqual(
-		undecodable.compatibilityReport.missingAudio.map(({ blockId, reason }) => ({ blockId, reason })),
-		[1, 2, 3].map((blockId) => ({ blockId, reason: 'undecodable-sample-block' })),
+	await assert.rejects(
+		decodeAudacityProjectTree(tree, async () => ({
+			sampleformat: 0x7fff_ffff,
+			samples: Uint8Array.of(0),
+		}), { idFactory: (prefix) => `${prefix}-${++nextId}` }),
+		(error) => error.code === 'UNSUPPORTED_SAMPLE_FORMAT',
 	);
 
 	const mismatchedTree = structuredClone(tree);
@@ -415,12 +408,12 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 	)[0];
 	audacityXmlAttributes(audacityXmlChildren(mismatchedBlock, 'waveblock')[0], 'length')[0].value = 2;
 	nextId = 0;
-	const mismatched = await decodeAup4ProjectTree(mismatchedTree, async (blockId) => blocks.get(blockId), {
-		idFactory: (prefix) => `${prefix}-${++nextId}`,
-	});
-	assert.ok(mismatched.compatibilityReport.missingAudio.some((entry) => (
-		entry.blockId === 1 && entry.reason === 'mismatched-sample-block-length'
-	)));
+	await assert.rejects(
+		decodeAudacityProjectTree(mismatchedTree, async (blockId) => blocks.get(blockId), {
+			idFactory: (prefix) => `${prefix}-${++nextId}`,
+		}),
+		(error) => error.code === 'CORRUPT_SEQUENCE',
+	);
 
 	const zeroIdTree = structuredClone(tree);
 	const zeroIdBlock = audacityXmlChildren(
@@ -432,12 +425,12 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 	)[0];
 	audacityXmlAttributes(zeroIdBlock, 'blockid')[0].value = 0;
 	nextId = 0;
-	const zeroId = await decodeAup4ProjectTree(zeroIdTree, async (blockId) => blocks.get(blockId), {
-		idFactory: (prefix) => `${prefix}-${++nextId}`,
-	});
-	assert.ok(zeroId.compatibilityReport.missingAudio.some((entry) => (
-		entry.blockId === 0 && entry.reason === 'invalid-zero-sample-block'
-	)));
+	await assert.rejects(
+		decodeAudacityProjectTree(zeroIdTree, async (blockId) => blocks.get(blockId), {
+			idFactory: (prefix) => `${prefix}-${++nextId}`,
+		}),
+		(error) => error.code === 'INVALID_SAMPLE_BLOCK',
+	);
 });
 
 test('AUP4 conversion preserves empty stereo track rate, collapsed state, and boundary tempo settings', async () => {
@@ -1002,7 +995,7 @@ test('AUP4 conversion reports and strips unsupported nested wave clips', async (
 	const item = decoded.compatibilityReport.items.find((entry) => entry.code === 'UNSUPPORTED_NESTED_WAVECLIP');
 	assert.deepEqual(
 		[decoded.compatibilityReport.schemaVersion, decoded.compatibilityReport.format, decoded.compatibilityReport.direction],
-		[1, 'aup4', 'open'],
+		[1, 'audacity-project', 'open'],
 	);
 	assert.equal(item.disposition, 'omitted');
 	assert.equal(item.data.count, 1);

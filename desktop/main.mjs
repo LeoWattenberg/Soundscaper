@@ -290,7 +290,7 @@ async function dispatchPendingProjects() {
 }
 
 function enqueueProjectPath(filePath) {
-	if (!filePath || !['.aup4', '.scape'].includes(extname(filePath).toLowerCase())) return;
+	if (!filePath || !['.aup3', '.aup4', '.scape'].includes(extname(filePath).toLowerCase())) return;
 	const absolutePath = isAbsolute(filePath) ? filePath : resolve(filePath);
 	if (!pendingOpenPaths.includes(absolutePath)) pendingOpenPaths.push(absolutePath);
 	if (rendererReady) void dispatchPendingProjects();

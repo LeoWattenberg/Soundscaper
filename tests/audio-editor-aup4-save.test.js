@@ -389,7 +389,7 @@ test('AUP4 open stores its compatibility report on the imported project tab and 
 		assert.equal(compatibility.report.items[0].data.name, 'SuperVerb');
 		assert.equal(compatibility.dismissed, false);
 		assert.equal(deletedIds.length, 1);
-		assert.match(deletedIds[0], /^aup4-/);
+		assert.match(deletedIds[0], /^audacity-project-/);
 		await assert.rejects(
 			() => controller.actions.project.saveAup4({ useFileSystemAccess: false }),
 			/Missing audio sources prevent saving/,

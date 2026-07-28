@@ -27,14 +27,15 @@ export async function createAup3Fixture(options = {}) {
 	const database = new SQL.Database();
 	try {
 		database.run('PRAGMA application_id = 0x41554459');
+		database.run('PRAGMA user_version = 0');
 		database.run('CREATE TABLE project (id INTEGER PRIMARY KEY, dict BLOB, doc BLOB)');
 		database.run('CREATE TABLE autosave (id INTEGER PRIMARY KEY, dict BLOB, doc BLOB)');
 		database.run(`CREATE TABLE sampleblocks (
-			blockid INTEGER PRIMARY KEY,
+			blockid INTEGER PRIMARY KEY AUTOINCREMENT,
 			sampleformat INTEGER,
-			summin BLOB,
-			summax BLOB,
-			sumrms BLOB,
+			summin REAL,
+			summax REAL,
+			sumrms REAL,
 			summary256 BLOB,
 			summary64k BLOB,
 			samples BLOB
@@ -45,10 +46,19 @@ export async function createAup3Fixture(options = {}) {
 		}
 		for (const block of sampleBlocks) {
 			if (block.missing || block.id <= 0) continue;
-			database.run('INSERT INTO sampleblocks (blockid, sampleformat, samples) VALUES (?, ?, ?)', [
+			const samples = encodeSamples(block.samples, block.sampleFormat);
+			const summary = fixtureSummary(block.samples);
+			database.run(`INSERT INTO sampleblocks (
+				blockid, sampleformat, summin, summax, sumrms, summary256, summary64k, samples
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
 				block.id,
 				block.sampleFormat,
-				encodeSamples(block.samples, block.sampleFormat),
+				summary.minimum,
+				summary.maximum,
+				summary.rms,
+				new Uint8Array(Math.ceil(block.samples.length / 65_536) * 256 * 3 * 4),
+				new Uint8Array(Math.ceil(block.samples.length / 65_536) * 3 * 4),
+				samples,
 			]);
 		}
 		return database.export();
@@ -131,6 +141,8 @@ export function createAup3ProjectData(options = {}) {
 	});
 	if (options.realtimeEffect) trackNodes.push(xmlNode('effects', { active: true }, [xmlNode('effectstate', { name: 'Fixture effect' })]));
 	const project = xmlNode('project', {
+		version: '1.3.0',
+		audacityversion: '3.7.0',
 		rate: projectRate,
 		projname: options.projectName || 'fixture.aup3',
 		...(options.projectTempo == null ? {} : { time_signature_tempo: options.projectTempo }),
@@ -213,6 +225,16 @@ function encodeSamples(samples, format) {
 		}
 	}
 	return bytes;
+}
+
+function fixtureSummary(samples) {
+	const values = Array.from(samples || [], Number);
+	const minimum = values.length ? Math.min(...values) : 0;
+	const maximum = values.length ? Math.max(...values) : 0;
+	const rms = values.length
+		? Math.sqrt(values.reduce((total, value) => total + value * value, 0) / values.length)
+		: 0;
+	return { minimum, maximum, rms };
 }
 
 async function loadSqlJs() {

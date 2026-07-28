@@ -154,7 +154,7 @@ test('AUP4 compatibility and GitHub Pages save tiers are explicit', () => {
 		xmlVersion: AUP4_BINARY_XML_VERSION,
 		issues: [],
 	});
-	assert.equal(inspectAup4Header({ applicationId: AUP4_APPLICATION_ID, userVersion: AUP4_USER_VERSION + 1 }).readOnly, true);
+	assert.equal(inspectAup4Header({ applicationId: AUP4_APPLICATION_ID, userVersion: AUP4_USER_VERSION + 1 }).compatible, false);
 	assert.equal(inspectAup4Header({
 		applicationId: AUP4_APPLICATION_ID, userVersion: AUP4_USER_VERSION, xmlVersion: 'future',
 	}).compatible, false);

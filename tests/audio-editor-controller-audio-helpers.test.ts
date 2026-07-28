@@ -7,7 +7,7 @@ import {
 	ensureScapeFileName,
 	formatBytes,
 	historyEntrySummary,
-	isAup3File,
+	isAudacityProjectFile,
 	isLegacyAupFile,
 	isLegacyBlockFile,
 	isWavFile,
@@ -142,7 +142,9 @@ test('controller file helpers preserve formats, summaries, and compatibility cou
 		type: 'batch', commandCount: 2, commands: ['split', 'move'],
 	});
 	assert.equal(formatBytes(1_536), '1.5 KB');
-	assert.equal(isAup3File({ name: 'project.AUP3' }), true);
+	assert.equal(isAudacityProjectFile({ name: 'project.AUP3' }), true);
+	assert.equal(isAudacityProjectFile({ name: 'project.AUP4' }), true);
+	assert.equal(isAudacityProjectFile({ name: 'project.aup' }), false);
 	assert.equal(isLegacyAupFile({ name: 'project.aup' }), true);
 	assert.equal(isLegacyBlockFile({ name: 'e000.au' }), true);
 	assert.equal(isWavFile({ name: 'audio.bin', type: 'audio/x-wav' }), true);

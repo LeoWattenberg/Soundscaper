@@ -8,9 +8,9 @@ import {
 } from './project-v2.js';
 import { createStableId } from './project.js';
 
-/** Convert structured AUP3 decode output into the V2 materialized model. */
-export function convertStructuredAup3ToProjectV2(structure, options = {}) {
-	if (!structure || !Array.isArray(structure.tracks)) throw new TypeError('Structured AUP3 data is required.');
+/** Convert structured legacy XML AUP output into the V2 materialized model. */
+export function convertLegacyAupToProjectV2(structure, options = {}) {
+	if (!structure || !Array.isArray(structure.tracks)) throw new TypeError('Structured legacy AUP data is required.');
 	const idFactory = options.idFactory || createStableId;
 	const sampleRate = positiveRate(structure.sampleRate);
 	const sources = [];
@@ -60,7 +60,7 @@ export function convertStructuredAup3ToProjectV2(structure, options = {}) {
 				sampleRate: trackRate,
 				originalSampleRate: trackRate,
 				sampleFormat: legacySampleFormat(inputTrack.sampleFormat),
-				opaqueExtensions: { aup3Source: inputClip.opaqueExtensions || {} },
+				opaqueExtensions: { legacyAupSource: inputClip.opaqueExtensions || {} },
 			});
 			const clip = createAudioClipV2({
 				id: clipId,
@@ -100,7 +100,7 @@ export function convertStructuredAup3ToProjectV2(structure, options = {}) {
 	}
 	const laneTracks = spreadLegacyOverlaps(tracks, clips, warnings);
 	const metadata = {
-		title: String(options.title || structure.metadata?.title || '').replace(/\.aup3$/i, ''),
+		title: String(options.title || structure.metadata?.title || '').replace(/\.aup$/i, ''),
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
 	const project = createAudioEditorProjectV2({
@@ -119,8 +119,8 @@ export function convertStructuredAup3ToProjectV2(structure, options = {}) {
 		clips,
 		tracks: laneTracks,
 		opaqueExtensions: {
-			aup3Project: structure.opaqueExtensions?.aup3Project || null,
-			aup3Warnings: warnings,
+			legacyAupProject: structure.opaqueExtensions?.legacyAupProject || null,
+			legacyAupWarnings: warnings,
 		},
 	});
 	return { project, sources: sourceAudio, warnings };
@@ -159,11 +159,11 @@ function convertEnvelope(points = [], inputRate, projectRate, speedRatio, maximu
 }
 
 function normalizeSourceChannels(channels) {
-	if (!Array.isArray(channels) || !channels.length) throw new TypeError('AUP3 clip channels are missing.');
+	if (!Array.isArray(channels) || !channels.length) throw new TypeError('Legacy AUP clip channels are missing.');
 	const frameCount = channels[0]?.length;
-	if (!Number.isSafeInteger(frameCount) || frameCount <= 0) throw new RangeError('AUP3 clip audio is empty.');
+	if (!Number.isSafeInteger(frameCount) || frameCount <= 0) throw new RangeError('Legacy AUP clip audio is empty.');
 	return channels.map((channel) => {
-		if (!(channel instanceof Float32Array)) throw new TypeError('AUP3 clip channels must be Float32Array values.');
+		if (!(channel instanceof Float32Array)) throw new TypeError('Legacy AUP clip channels must be Float32Array values.');
 		if (channel.length === frameCount) return channel;
 		const padded = new Float32Array(frameCount);
 		padded.set(channel.subarray(0, frameCount));
@@ -181,7 +181,7 @@ function secondsToFrames(seconds, sampleRate) {
 
 function positiveRate(value) {
 	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0 || number > 768_000) throw new RangeError('AUP3 sample rate is invalid.');
+	if (!Number.isSafeInteger(number) || number <= 0 || number > 768_000) throw new RangeError('Legacy AUP sample rate is invalid.');
 	return number;
 }
 

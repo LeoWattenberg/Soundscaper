@@ -6,7 +6,6 @@ import test from 'node:test';
 import {
 	SOURCE_CHUNK_FRAMES,
 	audioBufferChannels,
-	bufferFromAup3Channels,
 	bufferFromChannels,
 	canonicalizeBuffer,
 	createAudioBuffer,
@@ -203,23 +202,14 @@ test('channel buffers validate shape and support both copy APIs', async () => {
 	assert.deepEqual(Array.from(assigned.getChannelData(0)), [5, 6]);
 });
 
-test('AUP3 and ordinary resampling preserve requested rates and exact frame counts', async () => {
+test('ordinary resampling preserves requested rates and exact frame counts', async () => {
 	const channels = [Float32Array.of(0, 0.25, 0.5, 0.75)];
-	const ordinary = await bufferFromAup3Channels(channels, 48_000, audioContextFixture(), copy);
-	assert.equal(ordinary.sampleRate, 48_000);
-	const unusual = await bufferFromAup3Channels(channels, 4_000, audioContextFixture(), copy);
-	assert.equal(unusual.sampleRate, 48_000);
-	assert.equal(unusual.length, 48);
-
 	const input = bufferFixture(channels, 48_000);
 	assert.equal(await resampleBuffer(input, 48_000, audioContextFixture(), copy), input);
 	const halfRate = await resampleBuffer(input, 24_000, audioContextFixture(), copy);
 	assert.equal(halfRate.length, 2);
 	assert.equal(halfRate.sampleRate, 24_000);
 	assert.deepEqual(resampleChannelsWindowedSinc(channels, 48_000, 48_000, 4), channels);
-
-	const huge = { length: 100_000_000 } as unknown as Float32Array;
-	await assert.rejects(bufferFromAup3Channels([huge], 1, audioContextFixture(), copy), /too long/u);
 });
 
 test('audio buffer creation uses context, global constructors, temporary contexts, and clear errors', async () => {

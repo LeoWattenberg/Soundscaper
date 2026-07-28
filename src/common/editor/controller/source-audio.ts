@@ -231,21 +231,6 @@ export async function bufferFromChannels(
 	return buffer;
 }
 
-export async function bufferFromAup3Channels(
-	channels: Float32Array[],
-	sampleRate: number,
-	context: AudioBufferContext | null | undefined,
-	copy: AudioCopy,
-): Promise<AudioBufferLike> {
-	const outputLength = Math.max(1, Math.round(channels[0]!.length * AUDIO_EDITOR_SAMPLE_RATE / sampleRate));
-	if (outputLength * channels.length * Float32Array.BYTES_PER_ELEMENT > 384 * 1024 * 1024) {
-		throw new Error(copy.audacityProjectTooLong);
-	}
-	if (sampleRate >= 8000 && sampleRate <= 96000) return bufferFromChannels(channels, sampleRate, context, copy);
-	const resampled = resampleChannelsWindowedSinc(channels, sampleRate, AUDIO_EDITOR_SAMPLE_RATE, outputLength);
-	return bufferFromChannels(resampled, AUDIO_EDITOR_SAMPLE_RATE, context, copy);
-}
-
 export async function resampleBuffer(
 	input: AudioBufferLike,
 	sampleRate: number,

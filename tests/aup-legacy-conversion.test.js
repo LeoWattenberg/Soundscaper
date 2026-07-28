@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { convertStructuredAup3ToProjectV2 } from '../src/common/editor/aup3-conversion.js';
+import { convertLegacyAupToProjectV2 } from '../src/common/editor/aup-legacy-conversion.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 
-test('structured AUP3 conversion materializes audio and labels without a dry mix', () => {
+test('legacy AUP conversion materializes audio and labels without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];
-	const converted = convertStructuredAup3ToProjectV2({
+	const converted = convertLegacyAupToProjectV2({
 		sampleRate: 44_100,
 		tempo: { bpm: 100, timeSignature: { numerator: 3, denominator: 4 } },
 		selection: { startSeconds: 0.5, endSeconds: 1 },
-		metadata: { title: 'Legacy.AUP3' },
+		metadata: { title: 'Legacy.AUP' },
 		tracks: [{
 			type: 'audio', name: 'Stereo', rate: 48_000, channelCount: 2, channelLayout: 'stereo',
 			sampleFormat: 0x0004000f, gain: 0.5,
@@ -23,7 +23,7 @@ test('structured AUP3 conversion materializes audio and labels without a dry mix
 			type: 'label', name: 'Markers', labels: [{ title: 'Chorus', startSeconds: 2, endSeconds: 3 }],
 		}],
 		warnings: [],
-		opaqueExtensions: { aup3Project: { name: 'project' } },
+		opaqueExtensions: { legacyAupProject: { name: 'project' } },
 	}, {
 		idFactory: () => ids.shift(),
 		now: '2026-07-13T00:00:00.000Z',

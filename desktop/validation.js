@@ -9,20 +9,20 @@ import {
 
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
-		extensions: Object.freeze(['scape', 'aup4']),
-		filters: Object.freeze([{ name: 'Scape and Audacity projects', extensions: ['scape', 'aup4'] }]),
+		extensions: Object.freeze(['scape', 'aup3', 'aup4']),
+		filters: Object.freeze([{ name: 'Scape and Audacity projects', extensions: ['scape', 'aup3', 'aup4'] }]),
 	}),
 	audio: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio and Audacity 3 projects', extensions: ['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv'] }]),
 	}),
 	video: Object.freeze({
 		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
 		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
 	}),
 	media: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio, video, Audacity 3 projects, and labels', extensions: ['aac', 'aif', 'aiff', 'aup3', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio, video, and labels', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
 	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),

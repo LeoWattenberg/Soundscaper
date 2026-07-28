@@ -77,14 +77,20 @@ test('CSP hashes exact inline script bodies and byte ranges are bounded', () => 
 	assert.throws(() => parseSingleRange('bytes=1-2,4-5', 10), (error) => error.status === 416);
 });
 
-test('file association arguments accept only unique Scape and AUP4 paths', () => {
-	const paths = extractProjectPaths(['electron', '--inspect', 'demo.aup4', 'movie.scape', 'track.wav', 'demo.aup4'], '/projects');
-	assert.deepEqual(paths, ['/projects/demo.aup4', '/projects/movie.scape']);
-	assert.deepEqual(extractAup4Paths(['movie.scape'], '/projects'), ['/projects/movie.scape']);
+test('file association arguments accept only unique Scape and Audacity project paths', () => {
+	const paths = extractProjectPaths(
+		['electron', '--inspect', 'old.aup3', 'demo.aup4', 'movie.scape', 'track.wav', 'old.aup3'],
+		'/projects',
+	);
+	assert.deepEqual(paths, ['/projects/old.aup3', '/projects/demo.aup4', '/projects/movie.scape']);
+	assert.deepEqual(extractAup4Paths(['old.aup3', 'movie.scape'], '/projects'), ['/projects/old.aup3', '/projects/movie.scape']);
 });
 
 test('native file filters cover the editor import and export formats', () => {
-	assert.equal(acceptsFile('audio', '/tmp/session.AUP3'), true);
+	assert.equal(acceptsFile('project', '/tmp/session.AUP3'), true);
+	assert.equal(acceptsFile('project', '/tmp/session.AUP4'), true);
+	assert.equal(acceptsFile('audio', '/tmp/session.AUP3'), false);
+	assert.equal(acceptsFile('media', '/tmp/session.AUP3'), false);
 	assert.equal(acceptsFile('audio', '/tmp/take.wv'), true);
 	assert.equal(acceptsFile('media', '/tmp/captions.srt'), true);
 	assert.equal(acceptsFile('media', '/tmp/labels.TXT'), true);

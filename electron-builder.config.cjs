@@ -37,9 +37,9 @@ module.exports = {
 			role: 'Editor',
 		},
 		...(!framescaper ? [{
-			ext: 'aup4',
+			ext: ['aup3', 'aup4'],
 			name: 'Soundscaper Project',
-			description: 'Soundscaper/Audacity project copy',
+			description: 'Audacity project',
 			mimeType: 'application/x-audacity-project',
 			role: 'Editor',
 		}] : []),

@@ -35,7 +35,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 	moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference,
 	moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
-	openAup4, openProject, openScape, overwriteClips,
+	openAudacityProject, openAup4, openProject, openScape, overwriteClips,
 	pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 	prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 	previewRackEffect, previewVideoEffectGesture, product, getProject,
@@ -89,6 +89,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				return openProject(saved);
 			},
 			clearRecent: clearRecentProjects,
+			openAudacityProject,
 			openAup4,
 			openScape,
 			inspectScape: (file: RuntimeValue) => inspectScapeProject(file, store),

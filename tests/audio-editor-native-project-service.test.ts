@@ -277,7 +277,7 @@ test('failed AUP4 source staging rolls back committed PCM and closes the native 
 
 	await assert.rejects(service.openAup4(nativeFile('broken.aup4', 20)), /disk failed/u);
 	assert.deepEqual(deletedSources, ['source-a']);
-	assert.deepEqual(deletedNativeIds, ['aup4-native']);
+	assert.deepEqual(deletedNativeIds, ['audacity-project-native']);
 	assert.equal(fixture.state.importing, false);
 });
 
@@ -361,8 +361,10 @@ test('native project validation and editing gates reject before starting work', 
 	const blocked = createFixture({ editingBlocked: () => true });
 	const service = createNativeProjectService(blocked.runtime);
 	await assert.rejects(service.openScape(nativeFile('audio.wav')), /Choose a \.scape/u);
-	await assert.rejects(service.openAup4(nativeFile('audio.wav')), /Choose AUP4/u);
+	await assert.rejects(service.openAudacityProject(nativeFile('audio.wav')), /Choose an Audacity project/u);
 	assert.equal(await service.openScape(nativeFile('blocked.scape')), null);
+	assert.equal(await service.openAudacityProject(nativeFile('blocked.aup3')), undefined);
+	assert.equal(await service.openAudacityProject(nativeFile('blocked.AUP4')), undefined);
 	assert.equal(await service.openAup4(nativeFile('blocked.aup4')), undefined);
 	assert.equal(blocked.publishes(), 0);
 });
@@ -448,7 +450,7 @@ test('AUP4 save streams cached and stored PCM, publishes compatibility, and dele
 	assert.ok(fixture.statuses.some(({ message }) => message === 'Saving 100%'));
 });
 
-test('AUP4 open reports read-only compatibility and falls back to close cleanup', async () => {
+test('AUP3 open uses the shared lifecycle, diagnostics, and close cleanup', async () => {
 	const importedProject = project('aup4-read-only');
 	const closed: string[] = [];
 	const fixture = createFixture({
@@ -475,10 +477,11 @@ test('AUP4 open reports read-only compatibility and falls back to close cleanup'
 		migrateProject: () => ({ project: importedProject }),
 	});
 	const service = createNativeProjectService(fixture.runtime);
-	const result = await service.openAup4(nativeFile('large.aup4', 10));
+	const result = await service.openAudacityProject(nativeFile('large.AUP3', 10));
 
 	assert.equal((result?.project as NativeProjectDocument).id, 'aup4-read-only');
-	assert.deepEqual(closed, ['aup4-native']);
+	assert.equal((result?.compatibilityReport as { sourceGeneration: string }).sourceGeneration, 'aup3');
+	assert.deepEqual(closed, ['audacity-project-native']);
 	assert.ok(fixture.statuses.some(({ message, state }) => message === 'Oversized.' && state === 'error'));
 	assert.ok(fixture.statuses.some(({ message }) => message === 'Importing 0%'));
 	assert.ok(fixture.statuses.some(({ message }) => message === 'Importing 50%'));

@@ -88,7 +88,7 @@ export function createAup4CompatibilityReport(direction, legacy = {}) {
 }
 
 export function addAup4CompatibilityItem(report, item) {
-	if (!report || report.schemaVersion !== 1 || report.format !== 'aup4') {
+	if (!report || report.schemaVersion !== 1 || !['aup4', 'audacity-project'].includes(report.format)) {
 		throw new TypeError('A versioned AUP4 compatibility report is required.');
 	}
 	if (!item || typeof item.code !== 'string' || !item.code) throw new TypeError('AUP4 compatibility items require a code.');
@@ -244,14 +244,12 @@ export function inspectAup4Header({ applicationId, userVersion, xmlVersion }) {
 	let readOnly = false;
 	if (Number(applicationId) !== AUP4_APPLICATION_ID) issues.push({ level: 'error', code: 'NOT_AUDACITY_PROJECT', message: 'The SQLite application id is not Audacity.' });
 	if (Number(userVersion) > AUP4_USER_VERSION) {
-		readOnly = true;
-		issues.push({ level: 'warning', code: 'NEWER_DATABASE', message: 'This project uses a newer Audacity database profile and is read-only.' });
+		issues.push({ level: 'error', code: 'NEWER_DATABASE', message: 'This project uses a newer Audacity database profile.' });
 	} else if (Number(userVersion) <= 0) issues.push({ level: 'error', code: 'INVALID_DATABASE_VERSION', message: 'The Audacity database profile is invalid.' });
 	if (xmlVersion != null && !/^\d+\.\d+\.\d+$/.test(String(xmlVersion))) {
 		issues.push({ level: 'error', code: 'INVALID_XML_VERSION', message: 'The Audacity document profile is invalid.' });
 	} else if (xmlVersion && compareVersion(xmlVersion, AUP4_BINARY_XML_VERSION) > 0) {
-		readOnly = true;
-		issues.push({ level: 'warning', code: 'NEWER_XML', message: 'This project uses a newer Audacity document profile and is read-only.' });
+		issues.push({ level: 'error', code: 'NEWER_XML', message: 'This project uses a newer Audacity document profile.' });
 	}
 	return {
 		compatible: !issues.some((issue) => issue.level === 'error'),

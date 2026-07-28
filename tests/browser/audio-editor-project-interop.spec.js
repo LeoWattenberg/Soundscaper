@@ -190,17 +190,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('imports an uppercase AUP3 project as structured tracks and clips', async ({ page }) => {
+	test('opens an uppercase AUP3 project through the shared Audacity worker', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const fixture = await createAup3Fixture();
 
-		await importFiles(editor, [{
+		await editor.locator('[data-aup4-input]').setInputFiles({
 			name: 'Browser project.AUP3',
-			mimeType: 'application/octet-stream',
+			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from(fixture),
-		}]);
-		await expect(editor.locator('[data-status]')).toContainText('Imported AUP3 tracks, clips, labels, and settings.');
+		});
+		await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
 		await expect(editor).toHaveAttribute('data-track-count', '1');
 		await expect(trackNameText(editor).nth(0)).toHaveText('Fixture track');
 		await expect(clipByName(editor, 'Audio 1')).toHaveCount(1);

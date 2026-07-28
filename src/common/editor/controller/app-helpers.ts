@@ -37,7 +37,8 @@ interface CompatibilityItem {
 
 export interface Aup4CompatibilityReport {
 	readonly schemaVersion: 1;
-	readonly format: 'aup4';
+	readonly format: 'aup4' | 'audacity-project';
+	readonly sourceGeneration?: 'aup3' | 'aup4';
 	readonly direction: 'open' | 'save';
 	readonly items: readonly CompatibilityItem[];
 	readonly counts: Readonly<{
@@ -90,8 +91,8 @@ export function formatBytes(value: unknown): string {
 	return `${size.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 }
 
-export function isAup3File(file: NamedFile | null | undefined): boolean {
-	return /\.aup3$/i.test(String(file?.name || '').trim());
+export function isAudacityProjectFile(file: NamedFile | null | undefined): boolean {
+	return /\.aup[34]$/i.test(String(file?.name || '').trim());
 }
 
 export function isLegacyAupFile(file: NamedFile | null | undefined): boolean {
@@ -108,7 +109,7 @@ export function isWavFile(file: NamedFile | null | undefined): boolean {
 		|| ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave'].includes(mimeType);
 }
 
-export function formatAup3Warning(warning: unknown): string {
+export function formatLegacyAupWarning(warning: unknown): string {
 	if (typeof warning === 'string') return warning.trim();
 	const value = objectRecord(warning);
 	if (value.message) return String(value.message).trim();
@@ -166,7 +167,10 @@ export function normalizeAup4CompatibilityReport(report: unknown, direction: unk
 	return Object.freeze({
 		...value,
 		schemaVersion: 1,
-		format: 'aup4',
+		format: value.format === 'audacity-project' ? 'audacity-project' : 'aup4',
+		...(value.sourceGeneration === 'aup3' || value.sourceGeneration === 'aup4'
+			? { sourceGeneration: value.sourceGeneration }
+			: {}),
 		direction: direction === 'open' ? 'open' : 'save',
 		items: Object.freeze(items),
 		counts: Object.freeze({

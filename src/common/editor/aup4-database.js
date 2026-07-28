@@ -48,7 +48,7 @@ const SQLITE_HEADER = Uint8Array.of(0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x
  * private copy may safely request rollback journaling before deserialization;
  * the source File/ArrayBuffer is never modified.
  */
-export function prepareAup4SerializedDatabase(input) {
+export function prepareAudacitySerializedDatabase(input) {
 	const source = toBytes(input);
 	if (source.byteLength < 100 || SQLITE_HEADER.some((byte, index) => source[index] !== byte)) {
 		throw new Aup4Error('The file is not a SQLite database image.', 'INVALID_DATABASE');
@@ -78,7 +78,7 @@ export function initializeAup4Database(database) {
 	const adapter = createAup4DatabaseAdapter(database);
 	adapter.exec('PRAGMA trusted_schema = OFF');
 	adapter.exec(AUP4_SCHEMA_SQL);
-	return validateAup4Database(database, { allowEmpty: true });
+	return validateAudacityProjectDatabase(database, { allowEmpty: true });
 }
 
 /**
@@ -116,7 +116,7 @@ export function prepareAup4PortableExport(database) {
 			'UNCOMMITTED_HISTORY',
 		);
 	}
-	const validation = validateAup4Database(database, {
+	const validation = validateAudacityProjectDatabase(database, {
 		allowHistoryRecovery: false,
 		validateReferences: true,
 		references: { allowMissingSampleBlocks: false },
@@ -142,17 +142,17 @@ export function prepareAup4PortableExport(database) {
  * advance user_version. The transaction is validated before commit, so a
  * malformed legacy file remains byte-for-byte untouched by its caller.
  */
-export function upgradeAup4Database(database, options = {}) {
+export function upgradeAudacityProjectDatabase(database, options = {}) {
 	const adapter = createAup4DatabaseAdapter(database);
 	adapter.exec('PRAGMA trusted_schema = OFF');
 	const applicationId = Number(adapter.value('PRAGMA application_id'));
 	const userVersion = Number(adapter.value('PRAGMA user_version'));
-	if (applicationId !== AUP4_APPLICATION_ID || userVersion <= 0 || userVersion >= AUP4_USER_VERSION) {
+	if (applicationId !== AUP4_APPLICATION_ID || userVersion >= AUP4_USER_VERSION) {
 		return {
 			upgraded: false,
 			fromVersion: userVersion,
 			toVersion: userVersion,
-			validation: validateAup4Database(database, options),
+			validation: validateAudacityProjectDatabase(database, options),
 		};
 	}
 	const quickCheck = String(adapter.value('PRAGMA quick_check(1)') || '');
@@ -174,7 +174,7 @@ export function upgradeAup4Database(database, options = {}) {
 			)
 		`);
 		adapter.exec(`PRAGMA user_version = ${AUP4_USER_VERSION}`);
-		return validateAup4Database(database, options);
+		return validateAudacityProjectDatabase(database, options);
 	});
 	return {
 		upgraded: true,
@@ -184,7 +184,7 @@ export function upgradeAup4Database(database, options = {}) {
 	};
 }
 
-export function validateAup4Database(database, options = {}) {
+export function validateAudacityProjectDatabase(database, options = {}) {
 	const adapter = createAup4DatabaseAdapter(database);
 	adapter.exec('PRAGMA trusted_schema = OFF');
 	const applicationId = Number(adapter.value('PRAGMA application_id'));
@@ -195,17 +195,13 @@ export function validateAup4Database(database, options = {}) {
 	const quickCheck = String(adapter.value('PRAGMA quick_check(1)') || '');
 	if (quickCheck.toLowerCase() !== 'ok') throw new Aup4Error(`SQLite integrity check failed: ${quickCheck || 'unknown error'}.`, 'CORRUPT_DATABASE');
 	const schemaObjects = readSchemaObjects(adapter);
-	const futureReadOnly = header.readOnly && userVersion > AUP4_USER_VERSION;
-	validateAup4SchemaObjects(schemaObjects, { futureReadOnly });
-	if (!futureReadOnly) validatePinnedTableDefinitions(schemaObjects);
-	validatePinnedColumns(adapter, {
-		allowAdditional: futureReadOnly,
-		allowMissing: futureReadOnly ? new Set(['autosave', 'project_history']) : new Set(),
-	});
+	validateAup4SchemaObjects(schemaObjects);
+	validatePinnedTableDefinitions(schemaObjects);
+	validatePinnedColumns(adapter);
 
 	const candidates = readAup4DocumentCandidates(adapter, new Set(schemaObjects
 		.filter((entry) => entry.type === 'table')
-		.map((entry) => entry.name)));
+		.map((entry) => entry.name)), options);
 	if (!candidates.length) {
 		if (!options.allowEmpty) throw new Aup4Error('The Audacity project document is empty.', 'EMPTY_PROJECT');
 		return { ...header, source: null, document: null, schemaObjects };
@@ -249,7 +245,7 @@ export function validateAup4Database(database, options = {}) {
 				recovery: recovered ? { failures, source: candidate.source, generation: candidate.generation ?? null } : null,
 			};
 		} catch (error) {
-			if (!error?.code || options.allowHistoryRecovery === false) throw error;
+			if (!error?.code || options.allowHistoryRecovery !== true) throw error;
 			failures.push({ source: candidate.source, generation: candidate.generation ?? null, code: error.code, message: error.message });
 		}
 	}
@@ -268,16 +264,16 @@ export function readAup4Document(database) {
 	return null;
 }
 
-function readAup4DocumentCandidates(adapter, tables) {
+function readAup4DocumentCandidates(adapter, tables, options) {
 	const output = [];
-	for (const source of ['autosave', 'project']) {
+	for (const source of options.useAutosave === false ? ['project'] : ['autosave', 'project']) {
 		if (!tables.has(source)) continue;
 		const row = adapter.rows(`SELECT dict, doc FROM ${source} WHERE id = 1 LIMIT 1`)[0];
 		if (row?.[0]?.byteLength && row?.[1]?.byteLength) output.push({
 			source, dictionary: toBytes(row[0]).slice(), document: toBytes(row[1]).slice(),
 		});
 	}
-	if (!tables.has('project_history')) return output;
+	if (options.allowHistoryRecovery !== true || !tables.has('project_history')) return output;
 	for (const [generation, dictionary, document] of adapter.rows(`
 		SELECT generation, dict, doc FROM project_history
 		WHERE length(dict) > 0 AND length(doc) > 0
@@ -726,3 +722,5 @@ export const AUP4_DATABASE_PROFILE = Object.freeze({
 	userVersion: AUP4_USER_VERSION,
 	historyDepth: AUP4_HISTORY_DEPTH,
 });
+
+export { prepareAudacitySerializedDatabase as prepareAup4SerializedDatabase, upgradeAudacityProjectDatabase as upgradeAup4Database, validateAudacityProjectDatabase as validateAup4Database };

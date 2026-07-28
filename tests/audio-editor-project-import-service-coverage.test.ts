@@ -111,7 +111,7 @@ function createFixture() {
 		cacheSourceBuffer: (sourceId: string, value: unknown) => { sourceBuffers.set(sourceId, value); },
 		canonicalizeBuffer: async () => audio,
 		commit: (command: unknown, selection: unknown) => { commands.push({ command, selection }); },
-		convertStructuredAup3ToProjectV2: () => decodedStructure(),
+		convertLegacyAupToProjectV2: () => decodedStructure(),
 		copy: {
 			importing: 'Importing',
 			done: 'Done',
@@ -120,9 +120,7 @@ function createFixture() {
 			audioTrackNotFound: 'Audio track not found.',
 			track: 'Track',
 			aupImporting: 'Importing AUP',
-			aup3Importing: 'Importing AUP3',
 			aupImported: 'AUP imported.',
-			aup3Imported: 'AUP3 imported.',
 			structuredProjectRequired: 'Structured project required.',
 			importedSourceDescriptorMissing: 'Missing {source}.',
 			importedSourcePcmInvalid: 'Invalid {source}.',
@@ -131,19 +129,13 @@ function createFixture() {
 		createAddSourceCommand: (source: unknown) => ({ type: 'source/add', source }),
 		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
 		createStableId: (prefix: string) => `${prefix}-${++nextId}`,
-		decodeAup3File: async (_input: unknown, decodeOptions: { onProgress: (value: unknown) => void }) => {
-			decodeOptions.onProgress(0.25);
-			decodeOptions.onProgress({ value: 70 });
-			decodeOptions.onProgress('invalid');
-			return { kind: 'aup3' };
-		},
 		decodeLegacyAupProject: async (
 			_input: unknown,
 			_dataFiles: unknown,
 			decodeOptions: { onProgress: (value: unknown) => void },
 		) => {
 			decodeOptions.onProgress({ progress: -0.5 });
-			return { kind: 'aup' };
+			return decodedStructure();
 		},
 		editingBlocked: () => options.blocked,
 		engine: {
@@ -162,7 +154,7 @@ function createFixture() {
 		findTrack: (project: { tracks: Array<{ id: string }> }, trackId: string) => (
 			project.tracks.find((track) => track.id === trackId) || null
 		),
-		formatAup3Warning: (warning: string) => warning === 'ignored' ? '' : `Warning: ${warning}.`,
+		formatLegacyAupWarning: (warning: string) => warning === 'ignored' ? '' : `Warning: ${warning}.`,
 		generateWaveformPeaks: async () => {
 			if (options.peakFails) throw new Error('peaks failed');
 			return { levels: [] };
@@ -179,7 +171,6 @@ function createFixture() {
 			return options.incrementalDescriptor;
 		},
 		isAudioEditorVideoFile: (input: TestFile) => input.type?.startsWith('video/') || false,
-		isAup3File: (input: TestFile) => /\.aup3?$/iu.test(input.name),
 		isLegacyAupFile: (input: TestFile) => /\.aup$/iu.test(input.name),
 		isLegacyBlockFile: (input: TestFile) => /\.au$/iu.test(input.name),
 		isWavFile: (input: TestFile) => /\.wav$/iu.test(input.name),
@@ -307,37 +298,20 @@ test('small, multichannel, invalid, and unsliceable WAVs use the regular decoder
 	assert.equal(fixture.commands.length, 4);
 });
 
-test('structured Audacity imports persist PCM chunks, progress, and warnings', async () => {
+test('structured legacy AUP imports persist PCM chunks, progress, and warnings', async () => {
 	const legacy = createFixture();
 	const legacyResult = await createProjectImportService(legacy.runtime).importFile(file('session.aup'));
 	assert.equal(legacyResult.notice, 'AUP imported. Warning: converted.');
 	assert.equal(legacy.calls.filter((entry) => entry.startsWith('write:')).length, 3);
 	assert.equal(legacy.calls.includes('save-project'), true);
-	assert.equal(legacy.statuses.some(([message]) => message === 'Importing AUP3 0%'), true);
-
-	const modern = createFixture();
-	modern.options.structuredDecoded = {
-		project: {
-			id: 'modern-import',
-			sources: [{
-				id: 'structured-source', name: 'Source', mimeType: 'audio/wav',
-				sampleRate: 48_000, channelCount: 1, frameCount: 1,
-			}],
-		},
-		sources: [{ sourceId: 'structured-source', channels: [Float32Array.of(1)] }],
-		warnings: ['ignored'],
-	};
-	const modernResult = await createProjectImportService(modern.runtime).importFile(file('session.aup3'));
-	assert.equal(modernResult.notice, 'AUP3 imported.');
-	assert.equal(modern.statuses.some(([message]) => message === 'Importing AUP3 25%'), true);
-	assert.equal(modern.statuses.some(([message]) => message === 'Importing AUP3 70%'), true);
+	assert.equal(legacy.statuses.some(([message]) => message === 'Importing AUP 0%'), true);
 });
 
-test('structured imports reject malformed descriptors and clean completed source writes', async () => {
+test('legacy AUP imports reject malformed descriptors and clean completed source writes', async () => {
 	const malformed = createFixture();
 	malformed.options.structuredDecoded = { warnings: [], sources: [] };
 	await assert.rejects(
-		() => createProjectImportService(malformed.runtime).importFile(file('malformed.aup3')),
+		() => createProjectImportService(malformed.runtime).importFile(file('malformed.aup')),
 		/Structured project required/iu,
 	);
 
@@ -348,7 +322,7 @@ test('structured imports reject malformed descriptors and clean completed source
 		warnings: [],
 	};
 	await assert.rejects(
-		() => createProjectImportService(missing.runtime).importFile(file('missing.aup3')),
+		() => createProjectImportService(missing.runtime).importFile(file('missing.aup')),
 		/Missing absent/iu,
 	);
 
@@ -365,7 +339,7 @@ test('structured imports reject malformed descriptors and clean completed source
 		warnings: [],
 	};
 	await assert.rejects(
-		() => createProjectImportService(invalidPcm.runtime).importFile(file('bad-pcm.aup3')),
+		() => createProjectImportService(invalidPcm.runtime).importFile(file('bad-pcm.aup')),
 		/Invalid Bad source/iu,
 	);
 });

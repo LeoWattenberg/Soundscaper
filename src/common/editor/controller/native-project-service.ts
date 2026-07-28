@@ -32,12 +32,7 @@ export type {
 	SaveScapeOptions,
 } from './native-project-types.ts';
 
-const READ_ONLY_AUP4_ISSUES = new Set([
-	'NEWER_DATABASE',
-	'NEWER_XML',
-	'EDITABLE_LIMIT_EXCEEDED',
-	'MISSING_LOCAL_AUDIO',
-]);
+const READ_ONLY_AUP4_ISSUES = new Set(['EDITABLE_LIMIT_EXCEEDED']);
 
 /**
  * Owns native project I/O, temporary AUP4 database cleanup, and the UI state
@@ -58,6 +53,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		dispose,
 		getAup4Client,
 		nativeProjectProgressMessage,
+		openAudacityProject,
 		openAup4,
 		openScape,
 		rememberAup4CompatibilityReport,
@@ -162,12 +158,15 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		}
 	}
 
-	async function openAup4(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> {
-		if (!file || !/\.aup4$/i.test(String(file.name || ''))) throw new TypeError(runtime.copy.chooseAup4File);
+	async function openAudacityProject(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> {
+		if (!file || !/\.aup[34]$/i.test(String(file.name || ''))) {
+			throw new TypeError('Choose an Audacity project file (.aup3 or .aup4).');
+		}
 		if (runtime.editingBlocked()) return undefined;
 		const operation = beginProjectTask('native-project-open');
 		let publicationToken = operation.projectToken;
-		const nativeId = sanitizeNativeId(runtime.createStableId('aup4'));
+		const sourceGeneration = /\.aup3$/i.test(file.name) ? 'aup3' : 'aup4';
+		const nativeId = sanitizeNativeId(runtime.createStableId('audacity-project'));
 		const persistedSourceIds: string[] = [];
 		let activated = false;
 		beginImport(operation.task);
@@ -208,10 +207,14 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			operation.task.assertCurrent();
 			publicationToken = runtime.projectGeneration.capture(importedProject.id);
 			activated = true;
+			const rawCompatibilityValue = decoded.compatibilityReport
+				|| decoded.validation?.compatibilityReport
+				|| opened.validation?.compatibilityReport;
+			const rawCompatibilityReport = rawCompatibilityValue && typeof rawCompatibilityValue === 'object'
+				? rawCompatibilityValue as Readonly<Record<string, unknown>>
+				: {};
 			const compatibilityReport = rememberAup4CompatibilityReport(
-				decoded.compatibilityReport
-					|| decoded.validation?.compatibilityReport
-					|| opened.validation?.compatibilityReport,
+				{ ...rawCompatibilityReport, format: 'audacity-project', sourceGeneration },
 				'open',
 				importedProject.id,
 			);
@@ -237,6 +240,11 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			finishImport(operation.task, publicationToken);
 			operation.task.finish();
 		}
+	}
+
+	/** Compatibility alias for integrations that opened only AUP4. */
+	async function openAup4(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> {
+		return openAudacityProject(file);
 	}
 
 	async function saveAup4(options: SaveAup4Options = {}): Promise<NativeSavedFile | Readonly<{

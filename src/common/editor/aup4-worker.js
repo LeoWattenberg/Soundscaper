@@ -10,15 +10,15 @@ import {
 	insertAup4SampleBlock,
 	listAup4History,
 	prepareAup4PortableExport,
-	prepareAup4SerializedDatabase,
+	prepareAudacitySerializedDatabase,
 	readAup4Document,
 	readAup4SampleBlock,
 	restoreAup4History,
-	upgradeAup4Database,
-	validateAup4Database,
+	upgradeAudacityProjectDatabase,
+	validateAudacityProjectDatabase,
 	writeAup4Document,
 } from './aup4-database.js';
-import { decodeAup4ProjectTree } from './aup4-conversion.js';
+import { decodeAudacityProjectTree } from './aup4-conversion.js';
 import {
 	createAup4ExportPlan,
 	normalizeAup4ExportSource,
@@ -37,9 +37,7 @@ const DATABASE_DIRECTORY = 'kw-media/audio-editor/aup4';
 const VFS_NAME = 'kw-media-aup4';
 const INITIAL_POOL_CAPACITY = 12;
 const IMPORT_CHUNK_BYTES = 1024 * 1024;
-const WORKER_VALIDATION_OPTIONS = Object.freeze({
-	references: Object.freeze({ allowMissingSampleBlocks: true }),
-});
+const WORKER_VALIDATION_OPTIONS = Object.freeze({ allowHistoryRecovery: false, references: Object.freeze({ allowMissingSampleBlocks: false }) });
 const projects = new Map();
 const snapshotWrites = new Map();
 const activeSnapshotByProject = new Map();
@@ -77,10 +75,7 @@ async function dispatch(message) {
 }
 
 async function handle(type, args, context) {
-	if (type === 'initialize') {
-		const environment = await environmentInfo();
-		return environment;
-	}
+	if (type === 'initialize') return environmentInfo();
 	if (type === 'create') return createProject(args, context);
 	if (type === 'open-file') return openFile(args, context);
 	if (type === 'inspect') return inspectProject(args.projectId, args.options);
@@ -164,7 +159,9 @@ async function createProject(args, context) {
 async function openFile(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
 	const file = args.file;
-	if (!file || typeof file.size !== 'number' || typeof file.slice !== 'function') throw operationError('A File is required to open an AUP4 project.', 'INVALID_FILE');
+	if (!file || typeof file.size !== 'number' || typeof file.slice !== 'function') throw operationError('A File is required to open an Audacity project.', 'INVALID_FILE');
+	const sourceGeneration = /\.aup3$/i.test(String(file.name || '')) ? 'aup3' : /\.aup4$/i.test(String(file.name || '')) ? 'aup4' : null;
+	if (!sourceGeneration) throw operationError('Choose an Audacity project file (.aup3 or .aup4).', 'INVALID_FILE');
 	const sqlite = await initializeSqlite();
 	const pool = await initializePool();
 	const limit = portableLimit(args, Boolean(pool));
@@ -213,11 +210,12 @@ async function openFile(args, context) {
 		entry = { projectId, path: ':memory:', database: deserializeMemoryDatabase(sqlite, bytes), backend: 'memory', pool: null };
 	}
 	try {
-		const migration = upgradeAup4Database(entry.database, WORKER_VALIDATION_OPTIONS);
+		entry.sourceGeneration = sourceGeneration;
+		const migration = upgradeAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
 		const discardedCloudMetadata = discardExcludedAup4Metadata(entry.database);
 		entry.discardedCloudMetadata = discardedCloudMetadata;
 		const validation = discardedCloudMetadata.discardedEntries
-			? validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS)
+			? validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS)
 			: migration.validation;
 		entry.portableLimit = limit;
 		entry.openedSize = file.size;
@@ -228,7 +226,7 @@ async function openFile(args, context) {
 		if (migration.upgraded) portable.issues = [...portable.issues, {
 			level: 'warning',
 			code: 'SCHEMA_UPGRADED',
-			message: `The AUP4 database schema was upgraded from 0x${migration.fromVersion.toString(16)} to the pinned browser profile.`,
+			message: `The Audacity database schema was upgraded from 0x${migration.fromVersion.toString(16)} to the pinned browser profile.`,
 		}];
 		if (exceedsEditableLimit) portable.issues = [...portable.issues, {
 			level: 'warning',
@@ -251,7 +249,7 @@ function openDatabase(sqlite, pool, projectId) {
 }
 
 function deserializeMemoryDatabase(sqlite, bytes) {
-	const serialized = prepareAup4SerializedDatabase(bytes);
+	const serialized = prepareAudacitySerializedDatabase(bytes);
 	const database = new sqlite.oo1.DB(':memory:', 'c');
 	const pointer = sqlite.wasm.allocFromTypedArray(serialized);
 	const flags = (sqlite.capi.SQLITE_DESERIALIZE_FREEONCLOSE || 1) | (sqlite.capi.SQLITE_DESERIALIZE_RESIZEABLE || 2);
@@ -287,13 +285,13 @@ function configureDefensiveDatabase(sqlite, database) {
 
 function inspectProject(projectId, options) {
 	const entry = requireProject(projectId);
-	return portableValidation(validateAup4Database(entry.database, mergeValidationOptions(options)), entry);
+	return portableValidation(validateAudacityProjectDatabase(entry.database, mergeValidationOptions(options)), entry);
 }
 
 async function decodeProject(args, context) {
 	const entry = requireProject(args.projectId);
-	const validation = validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS);
-	const decoded = await decodeAup4ProjectTree(
+	const validation = validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
+	const decoded = await decodeAudacityProjectTree(
 		validation.document.root,
 		async (blockId) => {
 			context.checkCancelled();
@@ -302,6 +300,7 @@ async function decodeProject(args, context) {
 		{
 			projectId: entry.projectId,
 			title: args.title,
+			sourceGeneration: entry.sourceGeneration,
 			maxDecodedBytes: args.maxDecodedBytes,
 			onProgress(progress) { context.progress(progress.value, progress.phase, { blockId: progress.blockId }); },
 		},
@@ -518,7 +517,7 @@ function restoreHistory(projectId, generation) {
 	assertNoActiveSnapshot(entry.projectId);
 	return {
 		restored: restoreAup4History(entry.database, generation),
-		validation: portableValidation(validateAup4Database(entry.database, WORKER_VALIDATION_OPTIONS), entry),
+		validation: portableValidation(validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS), entry),
 	};
 }
 
@@ -603,6 +602,7 @@ function assertNoActiveSnapshot(projectId) {
 function projectDescriptor(entry) {
 	return {
 		projectId: entry.projectId,
+		sourceGeneration: entry.sourceGeneration || null,
 		backend: entry.backend,
 		readOnly: Boolean(entry.readOnly),
 		...(Number.isFinite(entry.portableLimit) ? { portableLimit: entry.portableLimit } : {}),

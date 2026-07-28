@@ -1,4 +1,4 @@
-import { decodeAup3SampleBlock } from '../aup3.js';
+import { decodeAudacitySampleBlock } from './audacity-sample-block.js';
 import {
 	audacityXmlAttribute,
 	audacityXmlAttributes,
@@ -24,9 +24,9 @@ import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 
 const DEFAULT_MAX_DECODED_BYTES = 512 * 1024 * 1024;
 
-export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
-	if (!root || root.name !== 'project') throw conversionError('The AUP4 document has no project root.', 'INVALID_PROJECT_XML');
-	if (typeof loadBlock !== 'function') throw new TypeError('An AUP4 sample-block loader is required.');
+export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
+	if (!root || root.name !== 'project') throw conversionError('The Audacity document has no project root.', 'INVALID_PROJECT_XML');
+	if (typeof loadBlock !== 'function') throw new TypeError('An Audacity sample-block loader is required.');
 	const sanitization = sanitizeAup4ProjectRoot(root);
 	root = sanitization.node;
 	const idFactory = options.idFactory || createStableId;
@@ -37,6 +37,8 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 		missingAudio: [],
 		networkAccessAttempted: false,
 	});
+	compatibilityReport.format = 'audacity-project';
+	compatibilityReport.sourceGeneration = options.sourceGeneration === 'aup3' ? 'aup3' : 'aup4';
 	const state = {
 		decodedBytes: 0,
 		maxDecodedBytes,
@@ -83,7 +85,12 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 		const trackId = idFactory('track');
 		const clipIds = [];
 		const trackRate = positiveRate(audacityXmlAttribute(group[0], 'rate', projectRate));
-		const sourceSampleFormat = sampleFormatName(audacityXmlAttribute(group[0], 'sampleformat', 0));
+		const firstSequence = audacityXmlChildren(audacityXmlChildren(group[0], 'waveclip')[0], 'sequence')[0];
+		const sourceSampleFormat = sampleFormatName(audacityXmlAttribute(
+			group[0],
+			'sampleformat',
+			audacityXmlAttribute(firstSequence, 'sampleformat', 0),
+		));
 		const channelRates = group.map((node) => positiveRate(audacityXmlAttribute(node, 'rate', trackRate)));
 		const alignedClipNodes = alignWaveClips(group, channelRates, state, trackIndex);
 		if (channelRates.some((rate) => rate !== trackRate)) {
@@ -279,7 +286,7 @@ export async function decodeAup4ProjectTree(root, loadBlock, options = {}) {
 		...tracks.filter((track) => !orderedTrackIds.includes(track.id)));
 
 	const metadata = readMetadata(root);
-	const title = String(options.title || metadata.title || 'Audacity project').replace(/\.aup4$/i, '') || 'Audacity project';
+	const title = String(options.title || metadata.title || 'Audacity project').replace(/\.aup[34]$/i, '') || 'Audacity project';
 	const knownRootChildren = new Set(['tags', 'wavetrack', 'labeltrack', 'effects']);
 	const masterEffectsNode = audacityXmlChildren(root, 'effects').at(-1);
 	const masterEffectsContentIndex = findNodeContentIndex(root, masterEffectsNode);
@@ -348,7 +355,6 @@ async function decodeClipSequence(clipNode, state) {
 	const output = new Float32Array(sampleCount);
 	state.decodedBytes += output.byteLength;
 	let expectedStart = 0;
-	let lastBlockId = 0;
 	for (const waveBlock of audacityXmlChildren(sequence, 'waveblock')) {
 		const blockId = Number(audacityXmlAttribute(waveBlock, 'blockid', 0));
 		const start = nonNegativeInteger(audacityXmlAttribute(waveBlock, 'start', 0), 0);
@@ -357,56 +363,34 @@ async function decodeClipSequence(clipNode, state) {
 			declaredLengthValue ?? (blockId < 0 ? -blockId : -1),
 			-1,
 		);
-		lastBlockId = blockId;
-		if (start !== expectedStart) {
-			warn(state, 'An AUP4 sequence has non-contiguous sample blocks.');
-			recordUnavailablePcm(state, blockId, 'non-contiguous-sample-blocks');
-		}
+		if (start !== expectedStart) throw conversionError('An Audacity sequence has non-contiguous sample blocks.', 'CORRUPT_SEQUENCE');
 		if (blockId <= 0) {
 			const length = declaredLength >= 0 ? declaredLength : Math.max(0, -blockId);
-			if (blockId === 0) {
-				warn(state, 'An invalid zero-id silent AUP4 sample block was replaced with silence.');
-				recordUnavailablePcm(state, blockId, 'invalid-zero-sample-block');
-			} else if (length !== -blockId) {
-				warn(state, `Silent AUP4 sample block ${blockId} has a mismatched length.`);
-				recordUnavailablePcm(state, blockId, 'mismatched-silent-block-length');
-			}
+			if (blockId === 0) throw conversionError('An Audacity silent block has an invalid zero id.', 'INVALID_SAMPLE_BLOCK');
+			if (length !== -blockId) throw conversionError(`Silent Audacity sample block ${blockId} has a mismatched length.`, 'CORRUPT_SEQUENCE');
 			expectedStart = start + length;
 			completeDecodedBlock(state, blockId);
 			continue;
 		}
 		const block = await state.loadBlock(blockId);
-		if (!block) {
-			warn(state, `AUP4 sample block ${blockId} is missing.`);
-			recordUnavailablePcm(state, blockId, 'missing-local-sample-block');
-			expectedStart = start + Math.max(0, declaredLength);
-			completeDecodedBlock(state, blockId);
-			continue;
-		}
+		if (!block) throw conversionError(`Audacity sample block ${blockId} is missing.`, 'MISSING_SAMPLE_BLOCK');
 		let samples;
-		try { samples = decodeAup3SampleBlock(block.samples, block.sampleformat); }
-		catch (error) {
-			warn(state, `AUP4 sample block ${blockId} could not be decoded: ${error.message}`);
-			recordUnavailablePcm(state, blockId, 'undecodable-sample-block');
-			expectedStart = start + Math.max(0, declaredLength);
-			completeDecodedBlock(state, blockId);
-			continue;
-		}
+		try { samples = decodeAudacitySampleBlock(block.samples, block.sampleformat); }
+		catch (error) { throw conversionError(`Audacity sample block ${blockId} could not be decoded: ${error.message}`, error.code || 'INVALID_SAMPLE_BLOCK'); }
 		if (declaredLengthValue != null && (declaredLength < 1 || samples.length !== declaredLength)) {
-			warn(state, `AUP4 sample block ${blockId} does not match its declared length.`);
-			recordUnavailablePcm(state, blockId, 'mismatched-sample-block-length');
+			throw conversionError(`Audacity sample block ${blockId} does not match its declared length.`, 'CORRUPT_SEQUENCE');
 		}
 		const usableLength = declaredLength > 0 ? Math.min(samples.length, declaredLength) : samples.length;
 		output.set(samples.subarray(0, Math.min(usableLength, Math.max(0, output.length - start))), Math.min(start, output.length));
 		expectedStart = start + (declaredLength > 0 ? declaredLength : samples.length);
 		completeDecodedBlock(state, blockId);
 	}
-	if (expectedStart !== sampleCount) {
-		warn(state, 'An AUP4 sequence sample count does not match its blocks.');
-		recordUnavailablePcm(state, lastBlockId, 'mismatched-sequence-sample-count');
-	}
+	if (expectedStart !== sampleCount) throw conversionError('An Audacity sequence sample count does not match its blocks.', 'CORRUPT_SEQUENCE');
 	return output;
 }
+
+/** @deprecated Use decodeAudacityProjectTree. */
+export const decodeAup4ProjectTree = decodeAudacityProjectTree;
 
 function completeDecodedBlock(state, blockId) {
 	state.completedBlocks += 1;
@@ -414,29 +398,6 @@ function completeDecodedBlock(state, blockId) {
 		value: state.totalBlocks ? state.completedBlocks / state.totalBlocks : 1,
 		phase: 'decoding-audio',
 		blockId,
-	});
-}
-
-function recordUnavailablePcm(state, blockId, reason) {
-	const missingAudio = state.compatibilityReport.missingAudio;
-	if (!missingAudio.some((entry) => entry.blockId === blockId && entry.reason === reason)) {
-		missingAudio.push({
-			blockId,
-			reason,
-			possiblyCloudBacked: Boolean(state.compatibilityReport.discardedCloudMetadata?.discardedEntries),
-			networkAccessAttempted: false,
-		});
-	}
-	if (!state.compatibilityReport.items.some((item) => (
-		item.code === 'MISSING_LOCAL_AUDIO'
-		&& item.data?.blockId === blockId
-		&& item.data?.reason === reason
-	))) addAup4CompatibilityItem(state.compatibilityReport, {
-		code: 'MISSING_LOCAL_AUDIO',
-		severity: 'warning',
-		disposition: 'missing',
-		scope: { kind: 'sampleblock', blockId },
-		data: { blockId, reason },
 	});
 }
 

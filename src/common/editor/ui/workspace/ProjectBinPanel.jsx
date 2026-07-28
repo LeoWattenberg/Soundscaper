@@ -7,7 +7,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.aup3,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
 
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
@@ -33,9 +33,13 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	)) || null;
 	const menuItem = items.find((item) => item.id === itemMenu?.itemId) || null;
 
-	const importFiles = (files) => {
+	const importFiles = async (files) => {
 		if (mutationBlocked || !files.length) return undefined;
-		return controller.actions.project.importFiles(files, { destination: 'project-bin' });
+		const projects = files.filter((file) => /\.aup[34]$/iu.test(file?.name || ''));
+		const media = files.filter((file) => !/\.aup[34]$/iu.test(file?.name || ''));
+		for (const projectFile of projects) await controller.actions.project.openAudacityProject(projectFile);
+		if (media.length) return controller.actions.project.importFiles(media, { destination: 'project-bin' });
+		return projects.length;
 	};
 	const chooseFiles = () => run(async () => {
 		if (mutationBlocked) return;

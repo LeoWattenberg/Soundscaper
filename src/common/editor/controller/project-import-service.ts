@@ -12,11 +12,11 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertStructuredAup3ToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
-		createAddTrackCommand, createStableId, decodeAup3File, decodeLegacyAupProject,
+		convertLegacyAupToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
+		createAddTrackCommand, createStableId, decodeLegacyAupProject,
 		editingBlocked, engine, ffmpeg, findTrack,
-		formatAup3Warning, generateWaveformPeaks, handleError, importVideoFile,
-		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile, isAup3File,
+		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile,
+		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
 		peakCacheKey, preflightStorage, getProject, projectSampleRate,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
@@ -38,7 +38,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const legacyProject = files.find(isLegacyAupFile);
 		if (legacyProject) {
 			try {
-				const result = await importStructuredAudacityProject(
+				const result = await importLegacyAudacityProject(
 					legacyProject,
 					files.filter((file: RuntimeValue) => file !== legacyProject && !isLegacyAupFile(file)),
 				);
@@ -166,9 +166,9 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
-		if (isAup3File(file)) {
+		if (isLegacyAupFile(file)) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-			return importStructuredAudacityProject(file);
+			return importLegacyAudacityProject(file);
 		}
 		if (isAudioEditorVideoFile(file)) return importVideoFile(file, importOptions);
 		validateImportTimelineTrack(importOptions);
@@ -328,20 +328,20 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		return prepared.result;
 	}
 
-	async function importStructuredAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
-		const legacy = isLegacyAupFile(file);
-		setStatus(legacy ? copy.aupImporting : copy.aup3Importing);
-		const structure = legacy
-			? await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateAup3ImportProgress })
-			: await decodeAup3File(file, { structured: true, onProgress: updateAup3ImportProgress });
-		const decoded = convertStructuredAup3ToProjectV2(structure, {
+	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
+		setStatus(copy.aupImporting);
+		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateLegacyAupImportProgress });
+		const decoded = convertLegacyAupToProjectV2(structure, {
 			title: stripExtension(file.name),
 			projectId: createStableId('project'),
 		});
 		const importedProject = await persistImportedProject(decoded);
-		const detail = decoded.warnings.map(formatAup3Warning).filter(Boolean).join(' ');
-		const message = legacy ? copy.aupImported : copy.aup3Imported;
-		return { project: importedProject, warnings: decoded.warnings, notice: detail ? `${message} ${detail}` : message };
+		const detail = decoded.warnings.map(formatLegacyAupWarning).filter(Boolean).join(' ');
+		return {
+			project: importedProject,
+			warnings: decoded.warnings,
+			notice: detail ? `${copy.aupImported} ${detail}` : copy.aupImported,
+		};
 	}
 
 	async function persistImportedProject(decoded: RuntimeValue) {
@@ -398,13 +398,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 	}
 
-	function updateAup3ImportProgress(progress: RuntimeValue) {
+	function updateLegacyAupImportProgress(progress: RuntimeValue) {
 		const rawValue = typeof progress === 'number'
 			? progress
 			: Number(progress?.progress ?? progress?.value);
 		if (!Number.isFinite(rawValue)) return;
 		const percentage = rawValue <= 1 ? rawValue * 100 : rawValue;
-		setStatus(`${copy.aup3Importing} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`);
+		setStatus(`${copy.aupImporting} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`);
 	}
 	return Object.freeze({
 		importFile,

@@ -24,6 +24,7 @@ import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
+import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import {
 	desktopExternalDestination,
 	formatDateTimeLocalInput,
@@ -221,24 +222,20 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	}, [controller]);
 	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
 		? openScapeFile(file)
-		: controller.actions.project.openAup4(file)), [controller, openScapeFile]);
+		: controller.actions.project.openAudacityProject(file)), [controller, openScapeFile]);
 	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
-		const mediaFiles = [];
-		const labelFiles = [];
-		for (const file of files) {
-			if (/\.(?:srt|txt|vtt)$/iu.test(file?.name || '')) labelFiles.push(file);
-			else mediaFiles.push(file);
-		}
-		if (mediaFiles.length) {
-			await controller.actions.project.importFiles(mediaFiles, {
+		const routed = partitionWorkspaceFiles(files);
+		for (const file of routed.projects) await openProjectFile(file);
+		if (routed.media.length) {
+			await controller.actions.project.importFiles(routed.media, {
 				destination: 'auto',
 				projectBinVisible: projectBinEffectivelyOpen,
 				...importOptions,
 			});
 		}
-		for (const file of labelFiles) await controller.actions.labels.importFile(file);
+		for (const file of routed.labels) await controller.actions.labels.importFile(file);
 		return files.length;
-	}, [controller, projectBinEffectivelyOpen]);
+	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
 	const settleScapeCollision = useCallback((choice) => {
 		const pending = scapeCollisionResolverRef.current;
 		const file = scapeCollision?.file;

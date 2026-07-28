@@ -9,7 +9,7 @@ export class LegacyAupError extends Error {
 
 /**
  * Parse an Audacity 1.x/2.x `.aup` XML project plus user-selected `_data`
- * files into the same structured representation used by AUP3 conversion.
+ * files into the structured representation consumed by the legacy AUP converter.
  */
 export async function decodeLegacyAupProject(projectFile, dataFiles, options = {}) {
 	if (!projectFile || typeof projectFile.text !== 'function') throw new TypeError('A legacy Audacity project file is required.');

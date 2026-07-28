@@ -1,7 +1,7 @@
 import { findNearestAudioZeroCrossing } from './analysis.js';
 import { createAiffStreamEncoder, encodeAiff } from './aiff.js';
 import { decodeLegacyAupProject } from './aup-legacy.js';
-import { convertStructuredAup3ToProjectV2 } from './aup3-conversion.js';
+import { convertLegacyAupToProjectV2 } from './aup-legacy-conversion.js';
 import { createAup4Client, requestAup4FileHandle, saveAup4Result } from './aup4-client.js';
 import {
 	applyEditorCommand,
@@ -165,7 +165,6 @@ import { createProjectStore } from './storage.js';
 import { createWavStreamEncoder, encodeWav } from './wav.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { NyquistEvaluationClient } from './nyquist/client.js';
-import { decodeAup3File } from '../aup3-browser.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import {
@@ -233,11 +232,10 @@ import {
 	classifyMobile,
 	ensureAup4FileName,
 	ensureScapeFileName,
-	formatAup3Warning,
+	formatLegacyAupWarning,
 	formatBytes,
 	formatPlaybackRate,
 	historyEntrySummary,
-	isAup3File,
 	isLegacyAupFile,
 	isLegacyBlockFile,
 	isWavFile,
@@ -1376,11 +1374,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	} = createProjectImportService({
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertStructuredAup3ToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
-		createAddTrackCommand, createStableId, decodeAup3File, decodeLegacyAupProject,
+		convertLegacyAupToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
+		createAddTrackCommand, createStableId, decodeLegacyAupProject,
 		editingBlocked, engine, ffmpeg, findTrack,
-		formatAup3Warning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
-		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile, isAup3File,
+		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
+		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
 		peakCacheKey, preflightStorage, getProject: () => project, projectSampleRate,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
@@ -1698,7 +1696,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
-		openAup4, openProject, openScape, overwriteClips,
+		openAudacityProject, openAup4, openProject, openScape, overwriteClips,
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
@@ -2028,9 +2026,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return nativeProjectService.saveScape(options);
 	}
 
-	async function openAup4(file) {
-		return nativeProjectService.openAup4(file);
-	}
+	async function openAup4(file) { return openAudacityProject(file); }
+
+	async function openAudacityProject(file) { return nativeProjectService.openAudacityProject(file); }
 
 	async function saveAup4(options = {}) {
 		return nativeProjectService.saveAup4(options);

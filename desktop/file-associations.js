@@ -13,7 +13,7 @@ export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 				continue;
 			}
 		}
-		if (!['.aup4', '.scape'].includes(extname(candidate).toLowerCase())) continue;
+		if (!['.aup3', '.aup4', '.scape'].includes(extname(candidate).toLowerCase())) continue;
 		const absolutePath = isAbsolute(candidate) ? candidate : resolve(workingDirectory, candidate);
 		if (!paths.includes(absolutePath)) paths.push(absolutePath);
 	}
@@ -21,3 +21,4 @@ export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 }
 
 export const extractAup4Paths = extractProjectPaths;
+export const extractAudacityProjectPaths = extractProjectPaths;

@@ -628,7 +628,7 @@ test('AUP4 validation rejects discontinuities, length mismatches, sample-count m
 	}
 });
 
-test('newer AUP4 schemas open read-only without trusting their extra tables', () => {
+test('newer Audacity database schemas are rejected before trusting extra tables', () => {
 	const database = new SQL.Database();
 	try {
 		initializeAup4Database(database);
@@ -639,28 +639,21 @@ test('newer AUP4 schemas open read-only without trusting their extra tables', ()
 		database.run('DROP TABLE project_history');
 		database.run('CREATE TABLE future_markers(id INTEGER PRIMARY KEY, value TEXT)');
 		database.run('CREATE INDEX future_markers_value ON future_markers(value)');
-		const validation = validateAup4Database(database);
-		assert.equal(validation.readOnly, true);
-		assert.equal(validation.references, null);
-		assert.ok(validation.issues.some((issue) => issue.code === 'NEWER_DATABASE'));
+		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_DATABASE');
 
 		database.run('CREATE TRIGGER future_trigger AFTER INSERT ON future_markers BEGIN DELETE FROM project; END');
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'UNSAFE_SCHEMA');
+		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_DATABASE');
 	} finally {
 		database.close();
 	}
 });
 
-test('newer binary-XML profiles open read-only and skip mutable sample registration', () => {
+test('newer Audacity binary-XML profiles are rejected', () => {
 	const database = new SQL.Database();
 	try {
 		initializeAup4Database(database);
 		writeAup4Document(database, documentBytes(44_100, '2.1.0'), { autosave: false, now: 0 });
-		const validation = validateAup4Database(database);
-		assert.equal(validation.compatible, true);
-		assert.equal(validation.readOnly, true);
-		assert.equal(validation.references, null);
-		assert.ok(validation.issues.some((issue) => issue.code === 'NEWER_XML'));
+		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_XML');
 	} finally {
 		database.close();
 	}
@@ -710,7 +703,7 @@ test('AUP4 sampleblock GC retains current and history references and fails close
 	}
 });
 
-test('AUP4 validation can recover a corrupt current document from native history', () => {
+test('Audacity validation rejects a corrupt selected document unless audit recovery is explicit', () => {
 	const database = new SQL.Database();
 	try {
 		initializeAup4Database(database);
@@ -720,22 +713,19 @@ test('AUP4 validation can recover a corrupt current document from native history
 		commitAup4Autosave(database, { now: 2000 });
 		database.run('UPDATE project SET doc = substr(doc, 1, length(doc) - 1) WHERE id = 1');
 
-		const recovered = validateAup4Database(database);
+		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
+		const recovered = validateAup4Database(database, { allowHistoryRecovery: true });
 		assert.equal(recovered.source, 'history');
 		assert.equal(recovered.generation, 2);
 		assert.equal(recovered.summary.sampleRate, 48_000);
 		assert.equal(recovered.recovery.failures[0].code, 'TRUNCATED_BINARY_XML');
 		assert.ok(recovered.issues.some((issue) => issue.code === 'RECOVERED_DOCUMENT'));
-		assert.throws(
-			() => validateAup4Database(database, { allowHistoryRecovery: false }),
-			(error) => error.code === 'TRUNCATED_BINARY_XML',
-		);
 	} finally {
 		database.close();
 	}
 });
 
-test('AUP4 validation prefers a valid project over history when autosave is corrupt', () => {
+test('Audacity validation rejects a corrupt preferred autosave', () => {
 	const database = new SQL.Database();
 	try {
 		initializeAup4Database(database);
@@ -744,12 +734,8 @@ test('AUP4 validation prefers a valid project over history when autosave is corr
 		writeAup4Document(database, documentBytes(48_000));
 		database.run('UPDATE autosave SET doc = substr(doc, 1, length(doc) - 1) WHERE id = 1');
 
-		const recovered = validateAup4Database(database);
-		assert.equal(recovered.source, 'project');
-		assert.equal(recovered.summary.sampleRate, 44_100);
-		assert.deepEqual(recovered.recovery.failures.map(({ source, code }) => ({ source, code })), [
-			{ source: 'autosave', code: 'TRUNCATED_BINARY_XML' },
-		]);
+		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
+		assert.equal(validateAup4Database(database, { useAutosave: false }).summary.sampleRate, 44_100);
 	} finally {
 		database.close();
 	}
