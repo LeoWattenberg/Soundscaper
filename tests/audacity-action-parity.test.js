@@ -6,7 +6,6 @@ import {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_SOURCE,
 	AUDACITY_ACTION_STATUS,
-	AUDACITY_MIDI_FENCE,
 	applyAudacityParityToMenus,
 	audacityActionDefinition,
 	audacityActionReason,
@@ -15,6 +14,10 @@ import {
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
 } from '../src/common/editor/audacity-action-parity.js';
+import {
+	AUDACITY_ACTION_ROADMAP_DISPOSITION,
+	AUDACITY_MIDI_FENCE,
+} from '../src/common/editor/audacity-action-roadmap.ts';
 import {
 	AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS,
 	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
@@ -68,6 +71,43 @@ test('every parity record carries the complete immutable action contract', () =>
 			assert.ok(Object.isFrozen(definition.reason));
 		}
 	}
+});
+
+test('every Audacity action has a roadmap disposition with actionable ownership', () => {
+	const dispositions = new Map(Object.values(AUDACITY_ACTION_ROADMAP_DISPOSITION).map((value) => [value, 0]));
+	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
+		assert.ok(dispositions.has(definition.roadmapDisposition), definition.id);
+		dispositions.set(definition.roadmapDisposition, dispositions.get(definition.roadmapDisposition) + 1);
+		if (definition.roadmapDisposition === AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED) {
+			assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, definition.id);
+			continue;
+		}
+		if (definition.roadmapDisposition === AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED) {
+			assert.ok(definition.reason?.en && definition.reason?.de, definition.id);
+			continue;
+		}
+		assert.match(definition.roadmapMilestone, /^(?:[1-9]|8[AB])$/u, definition.id);
+	}
+	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
+
+	for (const id of [
+		'select-previous-clip', 'align-together', 'sort-by-name', 'spectral-brush',
+		'toggle-sound-activated-recording', 'raw-data-import',
+	]) {
+		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
+		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
+	}
+	for (const id of ['plugin-manager', 'audio-setup', 'diagnostic-save-diagnostic-files']) {
+		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
+	}
+	for (const id of ['file-save-to-cloud', 'raise-segfault', 'sample-data-import']) {
+		assert.equal(
+			audacityActionDefinition(id).roadmapDisposition,
+			AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED,
+			id,
+		);
+	}
+	assert.match(audacityActionReason('reset-configuration', 'en'), /superseded/u);
 });
 
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {

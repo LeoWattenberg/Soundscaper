@@ -154,10 +154,13 @@ reviewable gates before expanding the schema or native boundary.
 - **Shared — Planned:** pin reference hardware, browsers, media fixtures, project
   sizes, measurement procedure, and pass/fail thresholds for audio transport,
   recording, video preview, import, save, and render workloads.
-- **Shared — Planned:** audit all implemented, disabled, and excluded Audacity
-  actions against the roadmap. Promote relevant project, selection, alignment,
-  sorting, spectral, recording, and raw-import gaps; retain explicit reasons for
-  every exclusion.
+- **Shared — Implemented:** the pinned
+  [Audacity action inventory](src/common/editor/audacity-action-parity.js) maps
+  every action through a focused
+  [roadmap disposition policy](src/common/editor/audacity-action-roadmap.ts).
+  The [audit regression](tests/audacity-action-parity.test.js) keeps relevant
+  project, selection, alignment, sorting, spectral, recording, and raw-import
+  gaps planned and retains explicit reasons for every justified exclusion.
 - **Shared — Planned:** define project compatibility rules: forward read-only
   behavior, lossless opaque-field preservation, minimum migrations, freeze/proxy
   fallback, and rules for removing obsolete schema versions.

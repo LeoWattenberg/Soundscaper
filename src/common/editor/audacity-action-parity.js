@@ -15,6 +15,7 @@ import {
 	localizedAudacityReason,
 } from '../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
+import { createAudacityActionDefinition as actionDefinition } from './audacity-action-roadmap.ts';
 import { audioTrackChannelCountV2 } from './project-v2.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
@@ -28,19 +29,6 @@ export const AUDACITY_ACTION_STATUS = Object.freeze({
 	IMPLEMENTED: 'implemented',
 	DISABLED_UPSTREAM: 'disabled-upstream',
 	EXCLUDED: 'excluded',
-});
-
-export const AUDACITY_MIDI_FENCE = deepFreeze({
-	actionIds: ['export-midi', 'midi-device-info', 'local://midi-track'],
-	disposition: 'blocked',
-	roadmapMilestone: '8B',
-	blockedThroughMilestone: 7,
-});
-
-const MIDI_FENCE_OPTIONS = Object.freeze({
-	roadmapDisposition: AUDACITY_MIDI_FENCE.disposition,
-	roadmapMilestone: AUDACITY_MIDI_FENCE.roadmapMilestone,
-	blockedThroughMilestone: AUDACITY_MIDI_FENCE.blockedThroughMilestone,
 });
 
 const UPSTREAM = Object.freeze({
@@ -82,9 +70,6 @@ const disabled = (id, label, locations, reason = DISABLED_REASONS.menu, options 
 	origin: options.origin || 'upstream',
 	reason,
 	menuVisible: options.menuVisible !== false,
-	roadmapDisposition: options.roadmapDisposition,
-	roadmapMilestone: options.roadmapMilestone,
-	blockedThroughMilestone: options.blockedThroughMilestone,
 });
 
 const excluded = (id, label, locations, reason, options = {}) => actionDefinition({
@@ -99,9 +84,6 @@ const excluded = (id, label, locations, reason, options = {}) => actionDefinitio
 	upstreamSource: options.source === undefined ? UPSTREAM.project : options.source,
 	origin: options.origin || 'upstream',
 	reason,
-	roadmapDisposition: options.roadmapDisposition,
-	roadmapMilestone: options.roadmapMilestone,
-	blockedThroughMilestone: options.blockedThroughMilestone,
 });
 
 const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
@@ -129,11 +111,7 @@ const definitions = [
 	implemented('export-audio', 'Export audio', ['File'], 'io.exportAudio', { shortcut: 'Ctrl+Shift+E', enableWhen: 'project-opened' }),
 	implemented('export-labels', 'Export labels', ['File > Export other'], 'labels.export', { enableWhen: 'label-track-present' }),
 	implemented('file-close', 'Close project', ['File'], 'session.closeProject', { shortcut: 'Ctrl+W', enableWhen: 'project-opened' }),
-	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.midi, {
-		...MIDI_FENCE_OPTIONS,
-		source: UPSTREAM.menu,
-		menuVisible: false,
-	}),
+	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.midi, { source: UPSTREAM.menu, menuVisible: false }),
 	disabled('insert', 'Insert', ['Command inventory'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('project-properties', 'Project properties', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
@@ -384,7 +362,7 @@ const definitions = [
 		source: UPSTREAM.project,
 		menuVisible: false,
 	}),
-	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.todo, {
+	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.superseded, {
 		source: UPSTREAM.project,
 		menuVisible: false,
 	}),
@@ -428,7 +406,7 @@ const definitions = [
 	excluded('next-window', 'Next window', ['Extra'], EXCLUDED_REASONS.developer),
 	excluded('regular-interval-labels', 'Regular interval labels', ['Extra'], EXCLUDED_REASONS.developer),
 	excluded('device-info', 'Device information', ['Diagnostics'], EXCLUDED_REASONS.os),
-	excluded('midi-device-info', 'MIDI device information', ['Diagnostics'], EXCLUDED_REASONS.midi, MIDI_FENCE_OPTIONS),
+	excluded('midi-device-info', 'MIDI device information', ['Diagnostics'], EXCLUDED_REASONS.midi),
 	excluded('log', 'Application log', ['Diagnostics'], EXCLUDED_REASONS.developer),
 	excluded('crash-report', 'Crash report', ['Diagnostics'], EXCLUDED_REASONS.developer),
 	excluded('raise-segfault', 'Raise segmentation fault', ['Diagnostics'], EXCLUDED_REASONS.developer),
@@ -482,11 +460,7 @@ const definitions = [
 	excluded('diagnostic-show-graphicsinfo', 'Show graphics information', ['Diagnostics'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
 	excluded('diagnostic-show-profiler', 'Show profiler', ['Diagnostics'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
 	excluded('diagnostic-save-diagnostic-files', 'Save diagnostic files', ['Diagnostics'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
-	excluded('local://midi-track', 'MIDI track', ['Tracks'], EXCLUDED_REASONS.midi, {
-		...MIDI_FENCE_OPTIONS,
-		source: null,
-		origin: 'local',
-	}),
+	excluded('local://midi-track', 'MIDI track', ['Tracks'], EXCLUDED_REASONS.midi, { source: null, origin: 'local' }),
 ];
 
 export const AUDACITY_ACTION_MANIFEST = deepFreeze(toManifest(definitions));
@@ -1099,42 +1073,6 @@ function cleanMenuItems(items) {
 	}
 	while (result.at(-1)?.divider) result.pop();
 	return result;
-}
-
-function actionDefinition({
-	id,
-	label,
-	locations,
-	handler,
-	enableWhen,
-	shortcut,
-	status,
-	upstreamAction,
-	upstreamSource,
-	origin,
-	reason,
-	menuVisible,
-	roadmapDisposition,
-	roadmapMilestone,
-	blockedThroughMilestone,
-}) {
-	return {
-		id,
-		label,
-		locations: Array.isArray(locations) ? locations : [locations],
-		shortcut,
-		handler,
-		enableWhen,
-		status,
-		upstreamAction,
-		upstreamSource,
-		origin,
-		...(reason ? { reason } : {}),
-		...(menuVisible === false ? { menuVisible: false } : {}),
-		...(roadmapDisposition ? { roadmapDisposition } : {}),
-		...(roadmapMilestone ? { roadmapMilestone } : {}),
-		...(blockedThroughMilestone === undefined ? {} : { blockedThroughMilestone }),
-	};
 }
 
 function toManifest(entries) {

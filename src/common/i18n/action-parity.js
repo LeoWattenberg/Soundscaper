@@ -21,6 +21,7 @@ export const AUDACITY_DISABLED_REASONS = deepFreeze({
 	local: reason('local'),
 	state: reason('state'),
 	pending: reason('pending'),
+	superseded: reason('superseded'),
 });
 
 export const AUDACITY_EXCLUDED_REASONS = deepFreeze({
