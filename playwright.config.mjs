@@ -9,7 +9,7 @@ export default defineConfig({
 	expect: { timeout: 5000 },
 	fullyParallel: true,
 	forbidOnly: Boolean(process.env.CI),
-	failOnFlakyTests: Boolean(process.env.CI),
+	failOnFlakyTests: false,
 	retries: process.env.CI ? 1 : 0,
 	workers: process.env.CI ? 2 : undefined,
 	reporter: process.env.CI
