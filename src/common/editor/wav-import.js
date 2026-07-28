@@ -1,5 +1,6 @@
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
 import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from './broadcast-wave.ts';
+import { parseRiffMarkers } from './riff-markers.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -14,6 +15,7 @@ const UINT32_SENTINEL = 0xffff_ffff;
 const DS64_MINIMUM_BYTES = 28;
 const DS64_TABLE_ENTRY_BYTES = 12;
 const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+const MAX_RIFF_METADATA_BYTES = 16 * 1024 * 1024;
 const EXTENSIBLE_GUID_TAIL = Object.freeze([
 	0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
 ]);
@@ -69,6 +71,8 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	let data = null;
 	let factSampleCount = null;
 	let bext = null;
+	let cuePayload = null;
+	const adtlPayloads = [];
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -139,6 +143,14 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 				metadataWarnings.push(...parsed.warnings);
 				if (!bext && parsed.metadata) bext = parsed.metadata;
 			}
+		} else if (chunkId === 'cue ' && cuePayload == null) {
+			if (chunkBytes > MAX_RIFF_METADATA_BYTES) throw new Error('The WAV cue chunk exceeds the metadata safety limit.');
+			cuePayload = await readBlobBytes(blob, payloadOffset, payloadEnd, signal);
+		} else if (chunkId === 'LIST' && chunkBytes >= 4 && chunkBytes <= MAX_RIFF_METADATA_BYTES) {
+			const listType = await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal);
+			if (ascii(listType, 0, 4) === 'adtl') {
+				adtlPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
+			}
 		}
 
 		const paddedEnd = payloadEnd + (chunkBytes % 2);
@@ -186,6 +198,12 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 	}
 
+	let markers = Object.freeze([]);
+	try {
+		markers = parseRiffMarkers(cuePayload, adtlPayloads);
+	} catch (error) {
+		metadataWarnings.push(Object.freeze({ code: 'riff-markers-invalid', message: error instanceof Error ? error.message : String(error) }));
+	}
 	return Object.freeze({
 		container: 'wav',
 		encoding: format.encoding,
@@ -202,6 +220,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		byteRate: format.byteRate,
 		channelMask: format.channelMask,
 		bext,
+		markers,
 		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,

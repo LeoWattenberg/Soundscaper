@@ -1,5 +1,6 @@
 import { createRiffId3Chunk } from './id3-metadata.js';
 import { createRiffBextChunk } from './broadcast-wave.ts';
+import { createRiffMarkerChunks } from './riff-markers.ts';
 
 const RIFF_HEADER_BYTES = 44;
 const RF64_HEADER_BYTES = 80;
@@ -57,7 +58,10 @@ export function createWavStreamEncoder(options) {
 	const dither = float ? 'none' : normalizeDither(options?.dither);
 	const ditherState = new Float64Array(channelCount);
 	const random = typeof options?.random === 'function' ? options.random : Math.random;
-	const metadataChunk = createRiffId3Chunk(options?.metadata);
+	const metadataChunk = concatBytes(
+		createRiffMarkerChunks(options?.markers),
+		createRiffId3Chunk(options?.metadata),
+	);
 	const layout = prepareWavLayout({
 		sampleRate,
 		channelCount,
@@ -196,7 +200,7 @@ export function createWavHeader(options = {}) {
 	return createWavHeaderFromLayout(prepareWavLayout(options));
 }
 
-function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, bext = null } = {}) {
+function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, bext = null } = {}) {
 	const normalizedRate = positiveInteger(sampleRate, 48000);
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
@@ -231,7 +235,7 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		'WAV output size',
 	);
 	const trailingSize = trailingByteLength == null
-		? createRiffId3Chunk(metadata).byteLength
+		? createRiffMarkerChunks(markers).byteLength + createRiffId3Chunk(metadata).byteLength
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
 	const classicDataPadSize = broadcast ? dataSize & 1 : 0;
@@ -267,6 +271,16 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		blockAlign,
 		byteRate,
 	};
+}
+
+function concatBytes(...parts) {
+	const output = new Uint8Array(parts.reduce((size, part) => size + part.byteLength, 0));
+	let offset = 0;
+	for (const part of parts) {
+		output.set(part, offset);
+		offset += part.byteLength;
+	}
+	return output;
 }
 
 function createWavHeaderFromLayout(layout) {

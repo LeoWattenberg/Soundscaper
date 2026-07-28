@@ -165,6 +165,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		trackName: RuntimeValue,
 		importOptions: RuntimeValue,
 		projectBext: RuntimeValue = null,
+		wavMarkers: readonly RuntimeValue[] = [],
+		sourceSampleRate: number = projectSampleRate(),
 	) {
 		const commands = [];
 		if (projectBext) commands.push({ type: 'metadata/update', changes: { bext: projectBext } });
@@ -204,6 +206,29 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			...clip,
 			timelineStartFrame: importOptions.timelineStartFrame,
 		}));
+		if (wavMarkers.length) {
+			commands.push(createAddTrackCommand({
+				schemaVersion: 2,
+				type: 'label',
+				id: createStableId('label-track'),
+				name: `${trackName} markers`,
+				labels: wavMarkers.map((marker: RuntimeValue) => {
+					const startFrame = importOptions.timelineStartFrame
+						+ Math.round(marker.sampleOffset * projectSampleRate() / sourceSampleRate);
+					return {
+						id: createStableId('label'),
+						title: marker.label || marker.note || '',
+						startFrame,
+						endFrame: startFrame + Math.round(marker.sampleLength * projectSampleRate() / sourceSampleRate),
+						color: 'auto',
+						opaqueExtensions: {
+							riffCueId: marker.id,
+							...(marker.note ? { note: marker.note } : {}),
+						},
+					};
+				}),
+			}));
+		}
 		return {
 			command: { type: 'batch', commands },
 			selection: { selectTrackId: trackId, selectClipId: clip.id },
@@ -308,7 +333,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
-		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext);
+		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate);
 		cacheSourceBuffer(sourceId, canonical);
 		try {
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
@@ -492,7 +517,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
-		}, trackName, importOptions, wavMetadata.projectBext);
+		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate);
 		try {
 			await activateStoredSource(source, metadata);
 			commit(prepared.command, prepared.selection);

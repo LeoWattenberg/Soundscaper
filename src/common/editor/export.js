@@ -112,6 +112,7 @@ export function createExportPlan(project, options = {}) {
 	});
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(project, options.range || 'project');
+	const markers = createExportMarkers(project, range, sampleRate, options.markerTrackId);
 	const bext = format === 'bwf'
 		? createBwfExportMetadata(project, {
 			bext: options.bext,
@@ -136,6 +137,7 @@ export function createExportPlan(project, options = {}) {
 			bitDepth: encoding.bitDepth,
 			float: encoding.floatingPoint,
 			metadata: encoding.metadata,
+			markers,
 			bext,
 		})
 		: null;
@@ -186,6 +188,7 @@ export function createExportPlan(project, options = {}) {
 		dither: encoding.dither !== 'none',
 		ditherMode: encoding.dither,
 		metadata: encoding.metadata,
+		markers,
 		...(bext ? { bext } : {}),
 		range,
 		tailFrames,
@@ -198,6 +201,23 @@ export function createExportPlan(project, options = {}) {
 		archive,
 		aggregateStereoMinutes: aggregateStereoMinutes(project),
 	};
+}
+
+function createExportMarkers(project, range, outputSampleRate, requestedTrackId) {
+	const tracks = project.tracks.filter((track) => track.type === 'label');
+	const track = requestedTrackId == null
+		? tracks[0]
+		: tracks.find((candidate) => candidate.id === requestedTrackId);
+	if (!track) return Object.freeze([]);
+	const scale = outputSampleRate / project.sampleRate;
+	return Object.freeze(track.labels.flatMap((label, index) => {
+		if (label.endFrame < range.startFrame || label.startFrame >= range.endFrame) return [];
+		const start = Math.max(label.startFrame, range.startFrame);
+		const end = Math.min(label.endFrame, range.endFrame);
+		const sampleOffset = Math.round((start - range.startFrame) * scale);
+		const sampleLength = Math.max(0, Math.round((end - start) * scale));
+		return [{ id: index + 1, sampleOffset, sampleLength, label: label.title, note: String(label.opaqueExtensions?.note || '') }];
+	}));
 }
 
 function multiplySafeIntegers(left, right, name) {
