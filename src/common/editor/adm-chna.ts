@@ -71,6 +71,7 @@ export function normalizeChnaMetadata(input: ChnaMetadataInput): ChnaMetadata {
 		const trackIndex = uint16(candidate.trackIndex, 'CHNA track index', true);
 		if (trackIndex > numTracks) throw new RangeError(`CHNA track index ${trackIndex} exceeds numTracks ${numTracks}.`);
 		const uid = identifier(candidate.uid, /^ATU_[0-9A-Fa-f]{8}$/u, 'CHNA UID');
+		if (/^ATU_0{8}$/iu.test(uid)) throw new RangeError('CHNA UID cannot use the reserved zero identifier.');
 		const uidKey = uid.toUpperCase();
 		if (seenUids.has(uidKey)) throw new RangeError(`CHNA contains duplicate CHNA UID ${uid}.`);
 		seenUids.add(uidKey);
@@ -79,7 +80,9 @@ export function normalizeChnaMetadata(input: ChnaMetadataInput): ChnaMetadata {
 			trackIndex,
 			uid,
 			trackRef: identifier(candidate.trackRef, /^(?:AT_[0-9A-Fa-f]{8}_[0-9A-Fa-f]{2}|AC_[0-9A-Fa-f]{8})$/u, 'CHNA track reference'),
-			packRef: identifier(candidate.packRef, /^AP_[0-9A-Fa-f]{8}$/u, 'CHNA pack reference'),
+			packRef: candidate.packRef === ''
+				? ''
+				: identifier(candidate.packRef, /^AP_[0-9A-Fa-f]{8}$/u, 'CHNA pack reference'),
 		});
 	});
 	if (entries.length === 0) throw new RangeError('CHNA must contain at least one UID.');

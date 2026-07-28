@@ -15,7 +15,7 @@ export const ADM_AXML_MAX_BYTES = 16 * 1024 * 1024;
 export const ADM_AXML_MAX_ELEMENTS = 100_000;
 export const ADM_AXML_MAX_DEPTH = 128;
 
-const EBU_CORE_NAMESPACE = 'urn:ebu:metadata-schema:ebuCore_2017';
+const EBU_CORE_NAMESPACE = 'urn:ebu:metadata-schema:ebuCore_2015';
 const ADM_VERSION = 'ITU-R_BS.2076-3';
 const MAX_ATTRIBUTE_BYTES = 1024;
 const MAX_REFERENCE_CHARACTERS = 128;
@@ -77,7 +77,7 @@ type ContentBuilder = { kind: 'content'; id: string; name: string; language: str
 type ObjectBuilder = { kind: 'object'; id: string; name: string; packRefs: string[]; trackUidRefs: string[] };
 type TrackUidBuilder = { kind: 'trackUid'; uid: string; trackRef: string; trackRefKind: AdmTrackUid['trackRefKind']; packRef: string };
 type AdmBuilder = ProgrammeBuilder | ContentBuilder | ObjectBuilder | TrackUidBuilder;
-type XmlFrame = { name: string; owner: AdmBuilder | null; referenceName: string; text: string };
+type XmlFrame = { name: string; owner: AdmBuilder | null; referenceName: string; text: string; formatRoot: boolean };
 
 const ELEMENT_IDS: Readonly<Record<string, readonly [string, RegExp]>> = Object.freeze({
 	audioProgramme: ['audioProgrammeID', /^APR_[0-9A-Fa-f]{4}$/u],
@@ -167,7 +167,7 @@ export function encodeAdmAxml(input: AdmBedMetadataInput = {}): Uint8Array {
 	return new TextEncoder().encode(generateAdmAxml(input));
 }
 
-export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBufferView): AdmAxmlDocument {
+export function inspectAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBufferView): AdmAxmlDocument | null {
 	const xml = decodeAxml(input);
 	if (/<!\s*(?:DOCTYPE|ENTITY)\b/iu.test(xml)) throw new Error('Active or external XML declarations are not allowed in ADM AXML.');
 	if (/<\?(?!xml\s)/iu.test(xml)) throw new Error('Active XML processing instructions are not allowed in ADM AXML.');
@@ -183,6 +183,8 @@ export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBuf
 	let version = '';
 	let elementCount = 0;
 	let attributeCount = 0;
+	let formatExtendedDepth = -1;
+	let formatExtendedNamespace = '';
 	const parser = new SaxesParser({ xmlns: true, position: false });
 
 	parser.on('doctype', () => { throw new Error('DOCTYPE declarations are not allowed in ADM AXML.'); });
@@ -194,22 +196,30 @@ export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBuf
 		attributeCount += Object.keys(tag.attributes).length;
 		if (attributeCount > ADM_AXML_MAX_ELEMENTS * 4) throw new RangeError('ADM AXML exceeds the attribute-count safety limit.');
 		const name = tag.local;
-		if (name === 'audioFormatExtended') {
+		const formatRoot = name === 'audioFormatExtended' && isAdmNamespace(tag.uri);
+		if (formatRoot) {
 			formatExtendedCount += 1;
 			if (formatExtendedCount > 1) throw new Error('ADM AXML must contain exactly one audioFormatExtended element.');
 			version = attribute(tag, 'version') ?? '';
+			formatExtendedDepth = frames.length;
+			formatExtendedNamespace = tag.uri;
 		}
-		const declaredId = registerElementId(tag, name, declaredIds);
+		const inFormatExtended = formatExtendedDepth >= 0;
+		const admElement = inFormatExtended && tag.uri === formatExtendedNamespace;
+		const declaredId = admElement ? registerElementId(tag, name, declaredIds) : '';
 		if (declaredId && (name === 'audioPackFormat' || name === 'audioChannelFormat' || name === 'audioTrackFormat')) {
 			definedFormatIds.set(declaredId.toUpperCase(), declaredId);
 		}
-		const inheritedOwner = frames.at(-1)?.owner ?? null;
-		const owner = createBuilder(tag, name, declaredId, programmes, contents, objects, trackUids) ?? inheritedOwner;
+		const inheritedOwner = inFormatExtended ? frames.at(-1)?.owner ?? null : null;
+		const owner = admElement
+			? createBuilder(tag, name, declaredId, programmes, contents, objects, trackUids) ?? inheritedOwner
+			: inheritedOwner;
 		frames.push({
 			name,
 			owner,
-			referenceName: Object.hasOwn(REFERENCE_PATTERNS, name) ? name : '',
+			referenceName: admElement && Object.hasOwn(REFERENCE_PATTERNS, name) ? name : '',
 			text: '',
+			formatRoot,
 		});
 	});
 	const appendText = (text: string): void => {
@@ -224,9 +234,10 @@ export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBuf
 		const frame = frames.pop();
 		if (!frame) throw new Error('ADM AXML contains an unexpected closing element.');
 		if (frame.referenceName) applyReference(frame);
+		if (frame.formatRoot) formatExtendedDepth = -1;
 	});
 	parser.write(xml).close();
-	if (formatExtendedCount !== 1) throw new Error('ADM AXML must contain exactly one audioFormatExtended element.');
+	if (formatExtendedCount === 0) return null;
 	validateLocalReferences(programmes, contents, objects, trackUids, definedFormatIds);
 	return Object.freeze({
 		rawXml: xml,
@@ -237,6 +248,12 @@ export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBuf
 		trackUids: Object.freeze(trackUids.map(freezeTrackUid)),
 		definedFormatIds: Object.freeze([...definedFormatIds.values()]),
 	});
+}
+
+export function parseAdmAxml(input: string | Uint8Array | ArrayBuffer | ArrayBufferView): AdmAxmlDocument {
+	const document = inspectAdmAxml(input);
+	if (!document) throw new Error('ADM AXML must contain exactly one audioFormatExtended element.');
+	return document;
 }
 
 export function readAdmBedMetadata(document: AdmAxmlDocument): AdmBedMetadata | null {
@@ -311,12 +328,42 @@ export function validateAdmChnaConsistency(
 		}
 	}
 	const axmlByUid = new Map(axml.trackUids.map((track) => [track.uid.toUpperCase(), track]));
-	if (axmlByUid.size !== chna.entries.length) throw new Error('AXML and CHNA contain different numbers of track UIDs.');
+	const axmlFormats = new Map(axml.definedFormatIds.map((id) => [id.toUpperCase(), id]));
+	const chnaByUid = new Map(chna.entries.map((entry) => [entry.uid.toUpperCase(), entry]));
+	for (const object of axml.objects) for (const uidRef of object.trackUidRefs) {
+		if (!equalId(uidRef, 'ATU_00000000') && !chnaByUid.has(uidRef.toUpperCase())) {
+			throw new Error(`AXML UID ${uidRef} is not present in CHNA.`);
+		}
+	}
 	for (const entry of chna.entries) {
+		requireFormatDefined(entry.trackRef, axmlFormats);
+		if (entry.packRef) requireFormatDefined(entry.packRef, axmlFormats);
 		const track = axmlByUid.get(entry.uid.toUpperCase());
-		if (!track) throw new Error(`CHNA UID ${entry.uid} is not present in AXML.`);
-		if (!equalId(track.trackRef, entry.trackRef)) throw new Error(`CHNA UID ${entry.uid} has a track reference that differs from AXML.`);
-		if (!equalId(track.packRef, entry.packRef)) throw new Error(`CHNA UID ${entry.uid} has a pack reference that differs from AXML.`);
+		if (track?.trackRef && !equalId(track.trackRef, entry.trackRef)) {
+			throw new Error(`CHNA UID ${entry.uid} has a track reference that differs from AXML.`);
+		}
+		if (track?.packRef && !equalId(track.packRef, entry.packRef)) {
+			throw new Error(`CHNA UID ${entry.uid} has a pack reference that differs from AXML.`);
+		}
+	}
+	return true;
+}
+
+export function validateAdmCommonDefinitionChna(
+	chnaInput: ChnaMetadataInput | Uint8Array | ArrayBuffer | ArrayBufferView,
+	expectedTrackCount?: number,
+): true {
+	const chna = isChnaMetadata(chnaInput) ? normalizeChnaMetadata(chnaInput) : parseChnaPayload(chnaInput);
+	if (expectedTrackCount !== undefined && chna.numTracks !== expectedTrackCount) {
+		throw new Error(`CHNA declares ${chna.numTracks} tracks but the PCM channel count is ${expectedTrackCount}.`);
+	}
+	for (const entry of chna.entries) {
+		if (!isCommonDefinition(entry.trackRef)) {
+			throw new Error(`CHNA UID ${entry.uid} has a custom track reference but AXML is empty.`);
+		}
+		if (entry.packRef && !isCommonDefinition(entry.packRef)) {
+			throw new Error(`CHNA UID ${entry.uid} has a custom pack reference but AXML is empty.`);
+		}
 	}
 	return true;
 }
@@ -327,6 +374,7 @@ function registerElementId(tag: SaxesTagNS, name: string, declaredIds: Map<strin
 	const [attributeName, pattern] = specification;
 	const value = attribute(tag, attributeName);
 	if (!value || !pattern.test(value)) throw new Error(`ADM ${attributeName} is missing or invalid.`);
+	if (isZeroAdmElementId(value)) throw new Error(`ADM ${attributeName} cannot declare the reserved zero identifier.`);
 	const key = value.toUpperCase();
 	if (declaredIds.has(key)) throw new Error(`ADM contains duplicate identifier ${value}.`);
 	declaredIds.set(key, value);
@@ -372,7 +420,10 @@ function applyReference(frame: XmlFrame): void {
 	const owner = frame.owner;
 	if (frame.referenceName === 'audioContentIDRef' && owner?.kind === 'programme') addUnique(owner.contentRefs, value, frame.referenceName);
 	else if (frame.referenceName === 'audioObjectIDRef' && owner?.kind === 'content') addUnique(owner.objectRefs, value, frame.referenceName);
-	else if (frame.referenceName === 'audioTrackUIDRef' && owner?.kind === 'object') addUnique(owner.trackUidRefs, value, frame.referenceName);
+	else if (frame.referenceName === 'audioTrackUIDRef' && owner?.kind === 'object') {
+		if (equalId(value, 'ATU_00000000')) owner.trackUidRefs.push(value);
+		else addUnique(owner.trackUidRefs, value, frame.referenceName);
+	}
 	else if (frame.referenceName === 'audioPackFormatIDRef' && owner?.kind === 'object') addUnique(owner.packRefs, value, frame.referenceName);
 	else if (frame.referenceName === 'audioPackFormatIDRef' && owner?.kind === 'trackUid') setOnce(owner, 'packRef', value, frame.referenceName);
 	else if (frame.referenceName === 'audioChannelFormatIDRef' && owner?.kind === 'trackUid') setTrackReference(owner, value, 'audioChannelFormat');
@@ -388,11 +439,9 @@ function validateLocalReferences(
 ): void {
 	const contentIds = new Set(contents.map((value) => value.id.toUpperCase()));
 	const objectIds = new Set(objects.map((value) => value.id.toUpperCase()));
-	const uidIds = new Set(trackUids.map((value) => value.uid.toUpperCase()));
 	for (const programme of programmes) for (const ref of programme.contentRefs) requireDefined(ref, contentIds);
 	for (const content of contents) for (const ref of content.objectRefs) requireDefined(ref, objectIds);
 	for (const object of objects) {
-		for (const ref of object.trackUidRefs) requireDefined(ref, uidIds);
 		for (const ref of object.packRefs) requireFormatDefined(ref, definedFormats);
 	}
 	for (const track of trackUids) {
@@ -415,6 +464,14 @@ function isCommonDefinition(reference: string): boolean {
 	const match = /^A[PC]_[0-9A-Fa-f]{4}([0-9A-Fa-f]{4})$|^AT_[0-9A-Fa-f]{4}([0-9A-Fa-f]{4})_[0-9A-Fa-f]{2}$/u.exec(reference);
 	const suffix = match?.[1] ?? match?.[2];
 	return suffix !== undefined && Number.parseInt(suffix, 16) <= 0x0fff;
+}
+
+function isZeroAdmElementId(value: string): boolean {
+	return /^(?:(?:APR|ACO|AO)_0{4}|(?:ATU|AP|AC)_0{8}|AT_0{8}_0{2})$/iu.test(value);
+}
+
+function isAdmNamespace(namespace: string): boolean {
+	return namespace === '' || /^urn:ebu:metadata-schema:ebucore(?:_\d{4})?$/iu.test(namespace);
 }
 
 function freezeProgramme(value: ProgrammeBuilder): AdmProgramme {

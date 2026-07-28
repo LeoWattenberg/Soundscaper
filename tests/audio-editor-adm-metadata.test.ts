@@ -102,6 +102,7 @@ test('ADM AXML generation is deterministic and uses BS.2094-2 common definitions
 		const first = generateAdmAxml(input);
 		assert.equal(generateAdmAxml(input), first);
 		assert.match(first, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<ebuCoreMain/u);
+		assert.match(first, /xmlns="urn:ebu:metadata-schema:ebuCore_2015"/u);
 		assert.match(first, /version="ITU-R_BS\.2076-3"/u);
 		assert.match(first, /audioProgrammeID="APR_1001"/u);
 		assert.match(first, /audioContentID="ACO_1001"/u);
@@ -159,6 +160,30 @@ test('ADM AXML validates identifiers, uniqueness, and local content references',
 		() => parseAdmAxml(base.replace('<audioPackFormatIDRef>AP_00010001</audioPackFormatIDRef>', '<audioPackFormatIDRef>bad</audioPackFormatIDRef>')),
 		/audioPackFormatIDRef/u,
 	);
+	assert.throws(
+		() => parseAdmAxml('<audioFormatExtended><audioTrackUID UID="ATU_00000000" /></audioFormatExtended>'),
+		/zero|reserved/iu,
+	);
+});
+
+test('ADM AXML ignores same-local-name elements outside audioFormatExtended', () => {
+	const source = generateAdmAxml({ layout: 'mono' });
+	const extended = source.replace(
+		'</audioFormatExtended>',
+		'</audioFormatExtended><vendor:audioObject xmlns:vendor="urn:foreign" audioObjectID="AO_1001" />',
+	);
+	const parsed = parseAdmAxml(extended);
+	assert.equal(parsed.objects.length, 1);
+	assert.equal(parsed.objects[0]?.id, 'AO_1001');
+	const foreignFormat = source.replace(
+		'</ebuCoreMain>',
+		'<vendor:audioFormatExtended xmlns:vendor="urn:foreign"><vendor:audioObject audioObjectID="AO_1001" /></vendor:audioFormatExtended></ebuCoreMain>',
+	);
+	assert.equal(parseAdmAxml(foreignFormat).objects.length, 1);
+	assert.equal(parseAdmAxml(source.replace(
+		'urn:ebu:metadata-schema:ebuCore_2015',
+		'urn:ebu:metadata-schema:ebucore',
+	)).objects.length, 1);
 });
 
 test('RIFF AXML helpers preserve the complete aligned chunk and validate its frame', () => {
@@ -242,7 +267,20 @@ test('CHNA encoder validates identifiers, track coverage, and duplicate UIDs', (
 	assert.throws(() => encodeChnaPayload({ numTracks: 1, entries: [{ ...entry, uid: 'bad' }] }), /UID/u);
 	assert.throws(() => encodeChnaPayload({ numTracks: 1, entries: [{ ...entry, trackRef: 'AS_00010001' }] }), /track reference/u);
 	assert.throws(() => encodeChnaPayload({ numTracks: 1, entries: [{ ...entry, packRef: 'bad' }] }), /pack reference/u);
+	assert.throws(() => encodeChnaPayload({ numTracks: 1, entries: [{ ...entry, uid: 'ATU_00000000' }] }), /zero|reserved/u);
 	assert.throws(() => encodeChnaPayload({ numTracks: 1, entries: [entry, entry] }), /duplicate CHNA UID/u);
+});
+
+test('CHNA permits an omitted pack reference while retaining UID and track linkage', () => {
+	const metadata = createAdmChna({ layout: 'mono' });
+	const withoutPack = {
+		...metadata,
+		entries: metadata.entries.map((entry) => ({ ...entry, packRef: '' })),
+	};
+	const payload = encodeChnaPayload(withoutPack);
+	assert.ok(payload.subarray(4 + 28, 4 + 39).every((byte) => byte === 0));
+	const parsed = parseChnaPayload(payload);
+	assert.deepEqual(parsed, withoutPack);
 });
 
 test('RIFF CHNA helpers encode and parse the complete aligned chunk', () => {
@@ -266,7 +304,7 @@ test('AXML and CHNA consistency validates UID, reference, and PCM track linkage'
 		...chna,
 		entries: chna.entries.map((entry, index) => index === 0 ? { ...entry, uid: 'ATU_00000010' } : entry),
 	};
-	assert.throws(() => validateAdmChnaConsistency(axml, uidMismatch), /ATU_00000010.*AXML/u);
+	assert.throws(() => validateAdmChnaConsistency(axml, uidMismatch), /ATU_00000001.*CHNA/u);
 
 	const referenceMismatch = {
 		...chna,
@@ -274,4 +312,66 @@ test('AXML and CHNA consistency validates UID, reference, and PCM track linkage'
 	};
 	assert.throws(() => validateAdmChnaConsistency(axml, referenceMismatch), /track reference/u);
 	assert.throws(() => validateAdmChnaConsistency(axml, chna, 2), /six|6.*tracks|channel count/iu);
+});
+
+test('CHNA resolves object track UIDs when AXML omits local UID definitions and subreferences', () => {
+	const source = generateAdmAxml({ layout: 'mono' });
+	const chna = createAdmChna({ layout: 'mono' });
+	const localDefinition = [
+		'        <audioTrackUID UID="ATU_00000001">',
+		'          <audioChannelFormatIDRef>AC_00010003</audioChannelFormatIDRef>',
+		'          <audioPackFormatIDRef>AP_00010001</audioPackFormatIDRef>',
+		'        </audioTrackUID>',
+	].join('\n');
+	const resolvedOnlyByChna = parseAdmAxml(source.replace(`\n${localDefinition}`, ''));
+	assert.equal(resolvedOnlyByChna.trackUids.length, 0);
+	assert.equal(validateAdmChnaConsistency(resolvedOnlyByChna, chna, 1), true);
+
+	const optionalLocalRefs = parseAdmAxml(source
+		.replace('          <audioChannelFormatIDRef>AC_00010003</audioChannelFormatIDRef>\n', '')
+		.replace('          <audioPackFormatIDRef>AP_00010001</audioPackFormatIDRef>\n        </audioTrackUID>', '        </audioTrackUID>'));
+	assert.deepEqual(optionalLocalRefs.trackUids[0], {
+		uid: 'ATU_00000001', trackRef: '', trackRefKind: '', packRef: '',
+	});
+	assert.equal(validateAdmChnaConsistency(optionalLocalRefs, chna, 1), true);
+});
+
+test('CHNA custom format references must be defined by the static ADM carrier', () => {
+	const customChna = {
+		numTracks: 1,
+		entries: [{
+			trackIndex: 1,
+			uid: 'ATU_00000001',
+			trackRef: 'AC_00011003',
+			packRef: 'AP_00011001',
+		}],
+	};
+	assert.throws(
+		() => validateAdmChnaConsistency(parseAdmAxml('<audioFormatExtended />'), customChna, 1),
+		/custom ADM reference AC_00011003.*not defined/iu,
+	);
+});
+
+test('CHNA consistency requires every non-silent object UID reference in CHNA', () => {
+	const source = generateAdmAxml({ layout: 'mono' });
+	const localDefinition = /\n        <audioTrackUID UID="ATU_00000001">[\s\S]*?\n        <\/audioTrackUID>/u;
+	const unresolved = parseAdmAxml(source
+		.replace('<audioTrackUIDRef>ATU_00000001</audioTrackUIDRef>', '<audioTrackUIDRef>ATU_00000002</audioTrackUIDRef>')
+		.replace(localDefinition, ''));
+	assert.throws(
+		() => validateAdmChnaConsistency(unresolved, createAdmChna({ layout: 'mono' }), 1),
+		/ATU_00000002.*CHNA/u,
+	);
+	const silence = parseAdmAxml(source
+		.replace('<audioTrackUIDRef>ATU_00000001</audioTrackUIDRef>', '<audioTrackUIDRef>ATU_00000000</audioTrackUIDRef>')
+		.replace(localDefinition, ''));
+	assert.equal(validateAdmChnaConsistency(silence, createAdmChna({ layout: 'mono' }), 1), true);
+	const repeatedSilence = parseAdmAxml(source
+		.replace(
+			'<audioTrackUIDRef>ATU_00000001</audioTrackUIDRef>',
+			'<audioTrackUIDRef>ATU_00000000</audioTrackUIDRef><audioTrackUIDRef>ATU_00000000</audioTrackUIDRef>',
+		)
+		.replace(localDefinition, ''));
+	assert.deepEqual(repeatedSilence.objects[0]?.trackUidRefs, ['ATU_00000000', 'ATU_00000000']);
+	assert.equal(validateAdmChnaConsistency(repeatedSilence, createAdmChna({ layout: 'mono' }), 1), true);
 });

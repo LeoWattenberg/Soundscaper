@@ -52,6 +52,26 @@ test('BW64 shares ds64 sentinel tables while retaining classic multichannel PCM'
 	assert.equal(descriptor.formatTag, 1);
 });
 
+test('classic BW64 imports signed 20-bit PCM from three-byte MSB-aligned samples', async () => {
+	const format = createFormatBytes({ bitDepth: 20 });
+	const pcm = Uint8Array.of(
+		0x00, 0x00, 0x80,
+		0x00, 0x00, 0x00,
+		0xf0, 0xff, 0x7f,
+	);
+	const blob = blobOf(createBw64Fixture({ formatBytes: format, dataBytes: pcm }));
+	const descriptor = await inspectWavBlobPcm(blob);
+	assert.equal(descriptor.sampleFormat, 'int20');
+	assert.equal(descriptor.bitDepth, 20);
+	assert.equal(descriptor.bytesPerSample, 3);
+	const decoded: number[] = [];
+	await streamWavBlobPcm(blob, {
+		descriptor,
+		onChunk(channels: Float32Array[]) { decoded.push(...channels[0]); },
+	});
+	assert.deepEqual(decoded, [-1, 0, 524_287 / 524_288]);
+});
+
 test('BW64 requires a sentinel top size and ds64 as its first chunk', async (t) => {
 	const valid = createBw64Fixture();
 
@@ -148,11 +168,11 @@ function createChunk(id: string, payload: Uint8Array, declaredSize = payload.byt
 	return output;
 }
 
-function createFormatBytes(options: { readonly channelCount?: number; readonly bitDepth?: 16 | 24 } = {}): Uint8Array {
+function createFormatBytes(options: { readonly channelCount?: number; readonly bitDepth?: 16 | 20 | 24 } = {}): Uint8Array {
 	const channelCount = options.channelCount ?? 1;
 	const bitDepth = options.bitDepth ?? 16;
 	const sampleRate = 48_000;
-	const blockAlign = channelCount * bitDepth / 8;
+	const blockAlign = channelCount * Math.ceil(bitDepth / 8);
 	const bytes = new Uint8Array(16);
 	const view = new DataView(bytes.buffer);
 	view.setUint16(0, 1, true);

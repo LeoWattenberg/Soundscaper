@@ -4,11 +4,23 @@ import { parseIxmlPayload } from './ixml.ts';
 import { parseCartPayload } from './cart-metadata.ts';
 import { finalizeRiffMetadata, wavMetadataWarning } from './wav-metadata-finalize.ts';
 import {
+	finalizeWavAdmImport,
+	WAV_ADM_CHNA_MAX_BYTES,
+	WAV_ADM_PAYLOAD_MAX_BYTES,
+	wavAdmWarning,
+} from './wav-adm-import.ts';
+import {
 	assertDs64TableConsumed,
 	consumeDs64TableSize,
 	DS64_UINT32_SENTINEL,
 	readDs64Directory,
 } from './wav-ds64.js';
+import { ascii, dataView, printableChunkId, readBlobBytes, throwIfAborted } from './wav-import-io.ts';
+import {
+	createWavOpaqueRiffCollector,
+	shouldPreserveWavOpaqueRiffChunk,
+	wavOpaqueRiffPreservationWarning,
+} from './wav-opaque-chunks.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -78,6 +90,14 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	const infoPayloads = [];
 	let ixml = null;
 	let cart = null;
+	const admStaticPayloads = [];
+	let admSerialPayload = null;
+	let admChna = null;
+	const admPayloadKinds = new Set();
+	let admChnaChunks = 0;
+	const admWarnings = [];
+	const opaqueRiffWarnings = [];
+	const opaqueRiff = createWavOpaqueRiffCollector();
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -99,6 +119,13 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 		const payloadOffset = offset + CHUNK_HEADER_BYTES;
 		if (chunkBytes > riffEnd - payloadOffset || chunkBytes > blob.size - payloadOffset) {
+			if (isAdmChunkId(chunkId) && format && data) {
+				admWarnings.push(wavAdmWarning(
+					'adm-truncated-chunk',
+					`The trailing ${chunkId.toUpperCase()} chunk exceeds the BW64 payload and was ignored.`,
+				));
+				break;
+			}
 			if (chunkId === 'bext' && format && data) {
 				bextChunks += 1;
 				if (bextChunks > 1) {
@@ -117,6 +144,12 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 		const payloadEnd = payloadOffset + chunkBytes;
 		chunksRead += 1;
+		let listType = null;
+		if (chunkId === 'LIST' && chunkBytes >= 4) {
+			listType = ascii(await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal), 0, 4);
+		}
+		const preserveOpaqueChunk = ds64Dialect === 'bw64'
+			&& shouldPreserveWavOpaqueRiffChunk(chunkId, listType);
 
 		if (chunkId === 'fmt ' && !format) {
 			if (chunkBytes < MINIMUM_FORMAT_BYTES) throw new Error('The WAV format chunk is too small.');
@@ -165,17 +198,55 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			} catch (error) {
 				metadataWarnings.push(Object.freeze({ code: 'cart-invalid', message: error instanceof Error ? error.message : String(error) }));
 			}
+		} else if (isAdmPayloadChunkId(chunkId)) {
+			const duplicate = admPayloadKinds.has(chunkId);
+			if (duplicate) admWarnings.push(wavAdmWarning(
+				'adm-payload-duplicate', `Multiple ${chunkId.toUpperCase()} chunks were found; the first bounded payload is preserved.`,
+			));
+			admPayloadKinds.add(chunkId);
+			if (chunkBytes > WAV_ADM_PAYLOAD_MAX_BYTES) {
+				admWarnings.push(wavAdmWarning('adm-payload-too-large', 'The ADM payload exceeds the 16 MiB safety limit and was ignored.'));
+			} else if (!duplicate) {
+				const captured = {
+					kind: chunkId,
+					bytes: await readBlobBytes(blob, payloadOffset, payloadEnd, signal),
+				};
+				if (chunkId === 'sxml') admSerialPayload = captured;
+				else admStaticPayloads.push(captured);
+			}
+		} else if (chunkId === 'chna') {
+			admChnaChunks += 1;
+			if (admChnaChunks > 1) {
+				admWarnings.push(wavAdmWarning('adm-chna-duplicate', 'Multiple CHNA chunks were found; the first bounded chunk is preserved.'));
+			}
+			if (chunkBytes > WAV_ADM_CHNA_MAX_BYTES) {
+				admWarnings.push(wavAdmWarning('adm-chna-too-large', 'The CHNA payload exceeds its safety limit and was ignored.'));
+			} else if (admChna == null) {
+				admChna = await readBlobBytes(blob, payloadOffset, payloadEnd, signal);
+			}
 		} else if (chunkId === 'LIST' && chunkBytes >= 4 && chunkBytes <= MAX_RIFF_METADATA_BYTES) {
-			const listType = await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal);
-			if (ascii(listType, 0, 4) === 'adtl') {
+			if (listType === 'adtl') {
 				adtlPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
-			} else if (ascii(listType, 0, 4) === 'INFO') {
+			} else if (listType === 'INFO') {
 				infoPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
 			}
 		}
 
 		const paddedEnd = payloadEnd + (chunkBytes % 2);
 		if (paddedEnd > riffEnd) {
+			if (preserveOpaqueChunk && payloadEnd === riffEnd && format && data) {
+				opaqueRiffWarnings.push(wavOpaqueRiffPreservationWarning(
+					`The trailing ${printableChunkId(chunkId)} chunk is missing its RIFF alignment byte and cannot be preserved exactly.`,
+				));
+				break;
+			}
+			if (isAdmChunkId(chunkId) && payloadEnd === riffEnd && format && data) {
+				admWarnings.push(wavAdmWarning(
+					'adm-invalid-padding',
+					`The trailing ${chunkId.toUpperCase()} chunk is missing its RIFF alignment byte.`,
+				));
+				break;
+			}
 			// A few otherwise valid encoders omit the final RIFF pad byte. It is
 			// harmless when both required chunks have already been discovered.
 			if (!ds64Directory && payloadEnd === riffEnd && format && data) {
@@ -189,14 +260,31 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			}
 			throw new Error(`The WAV ${printableChunkId(chunkId)} chunk is missing its pad byte.`);
 		}
-		if ((chunkBytes & 1) && chunkId === 'bext') {
+		if ((chunkBytes & 1) && (chunkId === 'bext' || isAdmChunkId(chunkId))) {
 			const padding = await readBlobBytes(blob, payloadEnd, paddedEnd, signal);
 			if (padding[0] !== 0) {
-				metadataWarnings.push(bextWarning(
-					'invalid-padding',
-					'The BEXT chunk has a non-zero RIFF alignment byte.',
-				));
+				if (chunkId === 'bext') {
+					metadataWarnings.push(bextWarning(
+						'invalid-padding',
+						'The BEXT chunk has a non-zero RIFF alignment byte.',
+					));
+				} else {
+					admWarnings.push(wavAdmWarning(
+						'adm-invalid-padding',
+						`The ${chunkId.toUpperCase()} chunk has a non-zero RIFF alignment byte.`,
+					));
+				}
 			}
+		}
+		if (preserveOpaqueChunk) {
+			const warning = await opaqueRiff.capture({
+				id: chunkId,
+				placement: data ? 'after-data' : 'before-data',
+				declaredByteLength: declaredChunkBytes,
+				rawByteLength: paddedEnd - offset,
+				read: () => readBlobBytes(blob, offset, paddedEnd, signal),
+			});
+			if (warning) opaqueRiffWarnings.push(warning);
 		}
 		offset = paddedEnd;
 	}
@@ -218,6 +306,17 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			throw new Error(`The RF64 ${source} sample count does not match the PCM frame count.`);
 		}
 	}
+	const finalizedAdm = finalizeWavAdmImport({
+		container: ds64Dialect ?? 'riff',
+		staticPayloads: admStaticPayloads,
+		serialPayload: admSerialPayload,
+		chna: admChna,
+		channelCount: format.channelCount,
+		priorWarnings: admWarnings,
+		opaqueRiffChunks: opaqueRiff.snapshot(),
+		opaqueWarnings: opaqueRiffWarnings,
+	});
+	metadataWarnings.push(...finalizedAdm.warnings);
 
 	const { markers, info } = finalizeRiffMetadata(cuePayload, adtlPayloads, infoPayloads, metadataWarnings);
 	return Object.freeze({
@@ -240,6 +339,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		info,
 		ixml,
 		cart,
+		adm: finalizedAdm.metadata,
 		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,
@@ -249,6 +349,14 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 }
 
 const bextWarning = wavMetadataWarning;
+
+function isAdmPayloadChunkId(value) {
+	return value === 'axml' || value === 'bxml' || value === 'sxml';
+}
+
+function isAdmChunkId(value) {
+	return value === 'chna' || isAdmPayloadChunkId(value);
+}
 
 /**
  * Decode an uncompressed WAV Blob into bounded planar Float32 packets.
@@ -336,7 +444,7 @@ function parseWaveFormat(bytes, declaredBytes) {
 		? 'pcm-integer'
 		: subFormatTag === WAVE_FORMAT_IEEE_FLOAT ? 'ieee-float' : null;
 	if (!encoding) throw new Error(`WAV format ${subFormatTag} is compressed or unsupported.`);
-	const integerDepth = bitDepth === 8 || bitDepth === 16 || bitDepth === 24 || bitDepth === 32;
+	const integerDepth = bitDepth === 8 || bitDepth === 16 || bitDepth === 20 || bitDepth === 24 || bitDepth === 32;
 	const floatDepth = bitDepth === 32 || bitDepth === 64;
 	if ((encoding === 'pcm-integer' && !integerDepth) || (encoding === 'ieee-float' && !floatDepth)) {
 		throw new Error(`${encoding === 'ieee-float' ? 'IEEE float' : 'Integer PCM'} WAV bit depth ${bitDepth} is unsupported.`);
@@ -347,7 +455,7 @@ function parseWaveFormat(bytes, declaredBytes) {
 	if (encoding === 'ieee-float' && validBitsPerSample !== bitDepth) {
 		throw new Error('IEEE float WAV samples must use their full container width.');
 	}
-	const bytesPerSample = bitDepth / 8;
+	const bytesPerSample = Math.ceil(bitDepth / 8);
 	const expectedBlockAlign = channelCount * bytesPerSample;
 	if (blockAlign !== expectedBlockAlign) {
 		throw new Error(`WAV block alignment must be ${expectedBlockAlign} bytes for this format.`);
@@ -387,7 +495,7 @@ function decodeInterleavedPcm(bytes, frameCount, descriptor) {
 function readPcmSample(view, offset, sampleFormat) {
 	if (sampleFormat === 'uint8') return (view.getUint8(offset) - 128) / 128;
 	if (sampleFormat === 'int16') return view.getInt16(offset, true) / 0x8000;
-	if (sampleFormat === 'int24') {
+	if (sampleFormat === 'int20' || sampleFormat === 'int24') {
 		let value = view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16);
 		if (value & 0x800000) value |= 0xff000000;
 		return value / 0x800000;
@@ -436,6 +544,7 @@ function validateDescriptor(blob, descriptor) {
 	const formats = {
 		uint8: { bitDepth: 8, bytesPerSample: 1, encoding: 'pcm-integer', subFormatTag: WAVE_FORMAT_PCM },
 		int16: { bitDepth: 16, bytesPerSample: 2, encoding: 'pcm-integer', subFormatTag: WAVE_FORMAT_PCM },
+		int20: { bitDepth: 20, bytesPerSample: 3, encoding: 'pcm-integer', subFormatTag: WAVE_FORMAT_PCM },
 		int24: { bitDepth: 24, bytesPerSample: 3, encoding: 'pcm-integer', subFormatTag: WAVE_FORMAT_PCM },
 		int32: { bitDepth: 32, bytesPerSample: 4, encoding: 'pcm-integer', subFormatTag: WAVE_FORMAT_PCM },
 		float32: { bitDepth: 32, bytesPerSample: 4, encoding: 'ieee-float', subFormatTag: WAVE_FORMAT_IEEE_FLOAT },
@@ -463,34 +572,10 @@ function validateDescriptor(blob, descriptor) {
 	return descriptor;
 }
 
-async function readBlobBytes(blob, start, end, signal) {
-	throwIfAborted(signal);
-	const part = blob.slice(start, end);
-	if (!part || typeof part.arrayBuffer !== 'function') throw new TypeError('Blob slices must provide arrayBuffer().');
-	const buffer = await part.arrayBuffer();
-	throwIfAborted(signal);
-	if (!(buffer instanceof ArrayBuffer)) throw new TypeError('Blob arrayBuffer() must return an ArrayBuffer.');
-	const expectedBytes = end - start;
-	if (buffer.byteLength !== expectedBytes) throw new Error('A WAV Blob slice returned an unexpected number of bytes.');
-	return new Uint8Array(buffer);
-}
-
 function validateBlob(blob) {
 	if (!blob || !Number.isSafeInteger(blob.size) || blob.size < 0 || typeof blob.slice !== 'function') {
 		throw new TypeError('A Blob or File with size and slice() is required.');
 	}
-}
-
-function throwIfAborted(signal) {
-	if (!signal?.aborted) return;
-	if (signal.reason?.name === 'AbortError') throw signal.reason;
-	const message = typeof signal.reason === 'string'
-		? signal.reason
-		: signal.reason?.message || 'Incremental WAV decoding was aborted.';
-	if (typeof DOMException === 'function') throw new DOMException(message, 'AbortError');
-	const error = new Error(message);
-	error.name = 'AbortError';
-	throw error;
 }
 
 function positiveIntegerInRange(value, minimum, maximum, name) {
@@ -498,18 +583,4 @@ function positiveIntegerInRange(value, minimum, maximum, name) {
 		throw new RangeError(`${name} must be an integer from ${minimum} to ${maximum}.`);
 	}
 	return value;
-}
-
-function dataView(bytes) {
-	return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-}
-
-function ascii(bytes, offset, length) {
-	let value = '';
-	for (let index = 0; index < length; index += 1) value += String.fromCharCode(bytes[offset + index]);
-	return value;
-}
-
-function printableChunkId(value) {
-	return JSON.stringify(value.replace(/[^\x20-\x7e]/g, '?'));
 }
