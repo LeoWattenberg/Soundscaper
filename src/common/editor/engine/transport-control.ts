@@ -259,6 +259,7 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		const graph = buildProjectGraph(context, context.destination, this.project, {
 			metering: false,
 			respectMuteSolo: true,
+			monitoring: true,
 			parametricEqWasmModule: getParametricEqWasmModule(context),
 			onParametricEqError: (error) => this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error),
 		});

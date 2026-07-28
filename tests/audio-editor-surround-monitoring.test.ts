@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	connectSurroundMonitoring,
 	configureNativeSurroundDestination,
 	downmixSurroundToStereo,
 } from '../src/common/editor/surround-monitoring.ts';
@@ -22,6 +23,38 @@ test('native surround monitoring configures a capable discrete destination', () 
 		channelInterpretation: 'discrete',
 	});
 	assert.equal(configureNativeSurroundDestination({ maxChannelCount: 2 }, 6), false);
+});
+
+test('unsupported surround devices receive the deterministic Web Audio downmix graph', () => {
+	class Node {
+		readonly connections: Array<{ node: Node; output: number; input: number }> = [];
+		connect(node: Node, output = 0, input = 0) {
+			this.connections.push({ node, output, input });
+			return node;
+		}
+	}
+	const source = new Node();
+	const destination = Object.assign(new Node(), { maxChannelCount: 2 });
+	const nodes: Node[] = [];
+	const context = {
+		currentTime: 0,
+		destination,
+		createChannelSplitter: () => new Node(),
+		createChannelMerger: () => new Node(),
+		createGain: () => Object.assign(new Node(), {
+			gain: { value: 1, setValueAtTime(value: number) { this.value = value; } },
+		}),
+	};
+	assert.equal(connectSurroundMonitoring(
+		context as unknown as BaseAudioContext,
+		source as unknown as AudioNode,
+		destination as unknown as AudioNode,
+		6,
+		nodes as unknown as AudioNode[],
+	), 'stereo-fallback');
+	assert.equal(nodes.length, 8, 'one splitter, one merger, and six gain routes');
+	assert.deepEqual(nodes[0].connections.map(({ output }) => output), [0, 1, 2, 2, 4, 5]);
+	assert.deepEqual(nodes.slice(2).map((node) => node.connections[0].input), [0, 1, 0, 1, 0, 1]);
 });
 
 test('5.1 fallback monitoring omits LFE and applies normalized centre and surround gains', () => {

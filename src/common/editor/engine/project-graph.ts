@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { audioTrackChannelCountV2 } from '../project-v2.js';
+import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import {
 	addNode,
 	connect,
@@ -99,6 +100,7 @@ export interface BuildProjectGraphOptions {
 	readonly includeMaster?: boolean;
 	readonly includeTrackPan?: boolean;
 	readonly effectAnalysis?: boolean;
+	readonly monitoring?: boolean;
 	readonly parametricEqWasmModule?: WebAssembly.Module | null;
 	readonly onParametricEqError?: EffectRackOptions['onParametricEqError'];
 }
@@ -115,6 +117,7 @@ export function buildProjectGraph(
 		includeMaster = true,
 		includeTrackPan = true,
 		effectAnalysis = false,
+		monitoring = false,
 		parametricEqWasmModule = null,
 		onParametricEqError,
 	}: BuildProjectGraphOptions = {},
@@ -333,10 +336,20 @@ export function buildProjectGraph(
 		finalOutput = masterMute;
 	}
 	const masterAnalyser = metering ? createAnalyser(context, nodes) : null;
+	let connectionSource = finalOutput;
 	if (masterAnalyser) {
 		connect(finalOutput, masterAnalyser);
-		connect(masterAnalyser, destination);
-	} else connect(finalOutput, destination);
+		connectionSource = masterAnalyser;
+	}
+	if (monitoring) {
+		connectSurroundMonitoring(
+			context,
+			connectionSource,
+			destination,
+			clamp(positiveInteger(project.masterChannels, 2), 1, 32),
+			nodes,
+		);
+	} else connect(connectionSource, destination);
 
 	return {
 		nodes,

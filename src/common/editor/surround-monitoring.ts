@@ -43,3 +43,41 @@ export function downmixSurroundToStereo(
 	}
 	return [left, right];
 }
+
+export function connectSurroundMonitoring(
+	context: BaseAudioContext,
+	source: AudioNode,
+	destination: AudioNode,
+	channelCount: number,
+	nodes: AudioNode[],
+): 'native' | 'stereo-fallback' | 'direct' {
+	if (channelCount !== 6) {
+		source.connect(destination);
+		return 'direct';
+	}
+	const deviceDestination = (context as BaseAudioContext & { destination?: AudioDestinationNode }).destination;
+	if (configureNativeSurroundDestination(deviceDestination, channelCount)) {
+		source.connect(destination);
+		return 'native';
+	}
+	const splitter = context.createChannelSplitter(6);
+	const merger = context.createChannelMerger(2);
+	nodes.push(splitter, merger);
+	source.connect(splitter);
+	connectRoute(0, 0, 0.5);
+	connectRoute(1, 1, 0.5);
+	connectRoute(2, 0, Math.SQRT1_2 * 0.5);
+	connectRoute(2, 1, Math.SQRT1_2 * 0.5);
+	connectRoute(4, 0, Math.SQRT1_2 * 0.5);
+	connectRoute(5, 1, Math.SQRT1_2 * 0.5);
+	merger.connect(destination);
+	return 'stereo-fallback';
+
+	function connectRoute(inputChannel: number, outputChannel: number, gainValue: number): void {
+		const gain = context.createGain();
+		gain.gain.setValueAtTime(gainValue, context.currentTime);
+		nodes.push(gain);
+		splitter.connect(gain, inputChannel);
+		gain.connect(merger, 0, outputChannel);
+	}
+}

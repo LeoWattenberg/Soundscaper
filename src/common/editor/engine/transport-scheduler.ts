@@ -3,6 +3,7 @@
 import {
 	createEbuR128MeterNode,
 } from '../ebu-r128-node.js';
+import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
 import {
 	addNode,
 	connect,
@@ -213,6 +214,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			metering: this.meterListeners.size > 0,
 			respectMuteSolo: true,
 			effectAnalysis: true,
+			monitoring: true,
 			parametricEqWasmModule: getParametricEqWasmModule(context),
 			onParametricEqError: (error) => this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error),
 			},
@@ -272,8 +274,11 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 			return this.masterLoudnessMeter;
 		}
 		try {
+			const requestedChannels = Math.max(1, Math.min(8, Number(this.project?.masterChannels) || 2));
+			const nativeSurround = requestedChannels > 2
+				&& configureNativeSurroundDestination(context.destination, requestedChannels);
 			const meter = await createEbuR128MeterNode(context, {
-				channelCount: 2,
+				channelCount: nativeSurround ? requestedChannels : 2,
 				passthrough: true,
 				running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
 				onMeter: (reading: unknown) => {
