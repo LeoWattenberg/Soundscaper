@@ -457,6 +457,25 @@ test.describe('audio editor React/design-system workflows', () => {
 			].join('\n'));
 		});
 
+		await test.step('export Podcast 2.0 chapter JSON', async () => {
+			await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels']);
+			const dialog = page.getByRole('dialog', { name: 'Export labels', exact: true });
+			await expect(dialog).toBeVisible();
+			await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'As Podcast 2.0 chapters (JSON)');
+
+			const [download] = await Promise.all([
+				page.waitForEvent('download'),
+				dialog.getByRole('button', { name: 'Export labels', exact: true }).click(),
+			]);
+			expect(download.suggestedFilename()).toMatch(/\.json$/i);
+			const downloadPath = await download.path();
+			expect(downloadPath).not.toBeNull();
+			expect(JSON.parse(await readFile(downloadPath, 'utf8'))).toEqual({
+				version: '1.2.0',
+				chapters: [{ startTime: 0.25, title: 'Edited intro' }],
+			});
+		});
+
 		expect(errors).toEqual([]);
 	});
 });

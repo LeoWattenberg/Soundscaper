@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+	AUDIO_EDITOR_LABEL_EXPORT_FORMATS,
 	AUDIO_EDITOR_LABEL_FORMATS,
 	AudioEditorLabelIoError,
 	detectAudioEditorLabelFormat,
@@ -11,18 +12,45 @@ import {
 	parseWebVttLabels,
 	serializeAudacityLabelsTxt,
 	serializeAudioEditorLabels,
+	serializePodcastChaptersJson,
 	serializeSubRipLabels,
 	serializeWebVttLabels,
 } from '../src/common/editor/label-io.js';
 
 test('label formats are stable and detection honors explicit values, extensions, and content', () => {
 	assert.deepEqual(AUDIO_EDITOR_LABEL_FORMATS, ['txt', 'srt', 'vtt']);
+	assert.deepEqual(AUDIO_EDITOR_LABEL_EXPORT_FORMATS, ['txt', 'srt', 'vtt', 'json']);
 	assert.equal(detectAudioEditorLabelFormat({ format: '.VTT', filename: 'wrong.srt' }), 'vtt');
 	assert.equal(detectAudioEditorLabelFormat('Captions.SRT'), 'srt');
 	assert.equal(detectAudioEditorLabelFormat({ text: '\uFEFFWEBVTT\n\n' }), 'vtt');
 	assert.equal(detectAudioEditorLabelFormat({ text: '1\n00:00:01,000 --> 00:00:02,000\nText\n' }), 'srt');
 	assert.equal(detectAudioEditorLabelFormat({ text: '0\t1\tText' }), 'txt');
 	assert.throws(() => detectAudioEditorLabelFormat({ format: 'csv' }), /Unsupported label format/);
+});
+
+test('Podcast 2.0 chapter JSON serialization emits ordered, escaped millisecond chapter starts', () => {
+	const text = serializePodcastChaptersJson([
+		{ id: 'later', title: 'Quote " and newline\n世界', startFrame: 1_500, endFrame: 2_000 },
+		{ id: 'intro', title: 'Intro', startFrame: 0, endFrame: 1_000 },
+		{ id: 'fraction', title: '', startFrame: 1_234, endFrame: 1_234 },
+	], { sampleRate: 1_000 });
+
+	assert.equal(text.endsWith('\n'), true);
+	assert.deepEqual(JSON.parse(text), {
+		version: '1.2.0',
+		chapters: [
+			{ startTime: 0, title: 'Intro' },
+			{ startTime: 1.234, title: '' },
+			{ startTime: 1.5, title: 'Quote " and newline\n世界' },
+		],
+	});
+	assert.equal(text.includes('Quote \\" and newline\\n世界'), true);
+	assert.equal(
+		serializeAudioEditorLabels([{ title: 'Rounded', startFrame: 1, endFrame: 1 }], {
+			format: '.JSON', sampleRate: 3, lineEnding: '\r\n', includeBom: true,
+		}),
+		'\uFEFF{\r\n  "version": "1.2.0",\r\n  "chapters": [\r\n    {\r\n      "startTime": 0.333,\r\n      "title": "Rounded"\r\n    }\r\n  ]\r\n}\r\n',
+	);
 });
 
 test('Audacity TXT imports point and range labels, Unicode, CRLF, and spectral continuations', () => {

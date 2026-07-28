@@ -4,6 +4,7 @@ export const LABEL_EXPORT_DIALOG_FORMATS = Object.freeze([
 	Object.freeze({ id: 'txt', labelKey: 'exportLabelsTxt' }),
 	Object.freeze({ id: 'srt', labelKey: 'exportLabelsSrt' }),
 	Object.freeze({ id: 'vtt', labelKey: 'exportLabelsVtt' }),
+	Object.freeze({ id: 'json', labelKey: 'exportLabelsPodcastJson' }),
 ] as const);
 
 export type LabelExportDialogFormat = typeof LABEL_EXPORT_DIALOG_FORMATS[number]['id'];

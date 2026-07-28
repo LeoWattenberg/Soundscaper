@@ -16,11 +16,12 @@ const project = {
 	],
 };
 
-test('label export dialog exposes the three supported formats and label tracks only', () => {
+test('label export dialog exposes the supported formats and label tracks only', () => {
 	assert.deepEqual(LABEL_EXPORT_DIALOG_FORMATS, [
 		{ id: 'txt', labelKey: 'exportLabelsTxt' },
 		{ id: 'srt', labelKey: 'exportLabelsSrt' },
 		{ id: 'vtt', labelKey: 'exportLabelsVtt' },
+		{ id: 'json', labelKey: 'exportLabelsPodcastJson' },
 	]);
 	assert.deepEqual(listLabelExportTracks(project), [
 		{ id: 'markers', name: 'Markers', labelCount: 1 },

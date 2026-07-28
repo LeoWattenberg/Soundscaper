@@ -12,6 +12,7 @@ import {
 	isLegacyBlockFile,
 	isWavFile,
 	labelExportFileName,
+	labelMimeType,
 	normalizeAup4CompatibilityReport,
 	normalizeProjectSampleRate,
 } from '../src/common/editor/controller/app-helpers.ts';
@@ -152,6 +153,8 @@ test('controller file helpers preserve formats, summaries, and compatibility cou
 	assert.equal(isWavFile({ name: 'unsupported-master.bw64' }), true);
 	assert.equal(isWavFile({ name: 'audio.bin', type: 'audio/rf64' }), true);
 	assert.equal(labelExportFileName('unsafe:name.wav', 'vtt'), 'unsafe-name.vtt');
+	assert.equal(labelExportFileName('episode.wav', 'json'), 'episode.json');
+	assert.equal(labelMimeType('json'), 'application/json+chapters');
 	assert.equal(ensureAup4FileName('mix'), 'mix.aup4');
 	assert.equal(ensureScapeFileName('mix'), 'mix.scape');
 

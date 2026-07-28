@@ -1,6 +1,8 @@
 export const AUDIO_EDITOR_LABEL_FORMATS = Object.freeze(['txt', 'srt', 'vtt']);
+export const AUDIO_EDITOR_LABEL_EXPORT_FORMATS = Object.freeze([...AUDIO_EDITOR_LABEL_FORMATS, 'json']);
 
 const FORMAT_SET = new Set(AUDIO_EDITOR_LABEL_FORMATS);
+const EXPORT_FORMAT_SET = new Set(AUDIO_EDITOR_LABEL_EXPORT_FORMATS);
 const DEFAULT_SAMPLE_RATE = 48_000;
 const DEFAULT_MAX_INPUT_CHARS = 16 * 1024 * 1024;
 const DEFAULT_MAX_LABELS = 100_000;
@@ -70,12 +72,13 @@ export function parseWebVttLabels(input, options = {}) {
 	return parseAudioEditorLabels(input, { ...options, format: 'vtt' });
 }
 
-/** Serialize V2 label values to Audacity TXT, SubRip, or WebVTT. */
+/** Serialize V2 label values to Audacity TXT, SubRip, WebVTT, or Podcast 2.0 JSON. */
 export function serializeAudioEditorLabels(labels, options = {}) {
-	const format = detectAudioEditorLabelFormat(options);
+	const format = detectAudioEditorLabelExportFormat(options);
 	const context = createSerializeContext(options, format);
 	const normalized = normalizeLabels(labels, context);
 	if (format === 'txt') return serializeTxt(normalized, context);
+	if (format === 'json') return serializePodcastJson(normalized, context);
 	return serializeTimed(normalized, context, format);
 }
 
@@ -89,6 +92,10 @@ export function serializeSubRipLabels(labels, options = {}) {
 
 export function serializeWebVttLabels(labels, options = {}) {
 	return serializeAudioEditorLabels(labels, { ...options, format: 'vtt' });
+}
+
+export function serializePodcastChaptersJson(labels, options = {}) {
+	return serializeAudioEditorLabels(labels, { ...options, format: 'json' });
 }
 
 function normalizeInput(input, options) {
@@ -347,6 +354,18 @@ function serializeTimed(labels, context, format) {
 	return withEncodingOptions(text, context);
 }
 
+function serializePodcastJson(labels, context) {
+	const chapters = [...labels]
+		.sort((left, right) => left.startFrame - right.startFrame)
+		.map((label) => ({
+			startTime: Math.round(label.startFrame / context.sampleRate * 1000) / 1000,
+			title: label.title,
+		}));
+	const text = `${JSON.stringify({ version: '1.2.0', chapters }, null, 2)}\n`
+		.replaceAll('\n', context.lineEnding);
+	return withEncodingOptions(text, context);
+}
+
 function formatTimestamp(frame, sampleRate, format) {
 	const totalMilliseconds = Math.round(frame * 1000 / sampleRate);
 	const milliseconds = totalMilliseconds % 1000;
@@ -429,6 +448,20 @@ function stripBom(value) {
 
 function assertFormat(value) {
 	if (!FORMAT_SET.has(value)) throw new RangeError(`Unsupported label format: ${value}.`);
+	return value;
+}
+
+function detectAudioEditorLabelExportFormat(options) {
+	if (typeof options === 'string') options = { filename: options };
+	const explicit = String(options.format || '').trim().toLowerCase().replace(/^\./, '');
+	if (explicit) return assertExportFormat(explicit);
+	const match = String(options.filename || '').trim().toLowerCase().match(/\.([^.]+)$/);
+	if (match && EXPORT_FORMAT_SET.has(match[1])) return match[1];
+	return detectAudioEditorLabelFormat(options);
+}
+
+function assertExportFormat(value) {
+	if (!EXPORT_FORMAT_SET.has(value)) throw new RangeError(`Unsupported label export format: ${value}.`);
 	return value;
 }
 

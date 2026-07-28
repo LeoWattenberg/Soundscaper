@@ -150,6 +150,21 @@ test('label export defaults to the selected label track and awaits its saver', a
 	assert.deepEqual(fixture.statuses.at(-1), { message: 'Exported 1 labels.', state: 'success' });
 });
 
+test('Podcast 2.0 chapter exports use JSON download metadata and schema', async () => {
+	const fixture = createFixture();
+	const service = createLabelService(fixture.dependencies);
+
+	const result = await service.exportLabels({ format: 'json' });
+
+	assert.equal(result.format, 'json');
+	assert.equal(result.fileName, 'Session.json');
+	assert.equal(result.mimeType, 'application/json+chapters');
+	assert.deepEqual(JSON.parse(result.text), {
+		version: '1.2.0',
+		chapters: [{ startTime: 0, title: 'Existing' }],
+	});
+});
+
 test('disposed controller rejects label work before reading or publishing', async () => {
 	let reads = 0;
 	const fixture = createFixture();

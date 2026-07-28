@@ -1,5 +1,6 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
+import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
@@ -88,9 +89,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		exportAudio: 'Audio exportieren',
 		exportOther: 'Weitere Exporte',
 		exportLabels: 'Beschriftungen exportieren',
-		exportLabelsTxt: 'Als Audacity-TXT',
-		exportLabelsSrt: 'Als SubRip (SRT)',
-		exportLabelsVtt: 'Als WebVTT',
+		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		exportSelectedAudio: 'Ausgewähltes Audio exportieren',
 		quitEditor: 'Beenden',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF oder WebM',
@@ -1148,9 +1147,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		exportAudio: 'Export audio',
 		exportOther: 'Export other',
 		exportLabels: 'Export labels',
-		exportLabelsTxt: 'As Audacity TXT',
-		exportLabelsSrt: 'As SubRip (SRT)',
-		exportLabelsVtt: 'As WebVTT',
+		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		exportSelectedAudio: 'Export selected audio',
 		quitEditor: 'Quit',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF, or WebM',

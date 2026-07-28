@@ -136,6 +136,7 @@ export function stripExtension(name: unknown): string {
 }
 
 export function labelMimeType(format: string): string {
+	if (format === 'json') return 'application/json+chapters';
 	if (format === 'vtt') return 'text/vtt;charset=utf-8';
 	if (format === 'srt') return 'application/x-subrip;charset=utf-8';
 	return 'text/plain;charset=utf-8';
