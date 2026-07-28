@@ -157,11 +157,14 @@ test('project graph routes terminal tracks, groups, and sends after latency comp
 		masterChannels: 6,
 		metadata: { adm: authored('5.1', [
 			{ stripKind: 'track', stripId: 'dry', sourceChannel: 5, bedChannel: 'L', gain: 1 },
-			{ stripKind: 'group', stripId: 'group', sourceChannel: 5, bedChannel: 'R', gain: 1 },
-			{ stripKind: 'send', stripId: 'send', sourceChannel: 5, bedChannel: 'C', gain: 1 },
+			{ stripKind: 'group', stripId: 'group', sourceChannel: 0, bedChannel: 'R', gain: 1 },
+			{ stripKind: 'send', stripId: 'send', sourceChannel: 0, bedChannel: 'C', gain: 1 },
 		]) },
-		sources: [{ id: 'source', channelCount: 6 }],
-		clips: [{ id: 'dry-clip', sourceId: 'source' }, { id: 'routed-clip', sourceId: 'source' }],
+		sources: [{ id: 'surround-source', channelCount: 6 }, { id: 'stereo-source', channelCount: 2 }],
+		clips: [
+			{ id: 'dry-clip', sourceId: 'surround-source' },
+			{ id: 'routed-clip', sourceId: 'stereo-source' },
+		],
 		tracks: [
 			{ id: 'dry', type: 'audio', clipIds: ['dry-clip'], effects: [], gain: 1, pan: 0 },
 			{ id: 'routed', type: 'audio', clipIds: ['routed-clip'], effects: [], gain: 1, pan: 0 },
@@ -188,6 +191,7 @@ test('project graph routes terminal tracks, groups, and sends after latency comp
 	assert.deepEqual(merger.incoming.map(({ input }) => input).sort(), [0, 1, 2]);
 	const splitters = context.created.filter((node) => node.kind === 'channel-splitter');
 	assert.equal(splitters.length, 3);
+	assert.deepEqual(splitters.map(({ channelCount }) => channelCount).sort((left, right) => left - right), [2, 2, 6]);
 	assert.ok(
 		splitters.some((splitter) => splitter.incoming[0]?.source.kind === 'delay'),
 		'the direct track reaches its ADM splitter after bus-latency compensation',

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { audioTrackChannelCountV2 } from '../project-v2.js';
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
+import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { createAdmBedRouter } from './adm-bed-routing.ts';
 import {
 	addNode,
@@ -143,6 +143,7 @@ export function buildProjectGraph(
 	const sends = Array.isArray(mixer.sends) ? mixer.sends : [];
 	const groupById = new Map(groups.map((bus) => [String(bus.id), bus]));
 	const sendById = new Map(sends.map((bus) => [String(bus.id), bus]));
+	const terminalChannelWidths = resolveTerminalChannelWidths(project);
 	// Create every dry input first so Auto Duck can route its control track.
 	for (const [index, track] of tracks.entries()) {
 		trackInputs.set(String(track.id ?? index), addNode(nodes, context.createGain()));
@@ -152,19 +153,8 @@ export function buildProjectGraph(
 	));
 	const effectChannelCounts = new Map(tracks.map((track, index) => [
 		String(track.id ?? index),
-		clamp(audioTrackChannelCountV2(project, track, 2), 1, 32),
+		terminalChannelWidths.tracks.get(String(track.id ?? index)) ?? 2,
 	]));
-	const busInputChannelCount = (scope: 'group' | 'send', busId: string): number => Math.max(
-		2,
-		...tracks.map((track, index) => {
-			const trackId = String(track.id ?? index);
-			const route = mixer.routes?.[trackId];
-			const routed = scope === 'group'
-				? route?.groupId != null && String(route.groupId) === busId
-				: Number(route?.sends?.[busId]) > 0;
-			return routed ? effectChannelCounts.get(trackId) ?? 2 : 0;
-		}),
-	);
 	const mixEffectChannelCount = clamp(Math.max(
 		2,
 		positiveInteger(project?.masterChannels, 2),
@@ -309,7 +299,8 @@ export function buildProjectGraph(
 		});
 		connect(output, gain);
 		output = gain;
-		const busChannels = busInputChannelCount(scope, String(bus.id));
+		const busWidths = scope === 'group' ? terminalChannelWidths.groups : terminalChannelWidths.sends;
+		const busChannels = busWidths.get(String(bus.id)) ?? 2;
 		if (!preservesAdmChannels && typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(finite(bus.pan, 0), -1, 1), context.currentTime);
