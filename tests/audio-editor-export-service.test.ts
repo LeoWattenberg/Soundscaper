@@ -12,6 +12,7 @@ interface TestProject {
 	readonly id: string;
 	readonly title: string;
 	readonly sampleRate: number;
+	readonly masterChannels: number;
 	readonly tracks: Array<{ id: string; type: string; hidden?: boolean; clipIds: string[] }>;
 	readonly clips: Array<{ id: string; kind: string; sourceId: string }>;
 	readonly sources: Array<{ id: string; opaqueExtensions?: { byteLength?: number } }>;
@@ -62,6 +63,7 @@ function defaultProject(): TestProject {
 		id: 'project',
 		title: '  Café / Film -- ',
 		sampleRate: 48_000,
+		masterChannels: 2,
 		tracks: [{ id: 'video-track', type: 'video', clipIds: ['video-clip'] }],
 		clips: [
 			{ id: 'video-clip', kind: 'video', sourceId: 'video-source' },

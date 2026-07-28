@@ -55,19 +55,25 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
-		const exportProject = cloneProject(getProject());
+		let exportProject = cloneProject(getProject());
 		const exportSources = new Map(sourceBuffers);
 		let pendingCleanup = null;
 		try {
 			const settings = normalizeExportSettings(requestedSettings || {});
 			const plan = createExportPlan(exportProject, {
 				...settings,
-				// The ordered Web Audio master graph currently renders stereo.
-				inputChannelCount: 2,
+				inputChannelCount: exportProject.masterChannels,
 				mobile: state.mobile,
 				livePcmBytes: undefined,
 				productName,
 			});
+			if (plan.format === 'bw64' && plan.adm) {
+				exportProject = {
+					...exportProject,
+					masterChannels: plan.channelCount,
+					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
+				};
+			}
 			await preflightStorage(
 				plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
 				'export',
@@ -370,12 +376,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		throwIfAborted(signal);
 		const bitDepth = plan.encoding.bitDepth || (settings.bitDepth === 32 ? 32 : settings.bitDepth) || 24;
 		const sourceChannels = audioBufferChannels(output);
-		if (plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'aiff') {
+		if (plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64' || plan.format === 'aiff') {
 			const mapped = applyMediaChannelMapping(sourceChannels, plan.channelMapping);
-			const measuredBext = plan.format === 'bwf' && settings.measureLoudness === true
+			const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
+			const measuredBext = broadcast && settings.measureLoudness === true
 				? { ...plan.bext, ...measureBextLoudness(mapped, plan.sampleRate) }
 				: plan.bext;
 			const nativeOptions = {
+				container: plan.container,
 				sampleRate: plan.sampleRate,
 				bitDepth,
 				float: plan.encoding.floatingPoint,
@@ -385,7 +393,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				markers: plan.markers,
 				ixml: plan.ixml,
 				cart: plan.cart,
-				bext: plan.format === 'bwf' ? measuredBext : undefined,
+				bext: broadcast ? measuredBext : undefined,
+				preDataChunks: plan.preDataChunks,
+				trailingChunks: plan.trailingChunks,
 			};
 			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
 			return { bytes, mimeType: plan.mimeType };
@@ -417,7 +427,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		const nativeAiff = plan.format === 'aiff';
-		const nativePcm = plan.format === 'wav' || plan.format === 'bwf' || nativeAiff;
+		const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
+		const nativePcm = nativeWav || nativeAiff;
+		const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
 		const sink = await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
 		if (!sink.persistent
 			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
@@ -427,8 +439,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const bitDepth = plan.encoding.bitDepth || (plan.format === 'flac' || plan.format === 'wavpack' ? settings.bitDepth : 24);
 		const stagingFloat = !nativePcm && plan.format !== 'flac';
 		const encoderOptions = {
+			container: nativeWav ? plan.container : undefined,
 			sampleRate: plan.sampleRate,
-			channelCount: nativePcm ? plan.channelCount : 2,
+			channelCount: plan.channelCount,
 			totalFrames: plan.outputFrames,
 			bitDepth,
 			float: nativePcm ? plan.encoding.floatingPoint : stagingFloat,
@@ -437,8 +450,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			metadata: nativePcm ? plan.metadata : undefined,
 			markers: nativePcm ? plan.markers : undefined,
 			ixml: nativePcm ? plan.ixml : undefined,
-			cart: plan.format === 'bwf' ? plan.cart : undefined,
-			bext: plan.format === 'bwf' ? plan.bext : undefined,
+			cart: broadcast ? plan.cart : undefined,
+			bext: broadcast ? plan.bext : undefined,
+			preDataChunks: nativeWav ? plan.preDataChunks : undefined,
+			trailingChunks: nativeWav ? plan.trailingChunks : undefined,
 			collect: false,
 			onChunk: (chunk: RuntimeValue) => sink.write(chunk),
 		};
@@ -457,15 +472,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				signal,
 				onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
 					renderedSampleRate = metadata.sampleRate || renderedSampleRate;
-					outputResampler ||= createStreamingWindowedSincResampler(renderedSampleRate, plan.sampleRate, 2);
-					const resampledChannels = outputResampler.push(channels);
-					const outputChannels = nativePcm ? applyMediaChannelMapping(resampledChannels, plan.channelMapping) : resampledChannels;
+					const mappedChannels = applyMediaChannelMapping(channels, plan.channelMapping);
+					outputResampler ||= createStreamingWindowedSincResampler(renderedSampleRate, plan.sampleRate, plan.channelCount);
+					const outputChannels = outputResampler.push(mappedChannels);
 					if (outputChannels[0]?.length) encoder.write(outputChannels);
 				},
 			});
-			outputResampler ||= createStreamingWindowedSincResampler(renderResult.sampleRate || renderedSampleRate, plan.sampleRate, 2);
-			const resampledFinalChannels = outputResampler.finish(plan.outputFrames);
-			const finalChannels = nativePcm ? applyMediaChannelMapping(resampledFinalChannels, plan.channelMapping) : resampledFinalChannels;
+			outputResampler ||= createStreamingWindowedSincResampler(renderResult.sampleRate || renderedSampleRate, plan.sampleRate, plan.channelCount);
+			const finalChannels = outputResampler.finish(plan.outputFrames);
 			if (finalChannels[0]?.length) encoder.write(finalChannels);
 			encoder.finalize();
 			await encoder.settled();
