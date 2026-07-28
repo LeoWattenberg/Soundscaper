@@ -26,6 +26,7 @@ import {
 } from '../src/common/editor/resample.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { createWavStreamEncoder, encodeWav } from '../src/common/editor/wav.js';
+import { createMockAudioWorkletNodeClass } from './helpers/mock-audio-worklet-node.js';
 
 function concatenateFloat32(parts) {
 	const output = new Float32Array(parts.reduce((length, part) => length + part.length, 0));
@@ -1615,7 +1616,7 @@ test('engine loads and inserts Audacity worklets in track and master racks witho
 		engine.loadProject(project, new Map([['source-1', source]]));
 		await engine.play();
 		assert.equal(realtime.audioWorkletModules.filter((url) => url.endsWith('/audacity-effects/live-worklet.js')).length, 1);
-		const worklets = realtime.workletNodes.filter((node) => node.name === 'kw-audacity-live-effect');
+		const worklets = realtime.workletNodes.filter((node) => node.name === 'kw-audacity-live-effect' && !node.readinessProbe);
 		assert.deepEqual(worklets.map((node) => node.options.processorOptions.effectType), [
 			'audacity-invert',
 			'audacity-bass-treble',
@@ -1630,7 +1631,9 @@ test('engine loads and inserts Audacity worklets in track and master racks witho
 		assert.equal(offlineContexts.length, 1);
 		assert.equal(offlineContexts[0].audioWorkletModules.filter((url) => url.endsWith('/audacity-effects/live-worklet.js')).length, 1);
 		assert.deepEqual(
-			offlineContexts[0].workletNodes.map((node) => node.options.processorOptions.effectType),
+			offlineContexts[0].workletNodes
+				.filter((node) => node.name === 'kw-audacity-live-effect' && !node.readinessProbe)
+				.map((node) => node.options.processorOptions.effectType),
 			['audacity-invert', 'audacity-bass-treble'],
 		);
 	} finally {
@@ -2355,7 +2358,8 @@ test('rebuilding a playing rack disconnects its old worklet graph and reuses the
 	try {
 		engine.loadProject(project, sources);
 		await engine.play();
-		const oldWorklet = context.workletNodes[0];
+		const oldWorklet = context.workletNodes.find((node) => node.name === 'kw-audacity-live-effect' && !node.readinessProbe);
+		assert.ok(oldWorklet);
 		const updated = structuredClone(project);
 		updated.master.effects.push({
 			type: 'audacity-bass-treble',
@@ -2367,7 +2371,9 @@ test('rebuilding a playing rack disconnects its old worklet graph and reuses the
 		assert.equal(oldWorklet.disconnected, true);
 		assert.equal(context.audioWorkletModules.filter((url) => url.endsWith('/audacity-effects/live-worklet.js')).length, 1);
 		assert.deepEqual(
-			context.workletNodes.slice(1).map((node) => node.options.processorOptions.effectType),
+			context.workletNodes
+				.filter((node) => node.name === 'kw-audacity-live-effect' && !node.readinessProbe && !node.disconnected)
+				.map((node) => node.options.processorOptions.effectType),
 			['audacity-invert', 'audacity-bass-treble'],
 		);
 		assert.equal(engine.getState().state, 'playing');
@@ -2559,22 +2565,7 @@ class MockNode {
 	}
 }
 
-class MockAudioWorkletNode extends MockNode {
-	constructor(context, name, options = {}) {
-		super('audio-worklet');
-		this.context = context;
-		this.name = name;
-		this.options = options;
-		this.messages = [];
-		this.port = {
-			onmessage: null,
-			postMessage: (message) => this.messages.push(message),
-			start() {},
-		};
-		context.workletNodes.push(this);
-		context.nodeKinds.push(`audio-worklet:${name}`);
-	}
-}
+const MockAudioWorkletNode = createMockAudioWorkletNodeClass(MockNode);
 
 class MockChunkStreamClient {
 	constructor() {

@@ -39,7 +39,7 @@
 		"tests/audio-editor-nyquist-controller.test.js": { "maxLines": 625, "reason": "Legacy Nyquist controller integration scenarios." },
 		"tests/audio-editor-project-v2.test.js": { "maxLines": 630, "reason": "Legacy v2 migration compatibility suite." },
 		"tests/audio-editor-recording-controller.test.js": { "maxLines": 1284, "reason": "Legacy recording-controller regression suite." },
-		"tests/audio-editor-runtime.test.js": { "maxLines": 2754, "reason": "Legacy runtime integration suite." },
+		"tests/audio-editor-runtime.test.js": { "maxLines": 2745, "reason": "Legacy runtime integration suite." },
 		"tests/audio-editor-storage-indexeddb.test.js": { "maxLines": 911, "reason": "Legacy IndexedDB integration and recovery matrix." },
 		"tests/audio-editor-video-commands.test.js": { "maxLines": 1073, "reason": "Legacy video command regression suite." },
 		"tests/audio-editor-video-ffmpeg.test.js": { "maxLines": 756, "reason": "Legacy FFmpeg video argument and composition matrix." },
