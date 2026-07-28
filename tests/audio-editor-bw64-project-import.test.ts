@@ -63,8 +63,8 @@ test('empty-project BW64 import attaches JSON-safe pristine ADM provenance atomi
 	assert.equal(applied.revision, adm.pristineRevision);
 });
 
-test('empty-project 20-bit BW64 import promotes pristine ADM provenance', async () => {
-	const descriptor = bw64Descriptor({ bitDepth: 20 });
+test('empty-project extensible BW64 import promotes its 20 valid bits and persists decoded PCM', async () => {
+	const descriptor = bw64Descriptor({ bitDepth: 24, validBitsPerSample: 20 });
 	const fixture = projectImportFixture(descriptor, emptyProject(2));
 	await createProjectImportService(fixture.runtime).importFile(bw64File());
 	const adm = batchChildren(fixture.commands[0])
@@ -78,6 +78,9 @@ test('empty-project 20-bit BW64 import promotes pristine ADM provenance', async 
 		bitDepth: 20,
 		float: false,
 	});
+	assert.equal(fixture.writtenChannels.length, 1);
+	assert.equal(fixture.writtenChannels[0]?.length, descriptor.channelCount);
+	assert.equal(fixture.writtenChannels[0]?.[0]?.length, descriptor.frameCount);
 });
 
 test('BW64 ADM stays source-scoped outside empty-project frame-zero promotion', async () => {
@@ -253,9 +256,10 @@ function bw64File() {
 
 function projectImportFixture(descriptor: ReturnType<typeof bw64Descriptor>, project: Record<string, unknown>) {
 	const commands: unknown[] = [];
+	const writtenChannels: Float32Array[][] = [];
 	let nextId = 0;
 	const writer = {
-		async write() {},
+		async write(channels: Float32Array[]) { writtenChannels.push(channels); },
 		async commit() { return { chunkCount: 1 }; },
 		async abort() {},
 	};
@@ -313,7 +317,7 @@ function projectImportFixture(descriptor: ReturnType<typeof bw64Descriptor>, pro
 		warnEnvelope: () => undefined,
 		writeBuffer: async () => undefined,
 	};
-	return { commands, runtime };
+	return { commands, runtime, writtenChannels };
 }
 
 function batchChildren(command: unknown): readonly TestCommand[] {

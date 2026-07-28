@@ -72,6 +72,30 @@ test('classic BW64 imports signed 20-bit PCM from three-byte MSB-aligned samples
 	assert.deepEqual(decoded, [-1, 0, 524_287 / 524_288]);
 });
 
+test('extensible BW64 decodes 20 valid bits left-aligned in 24-bit sample containers', async () => {
+	const format = createFormatBytes({ bitDepth: 24, validBitsPerSample: 20 });
+	const pcm = Uint8Array.of(
+		0x00, 0x00, 0x80,
+		0x00, 0x00, 0x00,
+		0xf0, 0xff, 0x7f,
+	);
+	const blob = blobOf(createBw64Fixture({ formatBytes: format, dataBytes: pcm }));
+	const descriptor = await inspectWavBlobPcm(blob);
+
+	assert.equal(descriptor.formatTag, 0xfffe);
+	assert.equal(descriptor.subFormatTag, 1);
+	assert.equal(descriptor.sampleFormat, 'int24');
+	assert.equal(descriptor.bitDepth, 24);
+	assert.equal(descriptor.validBitsPerSample, 20);
+	assert.equal(descriptor.bytesPerSample, 3);
+	const decoded: number[] = [];
+	await streamWavBlobPcm(blob, {
+		descriptor,
+		onChunk(channels: Float32Array[]) { decoded.push(...channels[0]); },
+	});
+	assert.deepEqual(decoded, [-1, 0, 524_287 / 524_288]);
+});
+
 test('BW64 requires a sentinel top size and ds64 as its first chunk', async (t) => {
 	const valid = createBw64Fixture();
 
@@ -168,19 +192,31 @@ function createChunk(id: string, payload: Uint8Array, declaredSize = payload.byt
 	return output;
 }
 
-function createFormatBytes(options: { readonly channelCount?: number; readonly bitDepth?: 16 | 20 | 24 } = {}): Uint8Array {
+function createFormatBytes(options: {
+	readonly channelCount?: number;
+	readonly bitDepth?: 16 | 20 | 24;
+	readonly validBitsPerSample?: 16 | 20 | 24;
+} = {}): Uint8Array {
 	const channelCount = options.channelCount ?? 1;
 	const bitDepth = options.bitDepth ?? 16;
 	const sampleRate = 48_000;
 	const blockAlign = channelCount * Math.ceil(bitDepth / 8);
-	const bytes = new Uint8Array(16);
+	const extensible = options.validBitsPerSample != null;
+	const bytes = new Uint8Array(extensible ? 40 : 16);
 	const view = new DataView(bytes.buffer);
-	view.setUint16(0, 1, true);
+	view.setUint16(0, extensible ? 0xfffe : 1, true);
 	view.setUint16(2, channelCount, true);
 	view.setUint32(4, sampleRate, true);
 	view.setUint32(8, sampleRate * blockAlign, true);
 	view.setUint16(12, blockAlign, true);
 	view.setUint16(14, bitDepth, true);
+	if (extensible) {
+		view.setUint16(16, 22, true);
+		view.setUint16(18, options.validBitsPerSample ?? bitDepth, true);
+		view.setUint32(20, channelCount === 1 ? 0x4 : (2 ** channelCount - 1) >>> 0, true);
+		view.setUint32(24, 1, true);
+		bytes.set([0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71], 28);
+	}
 	return bytes;
 }
 

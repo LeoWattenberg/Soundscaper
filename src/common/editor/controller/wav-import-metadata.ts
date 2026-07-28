@@ -62,6 +62,7 @@ export function prepareImportedWavMetadata(options: Readonly<Record<string, any>
 export function createImportedAdmPassthroughMetadata(options: Readonly<Record<string, any>>) {
 	const { candidate, source, descriptor, project } = options;
 	if (!candidate || candidate.valid !== true) return null;
+	const bitDepth = admPcmPrecision(descriptor);
 	return normalizeAdmProjectMetadata({
 		mode: 'passthrough',
 		payload: candidate.payload,
@@ -82,7 +83,7 @@ export function createImportedAdmPassthroughMetadata(options: Readonly<Record<st
 			sampleRate: descriptor.sampleRate,
 			channelCount: descriptor.channelCount,
 			frameCount: descriptor.frameCount,
-			bitDepth: descriptor.bitDepth,
+			bitDepth,
 			float: descriptor.encoding === 'ieee-float',
 		},
 		pristineRevision: project.revision + 1,
@@ -115,6 +116,7 @@ function shouldPromoteAdm(project: any, descriptor: any, importOptions: any, sou
 		return false;
 	}
 	if (![16, 20, 24].includes(descriptor.bitDepth)
+		|| ![16, 20, 24].includes(admPcmPrecision(descriptor))
 		|| descriptor.encoding !== 'pcm-integer'
 		|| !Number.isSafeInteger(descriptor.channelCount)
 		|| descriptor.channelCount < 1
@@ -126,6 +128,13 @@ function shouldPromoteAdm(project: any, descriptor: any, importOptions: any, sou
 		return false;
 	}
 	return true;
+}
+
+function admPcmPrecision(descriptor: Readonly<Record<string, unknown>>): number {
+	const value = descriptor.encoding === 'pcm-integer'
+		? descriptor.validBitsPerSample ?? descriptor.bitDepth
+		: descriptor.bitDepth;
+	return typeof value === 'number' ? value : Number.NaN;
 }
 
 function isEmptyAudioTrack(track: unknown): boolean {
