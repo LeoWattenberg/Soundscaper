@@ -168,9 +168,13 @@ reviewable gates before expanding the schema or native boundary.
   migrations, freeze/proxy fallback requirements, and schema-retirement rules.
   Its [policy regression](tests/project-compatibility-policy.test.js) keeps
   unimplemented future-archive and binary-opaque guarantees explicitly planned.
-- **Shared — Planned:** define severity levels and release policy for data loss,
-  A/V drift, audio dropout, dropped video frames, inaccessible workflows,
-  security boundary failures, and license/provenance failures.
+- **Shared — Implemented:** the machine-readable
+  [severity policy](config/release-severity-policy.json) and its
+  [release, waiver, and recovery procedure](docs/release-policy.md) fail closed
+  for data loss, A/V drift, audio dropout, dropped video frames, inaccessible
+  workflows, security boundary failures, and license/provenance failures. The
+  [policy regression](tests/release-severity-policy.test.js) requires zero open
+  critical or high defects and prevents waivers from redefining quality budgets.
 - **Shared — Planned:** add a threat model for malformed projects/media, archive
   expansion, native helpers, third-party plug-ins, path capabilities, and job
   cancellation.
