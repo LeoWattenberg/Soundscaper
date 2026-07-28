@@ -8,19 +8,23 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { EditorSnapshot } from '../src/common/editor/types.ts';
 import StorageCapacityPanel from '../src/common/editor/ui/workspace/StorageCapacityPanel.tsx';
 
-test('storage capacity panel renders the maintained signals and three safe actions', () => {
+test('storage capacity panel renders the maintained signals and four isolated safe actions', () => {
 	const snapshot = {
 		storage: {
 			usage: 512 * 1024 ** 2, quota: 1024 ** 3, free: 512 * 1024 ** 2,
 			pressure: 'normal', evictionProtection: 'best-effort', persistenceRequestAvailable: true,
 			updatedAt: 1, cleanupStatus: 'idle', cleanupAvailable: true, lastCleanupAt: null,
+			derivativeCleanupStatus: 'idle', derivativeCleanupAvailable: true,
+			lastDerivativeCleanupAt: null, lastDerivativeCleanup: null,
 			lastPreflight: { operation: 'export', requiredBytes: 256, requiredFreeBytes: 282, status: 'ready' },
 			state: 'indexeddb', backend: 'indexeddb', persistent: true, ephemeral: false, degradedReason: null,
 		},
 	} as unknown as EditorSnapshot;
 	const action = () => undefined;
 	const controller = {
-		actions: { storage: { refresh: action, requestPersistence: action, cleanupDisposable: action } },
+		actions: { storage: {
+			refresh: action, requestPersistence: action, cleanupDisposable: action, cleanupDerivatives: action,
+		} },
 	};
 	const markup = renderToStaticMarkup(React.createElement(StorageCapacityPanel, {
 		snapshot,
@@ -36,4 +40,5 @@ test('storage capacity panel renders the maintained signals and three safe actio
 	assert.match(markup, />Refresh estimate</u);
 	assert.match(markup, />Request persistent storage</u);
 	assert.match(markup, />Clean orphaned temporary files</u);
+	assert.match(markup, />Clear reproducible preview cache</u);
 });

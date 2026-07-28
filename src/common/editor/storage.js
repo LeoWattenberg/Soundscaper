@@ -220,6 +220,15 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.deleteDerivative(sourceId, selector);
 	}
 
+	/**
+	 * Enforce explicit limits on reproducible video previews only. Durable
+	 * projects, revision history, original media, and canonical PCM are outside
+	 * this repository operation by construction.
+	 */
+	async trimVideoDerivativeCache({ maximumBytes, maximumEntries, maximumAgeMs, now } = {}) {
+		return this.mediaRepository.trimDerivatives({ maximumBytes, maximumEntries, maximumAgeMs, now });
+	}
+
 	async *readSourceChunks(sourceId, { signal } = {}) {
 		yield* this.sourceRepository.chunks(sourceId, { signal });
 	}

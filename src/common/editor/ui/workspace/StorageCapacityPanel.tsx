@@ -8,6 +8,7 @@ interface StorageActionGroup {
 	refresh(): unknown;
 	requestPersistence(): unknown;
 	cleanupDisposable(): unknown;
+	cleanupDerivatives(): unknown;
 }
 
 interface StorageCapacityPanelProps {
@@ -53,6 +54,13 @@ export default function StorageCapacityPanel({
 				onClick={() => void run(() => controller.actions.storage.cleanupDisposable())}
 			>
 				{model.cleanupLabel}
+			</button>
+			<button
+				type="button"
+				disabled={model.derivativeCleanupDisabled}
+				onClick={() => void run(() => controller.actions.storage.cleanupDerivatives())}
+			>
+				{model.derivativeCleanupLabel}
 			</button>
 		</div>
 	</details>;

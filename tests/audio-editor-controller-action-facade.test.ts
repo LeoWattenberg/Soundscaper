@@ -82,6 +82,7 @@ test('controller action facade exposes explicit safe storage operations', async 
 		refreshStorageUsage: () => { calls.push('refresh'); },
 		requestStoragePersistence: () => { calls.push('persist'); },
 		cleanupDisposableStorage: () => { calls.push('cleanup'); },
+		cleanupDerivativeCache: () => { calls.push('cleanup-derivatives'); },
 	};
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
@@ -94,11 +95,18 @@ test('controller action facade exposes explicit safe storage operations', async 
 	const refresh = actions.storage.refresh;
 	const persist = actions.storage.requestPersistence;
 	const cleanup = actions.storage.cleanupDisposable;
-	if (typeof refresh !== 'function' || typeof persist !== 'function' || typeof cleanup !== 'function') {
+	const cleanupDerivatives = actions.storage.cleanupDerivatives;
+	if (
+		typeof refresh !== 'function'
+		|| typeof persist !== 'function'
+		|| typeof cleanup !== 'function'
+		|| typeof cleanupDerivatives !== 'function'
+	) {
 		throw new TypeError('Storage actions must be callable.');
 	}
 	await refresh();
 	await persist();
 	await cleanup();
-	assert.deepEqual(calls, ['refresh', 'persist', 'cleanup']);
+	await cleanupDerivatives();
+	assert.deepEqual(calls, ['refresh', 'persist', 'cleanup', 'cleanup-derivatives']);
 });

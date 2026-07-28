@@ -2,6 +2,11 @@
 
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
+	planDerivativeCacheEviction,
+	type DerivativeCacheCleanupReport,
+	type DerivativeCacheLimits,
+} from './derivative-cache-policy.ts';
+import {
 	binaryMetadata,
 	mediaAssetMetadata,
 	normalizeBlob,
@@ -126,6 +131,7 @@ export class MediaRepository {
 		const record: StorageRecord = {
 			...binaryMetadata(metadata),
 			...identity,
+			cacheToken: createCacheToken(),
 			storage: storedFile ? 'opfs' : 'indexeddb-blob',
 			path: storedFile?.path,
 			blob: storedFile ? undefined : blob,
@@ -145,6 +151,46 @@ export class MediaRepository {
 		}
 		if (previous?.path !== record.path) await this.#opfs.deleteBinaryRecords([previous]);
 		return videoDerivativeMetadata(record);
+	}
+
+	async trimDerivatives(
+		limits: Readonly<DerivativeCacheLimits>,
+	): Promise<Readonly<DerivativeCacheCleanupReport>> {
+		const plan = planDerivativeCacheEviction(await this.allDerivativeRecords(), limits);
+		const removed: StorageRecord[] = [];
+		if (plan.removals.length) {
+			const database = await this.#port.database();
+			if (!database) {
+				for (const expected of plan.removals) {
+					const key = expected.key as string;
+					const current = asStorageRecord(this.#port.memory.videoDerivatives.get(key));
+					if (!sameDerivativeCacheRecord(current, expected)) continue;
+					this.#port.memory.videoDerivatives.delete(key);
+					removed.push(clone(current));
+				}
+			} else {
+				await transact(database, 'videoDerivatives', 'readwrite', async ({ videoDerivatives }) => {
+					for (const expected of plan.removals) {
+						const key = expected.key as string;
+						const current = asStorageRecord(await request(videoDerivatives.get(key)));
+						if (!sameDerivativeCacheRecord(current, expected)) continue;
+						videoDerivatives.delete(key);
+						removed.push(clone(current));
+					}
+				});
+			}
+			await this.#opfs.deleteBinaryRecords(removed);
+		}
+		const afterPlan = planDerivativeCacheEviction(await this.allDerivativeRecords(), plan.limits);
+		return Object.freeze({
+			limits: plan.limits,
+			before: plan.before,
+			after: afterPlan.before,
+			removedBytes: removed.reduce((total, record) => total + Number(record.size), 0),
+			removedEntries: removed.length,
+			skippedEntries: plan.removals.length - removed.length,
+			satisfied: afterPlan.removals.length === 0,
+		});
 	}
 
 	async loadDerivative(sourceId: string, { timestamp = 0, type }: VideoDerivativeSelector = {}): Promise<BlobLike | null> {
@@ -241,6 +287,24 @@ function isStorageRecord(value: StorageRecord | null): value is StorageRecord {
 	return value !== null;
 }
 
+function sameDerivativeCacheRecord(
+	current: StorageRecord | null,
+	expected: Readonly<Record<string, unknown>>,
+): current is StorageRecord {
+	if (!current || current.key !== expected.key) return false;
+	if (typeof current.cacheToken === 'string' || typeof expected.cacheToken === 'string') {
+		return typeof current.cacheToken === 'string'
+			&& current.cacheToken === expected.cacheToken;
+	}
+	return current.sourceId === expected.sourceId
+		&& current.timestamp === expected.timestamp
+		&& current.type === expected.type
+		&& current.storage === expected.storage
+		&& (current.path || null) === (expected.path || null)
+		&& current.size === expected.size
+		&& current.committedAt === expected.committedAt;
+}
+
 function clone<Value>(value: Value): Value {
 	if (value === undefined || value === null) return value;
 	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
@@ -267,4 +331,9 @@ function nonEmptyString(value: unknown, message: string): string {
 	const text = typeof value === 'string' ? value.trim() : '';
 	if (!text) throw new TypeError(message);
 	return text;
+}
+
+function createCacheToken(): string {
+	if (globalThis.crypto?.randomUUID) return `cache-${globalThis.crypto.randomUUID()}`;
+	return `cache-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

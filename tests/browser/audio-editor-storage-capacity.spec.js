@@ -18,6 +18,7 @@ test.describe('Web Core storage visibility', () => {
 		await expect(panel.getByRole('button', { name: 'Refresh estimate', exact: true })).toBeVisible();
 		await expect(panel.getByRole('button', { name: 'Request persistent storage', exact: true })).toHaveCount(1);
 		await expect(panel.getByRole('button', { name: 'Clean orphaned temporary files', exact: true })).toBeVisible();
+		await expect(panel.getByRole('button', { name: 'Clear reproducible preview cache', exact: true })).toBeVisible();
 
 		await panel.getByRole('button', { name: 'Refresh estimate', exact: true }).click();
 		await expect(panel.getByText('Storage backend', { exact: true })).toBeVisible();

@@ -18,6 +18,15 @@ export interface StoragePreflightSnapshot {
 	readonly status: StoragePreflightStatus;
 }
 
+export interface StorageDerivativeCleanupReport {
+	readonly before: Readonly<{ readonly bytes: number; readonly entries: number }>;
+	readonly after: Readonly<{ readonly bytes: number; readonly entries: number }>;
+	readonly removedBytes: number;
+	readonly removedEntries: number;
+	readonly skippedEntries: number;
+	readonly satisfied: boolean;
+}
+
 export interface StorageCapacitySnapshot extends StorageEstimate {
 	readonly free: number | null;
 	readonly pressure: StoragePressure;
@@ -27,6 +36,10 @@ export interface StorageCapacitySnapshot extends StorageEstimate {
 	readonly cleanupStatus: StorageCleanupStatus;
 	readonly cleanupAvailable: boolean;
 	readonly lastCleanupAt: number | null;
+	readonly derivativeCleanupStatus: StorageCleanupStatus;
+	readonly derivativeCleanupAvailable: boolean;
+	readonly lastDerivativeCleanupAt: number | null;
+	readonly lastDerivativeCleanup: Readonly<StorageDerivativeCleanupReport> | null;
 	readonly lastPreflight: Readonly<StoragePreflightSnapshot> | null;
 }
 
@@ -46,6 +59,8 @@ export interface StorageCapacityServiceDependencies {
 	persistenceRequestAvailable?(): boolean;
 	cleanupDisposableStorage?(): Promise<void>;
 	disposableCleanupAvailable?(): boolean;
+	cleanupDerivativeCache?(): Promise<Readonly<StorageDerivativeCleanupReport>>;
+	derivativeCleanupAvailable?(): boolean;
 	isInactive(): boolean;
 	setSnapshot(snapshot: Readonly<StorageCapacitySnapshot>): void;
 	publish(): void;
@@ -58,6 +73,7 @@ export interface StorageCapacityService {
 	preflightStorage(requiredBytes: unknown, operation: StorageOperation): Promise<void>;
 	requestStoragePersistence(): Promise<Readonly<StorageCapacitySnapshot> | null>;
 	cleanupDisposableStorage(): Promise<Readonly<StorageCapacitySnapshot> | null>;
+	cleanupDerivativeCache(): Promise<Readonly<StorageCapacitySnapshot> | null>;
 }
 
 export function createInitialStorageCapacitySnapshot(): Readonly<StorageCapacitySnapshot> {
@@ -72,6 +88,10 @@ export function createInitialStorageCapacitySnapshot(): Readonly<StorageCapacity
 		cleanupStatus: 'idle',
 		cleanupAvailable: false,
 		lastCleanupAt: null,
+		derivativeCleanupStatus: 'idle',
+		derivativeCleanupAvailable: false,
+		lastDerivativeCleanupAt: null,
+		lastDerivativeCleanup: null,
 		lastPreflight: null,
 	});
 }
@@ -86,6 +106,7 @@ export function createStorageCapacityService(
 		preflightStorage,
 		requestStoragePersistence,
 		cleanupDisposableStorage,
+		cleanupDerivativeCache,
 	});
 
 	async function refreshStorageUsage(): Promise<Readonly<StorageCapacitySnapshot> | null> {
@@ -100,6 +121,7 @@ export function createStorageCapacityService(
 			evictionProtection: persistenceStatus(persisted, persistenceAvailable),
 			persistenceRequestAvailable: persistenceAvailable,
 			cleanupAvailable: canCleanupDisposableStorage(),
+			derivativeCleanupAvailable: canCleanupDerivativeCache(),
 			updatedAt: now(),
 		});
 	}
@@ -173,6 +195,26 @@ export function createStorageCapacityService(
 		}
 	}
 
+	async function cleanupDerivativeCache(): Promise<Readonly<StorageCapacitySnapshot> | null> {
+		if (!dependencies.cleanupDerivativeCache || !canCleanupDerivativeCache()) {
+			return update({ derivativeCleanupAvailable: false });
+		}
+		update({ derivativeCleanupStatus: 'running' });
+		try {
+			const report = await dependencies.cleanupDerivativeCache();
+			if (dependencies.isInactive()) return null;
+			update({
+				derivativeCleanupStatus: 'complete',
+				lastDerivativeCleanupAt: now(),
+				lastDerivativeCleanup: report,
+			});
+			return await refreshStorageUsage();
+		} catch (error) {
+			if (!dependencies.isInactive()) update({ derivativeCleanupStatus: 'failed' });
+			throw error;
+		}
+	}
+
 	function update(changes: Partial<StorageCapacitySnapshot>): Readonly<StorageCapacitySnapshot> {
 		snapshot = Object.freeze({ ...snapshot, ...changes });
 		dependencies.setSnapshot(snapshot);
@@ -211,6 +253,10 @@ export function createStorageCapacityService(
 
 	function canCleanupDisposableStorage(): boolean {
 		return dependencies.disposableCleanupAvailable?.() ?? Boolean(dependencies.cleanupDisposableStorage);
+	}
+
+	function canCleanupDerivativeCache(): boolean {
+		return dependencies.derivativeCleanupAvailable?.() ?? Boolean(dependencies.cleanupDerivativeCache);
 	}
 
 	function operationLabel(operation: StorageOperation): string {

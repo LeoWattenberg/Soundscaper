@@ -293,14 +293,20 @@ models or native implementations.
   publishes usage, quota, free space, pressure, eviction protection, fallback
   availability, and the last operation's required headroom. The maintained
   [workspace panel](src/common/editor/ui/workspace/StorageCapacityPanel.tsx)
-  exposes refresh, persistent-storage request, and orphaned-temporary cleanup
-  actions. Focused [service](tests/audio-editor-storage-capacity-service.test.ts),
+  exposes refresh, persistent-storage request, orphaned-temporary cleanup, and
+  a separate reproducible-preview-cache cleanup action. The strict-TS
+  [derivative policy](src/common/editor/storage/derivative-cache-policy.ts)
+  plans deterministic oldest-first eviction against exact byte, entry, and age
+  limits, rejects unsafe accounting, and uses compare-and-delete tokens so a
+  stale cleanup cannot remove a concurrent replacement. Focused
+  [service](tests/audio-editor-storage-capacity-service.test.ts),
   [runtime](tests/audio-editor-storage-capacity-runtime.test.ts), and
-  [storage-safety](tests/audio-editor-storage-persistence.test.ts) regressions
-  prove exact preflight headroom, honest memory fallback, and cleanup that
-  preserves projects, revisions, originals, canonical PCM, derivatives, and
-  active writes. Dedicated save, proxy, and render estimators plus disposable
-  derivative cache budgets and cleanup remain open.
+  [storage-safety](tests/audio-editor-video-storage.test.js) regressions prove
+  exact preflight headroom, honest memory fallback, IndexedDB/OPFS disposal,
+  and cleanup boundaries that preserve projects, revisions, originals,
+  canonical PCM, and active writes. Automatic derivative-budget enforcement on
+  each cache publication, bounded IndexedDB metadata paging for very large
+  legacy caches, and dedicated save, proxy, and render estimators remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

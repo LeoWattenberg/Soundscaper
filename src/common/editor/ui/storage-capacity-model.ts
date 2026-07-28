@@ -42,6 +42,8 @@ interface StorageCapacityUiCopy {
 	readonly requestPersistence: string;
 	readonly cleanup: string;
 	readonly cleanupRunning: string;
+	readonly derivativeCleanup: string;
+	readonly derivativeCleanupRunning: string;
 }
 
 export interface StorageCapacityViewModel {
@@ -57,10 +59,12 @@ export interface StorageCapacityViewModel {
 	readonly refreshLabel: string;
 	readonly requestPersistenceLabel: string;
 	readonly cleanupLabel: string;
+	readonly derivativeCleanupLabel: string;
 	readonly pressure: StoragePressure;
 	readonly cleanupStatus: StorageCleanupStatus;
 	readonly requestPersistenceDisabled: boolean;
 	readonly cleanupDisabled: boolean;
+	readonly derivativeCleanupDisabled: boolean;
 }
 
 const COPY: Readonly<Record<'de' | 'en', StorageCapacityUiCopy>> = Object.freeze({
@@ -75,6 +79,7 @@ const COPY: Readonly<Record<'de' | 'en', StorageCapacityUiCopy>> = Object.freeze
 		capacityLabel: 'Capacity', backendLabel: 'Storage backend', evictionLabel: 'Eviction protection',
 		preflightLabel: 'Last required free-space check', refresh: 'Refresh estimate',
 		requestPersistence: 'Request persistent storage', cleanup: 'Clean orphaned temporary files', cleanupRunning: 'Cleaning temporary files…',
+		derivativeCleanup: 'Clear reproducible preview cache', derivativeCleanupRunning: 'Clearing preview cache…',
 	}),
 	de: Object.freeze({
 		storage: 'Speicher', free: 'frei', usedOf: 'belegt von', estimateUnavailable: 'Speicherbelegung nicht verfügbar',
@@ -87,6 +92,7 @@ const COPY: Readonly<Record<'de' | 'en', StorageCapacityUiCopy>> = Object.freeze
 		capacityLabel: 'Kapazität', backendLabel: 'Speicher-Backend', evictionLabel: 'Verdrängungsschutz',
 		preflightLabel: 'Letzte Prüfung des Speicherbedarfs', refresh: 'Schätzung aktualisieren',
 		requestPersistence: 'Dauerhaften Speicher anfordern', cleanup: 'Verwaiste temporäre Dateien bereinigen', cleanupRunning: 'Temporäre Dateien werden bereinigt…',
+		derivativeCleanup: 'Reproduzierbaren Vorschau-Cache leeren', derivativeCleanupRunning: 'Vorschau-Cache wird geleert…',
 	}),
 });
 
@@ -110,10 +116,15 @@ export function createStorageCapacityViewModel(
 		refreshLabel: copy.refresh,
 		requestPersistenceLabel: copy.requestPersistence,
 		cleanupLabel: storage.cleanupStatus === 'running' ? copy.cleanupRunning : copy.cleanup,
+		derivativeCleanupLabel: storage.derivativeCleanupStatus === 'running'
+			? copy.derivativeCleanupRunning
+			: copy.derivativeCleanup,
 		pressure: storage.pressure,
 		cleanupStatus: storage.cleanupStatus,
 		requestPersistenceDisabled: !storage.persistenceRequestAvailable || storage.evictionProtection === 'granted',
 		cleanupDisabled: !storage.cleanupAvailable || storage.cleanupStatus === 'running',
+		derivativeCleanupDisabled: !storage.derivativeCleanupAvailable
+			|| storage.derivativeCleanupStatus === 'running',
 	});
 }
 

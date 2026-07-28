@@ -59,7 +59,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 	setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 	snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
-	startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage,
+	startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage, cleanupDerivativeCache,
 	store, stretchClip, swapTrackChannels, switchProject,
 	toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 	toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
@@ -257,6 +257,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			refresh: refreshStorageUsage,
 			requestPersistence: requestStoragePersistence,
 			cleanupDisposable: cleanupDisposableStorage,
+			cleanupDerivatives: cleanupDerivativeCache,
 		}),
 	timeline: Object.freeze({
 		selectTrack,

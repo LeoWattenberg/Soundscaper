@@ -19,6 +19,10 @@ test('storage capacity UI model exposes all Web Core storage signals', () => {
 		cleanupStatus: 'idle',
 		cleanupAvailable: true,
 		lastCleanupAt: null,
+		derivativeCleanupStatus: 'idle',
+		derivativeCleanupAvailable: true,
+		lastDerivativeCleanupAt: null,
+		lastDerivativeCleanup: null,
 		lastPreflight: {
 			operation: 'import',
 			requiredBytes: 512 * 1024 ** 2,
@@ -39,6 +43,8 @@ test('storage capacity UI model exposes all Web Core storage signals', () => {
 	assert.equal(model.preflight, 'Import: 512.0 MB requested · 564.0 MB required free · Ready');
 	assert.equal(model.requestPersistenceDisabled, false);
 	assert.equal(model.cleanupDisabled, false);
+	assert.equal(model.derivativeCleanupDisabled, false);
+	assert.equal(model.derivativeCleanupLabel, 'Clear reproducible preview cache');
 });
 
 test('storage capacity UI model makes memory fallback and unavailable estimates explicit', () => {
@@ -53,6 +59,10 @@ test('storage capacity UI model makes memory fallback and unavailable estimates 
 		cleanupStatus: 'idle',
 		cleanupAvailable: false,
 		lastCleanupAt: null,
+		derivativeCleanupStatus: 'idle',
+		derivativeCleanupAvailable: true,
+		lastDerivativeCleanupAt: null,
+		lastDerivativeCleanup: null,
 		lastPreflight: null,
 		state: 'memory-ephemeral',
 		backend: 'memory',
@@ -67,6 +77,8 @@ test('storage capacity UI model makes memory fallback and unavailable estimates 
 	assert.equal(model.preflight, 'Noch keine Speicherprüfung');
 	assert.equal(model.requestPersistenceDisabled, true);
 	assert.equal(model.cleanupDisabled, true);
+	assert.equal(model.derivativeCleanupDisabled, false);
+	assert.equal(model.derivativeCleanupLabel, 'Reproduzierbaren Vorschau-Cache leeren');
 });
 
 test('storage capacity UI model intentionally falls back to English for unsupported locales', () => {
@@ -74,6 +86,8 @@ test('storage capacity UI model intentionally falls back to English for unsuppor
 		usage: null, quota: null, free: null, pressure: 'unknown',
 		evictionProtection: 'unknown', persistenceRequestAvailable: false, updatedAt: null,
 		cleanupStatus: 'idle', cleanupAvailable: false, lastCleanupAt: null, lastPreflight: null,
+		derivativeCleanupStatus: 'idle', derivativeCleanupAvailable: false,
+		lastDerivativeCleanupAt: null, lastDerivativeCleanup: null,
 		state: 'indexeddb', backend: 'indexeddb', persistent: true, ephemeral: false, degradedReason: null,
 	}, 'fr-FR');
 	assert.equal(model.capacity, 'Storage estimate unavailable');

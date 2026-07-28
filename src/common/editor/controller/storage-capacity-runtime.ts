@@ -4,6 +4,7 @@ import {
 	createStorageCapacityService,
 	type StorageCapacityCopy,
 	type StorageCapacitySnapshot,
+	type StorageDerivativeCleanupReport,
 } from './storage-capacity-service.ts';
 
 interface StorageCapacityStore {
@@ -12,6 +13,10 @@ interface StorageCapacityStore {
 	requestPersistentStorage?(): Promise<boolean>;
 	supportsPersistentStorage?(): boolean;
 	cleanupTemporaryAssets?(): Promise<unknown>;
+	trimVideoDerivativeCache?(limits: Readonly<{
+		readonly maximumBytes: number;
+		readonly maximumEntries: number;
+	}>): Promise<Readonly<StorageDerivativeCleanupReport>>;
 	getStatus?(): Readonly<{ backend?: string }>;
 }
 
@@ -47,9 +52,25 @@ export function createControllerStorageCapacityService(options: StorageCapacityR
 			typeof store.cleanupTemporaryAssets === 'function'
 			&& store.getStatus?.().backend === 'indexeddb'
 		),
+		cleanupDerivativeCache: () => store.trimVideoDerivativeCache?.({
+			maximumBytes: 0,
+			maximumEntries: 0,
+		}) ?? Promise.resolve(emptyDerivativeCleanupReport()),
+		derivativeCleanupAvailable: () => typeof store.trimVideoDerivativeCache === 'function',
 		isInactive: options.isInactive,
 		setSnapshot: (snapshot) => { options.state.storageEstimate = snapshot; },
 		publish: options.publish,
 		copy: options.copy,
+	});
+}
+
+function emptyDerivativeCleanupReport(): Readonly<StorageDerivativeCleanupReport> {
+	return Object.freeze({
+		before: Object.freeze({ bytes: 0, entries: 0 }),
+		after: Object.freeze({ bytes: 0, entries: 0 }),
+		removedBytes: 0,
+		removedEntries: 0,
+		skippedEntries: 0,
+		satisfied: true,
 	});
 }

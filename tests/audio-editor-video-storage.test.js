@@ -144,6 +144,49 @@ test('deleting a media asset leaves PCM intact while deleting its media derivati
 	assert.deepEqual([...((await store.readSourceChunk('shared-source', 0)).channels[0])], [0.25, 0.5]);
 });
 
+test('derivative cache trimming reports exact disposal while preserving durable project media and PCM', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: uniqueDatabaseName('derivative-cache-memory'),
+	});
+	const writer = await store.beginSourceWrite('cache-source', { sampleRate: 48_000 });
+	await writer.write([Float32Array.of(0.25, 0.5)]);
+	await writer.commit();
+	await store.writeMediaAsset('cache-source', new Blob(['immutable-container']));
+	await store.saveProject({
+		id: 'cache-project',
+		revision: 1,
+		updatedAt: '2026-07-28T00:00:00.000Z',
+		sources: [{ id: 'cache-source' }],
+		clips: [],
+	});
+	const first = await store.saveVideoDerivative('cache-source', {
+		timestamp: 0,
+		type: 'poster',
+		blob: new Blob(['poster']),
+	});
+	await store.saveVideoDerivative('cache-source', {
+		timestamp: 1,
+		type: 'thumbnail',
+		blob: new Blob(['thumbnail']),
+	});
+	assert.equal('cacheToken' in first, false, 'internal compare-and-delete tokens are not public metadata');
+
+	const report = await store.trimVideoDerivativeCache({ maximumBytes: 0, maximumEntries: 0 });
+
+	assert.deepEqual(report.before, { bytes: 15, entries: 2 });
+	assert.deepEqual(report.after, { bytes: 0, entries: 0 });
+	assert.equal(report.removedBytes, 15);
+	assert.equal(report.removedEntries, 2);
+	assert.equal(report.skippedEntries, 0);
+	assert.equal(report.satisfied, true);
+	assert.deepEqual(await store.listVideoDerivatives('cache-source'), []);
+	assert.equal(await (await store.loadMediaAsset('cache-source')).text(), 'immutable-container');
+	assert.equal((await store.getSourceMetadata('cache-source')).frameCount, 2);
+	assert.equal((await store.loadProject('cache-project')).id, 'cache-project');
+});
+
 test('OPFS stores raw media and derivatives alongside PCM and cascades only requested files', async () => {
 	const files = new Map();
 	const sourceDirectory = createOpfsDirectory(files);
@@ -179,6 +222,38 @@ test('OPFS stores raw media and derivatives alongside PCM and cascades only requ
 	assert.equal((await store.getSourceMetadata('opfs-media')).storage, 'opfs-pcm-v1');
 	await store.deleteSource('opfs-media');
 	assert.equal(files.size, 0);
+});
+
+test('derivative cache trimming removes only derivative OPFS blobs', async () => {
+	const files = new Map();
+	const sourceDirectory = createOpfsDirectory(files);
+	const root = { async getDirectoryHandle() { return sourceDirectory; } };
+	const store = createProjectStore({
+		indexedDB: null,
+		databaseName: uniqueDatabaseName('derivative-cache-opfs'),
+		storageManager: { async getDirectory() { return root; } },
+	});
+	const writer = await store.beginSourceWrite('opfs-cache', { sampleRate: 48_000 });
+	await writer.write([Float32Array.of(0.5)]);
+	await writer.commit();
+	await store.writeMediaAsset('opfs-cache', new Blob(['container']));
+	await store.saveVideoDerivative('opfs-cache', {
+		timestamp: 0,
+		type: 'poster',
+		blob: new Blob(['poster']),
+	});
+	await store.saveVideoDerivative('opfs-cache', {
+		timestamp: 1,
+		type: 'thumbnail',
+		blob: new Blob(['thumbnail']),
+	});
+	assert.equal(files.size, 4);
+
+	await store.trimVideoDerivativeCache({ maximumBytes: 0, maximumEntries: 0 });
+
+	assert.equal(files.size, 2, 'canonical PCM and the immutable media container remain');
+	assert.equal(await (await store.loadMediaAsset('opfs-cache')).text(), 'container');
+	assert.equal((await store.getSourceMetadata('opfs-cache')).frameCount, 1);
 });
 
 function createOpfsDirectory(files) {

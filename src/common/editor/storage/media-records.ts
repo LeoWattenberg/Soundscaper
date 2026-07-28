@@ -72,6 +72,7 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 		'mimeType',
 		'committedAt',
 		'pendingProjectUntil',
+		'cacheToken',
 	]) delete value[key];
 	return value;
 }
@@ -79,6 +80,7 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 export function mediaAssetMetadata(record: StorageRecord): Record<string, unknown> {
 	const value = cloneValue(record) as Record<string, unknown>;
 	delete value.blob;
+	delete value.cacheToken;
 	return value;
 }
 

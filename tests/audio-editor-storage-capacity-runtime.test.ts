@@ -47,6 +47,36 @@ test('controller cleanup is a no-op on the memory fallback', async () => {
 	assert.equal(state.storageEstimate.cleanupAvailable, false);
 });
 
+test('controller derivative cleanup clears only the reproducible cache and is honest on memory fallback', async () => {
+	const calls: unknown[] = [];
+	const state = { storageEstimate: createInitialStorageCapacitySnapshot() };
+	const service = createControllerStorageCapacityService({
+		store: {
+			estimateStorage: async () => ({ usage: null, quota: null }),
+			trimVideoDerivativeCache: async (limits) => {
+				calls.push(limits);
+				return {
+					before: { bytes: 8, entries: 1 }, after: { bytes: 0, entries: 0 },
+					removedBytes: 8, removedEntries: 1, skippedEntries: 0, satisfied: true,
+				};
+			},
+			getStatus: () => ({ backend: 'memory' }),
+		},
+		state,
+		isInactive: () => false,
+		publish: () => undefined,
+		copy: copyFixture(),
+	});
+
+	await service.refreshStorageUsage();
+	await service.cleanupDerivativeCache();
+
+	assert.deepEqual(calls, [{ maximumBytes: 0, maximumEntries: 0 }]);
+	assert.equal(state.storageEstimate.derivativeCleanupAvailable, true);
+	assert.equal(state.storageEstimate.derivativeCleanupStatus, 'complete');
+	assert.equal(state.storageEstimate.lastDerivativeCleanup?.removedEntries, 1);
+});
+
 test('controller persistence stays unavailable when the project store uses memory', async () => {
 	let persistCalls = 0;
 	const state = { storageEstimate: createInitialStorageCapacitySnapshot() };

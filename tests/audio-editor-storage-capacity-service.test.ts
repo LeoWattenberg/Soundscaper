@@ -204,6 +204,40 @@ test('explicit persistence and disposable cleanup actions update visible state',
 	assert.ok(updates.some((snapshot) => snapshot.cleanupStatus === 'running'));
 });
 
+test('reproducible derivative cleanup has separate state and remains available for memory pressure', async () => {
+	let derivativeCleanupCalls = 0;
+	const updates: ReturnType<typeof createInitialStorageCapacitySnapshot>[] = [];
+	const service = createStorageCapacityService({
+		estimateStorage: async () => ({ usage: null, quota: null }),
+		cleanupDerivativeCache: async () => {
+			derivativeCleanupCalls += 1;
+			return {
+				before: { bytes: 15, entries: 2 }, after: { bytes: 0, entries: 0 },
+				removedBytes: 15, removedEntries: 2, skippedEntries: 0, satisfied: true,
+			};
+		},
+		isInactive: () => false,
+		setSnapshot: (value) => { updates.push(value); },
+		publish: () => undefined,
+		now: sequenceClock(),
+		copy: copyFixture(),
+	});
+
+	await service.refreshStorageUsage();
+	const result = await service.cleanupDerivativeCache();
+
+	assert.equal(derivativeCleanupCalls, 1);
+	assert.equal(result?.derivativeCleanupStatus, 'complete');
+	assert.equal(result?.derivativeCleanupAvailable, true);
+	assert.equal(result?.lastDerivativeCleanupAt, 2);
+	assert.deepEqual(result?.lastDerivativeCleanup, {
+		before: { bytes: 15, entries: 2 }, after: { bytes: 0, entries: 0 },
+		removedBytes: 15, removedEntries: 2, skippedEntries: 0, satisfied: true,
+	});
+	assert.ok(updates.some((snapshot) => snapshot.derivativeCleanupStatus === 'running'));
+	assert.equal(updates.some((snapshot) => snapshot.cleanupStatus === 'running'), false);
+});
+
 function copyFixture() {
 	return {
 		storageOperationRecording: 'Recording',
