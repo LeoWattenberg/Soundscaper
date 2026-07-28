@@ -14,7 +14,7 @@ export interface AdmBedRouter {
 	readonly channelOrder: readonly AdmBedChannel[];
 	readonly merger: ChannelMergerNode;
 	terminalChannelCount(kind: AdmTerminalStripKind, id: string): number | null;
-	routeTerminal(kind: AdmTerminalStripKind, id: string, source: AudioNode): boolean;
+	routeTerminal(kind: AdmTerminalStripKind, id: string, source: AudioNode, channelCount?: number): boolean;
 }
 
 export function createAdmBedRouter(
@@ -47,10 +47,10 @@ export function createAdmBedRouter(
 			const routes = assignments.get(stripKey(kind, id));
 			return routes?.length ? Math.max(...routes.map((route) => route.sourceChannel)) + 1 : null;
 		},
-		routeTerminal(kind: AdmTerminalStripKind, id: string, source: AudioNode): boolean {
+		routeTerminal(kind: AdmTerminalStripKind, id: string, source: AudioNode, channelCount?: number): boolean {
 			const routes = assignments.get(stripKey(kind, id));
 			if (!routes?.length) return false;
-			const splitterChannels = this.terminalChannelCount(kind, id)!;
+			const splitterChannels = Math.max(this.terminalChannelCount(kind, id)!, channelCount ?? 0);
 			const splitter = addNode(nodes, context.createChannelSplitter(splitterChannels));
 			configureDiscreteNode(splitter, splitterChannels);
 			connect(source, splitter);

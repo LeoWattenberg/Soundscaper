@@ -134,7 +134,7 @@ test('the ADM bed router maps terminal source channels into canonical bed order'
 	const dialogue = new MockNode('dialogue-output');
 	const music = new MockNode('music-output');
 	const reverb = new MockNode('reverb-output');
-	assert.equal(router.routeTerminal('track', 'dialogue', dialogue as unknown as AudioNode), true);
+	assert.equal(router.routeTerminal('track', 'dialogue', dialogue as unknown as AudioNode, 6), true);
 	assert.equal(router.routeTerminal('group', 'music', music as unknown as AudioNode), true);
 	assert.equal(router.routeTerminal('send', 'reverb', reverb as unknown as AudioNode), true);
 	assert.equal(router.routeTerminal('track', 'unassigned', new MockNode('unused') as unknown as AudioNode), false);
@@ -144,6 +144,7 @@ test('the ADM bed router maps terminal source channels into canonical bed order'
 	assert.deepEqual(merger.incoming.map(({ source }) => (source as unknown as { gain: MockParam }).gain.value).sort(), [0.5, 0.75, 1]);
 	assert.equal(masterInput.incoming[0]?.source, merger);
 	assert.deepEqual(dialogue.connections.map(({ target }) => target.kind), ['channel-splitter']);
+	assert.equal(dialogue.connections[0]?.target.channelCount, 6);
 	assert.equal(dialogue.connections[0]?.target.connections[0]?.output, 0);
 	assert.equal(music.connections[0]?.target.connections[0]?.output, 1);
 });
@@ -213,4 +214,28 @@ test('ordinary projects retain the direct master mix path', () => {
 	assert.equal(context.created.some((node) => node.kind === 'channel-splitter'), false);
 	assert.equal(context.created.some((node) => node.kind === 'stereo-panner'), true);
 	assert.ok(context.destination.incoming.length > 0);
+});
+
+test('authored mono and passthrough multichannel graphs never enter stereo panners', () => {
+	for (const [masterChannels, adm] of [
+		[1, authored('mono', [{
+			stripKind: 'track', stripId: 'track', sourceChannel: 0, bedChannel: 'M', gain: 1,
+		}])],
+		[6, { mode: 'passthrough' }],
+	] as const) {
+		const context = new MockContext();
+		buildProjectGraph(
+			context as unknown as BaseAudioContext,
+			context.destination as unknown as AudioNode,
+			{
+				sampleRate: 48_000, masterChannels, metadata: { adm },
+				sources: [{ id: 'source', channelCount: masterChannels }],
+				clips: [{ id: 'clip', sourceId: 'source' }],
+				tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'], effects: [], gain: 1, pan: 0 }],
+				master: { gain: 1, pan: 0, effects: [] },
+			},
+			{ metering: false },
+		);
+		assert.equal(context.created.some((node) => node.kind === 'stereo-panner'), false);
+	}
 });
