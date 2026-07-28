@@ -27,10 +27,10 @@ test('video effect parity fixtures remain byte-deterministic', () => {
 
 test('video effect parity metrics are normalized per channel and detect structural changes', () => {
 	const fixture = createVideoEffectParityFixture('gradient');
-	assert.deepEqual(
-		compareVideoEffectFrames(fixture.bytes, fixture.bytes, fixture.width, fixture.height),
-		{ ssim: 1, channelMae: { red: 0, green: 0, blue: 0, alpha: 0 } },
-	);
+	const identical = compareVideoEffectFrames(fixture.bytes, fixture.bytes, fixture.width, fixture.height);
+	assert.equal(identical.ssim, 1);
+	assert.deepEqual(identical.channelMae, { red: 0, green: 0, blue: 0, alpha: 0 });
+	assert.deepEqual(identical.channelMean.red, { preview: 0.5, export: 0.5 });
 
 	const changed = fixture.bytes.slice();
 	for (let offset = 0; offset < changed.length; offset += 4) changed[offset] = 255 - changed[offset];

@@ -20,6 +20,7 @@ import {
 	createMediaTrackV5,
 } from '../project-v5.js';
 import { createVideoEffect } from '../video-effects.js';
+import { createMediaClipV8 } from '../project-v8.ts';
 import type { AudioEditorCommand, AudioEditorCommandType, CommandObject } from './protocol.ts';
 
 type CommandFor<Type extends AudioEditorCommandType> = Extract<AudioEditorCommand, { readonly type: Type }>;
@@ -147,6 +148,7 @@ function normalizeTrackValue(value: CommandFactoryValue): CommandObject {
 }
 
 function normalizeClipValue(value: CommandFactoryValue): CommandObject {
+	if ((value.schemaVersion ?? 0) >= 8) return createMediaClipV8(value) as CommandObject;
 	if (Array.isArray(value.videoEffects) || (value.schemaVersion ?? 0) >= 5) {
 		return createMediaClipV5(value) as CommandObject;
 	}

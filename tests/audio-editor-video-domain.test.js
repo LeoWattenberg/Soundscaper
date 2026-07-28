@@ -179,7 +179,7 @@ test('video export plan describes layered composition, codecs, transparent fitti
 		format: 'webm',
 		range: { startFrame: 0, endFrame: 25_000 },
 	});
-	assert.equal(plan.version, 3);
+	assert.equal(plan.version, 4);
 	assert.equal(plan.format, 'webm');
 	assert.equal(plan.mimeType, 'video/webm');
 	assert.deepEqual(plan.codecs, {
@@ -283,7 +283,7 @@ test('video export plan carries ordered normalized effects and omits bypassed op
 		range: { startFrame: 0, endFrame: 1_000 },
 	});
 	const clip = plan.intervals[0].layers[0].clips[0];
-	assert.equal(plan.version, 3);
+	assert.equal(plan.version, 4);
 	assert.deepEqual(clip.videoEffects, [
 		{
 			id: 'pixelate-enabled',

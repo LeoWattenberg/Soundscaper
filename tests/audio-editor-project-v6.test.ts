@@ -6,6 +6,7 @@ import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV5ToV6,
 	migrateAudioEditorProjectV6ToV7,
+	migrateAudioEditorProjectV7ToV8,
 } from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
@@ -141,7 +142,7 @@ test('V5 migration adds null BEXT metadata without mutating legacy state', () =>
 	assert.equal(migrated.createdAt, v5.createdAt);
 	assert.equal(migrated.updatedAt, v5.updatedAt);
 	assert.deepEqual(migrateAudioEditorProject(v5), {
-		project: migrateAudioEditorProjectV6ToV7(migrated),
+		project: migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(migrated)),
 		migrated: true,
 		fromVersion: 5,
 		readOnly: false,
@@ -177,7 +178,7 @@ test('every legacy project schema migrates with uninitialized BEXT metadata', ()
 
 	for (const legacy of legacyProjects) {
 		const result = migrateAudioEditorProject(legacy);
-		assert.equal(result.project.schemaVersion, 7);
+		assert.equal(result.project.schemaVersion, 8);
 		assert.equal(result.project.metadata.bext, null);
 		assert.equal(result.project.metadata.adm, null);
 		assert.equal(result.migrated, true);
@@ -199,7 +200,7 @@ test('V6 loading clones canonical projects and preserves newer schemas read-only
 	});
 	assert.notStrictEqual(loadAudioEditorProjectV6(current).project, current);
 	assert.deepEqual(migrateAudioEditorProject(current), {
-		project: migrateAudioEditorProjectV6ToV7(current),
+		project: migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(current)),
 		migrated: true,
 		fromVersion: 6,
 		readOnly: false,
@@ -212,11 +213,11 @@ test('V6 loading clones canonical projects and preserves newer schemas read-only
 		readOnly: true,
 		reason: 'newer-schema',
 	});
-	const future = { ...current, schemaVersion: 8, futureData: { retained: true } };
+	const future = { ...current, schemaVersion: 9, futureData: { retained: true } };
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 8,
+		fromVersion: 9,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

@@ -87,6 +87,32 @@ test('maps all supported video effects to bounded preview passes', () => {
 		params1: [0, 0, 0, 0],
 		direction: [0, 0],
 	}]);
+	assert.deepEqual(videoEffectPasses(effect('chroma-key', { keyColor: 0x00ff00, similarity: 0.1, softness: 0.2 })), [{
+		code: 9, params0: [0x00ff00, 0.1, 0.2, 0], params1: [1, 0, 0, 0], direction: [0, 0],
+	}]);
+	assert.deepEqual(videoEffectPasses(effect('chroma-key'), { x: 2, y: 3 })[0].params1, [2, 0, 0, 0]);
+	assert.deepEqual(videoEffectPasses(effect('luma-key', { mode: 1, cutoff: 0.8, softness: 0.05 })), [{
+		code: 10, params0: [1, 0.8, 0.05, 0], params1: [0, 0, 0, 0], direction: [0, 0],
+	}]);
+	assert.deepEqual(videoEffectPasses(effect('spill-suppression', { screen: 0, strength: 0.75 })), [{
+		code: 11, params0: [0, 0.75, 0, 0], params1: [0, 0, 0, 0], direction: [0, 0],
+	}]);
+	assert.deepEqual(videoEffectPasses(effect('glow', { threshold: 0.7, sigma: 8, intensity: 0.5 }), { x: 0.5, y: 0.5 }), [
+		{ code: 12, params0: [0.7, 0, 0, 0], params1: [0, 0, 0, 0], direction: [0, 0], preserveSource: true },
+		{ code: 4, params0: [4, 0, 0, 0], params1: [2 / 3, 0, 0, 0], direction: [1, 0] },
+		{ code: 4, params0: [4, 0, 0, 0], params1: [2 / 3, 0, 0, 0], direction: [0, 1] },
+		{ code: 16, params0: [0.5, 0, 0, 0], params1: [0, 0, 0, 0], direction: [0, 0], auxiliary: true },
+	]);
+	assert.deepEqual(videoEffectPasses(effect('outline', { width: 4, color: 0xffffff, opacity: 1 }), { x: 0.5, y: 0.5 }), [
+		{ code: 13, params0: [2, 0xffffff, 1, 0], params1: [0, 0, 0, 0], direction: [0, 0], preserveSource: true },
+		{ code: 15, params0: [2, 0xffffff, 1, 0], params1: [0, 0, 0, 0], direction: [0, 0], auxiliary: true },
+	]);
+	assert.deepEqual(videoEffectPasses(effect('drop-shadow', { offsetX: 8, offsetY: -4, sigma: 6, opacity: 0.6, color: 0 }), { x: 0.5, y: 0.5 }), [
+		{ code: 14, params0: [4, -2, 3, 0], params1: [0, 0, 0, 0], direction: [0, 0], preserveSource: true },
+		{ code: 4, params0: [3, 0, 0, 0], params1: [2 / 3, 0, 0, 0], direction: [1, 0] },
+		{ code: 4, params0: [3, 0, 0, 0], params1: [2 / 3, 0, 0, 0], direction: [0, 1] },
+		{ code: 17, params0: [4, -2, 3, 0], params1: [0.6, 0, 0, 0], direction: [0, 0], auxiliary: true },
+	]);
 });
 
 test('expands Gaussian blur into scaled horizontal and vertical passes', () => {
@@ -128,6 +154,10 @@ test('skips disabled, unknown, and neutral preview passes', () => {
 	assert.deepEqual(videoEffectPasses(effect('sharpen', { amount: 0 })), []);
 	assert.deepEqual(videoEffectPasses(effect('vignette', { amount: 0 })), []);
 	assert.deepEqual(videoEffectPasses(effect('rgb-split', { offsetX: 0, offsetY: 0 })), []);
+	assert.deepEqual(videoEffectPasses(effect('spill-suppression', { strength: 0 })), []);
+	assert.deepEqual(videoEffectPasses(effect('glow', { threshold: 1, sigma: 8, intensity: 1 })), []);
+	assert.deepEqual(videoEffectPasses(effect('outline', { width: 0, opacity: 1 })), []);
+	assert.deepEqual(videoEffectPasses(effect('drop-shadow', { opacity: 0 })), []);
 	assert.deepEqual(videoEffectPasses(effect('color-adjust', {
 		brightness: 0,
 		contrast: 1,

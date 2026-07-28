@@ -209,15 +209,38 @@ test.describe('audio editor video composition workflow', () => {
 		await brightnessValue.fill('0.25');
 		await brightnessValue.press('Enter');
 		await expect(brightnessValue).toHaveValue('0.25');
+
+		await picker.getByRole('button').click();
+		await page.getByRole('option', { name: 'Chroma Key', exact: true }).click();
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		const chromaKey = rack.locator('[data-video-effect-type="chroma-key"]');
+		const keyColor = chromaKey.locator('[data-video-effect-param="keyColor"] input[type="text"]');
+		await keyColor.fill('#123456');
+		await keyColor.press('Enter');
+		await expect(keyColor).toHaveValue('#123456');
+		await keyColor.fill('#ABCDEF');
+		await keyColor.press('Escape');
+		await expect(keyColor).toHaveValue('#123456');
+		await keyColor.fill('#123');
+		await keyColor.blur();
+		await expect(dialog.getByRole('alert')).toContainText('#RRGGBB');
+		await expect(keyColor).toHaveValue('#123456');
+
+		await picker.getByRole('button').click();
+		await page.getByRole('option', { name: 'Luma Key', exact: true }).click();
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		const lumaMode = rack.locator('[data-video-effect-type="luma-key"] [data-video-effect-param="mode"] select');
+		await lumaMode.selectOption('1');
+		await expect(lumaMode).toHaveValue('1');
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 		await expect(dialog).toBeHidden();
 
 		const preview = editor.locator('[data-video-preview]');
 		const canvas = preview.locator('[data-video-preview-canvas]');
-		await expect(preview).toHaveAttribute('data-active-video-effect-count', '1');
+		await expect(preview).toHaveAttribute('data-active-video-effect-count', '3');
 		await expect(canvas).toHaveCount(1);
-		await expect.poll(() => preview.getAttribute('data-video-preview-renderer')).toMatch(/^(ready|fallback)$/);
-		await expect(canvas).toHaveAttribute('data-renderer-state', /^(ready|fallback)$/);
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready');
+		await expect(canvas).toHaveAttribute('data-renderer-state', 'ready');
 
 		if (await preview.getAttribute('data-video-preview-renderer') === 'ready') {
 			const canLoseContext = await canvas.evaluate((element) => {
@@ -248,13 +271,21 @@ test.describe('audio editor video composition workflow', () => {
 		const restoredDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
 		const restoredRack = restoredDialog.locator('[data-video-effect-rack]');
 		const restoredEffects = restoredRack.locator('[data-video-effect-id]');
-		await expect(restoredEffects).toHaveCount(2);
+		await expect(restoredEffects).toHaveCount(4);
 		await expect(restoredEffects.nth(0)).toHaveAttribute('data-video-effect-type', 'pixelate');
 		await expect(restoredEffects.nth(0)).toHaveAttribute('data-enabled', 'false');
 		await expect(restoredEffects.nth(1)).toHaveAttribute('data-video-effect-type', 'color-adjust');
 		await expect(restoredEffects.nth(1).locator(
 			'[data-video-effect-param="brightness"] input[type="number"]',
 		)).toHaveValue('0.25');
+		await expect(restoredEffects.nth(2)).toHaveAttribute('data-video-effect-type', 'chroma-key');
+		await expect(restoredEffects.nth(2).locator(
+			'[data-video-effect-param="keyColor"] input[type="text"]',
+		)).toHaveValue('#123456');
+		await expect(restoredEffects.nth(3)).toHaveAttribute('data-video-effect-type', 'luma-key');
+		await expect(restoredEffects.nth(3).locator(
+			'[data-video-effect-param="mode"] select',
+		)).toHaveValue('1');
 		expect(errors).toEqual([]);
 	});
 

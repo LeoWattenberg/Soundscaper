@@ -60,6 +60,7 @@ export {
  *   | import('./project-v5.js').AudioEditorProjectV5
  *   | import('./project-v6.ts').AudioEditorProjectV6
  *   | import('./project-v7.ts').AudioEditorProjectV7
+ *   | import('./project-v8.ts').AudioEditorProjectV8
  * } CurrentAudioEditorProject
  */
 
@@ -73,7 +74,7 @@ export {
  * @returns {Project}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (![2, 3, 4, 5, 6, 7].includes(project?.schemaVersion)) {
+	if (![2, 3, 4, 5, 6, 7, 8].includes(project?.schemaVersion)) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') {

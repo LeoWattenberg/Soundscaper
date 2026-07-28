@@ -2,7 +2,9 @@ import { getVideoExportFormat } from './video-export.js';
 import {
 	normalizeVideoEffects,
 	serializeVideoEffectsToFfmpegOperations,
+	VIDEO_EFFECT_V5_TYPES,
 } from './video-effects.js';
+import { appendVideoEffectOperation } from './video-effect-ffmpeg.ts';
 
 const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
 	mp4: Object.freeze({
@@ -197,53 +199,39 @@ function buildLayeredVideoFilterGraph(plan) {
 					`setpts=(PTS-STARTPTS)/${playbackRate}`,
 					`scale=w=${plan.width}:h=${plan.height}:force_original_aspect_ratio=decrease`,
 					'format=pix_fmts=rgba',
-					...(plan.version === 3
+					...(plan.version >= 3
 						? [`fps=fps=${ffmpegNumber(plan.frameRate, 'plan.canvas.frameRate')}`]
 						: []),
 				];
 				const outputFilters = [
 					`pad=w=${plan.width}:h=${plan.height}:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0`,
-					...(plan.version === 3 ? ['premultiply=inplace=1'] : []),
-					...(plan.version === 3
+					...(plan.version >= 3 ? ['premultiply=inplace=1'] : []),
+					...(plan.version >= 3
 						? []
 						: [`fps=fps=${ffmpegNumber(plan.frameRate, 'plan.canvas.frameRate')}`]),
 					'setsar=1',
 					`trim=duration=${ffmpegNumber(interval.durationSeconds, `plan.intervals[${intervalIndex}].durationSeconds`)}`,
 					'setpts=PTS-STARTPTS',
 				];
-				if (!effectOperations.some((operation) => operation.preserveAlpha)) {
+				if (effectOperations.length === 0) {
 					filters.push(
 						`[${inputLabelForClip(clip.inputIndex)}]`
-						+ [...inputFilters, ...effectOperations.map((operation) => operation.expression), ...outputFilters].join(',')
+						+ [...inputFilters, ...outputFilters].join(',')
 						+ `[${clipLabel}]`,
 					);
 				} else {
 					let effectInputLabel = `${clipLabel}_effect_input`;
-					filters.push(
-						`[${inputLabelForClip(clip.inputIndex)}]${inputFilters.join(',')}[${effectInputLabel}]`,
-					);
+					filters.push(`[${inputLabelForClip(clip.inputIndex)}]${inputFilters.join(',')}[${effectInputLabel}]`);
 					for (const [effectIndex, operation] of effectOperations.entries()) {
 						const effectOutputLabel = `${clipLabel}_effect_${effectIndex}`;
-						if (!operation.preserveAlpha) {
-							filters.push(`[${effectInputLabel}]${operation.expression}[${effectOutputLabel}]`);
-							effectInputLabel = effectOutputLabel;
-							continue;
-						}
-						const colorLabel = `${effectOutputLabel}_color`;
-						const alphaSourceLabel = `${effectOutputLabel}_alpha_source`;
-						const alphaLabel = `${effectOutputLabel}_alpha`;
-						const filteredColorLabel = `${effectOutputLabel}_filtered_color`;
-						filters.push(
-							`[${effectInputLabel}]format=pix_fmts=rgba,split=2[${colorLabel}][${alphaSourceLabel}]`,
-						);
-						filters.push(`[${alphaSourceLabel}]alphaextract[${alphaLabel}]`);
-						filters.push(
-							`[${colorLabel}]${operation.expression},format=pix_fmts=rgb24[${filteredColorLabel}]`,
-						);
-						filters.push(
-							`[${filteredColorLabel}][${alphaLabel}]alphamerge,format=pix_fmts=rgba,`
-							+ `setpts=PTS-STARTPTS[${effectOutputLabel}]`,
-						);
+						appendVideoEffectOperation({
+							filters,
+							inputLabel: effectInputLabel,
+							outputLabel: effectOutputLabel,
+							operation,
+							width: plan.width,
+							height: plan.height,
+						});
 						effectInputLabel = effectOutputLabel;
 					}
 					filters.push(`[${effectInputLabel}]${outputFilters.join(',')}[${clipLabel}]`);
@@ -345,7 +333,7 @@ function normalizeVideoExportPlan(plan) {
 	if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
 		throw new TypeError('Expected a video export plan.');
 	}
-	if (plan.version !== 1 && plan.version !== 2 && plan.version !== 3) {
+	if (plan.version !== 1 && plan.version !== 2 && plan.version !== 3 && plan.version !== 4) {
 		throw new RangeError(`Unsupported video export plan version: ${plan.version}.`);
 	}
 	const descriptor = getVideoExportFormat(plan.format);
@@ -403,7 +391,8 @@ function normalizeVideoExportPlan(plan) {
 		? { segments: normalizeSequentialSegments(plan, inputs) }
 		: {
 			intervals: normalizeCompositionIntervals(plan, inputs, durationSeconds, {
-				allowVideoEffects: plan.version === 3,
+				allowVideoEffects: plan.version >= 3,
+				allowedVideoEffectTypes: plan.version === 3 ? VIDEO_EFFECT_V5_TYPES : undefined,
 			}),
 		};
 
@@ -574,7 +563,9 @@ function normalizeCompositionClip(clip, name, inputs, options = {}) {
 		opacityStart: unitFiniteNumber(clip.opacityStart, `${name}.opacityStart`),
 		opacityEnd: unitFiniteNumber(clip.opacityEnd, `${name}.opacityEnd`),
 		videoEffects: options.allowVideoEffects
-			? normalizeVideoEffects(clip.videoEffects ?? [], `${name}.videoEffects`)
+			? normalizeVideoEffects(clip.videoEffects ?? [], `${name}.videoEffects`, {
+				allowedTypes: options.allowedVideoEffectTypes,
+			})
 			: [],
 	};
 }

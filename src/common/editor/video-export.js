@@ -186,7 +186,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 3,
+		version: 4,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,

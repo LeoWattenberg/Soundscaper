@@ -9,6 +9,8 @@ function parameter(label, labelKey, defaultValue, minimum, maximum, step, option
 		max: maximum,
 		step,
 		integer: Boolean(options.integer),
+		control: options.control || 'number',
+		...(options.options ? { options: Object.freeze(options.options) } : {}),
 		...(options.unit ? { unit: options.unit } : {}),
 	});
 }
@@ -48,9 +50,55 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 		offsetX: parameter('Horizontal offset', 'videoEffectParamOffsetX', 6, -64, 64, 1, { integer: true, unit: 'pixels' }),
 		offsetY: parameter('Vertical offset', 'videoEffectParamOffsetY', 0, -64, 64, 1, { integer: true, unit: 'pixels' }),
 	}),
+	'chroma-key': definition('chroma-key', 'Chroma Key', 'videoEffectChromaKey', 'chroma-key', {
+		keyColor: parameter('Key color', 'videoEffectParamKeyColor', 0x00ff00, 0, 0xffffff, 1, { integer: true, control: 'color' }),
+		similarity: parameter('Similarity', 'videoEffectParamSimilarity', 0.1, 0.01, 1, 0.01),
+		softness: parameter('Softness', 'videoEffectParamSoftness', 0.1, 0, 1, 0.01),
+	}),
+	'luma-key': definition('luma-key', 'Luma Key', 'videoEffectLumaKey', 'luma-key', {
+		mode: parameter('Mode', 'videoEffectParamMode', 0, 0, 1, 1, {
+			integer: true,
+			control: 'select',
+			options: Object.freeze([
+				Object.freeze({ value: 0, labelKey: 'videoEffectOptionDark', label: 'Dark' }),
+				Object.freeze({ value: 1, labelKey: 'videoEffectOptionBright', label: 'Bright' }),
+			]),
+		}),
+		cutoff: parameter('Cutoff', 'videoEffectParamCutoff', 0.2, 0, 1, 0.01),
+		softness: parameter('Softness', 'videoEffectParamSoftness', 0.1, 0, 1, 0.01),
+	}),
+	'spill-suppression': definition('spill-suppression', 'Spill Suppression', 'videoEffectSpillSuppression', 'spill-suppression', {
+		screen: parameter('Screen color', 'videoEffectParamScreen', 0, 0, 1, 1, {
+			integer: true,
+			control: 'select',
+			options: Object.freeze([
+				Object.freeze({ value: 0, labelKey: 'videoEffectOptionGreen', label: 'Green' }),
+				Object.freeze({ value: 1, labelKey: 'videoEffectOptionBlue', label: 'Blue' }),
+			]),
+		}),
+		strength: parameter('Strength', 'videoEffectParamStrength', 0.5, 0, 1, 0.01),
+	}),
+	glow: definition('glow', 'Glow', 'videoEffectGlow', 'luminance-bloom', {
+		threshold: parameter('Threshold', 'videoEffectParamThreshold', 0.7, 0, 1, 0.01),
+		sigma: parameter('Radius', 'videoEffectParamSigma', 8, 0, 20, 0.1, { unit: 'pixels' }),
+		intensity: parameter('Intensity', 'videoEffectParamIntensity', 0.5, 0, 1, 0.01),
+	}),
+	outline: definition('outline', 'Outline', 'videoEffectOutline', 'alpha-underlay', {
+		width: parameter('Width', 'videoEffectParamWidth', 4, 0, 16, 1, { integer: true, unit: 'pixels' }),
+		color: parameter('Color', 'videoEffectParamColor', 0xffffff, 0, 0xffffff, 1, { integer: true, control: 'color' }),
+		opacity: parameter('Opacity', 'videoEffectParamOpacity', 1, 0, 1, 0.01),
+	}),
+	'drop-shadow': definition('drop-shadow', 'Drop Shadow', 'videoEffectDropShadow', 'alpha-underlay', {
+		offsetX: parameter('Horizontal offset', 'videoEffectParamOffsetX', 8, -64, 64, 1, { integer: true, unit: 'pixels' }),
+		offsetY: parameter('Vertical offset', 'videoEffectParamOffsetY', 8, -64, 64, 1, { integer: true, unit: 'pixels' }),
+		sigma: parameter('Radius', 'videoEffectParamSigma', 6, 0, 20, 0.1, { unit: 'pixels' }),
+		opacity: parameter('Opacity', 'videoEffectParamOpacity', 0.6, 0, 1, 0.01),
+		color: parameter('Color', 'videoEffectParamColor', 0x000000, 0, 0xffffff, 1, { integer: true, control: 'color' }),
+	}),
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
+export const VIDEO_EFFECT_V5_TYPES = Object.freeze(VIDEO_EFFECT_TYPES.slice(0, 6));
 
 function plainClone(value) {
 	if (value === undefined || value === null) return value;
@@ -144,7 +192,7 @@ export function createVideoEffect(type, options = {}) {
 	};
 }
 
-export function normalizeVideoEffect(effect, name = 'videoEffect') {
+export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
 	if (!effect || typeof effect !== 'object' || Array.isArray(effect)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -154,6 +202,10 @@ export function normalizeVideoEffect(effect, name = 'videoEffect') {
 	}
 	const id = nonEmptyString(effect.id, `${name}.id`);
 	const type = nonEmptyString(effect.type, `${name}.type`);
+	videoEffectDefinition(type);
+	if (options.allowedTypes && !options.allowedTypes.includes(type)) {
+		throw new RangeError(`${name}.type is not supported by this schema: ${type}.`);
+	}
 	if (typeof effect.enabled !== 'boolean') throw new TypeError(`${name}.enabled must be a boolean.`);
 	if (
 		!Object.hasOwn(effect, 'params')
@@ -169,9 +221,9 @@ export function normalizeVideoEffect(effect, name = 'videoEffect') {
 	};
 }
 
-export function normalizeVideoEffects(effects, name = 'videoEffects') {
+export function normalizeVideoEffects(effects, name = 'videoEffects', options = {}) {
 	if (!Array.isArray(effects)) throw new TypeError(`${name} must be an array.`);
-	const normalized = effects.map((effect, index) => normalizeVideoEffect(effect, `${name}[${index}]`));
+	const normalized = effects.map((effect, index) => normalizeVideoEffect(effect, `${name}[${index}]`, options));
 	const ids = new Set();
 	for (const effect of normalized) {
 		if (ids.has(effect.id)) throw new RangeError(`${name} cannot contain duplicate IDs: ${effect.id}.`);
@@ -274,6 +326,55 @@ function serializeVideoEffectToFfmpegOperations(effect, name) {
 				preserveAlpha: false,
 			}];
 		}
+		case 'chroma-key':
+			return [{
+				kind: 'multiply-alpha-matte',
+				matte: 'chroma-key',
+				color: params.keyColor,
+				similarity: params.similarity,
+				softness: params.softness,
+			}];
+		case 'luma-key':
+			return [{
+				kind: 'multiply-alpha-matte',
+				matte: 'luma-key',
+				mode: params.mode,
+				cutoff: params.cutoff,
+				softness: params.softness,
+			}];
+		case 'spill-suppression':
+			return params.strength === 0 ? [] : [{
+				kind: 'preserve-alpha',
+				filter: 'spill-suppression',
+				screen: params.screen,
+				strength: params.strength,
+			}];
+		case 'luminance-bloom':
+			return params.intensity === 0 || params.threshold === 1 ? [] : [{
+				kind: 'luminance-bloom',
+				threshold: params.threshold,
+				sigma: params.sigma,
+				intensity: params.intensity,
+			}];
+		case 'alpha-underlay':
+			if (effect.type === 'outline') {
+				return params.width === 0 || params.opacity === 0 ? [] : [{
+					kind: 'alpha-underlay',
+					shape: 'outline',
+					width: params.width,
+					color: params.color,
+					opacity: params.opacity,
+				}];
+			}
+			return params.opacity === 0 ? [] : [{
+				kind: 'alpha-underlay',
+				shape: 'drop-shadow',
+				offsetX: params.offsetX,
+				offsetY: params.offsetY,
+				sigma: params.sigma,
+				color: params.color,
+				opacity: params.opacity,
+			}];
 		default:
 			throw new RangeError(`Unsupported FFmpeg video effect mapping: ${definitionValue.ffmpegFilter}.`);
 	}

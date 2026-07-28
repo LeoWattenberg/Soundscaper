@@ -70,6 +70,36 @@
 	text-transform: none;
 }
 
+#kw-audio-editor-design-system .audio-editor-video-effect__param > select,
+#kw-audio-editor-design-system .audio-editor-video-effect__color input {
+	box-sizing: border-box;
+	height: 26px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+	font: 500 11px/1.2 Inter, sans-serif;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-video-effect__color {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+#kw-audio-editor-design-system .audio-editor-video-effect__color input[type='color'] {
+	width: 32px;
+	padding: 2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-video-effect__color input[type='text'] {
+	width: 82px;
+	padding: 3px 5px;
+	text-transform: uppercase;
+}
+
 #kw-audio-editor-design-system .audio-editor-video-effect[data-enabled='false'] .audio-editor-video-effect__params {
 	opacity: 0.55;
 }

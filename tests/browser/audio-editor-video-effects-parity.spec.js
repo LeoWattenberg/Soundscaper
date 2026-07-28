@@ -22,6 +22,10 @@ const RUNTIME_ROUTES = new Map([
 		file: new URL('../../src/common/editor/ui/video-preview-compositor.js', import.meta.url),
 		contentType: 'text/javascript',
 	}],
+	[`${PARITY_ROUTE_ROOT}/video-preview-effects.js`, {
+		file: new URL('../../src/common/editor/ui/video-preview-effects.js', import.meta.url),
+		contentType: 'text/javascript',
+	}],
 	[`${PARITY_ROUTE_ROOT}/ffmpeg/classes.js`, {
 		file: new URL('../../node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js', import.meta.url),
 		contentType: 'text/javascript',
@@ -102,10 +106,35 @@ const PARITY_CASES = Object.freeze([
 		offsetX: -64,
 		offsetY: 64,
 	})),
+	parityCase('chroma-key-default', 'color-chart', effect('chroma-key')),
+	parityCase('chroma-key-default-gradient', 'gradient', effect('chroma-key')),
+	parityCase('chroma-key-hard-boundary', 'color-chart', effect('chroma-key', { similarity: 0.01, softness: 0 })),
+	parityCase('chroma-key-wide-boundary', 'color-chart', effect('chroma-key', { similarity: 1, softness: 1 })),
+	parityCase('luma-key-dark-default', 'gradient', effect('luma-key')),
+	parityCase('luma-key-bright', 'gradient', effect('luma-key', { mode: 1, cutoff: 0.8 })),
+	parityCase('spill-suppression-default', 'color-chart', effect('spill-suppression')),
+	parityCase('spill-suppression-blue-boundary', 'color-chart', effect('spill-suppression', { screen: 1, strength: 1 })),
+	parityCase('glow-default', 'edge', effect('glow')),
+	parityCase('glow-upper-boundary', 'edge', effect('glow', { threshold: 0, sigma: 20, intensity: 1 })),
+	parityCase('outline-default', 'transparency', effect('outline')),
+	parityCase('outline-upper-boundary', 'transparency', effect('outline', { width: 16, color: 0xff0080, opacity: 1 })),
+	parityCase('drop-shadow-default', 'transparency', effect('drop-shadow')),
+	parityCase('drop-shadow-hard-boundary', 'transparency', effect('drop-shadow', { offsetX: -64, offsetY: 64, sigma: 0, opacity: 1, color: 0x4080ff })),
 	parityCase(
-		'complete-default-stack',
+		'first-batch-default-stack',
 		'gradient',
-		...VIDEO_EFFECT_TYPES.map((type) => effect(type)),
+		...VIDEO_EFFECT_TYPES.slice(0, 6).map((type) => effect(type)),
+	),
+	parityCase(
+		'second-batch-default-stack',
+		'gradient',
+		...VIDEO_EFFECT_TYPES.slice(6).map((type) => effect(type)),
+	),
+	parityCase(
+		'keying-default-stack',
+		'gradient',
+		effect('chroma-key'),
+		effect('luma-key'),
 	),
 ]);
 
@@ -163,7 +192,12 @@ test('WebGL preview stays within the calibrated FFmpeg golden-frame thresholds',
 			});
 		}
 	};
-	for (const parity of PARITY_CASES) {
+	const caseFilter = process.env.SOUNDSCAPER_VIDEO_EFFECT_PARITY_CASE;
+	const selectedCaseNames = new Set(caseFilter?.split(',').map((name) => name.trim()).filter(Boolean));
+	const parityCases = caseFilter
+		? PARITY_CASES.filter((parity) => selectedCaseNames.has(parity.name))
+		: PARITY_CASES;
+	for (const parity of parityCases) {
 		const fixture = createVideoEffectParityFixture(parity.fixture);
 		const graph = effectFilterGraph(parity.effects, fixture.width, fixture.height);
 		const rendered = await renderParityCase(page, {
@@ -182,35 +216,37 @@ test('WebGL preview stays within the calibrated FFmpeg golden-frame thresholds',
 	}
 
 	const scaledFixture = createVideoEffectParityFixture('gradient');
-	const scaledEffects = VIDEO_EFFECT_TYPES.map((type) => effect(type));
-	const scaledRendered = await renderParityCase(page, {
-		name: 'scaled-letterboxed-complete-stack',
-		graph: effectFilterGraph(scaledEffects, scaledFixture.width, scaledFixture.height),
-		width: scaledFixture.width,
-		height: scaledFixture.height,
-		panelWidth: scaledFixture.width * 2,
-		panelHeight: scaledFixture.height * 2 + 32,
-		inputBase64: Buffer.from(scaledFixture.bytes).toString('base64'),
-		effects: scaledEffects,
-	});
-	expect(
-		scaledRendered.letterboxMismatchedPixels,
-		'The physical-panel letterbox must remain opaque black outside the export canvas.',
-	).toBe(0);
-	await collectResult(
-		{
-			name: 'scaled-letterboxed-complete-stack',
-			fixture: 'gradient',
+	const scaledCases = [
+		['scaled-letterboxed-first-batch-stack', VIDEO_EFFECT_TYPES.slice(0, 6).map((type) => effect(type))],
+		...VIDEO_EFFECT_TYPES.slice(6).map((type) => [`scaled-letterboxed-${type}`, [effect(type)]]),
+	];
+	for (const [name, scaledEffects] of caseFilter
+		? scaledCases.filter(([name]) => selectedCaseNames.has(name))
+		: scaledCases) {
+		const scaledRendered = await renderParityCase(page, {
+			name,
+			graph: effectFilterGraph(scaledEffects, scaledFixture.width, scaledFixture.height),
+			width: scaledFixture.width,
+			height: scaledFixture.height,
+			panelWidth: scaledFixture.width * 2,
+			panelHeight: scaledFixture.height * 2 + 32,
+			inputBase64: Buffer.from(scaledFixture.bytes).toString('base64'),
 			effects: scaledEffects,
-			panelScale: 2,
-		},
-		scaledRendered,
-		scaledFixture.width,
-		scaledFixture.height,
-	);
+		});
+		expect(
+			scaledRendered.letterboxMismatchedPixels,
+			'The physical-panel letterbox must remain opaque black outside the export canvas.',
+		).toBe(0);
+		await collectResult(
+			{ name, fixture: 'gradient', effects: scaledEffects, panelScale: 2 },
+			scaledRendered,
+			scaledFixture.width,
+			scaledFixture.height,
+		);
+	}
 
 	const alternateTransparency = alternateTransparencyFixture(transparencyFixture);
-	for (const composition of [
+	for (const composition of caseFilter ? [] : [
 		{
 			name: 'transparent-layered-clips',
 			kind: 'layered',
@@ -313,7 +349,7 @@ function effect(type, params = {}) {
 
 function effectFilterGraph(effects, width, height) {
 	const plan = {
-		version: 3,
+		version: 4,
 		format: 'mp4',
 		container: 'mp4',
 		durationSeconds: 1,
@@ -619,7 +655,8 @@ async function renderCompositionParityCase(page, parity) {
 				outputName,
 			]);
 			if (exitCode !== 0) {
-				throw new Error(`FFmpeg exited with ${exitCode}: ${runtime.logs.slice(logOffset).join('\n')}`);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				throw new Error(`${name}: FFmpeg exited with ${exitCode}: ${runtime.logs.slice(logOffset).join('\n')}`);
 			}
 			const exported = await runtime.ffmpeg.readFile(outputName);
 			if (!(exported instanceof Uint8Array) || exported.length !== width * height * 4) {

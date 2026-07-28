@@ -24,6 +24,7 @@ import {
 	createMediaSourceV5,
 	createMediaTrackV5,
 } from '../project-v5.js';
+import { createMediaClipV8 } from '../project-v8.ts';
 import {
 	cloneVideoEffects,
 } from '../video-effects.js';
@@ -312,7 +313,14 @@ export function normalizeTrackForProject(project, value) {
 }
 
 export function normalizeClipForProject(project, value) {
-	return project.schemaVersion >= 5
+	return project.schemaVersion >= 8
+		? createMediaClipV8({
+			...value,
+			kind: value?.kind || 'audio',
+			binItemId: value?.binItemId ?? null,
+			avLinkId: value?.avLinkId ?? null,
+		})
+		: project.schemaVersion >= 5
 		? createMediaClipV5({
 			...value,
 			kind: value?.kind || 'audio',

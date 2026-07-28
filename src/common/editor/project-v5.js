@@ -13,7 +13,7 @@ import {
 	createVideoTrackV4,
 	validateAudioEditorProjectV4,
 } from './project-v4.js';
-import { normalizeVideoEffects } from './video-effects.js';
+import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
 
 export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = 5;
 export const AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_SCHEMA_VERSION;
@@ -71,6 +71,7 @@ export function createVideoClipV5(options = {}) {
 		videoEffects: normalizeVideoEffects(
 			Object.hasOwn(options, 'videoEffects') ? options.videoEffects : [],
 			'clip.videoEffects',
+			{ allowedTypes: VIDEO_EFFECT_V5_TYPES },
 		),
 	};
 }
@@ -151,7 +152,9 @@ export function validateAudioEditorProjectV5(project) {
 		if (!Array.isArray(clip.videoEffects)) {
 			throw new TypeError(`Video clip ${clip.id}.videoEffects must be an array.`);
 		}
-		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`);
+		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`, {
+			allowedTypes: VIDEO_EFFECT_V5_TYPES,
+		});
 	}
 	return true;
 }

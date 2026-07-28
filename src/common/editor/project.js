@@ -1,6 +1,6 @@
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { createStableId } from './stable-id.js';
-import { normalizeVideoEffects } from './video-effects.js';
+import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
 import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './adm-project-metadata.ts';
 export { createStableId } from './stable-id.js';
@@ -280,9 +280,10 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 2) return validateProjectV2Shape(project);
 	if (project.schemaVersion === 3) return validateProjectV3Shape(project);
 	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
-	if (project.schemaVersion === 5) return validateProjectV5Shape(project);
-	if (project.schemaVersion === 6) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata);
-	if (project.schemaVersion === 7) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
+	if (project.schemaVersion === 5) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES);
+	if (project.schemaVersion === 6) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata);
+	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
+	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -585,15 +586,14 @@ function validateProjectV4Shape(project) {
 	validateV4BinItems(project.projectBin.clips);
 	return true;
 }
-
-function validateProjectV5Shape(project) {
+function validateProjectV5Shape(project, allowedTypes) {
 	validateProjectV4Shape(project);
 	for (const clip of [...project.clips, ...project.projectBin.clips]) {
 		if (clip.kind !== 'video') continue;
 		if (!Array.isArray(clip.videoEffects)) {
 			throw new TypeError(`Video clip ${clip.id}.videoEffects must be an array.`);
 		}
-		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`);
+		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`, { allowedTypes });
 	}
 	return true;
 }

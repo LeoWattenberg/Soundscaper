@@ -39,9 +39,13 @@ export function compareVideoEffectFrames(actual, expected, width, height) {
 	}
 
 	const channelAbsoluteError = [0, 0, 0, 0];
+	const actualChannelTotal = [0, 0, 0, 0];
+	const expectedChannelTotal = [0, 0, 0, 0];
 	for (let offset = 0; offset < expectedLength; offset += 4) {
 		for (let channel = 0; channel < 4; channel += 1) {
 			channelAbsoluteError[channel] += Math.abs(actual[offset + channel] - expected[offset + channel]);
+			actualChannelTotal[channel] += actual[offset + channel];
+			expectedChannelTotal[channel] += expected[offset + channel];
 		}
 	}
 	const pixelCount = width * height;
@@ -49,6 +53,12 @@ export function compareVideoEffectFrames(actual, expected, width, height) {
 		ssim: structuralSimilarity(actual, expected, width, height),
 		channelMae: Object.fromEntries(['red', 'green', 'blue', 'alpha'].map((channel, index) => (
 			[channel, channelAbsoluteError[index] / (pixelCount * 255)]
+		))),
+		channelMean: Object.fromEntries(['red', 'green', 'blue', 'alpha'].map((channel, index) => (
+			[channel, {
+				preview: actualChannelTotal[index] / (pixelCount * 255),
+				export: expectedChannelTotal[index] / (pixelCount * 255),
+			}]
 		))),
 	};
 }

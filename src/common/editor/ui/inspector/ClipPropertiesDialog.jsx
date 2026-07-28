@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, DialogFooter } from '@dilsonspickles/components';
-import {
-	AUDIO_EDITOR_SAMPLE_RATE,
-	findClip,
-	findClipTrack,
-	findSource,
-} from '../../project.js';
-import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
+import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { ActionHook, CommitField, DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
+import { VideoEffectRack } from './VideoEffectRack.jsx';
 import {
 	dbToLinear,
 	framesToSecondsText,
@@ -27,12 +22,7 @@ export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClo
 			width={720}
 			className="audio-editor-clip-properties-dialog"
 			dataAttributes={{ 'data-clip-properties-dialog': '' }}
-			footer={(
-				<DialogFooter
-					className="audio-editor-dialog-footer"
-					rightContent={<Button variant="primary" onClick={onClose}>{copy.done}</Button>}
-				/>
-			)}
+			footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button variant="primary" onClick={onClose}>{copy.done}</Button>} />}
 		>
 			<ClipProperties controller={controller} snapshot={snapshot} copy={copy} />
 		</AudioEditorDialogShell>
@@ -92,9 +82,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 	const run = (action) => {
 		if (!clip || disabled) return;
 		setError('');
-		Promise.resolve(action(clip.id)).catch((cause) => {
-			setError(cause instanceof Error ? cause.message : String(cause));
-		});
+		Promise.resolve(action(clip.id)).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
 	};
 
 	return (
@@ -133,13 +121,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)} /></div>
 					</div>
 				</section>}
-				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack
-					clip={clip}
-					controller={controller}
-					copy={copy}
-					disabled={disabled}
-					onError={setError}
-				/>}
+				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
 			</div>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			{!isVideoClip && snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions">
@@ -151,301 +133,6 @@ function ClipProperties({ controller, snapshot, copy }) {
 			</div>}
 		</div>
 	);
-}
-
-function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
-	const effects = clip.videoEffects || [];
-	const [effectType, setEffectType] = useState(VIDEO_EFFECT_TYPES[0] || '');
-	const effectActions = controller.actions.video?.effects;
-	const mutationDisabled = disabled || !effectActions;
-	const effectOptions = useMemo(() => VIDEO_EFFECT_TYPES.map((type) => {
-		const descriptor = videoEffectDefinition(type);
-		return { value: type, label: videoEffectLabel(descriptor, copy) };
-	}), [copy]);
-
-	useEffect(() => {
-		if (!VIDEO_EFFECT_TYPES.includes(effectType)) setEffectType(VIDEO_EFFECT_TYPES[0] || '');
-	}, [effectType]);
-
-	const runEffectAction = (work) => {
-		if (mutationDisabled) return;
-		onError('');
-		try {
-			Promise.resolve(work()).catch((cause) => {
-				onError(cause instanceof Error ? cause.message : String(cause));
-			});
-		} catch (cause) {
-			onError(cause instanceof Error ? cause.message : String(cause));
-		}
-	};
-
-	return (
-		<section
-			className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide audio-editor-video-effects"
-			data-video-effect-rack
-		>
-			<div className="audio-editor-video-effects__heading">
-				<div>
-					<h3>{copy.videoEffects}</h3>
-					<p>{copy.videoEffectsHint}</p>
-				</div>
-				<div className="audio-editor-video-effects__add">
-					<LabeledDropdown
-						label={copy.chooseEffect}
-						options={effectOptions}
-						value={effectType}
-						onChange={setEffectType}
-						disabled={mutationDisabled}
-						hook="video-effect-picker"
-					/>
-					<Button
-						variant="secondary"
-						disabled={mutationDisabled || !effectType}
-						onClick={() => runEffectAction(() => effectActions.add(clip.id, effectType))}
-					>{copy.addEffect}</Button>
-				</div>
-			</div>
-			{effects.length === 0 && (
-				<p className="audio-editor-panel-hint" data-video-effect-empty>{copy.videoEffectsEmpty}</p>
-			)}
-			{effects.length > 0 && (
-				<ol className="audio-editor-video-effects__list">
-					{effects.map((effect, index) => (
-						<VideoEffectRow
-							key={effect.id}
-							effect={effect}
-							clipId={clip.id}
-							index={index}
-							count={effects.length}
-							actions={effectActions}
-							copy={copy}
-							disabled={mutationDisabled}
-							onError={onError}
-							onRun={runEffectAction}
-						/>
-					))}
-				</ol>
-			)}
-		</section>
-	);
-}
-
-function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun }) {
-	const descriptor = videoEffectDefinition(effect.type);
-	const label = videoEffectLabel(descriptor, copy);
-	return (
-		<li
-			className="audio-editor-video-effect"
-			data-video-effect-id={effect.id}
-			data-video-effect-type={effect.type}
-			data-enabled={effect.enabled !== false ? 'true' : 'false'}
-		>
-			<header className="audio-editor-video-effect__header">
-				<DesignCheckbox
-					label={label}
-					checked={effect.enabled !== false}
-					disabled={disabled}
-					onChange={(checked) => onRun(() => actions.toggle(clipId, effect.id, checked))}
-				/>
-				<div className="audio-editor-video-effect__actions">
-					<button
-						type="button"
-						disabled={disabled || index === 0}
-						aria-label={`${copy.moveEffectUp}: ${label}`}
-						title={copy.moveEffectUp}
-						onClick={() => onRun(() => actions.reorder(clipId, effect.id, index - 1))}
-					>↑</button>
-					<button
-						type="button"
-						disabled={disabled || index === count - 1}
-						aria-label={`${copy.moveEffectDown}: ${label}`}
-						title={copy.moveEffectDown}
-						onClick={() => onRun(() => actions.reorder(clipId, effect.id, index + 1))}
-					>↓</button>
-					<button
-						type="button"
-						disabled={disabled}
-						aria-label={`${copy.removeEffect}: ${label}`}
-						title={copy.removeEffect}
-						onClick={() => onRun(() => actions.remove(clipId, effect.id))}
-					>×</button>
-				</div>
-			</header>
-			<div className="audio-editor-video-effect__params">
-				{Object.entries(descriptor.params).map(([name, parameter]) => (
-					<VideoEffectSlider
-						key={name}
-						clipId={clipId}
-						effectId={effect.id}
-						name={name}
-						parameter={parameter}
-						value={effect.params[name]}
-						actions={actions}
-						copy={copy}
-						disabled={disabled || effect.enabled === false}
-						onError={onError}
-					/>
-				))}
-			</div>
-		</li>
-	);
-}
-
-function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {
-	const gestureActiveRef = useRef(false);
-	const label = videoEffectParameterLabel(parameter, copy);
-	const displayValue = videoEffectParameterValue(value, parameter, copy);
-	const begin = () => {
-		if (disabled || gestureActiveRef.current) return;
-		try {
-			actions.beginGesture(clipId, effectId);
-			gestureActiveRef.current = true;
-			onError('');
-		} catch (cause) {
-			onError(cause instanceof Error ? cause.message : String(cause));
-		}
-	};
-	const preview = (nextValue) => {
-		if (disabled) return;
-		begin();
-		try {
-			actions.preview(clipId, effectId, { [name]: nextValue });
-			onError('');
-		} catch (cause) {
-			onError(cause instanceof Error ? cause.message : String(cause));
-		}
-	};
-	const commit = () => {
-		if (!gestureActiveRef.current) return;
-		gestureActiveRef.current = false;
-		try {
-			actions.commit(clipId, effectId);
-			onError('');
-		} catch (cause) {
-			onError(cause instanceof Error ? cause.message : String(cause));
-		}
-	};
-	const cancel = () => {
-		if (!gestureActiveRef.current) return;
-		gestureActiveRef.current = false;
-		try {
-			actions.cancel(clipId, effectId);
-			onError('');
-		} catch (cause) {
-			onError(cause instanceof Error ? cause.message : String(cause));
-		}
-	};
-
-	useEffect(() => () => {
-		if (!gestureActiveRef.current) return;
-		try {
-			actions.cancel(clipId, effectId);
-		} catch {
-			// Removing an effect while its control unmounts already ends the gesture.
-		}
-	}, [actions, clipId, effectId]);
-
-	const numericValue = Number(value);
-	const percentage = parameter.max === parameter.min
-		? 0
-		: (numericValue - parameter.min) / (parameter.max - parameter.min) * 100;
-	const beginPointerGesture = (event) => {
-		event.currentTarget.setPointerCapture?.(event.pointerId);
-		begin();
-	};
-	const handleKeyDown = (event) => {
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			event.stopPropagation();
-			cancel();
-		} else if (event.key === 'Enter') commit();
-	};
-	return (
-		<div
-			className="audio-editor-video-effect__param"
-			data-video-effect-param={name}
-			role="group"
-			aria-label={label}
-		>
-			<span>{label}</span>
-			<div className="audio-editor-video-effect__value">
-				<input
-					type="number"
-					value={numericValue}
-					min={parameter.min}
-					max={parameter.max}
-					step={parameter.step}
-					aria-label={`${copy.videoEffectExactValue}: ${label}`}
-					disabled={disabled}
-					onFocus={begin}
-					onPointerDown={beginPointerGesture}
-					onChange={(event) => {
-						const nextValue = event.currentTarget.valueAsNumber;
-						if (Number.isFinite(nextValue)) preview(nextValue);
-					}}
-					onPointerUp={commit}
-					onPointerCancel={cancel}
-					onBlur={commit}
-					onKeyDown={handleKeyDown}
-				/>
-				<output>{videoEffectParameterUnit(parameter, copy)}</output>
-			</div>
-			<div
-				className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`}
-				style={{
-					'--slider-track-bg': 'var(--kw-editor-line)',
-					'--slider-fill-bg': 'var(--kw-editor-accent)',
-					'--slider-handle-bg': 'var(--kw-editor-panel)',
-					'--slider-handle-border': 'var(--kw-editor-accent-strong)',
-				}}
-			>
-				<input
-					type="range"
-					className="slider__input"
-					value={numericValue}
-					min={parameter.min}
-					max={parameter.max}
-					step={parameter.step}
-					aria-label={label}
-					aria-valuetext={displayValue}
-					disabled={disabled}
-					onFocus={begin}
-					onPointerDown={beginPointerGesture}
-					onChange={(event) => preview(Number(event.currentTarget.value))}
-					onPointerUp={commit}
-					onPointerCancel={cancel}
-					onBlur={commit}
-					onKeyDown={handleKeyDown}
-				/>
-				<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
-				<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
-			</div>
-		</div>
-	);
-}
-
-function videoEffectLabel(descriptor, copy) {
-	return copy[descriptor.labelKey] || descriptor.label;
-}
-
-function videoEffectParameterLabel(parameter, copy) {
-	return copy[parameter.labelKey] || parameter.label;
-}
-
-function videoEffectParameterValue(value, parameter, copy) {
-	const decimals = parameter.integer
-		? 0
-		: Math.max(0, String(parameter.step).split('.')[1]?.length || 0);
-	const formatted = Number(value).toFixed(Math.min(3, decimals));
-	const unit = videoEffectParameterUnit(parameter, copy);
-	if (unit) return `${formatted} ${unit}`;
-	return formatted;
-}
-
-function videoEffectParameterUnit(parameter, copy) {
-	if (parameter.unit === 'degrees') return '°';
-	if (parameter.unit === 'pixels') return copy.videoEffectUnitPixels;
-	return '';
 }
 
 export default ClipPropertiesDialog;

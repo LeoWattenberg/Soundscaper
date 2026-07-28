@@ -22,6 +22,7 @@ import {
 	migrateAudioEditorProjectV4ToV5,
 	migrateAudioEditorProjectV5ToV6,
 	migrateAudioEditorProjectV6ToV7,
+	migrateAudioEditorProjectV7ToV8,
 } from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
@@ -39,6 +40,7 @@ import {
 import {
 	VIDEO_EFFECT_DEFINITIONS,
 	VIDEO_EFFECT_TYPES,
+	VIDEO_EFFECT_V5_TYPES,
 	cloneVideoEffects,
 	createVideoEffect,
 	normalizeVideoEffect,
@@ -117,7 +119,7 @@ function createV5Project(options = {}) {
 }
 
 test('video effect registry exposes canonical metadata, defaults, and strict normalization', () => {
-	assert.deepEqual(VIDEO_EFFECT_TYPES, [
+	assert.deepEqual(VIDEO_EFFECT_V5_TYPES, [
 		'color-adjust',
 		'pixelate',
 		'vignette',
@@ -125,6 +127,7 @@ test('video effect registry exposes canonical metadata, defaults, and strict nor
 		'sharpen',
 		'rgb-split',
 	]);
+	assert.equal(VIDEO_EFFECT_TYPES.length, 12);
 	assert.equal(VIDEO_EFFECT_DEFINITIONS.pixelate.ffmpegFilter, 'pixelize');
 	assert.deepEqual(videoEffectDefaults('rgb-split'), { offsetX: 6, offsetY: 0 });
 	assert.equal(validateVideoEffectParams(
@@ -326,7 +329,9 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 	assert.deepEqual(migrated.clips[0].videoEffects, []);
 	assert.equal(validateAudioEditorProjectV5(migrated), true);
 	assert.equal(validateAudioEditorProject(migrated), true);
-	const current = migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV5ToV6(migrated));
+	const current = migrateAudioEditorProjectV7ToV8(
+		migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV5ToV6(migrated)),
+	);
 	assert.deepEqual(migrateAudioEditorProject(v4), {
 		project: current,
 		migrated: true,
@@ -335,11 +340,11 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 		reason: null,
 	});
 
-	const future = { ...current, schemaVersion: 8, futureField: { retained: true } };
+	const future = { ...current, schemaVersion: 9, futureField: { retained: true } };
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 8,
+		fromVersion: 9,
 		readOnly: true,
 		reason: 'newer-schema',
 	});
