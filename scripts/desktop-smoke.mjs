@@ -44,7 +44,12 @@ const executable = await findPackagedExecutable();
 const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
 const command = useXvfb ? 'xvfb-run' : executable;
 const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
-const appArgs = [`--user-data-dir=${profile}`, '--soundscaper-smoke'];
+const smokeAppData = join(profile, 'application-data');
+const appArgs = [
+	`--user-data-dir=${profile}`,
+	'--soundscaper-smoke',
+	`--soundscaper-smoke-app-data=${smokeAppData}`,
+];
 const args = useXvfb ? ['-a', executable, ...appArgs] : appArgs;
 let result;
 try {

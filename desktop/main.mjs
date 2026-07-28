@@ -22,14 +22,20 @@ import {
 	APP_SCHEME,
 	EXTERNAL_DESTINATIONS,
 	IPC,
+	PRODUCT_ID,
 	SESSION_PARTITION,
 	SUPPORTED_LOCALES,
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
+import {
+	DesktopApplicationShutdown,
+	resolveDesktopProjectLibraryAppData,
+} from './project-library-runtime/application-lifecycle.js';
 import { ReadCapabilityStore } from './file-capabilities.js';
 import { extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
+import { DesktopProjectLibraryHost } from './project-library-runtime/project-library-host.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
@@ -54,8 +60,22 @@ let settings = null;
 let releaseChecker = null;
 let rendererReady = false;
 let pendingClose = null;
+let projectLibraryHost = null;
+let projectLibraryStartup = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
+
+const applicationShutdown = new DesktopApplicationShutdown({
+	tasks: [
+		{ name: 'project library', run: closeProjectLibraryHost },
+		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
+		{ name: 'save sessions', run: () => saves.dispose() },
+	],
+	exit: (code) => app.exit(code),
+	reportError: (name, error) => {
+		console.error(`Desktop ${name} shutdown failed:`, cleanError(error));
+	},
+});
 
 app.setName(APP_NAME);
 app.enableSandbox();
@@ -64,6 +84,15 @@ registerAppScheme(protocol);
 app.on('open-file', (event, filePath) => {
 	event.preventDefault();
 	enqueueProjectPath(filePath);
+});
+
+app.on('before-quit', () => {
+	applicationIsQuitting = true;
+});
+
+app.on('will-quit', (event) => {
+	event.preventDefault();
+	void exitApplication(0);
 });
 
 if (!app.requestSingleInstanceLock()) {
@@ -78,18 +107,37 @@ if (!app.requestSingleInstanceLock()) {
 		}
 	});
 	for (const filePath of extractProjectPaths(process.argv, process.cwd())) enqueueProjectPath(filePath);
-	void startApplication().catch((error) => {
+	void startApplication().catch(async (error) => {
 		console.error('Soundscaper desktop failed to start:', cleanError(error));
-		app.exit(1);
+		await exitApplication(1);
 	});
 }
 
 async function startApplication() {
 	await app.whenReady();
+	const libraryStartup = DesktopProjectLibraryHost.start({
+		appDataPath: resolveDesktopProjectLibraryAppData({
+			applicationDataPath: app.getPath('appData'),
+			argv: process.argv,
+		}),
+		owner: { product: PRODUCT_ID, processId: process.pid, instanceId: randomUUID() },
+		onLeaseLost: (error) => {
+			console.error('Shared desktop project library lease was lost:', cleanError(error));
+			void exitApplication(1);
+		},
+	});
+	projectLibraryStartup = libraryStartup;
+	try {
+		projectLibraryHost = await libraryStartup;
+	} finally {
+		if (projectLibraryStartup === libraryStartup) projectLibraryStartup = null;
+	}
+	if (applicationShutdown.requested) return;
 	if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 	const resources = resourceRoots();
 	settings = new DesktopSettingsStore(resolve(app.getPath('userData'), 'desktop-settings.json'));
 	await settings.load([app.getLocale(), ...app.getPreferredSystemLanguages()]);
+	if (applicationShutdown.requested) return;
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
 
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
@@ -98,6 +146,7 @@ async function startApplication() {
 		runtimeRoot: resources.runtime,
 		readCapabilities,
 	}));
+	if (applicationShutdown.requested) return;
 	configureSessionSecurity(desktopSession);
 	registerIpcHandlers();
 	installMenu();
@@ -107,13 +156,8 @@ async function startApplication() {
 	app.on('activate', () => {
 		if (!BrowserWindow.getAllWindows().length) void createWindow();
 	});
-	app.on('before-quit', () => { applicationIsQuitting = true; });
 	app.on('window-all-closed', () => {
 		if (process.platform !== 'darwin') app.quit();
-	});
-	app.on('will-quit', () => {
-		void readCapabilities.dispose();
-		void saves.dispose();
 	});
 }
 
@@ -338,12 +382,12 @@ function installArtifactSmokeProbe(window) {
 	if (!process.argv.includes('--soundscaper-smoke')) return;
 	const timeout = setTimeout(() => {
 		console.error('SOUNDSCAPER_DESKTOP_SMOKE timed out');
-		app.exit(2);
+		void exitApplication(2);
 	}, 15_000);
 	window.webContents.once('did-fail-load', (_event, code, description) => {
 		clearTimeout(timeout);
 		console.error(`SOUNDSCAPER_DESKTOP_SMOKE load failed: ${code} ${description}`);
-		app.exit(2);
+		void exitApplication(2);
 	});
 	window.webContents.once('did-finish-load', async () => {
 		try {
@@ -365,11 +409,11 @@ function installArtifactSmokeProbe(window) {
 				&& result.bridge.includes('respondToClose');
 			console.log(`SOUNDSCAPER_DESKTOP_SMOKE ${JSON.stringify(result)}`);
 			clearTimeout(timeout);
-			app.exit(valid ? 0 : 2);
+			await exitApplication(valid ? 0 : 2);
 		} catch (error) {
 			clearTimeout(timeout);
 			console.error(`SOUNDSCAPER_DESKTOP_SMOKE failed: ${cleanError(error)}`);
-			app.exit(2);
+			await exitApplication(2);
 		}
 	});
 }
@@ -459,4 +503,16 @@ function opaqueId(value, length) {
 
 function cleanError(error) {
 	return String(error?.message || 'Unknown error').replace(/[\r\n]/gu, ' ').slice(0, 300);
+}
+
+async function closeProjectLibraryHost() {
+	const startup = projectLibraryStartup;
+	if (startup) await startup.catch(() => undefined);
+	const host = projectLibraryHost;
+	await host?.close();
+	if (projectLibraryHost === host) projectLibraryHost = null;
+}
+
+function exitApplication(code) {
+	return applicationShutdown.requestExit(code);
 }

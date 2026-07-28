@@ -16,12 +16,17 @@ import { fileURLToPath } from 'node:url';
 
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 import { generateDesktopIcon } from './desktop-icons.mjs';
+import {
+	compileDesktopProjectLibraryRuntime,
+	stageDesktopApplicationSources,
+} from './lib/desktop-project-library-runtime.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
 const APP_ROOT = resolve(BUILD_ROOT, 'app');
 const RENDERER_ROOT = resolve(BUILD_ROOT, 'renderer');
 const RUNTIME_ROOT = resolve(BUILD_ROOT, 'runtime');
+const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
@@ -44,6 +49,10 @@ async function main() {
 
 	await rm(BUILD_ROOT, { recursive: true, force: true });
 	await mkdir(BUILD_ROOT, { recursive: true });
+	const desktopRuntime = await compileDesktopProjectLibraryRuntime({
+		repositoryRoot: ROOT,
+		outputRoot: DESKTOP_RUNTIME_ROOT,
+	});
 	const ffmpeg = await stageFfmpeg();
 	const translations = await stageTranslations();
 	await generateDesktopIcon({
@@ -55,6 +64,7 @@ async function main() {
 	const stageManifest = {
 		schemaVersion: 1,
 		applicationVersion: projectPackage.version,
+		desktopRuntime,
 		ffmpeg,
 		translations,
 	};
@@ -196,7 +206,11 @@ async function buildRenderer() {
 
 async function stageApplication(projectPackage) {
 	await mkdir(APP_ROOT, { recursive: true });
-	await cp(resolve(ROOT, 'desktop'), resolve(APP_ROOT, 'desktop'), { recursive: true });
+	await stageDesktopApplicationSources({
+		desktopSourceRoot: resolve(ROOT, 'desktop'),
+		applicationDesktopRoot: resolve(APP_ROOT, 'desktop'),
+		runtimeRoot: DESKTOP_RUNTIME_ROOT,
+	});
 	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), { id: PRODUCT_ID });
 	await writeJson(resolve(APP_ROOT, 'package.json'), {
 		name: `${PRODUCT_ID}-desktop`,

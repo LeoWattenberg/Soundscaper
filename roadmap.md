@@ -331,14 +331,28 @@ models or native implementations.
   application-data scope rather than either Chromium profile, size-bounded and
   digest-validated [metadata](desktop/project-library-contract.ts), atomic
   SQLite publication, expiring cross-process leases with monotonic fencing, and
-  prepared/committed recovery journals. The
+  prepared/committed recovery journals. Its strict-TS
+  [main-process host](desktop/project-library-host.ts) now opens the shared
+  application-data library after Electron is ready, completes recovery before
+  window creation, renews its lease, and suppresses intentional-close renewal
+  races. One [shutdown barrier](desktop/application-lifecycle.ts) coordinates
+  in-flight startup and awaits library, read-capability, and save-session
+  disposal exactly once before process exit. The desktop staging pipeline
+  compiles this runtime to ESM, excludes raw TypeScript from the packaged app,
+  and keeps renderer IPC unchanged. The
   [desktop regression](tests/desktop-project-library.test.ts) proves atomic
   cross-connection visibility, a real second-process lease holder, stale
   takeover, abortable bounded waiting, interrupted-write recovery, and
-  fail-closed corruption. Electron lifecycle wiring, actual project/managed
-  media commits, and the explicit "Edit in Soundscaper/Framescaper" handoff
-  remain open; no raw path or new renderer IPC surface is exposed by this
-  foundation.
+  fail-closed corruption; focused
+  [host](tests/desktop-project-library-host.test.ts),
+  [lifecycle](tests/desktop-application-lifecycle.test.ts), and
+  [packaging](tests/desktop-project-library-packaging.test.js) regressions cover
+  lease release/recovery, serialized failure-aware shutdown, isolated smoke
+  data, and importable staged output. Actual project/catalog and managed-media
+  commits, explicit cross-product handoff and lease transfer, legacy migration,
+  quiescence for IPC saves still entering `begin` or `finish` during shutdown,
+  and packaged OS/architecture lifecycle smoke remain open; no raw path or new
+  renderer IPC surface is exposed by this foundation.
 - **Electron Enhanced — Planned:** migrate each existing app library idempotently
   into the shared store. Record source identity and completion, merge without
   overwriting conflicts, retain both legacy libraries until verification, and

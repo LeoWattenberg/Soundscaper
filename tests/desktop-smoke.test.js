@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
 	assertDesktopSmokePayload,
@@ -9,6 +11,7 @@ import {
 } from '../scripts/lib/desktop-smoke.mjs';
 
 const EXPECTED_BRIDGE = Object.freeze(['chooseFiles', 'getEnvironment']);
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('desktop smoke resolves an explicit package architecture independently of the Node host', () => {
 	assert.equal(resolveSmokeArchitecture('arm64', 'x64'), 'arm64');
@@ -79,4 +82,10 @@ test('desktop smoke validates the application-reported platform and target archi
 		() => assertDesktopSmokePayload({ ...payload, environment: { ...payload.environment, platform: 'linux' } }, expected),
 		/target platform/u,
 	);
+});
+
+test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
+	const source = await readFile(resolve(ROOT, 'scripts/desktop-smoke.mjs'), 'utf8');
+	assert.match(source, /--user-data-dir=\$\{profile\}/u);
+	assert.match(source, /--soundscaper-smoke-app-data=\$\{[^}]+\}/u);
 });

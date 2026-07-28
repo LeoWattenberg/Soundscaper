@@ -1,0 +1,25 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"allowJs": false,
+		"declaration": false,
+		"incremental": false,
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"noEmit": false,
+		"outDir": ".desktop-build/desktop-runtime",
+		"rewriteRelativeImportExtensions": true,
+		"rootDir": "desktop",
+		"sourceMap": false,
+		"types": ["node"]
+	},
+	"include": [
+		"desktop/application-lifecycle.ts",
+		"desktop/project-library-abort.ts",
+		"desktop/project-library-contract.ts",
+		"desktop/project-library-host.ts",
+		"desktop/project-library-persistence.ts",
+		"desktop/project-library.ts"
+	],
+	"exclude": ["dist", "node_modules", "test-results"]
+}
