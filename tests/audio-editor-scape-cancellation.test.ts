@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
-import { extractScapeBlob } from '../src/common/editor/scape-archive-media.ts';
+import {
+	extractScapeVideo,
+	SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
+} from '../src/common/editor/scape-archive-video.ts';
 import { withScapeArchiveReader } from '../src/common/editor/scape-archive-reader.ts';
 import {
 	exportScapeProject,
@@ -40,7 +43,7 @@ test('imports reject an incomplete transactional store before their first mutati
 		getMediaAssetMetadata: async () => null,
 		// getSourceMetadata is deliberately absent.
 		beginSourceWrite: async () => { storageWrites += 1; throw new Error('unexpected write'); },
-		writeMediaAsset: async () => { storageWrites += 1; },
+		beginMediaAssetWrite: async () => { storageWrites += 1; throw new Error('unexpected write'); },
 		saveProject: async () => { storageWrites += 1; },
 		deleteProject: async () => { storageWrites += 1; },
 		deleteSource: async () => { storageWrites += 1; },
@@ -102,7 +105,13 @@ test('video extraction passes its signal into ZIP work and stops between emitted
 		},
 	};
 
-	await assertAbort(extractScapeBlob(entry, 'video/mp4', controller.signal));
+	await assertAbort(extractScapeVideo(entry, {
+		maximumChunkBytes: SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
+		bytesWritten: 0,
+		write: async () => undefined,
+		commit: async () => ({}),
+		abort: async () => undefined,
+	}, controller.signal));
 	assert.equal(entrySignal, controller.signal);
 	assert.equal(writes, 1);
 });
@@ -195,6 +204,50 @@ test('cancellation during the first audio write aborts staging and preserves inv
 	assert.deepEqual(await inventory(backingStore), before);
 });
 
+test('cancellation as a video writer is acquired aborts staging before extraction', async () => {
+	const sourceStore = memoryStore('scape-video-acquire-abort-source');
+	const backingStore = memoryStore('scape-video-acquire-abort-target');
+	const project = videoProject('scape-video-acquire-abort');
+	await persistVideo(sourceStore);
+	const archive = (await exportScapeProject(project, sourceStore)).blob as Blob;
+	const before = await inventory(backingStore);
+	const controller = new AbortController();
+	let writes = 0;
+	let commits = 0;
+	let aborts = 0;
+	const targetStore = new Proxy(backingStore, {
+		get(target, property, receiver) {
+			if (property === 'beginMediaAssetWrite') return async (
+				...args: Parameters<typeof target.beginMediaAssetWrite>
+			) => {
+				const writer = await target.beginMediaAssetWrite(...args);
+				controller.abort(abortReason('cancel while acquiring video writer'));
+				return {
+					maximumChunkBytes: writer.maximumChunkBytes,
+					get bytesWritten() { return writer.bytesWritten; },
+					async write(bytes: Uint8Array, options?: { signal?: AbortSignal }) {
+						writes += 1;
+						await writer.write(bytes, options);
+					},
+					async commit(...commitArgs: Parameters<typeof writer.commit>) {
+						commits += 1;
+						return writer.commit(...commitArgs);
+					},
+					async abort() { aborts += 1; await writer.abort(); },
+				};
+			};
+			const value = Reflect.get(target, property, receiver) as unknown;
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
+
+	await assertAbort(importScapeProject(archive, targetStore, { signal: controller.signal }));
+	assert.equal(writes, 0);
+	assert.equal(commits, 0);
+	assert.equal(aborts, 1);
+	assert.deepEqual(await inventory(backingStore), before);
+});
+
 test('cancellation during video publication deletes the provisional asset and preserves inventory', async () => {
 	const sourceStore = memoryStore('scape-video-abort-source');
 	const backingStore = memoryStore('scape-video-abort-target');
@@ -209,13 +262,24 @@ test('cancellation during video publication deletes the provisional asset and pr
 	let mediaWriteSignal: AbortSignal | undefined;
 	const targetStore = new Proxy(backingStore, {
 		get(target, property, receiver) {
-			if (property === 'writeMediaAsset') return async (...args: Parameters<typeof target.writeMediaAsset>) => {
-				mediaWrites += 1;
-				const publicationOptions = args[3] as Readonly<{ signal?: AbortSignal }> | undefined;
+			if (property === 'beginMediaAssetWrite') return async (
+				...args: Parameters<typeof target.beginMediaAssetWrite>
+			) => {
+				const publicationOptions = args[2] as Readonly<{ signal?: AbortSignal }> | undefined;
 				mediaWriteSignal = publicationOptions?.signal;
-				const result = await target.writeMediaAsset(...args);
-				controller.abort(abortReason('cancel during video write'));
-				return result;
+				const writer = await target.beginMediaAssetWrite(...args);
+				return {
+					maximumChunkBytes: writer.maximumChunkBytes,
+					get bytesWritten() { return writer.bytesWritten; },
+					write: writer.write.bind(writer),
+					async commit(...commitArgs: Parameters<typeof writer.commit>) {
+						mediaWrites += 1;
+						const result = await writer.commit(...commitArgs);
+						controller.abort(abortReason('cancel during video write'));
+						return result;
+					},
+					abort: writer.abort.bind(writer),
+				};
 			};
 			const value = Reflect.get(target, property, receiver) as unknown;
 			return typeof value === 'function' ? value.bind(target) : value;

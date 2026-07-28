@@ -17,7 +17,6 @@ import { ScapeAudioChunkBudget } from './scape-expanded-byte-budget.ts';
 import {
 	createScapeDigest,
 	extractScapeAudio,
-	extractScapeBlob,
 	scapeAudioSourceStream,
 	scapeBytesStream,
 	scapeHashingStream,
@@ -25,6 +24,7 @@ import {
 	verifyScapeAssetBytes,
 	verifyScapeExtractedAsset,
 } from './scape-archive-media.ts';
+import { extractScapeVideo } from './scape-archive-video.ts';
 import { withScapeArchiveReader } from './scape-archive-reader.ts';
 import { createScapeExportDestination } from './scape-export-destination.ts';
 import {
@@ -196,20 +196,56 @@ export async function importScapeProject(input, store, options = {}) {
 				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
 				transaction.trackProvisionalSource(finalSourceId);
 				if (source.kind === 'video') {
-					const { blob, digest, size } = await extractScapeBlob(
-						entry,
-						source.mimeType,
-						signal,
-						expandedByteBudget,
-					);
-					verifyScapeExtractedAsset(asset, digest, size, source.name || source.id);
-					const persisted = await awaitScapeOperation(store.writeMediaAsset(finalSourceId, blob, {
-						name: source.name,
-						mimeType: source.mimeType,
-					}, { signal }), signal);
-					if (persisted?.sha256 !== asset.sha256) {
-						throw new Error(`Persisted media SHA-256 verification failed for ${source.name || source.id}.`);
+					let mediaWriter = null;
+					let mediaFailure = null;
+					let mediaFailed = false;
+					try {
+						mediaWriter = await store.beginMediaAssetWrite(finalSourceId, {
+							name: source.name,
+							mimeType: source.mimeType,
+						}, {
+							expectedBytes: asset.size,
+							expectedSha256: asset.sha256,
+							signal,
+						});
+						throwIfScapeAborted(signal);
+						const { digest, size } = await extractScapeVideo(
+							entry,
+							mediaWriter,
+							signal,
+							expandedByteBudget,
+						);
+						verifyScapeExtractedAsset(asset, digest, size, source.name || source.id);
+						const persisted = await awaitScapeOperation(mediaWriter.commit({ signal }), signal);
+						if (persisted?.sha256 !== asset.sha256) {
+							throw new Error(`Persisted media SHA-256 verification failed for ${source.name || source.id}.`);
+						}
+						if (persisted?.size !== asset.size) {
+							throw new Error(`Persisted media size verification failed for ${source.name || source.id}.`);
+						}
+					} catch (error) {
+						mediaFailed = true;
+						mediaFailure = error;
 					}
+					let abortFailure = null;
+					let abortFailed = false;
+					if (mediaWriter) {
+						try {
+							await mediaWriter.abort();
+						} catch (error) {
+							abortFailed = true;
+							abortFailure = error;
+						}
+					}
+					if (mediaFailed) {
+						if (abortFailed) throw aggregateScapeErrors(
+							mediaFailure,
+							[abortFailure],
+							'The .scape media write and cleanup both failed.',
+						);
+						throw mediaFailure;
+					}
+					if (abortFailed) throw abortFailure;
 				} else {
 					if (asset.encoding !== AUDIO_ENCODING) throw new Error(`Unsupported audio asset encoding: ${asset.encoding}.`);
 					throwIfScapeAborted(signal);

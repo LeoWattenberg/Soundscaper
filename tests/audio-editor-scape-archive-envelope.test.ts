@@ -247,7 +247,7 @@ test('inspect and import share fail-closed envelope validation before storage wr
 			storageWrites += 1;
 			throw new Error('unexpected source write');
 		},
-		writeMediaAsset: async () => { storageWrites += 1; },
+		beginMediaAssetWrite: async () => { storageWrites += 1; throw new Error('unexpected write'); },
 	};
 
 	await assert.rejects(importScapeProject(archive, store), /unreferenced entry: extra\.bin/iu);

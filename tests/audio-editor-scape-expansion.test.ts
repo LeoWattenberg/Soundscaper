@@ -48,9 +48,20 @@ test('cumulative actual bytes stop a lying asset stream before media or project 
 	let projectWrites = 0;
 	const store = new Proxy(backingStore, {
 		get(target, property, receiver) {
-			if (property === 'writeMediaAsset') return async (...args: Parameters<typeof target.writeMediaAsset>) => {
-				mediaWrites += 1;
-				return target.writeMediaAsset(...args);
+			if (property === 'beginMediaAssetWrite') return async (
+				...args: Parameters<typeof target.beginMediaAssetWrite>
+			) => {
+				const writer = await target.beginMediaAssetWrite(...args);
+				return {
+					maximumChunkBytes: writer.maximumChunkBytes,
+					get bytesWritten() { return writer.bytesWritten; },
+					write: writer.write.bind(writer),
+					async commit(...commitArgs: Parameters<typeof writer.commit>) {
+						mediaWrites += 1;
+						return writer.commit(...commitArgs);
+					},
+					abort: writer.abort.bind(writer),
+				};
 			};
 			if (property === 'saveProject') return async (...args: Parameters<typeof target.saveProject>) => {
 				projectWrites += 1;

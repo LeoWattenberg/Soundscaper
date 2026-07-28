@@ -73,10 +73,6 @@ export interface ScapeExtractedAsset {
 	readonly size: number;
 }
 
-export interface ScapeExtractedBlob extends ScapeExtractedAsset {
-	readonly blob: Blob;
-}
-
 export function safeScapeEntryId(value: unknown): string {
 	const encoded = encodeURIComponent(String(value || '')).replaceAll('%', '_');
 	if (encoded === '.') return '_2E';
@@ -216,37 +212,6 @@ export function scapeAudioSourceLayout(source: ScapeAudioSource): Readonly<Scape
 		rawPcmBytes: Number(rawPcmBytes),
 		archiveBytes: Number(archiveBytes),
 	});
-}
-
-export async function extractScapeBlob(
-	entry: ScapeArchiveEntry,
-	mimeType: string,
-	signal?: AbortSignal,
-	expandedByteBudget?: ScapeExpandedByteBudget,
-): Promise<ScapeExtractedBlob> {
-	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
-	const digest = sha256.create();
-	const chunks: ArrayBuffer[] = [];
-	let size = 0;
-	const writable = new WritableStream<Uint8Array>({
-		write(chunk) {
-			throwIfScapeAborted(signal);
-			const emittedBytes = toBytes(chunk);
-			expandedByteBudget?.consume(emittedBytes.byteLength, entry.filename);
-			assertScapeEntryEmissionWithinSize(entry, size, emittedBytes.byteLength);
-			const bytes = emittedBytes.slice();
-			digest.update(bytes);
-			size += bytes.byteLength;
-			chunks.push(exactArrayBuffer(bytes));
-		},
-	});
-	await awaitScapeOperation(entry.getData(writable, { signal, strictness: 'strict' }), signal);
-	assertScapeEntryEmissionComplete(entry, size);
-	return {
-		blob: new Blob(chunks, { type: mimeType || 'application/octet-stream' }),
-		digest: scapeHex(digest.digest()),
-		size,
-	};
 }
 
 export async function extractScapeAudio(

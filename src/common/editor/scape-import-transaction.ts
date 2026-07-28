@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import type { ScapeVideoWriter } from './scape-archive-video.ts';
 
 interface ScapeProjectDocument {
 	readonly id: string;
@@ -19,12 +20,15 @@ export interface ScapeImportStore {
 	getSourceMetadata(sourceId: string): PromiseLike<unknown>;
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
-	writeMediaAsset(
+	beginMediaAssetWrite(
 		sourceId: string,
-		blob: Blob,
 		metadata: Readonly<Record<string, unknown>>,
-		options?: Readonly<{ signal?: AbortSignal }>,
-	): PromiseLike<Readonly<Record<string, unknown>>>;
+		options: Readonly<{
+			expectedBytes: number;
+			expectedSha256: string;
+			signal?: AbortSignal;
+		}>,
+	): PromiseLike<ScapeVideoWriter>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	deleteSource(sourceId: string): PromiseLike<unknown>;
@@ -116,7 +120,7 @@ export function assertScapeImportStore(value: unknown): asserts value is ScapeIm
 		'getSourceMetadata',
 		'getMediaAssetMetadata',
 		'beginSourceWrite',
-		'writeMediaAsset',
+		'beginMediaAssetWrite',
 		'saveProject',
 		'deleteProject',
 		'deleteSource',

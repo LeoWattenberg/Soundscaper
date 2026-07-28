@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { BlobReader, ZipReader } from '@zip.js/zip.js';
+import { BlobReader, configure, ZipReader } from '@zip.js/zip.js';
 
 import {
 	SCAPE_ARCHIVE_LIMITS,
@@ -8,6 +8,9 @@ import {
 } from './scape-archive-envelope.ts';
 import { aggregateScapeErrors, throwIfScapeAborted } from './scape-abort.ts';
 import { validateScapeArchiveLayout } from './scape-archive-layout.ts';
+import { SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES } from './scape-archive-video.ts';
+
+configure({ chunkSize: SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES });
 
 export interface ScapeArchiveReader {
 	getEntriesGenerator(options?: Readonly<{ strictness?: 'strict' }>): AsyncGenerator<ScapeArchiveEntry, boolean>;
