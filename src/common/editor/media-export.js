@@ -20,7 +20,7 @@ export const BUNDLED_FFMPEG_EXPORT_PROFILE = deepFreeze({
 });
 
 /**
- * @typedef {'wav'|'bwf'|'aiff'|'flac'|'mp3'|'ogg-vorbis'|'opus'|'wavpack'|'mp2'|'aac-m4a'|'custom-ffmpeg'} MediaExportFormatId
+ * @typedef {'wav'|'bwf'|'bw64'|'aiff'|'flac'|'mp3'|'ogg-vorbis'|'opus'|'wavpack'|'mp2'|'aac-m4a'|'custom-ffmpeg'} MediaExportFormatId
  * @typedef {'native-wav'|'native-aiff'|'ffmpeg'|'custom-ffmpeg'} MediaExportBackend
  * @typedef {'int16'|'int24'|'int32'|'float32'} MediaExportSampleFormat
  * @typedef {'none'|'triangular'|'triangular-highpass'} MediaExportDither
@@ -40,6 +40,11 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	bwf: {
 		id: 'bwf', label: 'Broadcast WAV (BWF)', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
 		container: 'BWF', codec: 'PCM', lossless: true, maximumChannels: 32,
+		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
+	},
+	bw64: {
+		id: 'bw64', label: 'BW64 / ADM', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
+		container: 'BW64', codec: 'PCM', lossless: true, maximumChannels: 6,
 		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	aiff: {
@@ -245,7 +250,9 @@ export function normalizeMediaExportSettings(format, options = {}) {
 		dither,
 		metadata,
 	};
-	if (descriptor.id === 'bwf') settings.bext = normalizeBextMetadata(options.bext ?? {}, { version: 2 });
+	if (descriptor.id === 'bwf' || descriptor.id === 'bw64') {
+		settings.bext = normalizeBextMetadata(options.bext ?? {}, { version: 2 });
+	}
 
 	if (descriptor.id === 'flac') {
 		settings.compressionLevel = integerInRange(options.compressionLevel ?? descriptor.defaults.compressionLevel, 0, 8, 'FLAC compression level');

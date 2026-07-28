@@ -5,6 +5,7 @@ import type { BextMetadataInput } from '../broadcast-wave.ts';
 export const EDITOR_EXPORT_FORMATS = Object.freeze([
 	'wav',
 	'bwf',
+	'bw64',
 	'aiff',
 	'flac',
 	'mp3',
@@ -32,6 +33,7 @@ export interface EditorExportSettings {
 	readonly channelMapping: unknown;
 	readonly metadata: unknown;
 	readonly bext?: BextMetadataInput | null;
+	readonly adm?: unknown;
 	readonly extension: unknown;
 	readonly mimeType: unknown;
 	readonly customArguments: unknown;
@@ -51,7 +53,7 @@ export function normalizeEditorExportSettings(
 	const quality = numberOrDefault(value.quality, 5);
 	const compressionLevel = numberOrDefault(value.compressionLevel, format === 'flac' ? 5 : 2);
 	return Object.freeze({
-		mode: value.mode === 'stems' ? 'stems' : 'mix',
+		mode: format === 'bw64' ? 'mix' : value.mode === 'stems' ? 'stems' : 'mix',
 		range: value.range === 'selection' || value.range === 'loop' ? value.range : 'project',
 		format,
 		bitDepth,
@@ -65,7 +67,10 @@ export function normalizeEditorExportSettings(
 			: Number(value.sampleRate),
 		channelMapping: value.channelMapping || 'preserve',
 		metadata: value.metadata || projectMetadata,
-		...(format === 'bwf' ? { bext: value.bext as BextMetadataInput | null | undefined } : {}),
+		...((format === 'bwf' || format === 'bw64') ? {
+			bext: value.bext as BextMetadataInput | null | undefined,
+		} : {}),
+		...(format === 'bw64' ? { adm: value.adm } : {}),
 		extension: value.extension,
 		mimeType: value.mimeType,
 		customArguments: value.customArguments,

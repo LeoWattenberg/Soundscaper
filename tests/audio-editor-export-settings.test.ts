@@ -57,3 +57,18 @@ test('unknown values cannot escape the supported export inventory', () => {
 	assert.equal(value.bitDepth, 24);
 	assert.equal(value.sampleRate, 96_000);
 });
+
+test('BW64 export is mix-only and carries broadcast and ADM metadata', () => {
+	const bext = { description: 'Immersive master' };
+	const adm = { mode: 'authored' };
+	const value = normalizeEditorExportSettings({
+		mode: 'stems',
+		format: 'bw64',
+		bext,
+		adm,
+	}, 48_000);
+	assert.equal(value.mode, 'mix');
+	assert.equal(value.format, 'bw64');
+	assert.equal(value.bext, bext);
+	assert.equal(value.adm, adm);
+});

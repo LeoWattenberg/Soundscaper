@@ -22,7 +22,7 @@ import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [
-		'wav', 'bwf', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a', 'custom-ffmpeg',
+		'wav', 'bwf', 'bw64', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a', 'custom-ffmpeg',
 	]);
 	const bundled = createMediaExportCapabilities();
 	assert.equal(bundled.profileId, '@ffmpeg/core@0.12.10');
@@ -37,6 +37,7 @@ test('media export registry classifies native and pinned FFmpeg formats', () => 
 	});
 	assert.equal(constrained.formats.wav.available, true);
 	assert.equal(constrained.formats.bwf.available, true);
+	assert.equal(constrained.formats.bw64.available, true);
 	assert.equal(constrained.formats.flac.available, true);
 	assert.deepEqual(constrained.formats.mp3.missingEncoders, ['libmp3lame']);
 	assert.throws(
@@ -90,6 +91,19 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 		sampleFormat: 'float32',
 	}), /does not support/);
 	assert.equal(normalizeMediaExportSettings('bwf', { inputChannelCount: 3 }).channelCount, 3);
+	const bw64 = normalizeMediaExportSettings('bw64', {
+		inputChannelCount: 6,
+		sampleFormat: 'int24',
+		bext: { description: 'ADM bed' },
+	});
+	assert.equal(bw64.backend, 'native-wav');
+	assert.equal(bw64.maximumChannels, undefined);
+	assert.equal(bw64.channelCount, 6);
+	assert.equal(bw64.bext.description, 'ADM bed');
+	assert.throws(() => normalizeMediaExportSettings('bw64', {
+		inputChannelCount: 6,
+		sampleFormat: 'float32',
+	}), /does not support/);
 });
 
 test('channel mapping uses an explicit matrix for native PCM and FFmpeg pan filters', () => {
