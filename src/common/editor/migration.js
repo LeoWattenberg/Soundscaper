@@ -24,11 +24,16 @@ import {
 	validateAudioEditorProjectV5,
 } from './project-v5.js';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV6,
 	loadAudioEditorProjectV6,
 	validateAudioEditorProjectV6,
 } from './project-v6.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createAudioEditorProjectV7,
+	loadAudioEditorProjectV7,
+	validateAudioEditorProjectV7,
+} from './project-v7.ts';
 
 const PROJECT_V1_KEYS = new Set([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate', 'masterChannels',
@@ -292,9 +297,47 @@ export function migrateAudioEditorProjectV1ToV6(value) {
 	return migrateAudioEditorProjectV5ToV6(migrateAudioEditorProjectV1ToV5(value));
 }
 
+export function migrateAudioEditorProjectV6ToV7(value) {
+	if (!value || typeof value !== 'object' || value.schemaVersion !== 6) {
+		throw new RangeError('An AudioEditorProjectV6 project is required.');
+	}
+	const loaded = loadAudioEditorProjectV6(value);
+	if (loaded.readOnly) throw new RangeError('An AudioEditorProjectV6 project is required.');
+	const project = createAudioEditorProjectV7({
+		...loaded.project,
+		now: loaded.project.createdAt,
+		metadata: {
+			...loaded.project.metadata,
+			adm: null,
+		},
+	});
+	validateAudioEditorProjectV7(project);
+	return project;
+}
+
+export function migrateAudioEditorProjectV5ToV7(value) {
+	return migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV5ToV6(value));
+}
+
+export function migrateAudioEditorProjectV4ToV7(value) {
+	return migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV4ToV6(value));
+}
+
+export function migrateAudioEditorProjectV3ToV7(value) {
+	return migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV3ToV6(value));
+}
+
+export function migrateAudioEditorProjectV2ToV7(value) {
+	return migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV2ToV6(value));
+}
+
+export function migrateAudioEditorProjectV1ToV7(value) {
+	return migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV1ToV6(value));
+}
+
 /**
  * Version-aware load/migration boundary. Future documents are returned intact
- * and read-only; V1-V5 are migrated atomically; V6 is validated and cloned.
+ * and read-only; V1-V6 are migrated atomically; V7 is validated and cloned.
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
@@ -312,7 +355,7 @@ export function migrateAudioEditorProject(value) {
 		};
 	}
 	if (schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		const loaded = loadAudioEditorProjectV6(value);
+		const loaded = loadAudioEditorProjectV7(value);
 		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
 			Object.hasOwn(track, 'channelCount')
 			|| Object.hasOwn(track, 'channelLayout')
@@ -327,15 +370,17 @@ export function migrateAudioEditorProject(value) {
 			reason: null,
 		};
 	}
-	const project = schemaVersion === 5
-		? migrateAudioEditorProjectV5ToV6(value)
-		: schemaVersion === 4
-			? migrateAudioEditorProjectV4ToV6(value)
-			: schemaVersion === 3
-				? migrateAudioEditorProjectV3ToV6(value)
-				: schemaVersion === 2
-					? migrateAudioEditorProjectV2ToV6(value)
-					: migrateAudioEditorProjectV1ToV6(value);
+	const project = schemaVersion === 6
+		? migrateAudioEditorProjectV6ToV7(value)
+		: schemaVersion === 5
+			? migrateAudioEditorProjectV5ToV7(value)
+			: schemaVersion === 4
+				? migrateAudioEditorProjectV4ToV7(value)
+				: schemaVersion === 3
+					? migrateAudioEditorProjectV3ToV7(value)
+					: schemaVersion === 2
+						? migrateAudioEditorProjectV2ToV7(value)
+						: migrateAudioEditorProjectV1ToV7(value);
 	return {
 		project,
 		migrated: true,

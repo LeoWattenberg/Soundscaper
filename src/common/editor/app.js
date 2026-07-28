@@ -78,7 +78,7 @@ import {
 	projectEnvelope,
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
-import { createAudioEditorProjectV6 } from './project-v6.ts';
+import { createAudioEditorProjectV7 } from './project-v7.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
 	compactEditorHistorySourceMetadata,
@@ -770,7 +770,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, lifetime, projectGeneration, copy,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
-		createProject: createAudioEditorProjectV6,
+		createProject: createAudioEditorProjectV7,
 		normalizeProjectSampleRate,
 		createInitialAudioTrackCommand: createAddTrackCommand,
 		createHistory: createEditorHistory,

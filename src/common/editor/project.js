@@ -2,12 +2,12 @@ import { validateVideoTrackComposition } from './video-timeline.js';
 import { createStableId } from './stable-id.js';
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
+import { validateAdmProjectMetadata } from './adm-project-metadata.ts';
 export { createStableId } from './stable-id.js';
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_MASTER_CHANNELS = 2;
 export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
-
 /**
  * @typedef {Object} AudioEditorSourceV1
  * @property {string} id
@@ -76,7 +76,6 @@ export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
  * @property {AudioEditorTrackV1[]} tracks
  * @property {{ gain: number, effects: AudioEditorEffectV1[] }} master
  */
-
 function plainClone(value) {
 	if (typeof structuredClone === 'function') return structuredClone(value);
 	return JSON.parse(JSON.stringify(value));
@@ -283,6 +282,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
 	if (project.schemaVersion === 5) return validateProjectV5Shape(project);
 	if (project.schemaVersion === 6) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata);
+	if (project.schemaVersion === 7) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}

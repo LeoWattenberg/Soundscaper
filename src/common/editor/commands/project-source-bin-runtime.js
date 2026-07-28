@@ -8,6 +8,7 @@ import {
 	normalizeAudioEditorSnapSettings,
 } from '../snap-grid.js';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
+import { normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -455,6 +456,7 @@ function updateMetadata(project, changes = {}) {
 	const allowed = new Set([
 		'title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags',
 		...(project.schemaVersion >= 6 ? ['bext'] : []),
+		...(project.schemaVersion >= 7 ? ['adm'] : []),
 	]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Metadata field cannot be updated: ${key}.`);
 	const next = { ...project.metadata };
@@ -462,6 +464,8 @@ function updateMetadata(project, changes = {}) {
 		if (!Object.hasOwn(changes, key)) continue;
 		if (key === 'bext') {
 			next.bext = changes.bext == null ? null : normalizeProjectBextMetadata(changes.bext);
+		} else if (key === 'adm') {
+			next.adm = changes.adm == null ? null : normalizeAdmProjectMetadata(changes.adm);
 		} else if (key === 'tags') {
 			if (!changes.tags || typeof changes.tags !== 'object' || Array.isArray(changes.tags)) {
 				throw new TypeError('metadata.tags must be an object.');
