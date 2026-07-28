@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { scaleBextTimeReference } from '../broadcast-wave-project.ts';
-import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
+import { prepareImportedWavMetadata } from './wav-import-metadata.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -363,84 +362,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
-		const sourceBext = descriptor?.bext || null;
-		const sourceIxml = descriptor?.ixml || null;
-		const sourceCart = descriptor?.cart || null;
-		const warnings = Array.isArray(descriptor?.metadataWarnings)
-			? [...descriptor.metadataWarnings]
-			: [];
-		if (!sourceBext) return Object.freeze({
-			importOptions,
-			projectBext: null,
-			projectIxml: getProject().metadata?.ixml == null ? sourceIxml : null,
-			projectCart: getProject().metadata?.cart == null ? sourceCart : null,
-			sourceBext: null,
-			sourceIxml,
-			sourceCart,
-			warnings: Object.freeze(warnings),
-		});
-
-		let sourceTimeReference: string | null = null;
-		try {
-			sourceTimeReference = scaleBextTimeReference(
-				String(sourceBext.timeReference),
-				descriptor.sampleRate,
-				projectSampleRate(),
-			);
-		} catch {
-			warnings.push(importMetadataWarning(
-				'bext-time-reference-conversion',
-				copy.bextTimeReferenceConversionWarning
-					|| 'The BEXT TimeReference cannot be represented at the project sample rate.',
-			));
-		}
-
-		const project = getProject();
-		let projectBext = null;
-		if (project.metadata?.bext === null) {
-			projectBext = normalizeProjectBextMetadata({
-				...sourceBext,
-				timeReference: sourceTimeReference ?? '0',
-			});
-		}
-
-		let timelineStartFrame = importOptions.timelineStartFrame;
-		if (importOptions.destination === 'timeline' && !importOptions.timelineStartExplicit) {
-			const origin = projectBext?.timeReference ?? project.metadata?.bext?.timeReference;
-			try {
-				if (sourceTimeReference === null || typeof origin !== 'string') throw new RangeError('missing origin');
-				const spottedFrame = BigInt(sourceTimeReference) - BigInt(origin);
-				if (spottedFrame < 0n || spottedFrame > BigInt(Number.MAX_SAFE_INTEGER)) {
-					throw new RangeError('unsafe position');
-				}
-				timelineStartFrame = Number(spottedFrame);
-			} catch {
-				timelineStartFrame = 0;
-				warnings.push(importMetadataWarning(
-					'bext-spot-out-of-range',
-					copy.bextSpotOutOfRangeWarning
-						|| 'The BEXT TimeReference produces a negative or unrepresentable timeline position; the source was placed at frame zero.',
-				));
-			}
-		}
-
-		return Object.freeze({
-			importOptions: freezeImportOptions(
-				{ ...importOptions, timelineStartFrame },
-				Boolean(importOptions.timelineStartExplicit),
-			),
-			projectBext,
-			projectIxml: project.metadata?.ixml == null ? sourceIxml : null,
-			projectCart: project.metadata?.cart == null ? sourceCart : null,
-			sourceBext,
-			sourceIxml,
-			sourceCart,
-			warnings: Object.freeze(warnings),
-		});
-	}
-
-	function importMetadataWarning(code: string, message: string) {
-		return Object.freeze({ code, message });
+		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
+			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
 	}
 
 	function importResultWithWarnings(result: RuntimeValue, warnings: readonly RuntimeValue[]) {

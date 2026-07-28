@@ -1,9 +1,8 @@
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
 import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from './broadcast-wave.ts';
-import { parseRiffMarkers } from './riff-markers.ts';
-import { parseRiffInfo } from './riff-info.ts';
 import { parseIxmlPayload } from './ixml.ts';
 import { parseCartPayload } from './cart-metadata.ts';
+import { finalizeRiffMetadata, wavMetadataWarning } from './wav-metadata-finalize.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -23,11 +22,6 @@ const EXTENSIBLE_GUID_TAIL = Object.freeze([
 	0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
 ]);
 
-/**
- * Inspect an uncompressed RIFF or RF64 WAVE Blob without materializing its sample data.
- * The returned descriptor can be passed to `streamWavBlobPcm` to avoid parsing
- * the small container header twice.
- */
 export async function inspectWavBlobPcm(blob, options = {}) {
 	validateBlob(blob);
 	const signal = options.signal;
@@ -220,14 +214,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 	}
 
-	let markers = Object.freeze([]);
-	let info = Object.freeze({});
-	try {
-		markers = parseRiffMarkers(cuePayload, adtlPayloads);
-		info = parseRiffInfo(infoPayloads);
-	} catch (error) {
-		metadataWarnings.push(Object.freeze({ code: 'riff-markers-invalid', message: error instanceof Error ? error.message : String(error) }));
-	}
+	const { markers, info } = finalizeRiffMetadata(cuePayload, adtlPayloads, infoPayloads, metadataWarnings);
 	return Object.freeze({
 		container: 'wav',
 		encoding: format.encoding,
@@ -345,9 +332,7 @@ function assertRf64TableConsumed(directory) {
 	}
 }
 
-function bextWarning(code, message) {
-	return Object.freeze({ code, field: 'chunk', message });
-}
+const bextWarning = wavMetadataWarning;
 
 /**
  * Decode an uncompressed WAV Blob into bounded planar Float32 packets.
