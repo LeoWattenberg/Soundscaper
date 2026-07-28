@@ -6,6 +6,7 @@ import {
 	type EditorDocumentSnapshotState,
 	type SnapshotProject,
 } from '../src/common/editor/controller/document-snapshot.ts';
+import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/storage-capacity-service.ts';
 
 test('document snapshots expose durability, scheduling, history, and compatibility semantically', () => {
 	const project: SnapshotProject = {
@@ -132,7 +133,7 @@ function stateFixture(
 		pixelsPerSecond: 120, timelineWidth: 1_200, autoFitTrackHeight: true,
 		sampleEditMode: null, sampleEditProcessing: false, history: null, clipboard: null,
 		status: { message: 'Ready', state: 'info' }, saveState: 'saved',
-		storageEstimate: { usage: null, quota: null }, analysisResult: null,
+		storageEstimate: createInitialStorageCapacitySnapshot(), analysisResult: null,
 		analysisVisuals: null, analysisReport: null, analysisProcessing: false,
 		exportProgress: 0, exportOutput: null, effectClipboard: null,
 		audacityEffectType: 'normalize', audacityControlTrackId: null,

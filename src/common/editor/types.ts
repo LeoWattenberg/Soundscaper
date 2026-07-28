@@ -1,4 +1,5 @@
 import type { EditorControllerPhase } from './controller/lifecycle.ts';
+import type { StorageCapacitySnapshot } from './controller/storage-capacity-service.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
 import type { EditorTaskProgress } from './controller/task-progress.ts';
 import type { ProjectBextMetadata } from './project-bext-metadata.ts';
@@ -188,6 +189,7 @@ export interface EditorActions extends EditorActionTree {
 	readonly recording: EditorActionTree;
 	readonly metering: EditorActionTree;
 	readonly audioDevices: EditorActionTree;
+	readonly storage: EditorActionTree;
 	readonly timeline: EditorActionTree;
 	readonly sampleEdit: EditorActionTree;
 	readonly spectral: EditorActionTree;
@@ -213,7 +215,7 @@ export interface EditorSnapshot {
 	readonly selectedTrackId: EditorId | null;
 	readonly selectedClipId: EditorId | null;
 	readonly readOnly: boolean;
-	readonly storage: EditorStoreStatus & Readonly<{ usage: number | null; quota: number | null }>;
+	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly [feature: string]: unknown;
 }

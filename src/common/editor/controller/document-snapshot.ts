@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorStoreStatus } from '../storage/status.ts';
+import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -89,7 +90,7 @@ export interface EditorDocumentSnapshotState {
 	readonly clipboard: unknown;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly saveState: string;
-	readonly storageEstimate: Readonly<{ usage: number | null; quota: number | null }>;
+	readonly storageEstimate: Readonly<StorageCapacitySnapshot>;
 	readonly analysisResult: unknown;
 	readonly analysisVisuals: unknown;
 	readonly analysisReport: unknown;

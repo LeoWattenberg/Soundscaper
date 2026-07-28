@@ -258,11 +258,28 @@ export class AudioEditorProjectStore {
 
 	async requestPersistentStorage() {
 		this.#assertOpen();
+		if (this.backend !== 'indexeddb') return false;
 		if (!this.storageManager?.persist) return false;
 		try {
 			return Boolean(await this.storageManager.persist());
 		} catch {
 			return false;
+		}
+	}
+
+	supportsPersistentStorage() {
+		this.#assertOpen();
+		return this.backend === 'indexeddb' && typeof this.storageManager?.persist === 'function';
+	}
+
+	async queryPersistentStorage() {
+		this.#assertOpen();
+		if (this.backend !== 'indexeddb') return null;
+		if (!this.storageManager?.persisted) return null;
+		try {
+			return Boolean(await this.storageManager.persisted());
+		} catch {
+			return null;
 		}
 	}
 

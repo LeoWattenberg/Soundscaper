@@ -288,9 +288,19 @@ models or native implementations.
   saves and renders directly to a user-selected file or native target without a
   final renderer-sized `Blob`. A size-limited browser download remains the Web
   Core fallback when no streaming destination exists.
-- **Web Core — Planned:** make storage estimates, persistence status, fallback
-  mode, cache pressure, required free space, and cleanup actions visible before
-  long imports, saves, proxies, and renders.
+- **Web Core — In progress:** the strict-TS
+  [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
+  publishes usage, quota, free space, pressure, eviction protection, fallback
+  availability, and the last operation's required headroom. The maintained
+  [workspace panel](src/common/editor/ui/workspace/StorageCapacityPanel.tsx)
+  exposes refresh, persistent-storage request, and orphaned-temporary cleanup
+  actions. Focused [service](tests/audio-editor-storage-capacity-service.test.ts),
+  [runtime](tests/audio-editor-storage-capacity-runtime.test.ts), and
+  [storage-safety](tests/audio-editor-storage-persistence.test.ts) regressions
+  prove exact preflight headroom, honest memory fallback, and cleanup that
+  preserves projects, revisions, originals, canonical PCM, derivatives, and
+  active writes. Dedicated save, proxy, and render estimators plus disposable
+  derivative cache budgets and cleanup remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

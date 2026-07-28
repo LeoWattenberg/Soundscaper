@@ -28,6 +28,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'recording',
 	'sampleEdit',
 	'spectral',
+	'storage',
 	'timeline',
 	'track',
 	'transport',
@@ -72,4 +73,32 @@ test('controller action facade enforces product capabilities at invocation', () 
 	assert.equal(typeof addEffect, 'function');
 	if (typeof addEffect !== 'function') throw new TypeError('The effects action must be callable.');
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
+});
+
+test('controller action facade exposes explicit safe storage operations', async () => {
+	const calls: string[] = [];
+	const base = createRuntime();
+	const overrides: Readonly<Record<string, () => void>> = {
+		refreshStorageUsage: () => { calls.push('refresh'); },
+		requestStoragePersistence: () => { calls.push('persist'); },
+		cleanupDisposableStorage: () => { calls.push('cleanup'); },
+	};
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			return typeof name === 'string' && Object.hasOwn(overrides, name)
+				? overrides[name]
+				: Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const refresh = actions.storage.refresh;
+	const persist = actions.storage.requestPersistence;
+	const cleanup = actions.storage.cleanupDisposable;
+	if (typeof refresh !== 'function' || typeof persist !== 'function' || typeof cleanup !== 'function') {
+		throw new TypeError('Storage actions must be callable.');
+	}
+	await refresh();
+	await persist();
+	await cleanup();
+	assert.deepEqual(calls, ['refresh', 'persist', 'cleanup']);
 });

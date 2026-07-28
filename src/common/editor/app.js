@@ -268,7 +268,7 @@ import {
 	streamAudioChannelCount,
 } from './controller/recording-model.ts';
 import { createSettingPersistence } from './controller/setting-persistence.ts';
-import { createStorageCapacityService } from './controller/storage-capacity-service.ts';
+import { createControllerStorageCapacityService } from './controller/storage-capacity-runtime.ts';
 import { createEditorDocumentSnapshot } from './controller/document-snapshot.ts';
 import {
 	applyVideoEffectGesturePreviews,
@@ -426,10 +426,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 	});
-	const storageCapacityService = createStorageCapacityService({
-		estimateStorage: () => store.estimateStorage(),
+	const storageCapacityService = createControllerStorageCapacityService({
+		store, state,
 		isInactive: () => lifetime.inactive || state.disposed,
-		setEstimate: (estimate) => { state.storageEstimate = estimate; },
 		publish: publishDocumentSnapshot,
 		copy: {
 			storageOperationRecording: copy.storageOperationRecording,
@@ -1713,10 +1712,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, releaseInputs,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
-		repeatLastAudacityEffect, requestInputAccess, requestWaveformPcmWindow, resampleTrack,
+		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
 		resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, revertFactorySettings,
 		runEffectMacro, runNyquistEvaluation, saveAup4, saveEffectPreset,
 		saveNow, saveScape, scheduleTimedRecording, selectAllTracks,
@@ -1733,7 +1732,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
-		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording,
+		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage,
 		store, stretchClip, swapTrackChannels, switchProject,
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorControllerPhase } from './lifecycle.ts';
+import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
 
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
 	readonly preferences: Preferences;
@@ -138,7 +139,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		recentProjectIds: [] as string[],
 		status: { message: readyMessage, state: 'info' },
 		saveState: 'saved',
-		storageEstimate: { usage: null, quota: null },
+		storageEstimate: createInitialStorageCapacitySnapshot(),
 		analysisResult: null,
 		analysisVisuals: null,
 		analysisReport: null,
