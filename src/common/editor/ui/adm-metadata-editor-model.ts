@@ -95,11 +95,11 @@ function appendStripChannels(
 
 function defaultAssignments(project: UnknownRecord, layout: AdmBedLayout): AdmAuthoredMetadata['bed']['assignments'] {
 	const bedChannels = ADM_BED_CHANNEL_ORDER[layout];
-	return listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source, index) => ({
+	return listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source) => ({
 		stripKind: source.stripKind,
 		stripId: source.stripId,
 		sourceChannel: source.sourceChannel,
-		bedChannel: bedChannels[Math.min(index, bedChannels.length - 1)],
+		bedChannel: bedChannels[Math.min(source.sourceChannel, bedChannels.length - 1)],
 		gain: 1,
 	}));
 }
@@ -127,7 +127,7 @@ export function setAdmEditorLayout(
 	layout: AdmBedLayout,
 ): AdmAuthoredMetadata {
 	const bedChannels = ADM_BED_CHANNEL_ORDER[layout];
-	const assignments = listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source, index) => {
+	const assignments = listAdmEditorSourceChannels(project, admBedChannelCount(layout)).map((source) => {
 		const current = value.bed.assignments.find((assignment) => (
 			assignment.stripKind === source.stripKind
 			&& assignment.stripId === source.stripId
@@ -138,7 +138,7 @@ export function setAdmEditorLayout(
 			label: undefined,
 			bedChannel: current && bedChannels.includes(current.bedChannel as never)
 				? current.bedChannel
-				: bedChannels[Math.min(index, bedChannels.length - 1)],
+				: bedChannels[Math.min(source.sourceChannel, bedChannels.length - 1)],
 			gain: current?.gain ?? 1,
 		};
 	}).map(({ label: _label, ...assignment }) => assignment);

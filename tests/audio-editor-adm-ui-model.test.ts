@@ -35,6 +35,30 @@ test('ADM editor defaults create a complete stereo DirectSpeakers routing', () =
 	]);
 });
 
+test('ADM editor restarts the bed mapping for every terminal strip', () => {
+	const project = {
+		...PROJECT,
+		sources: [
+			{ id: 'source-1', channelCount: 2 },
+			{ id: 'source-2', channelCount: 2 },
+		],
+		clips: [
+			{ id: 'clip-1', sourceId: 'source-1' },
+			{ id: 'clip-2', sourceId: 'source-2' },
+		],
+		tracks: [
+			{ id: 'track-1', type: 'audio', name: 'Music', clipIds: ['clip-1'] },
+			{ id: 'track-2', type: 'audio', name: 'Dialogue', clipIds: ['clip-2'] },
+		],
+	};
+	const adm = createDefaultAdmMetadata(project);
+	assert.deepEqual(adm.bed.assignments.map(({ bedChannel }) => bedChannel), ['L', 'R', 'L', 'R']);
+	assert.deepEqual(
+		setAdmEditorLayout(adm, project, 'stereo').bed.assignments.map(({ bedChannel }) => bedChannel),
+		['L', 'R', 'L', 'R'],
+	);
+});
+
 test('ADM editor layout and routing updates remain normalized', () => {
 	const stereo = createDefaultAdmMetadata(PROJECT);
 	const mono = setAdmEditorLayout(stereo, PROJECT, 'mono');
