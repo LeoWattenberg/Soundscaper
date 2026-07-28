@@ -43,7 +43,7 @@ test.describe('BW64 ADM metadata UI', () => {
 		await panel.locator('select[name="adm-bed-layout"]').selectOption('mono');
 		await commitInput(panel.locator('input[name="adm-programme-name"]'), 'Evening programme');
 		await expect(panel.locator('[data-adm-mode="authored"]')).toBeVisible();
-		await expect(panel.locator('.audio-editor-adm-route select')).toHaveCount(2);
+		await expect(panel.locator('.audio-editor-adm-route select')).toHaveCount(3);
 		for (const route of await panel.locator('.audio-editor-adm-route select').all()) await expect(route).toHaveValue('M');
 
 		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
