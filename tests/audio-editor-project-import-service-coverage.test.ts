@@ -26,6 +26,34 @@ function file(name: string, type = 'audio/wav', size = 16): TestFile {
 	return { ...value, slice: () => value };
 }
 
+function bextMetadata(timeReference = '0') {
+	return Object.freeze({
+		description: 'Location recording',
+		originator: 'Soundscaper Tests',
+		originatorReference: 'TEST-REFERENCE',
+		originationDate: '2026-07-28',
+		originationTime: '12:34:56',
+		timeReference,
+		version: 1,
+		umid: '',
+		loudnessValue: null,
+		loudnessRange: null,
+		maxTruePeakLevel: null,
+		maxMomentaryLoudness: null,
+		maxShortTermLoudness: null,
+		codingHistory: 'A=PCM,F=44100,W=24,M=stereo,T=Recorder',
+	});
+}
+
+function commandChildren(command: unknown) {
+	const candidate = command as { type?: string; commands?: unknown[] };
+	return candidate.type === 'batch' ? candidate.commands || [] : [candidate];
+}
+
+function commandOfType(command: unknown, type: string) {
+	return commandChildren(command).find((child) => (child as { type?: string }).type === type) as Record<string, unknown> | undefined;
+}
+
 function createFixture() {
 	const calls: string[] = [];
 	const commands: Array<{ command: unknown; selection: unknown }> = [];
@@ -33,6 +61,7 @@ function createFixture() {
 	const placements: unknown[] = [];
 	const options = {
 		blocked: false,
+		commitFails: false,
 		decodeFails: false,
 		ffmpegFails: false,
 		writerFails: false,
@@ -44,6 +73,8 @@ function createFixture() {
 			frameCount: number;
 			sampleRate: number;
 			pcmBytes: number;
+			bext?: ReturnType<typeof bextMetadata> | null;
+			metadataWarnings?: ReadonlyArray<{ code: string; message: string }>;
 		},
 		structuredDecoded: null as null | {
 			project?: Record<string, unknown>;
@@ -60,6 +91,7 @@ function createFixture() {
 	};
 	let currentProject: Record<string, unknown> = {
 		id: 'current',
+		metadata: { bext: null },
 		tracks: [{ id: 'target', type: 'audio' }, { id: 'after', type: 'audio' }],
 		sources: [],
 	};
@@ -110,7 +142,24 @@ function createFixture() {
 		bufferFromChannels: async () => audio,
 		cacheSourceBuffer: (sourceId: string, value: unknown) => { sourceBuffers.set(sourceId, value); },
 		canonicalizeBuffer: async () => audio,
-		commit: (command: unknown, selection: unknown) => { commands.push({ command, selection }); },
+		commit: (command: unknown, selection: unknown) => {
+			if (options.commitFails) throw new Error('commit failed');
+			commands.push({ command, selection });
+			const batch = command as { type?: string; commands?: Array<{ type?: string; changes?: Record<string, unknown> }> };
+			const children: Array<{ type?: string; changes?: Record<string, unknown> }> = batch.type === 'batch'
+				? batch.commands || []
+				: [batch];
+			const metadataUpdate = children.find((child) => child.type === 'metadata/update');
+			if (metadataUpdate?.changes) {
+				currentProject = {
+					...currentProject,
+					metadata: {
+						...(currentProject.metadata as Record<string, unknown>),
+						...metadataUpdate.changes,
+					},
+				};
+			}
+		},
 		convertLegacyAupToProjectV2: () => decodedStructure(),
 		copy: {
 			importing: 'Importing',
@@ -296,6 +345,162 @@ test('small, multichannel, invalid, and unsliceable WAVs use the regular decoder
 	const unsliceable = { ...file('unsliceable.wav'), slice: undefined };
 	await service.importFile(unsliceable);
 	assert.equal(fixture.commands.length, 4);
+});
+
+test('regular BWF imports preserve source metadata, seed the project once, and spot later sources', async () => {
+	const fixture = createFixture();
+	fixture.runtime.copy.bextMetadataImportWarning = 'Broadcast-WAV-Metadaten wurden normalisiert.';
+	fixture.options.incrementalDescriptor = {
+		channelCount: 1,
+		frameCount: 2,
+		sampleRate: 44_100,
+		pcmBytes: 8,
+		bext: bextMetadata('44100'),
+		metadataWarnings: [{ code: 'bext-field', message: 'A recoverable BEXT field was normalized.' }],
+	};
+	const service = createProjectImportService(fixture.runtime);
+	const first = await service.importFile(file('first-broadcast.wav'), { destination: 'timeline' });
+	const firstCommand = fixture.commands[0]?.command;
+	const firstSource = commandOfType(firstCommand, 'source/add')?.source as {
+		opaqueExtensions?: { bext?: Record<string, unknown> };
+	};
+	const firstMetadata = commandOfType(firstCommand, 'metadata/update')?.changes as {
+		bext?: Record<string, unknown>;
+	};
+	const firstClip = commandOfType(firstCommand, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.deepEqual(firstSource.opaqueExtensions?.bext, bextMetadata('44100'));
+	assert.equal(firstMetadata.bext?.version, 2);
+	assert.equal(firstMetadata.bext?.timeReference, '48000');
+	assert.equal(firstClip.timelineStartFrame, 0);
+	assert.equal(first.notice, 'Broadcast-WAV-Metadaten wurden normalisiert.');
+
+	fixture.options.incrementalDescriptor = {
+		...fixture.options.incrementalDescriptor,
+		bext: bextMetadata('88200'),
+		metadataWarnings: [],
+	};
+	await service.importFile(file('second-broadcast.wav'), { destination: 'timeline' });
+	const secondCommand = fixture.commands[1]?.command;
+	assert.equal(commandOfType(secondCommand, 'metadata/update'), undefined);
+	const secondClip = commandOfType(secondCommand, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(secondClip.timelineStartFrame, 48_000);
+});
+
+test('BWF spotting respects explicit and project-bin placement and warns on invalid deltas', async () => {
+	const fixture = createFixture();
+	fixture.runtime.copy.bextMetadataImportWarning = 'Broadcast-WAV-Metadaten wurden normalisiert.';
+	fixture.runtime.copy.bextSpotOutOfRangeWarning = 'Die Quelle wurde bei Frame null platziert.';
+	fixture.setProject({
+		id: 'current',
+		metadata: { bext: { ...bextMetadata('96000'), version: 2 } },
+		tracks: [{ id: 'target', type: 'audio' }],
+		sources: [],
+	});
+	fixture.options.incrementalDescriptor = {
+		channelCount: 1,
+		frameCount: 2,
+		sampleRate: 48_000,
+		pcmBytes: 8,
+		bext: bextMetadata('48000'),
+		metadataWarnings: [],
+	};
+	const service = createProjectImportService(fixture.runtime);
+	await service.importFile(file('explicit.wav'), {
+		destination: 'timeline',
+		trackId: 'target',
+		timelineStartFrame: 73,
+	});
+	const explicitClip = commandOfType(fixture.commands[0]?.command, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(explicitClip.timelineStartFrame, 73);
+
+	await service.importFile(file('bin.wav'), { destination: 'project-bin' });
+	const binClip = commandOfType(fixture.commands[1]?.command, 'project-bin/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(binClip.timelineStartFrame, 0);
+
+	const negative = await service.importFile(file('negative.wav'), { destination: 'timeline' });
+	const negativeClip = commandOfType(fixture.commands[2]?.command, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(negativeClip.timelineStartFrame, 0);
+	assert.match(String(negative.notice), /Frame null/u);
+
+	fixture.options.incrementalDescriptor = {
+		...fixture.options.incrementalDescriptor,
+		bext: bextMetadata('18446744073709551615'),
+	};
+	const unsafe = await service.importFile(file('unsafe.wav'), { destination: 'timeline' });
+	const unsafeClip = commandOfType(fixture.commands[3]?.command, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(unsafeClip.timelineStartFrame, 0);
+	assert.match(String(unsafe.notice), /Frame null/u);
+
+	fixture.setProject({
+		id: 'current',
+		metadata: { bext: { ...bextMetadata('9007199254740993'), version: 2 } },
+		tracks: [{ id: 'target', type: 'audio' }],
+		sources: [],
+	});
+	fixture.options.incrementalDescriptor = {
+		...fixture.options.incrementalDescriptor,
+		bext: bextMetadata('9007199254740994'),
+	};
+	await service.importFile(file('large-exact-reference.wav'), { destination: 'timeline' });
+	const exactClip = commandOfType(fixture.commands[4]?.command, 'clip/add')?.clip as { timelineStartFrame?: number };
+	assert.equal(exactClip.timelineStartFrame, 1);
+});
+
+test('incremental BWF import metadata is atomic with source activation and commit', async () => {
+	const success = createFixture();
+	success.options.incrementalDescriptor = {
+		channelCount: 2,
+		frameCount: 64,
+		sampleRate: 48_000,
+		pcmBytes: 512,
+		bext: bextMetadata('96000'),
+		metadataWarnings: [{ code: 'bext-version', message: 'Imported legacy BEXT metadata.' }],
+	};
+	const successfulResult = await createProjectImportService(success.runtime).importFile(file('incremental-bwf.wav'));
+	const successfulCommand = success.commands[0]?.command;
+	const successfulSource = commandOfType(successfulCommand, 'source/add')?.source as {
+		opaqueExtensions?: { bext?: Record<string, unknown> };
+	};
+	assert.deepEqual(successfulSource.opaqueExtensions?.bext, bextMetadata('96000'));
+	assert.equal(
+		(commandOfType(successfulCommand, 'metadata/update')?.changes as { bext?: { timeReference?: string } }).bext?.timeReference,
+		'96000',
+	);
+	assert.match(String(successfulResult.notice), /legacy BEXT metadata/u);
+
+	const activationFailure = createFixture();
+	activationFailure.options.incrementalDescriptor = {
+		channelCount: 2,
+		frameCount: 64,
+		sampleRate: 48_000,
+		pcmBytes: 512,
+		bext: bextMetadata('96000'),
+		metadataWarnings: [],
+	};
+	activationFailure.options.activateFails = true;
+	await assert.rejects(
+		() => createProjectImportService(activationFailure.runtime).importFile(file('activation-bwf.wav')),
+		/activate failed/u,
+	);
+	assert.equal(activationFailure.commands.length, 0);
+	assert.equal(activationFailure.deletedSources.length, 1);
+
+	const commitFailure = createFixture();
+	commitFailure.options.incrementalDescriptor = {
+		channelCount: 2,
+		frameCount: 64,
+		sampleRate: 48_000,
+		pcmBytes: 512,
+		bext: bextMetadata('96000'),
+		metadataWarnings: [],
+	};
+	commitFailure.options.commitFails = true;
+	await assert.rejects(
+		() => createProjectImportService(commitFailure.runtime).importFile(file('commit-bwf.wav')),
+		/commit failed/u,
+	);
+	assert.equal(commitFailure.commands.length, 0);
+	assert.equal(commitFailure.deletedSources.length, 1);
 });
 
 test('structured legacy AUP imports persist PCM chunks, progress, and warnings', async () => {

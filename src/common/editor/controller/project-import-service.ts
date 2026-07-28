@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { scaleBextTimeReference } from '../broadcast-wave-project.ts';
+import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
+
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -7,6 +10,13 @@ export interface ProjectImportRuntime {
 }
 
 type RuntimeValue = ProjectImportRuntime[string];
+
+const BEXT_CODEC_WARNING_CODES = new Set([
+	'invalid-ascii', 'invalid-chunk-id', 'invalid-date', 'invalid-line-ending',
+	'invalid-loudness', 'invalid-padding', 'invalid-time', 'nonzero-reserved',
+	'payload-too-large', 'truncated-chunk', 'truncated-payload',
+	'unterminated-coding-history', 'unsupported-version',
+]);
 
 export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
@@ -83,11 +93,25 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const destination = requestedDestination === 'auto'
 			? value?.projectBinVisible ? 'project-bin' : 'timeline'
 			: requestedDestination;
-		return Object.freeze({
+		const timelineStartExplicit = value != null && Object.hasOwn(value, 'timelineStartExplicit')
+			? Boolean(value.timelineStartExplicit)
+			: value != null && Object.hasOwn(value, 'timelineStartFrame');
+		return freezeImportOptions({
 			destination,
 			trackId: value?.trackId == null ? null : String(value.trackId),
 			timelineStartFrame: normalizeImportTimelineStartFrame(value?.timelineStartFrame ?? 0),
+			...(Number.isSafeInteger(value?.trackIndex) ? { trackIndex: value.trackIndex } : {}),
+		}, timelineStartExplicit);
+	}
+
+	function freezeImportOptions(value: RuntimeValue, timelineStartExplicit: boolean) {
+		Object.defineProperty(value, 'timelineStartExplicit', {
+			configurable: false,
+			enumerable: false,
+			value: timelineStartExplicit,
+			writable: false,
 		});
+		return Object.freeze(value);
 	}
 
 	function normalizeImportTimelineStartFrame(value: RuntimeValue) {
@@ -102,15 +126,23 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (importOptions.destination !== 'timeline' || !importOptions.trackId) return importOptions;
 		if (fileIndex === 0) return importOptions;
 		const targetTrackIndex = getProject().tracks.findIndex((track: RuntimeValue) => track.id === importOptions.trackId);
-		return Object.freeze({
+		return freezeImportOptions({
 			...importOptions,
 			trackId: null,
 			trackIndex: targetTrackIndex < 0 ? undefined : targetTrackIndex + fileIndex,
-		});
+		}, Boolean(importOptions.timelineStartExplicit));
 	}
 
-	function prepareImportedMediaCommand(source: RuntimeValue, clip: RuntimeValue, trackName: RuntimeValue, importOptions: RuntimeValue) {
-		const commands = [createAddSourceCommand(source)];
+	function prepareImportedMediaCommand(
+		source: RuntimeValue,
+		clip: RuntimeValue,
+		trackName: RuntimeValue,
+		importOptions: RuntimeValue,
+		projectBext: RuntimeValue = null,
+	) {
+		const commands = [];
+		if (projectBext) commands.push({ type: 'metadata/update', changes: { bext: projectBext } });
+		commands.push(createAddSourceCommand(source));
 		if (importOptions.destination === 'project-bin') {
 			commands.push({ type: 'project-bin/add', clip });
 			return {
@@ -166,14 +198,20 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
+		const normalizedImportOptions = importOptions != null && Object.hasOwn(importOptions, 'timelineStartExplicit')
+			? importOptions
+			: normalizeImportOptions(importOptions);
 		if (isLegacyAupFile(file)) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 			return importLegacyAudacityProject(file);
 		}
-		if (isAudioEditorVideoFile(file)) return importVideoFile(file, importOptions);
-		validateImportTimelineTrack(importOptions);
-		const incrementalWav = await inspectIncrementalWav(file);
-		if (incrementalWav) return importIncrementalWav(file, incrementalWav, importOptions);
+		if (isAudioEditorVideoFile(file)) return importVideoFile(file, normalizedImportOptions);
+		validateImportTimelineTrack(normalizedImportOptions);
+		const wavDescriptor = await inspectWav(file);
+		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
+		if (isIncrementalWav(wavDescriptor)) {
+			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
+		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		const context = await engine.getAudioContext({ resume: false });
 		let decoded;
@@ -221,6 +259,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: canonical.numberOfChannels,
 			sampleRate: canonical.sampleRate,
 			originalSampleRate: originalSampleRate || decoded.sampleRate,
+			...(wavMetadata.sourceBext ? { opaqueExtensions: { bext: wavMetadata.sourceBext } } : {}),
 		}, {
 			schemaVersion: 2,
 			title: trackName,
@@ -230,7 +269,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
-		}, trackName, importOptions);
+		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext);
 		cacheSourceBuffer(sourceId, canonical);
 		try {
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
@@ -244,22 +283,126 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			throw error;
 		}
 		warnEnvelope();
-		return prepared.result;
+		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
 	}
 
-	async function inspectIncrementalWav(file: RuntimeValue) {
+	async function inspectWav(file: RuntimeValue) {
 		if (!isWavFile(file) || typeof file?.slice !== 'function') return null;
 		try {
-			const descriptor = await inspectWavBlobPcm(file);
-			if (descriptor.channelCount > 2
-				|| sourcePcmBytes(descriptor) <= SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) return null;
-			return descriptor;
+			return await inspectWavBlobPcm(file);
 		} catch {
 			return null;
 		}
 	}
 
-	async function importIncrementalWav(file: RuntimeValue, descriptor: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
+	function isIncrementalWav(descriptor: RuntimeValue) {
+		return Boolean(descriptor
+			&& descriptor.channelCount <= 2
+			&& sourcePcmBytes(descriptor) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES);
+	}
+
+	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
+		const sourceBext = descriptor?.bext || null;
+		const warnings = Array.isArray(descriptor?.metadataWarnings)
+			? [...descriptor.metadataWarnings]
+			: [];
+		if (!sourceBext) return Object.freeze({
+			importOptions,
+			projectBext: null,
+			sourceBext: null,
+			warnings: Object.freeze(warnings),
+		});
+
+		let sourceTimeReference: string | null = null;
+		try {
+			sourceTimeReference = scaleBextTimeReference(
+				String(sourceBext.timeReference),
+				descriptor.sampleRate,
+				projectSampleRate(),
+			);
+		} catch {
+			warnings.push(importMetadataWarning(
+				'bext-time-reference-conversion',
+				copy.bextTimeReferenceConversionWarning
+					|| 'The BEXT TimeReference cannot be represented at the project sample rate.',
+			));
+		}
+
+		const project = getProject();
+		let projectBext = null;
+		if (project.metadata?.bext === null) {
+			projectBext = normalizeProjectBextMetadata({
+				...sourceBext,
+				timeReference: sourceTimeReference ?? '0',
+			});
+		}
+
+		let timelineStartFrame = importOptions.timelineStartFrame;
+		if (importOptions.destination === 'timeline' && !importOptions.timelineStartExplicit) {
+			const origin = projectBext?.timeReference ?? project.metadata?.bext?.timeReference;
+			try {
+				if (sourceTimeReference === null || typeof origin !== 'string') throw new RangeError('missing origin');
+				const spottedFrame = BigInt(sourceTimeReference) - BigInt(origin);
+				if (spottedFrame < 0n || spottedFrame > BigInt(Number.MAX_SAFE_INTEGER)) {
+					throw new RangeError('unsafe position');
+				}
+				timelineStartFrame = Number(spottedFrame);
+			} catch {
+				timelineStartFrame = 0;
+				warnings.push(importMetadataWarning(
+					'bext-spot-out-of-range',
+					copy.bextSpotOutOfRangeWarning
+						|| 'The BEXT TimeReference produces a negative or unrepresentable timeline position; the source was placed at frame zero.',
+				));
+			}
+		}
+
+		return Object.freeze({
+			importOptions: freezeImportOptions(
+				{ ...importOptions, timelineStartFrame },
+				Boolean(importOptions.timelineStartExplicit),
+			),
+			projectBext,
+			sourceBext,
+			warnings: Object.freeze(warnings),
+		});
+	}
+
+	function importMetadataWarning(code: string, message: string) {
+		return Object.freeze({ code, message });
+	}
+
+	function importResultWithWarnings(result: RuntimeValue, warnings: readonly RuntimeValue[]) {
+		if (!warnings.length) return result;
+		const messages = [...new Set(warnings.map((warning) => {
+			if (typeof warning === 'string') return warning;
+			if (warning?.code === 'bext-time-reference-conversion' || warning?.code === 'bext-spot-out-of-range') {
+				return warning.message;
+			}
+			if (isBextMetadataWarning(warning)) {
+				return copy.bextMetadataImportWarning || warning.message;
+			}
+			if (typeof warning?.message === 'string') return warning.message;
+			return String(warning?.code || 'WAV metadata warning.');
+		}).filter(Boolean))];
+		return Object.freeze({
+			...result,
+			metadataWarnings: Object.freeze([...warnings]),
+			...(messages.length ? { notice: messages.join(' ') } : {}),
+		});
+	}
+
+	function isBextMetadataWarning(warning: RuntimeValue) {
+		const code = typeof warning?.code === 'string' ? warning.code : '';
+		return code.startsWith('bext-') || BEXT_CODEC_WARNING_CODES.has(code);
+	}
+
+	async function importIncrementalWav(
+		file: RuntimeValue,
+		descriptor: RuntimeValue,
+		importOptions: RuntimeValue = normalizeImportOptions(),
+		wavMetadata: RuntimeValue = prepareWavImportMetadata(descriptor, importOptions),
+	) {
 		const pcmBytes = sourcePcmBytes(descriptor);
 		await preflightStorage(pcmBytes, 'import');
 		const sourceId = createStableId('source');
@@ -303,6 +446,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: descriptor.channelCount,
 			sampleRate: descriptor.sampleRate,
 			originalSampleRate: descriptor.sampleRate,
+			...(wavMetadata.sourceBext ? { opaqueExtensions: { bext: wavMetadata.sourceBext } } : {}),
 		};
 		const prepared = prepareImportedMediaCommand(source, {
 			schemaVersion: 2,
@@ -313,7 +457,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
-		}, trackName, importOptions);
+		}, trackName, importOptions, wavMetadata.projectBext);
 		try {
 			await activateStoredSource(source, metadata);
 			commit(prepared.command, prepared.selection);
@@ -325,7 +469,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			throw error;
 		}
 		warnEnvelope();
-		return prepared.result;
+		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
 	}
 
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
