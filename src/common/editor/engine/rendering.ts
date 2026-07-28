@@ -109,6 +109,7 @@ async renderMix(this: EngineRuntimeHost, {
 			? Math.max(1, toFrame - fromFrame + tailFrames)
 			: positiveInteger(requestedOutputFrames, 1);
 		const outputLength = warmupFrames + processingLatencyFrames + requestedLength;
+		const outputChannelCount = clamp(positiveInteger(this.project.masterChannels, 2), 1, 32);
 
 		if (!this.offlineAudioContextFactory) {
 			if (typeof this.softwareRenderer === 'function') {
@@ -130,7 +131,7 @@ async renderMix(this: EngineRuntimeHost, {
 			throw new Error('OfflineAudioContext is not available in this browser.');
 		}
 
-		const context = createOfflineContext(this.offlineAudioContextFactory, 2, outputLength, this.sampleRate);
+		const context = createOfflineContext(this.offlineAudioContextFactory, outputChannelCount, outputLength, this.sampleRate);
 		let parametricEqFailure = null;
 		let graph = null;
 		try {
@@ -211,6 +212,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
 		const warmupProjectFrames = fromFrame - renderFromFrame;
 		const tailFrames = Math.round(resolveTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
+		const outputChannelCount = clamp(positiveInteger(this.project.masterChannels, 2), 1, 32);
 		const context = createRealtimeContext(Context, positiveInteger(sampleRate, this.sampleRate));
 		if (!context.audioWorklet?.addModule) {
 			await context.close?.();
@@ -239,11 +241,12 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			capture = new globalThis.AudioWorkletNode(context, 'kw-audio-render-capture', {
 				numberOfInputs: 1,
 				numberOfOutputs: 1,
-				outputChannelCount: [2],
+				outputChannelCount: [outputChannelCount],
 				processorOptions: {
 					startFrame: Math.ceil(startTime * context.sampleRate) + warmupContextFrames + processingLatencyFrames,
 					totalFrames: outputFrames,
 					chunkFrames: Math.max(128, Math.min(16_384, Math.floor(chunkFrames))),
+					channelCount: outputChannelCount,
 				},
 			});
 			silent = context.createGain();
@@ -373,7 +376,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			await done;
 			return {
 				sampleRate: context.sampleRate,
-				channelCount: 2,
+				channelCount: outputChannelCount,
 				frameCount: queue.writtenFrames,
 				chunkCount: queue.writtenChunks,
 			};

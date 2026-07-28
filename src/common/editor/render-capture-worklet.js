@@ -9,10 +9,11 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		this.startFrame = Math.max(0, Math.floor(settings.startFrame || 0));
 		this.totalFrames = Math.max(1, Math.floor(settings.totalFrames || 1));
 		this.chunkFrames = Math.max(128, Math.min(16_384, Math.floor(settings.chunkFrames || 4096)));
+		this.channelCount = Math.max(1, Math.min(32, Math.floor(settings.channelCount || 2)));
 		this.capturedFrames = 0;
 		this.writeOffset = 0;
 		this.finished = false;
-		this.buffers = [new Float32Array(this.chunkFrames), new Float32Array(this.chunkFrames)];
+		this.buffers = Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
 	}
 
 	process(inputs, outputs) {
@@ -26,7 +27,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		const remaining = this.totalFrames - this.capturedFrames;
 		const last = Math.min(blockFrames, first + remaining);
 		for (let frame = first; frame < last && this.capturedFrames < this.totalFrames; frame += 1) {
-			for (let channel = 0; channel < 2; channel += 1) {
+			for (let channel = 0; channel < this.channelCount; channel += 1) {
 				const source = input[Math.min(channel, Math.max(0, input.length - 1))];
 				this.buffers[channel][this.writeOffset] = source?.[frame] || 0;
 			}
@@ -43,7 +44,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		const channels = this.buffers.map((buffer) => buffer.slice(0, this.writeOffset));
 		const frames = this.writeOffset;
 		const frameOffset = this.capturedFrames - frames;
-		this.buffers = [new Float32Array(this.chunkFrames), new Float32Array(this.chunkFrames)];
+		this.buffers = Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
 		this.writeOffset = 0;
 		this.port.postMessage({ type: 'audio-chunk', channels, frames, frameOffset }, channels.map((channel) => channel.buffer));
 	}
