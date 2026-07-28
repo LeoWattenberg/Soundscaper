@@ -177,6 +177,11 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.writeAsset(sourceId, input, metadata, { signal });
 	}
 
+	/** Start a bounded transactional write without retaining the whole container. */
+	async beginMediaAssetWrite(sourceId, metadata = {}, options = {}) {
+		return this.mediaRepository.beginAssetWrite(sourceId, metadata, options);
+	}
+
 	async loadMediaAsset(sourceId) {
 		return this.mediaRepository.loadAsset(sourceId);
 	}
@@ -301,14 +306,20 @@ export class AudioEditorProjectStore {
 	}
 
 	async close() {
-		if (this.closed || this.closing) return;
+		if (this.closed || this.closing || this.storeState === 'closing') return;
+		const mediaMaintenance = this.mediaRepository.beginAssetMaintenance({ permanent: true });
 		this.closing = true;
 		this.storeState = 'closing';
-		let closeError = null;
+		const closeErrors = [];
+		try {
+			await mediaMaintenance.abortActive();
+		} catch (error) {
+			closeErrors.push(error);
+		}
 		try {
 			await this.sourceRepository.stopBackgroundWork({ closeCodec: true });
 		} catch (error) {
-			closeError = error;
+			closeErrors.push(error);
 		} finally {
 			const database = this.databasePromise
 				? await this.databasePromise.catch(() => null)
@@ -320,7 +331,8 @@ export class AudioEditorProjectStore {
 			this.closing = false;
 			this.storeState = 'closed';
 		}
-		if (closeError) throw closeError;
+		if (closeErrors.length === 1) throw closeErrors[0];
+		if (closeErrors.length > 1) throw new AggregateError(closeErrors, 'Project storage close failed.');
 	}
 
 	#assertOpen() {

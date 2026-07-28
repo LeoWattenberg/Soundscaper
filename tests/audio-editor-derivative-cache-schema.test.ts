@@ -10,6 +10,12 @@ import {
 } from '../src/common/editor/storage/derivative-cache-entry.ts';
 import { readDerivativeCacheInventory } from '../src/common/editor/storage/derivative-cache-inventory.ts';
 import { openDatabase } from '../src/common/editor/storage/indexeddb-backend.ts';
+import {
+	BINARY_PATH_REFERENCE_INDEX_NAME,
+	MEDIA_ASSET_CHUNK_STORE_NAME,
+	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+	MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
+} from '../src/common/editor/storage/media-asset-chunk-schema.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 interface CursorStats {
@@ -31,7 +37,7 @@ interface InstrumentedIndexedDB {
 	seedRecord(databaseName: string, storeName: string, value: unknown, primaryKey?: IDBValidKey): void;
 }
 
-test('v2 derivative payloads backfill atomically into exact Blob-free v3 cache entries', async () => {
+test('v2 derivative payloads backfill atomically into exact Blob-free cache entries during v4 upgrade', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-cache-v3-backfill');
 	const legacy = await openLegacyV2Database(indexedDB, databaseName);
@@ -42,8 +48,9 @@ test('v2 derivative payloads backfill atomically into exact Blob-free v3 cache e
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 	const cacheEntryStore = database.transaction(DERIVATIVE_CACHE_ENTRY_STORE_NAME, 'readonly')
 		.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
-	assert.equal(database.version, 3);
+	assert.equal(database.version, 4);
 	assert.equal(database.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME), true);
+	assert.equal(database.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), true);
 	assert.equal(cacheEntryStore.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), true);
 	assert.deepEqual(indexedDB.records(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), [
 		cacheEntry('cache-a'),
@@ -71,7 +78,7 @@ test('v2 derivative payloads backfill atomically into exact Blob-free v3 cache e
 	database.close();
 });
 
-test('a failed v3 cache-entry backfill restores the v2 schema and retries cleanly', async () => {
+test('a failed cache-entry backfill rolls back both v3 and v4 stores before retry', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-cache-v3-rollback');
 	const legacy = await openLegacyV2Database(indexedDB, databaseName);
@@ -88,11 +95,13 @@ test('a failed v3 cache-entry backfill restores the v2 schema and retries cleanl
 	const restored = await openRawDatabase(indexedDB, databaseName, 2);
 	assert.equal(restored.version, 2);
 	assert.equal(restored.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME), false);
+	assert.equal(restored.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), false);
 	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
 	restored.close();
 
 	const retried = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
-	assert.equal(retried.version, 3);
+	assert.equal(retried.version, 4);
+	assert.equal(retried.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), true);
 	assert.deepEqual(indexedDB.records(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), [cacheEntry('cache-a')]);
 	retried.close();
 });
@@ -115,8 +124,46 @@ test('a spoofed legacy payload key cannot redirect the authoritative migration k
 	);
 	const restored = await openRawDatabase(indexedDB, databaseName, 2);
 	assert.equal(restored.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME), false);
+	assert.equal(restored.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), false);
 	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
 	restored.close();
+});
+
+test('v3 media records survive v4 creation of the dedicated token-indexed chunk store', async () => {
+	const indexedDB = instrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('media-asset-chunks-v4');
+	const legacy = await openRawDatabase(indexedDB, databaseName, 3, (database) => {
+		database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+	});
+	const legacyMedia = {
+		sourceId: 'legacy-media',
+		storage: 'indexeddb-blob',
+		blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
+		size: 16,
+		mimeType: 'video/mp4',
+	};
+	indexedDB.seedRecord(databaseName, 'mediaAssets', legacyMedia);
+	legacy.close();
+
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	assert.equal(database.version, 4);
+	const chunks = database.transaction(MEDIA_ASSET_CHUNK_STORE_NAME, 'readonly')
+		.objectStore(MEDIA_ASSET_CHUNK_STORE_NAME);
+	const mediaAssets = database.transaction('mediaAssets', 'readonly').objectStore('mediaAssets');
+	const sources = database.transaction('sources', 'readonly').objectStore('sources');
+	const derivativePayloads = database.transaction(VIDEO_DERIVATIVE_STORE_NAME, 'readonly')
+		.objectStore(VIDEO_DERIVATIVE_STORE_NAME);
+	const derivativeEntries = database.transaction(DERIVATIVE_CACHE_ENTRY_STORE_NAME, 'readonly')
+		.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
+	assert.equal(chunks.indexNames.contains(MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME), true);
+	assert.equal(mediaAssets.indexNames.contains(MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME), true);
+	assert.equal(mediaAssets.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME), true);
+	assert.equal(sources.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME), true);
+	assert.equal(derivativePayloads.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME), true);
+	assert.equal(derivativeEntries.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME), true);
+	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [legacyMedia]);
+	assert.equal(indexedDB.recordCount(databaseName, MEDIA_ASSET_CHUNK_STORE_NAME), 0);
+	database.close();
 });
 
 async function openLegacyV2Database(

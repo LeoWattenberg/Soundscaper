@@ -7,6 +7,9 @@ import {
 } from './derivative-cache-entry.ts';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
+	MEDIA_ASSET_CHUNK_STORE_NAME,
+} from './media-asset-chunk-schema.ts';
+import {
 	candidateEligibleAt,
 	isOpfsPcmStorage,
 	protectSourceDependencies,
@@ -61,56 +64,66 @@ export class RetentionRepository {
 	async cleanupTemporaryAssets({ maximumAgeMs = 24 * 60 * 60 * 1000 } = {}): Promise<void> {
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
+		const mediaAssets = await this.#options.media.assetRecords();
 		const binaryRecords = [
-			...await this.#options.media.assetRecords(),
+			...mediaAssets,
 			...await this.#options.media.allDerivativeRecords(),
 		];
 		const paths = new Set([
 			...sources.map((source) => source.path),
 			...binaryRecords.map((record) => record.path),
 		].filter(isString));
+		for (const path of this.#options.media.activeAssetPaths()) paths.add(path);
 		const cutoff = Date.now() - maximumAgeMs;
 		await this.#options.sourceRecords.cleanupStaleChunks(tokens, cutoff);
+		await this.#options.media.cleanupStaleAssetChunks(mediaAssets, cutoff);
 		await this.#options.opfs.cleanupOrphans(paths, cutoff);
 	}
 
 	async clear(): Promise<void> {
-		await this.#options.sources.stopBackgroundWork();
-		const opfsRecords: StorageRecord[] = [];
-		const database = await this.#options.port.database();
-		if (!database) {
-			opfsRecords.push(
-				...[...this.#options.port.memory.sources.values()].map(asStorageRecord).filter(isOpfsSource),
-				...[...this.#options.port.memory.mediaAssets.values()].map(asStorageRecord).filter(isOpfsRecord),
-				...[...this.#options.port.memory.videoDerivatives.values()].map(asStorageRecord).filter(isOpfsRecord),
-			);
-			for (const value of Object.values(this.#options.port.memory)) value.clear();
-		} else {
-			await transact(database, [
-				'projects',
-				'revisions',
-				'settings',
-				'analysis',
-				'sources',
-				'sourceChunks',
-				'mediaAssets',
-				VIDEO_DERIVATIVE_STORE_NAME,
-				DERIVATIVE_CACHE_ENTRY_STORE_NAME,
-			], 'readwrite', async (stores) => {
-				const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
-				const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;
-				const storedDerivativeEntriesRequest = request(
-					stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME].getAll(),
-				) as Promise<StorageRecord[]>;
-				opfsRecords.push(...await storedSourcesRequest);
-				opfsRecords.push(...await storedMediaAssetsRequest);
-				opfsRecords.push(...await storedDerivativeEntriesRequest);
-				for (const store of Object.values(stores)) store.clear();
-			});
-		}
-		for (const record of opfsRecords) {
-			if (record.sourceToken) await this.#options.sources.deleteStored(record);
-			else await this.#options.opfs.deleteBinaryRecords([record]);
+		const maintenance = this.#options.media.beginAssetMaintenance();
+		try {
+			await maintenance.abortActive();
+			await this.#options.sources.stopBackgroundWork();
+			const opfsRecords: StorageRecord[] = [];
+			const database = await this.#options.port.database();
+			if (!database) {
+				opfsRecords.push(
+					...[...this.#options.port.memory.sources.values()].map(asStorageRecord).filter(isOpfsSource),
+					...[...this.#options.port.memory.mediaAssets.values()].map(asStorageRecord).filter(isOpfsRecord),
+					...[...this.#options.port.memory.videoDerivatives.values()].map(asStorageRecord).filter(isOpfsRecord),
+				);
+				for (const value of Object.values(this.#options.port.memory)) value.clear();
+			} else {
+				await transact(database, [
+					'projects',
+					'revisions',
+					'settings',
+					'analysis',
+					'sources',
+					'sourceChunks',
+					'mediaAssets',
+					MEDIA_ASSET_CHUNK_STORE_NAME,
+					VIDEO_DERIVATIVE_STORE_NAME,
+					DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+				], 'readwrite', async (stores) => {
+					const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
+					const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;
+					const storedDerivativeEntriesRequest = request(
+						stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME].getAll(),
+					) as Promise<StorageRecord[]>;
+					opfsRecords.push(...await storedSourcesRequest);
+					opfsRecords.push(...await storedMediaAssetsRequest);
+					opfsRecords.push(...await storedDerivativeEntriesRequest);
+					for (const store of Object.values(stores)) store.clear();
+				});
+			}
+			for (const record of opfsRecords) {
+				if (record.sourceToken) await this.#options.sources.deleteStored(record);
+				else await this.#options.opfs.deleteBinaryRecords([record]);
+			}
+		} finally {
+			maintenance.release();
 		}
 	}
 
@@ -173,7 +186,12 @@ export class RetentionRepository {
 		for (const source of deletedSources) {
 			if (isOpfsPcmStorage(source.storage)) await this.#options.sources.deleteStored(source);
 		}
-		await this.#options.opfs.deleteBinaryRecords(deletedBinaryRecords);
+		const disposableBinaryRecords: StorageRecord[] = [];
+		for (const record of deletedBinaryRecords) {
+			const disposable = await this.#options.media.prepareDetachedPayloadDisposal(record);
+			if (disposable) disposableBinaryRecords.push(disposable);
+		}
+		await this.#options.opfs.deleteBinaryRecords(disposableBinaryRecords);
 		const deletedSourceIdSet = new Set(deletedSourceIds);
 		this.#options.sources.forgetMigrationFailures(deletedSourceIdSet);
 		for (const sourceId of migrationsToResume) {
@@ -199,7 +217,11 @@ export class RetentionRepository {
 		}
 	}
 
-	#deleteMemoryCandidate(sourceId: string, source: StorageRecord | null, derivatives: readonly StorageRecord[]): void {
+	#deleteMemoryCandidate(
+		sourceId: string,
+		source: StorageRecord | null,
+		derivatives: readonly StorageRecord[],
+	): void {
 		const memory = this.#options.port.memory;
 		memory.sources.delete(sourceId);
 		memory.mediaAssets.delete(sourceId);

@@ -12,6 +12,7 @@ export interface StorageRecord {
 	readonly sourceId?: string;
 	readonly baseSourceId?: string | null;
 	readonly sourceToken?: string | null;
+	readonly mediaChunkToken?: string | null;
 	readonly path?: string | null;
 	readonly storage?: string;
 	readonly pcmEncodingVersion?: number | null;
@@ -74,6 +75,10 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 		'pendingProjectUntil',
 		'cacheToken',
 		'sha256',
+		'sourceToken',
+		'mediaChunkToken',
+		'mediaChunkBytes',
+		'mediaChunkCount',
 	]) delete value[key];
 	return value;
 }
@@ -82,6 +87,10 @@ export function mediaAssetMetadata(record: StorageRecord): Record<string, unknow
 	const value = cloneValue(record) as Record<string, unknown>;
 	delete value.blob;
 	delete value.cacheToken;
+	delete value.sourceToken;
+	delete value.mediaChunkToken;
+	delete value.mediaChunkBytes;
+	delete value.mediaChunkCount;
 	return value;
 }
 

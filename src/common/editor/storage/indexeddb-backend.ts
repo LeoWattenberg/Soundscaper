@@ -6,10 +6,17 @@ import {
 	projectDerivativeCacheInventoryRecord,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
+import {
+	BINARY_PATH_REFERENCE_INDEX_NAME,
+	MEDIA_ASSET_CHUNK_STORE_NAME,
+	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+	MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
+} from './media-asset-chunk-schema.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
 const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
-const DATABASE_VERSION = DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION;
+const MEDIA_ASSET_CHUNK_SCHEMA_VERSION = 4;
+const DATABASE_VERSION = MEDIA_ASSET_CHUNK_SCHEMA_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -60,13 +67,52 @@ export function openDatabase(
 				}
 				if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
 				if (!database.objectStoreNames.contains('analysis')) database.createObjectStore('analysis', { keyPath: 'key' });
-				if (!database.objectStoreNames.contains('sources')) database.createObjectStore('sources', { keyPath: 'id' });
+				let sources: IDBObjectStore;
+				if (!database.objectStoreNames.contains('sources')) {
+					sources = database.createObjectStore('sources', { keyPath: 'id' });
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					sources = transaction.objectStore('sources');
+				}
+				if (!sources.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
+					sources.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
+				}
 				if (!database.objectStoreNames.contains('sourceChunks')) {
 					const store = database.createObjectStore('sourceChunks', { keyPath: 'key' });
 					store.createIndex('sourceToken', 'sourceToken', { unique: false });
 				}
+				let mediaAssets: IDBObjectStore;
 				if (!database.objectStoreNames.contains('mediaAssets')) {
-					database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+					mediaAssets = database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					mediaAssets = transaction.objectStore('mediaAssets');
+				}
+				for (const indexName of [
+					MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
+					BINARY_PATH_REFERENCE_INDEX_NAME,
+				]) {
+					if (!mediaAssets.indexNames.contains(indexName)) {
+						mediaAssets.createIndex(indexName, indexName, { unique: false });
+					}
+				}
+				if (!database.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME)) {
+					const store = database.createObjectStore(MEDIA_ASSET_CHUNK_STORE_NAME, { keyPath: 'key' });
+					store.createIndex(
+						MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+						MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+						{ unique: false },
+					);
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					const store = transaction.objectStore(MEDIA_ASSET_CHUNK_STORE_NAME);
+					if (!store.indexNames.contains(MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME)) {
+						store.createIndex(
+							MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+							MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+							{ unique: false },
+						);
+					}
 				}
 				if (!database.objectStoreNames.contains(VIDEO_DERIVATIVE_STORE_NAME)) {
 					const store = database.createObjectStore(VIDEO_DERIVATIVE_STORE_NAME, { keyPath: 'key' });
@@ -75,6 +121,7 @@ export function openDatabase(
 						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
 						{ unique: false },
 					);
+					store.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
 				} else {
 					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
 					const store = transaction.objectStore(VIDEO_DERIVATIVE_STORE_NAME);
@@ -85,6 +132,9 @@ export function openDatabase(
 							{ unique: false },
 						);
 					}
+					if (!store.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
+						store.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
+					}
 				}
 				let cacheEntryStore: IDBObjectStore;
 				if (!database.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME)) {
@@ -94,6 +144,7 @@ export function openDatabase(
 						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
 						{ unique: false },
 					);
+					cacheEntryStore.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
 				} else {
 					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
 					cacheEntryStore = transaction.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
@@ -103,6 +154,9 @@ export function openDatabase(
 							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
 							{ unique: false },
 						);
+					}
+					if (!cacheEntryStore.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
+						cacheEntryStore.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
 					}
 				}
 				const oldVersion = event?.oldVersion ?? 0;

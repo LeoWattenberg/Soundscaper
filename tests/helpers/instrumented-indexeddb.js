@@ -294,12 +294,11 @@ class FakeIndex {
 		this.name = name;
 		this.keyPath = data.indexes.get(name);
 	}
-
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
 		return fakeGetAllRequest(this.transaction, this.data, this.name, query, count, this.values(query));
 	}
-
+	count(query) { return fakeRequest(this.transaction, () => this.values(query).length); }
 	openCursor(query) {
 		const entries = this.entries(query);
 		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query });

@@ -9,7 +9,7 @@ const DATABASE_NAME = 'kw-media-audio-editor';
 test.describe('editor storage schema migration', () => {
 	registerAudioEditorHooks();
 
-	test('atomically backfills v2 derivative payloads into Blob-free v3 metadata', async ({ page }) => {
+	test('atomically backfills v2 derivative payloads and creates v4 media chunks', async ({ page }) => {
 		await page.goto('/logo/logo-schwarz.svg');
 		await page.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
@@ -52,21 +52,32 @@ test.describe('editor storage schema migration', () => {
 		await page.goto('/embed/en/');
 		await waitForEditor(page);
 		const migration = await page.evaluate(async (databaseName) => new Promise((resolve, reject) => {
-			const openRequest = indexedDB.open(databaseName, 3);
+			const openRequest = indexedDB.open(databaseName);
 			openRequest.onerror = () => reject(openRequest.error);
 			openRequest.onsuccess = () => {
 				const database = openRequest.result;
 				const transaction = database.transaction(
-					['videoDerivatives', 'videoDerivativeCacheEntries'],
+					['sources', 'videoDerivatives', 'videoDerivativeCacheEntries', 'mediaAssets', 'mediaAssetChunks'],
 					'readonly',
 				);
 				const payloadRequest = transaction.objectStore('videoDerivatives').getAll();
 				const entryRequest = transaction.objectStore('videoDerivativeCacheEntries').getAll();
+				const mediaChunkStore = transaction.objectStore('mediaAssetChunks');
+				const mediaAssetStore = transaction.objectStore('mediaAssets');
+				const sourceStore = transaction.objectStore('sources');
+				const derivativeStore = transaction.objectStore('videoDerivatives');
+				const derivativeEntryStore = transaction.objectStore('videoDerivativeCacheEntries');
+				const mediaChunkCountRequest = mediaChunkStore.count();
 				transaction.oncomplete = () => {
 					const [entry] = entryRequest.result;
 					resolve({
 						version: database.version,
 						payloadCount: payloadRequest.result.length,
+						mediaChunkCount: mediaChunkCountRequest.result,
+						mediaChunkIndexes: [...mediaChunkStore.indexNames],
+						mediaAssetIndexes: [...mediaAssetStore.indexNames],
+						pathIndexes: [sourceStore, derivativeStore, derivativeEntryStore]
+							.map((store) => store.indexNames.contains('path')),
 						entry: entry ? {
 							key: entry.key,
 							sourceId: entry.sourceId,
@@ -88,8 +99,12 @@ test.describe('editor storage schema migration', () => {
 		}), DATABASE_NAME);
 
 		expect(migration).toEqual({
-			version: 3,
+			version: 4,
 			payloadCount: 1,
+			mediaChunkCount: 0,
+			mediaChunkIndexes: ['mediaChunkToken'],
+			mediaAssetIndexes: ['mediaChunkToken', 'path'],
+			pathIndexes: [true, true, true],
 			entry: {
 				key: 'legacy-cache',
 				sourceId: 'legacy-source',

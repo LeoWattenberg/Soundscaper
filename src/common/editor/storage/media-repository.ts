@@ -23,6 +23,12 @@ import {
 	digestMediaContent,
 } from './media-content-digest.ts';
 import {
+	MediaAssetWriteRepository,
+	type MediaAssetWriteOptions,
+	type MediaAssetWriter,
+} from './media-asset-write-repository.ts';
+import type { MediaAssetWriteMaintenance } from './media-asset-write-coordinator.ts';
+import {
 	binaryMetadata,
 	mediaAssetMetadata,
 	normalizeBlob,
@@ -66,6 +72,7 @@ export class MediaRepository {
 	readonly #opfs: OpfsRepository;
 	readonly #cacheLimits: NormalizedDerivativeCacheLimits;
 	readonly #now: () => number;
+	readonly #assetWrites: MediaAssetWriteRepository;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
 		this.#port = port;
@@ -74,7 +81,18 @@ export class MediaRepository {
 			options.cacheLimits ?? DEFAULT_DERIVATIVE_CACHE_LIMITS,
 		);
 		this.#now = options.now ?? Date.now;
+		this.#assetWrites = new MediaAssetWriteRepository(port, opfs);
 	}
+
+	beginAssetWrite(
+		sourceId: string,
+		metadata: Readonly<Record<string, unknown>>,
+		options: MediaAssetWriteOptions,
+	): Promise<MediaAssetWriter> {
+		return this.#assetWrites.begin(sourceId, metadata, options);
+	}
+	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetWriteMaintenance { return this.#assetWrites.beginMaintenance(options); }
+	activeAssetPaths(): ReadonlySet<string> { return this.#assetWrites.activePaths(); }
 
 	async writeAsset(
 		sourceId: string,
@@ -120,7 +138,7 @@ export class MediaRepository {
 	async loadAsset(sourceId: string): Promise<BlobLike | null> {
 		const record = await this.assetRecord(sourceId);
 		if (!record) return null;
-		return this.#opfs.loadBinaryRecord(record, 'The requested local media asset is missing.');
+		return this.#assetWrites.load(record, 'The requested local media asset is missing.');
 	}
 
 	async getAssetMetadata(sourceId: string): Promise<Record<string, unknown> | null> {
@@ -165,8 +183,14 @@ export class MediaRepository {
 				},
 			));
 		}
-		await this.#opfs.deleteBinaryRecords([record, ...derivatives]);
+		const disposableRecord = record
+			? await this.#assetWrites.prepareDetachedPayloadDisposal(record)
+			: null;
+		await this.#opfs.deleteBinaryRecords([disposableRecord, ...derivatives]);
 	}
+
+	cleanupStaleAssetChunks(records: readonly StorageRecord[], cutoff: number): Promise<void> { return this.#assetWrites.cleanupStaleChunks(records, cutoff); }
+	prepareDetachedPayloadDisposal(record: StorageRecord): Promise<StorageRecord | null> { return this.#assetWrites.prepareDetachedPayloadDisposal(record); }
 
 	async saveDerivative(sourceId: string, {
 		timestamp = 0,
