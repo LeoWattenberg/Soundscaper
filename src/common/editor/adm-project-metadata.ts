@@ -379,7 +379,7 @@ function normalizePayload(input: Record<string, unknown>): AdmPassthroughMetadat
 		return Object.freeze({ kind, base64: base64(input.base64, `ADM ${kind.toUpperCase()} base64`) });
 	}
 	if (typeof input.xml !== 'string') throw new TypeError(`ADM ${kind.toUpperCase()} xml payload must be a string.`);
-	const xml = text(input.xml, `ADM ${kind.toUpperCase()} XML`, MAX_ADM_PAYLOAD_BYTES);
+	const xml = text(input.xml, `ADM ${kind.toUpperCase()} XML`, MAX_ADM_PAYLOAD_BYTES, true);
 	if (!Object.hasOwn(input, 'rawBase64')) throw new RangeError('ADM AXML passthrough requires exact raw AXML bytes.');
 	const rawBase64 = base64(input.rawBase64, 'ADM raw AXML base64');
 	let rawXml: string;
@@ -455,9 +455,12 @@ function objectValue(value: unknown, name: string): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
-function text(value: unknown, name: string, maximumBytes: number): string {
+function text(value: unknown, name: string, maximumBytes: number, allowXmlWhitespace = false): string {
 	if (typeof value !== 'string') throw new TypeError(`${name} must be a string.`);
-	if (value.includes('\0')) throw new RangeError(`${name} cannot contain NUL.`);
+	const controls = allowXmlWhitespace
+		? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u
+		: /[\u0000-\u001f\u007f]/u;
+	if (controls.test(value)) throw new RangeError(`${name} cannot contain control characters.`);
 	if (new TextEncoder().encode(value).byteLength > maximumBytes) throw new RangeError(`${name} is too large.`);
 	return value;
 }

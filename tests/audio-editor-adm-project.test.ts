@@ -99,6 +99,20 @@ test('authored ADM normalizes one programme, content, DirectSpeakers bed, and te
 	}), /ISO 639|language/iu);
 });
 
+test('authored ADM project names reject control characters before export', () => {
+	const base = authoredAdm();
+	for (const candidate of [
+		{ ...base, programme: { ...base.programme, name: 'P\u0001' } },
+		{ ...base, content: { ...base.content, name: 'C\u0001' } },
+		{ ...base, bed: { ...base.bed, name: 'B\u0001' } },
+	]) {
+		assert.throws(
+			() => normalizeAdmProjectMetadata(candidate),
+			/control character/iu,
+		);
+	}
+});
+
 test('authored ADM routing reports missing, non-terminal, and out-of-range assignments without rejecting drafts', () => {
 	const project = createAudioEditorProjectV7({
 		now: NOW,
@@ -159,6 +173,15 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	const metadata = normalizeAdmProjectMetadata(passthroughAdm());
 	assert.deepEqual(JSON.parse(JSON.stringify(metadata)), metadata);
 	assert.equal(validateAdmProjectMetadata({ adm: metadata }), true);
+	const formattedXml = '<ebuCoreMain>\n\t<coreMetadata />\n</ebuCoreMain>';
+	const formatted = normalizeAdmProjectMetadata(passthroughAdm({
+		payload: {
+			kind: 'axml', xml: formattedXml, rawBase64: Buffer.from(formattedXml).toString('base64'),
+		},
+	}));
+	assert.equal(formatted.mode === 'passthrough' && formatted.payload.kind === 'axml'
+		? formatted.payload.xml
+		: null, formattedXml);
 	const exact = {
 		projectRevision: 0,
 		sourceId: 'source-adm',
