@@ -25,9 +25,7 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 	'inspect-import-validation-parity',
 	'reserved-and-extra-entry-ownership',
 ];
-const PENDING_ARCHIVE_EXPANSION_GATES = [
-	'bounded-streaming-media-extraction',
-];
+const PENDING_ARCHIVE_EXPANSION_GATES = [];
 const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	'cumulative-actual-expanded-byte-limit': [
 		'src/common/editor/scape-expanded-byte-budget.ts',
@@ -67,6 +65,15 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 		'tests/audio-editor-scape-expansion.test.ts',
 		'tests/audio-editor-scape-project.test.js',
 	],
+	'bounded-streaming-media-extraction': [
+		'src/common/editor/scape-archive-video.ts',
+		'src/common/editor/scape-project.js',
+		'src/common/editor/storage/media-asset-write-repository.ts',
+		'src/common/editor/storage/media-asset-chunk-records.ts',
+		'tests/audio-editor-scape-streaming-video.test.ts',
+		'tests/audio-editor-streaming-media-storage.test.ts',
+		'tests/audio-editor-streaming-media-lifecycle.test.ts',
+	],
 };
 
 async function readMatrix() {
@@ -93,7 +100,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'external-project-document-validation': 'partial',
 		'external-media-parser-bounds': 'partial',
 		'scape-archive-structure-integrity': 'partial',
-		'scape-archive-expansion': 'release-blocked',
+		'scape-archive-expansion': 'enforced',
 		'electron-renderer-ipc-boundary': 'enforced',
 		'desktop-static-resource-paths': 'enforced',
 		'desktop-read-path-capabilities': 'partial',
@@ -141,7 +148,7 @@ test('security matrix covers the production threat-model surfaces without promot
 	}
 });
 
-test('planned native and plug-in surfaces stay disabled and archive expansion stays release-blocked', async () => {
+test('planned native and plug-in surfaces stay disabled and archive expansion is qualified', async () => {
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
 
@@ -152,8 +159,8 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 	}
 
 	const archiveExpansion = risks.get('scape-archive-expansion');
-	assert.equal(archiveExpansion.status, 'release-blocked');
-	assert.equal(archiveExpansion.releaseGate.status, 'pending');
+	assert.equal(archiveExpansion.status, 'enforced');
+	assert.equal(archiveExpansion.releaseGate.status, 'satisfied');
 	assert.deepEqual(
 		[...archiveExpansion.releaseGate.requiredControlIds].sort(),
 		[...PENDING_ARCHIVE_EXPANSION_GATES].sort(),
@@ -191,6 +198,10 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 		implementedControls.get('compression-ratio-or-store-policy').summary,
 		/central-directory.*ZIP STORE.*before.*body reads/iu,
 	);
+	assert.match(
+		implementedControls.get('bounded-streaming-media-extraction').summary,
+		/4 MiB.*awaited transactional storage write.*native Blob chunks.*64 MiB/iu,
+	);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
 	assert.equal(residuals.has('compression-amplification-policy'), false);
 	assert.equal(residuals.has('incomplete-zip-layout-validation'), false);
@@ -212,9 +223,10 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 			`archive cancellation needs evidence from ${path}`,
 		);
 	}
-	for (const gateId of PENDING_ARCHIVE_EXPANSION_GATES) {
-		assert.equal(implementedControls.has(gateId), false, `${gateId} is still a qualification gate`);
-	}
+	assert.ok(implementedControls.has('bounded-streaming-media-extraction'));
+	const cancellation = risks.get('long-job-cancellation');
+	assert.ok(cancellation.currentControls.some(({ id }) => id === 'streamed-media-maintenance-abort'));
+	assert.ok(cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'));
 });
 
 test('security claims point to checked-in implementation and verification evidence', async () => {

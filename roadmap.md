@@ -198,8 +198,9 @@ reviewable gates before expanding the schema or native boundary.
   projects/media, archive expansion, native helpers, third-party plug-ins, path
   capabilities, job cancellation, and release provenance. The
   [security regression](tests/production-security-matrix.test.js) keeps partial
-  controls and the release-blocked archive-expansion gate visible and prevents
-  planned helper and plug-in surfaces from being treated as enabled.
+  controls visible, verifies the satisfied current-surface archive-expansion
+  gate, and prevents planned helper and plug-in surfaces from being treated as
+  enabled.
 - **Shared — Implemented:** the
   [licensing and provenance matrix](config/production-licensing-matrix.json)
   derives the exact production lockfile closure and separates every web,
@@ -327,9 +328,24 @@ models or native implementations.
   This bounds final archive bytes, not total renderer heap or process RSS:
   current saves can retain admitted native video Blob handles and zip.js still
   assembles the non-streaming result, while no production file service yet
-  supplies the explicit streaming destination. Bounded streaming video
-  extraction and production direct-to-target save wiring remain open in the
-  [security gate](config/production-security-matrix.json).
+  supplies the explicit streaming destination. Video import now routes zip.js
+  emissions, pinned to a non-raiseable 4 MiB, through a strict-TS
+  [bounded extractor](src/common/editor/scape-archive-video.ts) that charges the
+  actual-byte budget and independently hashes each emission before awaiting a
+  transactional storage write. The writer snapshots and hashes storage bytes
+  independently, verifies exact size and digest before metadata publication,
+  and rolls staging back on cancellation or mismatch. OPFS receives bounded
+  writes; IndexedDB fallback stores source-owned native Blob chunks; degraded
+  process-memory fallback rejects declared payloads above 64 MiB before asset
+  extraction. The
+  [reference-scale regression](tests/audio-editor-scape-streaming-video.test.ts)
+  covers a synthetic 32 GiB descriptor cancelled after one 4 MiB emission,
+  actual zip.js chunk geometry, over-bound emissions, backpressure, digest and
+  metadata drift, and unchanged inventory. The
+  [archive-expansion security gate](config/production-security-matrix.json) is
+  therefore satisfied for the current canonical STORE import surface.
+  Production direct-to-target save wiring remains open. The 64 MiB fallback
+  limit bounds admitted payload bytes, not total renderer heap or process RSS.
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a
   final renderer-sized `Blob`. A size-limited browser download remains the Web
@@ -369,7 +385,26 @@ models or native implementations.
   and fail-before-delete corruption handling; a real
   [browser migration](tests/browser/audio-editor-storage-migration.spec.js)
   exercises v2-to-v3 backfill in evergreen engines. The one-time legacy
-  migration still reads one Blob-bearing row at a time. Every cache publication
+  migration still reads one Blob-bearing row at a time. IndexedDB schema v4 now
+  adds a dedicated token-indexed
+  [media chunk store](src/common/editor/storage/media-asset-chunk-records.ts)
+  plus token and cross-binary-path reference indexes without rewriting legacy
+  media. The bounded
+  [media writer](src/common/editor/storage/media-asset-write-repository.ts)
+  coalesces emissions into at most 4 MiB source-owned native Blob rows, verifies
+  SHA-256 and exact geometry during load, limits degraded process-memory payload
+  admission to 64 MiB, and publishes immutable metadata last. Clear and close
+  block new admission, abort same-instance staging—including a stalled OPFS
+  write—and wait for cleanup; temporary cleanup preserves active identities,
+  removes malformed or stale orphans, and cross-delete checks protect retained
+  chunk tokens and OPFS paths across source, original, and derivative owners.
+  Focused
+  [storage](tests/audio-editor-streaming-media-storage.test.ts),
+  [load-corruption](tests/audio-editor-media-asset-load.test.ts), and
+  [lifecycle](tests/audio-editor-streaming-media-lifecycle.test.ts) regressions
+  cover all three backends, shutdown admission, cancellation, publication
+  ambiguity, and corrupted references. Durable staging coordination across
+  separate tabs/store instances remains open. Every cache publication
   now enforces frozen 512 MiB binary-payload, 4,096-entry, and 30-day limits at
   the sole media-repository owner. Memory plans before mutation; IndexedDB
   replaces and evicts payload/companion pairs in one serialized transaction,

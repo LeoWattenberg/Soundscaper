@@ -66,19 +66,25 @@
 			"data": "Expanded project JSON, PCM chunks, original video assets, and project records",
 			"entryPoints": [
 				"src/common/editor/scape-archive-reader.ts",
+				"src/common/editor/scape-archive-video.ts",
 				"src/common/editor/scape-project.js",
 				"src/common/editor/scape-import-transaction.ts",
-				"src/common/editor/storage.js"
+				"src/common/editor/storage.js",
+				"src/common/editor/storage/media-asset-write-repository.ts"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-archive-video.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 				{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+				{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" }
 			]
 		},
@@ -299,6 +305,7 @@
 					"summary": "Import rejects absolute, backslash, traversal, and duplicate names, validates manifest descriptors, and verifies extracted size and SHA-256 before publishing the project.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
 					]
 				},
@@ -329,8 +336,8 @@
 			"assets": ["renderer availability", "storage capacity", "existing projects and sources"],
 			"actor": "A .scape archive uses large metadata, misleading sizes, compression amplification, or a malicious PCM header.",
 			"impact": "critical",
-			"status": "release-blocked",
-			"releaseDisposition": "blocked",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
 			"ownerMilestone": "2",
 			"currentControls": [
 				{
@@ -463,6 +470,19 @@
 					]
 				},
 				{
+					"id": "bounded-streaming-media-extraction",
+					"summary": "Original video entries emit at most 4 MiB per zip.js chunk, are charged and independently hashed before each awaited transactional storage write, and must match declared size and SHA-256 before publication. OPFS receives bounded writes; IndexedDB uses source-owned native Blob chunks; process-memory fallback rejects payloads above 64 MiB before extraction. Cancellation, metadata drift, and failed publication remove staging and preserve prior inventory.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-video.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-chunk-records.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }
+					]
+				},
+				{
 					"id": "abort-signal-propagation-and-rollback",
 					"summary": "The tested .scape open/save path propagates one task AbortSignal through ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes readers, returns source iterators, aborts unpublished destinations and audio writers, deletes provisional media, and restores the prior project plus its retained revisions.",
 					"evidence": [
@@ -477,6 +497,7 @@
 						{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-source-read-cancellation.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-source-write-cancellation.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" },
@@ -484,21 +505,11 @@
 					]
 				}
 			],
-			"residualRisks": [
-				{
-					"id": "whole-blob-video-extraction",
-					"exposure": "Original video extraction is counted against the aggregate budget but still materializes the complete asset as a renderer Blob before staged storage publication.",
-					"requiredControl": "Stream video through a bounded transactional storage sink without retaining the complete asset in renderer memory.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["A reference-scale video import proves bounded renderer allocation and unchanged project/source inventory on rejection or cancellation."]
-				}
-			],
+			"residualRisks": [],
 			"releaseGate": {
 				"id": "scape-archive-expansion-qualification",
-				"status": "pending",
-				"requiredControlIds": [
-					"bounded-streaming-media-extraction"
-				]
+				"status": "satisfied",
+				"requiredControlIds": []
 			}
 		},
 		{
@@ -786,6 +797,16 @@
 						{ "kind": "test", "path": "tests/audio-editor-source-write-cancellation.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
 					]
+				},
+				{
+					"id": "streamed-media-maintenance-abort",
+					"summary": "Within one project-store instance, clear and close stop writer admission, actively abort staged chunk or OPFS sinks, wait for terminal cleanup, and prevent a stalled OPFS write or shutdown race from publishing late state.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-coordinator.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [
@@ -795,6 +816,13 @@
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]
+				},
+				{
+					"id": "cross-context-storage-maintenance",
+					"exposure": "Active streamed-media coordination currently covers one project-store instance. Cleanup or clear initiated by another tab or store instance cannot yet abort or durably retain that writer's unpublished token or OPFS path.",
+					"requiredControl": "Publish a durable cross-context staging lease or equivalent ownership record, validate it at every write/publication boundary, and invalidate it atomically during destructive maintenance.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Two-store IndexedDB and OPFS tests prove cleanup preserves a live writer, clear prevents its late publication, and expired/crashed staging is eventually reclaimed."]
 				},
 				{
 					"id": "user-cancel-control",
