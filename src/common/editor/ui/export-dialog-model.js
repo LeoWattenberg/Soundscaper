@@ -39,10 +39,11 @@ export function createExportDialogRequest(settings, options = {}) {
 		};
 	}
 	return {
-		mode: settings.mode,
+		mode: settings.format === 'bw64' ? 'mix' : settings.mode,
 		range: settings.range,
 		format: settings.format,
-		...(settings.format === 'bwf' ? { bext: options.bext ?? settings.bext } : {}),
+		...(['bwf', 'bw64'].includes(settings.format) ? { bext: options.bext ?? settings.bext } : {}),
+		...(settings.format === 'bw64' ? { adm: options.adm ?? settings.adm } : {}),
 		sampleFormat: settings.sampleFormat,
 		bitDepth: Number(settings.sampleFormat.replace(/\D/g, '')) || undefined,
 		floatingPoint: settings.sampleFormat === 'float32',

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
+import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import MetadataEditorTabs, { type MetadataEditorTab } from '../MetadataEditorTabs.tsx';
+import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import { MetadataEditorField } from './LabelManagerRows.jsx';
 
@@ -23,6 +25,7 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 	const metadata = objectValue(project?.metadata);
 	const tags = objectValue(metadata.tags);
 	const bext = createBextMetadataEditorValue(project);
+	const adm = createProjectAdmEditorValue(project);
 	const fields = [
 		['title', copy.metadataTitle],
 		['artist', copy.metadataArtist],
@@ -34,10 +37,12 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 
 	return (
 		<div className="kw-audio-editor__metadata-editor" data-metadata-editor>
-			<MetadataEditorTabs activeTab={activeTab} showBext copy={copy} onChange={setActiveTab} />
+			<MetadataEditorTabs activeTab={activeTab} showBext showAdm copy={copy} onChange={setActiveTab} />
 			<div
 				role="tabpanel"
-				aria-label={activeTab === 'bext' ? copy.metadataBextTab : copy.metadataGeneralTab}
+				aria-label={activeTab === 'bext'
+					? copy.metadataBextTab
+					: activeTab === 'adm' ? copy.metadataAdmTab : copy.metadataGeneralTab}
 				data-metadata-tab={activeTab}
 			>
 				{activeTab === 'general' ? (
@@ -65,12 +70,20 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 							/>
 						))}
 					</div>
-				) : (
+				) : activeTab === 'bext' ? (
 					<BextMetadataFields
 						value={bext}
 						copy={copy}
 						disabled={disabled}
 						onCommit={(value) => onUpdate({ bext: value })}
+					/>
+				) : (
+					<AdmMetadataFields
+						value={adm}
+						project={project}
+						copy={copy}
+						disabled={disabled}
+						onCommit={(value) => onUpdate({ adm: value })}
 					/>
 				)}
 			</div>

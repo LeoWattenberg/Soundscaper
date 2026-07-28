@@ -1,19 +1,21 @@
 import { useRef } from 'react';
 
-export type MetadataEditorTab = 'general' | 'bext';
+export type MetadataEditorTab = 'general' | 'bext' | 'adm';
 
 interface MetadataEditorTabsProps {
 	readonly activeTab: MetadataEditorTab;
 	readonly showBext: boolean;
+	readonly showAdm?: boolean;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly onChange: (tab: MetadataEditorTab) => void;
 }
 
-export function MetadataEditorTabs({ activeTab, showBext, copy, onChange }: MetadataEditorTabsProps) {
+export function MetadataEditorTabs({ activeTab, showBext, showAdm = false, copy, onChange }: MetadataEditorTabsProps) {
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const tabs: readonly Readonly<{ id: MetadataEditorTab; label: string }>[] = [
 		{ id: 'general', label: copy.metadataGeneralTab },
 		...(showBext ? [{ id: 'bext' as const, label: copy.metadataBextTab }] : []),
+		...(showAdm ? [{ id: 'adm' as const, label: copy.metadataAdmTab }] : []),
 	];
 	const selectRelativeTab = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
 		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;

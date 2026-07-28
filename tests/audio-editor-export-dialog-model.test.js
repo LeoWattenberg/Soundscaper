@@ -134,5 +134,14 @@ test('Broadcast WAV requests carry structured BEXT metadata without changing ord
 	};
 
 	assert.deepEqual(createExportDialogRequest(settings, { bext, metadata: {}, channelMapping: 'stereo' }).bext, bext);
+	const bw64 = createExportDialogRequest({ ...settings, mode: 'stems', format: 'bw64' }, {
+		adm: { mode: 'authored' },
+		bext,
+		metadata: {},
+		channelMapping: 'preserve',
+	});
+	assert.equal(bw64.mode, 'mix');
+	assert.deepEqual(bw64.bext, bext);
+	assert.deepEqual(bw64.adm, { mode: 'authored' });
 	assert.equal(createExportDialogRequest({ ...settings, format: 'wav' }, { bext, metadata: {}, channelMapping: 'stereo' }).bext, undefined);
 });

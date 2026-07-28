@@ -7,10 +7,12 @@ import {
 	TextInput,
 } from '@dilsonspickles/components';
 import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
+import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
+import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
@@ -52,6 +54,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		metadataCopyright: snapshot.project?.metadata?.copyright || '',
 		metadataCustom: JSON.stringify(snapshot.project?.metadata?.tags || {}, null, 2),
 		bext: createBextMetadataEditorValue(snapshot.project),
+		adm: createProjectAdmEditorValue(snapshot.project),
 		customExtension: '',
 		customMimeType: 'application/octet-stream',
 		customArguments: '',
@@ -66,6 +69,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
+	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
 
 	useEffect(() => {
 		if (!hasSelection && settings.range === 'selection') setSettings((current) => ({ ...current, range: 'project' }));
@@ -79,7 +83,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	}, [isOpen]);
 
 	useEffect(() => {
-		if (settings.format !== 'bwf' && metadataTab === 'bext') setMetadataTab('general');
+		if (!['bwf', 'bw64'].includes(settings.format) && metadataTab === 'bext') setMetadataTab('general');
+		if (settings.format !== 'bw64' && metadataTab === 'adm') setMetadataTab('general');
 	}, [metadataTab, settings.format]);
 
 	useEffect(() => {
@@ -96,14 +101,24 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	}, [hasTimelineVideo, settings.dither, settings.format, settings.sampleFormat]);
 
 	const set = (name, value) => setSettings((current) => ({ ...current, [name]: value }));
-	const setFormat = (format) => setSettings((current) => ({
-		...current,
-		format,
-		sampleFormat: MEDIA_EXPORT_FORMATS[format]?.defaults?.sampleFormat || current.sampleFormat,
-		bitRate: format === 'opus' ? '160' : format === 'mp2' ? '256' : ['mp3', 'aac-m4a'].includes(format) ? '192' : current.bitRate,
-		compressionLevel: format === 'flac' ? '5' : format === 'wavpack' ? '2' : current.compressionLevel,
-		channelMapping: current.channelMapping,
-	}));
+	const setFormat = (format) => setSettings((current) => {
+		const passthrough = format === 'bw64' && current.adm?.mode === 'passthrough';
+		return {
+			...current,
+			format,
+			mode: format === 'bw64' ? 'mix' : current.mode,
+			range: passthrough ? 'project' : current.range,
+			sampleFormat: passthrough
+				? `int${current.adm.geometry.bitDepth}`
+				: MEDIA_EXPORT_FORMATS[format]?.defaults?.sampleFormat || current.sampleFormat,
+			sampleRate: passthrough ? String(current.adm.geometry.sampleRate) : current.sampleRate,
+			bitRate: format === 'opus' ? '160' : format === 'mp2' ? '256' : ['mp3', 'aac-m4a'].includes(format) ? '192' : current.bitRate,
+			compressionLevel: format === 'flac' ? '5' : format === 'wavpack' ? '2' : current.compressionLevel,
+			channelMapping: format === 'bw64' ? 'preserve' : current.channelMapping,
+			dither: passthrough ? 'none' : current.dither,
+			includeTail: passthrough ? false : current.includeTail,
+		};
+	});
 	const start = () => {
 		try {
 			setError('');
@@ -122,6 +137,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 			const request = createExportDialogRequest(settings, {
 				metadata,
 				bext: settings.bext,
+				adm: settings.adm,
 				channelMapping: videoFormat
 					? undefined
 					: settings.channelMapping === 'custom'
@@ -182,13 +198,16 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 				<section className="audio-editor-metadata-editor">
 					<MetadataEditorTabs
 						activeTab={metadataTab}
-						showBext={settings.format === 'bwf'}
+						showBext={['bwf', 'bw64'].includes(settings.format)}
+						showAdm={settings.format === 'bw64'}
 						copy={copy}
 						onChange={setMetadataTab}
 					/>
 					<div
 						role="tabpanel"
-						aria-label={metadataTab === 'bext' ? copy.metadataBextTab : copy.metadataGeneralTab}
+						aria-label={metadataTab === 'bext'
+							? copy.metadataBextTab
+							: metadataTab === 'adm' ? copy.metadataAdmTab : copy.metadataGeneralTab}
 						data-export-metadata-tab={metadataTab}
 					>
 						{metadataTab === 'bext' ? (
@@ -198,6 +217,16 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 									value={settings.bext}
 									copy={copy}
 									onCommit={(value) => set('bext', value)}
+								/>
+							</>
+						) : metadataTab === 'adm' ? (
+							<>
+								<p className="audio-editor-panel-hint">{copy.admExportHint}</p>
+								<AdmMetadataFields
+									value={settings.adm}
+									project={snapshot.project}
+									copy={copy}
+									onCommit={(value) => set('adm', value)}
 								/>
 							</>
 						) : (
@@ -258,8 +287,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 			<div className="audio-editor-export-dialog__body">
 				<section className="audio-editor-export-section">
 					<h3>{copy.exportSection}</h3>
-					<LabeledDropdown label={copy.exportMode} hook="mode" value={videoFormat ? 'mix' : settings.mode} onChange={(value) => set('mode', value)} disabled={exporting || videoFormat} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
-					<LabeledDropdown label={copy.exportRange} hook="range" value={settings.range} onChange={(value) => set('range', value)} disabled={exporting} options={[{ value: 'project', label: copy.entireProject }, { value: 'selection', label: copy.currentSelection, disabled: !hasSelection }, { value: 'loop', label: copy.loopRegion, disabled: !hasLoop }]} />
+					<LabeledDropdown label={copy.exportMode} hook="mode" value={videoFormat ? 'mix' : settings.mode} onChange={(value) => set('mode', value)} disabled={exporting || videoFormat || settings.format === 'bw64'} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
+					<LabeledDropdown label={copy.exportRange} hook="range" value={settings.range} onChange={(value) => set('range', value)} disabled={exporting || admPassthrough} options={[{ value: 'project', label: copy.entireProject }, { value: 'selection', label: copy.currentSelection, disabled: !hasSelection }, { value: 'loop', label: copy.loopRegion, disabled: !hasLoop }]} />
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
@@ -277,7 +306,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 						})) : []),
 					]} />
 					{!videoFormat && (pcmFormat ? (
-						<LabeledDropdown label={copy.sampleFormat || copy.bitDepth} hook="bitDepth" value={settings.sampleFormat} onChange={(value) => set('sampleFormat', value)} disabled={exporting} options={formatDescriptor.sampleFormats.map((sampleFormat) => ({
+						<LabeledDropdown label={copy.sampleFormat || copy.bitDepth} hook="bitDepth" value={settings.sampleFormat} onChange={(value) => set('sampleFormat', value)} disabled={exporting || admPassthrough} options={formatDescriptor.sampleFormats.map((sampleFormat) => ({
 							value: sampleFormat,
 							label: sampleFormat === 'float32'
 								? copy.sampleFormatFloat32
@@ -291,9 +320,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					{!videoFormat && ['flac', 'wavpack'].includes(settings.format) && (
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
-					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
-					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
-					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
+					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
+					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
+					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{!videoFormat && settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
 				</section>
 				{!videoFormat && (
@@ -303,7 +332,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 							<h3>{copy.renderingSection}</h3>
 							<div className="audio-editor-export-check" data-export-field="tails">
 								<span aria-hidden="true" />
-								<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting} onChange={(checked) => set('includeTail', checked)} />
+								<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting || admPassthrough} onChange={(checked) => set('includeTail', checked)} />
 							</div>
 						</section>
 					</>

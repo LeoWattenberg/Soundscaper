@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	createDefaultAdmMetadata,
+	createProjectAdmEditorValue,
+	listAdmEditorSourceChannels,
+	setAdmEditorAssignment,
+	setAdmEditorLayout,
+} from '../src/common/editor/ui/adm-metadata-editor-model.ts';
+
+const PROJECT = {
+	title: 'Evening News',
+	revision: 4,
+	masterChannels: 2,
+	metadata: { adm: null },
+	sources: [{ id: 'source-1', channelCount: 2 }],
+	clips: [{ id: 'clip-1', sourceId: 'source-1' }],
+	tracks: [{ id: 'track-1', type: 'audio', name: 'Main bed', clipIds: ['clip-1'] }],
+	mixer: { groups: [], sends: [], routes: {} },
+};
+
+test('ADM editor defaults create a complete stereo DirectSpeakers routing', () => {
+	const adm = createDefaultAdmMetadata(PROJECT);
+	assert.equal(adm.mode, 'authored');
+	assert.equal(adm.programme.name, 'Evening News');
+	assert.equal(adm.bed.layout, 'stereo');
+	assert.deepEqual(adm.bed.assignments, [
+		{ stripKind: 'track', stripId: 'track-1', sourceChannel: 0, bedChannel: 'L', gain: 1 },
+		{ stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: 'R', gain: 1 },
+	]);
+	assert.deepEqual(listAdmEditorSourceChannels(PROJECT).map(({ label }) => label), [
+		'Main bed — channel 1',
+		'Main bed — channel 2',
+	]);
+});
+
+test('ADM editor layout and routing updates remain normalized', () => {
+	const stereo = createDefaultAdmMetadata(PROJECT);
+	const mono = setAdmEditorLayout(stereo, PROJECT, 'mono');
+	assert.equal(mono.bed.layout, 'mono');
+	assert.deepEqual(mono.bed.assignments.map(({ bedChannel }) => bedChannel), ['M', 'M']);
+	const mutedRight = setAdmEditorAssignment(mono, {
+		stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: null, gain: 1,
+	});
+	assert.equal(mutedRight.bed.assignments.length, 1);
+	const restored = setAdmEditorAssignment(mutedRight, {
+		stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: 'M', gain: 0.5,
+	});
+	assert.equal(restored.bed.assignments[1]?.gain, 0.5);
+	const emptyTrackProject = {
+		...PROJECT,
+		tracks: [{ id: 'empty', type: 'audio', name: 'Empty', clipIds: [] }],
+	};
+	const emptyStereo = createDefaultAdmMetadata(emptyTrackProject);
+	assert.equal(emptyStereo.bed.assignments.length, 2);
+	assert.equal(setAdmEditorLayout(emptyStereo, emptyTrackProject, 'mono').bed.assignments.length, 1);
+});
+
+test('ADM editor preserves imported passthrough metadata until explicit conversion', () => {
+	const passthrough = {
+		mode: 'passthrough' as const,
+		payload: { kind: 'axml' as const, xml: '<ebuCoreMain />' },
+		chna: { entries: [], rawBase64: '' },
+		source: { id: 'source-1', storageKey: 'pcm/source-1', mimeType: 'audio/wav' },
+		geometry: { sampleRate: 48_000, channelCount: 2, frameCount: 10, bitDepth: 24 as const, float: false },
+		pristineRevision: 4,
+		valid: true,
+		warnings: [],
+	};
+	assert.deepEqual(createProjectAdmEditorValue({
+		...PROJECT,
+		metadata: { adm: passthrough },
+	}), passthrough);
+});
