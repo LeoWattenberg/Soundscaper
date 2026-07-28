@@ -347,13 +347,14 @@ function installArtifactSmokeProbe(window) {
 	});
 	window.webContents.once('did-finish-load', async () => {
 		try {
-			const result = await window.webContents.executeJavaScript(`({
+			const result = await window.webContents.executeJavaScript(`(async () => ({
 				url: location.href,
 				title: document.title,
 				bridge: Object.keys(window.soundscaperDesktop?.v1 || {}).sort(),
+				environment: await window.soundscaperDesktop?.v1?.getEnvironment?.(),
 				hasEditor: Boolean(document.querySelector('main')),
 				nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
-			})`);
+			}))()`);
 			const valid = result.url === `${APP_ORIGIN}/`
 				&& result.title === APP_NAME
 				&& result.hasEditor

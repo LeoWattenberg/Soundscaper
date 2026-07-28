@@ -88,21 +88,27 @@ jobs:
           - runner: windows-2025
             platform: win
             arch: x64
+            node_arch: x64
           - runner: windows-11-arm
             platform: win
             arch: arm64
+            node_arch: x64
           - runner: macos-15-intel
             platform: mac
             arch: x64
+            node_arch: x64
           - runner: macos-15
             platform: mac
             arch: arm64
+            node_arch: arm64
           - runner: ubuntu-22.04
             platform: linux
             arch: x64
+            node_arch: x64
           - runner: ubuntu-24.04-arm
             platform: linux
             arch: arm64
+            node_arch: arm64
     runs-on: ${{ matrix.target.runner }}
     env:
       SCAPE_PRODUCT: ${{ matrix.product }}
@@ -116,6 +122,7 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
           cache: npm
 
       - name: Pin npm
@@ -140,9 +147,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes xvfb
 
+      - name: Configure Chromium sandbox for Linux smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TARGET_ARCH: ${{ matrix.target.arch }}
+        run: |
+          case "$TARGET_ARCH" in
+            x64) sandbox_path="release/desktop/linux-unpacked/chrome-sandbox" ;;
+            arm64) sandbox_path="release/desktop/linux-arm64-unpacked/chrome-sandbox" ;;
+            *) echo "Unsupported Linux smoke architecture: $TARGET_ARCH" >&2; exit 1 ;;
+          esac
+
+          if [[ ! -f "$sandbox_path" || -L "$sandbox_path" ]]; then
+            echo "Expected a regular, non-symlink Chromium sandbox at $sandbox_path" >&2
+            exit 1
+          fi
+
+          sandbox_path="$(realpath --canonicalize-existing "$sandbox_path")"
+          sudo chown root:root -- "$sandbox_path"
+          sudo chmod 4755 -- "$sandbox_path"
+
+          if [[ "$(stat --format='%U:%G %a' "$sandbox_path")" != 'root:root 4755' ]]; then
+            echo "Chromium sandbox permissions were not applied to $sandbox_path" >&2
+            exit 1
+          fi
+
       - name: Smoke the hardened packaged application
         run: node scripts/desktop-smoke.mjs
         env:
+          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
 
       - name: Retain the verified runtime manifest

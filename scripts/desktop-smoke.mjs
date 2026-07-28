@@ -6,11 +6,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+	assertDesktopSmokePayload,
+	packagedExecutableCandidates,
+	resolveSmokeArchitecture,
+} from './lib/desktop-smoke.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_ROOT = resolve(ROOT, 'release/desktop');
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
+const TARGET_ARCH = resolveSmokeArchitecture(process.env.SOUNDSCAPER_SMOKE_ARCH, process.arch);
 const EXPECTED_BRIDGE = Object.freeze([
 	'abortWrite',
 	'beginWrite',
@@ -49,29 +56,23 @@ if (result.code !== 0) throw new Error(`Packaged desktop smoke exited with code 
 const line = result.output.split(/\r?\n/u).find((value) => value.startsWith('SOUNDSCAPER_DESKTOP_SMOKE '));
 if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${result.output}`);
 const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
-assert(payload.url === `${APP_SCHEME}://bundle/`, 'Smoke loaded an unexpected URL.');
-assert(payload.title === PRODUCT_NAME, 'Smoke loaded an unexpected document title.');
-assert(payload.hasEditor === true, 'Smoke did not render the editor document.');
-assert(payload.nodeExposed === false, 'Smoke exposed Node.js globals to the renderer.');
-assert(JSON.stringify(payload.bridge) === JSON.stringify(EXPECTED_BRIDGE), 'Smoke bridge surface does not match the reviewed v1 contract.');
+assertDesktopSmokePayload(payload, {
+	arch: TARGET_ARCH,
+	bridge: EXPECTED_BRIDGE,
+	platform: process.platform,
+	title: PRODUCT_NAME,
+	url: `${APP_SCHEME}://bundle/`,
+});
 console.log(line);
 
 async function findPackagedExecutable() {
-	const archSuffix = process.arch === 'x64' ? '' : `-${process.arch}`;
-	const candidates = process.platform === 'win32'
-		? [
-			resolve(OUTPUT_ROOT, `win${archSuffix}-unpacked/${PRODUCT_NAME}.exe`),
-			resolve(OUTPUT_ROOT, `win-unpacked/${PRODUCT_NAME}.exe`),
-		]
-		: process.platform === 'darwin'
-			? [
-				resolve(OUTPUT_ROOT, `mac${archSuffix}/${PRODUCT_NAME}.app/Contents/MacOS/${PRODUCT_NAME}`),
-				resolve(OUTPUT_ROOT, `mac/${PRODUCT_NAME}.app/Contents/MacOS/${PRODUCT_NAME}`),
-			]
-			: [
-				resolve(OUTPUT_ROOT, `linux${archSuffix}-unpacked/${PRODUCT_ID}`),
-				resolve(OUTPUT_ROOT, `linux-unpacked/${PRODUCT_ID}`),
-			];
+	const candidates = packagedExecutableCandidates({
+		arch: TARGET_ARCH,
+		outputRoot: OUTPUT_ROOT,
+		platform: process.platform,
+		productId: PRODUCT_ID,
+		productName: PRODUCT_NAME,
+	});
 	for (const candidate of candidates) {
 		try {
 			await access(candidate);
@@ -80,7 +81,7 @@ async function findPackagedExecutable() {
 			// Try the next electron-builder output convention.
 		}
 	}
-	throw new Error(`No packaged ${process.platform}/${process.arch} ${PRODUCT_NAME} executable was found.`);
+	throw new Error(`No packaged ${process.platform}/${TARGET_ARCH} ${PRODUCT_NAME} executable was found.`);
 }
 
 function run(binary, args) {
@@ -112,8 +113,4 @@ function run(binary, args) {
 			resolvePromise({ code, output });
 		});
 	});
-}
-
-function assert(condition, message) {
-	if (!condition) throw new Error(message);
 }

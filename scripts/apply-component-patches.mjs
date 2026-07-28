@@ -26,7 +26,7 @@ function assertAllowedTarget(rawPath, patchFile, { allowDevNull = false } = {}) 
 
 export function validateComponentPatch(patch, patchFile = '<patch>') {
 	let diffCount = 0;
-	for (const line of patch.split('\n')) {
+	for (const line of patch.split(/\r?\n/u)) {
 		if (/^(rename|copy) (from|to) |^(new file|deleted file|old|new) mode 120000$|^GIT binary patch$|^Binary files /.test(line)) {
 			throw new Error(`${patchFile}: renames, copies, symlinks, and binary patches are not supported`);
 		}

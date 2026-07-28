@@ -29,6 +29,22 @@ test('component patches are confined to the pinned package distribution', () => 
 	);
 });
 
+test('component patches accept Windows CRLF line endings without weakening validation', () => {
+	const windowsPatch = allowedPatch.replaceAll('\n', '\r\n');
+	assert.doesNotThrow(() => validateComponentPatch(windowsPatch, 'windows.patch'));
+	assert.throws(
+		() => validateComponentPatch(windowsPatch.replaceAll(
+			'node_modules/@dilsonspickles/components/dist/Flyout.js',
+			'node_modules/@dilsonspickles/components/dist/../../../../escape.js',
+		), 'windows-traversal.patch'),
+		/escapes @dilsonspickles\/components\/dist/u,
+	);
+	assert.throws(
+		() => validateComponentPatch(`${windowsPatch}GIT binary patch\r\n`, 'windows-binary.patch'),
+		/renames, copies, symlinks, and binary patches are not supported/u,
+	);
+});
+
 test('component patches reject file-system indirection and binary payloads', () => {
 	for (const forbidden of [
 		'rename from node_modules/@dilsonspickles/components/dist/Flyout.js',
