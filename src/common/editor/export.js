@@ -12,6 +12,8 @@ import {
 	getMediaExportFormat,
 	normalizeMediaExportSettings,
 } from './media-export.js';
+import { inspectWavLayout } from './wav.js';
+import { createStemArchivePlan } from './controller/stem-archive.ts';
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
@@ -39,14 +41,19 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number} sampleRate
  * @property {number} outputFrames
  * @property {number} outputBytesPerRender
+ * @property {number|null} outputFileBytesPerRender
+ * @property {number} requiredTemporaryBytes
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean }} render
  * @property {Array<{kind: string, fileName: string, trackId: string | null}>} outputs
+ * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
 	if (!Number.isSafeInteger(frameCount) || frameCount < 0) throw new RangeError('PCM frame count must be a non-negative integer.');
-	if (!Number.isInteger(channelCount) || channelCount <= 0) throw new RangeError('PCM channel count must be positive.');
-	return frameCount * channelCount * bytesPerSample;
+	if (!Number.isSafeInteger(channelCount) || channelCount <= 0) throw new RangeError('PCM channel count must be positive.');
+	if (!Number.isSafeInteger(bytesPerSample) || bytesPerSample <= 0) throw new RangeError('PCM bytes per sample must be positive.');
+	const bytesPerFrame = multiplySafeIntegers(channelCount, bytesPerSample, 'PCM byte size');
+	return multiplySafeIntegers(frameCount, bytesPerFrame, 'PCM byte size');
 }
 
 export function estimateProjectPcmBytes(project) {
@@ -121,6 +128,17 @@ export function createExportPlan(project, options = {}) {
 	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / project.sampleRate);
 	const outputFrames = rangeOutputFrames + tailOutputFrames;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
+	const outputLayout = format === 'wav' || format === 'bwf'
+		? inspectWavLayout({
+			sampleRate,
+			channelCount: encoding.channelCount,
+			totalFrames: outputFrames,
+			bitDepth: encoding.bitDepth,
+			float: encoding.floatingPoint,
+			metadata: encoding.metadata,
+			bext,
+		})
+		: null;
 	const render = chooseRenderStrategy({
 		mobile: Boolean(options.mobile),
 		outputBytes,
@@ -141,6 +159,21 @@ export function createExportPlan(project, options = {}) {
 			includeMaster: false,
 			respectMuteSolo: false,
 		}));
+	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
+	const archive = mode === 'stems'
+		? createStemArchivePlan(
+			`${sanitizeExportName(project.title)}-stems-${isoDate(options.date)}`,
+			outputs.map((output) => ({
+				fileName: output.fileName,
+				expectedByteLength: outputLayout?.byteLength ?? null,
+			})),
+			fallbackTemporaryBytes,
+		)
+		: null;
+	const requiredTemporaryBytes = archive?.requiredTemporaryBytes
+		?? (mode === 'mix' && outputLayout
+			? outputLayout.byteLength
+			: fallbackTemporaryBytes);
 
 	return {
 		mode,
@@ -158,13 +191,21 @@ export function createExportPlan(project, options = {}) {
 		tailFrames,
 		outputFrames,
 		outputBytesPerRender: outputBytes,
+		outputFileBytesPerRender: outputLayout?.byteLength ?? null,
+		requiredTemporaryBytes,
 		render,
 		outputs,
-		archiveName: mode === 'stems'
-			? `${sanitizeExportName(project.title)}-stems-${isoDate(options.date)}.zip`
-			: null,
+		archive,
 		aggregateStereoMinutes: aggregateStereoMinutes(project),
 	};
+}
+
+function multiplySafeIntegers(left, right, name) {
+	if (!Number.isSafeInteger(left) || left < 0 || !Number.isSafeInteger(right) || right < 0
+		|| (right !== 0 && left > Math.floor(Number.MAX_SAFE_INTEGER / right))) {
+		throw new RangeError(`${name} exceeds JavaScript's safe integer range.`);
+	}
+	return left * right;
 }
 
 function resolveExportRange(project, requestedRange) {

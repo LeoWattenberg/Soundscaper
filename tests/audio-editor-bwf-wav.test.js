@@ -107,13 +107,15 @@ test('Broadcast WAV word-aligns odd 24-bit mono data before optional ID3 metadat
 	assert.equal((await inspectWavBlobPcm(new Blob([withoutId3]))).riffByteLength, withoutId3.byteLength);
 });
 
-test('Broadcast WAV includes the data pad in the classic RIFF size guard', () => {
-	assert.throws(() => createWavHeader({
+test('Broadcast WAV switches to RF64 when its padded classic RIFF layout overflows', () => {
+	const header = createWavHeader({
 		channelCount: 1,
 		totalFrames: 1_431_655_547,
 		bitDepth: 24,
 		bext: { codingHistory: 'ABCDE' },
-	}), /4 GiB/);
+	});
+	assert.equal(textAt(header, 0, 4), 'RF64');
+	assert.equal(new DataView(header.buffer).getUint32(4, true), 0xffff_ffff);
 });
 
 test('plain WAV preserves its unpadded 44-byte-layout output for odd PCM byte counts', () => {
@@ -133,12 +135,6 @@ test('Broadcast WAV enforces the classic mono/stereo 16/24-bit PCM profile', () 
 	assert.throws(() => encodeWav([
 		Float32Array.of(0), Float32Array.of(0), Float32Array.of(0),
 	], { bitDepth: 24, bext: {} }), /Broadcast WAV.*channels|mono.*stereo/i);
-	assert.throws(() => createWavStreamEncoder({
-		totalFrames: 0xffffffff,
-		channelCount: 2,
-		bitDepth: 24,
-		bext: {},
-	}), /4 GiB/);
 });
 
 function textAt(bytes, offset, length) {

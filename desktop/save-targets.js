@@ -108,7 +108,7 @@ export class AtomicSaveManager {
 		const buffer = toBuffer(bytes);
 		if (buffer.byteLength > MAX_SAVE_CHUNK_BYTES) throw new RangeError('Save chunk is too large');
 		if (!Number.isSafeInteger(offset) || offset !== session.written) throw new RangeError('Save chunk offset is out of sequence');
-		if (session.written + buffer.byteLength > session.declaredSize) throw new RangeError('Save exceeds its declared size');
+		if (buffer.byteLength > session.declaredSize - session.written) throw new RangeError('Save exceeds its declared size');
 		session.busy = true;
 		try {
 			let cursor = 0;

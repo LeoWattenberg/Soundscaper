@@ -770,7 +770,7 @@ test('export plans define mix/stem policy, encoding defaults, tails, names, and 
 	assert.equal(stems.outputs.length, 2);
 	assert.deepEqual(stems.outputs.map((output) => output.fileName), ['01-Voice.opus', '02-Music.opus']);
 	assert.equal(stems.outputs.every((output) => !output.includeMaster && !output.respectMuteSolo), true);
-	assert.equal(stems.archiveName, 'Studio-Test-stems-2026-07-12.zip');
+	assert.equal(stems.archive.fileName, 'Studio-Test-stems-2026-07-12.zip');
 	assert.equal(sanitizeExportName('  A/B: “Mix”  '), 'A-B-Mix');
 	assert.deepEqual(chooseRenderStrategy({ mobile: true, outputBytes: 97 * 1024 ** 2, livePcmBytes: 0 }).strategy, 'realtime-stream');
 	assert.throws(() => createExportPlan(project, { format: 'mp3', bitRate: 129 }), /bitrate/);

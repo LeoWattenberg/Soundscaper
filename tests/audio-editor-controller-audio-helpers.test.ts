@@ -148,6 +148,9 @@ test('controller file helpers preserve formats, summaries, and compatibility cou
 	assert.equal(isLegacyAupFile({ name: 'project.aup' }), true);
 	assert.equal(isLegacyBlockFile({ name: 'e000.au' }), true);
 	assert.equal(isWavFile({ name: 'audio.bin', type: 'audio/x-wav' }), true);
+	assert.equal(isWavFile({ name: 'large-master.RF64' }), true);
+	assert.equal(isWavFile({ name: 'unsupported-master.bw64' }), true);
+	assert.equal(isWavFile({ name: 'audio.bin', type: 'audio/rf64' }), true);
 	assert.equal(labelExportFileName('unsafe:name.wav', 'vtt'), 'unsafe-name.vtt');
 	assert.equal(ensureAup4FileName('mix'), 'mix.aup4');
 	assert.equal(ensureScapeFileName('mix'), 'mix.scape');

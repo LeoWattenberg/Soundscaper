@@ -33,7 +33,7 @@ export const SUPPORTED_LOCALES = Object.freeze([
 export const READ_CAPABILITY_PREFIX = '/_desktop/read/';
 export const RUNTIME_PREFIX = '/runtime/';
 export const MAX_SAVE_CHUNK_BYTES = 1024 * 1024;
-export const MAX_SAVE_BYTES = 32 * 1024 * 1024 * 1024;
+export const MAX_SAVE_BYTES = Number.MAX_SAFE_INTEGER;
 
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',

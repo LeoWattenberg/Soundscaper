@@ -7,7 +7,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);

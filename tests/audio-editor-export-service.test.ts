@@ -21,7 +21,14 @@ interface TestPlan extends Record<string, unknown> {
 	mode: string;
 	outputs: Array<{ fileName: string; trackId: string }>;
 	outputBytesPerRender: number;
-	archiveName: string;
+	requiredTemporaryBytes: number;
+	archive: null | {
+		format: 'zip' | '7z';
+		fileName: string;
+		mimeType: string;
+		expectedByteLength: number | null;
+		entries: Array<{ fileName: string; expectedByteLength: number | null }>;
+	};
 	format: string;
 	mimeType: string;
 	sampleRate: number;
@@ -69,7 +76,8 @@ function defaultPlan(): TestPlan {
 		mode: 'mix',
 		outputs: [{ fileName: 'mix.wav', trackId: 'video-track' }],
 		outputBytesPerRender: 128,
-		archiveName: 'stems.zip',
+		requiredTemporaryBytes: 256,
+		archive: null,
 		format: 'wav',
 		mimeType: 'audio/wav',
 		sampleRate: 48_000,
@@ -93,6 +101,9 @@ function createFixture() {
 	const progress: number[] = [];
 	const wavOptions: Array<Record<string, unknown>> = [];
 	const streamEncoderOptions: Array<Record<string, unknown>> = [];
+	const preflightBytes: number[] = [];
+	const resampleFrameRequests: number[] = [];
+	const encodedFrameCounts: number[] = [];
 	const audio = {
 		sampleRate: 48_000,
 		length: 4,
@@ -170,20 +181,23 @@ function createFixture() {
 			push: (channels: Float32Array[]) => channels,
 			finish: () => [Float32Array.of(0.5), Float32Array.of(0.5)],
 		}),
-		createStreamingZipArchive: async () => ({
-			async add(fileName: string) {
-				calls.push(`archive-add:${fileName}`);
-				if (archiveAddFails) throw new Error('archive add failed');
-			},
-			async finish() {
-				calls.push('archive-finish');
-				return {
-					blob: new Blob([Uint8Array.of(9)], { type: 'application/zip' }),
-					cleanup: async () => { calls.push('archive-cleanup'); },
-				};
-			},
-			async abort() { calls.push('archive-abort'); },
-		}),
+		createStreamingStemArchive: async (archivePlan: NonNullable<TestPlan['archive']>) => {
+			calls.push(`archive-create:${archivePlan.format}:${archivePlan.fileName}`);
+			return {
+				async add(fileName: string) {
+					calls.push(`archive-add:${fileName}`);
+					if (archiveAddFails) throw new Error('archive add failed');
+				},
+				async finish() {
+					calls.push('archive-finish');
+					return {
+						blob: new Blob([Uint8Array.of(9)], { type: archivePlan.mimeType }),
+						cleanup: async () => { calls.push('archive-cleanup'); },
+					};
+				},
+				async abort() { calls.push('archive-abort'); },
+			};
+		},
 		createTemporaryFileSink: async () => ({
 			persistent: sinkPersistent,
 			write: async () => { calls.push('sink-write'); },
@@ -198,7 +212,8 @@ function createFixture() {
 		}),
 		createWavStreamEncoder: streamEncoder,
 		encodeAiff: () => Uint8Array.of(4, 5),
-		encodeWav: (_channels: Float32Array[], options: Record<string, unknown>) => {
+		encodeWav: (channels: Float32Array[], options: Record<string, unknown>) => {
+			encodedFrameCounts.push(channels[0]?.length ?? 0);
 			wavOptions.push(options);
 			return Uint8Array.of(1, 2, 3);
 		},
@@ -246,7 +261,8 @@ function createFixture() {
 		normalizeExportSettings: (settings: unknown) => settings,
 		normalizeProjectSampleRate: (sampleRate: number) => sampleRate,
 		options: renderOptions,
-		preflightStorage: async () => {
+		preflightStorage: async (bytes: number) => {
+			preflightBytes.push(bytes);
 			if (preflightFails) throw new Error('preflight failed');
 		},
 		prepareCommittedTimePitchCaches: async () => { calls.push('prepare-caches'); },
@@ -257,7 +273,21 @@ function createFixture() {
 		},
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot: () => { calls.push('publish'); },
-		resampleBuffer: async () => ({ ...audio, sampleRate: plan.sampleRate }),
+		resampleBuffer: async (
+			_input: unknown,
+			_sampleRate: number,
+			_context: unknown,
+			_copy: unknown,
+			outputFrames: number,
+		) => {
+			resampleFrameRequests.push(outputFrames);
+			return {
+				...audio,
+				sampleRate: plan.sampleRate,
+				length: outputFrames,
+				channels: [new Float32Array(outputFrames), new Float32Array(outputFrames)],
+			};
+		},
 		setStatus: (message: string, tone?: unknown) => { statuses.push([message, tone]); },
 		sourceBuffers,
 		state,
@@ -274,6 +304,9 @@ function createFixture() {
 		downloads,
 		errors,
 		progress,
+		preflightBytes,
+		resampleFrameRequests,
+		encodedFrameCounts,
 		renderOptions,
 		runtime,
 		state,
@@ -343,6 +376,17 @@ test('offline WAV and AIFF exports replace prior output and chain cleanup', asyn
 	assert.equal(fixture.downloads.at(-1)?.mimeType, 'audio/aiff');
 });
 
+test('offline sample-rate conversion encodes the exact planned native frame count', async () => {
+	const fixture = createFixture();
+	const converted = defaultPlan();
+	converted.sampleRate = 44_100;
+	converted.outputFrames = 12;
+	fixture.setPlan(converted);
+	await createEditorExportService(fixture.runtime).handleExportAction('export');
+	assert.deepEqual(fixture.resampleFrameRequests, [12]);
+	assert.deepEqual(fixture.encodedFrameCounts, [12]);
+});
+
 test('offline and realtime BWF exports pass final file-level BEXT metadata to the WAV encoder', async () => {
 	const bext = { description: 'Broadcast master', timeReference: '66150', version: 2 };
 	const offline = createFixture();
@@ -390,9 +434,20 @@ test('stem exports archive each output, report progress, and abort failed archiv
 		{ fileName: 'one.wav', trackId: 'one' },
 		{ fileName: 'two.wav', trackId: 'two' },
 	];
+	stems.requiredTemporaryBytes = 768;
+	stems.archive = {
+		format: '7z',
+		fileName: 'stems.7z',
+		mimeType: 'application/x-7z-compressed',
+		expectedByteLength: 512,
+		entries: stems.outputs.map(({ fileName }) => ({ fileName, expectedByteLength: 128 })),
+	};
 	fixture.setPlan(stems);
 	const result = await createEditorExportService(fixture.runtime).handleExportAction('export');
-	assert.equal(result.fileName, 'stems.zip');
+	assert.equal(result.fileName, 'stems.7z');
+	assert.equal(result.mimeType, 'application/x-7z-compressed');
+	assert.equal(fixture.calls.includes('archive-create:7z:stems.7z'), true);
+	assert.equal(fixture.preflightBytes[0], 768);
 	assert.deepEqual(fixture.progress, [0.5, 1]);
 	assert.equal(fixture.calls.filter((entry) => entry.startsWith('archive-add')).length, 2);
 

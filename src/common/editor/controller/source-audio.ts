@@ -236,9 +236,13 @@ export async function resampleBuffer(
 	sampleRate: number,
 	context: AudioBufferContext | null | undefined,
 	copy: AudioCopy,
+	outputFrames: number | null = null,
 ): Promise<AudioBufferLike> {
-	if (input.sampleRate === sampleRate) return input;
-	const length = Math.max(1, Math.round(input.length * sampleRate / input.sampleRate));
+	if (outputFrames !== null && (!Number.isSafeInteger(outputFrames) || outputFrames < 1)) {
+		throw new RangeError('Resampled output frames must be a positive safe integer.');
+	}
+	if (input.sampleRate === sampleRate && (outputFrames === null || outputFrames === input.length)) return input;
+	const length = outputFrames ?? Math.max(1, Math.round(input.length * sampleRate / input.sampleRate));
 	const sourceChannels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
 	const channels = resampleChannelsWindowedSinc(sourceChannels, input.sampleRate, sampleRate, length);
 	return bufferFromChannels(channels, sampleRate, context, copy);

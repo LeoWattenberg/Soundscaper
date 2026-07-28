@@ -105,8 +105,11 @@ export function isLegacyBlockFile(file: NamedFile | null | undefined): boolean {
 
 export function isWavFile(file: NamedFile | null | undefined): boolean {
 	const mimeType = String(file?.type || '').trim().toLowerCase();
-	return /\.(?:wav|wave)$/i.test(String(file?.name || '').trim())
-		|| ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave'].includes(mimeType);
+	return /\.(?:wav|wave|rf64|bw64)$/i.test(String(file?.name || '').trim())
+		|| [
+			'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave',
+			'audio/rf64', 'audio/x-rf64', 'audio/bw64', 'audio/x-bw64',
+		].includes(mimeType);
 }
 
 export function formatLegacyAupWarning(warning: unknown): string {

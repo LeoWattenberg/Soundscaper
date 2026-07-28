@@ -306,10 +306,10 @@ import { createProjectVisualService } from './controller/project-visual-service.
 import { createRackEffectService } from './controller/rack-effect-service.ts';
 import { createVideoEffectService } from './controller/video-effect-service.ts';
 import {
-	createStreamingZipArchive,
 	createTemporaryFileSink,
 	stemProject,
 } from './controller/temporary-export.ts';
+import { createStreamingStemArchive } from './controller/stem-archive.ts';
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 import {
 	analyzeChannelsInWorker,
@@ -1085,7 +1085,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	} = createEditorExportService({
 		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
-		createStableId, createStreamingWindowedSincResampler, createStreamingZipArchive, createTemporaryFileSink,
+		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,

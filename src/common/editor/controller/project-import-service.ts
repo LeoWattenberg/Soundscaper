@@ -2,6 +2,7 @@
 
 import { scaleBextTimeReference } from '../broadcast-wave-project.ts';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
+import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -232,8 +233,21 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		if (isAudioEditorVideoFile(file)) return importVideoFile(file, normalizedImportOptions);
 		validateImportTimelineTrack(normalizedImportOptions);
-		const wavDescriptor = await inspectWav(file);
+		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
+		if (wavSignature === 'BW64') {
+			throw new Error('BW64 WAV files are not supported by the incremental WAV importer.');
+		}
+		const wavDescriptor: RuntimeValue = await inspectWavForImport(
+			file, isWavFile, inspectWavBlobPcm, wavSignature,
+		);
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
+		if (wavSignature === 'RF64') {
+			if (!wavDescriptor) throw new Error('The RF64 WAV file could not be inspected incrementally.');
+			if (wavDescriptor.channelCount > 2) {
+				throw new Error('RF64 WAV import supports only mono or stereo PCM.');
+			}
+			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
+		}
 		if (isIncrementalWav(wavDescriptor)) {
 			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
 		}
@@ -309,15 +323,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		warnEnvelope();
 		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
-	}
-
-	async function inspectWav(file: RuntimeValue) {
-		if (!isWavFile(file) || typeof file?.slice !== 'function') return null;
-		try {
-			return await inspectWavBlobPcm(file);
-		} catch {
-			return null;
-		}
 	}
 
 	function isIncrementalWav(descriptor: RuntimeValue) {

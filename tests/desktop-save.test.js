@@ -82,3 +82,17 @@ test('save chunks enforce the one MiB boundary', async (context) => {
 		/chunk is too large/u,
 	);
 });
+
+test('save chunks cannot exceed their declared byte length', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-declared-limit-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const target = targets.registerPath(join(root, 'bounded.wav'));
+	const session = await manager.begin({ targetId: target.id, size: 1 });
+	await assert.rejects(
+		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
+		/exceeds its declared size/u,
+	);
+});

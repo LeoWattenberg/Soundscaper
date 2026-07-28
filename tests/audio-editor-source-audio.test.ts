@@ -209,6 +209,13 @@ test('ordinary resampling preserves requested rates and exact frame counts', asy
 	const halfRate = await resampleBuffer(input, 24_000, audioContextFixture(), copy);
 	assert.equal(halfRate.length, 2);
 	assert.equal(halfRate.sampleRate, 24_000);
+	const planned = await resampleBuffer(input, 44_100, audioContextFixture(), copy, 5);
+	assert.equal(planned.length, 5);
+	assert.equal(planned.sampleRate, 44_100);
+	await assert.rejects(
+		resampleBuffer(input, 44_100, audioContextFixture(), copy, Number.MAX_SAFE_INTEGER + 1),
+		/positive safe integer/u,
+	);
 	assert.deepEqual(resampleChannelsWindowedSinc(channels, 48_000, 48_000, 4), channels);
 });
 

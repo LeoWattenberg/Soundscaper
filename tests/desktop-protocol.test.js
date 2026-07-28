@@ -20,9 +20,12 @@ import {
 	acceptsFile,
 	isAppUrl,
 	isEditorDocumentUrl,
+	mimeTypeForPath,
 	resolveLocale,
+	validateDeclaredSize,
 	validateSaveChoice,
 } from '../desktop/validation.js';
+import { MAX_SAVE_BYTES } from '../desktop/constants.js';
 
 test('desktop document and locale validation accepts only committed editor routes', () => {
 	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
@@ -92,16 +95,31 @@ test('native file filters cover the editor import and export formats', () => {
 	assert.equal(acceptsFile('audio', '/tmp/session.AUP3'), false);
 	assert.equal(acceptsFile('media', '/tmp/session.AUP3'), false);
 	assert.equal(acceptsFile('audio', '/tmp/take.wv'), true);
+	assert.equal(acceptsFile('audio', '/tmp/large-master.rf64'), true);
+	assert.equal(acceptsFile('media', '/tmp/unsupported-master.BW64'), false);
+	assert.equal(mimeTypeForPath('/tmp/large-master.rf64'), 'audio/rf64');
+	assert.equal(mimeTypeForPath('/tmp/unsupported-master.bw64'), 'audio/bw64');
 	assert.equal(acceptsFile('media', '/tmp/captions.srt'), true);
 	assert.equal(acceptsFile('media', '/tmp/labels.TXT'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.vtt'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.csv'), false);
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.zip' }).suggestedName, 'stems.zip');
+	const stemArchive = validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.7z' });
+	assert.equal(stemArchive.suggestedName, 'stems.7z');
+	assert.equal(stemArchive.filters[0].extensions.includes('7z'), true);
+	assert.equal(mimeTypeForPath('/tmp/stems.7z'), 'application/x-7z-compressed');
 	assert.equal(validateSaveChoice({ purpose: 'project', suggestedName: 'session' }).suggestedName, 'session.scape');
 	assert.equal(validateSaveChoice({ purpose: 'aup4', suggestedName: 'session' }).suggestedName, 'session.aup4');
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'custom.caf' }).filters.at(-1).extensions[0], '*');
 	assert.equal(validateSaveChoice({ purpose: 'labels', suggestedName: 'captions.srt' }).suggestedName, 'captions.srt');
 	assert.equal(validateSaveChoice({ purpose: 'macro', suggestedName: 'cleanup' }).suggestedName, 'cleanup.txt');
+});
+
+test('desktop save declarations accept every safe integer byte length', () => {
+	assert.equal(MAX_SAVE_BYTES, Number.MAX_SAFE_INTEGER);
+	assert.equal(validateDeclaredSize(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+	assert.throws(() => validateDeclaredSize(Number.MAX_SAFE_INTEGER + 1), /Invalid save size/u);
+	assert.throws(() => validateDeclaredSize(BigInt(Number.MAX_SAFE_INTEGER)), /Invalid save size/u);
 });
 
 test('Windows system-audio capture requires a trusted user gesture and selects loopback', () => {

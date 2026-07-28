@@ -13,16 +13,16 @@ const FILE_PURPOSES = Object.freeze({
 		filters: Object.freeze([{ name: 'Scape and Audacity projects', extensions: ['scape', 'aup3', 'aup4'] }]),
 	}),
 	audio: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'webm', 'wv'] }]),
 	}),
 	video: Object.freeze({
 		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
 		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
 	}),
 	media: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio, video, and labels', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio, video, and labels', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
 	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),
@@ -36,7 +36,7 @@ const SAVE_PURPOSES = Object.freeze({
 	audio: Object.freeze({
 		defaultExtension: 'wav',
 		filters: [
-			{ name: 'Audio and stem archives', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
+			{ name: 'Audio and stem archives', extensions: ['7z', 'aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
 			{ name: 'All files', extensions: ['*'] },
 		],
 	}),
@@ -50,7 +50,7 @@ const SAVE_PURPOSES = Object.freeze({
 	media: Object.freeze({
 		defaultExtension: 'mp4',
 		filters: [
-			{ name: 'Audio and video', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'mp4', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
+			{ name: 'Audio and video', extensions: ['7z', 'aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'mp4', 'ogg', 'opus', 'wav', 'webm', 'wv', 'zip'] },
 			{ name: 'All files', extensions: ['*'] },
 		],
 	}),
@@ -61,11 +61,13 @@ const SAVE_PURPOSES = Object.freeze({
 });
 
 const MIME_TYPES = Object.freeze({
+	'.7z': 'application/x-7z-compressed',
 	'.aac': 'audio/aac',
 	'.aif': 'audio/aiff',
 	'.aiff': 'audio/aiff',
 	'.aup3': 'application/x-audacity-project',
 	'.aup4': 'application/vnd.audacity.aup4',
+	'.bw64': 'audio/bw64',
 	'.csv': 'text/csv',
 	'.flac': 'audio/flac',
 	'.m4a': 'audio/mp4',
@@ -76,6 +78,7 @@ const MIME_TYPES = Object.freeze({
 	'.oga': 'audio/ogg',
 	'.ogg': 'audio/ogg',
 	'.opus': 'audio/ogg; codecs=opus',
+	'.rf64': 'audio/rf64',
 	'.srt': 'application/x-subrip',
 	'.scape': 'application/vnd.soundscaper.scape+zip',
 	'.txt': 'text/plain',
@@ -155,7 +158,8 @@ export function validateSaveChoice(value) {
 }
 
 export function validateDeclaredSize(value) {
-	const size = Number(value);
+	if (typeof value !== 'number') throw new RangeError('Invalid save size');
+	const size = value;
 	if (!Number.isSafeInteger(size) || size < 0 || size > MAX_SAVE_BYTES) throw new RangeError('Invalid save size');
 	return size;
 }

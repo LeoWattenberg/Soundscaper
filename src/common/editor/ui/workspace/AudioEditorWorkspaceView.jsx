@@ -14,7 +14,7 @@ import AudioEditorWorkspaceOverlays from './AudioEditorWorkspaceOverlays.jsx';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
 
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wv';
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip`;
 
 export default function AudioEditorWorkspaceView({ model }) {

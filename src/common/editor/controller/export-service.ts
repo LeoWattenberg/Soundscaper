@@ -17,7 +17,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	const {
 		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
-		createStableId, createStreamingWindowedSincResampler, createStreamingZipArchive, createTemporaryFileSink,
+		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
@@ -66,7 +66,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				livePcmBytes: undefined,
 				productName,
 			});
-			await preflightStorage(plan.outputBytesPerRender * Math.max(1, plan.outputs.length), 'export');
+			await preflightStorage(
+				plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
+				'export',
+			);
 			setStatus(copy.rendering);
 			let blob;
 			let fileName;
@@ -78,7 +81,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				pendingCleanup = outputCleanup;
 				fileName = plan.outputs[0].fileName;
 			} else {
-				const archive = await createStreamingZipArchive(plan.archiveName, plan.outputBytesPerRender * plan.outputs.length, copy);
+				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
+				const archive = await createStreamingStemArchive(plan.archive, copy);
 				try {
 					for (let index = 0; index < plan.outputs.length; index += 1) {
 						throwIfAborted(abort.signal);
@@ -99,7 +103,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					blob = result.blob;
 					outputCleanup = result.cleanup;
 					pendingCleanup = outputCleanup;
-					fileName = plan.archiveName;
+					fileName = plan.archive.fileName;
 				} catch (error) {
 					await archive.abort();
 					throw error;
@@ -358,7 +362,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	async function encodeRendered(rendered: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue) {
 		throwIfAborted(signal);
 		let output = rendered;
-		if (plan.sampleRate !== rendered.sampleRate) output = await resampleBuffer(rendered, plan.sampleRate, undefined, copy);
+		if (plan.sampleRate !== rendered.sampleRate) {
+			output = await resampleBuffer(rendered, plan.sampleRate, undefined, copy, plan.outputFrames);
+		}
 		throwIfAborted(signal);
 		const bitDepth = plan.encoding.bitDepth || (settings.bitDepth === 32 ? 32 : settings.bitDepth) || 24;
 		const sourceChannels = audioBufferChannels(output);
@@ -405,7 +411,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const nativeAiff = plan.format === 'aiff';
 		const nativePcm = plan.format === 'wav' || plan.format === 'bwf' || nativeAiff;
 		const sink = await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
-		if (!sink.persistent && plan.outputBytesPerRender > 96 * 1024 ** 2) {
+		if (!sink.persistent
+			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
 			await sink.abort();
 			throw new Error(copy.realtimeStorageRequired);
 		}

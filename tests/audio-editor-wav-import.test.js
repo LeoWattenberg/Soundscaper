@@ -355,9 +355,9 @@ test('malformed, compressed, truncated, and unsafe WAV structures fail with acti
 		const notRiff = valid.slice();
 		writeAscii(notRiff, 0, 'NOPE');
 		await assert.rejects(inspectWavBlobPcm(new Blob([notRiff])), /not a RIFF WAV/);
-		const rf64 = valid.slice();
-		writeAscii(rf64, 0, 'RF64');
-		await assert.rejects(inspectWavBlobPcm(new Blob([rf64])), /RF64 WAV files are not supported/);
+		const bw64 = valid.slice();
+		writeAscii(bw64, 0, 'BW64');
+		await assert.rejects(inspectWavBlobPcm(new Blob([bw64])), /BW64 WAV files are not supported/);
 		const notWave = valid.slice();
 		writeAscii(notWave, 8, 'AVI ');
 		await assert.rejects(inspectWavBlobPcm(new Blob([notWave])), /not a WAVE/);

@@ -18,7 +18,7 @@ import {
 import { createAiffStreamEncoder, encodeAiff } from '../src/common/editor/aiff.js';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
-import { encodeWav } from '../src/common/editor/wav.js';
+import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [
@@ -344,6 +344,16 @@ test('BWF export plans derive defaults, offset TimeReference exactly, and append
 		'Recorder\nA=PCM,F=44100,W=16,M=mono,T=Soundscaper\n',
 	), true);
 	assert.deepEqual(plan.encoding.bext, plan.bext);
+	const layout = inspectWavLayout({
+		sampleRate: plan.sampleRate,
+		channelCount: plan.channelCount,
+		totalFrames: plan.outputFrames,
+		bitDepth: plan.encoding.bitDepth,
+		float: plan.encoding.floatingPoint,
+		metadata: plan.metadata,
+		bext: plan.bext,
+	});
+	assert.equal(plan.outputFileBytesPerRender, layout.byteLength);
 
 	project.metadata.bext = null;
 	const defaults = createExportPlan(project, {

@@ -45,7 +45,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
 		const exportDialog = await openExportDialog(page, editor);
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="mode"]'), 'Individual stems (ZIP)');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="mode"]'), 'Individual stems (archive)');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
 		await exportDialog.getByRole('button', { name: 'Start export' }).click();
 

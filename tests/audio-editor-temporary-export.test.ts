@@ -40,10 +40,12 @@ test('temporary memory sinks copy all buffer view types and reject writes after 
 		await sink.write(data.subarray(0, 2));
 		await sink.write(new DataView(data.buffer, 2, 1));
 		await sink.write(Uint8Array.of(4).buffer);
+		assert.throws(() => sink.writeAt(3, Uint8Array.of(5, 6)), /bytes already written/u);
+		await sink.writeAt(1, Uint8Array.of(8, 7));
 		data.fill(9);
 		const blob = await sink.close('audio/wav');
 		assert.equal(blob.type, 'audio/wav');
-		assert.deepEqual(Array.from(new Uint8Array(await blob.arrayBuffer())), [1, 2, 3, 4]);
+		assert.deepEqual(Array.from(new Uint8Array(await blob.arrayBuffer())), [1, 8, 7, 4]);
 		assert.throws(() => sink.write(Uint8Array.of(5)), /temporary export closed/u);
 		await assert.rejects(() => sink.close('audio/wav'), /temporary export closed/u);
 		await sink.remove();
@@ -54,7 +56,10 @@ test('temporary memory sinks copy all buffer view types and reject writes after 
 test('temporary persistent sinks serialize writes, close handles, and tolerate cleanup races', async () => {
 	const events: string[] = [];
 	const writable = {
-		async write(bytes: Uint8Array) { events.push(`write:${bytes[0]}`); },
+		async write(input: Uint8Array | { position: number; data: Uint8Array }) {
+			if (input instanceof Uint8Array) events.push(`write:${input[0]}`);
+			else events.push(`writeAt:${input.position}:${input.data[0]}`);
+		},
 		async close() { events.push('close'); },
 		async abort() {
 			events.push('abort');
@@ -63,7 +68,7 @@ test('temporary persistent sinks serialize writes, close handles, and tolerate c
 	};
 	const handle = {
 		createWritable: async () => writable,
-		getFile: async () => new Blob([Uint8Array.of(7)], { type: 'audio/aiff' }),
+		getFile: async () => new Blob([Uint8Array.of(7)]),
 	};
 	const directory = {
 		getFileHandle: async () => handle,
@@ -81,11 +86,13 @@ test('temporary persistent sinks serialize writes, close handles, and tolerate c
 		assert.equal(sink.persistent, true);
 		const first = sink.write(Uint8Array.of(1));
 		const second = sink.write(Uint8Array.of(2));
-		await Promise.all([first, second]);
+		const patch = sink.writeAt(0, Uint8Array.of(9));
+		await Promise.all([first, second, patch]);
 		const file = await sink.close('audio/aiff');
 		assert.equal(file.size, 1);
+		assert.equal(file.type, 'audio/aiff');
 		await sink.remove();
-		assert.deepEqual(events.slice(0, 4), ['write:1', 'write:2', 'close', 'remove']);
+		assert.deepEqual(events.slice(0, 5), ['writeAt:0:1', 'writeAt:1:2', 'writeAt:0:9', 'close', 'remove']);
 	});
 
 	await withNavigator({
@@ -131,6 +138,31 @@ test('aborted ZIP archives reject additions and allow repeated aborts', async ()
 		await archive.abort();
 		await archive.abort();
 		await assert.rejects(() => archive.add('late.raw', Uint8Array.of(1)), /stem archive closed/u);
+		await assert.rejects(() => archive.finish(), /stem archive closed/u);
+	});
+});
+
+test('ZIP finalization failures abort and remove partial OPFS archives', async () => {
+	const events: string[] = [];
+	const writable = {
+		async write() { events.push('write'); },
+		async close() { events.push('close'); throw new Error('OPFS close failed'); },
+		async abort() { events.push('abort'); },
+	};
+	const directory = {
+		getFileHandle: async () => ({
+			createWritable: async () => writable,
+			getFile: async () => new Blob(),
+		}),
+		async removeEntry() { events.push('remove'); },
+	};
+	await withNavigator({
+		storage: { getDirectory: async () => ({ getDirectoryHandle: async () => directory }) },
+	}, async () => {
+		const archive = await createStreamingZipArchive('failed.zip', 0, copy);
+		await archive.add('entry.raw', Uint8Array.of(1));
+		await assert.rejects(() => archive.finish(), /OPFS close failed/u);
+		assert.deepEqual(events.slice(-3), ['close', 'abort', 'remove']);
 	});
 });
 
