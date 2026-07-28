@@ -12,7 +12,10 @@ import {
 } from './adm-metadata.ts';
 import { validateAdmSxmlPayload, AdmSxmlFormatUnsupportedError } from './adm-sxml.ts';
 import { AdmXmlExpandedSizeError, gunzipAdmXmlBounded } from './adm-xml-compression.ts';
-import type { WavOpaqueRiffChunk, WavOpaqueRiffCaptureWarning } from './wav-opaque-chunks.ts';
+import type {
+	WavOpaqueRiffChunk,
+	WavRiffChunkSequenceEntry,
+} from './wav-opaque-chunks.ts';
 
 export const WAV_ADM_PAYLOAD_MAX_BYTES = ADM_AXML_MAX_BYTES;
 export const WAV_ADM_CHNA_MAX_BYTES = CHNA_MAX_PAYLOAD_BYTES;
@@ -44,6 +47,7 @@ export interface WavAdmImportMetadata {
 	readonly payload: WavAdmStaticMetadataPayload | Readonly<{ kind: 'sxml'; base64: string }>;
 	readonly serialPayload?: Readonly<{ kind: 'sxml'; base64: string }>;
 	readonly auxiliaryPayloads?: readonly WavAdmStaticMetadataPayload[];
+	readonly riffChunkSequence?: readonly WavRiffChunkSequenceEntry[];
 	readonly opaqueRiffChunks?: readonly WavOpaqueRiffChunk[];
 	readonly chna: Readonly<{
 		numTracks: number;
@@ -61,8 +65,9 @@ export function finalizeWavAdmImport(options: Readonly<{
 	readonly chna: Uint8Array | null;
 	readonly channelCount: number;
 	readonly priorWarnings?: readonly WavAdmWarning[];
+	readonly riffChunkSequence?: readonly WavRiffChunkSequenceEntry[];
 	readonly opaqueRiffChunks?: readonly WavOpaqueRiffChunk[];
-	readonly opaqueWarnings?: readonly WavOpaqueRiffCaptureWarning[];
+	readonly opaqueWarnings?: readonly WavAdmWarning[];
 }>): Readonly<{ metadata: WavAdmImportMetadata | null; warnings: readonly WavAdmWarning[] }> {
 	const warnings: WavAdmWarning[] = [...(options.priorWarnings ?? [])];
 	const addWarning = (code: string, error: unknown): void => {
@@ -180,6 +185,7 @@ export function finalizeWavAdmImport(options: Readonly<{
 			payload,
 			...(serialPayload ? { serialPayload } : {}),
 			...(auxiliaryPayloads.length ? { auxiliaryPayloads: Object.freeze(auxiliaryPayloads) } : {}),
+			...(options.riffChunkSequence?.length ? { riffChunkSequence: options.riffChunkSequence } : {}),
 			...(options.opaqueRiffChunks?.length ? { opaqueRiffChunks: options.opaqueRiffChunks } : {}),
 			chna: Object.freeze({
 				numTracks: parsedChna?.numTracks ?? 0,

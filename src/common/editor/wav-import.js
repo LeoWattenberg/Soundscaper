@@ -16,12 +16,12 @@ import {
 	readDs64Directory,
 } from './wav-ds64.js';
 import { ascii, dataView, printableChunkId, readBlobBytes, throwIfAborted } from './wav-import-io.ts';
+import { createWavAdmRiffSequencePreserver } from './wav-adm-riff-sequence.ts';
 import {
 	createWavOpaqueRiffCollector,
 	shouldPreserveWavOpaqueRiffChunk,
 	wavOpaqueRiffPreservationWarning,
 } from './wav-opaque-chunks.ts';
-
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
 const MINIMUM_FORMAT_BYTES = 16;
@@ -98,6 +98,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	const admWarnings = [];
 	const opaqueRiffWarnings = [];
 	const opaqueRiff = createWavOpaqueRiffCollector();
+	const admRiffSequence = createWavAdmRiffSequencePreserver();
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -150,6 +151,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 		const preserveOpaqueChunk = ds64Dialect === 'bw64'
 			&& shouldPreserveWavOpaqueRiffChunk(chunkId, listType);
+		const preserveAdmSequenceChunk = admRiffSequence.shouldCapture(ds64Dialect, chunkId);
 
 		if (chunkId === 'fmt ' && !format) {
 			if (chunkBytes < MINIMUM_FORMAT_BYTES) throw new Error('The WAV format chunk is too small.');
@@ -247,6 +249,10 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 				));
 				break;
 			}
+			if (preserveAdmSequenceChunk && payloadEnd === riffEnd && format && data) {
+				admRiffSequence.noteMissingPadding(chunkId);
+				break;
+			}
 			// A few otherwise valid encoders omit the final RIFF pad byte. It is
 			// harmless when both required chunks have already been discovered.
 			if (!ds64Directory && payloadEnd === riffEnd && format && data) {
@@ -286,6 +292,13 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			});
 			if (warning) opaqueRiffWarnings.push(warning);
 		}
+		if (preserveAdmSequenceChunk) {
+			await admRiffSequence.capture({
+				id: chunkId, placement: data ? 'after-data' : 'before-data',
+				declaredByteLength: declaredChunkBytes, rawByteLength: paddedEnd - offset,
+				read: () => readBlobBytes(blob, offset, paddedEnd, signal),
+			});
+		}
 		offset = paddedEnd;
 	}
 	if (ds64Directory) assertDs64TableConsumed(ds64Directory);
@@ -313,8 +326,9 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		chna: admChna,
 		channelCount: format.channelCount,
 		priorWarnings: admWarnings,
+		riffChunkSequence: admRiffSequence.snapshot(),
 		opaqueRiffChunks: opaqueRiff.snapshot(),
-		opaqueWarnings: opaqueRiffWarnings,
+		opaqueWarnings: [...opaqueRiffWarnings, ...admRiffSequence.warnings()],
 	});
 	metadataWarnings.push(...finalizedAdm.warnings);
 

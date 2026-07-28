@@ -68,6 +68,7 @@ export function createImportedAdmPassthroughMetadata(options: Readonly<Record<st
 		payload: candidate.payload,
 		...(candidate.serialPayload ? { serialPayload: candidate.serialPayload } : {}),
 		...(candidate.auxiliaryPayloads ? { auxiliaryPayloads: candidate.auxiliaryPayloads } : {}),
+		...(candidate.riffChunkSequence ? { riffChunkSequence: candidate.riffChunkSequence } : {}),
 		...(candidate.opaqueRiffChunks ? { opaqueRiffChunks: candidate.opaqueRiffChunks } : {}),
 		chna: {
 			entries: (candidate.chna?.entries || []).map((entry: Readonly<Record<string, unknown>>) => ({

@@ -36,6 +36,10 @@ test('BW64 inspection parses bounded static AXML and consistent CHNA without rea
 	assert.deepEqual(descriptor.adm, {
 		container: 'bw64',
 		payload: { kind: 'axml', xml, rawBase64: Buffer.from(xmlBytes).toString('base64') },
+		riffChunkSequence: [
+			{ id: 'chna', placement: 'before-data', rawBase64: Buffer.from(riffChunk('chna', chna)).toString('base64') },
+			{ id: 'axml', placement: 'after-data', rawBase64: Buffer.from(riffChunk('axml', xmlBytes)).toString('base64') },
+		],
 		chna: {
 			numTracks: 2,
 			entries: [

@@ -22,6 +22,7 @@ interface ImportedSource {
 interface ImportedAdm {
 	readonly mode: string;
 	readonly payload: unknown;
+	readonly riffChunkSequence?: unknown;
 	readonly opaqueRiffChunks?: unknown;
 	readonly source: Readonly<{ id: string; storageKey: string }>;
 	readonly geometry: unknown;
@@ -40,6 +41,7 @@ test('empty-project BW64 import attaches JSON-safe pristine ADM provenance atomi
 	assert.equal(result.destination, 'timeline');
 	assert.equal(adm.mode, 'passthrough');
 	assert.deepEqual(adm.payload, descriptor.adm.payload);
+	assert.deepEqual(adm.riffChunkSequence, descriptor.adm.riffChunkSequence);
 	assert.deepEqual(adm.opaqueRiffChunks, descriptor.adm.opaqueRiffChunks);
 	assert.equal(adm.source.id, source.id);
 	assert.equal(adm.source.storageKey, source.storageKey);
@@ -200,6 +202,11 @@ function bw64Descriptor(overrides: Record<string, unknown> = {}) {
 				xml: '<audioFormatExtended />',
 				rawBase64: Buffer.from('<audioFormatExtended />').toString('base64'),
 			},
+			riffChunkSequence: [{
+				id: 'JUNK',
+				placement: 'before-data',
+				rawBase64: Buffer.from([0x4a, 0x55, 0x4e, 0x4b, 3, 0, 0, 0, 1, 2, 3, 0]).toString('base64'),
+			}],
 			opaqueRiffChunks: [{
 				id: 'JUNK',
 				placement: 'before-data',
