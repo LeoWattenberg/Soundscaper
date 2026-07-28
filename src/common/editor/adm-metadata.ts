@@ -23,7 +23,10 @@ const MAX_REFERENCE_CHARACTERS = 128;
 export interface AdmBedMetadata {
 	readonly programmeName: string;
 	readonly contentName: string;
+	/** Shared-language compatibility field; empty when programme and content differ. */
 	readonly language: string;
+	readonly programmeLanguage: string;
+	readonly contentLanguage: string;
 	readonly bedName: string;
 	readonly layout: AdmBedLayout;
 	readonly rawXml: string;
@@ -101,12 +104,19 @@ export function normalizeAdmBedMetadata(input: AdmBedMetadataInput = {}): AdmBed
 	if (layout !== 'mono' && layout !== 'stereo' && layout !== '5.1') {
 		throw new RangeError('ADM bed layout must be mono, stereo, or 5.1.');
 	}
-	const language = normalizedLanguage(input.language ?? '');
+	const sharedLanguage = normalizedLanguage(input.language ?? '');
+	const programmeLanguage = normalizedLanguage(input.programmeLanguage ?? sharedLanguage);
+	const contentLanguage = normalizedLanguage(input.contentLanguage ?? sharedLanguage);
+	const language = programmeLanguage.toLowerCase() === contentLanguage.toLowerCase()
+		? programmeLanguage
+		: '';
 	const rawXml = boundedString(input.rawXml ?? '', 'ADM raw XML', ADM_AXML_MAX_BYTES, true);
 	return Object.freeze({
 		programmeName: normalizedName(input.programmeName, 'Programme', 'ADM programme name'),
 		contentName: normalizedName(input.contentName, 'Main', 'ADM content name'),
 		language,
+		programmeLanguage,
+		contentLanguage,
 		bedName: normalizedName(input.bedName, 'Main Bed', 'ADM bed name'),
 		layout,
 		rawXml,
@@ -120,8 +130,8 @@ export function generateAdmAxml(input: AdmBedMetadataInput = {}): string {
 		return metadata.rawXml;
 	}
 	const definition = ADM_BED_DEFINITIONS[metadata.layout];
-	const languageAttribute = metadata.language ? ` audioProgrammeLanguage="${escapeAttribute(metadata.language)}"` : '';
-	const contentLanguageAttribute = metadata.language ? ` audioContentLanguage="${escapeAttribute(metadata.language)}"` : '';
+	const languageAttribute = metadata.programmeLanguage ? ` audioProgrammeLanguage="${escapeAttribute(metadata.programmeLanguage)}"` : '';
+	const contentLanguageAttribute = metadata.contentLanguage ? ` audioContentLanguage="${escapeAttribute(metadata.contentLanguage)}"` : '';
 	const trackUidRefs = definition.channelRefs.map((_, index) => `          <audioTrackUIDRef>${uid(index)}</audioTrackUIDRef>`);
 	const trackUids = definition.channelRefs.flatMap((channelRef, index) => [
 		`        <audioTrackUID UID="${uid(index)}">`,
@@ -236,7 +246,6 @@ export function readAdmBedMetadata(document: AdmAxmlDocument): AdmBedMetadata | 
 	const object = document.objects[0];
 	if (!programme || !content || !object) return null;
 	if (!sameIds(programme.contentRefs, [content.id]) || !sameIds(content.objectRefs, [object.id])) return null;
-	if (programme.language && content.language && programme.language.toLowerCase() !== content.language.toLowerCase()) return null;
 	for (const layout of ['mono', 'stereo', '5.1'] as const) {
 		const definition = ADM_BED_DEFINITIONS[layout];
 		const expectedUids = definition.channelRefs.map((_, index) => uid(index));
@@ -252,7 +261,8 @@ export function readAdmBedMetadata(document: AdmAxmlDocument): AdmBedMetadata | 
 		return normalizeAdmBedMetadata({
 			programmeName: programme.name,
 			contentName: content.name,
-			language: content.language || programme.language,
+			programmeLanguage: programme.language,
+			contentLanguage: content.language,
 			bedName: object.name,
 			layout,
 			rawXml: document.rawXml,

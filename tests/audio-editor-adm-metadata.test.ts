@@ -28,6 +28,8 @@ test('authored ADM beds normalize names, language, layout, and immutable default
 		programmeName: 'Programme',
 		contentName: 'Main',
 		language: '',
+		programmeLanguage: '',
+		contentLanguage: '',
 		bedName: 'Main Bed',
 		layout: 'stereo',
 		rawXml: '',
@@ -42,6 +44,8 @@ test('authored ADM beds normalize names, language, layout, and immutable default
 	assert.ok(Object.isFrozen(normalized));
 	assert.equal(normalized.layout, '5.1');
 	assert.equal(normalized.language, 'en-GB');
+	assert.equal(normalized.programmeLanguage, 'en-GB');
+	assert.equal(normalized.contentLanguage, 'en-GB');
 	assert.throws(() => normalizeAdmBedMetadata({ layout: '7.1' as AdmBedLayout }), /layout/u);
 	for (const language of ['1n-GB', 'en--GB', 'en_GB', ' en-GB ', 'en-ThisSubtagIsTooLong']) {
 		assert.throws(() => normalizeAdmBedMetadata({ language }), /BCP 47|language/u);
@@ -58,6 +62,24 @@ test('authored ADM preserves conservative BCP 47 language tags in generated AXML
 	assert.equal(parsed.programmes[0]?.language, language);
 	assert.equal(parsed.contents[0]?.language, language);
 	assert.equal(readAdmBedMetadata(parsed)?.language, language);
+});
+
+test('authored ADM preserves distinct programme and content languages', () => {
+	const metadata = normalizeAdmBedMetadata({
+		programmeLanguage: 'en-GB',
+		contentLanguage: 'fr-CA',
+		layout: 'mono',
+	});
+	assert.equal(metadata.language, '');
+	assert.equal(metadata.programmeLanguage, 'en-GB');
+	assert.equal(metadata.contentLanguage, 'fr-CA');
+	const xml = generateAdmAxml(metadata);
+	assert.match(xml, /audioProgrammeLanguage="en-GB"/u);
+	assert.match(xml, /audioContentLanguage="fr-CA"/u);
+	const roundTripped = readAdmBedMetadata(parseAdmAxml(xml));
+	assert.equal(roundTripped?.language, '');
+	assert.equal(roundTripped?.programmeLanguage, 'en-GB');
+	assert.equal(roundTripped?.contentLanguage, 'fr-CA');
 });
 
 test('ADM AXML generation is deterministic and uses BS.2094-2 common definitions', () => {
