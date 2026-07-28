@@ -323,9 +323,26 @@ models or native implementations.
 - **Web Core — Planned:** provide an installable, versioned offline application
   shell and an explicit runtime-download/cache flow. Failed or partial runtime
   updates leave the previous verified version usable.
-- **Shared — Planned:** add media digests, original/proxy relationships, cache
-  budgets, relink state, and reproducible derivative descriptions without
-  storing disposable previews in project history.
+- **Shared — In progress:** retained binary media originals now receive a
+  lowercase SHA-256 computed from a canonical native Blob view shared with
+  durable storage, so subclass reader overrides and caller metadata cannot
+  substitute different bytes. The strict-TS
+  [bounded digest](src/common/editor/storage/media-content-digest.ts) reads at
+  most 4 MiB per chunk and preserves exact cancellation reasons.
+  Memory, IndexedDB Blob fallback, and OPFS publication ignore caller-supplied
+  hashes, remove staged files on pre-publication cancellation, and expose the
+  same persisted digest; once the final metadata put begins, the write resolves
+  as committed rather than reporting a false cancellation. Native `.scape`
+  import passes its task signal into media publication and requires that stored
+  digest to match the already-verified archive descriptor before project
+  publication. Focused [digest](tests/audio-editor-media-content-digest.test.ts),
+  [storage](tests/audio-editor-video-storage.test.js), and
+  [archive](tests/audio-editor-scape-project.test.js) regressions cover bounded
+  reads, all three storage backends, spoof resistance, cancellation boundaries,
+  and mismatch rollback. Original/proxy relationships, legacy-record digest
+  backfill, relink state, automatic cache-budget enforcement, and reproducible
+  derivative descriptions remain open without placing disposable previews in
+  project history.
 - **Electron Enhanced — In progress:** the product-neutral strict-TS
   [desktop library foundation](desktop/project-library.ts) uses a fixed
   application-data scope rather than either Chromium profile, size-bounded and

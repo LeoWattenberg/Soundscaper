@@ -125,11 +125,10 @@ test('IndexedDB Blob fallback persists media assets and cascades indexed video d
 		preferOpfs: false,
 		databaseName,
 	});
-
 	const metadata = await store.writeMediaAsset(
 		'video-source',
 		new Blob(['original'], { type: 'video/webm' }),
-		{ name: 'original.webm' },
+		{ name: 'original.webm', sha256: 'caller-spoof' },
 	);
 	await store.saveVideoDerivative('video-source', {
 		timestamp: 0,
@@ -143,7 +142,8 @@ test('IndexedDB Blob fallback persists media assets and cascades indexed video d
 	});
 
 	assert.equal(metadata.storage, 'indexeddb-blob');
-	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 1);
+	assert.equal(metadata.sha256, '0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5');
+	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets').map(({ sha256 }) => sha256), [metadata.sha256]);
 	assert.equal(indexedDB.recordCount(databaseName, 'videoDerivatives'), 2);
 	assert.equal(await (await store.loadMediaAsset('video-source')).text(), 'original');
 	assert.equal(

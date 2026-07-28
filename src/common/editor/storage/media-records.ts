@@ -73,6 +73,7 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 		'committedAt',
 		'pendingProjectUntil',
 		'cacheToken',
+		'sha256',
 	]) delete value[key];
 	return value;
 }

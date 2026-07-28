@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('memory storage persists immutable media assets and timestamped video derivatives', async () => {
 	const store = createProjectStore({
@@ -14,6 +15,7 @@ test('memory storage persists immutable media assets and timestamped video deriv
 		name: 'scene.webm',
 		width: 1280,
 		height: 720,
+		sha256: 'caller-supplied-digest-must-not-be-trusted',
 	});
 
 	assert.equal(metadata.sourceId, 'video-source');
@@ -21,6 +23,7 @@ test('memory storage persists immutable media assets and timestamped video deriv
 	assert.equal(metadata.mimeType, 'video/webm');
 	assert.equal(metadata.name, 'scene.webm');
 	assert.equal(metadata.size, original.size);
+	assert.equal(metadata.sha256, 'ddc5852cf5d92b542ec7d6efcc6d9c02a53f9692fd5f36e954896c21c7a8ac4e');
 	assert.equal('blob' in metadata, false);
 	assert.equal(await (await store.loadMediaAsset('video-source')).text(), 'original-video');
 	assert.deepEqual(await store.getMediaAssetMetadata('video-source'), metadata);
@@ -72,6 +75,38 @@ test('memory storage persists immutable media assets and timestamped video deriv
 	assert.equal(await store.loadVideoDerivative('video-source', { timestamp: 0, type: 'poster' }), null);
 	assert.equal((await store.listVideoDerivatives('video-source')).length, 2);
 });
+
+for (const backend of ['memory', 'indexeddb', 'opfs']) {
+	test(`${backend} retained-media digests use the Blob's stored bytes instead of overridden readers`, async () => {
+		const files = new Map();
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const sourceDirectory = createOpfsDirectory(files);
+		const databaseName = uniqueDatabaseName(`adversarial-media-${backend}`);
+		const store = createProjectStore({
+			indexedDB,
+			memoryFallback: backend !== 'indexeddb',
+			preferOpfs: backend === 'opfs',
+			databaseName,
+			storageManager: backend === 'opfs' ? {
+				async getDirectory() { return { async getDirectoryHandle() { return sourceDirectory; } }; },
+			} : null,
+		});
+		const input = new LyingBlob('original-video', 'forged-content', { type: 'video/webm' });
+
+		const metadata = await store.writeMediaAsset('adversarial-media', input);
+		const loaded = await store.loadMediaAsset('adversarial-media');
+
+		assert.equal(metadata.sha256, 'ddc5852cf5d92b542ec7d6efcc6d9c02a53f9692fd5f36e954896c21c7a8ac4e');
+		assert.equal(await loaded.text(), 'original-video');
+		if (backend === 'memory') {
+			assert.equal(await store.memory.mediaAssets.get('adversarial-media').blob.text(), 'original-video');
+		} else if (backend === 'indexeddb') {
+			assert.equal(await indexedDB.records(databaseName, 'mediaAssets')[0].blob.text(), 'original-video');
+		} else {
+			assert.equal(await [...files.values()][0].blob.text(), 'original-video');
+		}
+	});
+}
 
 test('media-only sources participate in project retention and cascade on source deletion', async () => {
 	const store = createProjectStore({
@@ -199,7 +234,9 @@ test('OPFS stores raw media and derivatives alongside PCM and cascades only requ
 	const writer = await store.beginSourceWrite('opfs-media', { sampleRate: 48_000 });
 	await writer.write([Float32Array.of(0.5)]);
 	await writer.commit();
-	const media = await store.writeMediaAsset('opfs-media', new Blob(['container'], { type: 'video/mp4' }));
+	const media = await store.writeMediaAsset('opfs-media', new Blob(['container'], { type: 'video/mp4' }), {
+		sha256: 'A42D519714D616E9411DBCEEC4B52808BD6B1EE53E6F6497A281D655357D8B71',
+	});
 	const derivative = await store.saveVideoDerivative('opfs-media', {
 		timestamp: 5,
 		type: 'thumbnail',
@@ -207,6 +244,7 @@ test('OPFS stores raw media and derivatives alongside PCM and cascades only requ
 	});
 
 	assert.equal(media.storage, 'opfs');
+	assert.equal(media.sha256, 'a42d519714d616e9411dbceec4b52808bd6b1ee53e6f6497a281d655357d8b71');
 	assert.equal(derivative.storage, 'opfs');
 	assert.equal(files.size, 3);
 	const loadedMedia = await store.loadMediaAsset('opfs-media');
@@ -256,7 +294,84 @@ test('derivative cache trimming removes only derivative OPFS blobs', async () =>
 	assert.equal((await store.getSourceMetadata('opfs-cache')).frameCount, 1);
 });
 
-function createOpfsDirectory(files) {
+test('cancelled OPFS media writes delete the staged file before metadata publication', async () => {
+	const files = new Map();
+	const controller = new AbortController();
+	const reason = new DOMException('cancel staged media', 'AbortError');
+	const sourceDirectory = createOpfsDirectory(files, {
+		onWrite() { controller.abort(reason); },
+	});
+	const store = createProjectStore({
+		indexedDB: null,
+		databaseName: uniqueDatabaseName('cancel-media-opfs'),
+		storageManager: { async getDirectory() { return { async getDirectoryHandle() { return sourceDirectory; } }; } },
+	});
+
+	await assert.rejects(
+		store.writeMediaAsset('cancelled-media', new Blob(['unpublished']), {}, { signal: controller.signal }),
+		(error) => error === reason,
+	);
+	assert.equal(await store.getMediaAssetMetadata('cancelled-media'), null);
+	assert.equal(files.size, 0);
+});
+
+test('pre-publication cancellation publishes neither memory nor IndexedDB media metadata', async () => {
+	for (const backend of ['memory', 'indexeddb']) {
+		const controller = new AbortController();
+		const reason = new DOMException(`cancel ${backend} media publication`, 'AbortError');
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const databaseName = uniqueDatabaseName(`cancel-media-${backend}`);
+		const store = createProjectStore({
+			indexedDB,
+			memoryFallback: backend === 'memory',
+			preferOpfs: false,
+			databaseName,
+		});
+		const write = store.writeMediaAsset(
+			'cancelled-digest',
+			new Blob([`unpublished-${backend}`]),
+			{},
+			{ signal: controller.signal },
+		);
+		controller.abort(reason);
+
+		await assert.rejects(
+			write,
+			(error) => error === reason,
+		);
+		assert.equal(await store.getMediaAssetMetadata('cancelled-digest'), null);
+		assert.equal(store.memory.mediaAssets.size, 0);
+		if (indexedDB) assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 0);
+	}
+});
+
+test('media cancellation after the publication boundary resolves the committed metadata', async () => {
+	const controller = new AbortController();
+	const reason = new DOMException('late media cancellation', 'AbortError');
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: uniqueDatabaseName('committed-media-cancellation'),
+	});
+	const publish = store.memory.mediaAssets.set.bind(store.memory.mediaAssets);
+	store.memory.mediaAssets.set = (key, value) => {
+		const result = publish(key, value);
+		controller.abort(reason);
+		return result;
+	};
+
+	const metadata = await store.writeMediaAsset(
+		'committed-media',
+		new Blob(['committed']),
+		{},
+		{ signal: controller.signal },
+	);
+
+	assert.equal(metadata.sha256, 'cc962289af2873dd6dad32931554372a7d2d2de5bd5859c8265eb58b5197a88e');
+	assert.deepEqual(await store.getMediaAssetMetadata('committed-media'), metadata);
+});
+
+function createOpfsDirectory(files, { onWrite = () => undefined } = {}) {
 	return {
 		async getFileHandle(path, options = {}) {
 			if (!files.has(path) && !options.create) throw new Error('missing');
@@ -266,7 +381,10 @@ function createOpfsDirectory(files) {
 				async createWritable() {
 					const parts = [];
 					return {
-						async write(part) { parts.push(part); },
+						async write(part) {
+							parts.push(part);
+							onWrite();
+						},
 						async close() { entry.blob = new Blob(parts); },
 						async abort() { parts.length = 0; },
 					};
@@ -278,6 +396,24 @@ function createOpfsDirectory(files) {
 			if (!files.delete(path)) throw new Error('missing');
 		},
 	};
+}
+
+class LyingBlob extends Blob {
+	#lie;
+
+	constructor(actual, lie, options) {
+		super([actual], options);
+		this.#lie = new Blob([lie], options);
+		if (this.#lie.size !== this.size) throw new Error('Adversarial Blob contents must have equal sizes.');
+	}
+
+	slice(start = 0, end = this.size, type = '') {
+		return this.#lie.slice(start, end, type);
+	}
+
+	arrayBuffer() {
+		return this.#lie.arrayBuffer();
+	}
 }
 
 function uniqueDatabaseName(prefix) {

@@ -204,10 +204,13 @@ export async function importScapeProject(input, store, options = {}) {
 						expandedByteBudget,
 					);
 					verifyScapeExtractedAsset(asset, digest, size, source.name || source.id);
-					await awaitScapeOperation(store.writeMediaAsset(finalSourceId, blob, {
+					const persisted = await awaitScapeOperation(store.writeMediaAsset(finalSourceId, blob, {
 						name: source.name,
 						mimeType: source.mimeType,
-					}), signal);
+					}, { signal }), signal);
+					if (persisted?.sha256 !== asset.sha256) {
+						throw new Error(`Persisted media SHA-256 verification failed for ${source.name || source.id}.`);
+					}
 				} else {
 					if (asset.encoding !== AUDIO_ENCODING) throw new Error(`Unsupported audio asset encoding: ${asset.encoding}.`);
 					throwIfScapeAborted(signal);

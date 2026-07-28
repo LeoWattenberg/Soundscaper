@@ -117,21 +117,32 @@ export class OpfsRepository {
 		}
 	}
 
-	async writeBlob(prefix: string, blob: BlobLike): Promise<{ path: string } | null> {
+	async writeBlob(
+		prefix: string,
+		blob: BlobLike,
+		{ signal }: { readonly signal?: AbortSignal } = {},
+	): Promise<{ path: string } | null> {
+		throwIfAborted(signal);
 		const directory = await this.directory();
+		throwIfAborted(signal);
 		if (!directory?.getFileHandle) return null;
 		const stem = String(prefix || 'media').replace(/[^a-z0-9._-]+/giu, '-').slice(0, 80);
 		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/giu, '-')}.blob`;
 		let writable: FileSystemWritableFileStream | undefined;
 		try {
 			const handle = await directory.getFileHandle(path, { create: true });
+			throwIfAborted(signal);
 			writable = await handle.createWritable();
+			throwIfAborted(signal);
 			await writable.write(blob as Blob);
+			throwIfAborted(signal);
 			await writable.close();
+			throwIfAborted(signal);
 			return { path };
 		} catch {
 			try { await writable?.abort(); } catch { /* A failed OPFS write may already be closed. */ }
 			await this.deletePath(path);
+			throwIfAborted(signal);
 			return null;
 		}
 	}
@@ -361,7 +372,9 @@ function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string,
 
 function throwIfAborted(signal?: AbortSignal): void {
 	if (!signal?.aborted) return;
-	const error = new Error('Audio source loading was cancelled.');
+	if (signal.reason !== undefined) throw signal.reason;
+	if (typeof DOMException === 'function') throw new DOMException('Audio storage was cancelled.', 'AbortError');
+	const error = new Error('Audio storage was cancelled.');
 	error.name = 'AbortError';
 	throw error;
 }

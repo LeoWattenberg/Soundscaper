@@ -18,7 +18,7 @@ test('media record identity and metadata normalization preserve wire-safe fields
 		timestamp: 1.5,
 		type: 'poster',
 	});
-	assert.deepEqual(binaryMetadata({ sourceId: 'source', blob: 'bytes', custom: 1 }), { custom: 1 });
+	assert.deepEqual(binaryMetadata({ sourceId: 'source', blob: 'bytes', sha256: 'spoof', custom: 1 }), { custom: 1 });
 	assert.throws(() => videoDerivativeIdentity('', 0, 'poster'), /source id/u);
 });
 

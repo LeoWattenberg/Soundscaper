@@ -7,6 +7,10 @@ import {
 	type DerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
 import {
+	canonicalMediaContentBlob,
+	digestMediaContent,
+} from './media-content-digest.ts';
+import {
 	binaryMetadata,
 	mediaAssetMetadata,
 	normalizeBlob,
@@ -32,6 +36,10 @@ interface VideoDerivativeSelector {
 	readonly type?: string;
 }
 
+interface MediaWriteOptions {
+	readonly signal?: AbortSignal;
+}
+
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
 	readonly #port: StorageRepositoryPort;
@@ -46,14 +54,21 @@ export class MediaRepository {
 		sourceId: string,
 		input: unknown,
 		metadata: Record<string, unknown> = {},
+		{ signal }: MediaWriteOptions = {},
 	): Promise<Record<string, unknown>> {
+		throwIfAborted(signal);
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
-		const blob = normalizeBlob(input);
-		if (await this.getAssetMetadata(id)) throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
-		const storedFile = await this.#opfs.writeBlob(`media-${id}`, blob);
+		const blob = canonicalMediaContentBlob(input);
+		const previous = await this.getAssetMetadata(id);
+		throwIfAborted(signal);
+		if (previous) throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
+		const sha256 = (await digestMediaContent(blob, { signal })).toLowerCase();
+		throwIfAborted(signal);
+		const storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal });
 		const record: StorageRecord = {
 			...binaryMetadata(metadata),
 			sourceId: id,
+			sha256,
 			storage: storedFile ? 'opfs' : 'indexeddb-blob',
 			path: storedFile?.path,
 			blob: storedFile ? undefined : blob,
@@ -66,6 +81,7 @@ export class MediaRepository {
 		};
 		try {
 			const database = await this.#port.database();
+			throwIfAborted(signal);
 			if (!database) this.#port.memory.mediaAssets.set(id, clone(record));
 			else await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => { mediaAssets.put(record); });
 		} catch (error) {
@@ -336,4 +352,13 @@ function nonEmptyString(value: unknown, message: string): string {
 function createCacheToken(): string {
 	if (globalThis.crypto?.randomUUID) return `cache-${globalThis.crypto.randomUUID()}`;
 	return `cache-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
+	const error = new Error('Media storage was cancelled.');
+	error.name = 'AbortError';
+	throw error;
 }

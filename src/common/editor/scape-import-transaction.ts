@@ -19,7 +19,12 @@ export interface ScapeImportStore {
 	getSourceMetadata(sourceId: string): PromiseLike<unknown>;
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
-	writeMediaAsset(sourceId: string, blob: Blob, metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
+	writeMediaAsset(
+		sourceId: string,
+		blob: Blob,
+		metadata: Readonly<Record<string, unknown>>,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): PromiseLike<Readonly<Record<string, unknown>>>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	deleteSource(sourceId: string): PromiseLike<unknown>;

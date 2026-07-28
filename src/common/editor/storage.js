@@ -169,8 +169,8 @@ export class AudioEditorProjectStore {
 	 * large files out of IndexedDB when it is available; the Blob-backed record
 	 * is the complete fallback and is also used by the in-memory backend.
 	 */
-	async writeMediaAsset(sourceId, input, metadata = {}) {
-		return this.mediaRepository.writeAsset(sourceId, input, metadata);
+	async writeMediaAsset(sourceId, input, metadata = {}, { signal } = {}) {
+		return this.mediaRepository.writeAsset(sourceId, input, metadata, { signal });
 	}
 
 	async loadMediaAsset(sourceId) {

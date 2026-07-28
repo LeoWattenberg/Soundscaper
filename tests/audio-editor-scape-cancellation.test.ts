@@ -194,7 +194,7 @@ test('cancellation during the first audio write aborts staging and preserves inv
 	assert.deepEqual(await inventory(backingStore), before);
 });
 
-test('cancellation after a video write deletes the provisional asset and preserves inventory', async () => {
+test('cancellation during video publication deletes the provisional asset and preserves inventory', async () => {
 	const sourceStore = memoryStore('scape-video-abort-source');
 	const backingStore = memoryStore('scape-video-abort-target');
 	const project = videoProject();
@@ -205,10 +205,13 @@ test('cancellation after a video write deletes the provisional asset and preserv
 	const before = await inventory(backingStore);
 	const controller = new AbortController();
 	let mediaWrites = 0;
+	let mediaWriteSignal: AbortSignal | undefined;
 	const targetStore = new Proxy(backingStore, {
 		get(target, property, receiver) {
 			if (property === 'writeMediaAsset') return async (...args: Parameters<typeof target.writeMediaAsset>) => {
 				mediaWrites += 1;
+				const publicationOptions = args[3] as Readonly<{ signal?: AbortSignal }> | undefined;
+				mediaWriteSignal = publicationOptions?.signal;
 				const result = await target.writeMediaAsset(...args);
 				controller.abort(abortReason('cancel during video write'));
 				return result;
@@ -223,6 +226,7 @@ test('cancellation after a video write deletes the provisional asset and preserv
 		signal: controller.signal,
 	}));
 	assert.equal(mediaWrites, 1);
+	assert.equal(mediaWriteSignal, controller.signal);
 	assert.deepEqual(await inventory(backingStore), before);
 });
 

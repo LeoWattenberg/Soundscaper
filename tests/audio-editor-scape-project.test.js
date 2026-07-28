@@ -38,6 +38,9 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 		project.sources.find((source) => source.id === 'audio-source').opaqueExtensions);
 	assert.deepEqual(imported.project.opaqueExtensions, project.opaqueExtensions);
 	assert.equal((await targetStore.loadMediaAsset('video-source')).size, 11);
+	const retainedMedia = await targetStore.getMediaAssetMetadata('video-source');
+	const videoDescriptor = exported.manifest.assets.find(({ sourceId }) => sourceId === 'video-source');
+	assert.equal(retainedMedia.sha256, videoDescriptor.sha256);
 	const audioChunks = [];
 	for await (const channels of targetStore.readSourceChunks('audio-source')) audioChunks.push(channels);
 	assert.deepEqual([...(audioChunks[0].channels || audioChunks[0])[0]], [0.25, -0.5, 0.75, 0]);
@@ -67,6 +70,75 @@ test('scape imports reject checksum failures without publishing staged projects 
 	assert.deepEqual(await targetStore.listProjects(), []);
 	assert.deepEqual(await targetStore.listSources(), []);
 	assert.equal(await targetStore.getMediaAssetMetadata('video-source'), null);
+});
+
+test('scape imports reject a persisted media digest mismatch before project publication', async () => {
+	const sourceStore = memoryStore('scape-persisted-digest-source');
+	const backingStore = memoryStore('scape-persisted-digest-target');
+	const project = mixedProject();
+	await persistAssets(sourceStore);
+	const exported = await exportScapeProject(project, sourceStore);
+	let projectWrites = 0;
+	const targetStore = new Proxy(backingStore, {
+		get(target, property) {
+			if (property === 'writeMediaAsset') return async (...args) => {
+				const metadata = await target.writeMediaAsset(...args);
+				return { ...metadata, sha256: String(metadata.sha256).toUpperCase() };
+			};
+			if (property === 'saveProject') return async (...args) => {
+				projectWrites += 1;
+				return target.saveProject(...args);
+			};
+			const value = target[property];
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
+
+	await assert.rejects(
+		() => importScapeProject(exported.blob, targetStore),
+		/persisted media SHA-256/iu,
+	);
+	assert.equal(projectWrites, 0);
+	assert.deepEqual(await backingStore.listProjects(), []);
+	assert.deepEqual(await backingStore.listSources(), []);
+	assert.equal(await backingStore.getMediaAssetMetadata('video-source'), null);
+});
+
+test('scape imports reject Blob-subclass digest spoofing of different persisted bytes', async () => {
+	const sourceStore = memoryStore('scape-blob-spoof-source');
+	const backingStore = memoryStore('scape-blob-spoof-target');
+	const project = mixedProject();
+	await persistAssets(sourceStore);
+	const exported = await exportScapeProject(project, sourceStore);
+	let stagedMediaBytes = null;
+	let projectWrites = 0;
+	const targetStore = new Proxy(backingStore, {
+		get(target, property) {
+			if (property === 'writeMediaAsset') return async (sourceId, blob, metadata, options) => {
+				const tamperedBytes = new Uint8Array(blob.size).fill(0xa5);
+				const spoofedBlob = new SliceSpoofingBlob(tamperedBytes, blob);
+				const persisted = await target.writeMediaAsset(sourceId, spoofedBlob, metadata, options);
+				stagedMediaBytes = new Uint8Array(await (await target.loadMediaAsset(sourceId)).arrayBuffer());
+				return persisted;
+			};
+			if (property === 'saveProject') return async (...args) => {
+				projectWrites += 1;
+				return target.saveProject(...args);
+			};
+			const value = target[property];
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
+
+	await assert.rejects(
+		() => importScapeProject(exported.blob, targetStore),
+		/persisted media SHA-256/iu,
+	);
+	assert.deepEqual([...stagedMediaBytes], new Array(11).fill(0xa5));
+	assert.equal(projectWrites, 0);
+	assert.deepEqual(await backingStore.listProjects(), []);
+	assert.deepEqual(await backingStore.listSources(), []);
+	assert.equal(await backingStore.getMediaAssetMetadata('video-source'), null);
 });
 
 test('scape imports roll back already staged media when a later source write is interrupted', async () => {
@@ -114,6 +186,19 @@ async function persistAssets(store) {
 		name: 'picture.mp4',
 		mimeType: 'video/mp4',
 	});
+}
+
+class SliceSpoofingBlob extends Blob {
+	#reportedBlob;
+
+	constructor(actualBytes, reportedBlob) {
+		super([actualBytes], { type: reportedBlob.type });
+		this.#reportedBlob = reportedBlob;
+	}
+
+	slice(start, end, contentType) {
+		return this.#reportedBlob.slice(start, end, contentType);
+	}
 }
 
 function mixedProject() {
