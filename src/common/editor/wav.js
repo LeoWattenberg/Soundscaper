@@ -12,7 +12,7 @@ const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
  * Encode channel-aligned PCM samples as a complete WAV file.
  *
  * @param {ArrayLike<Float32Array> | AudioBuffer} input
- * @param {{ sampleRate?: number, bitDepth?: 16 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput, random?: () => number }} [options]
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, bitDepth?: 16 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], random?: () => number }} [options]
  * @returns {Uint8Array}
  */
 export function encodeWav(input, options = {}) {
@@ -31,9 +31,10 @@ export function encodeWav(input, options = {}) {
 /**
  * Creates a bounded-memory WAV encoder. When `onChunk` is supplied, encoded
  * bytes are emitted as they are produced and `finalize()` returns metadata.
- * A declared `totalFrames` lets the RIFF or RF64 header be written before the PCM.
+ * A declared `totalFrames` lets the RIFF, RF64, or BW64 header be written before the PCM.
  *
  * @param {{
+ *   container?: 'auto' | 'bw64',
  *   sampleRate?: number,
  *   channelCount?: number,
  *   totalFrames: number,
@@ -42,12 +43,15 @@ export function encodeWav(input, options = {}) {
  *   dither?: boolean | 'none' | 'triangular' | 'triangular-highpass',
  *   metadata?: Record<string, *>,
  *   bext?: import('./broadcast-wave.ts').BextMetadataInput,
+ *   preDataChunks?: Uint8Array | readonly Uint8Array[],
+ *   trailingChunks?: Uint8Array | readonly Uint8Array[],
  *   random?: () => number,
  *   collect?: boolean,
  *   onChunk?: (chunk: Uint8Array, info: { header: boolean, frameOffset: number, metadata?: boolean, padding?: boolean }) => void | Promise<void>,
  * }} options
  */
 export function createWavStreamEncoder(options) {
+	validateBw64Options(options);
 	const sampleRate = positiveInteger(options?.sampleRate, 48000);
 	const channelCount = positiveInteger(options?.channelCount, 2);
 	const totalFrames = nonNegativeSafeInteger(options?.totalFrames, 0, 'totalFrames');
@@ -66,13 +70,16 @@ export function createWavStreamEncoder(options) {
 		createRiffId3Chunk(options?.metadata),
 		createRiffInfoChunk(options?.metadata),
 	);
+	const callerTrailingChunk = normalizeRiffChunks(options?.trailingChunks, 'trailingChunks');
 	const layout = prepareWavLayout({
 		sampleRate,
 		channelCount,
 		totalFrames,
 		bitDepth,
 		float,
-		trailingByteLength: metadataChunk.byteLength,
+		container: options?.container,
+		preDataChunks: options?.preDataChunks,
+		trailingByteLength: callerTrailingChunk.byteLength + metadataChunk.byteLength,
 		bext: options?.bext,
 	});
 	if (layout.container === 'rf64' && collect) {
@@ -95,7 +102,7 @@ export function createWavStreamEncoder(options) {
 		get channelCount() { return channelCount; },
 		get bitDepth() { return bitDepth; },
 		get writtenFrames() { return writtenFrames; },
-		get byteLength() { return header.byteLength + writtenFrames * channelCount * bytesPerSample + (finalized ? dataPadBytes + metadataChunk.byteLength : 0); },
+		get byteLength() { return header.byteLength + writtenFrames * channelCount * bytesPerSample + (finalized ? dataPadBytes + callerTrailingChunk.byteLength + metadataChunk.byteLength : 0); },
 		write,
 		finalize,
 		async settled() { await Promise.all(pending); },
@@ -148,6 +155,10 @@ export function createWavStreamEncoder(options) {
 			if (collect) chunks.push(padding);
 			emit(padding, { header: false, padding: true, frameOffset: writtenFrames });
 		}
+		if (callerTrailingChunk.byteLength) {
+			if (collect) chunks.push(callerTrailingChunk);
+			emit(callerTrailingChunk, { header: false, metadata: true, frameOffset: writtenFrames });
+		}
 		if (metadataChunk.byteLength) {
 			if (collect) chunks.push(metadataChunk);
 			emit(metadataChunk, { header: false, metadata: true, frameOffset: writtenFrames });
@@ -157,7 +168,9 @@ export function createWavStreamEncoder(options) {
 				header,
 				byteLength: totalByteLength,
 				frames: writtenFrames,
-				...(metadataChunk.byteLength ? { metadataBytes: metadataChunk.byteLength } : {}),
+				...(callerTrailingChunk.byteLength + metadataChunk.byteLength
+					? { metadataBytes: callerTrailingChunk.byteLength + metadataChunk.byteLength }
+					: {}),
 			};
 		}
 
@@ -183,8 +196,8 @@ export function createWavStreamEncoder(options) {
  * Inspect the exact on-disk WAV layout without allocating PCM or file-sized buffers.
  * An explicit `trailingByteLength` takes precedence over the encoded `metadata` size.
  *
- * @param {{ sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 24 | 32, float?: boolean, trailingByteLength?: number, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput }} [options]
- * @returns {{ container: 'riff' | 'rf64', byteLength: number, headerByteLength: number, riffSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number, bextByteLength: number }}
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 24 | 32, float?: boolean, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], trailingByteLength?: number, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput }} [options]
+ * @returns {{ container: 'riff' | 'rf64' | 'bw64', byteLength: number, headerByteLength: number, riffSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number, bextByteLength: number }}
  */
 export function inspectWavLayout(options = {}) {
 	const layout = prepareWavLayout(options);
@@ -204,7 +217,13 @@ export function createWavHeader(options = {}) {
 	return createWavHeaderFromLayout(prepareWavLayout(options));
 }
 
-function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, ixml, cart, bext = null, channelMask } = {}) {
+function prepareWavLayout({
+	container: requestedContainer = 'auto', sampleRate = 48000, channelCount = 2,
+	totalFrames = 0, bitDepth = 24, float = false, preDataChunks, trailingChunks,
+	trailingByteLength, metadata, markers, ixml, cart, bext = null, channelMask,
+} = {}) {
+	const requested = normalizeWavContainer(requestedContainer);
+	validateBw64Options({ container: requested, channelCount, bitDepth, float });
 	const normalizedRate = positiveInteger(sampleRate, 48000);
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
@@ -236,21 +255,27 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		BigInt(normalizedFrames) * BigInt(normalizedChannels) * BigInt(bytesPerSample),
 		'WAV output size',
 	);
+	const preDataChunk = normalizeRiffChunks(preDataChunks, 'preDataChunks');
+	const callerTrailingChunk = normalizeRiffChunks(trailingChunks, 'trailingChunks');
 	const trailingSize = trailingByteLength == null
-		? createRiffMarkerChunks(markers).byteLength + createRiffIxmlChunk(ixml).byteLength + createRiffCartChunk(cart).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
+		? callerTrailingChunk.byteLength + createRiffMarkerChunks(markers).byteLength + createRiffIxmlChunk(ixml).byteLength + createRiffCartChunk(cart).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
-	const classicDataPadSize = broadcast ? dataSize & 1 : 0;
+	const classicDataPadSize = broadcast || requested === 'bw64' ? dataSize & 1 : 0;
 	const classicRiffSize = 36n
 		+ BigInt(bextChunk.byteLength)
+		+ BigInt(preDataChunk.byteLength)
 		+ BigInt(dataSize)
 		+ BigInt(classicDataPadSize)
 		+ BigInt(trailingSize);
-	const container = classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
-	const dataPadSize = container === 'rf64' ? dataSize & 1 : classicDataPadSize;
-	const extensible = broadcast && normalizedChannels > 2;
+	const container = requested === 'bw64'
+		? 'bw64'
+		: classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
+	const dataPadSize = container === 'riff' ? classicDataPadSize : dataSize & 1;
+	const extensible = broadcast && normalizedChannels > 2 && container !== 'bw64';
 	const formatChunkByteLength = extensible ? 48 : 24;
-	const headerByteLength = 12 + (container === 'rf64' ? 36 : 0) + bextChunk.byteLength + formatChunkByteLength + 8;
+	const headerByteLength = 12 + (container === 'riff' ? 0 : 36)
+		+ bextChunk.byteLength + formatChunkByteLength + preDataChunk.byteLength + 8;
 	const byteLength = safeIntegerFromBigInt(
 		BigInt(headerByteLength) + BigInt(dataSize) + BigInt(dataPadSize) + BigInt(trailingSize),
 		'WAV output size',
@@ -265,6 +290,7 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		trailingByteLength: trailingSize,
 		bextByteLength: bextChunk.byteLength,
 		bextChunk,
+		preDataChunk,
 		sampleRate: normalizedRate,
 		channelCount: normalizedChannels,
 		totalFrames: normalizedFrames,
@@ -292,16 +318,16 @@ function concatBytes(...parts) {
 function createWavHeaderFromLayout(layout) {
 	const header = new Uint8Array(layout.headerByteLength);
 	const view = new DataView(header.buffer);
-	writeAscii(view, 0, layout.container === 'rf64' ? 'RF64' : 'RIFF');
-	view.setUint32(4, layout.container === 'rf64' ? UINT32_MAX : layout.riffSize, true);
+	writeAscii(view, 0, layout.container === 'bw64' ? 'BW64' : layout.container === 'rf64' ? 'RF64' : 'RIFF');
+	view.setUint32(4, layout.container === 'riff' ? layout.riffSize : UINT32_MAX, true);
 	writeAscii(view, 8, 'WAVE');
 	let chunkOffset = 12;
-	if (layout.container === 'rf64') {
+	if (layout.container !== 'riff') {
 		writeAscii(view, chunkOffset, 'ds64');
 		view.setUint32(chunkOffset + 4, 28, true);
 		view.setBigUint64(chunkOffset + 8, BigInt(layout.riffSize), true);
 		view.setBigUint64(chunkOffset + 16, BigInt(layout.dataByteLength), true);
-		view.setBigUint64(chunkOffset + 24, BigInt(layout.totalFrames), true);
+		view.setBigUint64(chunkOffset + 24, layout.container === 'bw64' ? 0n : BigInt(layout.totalFrames), true);
 		view.setUint32(chunkOffset + 32, 0, true);
 		chunkOffset += 36;
 	}
@@ -323,10 +349,46 @@ function createWavHeaderFromLayout(layout) {
 		const guidTail = [0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71];
 		for (let index = 0; index < guidTail.length; index += 1) view.setUint8(formatOffset + 36 + index, guidTail[index]);
 	}
-	const dataOffset = formatOffset + layout.formatChunkByteLength;
+	const preDataOffset = formatOffset + layout.formatChunkByteLength;
+	header.set(layout.preDataChunk, preDataOffset);
+	const dataOffset = preDataOffset + layout.preDataChunk.byteLength;
 	writeAscii(view, dataOffset, 'data');
-	view.setUint32(dataOffset + 4, layout.container === 'rf64' ? UINT32_MAX : layout.dataByteLength, true);
+	view.setUint32(dataOffset + 4, layout.container === 'riff' ? layout.dataByteLength : UINT32_MAX, true);
 	return header;
+}
+
+function normalizeWavContainer(value) {
+	if (value === 'auto' || value === 'bw64') return value;
+	throw new RangeError('WAV container must be "auto" or "bw64".');
+}
+
+function validateBw64Options({ container, channelCount = 2, bitDepth = 24, float = false } = {}) {
+	if (container !== 'bw64') return;
+	if (float) throw new RangeError('BW64 supports only integer PCM.');
+	if (bitDepth !== 16 && bitDepth !== 24) throw new RangeError('BW64 supports only 16-bit or 24-bit integer PCM.');
+	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+		throw new RangeError('BW64 supports an integer channel count from 1 through 32 channels.');
+	}
+}
+
+function normalizeRiffChunks(value, name) {
+	if (value == null) return new Uint8Array(0);
+	const chunks = value instanceof Uint8Array ? [value] : Array.isArray(value) ? value : null;
+	if (!chunks) throw new TypeError(`${name} must contain complete RIFF chunk bytes.`);
+	for (const chunk of chunks) {
+		if (!(chunk instanceof Uint8Array) || chunk.byteLength < 8) {
+			throw new TypeError(`${name} must contain complete RIFF chunk bytes.`);
+		}
+		const id = String.fromCharCode(...chunk.subarray(0, 4));
+		if (id === 'RIFF' || id === 'RF64' || id === 'BW64' || id === 'ds64' || id === 'fmt ' || id === 'data') {
+			throw new RangeError(`${name} cannot contain the structural RIFF chunk ${JSON.stringify(id)}.`);
+		}
+		const payloadBytes = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(4, true);
+		if (8 + payloadBytes + (payloadBytes & 1) !== chunk.byteLength) {
+			throw new RangeError(`${name} RIFF chunk ${JSON.stringify(id)} has an inconsistent size.`);
+		}
+	}
+	return concatBytes(...chunks);
 }
 
 function normalizeChannelMask(value, channelCount) {

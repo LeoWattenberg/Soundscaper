@@ -3,6 +3,12 @@ import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from 
 import { parseIxmlPayload } from './ixml.ts';
 import { parseCartPayload } from './cart-metadata.ts';
 import { finalizeRiffMetadata, wavMetadataWarning } from './wav-metadata-finalize.ts';
+import {
+	assertDs64TableConsumed,
+	consumeDs64TableSize,
+	DS64_UINT32_SENTINEL,
+	readDs64Directory,
+} from './wav-ds64.js';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -13,10 +19,7 @@ const WAVE_FORMAT_IEEE_FLOAT = 0x0003;
 const WAVE_FORMAT_EXTENSIBLE = 0xfffe;
 const DEFAULT_MAX_RIFF_CHUNKS = 4_096;
 const MAX_CHANNEL_COUNT = 64;
-const UINT32_SENTINEL = 0xffff_ffff;
-const DS64_MINIMUM_BYTES = 28;
-const DS64_TABLE_ENTRY_BYTES = 12;
-const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+const UINT32_SENTINEL = DS64_UINT32_SENTINEL;
 const MAX_RIFF_METADATA_BYTES = 16 * 1024 * 1024;
 const EXTENSIBLE_GUID_TAIL = Object.freeze([
 	0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
@@ -37,25 +40,27 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	const header = await readBlobBytes(blob, 0, RIFF_HEADER_BYTES, signal);
 	const headerView = dataView(header);
 	const signature = ascii(header, 0, 4);
-	const rf64 = signature === 'RF64';
-	if (signature !== 'RIFF' && !rf64) {
-		if (signature === 'BW64') throw new Error('BW64 WAV files are not supported by the incremental WAV importer.');
+	const ds64Dialect = signature === 'RF64' ? 'rf64' : signature === 'BW64' ? 'bw64' : null;
+	const rf64 = ds64Dialect === 'rf64';
+	if (signature !== 'RIFF' && !ds64Dialect) {
 		throw new Error('The file is not a RIFF WAV file.');
 	}
 	if (ascii(header, 8, 4) !== 'WAVE') throw new Error('The RIFF file is not a WAVE file.');
 	let riffEnd;
-	let rf64Directory = null;
+	let ds64Directory = null;
 	let offset = RIFF_HEADER_BYTES;
 	let chunksRead = 0;
-	if (rf64) {
-		rf64Directory = await readRf64Directory(
+	if (ds64Dialect) {
+		ds64Directory = await readDs64Directory(
 			blob,
 			signal,
 			maxRiffChunks,
 			headerView.getUint32(4, true),
+			ds64Dialect,
+			readBlobBytes,
 		);
-		riffEnd = rf64Directory.riffEnd;
-		offset = rf64Directory.nextOffset;
+		riffEnd = ds64Directory.riffEnd;
+		offset = ds64Directory.nextOffset;
 		chunksRead = 1;
 	} else {
 		const riffPayloadBytes = headerView.getUint32(4, true);
@@ -82,15 +87,15 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		const chunkHeader = await readBlobBytes(blob, offset, offset + CHUNK_HEADER_BYTES, signal);
 		const chunkView = dataView(chunkHeader);
 		const chunkId = ascii(chunkHeader, 0, 4);
-		if (rf64 && chunkId === 'ds64') throw new Error('The RF64 file contains multiple ds64 chunks.');
+		if (ds64Directory && chunkId === 'ds64') throw new Error(`The ${ds64Directory.name} file contains multiple ds64 chunks.`);
 		const declaredChunkBytes = chunkView.getUint32(4, true);
 		let chunkBytes = declaredChunkBytes;
-		if (rf64 && chunkId === 'data' && !data) {
+		if (ds64Directory && chunkId === 'data' && !data) {
 			if (declaredChunkBytes === UINT32_SENTINEL) {
-				chunkBytes = rf64Directory.dataByteLength;
+				chunkBytes = ds64Directory.dataByteLength;
 			}
-		} else if (rf64 && declaredChunkBytes === UINT32_SENTINEL) {
-			chunkBytes = consumeRf64TableSize(rf64Directory, chunkId);
+		} else if (ds64Directory && declaredChunkBytes === UINT32_SENTINEL) {
+			chunkBytes = consumeDs64TableSize(ds64Directory, chunkId);
 		}
 		const payloadOffset = offset + CHUNK_HEADER_BYTES;
 		if (chunkBytes > riffEnd - payloadOffset || chunkBytes > blob.size - payloadOffset) {
@@ -173,7 +178,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		if (paddedEnd > riffEnd) {
 			// A few otherwise valid encoders omit the final RIFF pad byte. It is
 			// harmless when both required chunks have already been discovered.
-			if (!rf64 && payloadEnd === riffEnd && format && data) {
+			if (!ds64Directory && payloadEnd === riffEnd && format && data) {
 				if (chunkId === 'bext') {
 					metadataWarnings.push(bextWarning(
 						'invalid-padding',
@@ -195,7 +200,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		}
 		offset = paddedEnd;
 	}
-	if (rf64Directory) assertRf64TableConsumed(rf64Directory);
+	if (ds64Directory) assertDs64TableConsumed(ds64Directory);
 
 	if (!format) throw new Error('The WAV file has no format chunk.');
 	if (!data) throw new Error('The WAV file has no data chunk.');
@@ -204,10 +209,10 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	}
 	const frameCount = data.byteLength / format.blockAlign;
 	if (!Number.isSafeInteger(frameCount) || frameCount < 1) throw new Error('The WAV file contains no complete PCM frames.');
-	if (rf64Directory) {
+	if (rf64) {
 		const sampleCount = factSampleCount != null && factSampleCount !== UINT32_SENTINEL
 			? factSampleCount
-			: rf64Directory.sampleCount;
+			: ds64Directory.sampleCount;
 		if (sampleCount !== frameCount) {
 			const source = factSampleCount != null && factSampleCount !== UINT32_SENTINEL ? 'fact' : 'ds64';
 			throw new Error(`The RF64 ${source} sample count does not match the PCM frame count.`);
@@ -241,95 +246,6 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		riffByteLength: riffEnd,
 		sourceByteLength: blob.size,
 	});
-}
-
-async function readRf64Directory(blob, signal, maxRiffChunks, declaredRiffPayloadBytes) {
-	if (blob.size - RIFF_HEADER_BYTES < CHUNK_HEADER_BYTES) {
-		throw new Error('The RF64 file ends inside its mandatory ds64 chunk header.');
-	}
-	const header = await readBlobBytes(
-		blob,
-		RIFF_HEADER_BYTES,
-		RIFF_HEADER_BYTES + CHUNK_HEADER_BYTES,
-		signal,
-	);
-	if (ascii(header, 0, 4) !== 'ds64') throw new Error('The first RF64 chunk must be ds64.');
-	const declaredBytes = dataView(header).getUint32(4, true);
-	if (declaredBytes === UINT32_SENTINEL || declaredBytes < DS64_MINIMUM_BYTES) {
-		throw new Error('The RF64 ds64 chunk is too small.');
-	}
-	const payloadOffset = RIFF_HEADER_BYTES + CHUNK_HEADER_BYTES;
-	if (blob.size - payloadOffset < DS64_MINIMUM_BYTES) throw new Error('The RF64 ds64 chunk is truncated.');
-	const fixedBytes = await readBlobBytes(blob, payloadOffset, payloadOffset + DS64_MINIMUM_BYTES, signal);
-	const fixedView = dataView(fixedBytes);
-	const ds64RiffPayloadBytes = readSafeUint64(fixedView, 0, 'RF64 ds64 RIFF size');
-	const dataByteLength = readSafeUint64(fixedView, 8, 'RF64 ds64 data size');
-	const sampleCount = readSafeUint64(fixedView, 16, 'RF64 ds64 sample count');
-	const tableLength = fixedView.getUint32(24, true);
-	if (tableLength > maxRiffChunks) {
-		throw new Error(`The RF64 ds64 table exceeds the ${maxRiffChunks}-entry inspection limit.`);
-	}
-	const requiredBytes = DS64_MINIMUM_BYTES + tableLength * DS64_TABLE_ENTRY_BYTES;
-	if (requiredBytes > declaredBytes) throw new Error('The RF64 ds64 table is truncated.');
-	if (requiredBytes !== declaredBytes) {
-		throw new Error('The RF64 ds64 chunk size does not match its table length.');
-	}
-	const riffPayloadBytes = declaredRiffPayloadBytes === UINT32_SENTINEL
-		? ds64RiffPayloadBytes
-		: declaredRiffPayloadBytes;
-	if (riffPayloadBytes < 4) throw new Error('The RF64 RIFF size is invalid.');
-	const riffEnd = 8 + riffPayloadBytes;
-	if (!Number.isSafeInteger(riffEnd)) throw new Error('The RF64 RIFF end exceeds the JavaScript safe integer range.');
-	if (riffEnd > blob.size) throw new Error('The RF64 payload is truncated.');
-	if (declaredBytes > riffEnd - payloadOffset || declaredBytes > blob.size - payloadOffset) {
-		throw new Error('The RF64 ds64 chunk is truncated.');
-	}
-	const payloadEnd = payloadOffset + declaredBytes;
-	const nextOffset = payloadEnd + (declaredBytes % 2);
-	if (nextOffset > riffEnd) throw new Error('The RF64 ds64 chunk is missing its pad byte.');
-
-	const table = new Map();
-	if (tableLength > 0) {
-		const bytes = await readBlobBytes(blob, payloadOffset, payloadOffset + requiredBytes, signal);
-		const view = dataView(bytes);
-		for (let index = 0; index < tableLength; index += 1) {
-			const entryOffset = DS64_MINIMUM_BYTES + index * DS64_TABLE_ENTRY_BYTES;
-			const chunkId = ascii(bytes, entryOffset, 4);
-			if (chunkId === 'data') throw new Error('The RF64 ds64 table must not contain a data entry.');
-			const byteLength = readSafeUint64(view, entryOffset + 4, `RF64 ds64 ${printableChunkId(chunkId)} size`);
-			let queue = table.get(chunkId);
-			if (!queue) {
-				queue = { values: [], index: 0 };
-				table.set(chunkId, queue);
-			}
-			queue.values.push(byteLength);
-		}
-	}
-	return { riffEnd, dataByteLength, sampleCount, nextOffset, table };
-}
-
-function readSafeUint64(view, offset, name) {
-	const value = view.getBigUint64(offset, true);
-	if (value > MAX_SAFE_BIGINT) throw new Error(`The ${name} exceeds the JavaScript safe integer range.`);
-	return Number(value);
-}
-
-function consumeRf64TableSize(directory, chunkId) {
-	const queue = directory.table.get(chunkId);
-	if (!queue || queue.index >= queue.values.length) {
-		throw new Error(`The RF64 ${printableChunkId(chunkId)} sentinel has no ds64 table size.`);
-	}
-	const value = queue.values[queue.index];
-	queue.index += 1;
-	return value;
-}
-
-function assertRf64TableConsumed(directory) {
-	for (const [chunkId, queue] of directory.table) {
-		if (queue.index < queue.values.length) {
-			throw new Error(`The RF64 file has an unused ds64 table entry for ${printableChunkId(chunkId)}.`);
-		}
-	}
 }
 
 const bextWarning = wavMetadataWarning;

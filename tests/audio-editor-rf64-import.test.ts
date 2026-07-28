@@ -146,14 +146,9 @@ test('RF64 inspection skips a sparse PCM payload larger than four GiB', async ()
 	assert.ok(sparse.reads.every(({ byteLength }) => byteLength <= tailPayload.byteLength));
 });
 
-test('RF64 rejects invalid container and mandatory ds64 structures', async (t) => {
+test('RF64 rejects invalid mandatory ds64 structures', async (t) => {
 	const valid = createRf64Fixture({ dataBytes: int16Bytes([1]), sampleCount: 1n });
 
-	await t.test('BW64 is outside the supported format', async () => {
-		const bytes = valid.slice();
-		writeAscii(bytes, 0, 'BW64');
-		await assert.rejects(inspectWavBlobPcm(blobOf(bytes)), /BW64 WAV files are not supported/);
-	});
 	await t.test('finite RF64 top-level sizes take precedence over ds64', async () => {
 		const bytes = valid.slice();
 		new DataView(bytes.buffer).setUint32(4, bytes.byteLength - 8, true);
