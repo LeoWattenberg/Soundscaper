@@ -15,9 +15,18 @@ test('Audacity and dynamics worklets retain the requested multichannel rack widt
 	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
 	const worklets: CapturedWorklet[] = [];
 	class MockAudioWorkletNode {
+		readonly port = {
+			onmessage: null as ((event: MessageEvent<unknown>) => void) | null,
+			start: () => undefined,
+		};
+		onprocessorerror: (() => void) | null = null;
 		constructor(_context: BaseAudioContext, name: string, options: AudioWorkletNodeOptions) {
 			worklets.push({ name, options });
+			queueMicrotask(() => this.port.onmessage?.({
+				data: { type: 'status', status: 'ready' },
+			} as MessageEvent<unknown>));
 		}
+		disconnect(): void {}
 	}
 	Object.defineProperty(globalThis, 'AudioWorkletNode', {
 		configurable: true,
@@ -47,13 +56,63 @@ test('Audacity and dynamics worklets retain the requested multichannel rack widt
 			effectChannelCount: 48,
 		});
 
-		assert.deepEqual(worklets.map(({ name, options }) => ({
+		const renderedWorklets = worklets.slice(-2);
+		assert.ok(renderedWorklets[0].options.processorOptions?.pffftWasmModule instanceof WebAssembly.Module);
+		assert.deepEqual(renderedWorklets.map(({ name, options }) => ({
 			name,
 			outputChannelCount: options.outputChannelCount,
 		})), [
 			{ name: 'kw-audacity-live-effect', outputChannelCount: [6] },
 			{ name: 'kw-audio-dynamics', outputChannelCount: [32] },
 		]);
+	} finally {
+		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
+		else Object.defineProperty(globalThis, 'AudioWorkletNode', {
+			configurable: true,
+			writable: true,
+			value: previousAudioWorkletNode,
+		});
+	}
+});
+
+test('project worklet preparation waits for the Audacity processor readiness signal', async () => {
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	let resolveProbe!: (node: MockAudioWorkletNode) => void;
+	const probeCreated = new Promise<MockAudioWorkletNode>((resolve) => { resolveProbe = resolve; });
+	class MockAudioWorkletNode {
+		readonly options: AudioWorkletNodeOptions;
+		readonly port = {
+			onmessage: null as ((event: MessageEvent<unknown>) => void) | null,
+			start: () => undefined,
+		};
+		onprocessorerror: (() => void) | null = null;
+		constructor(_context: BaseAudioContext, name: string, options: AudioWorkletNodeOptions) {
+			this.options = options;
+			if (name === 'kw-audacity-live-effect') resolveProbe(this);
+		}
+		disconnect(): void {}
+	}
+	Object.defineProperty(globalThis, 'AudioWorkletNode', {
+		configurable: true,
+		writable: true,
+		value: MockAudioWorkletNode,
+	});
+	const context = {
+		audioWorklet: { addModule: async () => undefined },
+	} as unknown as BaseAudioContext;
+	let settled = false;
+	try {
+		const preparation = ensureProjectWorklets(context, {
+			tracks: [{ id: 'track', effects: [{ id: 'invert', type: 'audacity-invert' }] }],
+		}).then(() => { settled = true; });
+		const probe = await probeCreated;
+		assert.ok(probe.options.processorOptions?.pffftWasmModule instanceof WebAssembly.Module);
+		assert.equal(settled, false);
+		probe.port.onmessage?.({
+			data: { type: 'status', status: 'ready' },
+		} as MessageEvent<unknown>);
+		await preparation;
+		assert.equal(settled, true);
 	} finally {
 		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
 		else Object.defineProperty(globalThis, 'AudioWorkletNode', {

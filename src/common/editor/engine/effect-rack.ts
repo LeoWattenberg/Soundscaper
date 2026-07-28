@@ -21,6 +21,7 @@ import {
 	positiveInteger,
 } from './buffer-math.ts';
 import {
+	getAudacityPffftWasmModule,
 	isAudacityWorkletLoaded,
 	isDelayWorkletLoaded,
 	isDynamicsWorkletLoaded,
@@ -143,6 +144,10 @@ export function applyEffect(
 		}
 		const WorkletNode = audioWorkletNodeConstructor();
 		if (!WorkletNode) throw new Error('This browser cannot run Audacity real-time effects.');
+		const pffftWasmModule = getAudacityPffftWasmModule(context);
+		if (!(pffftWasmModule instanceof WebAssembly.Module)) {
+			throw new Error('The PFFFT WASM module was not compiled for the Audacity processor.');
+		}
 		const sidechain = type === 'audacity-auto-duck';
 		const controlTrackId = sidechain ? effect.context?.controlTrackId : null;
 		const controlInput = sidechain ? options.sidechainInputs?.get(String(controlTrackId)) : null;
@@ -157,6 +162,7 @@ export function applyEffect(
 				effectType: type,
 				params,
 				noiseProfile: effect.context?.noiseProfile || null,
+				pffftWasmModule,
 			},
 		}));
 		connect(input, processor);

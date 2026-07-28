@@ -15,9 +15,9 @@ let initializationError = null;
 let ready = null;
 const plans = new Map();
 
-export function initializePffft() {
+export function initializePffft(options = {}) {
 	if (!ready) {
-		ready = createPffftModule()
+		ready = createPffftModule(pffftModuleOptions(options))
 			.then((value) => {
 				module = value;
 				return value;
@@ -28,6 +28,18 @@ export function initializePffft() {
 			});
 	}
 	return ready;
+}
+
+function pffftModuleOptions(options) {
+	const wasmModule = options?.wasmModule;
+	if (!(wasmModule instanceof WebAssembly.Module)) return {};
+	return {
+		instantiateWasm(imports, receiveInstance) {
+			const instance = new WebAssembly.Instance(wasmModule, imports);
+			receiveInstance(instance, wasmModule);
+			return instance.exports;
+		},
+	};
 }
 
 export function isPffftReady() {

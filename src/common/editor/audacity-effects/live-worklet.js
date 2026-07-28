@@ -4,13 +4,9 @@
  */
 
 import { createAudacityLiveProcessor } from './live.js';
-import { initializePffft } from '../pffft.js';
+import { initializePffft, isPffftReady } from '../pffft.js';
 
 export const AUDACITY_LIVE_WORKLET_NAME = 'kw-audacity-live-effect';
-
-// AudioWorklet.addModule() does not resolve until module evaluation finishes.
-// Compile PFFFT here so every processor is ready before its first render quantum.
-await initializePffft();
 
 const ProcessorBase = globalThis.AudioWorkletProcessor || class {
 	constructor() {
@@ -25,20 +21,32 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		const sampleRate = Number(settings.sampleRate ?? globalThis.sampleRate ?? 48_000);
 		this.effectType = settings.effectType;
 		this.processor = null;
+		this.pendingMessages = [];
 		this.lastError = null;
 		this.port.onmessage = (event) => this.#handleMessage(event.data || {});
 		this.port.start?.();
-		try {
+		const initialize = () => {
 			this.processor = createAudacityLiveProcessor(
 				this.effectType,
 				sampleRate,
 				settings.params || {},
 				{ noiseProfile: settings.noiseProfile },
 			);
+			for (const message of this.pendingMessages.splice(0)) this.#handleMessage(message);
 			this.#postStatus('ready');
-		} catch (error) {
+		};
+		const fail = (error) => {
 			this.lastError = error instanceof Error ? error.message : String(error);
 			this.port.postMessage({ type: 'error', effectType: this.effectType, message: this.lastError });
+		};
+		if (isPffftReady()) {
+			try { initialize(); } catch (error) { fail(error); }
+		} else {
+			if (!(settings.pffftWasmModule instanceof WebAssembly.Module)) {
+				fail(new TypeError('The Audacity worklet requires a precompiled PFFFT WebAssembly.Module.'));
+				return;
+			}
+			initializePffft({ wasmModule: settings.pffftWasmModule }).then(initialize).catch(fail);
 		}
 	}
 
@@ -64,7 +72,10 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 	}
 
 	#handleMessage(message) {
-		if (!this.processor) return;
+		if (!this.processor) {
+			this.pendingMessages.push(message);
+			return;
+		}
 		try {
 			if (message.type === 'params') this.processor.updateParams(message.params || {});
 			else if (message.type === 'noise-profile') this.processor.setNoiseProfile(message.profile);

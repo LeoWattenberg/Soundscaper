@@ -2,17 +2,21 @@
 
 import { isAudacityLiveEffect } from '../audacity-effects/live.js';
 import { loadParametricEqWasmModule } from '../parametric-eq/wasm-loader.js';
+import { loadPffftWasmModule } from '../pffft-wasm-loader.js';
 import { isParametricEqType, projectEffectRacks } from './project-effects.ts';
 import type { EngineProject } from './types.ts';
 
 const dynamicsWorkletContexts = new WeakSet<BaseAudioContext>();
 const delayWorkletContexts = new WeakSet<BaseAudioContext>();
 const audacityWorkletContexts = new WeakSet<BaseAudioContext>();
+const audacityReadyContexts = new WeakSet<BaseAudioContext>();
 const parametricEqWorkletContexts = new WeakSet<BaseAudioContext>();
+const audacityPffftWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
 const parametricEqWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
 const dynamicsWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const delayWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const audacityWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
+const audacityReadyLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const parametricEqWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 
 export function isDynamicsWorkletLoaded(context: BaseAudioContext): boolean {
@@ -25,6 +29,10 @@ export function isDelayWorkletLoaded(context: BaseAudioContext): boolean {
 
 export function isAudacityWorkletLoaded(context: BaseAudioContext): boolean {
 	return audacityWorkletContexts.has(context);
+}
+
+export function getAudacityPffftWasmModule(context: BaseAudioContext): WebAssembly.Module | undefined {
+	return audacityPffftWasmModules.get(context);
 }
 
 export function isParametricEqWorkletLoaded(context: BaseAudioContext): boolean {
@@ -41,7 +49,8 @@ export async function ensureProjectWorklets(
 ): Promise<void> {
 	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorkletContexts.has(context);
 	const needsDelay = projectUsesDelayWorklet(project) && !delayWorkletContexts.has(context);
-	const needsAudacity = projectUsesAudacityWorklet(project) && !audacityWorkletContexts.has(context);
+	const usesAudacity = projectUsesAudacityWorklet(project);
+	const needsAudacity = usesAudacity && !audacityReadyContexts.has(context);
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
 	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
@@ -72,14 +81,87 @@ export async function ensureProjectWorklets(
 		).catch(() => undefined));
 	}
 	if (needsAudacity) {
-		loads.push(addWorkletModuleOnce(
-			context,
-			audacityWorkletContexts,
-			audacityWorkletLoads,
-			audacityWorkletModuleUrl,
-		));
+		loads.push(ensureAudacityWorkletReady(context));
 	}
 	await Promise.all(loads);
+}
+
+async function ensureAudacityWorkletReady(context: BaseAudioContext): Promise<void> {
+	if (audacityReadyContexts.has(context)) return;
+	let pending = audacityReadyLoads.get(context);
+	if (!pending) {
+		pending = loadAudacityPffftWasmModule(context)
+			.then((wasmModule) => addWorkletModuleOnce(
+				context,
+				audacityWorkletContexts,
+				audacityWorkletLoads,
+				audacityWorkletModuleUrl,
+			).then(() => warmAudacityWorklet(context, wasmModule)))
+			.then(() => { audacityReadyContexts.add(context); });
+		audacityReadyLoads.set(context, pending);
+	}
+	try {
+		await pending;
+	} finally {
+		if (audacityReadyLoads.get(context) === pending) audacityReadyLoads.delete(context);
+	}
+}
+
+async function loadAudacityPffftWasmModule(context: BaseAudioContext): Promise<WebAssembly.Module> {
+	const existing = audacityPffftWasmModules.get(context);
+	if (existing) return existing;
+	const module = await loadPffftWasmModule();
+	if (!(module instanceof WebAssembly.Module)) throw new Error('The PFFFT WASM module could not be compiled.');
+	audacityPffftWasmModules.set(context, module);
+	return module;
+}
+
+function warmAudacityWorklet(context: BaseAudioContext, wasmModule: WebAssembly.Module): Promise<void> {
+	const WorkletNode = globalThis.AudioWorkletNode;
+	return new Promise<void>((resolve, reject) => {
+		let node: AudioWorkletNode;
+		let settled = false;
+		try {
+			node = new WorkletNode(context, 'kw-audacity-live-effect', {
+				numberOfInputs: 1,
+				numberOfOutputs: 1,
+				outputChannelCount: [1],
+				processorOptions: {
+					effectType: 'audacity-invert',
+					params: {},
+					pffftWasmModule: wasmModule,
+				},
+			});
+		} catch (error) {
+			reject(error);
+			return;
+		}
+		const finish = (error?: Error): void => {
+			if (settled) return;
+			settled = true;
+			if (node.port) node.port.onmessage = null;
+			node.onprocessorerror = null;
+			try { node.disconnect(); } catch { /* The probe is intentionally unconnected. */ }
+			if (error) reject(error);
+			else resolve();
+		};
+		if (!node.port) {
+			finish();
+			return;
+		}
+		node.port.onmessage = ({ data }: MessageEvent<unknown>): void => {
+			if (!data || typeof data !== 'object' || !('type' in data)) return;
+			const message = data as Readonly<Record<string, unknown>>;
+			if (message.type === 'status' && message.status === 'ready') finish();
+			else if (message.type === 'error') finish(new Error(
+				typeof message.message === 'string' && message.message
+					? message.message
+					: 'The Audacity real-time processor failed to initialize.',
+			));
+		};
+		node.onprocessorerror = (): void => finish(new Error('The Audacity AudioWorklet processor failed to initialize.'));
+		node.port.start?.();
+	});
 }
 
 export async function ensureParametricEqWorklet(context: BaseAudioContext): Promise<WebAssembly.Module> {

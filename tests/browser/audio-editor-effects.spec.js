@@ -76,6 +76,45 @@ import {
 		expect(errors).toEqual([]);
 	});
 
+	test('renders an Audacity rack effect from the first offline quantum', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function'
+			|| typeof globalThis.webkitOfflineAudioContext === 'function'), 'OfflineAudioContext is unavailable in this browser.');
+		await importFiles(editor, [toneA]);
+		const effectsPanel = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Invert');
+		await closeEffectsPanel(effectsPanel);
+
+		const exportDialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		const download = exportDialog.locator('[data-export-download]');
+		await expect(download).toBeVisible({ timeout: 20_000 });
+		const peak = await download.evaluate(async (link) => {
+			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
+			const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+			let offset = 12;
+			while (offset + 8 <= bytes.byteLength) {
+				const id = new TextDecoder('ascii').decode(bytes.subarray(offset, offset + 4));
+				const size = view.getUint32(offset + 4, true);
+				if (id === 'data') {
+					let maximum = 0;
+					for (let sample = offset + 8; sample + 2 < offset + 8 + size; sample += 3) {
+						let value = bytes[sample] | (bytes[sample + 1] << 8) | (bytes[sample + 2] << 16);
+						if (value & 0x800000) value |= 0xff000000;
+						maximum = Math.max(maximum, Math.abs(value / 0x800000));
+					}
+					return maximum;
+				}
+				offset += 8 + size + (size & 1);
+			}
+			return 0;
+		});
+		expect(peak).toBeGreaterThan(0.1);
+		expect(errors).toEqual([]);
+	});
+
 	test('keeps rack knob updates live and ends Delay gestures when the window blurs', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
