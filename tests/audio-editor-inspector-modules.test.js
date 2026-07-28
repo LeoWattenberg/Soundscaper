@@ -8,6 +8,7 @@ const FEATURE_MODULES = Object.freeze([
 	'AudioEditorMacroManagerDialog.jsx',
 	'ClipPropertiesDialog.jsx',
 	'ExportDialog.jsx',
+	'LabelExportDialog.jsx',
 	'SelectionEffectsDialog.jsx',
 ]);
 

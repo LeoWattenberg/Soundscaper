@@ -96,7 +96,10 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 	}
 });
 
-test('superseded tools and raw-data actions remain auditable without entering application menus', () => {
+test('removed and superseded actions remain auditable without entering application menus', () => {
+	const exportMidi = audacityActionDefinition('export-midi');
+	assert.equal(exportMidi.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
+	assert.equal(exportMidi.menuVisible, false);
 	const rawImport = audacityActionDefinition('raw-data-import');
 	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(rawImport.menuVisible, false);
@@ -116,6 +119,11 @@ test('superseded tools and raw-data actions remain auditable without entering ap
 	assert.doesNotMatch(serialized, /raw-data-import/);
 	assert.doesNotMatch(serialized, /reset-configuration/);
 	assert.doesNotMatch(serialized, /sample-data-(?:import|export)/);
+	assert.doesNotMatch(JSON.stringify(applyAudacityParityToMenus([{
+		id: 'file',
+		label: 'File',
+		items: [{ id: 'export-other', label: 'Export other', items: [] }],
+	}], { materializeDisabled: true })), /export-midi/);
 });
 
 test('Audacity Mix-down to is a concrete destructive track action', () => {
@@ -250,7 +258,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
 	assert.ok(
-		placeholderIds.length >= 15,
+		placeholderIds.length >= 14,
 		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
 	);
 	assert.equal(new Set(placeholderIds).size, placeholderIds.length);
@@ -295,7 +303,7 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 	}
 });
 
-test('menu decoration removes exclusions and preserves disabled actions with localized reasons', () => {
+test('menu decoration removes hidden actions and preserves pending local actions with localized reasons', () => {
 	const exportMidi = () => 'must never run';
 	const createProject = () => 'create';
 	const menus = [
@@ -319,16 +327,10 @@ test('menu decoration removes exclusions and preserves disabled actions with loc
 	const decorated = applyAudacityParityToMenus(menus, { locale: 'de' });
 	assert.deepEqual(decorated.map(({ id }) => id), ['file']);
 	assert.deepEqual(decorated[0].items.map((item) => item.divider ? 'divider' : item.id), [
-		'export-midi', 'divider', 'save-project', 'divider', 'new-project',
+		'save-project', 'divider', 'new-project',
 	]);
 
-	const [disabledMidi, , pendingSave, , newProject] = decorated[0].items;
-	assert.equal(disabledMidi.label, 'MIDI exportieren');
-	assert.equal(disabledMidi.disabled, true);
-	assert.equal(disabledMidi.onClick, undefined);
-	assert.equal(disabledMidi.parityActionId, 'export-midi');
-	assert.equal(disabledMidi.parityStatus, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
-	assert.match(disabledMidi.disabledReason, /deaktiviert/);
+	const [pendingSave, , newProject] = decorated[0].items;
 	assert.match(pendingSave.disabledReason, /noch nicht angebunden/);
 	assert.equal(newProject.onClick, createProject);
 	assert.equal(newProject.label, 'Neu');

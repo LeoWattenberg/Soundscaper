@@ -96,6 +96,35 @@
 	padding: 0;
 }
 
+#kw-audio-editor-design-system .audio-editor-label-export-dialog__tracks {
+	display: grid;
+	min-width: 0;
+	margin: 0;
+	padding: 10px;
+	gap: 10px;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+}
+
+#kw-audio-editor-design-system .audio-editor-label-export-dialog__tracks legend {
+	padding: 0 4px;
+	color: var(--kw-editor-text);
+	font-size: 11px;
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .audio-editor-label-export-dialog__track-actions {
+	display: flex;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system .audio-editor-label-export-dialog__track-list {
+	display: grid;
+	max-height: 220px;
+	gap: 7px;
+	overflow: auto;
+}
+
 #kw-audio-editor-design-system .audio-editor-export-section {
 	display: grid;
 	gap: 10px;

@@ -36,7 +36,6 @@ export const AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS = Object.freeze(
 );
 
 export const AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS = Object.freeze([
-	'export-midi',
 	'select-no-tracks',
 	'select-previous-clip-boundary-to-cursor',
 	'select-cursor-to-next-clip-boundary',

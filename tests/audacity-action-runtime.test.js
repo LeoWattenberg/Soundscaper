@@ -67,8 +67,7 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		}], { actionRuntime: runtime.actions });
 		assert.strictEqual(helpMenu.items[0].onClick, runtime.actions.help.openManual);
 		assert.equal(helpMenu.items[0].disabled, undefined);
-		assert.equal(helpMenu.items[1].onClick, undefined);
-		assert.equal(helpMenu.items[1].disabled, true);
+		assert.equal(helpMenu.items.some((item) => item.id === 'export-midi'), false);
 		assert.equal(helpMenu.items.some((item) => item.id === 'plugin-manager'), false);
 
 		await runtime.actions.workspace.toggleTransportToolbar();

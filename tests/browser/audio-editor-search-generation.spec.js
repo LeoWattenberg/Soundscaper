@@ -10,6 +10,7 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
 	chooseFileAction,
 	chooseNestedCommandAction,
 	clipByName,
@@ -412,13 +413,37 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(rows.getByRole('textbox')).toHaveValue('Edited intro');
 			await expect(rows.getByRole('spinbutton').nth(0)).toHaveValue('0.250');
 			await expect(rows.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
+			await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
+			await expect(editor.locator('[data-label-track]')).toHaveCount(2);
 		});
 
-		await test.step('export the surviving cue as valid WebVTT', async () => {
+		await test.step('choose the format and label tracks, then export valid WebVTT', async () => {
+			const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+			await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
+			const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
+			const exportOther = getMenuItem(fileMenu, 'Export other');
+			await exportOther.focus();
+			await page.keyboard.press('ArrowRight');
+			const exportOtherMenu = exportOther.getByRole('menu');
+			await expect(exportOtherMenu).toBeVisible();
+			await expect(getMenuItem(exportOtherMenu, 'Export MIDI')).toHaveCount(0);
+			await page.keyboard.press('Escape');
+			await page.keyboard.press('Escape');
+
+			await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels']);
+			const dialog = page.getByRole('dialog', { name: 'Export labels', exact: true });
+			await expect(dialog).toBeVisible();
+			await expect(page.locator('[data-editor-surface="label-export"]')).toBeVisible();
+			await expect(dialog.getByRole('checkbox')).toHaveCount(2);
+			await dialog.getByRole('checkbox', { name: 'Labels', exact: true }).click();
+			await expect(dialog.getByRole('checkbox', { name: 'Labels', exact: true })).not.toBeChecked();
+			await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'As WebVTT');
+
 			const [download] = await Promise.all([
 				page.waitForEvent('download'),
-				chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels', 'As WebVTT']),
+				dialog.getByRole('button', { name: 'Export labels', exact: true }).click(),
 			]);
+			await expect(dialog).toBeHidden();
 			expect(download.suggestedFilename()).toMatch(/\.vtt$/i);
 			const downloadPath = await download.path();
 			expect(downloadPath).not.toBeNull();

@@ -110,7 +110,7 @@ const definitions = [
 	implemented('export-audio', 'Export audio', ['File'], 'io.exportAudio', { shortcut: 'Ctrl+Shift+E', enableWhen: 'project-opened' }),
 	implemented('export-labels', 'Export labels', ['File > Export other'], 'labels.export', { enableWhen: 'label-track-present' }),
 	implemented('file-close', 'Close project', ['File'], 'session.closeProject', { shortcut: 'Ctrl+W', enableWhen: 'project-opened' }),
-	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.menu, { source: UPSTREAM.menu }),
+	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.menu, { source: UPSTREAM.menu, menuVisible: false }),
 	disabled('insert', 'Insert', ['Command inventory'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	disabled('project-properties', 'Project properties', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),

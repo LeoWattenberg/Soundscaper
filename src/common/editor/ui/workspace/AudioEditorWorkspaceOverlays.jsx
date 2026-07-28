@@ -5,6 +5,7 @@ const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEdi
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
+const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
 const SelectionEffectsDialog = React.lazy(() => import('../inspector/SelectionEffectsDialog.jsx'));
 const EditorDialog = React.lazy(() => import('../dialogs/EditorDialog.jsx'));
 const GeneratorDialog = React.lazy(() => import('../dialogs/GeneratorDialog.jsx'));
@@ -163,6 +164,19 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							snapshot={snapshot}
 							copy={copy}
 							locale={locale}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{activeSurface === 'label-export' && (
+				<div data-editor-surface="label-export">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<LabelExportDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
 							onClose={() => setActiveSurface(null)}
 						/>
 					</React.Suspense>

@@ -90,7 +90,7 @@ export function createWorkspaceApplicationMenus({
 					? run(() => openDesktopFiles('media', true))
 					: importInputRef.current?.click(),
 				exportAudio: () => openSurface('export'),
-				exportLabels: (format) => run(() => controller.actions.labels.export({ format })),
+				exportLabels: () => openSurface('label-export'),
 				renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
 				duplicateProject: () => run(() => controller.actions.project.duplicate()),
 				deleteProject: () => setDialog('delete'),

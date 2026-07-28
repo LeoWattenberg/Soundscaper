@@ -3,4 +3,5 @@ export { default as AudioEditorEffectsOverlay } from './inspector/AudioEditorEff
 export { default as AudioEditorMacroManagerDialog } from './inspector/AudioEditorMacroManagerDialog.jsx';
 export { default as ClipPropertiesDialog } from './inspector/ClipPropertiesDialog.jsx';
 export { default as ExportDialog } from './inspector/ExportDialog.jsx';
+export { default as LabelExportDialog } from './inspector/LabelExportDialog.jsx';
 export { default as SelectionEffectsDialog } from './inspector/SelectionEffectsDialog.jsx';
