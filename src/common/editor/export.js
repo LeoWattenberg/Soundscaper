@@ -1,5 +1,11 @@
 import { projectEffectTailFrames } from './effects.js';
-import { createBwfExportMetadata } from './broadcast-wave-project.ts';
+import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
+import {
+	inspectPreservedAdmRiffChunks,
+	sameBextMetadata,
+	splitAdmRiffChunkSequence,
+	validateAdmRiffChunkSequence,
+} from './adm-riff-passthrough.ts';
 import {
 	AUDIO_EDITOR_MASTER_CHANNELS,
 	AUDIO_EDITOR_SAMPLE_RATE,
@@ -74,9 +80,10 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {'bw64'} [container]
- * @property {{ mode: 'authored'|'passthrough', metadata: import('./adm-project-metadata.ts').AdmProjectMetadata, channelCount: number, channelOrder: readonly string[], preDataChunks: Uint8Array|readonly Uint8Array[]|undefined, trailingChunks: Uint8Array|readonly Uint8Array[] }} [adm]
+ * @property {{ mode: 'authored'|'passthrough', metadata: import('./adm-project-metadata.ts').AdmProjectMetadata, channelCount: number, channelOrder: readonly string[], preDataChunks: Uint8Array|readonly Uint8Array[]|undefined, trailingChunks: Uint8Array|readonly Uint8Array[]|undefined }} [adm]
  * @property {Uint8Array|readonly Uint8Array[]} [preDataChunks]
  * @property {Uint8Array|readonly Uint8Array[]} [trailingChunks]
+ * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
@@ -145,15 +152,21 @@ export function createExportPlan(project, options = {}) {
 			?? options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
 		...(bw64Adm ? { channelMapping: 'preserve' } : {}),
 	});
-	if (bw64Adm?.metadata.mode === 'passthrough'
-		&& bw64Adm.metadata.opaqueRiffChunks?.some(({ id }) => id.toLowerCase() === 'id3 ')
-		&& Object.keys(encoding.metadata).length > 0) {
+	const preservedRiffChunks = bw64Adm?.metadata.mode === 'passthrough'
+		? inspectPreservedAdmRiffChunks(bw64Adm.metadata)
+		: null;
+	if (preservedRiffChunks?.id3 && Object.keys(encoding.metadata).length > 0) {
 		throw new Error('ADM passthrough with a preserved RIFF ID3 chunk cannot add replacement ID3 metadata.');
+	}
+	if (preservedRiffChunks?.info && Object.keys(encoding.metadata).length > 0) {
+		throw new Error('ADM passthrough with preserved RIFF INFO cannot add replacement INFO metadata.');
 	}
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(project, options.range || 'project');
-	const markers = createExportMarkers(project, range, sampleRate, options.markerTrackId);
-	const bext = format === 'bwf' || format === 'bw64'
+	let markers = createExportMarkers(project, range, sampleRate, options.markerTrackId);
+	let ixml = project.metadata?.ixml ?? null;
+	let cart = format === 'bwf' || format === 'bw64' ? project.metadata?.cart ?? null : null;
+	let bext = format === 'bwf' || format === 'bw64'
 		? createBwfExportMetadata(project, {
 			bext: options.bext,
 			rangeStartFrame: range.startFrame,
@@ -163,6 +176,18 @@ export function createExportPlan(project, options = {}) {
 			productName: options.productName,
 		})
 		: null;
+	if (preservedRiffChunks?.bext) {
+		if (options.measureLoudness === true) {
+			throw new Error('ADM passthrough with preserved BEXT cannot replace its loudness metadata.');
+		}
+		if (options.bext != null && !sameBextMetadata(options.bext, projectBextMetadata(project))) {
+			throw new Error('ADM passthrough with preserved BEXT cannot add replacement BEXT metadata.');
+		}
+		bext = null;
+	}
+	if (preservedRiffChunks?.markers) markers = Object.freeze([]);
+	if (preservedRiffChunks?.ixml) ixml = null;
+	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
 	const tailFrames = determineTailFrames(project, mode, options.includeTail !== false);
 	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / project.sampleRate);
@@ -184,8 +209,8 @@ export function createExportPlan(project, options = {}) {
 			float: encoding.floatingPoint,
 			metadata: encoding.metadata,
 			markers,
-			ixml: project.metadata?.ixml ?? null,
-			cart: format === 'bwf' || format === 'bw64' ? project.metadata?.cart ?? null : null,
+			ixml,
+			cart,
 			bext,
 			preDataChunks: adm?.preDataChunks,
 			trailingChunks: adm?.trailingChunks,
@@ -239,8 +264,8 @@ export function createExportPlan(project, options = {}) {
 		ditherMode: encoding.dither,
 		metadata: encoding.metadata,
 		markers,
-		ixml: project.metadata?.ixml ?? null,
-		cart: format === 'bwf' || format === 'bw64' ? project.metadata?.cart ?? null : null,
+		ixml,
+		cart,
 		...(bext ? { bext } : {}),
 		...(adm ? {
 			container: 'bw64',
@@ -295,6 +320,7 @@ function resolveBw64Adm(project, options) {
 		});
 	}
 	const reparsedChna = validateAdmPassthroughPayload(metadata);
+	validateAdmRiffChunkSequence(metadata);
 	return Object.freeze({
 		metadata,
 		channelCount,
@@ -436,28 +462,34 @@ function createBw64AdmExport(project, resolved, { range, outputFrames, encoding 
 		if (!sourceEligibility.eligible) {
 			throw new Error(`ADM passthrough is not eligible: ${sourceEligibility.reason}.`);
 		}
-		const opaqueBefore = (metadata.opaqueRiffChunks ?? [])
-			.filter(({ placement }) => placement === 'before-data')
-			.map(decodeWavOpaqueRiffChunk);
-		const chnaChunk = metadata.chna.rawBase64
-			? createRiffChunk('chna', decodeBase64(metadata.chna.rawBase64))
-			: undefined;
-		preDataChunks = compactRiffChunks([...opaqueBefore, ...(chnaChunk ? [chnaChunk] : [])]);
-		const payloads = [
-			metadata.payload,
-			...(metadata.auxiliaryPayloads ?? []),
-			...(metadata.serialPayload ? [metadata.serialPayload] : []),
-		];
-		const chunks = payloads.map((payload) => createRiffChunk(
-			payload.kind,
-			payload.kind === 'axml'
-				? decodeBase64(payload.rawBase64)
-				: decodeBase64(payload.base64),
-		));
-		const opaqueAfter = (metadata.opaqueRiffChunks ?? [])
-			.filter(({ placement }) => placement === 'after-data')
-			.map(decodeWavOpaqueRiffChunk);
-		trailingChunks = compactRiffChunks([...chunks, ...opaqueAfter]);
+		if (metadata.riffChunkSequence?.length) {
+			const sequence = splitAdmRiffChunkSequence(metadata);
+			preDataChunks = compactRiffChunks(sequence.preDataChunks);
+			trailingChunks = compactRiffChunks(sequence.trailingChunks);
+		} else {
+			const opaqueBefore = (metadata.opaqueRiffChunks ?? [])
+				.filter(({ placement }) => placement === 'before-data')
+				.map(decodeWavOpaqueRiffChunk);
+			const chnaChunk = metadata.chna.rawBase64
+				? createRiffChunk('chna', decodeBase64(metadata.chna.rawBase64))
+				: undefined;
+			preDataChunks = compactRiffChunks([...opaqueBefore, ...(chnaChunk ? [chnaChunk] : [])]);
+			const payloads = [
+				metadata.payload,
+				...(metadata.auxiliaryPayloads ?? []),
+				...(metadata.serialPayload ? [metadata.serialPayload] : []),
+			];
+			const chunks = payloads.map((payload) => createRiffChunk(
+				payload.kind,
+				payload.kind === 'axml'
+					? decodeBase64(payload.rawBase64)
+					: decodeBase64(payload.base64),
+			));
+			const opaqueAfter = (metadata.opaqueRiffChunks ?? [])
+				.filter(({ placement }) => placement === 'after-data')
+				.map(decodeWavOpaqueRiffChunk);
+			trailingChunks = compactRiffChunks([...chunks, ...opaqueAfter]);
+		}
 	}
 	return Object.freeze({
 		mode: metadata.mode,

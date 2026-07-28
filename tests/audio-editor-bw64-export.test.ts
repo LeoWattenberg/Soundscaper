@@ -10,6 +10,7 @@ import {
 	parseRiffAxmlChunk,
 	parseRiffChnaChunk,
 } from '../src/common/editor/adm-metadata.ts';
+import { createRiffBextChunk } from '../src/common/editor/broadcast-wave.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
@@ -372,6 +373,120 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 	}
 });
 
+test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byte-for-byte', () => {
+	const chna = createAdmChna({ layout: 'mono' });
+	const chnaPayload = encodeChnaPayload(chna);
+	const xml = generateAdmAxml({ programmeName: 'Sequenced import', layout: 'mono' });
+	const xmlBytes = new TextEncoder().encode(xml);
+	const info = riffChunk('LIST', listPayload('INFO', [
+		riffChunk('IENG', new TextEncoder().encode('Mixer\0')),
+		riffChunk('IKEY', new TextEncoder().encode('news\0')),
+		riffChunk('ISBJ', new TextEncoder().encode('Bulletin\0')),
+	]));
+	const adtl = riffChunk('LIST', listPayload('adtl', [
+		riffChunk('VEND', Uint8Array.of(9, 8, 7), 0x5a),
+	]));
+	const bextMetadata = {
+		description: 'Imported bulletin', originator: 'Mixer', timeReference: '17', version: 2 as const,
+	};
+	const bext = createRiffBextChunk(bextMetadata);
+	const cuePayload = new Uint8Array(28);
+	const cueView = new DataView(cuePayload.buffer);
+	cueView.setUint32(0, 1, true);
+	cueView.setUint32(4, 7, true);
+	cuePayload.set(new TextEncoder().encode('data'), 12);
+	cueView.setUint32(24, 1, true);
+	const cue = riffChunk('cue ', cuePayload);
+	const before = [bext, riffChunk('chna', chnaPayload), info];
+	const after = [
+		riffChunk('PEAK', Uint8Array.of(1, 2, 3), 0xa5),
+		cue,
+		riffChunk('axml', xmlBytes),
+		adtl,
+		riffChunk('MD5 ', Uint8Array.of(4, 5)),
+	];
+	const sequence = [...before.map((raw) => ({
+		id: chunkId(raw), placement: 'before-data' as const, rawBase64: Buffer.from(raw).toString('base64'),
+	})), ...after.map((raw) => ({
+		id: chunkId(raw), placement: 'after-data' as const, rawBase64: Buffer.from(raw).toString('base64'),
+	}))];
+	const project = createAudioEditorProjectV7({
+		id: 'sequenced-passthrough', title: 'Imported master', now: NOW, revision: 0, masterChannels: 1,
+		sources: [{
+			id: 'source', storageKey: 'pcm/source', name: 'Imported', mimeType: 'audio/wav',
+			frameCount: 4, channelCount: 1, sampleRate: 48_000, sampleFormat: 'int24',
+		}],
+		clips: [{ id: 'clip', sourceId: 'source', durationFrames: 4 }],
+		tracks: [
+			{ type: 'audio', id: 'bed', clipIds: ['clip'] },
+			{ type: 'label', id: 'markers', labels: [{ id: 'marker', title: 'Original', startFrame: 1, endFrame: 1 }] },
+		],
+		metadata: { bext: bextMetadata, adm: {
+			mode: 'passthrough',
+			payload: { kind: 'axml', xml, rawBase64: Buffer.from(xmlBytes).toString('base64') },
+			riffChunkSequence: sequence,
+			opaqueRiffChunks: after.filter((raw) => ['PEAK', 'MD5 '].includes(chunkId(raw))).map((raw) => ({
+				id: chunkId(raw), placement: 'after-data' as const, rawBase64: Buffer.from(raw).toString('base64'),
+			})),
+			chna: {
+				rawBase64: Buffer.from(chnaPayload).toString('base64'),
+				entries: chna.entries.map((entry) => ({
+					trackIndex: entry.trackIndex,
+					audioTrackUid: entry.uid,
+					audioTrackFormatIdRef: entry.trackRef,
+					audioPackFormatIdRef: entry.packRef,
+				})),
+			},
+			source: { id: 'source', storageKey: 'pcm/source', mimeType: 'audio/wav' },
+			geometry: { sampleRate: 48_000, channelCount: 1, frameCount: 4, bitDepth: 24, float: false },
+			pristineRevision: 0,
+			valid: true,
+			warnings: [],
+		} },
+	});
+	const projectAdm = project.metadata.adm;
+	assert.ok(projectAdm?.mode === 'passthrough');
+	const options = { format: 'bw64', bitDepth: 24, dither: 'none' } as const;
+	const plan = createExportPlan(project, options);
+
+	assert.deepEqual(plan.preDataChunks, before);
+	assert.deepEqual(plan.trailingChunks, after);
+	assert.deepEqual(plan.markers, []);
+	assert.equal(plan.bext, undefined);
+	assert.equal(createExportPlan(project, { ...options, bext: bextMetadata }).bext, undefined);
+	assert.throws(
+		() => createExportPlan(project, { ...options, bext: { ...bextMetadata, description: 'Replacement' } }),
+		/preserved.*BEXT|BEXT.*passthrough/iu,
+	);
+	assert.throws(
+		() => createExportPlan(project, { ...options, measureLoudness: true }),
+		/preserved.*BEXT|BEXT.*passthrough/iu,
+	);
+	const output = encodeWav([new Float32Array(4)], {
+		container: 'bw64', sampleRate: 48_000, bitDepth: 24, dither: 'none',
+		bext: plan.bext, preDataChunks: plan.preDataChunks, trailingChunks: plan.trailingChunks,
+	});
+	assert.ok(findAscii(output, 'data') < findAscii(output, 'PEAK'));
+	assert.ok(findAscii(output, 'PEAK') < findAscii(output, 'axml'));
+	assert.ok(findAscii(output, 'axml') < findAscii(output, 'MD5 '));
+	assert.throws(
+		() => createExportPlan(project, { ...options, metadata: { title: 'Replacement' } }),
+		/preserved.*INFO|INFO.*passthrough/iu,
+	);
+
+	const mismatchedAxml = riffChunk('axml', new TextEncoder().encode('<audioFormatExtended />'));
+	const tampered = createAudioEditorProjectV7({
+		...project,
+		metadata: { ...project.metadata, adm: {
+			...projectAdm,
+			riffChunkSequence: sequence.map((entry) => entry.id === 'axml'
+				? { ...entry, rawBase64: Buffer.from(mismatchedAxml).toString('base64') }
+				: entry),
+		} },
+	});
+	assert.throws(() => createExportPlan(tampered, options), /chunk sequence.*AXML|AXML.*chunk sequence/iu);
+});
+
 function chunkId(chunk: Uint8Array): string {
 	return new TextDecoder('ascii').decode(chunk.subarray(0, 4));
 }
@@ -388,6 +503,17 @@ function riffChunk(id: string, bytes: Uint8Array, padByte = 0): Uint8Array {
 	chunk.set(bytes, 8);
 	if (bytes.byteLength & 1) chunk[chunk.byteLength - 1] = padByte;
 	return chunk;
+}
+
+function listPayload(kind: string, chunks: readonly Uint8Array[]): Uint8Array {
+	const payload = new Uint8Array(4 + chunks.reduce((size, chunk) => size + chunk.byteLength, 0));
+	payload.set(new TextEncoder().encode(kind));
+	let offset = 4;
+	for (const chunk of chunks) {
+		payload.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return payload;
 }
 
 function sxmlPayload(samples: number): Uint8Array {
