@@ -115,7 +115,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 			sampleRate: passthrough ? String(current.adm.geometry.sampleRate) : current.sampleRate,
 			bitRate: format === 'opus' ? '160' : format === 'mp2' ? '256' : ['mp3', 'aac-m4a'].includes(format) ? '192' : current.bitRate,
 			compressionLevel: format === 'flac' ? '5' : format === 'wavpack' ? '2' : current.compressionLevel,
-			channelMapping: format === 'bw64' ? 'preserve' : current.channelMapping,
+			channelMapping: format === 'bw64'
+				? 'preserve'
+				: format === 'bwf' ? 'stereo' : current.channelMapping,
 			dither: passthrough ? 'none' : current.dither,
 			includeTail: passthrough ? false : current.includeTail,
 		};
