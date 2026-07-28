@@ -57,6 +57,49 @@ test('unsupported surround devices receive the deterministic Web Audio downmix g
 	assert.deepEqual(nodes.slice(2).map((node) => node.connections[0].input), [0, 1, 0, 1, 0, 1]);
 });
 
+test('non-5.1 multichannel monitoring negotiates native output or falls back to the first stereo pair', () => {
+	class Node {
+		readonly connections: Array<{ node: Node; output: number; input: number }> = [];
+		connect(node: Node, output = 0, input = 0) {
+			this.connections.push({ node, output, input });
+			return node;
+		}
+	}
+	const nativeSource = new Node();
+	const nativeDestination = Object.assign(new Node(), { maxChannelCount: 16, channelCount: 2 });
+	const nativeContext = { destination: nativeDestination };
+	assert.equal(connectSurroundMonitoring(
+		nativeContext as unknown as BaseAudioContext,
+		nativeSource as unknown as AudioNode,
+		nativeDestination as unknown as AudioNode,
+		8,
+		[],
+	), 'native');
+	assert.equal(nativeDestination.channelCount, 8);
+
+	const source = new Node();
+	const destination = Object.assign(new Node(), { maxChannelCount: 2 });
+	const nodes: Node[] = [];
+	const context = {
+		currentTime: 0,
+		destination,
+		createChannelSplitter: () => new Node(),
+		createChannelMerger: () => new Node(),
+		createGain: () => Object.assign(new Node(), {
+			gain: { value: 1, setValueAtTime(value: number) { this.value = value; } },
+		}),
+	};
+	assert.equal(connectSurroundMonitoring(
+		context as unknown as BaseAudioContext,
+		source as unknown as AudioNode,
+		destination as unknown as AudioNode,
+		4,
+		nodes as unknown as AudioNode[],
+	), 'stereo-fallback');
+	assert.equal(nodes.length, 4, 'one splitter, one merger, and the first left/right pair');
+	assert.deepEqual(nodes[0].connections.map(({ output }) => output), [0, 1]);
+});
+
 test('5.1 fallback monitoring omits LFE and applies normalized centre and surround gains', () => {
 	const channels = [1, 2, 3, 99, 4, 5].map((value) => Float32Array.of(value, -value));
 	const [left, right] = downmixSurroundToStereo(channels);

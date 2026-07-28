@@ -51,7 +51,7 @@ export function connectSurroundMonitoring(
 	channelCount: number,
 	nodes: AudioNode[],
 ): 'native' | 'stereo-fallback' | 'direct' {
-	if (channelCount !== 6) {
+	if (!Number.isInteger(channelCount) || channelCount <= 2 || channelCount > 32) {
 		source.connect(destination);
 		return 'direct';
 	}
@@ -60,16 +60,23 @@ export function connectSurroundMonitoring(
 		source.connect(destination);
 		return 'native';
 	}
-	const splitter = context.createChannelSplitter(6);
+	const splitter = context.createChannelSplitter(channelCount);
 	const merger = context.createChannelMerger(2);
 	nodes.push(splitter, merger);
 	source.connect(splitter);
-	connectRoute(0, 0, 0.5);
-	connectRoute(1, 1, 0.5);
-	connectRoute(2, 0, Math.SQRT1_2 * 0.5);
-	connectRoute(2, 1, Math.SQRT1_2 * 0.5);
-	connectRoute(4, 0, Math.SQRT1_2 * 0.5);
-	connectRoute(5, 1, Math.SQRT1_2 * 0.5);
+	if (channelCount === 6) {
+		connectRoute(0, 0, 0.5);
+		connectRoute(1, 1, 0.5);
+		connectRoute(2, 0, Math.SQRT1_2 * 0.5);
+		connectRoute(2, 1, Math.SQRT1_2 * 0.5);
+		connectRoute(4, 0, Math.SQRT1_2 * 0.5);
+		connectRoute(5, 1, Math.SQRT1_2 * 0.5);
+	} else {
+		// Arbitrary ADM channel orders have no safe generic fold-down. Keep the
+		// first pair deterministic rather than relying on browser-specific mixing.
+		connectRoute(0, 0, 1);
+		connectRoute(1, 1, 1);
+	}
 	merger.connect(destination);
 	return 'stereo-fallback';
 
