@@ -3,8 +3,9 @@ import { Button } from '@dilsonspickles/components';
 
 import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
-import { LabelManagerRow, MetadataEditorField } from './LabelManagerRows.jsx';
+import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
+import ProjectMetadataPanel from './ProjectMetadataPanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
 
@@ -130,36 +131,13 @@ export default function WorkspacePanelContent({
 		);
 	}
 	if (panelId === 'metadata') {
-		const metadata = project?.metadata || {};
-		const fields = [
-			['title', copy.metadataTitle], ['artist', copy.metadataArtist], ['album', copy.metadataAlbum],
-			['trackNumber', copy.metadataTrack], ['year', copy.metadataYear], ['comments', copy.metadataComments],
-		];
 		return (
-			<div className="kw-audio-editor__metadata-list" data-metadata-editor>
-				{fields.map(([key, label]) => (
-					<MetadataEditorField
-						key={key}
-						name={key}
-						label={label}
-						value={metadata[key] || ''}
-						disabled={snapshot.readOnly}
-						onCommit={(value) => run(() => controller.actions.metadata.update({ [key]: value }))}
-					/>
-				))}
-				{Object.entries(metadata.tags || {}).map(([key, value]) => (
-					<MetadataEditorField
-						key={key}
-						name={`tag-${key}`}
-						label={key}
-						value={value || ''}
-						disabled={snapshot.readOnly}
-						onCommit={(nextValue) => run(() => controller.actions.metadata.update({
-							tags: { ...metadata.tags, [key]: nextValue },
-						}))}
-					/>
-				))}
-			</div>
+			<ProjectMetadataPanel
+				project={project}
+				copy={copy}
+				disabled={snapshot.readOnly}
+				onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}
+			/>
 		);
 	}
 	if (panelId === 'effects') {

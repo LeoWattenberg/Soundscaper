@@ -8,7 +8,10 @@ import {
 } from '@dilsonspickles/components';
 import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import BextMetadataFields from '../BextMetadataFields.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
+import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
+import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
 	createExportDialogRequest,
@@ -26,6 +29,7 @@ import {
 export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
+	const [metadataTab, setMetadataTab] = useState('general');
 	const [settings, setSettings] = useState({
 		mode: 'mix',
 		range: 'project',
@@ -47,6 +51,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		metadataComments: snapshot.project?.metadata?.comments || '',
 		metadataCopyright: snapshot.project?.metadata?.copyright || '',
 		metadataCustom: JSON.stringify(snapshot.project?.metadata?.tags || {}, null, 2),
+		bext: createBextMetadataEditorValue(snapshot.project),
 		customExtension: '',
 		customMimeType: 'application/octet-stream',
 		customArguments: '',
@@ -67,8 +72,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	}, [hasSelection, settings.range]);
 
 	useEffect(() => {
-		if (!isOpen) setMetadataOpen(false);
+		if (!isOpen) {
+			setMetadataOpen(false);
+			setMetadataTab('general');
+		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		if (settings.format !== 'bwf' && metadataTab === 'bext') setMetadataTab('general');
+	}, [metadataTab, settings.format]);
 
 	useEffect(() => {
 		if (!hasTimelineVideo && isVideoExportDialogFormat(settings.format)) {
@@ -90,6 +102,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		sampleFormat: MEDIA_EXPORT_FORMATS[format]?.defaults?.sampleFormat || current.sampleFormat,
 		bitRate: format === 'opus' ? '160' : format === 'mp2' ? '256' : ['mp3', 'aac-m4a'].includes(format) ? '192' : current.bitRate,
 		compressionLevel: format === 'flac' ? '5' : format === 'wavpack' ? '2' : current.compressionLevel,
+		channelMapping: format === 'bwf' && !['mono', 'stereo'].includes(current.channelMapping) ? 'stereo' : current.channelMapping,
 	}));
 	const start = () => {
 		try {
@@ -108,6 +121,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 			});
 			const request = createExportDialogRequest(settings, {
 				metadata,
+				bext: settings.bext,
 				channelMapping: videoFormat
 					? undefined
 					: settings.channelMapping === 'custom'
@@ -166,26 +180,51 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 				)}
 			>
 				<section className="audio-editor-metadata-editor">
-					<p className="audio-editor-panel-hint">{copy.metadataFormatHint}</p>
-					<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
-						<div className="audio-editor-metadata-table__header" role="row">
-							<span role="columnheader">{copy.metadataTagColumn}</span>
-							<span role="columnheader">{copy.metadataValueColumn}</span>
-						</div>
-						{metadataFields.map(([name, label]) => (
-							<label className="audio-editor-metadata-table__row" role="row" key={name}>
-								<span role="cell">{label}</span>
-								<span role="cell"><TextInput multiline={name === 'metadataComments'} value={settings[name]} onChange={(value) => set(name, value)} width="100%" /></span>
-							</label>
-						))}
+					<MetadataEditorTabs
+						activeTab={metadataTab}
+						showBext={settings.format === 'bwf'}
+						copy={copy}
+						onChange={setMetadataTab}
+					/>
+					<div
+						role="tabpanel"
+						aria-label={metadataTab === 'bext' ? copy.metadataBextTab : copy.metadataGeneralTab}
+						data-export-metadata-tab={metadataTab}
+					>
+						{metadataTab === 'bext' ? (
+							<>
+								<p className="audio-editor-panel-hint">{copy.bextExportHint}</p>
+								<BextMetadataFields
+									value={settings.bext}
+									copy={copy}
+									onCommit={(value) => set('bext', value)}
+								/>
+							</>
+						) : (
+							<>
+								<p className="audio-editor-panel-hint">{copy.metadataFormatHint}</p>
+								<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
+									<div className="audio-editor-metadata-table__header" role="row">
+										<span role="columnheader">{copy.metadataTagColumn}</span>
+										<span role="columnheader">{copy.metadataValueColumn}</span>
+									</div>
+									{metadataFields.map(([name, label]) => (
+										<label className="audio-editor-metadata-table__row" role="row" key={name}>
+											<span role="cell">{label}</span>
+											<span role="cell"><TextInput multiline={name === 'metadataComments'} value={settings[name]} onChange={(value) => set(name, value)} width="100%" /></span>
+										</label>
+									))}
+								</div>
+								<details className="audio-editor-export-details">
+									<summary>{copy.customMetadata}</summary>
+									<label className="audio-editor-field">
+										<span>{copy.customMetadata}</span>
+										<TextInput multiline value={settings.metadataCustom} onChange={(value) => set('metadataCustom', value)} width="100%" />
+									</label>
+								</details>
+							</>
+						)}
 					</div>
-					<details className="audio-editor-export-details">
-						<summary>{copy.customMetadata}</summary>
-						<label className="audio-editor-field">
-							<span>{copy.customMetadata}</span>
-							<TextInput multiline value={settings.metadataCustom} onChange={(value) => set('metadataCustom', value)} width="100%" />
-						</label>
-					</details>
 				</section>
 			</AudioEditorDialogShell>
 		);
@@ -228,7 +267,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					<LabeledDropdown label={copy.format} hook="format" value={settings.format} onChange={setFormat} disabled={exporting} options={[
 						...Object.values(MEDIA_EXPORT_FORMATS).map((descriptor) => ({
 							value: descriptor.id,
-							label: descriptor.id === 'custom-ffmpeg' ? copy.customFfmpeg : descriptor.label,
+							label: descriptor.id === 'custom-ffmpeg'
+								? copy.customFfmpeg
+								: descriptor.id === 'bwf' ? copy.broadcastWav : descriptor.label,
 						})),
 						...(hasTimelineVideo ? VIDEO_EXPORT_DIALOG_FORMATS.map((descriptor) => ({
 							value: descriptor.id,
@@ -251,7 +292,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
 					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
-					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
+					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting} options={settings.format === 'bwf' ? [{ value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }] : [{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
 					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{!videoFormat && settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
 				</section>

@@ -44,6 +44,63 @@
 	margin: 0;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__metadata-editor,
+#kw-audio-editor-design-system .audio-editor-bext-fields {
+	display: grid;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .audio-editor-metadata-tabs {
+	display: flex;
+	gap: 3px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-metadata-tabs [role='tab'] {
+	padding: 5px 9px;
+	color: var(--kw-editor-muted);
+	background: transparent;
+	border: 0;
+	border-radius: 4px;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .audio-editor-metadata-tabs [role='tab'][aria-selected='true'] {
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+}
+
+#kw-audio-editor-design-system .audio-editor-bext-fields label {
+	display: grid;
+	grid-template-columns: minmax(145px, .42fr) minmax(0, 1fr);
+	align-items: center;
+	gap: 10px;
+}
+
+#kw-audio-editor-design-system .audio-editor-bext-fields label > span {
+	color: var(--kw-editor-muted);
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .audio-editor-bext-fields :is(input, textarea) {
+	min-width: 0;
+	padding: 5px 6px;
+	color: inherit;
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+	font: inherit;
+}
+
+#kw-audio-editor-design-system .audio-editor-bext-fields textarea {
+	resize: vertical;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__metadata-list label {
 	display: grid;
 	grid-template-columns: minmax(70px, auto) minmax(0, 1fr);

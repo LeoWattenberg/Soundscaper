@@ -42,6 +42,7 @@ export function createExportDialogRequest(settings, options = {}) {
 		mode: settings.mode,
 		range: settings.range,
 		format: settings.format,
+		...(settings.format === 'bwf' ? { bext: options.bext ?? settings.bext } : {}),
 		sampleFormat: settings.sampleFormat,
 		bitDepth: Number(settings.sampleFormat.replace(/\D/g, '')) || undefined,
 		floatingPoint: settings.sampleFormat === 'float32',

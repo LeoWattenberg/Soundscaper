@@ -99,3 +99,40 @@ test('audio export request settings remain unchanged', () => {
 		includeTail: true,
 	});
 });
+
+test('Broadcast WAV requests carry structured BEXT metadata without changing ordinary WAV requests', () => {
+	const settings = {
+		mode: 'mix',
+		range: 'project',
+		format: 'bwf',
+		sampleFormat: 'int24',
+		bitRate: '192',
+		quality: '5',
+		compressionLevel: '5',
+		sampleRate: '48000',
+		dither: 'triangular',
+		customExtension: '',
+		customMimeType: 'application/octet-stream',
+		customArguments: '',
+		includeTail: true,
+	};
+	const bext = {
+		version: 2,
+		description: 'News mix',
+		originator: 'Soundscaper',
+		originatorReference: '',
+		originationDate: '2026-07-28',
+		originationTime: '20:10:00',
+		timeReference: '9007199254740993',
+		umid: '',
+		loudnessValue: -23,
+		loudnessRange: null,
+		maxTruePeakLevel: null,
+		maxMomentaryLoudness: null,
+		maxShortTermLoudness: null,
+		codingHistory: '',
+	};
+
+	assert.deepEqual(createExportDialogRequest(settings, { bext, metadata: {}, channelMapping: 'stereo' }).bext, bext);
+	assert.equal(createExportDialogRequest({ ...settings, format: 'wav' }, { bext, metadata: {}, channelMapping: 'stereo' }).bext, undefined);
+});
