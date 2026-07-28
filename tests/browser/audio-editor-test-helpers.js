@@ -425,7 +425,7 @@ export async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-e
 
 export async function sourcePeakChannels(page, sourceName) {
 	return page.evaluate((name) => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open('kw-media-audio-editor', 2);
+		const openRequest = indexedDB.open('kw-media-audio-editor', 3);
 		openRequest.onerror = () => reject(openRequest.error);
 		openRequest.onsuccess = () => {
 			const database = openRequest.result;
@@ -462,7 +462,7 @@ export async function sourcePeakChannels(page, sourceName) {
 
 export async function effectSourceMetadata(page) {
 	return page.evaluate(() => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open('kw-media-audio-editor', 2);
+		const openRequest = indexedDB.open('kw-media-audio-editor', 3);
 		openRequest.onerror = () => reject(openRequest.error);
 		openRequest.onsuccess = () => {
 			const database = openRequest.result;
@@ -482,7 +482,7 @@ export async function effectSourceMetadata(page) {
 export async function effectSourcePeak(page, name) {
 	return page.evaluate(async (effectName) => {
 		const { source, peaks } = await new Promise((resolve, reject) => {
-			const openRequest = indexedDB.open('kw-media-audio-editor', 2);
+			const openRequest = indexedDB.open('kw-media-audio-editor', 3);
 			openRequest.onerror = () => reject(openRequest.error);
 			openRequest.onsuccess = () => {
 				const database = openRequest.result;

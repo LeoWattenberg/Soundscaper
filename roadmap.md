@@ -314,19 +314,28 @@ models or native implementations.
   [storage-safety](tests/audio-editor-video-storage.test.js) regressions prove
   exact preflight headroom, honest memory fallback, IndexedDB/OPFS disposal,
   and cleanup boundaries that preserve projects, revisions, originals,
-  canonical PCM, and active writes. As a bounded-record migration step, large
-  legacy IndexedDB derivative caches no longer use a cache-wide `getAll()`:
-  a finite start-of-scan key/count boundary and fresh, non-raiseable 64-record
-  cursor windows immediately project each delivered payload to scalar
-  accounting and compare-and-delete metadata, and removal snapshots do not
-  retain Blob fields.
-  The focused [paging regression](tests/audio-editor-derivative-cache-paging.test.ts)
-  proves multi-page transaction closure, hard-capped binary-bearing record
-  delivery, and fail-before-delete corruption handling. Cursor values still
-  retrieve each legacy Blob-bearing row, and the scalar plan remains O(entries);
-  a metadata-only companion store with atomic backfill, automatic budget
-  enforcement on each cache publication, and dedicated save, proxy, and render
-  estimators remain open.
+  canonical PCM, and active writes. IndexedDB schema v3 adds a dedicated
+  metadata-only derivative-cache companion store. Its exclusive version-change
+  migration backfills each pre-v3 payload row through a one-at-a-time cursor and
+  rolls schema, version, and records back together on projection or write
+  failure. Save/replacement, trim, explicit delete, source cascade, retention
+  prune, and clear now maintain payload and metadata rows in the same
+  transaction; superseded or removed OPFS files are disposed only after commit.
+  Cache inventory uses a finite start-of-scan key/count boundary and fresh,
+  non-raiseable 64-record companion-store windows, while retention and source
+  cascades no longer bulk-load derivative payload Blobs. Focused
+  [schema](tests/audio-editor-derivative-cache-schema.test.ts),
+  [consistency](tests/audio-editor-derivative-cache-consistency.test.ts),
+  [retention](tests/audio-editor-derivative-cache-retention.test.ts), and
+  [paging](tests/audio-editor-derivative-cache-paging.test.ts) regressions prove
+  upgrade rollback/retry, paired-write rollback, stale-cleanup safety,
+  post-commit disposal, finite page transactions, zero-Blob inventory pages,
+  and fail-before-delete corruption handling; a real
+  [browser migration](tests/browser/audio-editor-storage-migration.spec.js)
+  exercises v2-to-v3 backfill in evergreen engines. The one-time legacy
+  migration still reads one Blob-bearing row at a time and the scalar eviction
+  plan remains O(entries); automatic budget enforcement on each cache
+  publication and dedicated save, proxy, and render estimators remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

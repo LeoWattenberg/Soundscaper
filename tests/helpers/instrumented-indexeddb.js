@@ -251,24 +251,19 @@ class FakeObjectStore {
 			return clone(value);
 		});
 	}
-
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
 		return fakeGetAllRequest(this.transaction, this.data, null, query, count, valuesForStore(this.data, query));
 	}
-
 	count(query) {
 		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).length);
 	}
-
 	delete(key) {
 		return fakeRequest(this.transaction, () => this.data.records.delete(key));
 	}
-
 	clear() {
 		return fakeRequest(this.transaction, () => this.data.records.clear());
 	}
-
 	index(name) {
 		return new FakeIndex(this.transaction, this.data, name);
 	}
@@ -308,6 +303,12 @@ class FakeIndex {
 	openCursor(query) {
 		const entries = this.entries(query);
 		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query });
+	}
+	openKeyCursor(query) {
+		const entries = this.entries(query).map(({ key, primaryKey }) => ({ key, primaryKey }));
+		return fakeKeyCursorRequest(this.transaction, this.data, entries, {
+			index: this.name, query, direction: 'next',
+		});
 	}
 
 	values(query) {
@@ -453,6 +454,9 @@ function fakeKeyCursorRequest(transaction, data, entries, { index, query, direct
 		request.result = {
 			key: entry.key,
 			primaryKey: entry.primaryKey,
+			delete() {
+				data.records.delete(entry.primaryKey);
+			},
 			continue() {
 				if (continued) throw new Error('The cursor has already advanced.');
 				continued = true;

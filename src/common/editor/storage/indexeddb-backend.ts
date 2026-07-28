@@ -1,8 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+	DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+	projectDerivativeCacheInventoryRecord,
+	VIDEO_DERIVATIVE_STORE_NAME,
+} from './derivative-cache-entry.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
-const DATABASE_VERSION = 2;
+const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
+const DATABASE_VERSION = DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -20,38 +27,105 @@ export function openDatabase(
 	return new Promise((resolve, reject) => {
 		let openRequest: IDBOpenDBRequest;
 		let settled = false;
+		let upgradeError: Error | null = null;
 		try {
 			openRequest = indexedDB.open(databaseName, DATABASE_VERSION);
 		} catch (error) {
 			reject(error);
 			return;
 		}
-		openRequest.onupgradeneeded = () => {
-			const database = openRequest.result;
-			if (!database.objectStoreNames.contains('projects')) database.createObjectStore('projects', { keyPath: 'id' });
-			if (!database.objectStoreNames.contains('revisions')) {
-				const store = database.createObjectStore('revisions', { keyPath: 'key' });
-				store.createIndex('projectId', 'projectId', { unique: false });
+		const abortUpgrade = (error: unknown): void => {
+			upgradeError ||= error instanceof Error
+				? error
+				: new Error('Could not upgrade editor storage.');
+			const transaction = openRequest.transaction;
+			if (transaction) {
+				try {
+					transaction.abort();
+					return;
+				} catch { /* The request may already have aborted the transaction. */ }
 			}
-			if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
-			if (!database.objectStoreNames.contains('analysis')) database.createObjectStore('analysis', { keyPath: 'key' });
-			if (!database.objectStoreNames.contains('sources')) database.createObjectStore('sources', { keyPath: 'id' });
-			if (!database.objectStoreNames.contains('sourceChunks')) {
-				const store = database.createObjectStore('sourceChunks', { keyPath: 'key' });
-				store.createIndex('sourceToken', 'sourceToken', { unique: false });
-			}
-			if (!database.objectStoreNames.contains('mediaAssets')) {
-				database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
-			}
-			if (!database.objectStoreNames.contains('videoDerivatives')) {
-				const store = database.createObjectStore('videoDerivatives', { keyPath: 'key' });
-				store.createIndex('sourceId', 'sourceId', { unique: false });
+			if (settled) return;
+			settled = true;
+			reject(upgradeError);
+		};
+		openRequest.onupgradeneeded = (event) => {
+			try {
+				const database = openRequest.result;
+				const transaction = openRequest.transaction;
+				if (!database.objectStoreNames.contains('projects')) database.createObjectStore('projects', { keyPath: 'id' });
+				if (!database.objectStoreNames.contains('revisions')) {
+					const store = database.createObjectStore('revisions', { keyPath: 'key' });
+					store.createIndex('projectId', 'projectId', { unique: false });
+				}
+				if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
+				if (!database.objectStoreNames.contains('analysis')) database.createObjectStore('analysis', { keyPath: 'key' });
+				if (!database.objectStoreNames.contains('sources')) database.createObjectStore('sources', { keyPath: 'id' });
+				if (!database.objectStoreNames.contains('sourceChunks')) {
+					const store = database.createObjectStore('sourceChunks', { keyPath: 'key' });
+					store.createIndex('sourceToken', 'sourceToken', { unique: false });
+				}
+				if (!database.objectStoreNames.contains('mediaAssets')) {
+					database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+				}
+				if (!database.objectStoreNames.contains(VIDEO_DERIVATIVE_STORE_NAME)) {
+					const store = database.createObjectStore(VIDEO_DERIVATIVE_STORE_NAME, { keyPath: 'key' });
+					store.createIndex(
+						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+						{ unique: false },
+					);
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					const store = transaction.objectStore(VIDEO_DERIVATIVE_STORE_NAME);
+					if (!store.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME)) {
+						store.createIndex(
+							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+							{ unique: false },
+						);
+					}
+				}
+				let cacheEntryStore: IDBObjectStore;
+				if (!database.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME)) {
+					cacheEntryStore = database.createObjectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME, { keyPath: 'key' });
+					cacheEntryStore.createIndex(
+						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+						{ unique: false },
+					);
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					cacheEntryStore = transaction.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
+					if (!cacheEntryStore.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME)) {
+						cacheEntryStore.createIndex(
+							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+							{ unique: false },
+						);
+					}
+				}
+				const oldVersion = event?.oldVersion ?? 0;
+				if (oldVersion > 0 && oldVersion < DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION) {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					backfillDerivativeCacheEntries(
+						transaction.objectStore(VIDEO_DERIVATIVE_STORE_NAME),
+						cacheEntryStore,
+						abortUpgrade,
+					);
+				}
+			} catch (error) {
+				abortUpgrade(error);
 			}
 		};
 		openRequest.onsuccess = () => {
 			const database = openRequest.result;
-			if (settled) {
+			if (settled || upgradeError) {
 				database.close();
+				if (!settled) {
+					settled = true;
+					reject(upgradeError);
+				}
 				return;
 			}
 			settled = true;
@@ -64,7 +138,7 @@ export function openDatabase(
 		openRequest.onerror = () => {
 			if (settled) return;
 			settled = true;
-			reject(openRequest.error || new Error('Could not open editor storage.'));
+			reject(upgradeError || openRequest.error || new Error('Could not open editor storage.'));
 		};
 		openRequest.onblocked = () => {
 			if (settled) return;
@@ -72,6 +146,45 @@ export function openDatabase(
 			reject(new EditorStoreBlockedError());
 		};
 	});
+}
+
+function backfillDerivativeCacheEntries(
+	source: IDBObjectStore,
+	destination: IDBObjectStore,
+	onError: (error: unknown) => void,
+): void {
+	let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
+	try {
+		cursorRequest = source.openCursor();
+	} catch (error) {
+		onError(error);
+		return;
+	}
+	cursorRequest.onerror = () => {
+		onError(cursorRequest.error || new Error('Could not enumerate legacy derivative cache records.'));
+	};
+	cursorRequest.onsuccess = () => {
+		const cursor = cursorRequest.result;
+		if (!cursor) return;
+		let putRequest: IDBRequest<IDBValidKey>;
+		try {
+			const cacheEntry = projectDerivativeCacheInventoryRecord(cursor.value, cursor.primaryKey);
+			putRequest = destination.put(cacheEntry);
+		} catch (error) {
+			onError(error);
+			return;
+		}
+		putRequest.onerror = () => {
+			onError(putRequest.error || new Error('Could not backfill derivative cache metadata.'));
+		};
+		putRequest.onsuccess = () => {
+			try {
+				cursor.continue();
+			} catch (error) {
+				onError(error);
+			}
+		};
+	};
 }
 
 export async function transact<Result>(
@@ -197,8 +310,8 @@ export function transactionCompletion(transaction: IDBTransaction): Promise<void
 
 export function deleteByIndex(index: IDBIndex, key: IDBValidKey): Promise<void> {
 	return new Promise((resolve, reject) => {
-		// IDBKeyCursor cannot mutate records; a value cursor can delete them.
-		const cursorRequest = index.openCursor(key);
+		// A key cursor can delete without materializing each record value.
+		const cursorRequest = index.openKeyCursor(key);
 		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate IndexedDB records.'));
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;

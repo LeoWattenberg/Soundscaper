@@ -63,9 +63,9 @@ test('IndexedDB promise adapters reject every asynchronous error callback', asyn
 	errored.onerror?.();
 	await assert.rejects(transactionPromise, /transaction failed/u);
 
-	const deleteCursor = requestHarness<IDBCursorWithValue | null>(null, null);
+	const deleteCursor = requestHarness<IDBCursor | null>(null, null);
 	const deletePromise = deleteByIndex({
-		openCursor: () => deleteCursor,
+		openKeyCursor: () => deleteCursor,
 	} as unknown as IDBIndex, 'source');
 	deleteCursor.onerror?.();
 	await assert.rejects(deletePromise, /enumerate IndexedDB records/u);

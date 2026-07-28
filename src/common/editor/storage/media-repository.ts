@@ -2,14 +2,17 @@
 
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
+	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+	DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
+	projectDerivativeCacheInventoryRecord,
+	VIDEO_DERIVATIVE_STORE_NAME,
+} from './derivative-cache-entry.ts';
+import {
 	planDerivativeCacheEviction,
 	type DerivativeCacheCleanupReport,
 	type DerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
-import {
-	projectDerivativeCacheInventoryRecord,
-	readDerivativeCacheInventory,
-} from './derivative-cache-inventory.ts';
+import { readDerivativeCacheInventory } from './derivative-cache-inventory.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -124,13 +127,21 @@ export class MediaRepository {
 		} else {
 			({ record, derivatives } = await transact(
 				database,
-				['mediaAssets', 'videoDerivatives'],
+				['mediaAssets', VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
 				'readwrite',
-				async ({ mediaAssets, videoDerivatives }) => {
+				async (stores) => {
+					const mediaAssets = stores.mediaAssets;
+					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
 					const storedRecord = await request(mediaAssets.get(id)) as StorageRecord | undefined;
-					const storedDerivatives = await request(videoDerivatives.index('sourceId').getAll(id)) as StorageRecord[];
+					const storedDerivatives = scalarDerivativeRecords(await request(
+						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(id),
+					));
 					mediaAssets.delete(id);
-					await deleteByIndex(videoDerivatives.index('sourceId'), id);
+					await Promise.all([
+						deleteByIndex(videoDerivatives.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), id),
+						deleteByIndex(cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), id),
+					]);
 					return { record: storedRecord || null, derivatives: storedDerivatives };
 				},
 			));
@@ -146,7 +157,10 @@ export class MediaRepository {
 	}: VideoDerivativeInput = {}): Promise<Record<string, unknown>> {
 		const identity = videoDerivativeIdentity(sourceId, timestamp, type);
 		const blob = normalizeBlob(input);
-		const previous = await this.derivativeRecord(identity.key);
+		const database = await this.#port.database();
+		let previous = !database
+			? clone(asStorageRecord(this.#port.memory.videoDerivatives.get(identity.key)))
+			: null;
 		const storedFile = await this.#opfs.writeBlob(`video-${identity.sourceId}-${identity.type}`, blob);
 		const record: StorageRecord = {
 			...binaryMetadata(metadata),
@@ -160,11 +174,20 @@ export class MediaRepository {
 			committedAt: new Date().toISOString(),
 		};
 		try {
-			const database = await this.#port.database();
 			if (!database) this.#port.memory.videoDerivatives.set(identity.key, clone(record));
-			else await transact(database, 'videoDerivatives', 'readwrite', ({ videoDerivatives }) => {
-				videoDerivatives.put(record);
-			});
+			else previous = await transact(
+				database,
+				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+				'readwrite',
+				async (stores) => {
+					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+					const previousRequest = cacheEntries.get(identity.key);
+					videoDerivatives.put(record);
+					cacheEntries.put(projectDerivativeCacheInventoryRecord(record, identity.key));
+					return asStorageRecord(await request(previousRequest));
+				},
+			);
 		} catch (error) {
 			if (storedFile) await this.#opfs.deletePath(storedFile.path);
 			throw error;
@@ -189,15 +212,27 @@ export class MediaRepository {
 					removed.push(projectDerivativeCacheInventoryRecord(current, key));
 				}
 			} else {
-				await transact(database, 'videoDerivatives', 'readwrite', async ({ videoDerivatives }) => {
-					for (const expected of plan.removals) {
-						const key = expected.key as string;
-						const current = asStorageRecord(await request(videoDerivatives.get(key)));
-						if (!sameDerivativeCacheRecord(current, expected)) continue;
-						videoDerivatives.delete(key);
-						removed.push(projectDerivativeCacheInventoryRecord(current, key));
-					}
-				});
+				await transact(
+					database,
+					[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+					'readwrite',
+					async (stores) => {
+						const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+						const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+						for (const expected of plan.removals) {
+							const key = expected.key as string;
+							const [currentEntry, currentPayload] = await Promise.all([
+								request(cacheEntries.get(key)).then(asStorageRecord),
+								request(videoDerivatives.get(key)).then(asStorageRecord),
+							]);
+							if (!sameDerivativeCacheRecord(currentEntry, expected)
+								|| !sameDerivativeCacheRecord(currentPayload, expected)) continue;
+							videoDerivatives.delete(key);
+							cacheEntries.delete(key);
+							removed.push(projectDerivativeCacheInventoryRecord(currentEntry, key));
+						}
+					},
+				);
 			}
 			await this.#opfs.deleteBinaryRecords(removed);
 		}
@@ -223,7 +258,7 @@ export class MediaRepository {
 	async listDerivatives(sourceId: string, { type }: Pick<VideoDerivativeSelector, 'type'> = {}): Promise<Record<string, unknown>[]> {
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const requestedType = type === undefined ? null : nonEmptyString(type, 'A video derivative type is required.');
-		const records = await this.derivativeRecords(id);
+		const records = await this.derivativeRecords(id, requestedType);
 		return records
 			.filter((record) => requestedType === null || record.type === requestedType)
 			.sort((left, right) => Number(left.timestamp) - Number(right.timestamp)
@@ -239,20 +274,43 @@ export class MediaRepository {
 			? nonNegativeFiniteNumber(selector.timestamp, 'A non-negative derivative timestamp is required.')
 			: null;
 		const type = hasType ? nonEmptyString(selector.type, 'A video derivative type is required.') : null;
-		const records = (await this.derivativeRecords(id)).filter((record) => (
-			(timestamp === null || record.timestamp === timestamp) && (type === null || record.type === type)
-		));
-		if (!records.length) return;
 		const database = await this.#port.database();
+		let records: StorageRecord[];
 		if (!database) {
+			records = [...this.#port.memory.videoDerivatives.values()]
+				.map(asStorageRecord)
+				.filter(isStorageRecord)
+				.filter((record) => record.sourceId === id
+					&& (timestamp === null || record.timestamp === timestamp)
+					&& (type === null || record.type === type))
+				.map(clone);
 			for (const record of records) {
 				if (typeof record.key === 'string') this.#port.memory.videoDerivatives.delete(record.key);
 			}
 		} else {
-			await transact(database, 'videoDerivatives', 'readwrite', ({ videoDerivatives }) => {
-				for (const record of records) videoDerivatives.delete(record.key as string);
-			});
+			records = await transact(
+				database,
+				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+				'readwrite',
+				async (stores) => {
+					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+					const candidates = scalarDerivativeRecords(await request(
+						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(id),
+					));
+					const selected = candidates.filter((record) => record.sourceId === id
+						&& (timestamp === null || record.timestamp === timestamp)
+						&& (type === null || record.type === type));
+					for (const record of selected) {
+						const key = record.key as string;
+						videoDerivatives.delete(key);
+						cacheEntries.delete(key);
+					}
+					return selected;
+				},
+			);
 		}
+		if (!records.length) return;
 		await this.#opfs.deleteBinaryRecords(records);
 	}
 
@@ -276,17 +334,45 @@ export class MediaRepository {
 		const database = await this.#port.database();
 		const value = !database
 			? this.#port.memory.videoDerivatives.get(key)
-			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => request(videoDerivatives.get(key)));
+			: await transact(database, VIDEO_DERIVATIVE_STORE_NAME, 'readonly', (stores) => (
+				request(stores[VIDEO_DERIVATIVE_STORE_NAME].get(key))
+			));
 		return clone(asStorageRecord(value));
 	}
 
-	async derivativeRecords(sourceId: string): Promise<StorageRecord[]> {
+	async derivativeRecords(sourceId: string, requestedType: string | null = null): Promise<StorageRecord[]> {
 		const database = await this.#port.database();
-		const records = !database
-			? [...this.#port.memory.videoDerivatives.values()].map(asStorageRecord).filter((record) => record?.sourceId === sourceId)
-			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => (
-				request(videoDerivatives.index('sourceId').getAll(sourceId))
+		let records: unknown[];
+		if (!database) {
+			records = [...this.#port.memory.videoDerivatives.values()]
+				.map(asStorageRecord)
+				.filter((record) => record?.sourceId === sourceId
+					&& (requestedType === null || record.type === requestedType));
+		} else if (requestedType === null) {
+			records = await transact(database, VIDEO_DERIVATIVE_STORE_NAME, 'readonly', (stores) => (
+				request(stores[VIDEO_DERIVATIVE_STORE_NAME].index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(sourceId))
 			));
+		} else {
+			records = await transact(
+				database,
+				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+				'readonly',
+				async (stores) => {
+					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+					const selected = scalarDerivativeRecords(await request(
+						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(sourceId),
+					)).filter((record) => record.sourceId === sourceId && record.type === requestedType);
+					const payloads = await Promise.all(selected.map((record) => request(
+						videoDerivatives.get(record.key as string),
+					)));
+					return payloads.filter((payload, index) => sameDerivativeCacheRecord(
+						asStorageRecord(payload),
+						selected[index],
+					));
+				},
+			);
+		}
 		return records.map(asStorageRecord).filter(isStorageRecord).map(clone);
 	}
 
@@ -305,6 +391,13 @@ function asStorageRecord(value: unknown): StorageRecord | null {
 
 function isStorageRecord(value: StorageRecord | null): value is StorageRecord {
 	return value !== null;
+}
+
+function scalarDerivativeRecords(values: readonly unknown[]): StorageRecord[] {
+	return values.map(asStorageRecord).filter(isStorageRecord).map((record) => {
+		if (typeof record.key !== 'string') throw new TypeError('A derivative cache record key is required.');
+		return projectDerivativeCacheInventoryRecord(record, record.key);
+	});
 }
 
 function sameDerivativeCacheRecord(

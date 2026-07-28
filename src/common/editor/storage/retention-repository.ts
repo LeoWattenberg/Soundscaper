@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { collectProjectSourceIds, compactProjectSourceMetadata } from '../retention.js';
+import {
+	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+	VIDEO_DERIVATIVE_STORE_NAME,
+} from './derivative-cache-entry.ts';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
 	candidateEligibleAt,
@@ -82,11 +86,6 @@ export class RetentionRepository {
 			);
 			for (const value of Object.values(this.#options.port.memory)) value.clear();
 		} else {
-			opfsRecords.push(
-				...await readAllRecords(database, 'sources'),
-				...await readAllRecords(database, 'mediaAssets'),
-				...await readAllRecords(database, 'videoDerivatives'),
-			);
 			await transact(database, [
 				'projects',
 				'revisions',
@@ -95,8 +94,17 @@ export class RetentionRepository {
 				'sources',
 				'sourceChunks',
 				'mediaAssets',
-				'videoDerivatives',
-			], 'readwrite', (stores) => {
+				VIDEO_DERIVATIVE_STORE_NAME,
+				DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+			], 'readwrite', async (stores) => {
+				const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
+				const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;
+				const storedDerivativeEntriesRequest = request(
+					stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME].getAll(),
+				) as Promise<StorageRecord[]>;
+				opfsRecords.push(...await storedSourcesRequest);
+				opfsRecords.push(...await storedMediaAssetsRequest);
+				opfsRecords.push(...await storedDerivativeEntriesRequest);
 				for (const store of Object.values(stores)) store.clear();
 			});
 		}
@@ -217,23 +225,31 @@ export class RetentionRepository {
 		},
 	): Promise<{ removedSources: StorageRecord[]; removedBinaryRecords: StorageRecord[]; removedSourceIds: string[] }> {
 		return transact(database, [
-			'projects', 'revisions', 'analysis', 'sources', 'sourceChunks', 'mediaAssets', 'videoDerivatives',
-		], 'readwrite', async ({ projects, revisions, analysis, sources, sourceChunks, mediaAssets, videoDerivatives }) => {
+			'projects', 'revisions', 'analysis', 'sources', 'sourceChunks', 'mediaAssets',
+			VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+		], 'readwrite', async (stores) => {
+			const {
+				projects, revisions, analysis, sources, sourceChunks, mediaAssets,
+			} = stores;
+			const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+			const derivativeCacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+			const projectUpdates: unknown[] = [];
+			const revisionUpdates: Record<string, unknown>[] = [];
 			for (const saved of await request(projects.getAll())) {
 				const compacted = compactProjectSourceMetadata(saved);
-				if (compacted !== saved) projects.put(compacted);
+				if (compacted !== saved) projectUpdates.push(compacted);
 				collectProjectSourceIds(compacted, state.protectedIds);
 			}
 			for (const value of await request(revisions.getAll())) {
 				const record = asRecord(value);
 				if (!record) continue;
 				const compacted = compactProjectSourceMetadata(record.project);
-				if (compacted !== record.project) revisions.put({ ...record, project: compacted });
+				if (compacted !== record.project) revisionUpdates.push({ ...record, project: compacted });
 				collectProjectSourceIds(compacted, state.protectedIds);
 			}
 			const storedSources = (await request(sources.getAll())) as StorageRecord[];
 			const storedMediaAssets = (await request(mediaAssets.getAll())) as StorageRecord[];
-			const storedVideoDerivatives = (await request(videoDerivatives.getAll())) as StorageRecord[];
+			const storedVideoDerivatives = (await request(derivativeCacheEntries.getAll())) as StorageRecord[];
 			protectSourceDependencies(state.protectedIds, storedSources);
 			const candidates = sourceStorageCandidates(storedSources, storedMediaAssets, storedVideoDerivatives);
 			const removedSources: StorageRecord[] = [];
@@ -262,17 +278,17 @@ export class RetentionRepository {
 				}
 				for (const derivative of candidate.derivatives) {
 					removedBinaryRecords.push(derivative);
-					videoDerivatives.delete(derivative.key as string);
+					const key = derivative.key as string;
+					videoDerivatives.delete(key);
+					derivativeCacheEntries.delete(key);
 				}
 				for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) analysis.delete(`${prefix}${sourceId}`);
 			}
+			for (const project of projectUpdates) projects.put(project);
+			for (const revision of revisionUpdates) revisions.put(revision);
 			return { removedSources, removedBinaryRecords, removedSourceIds };
 		});
 	}
-}
-
-async function readAllRecords(database: IDBDatabase, storeName: string): Promise<StorageRecord[]> {
-	return transact(database, storeName, 'readonly', (stores) => request(stores[storeName].getAll())) as Promise<StorageRecord[]>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

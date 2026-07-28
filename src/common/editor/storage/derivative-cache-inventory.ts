@@ -5,56 +5,26 @@ import {
 	readCursorPage,
 	transact,
 } from './indexeddb-backend.ts';
-import type { StorageRecord } from './media-records.ts';
-
-const LEGACY_DERIVATIVE_CACHE_STORE = 'videoDerivatives';
+import {
+	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+	projectDerivativeCacheInventoryRecord,
+	type DerivativeCacheInventoryRecord,
+} from './derivative-cache-entry.ts';
 
 export const DERIVATIVE_CACHE_INVENTORY_PAGE_SIZE = MAX_INDEXEDDB_CURSOR_PAGE_SIZE;
 
-export interface DerivativeCacheInventoryRecord extends StorageRecord {
-	readonly key: string;
-}
+export {
+	projectDerivativeCacheInventoryRecord,
+	type DerivativeCacheInventoryRecord,
+} from './derivative-cache-entry.ts';
 
 /**
- * Retain only the fields required to account, compare, and dispose of a
- * derivative. The cursor primary key is authoritative so a malformed payload
- * cannot redirect a later compare-and-delete operation.
- */
-export function projectDerivativeCacheInventoryRecord(
-	value: unknown,
-	primaryKey: IDBValidKey,
-): DerivativeCacheInventoryRecord {
-	if (typeof primaryKey !== 'string' || primaryKey.length === 0) {
-		throw new TypeError('A derivative cache cursor primary key is required.');
-	}
-	if (!value || typeof value !== 'object') {
-		throw new TypeError(`Derivative cache record ${primaryKey} is invalid.`);
-	}
-	const record = value as StorageRecord;
-	if (record.key !== primaryKey) {
-		throw new Error(`Derivative cache record ${primaryKey} does not match its cursor primary key.`);
-	}
-	return Object.freeze({
-		key: primaryKey,
-		sourceId: optionalString(record.sourceId),
-		timestamp: optionalFiniteNumber(record.timestamp),
-		type: optionalString(record.type),
-		storage: optionalString(record.storage),
-		path: optionalNullableString(record.path),
-		size: optionalFiniteNumber(record.size),
-		committedAt: optionalString(record.committedAt),
-		cacheToken: optionalString(record.cacheToken),
-	});
-}
-
-/**
- * Page an inventory-bearing store in fresh transactions. The configurable
- * store allows this bounded scan to backfill a future metadata-only inventory
- * from legacy derivative payload records.
+ * Page the metadata-only derivative inventory in fresh transactions. The
+ * configurable store remains available to inspect explicitly named schemas.
  */
 export async function* readDerivativeCacheInventoryPages(
 	database: IDBDatabase,
-	storeName = LEGACY_DERIVATIVE_CACHE_STORE,
+	storeName = DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 ): AsyncGenerator<readonly DerivativeCacheInventoryRecord[]> {
 	const boundary = await readInventoryBoundary(database, storeName);
 	if (!boundary) return;
@@ -81,7 +51,7 @@ export async function* readDerivativeCacheInventoryPages(
 
 export async function readDerivativeCacheInventory(
 	database: IDBDatabase,
-	storeName = LEGACY_DERIVATIVE_CACHE_STORE,
+	storeName = DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 ): Promise<DerivativeCacheInventoryRecord[]> {
 	const inventory: DerivativeCacheInventoryRecord[] = [];
 	for await (const page of readDerivativeCacheInventoryPages(database, storeName)) {
@@ -123,16 +93,4 @@ function requestLastKey(store: IDBObjectStore): Promise<IDBCursor | null> {
 		cursorRequest.onsuccess = () => resolve(cursorRequest.result);
 		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not bound derivative cache records.'));
 	});
-}
-
-function optionalString(value: unknown): string | undefined {
-	return typeof value === 'string' ? value : undefined;
-}
-
-function optionalNullableString(value: unknown): string | null | undefined {
-	return value === null ? null : optionalString(value);
-}
-
-function optionalFiniteNumber(value: unknown): number | undefined {
-	return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

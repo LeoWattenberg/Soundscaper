@@ -5,6 +5,10 @@ import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
+	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+	VIDEO_DERIVATIVE_STORE_NAME,
+} from '../src/common/editor/storage/derivative-cache-entry.ts';
+import {
 	projectDerivativeCacheInventoryRecord,
 	readDerivativeCacheInventory,
 } from '../src/common/editor/storage/derivative-cache-inventory.ts';
@@ -96,10 +100,10 @@ test('IndexedDB cursor projection has a non-raiseable page cap and closes after 
 	const databaseName = uniqueDatabaseName('derivative-page-cap');
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 	for (let index = 0; index < MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 7; index += 1) {
-		indexedDB.seedRecord(databaseName, 'videoDerivatives', cacheRecord(index));
+		indexedDB.seedRecord(databaseName, VIDEO_DERIVATIVE_STORE_NAME, cacheRecord(index));
 	}
 
-	const page = await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => (
+	const page = await transact(database, VIDEO_DERIVATIVE_STORE_NAME, 'readonly', ({ videoDerivatives }) => (
 		readCursorPage<Readonly<{ key: string; size: number }>>(videoDerivatives, {
 			limit: Number.MAX_SAFE_INTEGER,
 			project(value, primaryKey) {
@@ -114,7 +118,7 @@ test('IndexedDB cursor projection has a non-raiseable page cap and closes after 
 	assert.equal(indexedDB.stats.cursorRequests.at(-1)?.delivered, MAX_INDEXEDDB_CURSOR_PAGE_SIZE);
 	const failure = new Error('projection failed');
 	await assert.rejects(
-		transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => (
+		transact(database, VIDEO_DERIVATIVE_STORE_NAME, 'readonly', ({ videoDerivatives }) => (
 			readCursorPage(videoDerivatives, { project() { throw failure; } })
 		)),
 		(error: unknown) => error === failure,
@@ -129,16 +133,16 @@ test('derivative inventory stops at its initial boundary while producers append 
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 	const initialRecords = MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 1;
 	for (let index = 0; index < initialRecords; index += 1) {
-		indexedDB.seedRecord(databaseName, 'videoDerivatives', cacheRecord(index));
+		indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, cacheRecord(index));
 	}
 	const cursorRequests = indexedDB.stats.cursorRequests;
 	const recordRequest = cursorRequests.push.bind(cursorRequests);
 	let insertedRecords = 0;
 	cursorRequests.push = (...requests: CursorStats[]) => {
 		const length = recordRequest(...requests);
-		if (requests.some(({ store }) => store === 'videoDerivatives') && insertedRecords < 12) {
+		if (requests.some(({ store }) => store === DERIVATIVE_CACHE_ENTRY_STORE_NAME) && insertedRecords < 12) {
 			insertedRecords += 1;
-			indexedDB.seedRecord(databaseName, 'videoDerivatives', {
+			indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, {
 				...cacheRecord(10_000 + insertedRecords),
 				key: `zz-appended-${String(insertedRecords).padStart(4, '0')}`,
 			});
@@ -167,21 +171,23 @@ test('IndexedDB derivative cleanup inventories large Blob caches in bounded fres
 	await store.ready();
 	const recordCount = MAX_INDEXEDDB_CURSOR_PAGE_SIZE * 2 + 3;
 	for (let index = 0; index < recordCount; index += 1) {
-		indexedDB.seedRecord(databaseName, 'videoDerivatives', cacheRecord(index));
+		seedCachePair(indexedDB, databaseName, cacheRecord(index));
 	}
 
 	const report = await store.trimVideoDerivativeCache({ maximumBytes: 0, maximumEntries: 0 });
-	const cursors = indexedDB.stats.cursorRequests.filter(({ store: name }) => name === 'videoDerivatives');
+	const cursors = indexedDB.stats.cursorRequests
+		.filter(({ store: name }) => name === DERIVATIVE_CACHE_ENTRY_STORE_NAME);
 
 	assert.deepEqual(report.before, { bytes: recordCount * 4, entries: recordCount });
 	assert.deepEqual(report.after, { bytes: 0, entries: 0 });
 	assert.equal(report.removedEntries, recordCount);
-	assert.equal(indexedDB.recordCount(databaseName, 'videoDerivatives'), 0);
-	assert.equal(indexedDB.stats.getAllRequests.some(({ store: name }) => name === 'videoDerivatives'), false);
+	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 0);
+	assert.equal(indexedDB.recordCount(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), 0);
+	assert.equal(indexedDB.stats.getAllRequests.some(({ store: name }) => name === VIDEO_DERIVATIVE_STORE_NAME), false);
 	assert.ok(cursors.length >= 3, 'inventory should use multiple fresh cursor transactions');
 	assert.ok(cursors.every(({ delivered }) => delivered <= MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 2));
-	assert.ok(cursors.every(({ blobValuesDelivered }) => blobValuesDelivered <= MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 2));
-	assert.ok(cursors.every(({ blobBytesDelivered }) => blobBytesDelivered <= (MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 2) * 4));
+	assert.ok(cursors.every(({ blobValuesDelivered }) => blobValuesDelivered === 0));
+	assert.ok(cursors.every(({ blobBytesDelivered }) => blobBytesDelivered === 0));
 	assert.equal(indexedDB.stats.maximumActiveTransactions, 1);
 	assert.equal(indexedDB.stats.activeTransactions, 0);
 });
@@ -196,13 +202,14 @@ test('corrupt paged derivative accounting fails before cache deletion', async ()
 		databaseName,
 	});
 	await store.ready();
-	indexedDB.seedRecord(databaseName, 'videoDerivatives', { ...cacheRecord(0), size: -1 });
+	seedCachePair(indexedDB, databaseName, { ...cacheRecord(0), size: -1 });
 
 	await assert.rejects(
 		store.trimVideoDerivativeCache({ maximumBytes: 0, maximumEntries: 0 }),
 		/size must be a non-negative safe integer/u,
 	);
-	assert.equal(indexedDB.recordCount(databaseName, 'videoDerivatives'), 1);
+	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
+	assert.equal(indexedDB.recordCount(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), 1);
 	assert.equal(indexedDB.stats.getRequests.length, 0);
 	assert.equal(indexedDB.stats.activeTransactions, 0);
 });
@@ -224,6 +231,17 @@ function cacheRecord(index: number): Readonly<Record<string, unknown>> {
 		committedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
 		cacheToken: `token-${index}`,
 	});
+}
+
+function seedCachePair(
+	indexedDB: InstrumentedIndexedDB,
+	databaseName: string,
+	record: Readonly<Record<string, unknown>>,
+): void {
+	indexedDB.seedRecord(databaseName, VIDEO_DERIVATIVE_STORE_NAME, record);
+	indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, (
+		projectDerivativeCacheInventoryRecord(record, String(record.key))
+	));
 }
 
 function uniqueDatabaseName(prefix: string): string {
