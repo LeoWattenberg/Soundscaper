@@ -273,9 +273,16 @@ models or native implementations.
   metadata and declared expansion, rejects encrypted/extra/aliased entries, and
   verifies descriptor ownership before storage writes. The
   [malicious-archive regression](tests/audio-editor-scape-archive-envelope.test.ts)
-  covers both entry points. Local-header/overlap checks, actual-byte accounting,
-  end-to-end abort and rollback, streaming media extraction, and the bounded Web
-  Core final-assembly fallback remain open in the
+  covers both entry points. The tested native open/save path now carries one
+  controller task signal through incremental archive work, PCM source
+  reads/writes, streamed archive output, and the file-publication boundary. The
+  [cancellation regression](tests/audio-editor-scape-cancellation.test.ts)
+  proves reader and iterator closure, unpublished-output abort, provisional
+  source cleanup, and restoration of the prior project with its retained
+  revisions. Local-header/overlap qualification, compression-ratio or STORE
+  policy, cumulative actual-byte accounting, bounded streaming media
+  extraction, safe PCM frame arithmetic and pending buffers, and the bounded
+  Web Core final-assembly fallback remain open in the
   [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a

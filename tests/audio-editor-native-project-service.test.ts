@@ -33,6 +33,16 @@ function deferred<Value>(): Deferred<Value> {
 	return { promise, resolve, reject };
 }
 
+function rejectWhenAborted(signal: AbortSignal): Promise<never> {
+	return new Promise((_, reject) => {
+		if (signal.aborted) {
+			reject(signal.reason);
+			return;
+		}
+		signal.addEventListener('abort', () => { reject(signal.reason); }, { once: true });
+	});
+}
+
 function project(id = 'project-a'): NativeProjectDocument {
 	return {
 		id,
@@ -183,6 +193,71 @@ test('late Scape import completion cannot activate over a newer project', async 
 	assert.deepEqual(fixture.switched, []);
 	assert.equal(fixture.state.importing, false);
 	assert.equal(fixture.statuses.some(({ message }) => message === 'Project saved.'), false);
+});
+
+test('Scape open and save pass their task AbortSignal through archive work', async () => {
+	const importStarted = deferred<void>();
+	let importSignal: AbortSignal | undefined;
+	const openingFixture = createFixture({
+		importScapeProject: async (_file, _store, options) => {
+			importSignal = options.signal;
+			importStarted.resolve();
+			return rejectWhenAborted(options.signal);
+		},
+	});
+	const openingService = createNativeProjectService(openingFixture.runtime);
+	const opening = openingService.openScape(nativeFile('cancel.scape', 10));
+	await importStarted.promise;
+	assert.ok(importSignal instanceof AbortSignal);
+	openingFixture.lifetime.cancelTask('native-project-open');
+	await assert.rejects(opening, (error: unknown) => error instanceof Error && error.name === 'AbortError');
+	assert.equal(openingFixture.state.importing, false);
+
+	const exportStarted = deferred<void>();
+	let exportSignal: AbortSignal | undefined;
+	const savingFixture = createFixture({
+		exportScapeProject: async (_project, _store, options) => {
+			exportSignal = options.signal;
+			exportStarted.resolve();
+			return rejectWhenAborted(options.signal);
+		},
+	});
+	const savingService = createNativeProjectService(savingFixture.runtime);
+	const saving = savingService.saveScape({ useFileSystemAccess: false });
+	await exportStarted.promise;
+	assert.ok(exportSignal instanceof AbortSignal);
+	savingFixture.lifetime.cancelTask('native-project-save');
+	await assert.rejects(saving, (error: unknown) => error instanceof Error && error.name === 'AbortError');
+	assert.equal(savingFixture.state.saveState, 'dirty');
+});
+
+test('Scape save passes the same task AbortSignal into file publication', async () => {
+	const savingStarted = deferred<void>();
+	let archiveSignal: AbortSignal | undefined;
+	let fileSignal: AbortSignal | undefined;
+	const fixture = createFixture({
+		exportScapeProject: async (_project, _store, options) => {
+			archiveSignal = options.signal;
+			return { blob: new Blob(['scape']), manifest: {} };
+		},
+		fileService: {
+			isDesktop: false,
+			chooseSaveTarget: async () => ({ browserDownload: true }),
+			saveFile: async (request) => {
+				fileSignal = request.signal;
+				savingStarted.resolve();
+				return rejectWhenAborted(request.signal);
+			},
+		},
+	});
+	const service = createNativeProjectService(fixture.runtime);
+	const saving = service.saveScape({ useFileSystemAccess: false });
+	await savingStarted.promise;
+	assert.ok(archiveSignal instanceof AbortSignal);
+	assert.equal(fileSignal, archiveSignal);
+	fixture.lifetime.cancelTask('native-project-save');
+	await assert.rejects(saving, (error: unknown) => error instanceof Error && error.name === 'AbortError');
+	assert.equal(fixture.state.saveState, 'dirty');
 });
 
 test('a project switch during AUP4 snapshot writing suppresses commit and save publication', async () => {

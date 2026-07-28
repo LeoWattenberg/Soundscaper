@@ -91,21 +91,25 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function writeFile(target, input, request = {}) {
+		throwIfAborted(request.signal);
 		const blob = toBlob(input, request.mimeType);
 		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName || target?.name);
 		if (!target) return { cancelled: true, fileName, size: blob.size };
-		if (bridge) return writeDesktopFile(target, blob, fileName);
-		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName);
-		return triggerBrowserDownload(blob, fileName);
+		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal);
+		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName, request.signal);
+		return triggerBrowserDownload(blob, fileName, request.signal);
 	}
 
 	async function saveFile(request = {}) {
+		throwIfAborted(request.signal);
 		const blob = toBlob(request.blob ?? request.bytes ?? request.text ?? '', request.mimeType);
 		let target = request.target;
 		if (target === undefined) {
 			try {
 				target = await chooseSaveTarget(request);
+				throwIfAborted(request.signal);
 			} catch (error) {
+				throwIfAborted(request.signal);
 				if (error?.name === 'AbortError') return { cancelled: true, fileName: request.suggestedName, size: blob.size };
 				throw error;
 			}
@@ -134,7 +138,8 @@ export function createAudioEditorFileService(options = {}) {
 		};
 	}
 
-	async function writeDesktopFile(target, blob, fileName) {
+	async function writeDesktopFile(target, blob, fileName, signal) {
+		throwIfAborted(signal);
 		if (!target?.id || !bridge.beginWrite || !bridge.writeChunk || !bridge.finishWrite) {
 			throw new Error('Desktop file writing is unavailable.');
 		}
@@ -143,13 +148,18 @@ export function createAudioEditorFileService(options = {}) {
 		const chunkSize = Math.max(1, Math.min(DEFAULT_WRITE_CHUNK_BYTES, Number(session.chunkSize) || DEFAULT_WRITE_CHUNK_BYTES));
 		let offset = 0;
 		try {
+			throwIfAborted(signal);
 			while (offset < blob.size) {
+				throwIfAborted(signal);
 				const bytes = new Uint8Array(await blob.slice(offset, offset + chunkSize).arrayBuffer());
+				throwIfAborted(signal);
 				const result = await bridge.writeChunk({ writeId: session.writeId, offset, bytes });
+				throwIfAborted(signal);
 				const expectedOffset = offset + bytes.byteLength;
 				if (Number(result?.nextOffset) !== expectedOffset) throw new Error('The desktop save stream lost synchronization.');
 				offset = expectedOffset;
 			}
+			throwIfAborted(signal);
 			const result = await bridge.finishWrite(session.writeId);
 			if (Number(result?.byteLength) !== blob.size) throw new Error('The desktop save completed with an unexpected size.');
 			return { method: 'desktop', fileName: target.name || fileName, size: blob.size };
@@ -159,10 +169,13 @@ export function createAudioEditorFileService(options = {}) {
 		}
 	}
 
-	async function writeFileSystemHandle(handle, blob, fileName) {
+	async function writeFileSystemHandle(handle, blob, fileName, signal) {
+		throwIfAborted(signal);
 		const writable = await handle.createWritable();
 		try {
+			throwIfAborted(signal);
 			await writable.write(blob);
+			throwIfAborted(signal);
 			await writable.close();
 		} catch (error) {
 			await writable.abort?.().catch(() => undefined);
@@ -171,7 +184,8 @@ export function createAudioEditorFileService(options = {}) {
 		return { method: 'file-system-access', fileName, size: blob.size };
 	}
 
-	function triggerBrowserDownload(blob, fileName) {
+	function triggerBrowserDownload(blob, fileName, signal) {
+		throwIfAborted(signal);
 		if (!document?.createElement || !urlApi?.createObjectURL) return { method: 'blob', blob, fileName, size: blob.size };
 		const url = urlApi.createObjectURL(blob);
 		try {
@@ -180,6 +194,7 @@ export function createAudioEditorFileService(options = {}) {
 			anchor.download = fileName;
 			anchor.hidden = true;
 			document.body?.append(anchor);
+			throwIfAborted(signal);
 			anchor.click();
 			anchor.remove?.();
 		} finally {
@@ -231,4 +246,11 @@ function normalizePurpose(value, allowed) {
 	const purpose = String(value || '').trim().toLowerCase();
 	if (!allowed.includes(purpose)) throw new RangeError(`Unsupported file purpose: ${purpose || 'empty'}.`);
 	return purpose;
+}
+
+function throwIfAborted(signal) {
+	if (!signal?.aborted) return;
+	if (typeof signal.throwIfAborted === 'function') signal.throwIfAborted();
+	if (signal.reason instanceof Error) throw signal.reason;
+	throw new DOMException('The file operation was cancelled.', 'AbortError');
 }

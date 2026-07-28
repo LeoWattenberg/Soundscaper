@@ -68,6 +68,36 @@ test('desktop file service aborts a desynchronized write without publishing it',
 	assert.deepEqual(aborted, ['write-2']);
 });
 
+test('desktop file service aborts an in-flight save when its signal is cancelled', async () => {
+	const controller = new AbortController();
+	const writes = [];
+	const aborted = [];
+	let finishCalls = 0;
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseSaveTarget() { return { id: 'target-abort', name: 'cancel.scape' }; },
+			async beginWrite() { return { writeId: 'write-abort', chunkSize: 10 }; },
+			async writeChunk(request) {
+				writes.push(request.offset);
+				controller.abort(new DOMException('cancel save', 'AbortError'));
+				return { nextOffset: request.offset + request.bytes.byteLength };
+			},
+			async finishWrite() { finishCalls += 1; return { byteLength: 4 }; },
+			async abortWrite(writeId) { aborted.push(writeId); },
+		},
+	});
+
+	await assert.rejects(() => service.saveFile({
+		purpose: 'project',
+		suggestedName: 'cancel.scape',
+		blob: new Blob(['data']),
+		signal: controller.signal,
+	}), (error) => error instanceof Error && error.name === 'AbortError');
+	assert.deepEqual(writes, [0]);
+	assert.deepEqual(aborted, ['write-abort']);
+	assert.equal(finishCalls, 0);
+});
+
 test('desktop read descriptors become named files and are always released', async () => {
 	const released = [];
 	const service = createAudioEditorFileService({

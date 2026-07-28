@@ -59,8 +59,8 @@ export class SourceRepository {
 		return this.#options.records.list();
 	}
 
-	chunks(sourceId: string) {
-		return this.#options.reader.chunks(sourceId);
+	chunks(sourceId: string, options: { readonly signal?: AbortSignal } = {}) {
+		return this.#options.reader.chunks(sourceId, options);
 	}
 
 	chunk(sourceId: string, chunkIndex: number, options: { readonly signal?: AbortSignal } = {}) {

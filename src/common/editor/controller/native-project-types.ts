@@ -104,6 +104,7 @@ export interface NativeFileSaveRequest {
 	readonly mimeType: string;
 	readonly target?: unknown;
 	readonly useFileSystemAccess?: boolean;
+	readonly signal: AbortSignal;
 }
 
 export interface NativeSavedFile extends Readonly<Record<string, unknown>> {
@@ -274,11 +275,12 @@ export interface NativeProjectServiceRuntime {
 	readonly importScapeProject: (
 		file: NativeProjectFile,
 		store: NativeProjectStore,
-		options: Readonly<{ collision: string }>,
+		options: Readonly<{ collision: string; signal: AbortSignal }>,
 	) => Promise<ScapeImportResult>;
 	readonly exportScapeProject: (
 		project: NativeProjectDocument,
 		store: NativeProjectStore,
+		options: Readonly<{ signal: AbortSignal }>,
 	) => Promise<ScapeExportResult>;
 	readonly normalizeCompatibilityReport: (
 		report: unknown,

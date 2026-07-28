@@ -220,8 +220,8 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.deleteDerivative(sourceId, selector);
 	}
 
-	async *readSourceChunks(sourceId) {
-		yield* this.sourceRepository.chunks(sourceId);
+	async *readSourceChunks(sourceId, { signal } = {}) {
+		yield* this.sourceRepository.chunks(sourceId, { signal });
 	}
 
 	async readSourceChunk(sourceId, chunkIndex, { signal } = {}) {

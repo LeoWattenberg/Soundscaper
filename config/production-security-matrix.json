@@ -65,13 +65,18 @@
 			"to": "IndexedDB or OPFS project and source repositories",
 			"data": "Expanded project JSON, PCM chunks, original video assets, and project records",
 			"entryPoints": [
+				"src/common/editor/scape-archive-reader.ts",
 				"src/common/editor/scape-project.js",
+				"src/common/editor/scape-import-transaction.ts",
 				"src/common/editor/storage.js"
 			],
 			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 				{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
 				{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" }
@@ -148,12 +153,19 @@
 			"data": "Task generations, AbortSignals, project bytes, storage writes, and late results",
 			"entryPoints": [
 				"src/common/editor/controller/lifecycle.ts",
-				"src/common/editor/controller/native-project-service.ts"
+				"src/common/editor/controller/native-project-service.ts",
+				"src/common/editor/scape-project.js",
+				"src/common/editor/file-service.js"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/controller/lifecycle.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+				{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 				{ "kind": "test", "path": "tests/audio-editor-controller-lifecycle.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 				{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
 			]
 		},
@@ -387,6 +399,27 @@
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
 					]
+				},
+				{
+					"id": "abort-signal-propagation-and-rollback",
+					"summary": "The tested .scape open/save path propagates one task AbortSignal through ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes readers, returns source iterators, aborts unpublished destinations and audio writers, deletes provisional media, and restores the prior project plus its retained revisions.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-destination.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/source-read-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/source-write-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-source-read-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-source-write-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
@@ -398,11 +431,11 @@
 					"acceptanceCriteria": ["Overlap, local-header mismatch, compression-amplification, and actual-byte-overrun fixtures stop before an asset writer can exceed the configured budget."]
 				},
 				{
-					"id": "streaming-abort-and-safe-pcm",
-					"exposure": "Archive operations do not accept AbortSignal, video is materialized as a Blob, and PCM frame-count arithmetic can retain an unbounded pending buffer.",
-					"requiredControl": "Thread AbortSignal through ZIP extraction and storage, stream bounded media, and reject unsafe PCM frame arithmetic before allocation.",
+					"id": "bounded-streaming-and-safe-pcm",
+					"exposure": "Video extraction is still materialized as a complete Blob, and PCM frame-count arithmetic can retain an unbounded pending buffer.",
+					"requiredControl": "Stream media through bounded staged storage and reject unsafe PCM frame arithmetic before allocation.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Abort and malicious PCM-header tests prove bounded allocation, writer abort, reader close, and unchanged project/source inventory."]
+					"acceptanceCriteria": ["Large-video and malicious PCM-header tests prove bounded allocation and unchanged project/source inventory on rejection."]
 				}
 			],
 			"releaseGate": {
@@ -412,7 +445,6 @@
 					"local-header-and-overlap-validation",
 					"compression-ratio-or-store-policy",
 					"cumulative-actual-expanded-byte-limit",
-					"abort-signal-propagation-and-rollback",
 					"safe-pcm-frame-arithmetic",
 					"bounded-streaming-media-extraction"
 				]
@@ -688,12 +720,27 @@
 						{ "kind": "test", "path": "tests/audio-editor-controller-lifecycle.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
 					]
+				},
+				{
+					"id": "scape-project-io-abort-and-rollback",
+					"summary": "Native .scape open/save tasks pass their AbortSignal through archive, tested storage, and file publication boundaries; cancellation rolls staged assets and project revisions back before the task settles.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/source-write-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
+						{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-source-read-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-source-write-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The native project service does not pass task AbortSignal through .scape import/export/inspection, AUP4, storage, or desktop file operations.",
+					"exposure": "The tested native .scape open/save path now propagates and rolls back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]

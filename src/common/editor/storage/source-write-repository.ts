@@ -28,8 +28,11 @@ interface StoredChunk {
 
 export interface AudioSourceWriter {
 	readonly framesWritten: number;
-	write(inputChannels: unknown): Promise<void>;
-	commit(extraMetadata?: Record<string, unknown>): Promise<StorageRecord>;
+	write(inputChannels: unknown, options?: { readonly signal?: AbortSignal }): Promise<void>;
+	commit(
+		extraMetadata?: Record<string, unknown>,
+		options?: { readonly signal?: AbortSignal },
+	): Promise<StorageRecord>;
 	abort(): Promise<void>;
 }
 
@@ -78,13 +81,18 @@ export class SourceWriteRepository {
 		let storedBytes = 0;
 		let wavpackChunkCount = 0;
 		let rawChunkCount = 0;
-		let closed = false;
+		let state: 'open' | 'committing' | 'committed' | 'aborted' = 'open';
 		const options = this.#options;
+		const discardPending = async (): Promise<void> => {
+			if (opfsWriter) await opfsWriter.abort();
+			else await options.records.deleteChunks(token);
+		};
 
 		return {
 			get framesWritten() { return totalFrames; },
-			async write(inputChannels) {
-				if (closed) throw new Error('The source writer is closed.');
+			async write(inputChannels, { signal } = {}) {
+				throwIfAborted(signal);
+				if (state !== 'open') throw new Error('The source writer is closed.');
 				const channels = normalizeChannels(inputChannels);
 				if (!channels.length) return;
 				const frameLength = channels[0].length;
@@ -103,8 +111,10 @@ export class SourceWriteRepository {
 						channelCount,
 						sampleRate: writeSampleRate,
 						priority: 'foreground',
+						signal,
 						allowRawOnFailure: true,
 					});
+					throwIfAborted(signal);
 				} else {
 					const snapshots = channels.map((channel) => channel.slice());
 					const rawBytes = snapshots.reduce((sum, channel) => sum + channel.byteLength, 0);
@@ -137,8 +147,10 @@ export class SourceWriteRepository {
 						sampleRate: writeSampleRate,
 						chunkFrames: opfsChunkFrames,
 					});
+					throwIfAborted(signal);
 				} else {
 					await options.records.writeChunk(record);
+					throwIfAborted(signal);
 				}
 				chunkIndex += 1;
 				totalFrames += frameLength;
@@ -147,8 +159,9 @@ export class SourceWriteRepository {
 				if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
 				else rawChunkCount += 1;
 			},
-			async commit(extraMetadata = {}) {
-				if (closed) throw new Error('The source writer is closed.');
+			async commit(extraMetadata = {}, { signal } = {}) {
+				throwIfAborted(signal);
+				if (state !== 'open') throw new Error('The source writer is closed.');
 				if (!chunkIndex || !channelCount || !totalFrames) {
 					throw new Error('A persisted audio source must contain at least one PCM frame.');
 				}
@@ -167,14 +180,23 @@ export class SourceWriteRepository {
 				if (opfsWriter && opfsChunkFrames !== null && committedChunkFrames !== opfsChunkFrames) {
 					throw new Error('Source chunk size changed between beginSourceWrite() and commit().');
 				}
-				closed = true;
-				await options.migrations.cancel(sourceId);
-				const previous = await options.records.getMetadata(sourceId);
+				state = 'committing';
+				let previous: StorageRecord | null;
 				let writerStatistics: Record<string, unknown> | null;
 				try {
+					await options.migrations.cancel(sourceId);
+					throwIfAborted(signal);
+					previous = await options.records.getMetadata(sourceId);
+					throwIfAborted(signal);
 					writerStatistics = opfsWriter ? await opfsWriter.close() : null;
+					throwIfAborted(signal);
 				} catch (error) {
-					await opfsWriter?.abort().catch(() => undefined);
+					state = 'aborted';
+					try {
+						await discardPending();
+					} catch (cleanupError) {
+						throw cleanupFailure(error, cleanupError);
+					}
 					throw error;
 				}
 				const statistics = writerStatistics || compressionStatistics({
@@ -202,20 +224,37 @@ export class SourceWriteRepository {
 					pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 				};
 				try {
+					throwIfAborted(signal);
 					await options.records.putMetadata(record);
 				} catch (error) {
-					if (opfsWriter) await opfsWriter.remove();
-					else await options.records.deleteChunks(token);
+					try {
+						const current = await options.records.getMetadata(sourceId);
+						if (current?.sourceToken === token) {
+							if (previous) await options.records.putMetadata(previous);
+							else await options.records.deleteMetadata(sourceId);
+						}
+					} catch (reconciliationError) {
+						// Keep the new payload if publication cannot be disproved or restored;
+						// metadata must never be left pointing at storage we delete here.
+						state = 'committed';
+						throw cleanupFailure(error, reconciliationError);
+					}
+					state = 'aborted';
+					try {
+						await discardPending();
+					} catch (cleanupError) {
+						throw cleanupFailure(error, cleanupError);
+					}
 					throw error;
 				}
-				if (previous) await options.deleteStoredSource(previous);
+				state = 'committed';
+				if (previous) await options.deleteStoredSource(previous).catch(() => undefined);
 				return clone(record);
 			},
 			async abort() {
-				if (closed) return;
-				closed = true;
-				if (opfsWriter) await opfsWriter.abort();
-				else await options.records.deleteChunks(token);
+				if (state !== 'open') return;
+				state = 'aborted';
+				await discardPending();
 			},
 		};
 	}
@@ -347,6 +386,18 @@ export class SourceWriteRepository {
 			throw error;
 		}
 	}
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason instanceof Error) throw signal.reason;
+	throw new DOMException('The source write was cancelled.', 'AbortError');
+}
+
+function cleanupFailure(primary: unknown, cleanup: unknown): AggregateError {
+	const aggregate = new AggregateError([primary, cleanup], 'The source write and its cleanup both failed.');
+	if (primary instanceof Error && primary.name === 'AbortError') aggregate.name = 'AbortError';
+	return aggregate;
 }
 
 function chunkRecord(

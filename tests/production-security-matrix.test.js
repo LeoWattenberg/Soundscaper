@@ -26,7 +26,6 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 	'reserved-and-extra-entry-ownership',
 ];
 const PENDING_ARCHIVE_EXPANSION_GATES = [
-	'abort-signal-propagation-and-rollback',
 	'bounded-streaming-media-extraction',
 	'compression-ratio-or-store-policy',
 	'cumulative-actual-expanded-byte-limit',
@@ -134,6 +133,24 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 		assert.ok(
 			control.evidence.some(({ path }) => path === 'tests/audio-editor-scape-archive-envelope.test.ts'),
 			`${controlId} needs envelope test evidence`,
+		);
+	}
+	const cancellationControl = implementedControls.get('abort-signal-propagation-and-rollback');
+	assert.ok(cancellationControl, 'tested archive cancellation must remain recorded as implemented');
+	for (const path of [
+		'src/common/editor/scape-archive-reader.ts',
+		'src/common/editor/scape-import-transaction.ts',
+		'src/common/editor/scape-export-destination.ts',
+		'src/common/editor/storage/source-write-repository.ts',
+		'tests/audio-editor-scape-cancellation.test.ts',
+		'tests/audio-editor-source-read-cancellation.test.ts',
+		'tests/audio-editor-source-write-cancellation.test.ts',
+		'tests/audio-editor-native-project-service.test.ts',
+		'tests/audio-editor-file-service.test.js',
+	]) {
+		assert.ok(
+			cancellationControl.evidence.some((item) => item.path === path),
+			`archive cancellation needs evidence from ${path}`,
 		);
 	}
 	for (const gateId of PENDING_ARCHIVE_EXPANSION_GATES) {

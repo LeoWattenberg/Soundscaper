@@ -36,8 +36,13 @@ export class SourceReadRepository {
 		this.#options = options;
 	}
 
-	async *chunks(sourceId: string): AsyncGenerator<SourcePcmChunk> {
-		yield* this.#chunks(sourceId, new Set());
+	async *chunks(
+		sourceId: string,
+		{ signal }: { readonly signal?: AbortSignal } = {},
+	): AsyncGenerator<SourcePcmChunk> {
+		throwIfAborted(signal);
+		yield* this.#chunks(sourceId, new Set(), signal);
+		throwIfAborted(signal);
 	}
 
 	async chunk(sourceId: string, chunkIndex: number, { signal }: { readonly signal?: AbortSignal } = {}): Promise<SourcePcmChunk> {
@@ -113,17 +118,25 @@ export class SourceReadRepository {
 		return chunk;
 	}
 
-	async *#chunks(sourceId: string, ancestors: ReadonlySet<string>): AsyncGenerator<SourcePcmChunk> {
+	async *#chunks(
+		sourceId: string,
+		ancestors: ReadonlySet<string>,
+		signal?: AbortSignal,
+	): AsyncGenerator<SourcePcmChunk> {
+		throwIfAborted(signal);
 		const source = await this.#options.records.getMetadata(sourceId);
+		throwIfAborted(signal);
 		if (!source) throw new Error('The requested audio source could not be found.');
 		if (ancestors.has(sourceId)) throw new Error('The immutable source dependency graph contains a cycle.');
 		const nextAncestors = new Set(ancestors).add(sourceId);
 		if (source.storage === 'copy-on-write') {
 			const replacementIterator = this.#options.records.chunks(source.sourceToken as string)[Symbol.asyncIterator]();
-			let replacement = await replacementIterator.next();
 			let migrationQueued = false;
 			try {
-				for await (const baseChunk of this.#chunks(source.baseSourceId as string, nextAncestors)) {
+				let replacement = await replacementIterator.next();
+				throwIfAborted(signal);
+				for await (const baseChunk of this.#chunks(source.baseSourceId as string, nextAncestors, signal)) {
+					throwIfAborted(signal);
 					if (!replacement.done && replacement.value.index < Number(baseChunk.index)) {
 						throw new Error('A derived source replacement points beyond its base source.');
 					}
@@ -135,13 +148,15 @@ export class SourceReadRepository {
 						yield baseChunk;
 						continue;
 					}
-					const chunk = await this.#options.pcm.decodeRecord(replacement.value, source);
+					const chunk = await this.#options.pcm.decodeRecord(replacement.value, source, signal);
+					throwIfAborted(signal);
 					if (!migrationQueued) {
 						migrationQueued = true;
 						this.#options.migrations.queue(source);
 					}
 					yield chunk;
 					replacement = await replacementIterator.next();
+					throwIfAborted(signal);
 				}
 				if (!replacement.done) throw new Error('A derived source replacement points beyond its base source.');
 			} finally {
@@ -153,12 +168,14 @@ export class SourceReadRepository {
 			yield* this.#options.opfs.readPcmContainerChunks(
 				source,
 				this.#options.pcm.decodeRecord.bind(this.#options.pcm),
+				{ signal },
 			);
 			return;
 		}
 		if (source.storage === 'opfs') {
 			let migrationQueued = false;
-			for await (const chunk of this.#options.opfs.readLegacyChunks(source)) {
+			for await (const chunk of this.#options.opfs.readLegacyChunks(source, { signal })) {
+				throwIfAborted(signal);
 				if (!migrationQueued) {
 					migrationQueued = true;
 					this.#options.migrations.queue(source);
@@ -169,7 +186,9 @@ export class SourceReadRepository {
 		}
 		let migrationQueued = false;
 		for await (const record of this.#options.records.chunks(source.sourceToken as string)) {
-			const chunk = await this.#options.pcm.decodeRecord(record, source);
+			throwIfAborted(signal);
+			const chunk = await this.#options.pcm.decodeRecord(record, source, signal);
+			throwIfAborted(signal);
 			if (!migrationQueued) {
 				migrationQueued = true;
 				this.#options.migrations.queue(source);

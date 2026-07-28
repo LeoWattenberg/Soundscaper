@@ -106,6 +106,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		try {
 			const imported = await runtime.importScapeProject(file, runtime.store, {
 				collision: options.collision || 'copy',
+				signal: operation.task.signal,
 			});
 			assertOwnership(operation.task, operation.projectToken);
 			await runtime.switchProject(imported.project, {
@@ -135,7 +136,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const snapshot = requireOwnedProject(projectAtStart.id);
 			beginSave(operation.task, operation.projectToken);
-			const exported = await runtime.exportScapeProject(snapshot, runtime.store);
+			const exported = await runtime.exportScapeProject(snapshot, runtime.store, { signal: operation.task.signal });
 			assertOwnership(operation.task, operation.projectToken);
 			const saved = await runtime.fileService.saveFile({
 				purpose: 'project',
@@ -144,6 +145,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				mimeType: runtime.scapeMimeType,
 				target: options.saveTarget,
 				useFileSystemAccess: options.useFileSystemAccess !== false,
+				signal: operation.task.signal,
 			});
 			assertOwnership(operation.task, operation.projectToken);
 			finishSave(operation.task, operation.projectToken, 'saved');
@@ -520,7 +522,11 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	function failSave(task: EditorTaskScope, token: EditorProjectToken): void {
 		if (saveOwner !== task) return;
 		saveOwner = null;
-		if (!ownershipIsCurrent(task, token)) return;
+		try {
+			runtime.projectGeneration.assertCurrent(token);
+		} catch {
+			return;
+		}
 		runtime.state.saveState = 'dirty';
 		runtime.publishDocumentSnapshot();
 	}

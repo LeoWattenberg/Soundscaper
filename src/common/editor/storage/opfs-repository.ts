@@ -208,12 +208,16 @@ export class OpfsRepository {
 		decode: DecodeChunk,
 		{ priority = 'foreground', signal }: { readonly priority?: string; readonly signal?: AbortSignal } = {},
 	): AsyncGenerator<PcmChunk> {
+		throwIfAborted(signal);
 		const file = await this.#sourceFile(source);
+		throwIfAborted(signal);
 		const index = await this.#containerIndex(source, file);
+		throwIfAborted(signal);
 		for (const entry of index.entries) {
 			throwIfAborted(signal);
 			const payload = await readPcmContainerPayload(file, entry, { signal });
-			yield decode(containerRecord(entry, payload), source, signal, priority);
+			throwIfAborted(signal);
+			yield await decode(containerRecord(entry, payload), source, signal, priority);
 		}
 	}
 
@@ -232,13 +236,20 @@ export class OpfsRepository {
 		return decode(containerRecord(entry, payload), source, signal, priority);
 	}
 
-	async *readLegacyChunks(source: StorageRecord): AsyncGenerator<PcmChunk> {
+	async *readLegacyChunks(
+		source: StorageRecord,
+		{ signal }: { readonly signal?: AbortSignal } = {},
+	): AsyncGenerator<PcmChunk> {
+		throwIfAborted(signal);
 		const file = await this.#sourceFile(source);
+		throwIfAborted(signal);
 		let offset = 0;
 		let index = 0;
 		while (offset < file.size) {
+			throwIfAborted(signal);
 			if (file.size - offset < 8) throw new Error('The local audio source is truncated.');
 			const header = new DataView(await file.slice(offset, offset + 8).arrayBuffer());
+			throwIfAborted(signal);
 			const frames = header.getUint32(0, true);
 			const channelCount = header.getUint16(4, true);
 			offset += 8;
@@ -249,6 +260,7 @@ export class OpfsRepository {
 			const channels: Float32Array[] = [];
 			for (let channel = 0; channel < channelCount; channel += 1) {
 				channels.push(new Float32Array(await file.slice(offset, offset + channelBytes).arrayBuffer()));
+				throwIfAborted(signal);
 				offset += channelBytes;
 			}
 			yield { index, frames, channels };
@@ -260,7 +272,7 @@ export class OpfsRepository {
 		const chunkFrames = nonNegativeInteger(source.chunkFrames, 0);
 		const channelCount = nonNegativeInteger(source.channelCount, 0);
 		if (!chunkFrames || !channelCount) {
-			for await (const chunk of this.readLegacyChunks(source)) {
+			for await (const chunk of this.readLegacyChunks(source, { signal })) {
 				throwIfAborted(signal);
 				if (chunk.index === chunkIndex) return chunk;
 			}

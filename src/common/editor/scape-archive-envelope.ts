@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { throwIfScapeAborted } from './scape-abort.ts';
+
 export const SCAPE_FORMAT = 'scape-project';
 export const SCAPE_FORMAT_VERSION = 1;
 export const SCAPE_MANIFEST_ENTRY = 'manifest.json';
@@ -25,7 +27,10 @@ export interface ScapeArchiveEntry {
 	encrypted: boolean;
 	compressedSize: number;
 	uncompressedSize: number;
-	getData?: (writable: WritableStream<Uint8Array>) => Promise<unknown>;
+	getData?: (
+		writable: WritableStream<Uint8Array>,
+		options?: Readonly<{ signal?: AbortSignal; strictness?: 'strict' }>,
+	) => Promise<unknown>;
 }
 
 export interface ScapeDescriptor {
@@ -63,16 +68,20 @@ export interface ScapeArchiveEnvelope {
 export async function readScapeArchiveEnvelope(
 	entries: readonly ScapeArchiveEntry[],
 	limitOverrides: Partial<ScapeArchiveLimits> = {},
+	signal?: AbortSignal,
 ): Promise<ScapeArchiveEnvelope> {
+	throwIfScapeAborted(signal);
 	const limits = resolveLimits(limitOverrides);
-	const entryByName = indexEntries(entries, limits);
+	const entryByName = indexEntries(entries, limits, signal);
 	const manifestEntry = requiredFileEntry(entryByName, SCAPE_MANIFEST_ENTRY);
 	assertMetadataLimit(manifestEntry, SCAPE_MANIFEST_ENTRY, limits.maximumManifestBytes);
 	const manifestText = await readBoundedTextEntry(
 		manifestEntry,
 		SCAPE_MANIFEST_ENTRY,
 		limits.maximumManifestBytes,
+		signal,
 	);
+	throwIfScapeAborted(signal);
 	const manifest = parseScapeManifest(manifestText);
 	validateManifestOwnership(manifest, entryByName, limits);
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
@@ -80,7 +89,9 @@ export async function readScapeArchiveEnvelope(
 		projectEntry,
 		SCAPE_PROJECT_ENTRY,
 		limits.maximumProjectBytes,
+		signal,
 	);
+	throwIfScapeAborted(signal);
 	return { entryByName, manifest, projectText };
 }
 
@@ -95,6 +106,7 @@ function resolveLimits(overrides: Partial<ScapeArchiveLimits>): ScapeArchiveLimi
 function indexEntries(
 	entries: readonly ScapeArchiveEntry[],
 	limits: ScapeArchiveLimits,
+	signal?: AbortSignal,
 ): Map<string, ScapeArchiveEntry> {
 	if (entries.length > limits.maximumEntryCount) {
 		throw new RangeError('The .scape archive contains too many entries.');
@@ -102,6 +114,7 @@ function indexEntries(
 	const entryByName = new Map<string, ScapeArchiveEntry>();
 	let declaredExpandedBytes = 0;
 	for (const entry of entries) {
+		throwIfScapeAborted(signal);
 		validateScapeEntryName(entry.filename);
 		if (entryByName.has(entry.filename)) throw new Error(`Duplicate .scape entry: ${entry.filename}.`);
 		if (entry.directory) throw new Error(`The .scape archive contains an unsupported directory entry: ${entry.filename}.`);
@@ -131,7 +144,9 @@ async function readBoundedTextEntry(
 	entry: ScapeArchiveEntry,
 	label: string,
 	maximumBytes: number,
+	signal?: AbortSignal,
 ): Promise<string> {
+	throwIfScapeAborted(signal);
 	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${label}.`);
 	assertMetadataLimit(entry, label, maximumBytes);
 	const decoder = new TextDecoder();
@@ -139,13 +154,15 @@ async function readBoundedTextEntry(
 	let byteLength = 0;
 	const writable = new WritableStream<Uint8Array>({
 		write(chunk) {
+			throwIfScapeAborted(signal);
 			const bytes = toBytes(chunk);
 			if (bytes.byteLength > maximumBytes - byteLength) throw new RangeError(`${label} exceeds the read limit.`);
 			byteLength += bytes.byteLength;
 			textChunks.push(decoder.decode(bytes, { stream: true }));
 		},
 	});
-	await entry.getData(writable);
+	await entry.getData(writable, { signal, strictness: 'strict' });
+	throwIfScapeAborted(signal);
 	if (byteLength !== entry.uncompressedSize) {
 		throw new Error(`${label} emitted bytes that do not match its archive metadata.`);
 	}
