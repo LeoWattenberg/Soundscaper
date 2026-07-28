@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { measureBextLoudness } from '../broadcast-loudness.ts';
+
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -370,6 +372,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const sourceChannels = audioBufferChannels(output);
 		if (plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'aiff') {
 			const mapped = applyMediaChannelMapping(sourceChannels, plan.channelMapping);
+			const measuredBext = plan.format === 'bwf' && settings.measureLoudness === true
+				? { ...plan.bext, ...measureBextLoudness(mapped, plan.sampleRate) }
+				: plan.bext;
 			const nativeOptions = {
 				sampleRate: plan.sampleRate,
 				bitDepth,
@@ -378,7 +383,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				dither: plan.ditherMode,
 				metadata: plan.metadata,
 				markers: plan.markers,
-				bext: plan.format === 'bwf' ? plan.bext : undefined,
+				bext: plan.format === 'bwf' ? measuredBext : undefined,
 			};
 			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
 			return { bytes, mimeType: plan.mimeType };

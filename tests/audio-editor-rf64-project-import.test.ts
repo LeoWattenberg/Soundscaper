@@ -135,13 +135,10 @@ test('malformed RF64 and BW64 stop before browser or FFmpeg decoding', async () 
 	assert.equal(bw64.calls.includes('ffmpeg-decode'), false);
 });
 
-test('multichannel RF64 is rejected instead of being routed through FFmpeg', async () => {
+test('multichannel RF64 remains on the incremental native path', async () => {
 	const fixture = createRoutingFixture({ channelCount: 6 });
-	await assert.rejects(
-		() => createProjectImportService(fixture.runtime).importFile(signedFile('surround.rf64', 'RF64')),
-		/RF64 WAV import supports only mono or stereo PCM/u,
-	);
-	assert.equal(fixture.calls.includes('stream-wav'), false);
+	await createProjectImportService(fixture.runtime).importFile(signedFile('surround.rf64', 'RF64'));
+	assert.equal(fixture.calls.includes('stream-wav'), true);
 	assert.equal(fixture.calls.includes('native-decode'), false);
 	assert.equal(fixture.calls.includes('ffmpeg-decode'), false);
 });

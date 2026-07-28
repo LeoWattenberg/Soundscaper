@@ -1,6 +1,7 @@
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
 import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from './broadcast-wave.ts';
 import { parseRiffMarkers } from './riff-markers.ts';
+import { parseRiffInfo } from './riff-info.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -73,6 +74,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	let bext = null;
 	let cuePayload = null;
 	const adtlPayloads = [];
+	const infoPayloads = [];
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -150,6 +152,8 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			const listType = await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal);
 			if (ascii(listType, 0, 4) === 'adtl') {
 				adtlPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
+			} else if (ascii(listType, 0, 4) === 'INFO') {
+				infoPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
 			}
 		}
 
@@ -199,8 +203,10 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	}
 
 	let markers = Object.freeze([]);
+	let info = Object.freeze({});
 	try {
 		markers = parseRiffMarkers(cuePayload, adtlPayloads);
+		info = parseRiffInfo(infoPayloads);
 	} catch (error) {
 		metadataWarnings.push(Object.freeze({ code: 'riff-markers-invalid', message: error instanceof Error ? error.message : String(error) }));
 	}
@@ -221,6 +227,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		channelMask: format.channelMask,
 		bext,
 		markers,
+		info,
 		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,

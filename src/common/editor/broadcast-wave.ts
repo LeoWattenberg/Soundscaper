@@ -100,7 +100,7 @@ export interface BextNormalizationOptions {
 export interface PcmCodingHistoryOptions {
 	readonly sampleRate: number;
 	readonly bitDepth: number;
-	readonly channelCount: 1 | 2;
+	readonly channelCount: number;
 	readonly product: string;
 }
 
@@ -291,13 +291,13 @@ export function parseRiffBextChunk(input: ByteInput): BextParseResult {
 export function createPcmCodingHistoryRow(options: PcmCodingHistoryOptions): string {
 	const sampleRate = positiveInteger(options?.sampleRate, 'sampleRate');
 	const bitDepth = positiveInteger(options?.bitDepth, 'bitDepth');
-	if (options?.channelCount !== 1 && options?.channelCount !== 2) {
-		throw new RangeError('PCM CodingHistory channelCount must be 1 or 2.');
+	if (!Number.isInteger(options?.channelCount) || options.channelCount < 1 || options.channelCount > 32) {
+		throw new RangeError('PCM CodingHistory channelCount must be from 1 to 32.');
 	}
 	const product = normalizeFixedText(options.product, 'CodingHistory product', BEXT_MAX_PAYLOAD_BYTES);
 	if (!product) throw new RangeError('PCM CodingHistory product cannot be empty.');
 	if (product.includes(',')) throw new RangeError('PCM CodingHistory product cannot contain a comma.');
-	const mode = options.channelCount === 1 ? 'mono' : 'stereo';
+	const mode = options.channelCount === 1 ? 'mono' : options.channelCount === 2 ? 'stereo' : 'multi';
 	return `A=PCM,F=${sampleRate},W=${bitDepth},M=${mode},T=${product}\n`;
 }
 

@@ -21,6 +21,7 @@ test('export settings normalize formats, codec controls, and project defaults de
 		mimeType: undefined,
 		customArguments: undefined,
 		includeTail: true,
+		measureLoudness: false,
 	});
 
 	const opus = normalizeEditorExportSettings({

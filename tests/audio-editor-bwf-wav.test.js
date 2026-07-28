@@ -130,12 +130,24 @@ test('plain WAV preserves its unpadded 44-byte-layout output for odd PCM byte co
 	);
 });
 
-test('Broadcast WAV enforces the classic mono/stereo 16/24-bit PCM profile', () => {
+test('Broadcast WAV enforces integer PCM while supporting extensible multichannel output', () => {
 	assert.throws(() => encodeWav([Float32Array.of(0)], { float: true, bext: {} }), /Broadcast WAV.*float|16.*24/i);
-	assert.throws(() => encodeWav([
+	const multichannel = encodeWav([
 		Float32Array.of(0), Float32Array.of(0), Float32Array.of(0),
-	], { bitDepth: 24, bext: {} }), /Broadcast WAV.*channels|mono.*stereo/i);
+	], { bitDepth: 24, bext: {} });
+	const formatOffset = findChunk(multichannel, 'fmt ');
+	assert.ok(formatOffset > 0);
+	assert.equal(new DataView(multichannel.buffer).getUint16(formatOffset + 8, true), 0xfffe);
 });
+
+function findChunk(bytes, id) {
+	for (let offset = 12; offset <= bytes.byteLength - 8;) {
+		if (textAt(bytes, offset, 4) === id) return offset;
+		const size = new DataView(bytes.buffer, bytes.byteOffset + offset + 4, 4).getUint32(0, true);
+		offset += 8 + size + (size & 1);
+	}
+	return -1;
+}
 
 function textAt(bytes, offset, length) {
 	return String.fromCharCode(...bytes.slice(offset, offset + length));

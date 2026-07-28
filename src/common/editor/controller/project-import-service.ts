@@ -268,9 +268,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
 		if (wavSignature === 'RF64') {
 			if (!wavDescriptor) throw new Error('The RF64 WAV file could not be inspected incrementally.');
-			if (wavDescriptor.channelCount > 2) {
-				throw new Error('RF64 WAV import supports only mono or stereo PCM.');
-			}
 			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
 		}
 		if (isIncrementalWav(wavDescriptor)) {
@@ -352,7 +349,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 
 	function isIncrementalWav(descriptor: RuntimeValue) {
 		return Boolean(descriptor
-			&& descriptor.channelCount <= 2
 			&& sourcePcmBytes(descriptor) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES);
 	}
 

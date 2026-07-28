@@ -89,9 +89,7 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 		inputChannelCount: 2,
 		sampleFormat: 'float32',
 	}), /does not support/);
-	assert.throws(() => normalizeMediaExportSettings('bwf', {
-		inputChannelCount: 3,
-	}), /at most 2/);
+	assert.equal(normalizeMediaExportSettings('bwf', { inputChannelCount: 3 }).channelCount, 3);
 });
 
 test('channel mapping uses an explicit matrix for native PCM and FFmpeg pan filters', () => {

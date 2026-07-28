@@ -39,7 +39,7 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	},
 	bwf: {
 		id: 'bwf', label: 'Broadcast WAV (BWF)', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
-		container: 'BWF', codec: 'PCM', lossless: true, maximumChannels: 2,
+		container: 'BWF', codec: 'PCM', lossless: true, maximumChannels: 32,
 		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	aiff: {

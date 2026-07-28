@@ -36,6 +36,7 @@ export interface EditorExportSettings {
 	readonly mimeType: unknown;
 	readonly customArguments: unknown;
 	readonly includeTail: boolean;
+	readonly measureLoudness: boolean;
 }
 
 export function normalizeEditorExportSettings(
@@ -69,6 +70,7 @@ export function normalizeEditorExportSettings(
 		mimeType: value.mimeType,
 		customArguments: value.customArguments,
 		includeTail: value.includeTail !== false,
+		measureLoudness: value.measureLoudness === true,
 	});
 }
 

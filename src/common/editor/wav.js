@@ -1,9 +1,8 @@
 import { createRiffId3Chunk } from './id3-metadata.js';
 import { createRiffBextChunk } from './broadcast-wave.ts';
 import { createRiffMarkerChunks } from './riff-markers.ts';
+import { createRiffInfoChunk } from './riff-info.ts';
 
-const RIFF_HEADER_BYTES = 44;
-const RF64_HEADER_BYTES = 80;
 const UINT32_MAX = 0xffff_ffff;
 const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -61,6 +60,7 @@ export function createWavStreamEncoder(options) {
 	const metadataChunk = concatBytes(
 		createRiffMarkerChunks(options?.markers),
 		createRiffId3Chunk(options?.metadata),
+		createRiffInfoChunk(options?.metadata),
 	);
 	const layout = prepareWavLayout({
 		sampleRate,
@@ -200,7 +200,7 @@ export function createWavHeader(options = {}) {
 	return createWavHeaderFromLayout(prepareWavLayout(options));
 }
 
-function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, bext = null } = {}) {
+function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, bext = null, channelMask } = {}) {
 	const normalizedRate = positiveInteger(sampleRate, 48000);
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
@@ -208,9 +208,7 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 	if (broadcast && (float || (normalizedDepth !== 16 && normalizedDepth !== 24))) {
 		throw new RangeError('Broadcast WAV supports only 16-bit or 24-bit integer PCM.');
 	}
-	if (broadcast && normalizedChannels > 2) {
-		throw new RangeError('Broadcast WAV supports only mono or stereo channels.');
-	}
+	if (broadcast && normalizedChannels > 32) throw new RangeError('Broadcast WAV supports at most 32 channels.');
 	const bytesPerSample = normalizedDepth / 8;
 	if (!Number.isSafeInteger(normalizedRate) || normalizedRate > UINT32_MAX) {
 		throw new RangeError('WAV sampleRate must fit the unsigned 32-bit format field.');
@@ -235,7 +233,7 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		'WAV output size',
 	);
 	const trailingSize = trailingByteLength == null
-		? createRiffMarkerChunks(markers).byteLength + createRiffId3Chunk(metadata).byteLength
+		? createRiffMarkerChunks(markers).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
 	const classicDataPadSize = broadcast ? dataSize & 1 : 0;
@@ -246,8 +244,9 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		+ BigInt(trailingSize);
 	const container = classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
 	const dataPadSize = container === 'rf64' ? dataSize & 1 : classicDataPadSize;
-	const headerByteLength = (container === 'rf64' ? RF64_HEADER_BYTES : RIFF_HEADER_BYTES)
-		+ bextChunk.byteLength;
+	const extensible = broadcast && normalizedChannels > 2;
+	const formatChunkByteLength = extensible ? 48 : 24;
+	const headerByteLength = 12 + (container === 'rf64' ? 36 : 0) + bextChunk.byteLength + formatChunkByteLength + 8;
 	const byteLength = safeIntegerFromBigInt(
 		BigInt(headerByteLength) + BigInt(dataSize) + BigInt(dataPadSize) + BigInt(trailingSize),
 		'WAV output size',
@@ -270,6 +269,9 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		bytesPerSample,
 		blockAlign,
 		byteRate,
+		extensible,
+		formatChunkByteLength,
+		channelMask: normalizeChannelMask(channelMask, normalizedChannels),
 	};
 }
 
@@ -302,16 +304,31 @@ function createWavHeaderFromLayout(layout) {
 	header.set(layout.bextChunk, chunkOffset);
 	const formatOffset = chunkOffset + layout.bextByteLength;
 	writeAscii(view, formatOffset, 'fmt ');
-	view.setUint32(formatOffset + 4, 16, true);
-	view.setUint16(formatOffset + 8, layout.float ? 3 : 1, true);
+	view.setUint32(formatOffset + 4, layout.extensible ? 40 : 16, true);
+	view.setUint16(formatOffset + 8, layout.extensible ? 0xfffe : layout.float ? 3 : 1, true);
 	view.setUint16(formatOffset + 10, layout.channelCount, true);
 	view.setUint32(formatOffset + 12, layout.sampleRate, true);
 	view.setUint32(formatOffset + 16, layout.byteRate, true);
 	view.setUint16(formatOffset + 20, layout.blockAlign, true);
 	view.setUint16(formatOffset + 22, layout.bitDepth, true);
-	writeAscii(view, formatOffset + 24, 'data');
-	view.setUint32(formatOffset + 28, layout.container === 'rf64' ? UINT32_MAX : layout.dataByteLength, true);
+	if (layout.extensible) {
+		view.setUint16(formatOffset + 24, 22, true);
+		view.setUint16(formatOffset + 26, layout.bitDepth, true);
+		view.setUint32(formatOffset + 28, layout.channelMask, true);
+		view.setUint32(formatOffset + 32, 1, true);
+		const guidTail = [0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71];
+		for (let index = 0; index < guidTail.length; index += 1) view.setUint8(formatOffset + 36 + index, guidTail[index]);
+	}
+	const dataOffset = formatOffset + layout.formatChunkByteLength;
+	writeAscii(view, dataOffset, 'data');
+	view.setUint32(dataOffset + 4, layout.container === 'rf64' ? UINT32_MAX : layout.dataByteLength, true);
 	return header;
+}
+
+function normalizeChannelMask(value, channelCount) {
+	if (value == null) return channelCount === 32 ? UINT32_MAX : (2 ** channelCount - 1) >>> 0;
+	if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX) throw new RangeError('WAV channelMask must be an unsigned 32-bit integer.');
+	return value;
 }
 
 function getChannels(input) {
