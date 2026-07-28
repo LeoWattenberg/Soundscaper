@@ -23,7 +23,7 @@ export interface EditorExportSettings {
 	readonly mode: 'mix' | 'stems';
 	readonly range: 'project' | 'selection' | 'loop';
 	readonly format: EditorExportFormat;
-	readonly bitDepth: 16 | 24 | 32;
+	readonly bitDepth: 16 | 20 | 24 | 32;
 	readonly sampleFormat: unknown;
 	readonly dither: unknown;
 	readonly bitRate: number | undefined;
@@ -49,7 +49,9 @@ export function normalizeEditorExportSettings(
 	const format = isExportFormat(value.format) ? value.format : 'wav';
 	const defaultBitRate = format === 'opus' ? 160 : format === 'mp2' ? 256 : 192;
 	const requestedBitDepth = Number(value.bitDepth);
-	const bitDepth = requestedBitDepth === 16 || requestedBitDepth === 32 ? requestedBitDepth : 24;
+	const bitDepth = requestedBitDepth === 16 || requestedBitDepth === 20 || requestedBitDepth === 32
+		? requestedBitDepth
+		: 24;
 	const quality = numberOrDefault(value.quality, 5);
 	const compressionLevel = numberOrDefault(value.compressionLevel, format === 'flac' ? 5 : 2);
 	return Object.freeze({

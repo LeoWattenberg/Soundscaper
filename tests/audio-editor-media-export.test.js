@@ -104,6 +104,10 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 		inputChannelCount: 32,
 		sampleFormat: 'int24',
 	}).channelCount, 32);
+	assert.equal(normalizeMediaExportSettings('bw64', {
+		inputChannelCount: 6,
+		bitDepth: 20,
+	}).sampleFormat, 'int20');
 	assert.throws(() => normalizeMediaExportSettings('bw64', {
 		inputChannelCount: 6,
 		sampleFormat: 'float32',

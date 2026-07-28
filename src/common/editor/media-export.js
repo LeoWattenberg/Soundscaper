@@ -22,7 +22,7 @@ export const BUNDLED_FFMPEG_EXPORT_PROFILE = deepFreeze({
 /**
  * @typedef {'wav'|'bwf'|'bw64'|'aiff'|'flac'|'mp3'|'ogg-vorbis'|'opus'|'wavpack'|'mp2'|'aac-m4a'|'custom-ffmpeg'} MediaExportFormatId
  * @typedef {'native-wav'|'native-aiff'|'ffmpeg'|'custom-ffmpeg'} MediaExportBackend
- * @typedef {'int16'|'int24'|'int32'|'float32'} MediaExportSampleFormat
+ * @typedef {'int16'|'int20'|'int24'|'int32'|'float32'} MediaExportSampleFormat
  * @typedef {'none'|'triangular'|'triangular-highpass'} MediaExportDither
  * @typedef {{channel: number, gain: number}} MediaChannelContribution
  * @typedef {{inputs: MediaChannelContribution[]}} MediaOutputChannel
@@ -35,17 +35,17 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	wav: {
 		id: 'wav', label: 'WAV', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
 		container: 'WAV', codec: 'PCM', lossless: true, maximumChannels: 32,
-		sampleFormats: ['int16', 'int24', 'float32'], defaults: { sampleFormat: 'int24' },
+		sampleFormats: ['int16', 'int20', 'int24', 'float32'], defaults: { sampleFormat: 'int24' },
 	},
 	bwf: {
 		id: 'bwf', label: 'Broadcast WAV (BWF)', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
 		container: 'BWF', codec: 'PCM', lossless: true, maximumChannels: 32,
-		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
+		sampleFormats: ['int16', 'int20', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	bw64: {
 		id: 'bw64', label: 'BW64 / ADM', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
 		container: 'BW64', codec: 'PCM', lossless: true, maximumChannels: 32,
-		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
+		sampleFormats: ['int16', 'int20', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	aiff: {
 		id: 'aiff', label: 'AIFF', backend: 'native-aiff', extension: 'aiff', mimeType: 'audio/aiff',
@@ -414,6 +414,7 @@ function normalizeSampleFormat(descriptor, options) {
 	if (!value && options.bitDepth != null) {
 		const bitDepth = Number(options.bitDepth);
 		if (bitDepth === 16) value = 'int16';
+		else if (bitDepth === 20) value = 'int20';
 		else if (bitDepth === 24) value = 'int24';
 		else if (bitDepth === 32) value = options.floatingPoint === false && descriptor.sampleFormats.includes('int32') ? 'int32' : 'float32';
 	}

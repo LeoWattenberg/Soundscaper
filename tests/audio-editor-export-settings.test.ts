@@ -71,4 +71,5 @@ test('BW64 export is mix-only and carries broadcast and ADM metadata', () => {
 	assert.equal(value.format, 'bw64');
 	assert.equal(value.bext, bext);
 	assert.equal(value.adm, adm);
+	assert.equal(normalizeEditorExportSettings({ format: 'bw64', bitDepth: 20 }, 48_000).sampleFormat, 'int20');
 });
