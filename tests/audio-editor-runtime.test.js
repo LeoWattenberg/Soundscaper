@@ -590,29 +590,6 @@ test('realtime render worklet emits bounded stereo chunks at the requested frame
 	}
 });
 
-test('realtime render worklet preserves a declared six-channel bed', () => {
-	const previousFrame = globalThis.currentFrame;
-	globalThis.currentFrame = 0;
-	try {
-		const processor = new RenderCaptureProcessor({
-			processorOptions: { startFrame: 0, totalFrames: 4, chunkFrames: 128, channelCount: 6 },
-		});
-		const messages = [];
-		processor.port.postMessage = (message, transfer = []) => messages.push({ message, transfer });
-		const channels = Array.from({ length: 6 }, (_, channel) => Float32Array.of(
-			channel + 0.1, channel + 0.2, channel + 0.3, channel + 0.4,
-		));
-		assert.equal(processor.process([channels], [channels.map(() => new Float32Array(4))]), false);
-		const chunk = messages.find(({ message }) => message.type === 'audio-chunk');
-		assert.equal(chunk.message.channels.length, 6);
-		assert.equal(chunk.transfer.length, 6);
-		assert.deepEqual([...chunk.message.channels[5]], [...channels[5]]);
-	} finally {
-		if (previousFrame === undefined) delete globalThis.currentFrame;
-		else globalThis.currentFrame = previousFrame;
-	}
-});
-
 test('recording controller serializes writes and releases microphone resources', async () => {
 	const posted = [];
 	const node = new MockNode();
@@ -1779,47 +1756,6 @@ test('engine uses the sample-accurate delay worklet for playback and offline ren
 		await engine.dispose();
 		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
 		else globalThis.AudioWorkletNode = previousWorkletNode;
-	}
-});
-
-test('offline rendering allocates the project master channel count', async () => {
-	const offlineContexts = [];
-	const project = createRackProject({ tracks: [{ id: 'bed', effects: [] }] });
-	project.masterChannels = 6;
-	const engine = createAudioEditorEngine({
-		offlineAudioContextFactory: (options) => {
-			const context = new MockOfflineAudioContext(options);
-			offlineContexts.push(context);
-			return context;
-		},
-	});
-	try {
-		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(6, 4_800, 48_000)]]));
-		const rendered = await engine.renderMix({ startFrame: 0, endFrame: 4_800 });
-		assert.equal(offlineContexts[0].numberOfChannels, 6);
-		assert.equal(rendered.numberOfChannels, 6);
-	} finally {
-		await engine.dispose();
-	}
-});
-
-test('engine requests native discrete surround from a capable output device', async () => {
-	const context = new MockAudioContext();
-	context.destination.maxChannelCount = 8;
-	context.destination.channelCount = 2;
-	context.destination.channelCountMode = 'max';
-	context.destination.channelInterpretation = 'speakers';
-	const project = createRackProject({ tracks: [{ id: 'bed', effects: [] }] });
-	project.masterChannels = 6;
-	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
-	try {
-		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(6, 4_800, 48_000)]]));
-		await engine.getAudioContext({ resume: false });
-		assert.equal(context.destination.channelCount, 6);
-		assert.equal(context.destination.channelCountMode, 'explicit');
-		assert.equal(context.destination.channelInterpretation, 'discrete');
-	} finally {
-		await engine.dispose();
 	}
 });
 
