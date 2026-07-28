@@ -152,7 +152,7 @@ export function applyEffect(
 		const processor = addNode(nodes, new WorkletNode(context, 'kw-audacity-live-effect', {
 			numberOfInputs: sidechain ? 2 : 1,
 			numberOfOutputs: 1,
-			outputChannelCount: [2],
+			outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
 			processorOptions: {
 				effectType: type,
 				params,
@@ -181,7 +181,7 @@ export function applyEffect(
 			const dynamics = addNode(nodes, new WorkletNode(context, 'kw-audio-dynamics', {
 				numberOfInputs: 1,
 				numberOfOutputs: 1,
-				outputChannelCount: [2],
+				outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
 				processorOptions: { type, params },
 			}));
 			connect(input, dynamics);
