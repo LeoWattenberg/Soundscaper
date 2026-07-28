@@ -58,3 +58,27 @@ test('terminal channel widths clamp media layouts to the supported Web Audio ran
 
 	assert.equal(widths.tracks.get('track'), 32);
 });
+
+test('terminal channel widths keep mono-fed buses mono and fall back only for unfed buses', () => {
+	const widths = resolveTerminalChannelWidths({
+		sources: [{ id: 'mono-source', channelCount: 1 }],
+		clips: [{ id: 'mono-clip', sourceId: 'mono-source' }],
+		tracks: [{ id: 'mono', type: 'audio', clipIds: ['mono-clip'] }],
+		mixer: {
+			groups: [{ id: 'mono-group' }, { id: 'unfed-group' }],
+			sends: [{ id: 'mono-send' }, { id: 'unfed-send' }],
+			routes: {
+				mono: { groupId: 'mono-group', sends: { 'mono-send': 0.5 } },
+			},
+		},
+	});
+
+	assert.deepEqual(Object.fromEntries(widths.groups), {
+		'mono-group': 1,
+		'unfed-group': 2,
+	});
+	assert.deepEqual(Object.fromEntries(widths.sends), {
+		'mono-send': 1,
+		'unfed-send': 2,
+	});
+});

@@ -56,8 +56,46 @@ test('ADM render safety identifies stereo-only effects on multichannel signal pa
 	]);
 });
 
-test('ADM render safety does not restrict mono or stereo deliveries', () => {
+test('ADM render safety checks surround terminals even for a stereo delivery', () => {
+	const project = {
+		sources: [{ id: 'surround-source', channelCount: 6 }],
+		clips: [{ id: 'surround-clip', sourceId: 'surround-source' }],
+		tracks: [{
+			id: 'surround', type: 'audio', clipIds: ['surround-clip'],
+			effects: [{ id: 'compressor', type: 'compressor' }],
+		}],
+	};
+
+	assert.deepEqual(findUnsafeAdmRenderEffects(project, 2), [{
+		scope: 'track', targetId: 'surround', effectId: 'compressor',
+		effectType: 'compressor', channelCount: 6,
+	}]);
+});
+
+test('ADM render safety rejects stereo-expanding effects on mono terminals', () => {
+	const project = {
+		sources: [{ id: 'mono-source', channelCount: 1 }],
+		clips: [{ id: 'mono-clip', sourceId: 'mono-source' }],
+		tracks: [{
+			id: 'mono', type: 'audio', clipIds: ['mono-clip'],
+			effects: [
+				{ id: 'compressor', type: 'compressor' },
+				{ id: 'reverb', type: 'reverb' },
+			],
+		}],
+	};
+
+	assert.deepEqual(findUnsafeAdmRenderEffects(project, 1), [{
+		scope: 'track', targetId: 'mono', effectId: 'reverb',
+		effectType: 'reverb', channelCount: 1,
+	}]);
+});
+
+test('ADM render safety does not restrict width-preserving mono or stereo effects', () => {
 	assert.deepEqual(findUnsafeAdmRenderEffects({
 		master: { effects: [{ id: 'compressor', type: 'compressor' }] },
 	}, 2), []);
+	assert.deepEqual(findUnsafeAdmRenderEffects({
+		master: { effects: [{ id: 'reverb', type: 'reverb' }] },
+	}, 1), []);
 });

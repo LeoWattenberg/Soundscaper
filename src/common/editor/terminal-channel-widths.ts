@@ -76,27 +76,33 @@ export function resolveTerminalChannelWidths(
 		tracks.set(id, width || fallback);
 	}
 
-	const groups = initializeBusWidths(project?.mixer?.groups, fallback);
-	const sends = initializeBusWidths(project?.mixer?.sends, fallback);
+	const groups = initializeBusWidths(project?.mixer?.groups);
+	const sends = initializeBusWidths(project?.mixer?.sends);
 	for (const [trackId, trackWidth] of tracks) {
 		const route = project?.mixer?.routes?.[trackId];
 		const groupId = normalizedId(route?.groupId);
-		if (groupId !== null && groups.has(groupId)) groups.set(groupId, Math.max(groups.get(groupId) ?? fallback, trackWidth));
+		if (groupId !== null && groups.has(groupId)) groups.set(groupId, Math.max(groups.get(groupId) ?? 0, trackWidth));
 		for (const [sendId, gain] of Object.entries(route?.sends ?? {})) {
-			if (Number(gain) > 0 && sends.has(sendId)) sends.set(sendId, Math.max(sends.get(sendId) ?? fallback, trackWidth));
+			if (Number(gain) > 0 && sends.has(sendId)) sends.set(sendId, Math.max(sends.get(sendId) ?? 0, trackWidth));
 		}
 	}
+	applyUnfedBusFallback(groups, fallback);
+	applyUnfedBusFallback(sends, fallback);
 
 	return Object.freeze({ tracks, groups, sends });
 }
 
-function initializeBusWidths(buses: readonly TerminalWidthBus[] | undefined, fallback: number): Map<string, number> {
+function initializeBusWidths(buses: readonly TerminalWidthBus[] | undefined): Map<string, number> {
 	const widths = new Map<string, number>();
 	for (const bus of buses ?? []) {
 		const id = normalizedId(bus.id);
-		if (id !== null) widths.set(id, fallback);
+		if (id !== null) widths.set(id, 0);
 	}
 	return widths;
+}
+
+function applyUnfedBusFallback(widths: Map<string, number>, fallback: number): void {
+	for (const [id, width] of widths) if (width === 0) widths.set(id, fallback);
 }
 
 function supportedChannelCount(value: unknown): number {

@@ -15,18 +15,22 @@ export interface UnsafeAdmRenderEffect {
 	readonly channelCount: number;
 }
 
-const STEREO_ONLY_EFFECT_TYPES: ReadonlySet<string> = new Set([
+const STEREO_LIMITED_EFFECT_TYPES: ReadonlySet<string> = new Set([
 	'compressor',
 	'convolver',
 	'reverb',
 ]);
 
-/** Find effect nodes that would collapse a declared multichannel ADM path to stereo. */
+const STEREO_EXPANDING_EFFECT_TYPES: ReadonlySet<string> = new Set([
+	'convolver',
+	'reverb',
+]);
+
+/** Find effect nodes that would change a declared ADM terminal's channel width. */
 export function findUnsafeAdmRenderEffects(
 	project: EngineProject | null | undefined,
 	authoredChannelCount: number,
 ): readonly UnsafeAdmRenderEffect[] {
-	if (authoredChannelCount <= 2) return Object.freeze([]);
 	const widths = resolveTerminalChannelWidths(project);
 	const issues: UnsafeAdmRenderEffect[] = [];
 	for (const rack of projectEffectRacks(project)) {
@@ -35,9 +39,8 @@ export function findUnsafeAdmRenderEffects(
 			: rack.scope === 'track'
 				? widths.tracks.get(rack.targetId ?? '') ?? 2
 				: (rack.scope === 'group' ? widths.groups : widths.sends).get(rack.targetId ?? '') ?? 2;
-		if (channelCount <= 2) continue;
 		for (const effect of rack.effects) {
-			if (!isActiveStereoOnlyEffect(effect)) continue;
+			if (!isUnsafeWidthTransform(effect, rack.scope, channelCount)) continue;
 			issues.push(Object.freeze({
 				scope: rack.scope,
 				targetId: rack.targetId,
@@ -50,10 +53,15 @@ export function findUnsafeAdmRenderEffects(
 	return Object.freeze(issues);
 }
 
-function isActiveStereoOnlyEffect(effect: EngineEffect | null | undefined): effect is EngineEffect {
+function isUnsafeWidthTransform(
+	effect: EngineEffect | null | undefined,
+	scope: 'track' | 'group' | 'send' | 'master',
+	channelCount: number,
+): effect is EngineEffect {
 	if (!effect || effect.enabled === false || effect.bypassed === true) return false;
 	const type = normalizedEffectType(effect);
-	return STEREO_ONLY_EFFECT_TYPES.has(type);
+	if (channelCount > 2) return STEREO_LIMITED_EFFECT_TYPES.has(type);
+	return scope !== 'master' && channelCount === 1 && STEREO_EXPANDING_EFFECT_TYPES.has(type);
 }
 
 function normalizedEffectType(effect: EngineEffect): string {

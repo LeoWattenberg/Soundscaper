@@ -284,7 +284,7 @@ function resolveBw64Adm(project, options) {
 		if (issues.length) throw new Error(`ADM routing is incomplete: ${issues.map(({ message }) => message).join(' ')}`);
 		const unsafeEffects = findUnsafeAdmRenderEffects(project, channelCount);
 		if (unsafeEffects.length) {
-			throw new Error(`ADM multichannel export cannot use stereo-only effects: ${unsafeEffects
+			throw new Error(`ADM export cannot use effects that change terminal channel width: ${unsafeEffects
 				.map(({ effectType, scope, targetId }) => `${effectType} on ${scope}${targetId ? ` ${targetId}` : ''}`)
 				.join(', ')}.`);
 		}

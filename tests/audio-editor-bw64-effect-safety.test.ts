@@ -34,6 +34,6 @@ test('authored BW64 rejects effects that collapse a multichannel terminal to ste
 
 	assert.throws(
 		() => createExportPlan(project, { format: 'bw64', dither: 'none' }),
-		/stereo-only|compressor.*six-channel|multichannel.*compressor/iu,
+		/terminal channel width|compressor.*six-channel|multichannel.*compressor/iu,
 	);
 });
