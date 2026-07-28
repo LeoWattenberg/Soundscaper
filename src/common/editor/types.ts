@@ -2,6 +2,7 @@ import type { EditorControllerPhase } from './controller/lifecycle.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
 import type { EditorTaskProgress } from './controller/task-progress.ts';
 import type { ProjectBextMetadata } from './project-bext-metadata.ts';
+import type { IxmlMetadata } from './ixml.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 
@@ -136,6 +137,7 @@ export type EditorProjectV6 = Omit<EditorProjectV5, 'schemaVersion'> & Readonly<
 	schemaVersion: 6;
 	metadata: Readonly<Record<string, unknown>> & Readonly<{
 		bext: ProjectBextMetadata | null;
+		ixml?: IxmlMetadata | null;
 	}>;
 }>;
 

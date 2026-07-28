@@ -167,9 +167,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		projectBext: RuntimeValue = null,
 		wavMarkers: readonly RuntimeValue[] = [],
 		sourceSampleRate: number = projectSampleRate(),
+		projectIxml: RuntimeValue = null,
 	) {
 		const commands = [];
-		if (projectBext) commands.push({ type: 'metadata/update', changes: { bext: projectBext } });
+		if (projectBext || projectIxml) commands.push({ type: 'metadata/update', changes: {
+			...(projectBext ? { bext: projectBext } : {}),
+			...(projectIxml ? { ixml: projectIxml } : {}),
+		} });
 		commands.push(createAddSourceCommand(source));
 		if (importOptions.destination === 'project-bin') {
 			commands.push({ type: 'project-bin/add', clip });
@@ -320,7 +324,10 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: canonical.numberOfChannels,
 			sampleRate: canonical.sampleRate,
 			originalSampleRate: originalSampleRate || decoded.sampleRate,
-			...(wavMetadata.sourceBext ? { opaqueExtensions: { bext: wavMetadata.sourceBext } } : {}),
+			...((wavMetadata.sourceBext || wavMetadata.sourceIxml) ? { opaqueExtensions: {
+				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
+				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
+			} } : {}),
 		}, {
 			schemaVersion: 2,
 			title: trackName,
@@ -330,7 +337,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
-		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate);
+		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml);
 		cacheSourceBuffer(sourceId, canonical);
 		try {
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
@@ -354,13 +361,16 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
 		const sourceBext = descriptor?.bext || null;
+		const sourceIxml = descriptor?.ixml || null;
 		const warnings = Array.isArray(descriptor?.metadataWarnings)
 			? [...descriptor.metadataWarnings]
 			: [];
 		if (!sourceBext) return Object.freeze({
 			importOptions,
 			projectBext: null,
+			projectIxml: getProject().metadata?.ixml == null ? sourceIxml : null,
 			sourceBext: null,
+			sourceIxml,
 			warnings: Object.freeze(warnings),
 		});
 
@@ -414,7 +424,9 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				Boolean(importOptions.timelineStartExplicit),
 			),
 			projectBext,
+			projectIxml: project.metadata?.ixml == null ? sourceIxml : null,
 			sourceBext,
+			sourceIxml,
 			warnings: Object.freeze(warnings),
 		});
 	}
@@ -502,7 +514,10 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: descriptor.channelCount,
 			sampleRate: descriptor.sampleRate,
 			originalSampleRate: descriptor.sampleRate,
-			...(wavMetadata.sourceBext ? { opaqueExtensions: { bext: wavMetadata.sourceBext } } : {}),
+			...((wavMetadata.sourceBext || wavMetadata.sourceIxml) ? { opaqueExtensions: {
+				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
+				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
+			} } : {}),
 		};
 		const prepared = prepareImportedMediaCommand(source, {
 			schemaVersion: 2,
@@ -513,7 +528,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
 			durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
-		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate);
+		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate, wavMetadata.projectIxml);
 		try {
 			await activateStoredSource(source, metadata);
 			commit(prepared.command, prepared.selection);

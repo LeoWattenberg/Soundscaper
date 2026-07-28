@@ -2,6 +2,7 @@ import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
 import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from './broadcast-wave.ts';
 import { parseRiffMarkers } from './riff-markers.ts';
 import { parseRiffInfo } from './riff-info.ts';
+import { parseIxmlPayload } from './ixml.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -75,6 +76,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	let cuePayload = null;
 	const adtlPayloads = [];
 	const infoPayloads = [];
+	let ixml = null;
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -148,6 +150,13 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		} else if (chunkId === 'cue ' && cuePayload == null) {
 			if (chunkBytes > MAX_RIFF_METADATA_BYTES) throw new Error('The WAV cue chunk exceeds the metadata safety limit.');
 			cuePayload = await readBlobBytes(blob, payloadOffset, payloadEnd, signal);
+		} else if (chunkId === 'iXML' && ixml == null) {
+			if (chunkBytes > MAX_RIFF_METADATA_BYTES) throw new Error('The WAV iXML chunk exceeds the metadata safety limit.');
+			try {
+				ixml = parseIxmlPayload(await readBlobBytes(blob, payloadOffset, payloadEnd, signal));
+			} catch (error) {
+				metadataWarnings.push(Object.freeze({ code: 'ixml-invalid', message: error instanceof Error ? error.message : String(error) }));
+			}
 		} else if (chunkId === 'LIST' && chunkBytes >= 4 && chunkBytes <= MAX_RIFF_METADATA_BYTES) {
 			const listType = await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal);
 			if (ascii(listType, 0, 4) === 'adtl') {
@@ -228,6 +237,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		bext,
 		markers,
 		info,
+		ixml,
 		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,

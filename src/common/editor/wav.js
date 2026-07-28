@@ -2,6 +2,7 @@ import { createRiffId3Chunk } from './id3-metadata.js';
 import { createRiffBextChunk } from './broadcast-wave.ts';
 import { createRiffMarkerChunks } from './riff-markers.ts';
 import { createRiffInfoChunk } from './riff-info.ts';
+import { createRiffIxmlChunk } from './ixml.ts';
 
 const UINT32_MAX = 0xffff_ffff;
 const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
@@ -59,6 +60,7 @@ export function createWavStreamEncoder(options) {
 	const random = typeof options?.random === 'function' ? options.random : Math.random;
 	const metadataChunk = concatBytes(
 		createRiffMarkerChunks(options?.markers),
+		createRiffIxmlChunk(options?.ixml),
 		createRiffId3Chunk(options?.metadata),
 		createRiffInfoChunk(options?.metadata),
 	);
@@ -200,7 +202,7 @@ export function createWavHeader(options = {}) {
 	return createWavHeaderFromLayout(prepareWavLayout(options));
 }
 
-function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, bext = null, channelMask } = {}) {
+function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength, metadata, markers, ixml, bext = null, channelMask } = {}) {
 	const normalizedRate = positiveInteger(sampleRate, 48000);
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
@@ -233,7 +235,7 @@ function prepareWavLayout({ sampleRate = 48000, channelCount = 2, totalFrames = 
 		'WAV output size',
 	);
 	const trailingSize = trailingByteLength == null
-		? createRiffMarkerChunks(markers).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
+		? createRiffMarkerChunks(markers).byteLength + createRiffIxmlChunk(ixml).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
 	const classicDataPadSize = broadcast ? dataSize & 1 : 0;

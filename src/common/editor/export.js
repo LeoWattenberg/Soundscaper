@@ -138,6 +138,7 @@ export function createExportPlan(project, options = {}) {
 			float: encoding.floatingPoint,
 			metadata: encoding.metadata,
 			markers,
+			ixml: project.metadata?.ixml ?? null,
 			bext,
 		})
 		: null;
@@ -189,6 +190,7 @@ export function createExportPlan(project, options = {}) {
 		ditherMode: encoding.dither,
 		metadata: encoding.metadata,
 		markers,
+		ixml: project.metadata?.ixml ?? null,
 		...(bext ? { bext } : {}),
 		range,
 		tailFrames,

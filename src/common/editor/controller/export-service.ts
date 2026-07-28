@@ -383,6 +383,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				dither: plan.ditherMode,
 				metadata: plan.metadata,
 				markers: plan.markers,
+				ixml: plan.ixml,
 				bext: plan.format === 'bwf' ? measuredBext : undefined,
 			};
 			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
@@ -434,6 +435,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			dither: stagingFloat ? 'none' : plan.ditherMode,
 			metadata: nativePcm ? plan.metadata : undefined,
 			markers: nativePcm ? plan.markers : undefined,
+			ixml: nativePcm ? plan.ixml : undefined,
 			bext: plan.format === 'bwf' ? plan.bext : undefined,
 			collect: false,
 			onChunk: (chunk: RuntimeValue) => sink.write(chunk),

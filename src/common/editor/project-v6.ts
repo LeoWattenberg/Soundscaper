@@ -21,6 +21,7 @@ import {
 	type ProjectBextMetadata,
 	type ProjectBextMetadataInput,
 } from './project-bext-metadata.ts';
+import { normalizeIxmlMetadata, type IxmlMetadata, type IxmlMetadataInput } from './ixml.ts';
 
 export {
 	normalizeProjectBextMetadata,
@@ -42,6 +43,7 @@ export interface AudioEditorProjectMetadataV6 {
 	readonly comments: string;
 	readonly tags: Readonly<Record<string, string>>;
 	readonly bext: ProjectBextMetadata | null;
+	readonly ixml?: IxmlMetadata | null;
 }
 
 export interface AudioEditorProjectV6 {
@@ -66,6 +68,7 @@ export interface AudioEditorProjectV6 {
 export interface AudioEditorProjectV6Options {
 	readonly metadata?: Readonly<Record<string, unknown>> & {
 		readonly bext?: ProjectBextMetadataInput | null;
+		readonly ixml?: IxmlMetadataInput | null;
 	};
 	readonly [option: string]: unknown;
 }
@@ -99,6 +102,7 @@ export function createAudioEditorProjectV6(options: AudioEditorProjectV6Options 
 	const project = createAudioEditorProjectV5(options);
 	const metadata = objectValue(project.metadata, 'project.metadata');
 	const inputBext = options.metadata?.bext;
+	const inputIxml = options.metadata?.ixml;
 	const bext = inputBext == null ? null : normalizeProjectBextMetadata(inputBext);
 	return {
 		...project,
@@ -112,6 +116,7 @@ export function createAudioEditorProjectV6(options: AudioEditorProjectV6Options 
 			comments: String(metadata.comments),
 			tags: objectValue(metadata.tags, 'project.metadata.tags') as Record<string, string>,
 			bext,
+			...(inputIxml == null ? {} : { ixml: normalizeIxmlMetadata(inputIxml) }),
 		},
 	} as unknown as AudioEditorProjectV6;
 }
@@ -126,6 +131,8 @@ export function validateAudioEditorProjectV6(project: unknown): project is Audio
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
 	validateProjectBextMetadata(candidate.metadata);
+	const metadata = objectValue(candidate.metadata, 'project.metadata');
+	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
 	validateAudioEditorProjectV5(
 		{ ...candidate, schemaVersion: 5 } as unknown as Parameters<typeof validateAudioEditorProjectV5>[0],
 	);
