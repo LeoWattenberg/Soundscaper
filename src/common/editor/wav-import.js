@@ -3,6 +3,7 @@ import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from 
 import { parseRiffMarkers } from './riff-markers.ts';
 import { parseRiffInfo } from './riff-info.ts';
 import { parseIxmlPayload } from './ixml.ts';
+import { parseCartPayload } from './cart-metadata.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -77,6 +78,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	const adtlPayloads = [];
 	const infoPayloads = [];
 	let ixml = null;
+	let cart = null;
 	const metadataWarnings = [];
 	let bextChunks = 0;
 	while (offset < riffEnd) {
@@ -156,6 +158,13 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 				ixml = parseIxmlPayload(await readBlobBytes(blob, payloadOffset, payloadEnd, signal));
 			} catch (error) {
 				metadataWarnings.push(Object.freeze({ code: 'ixml-invalid', message: error instanceof Error ? error.message : String(error) }));
+			}
+		} else if (chunkId === 'cart' && cart == null) {
+			if (chunkBytes > MAX_RIFF_METADATA_BYTES) throw new Error('The WAV CART chunk exceeds the metadata safety limit.');
+			try {
+				cart = parseCartPayload(await readBlobBytes(blob, payloadOffset, payloadEnd, signal));
+			} catch (error) {
+				metadataWarnings.push(Object.freeze({ code: 'cart-invalid', message: error instanceof Error ? error.message : String(error) }));
 			}
 		} else if (chunkId === 'LIST' && chunkBytes >= 4 && chunkBytes <= MAX_RIFF_METADATA_BYTES) {
 			const listType = await readBlobBytes(blob, payloadOffset, payloadOffset + 4, signal);
@@ -238,6 +247,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		markers,
 		info,
 		ixml,
+		cart,
 		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,

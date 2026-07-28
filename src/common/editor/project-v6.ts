@@ -22,6 +22,7 @@ import {
 	type ProjectBextMetadataInput,
 } from './project-bext-metadata.ts';
 import { normalizeIxmlMetadata, type IxmlMetadata, type IxmlMetadataInput } from './ixml.ts';
+import { normalizeCartMetadata, type CartMetadata, type CartMetadataInput } from './cart-metadata.ts';
 
 export {
 	normalizeProjectBextMetadata,
@@ -44,6 +45,7 @@ export interface AudioEditorProjectMetadataV6 {
 	readonly tags: Readonly<Record<string, string>>;
 	readonly bext: ProjectBextMetadata | null;
 	readonly ixml?: IxmlMetadata | null;
+	readonly cart?: CartMetadata | null;
 }
 
 export interface AudioEditorProjectV6 {
@@ -69,6 +71,7 @@ export interface AudioEditorProjectV6Options {
 	readonly metadata?: Readonly<Record<string, unknown>> & {
 		readonly bext?: ProjectBextMetadataInput | null;
 		readonly ixml?: IxmlMetadataInput | null;
+		readonly cart?: CartMetadataInput | null;
 	};
 	readonly [option: string]: unknown;
 }
@@ -103,6 +106,7 @@ export function createAudioEditorProjectV6(options: AudioEditorProjectV6Options 
 	const metadata = objectValue(project.metadata, 'project.metadata');
 	const inputBext = options.metadata?.bext;
 	const inputIxml = options.metadata?.ixml;
+	const inputCart = options.metadata?.cart;
 	const bext = inputBext == null ? null : normalizeProjectBextMetadata(inputBext);
 	return {
 		...project,
@@ -117,6 +121,7 @@ export function createAudioEditorProjectV6(options: AudioEditorProjectV6Options 
 			tags: objectValue(metadata.tags, 'project.metadata.tags') as Record<string, string>,
 			bext,
 			...(inputIxml == null ? {} : { ixml: normalizeIxmlMetadata(inputIxml) }),
+			...(inputCart == null ? {} : { cart: normalizeCartMetadata(inputCart) }),
 		},
 	} as unknown as AudioEditorProjectV6;
 }
@@ -133,6 +138,7 @@ export function validateAudioEditorProjectV6(project: unknown): project is Audio
 	validateProjectBextMetadata(candidate.metadata);
 	const metadata = objectValue(candidate.metadata, 'project.metadata');
 	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
+	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);
 	validateAudioEditorProjectV5(
 		{ ...candidate, schemaVersion: 5 } as unknown as Parameters<typeof validateAudioEditorProjectV5>[0],
 	);

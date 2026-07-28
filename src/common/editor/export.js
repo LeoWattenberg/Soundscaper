@@ -139,6 +139,7 @@ export function createExportPlan(project, options = {}) {
 			metadata: encoding.metadata,
 			markers,
 			ixml: project.metadata?.ixml ?? null,
+			cart: format === 'bwf' ? project.metadata?.cart ?? null : null,
 			bext,
 		})
 		: null;
@@ -191,6 +192,7 @@ export function createExportPlan(project, options = {}) {
 		metadata: encoding.metadata,
 		markers,
 		ixml: project.metadata?.ixml ?? null,
+		cart: format === 'bwf' ? project.metadata?.cart ?? null : null,
 		...(bext ? { bext } : {}),
 		range,
 		tailFrames,

@@ -384,6 +384,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				metadata: plan.metadata,
 				markers: plan.markers,
 				ixml: plan.ixml,
+				cart: plan.cart,
 				bext: plan.format === 'bwf' ? measuredBext : undefined,
 			};
 			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
@@ -436,6 +437,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			metadata: nativePcm ? plan.metadata : undefined,
 			markers: nativePcm ? plan.markers : undefined,
 			ixml: nativePcm ? plan.ixml : undefined,
+			cart: plan.format === 'bwf' ? plan.cart : undefined,
 			bext: plan.format === 'bwf' ? plan.bext : undefined,
 			collect: false,
 			onChunk: (chunk: RuntimeValue) => sink.write(chunk),
