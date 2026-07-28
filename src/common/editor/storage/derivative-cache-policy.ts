@@ -14,6 +14,17 @@ export interface DerivativeCacheLimits {
 	readonly now?: number;
 }
 
+export type NormalizedDerivativeCacheLimits = Readonly<
+	Required<Pick<DerivativeCacheLimits, 'maximumBytes' | 'maximumEntries'>>
+	& Pick<DerivativeCacheLimits, 'maximumAgeMs'>
+>;
+
+export const DEFAULT_DERIVATIVE_CACHE_LIMITS: NormalizedDerivativeCacheLimits = Object.freeze({
+	maximumBytes: 512 * 1024 * 1024,
+	maximumEntries: 4_096,
+	maximumAgeMs: 30 * 24 * 60 * 60 * 1_000,
+});
+
 export interface DerivativeCacheTotals {
 	readonly bytes: number;
 	readonly entries: number;
@@ -54,11 +65,7 @@ export function planDerivativeCacheEviction(
 	records: readonly Readonly<DerivativeCacheRecord>[],
 	limits: Readonly<DerivativeCacheLimits>,
 ): Readonly<DerivativeCacheEvictionPlan> {
-	const maximumBytes = nonNegativeSafeInteger(limits.maximumBytes, 'maximumBytes');
-	const maximumEntries = nonNegativeSafeInteger(limits.maximumEntries, 'maximumEntries');
-	const maximumAgeMs = limits.maximumAgeMs === undefined
-		? undefined
-		: nonNegativeSafeInteger(limits.maximumAgeMs, 'maximumAgeMs');
+	const { maximumBytes, maximumEntries, maximumAgeMs } = normalizeDerivativeCacheLimits(limits);
 	const now = maximumAgeMs === undefined
 		? undefined
 		: nonNegativeSafeInteger(limits.now ?? Date.now(), 'now');
@@ -97,6 +104,17 @@ export function planDerivativeCacheEviction(
 		removedBytes,
 		removals: Object.freeze(removals),
 	});
+}
+
+export function normalizeDerivativeCacheLimits(
+	limits: Readonly<Pick<DerivativeCacheLimits, 'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'>>,
+): NormalizedDerivativeCacheLimits {
+	const maximumBytes = nonNegativeSafeInteger(limits.maximumBytes, 'maximumBytes');
+	const maximumEntries = nonNegativeSafeInteger(limits.maximumEntries, 'maximumEntries');
+	const maximumAgeMs = limits.maximumAgeMs === undefined
+		? undefined
+		: nonNegativeSafeInteger(limits.maximumAgeMs, 'maximumAgeMs');
+	return Object.freeze({ maximumBytes, maximumEntries, maximumAgeMs });
 }
 
 function account(records: readonly Readonly<DerivativeCacheRecord>[]): AccountedRecord[] {

@@ -4,11 +4,27 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	DEFAULT_DERIVATIVE_CACHE_LIMITS,
+	normalizeDerivativeCacheLimits,
 	planDerivativeCacheEviction,
 } from '../src/common/editor/storage/derivative-cache-policy.ts';
 import { MediaRepository } from '../src/common/editor/storage/media-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
+
+test('the automatic derivative cache budget has frozen versioned thresholds', () => {
+	assert.deepEqual(DEFAULT_DERIVATIVE_CACHE_LIMITS, {
+		maximumBytes: 512 * 1024 * 1024,
+		maximumEntries: 4_096,
+		maximumAgeMs: 30 * 24 * 60 * 60 * 1_000,
+	});
+	assert.equal(Object.isFrozen(DEFAULT_DERIVATIVE_CACHE_LIMITS), true);
+	assert.deepEqual(normalizeDerivativeCacheLimits({ maximumBytes: 4, maximumEntries: 2 }), {
+		maximumBytes: 4,
+		maximumEntries: 2,
+		maximumAgeMs: undefined,
+	});
+});
 
 test('derivative cache policy evicts the oldest committed records until both hard limits hold', () => {
 	const plan = planDerivativeCacheEviction([

@@ -31,6 +31,8 @@ export class AudioEditorProjectStore {
 		pcmCodec = null,
 		pcmCodecFactory = null,
 		migrateLegacyPcmOnAccess = true,
+		derivativeCacheLimits = undefined,
+		derivativeCacheNow = undefined,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
 	} = {}) {
 		this.databaseName = databaseName;
@@ -58,6 +60,8 @@ export class AudioEditorProjectStore {
 			pcmCodec,
 			pcmCodecFactory,
 			migrateLegacyPcmOnAccess: Boolean(migrateLegacyPcmOnAccess),
+			derivativeCacheLimits,
+			derivativeCacheNow,
 			estimateStorage: () => this.estimateStorage(),
 			isMemoryBackend: () => this.backend === 'memory',
 		});

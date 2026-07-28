@@ -8,9 +8,13 @@ import {
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
 import {
+	DEFAULT_DERIVATIVE_CACHE_LIMITS,
+	normalizeDerivativeCacheLimits,
 	planDerivativeCacheEviction,
 	type DerivativeCacheCleanupReport,
 	type DerivativeCacheLimits,
+	type DerivativeCacheRecord,
+	type NormalizedDerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
 import { readDerivativeCacheInventory } from './derivative-cache-inventory.ts';
 import {
@@ -47,14 +51,28 @@ interface MediaWriteOptions {
 	readonly signal?: AbortSignal;
 }
 
+interface MediaRepositoryOptions {
+	readonly cacheLimits?: Readonly<Pick<
+		DerivativeCacheLimits,
+		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
+	>>;
+	readonly now?: () => number;
+}
+
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
+	readonly #cacheLimits: NormalizedDerivativeCacheLimits;
+	readonly #now: () => number;
 
-	constructor(port: StorageRepositoryPort, opfs: OpfsRepository) {
+	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
 		this.#port = port;
 		this.#opfs = opfs;
+		this.#cacheLimits = normalizeDerivativeCacheLimits(
+			options.cacheLimits ?? DEFAULT_DERIVATIVE_CACHE_LIMITS,
+		);
+		this.#now = options.now ?? Date.now;
 	}
 
 	async writeAsset(
@@ -157,42 +175,101 @@ export class MediaRepository {
 	}: VideoDerivativeInput = {}): Promise<Record<string, unknown>> {
 		const identity = videoDerivativeIdentity(sourceId, timestamp, type);
 		const blob = normalizeBlob(input);
+		assertDerivativeFitsCache(blob.size, this.#cacheLimits);
 		const database = await this.#port.database();
-		let previous = !database
-			? clone(asStorageRecord(this.#port.memory.videoDerivatives.get(identity.key)))
-			: null;
+		let previous: StorageRecord | null = null;
 		const storedFile = await this.#opfs.writeBlob(`video-${identity.sourceId}-${identity.type}`, blob);
-		const record: StorageRecord = {
-			...binaryMetadata(metadata),
-			...identity,
-			cacheToken: createCacheToken(),
-			storage: storedFile ? 'opfs' : 'indexeddb-blob',
-			path: storedFile?.path,
-			blob: storedFile ? undefined : blob,
-			size: blob.size,
-			mimeType: String(metadata.mimeType || blob.type || ''),
-			committedAt: new Date().toISOString(),
-		};
+		let record: StorageRecord;
+		let removed: StorageRecord[] = [];
 		try {
-			if (!database) this.#port.memory.videoDerivatives.set(identity.key, clone(record));
-			else previous = await transact(
-				database,
-				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
-				'readwrite',
-				async (stores) => {
-					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
-					const previousRequest = cacheEntries.get(identity.key);
-					videoDerivatives.put(record);
-					cacheEntries.put(projectDerivativeCacheInventoryRecord(record, identity.key));
-					return asStorageRecord(await request(previousRequest));
-				},
-			);
+			const publicationTime = cachePublicationTime(this.#now());
+			record = {
+				...binaryMetadata(metadata),
+				...identity,
+				cacheToken: createCacheToken(),
+				storage: storedFile ? 'opfs' : 'indexeddb-blob',
+				path: storedFile?.path,
+				blob: storedFile ? undefined : blob,
+				size: blob.size,
+				mimeType: String(metadata.mimeType || blob.type || ''),
+				committedAt: new Date(publicationTime).toISOString(),
+			};
+			const incoming = projectDerivativeCacheInventoryRecord(record, identity.key);
+			if (!database) {
+				previous = clone(asStorageRecord(this.#port.memory.videoDerivatives.get(identity.key)));
+				const plan = planDerivativeCachePublication(
+					[...this.#port.memory.videoDerivatives.entries()].map(([key, value]) => (
+						projectDerivativeCacheInventoryRecord(value, key)
+					)),
+					incoming,
+					this.#cacheLimits,
+					publicationTime,
+				);
+				removed = plan.removals.map((expected) => {
+					const key = expected.key as string;
+					const current = asStorageRecord(this.#port.memory.videoDerivatives.get(key));
+					if (!sameDerivativeCacheRecord(current, expected)) {
+						throw new Error(`Derivative cache payload ${key} does not match its eviction metadata.`);
+					}
+					return projectDerivativeCacheInventoryRecord(current, key);
+				});
+				this.#port.memory.videoDerivatives.set(identity.key, clone(record));
+				for (const candidate of removed) this.#port.memory.videoDerivatives.delete(candidate.key as string);
+			} else {
+				({ previous, removed } = await transact(
+					database,
+					[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+					'readwrite',
+					async (stores) => {
+						const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+						const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+						const [previousEntryValue, previousPayloadValue, cacheValues] = await Promise.all([
+							request(cacheEntries.get(identity.key)),
+							request(videoDerivatives.get(identity.key)),
+							request(cacheEntries.getAll()),
+						]);
+						const previousEntry = asStorageRecord(previousEntryValue);
+						const previousPayload = asStorageRecord(previousPayloadValue);
+						if (Boolean(previousEntry) !== Boolean(previousPayload)
+							|| (previousEntry && !sameDerivativeCacheRecord(previousPayload, previousEntry))) {
+							throw new Error(
+								`Derivative cache payload ${identity.key} does not match its replacement metadata.`,
+							);
+						}
+						const plan = planDerivativeCachePublication(
+							scalarDerivativeRecords(cacheValues),
+							incoming,
+							this.#cacheLimits,
+							publicationTime,
+						);
+						const evicted: StorageRecord[] = [];
+						for (const expected of plan.removals) {
+							const key = expected.key as string;
+							const payload = asStorageRecord(await request(videoDerivatives.get(key)));
+							if (!sameDerivativeCacheRecord(payload, expected)) {
+								throw new Error(`Derivative cache payload ${key} does not match its eviction metadata.`);
+							}
+							evicted.push(projectDerivativeCacheInventoryRecord(payload, key));
+						}
+						videoDerivatives.put(record);
+						cacheEntries.put(incoming);
+						for (const candidate of evicted) {
+							const key = candidate.key as string;
+							videoDerivatives.delete(key);
+							cacheEntries.delete(key);
+						}
+						return { previous: previousPayload, removed: evicted };
+					},
+				));
+			}
 		} catch (error) {
 			if (storedFile) await this.#opfs.deletePath(storedFile.path);
 			throw error;
 		}
-		if (previous?.path !== record.path) await this.#opfs.deleteBinaryRecords([previous]);
+		await this.#opfs.deleteBinaryRecords([
+			...(previous?.path !== record.path ? [previous] : []),
+			...removed,
+		].filter((candidate) => candidate?.path !== record.path));
 		return videoDerivativeMetadata(record);
 	}
 
@@ -406,8 +483,8 @@ function sameDerivativeCacheRecord(
 ): current is StorageRecord {
 	if (!current || current.key !== expected.key) return false;
 	if (typeof current.cacheToken === 'string' || typeof expected.cacheToken === 'string') {
-		return typeof current.cacheToken === 'string'
-			&& current.cacheToken === expected.cacheToken;
+		if (typeof current.cacheToken !== 'string'
+			|| current.cacheToken !== expected.cacheToken) return false;
 	}
 	return current.sourceId === expected.sourceId
 		&& current.timestamp === expected.timestamp
@@ -416,6 +493,41 @@ function sameDerivativeCacheRecord(
 		&& (current.path || null) === (expected.path || null)
 		&& current.size === expected.size
 		&& current.committedAt === expected.committedAt;
+}
+
+function planDerivativeCachePublication(
+	records: readonly Readonly<DerivativeCacheRecord>[],
+	incoming: Readonly<DerivativeCacheRecord>,
+	limits: NormalizedDerivativeCacheLimits,
+	now: number,
+) {
+	const incomingKey = typeof incoming.key === 'string' ? incoming.key : '';
+	if (!incomingKey) throw new TypeError('A derivative cache publication key is required.');
+	const candidates = records.filter(({ key }) => key !== incomingKey);
+	const plan = planDerivativeCacheEviction([...candidates, incoming], { ...limits, now });
+	if (plan.removals.some(({ key }) => key === incomingKey)) {
+		throw new RangeError('The derivative cache entry cannot fit within the configured derivative cache limits.');
+	}
+	return plan;
+}
+
+function assertDerivativeFitsCache(size: number, limits: NormalizedDerivativeCacheLimits): void {
+	if (!Number.isSafeInteger(size) || size < 0) {
+		throw new RangeError('Derivative cache entry size must be a non-negative safe integer.');
+	}
+	if (limits.maximumEntries === 0
+		|| size > limits.maximumBytes
+		|| limits.maximumAgeMs === 0) {
+		throw new RangeError('The derivative cache entry cannot fit within the configured derivative cache limits.');
+	}
+}
+
+function cachePublicationTime(value: unknown): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 0 || number > 8_640_000_000_000_000) {
+		throw new RangeError('The derivative cache publication time is outside the supported Date range.');
+	}
+	return number;
 }
 
 function clone<Value>(value: Value): Value {

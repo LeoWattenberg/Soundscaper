@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { KeyValueRepository } from './key-value-repository.ts';
+import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
 import { MediaRepository } from './media-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
@@ -33,6 +34,11 @@ export interface StorageRepositoryOptions {
 	readonly pcmCodec?: PcmRepositoryOptions['codec'];
 	readonly pcmCodecFactory?: PcmRepositoryOptions['codecFactory'];
 	readonly migrateLegacyPcmOnAccess: boolean;
+	readonly derivativeCacheLimits?: Readonly<Pick<
+		DerivativeCacheLimits,
+		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
+	>>;
+	readonly derivativeCacheNow?: () => number;
 	readonly estimateStorage: () => Promise<{ usage: number | null; quota: number | null }>;
 	readonly isMemoryBackend: () => boolean;
 }
@@ -67,7 +73,10 @@ export function createStorageRepositories(
 		migrateOnAccess: options.migrateLegacyPcmOnAccess,
 	});
 	const analysis = new KeyValueRepository(port, 'analysis');
-	const media = new MediaRepository(port, opfs);
+	const media = new MediaRepository(port, opfs, {
+		cacheLimits: options.derivativeCacheLimits,
+		now: options.derivativeCacheNow,
+	});
 	const deleteStoredSource = async (source: StorageRecord): Promise<void> => {
 		if (isOpfsPcmStorage(source.storage) && source.path) await opfs.deletePath(source.path);
 		else if (source.sourceToken) await sourceRecords.deleteChunks(source.sourceToken);

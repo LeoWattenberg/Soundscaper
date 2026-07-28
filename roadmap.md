@@ -333,9 +333,20 @@ models or native implementations.
   and fail-before-delete corruption handling; a real
   [browser migration](tests/browser/audio-editor-storage-migration.spec.js)
   exercises v2-to-v3 backfill in evergreen engines. The one-time legacy
-  migration still reads one Blob-bearing row at a time and the scalar eviction
-  plan remains O(entries); automatic budget enforcement on each cache
-  publication and dedicated save, proxy, and render estimators remain open.
+  migration still reads one Blob-bearing row at a time. Every cache publication
+  now enforces frozen 512 MiB binary-payload, 4,096-entry, and 30-day limits at
+  the sole media-repository owner. Memory plans before mutation; IndexedDB
+  replaces and evicts payload/companion pairs in one serialized transaction,
+  validates each removal token against one payload at a time, fails closed on
+  drift, and disposes superseded or evicted OPFS files only after commit. The
+  focused
+  [publication regressions](tests/audio-editor-derivative-cache-publication.test.ts)
+  cover exact replacement accounting, byte/count/age eviction across memory,
+  IndexedDB Blob, and OPFS backends, oversized replacement preservation, and
+  corruption rollback. Publication inventory and the scalar eviction plan
+  remain O(entries), and the byte threshold accounts exact derivative binary
+  payload rather than browser-defined record overhead; dedicated save, future
+  proxy, and internal render estimators remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.
@@ -359,9 +370,9 @@ models or native implementations.
   [archive](tests/audio-editor-scape-project.test.js) regressions cover bounded
   reads, all three storage backends, spoof resistance, cancellation boundaries,
   and mismatch rollback. Original/proxy relationships, legacy-record digest
-  backfill, relink state, automatic cache-budget enforcement, and reproducible
-  derivative descriptions remain open without placing disposable previews in
-  project history.
+  backfill, relink state, bounded reproducible derivative descriptions, and
+  total record-overhead accounting remain open without placing disposable
+  previews in project history.
 - **Electron Enhanced — In progress:** the product-neutral strict-TS
   [desktop library foundation](desktop/project-library.ts) uses a fixed
   application-data scope rather than either Chromium profile, size-bounded and
