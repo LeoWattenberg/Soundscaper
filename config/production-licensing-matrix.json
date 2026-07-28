@@ -1,0 +1,350 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-07-28",
+	"policyDocument": "docs/production-licensing-policy.md",
+	"lockfile": {
+		"path": "package-lock.json",
+		"lockfileVersion": 3,
+		"productionClosureRule": "packages[node_modules/**].dev !== true"
+	},
+	"distributionSurfaces": [
+		{
+			"id": "web-pages-bundle",
+			"description": "Vite application JavaScript, CSS, fonts, workers, and repository-owned WebAssembly deployed to Cloudflare Pages.",
+			"artifactStatus": "distributed",
+			"noticeDeliveryStatus": "blocked",
+			"evidence": ["vite.config.mjs", "public/_headers"]
+		},
+		{
+			"id": "web-runtime-assets",
+			"description": "Versioned optional runtimes fetched from assets.soundscaper.org rather than bundled into Pages.",
+			"artifactStatus": "distributed",
+			"noticeDeliveryStatus": "blocked",
+			"evidence": ["src/common/editor/ffmpeg.js", "scripts/publish-runtime-assets.mjs"]
+		},
+		{
+			"id": "electron-renderer",
+			"description": "The built web application copied into each Electron product.",
+			"artifactStatus": "distributed",
+			"noticeDeliveryStatus": "implemented",
+			"evidence": ["scripts/desktop-prepare.mjs", "electron-builder.config.cjs"]
+		},
+		{
+			"id": "electron-runtime-assets",
+			"description": "FFmpeg and translation runtime assets staged beside the Electron renderer.",
+			"artifactStatus": "distributed",
+			"noticeDeliveryStatus": "implemented",
+			"evidence": ["scripts/desktop-prepare.mjs", "electron-builder.config.cjs"]
+		},
+		{
+			"id": "electron-shell",
+			"description": "Electron, embedded Chromium and Node.js, and the repository-owned main/preload process code.",
+			"artifactStatus": "distributed",
+			"noticeDeliveryStatus": "implemented",
+			"evidence": ["electron-builder.config.cjs", "desktop/main.mjs"]
+		},
+		{
+			"id": "desktop-release-assets",
+			"description": "Public desktop packages, notices, checksums, and corresponding-source archives.",
+			"artifactStatus": "blocked",
+			"noticeDeliveryStatus": "implemented",
+			"evidence": ["scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
+		}
+	],
+	"npmProductionClosure": [
+		{
+			"lockPath": "node_modules/@dilsonspickles/components",
+			"name": "@dilsonspickles/components",
+			"version": "0.9.0",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@dilsonspickles/components` 0.9.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@echogarden/pffft-wasm",
+			"name": "@echogarden/pffft-wasm",
+			"version": "0.4.2",
+			"license": "BSD-3-Clause",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@echogarden/pffft-wasm` 0.4.2",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@ffmpeg/core",
+			"name": "@ffmpeg/core",
+			"version": "0.12.10",
+			"license": "GPL-2.0-or-later",
+			"direct": true,
+			"role": "external-versioned-runtime",
+			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets"],
+			"noticeMarker": "`@ffmpeg/core` 0.12.10",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "scripts/desktop-prepare.mjs"]
+		},
+		{
+			"lockPath": "node_modules/@ffmpeg/ffmpeg",
+			"name": "@ffmpeg/ffmpeg",
+			"version": "0.12.15",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@ffmpeg/ffmpeg` 0.12.15",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@ffmpeg/types",
+			"name": "@ffmpeg/types",
+			"version": "0.12.4",
+			"license": "MIT",
+			"direct": false,
+			"role": "transitive-types-only",
+			"artifactSurfaces": [],
+			"noticeMarker": "`@ffmpeg/types` 0.12.4",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@fontsource/inter",
+			"name": "@fontsource/inter",
+			"version": "5.3.0",
+			"license": "OFL-1.1",
+			"direct": true,
+			"role": "font-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@fontsource/inter` 5.3.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/site/fonts.css"]
+		},
+		{
+			"lockPath": "node_modules/@fontsource/ubuntu",
+			"name": "@fontsource/ubuntu",
+			"version": "5.3.0",
+			"license": "UFL-1.0",
+			"direct": true,
+			"role": "font-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@fontsource/ubuntu` 5.3.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/site/fonts.css"]
+		},
+		{
+			"lockPath": "node_modules/@noble/hashes",
+			"name": "@noble/hashes",
+			"version": "2.2.0",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@noble/hashes` 2.2.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@sqlite.org/sqlite-wasm",
+			"name": "@sqlite.org/sqlite-wasm",
+			"version": "3.53.0-build1",
+			"license": "Apache-2.0",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@sqlite.org/sqlite-wasm` 3.53.0-build1",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@zip.js/zip.js",
+			"name": "@zip.js/zip.js",
+			"version": "2.8.33",
+			"license": "BSD-3-Clause",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`@zip.js/zip.js` 2.8.33",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/fflate",
+			"name": "fflate",
+			"version": "0.8.3",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`fflate` 0.8.3",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/react",
+			"name": "react",
+			"version": "19.2.7",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`react` 19.2.7",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/react-dom",
+			"name": "react-dom",
+			"version": "19.2.7",
+			"license": "MIT",
+			"direct": true,
+			"role": "application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`react-dom` 19.2.7",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/scheduler",
+			"name": "scheduler",
+			"version": "0.27.0",
+			"license": "MIT",
+			"direct": false,
+			"role": "transitive-application-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`scheduler` 0.27.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		}
+	],
+	"shippedDevelopmentDependencies": [
+		{
+			"name": "electron",
+			"lockPath": "node_modules/electron",
+			"version": "43.1.1",
+			"license": "MIT",
+			"declaredVersion": "43.1.1",
+			"role": "packaged-desktop-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "Electron 43.1.1",
+			"evidence": ["package-lock.json", "electron-builder.config.cjs", "THIRD_PARTY_LICENSES.md"]
+		}
+	],
+	"runtimeProvenance": [
+		{
+			"id": "audacity-derived-javascript",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/editor/audacity-effects/index.js", "src/common/editor/audacity-waveform-renderer.js"]
+		},
+		{
+			"id": "audacity-translation-packs",
+			"status": "documented",
+			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "scripts/manage-audacity-translation-release.mjs"]
+		},
+		{
+			"id": "staffpad-wasm",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["src/common/editor/staffpad/source-manifest.json", "src/common/editor/staffpad/NOTICE.md", "scripts/audit-staffpad-wasm.mjs"]
+		},
+		{
+			"id": "nyquist-wasm-and-plugins",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["src/common/editor/nyquist/source-manifest.json", "src/common/editor/nyquist/plugins/source-manifest.json", "src/common/editor/nyquist/NOTICE.md"]
+		},
+		{
+			"id": "parametric-eq-wasm",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["src/common/editor/parametric-eq/source-manifest.json", "src/common/editor/parametric-eq/NOTICE.md", "scripts/audit-parametric-eq-wasm.mjs"]
+		},
+		{
+			"id": "wavpack-wasm",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "scripts/audit-wavpack-wasm.mjs"]
+		},
+		{
+			"id": "ffmpeg-core-wasm",
+			"status": "blocked",
+			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets", "desktop-release-assets"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/desktop-release-assets.mjs"]
+		},
+		{
+			"id": "electron-runtime",
+			"status": "documented",
+			"artifactSurfaces": ["electron-shell"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "electron-builder.config.cjs"]
+		}
+	],
+	"ffmpeg": {
+		"package": "@ffmpeg/core",
+		"version": "0.12.10",
+		"correspondingSourceManifest": "desktop/ffmpeg-corresponding-source.json",
+		"enabledExternalLibraries": [
+			"x264",
+			"x265",
+			"libvpx",
+			"libmp3lame",
+			"libtheora",
+			"libvorbis",
+			"libopus",
+			"zlib",
+			"libwebp",
+			"freetype",
+			"fribidi",
+			"libass",
+			"zimg"
+		],
+		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
+	},
+	"releaseGates": [
+		{
+			"id": "dependency-notice-version-audit",
+			"status": "implemented",
+			"evidence": ["scripts/check-third-party-notices.mjs", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "desktop-notice-delivery",
+			"status": "implemented",
+			"evidence": ["electron-builder.config.cjs", "scripts/desktop-release-assets.mjs"]
+		},
+		{
+			"id": "web-notice-delivery",
+			"status": "blocked",
+			"blocker": "No versioned web route or web artifact currently delivers THIRD_PARTY_LICENSES.md with the deployed application and optional runtimes.",
+			"evidence": ["THIRD_PARTY_LICENSES.md", "public/_headers", "src/common/site/BrandSidebar.jsx"]
+		},
+		{
+			"id": "ffmpeg-enabled-library-corresponding-source",
+			"status": "blocked",
+			"blocker": "The current manifest identifies FFmpeg and ffmpeg.wasm archives but does not inventory and pin complete corresponding source for every enabled library in the binary.",
+			"evidence": ["desktop/ffmpeg-corresponding-source.json", "THIRD_PARTY_LICENSES.md", "scripts/desktop-release-assets.mjs"]
+		},
+		{
+			"id": "ffmpeg-enabled-codec-patent-review",
+			"status": "blocked",
+			"blocker": "No distribution-specific, jurisdiction-specific patent review is recorded for the enabled codec set.",
+			"evidence": ["THIRD_PARTY_LICENSES.md"]
+		}
+	],
+	"futureDistributionGates": [
+		{
+			"id": "web-effect-packages",
+			"status": "disabled",
+			"enableRequires": ["package-and-transitive-license-inventory", "immutable-source-and-artifact-pins", "web-notice-delivery", "sandbox-and-effect-abi-review"],
+			"evidence": ["roadmap.md#4-parallel-production-surfaces", "docs/production-licensing-policy.md"]
+		},
+		{
+			"id": "native-plugins",
+			"status": "disabled",
+			"enableRequires": ["per-format-and-platform-license-review", "redistribution-and-user-installation-policy", "sandbox-and-crash-isolation-review", "notice-and-source-delivery"],
+			"evidence": ["roadmap.md#5-native-acceleration-and-platform-integration", "docs/production-licensing-policy.md"]
+		},
+		{
+			"id": "native-codecs",
+			"status": "disabled",
+			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
+			"evidence": ["roadmap.md#5-native-acceleration-and-platform-integration", "docs/production-licensing-policy.md"]
+		},
+		{
+			"id": "local-models",
+			"status": "disabled",
+			"enableRequires": ["weights-and-code-license-review", "training-data-provenance-record", "model-card-and-use-restrictions", "versioned-download-notices-and-hashes"],
+			"evidence": ["roadmap.md#7-optional-local-intelligence", "docs/production-licensing-policy.md"]
+		}
+	]
+}

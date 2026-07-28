@@ -15,6 +15,7 @@ const trackedVersions = [
 	'@electron/fuses',
 	'@ffmpeg/core',
 	'@ffmpeg/ffmpeg',
+	'@ffmpeg/types',
 	'@fontsource/inter',
 	'@fontsource/ubuntu',
 	'@noble/hashes',
@@ -23,7 +24,10 @@ const trackedVersions = [
 	'@zip.js/zip.js',
 	'electron',
 	'fflate',
+	'react',
+	'react-dom',
 	'saxes',
+	'scheduler',
 	'sql.js',
 ];
 
@@ -55,6 +59,5 @@ if (findings.length) throw new Error(`Third-party notice audit failed:\n${findin
 console.log(`Verified ${trackedVersions.length + 1} dependency notice records against package-lock.json.`);
 
 function exactInstalledVersion(dependency) {
-	if (!declared[dependency]) return null;
 	return packageLock.packages[`node_modules/${dependency}`]?.version || null;
 }

@@ -183,6 +183,15 @@ reviewable gates before expanding the schema or native boundary.
   [security regression](tests/production-security-matrix.test.js) keeps partial
   controls and the release-blocked archive-expansion gate visible and prevents
   planned helper and plug-in surfaces from being treated as enabled.
+- **Shared — Implemented:** the
+  [licensing and provenance matrix](config/production-licensing-matrix.json)
+  derives the exact production lockfile closure and separates every web,
+  runtime, and desktop distribution surface. Its
+  [policy](docs/production-licensing-policy.md) and
+  [regression](tests/production-licensing-matrix.test.js) keep web notice
+  delivery, complete FFmpeg corresponding source, and codec patent review
+  blocked until their missing evidence is delivered; future plug-in, codec,
+  package, and model surfaces remain disabled.
 - **Soundscaper — Blocked (fence implemented):** leave every MIDI action,
   including MIDI export, disabled. The
   [action contract](src/common/editor/audacity-action-parity.js) points to
