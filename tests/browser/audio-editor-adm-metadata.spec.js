@@ -12,6 +12,27 @@ import {
 test.describe('BW64 ADM metadata UI', () => {
 	registerAudioEditorHooks();
 
+	test('blocks BW64 export until ADM is enabled', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		const dialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
+
+		await expect(dialog.getByRole('button', { name: 'Start export', exact: true })).toBeDisabled();
+		await expect(dialog.getByRole('alert')).toHaveText(
+			'BW64 export requires ADM. Open Metadata, select ADM, and enable it.',
+		);
+
+		await dialog.getByRole('button', { name: 'Metadata', exact: true }).click();
+		const metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
+		await metadataDialog.getByRole('tab', { name: 'ADM', exact: true }).click();
+		await metadataDialog.getByRole('button', { name: 'Enable ADM', exact: true }).click();
+		await metadataDialog.getByRole('button', { name: 'Done.', exact: true }).click();
+
+		await expect(dialog.getByRole('alert')).toHaveCount(0);
+		await expect(dialog.getByRole('button', { name: 'Start export', exact: true })).toBeEnabled();
+	});
+
 	test('authors a DirectSpeakers bed and carries its draft into BW64 export', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [monoTone]);

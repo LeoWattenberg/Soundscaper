@@ -69,6 +69,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
+	const admRequired = settings.format === 'bw64' && settings.adm == null;
 	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
 
 	useEffect(() => {
@@ -278,7 +279,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					) : (
 						<>
 							<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
-							<span data-export-action="start"><Button variant="primary" disabled={blocked} onClick={start}>{copy.startExport}</Button></span>
+							<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired} onClick={start}>{copy.startExport}</Button></span>
 						</>
 					)}
 				/>
@@ -351,6 +352,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					</>
 				)}
 				<p className="audio-editor-panel-hint">{copy.exportHint}</p>
+				{admRequired && <p className="audio-editor-field-error" role="alert">{copy.bw64AdmRequired}</p>}
 				<div className="audio-editor-export-progress" data-export-progress aria-live="polite" hidden={!exporting}>
 					<ProgressBar value={progress} width="100%" />
 					<output>{progress}%</output>
