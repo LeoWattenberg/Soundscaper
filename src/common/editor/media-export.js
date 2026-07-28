@@ -44,7 +44,7 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	},
 	bw64: {
 		id: 'bw64', label: 'BW64 / ADM', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
-		container: 'BW64', codec: 'PCM', lossless: true, maximumChannels: 6,
+		container: 'BW64', codec: 'PCM', lossless: true, maximumChannels: 32,
 		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	aiff: {

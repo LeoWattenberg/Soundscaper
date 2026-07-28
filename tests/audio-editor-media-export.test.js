@@ -100,6 +100,10 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 	assert.equal(bw64.maximumChannels, undefined);
 	assert.equal(bw64.channelCount, 6);
 	assert.equal(bw64.bext.description, 'ADM bed');
+	assert.equal(normalizeMediaExportSettings('bw64', {
+		inputChannelCount: 32,
+		sampleFormat: 'int24',
+	}).channelCount, 32);
 	assert.throws(() => normalizeMediaExportSettings('bw64', {
 		inputChannelCount: 6,
 		sampleFormat: 'float32',
