@@ -2,6 +2,7 @@
 
 import { audioTrackChannelCountV2 } from '../project-v2.js';
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
+import { createAdmBedRouter } from './adm-bed-routing.ts';
 import {
 	addNode,
 	connect,
@@ -153,6 +154,17 @@ export function buildProjectGraph(
 		String(track.id ?? index),
 		clamp(audioTrackChannelCountV2(project, track, 2), 1, 32),
 	]));
+	const busInputChannelCount = (scope: 'group' | 'send', busId: string): number => Math.max(
+		2,
+		...tracks.map((track, index) => {
+			const trackId = String(track.id ?? index);
+			const route = mixer.routes?.[trackId];
+			const routed = scope === 'group'
+				? route?.groupId != null && String(route.groupId) === busId
+				: Number(route?.sends?.[busId]) > 0;
+			return routed ? effectChannelCounts.get(trackId) ?? 2 : 0;
+		}),
+	);
 	const mixEffectChannelCount = clamp(Math.max(
 		2,
 		positiveInteger(project?.masterChannels, 2),
@@ -163,6 +175,7 @@ export function buildProjectGraph(
 		effectRackLatencyFrames(activeRackEffects(track), context.sampleRate || DEFAULT_SAMPLE_RATE),
 	), 0);
 	const masterInput = addNode(nodes, context.createGain());
+	const admBedRouter = createAdmBedRouter(context, nodes, project.metadata?.adm, masterInput);
 	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const busLatencies = new Map([...groups, ...sends].map((bus) => [
@@ -171,10 +184,19 @@ export function buildProjectGraph(
 	]));
 	const maximumBusLatency = Math.max(0, ...busLatencies.values());
 	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
-	const connectCompensated = (output: AudioNode, latencyFrames = 0): void => {
+	const connectTerminal = (output: AudioNode, scope: 'track' | 'group' | 'send', id: string): void => {
+		if (admBedRouter) admBedRouter.routeTerminal(scope, id, output);
+		else connect(output, masterInput);
+	};
+	const connectCompensated = (
+		output: AudioNode,
+		latencyFrames: number,
+		scope: 'track' | 'group' | 'send',
+		id: string,
+	): void => {
 		const compensationFrames = maximumBusLatency - latencyFrames;
 		if (compensationFrames <= 0) {
-			connect(output, masterInput);
+			connectTerminal(output, scope, id);
 			return;
 		}
 		if (typeof context.createDelay !== 'function') {
@@ -184,7 +206,7 @@ export function buildProjectGraph(
 		const delay = addNode(nodes, context.createDelay(Math.max(1, compensationSeconds)));
 		setParam(delay.delayTime, compensationSeconds, context.currentTime);
 		connect(output, delay);
-		connect(delay, masterInput);
+		connectTerminal(delay, scope, id);
 	};
 	for (const [index, track] of tracks.entries()) {
 		const trackId = String(track.id ?? index);
@@ -210,7 +232,9 @@ export function buildProjectGraph(
 		trackGainParams.set(trackId, { param: gain.gain, latencyFrames: trackLatency });
 		connect(output, gain);
 		output = gain;
-		if (includeTrackPan && typeof context.createStereoPanner === 'function') {
+		const trackChannels = effectChannelCounts.get(trackId) ?? 2;
+		const routedTrackChannels = admBedRouter?.terminalChannelCount('track', trackId) ?? trackChannels;
+		if (includeTrackPan && (!admBedRouter || Math.max(trackChannels, routedTrackChannels) <= 2) && typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(finite(track.pan, 0), -1, 1), context.currentTime);
 			connect(output, panner);
@@ -240,7 +264,7 @@ export function buildProjectGraph(
 		setParam(directGate.gain, trackAudible ? 1 : 0, context.currentTime);
 		connect(output, directGate);
 		if (group) connect(directGate, groupInputs.get(String(group.id)));
-		else connectCompensated(directGate, 0);
+		else connectCompensated(directGate, 0, 'track', trackId);
 		for (const [sendId, requestedGain] of Object.entries(route.sends || {})) {
 			const send = sendById.get(String(sendId));
 			if (!send || !(Number(requestedGain) > 0)) continue;
@@ -280,7 +304,10 @@ export function buildProjectGraph(
 		});
 		connect(output, gain);
 		output = gain;
-		if (typeof context.createStereoPanner === 'function') {
+		const routedBusChannels = admBedRouter?.terminalChannelCount(scope, String(bus.id))
+			?? mixEffectChannelCount;
+		const busChannels = busInputChannelCount(scope, String(bus.id));
+		if ((!admBedRouter || Math.max(busChannels, routedBusChannels) <= 2) && typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(finite(bus.pan, 0), -1, 1), context.currentTime);
 			connect(output, panner);
@@ -295,7 +322,7 @@ export function buildProjectGraph(
 		const mute = addNode(nodes, context.createGain());
 		setParam(mute.gain, !respectMuteSolo || !bus.mute ? 1 : 0, context.currentTime);
 		connect(output, mute);
-		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0);
+		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0, scope, String(bus.id));
 	};
 	for (const bus of groups) processBus(bus, groupInputs.get(String(bus.id))!, groupAnalysers, groupGainParams, 'group');
 	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id))!, sendAnalysers, sendGainParams, 'send');
@@ -323,7 +350,7 @@ export function buildProjectGraph(
 	} : null;
 	connect(masterOutput, masterGain);
 	let finalOutput: AudioNode = masterGain;
-	if (includeMaster && finite(project?.master?.pan, 0) !== 0 && typeof context.createStereoPanner === 'function') {
+	if (includeMaster && (!admBedRouter || admBedRouter.channelCount <= 2) && finite(project?.master?.pan, 0) !== 0 && typeof context.createStereoPanner === 'function') {
 		const masterPanner = addNode(nodes, context.createStereoPanner());
 		setParam(masterPanner.pan, clamp(finite(project?.master?.pan, 0), -1, 1), context.currentTime);
 		connect(finalOutput, masterPanner);

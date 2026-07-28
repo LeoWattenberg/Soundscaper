@@ -8,7 +8,7 @@ import {
 	normalizeAudioEditorSnapSettings,
 } from '../snap-grid.js';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
-import { normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
+import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -466,6 +466,8 @@ function updateMetadata(project, changes = {}) {
 			next.bext = changes.bext == null ? null : normalizeProjectBextMetadata(changes.bext);
 		} else if (key === 'adm') {
 			next.adm = changes.adm == null ? null : normalizeAdmProjectMetadata(changes.adm);
+			const authoredChannels = authoredAdmChannelCount(next.adm);
+			if (authoredChannels != null) project.masterChannels = authoredChannels;
 		} else if (key === 'tags') {
 			if (!changes.tags || typeof changes.tags !== 'object' || Array.isArray(changes.tags)) {
 				throw new TypeError('metadata.tags must be an object.');

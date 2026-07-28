@@ -63,7 +63,8 @@ export interface AdmPassthroughMetadata {
 }
 
 export type AdmProjectMetadata = AdmAuthoredMetadata | AdmPassthroughMetadata;
-export type AdmProjectMetadataInput = Readonly<Record<string, unknown>> & Readonly<{ mode: 'authored' | 'passthrough' }>;
+export type AdmProjectMetadataInput = AdmProjectMetadata
+	| (Readonly<Record<string, unknown>> & Readonly<{ mode: 'authored' | 'passthrough' }>);
 
 export interface AdmPassthroughEligibilityContext {
 	readonly projectRevision: number;
@@ -123,6 +124,24 @@ export function admBedChannelOrder(layout: AdmBedLayout): readonly AdmBedChannel
 
 export function admBedChannelCount(layout: AdmBedLayout): number {
 	return admBedChannelOrder(layout).length;
+}
+
+export function authoredAdmChannelCount(metadata: unknown): number | null {
+	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+	const candidate = metadata as Record<string, unknown>;
+	if (candidate.mode !== 'authored') return null;
+	const normalized = normalizeAdmProjectMetadata(candidate as AdmProjectMetadataInput);
+	return normalized.mode === 'authored' ? admBedChannelCount(normalized.bed.layout) : null;
+}
+
+export function validateAdmProjectChannelCount(project: unknown): true {
+	const candidate = objectValue(project, 'project');
+	const metadata = objectValue(candidate.metadata, 'project.metadata');
+	const channelCount = authoredAdmChannelCount(metadata.adm);
+	if (channelCount !== null && candidate.masterChannels !== channelCount) {
+		throw new RangeError(`The authored ADM bed requires ${channelCount} master channels.`);
+	}
+	return true;
 }
 
 export function normalizeAdmProjectMetadata(input: AdmProjectMetadataInput): AdmProjectMetadata {

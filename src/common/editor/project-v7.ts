@@ -20,7 +20,9 @@ import {
 	type AudioEditorProjectV6Options,
 } from './project-v6.ts';
 import {
+	authoredAdmChannelCount,
 	normalizeAdmProjectMetadata,
+	validateAdmProjectChannelCount,
 	validateAdmProjectMetadata,
 	type AdmProjectMetadata,
 	type AdmProjectMetadataInput,
@@ -92,14 +94,19 @@ export const createMediaTrackV7 = createMediaTrackV6;
 export const createProjectBinV7 = createProjectBinV6;
 
 export function createAudioEditorProjectV7(options: AudioEditorProjectV7Options = {}): AudioEditorProjectV7 {
-	const project = createAudioEditorProjectV6(options);
 	const inputAdm = options.metadata?.adm;
+	const adm = inputAdm == null ? null : normalizeAdmProjectMetadata(inputAdm);
+	const authoredChannels = authoredAdmChannelCount(adm);
+	const project = createAudioEditorProjectV6({
+		...options,
+		...(authoredChannels == null ? {} : { masterChannels: authoredChannels }),
+	});
 	return {
 		...project,
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		metadata: {
 			...project.metadata,
-			adm: inputAdm == null ? null : normalizeAdmProjectMetadata(inputAdm),
+			adm,
 		},
 	};
 }
@@ -114,6 +121,7 @@ export function validateAudioEditorProjectV7(project: unknown): project is Audio
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
 	validateAdmProjectMetadata(candidate.metadata);
+	validateAdmProjectChannelCount(candidate);
 	validateAudioEditorProjectV6(
 		{ ...candidate, schemaVersion: 6 } as unknown as Parameters<typeof validateAudioEditorProjectV6>[0],
 	);

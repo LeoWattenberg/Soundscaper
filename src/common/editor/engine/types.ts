@@ -66,6 +66,7 @@ export interface EngineLoop {
 export interface EngineProject {
 	readonly sampleRate?: number;
 	readonly masterChannels?: number;
+	readonly metadata?: Readonly<{ adm?: unknown }>;
 	readonly loop?: EngineLoop;
 	readonly clips?: readonly EngineClip[];
 	readonly tracks?: readonly EngineTrack[];

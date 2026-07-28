@@ -2,7 +2,7 @@ import { validateVideoTrackComposition } from './video-timeline.js';
 import { createStableId } from './stable-id.js';
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
-import { validateAdmProjectMetadata } from './adm-project-metadata.ts';
+import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './adm-project-metadata.ts';
 export { createStableId } from './stable-id.js';
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
@@ -282,7 +282,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
 	if (project.schemaVersion === 5) return validateProjectV5Shape(project);
 	if (project.schemaVersion === 6) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata);
-	if (project.schemaVersion === 7) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata);
+	if (project.schemaVersion === 7) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}

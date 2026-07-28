@@ -116,7 +116,7 @@ test('authored ADM routing reports missing, non-terminal, and out-of-range assig
 		...authoredAdm(),
 		bed: {
 			...authoredAdm().bed,
-			assignments: [{ stripKind: 'track', stripId: 'dry', sourceChannel: 2, bedChannel: 'L' }],
+			assignments: [{ stripKind: 'track', stripId: 'dry', sourceChannel: 6, bedChannel: 'L' }],
 		},
 	});
 	assert.ok(validateAdmAuthoredRouting(outOfRange, project).some((issue) => issue.code === 'source-channel-out-of-range'));
