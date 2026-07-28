@@ -310,10 +310,19 @@ models or native implementations.
 - **Shared — Planned:** add media digests, original/proxy relationships, cache
   budgets, relink state, and reproducible derivative descriptions without
   storing disposable previews in project history.
-- **Electron Enhanced — Planned:** create one native project/media library shared
-  by the two Electron products, with cross-process leases, atomic metadata,
-  recovery journals, and an explicit "Edit in Soundscaper/Framescaper" handoff.
-  Do not point two Chromium profiles at the same IndexedDB directory.
+- **Electron Enhanced — In progress:** the product-neutral strict-TS
+  [desktop library foundation](desktop/project-library.ts) uses a fixed
+  application-data scope rather than either Chromium profile, size-bounded and
+  digest-validated [metadata](desktop/project-library-contract.ts), atomic
+  SQLite publication, expiring cross-process leases with monotonic fencing, and
+  prepared/committed recovery journals. The
+  [desktop regression](tests/desktop-project-library.test.ts) proves atomic
+  cross-connection visibility, a real second-process lease holder, stale
+  takeover, abortable bounded waiting, interrupted-write recovery, and
+  fail-closed corruption. Electron lifecycle wiring, actual project/managed
+  media commits, and the explicit "Edit in Soundscaper/Framescaper" handoff
+  remain open; no raw path or new renderer IPC surface is exposed by this
+  foundation.
 - **Electron Enhanced — Planned:** migrate each existing app library idempotently
   into the shared store. Record source identity and completion, merge without
   overwriting conflicts, retain both legacy libraries until verification, and
