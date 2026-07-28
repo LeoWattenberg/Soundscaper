@@ -245,10 +245,16 @@ models or native implementations.
 - **Shared — Planned:** do **not** define MIDI events/devices or Framescaper
   capture contracts in this milestone. Generic adapters must not quietly commit
   either model ahead of milestone 8.
-- **Shared / Web Core — Planned:** make internal `.scape`, import, proxy, and
-  export processing bounded and streaming even when the browser must eventually
-  assemble a download. Reuse existing streamed source/sink work; preflight the
-  final-assembly fallback and reject safely above its documented limit.
+- **Shared / Web Core — In progress:** internal `.scape` import and inspection
+  now share a strict-TS
+  [archive envelope](src/common/editor/scape-archive-envelope.ts) that bounds
+  metadata and declared expansion, rejects encrypted/extra/aliased entries, and
+  verifies descriptor ownership before storage writes. The
+  [malicious-archive regression](tests/audio-editor-scape-archive-envelope.test.ts)
+  covers both entry points. Local-header/overlap checks, actual-byte accounting,
+  end-to-end abort and rollback, streaming media extraction, and the bounded Web
+  Core final-assembly fallback remain open in the
+  [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a
   final renderer-sized `Blob`. A size-limited browser download remains the Web

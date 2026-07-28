@@ -3,23 +3,27 @@ import {
 	BlobReader,
 	BlobWriter,
 	TextReader,
-	TextWriter,
 	ZipReader,
 	ZipWriter,
 } from '@zip.js/zip.js';
 
 import { createStableId } from './project.js';
 import { migrateAudioEditorProject } from './migration.js';
+import {
+	readScapeArchiveEnvelope,
+	SCAPE_FORMAT,
+	SCAPE_FORMAT_VERSION,
+	SCAPE_MANIFEST_ENTRY,
+	SCAPE_PROJECT_ENTRY,
+} from './scape-archive-envelope.ts';
 
-export const SCAPE_FORMAT = 'scape-project';
-export const SCAPE_FORMAT_VERSION = 1;
+export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
 export const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 export const SCAPE_FILE_EXTENSION = '.scape';
 
-const PROJECT_ENTRY = 'project.json';
-const MANIFEST_ENTRY = 'manifest.json';
+const PROJECT_ENTRY = SCAPE_PROJECT_ENTRY;
+const MANIFEST_ENTRY = SCAPE_MANIFEST_ENTRY;
 const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
-const MAXIMUM_ENTRY_COUNT = 100_000;
 const TEXT_ENCODER = new TextEncoder();
 
 export async function exportScapeProject(project, store, options = {}) {
@@ -87,16 +91,7 @@ export async function importScapeProject(input, store, options = {}) {
 	const stagedSourceIds = [];
 	try {
 		const entries = await reader.getEntries({ strictness: 'strict' });
-		if (entries.length > MAXIMUM_ENTRY_COUNT) throw new RangeError('The .scape archive contains too many entries.');
-		const entryByName = new Map();
-		for (const entry of entries) {
-			validateEntryName(entry.filename);
-			if (entryByName.has(entry.filename)) throw new Error(`Duplicate .scape entry: ${entry.filename}.`);
-			entryByName.set(entry.filename, entry);
-		}
-		const manifest = parseManifest(await readTextEntry(entryByName.get(MANIFEST_ENTRY), MANIFEST_ENTRY));
-		const projectEntry = entryByName.get(manifest.project.entry);
-		const projectText = await readTextEntry(projectEntry, manifest.project.entry);
+		const { entryByName, manifest, projectText } = await readScapeArchiveEnvelope(entries);
 		const projectBytes = TEXT_ENCODER.encode(projectText);
 		verifyAssetBytes(projectBytes, manifest.project, 'project document');
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
@@ -178,9 +173,7 @@ export async function inspectScapeProject(input, store = null) {
 	const reader = new ZipReader(new BlobReader(input), { useWebWorkers: false, strictness: 'strict' });
 	try {
 		const entries = await reader.getEntries({ strictness: 'strict' });
-		const entryByName = new Map(entries.map((entry) => [entry.filename, entry]));
-		const manifest = parseManifest(await readTextEntry(entryByName.get(MANIFEST_ENTRY), MANIFEST_ENTRY));
-		const projectText = await readTextEntry(entryByName.get(manifest.project.entry), manifest.project.entry);
+		const { manifest, projectText } = await readScapeArchiveEnvelope(entries);
 		verifyAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
 		return Object.freeze({
@@ -195,33 +188,6 @@ export async function inspectScapeProject(input, store = null) {
 		await reader.close().catch(() => undefined);
 	}
 }
-
-function parseManifest(text) {
-	let manifest;
-	try { manifest = JSON.parse(text); }
-	catch { throw new Error('The .scape manifest is not valid JSON.'); }
-	if (manifest?.format !== SCAPE_FORMAT) throw new RangeError('This is not a .scape project.');
-	if (manifest.formatVersion !== SCAPE_FORMAT_VERSION) throw new RangeError(`Unsupported .scape format version: ${manifest.formatVersion}.`);
-	if (!manifest.project || !Array.isArray(manifest.assets)) throw new TypeError('The .scape manifest is incomplete.');
-	for (const descriptor of [manifest.project, ...manifest.assets]) {
-		validateEntryName(descriptor.entry);
-		if (!Number.isSafeInteger(descriptor.size) || descriptor.size < 0) throw new RangeError('A .scape asset has an invalid size.');
-		if (!/^[a-f0-9]{64}$/u.test(String(descriptor.sha256 || ''))) throw new TypeError('A .scape asset has an invalid SHA-256 digest.');
-	}
-	return manifest;
-}
-
-function validateEntryName(name) {
-	if (typeof name !== 'string' || !name || name.startsWith('/') || name.includes('\\') || name.split('/').includes('..')) {
-		throw new Error(`Unsafe .scape entry name: ${String(name)}.`);
-	}
-}
-
-async function readTextEntry(entry, name) {
-	if (!entry || entry.directory || typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${name}.`);
-	return entry.getData(new TextWriter());
-}
-
 function safeEntryId(value) {
 	return encodeURIComponent(String(value || '')).replaceAll('%', '_');
 }

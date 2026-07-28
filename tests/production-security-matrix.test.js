@@ -16,14 +16,21 @@ const ROADMAP_THREAT_AREAS = [
 	'path-capabilities',
 	'job-cancellation',
 ];
-const ARCHIVE_EXPANSION_GATES = [
-	'abort-signal-and-rollback',
+const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 	'bounded-manifest-and-project-json',
 	'central-directory-preflight',
 	'cumulative-expanded-byte-limit',
 	'descriptor-entry-size-match',
-	'encrypted-overlap-and-extra-entry-rejection',
+	'encrypted-entry-rejection',
 	'inspect-import-validation-parity',
+	'reserved-and-extra-entry-ownership',
+];
+const PENDING_ARCHIVE_EXPANSION_GATES = [
+	'abort-signal-propagation-and-rollback',
+	'bounded-streaming-media-extraction',
+	'compression-ratio-or-store-policy',
+	'cumulative-actual-expanded-byte-limit',
+	'local-header-and-overlap-validation',
 	'safe-pcm-frame-arithmetic',
 ];
 
@@ -112,10 +119,25 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'release-blocked');
 	assert.equal(archiveExpansion.releaseGate.status, 'pending');
-	assert.deepEqual([...archiveExpansion.releaseGate.requiredControlIds].sort(), [...ARCHIVE_EXPANSION_GATES].sort());
-	const implementedControlIds = new Set(archiveExpansion.currentControls.map(({ id }) => id));
-	for (const gateId of ARCHIVE_EXPANSION_GATES) {
-		assert.equal(implementedControlIds.has(gateId), false, `${gateId} is still a qualification gate`);
+	assert.deepEqual(
+		[...archiveExpansion.releaseGate.requiredControlIds].sort(),
+		[...PENDING_ARCHIVE_EXPANSION_GATES].sort(),
+	);
+	const implementedControls = new Map(archiveExpansion.currentControls.map((control) => [control.id, control]));
+	for (const controlId of IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS) {
+		const control = implementedControls.get(controlId);
+		assert.ok(control, `${controlId} must remain recorded as implemented`);
+		assert.ok(
+			control.evidence.some(({ path }) => path === 'src/common/editor/scape-archive-envelope.ts'),
+			`${controlId} needs envelope implementation evidence`,
+		);
+		assert.ok(
+			control.evidence.some(({ path }) => path === 'tests/audio-editor-scape-archive-envelope.test.ts'),
+			`${controlId} needs envelope test evidence`,
+		);
+	}
+	for (const gateId of PENDING_ARCHIVE_EXPANSION_GATES) {
+		assert.equal(implementedControls.has(gateId), false, `${gateId} is still a qualification gate`);
 	}
 });
 

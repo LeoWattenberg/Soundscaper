@@ -49,9 +49,11 @@
 				"src/common/editor/adm-xml-compression.ts"
 			],
 			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 				{ "kind": "implementation", "path": "src/common/editor/project-v8.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/wav-import.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
 				{ "kind": "test", "path": "tests/audio-editor-project-v8.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-wav-import.test.js" }
@@ -67,8 +69,10 @@
 				"src/common/editor/storage.js"
 			],
 			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 				{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
 				{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" }
 			]
@@ -229,7 +233,7 @@
 			"impact": "high",
 			"status": "partial",
 			"releaseDisposition": "conditional",
-			"ownerMilestone": "1",
+			"ownerMilestone": "2",
 			"currentControls": [
 				{
 					"id": "bounded-wav-and-adm-parsing",
@@ -276,7 +280,7 @@
 			"impact": "high",
 			"status": "partial",
 			"releaseDisposition": "conditional",
-			"ownerMilestone": "1",
+			"ownerMilestone": "2",
 			"currentControls": [
 				{
 					"id": "canonical-entry-and-content-integrity",
@@ -285,22 +289,24 @@
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
 					]
+				},
+				{
+					"id": "strict-archive-envelope-ownership",
+					"summary": "Import and inspection share a strict metadata envelope that rejects encrypted and directory entries, duplicate source or entry ownership, reserved-entry reuse, descriptor aliases, missing entries, and unreferenced extra entries before project or source storage writes.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
-					"id": "archive-envelope-parity",
-					"exposure": "Inspection does not reuse import's entry-count, safe-name, and duplicate-name envelope checks.",
-					"requiredControl": "Use one strict archive-envelope validator for inspection and import.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["The same malicious archive fixture is rejected identically by inspect and import before extraction."]
-				},
-				{
-					"id": "archive-entry-ownership",
-					"exposure": "The manifest does not yet prove one-to-one ownership of every non-reserved archive entry.",
-					"requiredControl": "Reject descriptor aliases, reserved-entry reuse, and unreferenced extra entries.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Unit tests cover aliases, reserved names, duplicate descriptors, and extra entries."]
+					"id": "project-source-descriptor-bijection",
+					"exposure": "Entry ownership is one-to-one, but the envelope does not yet reject a manifest asset descriptor that no migrated project source references.",
+					"requiredControl": "Require a one-to-one mapping between migrated project source IDs and manifest asset source IDs before collision handling or persistence.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Import and inspection reject extra or duplicate source descriptors before any storage call while preserving canonical exports."]
 				}
 			]
 		},
@@ -313,30 +319,89 @@
 			"impact": "critical",
 			"status": "release-blocked",
 			"releaseDisposition": "blocked",
-			"ownerMilestone": "1",
+			"ownerMilestone": "2",
 			"currentControls": [
 				{
 					"id": "archive-entry-count-and-storage-rollback",
 					"summary": "Import caps entry count, validates hashes after extraction, aborts a failing audio writer, deletes already staged sources, and saves the project last.",
 					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
+				},
+				{
+					"id": "central-directory-preflight",
+					"summary": "A strict TypeScript envelope validates the entry-count limit and safe integer compressed/uncompressed metadata for every file before reading manifest bytes.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "bounded-manifest-and-project-json",
+					"summary": "Manifest JSON is capped at 32 MiB and project JSON at 256 MiB using both central-directory preflight and byte-counted streaming text sinks.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "cumulative-expanded-byte-limit",
+					"summary": "The envelope rejects central-directory declarations whose safe cumulative uncompressed size exceeds 64 GiB before reading any entry body.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "descriptor-entry-size-match",
+					"summary": "Every project or asset descriptor must exactly match its entry's declared uncompressed size before project JSON or asset extraction begins.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "reserved-and-extra-entry-ownership",
+					"summary": "The manifest, project, and asset descriptors must own distinct expected entries, and all extra, alias, missing, directory, or reserved-name entries are rejected before storage work.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "encrypted-entry-rejection",
+					"summary": "Any encrypted central-directory entry rejects the archive before manifest or project bytes are read.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
+					]
+				},
+				{
+					"id": "inspect-import-validation-parity",
+					"summary": "Inspection and import call the same strict archive-envelope validator; an integration test proves both reject the same extra entry before storage writes.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
 					]
 				}
 			],
 			"residualRisks": [
 				{
-					"id": "pre-extraction-budgets",
-					"exposure": "Manifest and project JSON are materialized before a byte cap; central-directory sizes and cumulative expansion are not preflighted.",
-					"requiredControl": "Preflight entry metadata and enforce per-entry and cumulative expanded-byte budgets before storage writes.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Oversized metadata, declared expansion, encryption, overlap, ratio, and descriptor-size fixtures fail before staging."]
+					"id": "local-header-and-actual-expansion",
+					"exposure": "Central-directory declarations are bounded, but overlapping/local-header inconsistencies, compression ratio, and a cumulative count of actual asset bytes are not rejected before or during all extraction.",
+					"requiredControl": "Check local-header overlap and consistency and enforce a fail-fast compression or STORE policy plus cumulative actual-byte budget during extraction.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Overlap, local-header mismatch, compression-amplification, and actual-byte-overrun fixtures stop before an asset writer can exceed the configured budget."]
 				},
 				{
 					"id": "streaming-abort-and-safe-pcm",
 					"exposure": "Archive operations do not accept AbortSignal, video is materialized as a Blob, and PCM frame-count arithmetic can retain an unbounded pending buffer.",
 					"requiredControl": "Thread AbortSignal through ZIP extraction and storage, stream bounded media, and reject unsafe PCM frame arithmetic before allocation.",
-					"ownerMilestone": "1",
+					"ownerMilestone": "2",
 					"acceptanceCriteria": ["Abort and malicious PCM-header tests prove bounded allocation, writer abort, reader close, and unchanged project/source inventory."]
 				}
 			],
@@ -344,14 +409,12 @@
 				"id": "scape-archive-expansion-qualification",
 				"status": "pending",
 				"requiredControlIds": [
-					"central-directory-preflight",
-					"bounded-manifest-and-project-json",
-					"cumulative-expanded-byte-limit",
-					"descriptor-entry-size-match",
-					"encrypted-overlap-and-extra-entry-rejection",
-					"inspect-import-validation-parity",
-					"abort-signal-and-rollback",
-					"safe-pcm-frame-arithmetic"
+					"local-header-and-overlap-validation",
+					"compression-ratio-or-store-policy",
+					"cumulative-actual-expanded-byte-limit",
+					"abort-signal-propagation-and-rollback",
+					"safe-pcm-frame-arithmetic",
+					"bounded-streaming-media-extraction"
 				]
 			}
 		},
