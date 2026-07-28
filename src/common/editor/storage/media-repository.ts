@@ -7,6 +7,10 @@ import {
 	type DerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
 import {
+	projectDerivativeCacheInventoryRecord,
+	readDerivativeCacheInventory,
+} from './derivative-cache-inventory.ts';
+import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
 } from './media-content-digest.ts';
@@ -182,7 +186,7 @@ export class MediaRepository {
 					const current = asStorageRecord(this.#port.memory.videoDerivatives.get(key));
 					if (!sameDerivativeCacheRecord(current, expected)) continue;
 					this.#port.memory.videoDerivatives.delete(key);
-					removed.push(clone(current));
+					removed.push(projectDerivativeCacheInventoryRecord(current, key));
 				}
 			} else {
 				await transact(database, 'videoDerivatives', 'readwrite', async ({ videoDerivatives }) => {
@@ -191,7 +195,7 @@ export class MediaRepository {
 						const current = asStorageRecord(await request(videoDerivatives.get(key)));
 						if (!sameDerivativeCacheRecord(current, expected)) continue;
 						videoDerivatives.delete(key);
-						removed.push(clone(current));
+						removed.push(projectDerivativeCacheInventoryRecord(current, key));
 					}
 				});
 			}
@@ -288,10 +292,10 @@ export class MediaRepository {
 
 	async allDerivativeRecords(): Promise<StorageRecord[]> {
 		const database = await this.#port.database();
-		const records = !database
-			? [...this.#port.memory.videoDerivatives.values()]
-			: await transact(database, 'videoDerivatives', 'readonly', ({ videoDerivatives }) => request(videoDerivatives.getAll()));
-		return records.map(asStorageRecord).filter(isStorageRecord).map(clone);
+		if (database) return readDerivativeCacheInventory(database);
+		return [...this.#port.memory.videoDerivatives.entries()].map(([key, record]) => (
+			projectDerivativeCacheInventoryRecord(record, key)
+		));
 	}
 }
 

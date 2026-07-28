@@ -5,6 +5,13 @@ import { EditorStoreBlockedError } from './status.ts';
 const DATABASE_VERSION = 2;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
+export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
+
+export type IndexedDBCursorProjector<RecordValue> = (
+	value: unknown,
+	primaryKey: IDBValidKey,
+) => RecordValue;
+
 export function openDatabase(
 	indexedDB: IDBFactory,
 	databaseName: string,
@@ -85,6 +92,7 @@ export async function transact<Result>(
 		result = await operation(stores, transaction);
 	} catch (error) {
 		try { transaction.abort(); } catch { /* Transaction may already be inactive. */ }
+		try { await completion; } catch { /* Preserve the operation's primary failure. */ }
 		throw error;
 	}
 	await completion;
@@ -99,22 +107,30 @@ export function request<Result>(idbRequest: IDBRequest<Result>): Promise<Result>
 }
 
 /**
- * Read a bounded cursor page. Callers open a new transaction for every page,
- * so pausing an async iterator never retains a browser transaction.
+ * Read a hard-capped cursor page, synchronously projecting each delivered value
+ * before it enters the retained page. Callers open a new transaction for every
+ * page, so pausing an async iterator never retains a browser transaction.
  */
 export function readCursorPage<RecordValue = unknown>(
 	source: IDBObjectStore | IDBIndex,
 	{
 		query,
 		afterPrimaryKey,
+		maximumPrimaryKey,
 		limit = SOURCE_CHUNK_CURSOR_PAGE_SIZE,
+		project = identityCursorValue<RecordValue>,
 	}: {
 		readonly query?: IDBValidKey | IDBKeyRange;
 		readonly afterPrimaryKey?: IDBValidKey;
+		readonly maximumPrimaryKey?: IDBValidKey;
 		readonly limit?: number;
+		readonly project?: IndexedDBCursorProjector<RecordValue>;
 	} = {},
 ): Promise<RecordValue[]> {
-	const maximumRecords = positiveInteger(limit, SOURCE_CHUNK_CURSOR_PAGE_SIZE);
+	const maximumRecords = Math.min(
+		positiveInteger(limit, SOURCE_CHUNK_CURSOR_PAGE_SIZE),
+		MAX_INDEXEDDB_CURSOR_PAGE_SIZE,
+	);
 	return new Promise((resolve, reject) => {
 		const records: RecordValue[] = [];
 		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
@@ -128,6 +144,11 @@ export function readCursorPage<RecordValue = unknown>(
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;
 			if (!cursor) {
+				resolve(records);
+				return;
+			}
+			if (maximumPrimaryKey !== undefined
+				&& compareStringKeys(cursor.primaryKey, maximumPrimaryKey) > 0) {
 				resolve(records);
 				return;
 			}
@@ -151,7 +172,12 @@ export function readCursorPage<RecordValue = unknown>(
 					return;
 				}
 			}
-			records.push(cursor.value as RecordValue);
+			try {
+				records.push(project(cursor.value, cursor.primaryKey));
+			} catch (error) {
+				reject(error);
+				return;
+			}
 			if (records.length >= maximumRecords) {
 				resolve(records);
 				return;
@@ -194,4 +220,8 @@ function compareStringKeys(left: IDBValidKey, right: IDBValidKey): number {
 function positiveInteger(value: unknown, fallback: number): number {
 	const number = Number(value);
 	return Number.isSafeInteger(number) && number > 0 ? number : fallback;
+}
+
+function identityCursorValue<RecordValue>(value: unknown): RecordValue {
+	return value as RecordValue;
 }

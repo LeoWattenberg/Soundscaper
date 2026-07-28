@@ -4,7 +4,11 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 	const databases = new Map();
 	const stats = {
 		activeTransactions: 0,
+		maximumActiveTransactions: 0,
 		cursorRequests: [],
+		keyCursorRequests: [],
+		getAllRequests: [],
+		getRequests: [],
 		sourceChunkGetAllCalls: 0,
 		supportsContinuePrimaryKey,
 	};
@@ -80,6 +84,10 @@ class FakeTransaction {
 		this.onabort = null;
 		this.onerror = null;
 		database.stats.activeTransactions += 1;
+		database.stats.maximumActiveTransactions = Math.max(
+			database.stats.maximumActiveTransactions,
+			database.stats.activeTransactions,
+		);
 		this.scheduleCompletion();
 	}
 
@@ -133,12 +141,24 @@ class FakeObjectStore {
 	}
 
 	get(key) {
-		return fakeRequest(this.transaction, () => clone(this.data.records.get(key)));
+		return fakeRequest(this.transaction, () => {
+			const value = this.data.records.get(key);
+			this.transaction.database.stats.getRequests.push({
+				store: this.data.name,
+				key,
+				...blobReadStats(value === undefined ? [] : [value]),
+			});
+			return clone(value);
+		});
 	}
 
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
-		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).slice(0, count).map(clone));
+		return fakeGetAllRequest(this.transaction, this.data, null, query, count, valuesForStore(this.data, query));
+	}
+
+	count(query) {
+		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).length);
 	}
 
 	delete(key) {
@@ -161,6 +181,15 @@ class FakeObjectStore {
 		}));
 		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query });
 	}
+
+	openKeyCursor(query, direction = 'next') {
+		const entries = valuesForStore(this.data, query).map((value) => ({
+			key: value[this.data.keyPath],
+			primaryKey: value[this.data.keyPath],
+		}));
+		if (direction === 'prev' || direction === 'prevunique') entries.reverse();
+		return fakeKeyCursorRequest(this.transaction, this.data, entries, { index: null, query, direction });
+	}
 }
 
 class FakeIndex {
@@ -173,7 +202,7 @@ class FakeIndex {
 
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
-		return fakeRequest(this.transaction, () => this.values(query).slice(0, count).map(clone));
+		return fakeGetAllRequest(this.transaction, this.data, this.name, query, count, this.values(query));
 	}
 
 	openCursor(query) {
@@ -210,9 +239,29 @@ function fakeRequest(transaction, operation) {
 	return request;
 }
 
+function fakeGetAllRequest(transaction, data, index, query, count, values) {
+	return fakeRequest(transaction, () => {
+		const returnedValues = values.slice(0, count);
+		transaction.database.stats.getAllRequests.push({
+			store: data.name,
+			index,
+			query,
+			...blobReadStats(returnedValues),
+		});
+		return returnedValues.map(clone);
+	});
+}
+
 function fakeCursorRequest(transaction, data, entries, { index, query }) {
 	const request = { result: undefined, error: null, onsuccess: null, onerror: null };
-	const requestStats = { store: data.name, index, query, delivered: 0 };
+	const requestStats = {
+		store: data.name,
+		index,
+		query,
+		delivered: 0,
+		blobValuesDelivered: 0,
+		blobBytesDelivered: 0,
+	};
 	transaction.database.stats.cursorRequests.push(requestStats);
 	transaction.beginRequest();
 	let position = 0;
@@ -226,6 +275,9 @@ function fakeCursorRequest(transaction, data, entries, { index, query }) {
 		const entry = entries[position];
 		let continued = false;
 		requestStats.delivered += 1;
+		const payload = blobPayloadStats(entry.value);
+		if (payload.count) requestStats.blobValuesDelivered += 1;
+		requestStats.blobBytesDelivered += payload.bytes;
 		const cursor = {
 			key: entry.key,
 			primaryKey: entry.primaryKey,
@@ -263,6 +315,39 @@ function fakeCursorRequest(transaction, data, entries, { index, query }) {
 	return request;
 }
 
+function fakeKeyCursorRequest(transaction, data, entries, { index, query, direction }) {
+	const request = { result: undefined, error: null, onsuccess: null, onerror: null };
+	const requestStats = { store: data.name, index, query, direction, delivered: 0 };
+	transaction.database.stats.keyCursorRequests.push(requestStats);
+	transaction.beginRequest();
+	let position = 0;
+	const deliver = () => queueMicrotask(() => {
+		if (position >= entries.length) {
+			request.result = null;
+			request.onsuccess?.();
+			transaction.endRequest();
+			return;
+		}
+		const entry = entries[position];
+		let continued = false;
+		requestStats.delivered += 1;
+		request.result = {
+			key: entry.key,
+			primaryKey: entry.primaryKey,
+			continue() {
+				if (continued) throw new Error('The cursor has already advanced.');
+				continued = true;
+				position += 1;
+				deliver();
+			},
+		};
+		request.onsuccess?.();
+		if (!continued) transaction.endRequest();
+	});
+	deliver();
+	return request;
+}
+
 function valuesForStore(data, query) {
 	return [...data.records.values()]
 		.filter((value) => query === undefined || value[data.keyPath] === query)
@@ -272,6 +357,40 @@ function valuesForStore(data, query) {
 function compareKeys(left, right) {
 	if (left === right) return 0;
 	return String(left) < String(right) ? -1 : 1;
+}
+
+function blobReadStats(values) {
+	let blobValuesReturned = 0;
+	let blobBytesReturned = 0;
+	for (const value of values) {
+		const payload = blobPayloadStats(value);
+		if (payload.count) blobValuesReturned += 1;
+		blobBytesReturned += payload.bytes;
+	}
+	return {
+		returned: values.length,
+		blobValuesReturned,
+		blobBytesReturned,
+	};
+}
+
+function blobPayloadStats(value, seen = new WeakSet()) {
+	if (!value || typeof value !== 'object') return { count: 0, bytes: 0 };
+	if (typeof Blob === 'function' && value instanceof Blob) return { count: 1, bytes: value.size };
+	if (seen.has(value)) return { count: 0, bytes: 0 };
+	seen.add(value);
+	if (value instanceof ArrayBuffer || ArrayBuffer.isView(value) || value instanceof Date) {
+		return { count: 0, bytes: 0 };
+	}
+	const nested = value instanceof Map
+		? [...value.entries()].flat()
+		: value instanceof Set
+			? [...value.values()]
+			: Object.values(value);
+	return nested.reduce((total, child) => {
+		const payload = blobPayloadStats(child, seen);
+		return { count: total.count + payload.count, bytes: total.bytes + payload.bytes };
+	}, { count: 0, bytes: 0 });
 }
 
 function clone(value) {

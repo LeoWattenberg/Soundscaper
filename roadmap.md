@@ -314,9 +314,19 @@ models or native implementations.
   [storage-safety](tests/audio-editor-video-storage.test.js) regressions prove
   exact preflight headroom, honest memory fallback, IndexedDB/OPFS disposal,
   and cleanup boundaries that preserve projects, revisions, originals,
-  canonical PCM, and active writes. Automatic derivative-budget enforcement on
-  each cache publication, bounded IndexedDB metadata paging for very large
-  legacy caches, and dedicated save, proxy, and render estimators remain open.
+  canonical PCM, and active writes. As a bounded-record migration step, large
+  legacy IndexedDB derivative caches no longer use a cache-wide `getAll()`:
+  a finite start-of-scan key/count boundary and fresh, non-raiseable 64-record
+  cursor windows immediately project each delivered payload to scalar
+  accounting and compare-and-delete metadata, and removal snapshots do not
+  retain Blob fields.
+  The focused [paging regression](tests/audio-editor-derivative-cache-paging.test.ts)
+  proves multi-page transaction closure, hard-capped binary-bearing record
+  delivery, and fail-before-delete corruption handling. Cursor values still
+  retrieve each legacy Blob-bearing row, and the scalar plan remains O(entries);
+  a metadata-only companion store with atomic backfill, automatic budget
+  enforcement on each cache publication, and dedicated save, proxy, and render
+  estimators remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.
