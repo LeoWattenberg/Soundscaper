@@ -12,7 +12,7 @@ const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
  * Encode channel-aligned PCM samples as a complete WAV file.
  *
  * @param {ArrayLike<Float32Array> | AudioBuffer} input
- * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, bitDepth?: 16 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], random?: () => number }} [options]
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], random?: () => number }} [options]
  * @returns {Uint8Array}
  */
 export function encodeWav(input, options = {}) {
@@ -38,7 +38,7 @@ export function encodeWav(input, options = {}) {
  *   sampleRate?: number,
  *   channelCount?: number,
  *   totalFrames: number,
- *   bitDepth?: 16 | 24 | 32,
+ *   bitDepth?: 16 | 20 | 24 | 32,
  *   float?: boolean,
  *   dither?: boolean | 'none' | 'triangular' | 'triangular-highpass',
  *   metadata?: Record<string, *>,
@@ -57,7 +57,7 @@ export function createWavStreamEncoder(options) {
 	const totalFrames = nonNegativeSafeInteger(options?.totalFrames, 0, 'totalFrames');
 	const float = Boolean(options?.float);
 	const bitDepth = float ? 32 : normalizeBitDepth(options?.bitDepth);
-	const bytesPerSample = bitDepth / 8;
+	const bytesPerSample = Math.ceil(bitDepth / 8);
 	const collect = options?.collect ?? !options?.onChunk;
 	const onChunk = typeof options?.onChunk === 'function' ? options.onChunk : null;
 	const dither = float ? 'none' : normalizeDither(options?.dither);
@@ -196,7 +196,7 @@ export function createWavStreamEncoder(options) {
  * Inspect the exact on-disk WAV layout without allocating PCM or file-sized buffers.
  * An explicit `trailingByteLength` takes precedence over the encoded `metadata` size.
  *
- * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 24 | 32, float?: boolean, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], trailingByteLength?: number, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput }} [options]
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], trailingByteLength?: number, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput }} [options]
  * @returns {{ container: 'riff' | 'rf64' | 'bw64', byteLength: number, headerByteLength: number, riffSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number, bextByteLength: number }}
  */
 export function inspectWavLayout(options = {}) {
@@ -228,11 +228,11 @@ function prepareWavLayout({
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
 	const broadcast = bext != null;
-	if (broadcast && (float || (normalizedDepth !== 16 && normalizedDepth !== 24))) {
-		throw new RangeError('Broadcast WAV supports only 16-bit or 24-bit integer PCM.');
+	if (broadcast && (float || ![16, 20, 24].includes(normalizedDepth))) {
+		throw new RangeError('Broadcast WAV supports only 16-bit, 20-bit, or 24-bit integer PCM.');
 	}
 	if (broadcast && normalizedChannels > 32) throw new RangeError('Broadcast WAV supports at most 32 channels.');
-	const bytesPerSample = normalizedDepth / 8;
+	const bytesPerSample = Math.ceil(normalizedDepth / 8);
 	if (!Number.isSafeInteger(normalizedRate) || normalizedRate > UINT32_MAX) {
 		throw new RangeError('WAV sampleRate must fit the unsigned 32-bit format field.');
 	}
@@ -365,7 +365,7 @@ function normalizeWavContainer(value) {
 function validateBw64Options({ container, channelCount = 2, bitDepth = 24, float = false } = {}) {
 	if (container !== 'bw64') return;
 	if (float) throw new RangeError('BW64 supports only integer PCM.');
-	if (bitDepth !== 16 && bitDepth !== 24) throw new RangeError('BW64 supports only 16-bit or 24-bit integer PCM.');
+	if (![16, 20, 24].includes(bitDepth)) throw new RangeError('BW64 supports only 16-bit, 20-bit, or 24-bit integer PCM.');
 	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 32) {
 		throw new RangeError('BW64 supports an integer channel count from 1 through 32 channels.');
 	}
@@ -422,9 +422,10 @@ function writeSample(view, byteOffset, original, bitDepth, float, dither, random
 		view.setInt32(byteOffset, quantized, true);
 		return byteOffset + 4;
 	}
-	view.setUint8(byteOffset, quantized & 0xff);
-	view.setUint8(byteOffset + 1, (quantized >> 8) & 0xff);
-	view.setUint8(byteOffset + 2, (quantized >> 16) & 0xff);
+	const packed = bitDepth === 20 ? quantized * 16 : quantized;
+	view.setUint8(byteOffset, packed & 0xff);
+	view.setUint8(byteOffset + 1, (packed >> 8) & 0xff);
+	view.setUint8(byteOffset + 2, (packed >> 16) & 0xff);
 	return byteOffset + 3;
 }
 
@@ -450,7 +451,7 @@ function writeAscii(view, offset, value) {
 }
 
 function normalizeBitDepth(value) {
-	return value === 16 || value === 32 ? value : 24;
+	return value === 16 || value === 20 || value === 32 ? value : 24;
 }
 
 function positiveInteger(value, fallback) {

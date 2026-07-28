@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	createWavHeader,
 	createWavStreamEncoder,
+	encodeWav,
 	inspectWavLayout,
 } from '../src/common/editor/wav.js';
 
@@ -87,6 +88,27 @@ test('BW64 streaming places caller chunks around PCM and before generated metada
 	assert.equal(result.metadataBytes, axml.byteLength + emitted[4].chunk.byteLength);
 });
 
+test('BW64 encodes 20-bit PCM MSB-aligned in three-byte sample words', () => {
+	const encoded = encodeWav([Float32Array.of(-1, 0, (2 ** 19 - 1) / 2 ** 19)], {
+		container: 'bw64',
+		sampleRate: 48_000,
+		bitDepth: 20,
+		dither: 'none',
+	});
+	const formatOffset = findChunk(encoded, 'fmt ');
+	const dataOffset = findChunk(encoded, 'data');
+	const view = dataView(encoded);
+
+	assert.equal(view.getUint16(formatOffset + 20, true), 3);
+	assert.equal(view.getUint16(formatOffset + 22, true), 20);
+	assert.equal(view.getUint32(formatOffset + 16, true), 48_000 * 3);
+	assert.deepEqual([...encoded.subarray(dataOffset + 8, dataOffset + 17)], [
+		0x00, 0x00, 0x80,
+		0x00, 0x00, 0x00,
+		0xf0, 0xff, 0x7f,
+	]);
+});
+
 test('BW64 encoding constraints do not alter automatic RIFF and RF64 selection', () => {
 	const autoOptions = { channelCount: 2, totalFrames: 1, bitDepth: 24 as const };
 	assert.deepEqual(createWavHeader(autoOptions), createWavHeader({ ...autoOptions, container: 'auto' }));
@@ -97,8 +119,7 @@ test('BW64 encoding constraints do not alter automatic RIFF and RF64 selection',
 		channelCount: 1,
 	}).container, 'rf64');
 	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, float: true }), /BW64.*integer PCM/i);
-	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, bitDepth: 20 }), /BW64.*16-bit or 24-bit/i);
-	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, bitDepth: 32 }), /BW64.*16-bit or 24-bit/i);
+	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, bitDepth: 32 }), /BW64.*16-bit, 20-bit, or 24-bit/i);
 	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, channelCount: 0 }), /BW64.*1 through 32/i);
 	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, channelCount: 1.5 }), /BW64.*1 through 32/i);
 	assert.throws(() => createWavHeader({ container: 'bw64', totalFrames: 1, channelCount: 33 }), /BW64.*32 channels/i);
