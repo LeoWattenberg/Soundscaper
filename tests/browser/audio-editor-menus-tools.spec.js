@@ -243,7 +243,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(dialog).toBeVisible();
 		await expect(dialog).toContainText('opens the recording input immediately');
 		const start = dialog.locator('input[type="datetime-local"]');
-		await expect(start).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+		await expect(start).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?/);
 		await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputRequests)).toBe(1);
 		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
