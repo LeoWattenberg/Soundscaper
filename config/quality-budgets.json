@@ -1,0 +1,491 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-07-28",
+	"qualification": {
+		"status": "in-progress",
+		"qualifiedWorkloadIds": [],
+		"reason": "The deterministic contract exists, but no fixed hardware renderer or native/capture lab has been provisioned and no workload has produced qualification evidence."
+	},
+	"measurementPolicy": {
+		"percentileMethod": "nearest-rank",
+		"missingMetric": "fail",
+		"nonFiniteMetric": "fail",
+		"environmentMismatch": "fail",
+		"rendererMismatch": "fail",
+		"benchmarkRetries": 0,
+		"timingWorkers": 1,
+		"timingWarmupTrials": 1,
+		"timingTrials": 5,
+		"forcedCollectionsPerHeapSnapshot": 3
+	},
+	"units": [
+		"bytes",
+		"count",
+		"dB",
+		"frames",
+		"LU",
+		"MiB/hour",
+		"ms",
+		"ratio",
+		"RTF",
+		"samples"
+	],
+	"softwareInputs": {
+		"node": {
+			"version": "26.5.0",
+			"evidence": [".nvmrc", "package.json"]
+		},
+		"npm": {
+			"version": "12.0.1",
+			"evidence": ["package.json", "package-lock.json"]
+		},
+		"playwright": {
+			"version": "1.61.1",
+			"evidence": ["package.json", "package-lock.json", ".github/workflows/quality.yml"]
+		},
+		"browsers": {
+			"chromium": {
+				"version": "149.0.7827.55",
+				"revision": "1228",
+				"project": "chromium",
+				"status": "provisional",
+				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
+			},
+			"firefox": {
+				"version": "151.0",
+				"revision": "1532",
+				"project": "firefox",
+				"status": "planned",
+				"evidence": ["package-lock.json", "config/production-capabilities.json"]
+			},
+			"webkit": {
+				"version": "26.5",
+				"revision": "2311",
+				"project": "webkit",
+				"status": "planned",
+				"evidence": ["package-lock.json", "config/production-capabilities.json"]
+			}
+		}
+	},
+	"environments": [
+		{
+			"id": "github-ubuntu-playwright-1.61.1",
+			"status": "active",
+			"kind": "hosted-ci",
+			"qualificationEligible": false,
+			"rendererRequirement": "any",
+			"fingerprint": {
+				"osImage": "ubuntu-24.04",
+				"containerImage": "mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48",
+				"nodeVersion": "26.5.0",
+				"npmVersion": "12.0.1",
+				"playwrightVersion": "1.61.1"
+			},
+			"evidence": [".github/workflows/quality.yml", ".nvmrc", "package-lock.json"]
+		},
+		{
+			"id": "reference-linux-gpu-01",
+			"status": "unprovisioned",
+			"kind": "fixed-hardware",
+			"qualificationEligible": false,
+			"rendererRequirement": "hardware",
+			"fingerprint": {
+				"osImage": null,
+				"cpuModel": null,
+				"logicalCpuCount": null,
+				"memoryBytes": null,
+				"gpuModel": null,
+				"gpuMemoryBytes": null,
+				"gpuDriver": null,
+				"displayMode": null,
+				"displayRefreshHz": null,
+				"powerProfile": null,
+				"browserVersion": null,
+				"browserBinarySha256": null
+			},
+			"evidence": ["docs/quality-budgets.md#fixed-hardware-environments"]
+		},
+		{
+			"id": "native-os-lab-matrix",
+			"status": "unprovisioned",
+			"kind": "fixed-hardware-matrix",
+			"qualificationEligible": false,
+			"rendererRequirement": "any",
+			"fingerprint": {
+				"windowsX64": null,
+				"windowsArm64": null,
+				"macosX64": null,
+				"macosArm64": null,
+				"linuxX64": null,
+				"linuxArm64": null
+			},
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "capture-os-browser-lab-matrix",
+			"status": "unprovisioned",
+			"kind": "device-lab-matrix",
+			"qualificationEligible": false,
+			"rendererRequirement": "any",
+			"fingerprint": {
+				"camera": null,
+				"microphone": null,
+				"displayCapture": null,
+				"systemAudio": null
+			},
+			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+		},
+		{
+			"id": "release-qualification-matrix",
+			"status": "unprovisioned",
+			"kind": "release-matrix",
+			"qualificationEligible": false,
+			"rendererRequirement": "any",
+			"fingerprint": {
+				"browserMatrixRevision": null,
+				"desktopMatrixRevision": null,
+				"deviceMatrixRevision": null
+			},
+			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+		}
+	],
+	"fixtures": [
+		{
+			"id": "video-preview-12fx-720p-v1",
+			"milestones": ["1", "4", "9"],
+			"status": "provisional",
+			"kind": "runtime-generated-media",
+			"specification": {
+				"width": 1280,
+				"height": 720,
+				"effectCount": 12,
+				"measuredIntervals": 120
+			},
+			"limitation": "The current MediaRecorder fixture is generated per run and is not digest-pinned.",
+			"evidence": ["tests/browser/audio-editor-video-preview-benchmark.spec.js"]
+		},
+		{
+			"id": "video-effect-parity-rgba-v1",
+			"milestones": ["1", "4", "6"],
+			"status": "provisional",
+			"kind": "deterministic-generator",
+			"specification": {
+				"width": 128,
+				"height": 72,
+				"pixelFormat": "rgba"
+			},
+			"artifacts": [
+				{
+					"id": "gradient",
+					"byteLength": 36864,
+					"sha256": "a1e713c5c5b9fa18b1c19d0904449027cf0fcfa6c5438c05bedcd0e2554bb200"
+				},
+				{
+					"id": "color-chart",
+					"byteLength": 36864,
+					"sha256": "b3b7c769d18cd0fded58d55eefc5281a626fcd42acec44d144392ecc4ff308a7"
+				},
+				{
+					"id": "edge",
+					"byteLength": 36864,
+					"sha256": "6a2274eba51071e99d08afaf7541ceaeafaba271af69f7f312336024d1873ecf"
+				},
+				{
+					"id": "transparency",
+					"byteLength": 36864,
+					"sha256": "55d2384282e66eb12cba4ae16b229d5fdccb5190471dcc8a0487ed0ec56e1399"
+				}
+			],
+			"evidence": [
+				"tests/browser/video-effect-parity-helpers.js",
+				"tests/audio-editor-video-effect-parity.test.js"
+			]
+		},
+		{
+			"id": "m2-streaming-project-8gib-v1",
+			"milestones": ["2"],
+			"status": "planned",
+			"kind": "virtual-deterministic-stream",
+			"specification": {
+				"logicalBytes": 8589934592,
+				"webCoreFinalAssemblyLimitBytes": 536870912,
+				"oversizeProbeBytes": 536870913
+			},
+			"evidence": ["roadmap.md#2-shared-platform-storage-and-media-foundation"]
+		},
+		{
+			"id": "m3-longform-editorial-2h-v1",
+			"milestones": ["3"],
+			"status": "planned",
+			"kind": "planned-deterministic-project-generator",
+			"specification": {
+				"durationSeconds": 7200,
+				"audioTrackCount": 24,
+				"proxyVideoTrackCount": 2,
+				"editCount": 10000
+			},
+			"evidence": ["roadmap.md#3-parallel-editorial-foundations"]
+		},
+		{
+			"id": "m4-production-parity-v1",
+			"milestones": ["4"],
+			"status": "planned",
+			"kind": "planned-audio-vectors-and-video-golden-frames",
+			"specification": {
+				"audioSampleRate": 48000,
+				"videoGoldenWidth": 128,
+				"videoGoldenHeight": 72
+			},
+			"evidence": ["roadmap.md#4-parallel-production-surfaces"]
+		},
+		{
+			"id": "m5-helper-fault-and-loopback-v1",
+			"milestones": ["5"],
+			"status": "planned",
+			"kind": "planned-native-fault-and-device-harness",
+			"specification": {
+				"malformedCaseCount": 10000,
+				"loopbackDurationSeconds": 1800
+			},
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "m6-reference-master-suite-v1",
+			"milestones": ["6"],
+			"status": "planned",
+			"kind": "planned-reference-media-suite",
+			"specification": {
+				"audioDurationSeconds": 3600,
+				"videoDurationSeconds": 600,
+				"videoWidth": 1280,
+				"videoHeight": 720,
+				"videoFrameRate": 30
+			},
+			"evidence": ["roadmap.md#6-professional-delivery-and-interchange"]
+		},
+		{
+			"id": "m7-local-assistance-privacy-v1",
+			"milestones": ["7"],
+			"status": "optional",
+			"kind": "planned-offline-model-sandbox",
+			"specification": {
+				"selectedMediaAssetCount": 2,
+				"unselectedMediaAssetCount": 2
+			},
+			"evidence": ["roadmap.md#7-optional-local-assistance"]
+		},
+		{
+			"id": "m8a-capture-30m-all-sources-v1",
+			"milestones": ["8A"],
+			"status": "planned",
+			"kind": "planned-capture-device-matrix",
+			"specification": {
+				"durationSeconds": 1800,
+				"sourceCombinationCount": 6
+			},
+			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+		},
+		{
+			"id": "m8b-reviewed-design-interop-v1",
+			"milestones": ["8B"],
+			"status": "blocked",
+			"kind": "upstream-design-derived-fixture",
+			"specification": {
+				"definedOnlyAfterEntryGate": true
+			},
+			"evidence": ["roadmap.md#8b-midi-strictly-after-audacity-design-review"]
+		},
+		{
+			"id": "m9-complete-system-soak-8h-v1",
+			"milestones": ["9"],
+			"status": "planned",
+			"kind": "planned-cross-platform-soak-project",
+			"specification": {
+				"durationSeconds": 28800,
+				"requiredBrowserPassRatio": 1,
+				"requiredDesktopPassRatio": 1
+			},
+			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+		}
+	],
+	"workloads": [
+		{
+			"id": "m1-video-preview-12fx-720p",
+			"milestone": "1",
+			"status": "provisional",
+			"fixtureIds": ["video-preview-12fx-720p-v1"],
+			"environmentIds": ["reference-linux-gpu-01"],
+			"thresholds": [
+				{
+					"metricId": "preview.frameIntervalP95Ms",
+					"comparison": "lte",
+					"value": 33.34,
+					"unit": "ms"
+				},
+				{
+					"metricId": "preview.retainedJsHeapDeltaBytes",
+					"comparison": "lte",
+					"value": 1048576,
+					"unit": "bytes"
+				}
+			],
+			"evidence": ["tests/browser/audio-editor-video-preview-benchmark.spec.js", "roadmap.md#1-baseline-contracts-and-quality-budgets"]
+		},
+		{
+			"id": "m2-streaming-bounded-memory",
+			"milestone": "2",
+			"status": "planned",
+			"fixtureIds": ["m2-streaming-project-8gib-v1"],
+			"environmentIds": ["reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "streaming.rendererHeapDeltaBytes", "comparison": "lte", "value": 268435456, "unit": "bytes" },
+				{ "metricId": "streaming.maxBufferedBinaryBytes", "comparison": "lte", "value": 67108864, "unit": "bytes" },
+				{ "metricId": "streaming.oversizePreflightBytesRead", "comparison": "eq", "value": 0, "unit": "bytes" },
+				{ "metricId": "streaming.invalidPublishedRevisions", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "streaming.partialPublishedOutputs", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": ["roadmap.md#2-shared-platform-storage-and-media-foundation"]
+		},
+		{
+			"id": "m3-longform-editorial",
+			"milestone": "3",
+			"status": "planned",
+			"fixtureIds": ["m3-longform-editorial-2h-v1"],
+			"environmentIds": ["reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
+				{ "metricId": "editorial.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "editorial.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "editorial.seekP95Ms", "comparison": "lte", "value": 200, "unit": "ms" },
+				{ "metricId": "editorial.scrollFrameIntervalP95Ms", "comparison": "lte", "value": 33.34, "unit": "ms" },
+				{ "metricId": "editorial.retainedHeapDeltaBytes", "comparison": "lte", "value": 268435456, "unit": "bytes" }
+			],
+			"evidence": ["roadmap.md#3-parallel-editorial-foundations"]
+		},
+		{
+			"id": "m4-production-render-parity",
+			"milestone": "4",
+			"status": "planned",
+			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
+			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "parity.audioMaximumAbsoluteSampleError", "comparison": "lte", "value": 0.000001, "unit": "ratio" },
+				{ "metricId": "parity.pdcErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
+				{ "metricId": "parity.videoMinimumSsim", "comparison": "gte", "value": 0.98, "unit": "ratio" },
+				{ "metricId": "parity.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },
+				{ "metricId": "parity.silentlyOmittedEffects", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": ["tests/browser/audio-editor-video-effects-parity.spec.js", "roadmap.md#4-parallel-production-surfaces"]
+		},
+		{
+			"id": "m5-native-helper-and-audio",
+			"milestone": "5",
+			"status": "planned",
+			"fixtureIds": ["m5-helper-fault-and-loopback-v1"],
+			"environmentIds": ["native-os-lab-matrix"],
+			"thresholds": [
+				{ "metricId": "native.unauthorizedCapabilityGrants", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "native.corruptPublishedRevisions", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "native.cancellationP95Ms", "comparison": "lte", "value": 1000, "unit": "ms" },
+				{ "metricId": "native.crashDetectionMaximumMs", "comparison": "lte", "value": 2000, "unit": "ms" },
+				{ "metricId": "native.editorRecoveryMaximumMs", "comparison": "lte", "value": 5000, "unit": "ms" },
+				{ "metricId": "native.helperPeakRssBytes", "comparison": "lte", "value": 1073741824, "unit": "bytes" },
+				{ "metricId": "native.audioRoundTripLatencyP95Ms", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "native.audioUnderrunFrames", "comparison": "eq", "value": 0, "unit": "frames" }
+			],
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "m6-reference-master-delivery",
+			"milestone": "6",
+			"status": "planned",
+			"fixtureIds": ["m6-reference-master-suite-v1"],
+			"environmentIds": ["reference-linux-gpu-01", "native-os-lab-matrix"],
+			"thresholds": [
+				{ "metricId": "delivery.audioDurationErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
+				{ "metricId": "delivery.videoFrameCountError", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "delivery.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "delivery.integratedLoudnessErrorLu", "comparison": "lte", "value": 0.2, "unit": "LU" },
+				{ "metricId": "delivery.truePeakErrorDb", "comparison": "lte", "value": 0.2, "unit": "dB" },
+				{ "metricId": "delivery.captionCueErrorFrames", "comparison": "lte", "value": 1, "unit": "frames" },
+				{ "metricId": "delivery.channelMapErrors", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "delivery.unreportedConversions", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "delivery.partialPublishedOutputBytes", "comparison": "eq", "value": 0, "unit": "bytes" },
+				{ "metricId": "delivery.webVideoRenderP95Rtf", "comparison": "lte", "value": 12, "unit": "RTF" },
+				{ "metricId": "delivery.audioRenderP95Rtf", "comparison": "lte", "value": 1, "unit": "RTF" }
+			],
+			"evidence": ["roadmap.md#6-professional-delivery-and-interchange"]
+		},
+		{
+			"id": "m7-local-assistance-privacy",
+			"milestone": "7",
+			"status": "optional",
+			"fixtureIds": ["m7-local-assistance-privacy-v1"],
+			"environmentIds": ["reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "assistance.networkRequestsAfterInstall", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.unselectedMediaBytesRead", "comparison": "eq", "value": 0, "unit": "bytes" },
+				{ "metricId": "assistance.acceptedDigestMismatches", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.cancellationP95Ms", "comparison": "lte", "value": 2000, "unit": "ms" },
+				{ "metricId": "assistance.canonicalStateLosses", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": ["roadmap.md#7-optional-local-assistance"]
+		},
+		{
+			"id": "m8a-capture-long-session",
+			"milestone": "8A",
+			"status": "planned",
+			"fixtureIds": ["m8a-capture-30m-all-sources-v1"],
+			"environmentIds": ["capture-os-browser-lab-matrix"],
+			"thresholds": [
+				{ "metricId": "capture.sourceCombinationsCompleted", "comparison": "eq", "value": 6, "unit": "count" },
+				{ "metricId": "capture.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "capture.droppedFrameRatio", "comparison": "lte", "value": 0.001, "unit": "ratio" },
+				{ "metricId": "capture.unreportedDroppedFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "capture.audioDropoutFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "capture.deviceTeardownP95Ms", "comparison": "lte", "value": 1000, "unit": "ms" },
+				{ "metricId": "capture.unrecoverableDurableFragments", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "capture.unauthorizedDeviceOpens", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+		},
+		{
+			"id": "m8b-reviewed-design-timing",
+			"milestone": "8B",
+			"status": "blocked",
+			"activationGate": "Audacity MIDI design pinned and compatibility design approved",
+			"fixtureIds": ["m8b-reviewed-design-interop-v1"],
+			"environmentIds": ["native-os-lab-matrix"],
+			"thresholds": [
+				{ "metricId": "reviewedDesign.offlineTimingErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
+				{ "metricId": "reviewedDesign.stateLosses", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "reviewedDesign.unreportedConversions", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "reviewedDesign.liveTimingP95Ms", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "reviewedDesign.deviceTeardownP95Ms", "comparison": "lte", "value": 1000, "unit": "ms" }
+			],
+			"evidence": ["roadmap.md#8b-midi-strictly-after-audacity-design-review"]
+		},
+		{
+			"id": "m9-complete-system-soak",
+			"milestone": "9",
+			"status": "planned",
+			"fixtureIds": ["m9-complete-system-soak-8h-v1"],
+			"environmentIds": ["release-qualification-matrix"],
+			"thresholds": [
+				{ "metricId": "soak.retainedJsHeapDeltaBytes", "comparison": "lte", "value": 134217728, "unit": "bytes" },
+				{ "metricId": "soak.postWarmupHeapSlopeMibPerHour", "comparison": "lte", "value": 4, "unit": "MiB/hour" },
+				{ "metricId": "soak.electronRssDeltaBytes", "comparison": "lte", "value": 536870912, "unit": "bytes" },
+				{ "metricId": "soak.audioDropoutFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "soak.unreportedDroppedFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "soak.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "soak.failedAutosaves", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "soak.unrecoveredJobs", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "qualification.browserPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.desktopPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.migrationPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.releaseBlockingDefects", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+		}
+	]
+}

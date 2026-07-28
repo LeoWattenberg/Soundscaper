@@ -151,9 +151,16 @@ reviewable gates before expanding the schema or native boundary.
   platform tier, supported OS/architecture, import/export family, and project
   feature, kept aligned with product profiles by the
   [inventory contract test](tests/production-capability-inventory.test.js).
-- **Shared — Planned:** pin reference hardware, browsers, media fixtures, project
-  sizes, measurement procedure, and pass/fail thresholds for audio transport,
-  recording, video preview, import, save, and render workloads.
+- **Shared — In progress:** the versioned
+  [quality-budget contract](config/quality-budgets.json) pins browser and tool
+  revisions, named fixtures, project sizes, measurement procedure, and numeric
+  thresholds for milestones 1–9. Its fail-closed
+  [evaluator](scripts/quality-budget-evaluator.mjs),
+  [regression](tests/quality-budgets.test.ts), and
+  [operator procedure](docs/quality-budgets.md) reject missing metrics,
+  environment mismatches, and software rendering for hardware gates. The fixed
+  GPU host remains explicitly unprovisioned, so no workload is yet recorded as
+  production-qualified and this deliverable's exit gate remains open.
 - **Shared — Implemented:** the pinned
   [Audacity action inventory](src/common/editor/audacity-action-parity.js) maps
   every action through a focused
