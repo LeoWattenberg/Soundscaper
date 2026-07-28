@@ -6,6 +6,7 @@ import {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_SOURCE,
 	AUDACITY_ACTION_STATUS,
+	AUDACITY_MIDI_FENCE,
 	applyAudacityParityToMenus,
 	audacityActionDefinition,
 	audacityActionReason,
@@ -124,6 +125,27 @@ test('removed and superseded actions remain auditable without entering applicati
 		label: 'File',
 		items: [{ id: 'export-other', label: 'Export other', items: [] }],
 	}], { materializeDisabled: true })), /export-midi/);
+});
+
+test('the milestone 8B MIDI fence keeps every pinned action inert and off command surfaces', () => {
+	const midiActionIds = ['export-midi', 'midi-device-info', 'local://midi-track'];
+	assert.deepEqual(AUDACITY_MIDI_FENCE.actionIds, midiActionIds);
+	assert.ok(Object.isFrozen(AUDACITY_MIDI_FENCE));
+	assert.ok(Object.isFrozen(AUDACITY_MIDI_FENCE.actionIds));
+	for (const id of midiActionIds) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.handler, null, id);
+		assert.equal(definition.enableWhen, 'never', id);
+		assert.equal(definition.shortcut, null, id);
+		assert.equal(definition.roadmapDisposition, 'blocked', id);
+		assert.equal(definition.roadmapMilestone, '8B', id);
+		assert.equal(definition.blockedThroughMilestone, 7, id);
+		assert.match(audacityActionReason(id, 'en'), /milestone 8B/u, id);
+		assert.match(audacityActionReason(id, 'en'), /pending Audacity MIDI design/u, id);
+	}
+
+	const shortcutIds = collectAudacityShortcutCommands([]).map(({ id }) => id);
+	assert.deepEqual(shortcutIds.filter((id) => midiActionIds.includes(id)), []);
 });
 
 test('Audacity Mix-down to is a concrete destructive track action', () => {

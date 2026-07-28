@@ -167,12 +167,16 @@ reviewable gates before expanding the schema or native boundary.
 - **Shared — Planned:** add a threat model for malformed projects/media, archive
   expansion, native helpers, third-party plug-ins, path capabilities, and job
   cancellation.
-- **Soundscaper — Blocked:** leave every MIDI action, including MIDI export,
-  disabled. The reason must point to milestone 8 and the pending Audacity design,
-  not to an interim local design.
-- **Soundscaper — Blocked:** explicitly snapshot `export-midi`,
-  `midi-device-info`, and `local://midi-track` as inert through milestone 7 so a
-  menu, shortcut, dependency, or experimental surface cannot bypass the fence.
+- **Soundscaper — Blocked (fence implemented):** leave every MIDI action,
+  including MIDI export, disabled. The
+  [action contract](src/common/editor/audacity-action-parity.js) points to
+  milestone 8B and the pending Audacity design, not to an interim local design.
+- **Soundscaper — Blocked (fence implemented):** the
+  [MIDI action fence](tests/audacity-action-parity.test.js) and
+  [capability/dependency fence](tests/production-capability-inventory.test.js)
+  snapshot `export-midi`, `midi-device-info`, and `local://midi-track` as inert
+  through milestone 7 so a menu, shortcut, dependency, or experimental surface
+  cannot bypass the fence.
 
 The in-progress 12-effect 1280x720 preview benchmark becomes a permanent gate
 when that batch lands: on a hardware renderer its p95 frame interval remains at

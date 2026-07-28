@@ -16,6 +16,7 @@ function reason(name) {
 
 export const AUDACITY_DISABLED_REASONS = deepFreeze({
 	menu: reason('menu'),
+	midi: reason('midi'),
 	todo: reason('todo'),
 	local: reason('local'),
 	state: reason('state'),
