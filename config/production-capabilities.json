@@ -1,0 +1,189 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-07-28",
+	"platformTiers": [
+		"web-core",
+		"web-enhanced",
+		"electron-enhanced",
+		"electron-only"
+	],
+	"browserTargets": {
+		"chromium": {
+			"project": "chromium",
+			"automated": true,
+			"releaseStatus": "provisional",
+			"evidence": [
+				"playwright.config.mjs",
+				".github/workflows/quality.yml"
+			]
+		},
+		"firefox": {
+			"project": "firefox",
+			"automated": false,
+			"releaseStatus": "planned",
+			"evidence": [
+				"roadmap.md#1-baseline-contracts-and-quality-budgets"
+			]
+		},
+		"webkit": {
+			"project": "webkit",
+			"automated": false,
+			"releaseStatus": "planned",
+			"evidence": [
+				"roadmap.md#1-baseline-contracts-and-quality-budgets"
+			]
+		}
+	},
+	"desktopTargets": [
+		{
+			"os": "windows",
+			"architecture": "x64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		},
+		{
+			"os": "windows",
+			"architecture": "arm64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		},
+		{
+			"os": "macos",
+			"architecture": "x64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		},
+		{
+			"os": "macos",
+			"architecture": "arm64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		},
+		{
+			"os": "linux",
+			"architecture": "x64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		},
+		{
+			"os": "linux",
+			"architecture": "arm64",
+			"packageGate": "smoke-tested",
+			"evidence": [".github/workflows/desktop-preview.yml"]
+		}
+	],
+	"products": {
+		"soundscaper": {
+			"profileEvidence": "src/soundscaper/product.js",
+			"platforms": {
+				"web-core": {
+					"status": "available",
+					"evidence": ["src/soundscaper/product.js", "tests/browser/editor-products.spec.js"]
+				},
+				"web-enhanced": {
+					"status": "partial",
+					"evidence": ["src/common/editor/storage.js", "src/common/editor/controller/native-project-service.ts"]
+				},
+				"electron-enhanced": {
+					"status": "partial",
+					"evidence": ["desktop/main.mjs", "desktop/preload.mjs", "tests/desktop-smoke.test.js"]
+				},
+				"electron-only": {
+					"status": "partial",
+					"evidence": ["desktop/display-capture.js"]
+				}
+			},
+			"importFamilies": [
+				"scape",
+				"audacity-project",
+				"audio",
+				"video",
+				"labels"
+			],
+			"exportFamilies": [
+				"scape",
+				"aup4-audio-only",
+				"audio",
+				"video",
+				"labels",
+				"stems"
+			],
+			"projectFeatures": {
+				"project": true,
+				"projectBin": true,
+				"audioImport": true,
+				"audioPlayback": true,
+				"audioTimelineEditing": true,
+				"audioMixing": true,
+				"videoImport": true,
+				"videoPlayback": true,
+				"videoTimelineEditing": true,
+				"videoExport": true,
+				"audioRecording": true,
+				"audioGenerators": true,
+				"audioEffects": true,
+				"audioSpectralEditing": true,
+				"audioAnalysis": true,
+				"audioMacros": true,
+				"audioSampleEditing": true,
+				"videoEffects": false,
+				"videoCompositing": false
+			}
+		},
+		"framescaper": {
+			"profileEvidence": "src/framescaper/product.js",
+			"platforms": {
+				"web-core": {
+					"status": "available",
+					"evidence": ["src/framescaper/product.js", "tests/browser/editor-products.spec.js"]
+				},
+				"web-enhanced": {
+					"status": "partial",
+					"evidence": ["src/common/editor/video-media.js", "src/common/editor/controller/native-project-service.ts"]
+				},
+				"electron-enhanced": {
+					"status": "partial",
+					"evidence": ["desktop/main.mjs", "desktop/preload.mjs", "tests/desktop-smoke.test.js"]
+				},
+				"electron-only": {
+					"status": "not-applicable",
+					"evidence": ["src/framescaper/product.js", "roadmap.md#8a-framescaper-recording-setup"]
+				}
+			},
+			"importFamilies": [
+				"scape",
+				"audacity-project",
+				"audio",
+				"video",
+				"labels"
+			],
+			"exportFamilies": [
+				"scape",
+				"audio",
+				"video",
+				"labels"
+			],
+			"projectFeatures": {
+				"project": true,
+				"projectBin": true,
+				"audioImport": true,
+				"audioPlayback": true,
+				"audioTimelineEditing": true,
+				"audioMixing": true,
+				"videoImport": true,
+				"videoPlayback": true,
+				"videoTimelineEditing": true,
+				"videoExport": true,
+				"audioRecording": false,
+				"audioGenerators": false,
+				"audioEffects": false,
+				"audioSpectralEditing": false,
+				"audioAnalysis": false,
+				"audioMacros": false,
+				"audioSampleEditing": false,
+				"videoEffects": true,
+				"videoCompositing": true
+			}
+		}
+	}
+}

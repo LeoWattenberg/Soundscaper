@@ -146,9 +146,11 @@ reviewable gates before expanding the schema or native boundary.
 
 ### Deliverables
 
-- **Shared — Planned:** maintain a checked-in capability inventory for each
-  product, platform tier, supported OS/architecture, import/export family, and
-  project feature.
+- **Shared — Implemented:** maintain a checked-in
+  [capability inventory](config/production-capabilities.json) for each product,
+  platform tier, supported OS/architecture, import/export family, and project
+  feature, kept aligned with product profiles by the
+  [inventory contract test](tests/production-capability-inventory.test.js).
 - **Shared — Planned:** pin reference hardware, browsers, media fixtures, project
   sizes, measurement procedure, and pass/fail thresholds for audio transport,
   recording, video preview, import, save, and render workloads.
