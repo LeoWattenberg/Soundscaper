@@ -17,6 +17,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
+		productName,
 		getProject, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
@@ -57,6 +58,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				inputChannelCount: 2,
 				mobile: state.mobile,
 				livePcmBytes: undefined,
+				productName,
 			});
 			await preflightStorage(plan.outputBytesPerRender * Math.max(1, plan.outputs.length), 'export');
 			setStatus(copy.rendering);
@@ -322,7 +324,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		throwIfAborted(signal);
 		const bitDepth = plan.encoding.bitDepth || (settings.bitDepth === 32 ? 32 : settings.bitDepth) || 24;
 		const sourceChannels = audioBufferChannels(output);
-		if (plan.format === 'wav' || plan.format === 'aiff') {
+		if (plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'aiff') {
 			const mapped = applyMediaChannelMapping(sourceChannels, plan.channelMapping);
 			const nativeOptions = {
 				sampleRate: plan.sampleRate,
@@ -331,6 +333,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				sampleFormat: plan.encoding.sampleFormat,
 				dither: plan.ditherMode,
 				metadata: plan.metadata,
+				bext: plan.format === 'bwf' ? plan.bext : undefined,
 			};
 			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
 			return { bytes, mimeType: plan.mimeType };
@@ -362,7 +365,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		const nativeAiff = plan.format === 'aiff';
-		const nativePcm = plan.format === 'wav' || nativeAiff;
+		const nativePcm = plan.format === 'wav' || plan.format === 'bwf' || nativeAiff;
 		const sink = await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
 		if (!sink.persistent && plan.outputBytesPerRender > 96 * 1024 ** 2) {
 			await sink.abort();
@@ -379,6 +382,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			sampleFormat: nativePcm ? plan.encoding.sampleFormat : undefined,
 			dither: stagingFloat ? 'none' : plan.ditherMode,
 			metadata: nativePcm ? plan.metadata : undefined,
+			bext: plan.format === 'bwf' ? plan.bext : undefined,
 			collect: false,
 			onChunk: (chunk: RuntimeValue) => sink.write(chunk),
 		};

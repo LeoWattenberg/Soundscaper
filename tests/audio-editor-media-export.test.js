@@ -22,7 +22,7 @@ import { encodeWav } from '../src/common/editor/wav.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [
-		'wav', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a', 'custom-ffmpeg',
+		'wav', 'bwf', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a', 'custom-ffmpeg',
 	]);
 	const bundled = createMediaExportCapabilities();
 	assert.equal(bundled.profileId, '@ffmpeg/core@0.12.10');
@@ -36,6 +36,7 @@ test('media export registry classifies native and pinned FFmpeg formats', () => 
 		muxers: ['flac'],
 	});
 	assert.equal(constrained.formats.wav.available, true);
+	assert.equal(constrained.formats.bwf.available, true);
 	assert.equal(constrained.formats.flac.available, true);
 	assert.deepEqual(constrained.formats.mp3.missingEncoders, ['libmp3lame']);
 	assert.throws(
@@ -72,6 +73,25 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 	assert.throws(() => normalizeMediaExportSettings('flac', { sampleFormat: 'float32' }), /does not support/);
 	assert.throws(() => normalizeMediaExportSettings('mp2', { inputChannelCount: 6 }), /at most 2/);
 	assert.throws(() => normalizeMediaExportSettings('wav', { metadata: { 'bad key': 'value' } }), /field name/);
+	const bwf = normalizeMediaExportSettings('bwf', {
+		inputChannelCount: 2,
+		sampleFormat: 'int24',
+		bext: {
+			description: 'Broadcast master',
+			timeReference: '9007199254740993',
+		},
+	});
+	assert.equal(bwf.backend, 'native-wav');
+	assert.equal(bwf.extension, 'wav');
+	assert.equal(bwf.bext.description, 'Broadcast master');
+	assert.equal(bwf.bext.timeReference, '9007199254740993');
+	assert.throws(() => normalizeMediaExportSettings('bwf', {
+		inputChannelCount: 2,
+		sampleFormat: 'float32',
+	}), /does not support/);
+	assert.throws(() => normalizeMediaExportSettings('bwf', {
+		inputChannelCount: 3,
+	}), /at most 2/);
 });
 
 test('channel mapping uses an explicit matrix for native PCM and FFmpeg pan filters', () => {
@@ -291,6 +311,64 @@ test('export plans cover loop range, custom channel mapping, AIFF, and FFmpeg ex
 	assert.equal(m4a.format, 'aac-m4a');
 	assert.equal(m4a.outputs[0].fileName.endsWith('.m4a'), true);
 	assert.equal(m4a.mimeType, 'audio/mp4');
+});
+
+test('BWF export plans derive defaults, offset TimeReference exactly, and append the actual PCM coding row', () => {
+	const project = createAudioEditorProjectV2({
+		id: 'broadcast-export-project',
+		title: 'Morning show',
+		now: '2026-07-13T14:15:16.000Z',
+		sampleRate: 48_000,
+		metadata: { artist: 'Studio One' },
+		selection: { startFrame: 24_000, endFrame: 72_000 },
+	});
+	project.metadata.bext = {
+		description: 'Edited master',
+		originator: 'Studio One',
+		timeReference: '48000',
+		codingHistory: 'A=PCM,F=48000,W=24,M=stereo,T=Recorder',
+	};
+	const plan = createExportPlan(project, {
+		format: 'bwf',
+		range: 'selection',
+		sampleRate: 44_100,
+		channelCount: 1,
+		bitDepth: 16,
+		productName: 'Soundscaper',
+		date: '2026-07-13',
+	});
+	assert.equal(plan.outputs[0].fileName, 'Morning-show-mix-2026-07-13.wav');
+	assert.equal(plan.bext.description, 'Edited master');
+	assert.equal(plan.bext.timeReference, '66150');
+	assert.equal(plan.bext.codingHistory.endsWith(
+		'Recorder\nA=PCM,F=44100,W=16,M=mono,T=Soundscaper\n',
+	), true);
+	assert.deepEqual(plan.encoding.bext, plan.bext);
+
+	project.metadata.bext = null;
+	const defaults = createExportPlan(project, {
+		format: 'bwf',
+		range: { startFrame: 0, endFrame: 1 },
+		productName: 'Framescaper',
+	});
+	assert.equal(defaults.bext.description, 'Morning show');
+	assert.equal(defaults.bext.originator, 'Studio One');
+	assert.equal(defaults.bext.originationDate, '2026-07-13');
+	assert.equal(defaults.bext.originationTime, '14:15:16');
+	assert.equal(defaults.bext.timeReference, '0');
+	assert.equal(defaults.bext.codingHistory.endsWith('T=Framescaper\n'), true);
+
+	project.metadata.bext = {
+		description: '',
+		originator: '',
+		timeReference: '18446744073709551615',
+	};
+	const downsampledBoundary = createExportPlan(project, {
+		format: 'bwf',
+		range: { startFrame: 1, endFrame: 2 },
+		sampleRate: 8_000,
+	});
+	assert.equal(downsampledBoundary.bext.timeReference, '3074457345618258603');
 });
 
 function ascii(bytes, offset, length) {

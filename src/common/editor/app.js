@@ -1078,7 +1078,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
-		getProject: () => project, projectGeneration, projectSampleRate, publishDocumentSnapshot,
+		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress,

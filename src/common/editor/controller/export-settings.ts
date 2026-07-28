@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { BextMetadataInput } from '../broadcast-wave.ts';
+
 export const EDITOR_EXPORT_FORMATS = Object.freeze([
 	'wav',
+	'bwf',
 	'aiff',
 	'flac',
 	'mp3',
@@ -28,6 +31,7 @@ export interface EditorExportSettings {
 	readonly sampleRate: number;
 	readonly channelMapping: unknown;
 	readonly metadata: unknown;
+	readonly bext?: BextMetadataInput | null;
 	readonly extension: unknown;
 	readonly mimeType: unknown;
 	readonly customArguments: unknown;
@@ -60,6 +64,7 @@ export function normalizeEditorExportSettings(
 			: Number(value.sampleRate),
 		channelMapping: value.channelMapping || 'preserve',
 		metadata: value.metadata || projectMetadata,
+		...(format === 'bwf' ? { bext: value.bext as BextMetadataInput | null | undefined } : {}),
 		extension: value.extension,
 		mimeType: value.mimeType,
 		customArguments: value.customArguments,

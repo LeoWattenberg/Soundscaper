@@ -1,4 +1,5 @@
 import { createRiffId3Chunk } from './id3-metadata.js';
+import { createRiffBextChunk } from './broadcast-wave.ts';
 
 const WAV_HEADER_BYTES = 44;
 
@@ -6,7 +7,7 @@ const WAV_HEADER_BYTES = 44;
  * Encode channel-aligned PCM samples as a complete WAV file.
  *
  * @param {ArrayLike<Float32Array> | AudioBuffer} input
- * @param {{ sampleRate?: number, bitDepth?: 16 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, random?: () => number }} [options]
+ * @param {{ sampleRate?: number, bitDepth?: 16 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, bext?: import('./broadcast-wave.ts').BextMetadataInput, random?: () => number }} [options]
  * @returns {Uint8Array}
  */
 export function encodeWav(input, options = {}) {
@@ -35,9 +36,10 @@ export function encodeWav(input, options = {}) {
  *   float?: boolean,
  *   dither?: boolean | 'none' | 'triangular' | 'triangular-highpass',
  *   metadata?: Record<string, *>,
+ *   bext?: import('./broadcast-wave.ts').BextMetadataInput,
  *   random?: () => number,
  *   collect?: boolean,
- *   onChunk?: (chunk: Uint8Array, info: { header: boolean, frameOffset: number }) => void | Promise<void>,
+ *   onChunk?: (chunk: Uint8Array, info: { header: boolean, frameOffset: number, metadata?: boolean, padding?: boolean }) => void | Promise<void>,
  * }} options
  */
 export function createWavStreamEncoder(options) {
@@ -46,15 +48,32 @@ export function createWavStreamEncoder(options) {
 	const totalFrames = nonNegativeInteger(options?.totalFrames, 0);
 	const float = Boolean(options?.float);
 	const bitDepth = float ? 32 : normalizeBitDepth(options?.bitDepth);
+	const broadcast = options?.bext != null;
+	if (broadcast && (float || (bitDepth !== 16 && bitDepth !== 24))) {
+		throw new RangeError('Broadcast WAV supports only 16-bit or 24-bit integer PCM.');
+	}
+	if (broadcast && channelCount > 2) {
+		throw new RangeError('Broadcast WAV supports only mono or stereo channels.');
+	}
 	const bytesPerSample = bitDepth / 8;
+	const dataByteLength = totalFrames * channelCount * bytesPerSample;
+	const dataPadBytes = broadcast ? dataByteLength % 2 : 0;
 	const collect = options?.collect ?? !options?.onChunk;
 	const onChunk = typeof options?.onChunk === 'function' ? options.onChunk : null;
 	const dither = float ? 'none' : normalizeDither(options?.dither);
 	const ditherState = new Float64Array(channelCount);
 	const random = typeof options?.random === 'function' ? options.random : Math.random;
 	const metadataChunk = createRiffId3Chunk(options?.metadata);
-	const header = createWavHeader({ sampleRate, channelCount, totalFrames, bitDepth, float, trailingByteLength: metadataChunk.byteLength });
-	const totalByteLength = WAV_HEADER_BYTES + totalFrames * channelCount * bytesPerSample + metadataChunk.byteLength;
+	const header = createWavHeader({
+		sampleRate,
+		channelCount,
+		totalFrames,
+		bitDepth,
+		float,
+		trailingByteLength: metadataChunk.byteLength,
+		bext: options?.bext,
+	});
+	const totalByteLength = header.byteLength + dataByteLength + dataPadBytes + metadataChunk.byteLength;
 	/** @type {Uint8Array[]} */
 	const chunks = collect ? [header] : [];
 	/** @type {Promise<void>[]} */
@@ -69,7 +88,7 @@ export function createWavStreamEncoder(options) {
 		get channelCount() { return channelCount; },
 		get bitDepth() { return bitDepth; },
 		get writtenFrames() { return writtenFrames; },
-		get byteLength() { return WAV_HEADER_BYTES + writtenFrames * channelCount * bytesPerSample + (finalized ? metadataChunk.byteLength : 0); },
+		get byteLength() { return header.byteLength + writtenFrames * channelCount * bytesPerSample + (finalized ? dataPadBytes + metadataChunk.byteLength : 0); },
 		write,
 		finalize,
 		async settled() { await Promise.all(pending); },
@@ -117,6 +136,11 @@ export function createWavStreamEncoder(options) {
 			throw new Error(`Expected ${totalFrames} WAV frames, received ${writtenFrames}.`);
 		}
 		finalized = true;
+		if (dataPadBytes) {
+			const padding = new Uint8Array(dataPadBytes);
+			if (collect) chunks.push(padding);
+			emit(padding, { header: false, padding: true, frameOffset: writtenFrames });
+		}
 		if (metadataChunk.byteLength) {
 			if (collect) chunks.push(metadataChunk);
 			emit(metadataChunk, { header: false, metadata: true, frameOffset: writtenFrames });
@@ -148,32 +172,43 @@ export function createWavStreamEncoder(options) {
 	}
 }
 
-export function createWavHeader({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength = 0 } = {}) {
+export function createWavHeader({ sampleRate = 48000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength = 0, bext = null } = {}) {
 	const normalizedRate = positiveInteger(sampleRate, 48000);
 	const normalizedChannels = positiveInteger(channelCount, 2);
 	const normalizedDepth = float ? 32 : normalizeBitDepth(bitDepth);
+	const broadcast = bext != null;
+	if (broadcast && (float || (normalizedDepth !== 16 && normalizedDepth !== 24))) {
+		throw new RangeError('Broadcast WAV supports only 16-bit or 24-bit integer PCM.');
+	}
+	if (broadcast && normalizedChannels > 2) {
+		throw new RangeError('Broadcast WAV supports only mono or stereo channels.');
+	}
 	const bytesPerSample = normalizedDepth / 8;
 	const dataSize = nonNegativeInteger(totalFrames, 0) * normalizedChannels * bytesPerSample;
+	const dataPadSize = broadcast ? dataSize % 2 : 0;
 	const trailingSize = nonNegativeInteger(trailingByteLength, 0);
-	if (dataSize + trailingSize > 0xffffffff - 36) {
+	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
+	if (dataSize + dataPadSize + trailingSize + bextChunk.byteLength > 0xffffffff - 36) {
 		throw new Error('Classic WAV output cannot exceed 4 GiB.');
 	}
 
-	const header = new Uint8Array(WAV_HEADER_BYTES);
+	const header = new Uint8Array(WAV_HEADER_BYTES + bextChunk.byteLength);
 	const view = new DataView(header.buffer);
 	writeAscii(view, 0, 'RIFF');
-	view.setUint32(4, 36 + dataSize + trailingSize, true);
+	view.setUint32(4, 36 + bextChunk.byteLength + dataSize + dataPadSize + trailingSize, true);
 	writeAscii(view, 8, 'WAVE');
-	writeAscii(view, 12, 'fmt ');
-	view.setUint32(16, 16, true);
-	view.setUint16(20, float ? 3 : 1, true);
-	view.setUint16(22, normalizedChannels, true);
-	view.setUint32(24, normalizedRate, true);
-	view.setUint32(28, normalizedRate * normalizedChannels * bytesPerSample, true);
-	view.setUint16(32, normalizedChannels * bytesPerSample, true);
-	view.setUint16(34, normalizedDepth, true);
-	writeAscii(view, 36, 'data');
-	view.setUint32(40, dataSize, true);
+	header.set(bextChunk, 12);
+	const formatOffset = 12 + bextChunk.byteLength;
+	writeAscii(view, formatOffset, 'fmt ');
+	view.setUint32(formatOffset + 4, 16, true);
+	view.setUint16(formatOffset + 8, float ? 3 : 1, true);
+	view.setUint16(formatOffset + 10, normalizedChannels, true);
+	view.setUint32(formatOffset + 12, normalizedRate, true);
+	view.setUint32(formatOffset + 16, normalizedRate * normalizedChannels * bytesPerSample, true);
+	view.setUint16(formatOffset + 20, normalizedChannels * bytesPerSample, true);
+	view.setUint16(formatOffset + 22, normalizedDepth, true);
+	writeAscii(view, formatOffset + 24, 'data');
+	view.setUint32(formatOffset + 28, dataSize, true);
 	return header;
 }
 

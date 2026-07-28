@@ -37,6 +37,7 @@ interface TestPlan extends Record<string, unknown> {
 	tailFrames: number;
 	outputFrames: number;
 	channelMapping: unknown;
+	bext?: Readonly<Record<string, unknown>>;
 }
 
 interface ExportState {
@@ -90,6 +91,8 @@ function createFixture() {
 	const statuses: Array<[string, unknown]> = [];
 	const downloads: Array<Record<string, unknown>> = [];
 	const progress: number[] = [];
+	const wavOptions: Array<Record<string, unknown>> = [];
+	const streamEncoderOptions: Array<Record<string, unknown>> = [];
 	const audio = {
 		sampleRate: 48_000,
 		length: 4,
@@ -134,11 +137,14 @@ function createFixture() {
 		},
 		dispose: async () => { calls.push('dispose-renderer'); },
 	});
-	const streamEncoder = (encoderOptions: { onChunk: (chunk: Uint8Array) => Promise<void> }) => ({
+	const streamEncoder = (encoderOptions: { onChunk: (chunk: Uint8Array) => Promise<void> }) => {
+		streamEncoderOptions.push(encoderOptions as unknown as Record<string, unknown>);
+		return ({
 		write: (channels: Float32Array[]) => { calls.push(`encode-channels:${channels[0]?.length || 0}`); },
 		finalize: () => { void encoderOptions.onChunk(Uint8Array.of(1, 2, 3)); },
 		settled: async () => { calls.push('encoder-settled'); },
-	});
+		});
+	};
 	const renderOptions: { renderSnapshot?: (...args: unknown[]) => Promise<typeof audio> } = {
 		renderSnapshot: async () => audio,
 	};
@@ -192,7 +198,10 @@ function createFixture() {
 		}),
 		createWavStreamEncoder: streamEncoder,
 		encodeAiff: () => Uint8Array.of(4, 5),
-		encodeWav: () => Uint8Array.of(1, 2, 3),
+		encodeWav: (_channels: Float32Array[], options: Record<string, unknown>) => {
+			wavOptions.push(options);
+			return Uint8Array.of(1, 2, 3);
+		},
 		ffmpeg: {
 			dispose: () => { calls.push('ffmpeg-dispose'); },
 			encode: async (_bytes: unknown, format: string) => ({
@@ -269,6 +278,8 @@ function createFixture() {
 		runtime,
 		state,
 		statuses,
+		streamEncoderOptions,
+		wavOptions,
 		setArchiveAddFails: (value: boolean) => { archiveAddFails = value; },
 		setDisposeDuringPublish: (value: boolean) => { disposeDuringPublish = value; },
 		setMediaAvailable: (value: boolean) => { mediaAvailable = value; },
@@ -330,6 +341,26 @@ test('offline WAV and AIFF exports replace prior output and chain cleanup', asyn
 	const aiffOutput = await service.handleExportAction('export', { bitDepth: 16 });
 	assert.equal(aiffOutput.fileName, 'mix.aiff');
 	assert.equal(fixture.downloads.at(-1)?.mimeType, 'audio/aiff');
+});
+
+test('offline and realtime BWF exports pass final file-level BEXT metadata to the WAV encoder', async () => {
+	const bext = { description: 'Broadcast master', timeReference: '66150', version: 2 };
+	const offline = createFixture();
+	const offlinePlan = defaultPlan();
+	offlinePlan.format = 'bwf';
+	offlinePlan.bext = bext;
+	offlinePlan.encoding = { ...offlinePlan.encoding };
+	offline.setPlan(offlinePlan);
+	const offlineResult = await createEditorExportService(offline.runtime).handleExportAction('export');
+	assert.equal(offlineResult.mimeType, 'audio/wav');
+	assert.deepEqual(offline.wavOptions.at(-1)?.bext, bext);
+
+	const realtime = createFixture();
+	const realtimePlan = { ...offlinePlan, render: { strategy: 'realtime-stream' } };
+	realtime.setPlan(realtimePlan);
+	const realtimeResult = await createEditorExportService(realtime.runtime).handleExportAction('export');
+	assert.equal(realtimeResult.mimeType, 'audio/wav');
+	assert.deepEqual(realtime.streamEncoderOptions.at(-1)?.bext, bext);
 });
 
 test('compressed exports stage PCM and return publisher cancellation cleanly', async () => {

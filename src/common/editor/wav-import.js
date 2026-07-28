@@ -1,4 +1,5 @@
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
+import { BEXT_MAX_PAYLOAD_BYTES, normalizeBextMetadata, parseBextPayload } from './broadcast-wave.ts';
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -44,9 +45,12 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 
 	let format = null;
 	let data = null;
+	let bext = null;
+	const metadataWarnings = [];
+	let bextChunks = 0;
 	let offset = RIFF_HEADER_BYTES;
 	let chunksRead = 0;
-	while (offset < riffEnd && (!format || !data)) {
+	while (offset < riffEnd) {
 		throwIfAborted(signal);
 		if (chunksRead >= maxRiffChunks) throw new Error(`The WAV file exceeds the ${maxRiffChunks}-chunk inspection limit.`);
 		if (riffEnd - offset < CHUNK_HEADER_BYTES) throw new Error('The WAV file ends inside a RIFF chunk header.');
@@ -56,7 +60,23 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		const chunkBytes = chunkView.getUint32(4, true);
 		const payloadOffset = offset + CHUNK_HEADER_BYTES;
 		const payloadEnd = payloadOffset + chunkBytes;
-		if (payloadEnd > riffEnd || payloadEnd > blob.size) throw new Error(`The WAV ${printableChunkId(chunkId)} chunk is truncated.`);
+		if (payloadEnd > riffEnd || payloadEnd > blob.size) {
+			if (chunkId === 'bext' && format && data) {
+				bextChunks += 1;
+				if (bextChunks > 1) {
+					metadataWarnings.push(bextWarning(
+						'bext-duplicate',
+						'Multiple BEXT chunks were found; the first valid chunk is used.',
+					));
+				}
+				metadataWarnings.push(bextWarning(
+					'truncated-chunk',
+					'The trailing BEXT chunk exceeds the RIFF payload and was ignored.',
+				));
+				break;
+			}
+			throw new Error(`The WAV ${printableChunkId(chunkId)} chunk is truncated.`);
+		}
 		chunksRead += 1;
 
 		if (chunkId === 'fmt ' && !format) {
@@ -66,14 +86,50 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			format = parseWaveFormat(formatBytes, chunkBytes);
 		} else if (chunkId === 'data' && !data) {
 			data = { offset: payloadOffset, byteLength: chunkBytes };
+		} else if (chunkId === 'bext') {
+			bextChunks += 1;
+			if (bextChunks > 1) {
+				metadataWarnings.push(bextWarning(
+					'bext-duplicate',
+					'Multiple BEXT chunks were found; the first valid chunk is used.',
+				));
+			}
+			if (chunkBytes > BEXT_MAX_PAYLOAD_BYTES) {
+				metadataWarnings.push(bextWarning(
+					'bext-payload-too-large',
+					`The BEXT payload is too large; metadata over ${BEXT_MAX_PAYLOAD_BYTES.toLocaleString('en-US')} bytes was ignored.`,
+				));
+			} else {
+				const bytes = await readBlobBytes(blob, payloadOffset, payloadEnd, signal);
+				const parsed = parseBextPayload(bytes);
+				metadataWarnings.push(...parsed.warnings);
+				if (!bext && parsed.metadata) bext = parsed.metadata;
+			}
 		}
 
 		const paddedEnd = payloadEnd + (chunkBytes & 1);
 		if (paddedEnd > riffEnd) {
 			// A few otherwise valid encoders omit the final RIFF pad byte. It is
 			// harmless when both required chunks have already been discovered.
-			if (payloadEnd === riffEnd && format && data) break;
+			if (payloadEnd === riffEnd && format && data) {
+				if (chunkId === 'bext') {
+					metadataWarnings.push(bextWarning(
+						'invalid-padding',
+						'The trailing BEXT chunk is missing its RIFF alignment byte.',
+					));
+				}
+				break;
+			}
 			throw new Error(`The WAV ${printableChunkId(chunkId)} chunk is missing its pad byte.`);
+		}
+		if ((chunkBytes & 1) && chunkId === 'bext') {
+			const padding = await readBlobBytes(blob, payloadEnd, paddedEnd, signal);
+			if (padding[0] !== 0) {
+				metadataWarnings.push(bextWarning(
+					'invalid-padding',
+					'The BEXT chunk has a non-zero RIFF alignment byte.',
+				));
+			}
 		}
 		offset = paddedEnd;
 	}
@@ -101,11 +157,17 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 		blockAlign: format.blockAlign,
 		byteRate: format.byteRate,
 		channelMask: format.channelMask,
+		bext,
+		metadataWarnings: Object.freeze(metadataWarnings),
 		dataOffset: data.offset,
 		dataByteLength: data.byteLength,
 		riffByteLength: riffEnd,
 		sourceByteLength: blob.size,
 	});
+}
+
+function bextWarning(code, message) {
+	return Object.freeze({ code, field: 'chunk', message });
 }
 
 /**
@@ -260,6 +322,21 @@ function validateDescriptor(blob, descriptor) {
 		throw new TypeError('A WAV PCM descriptor is required.');
 	}
 	if (descriptor.sourceByteLength !== blob.size) throw new Error('The WAV descriptor belongs to a different-sized Blob.');
+	if (!Array.isArray(descriptor.metadataWarnings)
+		|| descriptor.metadataWarnings.some((warning) => !warning || typeof warning.code !== 'string' || typeof warning.message !== 'string')) {
+		throw new TypeError('WAV descriptor metadata warnings are invalid.');
+	}
+	if (descriptor.bext != null) {
+		try {
+			const normalized = normalizeBextMetadata(descriptor.bext, { version: descriptor.bext.version });
+			const keys = Object.keys(normalized);
+			if (Object.keys(descriptor.bext).length !== keys.length
+				|| keys.some((key) => !Object.hasOwn(descriptor.bext, key)
+					|| !Object.is(descriptor.bext[key], normalized[key]))) throw new TypeError();
+		} catch {
+			throw new TypeError('WAV descriptor BEXT metadata is invalid.');
+		}
+	}
 	const integerFields = [
 		'sampleRate', 'channelCount', 'frameCount', 'bitDepth', 'validBitsPerSample', 'bytesPerSample',
 		'blockAlign', 'byteRate', 'dataOffset', 'dataByteLength', 'riffByteLength', 'sourceByteLength',

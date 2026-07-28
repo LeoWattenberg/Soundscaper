@@ -5,6 +5,7 @@ import {
 	inspectWavBlobPcm,
 	streamWavBlobPcm,
 } from '../src/common/editor/wav-import.js';
+import { encodeBextPayload } from '../src/common/editor/broadcast-wave.ts';
 
 test('incremental WAV import parses padded RIFF chunks and emits ordered planar packets with backpressure', async () => {
 	const blob = createWaveBlob({
@@ -141,6 +142,119 @@ test('data chunks before fmt chunks are discovered without reading their payload
 		onChunk: (channels) => { chunks.push(channels); },
 	});
 	assert.deepEqual(flattenChannel(chunks, 0), [-1, 0, 127 / 128]);
+});
+
+test('BEXT metadata is discovered before or after audio without reading PCM payloads', async (t) => {
+	const bext = encodeBextPayload({
+		description: 'Field recording',
+		originator: 'Soundscaper',
+		timeReference: '9007199254740993',
+		loudnessValue: -23,
+		codingHistory: 'A=PCM,F=48000,W=16,M=mono,T=Recorder',
+	});
+	for (const placement of ['before', 'after']) {
+		await t.test(placement, async () => {
+			const blob = createWaveBlob({
+				frames: [[0, 1, 2]],
+				...(placement === 'before'
+					? { beforeFormat: [{ id: 'bext', bytes: bext }] }
+					: { afterData: [{ id: 'bext', bytes: bext }] }),
+			});
+			const tracked = createTrackingBlob(blob);
+			const descriptor = await inspectWavBlobPcm(tracked);
+			assert.equal(descriptor.bext.description, 'Field recording');
+			assert.equal(descriptor.bext.timeReference, '9007199254740993');
+			assert.equal(descriptor.bext.loudnessValue, -23);
+			assert.equal(descriptor.bext.version, 2);
+			assert.deepEqual(descriptor.metadataWarnings, []);
+			assert.equal(tracked.reads.some(({ start }) => start === descriptor.dataOffset), false);
+		});
+	}
+});
+
+test('WAV inspection bounds BEXT reads, uses the first valid chunk, and reports metadata warnings', async () => {
+	const unsupported = encodeBextPayload({ description: 'Unsupported' }).slice();
+	new DataView(unsupported.buffer).setUint16(346, 3, true);
+	const valid = encodeBextPayload({ description: 'Valid metadata', timeReference: '42' });
+	const duplicate = encodeBextPayload({ description: 'Ignored duplicate' });
+	const oversized = new Uint8Array(65_537);
+	const blob = createWaveBlob({
+		frames: [[0, 1, 2]],
+		beforeFormat: [
+			{ id: 'bext', bytes: oversized },
+			{ id: 'bext', bytes: unsupported },
+		],
+		afterData: [
+			{ id: 'bext', bytes: valid },
+			{ id: 'bext', bytes: duplicate },
+		],
+	});
+	const tracked = createTrackingBlob(blob);
+	const descriptor = await inspectWavBlobPcm(tracked);
+	assert.equal(descriptor.bext.description, 'Valid metadata');
+	assert.equal(descriptor.bext.timeReference, '42');
+	const warningText = descriptor.metadataWarnings
+		.map((warning) => typeof warning === 'string' ? warning : warning.message)
+		.join(' ');
+	assert.match(warningText, /64 KiB|65,?536|too large/i);
+	assert.match(warningText, /version 3|unsupported version/i);
+	assert.match(warningText, /duplicate|multiple/i);
+	assert.ok(tracked.reads.every(({ byteLength }) => byteLength <= 602));
+	assert.equal(tracked.reads.some(({ start }) => start === descriptor.dataOffset), false);
+});
+
+test('trailing truncated BEXT directory entries are metadata warnings after valid audio', async () => {
+	const malformed = new Uint8Array(await createWaveBlob({
+		frames: [[0, 1, 2]],
+		afterData: [{ id: 'bext', bytes: new Uint8Array(16) }],
+	}).arrayBuffer());
+	const bextOffset = findAscii(malformed, 'bext');
+	new DataView(malformed.buffer).setUint32(bextOffset + 4, 602, true);
+
+	const descriptor = await inspectWavBlobPcm(new Blob([malformed]));
+	assert.equal(descriptor.frameCount, 3);
+	assert.equal(descriptor.bext, null);
+	assert.deepEqual(descriptor.metadataWarnings.map(({ code }) => code), ['truncated-chunk']);
+
+	const nonMetadata = malformed.slice();
+	writeAscii(nonMetadata, bextOffset, 'JUNK');
+	await assert.rejects(
+		inspectWavBlobPcm(new Blob([nonMetadata])),
+		/The WAV "JUNK" chunk is truncated/,
+	);
+});
+
+test('odd BEXT payload padding is validated without affecting valid audio', async (t) => {
+	const oddBext = encodeBextPayload({ description: 'Odd payload', codingHistory: 'X' });
+	assert.equal(oddBext.byteLength & 1, 1);
+	const paddedBytes = new Uint8Array(await createWaveBlob({
+		frames: [[0, 1, 2]],
+		afterData: [{ id: 'bext', bytes: oddBext }],
+	}).arrayBuffer());
+	const bextOffset = findAscii(paddedBytes, 'bext');
+	const padOffset = bextOffset + 8 + oddBext.byteLength;
+
+	await t.test('zero alignment byte', async () => {
+		const descriptor = await inspectWavBlobPcm(new Blob([paddedBytes]));
+		assert.equal(descriptor.bext.description, 'Odd payload');
+		assert.equal(descriptor.metadataWarnings.some(({ code }) => code === 'invalid-padding'), false);
+	});
+
+	await t.test('non-zero alignment byte', async () => {
+		const nonzeroPad = paddedBytes.slice();
+		nonzeroPad[padOffset] = 0x7f;
+		const descriptor = await inspectWavBlobPcm(new Blob([nonzeroPad]));
+		assert.equal(descriptor.bext.description, 'Odd payload');
+		assert.equal(descriptor.metadataWarnings.some(({ code }) => code === 'invalid-padding'), true);
+	});
+
+	await t.test('missing final alignment byte', async () => {
+		const missingPad = paddedBytes.slice(0, padOffset);
+		new DataView(missingPad.buffer).setUint32(4, missingPad.byteLength - 8, true);
+		const descriptor = await inspectWavBlobPcm(new Blob([missingPad]));
+		assert.equal(descriptor.bext.description, 'Odd payload');
+		assert.equal(descriptor.metadataWarnings.some(({ code }) => code === 'invalid-padding'), true);
+	});
 });
 
 test('large WAV input is sliced by packet size rather than materialized as one ArrayBuffer', async () => {
@@ -296,6 +410,35 @@ test('descriptor reuse validates source size and PCM geometry before reading', a
 		streamWavBlobPcm(blob, { descriptor: { ...descriptor, frameCount: 4 }, onChunk() {} }),
 		/descriptor data range is invalid/,
 	);
+	const broadcastBlob = createWaveBlob({
+		frames: [[0, 1, 2]],
+		beforeFormat: [{ id: 'bext', bytes: encodeBextPayload({ description: 'Valid' }) }],
+	});
+	const broadcastDescriptor = await inspectWavBlobPcm(broadcastBlob);
+	const reorderedBext = Object.fromEntries(Object.entries(broadcastDescriptor.bext).reverse());
+	let reorderedFrames = 0;
+	await streamWavBlobPcm(broadcastBlob, {
+		descriptor: { ...broadcastDescriptor, bext: reorderedBext },
+		onChunk(channels) { reorderedFrames += channels[0].length; },
+	});
+	assert.equal(reorderedFrames, broadcastDescriptor.frameCount);
+	await assert.rejects(
+		streamWavBlobPcm(broadcastBlob, {
+			descriptor: {
+				...broadcastDescriptor,
+				bext: { ...broadcastDescriptor.bext, timeReference: '-1' },
+			},
+			onChunk() {},
+		}),
+		/descriptor BEXT metadata is invalid/,
+	);
+	await assert.rejects(
+		streamWavBlobPcm(broadcastBlob, {
+			descriptor: { ...broadcastDescriptor, metadataWarnings: ['unsafe'] },
+			onChunk() {},
+		}),
+		/metadata warnings are invalid/,
+	);
 });
 
 function createWaveBlob(options = {}) {
@@ -323,6 +466,7 @@ function createWaveBlob(options = {}) {
 	const chunks = [
 		...(options.beforeFormat || []),
 		...(options.dataBeforeFormat ? [dataChunk, formatChunk] : [formatChunk, dataChunk]),
+		...(options.afterData || []),
 	];
 	return createRiffBlob(chunks);
 }

@@ -1,4 +1,5 @@
 import { projectEffectTailFrames } from './effects.js';
+import { createBwfExportMetadata } from './broadcast-wave-project.ts';
 import {
 	AUDIO_EDITOR_MASTER_CHANNELS,
 	AUDIO_EDITOR_SAMPLE_RATE,
@@ -14,6 +15,7 @@ import {
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
+	bwf: { bitDepth: 24 },
 	aiff: { bitDepth: 24 },
 	flac: { bitDepth: 24, compressionLevel: 5 },
 	mp3: { bitRate: 192 },
@@ -96,13 +98,24 @@ export function createExportPlan(project, options = {}) {
 	const mode = options.mode || 'mix';
 	if (mode !== 'mix' && mode !== 'stems') throw new RangeError('Export mode must be mix or stems.');
 	const format = canonicalMediaExportFormat(options.format || 'wav');
-	const encoding = normalizeMediaExportSettings(format, {
+	let encoding = normalizeMediaExportSettings(format, {
 		...options,
 		sampleRate: options.sampleRate ?? project.sampleRate ?? AUDIO_EDITOR_SAMPLE_RATE,
 		inputChannelCount: options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
 	});
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(project, options.range || 'project');
+	const bext = format === 'bwf'
+		? createBwfExportMetadata(project, {
+			bext: options.bext,
+			rangeStartFrame: range.startFrame,
+			outputSampleRate: sampleRate,
+			bitDepth: encoding.bitDepth,
+			channelCount: encoding.channelCount,
+			productName: options.productName,
+		})
+		: null;
+	if (bext) encoding = Object.freeze({ ...encoding, bext });
 	const tailFrames = determineTailFrames(project, mode, options.includeTail !== false);
 	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / project.sampleRate);
 	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / project.sampleRate);
@@ -140,6 +153,7 @@ export function createExportPlan(project, options = {}) {
 		dither: encoding.dither !== 'none',
 		ditherMode: encoding.dither,
 		metadata: encoding.metadata,
+		...(bext ? { bext } : {}),
 		range,
 		tailFrames,
 		outputFrames,

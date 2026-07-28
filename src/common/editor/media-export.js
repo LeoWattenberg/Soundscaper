@@ -1,3 +1,5 @@
+import { normalizeBextMetadata } from './broadcast-wave.ts';
+
 const MAX_EXPORT_CHANNELS = 32;
 const MAX_METADATA_FIELDS = 32;
 const MAX_METADATA_VALUE_LENGTH = 4_096;
@@ -18,7 +20,7 @@ export const BUNDLED_FFMPEG_EXPORT_PROFILE = deepFreeze({
 });
 
 /**
- * @typedef {'wav'|'aiff'|'flac'|'mp3'|'ogg-vorbis'|'opus'|'wavpack'|'mp2'|'aac-m4a'|'custom-ffmpeg'} MediaExportFormatId
+ * @typedef {'wav'|'bwf'|'aiff'|'flac'|'mp3'|'ogg-vorbis'|'opus'|'wavpack'|'mp2'|'aac-m4a'|'custom-ffmpeg'} MediaExportFormatId
  * @typedef {'native-wav'|'native-aiff'|'ffmpeg'|'custom-ffmpeg'} MediaExportBackend
  * @typedef {'int16'|'int24'|'int32'|'float32'} MediaExportSampleFormat
  * @typedef {'none'|'triangular'|'triangular-highpass'} MediaExportDither
@@ -34,6 +36,11 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 		id: 'wav', label: 'WAV', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
 		container: 'WAV', codec: 'PCM', lossless: true, maximumChannels: 32,
 		sampleFormats: ['int16', 'int24', 'float32'], defaults: { sampleFormat: 'int24' },
+	},
+	bwf: {
+		id: 'bwf', label: 'Broadcast WAV (BWF)', backend: 'native-wav', extension: 'wav', mimeType: 'audio/wav',
+		container: 'BWF', codec: 'PCM', lossless: true, maximumChannels: 2,
+		sampleFormats: ['int16', 'int24'], defaults: { sampleFormat: 'int24' },
 	},
 	aiff: {
 		id: 'aiff', label: 'AIFF', backend: 'native-aiff', extension: 'aiff', mimeType: 'audio/aiff',
@@ -238,6 +245,7 @@ export function normalizeMediaExportSettings(format, options = {}) {
 		dither,
 		metadata,
 	};
+	if (descriptor.id === 'bwf') settings.bext = normalizeBextMetadata(options.bext ?? {}, { version: 2 });
 
 	if (descriptor.id === 'flac') {
 		settings.compressionLevel = integerInRange(options.compressionLevel ?? descriptor.defaults.compressionLevel, 0, 8, 'FLAC compression level');
