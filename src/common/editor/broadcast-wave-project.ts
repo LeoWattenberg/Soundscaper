@@ -54,8 +54,8 @@ export function createBwfExportMetadata(
 	const projectRate = positiveSampleRate(project.sampleRate, 'Project sample rate');
 	const outputRate = positiveSampleRate(options.outputSampleRate, 'BWF output sample rate');
 	const rangeStartFrame = nonNegativeFrame(options.rangeStartFrame ?? 0);
-	if (options.channelCount !== 1 && options.channelCount !== 2) {
-		throw new RangeError('BWF output must contain one or two channels.');
+	if (!Number.isSafeInteger(options.channelCount) || options.channelCount < 1 || options.channelCount > 32) {
+		throw new RangeError('BWF output must contain one to 32 channels.');
 	}
 	const base = projectBextMetadata(project);
 	const authoring = normalizeBextMetadata({
