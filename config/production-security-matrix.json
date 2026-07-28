@@ -1,0 +1,700 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-07-28",
+	"modelDocument": "docs/production-threat-model.md",
+	"statusDefinitions": {
+		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
+		"partial": "Useful controls exist, but one or more documented attack paths or lifecycle requirements remain unqualified.",
+		"planned": "The surface is not supported and must remain disabled until its acceptance criteria are implemented and verified.",
+		"release-blocked": "The current controls are insufficient for production qualification of the named surface; the recorded gate must remain pending."
+	},
+	"roadmapThreatCoverage": {
+		"malformed-projects-media": [
+			"external-project-document-validation",
+			"external-media-parser-bounds",
+			"scape-archive-structure-integrity"
+		],
+		"archive-expansion": [
+			"scape-archive-structure-integrity",
+			"scape-archive-expansion"
+		],
+		"native-helpers": [
+			"native-helper-processes"
+		],
+		"third-party-plugins": [
+			"nyquist-untrusted-code-runtime",
+			"reviewed-web-effect-packages",
+			"native-plugin-hosting"
+		],
+		"path-capabilities": [
+			"electron-renderer-ipc-boundary",
+			"desktop-static-resource-paths",
+			"desktop-read-path-capabilities",
+			"desktop-write-path-capabilities"
+		],
+		"job-cancellation": [
+			"long-job-cancellation"
+		]
+	},
+	"boundaries": [
+		{
+			"id": "external-input-to-parser",
+			"from": "User-selected or collaborator-supplied files",
+			"to": "Project, archive, audio, metadata, and media parsers",
+			"data": "Untrusted project documents, ZIP records, media bytes, metadata, and codec arguments",
+			"entryPoints": [
+				"src/common/editor/scape-project.js",
+				"src/common/editor/project-v8.ts",
+				"src/common/editor/wav-import.js",
+				"src/common/editor/adm-xml-compression.ts"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+				{ "kind": "implementation", "path": "src/common/editor/project-v8.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/wav-import.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+				{ "kind": "test", "path": "tests/audio-editor-project-v8.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-wav-import.test.js" }
+			]
+		},
+		{
+			"id": "archive-reader-to-storage",
+			"from": "The .scape ZIP reader and migrated project document",
+			"to": "IndexedDB or OPFS project and source repositories",
+			"data": "Expanded project JSON, PCM chunks, original video assets, and project records",
+			"entryPoints": [
+				"src/common/editor/scape-project.js",
+				"src/common/editor/storage.js"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+				{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+				{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" }
+			]
+		},
+		{
+			"id": "renderer-to-electron-main",
+			"from": "Sandboxed Electron renderer",
+			"to": "Privileged Electron main process",
+			"data": "Versioned IPC requests, opaque file capabilities, commands, and display-capture consent",
+			"entryPoints": [
+				"desktop/preload.mjs",
+				"desktop/main.mjs"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "desktop/preload.mjs" },
+				{ "kind": "implementation", "path": "desktop/main.mjs" },
+				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+				{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
+			]
+		},
+		{
+			"id": "electron-main-to-filesystem",
+			"from": "Electron protocol and IPC handlers",
+			"to": "Local files selected by the user and packaged static resources",
+			"data": "Open handles, opaque read tokens, atomic save sessions, byte ranges, and static paths",
+			"entryPoints": [
+				"desktop/file-capabilities.js",
+				"desktop/save-targets.js",
+				"desktop/protocol.js"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+				{ "kind": "implementation", "path": "desktop/save-targets.js" },
+				{ "kind": "implementation", "path": "desktop/protocol.js" },
+				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+				{ "kind": "test", "path": "tests/desktop-save.test.js" }
+			]
+		},
+		{
+			"id": "untrusted-runtime-to-audio-engine",
+			"from": "User-authored Nyquist source executed in WebAssembly",
+			"to": "Editor-owned PCM buffers and effect results",
+			"data": "Nyquist program text, bounded PCM input, parameters, diagnostics, and bounded PCM output",
+			"entryPoints": [
+				"src/common/editor/nyquist/client.js",
+				"src/common/editor/nyquist/worker.js"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/nyquist/protocol.js" },
+				{ "kind": "implementation", "path": "src/common/editor/nyquist/runtime.js" },
+				{ "kind": "implementation", "path": "src/common/editor/nyquist/worker.js" },
+				{ "kind": "test", "path": "tests/nyquist-runtime.test.js" },
+				{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" }
+			]
+		},
+		{
+			"id": "application-to-native-extension-surface",
+			"from": "Web or desktop application",
+			"to": "Future native helpers and third-party native plug-in hosts",
+			"data": "No current channel; the narrow preload bridge is the checked fence",
+			"entryPoints": [
+				"desktop/preload.mjs"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "desktop/preload.mjs" },
+				{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+			]
+		},
+		{
+			"id": "controller-task-to-io",
+			"from": "Controller task lifecycle",
+			"to": "Project import, export, storage, and desktop file services",
+			"data": "Task generations, AbortSignals, project bytes, storage writes, and late results",
+			"entryPoints": [
+				"src/common/editor/controller/lifecycle.ts",
+				"src/common/editor/controller/native-project-service.ts"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "src/common/editor/controller/lifecycle.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-controller-lifecycle.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
+			]
+		},
+		{
+			"id": "dependency-to-release-artifact",
+			"from": "Pinned npm, WebAssembly, codec, and Electron dependencies",
+			"to": "Web runtime assets and desktop packages",
+			"data": "Dependency archives, source manifests, executable binaries, license material, and update metadata",
+			"entryPoints": [
+				"package-lock.json",
+				"vite.config.mjs",
+				"scripts/desktop-prepare.mjs"
+			],
+			"evidence": [
+				{ "kind": "document", "path": "package-lock.json" },
+				{ "kind": "implementation", "path": "vite.config.mjs" },
+				{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
+				{ "kind": "audit", "path": "scripts/audit-staffpad-wasm.mjs" },
+				{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" },
+				{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" }
+			]
+		}
+	],
+	"risks": [
+		{
+			"id": "external-project-document-validation",
+			"title": "Malformed or oversized project documents",
+			"boundaryIds": ["external-input-to-parser"],
+			"assets": ["project integrity", "persisted source inventory", "renderer availability"],
+			"actor": "A user or collaborator supplies a corrupt or adversarial project document.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "project-schema-and-forward-read-validation",
+					"summary": "Core project migration validates supported schemas and opens newer schemas read-only without overwriting them.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/project-v8.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-v8.test.ts" }
+					]
+				},
+				{
+					"id": "aup4-structure-sanitization",
+					"summary": "AUP4 conversion sanitizes imported records and is exercised with corrupt and compatibility fixtures.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/aup4-sanitization.js" },
+						{ "kind": "test", "path": "tests/aup4-conversion.test.js" },
+						{ "kind": "test", "path": "tests/audacity-project-import.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "shared-project-parse-budget",
+					"exposure": "Format-specific parsers do not yet share a single byte, node, depth, or elapsed-time budget.",
+					"requiredControl": "Apply documented per-format and aggregate budgets before persistence.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Boundary tests reject oversized and deeply nested project fixtures before any project or source write."]
+				},
+				{
+					"id": "malformed-project-corpus",
+					"exposure": "The maintained malformed-project corpus does not yet cover every supported project family.",
+					"requiredControl": "Maintain regression and fuzz fixtures for each supported project parser.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["CI runs parser corpus tests with storage publication assertions for each family."]
+				}
+			]
+		},
+		{
+			"id": "external-media-parser-bounds",
+			"title": "Malformed media and metadata consume excessive resources or escape validation",
+			"boundaryIds": ["external-input-to-parser"],
+			"assets": ["renderer availability", "audio correctness", "local storage capacity"],
+			"actor": "An imported audio, video, metadata, or codec-argument payload is corrupt or adversarial.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "bounded-wav-and-adm-parsing",
+					"summary": "WAV chunk iteration, metadata sizes, channel counts, and compressed ADM XML expansion have explicit bounds.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/wav-import.js" },
+						{ "kind": "implementation", "path": "src/common/editor/adm-xml-compression.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-wav-import.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-bw64-adm-import.test.ts" }
+					]
+				},
+				{
+					"id": "bounded-custom-ffmpeg-arguments",
+					"summary": "Custom FFmpeg exports use allowlisted protocols and reject extra inputs, reports, and unbounded arguments.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/media-export.js" },
+						{ "kind": "test", "path": "tests/audio-editor-media-export.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "compressed-media-corpus",
+					"exposure": "Compressed audio and video decoders lack a broad maintained malformed-input corpus and resource-budget gate.",
+					"requiredControl": "Add codec-family corpus tests and explicit decode memory, output, and elapsed-time budgets.",
+					"ownerMilestone": "1 and 5",
+					"acceptanceCriteria": ["CI exercises truncated, oversized, recursive, and decompression-amplification fixtures without publishing partial output."]
+				},
+				{
+					"id": "native-decoder-isolation",
+					"exposure": "Future native decoding is not yet isolated from the UI process or covered by crash quarantine.",
+					"requiredControl": "Run native decoders in a supervised helper with bounded IPC and documented OS sandbox policy.",
+					"ownerMilestone": "5",
+					"acceptanceCriteria": ["Helper crash, timeout, oversized output, and malformed-message tests leave the editor process responsive."]
+				}
+			]
+		},
+		{
+			"id": "scape-archive-structure-integrity",
+			"title": "Portable project archive paths and descriptors reference unintended or altered content",
+			"boundaryIds": ["external-input-to-parser", "archive-reader-to-storage"],
+			"assets": ["project integrity", "source identity", "persistent storage namespace"],
+			"actor": "A .scape archive contains unsafe names, duplicates, inconsistent descriptors, or altered payload bytes.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "canonical-entry-and-content-integrity",
+					"summary": "Import rejects absolute, backslash, traversal, and duplicate names, validates manifest descriptors, and verifies extracted size and SHA-256 before publishing the project.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "archive-envelope-parity",
+					"exposure": "Inspection does not reuse import's entry-count, safe-name, and duplicate-name envelope checks.",
+					"requiredControl": "Use one strict archive-envelope validator for inspection and import.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["The same malicious archive fixture is rejected identically by inspect and import before extraction."]
+				},
+				{
+					"id": "archive-entry-ownership",
+					"exposure": "The manifest does not yet prove one-to-one ownership of every non-reserved archive entry.",
+					"requiredControl": "Reject descriptor aliases, reserved-entry reuse, and unreferenced extra entries.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Unit tests cover aliases, reserved names, duplicate descriptors, and extra entries."]
+				}
+			]
+		},
+		{
+			"id": "scape-archive-expansion",
+			"title": "Portable project archive expansion exhausts memory, storage, or execution time",
+			"boundaryIds": ["external-input-to-parser", "archive-reader-to-storage", "controller-task-to-io"],
+			"assets": ["renderer availability", "storage capacity", "existing projects and sources"],
+			"actor": "A .scape archive uses large metadata, misleading sizes, compression amplification, or a malicious PCM header.",
+			"impact": "critical",
+			"status": "release-blocked",
+			"releaseDisposition": "blocked",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "archive-entry-count-and-storage-rollback",
+					"summary": "Import caps entry count, validates hashes after extraction, aborts a failing audio writer, deletes already staged sources, and saves the project last.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "pre-extraction-budgets",
+					"exposure": "Manifest and project JSON are materialized before a byte cap; central-directory sizes and cumulative expansion are not preflighted.",
+					"requiredControl": "Preflight entry metadata and enforce per-entry and cumulative expanded-byte budgets before storage writes.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Oversized metadata, declared expansion, encryption, overlap, ratio, and descriptor-size fixtures fail before staging."]
+				},
+				{
+					"id": "streaming-abort-and-safe-pcm",
+					"exposure": "Archive operations do not accept AbortSignal, video is materialized as a Blob, and PCM frame-count arithmetic can retain an unbounded pending buffer.",
+					"requiredControl": "Thread AbortSignal through ZIP extraction and storage, stream bounded media, and reject unsafe PCM frame arithmetic before allocation.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Abort and malicious PCM-header tests prove bounded allocation, writer abort, reader close, and unchanged project/source inventory."]
+				}
+			],
+			"releaseGate": {
+				"id": "scape-archive-expansion-qualification",
+				"status": "pending",
+				"requiredControlIds": [
+					"central-directory-preflight",
+					"bounded-manifest-and-project-json",
+					"cumulative-expanded-byte-limit",
+					"descriptor-entry-size-match",
+					"encrypted-overlap-and-extra-entry-rejection",
+					"inspect-import-validation-parity",
+					"abort-signal-and-rollback",
+					"safe-pcm-frame-arithmetic"
+				]
+			}
+		},
+		{
+			"id": "electron-renderer-ipc-boundary",
+			"title": "Current Electron renderer IPC reaches privileges outside the versioned bridge",
+			"boundaryIds": ["renderer-to-electron-main"],
+			"assets": ["main-process authority", "filesystem access", "user consent"],
+			"actor": "Compromised renderer content attempts to invoke arbitrary Electron or Node.js capabilities.",
+			"impact": "critical",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "sandboxed-versioned-preload-bridge",
+					"summary": "The renderer has context isolation, no Node integration, a sandbox, and a frozen input-validating v1 bridge.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
+				},
+				{
+					"id": "authenticated-ipc-sender-and-navigation-fence",
+					"summary": "Main-process handlers require the expected webContents and root document URL while navigation, new windows, webviews, and unapproved permissions are denied.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
+				}
+			],
+			"residualRisks": []
+		},
+		{
+			"id": "desktop-static-resource-paths",
+			"title": "Current desktop static-resource requests escape the packaged application root",
+			"boundaryIds": ["renderer-to-electron-main", "electron-main-to-filesystem"],
+			"assets": ["local file confidentiality", "packaged application integrity"],
+			"actor": "Renderer content crafts an encoded path, symlink path, method, or range request.",
+			"impact": "critical",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "realpath-contained-static-protocol",
+					"summary": "Static requests are decoded, canonicalized, constrained by realpath containment, limited to safe methods, and protected by the desktop CSP.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
+				}
+			],
+			"residualRisks": []
+		},
+		{
+			"id": "desktop-read-path-capabilities",
+			"title": "Desktop read capabilities leak paths, outlive their owner, or allow unbounded working sets",
+			"boundaryIds": ["renderer-to-electron-main", "electron-main-to-filesystem", "controller-task-to-io"],
+			"assets": ["local file confidentiality", "file-handle availability", "renderer memory"],
+			"actor": "Compromised renderer content reuses or accumulates capabilities, or triggers a large whole-file read.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "opaque-read-token-with-pinned-handle",
+					"summary": "User selection opens a regular file first, returns a high-entropy expiring token rather than a path, and serves bounded single ranges from the pinned handle.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "read-capability-owner-lifecycle",
+					"exposure": "Capabilities lack a renderer-owner binding, renderer-destroy cleanup, and an aggregate per-session count/byte policy.",
+					"requiredControl": "Bind capabilities to the creating webContents and close them on release, expiry, navigation, destruction, and aggregate-budget eviction.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Lifecycle tests prove cleanup on renderer destruction and deterministic refusal at aggregate capability limits."]
+				},
+				{
+					"id": "whole-file-renderer-read",
+					"exposure": "The renderer file service materializes selected files as whole Blobs and does not propagate cancellation to fetch.",
+					"requiredControl": "Use AbortSignal-aware bounded streaming or explicit format-size admission before Blob materialization.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Large-file and abort tests demonstrate bounded memory and immediate handle release."]
+				}
+			]
+		},
+		{
+			"id": "desktop-write-path-capabilities",
+			"title": "Desktop saves overwrite unintended paths, leave partial files, or exhaust disk",
+			"boundaryIds": ["renderer-to-electron-main", "electron-main-to-filesystem", "controller-task-to-io"],
+			"assets": ["user file integrity", "disk capacity", "temporary-file confidentiality"],
+			"actor": "Compromised renderer content reuses a target or sends inconsistent, oversized, or interrupted chunks.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "opaque-single-use-atomic-save",
+					"summary": "A user-selected target becomes a short-lived single-use token; sequential one-MiB chunks are checked against declared length and committed by synced same-directory rename with abort cleanup.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "write-owner-and-capacity-lifecycle",
+					"exposure": "Save sessions are not bound to renderer lifetime, declared size permits any safe integer, and aggregate disk capacity is not preflighted.",
+					"requiredControl": "Bind sessions to webContents, enforce product working-set limits, preflight storage, and clean sessions on renderer destruction.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Renderer-destruction, capacity, aggregate-session, and practical maximum-size tests fail without replacing the destination."]
+				},
+				{
+					"id": "in-flight-write-cancellation",
+					"exposure": "A bounded IPC chunk cannot be interrupted once the main process has begun its write, and parent-directory durability is not qualified.",
+					"requiredControl": "Define the cancellation acknowledgement and platform durability contract for active save operations.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Fault-injection tests cover cancellation during write, sync, and rename on every supported desktop platform."]
+				}
+			]
+		},
+		{
+			"id": "nyquist-untrusted-code-runtime",
+			"title": "Current user-authored Nyquist source escapes its bounded WebAssembly worker envelope",
+			"boundaryIds": ["untrusted-runtime-to-audio-engine", "controller-task-to-io"],
+			"assets": ["editor availability", "PCM confidentiality and integrity", "origin storage"],
+			"actor": "A Nyquist program loops, requests excessive memory or output, or attempts file access.",
+			"impact": "high",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "current-nyquist-worker-envelope",
+					"summary": "Nyquist runs in a dedicated worker with validated protocol and source/input/output bounds, a 256-MiB WebAssembly memory ceiling, timeout and abort termination, and disabled C file-I/O stubs.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/protocol.js" },
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/runtime.js" },
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/worker.js" },
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/native/nyquist_io_stubs.c" },
+						{ "kind": "test", "path": "tests/nyquist-runtime.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-nyquist-controller.test.js" },
+						{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" }
+					]
+				}
+			],
+			"residualRisks": []
+		},
+		{
+			"id": "reviewed-web-effect-packages",
+			"title": "Future third-party Web effect packages gain same-origin JavaScript authority",
+			"boundaryIds": ["untrusted-runtime-to-audio-engine", "dependency-to-release-artifact"],
+			"assets": ["origin storage", "project confidentiality", "editor integrity"],
+			"actor": "A future reviewed effect package is malicious, compromised, or has a confused-deputy import surface.",
+			"impact": "critical",
+			"status": "planned",
+			"releaseDisposition": "surface-disabled",
+			"ownerMilestone": "4",
+			"currentControls": [
+				{
+					"id": "bundled-nyquist-registry-only",
+					"summary": "The maintained registry currently exposes only reviewed, source-pinned bundled Nyquist plug-ins; no generic package loader exists.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/plugin-registry.js" },
+						{ "kind": "document", "path": "src/common/editor/nyquist/plugins/source-manifest.json" },
+						{ "kind": "test", "path": "tests/nyquist-plugin-registry.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "web-effect-package-abi",
+					"exposure": "A reviewed Web effect package ABI, import allowlist, signature/hash policy, revocation model, and worker lifecycle are not implemented.",
+					"requiredControl": "Instantiate pure WebAssembly packages in dedicated workers through a minimal allowlisted host ABI; do not import arbitrary third-party JavaScript into the application origin.",
+					"ownerMilestone": "4",
+					"acceptanceCriteria": ["Malformed ABI, forbidden import, timeout, oversized output, hash mismatch, and revocation tests pass before a package loader is exposed."]
+				}
+			]
+		},
+		{
+			"id": "native-helper-processes",
+			"title": "Future native media and render helpers compromise the UI process or remain alive after cancellation",
+			"boundaryIds": ["application-to-native-extension-surface", "controller-task-to-io"],
+			"assets": ["UI process integrity", "project confidentiality", "host availability"],
+			"actor": "Malformed input, a compromised helper binary, or a protocol peer sends invalid messages or refuses shutdown.",
+			"impact": "critical",
+			"status": "planned",
+			"releaseDisposition": "surface-disabled",
+			"ownerMilestone": "5",
+			"currentControls": [
+				{
+					"id": "no-native-helper-bridge",
+					"summary": "The current versioned preload bridge exposes no native helper, process-spawn, or plug-in-host channel.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "native-helper-supervision",
+					"exposure": "No bounded helper protocol, process supervisor, sandbox policy, crash quarantine, or binary attestation exists.",
+					"requiredControl": "Define a versioned bounded IPC protocol and supervised process lifecycle with least-privilege OS policy and verified binaries.",
+					"ownerMilestone": "5",
+					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass without exposing raw spawn authority to the renderer."]
+				}
+			]
+		},
+		{
+			"id": "native-plugin-hosting",
+			"title": "Future native audio or video plug-ins execute with ambient user-account authority",
+			"boundaryIds": ["application-to-native-extension-surface", "dependency-to-release-artifact"],
+			"assets": ["user files", "project confidentiality", "host account authority"],
+			"actor": "A third-party VST3, CLAP, AU, LV2, or OFX binary is malicious, vulnerable, or incompatible.",
+			"impact": "critical",
+			"status": "planned",
+			"releaseDisposition": "surface-disabled",
+			"ownerMilestone": "5 and 8B",
+			"currentControls": [
+				{
+					"id": "no-native-plugin-host-surface",
+					"summary": "The current renderer bridge and editor registry expose no native plug-in discovery, loading, or execution surface.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "src/common/editor/nyquist/plugin-registry.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+						{ "kind": "test", "path": "tests/nyquist-plugin-registry.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "native-plugin-security-model",
+					"exposure": "No plug-in discovery allowlist, quarantine, permissions, compatibility process, consent UX, or signing policy exists.",
+					"requiredControl": "Treat native plug-ins as arbitrary code, isolate them in a supervised host, minimize filesystem and network authority, and disclose residual OS authority to the user.",
+					"ownerMilestone": "5 and 8B",
+					"acceptanceCriteria": ["Host compromise, crash recovery, denial, scanning, consent, revocation, and per-platform packaging tests pass before discovery is enabled."]
+				}
+			]
+		},
+		{
+			"id": "long-job-cancellation",
+			"title": "Cancelled or superseded jobs continue consuming resources or publish late results",
+			"boundaryIds": ["controller-task-to-io", "archive-reader-to-storage", "renderer-to-electron-main"],
+			"assets": ["project consistency", "storage capacity", "worker and process availability"],
+			"actor": "A user cancels, switches projects, closes a renderer, or starts a replacement task while I/O is active.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "controller-generation-and-abort-guards",
+					"summary": "Controller tasks receive AbortSignals and generation checks prevent stale results from replacing current UI state.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/lifecycle.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-controller-lifecycle.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "project-io-signal-propagation",
+					"exposure": "The native project service does not pass task AbortSignal through .scape import/export/inspection, AUP4, storage, or desktop file operations.",
+					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]
+				},
+				{
+					"id": "user-cancel-control",
+					"exposure": "Project I/O progress has no consistently exposed user cancel action and close/navigation teardown contract.",
+					"requiredControl": "Expose cancel for long project operations and bind teardown to navigation, renderer destruction, and application shutdown.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Browser and desktop workflow tests cancel an active import/export and verify prompt, recoverable return to the editor."]
+				}
+			]
+		},
+		{
+			"id": "runtime-supply-chain",
+			"title": "Runtime binaries or release assets differ from reviewed source and policy",
+			"boundaryIds": ["dependency-to-release-artifact"],
+			"assets": ["application integrity", "user projects", "release provenance"],
+			"actor": "A compromised registry, build input, update source, or release process substitutes an executable artifact.",
+			"impact": "critical",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "1 and 8A",
+			"currentControls": [
+				{
+					"id": "pinned-in-tree-wasm-audits",
+					"summary": "StaffPad, Nyquist, Parametric EQ, and WavPack record source and binary hashes and have fail-fast audit scripts.",
+					"evidence": [
+						{ "kind": "document", "path": "src/common/editor/staffpad/source-manifest.json" },
+						{ "kind": "document", "path": "src/common/editor/nyquist/source-manifest.json" },
+						{ "kind": "document", "path": "src/common/editor/parametric-eq/source-manifest.json" },
+						{ "kind": "document", "path": "src/common/editor/wavpack/source-manifest.json" },
+						{ "kind": "audit", "path": "scripts/audit-staffpad-wasm.mjs" },
+						{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" },
+						{ "kind": "audit", "path": "scripts/audit-parametric-eq-wasm.mjs" },
+						{ "kind": "audit", "path": "scripts/audit-wavpack-wasm.mjs" }
+					]
+				},
+				{
+					"id": "desktop-fuse-and-package-integrity",
+					"summary": "Desktop packaging applies Electron fuses and checks packaged ASAR integrity before preview smoke tests.",
+					"evidence": [
+						{ "kind": "implementation", "path": "scripts/desktop-after-pack.mjs" },
+						{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" },
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "external-runtime-publication",
+					"exposure": "External FFmpeg publication is not yet tied to a single digest, corresponding-source, notice, and security-policy gate.",
+					"requiredControl": "Gate every runtime upload and desktop assembly on one reviewed manifest and fail closed before network publication.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Tampered, incomplete, or unreviewed runtime manifests prevent upload and desktop assembly in offline unit tests."]
+				},
+				{
+					"id": "signed-update-qualification",
+					"exposure": "Desktop preview artifacts are unsigned and update signing, notarization, rollback, and key-rotation procedures are not production-qualified.",
+					"requiredControl": "Qualify signed update publication, platform signing/notarization, rollback, and key compromise response.",
+					"ownerMilestone": "8A",
+					"acceptanceCriteria": ["Per-platform release drills verify signature rejection, rollback, provenance, and key rotation before stable auto-update is enabled."]
+				}
+			]
+		}
+	]
+}

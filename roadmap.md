@@ -175,9 +175,14 @@ reviewable gates before expanding the schema or native boundary.
   workflows, security boundary failures, and license/provenance failures. The
   [policy regression](tests/release-severity-policy.test.js) requires zero open
   critical or high defects and prevents waivers from redefining quality budgets.
-- **Shared — Planned:** add a threat model for malformed projects/media, archive
-  expansion, native helpers, third-party plug-ins, path capabilities, and job
-  cancellation.
+- **Shared — Implemented:** the versioned
+  [security control matrix](config/production-security-matrix.json) and
+  [production threat model](docs/production-threat-model.md) cover malformed
+  projects/media, archive expansion, native helpers, third-party plug-ins, path
+  capabilities, job cancellation, and release provenance. The
+  [security regression](tests/production-security-matrix.test.js) keeps partial
+  controls and the release-blocked archive-expansion gate visible and prevents
+  planned helper and plug-in surfaces from being treated as enabled.
 - **Soundscaper — Blocked (fence implemented):** leave every MIDI action,
   including MIDI export, disabled. The
   [action contract](src/common/editor/audacity-action-parity.js) points to
