@@ -109,14 +109,18 @@ function createSixChannelProject() {
 }
 
 test('realtime render capture preserves a declared six-channel bed', () => {
-	const previousFrame = globalThis.currentFrame;
-	globalThis.currentFrame = 0;
+	const workletGlobal = globalThis as typeof globalThis & { currentFrame?: number };
+	const previousFrame = workletGlobal.currentFrame;
+	workletGlobal.currentFrame = 0;
 	try {
 		const processor = new RenderCaptureProcessor({
 			processorOptions: { startFrame: 0, totalFrames: 4, chunkFrames: 128, channelCount: 6 },
 		});
 		const messages: Array<{ message: { type: string; channels: Float32Array[] }; transfer: unknown[] }> = [];
-		processor.port.postMessage = (message, transfer = []) => messages.push({ message, transfer });
+		processor.port.postMessage = (
+			message: { type: string; channels: Float32Array[] },
+			transfer: unknown[] = [],
+		) => messages.push({ message, transfer });
 		const channels = Array.from({ length: 6 }, (_, channel) => Float32Array.of(
 			channel + 0.1, channel + 0.2, channel + 0.3, channel + 0.4,
 		));
@@ -126,8 +130,8 @@ test('realtime render capture preserves a declared six-channel bed', () => {
 		assert.equal(chunk?.transfer.length, 6);
 		assert.deepEqual([...(chunk?.message.channels[5] ?? [])], [...channels[5]]);
 	} finally {
-		if (previousFrame === undefined) delete globalThis.currentFrame;
-		else globalThis.currentFrame = previousFrame;
+		if (previousFrame === undefined) delete workletGlobal.currentFrame;
+		else workletGlobal.currentFrame = previousFrame;
 	}
 });
 
@@ -153,7 +157,7 @@ test('offline rendering and native monitoring preserve the six-channel master', 
 		assert.equal(realtime.destination.channelCountMode, 'explicit');
 		assert.equal(realtime.destination.channelInterpretation, 'discrete');
 		assert.equal(offlineContexts[0].numberOfChannels, 6);
-		assert.equal(rendered.numberOfChannels, 6);
+		assert.equal('numberOfChannels' in rendered ? rendered.numberOfChannels : rendered.channels.length, 6);
 	} finally {
 		await engine.dispose();
 	}
