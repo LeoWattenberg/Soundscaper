@@ -3,6 +3,7 @@
 import {
 	clipNeedsTimePitchRender as legacyClipNeedsTimePitchRender,
 } from '../clip-time-pitch-cache.js';
+import { estimatePcmRenderPublication } from '../publication-byte-estimates.ts';
 import {
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -162,12 +163,18 @@ export function createClipTimePitchRenderService(
 			assertOwned(task, projectToken, fingerprint);
 			const buffer = materialized.audioBuffer;
 			if (!buffer) throw new Error('The committed time/pitch cache did not materialize audio.');
-			const channels = audioBufferChannels(buffer).map((channel) => channel.slice());
+			const publication = estimatePcmRenderPublication({
+				frameCount: buffer.length,
+				channelCount: buffer.numberOfChannels,
+				chunkFrames: dependencies.sourceChunkFrames,
+				includeWaveformPeaks: true,
+			});
 			await dependencies.preflightStorage(
-				buffer.length * buffer.numberOfChannels * Float32Array.BYTES_PER_ELEMENT,
+				publication.binaryPayload.bytes,
 				'effect',
 			);
 			assertOwned(task, projectToken, fingerprint);
+			const channels = audioBufferChannels(buffer).map((channel) => channel.slice());
 			renderedSourceId = dependencies.createId('rendered-clip');
 			const name = `${source.name || clip.title || track.name} — ${dependencies.copy.renderPitchSpeed}`;
 			writer = await dependencies.store.beginSourceWrite(renderedSourceId, {

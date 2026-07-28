@@ -267,11 +267,13 @@ test('quota failures are structured, abort publication, and do not replace the l
 	const coordinator = new ClipTimePitchRenderCacheCoordinator({ store, client });
 	const original = clipFixture();
 	const committed = await coordinator.prepareCommittedOutput(original, source);
-	store.estimateStorage = async () => ({ usage: 100, quota: 120 });
+	store.estimateStorage = async () => ({ usage: 100, quota: 240 });
 	const changed = { ...original, pitchCents: 100, renderCacheRevision: 1 };
 	await assert.rejects(
 		coordinator.prepareCommittedOutput(changed, source),
-		(error) => error.code === 'QUOTA_EXCEEDED' && error.details.available === 20,
+		(error) => error.code === 'QUOTA_EXCEEDED'
+			&& error.details.available === 140
+			&& error.details.required === 152,
 	);
 	assert.equal(client.calls.length, 1, 'quota is checked before starting StaffPad');
 	assert.equal(coordinator.getLastValid(original.id).cacheKey, committed.cacheKey);

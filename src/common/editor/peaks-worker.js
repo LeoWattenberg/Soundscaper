@@ -1,4 +1,5 @@
-const DEFAULT_LEVELS = [8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536];
+import { WAVEFORM_PEAK_BLOCK_SIZES } from './waveform-peak-contract.ts';
+
 let levels = [];
 let channelCount = 0;
 
@@ -6,7 +7,7 @@ self.onmessage = ({ data = {} }) => {
 	try {
 		if (data.type === 'start') {
 			channelCount = data.channelCount;
-			levels = (data.blockSizes || DEFAULT_LEVELS).map((blockSize) => ({
+			levels = (data.blockSizes || WAVEFORM_PEAK_BLOCK_SIZES).map((blockSize) => ({
 				blockSize,
 				channels: Array.from({ length: channelCount }, () => createChannelLevel()),
 			}));

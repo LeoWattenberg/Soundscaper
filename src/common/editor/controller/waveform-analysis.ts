@@ -1,9 +1,10 @@
 import { analyzeAudioChannels } from '../analysis.js';
+import { WAVEFORM_PEAK_BLOCK_SIZES } from '../waveform-peak-contract.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
 
+export { WAVEFORM_PEAK_BLOCK_SIZES } from '../waveform-peak-contract.ts';
 export const WAVEFORM_PEAKS_VERSION = 4;
 export const WAVEFORM_PEAK_CACHE_PREFIX = 'audio-editor-peaks-v2:';
-export const WAVEFORM_PEAK_BLOCK_SIZES = Object.freeze([8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536]);
 
 interface WorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;

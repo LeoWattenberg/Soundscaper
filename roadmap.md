@@ -345,8 +345,25 @@ models or native implementations.
   IndexedDB Blob, and OPFS backends, oversized replacement preservation, and
   corruption rollback. Publication inventory and the scalar eviction plan
   remain O(entries), and the byte threshold accounts exact derivative binary
-  payload rather than browser-defined record overhead; dedicated save, future
-  proxy, and internal render estimators remain open.
+  payload rather than browser-defined record overhead. A strict-TS
+  [publication estimator](src/common/editor/publication-byte-estimates.ts) now
+  applies checked arithmetic to exact post-encode derivative payloads and
+  format-defined PCM output. The sole derivative publication owner consumes
+  the exact encoded size. StaffPad cache quota admission uses the worst-case
+  canonical OPFS container size, including header, per-chunk index, and footer;
+  permanent pitch/speed render admission then accounts a second container plus
+  the exact nine-level v4 waveform Float32 payload before permanent-source
+  channel snapshots, writer creation, analysis, or history publication. Focused
+  [estimator](tests/audio-editor-publication-byte-estimates.test.ts),
+  [cache](tests/audio-editor-clip-time-pitch-cache.test.js), and
+  [render](tests/audio-editor-clip-time-pitch-render-service.test.ts)
+  regressions tie the bound to an all-raw canonical file, reject unsafe
+  geometry, and prove that space between raw PCM and its container fails before
+  StaffPad work. Browser-defined IndexedDB record/key overhead, OPFS allocation
+  units, quota-estimate lag and concurrent writers remain outside this binary
+  payload scope; the capacity service's headroom and transactional quota
+  rollback remain necessary. Current render resident/worker memory, a genuine
+  pre-encode proxy maximum, and the save-publication estimator remain open.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

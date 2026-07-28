@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { estimateEncodedDerivativePublication } from '../publication-byte-estimates.ts';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -175,7 +176,8 @@ export class MediaRepository {
 	}: VideoDerivativeInput = {}): Promise<Record<string, unknown>> {
 		const identity = videoDerivativeIdentity(sourceId, timestamp, type);
 		const blob = normalizeBlob(input);
-		assertDerivativeFitsCache(blob.size, this.#cacheLimits);
+		const publication = estimateEncodedDerivativePublication(blob.size);
+		assertDerivativeFitsCache(publication.binaryPayload.bytes, this.#cacheLimits);
 		const database = await this.#port.database();
 		let previous: StorageRecord | null = null;
 		const storedFile = await this.#opfs.writeBlob(`video-${identity.sourceId}-${identity.type}`, blob);

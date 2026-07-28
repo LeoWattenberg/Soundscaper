@@ -23,7 +23,7 @@ test('rendering commits persisted StaffPad output as one source/clip replacement
 	assert.deepEqual(harness.statuses, [
 		['Rendering…', undefined], ['Done', 'success'],
 	]);
-	assert.deepEqual(harness.preflights, [{ bytes: 16, purpose: 'effect' }]);
+	assert.deepEqual(harness.preflights, [{ bytes: 212, purpose: 'effect' }]);
 	assert.deepEqual(harness.writerEvents, ['write:4', 'commit']);
 	assert.deepEqual(harness.savedAnalysis, ['peaks:rendered-clip-1']);
 	assert.equal(harness.commits.length, 1);
@@ -72,6 +72,29 @@ test('project switching during materialization suppresses storage and document p
 	assert.deepEqual(harness.writerEvents, []);
 	assert.deepEqual(harness.commits, []);
 	assert.deepEqual(harness.processing, [true, false]);
+});
+
+test('publication preflight rejects before permanent channel snapshots or output begins', async () => {
+	const poisonBuffer: AudioBufferLike = {
+		length: 4,
+		numberOfChannels: 1,
+		sampleRate: 48_000,
+		getChannelData() { throw new Error('permanent channels copied before preflight'); },
+	};
+	const harness = createHarness(projectFixture(), {
+		materialize: async () => cacheEntry('valid-cache', poisonBuffer),
+		failPreflight: true,
+	});
+
+	await assert.rejects(
+		harness.service.renderClipPitchSpeed('clip'),
+		/preflight failed/u,
+	);
+	assert.deepEqual(harness.preflights, [{ bytes: 212, purpose: 'effect' }]);
+	assert.deepEqual(harness.writerEvents, []);
+	assert.deepEqual(harness.savedAnalysis, []);
+	assert.deepEqual(harness.deletedSources, []);
+	assert.deepEqual(harness.commits, []);
 });
 
 test('failed writes abort and remove every partially published cache and storage record', async () => {
@@ -135,6 +158,7 @@ function createHarness(
 		materialize?: () => Promise<ClipTimePitchCacheEntry>;
 		failCommit?: boolean;
 		failPeaks?: boolean;
+		failPreflight?: boolean;
 	}> = {},
 ) {
 	let project = initialProject;
@@ -191,7 +215,10 @@ function createHarness(
 		assertProject: (token) => generation.assertCurrent(token),
 		prepareCommittedOutput: async () => cacheEntry('cache', rendered),
 		materializeEntry: options.materialize ?? (async (entry) => entry),
-		preflightStorage: async (bytes, purpose) => { preflights.push({ bytes, purpose }); },
+		preflightStorage: async (bytes, purpose) => {
+			preflights.push({ bytes, purpose });
+			if (options.failPreflight) throw new Error('preflight failed');
+		},
 		createId: (() => {
 			let next = 0;
 			return (prefix: string) => `${prefix}-${++next}`;

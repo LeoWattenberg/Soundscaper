@@ -14,12 +14,12 @@ import {
 	staffPadTransformOutputFrames,
 } from './staffpad/index.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-v2.js';
+import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
 
 export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;
 export const CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION = STAFFPAD_ALGORITHM_VERSION;
 export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
 export const CLIP_TIME_PITCH_DEFAULT_RESIDENT_CHANNEL_BYTES = 32 * 1024 ** 2;
-
 const MAXIMUM_SEQUENTIAL_STAGES = 32;
 
 export function clipNeedsTimePitchRender(clip) {
@@ -582,7 +582,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 
 	async #renderAndCommit(plan, clip, source, options) {
 		throwIfAborted(options.signal);
-		await assertQuota(this.store, plan.outputBytes, this.requiredQuotaHeadroomBytes);
+		await assertQuota(this.store, plan, this.chunkFrames, this.requiredQuotaHeadroomBytes);
 		let channels = normalizeLoadedChannels(
 			await this.loadSourceChannels(source, { signal: options.signal, clip, plan }),
 			plan,
@@ -775,14 +775,14 @@ async function hashCacheDescriptor(descriptor) {
 	return `${CLIP_TIME_PITCH_CACHE_PREFIX}:${hash}`;
 }
 
-async function assertQuota(store, outputBytes, headroomBytes) {
+async function assertQuota(store, plan, chunkFrames, headroomBytes) {
 	if (typeof store.estimateStorage !== 'function') return;
 	const estimate = await store.estimateStorage();
 	if (estimate?.usage == null || estimate?.quota == null) return;
 	const usage = Number(estimate?.usage);
 	const quota = Number(estimate?.quota);
 	if (!Number.isFinite(usage) || !Number.isFinite(quota)) return;
-	const required = outputBytes + headroomBytes;
+	const required = checkedPublicationByteSum(estimatePcmRenderPublication({ frameCount: plan.outputFrames, channelCount: plan.channelCount, chunkFrames }).binaryPayload.bytes, headroomBytes);
 	if (quota - usage < required) {
 		throw cacheError('QUOTA_EXCEEDED', 'There is not enough browser storage to commit the clip render.', {
 			usage,
