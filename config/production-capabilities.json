@@ -19,18 +19,20 @@
 		},
 		"firefox": {
 			"project": "firefox",
-			"automated": false,
-			"releaseStatus": "planned",
+			"automated": true,
+			"releaseStatus": "provisional",
 			"evidence": [
-				"roadmap.md#1-baseline-contracts-and-quality-budgets"
+				"playwright.config.mjs",
+				".github/workflows/quality.yml"
 			]
 		},
 		"webkit": {
 			"project": "webkit",
-			"automated": false,
-			"releaseStatus": "planned",
+			"automated": true,
+			"releaseStatus": "provisional",
 			"evidence": [
-				"roadmap.md#1-baseline-contracts-and-quality-budgets"
+				"playwright.config.mjs",
+				".github/workflows/quality.yml"
 			]
 		}
 	},

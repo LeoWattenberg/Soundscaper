@@ -439,6 +439,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('resizes tracks from track-control-panel edges and caps their height to the timeline', async ({ page }) => {
+		await page.setViewportSize({ width: 1_440, height: 1_000 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
@@ -477,11 +478,18 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		resizedHeaderBounds = await trackHeader.boundingBox();
 		const cappedTimelineBounds = await timelineInner.boundingBox();
+		const currentTrackBounds = await trackRow.boundingBox();
+		const maximumTrackHeight = Math.floor(cappedTimelineBounds.height * 0.9);
 		await page.mouse.move(resizeX, resizedHeaderBounds.y + resizedHeaderBounds.height - 2);
 		await page.mouse.down();
-		await page.mouse.move(resizeX, resizedHeaderBounds.y + timelineBounds.height * 2, { steps: 4 });
+		await page.mouse.move(
+			resizeX,
+			resizedHeaderBounds.y + resizedHeaderBounds.height - 2
+				+ Math.max(0, maximumTrackHeight - currentTrackBounds.height) + 4,
+			{ steps: 4 },
+		);
 		await page.mouse.up();
-		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThanOrEqual(Math.floor(cappedTimelineBounds.height * 0.9));
+		await expect.poll(async () => (await trackRow.boundingBox())?.height).toBeLessThanOrEqual(maximumTrackHeight);
 	});
 
 	test('auto-fits new track heights until manual resizing and re-engages from View Zoom', async ({ page }) => {

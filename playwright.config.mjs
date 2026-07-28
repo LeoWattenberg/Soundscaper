@@ -27,5 +27,9 @@ export default defineConfig({
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
 	},
-	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+	projects: [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
+		{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
+		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
+	],
 });

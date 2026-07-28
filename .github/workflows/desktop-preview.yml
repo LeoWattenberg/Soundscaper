@@ -59,8 +59,8 @@ jobs:
       - name: Run canonical quality checks
         run: npm run check
 
-      - name: Install Chromium for browser tests
-        run: npx playwright install --with-deps chromium
+      - name: Install browser-engine matrix
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Run browser workflows
         run: npm run test:browser:built

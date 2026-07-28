@@ -81,9 +81,10 @@ Every roadmap item also carries one or more platform labels:
 | **Electron Enhanced** | The same user outcome exists on the web, but a sandboxed native service improves scale, latency, codec coverage, or reliability. |
 | **Electron Only** | Depends on an OS/native facility unavailable to a normal web origin. Projects must still open safely on the web. |
 
-These labels describe the target contract. Milestone 1 must establish and prove
-the browser matrix before **Web Core** becomes a release guarantee; current
-end-to-end browser evidence covers Chromium only.
+These labels describe the target contract. The maintained functional suite now
+targets Playwright Chromium, Firefox, and WebKit. Those engine runs remain
+provisional and do not by themselves qualify Safari or the fixed-GPU
+performance budgets required before **Web Core** becomes a release guarantee.
 
 "Electron Only" is a product-support boundary, not a claim that equivalent
 computation is theoretically impossible in WebAssembly. It is used where the
@@ -103,7 +104,7 @@ The roadmap builds on what exists instead of re-planning it.
 | Video effects batch 1 | **Implemented** | Color Adjust, Pixelate, Vignette, Gaussian Blur, Sharpen, and RGB Split with ordered stacks, undo, WebGL preview, and allowlisted FFmpeg export. |
 | Video effects batch 2 | **Implemented** | Chroma Key, Luma Key, Spill Suppression, Glow, Outline, and Drop Shadow, including new controls, project migration, preview/export parity, and benchmarks. |
 | Electron | **Implemented** | Hardened offline wrapper with native dialogs, capability-scoped reads, atomic chunked saves, menus, lifecycle handling, associations, packaged runtimes, and Windows system-audio selection. It is not yet a native media engine. |
-| Automated evidence | **Implemented** | Broad Node coverage plus Chromium browser workflows, deterministic video-effect parity fixtures, desktop smoke tests, architecture limits, chunk-size checks, and reproducibility audits. |
+| Automated evidence | **Implemented** | Broad Node coverage plus a maintained Playwright Chromium/Firefox/WebKit functional matrix, deterministic video-effect parity fixtures, desktop smoke tests, architecture limits, chunk-size checks, and reproducibility audits. |
 
 Material constraints in the current foundation are also roadmap inputs:
 
@@ -121,7 +122,8 @@ Material constraints in the current foundation are also roadmap inputs:
   partitions rather than one desktop project library;
 - no native codec worker, audio backend, effect host, or background job service
   exists; and
-- browser end-to-end coverage currently proves Chromium only;
+- the maintained browser suite targets all three Playwright engines, while
+  Safari release qualification and fixed-GPU performance evidence remain open;
 - shared web and Electron policies permit the microphone/display access used by
   Soundscaper, while camera access is explicitly denied; and
 - Framescaper does not expose any recording workflow despite preserving shared
@@ -151,6 +153,14 @@ reviewable gates before expanding the schema or native boundary.
   platform tier, supported OS/architecture, import/export family, and project
   feature, kept aligned with product profiles by the
   [inventory contract test](tests/production-capability-inventory.test.js).
+- **Web Core — Implemented (provisional):** the maintained
+  [Playwright project matrix](playwright.config.mjs) runs the functional suite
+  against Chromium, Firefox, and WebKit in the pinned
+  [quality workflow](.github/workflows/quality.yml). Its
+  [configuration regression](tests/playwright-config.test.js) prevents an
+  engine or desktop verification install from disappearing. Cross-engine media
+  and pointer fixtures preserve the same assertions without product skips;
+  Safari and performance qualification remain governed by the quality budget.
 - **Shared — In progress:** the versioned
   [quality-budget contract](config/quality-budgets.json) pins browser and tool
   revisions, named fixtures, project sizes, measurement procedure, and numeric

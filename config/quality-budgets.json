@@ -55,15 +55,15 @@
 				"version": "151.0",
 				"revision": "1532",
 				"project": "firefox",
-				"status": "planned",
-				"evidence": ["package-lock.json", "config/production-capabilities.json"]
+				"status": "provisional",
+				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
 			},
 			"webkit": {
 				"version": "26.5",
 				"revision": "2311",
 				"project": "webkit",
-				"status": "planned",
-				"evidence": ["package-lock.json", "config/production-capabilities.json"]
+				"status": "provisional",
+				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
 			}
 		}
 	},

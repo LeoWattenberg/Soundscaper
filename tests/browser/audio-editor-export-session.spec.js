@@ -295,12 +295,22 @@ test.describe('audio editor React/design-system workflows', () => {
 						const context = new AudioContext({ sampleRate: 48_000 });
 						const oscillator = context.createOscillator();
 						const gain = context.createGain();
+						const merger = context.createChannelMerger(2);
 						const destination = context.createMediaStreamDestination();
 						oscillator.frequency.value = 440;
 						gain.gain.value = 0.1;
-						oscillator.connect(gain).connect(destination);
+						oscillator.connect(gain);
+						gain.connect(merger, 0, 0);
+						gain.connect(merger, 0, 1);
+						merger.connect(destination);
 						oscillator.start();
 						await context.resume();
+						const [track] = destination.stream.getAudioTracks();
+						const getSettings = track.getSettings.bind(track);
+						Object.defineProperty(track, 'getSettings', {
+							configurable: true,
+							value: () => ({ ...getSettings(), channelCount: 2, sampleRate: 48_000 }),
+						});
 						return destination.stream;
 					},
 				},

@@ -22,6 +22,7 @@ test.describe('audio editor video composition workflow', () => {
 			frequency: 220,
 			width: 96,
 			height: 54,
+			frameCount: 32,
 		});
 		const blue = await createGeneratedVideoFixture(page, {
 			name: 'layer-blue.webm',
@@ -30,6 +31,7 @@ test.describe('audio editor video composition workflow', () => {
 			frequency: 440,
 			width: 54,
 			height: 96,
+			frameCount: 32,
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootVideoEditor(page);
@@ -333,6 +335,7 @@ test.describe('audio editor video composition workflow', () => {
 
 async function createGeneratedVideoFixture(page, options) {
 	const base64 = await page.evaluate(async (fixture) => {
+		const frameCount = Math.max(2, Number(fixture.frameCount) || 14);
 		const canvas = document.createElement('canvas');
 		canvas.width = fixture.width;
 		canvas.height = fixture.height;
@@ -365,12 +368,12 @@ async function createGeneratedVideoFixture(page, options) {
 		});
 		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
 		recorder.start();
-		for (let frame = 0; frame < 14; frame += 1) {
+		for (let frame = 0; frame < frameCount; frame += 1) {
 			context.fillStyle = fixture.color;
 			context.fillRect(0, 0, canvas.width, canvas.height);
 			context.fillStyle = fixture.accent;
 			const markerSize = Math.max(5, Math.round(Math.min(canvas.width, canvas.height) / 5));
-			const markerX = Math.round((canvas.width - markerSize) * frame / 13);
+			const markerX = Math.round((canvas.width - markerSize) * frame / (frameCount - 1));
 			context.fillRect(markerX, Math.round((canvas.height - markerSize) / 2), markerSize, markerSize);
 			await new Promise((resolve) => setTimeout(resolve, 65));
 		}

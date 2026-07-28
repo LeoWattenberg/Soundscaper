@@ -196,12 +196,12 @@ test('quality budget inputs pin the checked-in Node, npm, Playwright, and browse
 			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 		firefox: {
-			version: '151.0', revision: '1532', project: 'firefox', status: 'planned',
-			evidence: ['package-lock.json', 'config/production-capabilities.json'],
+			version: '151.0', revision: '1532', project: 'firefox', status: 'provisional',
+			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 		webkit: {
-			version: '26.5', revision: '2311', project: 'webkit', status: 'planned',
-			evidence: ['package-lock.json', 'config/production-capabilities.json'],
+			version: '26.5', revision: '2311', project: 'webkit', status: 'provisional',
+			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 	});
 	for (const [browserId, input] of Object.entries(config.softwareInputs.browsers)) {

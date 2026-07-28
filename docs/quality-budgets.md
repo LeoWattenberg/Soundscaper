@@ -16,9 +16,10 @@ fixture, environment, metric, and threshold identifiers.
   revisions are pinned from checked-in dependency and workflow inputs.
 - Chromium browser workflows run in the digest-pinned Playwright container.
   Their release status remains provisional.
-- Firefox and WebKit inputs are recorded, but they are planned rather than
-  automated. Playwright WebKit is useful engine evidence; it is not by itself a
-  Safari release qualification.
+- Firefox and WebKit now run in the maintained functional matrix alongside
+  Chromium. All three remain provisional rather than performance- or
+  release-qualified. Playwright WebKit is useful engine evidence; it is not by
+  itself a Safari release qualification.
 - The four 128x72 video-effect parity frames are deterministic and SHA-256
   pinned. Their full FFmpeg/WebGL audit is still opt-in.
 - The 12-effect 1280x720 preview test records timing and heap data, but its media
@@ -172,8 +173,8 @@ The safe progression is:
 1. Keep the contract/evaluator tests in the canonical Node suite.
 2. Enable deterministic FFmpeg/WebGL parity in a one-worker, no-retry nightly
    browser job and retain its JSON metrics.
-3. Add Chromium, Firefox, and WebKit functional/fallback jobs without treating
-   their hosted timing as performance qualification.
+3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green without
+   treating their hosted timing as performance qualification.
 4. Provision the fixed GPU host, add an exact environment check, replace the
    runtime-generated preview media with a digest-pinned fixture, and emit one
    consolidated result artifact.

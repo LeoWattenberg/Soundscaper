@@ -46,11 +46,11 @@ test('production capability inventory pins browser and desktop qualification tar
 
 	assert.deepEqual(Object.keys(browsers), ['chromium', 'firefox', 'webkit']);
 	assert.equal(browsers.chromium.automated, true);
-	assert.equal(browsers.firefox.automated, false);
-	assert.equal(browsers.webkit.automated, false);
+	assert.equal(browsers.firefox.automated, true);
+	assert.equal(browsers.webkit.automated, true);
 	for (const [family, target] of Object.entries(browsers)) {
 		assert.ok(target.project.length > 0, `${family} must name a Playwright project`);
-		assert.match(target.releaseStatus, /^(qualified|provisional|planned)$/u);
+		assert.equal(target.releaseStatus, 'provisional');
 	}
 
 	assert.deepEqual(
