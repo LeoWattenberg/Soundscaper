@@ -12,16 +12,12 @@ import {
 	SCAPE_FORMAT_VERSION,
 	SCAPE_MANIFEST_ENTRY,
 	SCAPE_PROJECT_ENTRY,
-	SCAPE_ARCHIVE_LIMITS,
 } from './scape-archive-envelope.ts';
 import { ScapeAudioChunkBudget } from './scape-expanded-byte-budget.ts';
 import {
 	createScapeDigest,
-	createScapeAudioExportChunkBudget,
-	digestScapeBytes,
 	extractScapeAudio,
 	extractScapeBlob,
-	safeScapeEntryId,
 	scapeAudioSourceStream,
 	scapeBytesStream,
 	scapeHashingStream,
@@ -32,9 +28,16 @@ import {
 import { withScapeArchiveReader } from './scape-archive-reader.ts';
 import { createScapeExportDestination } from './scape-export-destination.ts';
 import {
+	assertScapeExportBlob,
+	completeScapeExportAsset,
+	prepareScapeExport,
+	serializeScapeExportManifest,
+} from './scape-export-plan.ts';
+import {
 	assertScapeImportStore,
 	ScapeImportTransaction,
 } from './scape-import-transaction.ts';
+import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
 export const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -48,91 +51,87 @@ const TEXT_ENCODER = new TextEncoder();
 export async function exportScapeProject(project, store, options = {}) {
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required.');
 	if (!store?.readSourceChunks || !store?.loadMediaAsset) throw new TypeError('A project store is required.');
-	const sources = project.sources || [];
-	if (sources.length + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
-		throw new RangeError('The project has too many sources for the portable archive.');
-	}
-	const audioChunkBudget = createScapeAudioExportChunkBudget(sources);
 	const signal = options.signal;
+	const writable = options.writable;
 	throwIfScapeAborted(signal);
-	const destination = createScapeExportDestination(options.writable, SCAPE_MIME_TYPE);
+	const plan = await prepareScapeExport(project, store, {
+		maximumBlobBytes: options.maximumBlobBytes,
+		output: writable ? 'stream' : 'blob',
+		signal,
+	});
+	const mediaBySourceId = new Map();
+	for (const asset of plan.assets) {
+		if (asset.kind !== 'video') continue;
+		const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey), signal);
+		if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
+		const blob = canonicalMediaContentBlob(loaded);
+		if (blob.size !== asset.size) {
+			throw new Error(`Media source ${asset.source.name || asset.sourceId} changed since archive admission.`);
+		}
+		mediaBySourceId.set(asset.sourceId, blob);
+	}
+	throwIfScapeAborted(signal);
+	const destination = createScapeExportDestination(writable, SCAPE_MIME_TYPE);
 	const writer = new ZipWriter(destination.target, {
+		dataDescriptor: true,
+		dataDescriptorSignature: true,
+		extendedTimestamp: true,
 		zip64: true,
 		level: 0,
 		useWebWorkers: false,
 		signal,
 	});
-	const projectBytes = TEXT_ENCODER.encode(JSON.stringify(project));
-	const projectDigest = digestScapeBytes(projectBytes);
 	const assets = [];
+	let blob;
+	let manifest;
 
 	try {
-		await awaitScapeOperation(writer.add(PROJECT_ENTRY, scapeBytesStream(projectBytes), {
+		await awaitScapeOperation(writer.add(PROJECT_ENTRY, scapeBytesStream(plan.projectBytes), {
 			level: 0,
 			zip64: true,
 			signal,
 		}), signal);
-		for (const source of sources) {
+		for (const asset of plan.assets) {
 			throwIfScapeAborted(signal);
-			const entry = source.kind === 'video'
-				? `media/${safeScapeEntryId(source.id)}/original`
-				: `audio/${safeScapeEntryId(source.id)}.f32c`;
 			const digest = createScapeDigest();
 			let size = 0;
-			if (source.kind === 'video') {
-				const blob = await awaitScapeOperation(store.loadMediaAsset(source.storageKey || source.id), signal);
-				if (!blob) throw new Error(`Media source ${source.name || source.id} is unavailable.`);
-				size = blob.size;
+			if (asset.kind === 'video') {
+				const media = mediaBySourceId.get(asset.sourceId);
+				if (!media) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
+				size = media.size;
 				await awaitScapeOperation(writer.add(
-					entry,
-					scapeHashingStream(blob.stream(), digest, signal),
+					asset.entry,
+					scapeHashingStream(media.stream(), digest, signal),
 					{ level: 0, zip64: true, signal },
 				), signal);
 			} else {
 				const stream = scapeAudioSourceStream(
 					store,
-					source,
+					asset.source,
 					digest,
 					(byteLength) => { size += byteLength; },
 					signal,
-					audioChunkBudget,
+					plan.audioChunkBudget,
 				);
-				await awaitScapeOperation(writer.add(entry, stream, { level: 0, zip64: true, signal }), signal);
+				await awaitScapeOperation(writer.add(asset.entry, stream, { level: 0, zip64: true, signal }), signal);
 			}
-			assets.push({
-				sourceId: source.id,
-				kind: source.kind === 'video' ? 'video' : 'audio',
-				entry,
-				encoding: source.kind === 'video' ? 'original' : AUDIO_ENCODING,
-				mimeType: String(source.mimeType || ''),
-				size,
-				sha256: scapeHex(digest.digest()),
-			});
+			if (size !== asset.size) throw new Error(`Source ${asset.sourceId} changed size during Scape export.`);
+			assets.push(completeScapeExportAsset(asset, scapeHex(digest.digest())));
 		}
-		const manifest = {
-			format: SCAPE_FORMAT,
-			formatVersion: SCAPE_FORMAT_VERSION,
-			createdAt: new Date().toISOString(),
-			project: {
-				entry: PROJECT_ENTRY,
-				mimeType: 'application/json',
-				schemaVersion: project.schemaVersion,
-				size: projectBytes.byteLength,
-				sha256: projectDigest,
-			},
-			assets,
-		};
+		const serialized = serializeScapeExportManifest(plan, assets);
+		manifest = serialized.manifest;
 		throwIfScapeAborted(signal);
-		await awaitScapeOperation(writer.add(MANIFEST_ENTRY, new TextReader(JSON.stringify(manifest)), {
+		await awaitScapeOperation(writer.add(MANIFEST_ENTRY, new TextReader(serialized.text), {
 			level: 0,
 			zip64: true,
 			signal,
 		}), signal);
-		const blob = await destination.finish(writer, signal);
-		return { blob, manifest };
+		blob = await destination.finish(writer, signal);
 	} catch (error) {
 		return destination.abort(writer, error);
 	}
+	if (blob) assertScapeExportBlob(plan, blob);
+	return { blob, manifest };
 }
 
 export async function importScapeProject(input, store, options = {}) {

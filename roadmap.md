@@ -289,10 +289,31 @@ models or native implementations.
   [cancellation regression](tests/audio-editor-scape-cancellation.test.ts)
   proves reader and iterator closure, unpublished-output abort, provisional
   source cleanup, and restoration of the prior project with its retained
-  revisions. Exact no-descriptor local CRC/size checks and classic/Zip64
-  central-directory boundaries, compression-ratio or STORE policy, bounded
-  streaming video extraction, and the bounded Web Core final-assembly fallback
-  remain open in the
+  revisions. A strict-TS
+  [save-admission plan](src/common/editor/scape-export-plan.ts) now serializes
+  the project document once, snapshots source scalars and output classification
+  before awaited storage work, computes exact canonical PCM plus chunk-framing
+  bytes, reads only scalar retained-video sizes, and applies checked arithmetic
+  to a conservative UTF-8 STORE/Zip64 envelope for the lockfile-pinned zip.js
+  writer profile. Non-streaming saves whose upper bound exceeds the
+  non-raiseable 512 MiB Web Core final-Blob ceiling reject before `BlobWriter`
+  creation or audio/video payload reads. Admitted video is canonicalized once
+  and must still match its metadata size before its stream is touched; the
+  placeholder and final manifest have an invariant encoded length; and the
+  finished Blob is checked again against both its admitted envelope and the
+  hard ceiling. The focused
+  [save-admission regression](tests/audio-editor-scape-export-estimate.test.ts)
+  ties that envelope to the configured writer, covers UTF-8 names, path-safe
+  generated source segments, and unsafe arithmetic, proves audio and video
+  rejection ordering and video-size drift, and keeps explicit streaming
+  destinations outside the Blob-only ceiling.
+  This bounds final archive bytes, not total renderer heap or process RSS:
+  current saves can retain admitted native video Blob handles and zip.js still
+  assembles the non-streaming result, while no production file service yet
+  supplies the explicit streaming destination. Exact no-descriptor local
+  CRC/size checks and classic/Zip64 central-directory boundaries,
+  compression-ratio or STORE import policy, bounded streaming video extraction,
+  and production direct-to-target save wiring remain open in the
   [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a
@@ -363,7 +384,9 @@ models or native implementations.
   units, quota-estimate lag and concurrent writers remain outside this binary
   payload scope; the capacity service's headroom and transactional quota
   rollback remain necessary. Current render resident/worker memory, a genuine
-  pre-encode proxy maximum, and the save-publication estimator remain open.
+  pre-encode proxy maximum, autosave/revision publication bounds, and
+  whole-process resident-set evidence remain open; the `.scape` final-Blob
+  save-publication bound is covered above.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

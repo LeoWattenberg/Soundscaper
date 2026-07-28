@@ -23,7 +23,7 @@ interface DigestWriter {
 	digest(): Uint8Array;
 }
 
-interface ScapeAudioSource {
+export interface ScapeAudioSource {
 	readonly kind?: string;
 	readonly id: string;
 	readonly storageKey?: string;
@@ -31,6 +31,23 @@ interface ScapeAudioSource {
 	readonly channelCount: number;
 	readonly frameCount: number;
 	readonly chunkFrames: number;
+}
+
+interface ScapePortableSourceCandidate {
+	readonly kind?: string;
+	readonly id?: string;
+	readonly channelCount?: number;
+	readonly frameCount?: number;
+	readonly chunkFrames?: number;
+}
+
+export interface ScapeAudioSourceLayout {
+	readonly frameCount: number;
+	readonly channelCount: number;
+	readonly chunkFrames: number;
+	readonly chunkCount: number;
+	readonly rawPcmBytes: number;
+	readonly archiveBytes: number;
 }
 
 interface ScapeSourceChunk {
@@ -61,7 +78,10 @@ export interface ScapeExtractedBlob extends ScapeExtractedAsset {
 }
 
 export function safeScapeEntryId(value: unknown): string {
-	return encodeURIComponent(String(value || '')).replaceAll('%', '_');
+	const encoded = encodeURIComponent(String(value || '')).replaceAll('%', '_');
+	if (encoded === '.') return '_2E';
+	if (encoded === '..') return '_2E_2E';
+	return encoded;
 }
 
 export function scapeBytesStream(bytes: Uint8Array): ReadableStream<Uint8Array> {
@@ -92,7 +112,7 @@ export function scapeAudioSourceStream(
 	audioChunkBudget = new ScapeAudioChunkBudget(),
 ): ReadableStream<Uint8Array> {
 	throwIfScapeAborted(signal);
-	const sourceGeometry = validateScapeAudioSource(source);
+	const sourceGeometry = scapeAudioSourceLayout(source);
 	const iterator = store.readSourceChunks(
 		source.storageKey || source.id,
 		{ signal },
@@ -135,7 +155,7 @@ export function scapeAudioSourceStream(
 						throw new Error(`Stored PCM for ${source.id} is not aligned.`);
 					}
 					const expectedFrameCount = Math.min(
-						sourceGeometry.frames,
+						sourceGeometry.chunkFrames,
 						source.frameCount - writtenFrames,
 					);
 					if (expectedFrameCount < 1 || frameCount !== expectedFrameCount) {
@@ -163,15 +183,39 @@ export function scapeAudioSourceStream(
 
 /** Preflights semantic audio work before export creates or writes a ZIP destination. */
 export function createScapeAudioExportChunkBudget(
-	sources: readonly ScapeAudioSource[],
+	sources: readonly ScapePortableSourceCandidate[],
 ): ScapeAudioChunkBudget {
 	const plannedBudget = new ScapeAudioChunkBudget();
 	for (const source of sources) {
 		if (source.kind === 'video') continue;
-		const geometry = validateScapeAudioSource(source);
-		plannedBudget.consumeMany(Math.ceil(source.frameCount / geometry.frames), source.id);
+		const layout = scapeAudioSourceLayout(source as ScapeAudioSource);
+		plannedBudget.consumeMany(layout.chunkCount, source.id || 'unknown source');
 	}
 	return new ScapeAudioChunkBudget();
+}
+
+export function scapeAudioSourceLayout(source: ScapeAudioSource): Readonly<ScapeAudioSourceLayout> {
+	if (!Number.isSafeInteger(source?.frameCount) || source.frameCount < 0) {
+		throw new RangeError(`Audio source ${String(source?.id)} has an invalid frame count.`);
+	}
+	const geometry = validatePcmGeometry(source.chunkFrames, source.channelCount);
+	const frames = BigInt(source.frameCount);
+	const channels = BigInt(geometry.channelCount);
+	const chunkFrames = BigInt(geometry.frames);
+	const chunkCount = frames === 0n ? 0n : ((frames - 1n) / chunkFrames) + 1n;
+	const rawPcmBytes = frames * channels * BigInt(Float32Array.BYTES_PER_ELEMENT);
+	const archiveBytes = rawPcmBytes + 4n * chunkCount;
+	if (archiveBytes > BigInt(Number.MAX_SAFE_INTEGER)) {
+		throw new RangeError(`Audio source ${source.id} archive bytes exceed the supported safe integer range.`);
+	}
+	return Object.freeze({
+		frameCount: source.frameCount,
+		channelCount: geometry.channelCount,
+		chunkFrames: geometry.frames,
+		chunkCount: Number(chunkCount),
+		rawPcmBytes: Number(rawPcmBytes),
+		archiveBytes: Number(archiveBytes),
+	});
 }
 
 export async function extractScapeBlob(
@@ -214,7 +258,7 @@ export async function extractScapeAudio(
 	audioChunkBudget = new ScapeAudioChunkBudget(),
 ): Promise<ScapeExtractedAsset> {
 	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
-	const sourceGeometry = validateScapeAudioSource(source);
+	const sourceGeometry = scapeAudioSourceLayout(source);
 	const digest = sha256.create();
 	let size = 0;
 	const header = new Uint8Array(4);
@@ -243,7 +287,7 @@ export async function extractScapeAudio(
 					pendingFrameCount = new DataView(header.buffer).getUint32(0, true);
 					validatePcmGeometry(pendingFrameCount, source.channelCount);
 					const expectedFrameCount = Math.min(
-						sourceGeometry.frames,
+						sourceGeometry.chunkFrames,
 						source.frameCount - writtenFrames,
 					);
 					if (pendingFrameCount !== expectedFrameCount) {
@@ -318,13 +362,6 @@ function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
 	throw new TypeError('A .scape asset emitted a non-byte chunk.');
-}
-
-function validateScapeAudioSource(source: ScapeAudioSource): Readonly<{ frames: number; channelCount: number }> {
-	if (!Number.isSafeInteger(source.frameCount) || source.frameCount < 0) {
-		throw new RangeError(`Audio source ${source.id} has an invalid frame count.`);
-	}
-	return validatePcmGeometry(source.chunkFrames, source.channelCount);
 }
 
 function assertScapeEntryEmissionWithinSize(
