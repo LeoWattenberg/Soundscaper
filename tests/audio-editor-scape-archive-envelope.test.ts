@@ -7,6 +7,7 @@ import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js';
 
 import {
 	readScapeArchiveEnvelope,
+	SCAPE_ARCHIVE_LIMITS,
 	type ScapeArchiveEntry,
 	type ScapeManifest,
 } from '../src/common/editor/scape-archive-envelope.ts';
@@ -31,6 +32,7 @@ test('strict .scape envelope accepts the canonical manifest ownership graph', as
 test('strict .scape envelope rejects encrypted entries and cumulative expansion before reading metadata bodies', async (context) => {
 	await context.test('entry count', async () => {
 		const fixture = envelopeFixture();
+		assert.equal(SCAPE_ARCHIVE_LIMITS.maximumEntryCount, 4_096);
 
 		await assert.rejects(
 			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry), {
@@ -75,6 +77,18 @@ test('strict .scape envelope rejects encrypted entries and cumulative expansion 
 		);
 		assert.equal(fixture.totalReads(), 0);
 	});
+
+	await context.test('hard limits cannot be raised by a caller override', async () => {
+		const fixture = envelopeFixture();
+
+		await assert.rejects(
+			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry), {
+				maximumExpandedBytes: SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes + 1,
+			}),
+			/cannot exceed the hard limit/iu,
+		);
+		assert.equal(fixture.totalReads(), 0);
+	});
 });
 
 test('strict .scape envelope bounds manifest and project JSON before storage work', async (context) => {
@@ -99,7 +113,6 @@ test('strict .scape envelope bounds manifest and project JSON before storage wor
 		await assert.rejects(
 			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry), {
 				maximumManifestBytes: manifest.bytes.byteLength - 1,
-				maximumExpandedBytes: Number.MAX_SAFE_INTEGER,
 			}),
 			/manifest\.json exceeds the read limit/iu,
 		);
@@ -231,7 +244,8 @@ function entryFixture(filename: string, contents: string | Uint8Array): EntryFix
 			encrypted: false,
 			compressedSize: bytes.byteLength,
 			uncompressedSize: bytes.byteLength,
-			getData: async (writable) => {
+			getData: async (writable, options) => {
+				if (options?.checkOverlappingEntryOnly) return;
 				fixture.reads += 1;
 				const writer = writable.getWriter();
 				await writer.write(bytes);

@@ -270,19 +270,29 @@ models or native implementations.
 - **Shared / Web Core — In progress:** internal `.scape` import and inspection
   now share a strict-TS
   [archive envelope](src/common/editor/scape-archive-envelope.ts) that bounds
-  metadata and declared expansion, rejects encrypted/extra/aliased entries, and
-  verifies descriptor ownership before storage writes. The
-  [malicious-archive regression](tests/audio-editor-scape-archive-envelope.test.ts)
-  covers both entry points. The tested native open/save path now carries one
-  controller task signal through incremental archive work, PCM source
-  reads/writes, streamed archive output, and the file-publication boundary. The
+  metadata and declared expansion with non-raiseable hard limits, rejects
+  encrypted/extra/aliased entries, and verifies descriptor ownership before
+  storage writes. One shared
+  [actual-byte budget](src/common/editor/scape-expanded-byte-budget.ts) charges
+  manifest, project, and every extracted asset chunk before retention, while
+  checked PCM geometry keeps its framing buffer to 16 MiB plus four bytes.
+  Non-raiseable ceilings of 4,096 archive entries and 65,536 PCM chunks per
+  archive also bound pairwise layout comparisons and semantic writer work;
+  export preflights the same ceilings before destination or asset work and
+  rejects noncanonical or truncated backing-store PCM. The
+  [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
+  proves cumulative overrun, unsafe PCM headers, local-method disagreement, and
+  pairwise entry overlap fail without publication. The tested native open/save
+  path also carries one controller task signal through incremental archive
+  work, PCM source reads/writes, streamed archive output, and the
+  file-publication boundary; its
   [cancellation regression](tests/audio-editor-scape-cancellation.test.ts)
   proves reader and iterator closure, unpublished-output abort, provisional
   source cleanup, and restoration of the prior project with its retained
-  revisions. Local-header/overlap qualification, compression-ratio or STORE
-  policy, cumulative actual-byte accounting, bounded streaming media
-  extraction, safe PCM frame arithmetic and pending buffers, and the bounded
-  Web Core final-assembly fallback remain open in the
+  revisions. Exact no-descriptor local CRC/size checks and classic/Zip64
+  central-directory boundaries, compression-ratio or STORE policy, bounded
+  streaming video extraction, and the bounded Web Core final-assembly fallback
+  remain open in the
   [security gate](config/production-security-matrix.json).
 - **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
   saves and renders directly to a user-selected file or native target without a

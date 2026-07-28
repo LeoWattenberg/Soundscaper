@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { throwIfScapeAborted } from './scape-abort.ts';
+import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 
 export const SCAPE_FORMAT = 'scape-project';
 export const SCAPE_FORMAT_VERSION = 1;
@@ -15,7 +16,7 @@ export interface ScapeArchiveLimits {
 }
 
 export const SCAPE_ARCHIVE_LIMITS: Readonly<ScapeArchiveLimits> = Object.freeze({
-	maximumEntryCount: 100_000,
+	maximumEntryCount: 4_096,
 	maximumManifestBytes: 32 * 1024 * 1024,
 	maximumProjectBytes: 256 * 1024 * 1024,
 	maximumExpandedBytes: 64 * 1024 * 1024 * 1024,
@@ -29,7 +30,12 @@ export interface ScapeArchiveEntry {
 	uncompressedSize: number;
 	getData?: (
 		writable: WritableStream<Uint8Array>,
-		options?: Readonly<{ signal?: AbortSignal; strictness?: 'strict' }>,
+		options?: Readonly<{
+			signal?: AbortSignal;
+			strictness?: 'strict';
+			checkOverlappingEntry?: boolean;
+			checkOverlappingEntryOnly?: boolean;
+		}>,
 	) => Promise<unknown>;
 }
 
@@ -61,6 +67,7 @@ export interface ScapeManifest {
 
 export interface ScapeArchiveEnvelope {
 	entryByName: Map<string, ScapeArchiveEntry>;
+	expandedByteBudget: ScapeExpandedByteBudget;
 	manifest: ScapeManifest;
 	projectText: string;
 }
@@ -72,13 +79,16 @@ export async function readScapeArchiveEnvelope(
 ): Promise<ScapeArchiveEnvelope> {
 	throwIfScapeAborted(signal);
 	const limits = resolveLimits(limitOverrides);
+	const expandedByteBudget = new ScapeExpandedByteBudget(limits.maximumExpandedBytes);
 	const entryByName = indexEntries(entries, limits, signal);
+	await validateEntryLayouts(entryByName.values(), signal);
 	const manifestEntry = requiredFileEntry(entryByName, SCAPE_MANIFEST_ENTRY);
 	assertMetadataLimit(manifestEntry, SCAPE_MANIFEST_ENTRY, limits.maximumManifestBytes);
 	const manifestText = await readBoundedTextEntry(
 		manifestEntry,
 		SCAPE_MANIFEST_ENTRY,
 		limits.maximumManifestBytes,
+		expandedByteBudget,
 		signal,
 	);
 	throwIfScapeAborted(signal);
@@ -89,16 +99,42 @@ export async function readScapeArchiveEnvelope(
 		projectEntry,
 		SCAPE_PROJECT_ENTRY,
 		limits.maximumProjectBytes,
+		expandedByteBudget,
 		signal,
 	);
 	throwIfScapeAborted(signal);
-	return { entryByName, manifest, projectText };
+	return { entryByName, expandedByteBudget, manifest, projectText };
+}
+
+async function validateEntryLayouts(
+	entries: Iterable<ScapeArchiveEntry>,
+	signal?: AbortSignal,
+): Promise<void> {
+	for (const entry of entries) {
+		throwIfScapeAborted(signal);
+		if (typeof entry.getData !== 'function') continue;
+		await awaitScapeOperation(entry.getData(new WritableStream<Uint8Array>(), {
+			signal,
+			strictness: 'strict',
+			checkOverlappingEntryOnly: true,
+		}), signal);
+		throwIfScapeAborted(signal);
+	}
 }
 
 function resolveLimits(overrides: Partial<ScapeArchiveLimits>): ScapeArchiveLimits {
+	for (const name of Object.keys(overrides)) {
+		if (!Object.hasOwn(SCAPE_ARCHIVE_LIMITS, name)) {
+			throw new TypeError(`Unsupported .scape archive limit: ${name}.`);
+		}
+	}
 	const limits = { ...SCAPE_ARCHIVE_LIMITS, ...overrides };
-	for (const [name, value] of Object.entries(limits)) {
+	for (const name of Object.keys(SCAPE_ARCHIVE_LIMITS) as (keyof ScapeArchiveLimits)[]) {
+		const value = limits[name];
 		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid .scape ${name} limit.`);
+		if (value > SCAPE_ARCHIVE_LIMITS[name]) {
+			throw new RangeError(`The .scape ${name} limit cannot exceed the hard limit.`);
+		}
 	}
 	return limits;
 }
@@ -144,6 +180,7 @@ async function readBoundedTextEntry(
 	entry: ScapeArchiveEntry,
 	label: string,
 	maximumBytes: number,
+	expandedByteBudget: ScapeExpandedByteBudget,
 	signal?: AbortSignal,
 ): Promise<string> {
 	throwIfScapeAborted(signal);
@@ -157,11 +194,12 @@ async function readBoundedTextEntry(
 			throwIfScapeAborted(signal);
 			const bytes = toBytes(chunk);
 			if (bytes.byteLength > maximumBytes - byteLength) throw new RangeError(`${label} exceeds the read limit.`);
+			expandedByteBudget.consume(bytes.byteLength, label);
 			byteLength += bytes.byteLength;
 			textChunks.push(decoder.decode(bytes, { stream: true }));
 		},
 	});
-	await entry.getData(writable, { signal, strictness: 'strict' });
+	await awaitScapeOperation(entry.getData(writable, { signal, strictness: 'strict' }), signal);
 	throwIfScapeAborted(signal);
 	if (byteLength !== entry.uncompressedSize) {
 		throw new Error(`${label} emitted bytes that do not match its archive metadata.`);

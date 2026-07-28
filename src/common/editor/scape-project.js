@@ -12,9 +12,12 @@ import {
 	SCAPE_FORMAT_VERSION,
 	SCAPE_MANIFEST_ENTRY,
 	SCAPE_PROJECT_ENTRY,
+	SCAPE_ARCHIVE_LIMITS,
 } from './scape-archive-envelope.ts';
+import { ScapeAudioChunkBudget } from './scape-expanded-byte-budget.ts';
 import {
 	createScapeDigest,
+	createScapeAudioExportChunkBudget,
 	digestScapeBytes,
 	extractScapeAudio,
 	extractScapeBlob,
@@ -45,6 +48,11 @@ const TEXT_ENCODER = new TextEncoder();
 export async function exportScapeProject(project, store, options = {}) {
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required.');
 	if (!store?.readSourceChunks || !store?.loadMediaAsset) throw new TypeError('A project store is required.');
+	const sources = project.sources || [];
+	if (sources.length + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+		throw new RangeError('The project has too many sources for the portable archive.');
+	}
+	const audioChunkBudget = createScapeAudioExportChunkBudget(sources);
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
 	const destination = createScapeExportDestination(options.writable, SCAPE_MIME_TYPE);
@@ -64,7 +72,7 @@ export async function exportScapeProject(project, store, options = {}) {
 			zip64: true,
 			signal,
 		}), signal);
-		for (const source of project.sources || []) {
+		for (const source of sources) {
 			throwIfScapeAborted(signal);
 			const entry = source.kind === 'video'
 				? `media/${safeScapeEntryId(source.id)}/original`
@@ -87,6 +95,7 @@ export async function exportScapeProject(project, store, options = {}) {
 					digest,
 					(byteLength) => { size += byteLength; },
 					signal,
+					audioChunkBudget,
 				);
 				await awaitScapeOperation(writer.add(entry, stream, { level: 0, zip64: true, signal }), signal);
 			}
@@ -132,9 +141,15 @@ export async function importScapeProject(input, store, options = {}) {
 	let transaction = null;
 	try {
 		const result = await withScapeArchiveReader(input, signal, async (entries) => {
-			const { entryByName, manifest, projectText } = await readScapeArchiveEnvelope(entries, {}, signal);
+			const {
+				entryByName,
+				expandedByteBudget,
+				manifest,
+				projectText,
+			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal);
 			assertScapeImportStore(store);
 			transaction = new ScapeImportTransaction(store, signal);
+			const audioChunkBudget = new ScapeAudioChunkBudget();
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
 			throwIfScapeAborted(signal);
@@ -182,7 +197,12 @@ export async function importScapeProject(input, store, options = {}) {
 				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
 				transaction.trackProvisionalSource(finalSourceId);
 				if (source.kind === 'video') {
-					const { blob, digest, size } = await extractScapeBlob(entry, source.mimeType, signal);
+					const { blob, digest, size } = await extractScapeBlob(
+						entry,
+						source.mimeType,
+						signal,
+						expandedByteBudget,
+					);
 					verifyScapeExtractedAsset(asset, digest, size, source.name || source.id);
 					await awaitScapeOperation(store.writeMediaAsset(finalSourceId, blob, {
 						name: source.name,
@@ -200,7 +220,14 @@ export async function importScapeProject(input, store, options = {}) {
 					});
 					try {
 						throwIfScapeAborted(signal);
-						const extracted = await extractScapeAudio(entry, sourceWriter, source, signal);
+						const extracted = await extractScapeAudio(
+							entry,
+							sourceWriter,
+							source,
+							signal,
+							expandedByteBudget,
+							audioChunkBudget,
+						);
 						verifyScapeExtractedAsset(asset, extracted.digest, extracted.size, source.name || source.id);
 						await awaitScapeOperation(sourceWriter.commit({
 							sampleRate: source.sampleRate,
@@ -224,7 +251,7 @@ export async function importScapeProject(input, store, options = {}) {
 				reason: loaded.reason,
 				collision: existingProject ? collision : null,
 			};
-		});
+		}, options.archiveReaderFactory);
 		transaction.complete();
 		return result;
 	} catch (error) {
@@ -242,7 +269,11 @@ export async function inspectScapeProject(input, store = null, options = {}) {
 	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
 	const signal = options.signal;
 	return withScapeArchiveReader(input, signal, async (entries) => {
-		const { manifest, projectText } = await readScapeArchiveEnvelope(entries, {}, signal);
+		const { manifest, projectText } = await readScapeArchiveEnvelope(
+			entries,
+			options.archiveLimits || {},
+			signal,
+		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
@@ -257,5 +288,5 @@ export async function inspectScapeProject(input, store = null, options = {}) {
 			exists: Boolean(existing),
 			manifest,
 		});
-	});
+	}, options.archiveReaderFactory);
 }

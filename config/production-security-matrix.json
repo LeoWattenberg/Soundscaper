@@ -368,6 +368,44 @@
 					]
 				},
 				{
+					"id": "cumulative-actual-expanded-byte-limit",
+					"summary": "One shared budget counts bytes actually emitted into the manifest, project, and every extracted asset sink, rejecting cumulative output above 64 GiB before the over-budget chunk is retained or published.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-expanded-byte-budget.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" }
+					]
+				},
+				{
+					"id": "safe-pcm-frame-arithmetic",
+					"summary": "Audio extraction validates each four-byte frame header against the shared 65,536-frame and 64-channel geometry limits before checked byte-length calculation or allocation; parser-owned pending storage is capped at 16 MiB plus the header.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/wavpack/pcm.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" }
+					]
+				},
+				{
+					"id": "zipjs-local-header-and-pairwise-overlap-preflight",
+					"summary": "Before manifest extraction, every entry runs zip.js strict local-header validation and pairwise entry-range overlap detection without decompressing its body; tested method disagreements and nested entry ranges reject before storage work.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" }
+					]
+				},
+				{
+					"id": "bounded-archive-operation-counts",
+					"summary": "Archive enumeration is hard-capped at 4,096 entries, bounding zip.js pairwise layout comparisons, and one archive-wide budget is capped at 65,536 canonical PCM chunks before another source-writer call or chunk allocation.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-expansion.test.ts" }
+					]
+				},
+				{
 					"id": "descriptor-entry-size-match",
 					"summary": "Every project or asset descriptor must exactly match its entry's declared uncompressed size before project JSON or asset extraction begins.",
 					"evidence": [
@@ -424,18 +462,25 @@
 			],
 			"residualRisks": [
 				{
-					"id": "local-header-and-actual-expansion",
-					"exposure": "Central-directory declarations are bounded, but overlapping/local-header inconsistencies, compression ratio, and a cumulative count of actual asset bytes are not rejected before or during all extraction.",
-					"requiredControl": "Check local-header overlap and consistency and enforce a fail-fast compression or STORE policy plus cumulative actual-byte budget during extraction.",
+					"id": "incomplete-zip-layout-validation",
+					"exposure": "zip.js strict mode accepts zero-valued local CRC and size fields after the data-descriptor flag is cleared, and its pairwise range check does not compare entry data against the central-directory or end-record ranges.",
+					"requiredControl": "Require exact local CRC and size equality when no data descriptor is declared, locate classic and Zip64 central-directory boundaries, and reject every entry or descriptor range that crosses them.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Overlap, local-header mismatch, compression-amplification, and actual-byte-overrun fixtures stop before an asset writer can exceed the configured budget."]
+					"acceptanceCriteria": ["Zeroed local-field and entry-into-central-directory fixtures reject before manifest extraction, alongside the existing method-mismatch and pairwise-overlap regressions."]
 				},
 				{
-					"id": "bounded-streaming-and-safe-pcm",
-					"exposure": "Video extraction is still materialized as a complete Blob, and PCM frame-count arithmetic can retain an unbounded pending buffer.",
-					"requiredControl": "Stream media through bounded staged storage and reject unsafe PCM frame arithmetic before allocation.",
+					"id": "compression-amplification-policy",
+					"exposure": "Declared and actual expanded-byte totals are capped, but highly compressed entries can still spend substantial CPU and reach the configured expanded-byte ceiling before rejection.",
+					"requiredControl": "Enforce a fail-fast compression-ratio ceiling or require STORE for portable project entries.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Large-video and malicious PCM-header tests prove bounded allocation and unchanged project/source inventory on rejection."]
+					"acceptanceCriteria": ["Compression-amplification fixtures reject from central metadata before decompression or storage work."]
+				},
+				{
+					"id": "whole-blob-video-extraction",
+					"exposure": "Original video extraction is counted against the aggregate budget but still materializes the complete asset as a renderer Blob before staged storage publication.",
+					"requiredControl": "Stream video through a bounded transactional storage sink without retaining the complete asset in renderer memory.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["A reference-scale video import proves bounded renderer allocation and unchanged project/source inventory on rejection or cancellation."]
 				}
 			],
 			"releaseGate": {
@@ -444,8 +489,6 @@
 				"requiredControlIds": [
 					"local-header-and-overlap-validation",
 					"compression-ratio-or-store-policy",
-					"cumulative-actual-expanded-byte-limit",
-					"safe-pcm-frame-arithmetic",
 					"bounded-streaming-media-extraction"
 				]
 			}

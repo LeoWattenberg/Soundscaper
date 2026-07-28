@@ -4,6 +4,19 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 import type { ScapeArchiveEntry, ScapeDescriptor } from './scape-archive-envelope.ts';
 import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import {
+	ScapeAudioChunkBudget,
+	SCAPE_MAXIMUM_AUDIO_CHUNKS,
+	type ScapeExpandedByteBudget,
+} from './scape-expanded-byte-budget.ts';
+import {
+	pcmRawByteLength,
+	validatePcmGeometry,
+	WAVPACK_PCM_MAXIMUM_RAW_BYTES,
+} from './wavpack/pcm.js';
+
+export const SCAPE_MAXIMUM_PENDING_AUDIO_BYTES = 4 + WAVPACK_PCM_MAXIMUM_RAW_BYTES;
+export { SCAPE_MAXIMUM_AUDIO_CHUNKS };
 
 interface DigestWriter {
 	update(bytes: Uint8Array): unknown;
@@ -11,11 +24,13 @@ interface DigestWriter {
 }
 
 interface ScapeAudioSource {
+	readonly kind?: string;
 	readonly id: string;
 	readonly storageKey?: string;
 	readonly name?: string;
 	readonly channelCount: number;
 	readonly frameCount: number;
+	readonly chunkFrames: number;
 }
 
 interface ScapeSourceChunk {
@@ -74,14 +89,17 @@ export function scapeAudioSourceStream(
 	digest: DigestWriter,
 	onBytes: (byteLength: number) => void,
 	signal?: AbortSignal,
+	audioChunkBudget = new ScapeAudioChunkBudget(),
 ): ReadableStream<Uint8Array> {
 	throwIfScapeAborted(signal);
+	const sourceGeometry = validateScapeAudioSource(source);
 	const iterator = store.readSourceChunks(
 		source.storageKey || source.id,
 		{ signal },
 	)[Symbol.asyncIterator]();
 	let queue: Uint8Array[] = [];
 	let iteratorClosed = false;
+	let writtenFrames = 0;
 	const closeIterator = async (): Promise<void> => {
 		if (iteratorClosed) return;
 		iteratorClosed = true;
@@ -96,6 +114,9 @@ export function scapeAudioSourceStream(
 					throwIfScapeAborted(signal);
 					if (next.done) {
 						iteratorClosed = true;
+						if (writtenFrames !== source.frameCount) {
+							throw new Error(`Stored PCM for ${source.id} ended before its declared frame count.`);
+						}
 						controller.close();
 						return;
 					}
@@ -106,10 +127,22 @@ export function scapeAudioSourceStream(
 					if (!channels?.length || channels.length !== source.channelCount) {
 						throw new Error(`Stored PCM for ${source.id} is invalid.`);
 					}
+					if (!channels.every((channel) => channel instanceof Float32Array)) {
+						throw new Error(`Stored PCM for ${source.id} is invalid.`);
+					}
 					const frameCount = channels[0]?.length ?? 0;
 					if (!channels.every((channel) => channel.length === frameCount)) {
 						throw new Error(`Stored PCM for ${source.id} is not aligned.`);
 					}
+					const expectedFrameCount = Math.min(
+						sourceGeometry.frames,
+						source.frameCount - writtenFrames,
+					);
+					if (expectedFrameCount < 1 || frameCount !== expectedFrameCount) {
+						throw new Error(`Stored PCM for ${source.id} has noncanonical PCM chunk geometry.`);
+					}
+					audioChunkBudget.consume(source.id);
+					writtenFrames += frameCount;
 					const header = new Uint8Array(4);
 					new DataView(header.buffer).setUint32(0, frameCount, true);
 					queue = [header, ...channels.map(float32LittleEndianBytes)];
@@ -128,10 +161,24 @@ export function scapeAudioSourceStream(
 	});
 }
 
+/** Preflights semantic audio work before export creates or writes a ZIP destination. */
+export function createScapeAudioExportChunkBudget(
+	sources: readonly ScapeAudioSource[],
+): ScapeAudioChunkBudget {
+	const plannedBudget = new ScapeAudioChunkBudget();
+	for (const source of sources) {
+		if (source.kind === 'video') continue;
+		const geometry = validateScapeAudioSource(source);
+		plannedBudget.consumeMany(Math.ceil(source.frameCount / geometry.frames), source.id);
+	}
+	return new ScapeAudioChunkBudget();
+}
+
 export async function extractScapeBlob(
 	entry: ScapeArchiveEntry,
 	mimeType: string,
 	signal?: AbortSignal,
+	expandedByteBudget?: ScapeExpandedByteBudget,
 ): Promise<ScapeExtractedBlob> {
 	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
 	const digest = sha256.create();
@@ -140,13 +187,17 @@ export async function extractScapeBlob(
 	const writable = new WritableStream<Uint8Array>({
 		write(chunk) {
 			throwIfScapeAborted(signal);
-			const bytes = toBytes(chunk).slice();
+			const emittedBytes = toBytes(chunk);
+			expandedByteBudget?.consume(emittedBytes.byteLength, entry.filename);
+			assertScapeEntryEmissionWithinSize(entry, size, emittedBytes.byteLength);
+			const bytes = emittedBytes.slice();
 			digest.update(bytes);
 			size += bytes.byteLength;
 			chunks.push(exactArrayBuffer(bytes));
 		},
 	});
 	await awaitScapeOperation(entry.getData(writable, { signal, strictness: 'strict' }), signal);
+	assertScapeEntryEmissionComplete(entry, size);
 	return {
 		blob: new Blob(chunks, { type: mimeType || 'application/octet-stream' }),
 		digest: scapeHex(digest.digest()),
@@ -159,40 +210,80 @@ export async function extractScapeAudio(
 	sourceWriter: ScapeSourceWriter,
 	source: ScapeAudioSource,
 	signal?: AbortSignal,
+	expandedByteBudget?: ScapeExpandedByteBudget,
+	audioChunkBudget = new ScapeAudioChunkBudget(),
 ): Promise<ScapeExtractedAsset> {
 	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
+	const sourceGeometry = validateScapeAudioSource(source);
 	const digest = sha256.create();
 	let size = 0;
-	let pending = new Uint8Array(0);
+	const header = new Uint8Array(4);
+	let headerBytes = 0;
+	let pendingChunk: Uint8Array | undefined;
+	let pendingChunkBytes = 0;
+	let pendingFrameCount = 0;
 	let writtenFrames = 0;
 	const writable = new WritableStream<Uint8Array>({
 		async write(chunk) {
 			throwIfScapeAborted(signal);
 			const bytes = toBytes(chunk);
+			expandedByteBudget?.consume(bytes.byteLength, entry.filename);
+			assertScapeEntryEmissionWithinSize(entry, size, bytes.byteLength);
 			digest.update(bytes);
 			size += bytes.byteLength;
-			pending = concatBytes(pending, bytes);
-			while (pending.byteLength >= 4) {
+			let inputOffset = 0;
+			while (inputOffset < bytes.byteLength) {
 				throwIfScapeAborted(signal);
-				const frameCount = new DataView(pending.buffer, pending.byteOffset, 4).getUint32(0, true);
-				if (!frameCount) throw new Error(`Audio source ${source.id} contains an empty chunk.`);
-				const chunkBytes = 4 + frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT;
-				if (pending.byteLength < chunkBytes) break;
+				if (!pendingChunk) {
+					const copiedHeaderBytes = Math.min(4 - headerBytes, bytes.byteLength - inputOffset);
+					header.set(bytes.subarray(inputOffset, inputOffset + copiedHeaderBytes), headerBytes);
+					headerBytes += copiedHeaderBytes;
+					inputOffset += copiedHeaderBytes;
+					if (headerBytes < 4) continue;
+					pendingFrameCount = new DataView(header.buffer).getUint32(0, true);
+					validatePcmGeometry(pendingFrameCount, source.channelCount);
+					const expectedFrameCount = Math.min(
+						sourceGeometry.frames,
+						source.frameCount - writtenFrames,
+					);
+					if (pendingFrameCount !== expectedFrameCount) {
+						throw new Error(`Audio source ${source.id} has noncanonical PCM chunk geometry.`);
+					}
+					audioChunkBudget.consume(source.id);
+					pendingChunk = new Uint8Array(pcmRawByteLength(pendingFrameCount, source.channelCount));
+					pendingChunkBytes = 0;
+					headerBytes = 0;
+				}
+				const copiedChunkBytes = Math.min(
+					pendingChunk.byteLength - pendingChunkBytes,
+					bytes.byteLength - inputOffset,
+				);
+				pendingChunk.set(bytes.subarray(inputOffset, inputOffset + copiedChunkBytes), pendingChunkBytes);
+				pendingChunkBytes += copiedChunkBytes;
+				inputOffset += copiedChunkBytes;
+				if (pendingChunkBytes < pendingChunk.byteLength) continue;
+				if (pendingFrameCount > source.frameCount - writtenFrames) {
+					throw new Error(`Audio source ${source.id} has an unexpected frame count.`);
+				}
 				const channels: Float32Array[] = [];
-				let offset = 4;
+				const channelBytes = pendingFrameCount * Float32Array.BYTES_PER_ELEMENT;
+				let offset = 0;
 				for (let channel = 0; channel < source.channelCount; channel += 1) {
-					channels.push(littleEndianBytesToFloat32(pending.subarray(offset, offset + frameCount * 4)));
-					offset += frameCount * 4;
+					channels.push(littleEndianBytesToFloat32(pendingChunk.subarray(offset, offset + channelBytes)));
+					offset += channelBytes;
 				}
 				await sourceWriter.write(channels, { signal });
 				throwIfScapeAborted(signal);
-				writtenFrames += frameCount;
-				pending = pending.slice(chunkBytes);
+				writtenFrames += pendingFrameCount;
+				pendingChunk = undefined;
+				pendingChunkBytes = 0;
+				pendingFrameCount = 0;
 			}
 		},
 	});
 	await awaitScapeOperation(entry.getData(writable, { signal, strictness: 'strict' }), signal);
-	if (pending.byteLength) throw new Error(`Audio source ${source.id} ends with an incomplete chunk.`);
+	assertScapeEntryEmissionComplete(entry, size);
+	if (headerBytes || pendingChunk) throw new Error(`Audio source ${source.id} ends with an incomplete chunk.`);
 	if (writtenFrames !== source.frameCount) throw new Error(`Audio source ${source.id} has an unexpected frame count.`);
 	return { digest: scapeHex(digest.digest()), size };
 }
@@ -229,11 +320,27 @@ function toBytes(value: unknown): Uint8Array {
 	throw new TypeError('A .scape asset emitted a non-byte chunk.');
 }
 
-function concatBytes(left: Uint8Array, right: Uint8Array): Uint8Array<ArrayBuffer> {
-	const result = new Uint8Array(left.byteLength + right.byteLength);
-	result.set(left);
-	result.set(right, left.byteLength);
-	return result;
+function validateScapeAudioSource(source: ScapeAudioSource): Readonly<{ frames: number; channelCount: number }> {
+	if (!Number.isSafeInteger(source.frameCount) || source.frameCount < 0) {
+		throw new RangeError(`Audio source ${source.id} has an invalid frame count.`);
+	}
+	return validatePcmGeometry(source.chunkFrames, source.channelCount);
+}
+
+function assertScapeEntryEmissionWithinSize(
+	entry: ScapeArchiveEntry,
+	emittedBytes: number,
+	chunkBytes: number,
+): void {
+	if (chunkBytes > entry.uncompressedSize - emittedBytes) {
+		throw new Error(`${entry.filename} emitted bytes that do not match its archive metadata.`);
+	}
+}
+
+function assertScapeEntryEmissionComplete(entry: ScapeArchiveEntry, emittedBytes: number): void {
+	if (emittedBytes !== entry.uncompressedSize) {
+		throw new Error(`${entry.filename} emitted bytes that do not match its archive metadata.`);
+	}
 }
 
 function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {

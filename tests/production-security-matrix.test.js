@@ -28,10 +28,32 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 const PENDING_ARCHIVE_EXPANSION_GATES = [
 	'bounded-streaming-media-extraction',
 	'compression-ratio-or-store-policy',
-	'cumulative-actual-expanded-byte-limit',
 	'local-header-and-overlap-validation',
-	'safe-pcm-frame-arithmetic',
 ];
+const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
+	'cumulative-actual-expanded-byte-limit': [
+		'src/common/editor/scape-expanded-byte-budget.ts',
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-expansion.test.ts',
+	],
+	'safe-pcm-frame-arithmetic': [
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/wavpack/pcm.js',
+		'tests/audio-editor-scape-expansion.test.ts',
+	],
+	'zipjs-local-header-and-pairwise-overlap-preflight': [
+		'src/common/editor/scape-archive-envelope.ts',
+		'tests/audio-editor-scape-expansion.test.ts',
+	],
+	'bounded-archive-operation-counts': [
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-expansion.test.ts',
+	],
+};
 
 async function readMatrix() {
 	return JSON.parse(await readFile(matrixUrl, 'utf8'));
@@ -135,6 +157,23 @@ test('planned native and plug-in surfaces stay disabled and archive expansion st
 			`${controlId} needs envelope test evidence`,
 		);
 	}
+	for (const [controlId, paths] of Object.entries(IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS)) {
+		const control = implementedControls.get(controlId);
+		assert.ok(control, `${controlId} must be recorded as implemented`);
+		for (const path of paths) assert.ok(
+			control.evidence.some((item) => item.path === path),
+			`${controlId} needs evidence from ${path}`,
+		);
+	}
+	assert.match(
+		implementedControls.get('zipjs-local-header-and-pairwise-overlap-preflight').summary,
+		/pairwise entry-range overlap/iu,
+	);
+	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
+	assert.match(
+		residuals.get('incomplete-zip-layout-validation').exposure,
+		/zero-valued local CRC.*central-directory/iu,
+	);
 	const cancellationControl = implementedControls.get('abort-signal-propagation-and-rollback');
 	assert.ok(cancellationControl, 'tested archive cancellation must remain recorded as implemented');
 	for (const path of [
