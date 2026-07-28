@@ -1803,6 +1803,26 @@ test('offline rendering allocates the project master channel count', async () =>
 	}
 });
 
+test('engine requests native discrete surround from a capable output device', async () => {
+	const context = new MockAudioContext();
+	context.destination.maxChannelCount = 8;
+	context.destination.channelCount = 2;
+	context.destination.channelCountMode = 'max';
+	context.destination.channelInterpretation = 'speakers';
+	const project = createRackProject({ tracks: [{ id: 'bed', effects: [] }] });
+	project.masterChannels = 6;
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	try {
+		engine.loadProject(project, new Map([['source-1', new MockAudioBuffer(6, 4_800, 48_000)]]));
+		await engine.getAudioContext({ resume: false });
+		assert.equal(context.destination.channelCount, 6);
+		assert.equal(context.destination.channelCountMode, 'explicit');
+		assert.equal(context.destination.channelInterpretation, 'discrete');
+	} finally {
+		await engine.dispose();
+	}
+});
+
 test('engine falls back to a native delay when its optional worklet cannot load', async () => {
 	const previousWorkletNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = MockAudioWorkletNode;

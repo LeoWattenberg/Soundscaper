@@ -13,6 +13,7 @@ import {
 	normalizeChunkSource,
 	normalizeSourceResolver,
 } from './clip-schedule-plan.ts';
+import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
 	ENGINE_CANCEL_SCRUB,
@@ -202,6 +203,9 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this[ENGINE_CANCEL_SCRUB]();
 		this[ENGINE_HALT_GRAPH]();
 		this.project = project || null;
+		if (this.context && project) {
+			configureNativeSurroundDestination(this.context.destination, Number(project.masterChannels) || 2);
+		}
 		this.sources = sourceBuffers instanceof Map ? new Map(sourceBuffers) : new Map(Object.entries(sourceBuffers || {}));
 		if (options.chunkSources !== undefined) this.setChunkSources(options.chunkSources);
 		this.durationFrames = getProjectDurationFrames(project);
@@ -354,6 +358,9 @@ async [ENGINE_GET_CONTEXT]() {
 			throw new AudioEditorEngineDisposedError();
 		}
 		this.context = context;
+		if (this.project) {
+			configureNativeSurroundDestination(context.destination, Number(this.project.masterChannels) || 2);
+		}
 		const preferredOutputDeviceId = this.preferredOutputDeviceId;
 		if (preferredOutputDeviceId) {
 			try {
