@@ -12,6 +12,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 import {
+	createDesktopLibraryProjectMetadataFile,
 	createDesktopProjectLibraryPaths,
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
@@ -111,12 +112,39 @@ test('metadata paths remain portable across supported desktop filesystems', () =
 				{
 					...populatedMetadata(1).projects[0],
 					id: 'shared-project-2',
-					metadataFile: 'SHARED-PROJECT-1/PROJECT.JSON',
+					metadataFile: createDesktopLibraryProjectMetadataFile(
+						'shared-project-1',
+						1,
+						'a'.repeat(64),
+					).toUpperCase(),
 				},
 			],
 		}),
-		/duplicate project metadata path/u,
+		/project metadataFile does not match/u,
 	);
+});
+
+test('project catalog entries bind exact-schema immutable document descriptors', () => {
+	const project = populatedMetadata(1).projects[0];
+	assert.equal(
+		project.metadataFile,
+		createDesktopLibraryProjectMetadataFile(project.id, project.projectRevision, project.sha256),
+	);
+	for (const replacement of [
+		{ projectSchemaVersion: 8 },
+		{ projectRevision: -1 },
+		{ byteLength: 0 },
+		{ sha256: 'b'.repeat(64) },
+		{ metadataFile: 'shared-project-1/project.json' },
+	]) {
+		assert.throws(
+			() => validateDesktopLibraryMetadata({
+				...populatedMetadata(1),
+				projects: [{ ...project, ...replacement }],
+			}),
+			/schema version|revision|byte length|metadataFile/u,
+		);
+	}
 });
 
 test('cross-process leases expose owners and expiry and fence stale holders', async (context) => {
@@ -326,19 +354,23 @@ async function createFixture(context: TestContext) {
 }
 
 function emptyMetadata(): DesktopLibraryMetadata {
-	return { schemaVersion: 1, revision: 0, projects: [], media: [] };
+	return { schemaVersion: 2, revision: 0, projects: [], media: [] };
 }
 
 function populatedMetadata(revision: number): DesktopLibraryMetadata {
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		revision,
 		projects: [{
 			id: 'shared-project-1',
 			name: 'Shared project',
-			metadataFile: 'shared-project-1/project.json',
+			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',
 			updatedAtMs: 9_000 + revision,
+			projectSchemaVersion: 9,
+			projectRevision: 1,
+			byteLength: 48_000,
+			sha256: 'a'.repeat(64),
 		}],
 		media: [{
 			id: 'managed-media-1',

@@ -161,7 +161,7 @@ test('desktop host suppresses a queued renewal failure after intentional close',
 
 function metadata(revision: number) {
 	return {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		revision,
 		projects: [],
 		media: [],

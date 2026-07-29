@@ -2,8 +2,10 @@
 
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
-export const DESKTOP_LIBRARY_SCHEMA_VERSION = 1 as const;
+export const DESKTOP_LIBRARY_SCHEMA_VERSION = 2 as const;
+export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 9 as const;
 export const MAX_LIBRARY_METADATA_BYTES = 4 * 1024 * 1024;
+export const MAX_LIBRARY_PROJECT_DOCUMENT_BYTES = 256 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECTS = 10_000;
 export const MAX_LIBRARY_MEDIA = 50_000;
 
@@ -11,7 +13,17 @@ const LIBRARY_SCOPE = Object.freeze(['kw.media', 'scape-project-library', 'v1'])
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper'] as const);
 const EXACT_PATH_KEYS = Object.freeze(['libraryRoot', 'databasePath', 'projectsRoot', 'managedMediaRoot'] as const);
 const METADATA_KEYS = Object.freeze(['schemaVersion', 'revision', 'projects', 'media']);
-const PROJECT_KEYS = Object.freeze(['id', 'name', 'metadataFile', 'preferredProduct', 'updatedAtMs']);
+const PROJECT_KEYS = Object.freeze([
+	'id',
+	'name',
+	'metadataFile',
+	'preferredProduct',
+	'updatedAtMs',
+	'projectSchemaVersion',
+	'projectRevision',
+	'byteLength',
+	'sha256',
+]);
 const MEDIA_KEYS = Object.freeze(['id', 'relativeFile', 'byteLength', 'sha256']);
 const OWNER_KEYS = Object.freeze(['product', 'processId', 'instanceId']);
 const OPAQUE_ID = /^[A-Za-z0-9_-]{8,128}$/u;
@@ -40,6 +52,10 @@ export interface DesktopLibraryProject {
 	readonly metadataFile: string;
 	readonly preferredProduct: DesktopLibraryProduct;
 	readonly updatedAtMs: number;
+	readonly projectSchemaVersion: typeof DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION;
+	readonly projectRevision: number;
+	readonly byteLength: number;
+	readonly sha256: string;
 }
 
 export interface DesktopLibraryMedia {
@@ -174,16 +190,47 @@ export function scopedRelativePath(value: unknown, label: string): string {
 	return segments.join('/');
 }
 
+export function createDesktopLibraryProjectMetadataFile(
+	projectId: unknown,
+	projectRevision: unknown,
+	sha256: unknown,
+): string {
+	const id = opaqueId(projectId, 'project id');
+	const revision = nonNegativeSafeInteger(projectRevision, 'project revision');
+	const digest = String(sha256);
+	if (!DIGEST.test(digest)) throw new TypeError('Desktop library project has an invalid SHA-256 digest');
+	return `${id}/${String(revision)}-${digest}.json`;
+}
+
 function validateProject(value: unknown): DesktopLibraryProject {
 	const record = strictRecord(value, PROJECT_KEYS, 'desktop library project');
 	const preferredProduct = String(record.preferredProduct);
 	if (!isProduct(preferredProduct)) throw new TypeError('Desktop library project has an unsupported preferred product');
+	if (record.projectSchemaVersion !== DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION) {
+		throw new TypeError('Desktop library project has an unsupported schema version');
+	}
+	const id = opaqueId(record.id, 'project id');
+	const projectRevision = nonNegativeSafeInteger(record.projectRevision, 'project revision');
+	const sha256 = String(record.sha256);
+	if (!DIGEST.test(sha256)) throw new TypeError('Desktop library project has an invalid SHA-256 digest');
+	const byteLength = positiveSafeInteger(record.byteLength, 'project byte length');
+	if (byteLength > MAX_LIBRARY_PROJECT_DOCUMENT_BYTES) {
+		throw new RangeError('Desktop library project byte length exceeds its limit');
+	}
+	const metadataFile = scopedRelativePath(record.metadataFile, 'project metadataFile');
+	if (metadataFile !== createDesktopLibraryProjectMetadataFile(id, projectRevision, sha256)) {
+		throw new TypeError('Desktop library project metadataFile does not match its immutable descriptor');
+	}
 	return Object.freeze({
-		id: opaqueId(record.id, 'project id'),
+		id,
 		name: humanText(record.name, 'project name', 255),
-		metadataFile: scopedRelativePath(record.metadataFile, 'project metadataFile'),
+		metadataFile,
 		preferredProduct,
 		updatedAtMs: nonNegativeSafeInteger(record.updatedAtMs, 'project updatedAtMs'),
+		projectSchemaVersion: DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+		projectRevision,
+		byteLength,
+		sha256,
 	});
 }
 
