@@ -283,6 +283,27 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		scapeInspection.summary,
 		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*project-collision read.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*exact cancellation reason.*signal-ignoring injected lookup.*closes its archive reader.*suppresses the late result/iu,
 	);
+	const scapeInspectionQuiescence = cancellation.currentControls.find(
+		({ id }) => id === 'fenced-scape-inspection-quiescence',
+	);
+	assert.ok(scapeInspectionQuiescence);
+	for (const path of [
+		'src/common/editor/controller/scape-inspection-quiescence.ts',
+		'src/common/editor/controller/scape-inspection-service.ts',
+		'src/common/editor/controller/scape-project-file-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/scape-abort.ts',
+		'src/common/editor/scape-archive-reader.ts',
+		'src/common/editor/app.js',
+		'tests/audio-editor-scape-inspection-quiescence.test.ts',
+		'tests/audio-editor-scape-inspection-service.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-scape-inspection-controller.test.ts',
+	]) assert.ok(scapeInspectionQuiescence.evidence.some((item) => item.path === path));
+	assert.match(
+		scapeInspectionQuiescence.summary,
+		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*rejects later inspection admission.*drains every captured generation before project work.*overlapping queued switches.*permanent fence.*before engine and storage teardown.*exact registration abort reason.*cleanup failures.*all captured generations.*remaining teardown/iu,
+	);
 	const scapeCollisionContinuation = cancellation.currentControls.find(
 		({ id }) => id === 'owned-scape-collision-continuation',
 	);
@@ -318,9 +339,10 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection store lookup.*no abortable repository API/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*do not join inspection cleanup.*injected lookup can continue.*AUP4.*whole-file desktop reads/iu,
+		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*join coordinator-owned inspection cleanup.*injected lookup can continue.*AUP4.*whole-file desktop reads/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',

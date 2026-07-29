@@ -4,10 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { throwIfScapeAborted } from '../src/common/editor/scape-abort.ts';
 import {
 	SCAPE_INSPECTION_TASK,
 	createScapeInspectionService,
 } from '../src/common/editor/controller/scape-inspection-service.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -94,6 +96,92 @@ test('inspection releases its task when caller option snapshotting throws', asyn
 
 	await assert.rejects(service.inspect(new Blob(['options']), options), (error) => error === reason);
 	assert.equal(finishCalls, 1);
+});
+
+test('inspection admission is denied before a named task can be started', async () => {
+	const quiescence = createScapeInspectionQuiescence();
+	const reason = new DOMException('A project switch is in progress.', 'AbortError');
+	const fence = quiescence.beginFence(reason);
+	let startCalls = 0;
+	const service = createScapeInspectionService({
+		lifetime: {
+			startTask() {
+				startCalls += 1;
+				throw new Error('A fenced inspection must not replace the named task.');
+			},
+		},
+		scapeInspectionQuiescence: quiescence,
+		store: null,
+		inspectScapeProject: () => 'unreachable',
+	});
+
+	await assert.rejects(service.inspect(new Blob(['fenced'])), (error) => error === reason);
+	assert.equal(startCalls, 0);
+	fence.release();
+});
+
+test('a normalized NaN abort reason remains benign to a concurrent quiescence fence', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const quiescence = createScapeInspectionQuiescence();
+	const caller = new AbortController();
+	const started = deferred<void>();
+	const release = deferred<void>();
+	const service = createScapeInspectionService({
+		lifetime,
+		scapeInspectionQuiescence: quiescence,
+		store: null,
+		inspectScapeProject: async (_input, _store, options) => {
+			started.resolve();
+			await new Promise<void>((resolve) => {
+				options.signal.addEventListener('abort', () => resolve(), { once: true });
+			});
+			await release.promise;
+			throwIfScapeAborted(options.signal);
+			return 'unreachable';
+		},
+	});
+	const pending = service.inspect(new Blob(['primitive']), { signal: caller.signal });
+	await started.promise;
+	caller.abort(Number.NaN);
+	const fence = quiescence.beginFence(new DOMException('Project changed.', 'AbortError'));
+	const waiting = fence.wait();
+	release.resolve();
+
+	await assert.rejects(pending, { name: 'AbortError' });
+	await waiting;
+	fence.release();
+});
+
+test('a primitive abort does not hide an unrelated cleanup AbortError', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const quiescence = createScapeInspectionQuiescence();
+	const caller = new AbortController();
+	const started = deferred<void>();
+	const release = deferred<void>();
+	const cleanupFailure = new DOMException('The archive reader could not close.', 'AbortError');
+	const service = createScapeInspectionService({
+		lifetime,
+		scapeInspectionQuiescence: quiescence,
+		store: null,
+		inspectScapeProject: async (_input, _store, options) => {
+			started.resolve();
+			await new Promise<void>((resolve) => {
+				options.signal.addEventListener('abort', () => resolve(), { once: true });
+			});
+			await release.promise;
+			throw cleanupFailure;
+		},
+	});
+	const pending = service.inspect(new Blob(['cleanup failure']), { signal: caller.signal });
+	await started.promise;
+	caller.abort('primitive cancellation');
+	const fence = quiescence.beginFence(new DOMException('Project changed.', 'AbortError'));
+	const waiting = fence.wait();
+	release.resolve();
+
+	await assert.rejects(pending, (error) => error === cleanupFailure);
+	await assert.rejects(waiting, (error) => error === cleanupFailure);
+	fence.release();
 });
 
 test('a replacement inspection aborts its predecessor with the exact task reason', async () => {

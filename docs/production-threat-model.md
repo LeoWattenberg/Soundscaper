@@ -85,11 +85,20 @@ Path tokens are capabilities. Their required lifecycle is: explicit user selecti
 `AbortSignal` guards prevent tested stale UI publication, and native `.scape`
 open/save passes the same task signal through the archive and tested
 storage/file-publication boundaries with rollback. Public `.scape` inspection
-now starts a distinct named task before archive work, snapshots options,
-composes caller and controller cancellation, and rejects signal-ignoring
-results after replacement, project switching, or disposal; successful tasks
-unregister in `finally`, and the public disposal regression proves the
-inspection promise closes its archive reader. Public file opens add one
+now registers every generation before task creation or archive work, starts a
+distinct named task, snapshots options, composes caller and controller
+cancellation, and rejects signal-ignoring results after replacement, project
+switching, or disposal. A controller-level coordinator retains current and
+superseded generations through archive-reader cleanup. Project-switch admission
+synchronously installs a reference-counted temporary fence, cancels captured
+work with one shared legacy supersession `AbortError` per admission, and drains
+it before project work; overlapping queued switches retain admission fencing
+until the last settles.
+Controller disposal installs a permanent fence and drains before engine or
+storage teardown using the exact lifetime reason. Only the exact registration
+abort reason is benign; cleanup failures reject after all captured generations
+settle, while disposal continues the remaining teardown before rejecting.
+Public file opens add one
 replaceable request task spanning inspection through collision choice. The UI
 continuation owns one opaque prompt, settles its exact identity once, clears and
 rejects it with the exact reason on replacement, switching, or disposal, and
@@ -125,8 +134,9 @@ rejects before a pre-cancelled memory read, and aborts and drains an active
 read-only IndexedDB transaction while preserving the exact reason. A defensive
 read-only Scape boundary also rejects a signal-ignoring injected lookup
 promptly, closes the archive reader, and suppresses the late result. Project
-switching and controller disposal still abort but do not join inspection
-cleanup, and a signal-ignoring injected lookup can continue after rejection.
+switching and controller disposal now join coordinator-owned inspection
+cleanup, but a signal-ignoring injected lookup can continue after the defensive
+read boundary rejects and the archive reader closes.
 AUP4, whole-file desktop reads, direct
 media/derivative writes, broad storage operations, and remaining desktop
 transports also do not yet share the end-to-end contract. Rejecting a late UI

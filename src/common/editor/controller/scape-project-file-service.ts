@@ -8,6 +8,10 @@ import {
 	type ScapeProjectInspector,
 } from './scape-inspection-service.ts';
 import {
+	createScapeInspectionQuiescence,
+	type ScapeInspectionQuiescence,
+} from './scape-inspection-quiescence.ts';
+import {
 	createScapeOpenRequestService,
 	type ScapeCollisionRequester,
 	type ScapeOpenInspection,
@@ -27,6 +31,7 @@ export interface ScapeProjectFileServiceRuntime<
 	Result,
 > {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
+	readonly scapeInspectionQuiescence?: ScapeInspectionQuiescence;
 	readonly store: ScapeInspectionStore | null;
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
 	readonly openScape: (
@@ -39,8 +44,11 @@ export function createScapeProjectFileService<
 	Inspection extends ScapeOpenInspection = ScapeProjectInspection,
 	Result = unknown,
 >(runtime: ScapeProjectFileServiceRuntime<Inspection, Result>) {
+	const scapeInspectionQuiescence = runtime.scapeInspectionQuiescence
+		?? createScapeInspectionQuiescence();
 	const inspectionService = createScapeInspectionService<Inspection>({
 		lifetime: runtime.lifetime,
+		scapeInspectionQuiescence,
 		store: runtime.store,
 		inspectScapeProject: runtime.inspectScapeProject,
 	});
@@ -52,6 +60,7 @@ export function createScapeProjectFileService<
 	return Object.freeze({
 		inspectScape: inspectionService.inspect,
 		openScapeFile: openRequestService.openScapeFile,
+		scapeInspectionQuiescence,
 	});
 }
 

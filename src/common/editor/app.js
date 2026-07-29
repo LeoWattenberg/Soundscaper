@@ -761,8 +761,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: (callback, delayMs) => Number(globalThis.setTimeout(callback, delayMs)),
 		clearTimer: (timer) => globalThis.clearTimeout(timer),
 	});
+	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape });
 	const projectSwitchService = createProjectSwitchService({
-		state, lifetime, projectGeneration, copy,
+		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
 		createProject: createAudioEditorProjectV8,
@@ -1681,7 +1682,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRecordingTrackRoute,
 		streamAudioChannelCount,
 	});
-	const { inspectScape, openScapeFile } = createScapeProjectFileService({ lifetime, store, openScape });
 	const actions = guardControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
@@ -1763,6 +1763,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		dispose() {
 			if (disposePromise) return disposePromise;
 			lifetime.beginDisposal();
+			scapeInspectionQuiescence.close(lifetime.signal.reason);
 			taskProgress.clear();
 			state.disposed = true;
 			state.phase = lifetime.phase;
@@ -1775,14 +1776,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function disposeController() {
 		let disposalError = null;
 		const cleanup = async (operation) => {
-			try {
-				await operation();
-			} catch (error) {
+			try { await operation(); } catch (error) {
 				disposalError ||= error;
 			}
 		};
 		try {
 			projectGeneration.invalidate();
+			const scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();
 			removeDeviceChangeListener = () => {};
 			unsubscribeParametricEqErrors();
@@ -1808,9 +1808,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.spectralWorker?.terminate();
 			state.spectralWorker = null;
 			microphoneMeterService.dispose();
-			await cleanup(async () => {
-				await projectSaveService.terminalFlush();
-			});
+			await cleanup(() => scapeInspectionDrain);
+			await cleanup(() => projectSaveService.terminalFlush());
 			await cleanup(() => stopRecording());
 			await cleanup(() => Promise.resolve(recordingCapturePool.dispose?.()));
 			await cleanup(() => releaseProjectLock());

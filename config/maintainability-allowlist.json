@@ -6,7 +6,7 @@
 		"scripts/audacity-qt-translations.mjs": { "maxLines": 942, "reason": "Legacy translation conversion pipeline with provenance and integrity validation." },
 		"scripts/audit-aup4-interop.mjs": { "maxLines": 863, "reason": "Pinned interoperability audit and fixture evidence pipeline." },
 		"scripts/manage-audacity-translation-release.mjs": { "maxLines": 1262, "reason": "Legacy translation publication workflow; split by command before extending it." },
-		"src/common/editor/app.js": { "maxLines": 2978, "reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration." },
+		"src/common/editor/app.js": { "maxLines": 2977, "reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration." },
 		"src/common/editor/audacity-action-parity.js": { "maxLines": 1092, "reason": "Pinned Audacity action inventory and policy implementation." },
 		"src/common/editor/audacity-effects/basic.js": { "maxLines": 718, "reason": "Legacy basic-effect implementations; new effects belong in focused modules." },
 		"src/common/editor/audacity-effects/live.js": { "maxLines": 1235, "reason": "Legacy realtime effect graph implementation." },

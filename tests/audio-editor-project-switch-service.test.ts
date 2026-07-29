@@ -19,7 +19,11 @@ import {
 	type ProjectSwitchServiceRuntime,
 	type ProjectSwitchState,
 } from '../src/common/editor/controller/project-switch-service.ts';
-import { SCAPE_INSPECTION_TASK } from '../src/common/editor/controller/scape-inspection-service.ts';
+import {
+	SCAPE_INSPECTION_TASK,
+	createScapeInspectionService,
+} from '../src/common/editor/controller/scape-inspection-service.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
 
 function deferred<Value>() {
@@ -71,6 +75,7 @@ function lock(projectId: string, readOnly = false): TestLock {
 function createFixture() {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
+	const scapeInspectionQuiescence = createScapeInspectionQuiescence();
 	const oldProject = project('old-project');
 	let currentProject: TestProject | null = oldProject;
 	let createdSequence = 0;
@@ -151,6 +156,7 @@ function createFixture() {
 		state,
 		lifetime,
 		projectGeneration,
+		scapeInspectionQuiescence,
 		copy: {
 			ready: 'Ready',
 			projectOpenOtherTab: 'Open elsewhere',
@@ -236,6 +242,7 @@ function createFixture() {
 		initialLock,
 		lifetime,
 		projectGeneration,
+		scapeInspectionQuiescence,
 		readOnlyUpdates,
 		revokedUrls,
 		service: createProjectSwitchService(runtime),
@@ -296,6 +303,189 @@ test('project activation aborts in-flight Scape ownership before a queued switch
 	await switching;
 	assert.ok(fixture.events.indexOf('abort-inspection') < fixture.events.indexOf('stop-recording'));
 	assert.ok(fixture.events.indexOf('abort-open-request') < fixture.events.indexOf('stop-recording'));
+});
+
+test('project activation joins every superseded Scape inspection before project work', async () => {
+	const fixture = createFixture();
+	const firstStarted = deferred<void>();
+	const secondStarted = deferred<void>();
+	const firstCleanup = deferred<string>();
+	const secondCleanup = deferred<string>();
+	const signals: AbortSignal[] = [];
+	let calls = 0;
+	const inspection = createScapeInspectionService<string>({
+		lifetime: fixture.lifetime,
+		scapeInspectionQuiescence: fixture.scapeInspectionQuiescence,
+		store: null,
+		inspectScapeProject: async (_file, _store, options) => {
+			const index = calls++;
+			signals[index] = options.signal;
+			if (index === 0) {
+				firstStarted.resolve();
+				return firstCleanup.promise;
+			}
+			secondStarted.resolve();
+			return secondCleanup.promise;
+		},
+	});
+
+	const first = inspection.inspect(new Blob(['first']));
+	await firstStarted.promise;
+	const firstRejected = assert.rejects(first, (error) => error === signals[0]?.reason);
+	const second = inspection.inspect(new Blob(['second']));
+	await secondStarted.promise;
+	const secondRejected = assert.rejects(second, (error) => error === signals[1]?.reason);
+	assert.equal(signals[0]?.aborted, true, 'replacement must synchronously cancel the older generation');
+
+	const switching = fixture.service.switchProject(project('next-project'));
+	assert.equal(signals[1]?.aborted, true, 'switch admission must synchronously cancel the current generation');
+	await Promise.resolve();
+	await Promise.resolve();
+	assert.equal(fixture.events.includes('stop-recording'), false);
+
+	secondCleanup.resolve('late second result');
+	await secondRejected;
+	await Promise.resolve();
+	assert.equal(
+		fixture.events.includes('stop-recording'),
+		false,
+		'a superseded predecessor must remain joined after the current generation cleans up',
+	);
+
+	firstCleanup.resolve('late first result');
+	await firstRejected;
+	await switching;
+	assert.ok(fixture.events.includes('stop-recording'));
+});
+
+test('direct project activation fences and joins Scape inspection cleanup', async () => {
+	const fixture = createFixture();
+	const started = deferred<void>();
+	const cleanup = deferred<string>();
+	const capture: { signal: AbortSignal | null } = { signal: null };
+	const inspection = createScapeInspectionService<string>({
+		lifetime: fixture.lifetime,
+		scapeInspectionQuiescence: fixture.scapeInspectionQuiescence,
+		store: null,
+		inspectScapeProject: (_file, _store, options) => {
+			capture.signal = options.signal;
+			started.resolve();
+			return cleanup.promise;
+		},
+	});
+	const pending = inspection.inspect(new Blob(['direct']));
+	await started.promise;
+	const rejected = assert.rejects(pending, (error) => error === capture.signal?.reason);
+
+	const switching = fixture.service.performProjectSwitch(project('direct-project'));
+	assert.equal(capture.signal?.aborted, true);
+	assert.ok(capture.signal?.reason instanceof DOMException);
+	await Promise.resolve();
+	assert.equal(fixture.events.includes('stop-recording'), false);
+
+	cleanup.resolve('late result');
+	await rejected;
+	await switching;
+	assert.ok(fixture.events.includes('stop-recording'));
+	assert.equal(await inspection.inspect(new Blob(['after direct switch'])), 'late result');
+});
+
+test('Scape cleanup failure rejects activation before project work and releases its fence', async () => {
+	const fixture = createFixture();
+	const cleanupStarted = deferred<void>();
+	const cleanupRelease = deferred<void>();
+	const cleanupFailure = new AggregateError(
+		[new Error('archive close failed')],
+		'The .scape operation and archive-reader cleanup both failed.',
+	);
+	let calls = 0;
+	const capture: { signal: AbortSignal | null } = { signal: null };
+	const inspection = createScapeInspectionService<string>({
+		lifetime: fixture.lifetime,
+		scapeInspectionQuiescence: fixture.scapeInspectionQuiescence,
+		store: null,
+		inspectScapeProject: async (_file, _store, options) => {
+			calls += 1;
+			if (calls > 1) return 'inspection after failed switch';
+			capture.signal = options.signal;
+			await new Promise<void>((resolve) => {
+				options.signal.addEventListener('abort', () => resolve(), { once: true });
+			});
+			cleanupStarted.resolve();
+			await cleanupRelease.promise;
+			throw cleanupFailure;
+		},
+	});
+	const pending = inspection.inspect(new Blob(['cleanup failure']));
+	const inspectionRejected = assert.rejects(pending, (error) => error === cleanupFailure);
+
+	const switching = fixture.service.switchProject(project('blocked-project'));
+	assert.equal(capture.signal?.aborted, true);
+	await cleanupStarted.promise;
+	await Promise.resolve();
+	assert.equal(fixture.events.includes('stop-recording'), false);
+
+	cleanupRelease.resolve();
+	await inspectionRejected;
+	await assert.rejects(switching, (error) => error === cleanupFailure);
+	assert.equal(fixture.events.includes('stop-recording'), false);
+	assert.equal(fixture.getProject()?.id, 'old-project');
+	assert.equal(
+		await inspection.inspect(new Blob(['after failed switch'])),
+		'inspection after failed switch',
+		'a failed quiescence drain must still release its temporary admission fence',
+	);
+});
+
+test('queued project switches keep Scape inspection fenced until the last switch exits', async () => {
+	const fixture = createFixture();
+	const firstStarted = deferred<void>();
+	const firstRelease = deferred<void>();
+	const secondStarted = deferred<void>();
+	const secondRelease = deferred<void>();
+	fixture.setLoadSources(async (value) => {
+		if (value.id === 'first') {
+			firstStarted.resolve();
+			await firstRelease.promise;
+		}
+		if (value.id === 'second') {
+			secondStarted.resolve();
+			await secondRelease.promise;
+		}
+	});
+	let inspectionCalls = 0;
+	const inspection = createScapeInspectionService<string>({
+		lifetime: fixture.lifetime,
+		scapeInspectionQuiescence: fixture.scapeInspectionQuiescence,
+		store: null,
+		inspectScapeProject: () => {
+			inspectionCalls += 1;
+			return 'accepted';
+		},
+	});
+	const assertInspectionFenced = async () => {
+		await assert.rejects(
+			inspection.inspect(new Blob(['blocked'])),
+			(error) => error instanceof DOMException && error.name === 'AbortError',
+		);
+		assert.equal(inspectionCalls, 0);
+	};
+
+	const first = fixture.service.switchProject(project('first'));
+	await firstStarted.promise;
+	const second = fixture.service.switchProject(project('second'));
+	await assertInspectionFenced();
+
+	firstRelease.resolve();
+	await first;
+	await assertInspectionFenced();
+	await secondStarted.promise;
+	await assertInspectionFenced();
+
+	secondRelease.resolve();
+	await second;
+	assert.equal(await inspection.inspect(new Blob(['accepted'])), 'accepted');
+	assert.equal(inspectionCalls, 1);
 });
 
 test('the project queue prevents a second activation from overlapping source loading', async () => {

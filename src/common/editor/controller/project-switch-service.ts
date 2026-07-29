@@ -4,6 +4,10 @@ import type { EditorLifetimeToken } from './lifecycle.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
+	ScapeInspectionFence,
+	ScapeInspectionQuiescence,
+} from './scape-inspection-quiescence.ts';
+import type {
 	ProjectLifecycleCopy,
 	ProjectLifecycleHistory,
 	ProjectLifecycleLock,
@@ -65,7 +69,7 @@ export interface ProjectSwitchLifetime {
 	capture(): EditorLifetimeToken;
 	assertActive(token: EditorLifetimeToken): void;
 	guard<Value>(value: PromiseLike<Value> | Value, token: EditorLifetimeToken): Promise<Value>;
-	cancelTask(name: string): void;
+	cancelTask(name: string, reason?: unknown): void;
 }
 
 export interface ProjectSwitchSession<
@@ -96,6 +100,7 @@ export interface ProjectSwitchServiceRuntime<
 > {
 	readonly state: ProjectSwitchState<Project, History>;
 	readonly lifetime: ProjectSwitchLifetime;
+	readonly scapeInspectionQuiescence: Pick<ScapeInspectionQuiescence, 'beginFence'>;
 	readonly projectGeneration: Readonly<{
 		invalidate(): void;
 		activate(projectId: string): unknown;
@@ -199,9 +204,12 @@ export function createProjectSwitchService<
 		await switchProject(loaded.project, { readOnly: loaded.readOnly, readOnlyReason });
 	}
 
-	function cancelScapeProjectFileTasks(): void {
-		runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK);
-		runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK);
+	function beginScapeInspectionFence(): ScapeInspectionFence {
+		const reason = new DOMException('The editor task was superseded.', 'AbortError');
+		const fence = runtime.scapeInspectionQuiescence.beginFence(reason);
+		runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK, reason);
+		runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK, reason);
+		return fence;
 	}
 
 	function switchProject(
@@ -209,11 +217,13 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
-		cancelScapeProjectFileTasks();
+		const fence = beginScapeInspectionFence();
 		const operation = runtime.state.projectQueue.then(async () => {
 			runtime.lifetime.assertActive(token);
-			await performProjectSwitch(nextProject, options, token);
-		});
+			await fence.wait();
+			runtime.lifetime.assertActive(token);
+			await performProjectSwitchUnderFence(nextProject, options, token);
+		}).finally(() => { fence.release(); });
 		runtime.state.projectQueue = operation.catch(() => undefined);
 		return operation;
 	}
@@ -223,10 +233,25 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 		token: EditorLifetimeToken = runtime.lifetime.capture(),
 	): Promise<void> {
+		runtime.lifetime.assertActive(token);
+		const fence = beginScapeInspectionFence();
+		try {
+			await fence.wait();
+			runtime.lifetime.assertActive(token);
+			await performProjectSwitchUnderFence(nextProject, options, token);
+		} finally {
+			fence.release();
+		}
+	}
+
+	async function performProjectSwitchUnderFence(
+		nextProject: Project,
+		options: ProjectSwitchOptions<History>,
+		token: EditorLifetimeToken,
+	): Promise<void> {
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		try {
 			runtime.projectGeneration.invalidate();
-			cancelScapeProjectFileTasks();
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();
 			runtime.state.videoEffectGestures.clear();

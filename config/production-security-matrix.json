@@ -884,6 +884,23 @@
 					]
 				},
 				{
+					"id": "fenced-scape-inspection-quiescence",
+					"summary": "Every public .scape inspection registers before its first await with a controller-level coordinator that retains current and superseded generations through archive-reader cleanup. Project-switch admission synchronously installs a reference-counted temporary fence, cancels captured Scape tasks with one shared legacy supersession AbortError per admission, rejects later inspection admission, and drains every captured generation before project work; overlapping queued switches keep admission fenced until the last switch settles. Controller disposal installs a permanent fence with the exact lifetime reason and drains retained generations before engine and storage teardown. Only rejection with the exact registration abort reason is benign; cleanup failures reject the barrier after all captured generations settle, while disposal continues remaining teardown before rejecting.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/scape-inspection-quiescence.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/scape-inspection-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/scape-project-file-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/app.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-quiescence.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-controller.test.ts" }
+					]
+				},
+				{
 					"id": "owned-scape-collision-continuation",
 					"summary": "Public .scape file opens start one replaceable request task before inspection and carry its signal through collision choice. The UI owns one opaque prompt and settles its exact identity only once. Replacement, project switching, and terminal disposal synchronously clear and reject pending prompts with exact cancellation reasons, while explicit user cancel resolves normally. Request ownership finishes before native open starts; expected lifecycle unwind is suppressed from generic errors, and the shared dialog shell provides safe initial focus, focus containment, Escape dismissal, and focus restoration.",
 					"evidence": [
@@ -997,7 +1014,7 @@
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The default inspection collision lookup accepts the owned signal, promptly races stalled database admission, and aborts and drains its read-only IndexedDB transaction; the defensive Scape boundary also rejects signal-ignoring injected lookups promptly and closes the archive reader. Project switching and controller disposal still do not join inspection cleanup, and a signal-ignoring injected lookup can continue after rejection; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
+					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The default inspection collision lookup accepts the owned signal, promptly races stalled database admission, and aborts and drains its read-only IndexedDB transaction; the defensive Scape boundary also rejects signal-ignoring injected lookups promptly and closes the archive reader. Project switching and controller disposal now join coordinator-owned inspection cleanup, but a signal-ignoring injected lookup can continue after that boundary rejects; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]

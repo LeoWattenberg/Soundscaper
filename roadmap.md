@@ -365,10 +365,22 @@ models or native implementations.
   reported even if the task is cancelled immediately afterward. Public
   inspection now routes through a strict-TS
   [lifecycle service](src/common/editor/controller/scape-inspection-service.ts)
-  that starts a distinct named task before archive work, snapshots options,
-  composes caller cancellation with controller ownership, rejects late results
-  after replacement, project switching, or disposal, and releases completed
-  tasks in `finally`. Public file opens add a higher-level
+  that registers every generation before task creation or archive work, starts
+  a distinct named task, snapshots options, composes caller cancellation with
+  controller ownership, rejects late results after replacement, project
+  switching, or disposal, and releases completed tasks in `finally`. A focused
+  [quiescence coordinator](src/common/editor/controller/scape-inspection-quiescence.ts)
+  retains current and superseded generations through archive-reader cleanup.
+  Project-switch admission installs a reference-counted temporary fence,
+  cancels captured work with one shared legacy supersession `AbortError` per
+  admission, rejects new inspection admission, and drains every captured
+  generation before project work; overlapping queued switches keep that fence
+  until the last switch settles. Controller disposal installs a permanent
+  fence with the exact lifetime reason and drains before engine or storage
+  teardown. Only rejection
+  with the exact registration abort reason is benign; reader-cleanup failures
+  reject the switch or disposal after every captured generation settles. Public
+  file opens add a higher-level
   [request service](src/common/editor/controller/scape-open-request-service.ts)
   whose replaceable task spans inspection through the collision choice, is
   cancelled synchronously before awaited project-switch work, and releases its
@@ -382,6 +394,7 @@ models or native implementations.
   UI. Focused [inspection](tests/audio-editor-scape-inspection-service.test.ts),
   [request](tests/audio-editor-scape-open-request-service.test.ts),
   [continuation](tests/audio-editor-scape-collision-continuation.test.ts),
+  [quiescence](tests/audio-editor-scape-inspection-quiescence.test.ts),
   [public-controller](tests/audio-editor-scape-inspection-controller.test.ts),
   project-switch, and browser coverage preserve exact abort reasons, ignore
   stale or double choices, pin cancellation before awaited switch work, and
@@ -395,9 +408,10 @@ models or native implementations.
   [store-forwarding](tests/audio-editor-storage-repositories.test.ts), and
   [inspection-storage](tests/audio-editor-scape-inspection-storage-cancellation.test.ts)
   regressions preserve the exact cancellation reason across those boundaries.
-  This is still an abort and stale-result contract, not an inspection-wide
-  drain: a signal-ignoring injected lookup can continue after rejection, and
-  controller switching/disposal does not await inspection cleanup. The
+  Switching and disposal now join coordinator-owned inspection cleanup, but a
+  signal-ignoring injected lookup can still continue after the defensive read
+  boundary rejects and the archive reader closes; that provider continuation
+  remains outside the coordinator's ownership. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused
