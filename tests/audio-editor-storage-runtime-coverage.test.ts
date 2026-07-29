@@ -65,10 +65,39 @@ test('IndexedDB promise adapters reject every asynchronous error callback', asyn
 
 	const deleteCursor = requestHarness<IDBCursor | null>(null, null);
 	const deletePromise = deleteByIndex({
-		openKeyCursor: () => deleteCursor,
+		openCursor: () => deleteCursor,
 	} as unknown as IDBIndex, 'source');
 	deleteCursor.onerror?.();
 	await assert.rejects(deletePromise, /enumerate IndexedDB records/u);
+});
+
+test('deleteByIndex deletes and advances every matching value cursor', async () => {
+	const cursorRequest = requestHarness<IDBCursorWithValue | null>(null, null);
+	const deleted: IDBValidKey[] = [];
+	const advanced: IDBValidKey[] = [];
+	const cursors = ['first', 'second'].map((primaryKey) => ({
+		primaryKey,
+		value: { primaryKey },
+		delete() { deleted.push(primaryKey); },
+		continue() { advanced.push(primaryKey); },
+	})) as unknown as IDBCursorWithValue[];
+	const deletion = deleteByIndex({
+		openCursor(key: IDBValidKey) {
+			assert.equal(key, 'source');
+			return cursorRequest;
+		},
+	} as unknown as IDBIndex, 'source');
+
+	for (const cursor of cursors) {
+		cursorRequest.result = cursor;
+		cursorRequest.onsuccess?.();
+	}
+	cursorRequest.result = null;
+	cursorRequest.onsuccess?.();
+
+	await deletion;
+	assert.deepEqual(deleted, ['first', 'second']);
+	assert.deepEqual(advanced, ['first', 'second']);
 });
 
 test('database opening reports request failures and invokes its default version-change closer', async () => {

@@ -447,8 +447,7 @@ export function transactionCompletion(transaction: IDBTransaction): Promise<void
 
 export function deleteByIndex(index: IDBIndex, key: IDBValidKey): Promise<void> {
 	return new Promise((resolve, reject) => {
-		// A key cursor can delete without materializing each record value.
-		const cursorRequest = index.openKeyCursor(key);
+		const cursorRequest = index.openCursor(key);
 		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate IndexedDB records.'));
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;
