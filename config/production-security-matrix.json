@@ -878,6 +878,20 @@
 					]
 				},
 				{
+					"id": "lazy-legacy-media-digest-backfill",
+					"summary": "IndexedDB schema v6 atomically removes spoofable provenance fields from pre-cutover media rows; markerless rows expose no inherited hash, acquire one retryable version-zero Web-Crypto content claim, hash stored bytes in bounded four-MiB reads, and publish version-one SHA-256 only through a token-checked compare-and-set that rejects stale delete or replacement races.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage/indexeddb-backend.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-content-provenance.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-digest-backfill.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-content-digest.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-records.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-digest-backfill.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-schema.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" }
+					]
+				},
+				{
 					"id": "direct-scape-save-rollback",
 					"summary": "Project saves choose one target before asynchronous flush, stream through a plan-aware bounded destination, abort staging on project switch or failure, compare independent exact byte counts, and perform one explicit non-cancellable publication commit. Cancellation after a successful commit is reported as committed without stale success UI.",
 					"evidence": [
@@ -893,6 +907,13 @@
 				}
 			],
 			"residualRisks": [
+				{
+					"id": "legacy-media-digest-lifecycle-quiescence",
+					"exposure": "A retained-media digest backfill that already captured its Blob is cancellation-aware and replacement-fenced, but store clear or close does not yet own and await that read. Clear/delete and closed IndexedDB prevent late publication; degraded memory-mode close leaves its private map live, so bounded hashing can continue and publish version-one metadata after close.",
+					"requiredControl": "Register digest backfills with the store lifecycle coordinator, abort them during clear and close, and await their terminal settlement before maintenance returns.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": ["Clear and close during a multi-chunk legacy digest abort the read, await settlement, and leave no provenance or retained payload publication."]
+				},
 				{
 					"id": "project-io-signal-propagation",
 					"exposure": "The tested native .scape open/save and direct-save publication paths now propagate and roll back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",

@@ -214,7 +214,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
-				const blob = await store.loadMediaAsset(input.storageKey || input.sourceId);
+				const blob = await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
 				if (!blob) throw new Error(copy.localSourcesMissing);
 				videoBlobs.set(input.sourceId, blob);
 			}

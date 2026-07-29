@@ -501,10 +501,25 @@ models or native implementations.
   [storage](tests/audio-editor-video-storage.test.js), and
   [archive](tests/audio-editor-scape-project.test.js) regressions cover bounded
   reads, all three storage backends, spoof resistance, cancellation boundaries,
-  and mismatch rollback. Original/proxy relationships, legacy-record digest
-  backfill, relink state, bounded reproducible derivative descriptions, and
-  total record-overhead accounting remain open without placing disposable
-  previews in project history.
+  and mismatch rollback. IndexedDB schema v6 first sanitizes the two reserved
+  provenance fields from every pre-cutover media row through an atomic
+  one-record-at-a-time cursor, so legacy caller metadata cannot impersonate a
+  verified record. Markerless retained-media rows then acquire an internal
+  version-zero claim and Web-Crypto content token only when first loaded, hash
+  the stored Blob through the same non-raiseable 4 MiB digest window, and
+  publish the resulting lowercase SHA-256 with version-one provenance through
+  a compare-and-set that cannot overwrite a deleted or replaced asset. Public
+  metadata withholds inherited hashes until that publication commits;
+  cancellation, malformed chunk geometry, size drift, or a failed metadata put
+  leaves a retryable unverified claim. The focused
+  [backfill regression](tests/audio-editor-media-digest-backfill.test.ts) covers
+  memory, IndexedDB Blob, OPFS, and chunked records, concurrent migration,
+  exact cancellation, and same-shaped stale-load replacement races; the
+  [schema regression](tests/audio-editor-derivative-cache-schema.test.ts) covers
+  cutover and rollback. Original/proxy relationships, relink state, bounded
+  reproducible derivative descriptions, total record-overhead accounting, and
+  clear/close quiescence for an already admitted legacy hash remain open without
+  placing disposable previews in project history.
 - **Electron Enhanced — In progress:** the product-neutral strict-TS
   [desktop library foundation](desktop/project-library.ts) uses a fixed
   application-data scope rather than either Chromium profile, size-bounded and

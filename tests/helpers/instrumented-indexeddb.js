@@ -3,6 +3,7 @@
 export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true } = {}) {
 	const databases = new Map();
 	const pendingPutFailures = new Map();
+	const pendingGetObservers = new Map();
 	const stats = {
 		activeTransactions: 0,
 		maximumActiveTransactions: 0,
@@ -10,6 +11,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 		keyCursorRequests: [],
 		getAllRequests: [],
 		getRequests: [],
+		takeGetObserver: (storeName) => pendingGetObservers.get(storeName),
 		sourceChunkGetAllCalls: 0,
 		supportsContinuePrimaryKey,
 	};
@@ -85,6 +87,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 		failNextPutForStore(storeName, error = new Error(`Planned put failure for ${storeName}.`)) {
 			pendingPutFailures.set(storeName, error);
 		},
+		onNextGetForStore(storeName, observer) { pendingGetObservers.set(storeName, () => { pendingGetObservers.delete(storeName); observer(); }); },
 		recordCount(databaseName, storeName) {
 			return databases.get(databaseName)?.stores.get(storeName)?.records.size || 0;
 		},
@@ -112,7 +115,6 @@ class FakeDatabase {
 		this.upgradeTransaction = null;
 		this.objectStoreNames = { contains: (name) => this.stores.has(name) };
 	}
-
 	createObjectStore(name, { keyPath }) {
 		if (!this.upgradeTransaction || this.upgradeTransaction.finished) {
 			throw new DOMException('Object stores can only be created during a version upgrade.', 'InvalidStateError');
@@ -123,11 +125,9 @@ class FakeDatabase {
 		this.upgradeTransaction.addObjectStore(name);
 		return new FakeObjectStore(this.upgradeTransaction, data);
 	}
-
 	transaction(storeNames, mode = 'readonly') {
 		return new FakeTransaction(this, Array.isArray(storeNames) ? storeNames : [storeNames], mode);
 	}
-
 	close() {}
 }
 
@@ -242,6 +242,7 @@ class FakeObjectStore {
 
 	get(key) {
 		return fakeRequest(this.transaction, () => {
+			this.transaction.database.stats.takeGetObserver(this.data.name)?.();
 			const value = this.data.records.get(key);
 			this.transaction.database.stats.getRequests.push({
 				store: this.data.name,

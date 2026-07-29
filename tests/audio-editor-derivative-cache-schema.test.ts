@@ -20,11 +20,11 @@ import {
 	MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME,
 	MEDIA_ASSET_STAGING_KIND_INDEX_NAME,
 	MEDIA_ASSET_STAGING_PATH_INDEX_NAME,
-	MEDIA_ASSET_STAGING_SCHEMA_VERSION,
 	MEDIA_ASSET_STAGING_STATE_KEY,
 	MEDIA_ASSET_STAGING_STORE_NAME,
 	MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME,
 } from '../src/common/editor/storage/media-asset-staging-schema.ts';
+import { MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION } from '../src/common/editor/storage/media-content-provenance.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 interface CursorStats {
@@ -46,7 +46,7 @@ interface InstrumentedIndexedDB {
 	seedRecord(databaseName: string, storeName: string, value: unknown, primaryKey?: IDBValidKey): void;
 }
 
-test('v2 derivative payloads backfill atomically into exact Blob-free cache entries during v5 upgrade', async () => {
+test('v2 derivative payloads backfill atomically into exact Blob-free entries during the current upgrade', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-cache-v3-backfill');
 	const legacy = await openLegacyV2Database(indexedDB, databaseName);
@@ -57,7 +57,7 @@ test('v2 derivative payloads backfill atomically into exact Blob-free cache entr
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 	const cacheEntryStore = database.transaction(DERIVATIVE_CACHE_ENTRY_STORE_NAME, 'readonly')
 		.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
-	assert.equal(database.version, MEDIA_ASSET_STAGING_SCHEMA_VERSION);
+	assert.equal(database.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
 	assert.equal(database.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME), true);
 	assert.equal(database.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), true);
 	assert.equal(cacheEntryStore.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), true);
@@ -88,7 +88,7 @@ test('v2 derivative payloads backfill atomically into exact Blob-free cache entr
 	database.close();
 });
 
-test('a failed cache-entry backfill rolls back the v3 through v5 stores before retry', async () => {
+test('a failed cache-entry backfill rolls back the v3 through v6 stores before retry', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-cache-v3-rollback');
 	const legacy = await openLegacyV2Database(indexedDB, databaseName);
@@ -111,7 +111,7 @@ test('a failed cache-entry backfill rolls back the v3 through v5 stores before r
 	restored.close();
 
 	const retried = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
-	assert.equal(retried.version, MEDIA_ASSET_STAGING_SCHEMA_VERSION);
+	assert.equal(retried.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
 	assert.equal(retried.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), true);
 	assertMediaAssetStagingSchema(retried, indexedDB, databaseName);
 	assert.deepEqual(indexedDB.records(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), [cacheEntry('cache-a')]);
@@ -159,7 +159,7 @@ test('v3 media records survive v4 chunk and v5 staging store creation', async ()
 	legacy.close();
 
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
-	assert.equal(database.version, MEDIA_ASSET_STAGING_SCHEMA_VERSION);
+	assert.equal(database.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
 	const chunks = database.transaction(MEDIA_ASSET_CHUNK_STORE_NAME, 'readonly')
 		.objectStore(MEDIA_ASSET_CHUNK_STORE_NAME);
 	const mediaAssets = database.transaction('mediaAssets', 'readonly').objectStore('mediaAssets');
@@ -178,6 +178,76 @@ test('v3 media records survive v4 chunk and v5 staging store creation', async ()
 	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [legacyMedia]);
 	assert.equal(indexedDB.recordCount(databaseName, MEDIA_ASSET_CHUNK_STORE_NAME), 0);
 	database.close();
+});
+
+test('v5 media records discard spoofable digest provenance during the v6 cutover', async () => {
+	const indexedDB = instrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('media-content-provenance-v6');
+	const legacy = await openRawDatabase(indexedDB, databaseName, 5, (database) => {
+		database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+	});
+	const legacyMedia = {
+		sourceId: 'legacy-spoofed-media',
+		storage: 'indexeddb-blob',
+		blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
+		size: 16,
+		sha256: '0'.repeat(64),
+		mediaContentDigestVersion: 1,
+		mediaContentToken: 'media-content-caller-controlled-token-0001',
+	};
+	indexedDB.seedRecord(databaseName, 'mediaAssets', legacyMedia);
+	legacy.close();
+
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	assert.equal(database.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
+	const sanitized = { ...legacyMedia };
+	delete (sanitized as Partial<typeof legacyMedia>).mediaContentDigestVersion;
+	delete (sanitized as Partial<typeof legacyMedia>).mediaContentToken;
+	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [sanitized]);
+	const cursor = indexedDB.stats.cursorRequests.find(({ store }) => store === 'mediaAssets');
+	assert.deepEqual({ delivered: cursor?.delivered, blobValuesDelivered: cursor?.blobValuesDelivered }, {
+		delivered: 1,
+		blobValuesDelivered: 1,
+	});
+	database.close();
+});
+
+test('failed v6 provenance sanitization restores the v5 row before a clean retry', async () => {
+	const indexedDB = instrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('media-content-provenance-v6-rollback');
+	const legacy = await openRawDatabase(indexedDB, databaseName, 5, (database) => {
+		database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+	});
+	const legacyMedia = {
+		sourceId: 'legacy-rollback-media',
+		storage: 'indexeddb-blob',
+		blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
+		size: 16,
+		sha256: '0'.repeat(64),
+		mediaContentDigestVersion: 0,
+		mediaContentToken: 'media-content-caller-controlled-token-0002',
+	};
+	indexedDB.seedRecord(databaseName, 'mediaAssets', legacyMedia);
+	legacy.close();
+	const plannedFailure = new Error('planned media provenance sanitization failure');
+	indexedDB.failNextPutForStore('mediaAssets', plannedFailure);
+
+	await assert.rejects(
+		openDatabase(indexedDB as unknown as IDBFactory, databaseName),
+		(error: unknown) => error === plannedFailure,
+	);
+	const restored = await openRawDatabase(indexedDB, databaseName, 5);
+	assert.equal(restored.version, 5);
+	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [legacyMedia]);
+	restored.close();
+
+	const retried = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	assert.equal(retried.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
+	const sanitized = { ...legacyMedia };
+	delete (sanitized as Partial<typeof legacyMedia>).mediaContentDigestVersion;
+	delete (sanitized as Partial<typeof legacyMedia>).mediaContentToken;
+	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [sanitized]);
+	retried.close();
 });
 
 test('a failed v5 staging-state initialization restores the complete v4 database before retry', async () => {
@@ -225,7 +295,7 @@ test('a failed v5 staging-state initialization restores the complete v4 database
 	restored.close();
 
 	const retried = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
-	assert.equal(retried.version, MEDIA_ASSET_STAGING_SCHEMA_VERSION);
+	assert.equal(retried.version, MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION);
 	assertMediaAssetStagingSchema(retried, indexedDB, databaseName);
 	assert.deepEqual(indexedDB.records(databaseName, 'mediaAssets'), [legacyMedia]);
 	assert.deepEqual(indexedDB.records(databaseName, MEDIA_ASSET_CHUNK_STORE_NAME), [legacyChunk]);

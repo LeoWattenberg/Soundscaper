@@ -16,15 +16,15 @@ import {
 	MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME,
 	MEDIA_ASSET_STAGING_KIND_INDEX_NAME,
 	MEDIA_ASSET_STAGING_PATH_INDEX_NAME,
-	MEDIA_ASSET_STAGING_SCHEMA_VERSION,
 	MEDIA_ASSET_STAGING_STATE_KEY,
 	MEDIA_ASSET_STAGING_STORE_NAME,
 	MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME,
 } from './media-asset-staging-schema.ts';
+import { MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION } from './media-content-provenance.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
 const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
-const DATABASE_VERSION = MEDIA_ASSET_STAGING_SCHEMA_VERSION;
+const DATABASE_VERSION = MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -191,6 +191,9 @@ export function openDatabase(
 						abortUpgrade,
 					);
 				}
+				if (oldVersion > 0 && oldVersion < MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION) {
+					sanitizeLegacyMediaContentProvenance(mediaAssets, abortUpgrade);
+				}
 			} catch (error) {
 				abortUpgrade(error);
 			}
@@ -223,6 +226,63 @@ export function openDatabase(
 			reject(new EditorStoreBlockedError());
 		};
 	});
+}
+
+function sanitizeLegacyMediaContentProvenance(
+	mediaAssets: IDBObjectStore,
+	onError: (error: unknown) => void,
+): void {
+	let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
+	try {
+		cursorRequest = mediaAssets.openCursor();
+	} catch (error) {
+		onError(error);
+		return;
+	}
+	cursorRequest.onerror = () => {
+		onError(cursorRequest.error || new Error('Could not enumerate legacy retained-media records.'));
+	};
+	cursorRequest.onsuccess = () => {
+		const cursor = cursorRequest.result;
+		if (!cursor) return;
+		const record = cursor.value;
+		if (!record
+			|| typeof record !== 'object'
+			|| typeof record.sourceId !== 'string'
+			|| record.sourceId !== cursor.primaryKey) {
+			onError(new Error('A legacy retained-media record does not match its authoritative key.'));
+			return;
+		}
+		if (!Object.hasOwn(record, 'mediaContentDigestVersion')
+			&& !Object.hasOwn(record, 'mediaContentToken')) {
+			try {
+				cursor.continue();
+			} catch (error) {
+				onError(error);
+			}
+			return;
+		}
+		const sanitized = { ...record };
+		delete sanitized.mediaContentDigestVersion;
+		delete sanitized.mediaContentToken;
+		let putRequest: IDBRequest<IDBValidKey>;
+		try {
+			putRequest = mediaAssets.put(sanitized);
+		} catch (error) {
+			onError(error);
+			return;
+		}
+		putRequest.onerror = () => {
+			onError(putRequest.error || new Error('Could not sanitize legacy retained-media provenance.'));
+		};
+		putRequest.onsuccess = () => {
+			try {
+				cursor.continue();
+			} catch (error) {
+				onError(error);
+			}
+		};
+	};
 }
 
 function backfillDerivativeCacheEntries(

@@ -182,8 +182,8 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.beginAssetWrite(sourceId, metadata, options);
 	}
 
-	async loadMediaAsset(sourceId) {
-		return this.mediaRepository.loadAsset(sourceId);
+	async loadMediaAsset(sourceId, { signal } = {}) {
+		return this.mediaRepository.loadAsset(sourceId, { signal });
 	}
 
 	async getMediaAssetMetadata(sourceId) {

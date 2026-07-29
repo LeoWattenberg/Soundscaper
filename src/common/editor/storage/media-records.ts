@@ -6,6 +6,7 @@ import {
 	exactArrayBuffer,
 	pcmRawByteLength,
 } from '../wavpack/index.js';
+import { trustedMediaContentSha256 } from './media-content-provenance.ts';
 
 export interface StorageRecord {
 	readonly id?: string;
@@ -13,6 +14,8 @@ export interface StorageRecord {
 	readonly baseSourceId?: string | null;
 	readonly sourceToken?: string | null;
 	readonly mediaChunkToken?: string | null;
+	readonly mediaContentDigestVersion?: number | null;
+	readonly mediaContentToken?: string | null;
 	readonly path?: string | null;
 	readonly storage?: string;
 	readonly pcmEncodingVersion?: number | null;
@@ -79,11 +82,14 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 		'mediaChunkToken',
 		'mediaChunkBytes',
 		'mediaChunkCount',
+		'mediaContentDigestVersion',
+		'mediaContentToken',
 	]) delete value[key];
 	return value;
 }
 
 export function mediaAssetMetadata(record: StorageRecord): Record<string, unknown> {
+	const trustedSha256 = trustedMediaContentSha256(record);
 	const value = cloneValue(record) as Record<string, unknown>;
 	delete value.blob;
 	delete value.cacheToken;
@@ -91,6 +97,9 @@ export function mediaAssetMetadata(record: StorageRecord): Record<string, unknow
 	delete value.mediaChunkToken;
 	delete value.mediaChunkBytes;
 	delete value.mediaChunkCount;
+	delete value.mediaContentDigestVersion;
+	delete value.mediaContentToken;
+	if (!trustedSha256) delete value.sha256;
 	return value;
 }
 

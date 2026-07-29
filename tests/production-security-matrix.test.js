@@ -275,6 +275,27 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'tests/audio-editor-media-asset-disposal.test.ts',
 		'tests/browser/audio-editor-storage-migration.spec.js',
 	]) assert.ok(stagingLeases.evidence.some((item) => item.path === path));
+	const digestBackfill = cancellation.currentControls.find(
+		({ id }) => id === 'lazy-legacy-media-digest-backfill',
+	);
+	assert.ok(digestBackfill);
+	for (const path of [
+		'src/common/editor/storage/indexeddb-backend.ts',
+		'src/common/editor/storage/media-content-provenance.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-content-digest.ts',
+		'src/common/editor/storage/media-records.ts',
+		'tests/audio-editor-media-digest-backfill.test.ts',
+		'tests/audio-editor-derivative-cache-schema.test.ts',
+		'tests/browser/audio-editor-storage-migration.spec.js',
+	]) assert.ok(digestBackfill.evidence.some((item) => item.path === path));
+	assert.match(
+		digestBackfill.summary,
+		/schema v6.*spoofable provenance.*no inherited hash.*version-zero Web-Crypto content claim.*bounded four-MiB reads.*token-checked compare-and-set.*stale delete or replacement/iu,
+	);
+	assert.ok(cancellation.residualRisks.some(
+		({ id }) => id === 'legacy-media-digest-lifecycle-quiescence',
+	));
 	assert.equal(
 		cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'),
 		false,

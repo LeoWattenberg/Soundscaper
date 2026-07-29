@@ -93,7 +93,7 @@ export async function exportScapeProject(project, store, options = {}) {
 	try {
 		for (const asset of plan.assets) {
 			if (asset.kind !== 'video') continue;
-			const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey), signal);
+			const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey, { signal }), signal);
 			if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
 			const mediaBlob = canonicalMediaContentBlob(loaded);
 			if (mediaBlob.size !== asset.size) {

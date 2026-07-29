@@ -25,6 +25,11 @@ import {
 } from './media-asset-staging-repository.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import {
+	freshVerifiedMediaContentDigest,
+	isMediaContentSha256,
+	trustedMediaContentSha256,
+} from './media-content-provenance.ts';
+import {
 	binaryMetadata,
 	mediaAssetMetadata,
 	type BlobLike,
@@ -39,7 +44,6 @@ export const MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES = 64 * 1024 * 1024;
 export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 
 export interface MediaAssetWriteOptions {
 	readonly expectedBytes: number;
@@ -94,7 +98,7 @@ export class MediaAssetWriteRepository {
 			'A streamed media asset requires an expected byte length.',
 		);
 		const expectedSha256 = String(options?.expectedSha256 || '').toLowerCase();
-		if (!SHA256_PATTERN.test(expectedSha256)) {
+		if (!isMediaContentSha256(expectedSha256)) {
 			throw new TypeError('A streamed media asset requires an expected SHA-256 digest.');
 		}
 		throwIfAborted(options.signal);
@@ -154,22 +158,27 @@ export class MediaAssetWriteRepository {
 		return this.#staging.invalidateStore(store);
 	}
 
-	async load(record: StorageRecord, missingMessage: string): Promise<BlobLike> {
+	async load(
+		record: StorageRecord,
+		missingMessage: string,
+		{ signal }: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<BlobLike> {
+		throwIfAborted(signal);
 		if (record.storage !== MEDIA_ASSET_CHUNK_STORAGE_TYPE) {
-			return this.#opfs.loadBinaryRecord(record, missingMessage);
+			const loaded = await this.#opfs.loadBinaryRecord(record, missingMessage);
+			throwIfAborted(signal);
+			return loaded;
 		}
 		const sourceId = record.sourceId;
 		const token = typeof record.mediaChunkToken === 'string' ? record.mediaChunkToken : '';
 		const expectedBytes = record.size;
-		const expectedSha256 = record.sha256;
+		const expectedSha256 = trustedMediaContentSha256(record);
 		if (typeof sourceId !== 'string'
 			|| sourceId.length < 1
 			|| !token
 			|| typeof expectedBytes !== 'number'
 			|| !Number.isSafeInteger(expectedBytes)
-			|| expectedBytes < 0
-			|| typeof expectedSha256 !== 'string'
-			|| !SHA256_PATTERN.test(expectedSha256)) throw new Error(missingMessage);
+			|| expectedBytes < 0) throw new Error(missingMessage);
 		const expectedChunks = expectedBytes === 0
 			? 0
 			: Math.ceil(expectedBytes / MEDIA_ASSET_STREAM_CHUNK_BYTES);
@@ -179,10 +188,11 @@ export class MediaAssetWriteRepository {
 			|| record.mediaChunkCount < 0
 			|| record.mediaChunkCount !== expectedChunks) throw new Error(missingMessage);
 		const parts: Blob[] = [];
-		const digest = sha256.create();
+		const digest = expectedSha256 ? sha256.create() : null;
 		let index = 0;
 		let size = 0;
 		for await (const { primaryKey, value } of this.#chunks.chunks(token)) {
+			throwIfAborted(signal);
 			const chunk = mediaAssetChunkRecord(value);
 			if (!chunk) throw new Error(missingMessage);
 			const expectedChunkBytes = Math.min(MEDIA_ASSET_STREAM_CHUNK_BYTES, expectedBytes - size);
@@ -194,16 +204,20 @@ export class MediaAssetWriteRepository {
 				|| expectedChunkBytes < 1
 				|| chunk.byteLength !== chunk.payload.size
 				|| chunk.payload.size !== expectedChunkBytes) throw new Error(missingMessage);
-			const buffer = await chunk.payload.arrayBuffer();
-			if (buffer.byteLength !== expectedChunkBytes) throw new Error(missingMessage);
-			digest.update(new Uint8Array(buffer));
+			if (digest) {
+				const buffer = await chunk.payload.arrayBuffer();
+				throwIfAborted(signal);
+				if (buffer.byteLength !== expectedChunkBytes) throw new Error(missingMessage);
+				digest.update(new Uint8Array(buffer));
+			}
 			parts.push(chunk.payload);
 			size += chunk.payload.size;
 			index += 1;
 		}
+		throwIfAborted(signal);
 		if (size !== expectedBytes
 			|| index !== expectedChunks
-			|| hex(digest.digest()) !== expectedSha256) throw new Error(missingMessage);
+			|| (digest && hex(digest.digest()) !== expectedSha256)) throw new Error(missingMessage);
 		return new Blob(parts, { type: String(record.mimeType || '') });
 	}
 
@@ -298,7 +312,7 @@ export class MediaAssetWriteRepository {
 				const record: StorageRecord = {
 					...binaryMetadata(metadata),
 					sourceId,
-					sha256: actualSha256,
+					...freshVerifiedMediaContentDigest(actualSha256),
 					storage: sink.storage,
 					path: sink.path,
 					mediaChunkToken: sink.mediaChunkToken,

@@ -18,10 +18,9 @@ import {
 	type NormalizedDerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
 import { readDerivativeCacheInventory } from './derivative-cache-inventory.ts';
-import {
-	canonicalMediaContentBlob,
-	digestMediaContent,
-} from './media-content-digest.ts';
+import { MediaAssetDigestBackfill } from './media-asset-digest-backfill.ts';
+import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
+import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
 import {
 	MediaAssetWriteRepository,
 	type MediaAssetWriteOptions,
@@ -73,6 +72,7 @@ export class MediaRepository {
 	readonly #cacheLimits: NormalizedDerivativeCacheLimits;
 	readonly #now: () => number;
 	readonly #assetWrites: MediaAssetWriteRepository;
+	readonly #assetDigests: MediaAssetDigestBackfill;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
 		this.#port = port;
@@ -82,6 +82,7 @@ export class MediaRepository {
 		);
 		this.#now = options.now ?? Date.now;
 		this.#assetWrites = new MediaAssetWriteRepository(port, opfs);
+		this.#assetDigests = new MediaAssetDigestBackfill(port, this.#assetWrites);
 	}
 
 	beginAssetWrite(
@@ -109,11 +110,12 @@ export class MediaRepository {
 		if (previous) throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
 		const sha256 = (await digestMediaContent(blob, { signal })).toLowerCase();
 		throwIfAborted(signal);
+		const provenance = freshVerifiedMediaContentDigest(sha256);
 		const storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal });
 		const record: StorageRecord = {
 			...binaryMetadata(metadata),
 			sourceId: id,
-			sha256,
+			...provenance,
 			storage: storedFile ? 'opfs' : 'indexeddb-blob',
 			path: storedFile?.path,
 			blob: storedFile ? undefined : blob,
@@ -136,10 +138,8 @@ export class MediaRepository {
 		return mediaAssetMetadata(record);
 	}
 
-	async loadAsset(sourceId: string): Promise<BlobLike | null> {
-		const record = await this.assetRecord(sourceId);
-		if (!record) return null;
-		return this.#assetWrites.load(record, 'The requested local media asset is missing.');
+	loadAsset(sourceId: string, options: MediaWriteOptions = {}): Promise<BlobLike | null> {
+		return this.#assetDigests.load(sourceId, options);
 	}
 
 	async getAssetMetadata(sourceId: string): Promise<Record<string, unknown> | null> {

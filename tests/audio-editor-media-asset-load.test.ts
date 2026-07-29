@@ -204,6 +204,8 @@ function chunkedMediaRecord(
 	return Object.freeze({
 		sourceId,
 		storage: MEDIA_ASSET_CHUNK_STORAGE_TYPE,
+		mediaContentDigestVersion: 1,
+		mediaContentToken: 'media-content-trusted-chunk-fixture-0001',
 		mediaChunkToken: tokenFor(sourceId),
 		mediaChunkBytes: MEDIA_ASSET_STREAM_CHUNK_BYTES,
 		mediaChunkCount: bytes.byteLength === 0
