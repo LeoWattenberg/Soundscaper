@@ -9,13 +9,14 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { expect, test } from './audio-editor-test-fixtures.js';
+import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseFileAction,
 	collectClientErrors,
+	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -26,6 +27,8 @@ test.describe('Scape open feature decisions', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
+		await expect(editor.locator('[data-project-feature-compatibility]')).toHaveCount(0);
+		await importFiles(editor, [toneA]);
 		const exported = await captureScapeArchive(page, editor);
 		const incomingId = `${originalId}-incompatible`;
 		const archive = await incompatibleArchive(exported, {
@@ -44,6 +47,9 @@ test.describe('Scape open feature decisions', () => {
 		await expect(dialog.getByText('Video effects', { exact: true })).toBeVisible();
 		await expect(dialog.getByText('org.soundscaper.capability.video-effects', { exact: true })).toBeVisible();
 		await expect(dialog.getByText(/Unavailable.*Bypass declared/iu)).toBeVisible();
+		await expect(dialog.getByText('Future mixer', { exact: true })).toBeVisible();
+		await expect(dialog.getByText('org.example.future-mixer', { exact: true })).toBeVisible();
+		await expect(dialog.getByText(/Unknown.*Rendered fallback declared/iu)).toBeVisible();
 		const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
 		await expect(cancel).toBeFocused();
 		await assertAccessibleBasics(dialog);
@@ -58,6 +64,38 @@ test.describe('Scape open feature decisions', () => {
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
+
+		const notice = editor.locator('[data-project-feature-compatibility]');
+		await expect(notice).toBeVisible();
+		await expect(notice).toHaveAccessibleName('Project features unavailable');
+		await expect(notice.locator('[data-project-feature-unavailable-count]')).toHaveText('1');
+		await expect(notice.locator('[data-project-feature-unknown-count]')).toHaveText('1');
+		const bypassed = notice.locator('[data-project-feature-requirement="org.soundscaper.capability.video-effects"]');
+		await expect(bypassed).toContainText('Video effects');
+		await expect(bypassed).toContainText('Unavailable · Bypass declared');
+		await expect(bypassed).toHaveAttribute('data-declared-disposition', 'bypass');
+		await expect(bypassed).toHaveAttribute('data-effective-disposition', 'bypassed');
+		const rendered = notice.locator('[data-project-feature-requirement="org.example.future-mixer"]');
+		await expect(rendered).toContainText('Future mixer');
+		await expect(rendered).toContainText('Unknown · Rendered fallback declared');
+		await expect(rendered).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
+		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
+		await expect(notice.getByRole('button')).toHaveCount(0);
+		await expect(notice).not.toContainText(/verified|active at runtime|plug-?in|third-party/iu);
+		await assertAccessibleBasics(notice);
+		await assertNoSeriousAxeViolations(page, '[data-project-feature-compatibility]');
+
+		const originalTab = editor.getByRole('tab', { name: 'Untitled project', exact: true });
+		await originalTab.focus();
+		await page.keyboard.press('Enter');
+		await expect(editor).toHaveAttribute('data-project-id', originalId);
+		await expect(notice).toHaveCount(0);
+		const incomingTab = editor.getByRole('tab', { name: 'Feature decision project', exact: true });
+		await incomingTab.focus();
+		await page.keyboard.press('Enter');
+		await expect(editor).toHaveAttribute('data-project-id', incomingId);
+		await expect(notice).toBeVisible();
+		await expect(rendered).toContainText('Future mixer');
 		expect(errors).toEqual([]);
 	});
 
@@ -65,6 +103,7 @@ test.describe('Scape open feature decisions', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
+		await importFiles(editor, [toneA]);
 		const exported = await captureScapeArchive(page, editor);
 		const archive = await incompatibleArchive(exported, {
 			id: originalId,
@@ -114,6 +153,32 @@ async function captureScapeArchive(page, editor) {
 }
 
 async function incompatibleArchive(input, { id, title }) {
+	return rewriteArchive(input, ({ project, manifest }) => {
+		project.id = id;
+		project.title = title;
+		const audioAsset = manifest.assets.find((asset) => asset.kind === 'audio');
+		const audioSource = project.sources.find((source) => source.id === audioAsset?.sourceId);
+		if (!audioAsset || !audioSource) throw new Error('Compatibility fixture requires one exported audio source.');
+		project.featureRequirements = {
+			schemaVersion: 1,
+			requirements: [{
+				id: 'video-effects',
+				featureId: 'org.soundscaper.capability.video-effects',
+				displayName: 'Video effects',
+				disposition: 'bypass',
+				fallback: null,
+			}, {
+				id: 'future-mixer',
+				featureId: 'org.example.future-mixer',
+				displayName: 'Future mixer',
+				disposition: 'rendered-fallback',
+				fallback: { kind: 'audio', sourceId: audioSource.id, sha256: audioAsset.sha256 },
+			}],
+		};
+	});
+}
+
+async function rewriteArchive(input, mutate) {
 	const reader = new ZipReader(new BlobReader(new Blob([input])), { useWebWorkers: false });
 	const entries = await reader.getEntries();
 	const payloads = new Map();
@@ -123,21 +188,11 @@ async function incompatibleArchive(input, { id, title }) {
 	const decoder = new TextDecoder();
 	const encoder = new TextEncoder();
 	const project = JSON.parse(decoder.decode(payloads.get('project.json')));
-	project.id = id;
-	project.title = title;
-	project.featureRequirements = {
-		schemaVersion: 1,
-		requirements: [{
-			id: 'video-effects',
-			featureId: 'org.soundscaper.capability.video-effects',
-			displayName: 'Video effects',
-			disposition: 'bypass',
-			fallback: null,
-		}],
-	};
+	const manifest = JSON.parse(decoder.decode(payloads.get('manifest.json')));
+	mutate({ project, manifest });
 	const projectBytes = encoder.encode(JSON.stringify(project));
 	payloads.set('project.json', projectBytes);
-	const manifest = JSON.parse(decoder.decode(payloads.get('manifest.json')));
+	manifest.project.schemaVersion = project.schemaVersion;
 	manifest.project.size = projectBytes.byteLength;
 	manifest.project.sha256 = createHash('sha256').update(projectBytes).digest('hex');
 	payloads.set('manifest.json', encoder.encode(JSON.stringify(manifest)));

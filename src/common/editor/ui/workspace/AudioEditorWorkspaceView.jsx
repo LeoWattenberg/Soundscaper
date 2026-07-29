@@ -8,6 +8,7 @@ import { formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.j
 import { SidePlaybackMeter, SideRecordingMeter } from '../toolbar/AudioEditorMeterControls.jsx';
 import { AccessibleSelectionToolbar, EditorActionBar } from '../toolbar/AudioEditorTransportControls.jsx';
 import ProjectTabs from './ProjectTabs.jsx';
+import ProjectFeatureCompatibilityNotice from './ProjectFeatureCompatibilityNotice.tsx';
 import StorageCapacityPanel from './StorageCapacityPanel.tsx';
 import VideoEditorWorkspacePanels from './VideoEditorWorkspacePanels.jsx';
 import WorkspacePanelDock from './WorkspacePanelDock.jsx';
@@ -247,6 +248,11 @@ export default function AudioEditorWorkspaceView({ model }) {
 				</div>
 			)}
 			<StorageCapacityPanel snapshot={snapshot} locale={locale} controller={controller} run={run} />
+			<ProjectFeatureCompatibilityNotice
+				key={project?.id || 'no-project'}
+				report={snapshot.featureRequirementsCompatibility}
+				copy={copy}
+			/>
 			{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
 				<aside className="kw-audio-editor__aup4-compatibility" role="status" data-aup4-compatibility-summary>
 					<div>

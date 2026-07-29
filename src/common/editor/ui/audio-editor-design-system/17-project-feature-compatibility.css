@@ -1,0 +1,68 @@
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility {
+	z-index: 70;
+	display: grid;
+	flex: none;
+	grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr);
+	gap: 12px;
+	max-height: min(240px, 35vh);
+	padding: 8px 12px;
+	overflow: auto;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+	border-block: 1px solid var(--kw-editor-danger-line);
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility header {
+	display: grid;
+	align-content: start;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility h2,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility h3,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility p,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility ul {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility h2,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility h3 {
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility p {
+	margin-top: 2px;
+	color: var(--kw-editor-text);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility dt,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility small {
+	color: var(--kw-editor-text);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-counts {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-counts div,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-items li {
+	background: var(--kw-editor-bg);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility section {
+	display: grid;
+	align-content: start;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-items {
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+@media (max-width: 700px) {
+	#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility {
+		grid-template-columns: 1fr;
+	}
+}
