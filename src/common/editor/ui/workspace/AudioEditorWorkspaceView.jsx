@@ -250,7 +250,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 			<StorageCapacityPanel snapshot={snapshot} locale={locale} controller={controller} run={run} />
 			<ProjectFeatureCompatibilityNotice
 				key={project?.id || 'no-project'}
+				project={project}
 				report={snapshot.featureRequirementsCompatibility}
+				audioEffectPlaybackBypass={snapshot.audioEffectPlaybackBypass}
 				copy={copy}
 			/>
 			{aup4Compatibility?.report && !aup4Compatibility.dismissed && (

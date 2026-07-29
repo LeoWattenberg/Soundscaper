@@ -13,10 +13,13 @@ import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
+	addRackEffect,
 	bootEditor,
 	chooseFileAction,
+	closeEffectsPanel,
 	collectClientErrors,
 	importFiles,
+	openEffectsForTrack,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -132,6 +135,39 @@ test.describe('Scape open feature decisions', () => {
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
 		expect(errors).toEqual([]);
 	});
+
+	test('opens Soundscaper rack effects in Framescaper as persistent control-free bypass placeholders', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const soundscaper = await bootEditor(page, '/embed/en/');
+		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
+		const originalId = await soundscaper.getAttribute('data-project-id');
+		expect(originalId).toBeTruthy();
+		await importFiles(soundscaper, [toneA]);
+		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Invert');
+		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Invert' })).toHaveCount(1);
+		await closeEffectsPanel(effectsPanel);
+
+		const exported = await captureScapeArchive(page, soundscaper);
+		const incomingId = `${originalId}-framescaper-audio-effect`;
+		const archive = await rewriteArchive(exported, ({ project }) => {
+			project.id = incomingId;
+			project.title = 'Soundscaper effect handoff';
+		});
+		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
+		await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
+		await setScapeInput(framescaper.locator('[data-aup4-input]'), archive);
+
+		const dialog = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+		await expect(dialog).toHaveAttribute('data-scape-open-decision', 'compatibility');
+		await expect(dialog.getByText('Audio effects', { exact: true })).toBeVisible();
+		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
+		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+
+		await assertAffectedInvertPlaceholder(framescaper);
+		expect(errors).toEqual([]);
+	});
 });
 
 async function captureScapeArchive(page, editor) {
@@ -220,4 +256,19 @@ async function setScapeInput(input, buffer) {
 		mimeType: 'application/vnd.soundscaper.scape+zip',
 		buffer,
 	});
+}
+
+async function assertAffectedInvertPlaceholder(editor) {
+	const placeholders = editor.locator('[data-project-feature-audio-effect-placeholders]');
+	await expect(placeholders).toBeVisible();
+	await expect(placeholders.locator('h4')).toHaveText('Affected audio effects');
+	const placeholder = placeholders.locator('[data-audio-effect-placeholder]');
+	await expect(placeholder).toHaveCount(1);
+	await expect(placeholder).toHaveAttribute('data-audio-effect-placeholder', /.+/u);
+	await expect(placeholder).toHaveAttribute('data-scope', 'track');
+	await expect(placeholder).toHaveAttribute('data-owner-id', /.+/u);
+	await expect(placeholder).toHaveAttribute('data-effect-type', 'audacity-invert');
+	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
+	await expect(placeholder).toContainText(/Invert\s*Track · .+\s*Bypassed during editor playback/su);
+	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
 }

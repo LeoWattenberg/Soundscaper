@@ -5,6 +5,8 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import type { ProjectFeatureAudioEffectBypassMetadata } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
@@ -101,6 +103,178 @@ test('the post-open region stays structured, localized, and free of activation c
 	assert.match(german, /Projektfunktionen nicht verfügbar/u);
 	assert.match(german, /Dieses Projekt ist schreibgeschützt/u);
 });
+
+test('audio-effect playback bypass renders localized affected-object placeholders without reading payloads', () => {
+	let payloadReads = 0;
+	const guardedEffect = (id: string, type: string) => {
+		const effect: Record<string, unknown> = { id, type, enabled: true };
+		for (const property of ['params', 'context', 'state', 'opaqueAudacityNode']) {
+			Object.defineProperty(effect, property, {
+				enumerable: true,
+				get(): never {
+					payloadReads += 1;
+					throw new Error(`${property} payload was read`);
+				},
+			});
+		}
+		return effect;
+	};
+	const project = {
+		tracks: [{
+			id: 'track-a',
+			type: 'audio',
+			name: 'Dialogue',
+			effects: [guardedEffect('track-effect', 'compressor')],
+		}],
+		mixer: {
+			groups: [{
+				id: 'group-a',
+				name: 'Mix Group',
+				effects: [guardedEffect('group-effect', 'eq')],
+			}],
+			sends: [{
+				id: 'send-a',
+				name: 'Reverb Send',
+				effects: [guardedEffect('send-effect', 'reverb')],
+			}],
+		},
+		master: { effects: [guardedEffect('master-effect', 'limiter')] },
+	};
+	const audioEffectPlaybackBypass = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		requirementIds: ['audio-effects'],
+		placeholders: [{
+			scope: 'track', ownerId: 'track-a', effectId: 'track-effect', effectType: 'compressor',
+		}, {
+			scope: 'group', ownerId: 'group-a', effectId: 'group-effect', effectType: 'eq',
+		}, {
+			scope: 'send', ownerId: 'send-a', effectId: 'send-effect', effectType: 'reverb',
+		}, {
+			scope: 'master', ownerId: null, effectId: 'master-effect', effectType: 'limiter',
+		}],
+	} satisfies ProjectFeatureAudioEffectBypassMetadata;
+	const incompatible = report(false, [
+		item(
+			'audio-effects',
+			PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			'Audio effects',
+			'unavailable',
+			'bypassed',
+		),
+	]);
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		project,
+		audioEffectPlaybackBypass,
+	}));
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: GERMAN_COPY,
+		project,
+		audioEffectPlaybackBypass,
+	}));
+
+	assert.equal(payloadReads, 0);
+	assert.match(english, /data-project-feature-audio-effect-placeholders/iu);
+	assert.match(english, /<h4[^>]*>Affected audio effects<\/h4>/iu);
+	assertPlaceholderAttributes(english, 'track-effect', 'track', 'track-a', 'compressor');
+	assertPlaceholderAttributes(english, 'group-effect', 'group', 'group-a', 'eq');
+	assertPlaceholderAttributes(english, 'send-effect', 'send', 'send-a', 'reverb');
+	assertPlaceholderAttributes(english, 'master-effect', 'master', '', 'limiter');
+	assert.match(placeholderMarkup(english, 'track-effect'), /Compressor.*Track.*Dialogue.*Bypassed during editor playback/isu);
+	assert.match(placeholderMarkup(english, 'group-effect'), /Four-band parametric EQ.*Group bus.*Mix Group.*Bypassed during editor playback/isu);
+	assert.match(placeholderMarkup(english, 'send-effect'), /Reverb.*Send bus.*Reverb Send.*Bypassed during editor playback/isu);
+	assert.match(placeholderMarkup(english, 'master-effect'), /Limiter.*Master.*Bypassed during editor playback/isu);
+	assert.doesNotMatch(english, /<button|<input|<select|<a\b/iu);
+	assert.match(german, /Betroffene Audioeffekte/iu);
+	assert.match(placeholderMarkup(german, 'track-effect'), /Kompressor.*Spur.*Dialogue.*Bei der Wiedergabe im Editor umgangen/isu);
+	assert.match(placeholderMarkup(german, 'group-effect'), /Parametrischer 4-Band-EQ.*Gruppenbus.*Mix Group/isu);
+	assert.match(placeholderMarkup(german, 'send-effect'), /Hall.*Send-Bus.*Reverb Send/isu);
+});
+
+test('audio-effect placeholders require qualifying playback-bypass metadata and disposition', () => {
+	const project = {
+		tracks: [{ id: 'track-a', type: 'audio', name: 'Dialogue' }],
+		mixer: { groups: [], sends: [] },
+		master: {},
+	};
+	const metadata = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		requirementIds: ['audio-effects'],
+		placeholders: [{
+			scope: 'track', ownerId: 'track-a', effectId: 'track-effect', effectType: 'compressor',
+		}],
+	} satisfies ProjectFeatureAudioEffectBypassMetadata;
+	const bypassed = report(false, [
+		item(
+			'audio-effects',
+			PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			'Audio effects',
+			'unavailable',
+			'bypassed',
+		),
+	]);
+	const renderedFallback = report(false, [
+		item(
+			'audio-effects',
+			PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			'Audio effects',
+			'unavailable',
+			'rendered-fallback',
+		),
+	]);
+	const withoutMetadata = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: bypassed,
+		copy: ENGLISH_COPY,
+		project,
+		audioEffectPlaybackBypass: null,
+	}));
+	const withRenderedFallback = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: renderedFallback,
+		copy: ENGLISH_COPY,
+		project,
+		audioEffectPlaybackBypass: metadata,
+	}));
+	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: report(false, [
+			item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'bypassed'),
+			item('audio-effects-copy', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects copy', 'unavailable', 'bypassed'),
+		]),
+		copy: ENGLISH_COPY,
+		project,
+		audioEffectPlaybackBypass: { ...metadata, requirementIds: ['audio-effects', 'audio-effects-copy'] },
+	}));
+
+	assert.doesNotMatch(withoutMetadata, /data-audio-effect-placeholder/iu);
+	assert.doesNotMatch(withRenderedFallback, /data-audio-effect-placeholder/iu);
+	assert.equal(duplicateRequirements.match(/data-audio-effect-placeholder=/gu)?.length, 1);
+});
+
+function assertPlaceholderAttributes(
+	markup: string,
+	effectId: string,
+	scope: string,
+	ownerId: string,
+	effectType: string,
+): void {
+	const row = markup.match(new RegExp(
+		`<[^>]+(?=[^>]*data-audio-effect-placeholder="${effectId}")(?=[^>]*data-scope="${scope}")(?=[^>]*data-owner-id="${ownerId}")(?=[^>]*data-effect-type="${effectType}")(?=[^>]*data-effective-disposition="bypassed")[^>]*>`,
+		'iu',
+	));
+	assert.ok(row, `Missing stable placeholder attributes for ${effectId}.`);
+}
+
+function placeholderMarkup(markup: string, effectId: string): string {
+	const row = markup.match(new RegExp(
+		`<li(?=[^>]*data-audio-effect-placeholder="${effectId}")[^>]*>[\\s\\S]*?<\\/li>`,
+		'iu',
+	));
+	assert.ok(row, `Missing placeholder row for ${effectId}.`);
+	return row[0];
+}
 
 function report(
 	compatible: boolean,

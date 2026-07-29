@@ -329,6 +329,8 @@ const COPY_ENTRIES = Object.freeze([
 	["scapeCompatibilityTitle","Project features unavailable","Projektfunktionen nicht verfügbar"],
 	["scapeCompatibilityMessage","“{title}” requires features this editor cannot use. Review them before opening the project read-only.","„{title}“ benötigt Funktionen, die dieser Editor nicht verwenden kann. Prüfe sie, bevor du das Projekt schreibgeschützt öffnest."],
 	["scapeCompatibilityAffectedFeatures","Affected features","Betroffene Funktionen"],
+	["scapeCompatibilityAffectedAudioEffects","Affected audio effects","Betroffene Audioeffekte"],
+	["scapeCompatibilityEditorPlaybackBypassed","Bypassed during editor playback","Bei der Wiedergabe im Editor umgangen"],
 	["scapeCompatibilityUnavailable","Unavailable","Nicht verfügbar"],
 	["scapeCompatibilityUnknown","Unknown","Unbekannt"],
 	["scapeCompatibilityBypassed","Bypass declared","Umgehung deklariert"],
