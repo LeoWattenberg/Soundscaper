@@ -10,7 +10,10 @@ export type ScapeInspectionOptions = Readonly<Record<string, unknown>> & Readonl
 }>;
 
 export interface ScapeInspectionStore {
-	loadProject?(projectId: string): PromiseLike<unknown> | unknown;
+	loadProject?(
+		projectId: string,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): PromiseLike<unknown> | unknown;
 }
 
 export type ScapeProjectInspector<Result> = (

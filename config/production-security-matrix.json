@@ -864,14 +864,21 @@
 				},
 				{
 					"id": "owned-scape-inspection-lifecycle",
-					"summary": "Public .scape inspection starts one distinct named controller task before archive work, snapshots caller options, and composes the caller signal with the owned signal. Replacement, project switching, and terminal disposal synchronously abort ownership; a post-await current-task check rejects signal-ignoring late results, and finally releases completed tasks. Focused regressions preserve exact cancellation reasons, pin switch cancellation before awaited project work, verify composition-root routing, and prove the inspection promise closes its archive reader on disposal.",
+					"summary": "Public .scape inspection starts one distinct named controller task before archive work, snapshots caller options, and composes the caller signal with the owned signal. Replacement, project switching, and terminal disposal synchronously abort ownership; a post-await current-task check rejects signal-ignoring late results, and finally releases completed tasks. Inspection passes that signal into its project-collision read. The default store promptly races stalled database admission, aborts and drains an active read-only IndexedDB transaction, and preserves the exact cancellation reason; a defensive read-only Scape boundary promptly rejects a signal-ignoring injected lookup, closes its archive reader, and suppresses the late result. Focused regressions also pin switch cancellation before awaited project work and verify composition-root routing.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/controller/scape-inspection-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/action-facade.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/project-repository.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/app.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-service.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-controller.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-storage-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-load-cancellation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-repositories.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-controller-action-facade.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" }
 					]
@@ -990,7 +997,7 @@
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The inspection store lookup still has no abortable repository API, and project switching and controller disposal do not join inspection cleanup; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
+					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The default inspection collision lookup accepts the owned signal, promptly races stalled database admission, and aborts and drains its read-only IndexedDB transaction; the defensive Scape boundary also rejects signal-ignoring injected lookups promptly and closes the archive reader. Project switching and controller disposal still do not join inspection cleanup, and a signal-ignoring injected lookup can continue after rejection; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]

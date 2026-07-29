@@ -119,9 +119,15 @@ store instances, IndexedDB v5 generation-fenced leases retain live unpublished
 chunk/OPFS identities during cleanup, make clear invalidate old ownership
 atomically, and prevent a fenced writer from publishing late; expired staging
 is reclaimable, and degraded memory mode does not create shared streamed OPFS
-staging. Inspection's storage collision lookup still has no abortable
-repository API, and project switching and controller disposal abort but do not
-join inspection cleanup. AUP4, whole-file desktop reads, direct
+staging. Inspection now passes its owned signal into the default project
+collision lookup. That repository promptly races stalled database admission,
+rejects before a pre-cancelled memory read, and aborts and drains an active
+read-only IndexedDB transaction while preserving the exact reason. A defensive
+read-only Scape boundary also rejects a signal-ignoring injected lookup
+promptly, closes the archive reader, and suppresses the late result. Project
+switching and controller disposal still abort but do not join inspection
+cleanup, and a signal-ignoring injected lookup can continue after rejection.
+AUP4, whole-file desktop reads, direct
 media/derivative writes, broad storage operations, and remaining desktop
 transports also do not yet share the end-to-end contract. Rejecting a late UI
 result is not cancellation if I/O, storage writes, or a process continues.

@@ -95,8 +95,8 @@ export class AudioEditorProjectStore {
 		return this.projectRepository.save(project);
 	}
 
-	async loadProject(projectId, { revision } = {}) {
-		return this.projectRepository.load(projectId, { revision });
+	async loadProject(projectId, { revision, signal } = {}) {
+		return this.projectRepository.load(projectId, { revision, signal });
 	}
 
 	async listProjects() {

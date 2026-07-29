@@ -1,7 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { collectProjectSourceIds, compactProjectSourceMetadata } from '../retention.js';
-import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
+import {
+	deleteByIndex,
+	request,
+	transact,
+	transactionCompletion,
+} from './indexeddb-backend.ts';
 import { publishSource } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -17,6 +22,11 @@ interface ProjectRevisionRecord {
 	readonly projectId: string;
 	readonly revision: number;
 	readonly project: ProjectDocument;
+}
+
+export interface ProjectLoadOptions {
+	readonly revision?: number;
+	readonly signal?: AbortSignal;
 }
 
 /** Durable project snapshots and their bounded revision history. */
@@ -74,18 +84,25 @@ export class ProjectRepository {
 		return clone(snapshot);
 	}
 
-	async load(projectId: string, { revision }: { readonly revision?: number } = {}): Promise<ProjectDocument | null> {
-		const database = await this.#port.database();
+	async load(
+		projectId: string,
+		{ revision, signal }: ProjectLoadOptions = {},
+	): Promise<ProjectDocument | null> {
+		throwIfProjectLoadAborted(signal);
+		const database = await raceProjectLoad(() => this.#port.database(), signal);
+		throwIfProjectLoadAborted(signal);
 		if (!database) {
 			const value = revision === undefined
 				? this.#port.memory.projects.get(projectId)
 				: asRevision(this.#port.memory.revisions.get(revisionKey(projectId, revision)))?.project;
+			throwIfProjectLoadAborted(signal);
 			return value ? clone(compactProjectSourceMetadata(value) as ProjectDocument) : null;
 		}
 
 		const storeName = revision === undefined ? 'projects' : 'revisions';
 		const key = revision === undefined ? projectId : revisionKey(projectId, revision);
-		const value = await transact(database, storeName, 'readonly', (stores) => request(stores[storeName].get(key)));
+		const value = await readProjectRecord(database, storeName, key, signal);
+		throwIfProjectLoadAborted(signal);
 		if (!value) return null;
 		const record = value as ProjectDocument | ProjectRevisionRecord;
 		const project = 'project' in record ? record.project : record;
@@ -147,6 +164,81 @@ export class ProjectRepository {
 			for (const record of records.slice(this.#revisionLimit)) revisions.delete(record.key);
 		});
 	}
+}
+
+async function readProjectRecord(
+	database: IDBDatabase,
+	storeName: 'projects' | 'revisions',
+	key: string,
+	signal?: AbortSignal,
+): Promise<unknown> {
+	throwIfProjectLoadAborted(signal);
+	const transaction = database.transaction(storeName, 'readonly');
+	const completion = transactionCompletion(transaction).then(
+		() => ({ status: 'fulfilled' as const }),
+		(reason: unknown) => ({ status: 'rejected' as const, reason }),
+	);
+	const abortTransaction = (): void => {
+		try { transaction.abort(); } catch { /* The transaction may already be inactive. */ }
+	};
+	if (signal) signal.addEventListener('abort', abortTransaction, { once: true });
+	if (signal?.aborted) abortTransaction();
+	let read: Promise<unknown> | null = null;
+	try {
+		throwIfProjectLoadAborted(signal);
+		read = request(transaction.objectStore(storeName).get(key));
+		const value = await read;
+		const completed = await completion;
+		if (completed.status === 'rejected') throw completed.reason;
+		throwIfProjectLoadAborted(signal);
+		return value;
+	} catch (error) {
+		abortTransaction();
+		if (read) await Promise.allSettled([read, completion]);
+		else await completion;
+		throwIfProjectLoadAborted(signal);
+		throw error;
+	} finally {
+		signal?.removeEventListener('abort', abortTransaction);
+	}
+}
+
+function raceProjectLoad<Value>(
+	read: () => PromiseLike<Value> | Value,
+	signal?: AbortSignal,
+): Promise<Value> {
+	if (!signal) return Promise.resolve().then(read);
+	if (signal.aborted) return Promise.reject(signal.reason);
+	return new Promise<Value>((resolve, reject) => {
+		let settled = false;
+		const finish = (complete: () => void): void => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			complete();
+		};
+		const onAbort = (): void => finish(() => reject(signal.reason));
+		signal.addEventListener('abort', onAbort, { once: true });
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		let operation: PromiseLike<Value> | Value;
+		try {
+			operation = read();
+		} catch (error) {
+			finish(() => reject(error));
+			return;
+		}
+		void Promise.resolve(operation).then(
+			(value) => finish(() => resolve(value)),
+			(error: unknown) => finish(() => reject(error)),
+		);
+	});
+}
+
+function throwIfProjectLoadAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) throw signal.reason;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

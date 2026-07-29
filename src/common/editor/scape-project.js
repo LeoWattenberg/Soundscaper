@@ -5,7 +5,12 @@ import {
 
 import { createStableId } from './project.js';
 import { migrateAudioEditorProject } from './migration.js';
-import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import {
+	aggregateScapeErrors,
+	awaitScapeOperation,
+	awaitScapeReadOperation,
+	throwIfScapeAborted,
+} from './scape-abort.ts';
 import {
 	readScapeArchiveEnvelope,
 	SCAPE_FORMAT,
@@ -310,7 +315,10 @@ export async function importScapeProject(input, store, options = {}) {
 
 /**
  * @param {Blob} input
- * @param {{ loadProject?: (projectId: string) => PromiseLike<unknown> } | null} store
+ * @param {{ loadProject?: (
+ *   projectId: string,
+ *   options?: Readonly<{ signal?: AbortSignal }>,
+ * ) => PromiseLike<unknown> | unknown } | null} store
  * @param {{ signal?: AbortSignal }} options
  */
 export async function inspectScapeProject(input, store = null, options = {}) {
@@ -327,7 +335,10 @@ export async function inspectScapeProject(input, store = null, options = {}) {
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
 		indexScapeProjectAssets(loaded.project, manifest);
 		const existing = store?.loadProject
-			? await awaitScapeOperation(store.loadProject(loaded.project.id), signal)
+			? await awaitScapeReadOperation(
+				() => store.loadProject(loaded.project.id, { signal }),
+				signal,
+			)
 			: null;
 		return Object.freeze({
 			id: loaded.project.id,

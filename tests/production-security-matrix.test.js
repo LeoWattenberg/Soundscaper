@@ -266,15 +266,22 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/controller/scape-inspection-service.ts',
 		'src/common/editor/controller/action-facade.ts',
 		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/scape-abort.ts',
+		'src/common/editor/scape-project.js',
+		'src/common/editor/storage.js',
+		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/app.js',
 		'tests/audio-editor-scape-inspection-service.test.ts',
 		'tests/audio-editor-scape-inspection-controller.test.ts',
+		'tests/audio-editor-scape-inspection-storage-cancellation.test.ts',
+		'tests/audio-editor-project-load-cancellation.test.ts',
+		'tests/audio-editor-storage-repositories.test.ts',
 		'tests/audio-editor-controller-action-facade.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 	]) assert.ok(scapeInspection.evidence.some((item) => item.path === path));
 	assert.match(
 		scapeInspection.summary,
-		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*closes its archive reader/iu,
+		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*project-collision read.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*exact cancellation reason.*signal-ignoring injected lookup.*closes its archive reader.*suppresses the late result/iu,
 	);
 	const scapeCollisionContinuation = cancellation.currentControls.find(
 		({ id }) => id === 'owned-scape-collision-continuation',
@@ -310,9 +317,10 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.ok(projectIoResidual);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /inspection store lookup.*no abortable repository API/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection.*collision continuation.*own cancellation.*inspection store lookup.*no abortable repository API.*do not join inspection cleanup.*AUP4.*whole-file desktop reads/iu,
+		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*do not join inspection cleanup.*injected lookup can continue.*AUP4.*whole-file desktop reads/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',

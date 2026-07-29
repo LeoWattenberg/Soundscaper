@@ -82,6 +82,37 @@ test('the project store delegates persistence domains to injected repositories',
 	]);
 });
 
+test('loadProject forwards the requested revision and cancellation signal to the project repository', async () => {
+	const abortController = new AbortController();
+	const loadedProject = { id: 'delegated-load-project', revision: 7 };
+	let receivedProjectId: string | undefined;
+	let receivedOptions: { revision?: number; signal?: AbortSignal } | undefined;
+	const repositoryFactory = (() => ({
+		projects: {
+			load: async (
+				projectId: string,
+				options: { revision?: number; signal?: AbortSignal } = {},
+			) => {
+				receivedProjectId = projectId;
+				receivedOptions = options;
+				return loadedProject;
+			},
+		},
+	})) as unknown as StorageRepositoryFactory;
+	const store = new AudioEditorProjectStore({
+		indexedDB: null,
+		repositoryFactory,
+	});
+
+	assert.equal(await store.loadProject(loadedProject.id, {
+		revision: loadedProject.revision,
+		signal: abortController.signal,
+	}), loadedProject);
+	assert.equal(receivedProjectId, loadedProject.id);
+	assert.equal(receivedOptions?.revision, loadedProject.revision);
+	assert.equal(receivedOptions?.signal, abortController.signal);
+});
+
 test('clear and close coordinate the default repositories without reviving the facade', async () => {
 	const store = new AudioEditorProjectStore({
 		indexedDB: null,

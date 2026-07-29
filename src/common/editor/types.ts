@@ -246,7 +246,10 @@ export interface EditorControllerOptions {
 
 export interface EditorProjectStore {
 	getStatus(): EditorStoreStatus;
-	loadProject(projectId: string): Promise<EditorProject | null>;
+	loadProject(
+		projectId: string,
+		options?: Readonly<{ revision?: number; signal?: AbortSignal }>,
+	): Promise<EditorProject | null>;
 	saveProject(project: EditorProject): Promise<unknown>;
 	loadSetting<Value>(key: string, fallback: Value): Promise<Value>;
 	saveSetting<Value>(key: string, value: Value): Promise<unknown>;

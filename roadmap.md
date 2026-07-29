@@ -385,10 +385,19 @@ models or native implementations.
   [public-controller](tests/audio-editor-scape-inspection-controller.test.ts),
   project-switch, and browser coverage preserve exact abort reasons, ignore
   stale or double choices, pin cancellation before awaited switch work, and
-  prove the inspection promise closes its reader on disposal. This is an abort
-  and stale-result contract, not a drain: storage collision lookup is not
-  independently interruptible, and controller switching/disposal does not
-  await inspection cleanup. The
+  prove the inspection promise closes its reader on disposal. Inspection now
+  passes that owned signal into its project-collision read. The default store
+  rejects before a pre-cancelled memory read, promptly races stalled database
+  admission, and aborts and drains an active read-only IndexedDB transaction;
+  the read-only Scape boundary also rejects a signal-ignoring injected store
+  promptly, closes the archive reader, and suppresses its late result. Focused
+  [repository](tests/audio-editor-project-load-cancellation.test.ts),
+  [store-forwarding](tests/audio-editor-storage-repositories.test.ts), and
+  [inspection-storage](tests/audio-editor-scape-inspection-storage-cancellation.test.ts)
+  regressions preserve the exact cancellation reason across those boundaries.
+  This is still an abort and stale-result contract, not an inspection-wide
+  drain: a signal-ignoring injected lookup can continue after rejection, and
+  controller switching/disposal does not await inspection cleanup. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused
