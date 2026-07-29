@@ -28,6 +28,11 @@ export interface SourceReadRepositoryOptions {
 	readonly migrations: PcmMigrationRepository;
 }
 
+export interface SourceReadOptions {
+	readonly signal?: AbortSignal;
+	readonly migrateLegacyPcmOnAccess?: boolean;
+}
+
 /** Ordered and random-access PCM reads across all source storage formats. */
 export class SourceReadRepository {
 	readonly #options: SourceReadRepositoryOptions;
@@ -38,18 +43,18 @@ export class SourceReadRepository {
 
 	async *chunks(
 		sourceId: string,
-		{ signal }: { readonly signal?: AbortSignal } = {},
+		{ signal, migrateLegacyPcmOnAccess = true }: SourceReadOptions = {},
 	): AsyncGenerator<SourcePcmChunk> {
 		throwIfAborted(signal);
-		yield* this.#chunks(sourceId, new Set(), signal);
+		yield* this.#chunks(sourceId, new Set(), signal, migrateLegacyPcmOnAccess);
 		throwIfAborted(signal);
 	}
 
-	async chunk(sourceId: string, chunkIndex: number, { signal }: { readonly signal?: AbortSignal } = {}): Promise<SourcePcmChunk> {
+	async chunk(sourceId: string, chunkIndex: number, { signal, migrateLegacyPcmOnAccess = true }: SourceReadOptions = {}): Promise<SourcePcmChunk> {
 		const index = nonNegativeInteger(chunkIndex, -1);
 		if (index < 0) throw new RangeError('Source chunk index must be a non-negative integer.');
 		throwIfAborted(signal);
-		const result = await this.#chunk(sourceId, index, new Set(), signal);
+		const result = await this.#chunk(sourceId, index, new Set(), signal, migrateLegacyPcmOnAccess);
 		throwIfAborted(signal);
 		return result;
 	}
@@ -81,6 +86,7 @@ export class SourceReadRepository {
 		chunkIndex: number,
 		ancestors: ReadonlySet<string>,
 		signal?: AbortSignal,
+		migrateLegacyPcmOnAccess = true,
 	): Promise<SourcePcmChunk> {
 		const source = await this.#options.records.getMetadata(sourceId);
 		if (!source) throw new Error('The requested audio source could not be found.');
@@ -94,8 +100,8 @@ export class SourceReadRepository {
 			const replacement = await this.#options.records.chunk(source.sourceToken as string, chunkIndex);
 			const chunk = replacement
 				? await this.#options.pcm.decodeRecord(replacement, source, signal)
-				: await this.#chunk(source.baseSourceId as string, chunkIndex, nextAncestors, signal);
-			this.#options.migrations.queue(source);
+				: await this.#chunk(source.baseSourceId as string, chunkIndex, nextAncestors, signal, migrateLegacyPcmOnAccess);
+			if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 			return chunk;
 		}
 		if (source.storage === PCM_CONTAINER_STORAGE_TYPE) {
@@ -108,13 +114,13 @@ export class SourceReadRepository {
 		}
 		if (source.storage === 'opfs') {
 			const chunk = await this.#options.opfs.readLegacyChunk(source, chunkIndex, signal);
-			this.#options.migrations.queue(source);
+			if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 			return chunk;
 		}
 		const record = await this.#options.records.chunk(source.sourceToken as string, chunkIndex);
 		if (!record) throw new Error(`Source storage chunk ${chunkIndex} is missing.`);
 		const chunk = await this.#options.pcm.decodeRecord(record, source, signal);
-		this.#options.migrations.queue(source);
+		if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 		return chunk;
 	}
 
@@ -122,6 +128,7 @@ export class SourceReadRepository {
 		sourceId: string,
 		ancestors: ReadonlySet<string>,
 		signal?: AbortSignal,
+		migrateLegacyPcmOnAccess = true,
 	): AsyncGenerator<SourcePcmChunk> {
 		throwIfAborted(signal);
 		const source = await this.#options.records.getMetadata(sourceId);
@@ -135,7 +142,12 @@ export class SourceReadRepository {
 			try {
 				let replacement = await replacementIterator.next();
 				throwIfAborted(signal);
-				for await (const baseChunk of this.#chunks(source.baseSourceId as string, nextAncestors, signal)) {
+				for await (const baseChunk of this.#chunks(
+					source.baseSourceId as string,
+					nextAncestors,
+					signal,
+					migrateLegacyPcmOnAccess,
+				)) {
 					throwIfAborted(signal);
 					if (!replacement.done && replacement.value.index < Number(baseChunk.index)) {
 						throw new Error('A derived source replacement points beyond its base source.');
@@ -143,7 +155,7 @@ export class SourceReadRepository {
 					if (replacement.done || replacement.value.index !== baseChunk.index) {
 						if (!migrationQueued) {
 							migrationQueued = true;
-							this.#options.migrations.queue(source);
+							if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 						}
 						yield baseChunk;
 						continue;
@@ -152,7 +164,7 @@ export class SourceReadRepository {
 					throwIfAborted(signal);
 					if (!migrationQueued) {
 						migrationQueued = true;
-						this.#options.migrations.queue(source);
+						if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 					}
 					yield chunk;
 					replacement = await replacementIterator.next();
@@ -178,7 +190,7 @@ export class SourceReadRepository {
 				throwIfAborted(signal);
 				if (!migrationQueued) {
 					migrationQueued = true;
-					this.#options.migrations.queue(source);
+					if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 				}
 				yield chunk;
 			}
@@ -191,7 +203,7 @@ export class SourceReadRepository {
 			throwIfAborted(signal);
 			if (!migrationQueued) {
 				migrationQueued = true;
-				this.#options.migrations.queue(source);
+				if (migrateLegacyPcmOnAccess) this.#options.migrations.queue(source);
 			}
 			yield chunk;
 		}

@@ -11,6 +11,33 @@ import {
 } from '../src/common/editor/storage/media-asset-write-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
+test('media reads can skip legacy digest claim and backfill writes', async () => {
+	const store = memoryStore('media-read-without-backfill');
+	const sourceId = 'legacy-video';
+	const blob = new Blob(['legacy-video'], { type: 'video/webm' });
+	const legacyRecord = {
+		sourceId,
+		storage: 'indexeddb-blob',
+		blob,
+		size: blob.size,
+		mimeType: blob.type,
+	};
+	store.memory.mediaAssets.set(sourceId, legacyRecord);
+
+	const unmaintained = await store.loadMediaAsset(sourceId, { backfillDigest: false });
+	assert.ok(unmaintained);
+	assert.equal(new TextDecoder().decode(await unmaintained.arrayBuffer()), 'legacy-video');
+	assert.equal(store.memory.mediaAssets.get(sourceId), legacyRecord);
+	assert.equal(Object.hasOwn(legacyRecord, 'mediaContentToken'), false);
+
+	const maintained = await store.loadMediaAsset(sourceId);
+	assert.ok(maintained);
+	assert.equal(new TextDecoder().decode(await maintained.arrayBuffer()), 'legacy-video');
+	const verified = store.memory.mediaAssets.get(sourceId) as Record<string, unknown>;
+	assert.notEqual(verified, legacyRecord);
+	assert.equal(verified.sha256, digest(new Uint8Array(await blob.arrayBuffer())));
+});
+
 test('fallback media persists canonical source-owned native Blob chunks', async () => {
 	const store = memoryStore('media-blob-chunks');
 	const sourceId = 'blob-backed-media';

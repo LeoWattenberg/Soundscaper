@@ -5,7 +5,7 @@ import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmMigrationRepository } from './pcm-migration-repository.ts';
-import type { SourceReadRepository } from './source-read-repository.ts';
+import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { AudioSourceWriter, SourceWriteRepository } from './source-write-repository.ts';
 
@@ -59,11 +59,11 @@ export class SourceRepository {
 		return this.#options.records.list();
 	}
 
-	chunks(sourceId: string, options: { readonly signal?: AbortSignal } = {}) {
+	chunks(sourceId: string, options: SourceReadOptions = {}) {
 		return this.#options.reader.chunks(sourceId, options);
 	}
 
-	chunk(sourceId: string, chunkIndex: number, options: { readonly signal?: AbortSignal } = {}) {
+	chunk(sourceId: string, chunkIndex: number, options: SourceReadOptions = {}) {
 		return this.#options.reader.chunk(sourceId, chunkIndex, options);
 	}
 

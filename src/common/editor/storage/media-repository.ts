@@ -18,7 +18,7 @@ import {
 	type NormalizedDerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
 import { readDerivativeCacheInventory } from './derivative-cache-inventory.ts';
-import { MediaAssetDigestBackfill } from './media-asset-digest-backfill.ts';
+import { MediaAssetDigestBackfill, type MediaAssetDigestLoadOptions } from './media-asset-digest-backfill.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
@@ -138,7 +138,7 @@ export class MediaRepository {
 		return mediaAssetMetadata(record);
 	}
 
-	loadAsset(sourceId: string, options: MediaWriteOptions = {}): Promise<BlobLike | null> {
+	loadAsset(sourceId: string, options: MediaAssetDigestLoadOptions = {}): Promise<BlobLike | null> {
 		return this.#assetDigests.load(sourceId, options);
 	}
 

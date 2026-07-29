@@ -20,6 +20,7 @@ const MISSING_MEDIA_MESSAGE = 'The requested local media asset is missing.';
 
 export interface MediaAssetDigestLoadOptions {
 	readonly signal?: AbortSignal;
+	readonly backfillDigest?: boolean;
 }
 
 export interface MediaAssetDigestLoader {
@@ -57,7 +58,7 @@ export class MediaAssetDigestBackfill {
 	): Promise<BlobLike | null> {
 		const registration = this.#lifecycle.register();
 		const cancellation = linkedAbortController(options.signal);
-		const operation = this.#load(sourceId, cancellation.signal);
+		const operation = this.#load(sourceId, cancellation.signal, options.backfillDigest !== false);
 		const settled = operation.finally(() => {
 			cancellation.release();
 			registration.release();
@@ -72,19 +73,21 @@ export class MediaAssetDigestBackfill {
 		return settled;
 	}
 
-	async #load(sourceId: string, signal: AbortSignal): Promise<BlobLike | null> {
+	async #load(sourceId: string, signal: AbortSignal, backfillDigest: boolean): Promise<BlobLike | null> {
 		const id = nonEmptyString(sourceId);
 		throwIfAborted(signal);
 		const database = await this.#port.database();
 		throwIfAborted(signal);
-		const claimed = await this.#claim(id, database, signal);
+		const claimed = backfillDigest
+			? await this.#claim(id, database, signal)
+			: await this.#read(id, database, signal);
 		if (!claimed) return null;
 
 		const expectedSize = mediaContentSize(claimed.record);
 		const loaded = await this.#loader.load(claimed.record, MISSING_MEDIA_MESSAGE, { signal });
 		throwIfAborted(signal);
 		if (loaded.size !== expectedSize) throw new Error(MISSING_MEDIA_MESSAGE);
-		if (claimed.trustedSha256) return loaded;
+		if (claimed.trustedSha256 || !backfillDigest) return loaded;
 
 		const content = canonicalMediaContentBlob(loaded);
 		if (content.size !== expectedSize) throw new Error(MISSING_MEDIA_MESSAGE);
@@ -92,6 +95,26 @@ export class MediaAssetDigestBackfill {
 		throwIfAborted(signal);
 		await this.#publish(claimed.record, sha256, database, signal);
 		return loaded;
+	}
+
+	async #read(
+		sourceId: string,
+		database: IDBDatabase | null,
+		signal?: AbortSignal,
+	): Promise<ClaimedMediaAsset | null> {
+		const current = !database
+			? storageRecord(this.#port.memory.mediaAssets.get(sourceId))
+			: await transact(database, 'mediaAssets', 'readonly', async ({ mediaAssets }) => (
+				storageRecord(await request(mediaAssets.get(sourceId)))
+			));
+		throwIfAborted(signal);
+		if (!current) return null;
+		if (current.sourceId !== sourceId) throw new Error(MISSING_MEDIA_MESSAGE);
+		if (hasMalformedMediaContentProvenance(current)) throw new Error(MISSING_MEDIA_MESSAGE);
+		return {
+			record: clone(current),
+			trustedSha256: trustedMediaContentSha256(current),
+		};
 	}
 
 	async #claim(

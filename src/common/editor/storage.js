@@ -185,8 +185,8 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.beginAssetWrite(sourceId, metadata, options);
 	}
 
-	async loadMediaAsset(sourceId, { signal } = {}) {
-		return this.mediaRepository.loadAsset(sourceId, { signal });
+	async loadMediaAsset(sourceId, options = {}) {
+		return this.mediaRepository.loadAsset(sourceId, options);
 	}
 
 	async getMediaAssetMetadata(sourceId) {
@@ -241,12 +241,12 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.trimDerivatives({ maximumBytes, maximumEntries, maximumAgeMs, now });
 	}
 
-	async *readSourceChunks(sourceId, { signal } = {}) {
-		yield* this.sourceRepository.chunks(sourceId, { signal });
+	async *readSourceChunks(sourceId, options = {}) {
+		yield* this.sourceRepository.chunks(sourceId, options);
 	}
 
-	async readSourceChunk(sourceId, chunkIndex, { signal } = {}) {
-		return this.sourceRepository.chunk(sourceId, chunkIndex, { signal });
+	async readSourceChunk(sourceId, chunkIndex, options = {}) {
+		return this.sourceRepository.chunk(sourceId, chunkIndex, options);
 	}
 
 	async loadSourceAudioBuffer(sourceId, audioContext) {
