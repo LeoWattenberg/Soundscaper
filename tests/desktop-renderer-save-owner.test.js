@@ -15,6 +15,7 @@ test('committed documents rotate opaque owners within one WebContents', () => {
 	assert.equal(activatedA.revokedOwner, null);
 	assertOpaqueMainToken(activatedA.owner, documentA);
 	assert.equal(ownership.ownerFor({ sender: webContents, ...documentA }), activatedA.owner);
+	assert.equal(ownership.currentOwnerFor(webContents), activatedA.owner);
 
 	const activatedB = ownership.activate(documentB);
 	assertOpaqueMainToken(activatedB.owner, documentB);
@@ -51,6 +52,7 @@ test('a stale WebContents revoke cannot clear the current document owner', () =>
 		currentActivation.owner,
 	);
 	assert.equal(ownership.revoke(currentWebContents), currentActivation.owner);
+	assert.throws(() => ownership.currentOwnerFor(currentWebContents), /active|document|owner|renderer|stale/iu);
 	assert.throws(
 		() => ownership.ownerFor({
 			sender: currentWebContents,

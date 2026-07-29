@@ -31,6 +31,14 @@ export class RendererSaveOwnership {
 		return active.owner;
 	}
 
+	currentOwnerFor(webContents) {
+		const validated = reference(webContents, 'WebContents');
+		if (!this.#active || this.#active.webContents !== validated) {
+			throw new Error('No active renderer document owner is available');
+		}
+		return this.#active.owner;
+	}
+
 	revoke(webContents) {
 		const validated = reference(webContents, 'WebContents');
 		if (this.#active?.webContents !== validated) return null;

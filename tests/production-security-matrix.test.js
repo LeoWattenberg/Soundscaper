@@ -437,6 +437,32 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'),
 		false,
 	);
+	const desktopRead = risks.get('desktop-read-path-capabilities');
+	const rendererOwnedRead = desktopRead.currentControls.find(({ id }) => id === 'renderer-document-owned-read-lifecycle');
+	assert.ok(rendererOwnedRead);
+	for (const path of [
+		'desktop/constants.js',
+		'desktop/file-capabilities.js',
+		'desktop/file-associations.js',
+		'desktop/main.mjs',
+		'desktop/renderer-save-owner.js',
+		'desktop/protocol.js',
+		'tests/desktop-read-capability-ownership.test.js',
+		'tests/desktop-renderer-save-owner.test.js',
+		'tests/desktop-project-library-packaging.test.js',
+		'tests/desktop-protocol.test.js',
+		'tests/desktop-save.test.js',
+	]) assert.ok(rendererOwnedRead.evidence.some((item) => item.path === path));
+	assert.match(
+		rendererOwnedRead.summary,
+		/opaque main-owned.*committed main-frame document.*for each committed-document owner.*128 pending or live.*before.*file-open await.*before descriptor publication.*owner's aggregate declared selected-file bytes.*64 GiB.*wrong-owner release.*release.*expiry.*non-same-document navigation.*renderer loss.*actual window close.*shutdown.*synchronously.*lookup.*drain.*delayed.*open or stat.*without publication.*partial multi-file.*every rollback release.*primary and cleanup failures.*OS-open paths.*serially deduplicated.*visible queue head.*refuses.*without evicting.*cleanup failure/iu,
+	);
+	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
+	const wholeFileRead = desktopRead.residualRisks.find(
+		({ id }) => id === 'whole-file-renderer-read',
+	);
+	assert.ok(wholeFileRead);
+	assert.match(wholeFileRead.exposure, /whole Blob.*does not propagate cancellation/iu);
 	const desktopWrite = risks.get('desktop-write-path-capabilities');
 	const saveShutdown = desktopWrite.currentControls.find(
 		({ id }) => id === 'terminal-save-shutdown-quiescence',

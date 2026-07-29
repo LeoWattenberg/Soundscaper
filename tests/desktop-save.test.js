@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, open, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -17,9 +17,28 @@ test('read capabilities expose opaque same-origin descriptors and expire cleanly
 	const input = join(root, 'private project.aup4');
 	await writeFile(input, 'project data');
 	let now = 100;
-	const store = new ReadCapabilityStore({ ttlMs: 1000, now: () => now });
+	let closeCalls = 0;
+	const closed = Promise.withResolvers();
+	const store = new ReadCapabilityStore({
+		ttlMs: 1000,
+		now: () => now,
+		openImpl: async (...args) => {
+			const handle = await open(...args);
+			return {
+				stat: (...statArgs) => handle.stat(...statArgs),
+				async close() {
+					closeCalls += 1;
+					try {
+						await handle.close();
+					} finally {
+						closed.resolve();
+					}
+				},
+			};
+		},
+	});
 	context.after(() => store.dispose());
-	const descriptor = await store.registerPath(input);
+	const descriptor = await store.registerPath(input, { owner: TEST_OWNER });
 	assert.equal(descriptor.name, 'private project.aup4');
 	assert.equal(descriptor.size, 12);
 	assert.match(descriptor.url, /^soundscaper-app:\/\/bundle\/_desktop\/read\/[a-f0-9]{64}\//u);
@@ -27,6 +46,8 @@ test('read capabilities expose opaque same-origin descriptors and expire cleanly
 	assert.ok(store.get(descriptor.id));
 	now = 1100;
 	assert.equal(store.get(descriptor.id), null);
+	await closed.promise;
+	assert.equal(closeCalls, 1);
 });
 
 test('chunked saves use sequential backpressure and atomically replace the destination', async (context) => {

@@ -31,8 +31,8 @@ import {
 	DesktopApplicationShutdown,
 	resolveDesktopProjectLibraryAppData,
 } from './project-library-runtime/application-lifecycle.js';
-import { ReadCapabilityStore } from './file-capabilities.js';
-import { extractProjectPaths } from './file-associations.js';
+import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
+import { PendingProjectQueue, extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/project-library-host.js';
@@ -51,7 +51,7 @@ import {
 } from './validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pendingOpenPaths = [];
+const pendingOpenProjects = new PendingProjectQueue(deliverPendingProject);
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
@@ -230,10 +230,14 @@ function activateRendererSaveOwner(webContents, processId, frameId) {
 function revokeRendererSaveOwner(webContents) {
 	const owner = rendererSaveOwnership.revoke(webContents);
 	if (!owner) return;
+	rendererReady = false;
 	startRendererSaveRevocation(owner);
 }
 
 function startRendererSaveRevocation(owner) {
+	void readCapabilities.revokeOwner(owner).catch((error) => {
+		console.error('Desktop renderer read cleanup failed:', cleanError(error));
+	});
 	void saves.revokeOwner(owner).catch((error) => {
 		console.error('Desktop renderer save cleanup failed:', cleanError(error));
 	});
@@ -247,6 +251,13 @@ function rendererSaveOwnerFor(event) {
 	});
 }
 
+function isRendererSaveOwnerCurrent(owner) {
+	if (!owner || !rendererReady || !mainWindow || mainWindow.isDestroyed()) return false;
+	try {
+		return rendererSaveOwnership.currentOwnerFor(mainWindow.webContents) === owner;
+	} catch { return false; }
+}
+
 function registerIpcHandlers() {
 	handle(IPC.environment, () => ({
 		platform: process.platform,
@@ -256,8 +267,8 @@ function registerIpcHandlers() {
 		supportedLocales: [...SUPPORTED_LOCALES],
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
-	handle(IPC.chooseFiles, (_event, value) => chooseFiles(value));
-	handle(IPC.releaseRead, (_event, id) => readCapabilities.release(opaqueId(id, 64)));
+	handle(IPC.chooseFiles, (event, value) => chooseFiles(event, value));
+	handle(IPC.releaseRead, (event, id) => readCapabilities.release(opaqueId(id, 64), { owner: rendererSaveOwnerFor(event) }));
 	handle(IPC.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
 	handle(IPC.beginWrite, (event, value) => saves.begin({
 		owner: rendererSaveOwnerFor(event),
@@ -293,7 +304,7 @@ function registerIpcHandlers() {
 	});
 	on(IPC.rendererReady, () => {
 		rendererReady = true;
-		void dispatchPendingProjects();
+		void pendingOpenProjects.dispatch();
 	});
 	on(IPC.respondToClose, (_event, response) => respondToClose(response));
 }
@@ -320,7 +331,8 @@ function assertTrustedIpc(event) {
 	assertEditorDocumentUrl(event.senderFrame.url);
 }
 
-async function chooseFiles(value) {
+async function chooseFiles(event, value) {
+	const owner = rendererSaveOwnerFor(event);
 	const choice = validateFileChoice(value);
 	const result = await dialog.showOpenDialog(mainWindow, {
 		title: choice.purpose === 'project' ? 'Open project' : 'Import files',
@@ -332,12 +344,11 @@ async function chooseFiles(value) {
 	try {
 		for (const filePath of result.filePaths) {
 			if (!acceptsFile(choice.purpose, filePath)) throw new TypeError('The selected file type is not allowed');
-			descriptors.push(await readCapabilities.registerPath(filePath));
+			descriptors.push(await readCapabilities.registerPath(filePath, { owner }));
 		}
 		return descriptors;
 	} catch (error) {
-		await Promise.all(descriptors.map((descriptor) => readCapabilities.release(descriptor.id)));
-		throw error;
+		await throwAfterReadCapabilityRollback(readCapabilities, descriptors, owner, error);
 	}
 }
 
@@ -367,27 +378,35 @@ function respondToClose(value) {
 	else mainWindow?.close();
 }
 
-async function dispatchPendingProjects() {
-	while (rendererReady && pendingOpenPaths.length && mainWindow && !mainWindow.isDestroyed()) {
-		const filePath = pendingOpenPaths.shift();
-		try {
-			sendToRenderer(IPC.openProject, await readCapabilities.registerPath(filePath));
-		} catch (error) {
-			void dialog.showMessageBox(mainWindow, {
-				type: 'error',
-				title: 'Could not open project',
-				message: `${APP_NAME} could not read the selected project.`,
-				detail: cleanError(error),
-			});
+async function deliverPendingProject(filePath) {
+	if (!rendererReady || !mainWindow || mainWindow.isDestroyed()) return false;
+	let owner = null;
+	try {
+		owner = rendererSaveOwnership.currentOwnerFor(mainWindow.webContents);
+		const descriptor = await readCapabilities.registerPath(filePath, { owner });
+		if (!isRendererSaveOwnerCurrent(owner)) {
+			await readCapabilities.release(descriptor.id, { owner });
+			return false;
 		}
+		sendToRenderer(IPC.openProject, descriptor);
+		return true;
+	} catch (error) {
+		if (!isRendererSaveOwnerCurrent(owner)) return false;
+		void dialog.showMessageBox(mainWindow, {
+			type: 'error',
+			title: 'Could not open project',
+			message: `${APP_NAME} could not read the selected project.`,
+			detail: cleanError(error),
+		});
+		return true;
 	}
 }
 
 function enqueueProjectPath(filePath) {
 	if (!filePath || !['.aup3', '.aup4', '.scape'].includes(extname(filePath).toLowerCase())) return;
 	const absolutePath = isAbsolute(filePath) ? filePath : resolve(filePath);
-	if (!pendingOpenPaths.includes(absolutePath)) pendingOpenPaths.push(absolutePath);
-	if (rendererReady) void dispatchPendingProjects();
+	pendingOpenProjects.enqueue(absolutePath);
+	if (rendererReady) void pendingOpenProjects.dispatch();
 }
 
 function configureSessionSecurity(desktopSession) {

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { extractAup4Paths, extractProjectPaths } from '../desktop/file-associations.js';
+import { PendingProjectQueue, extractAup4Paths, extractProjectPaths } from '../desktop/file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from '../desktop/display-capture.js';
 import {
 	ProtocolError,
@@ -87,6 +87,35 @@ test('file association arguments accept only unique Scape and Audacity project p
 	);
 	assert.deepEqual(paths, ['/projects/old.aup3', '/projects/demo.aup4', '/projects/movie.scape']);
 	assert.deepEqual(extractAup4Paths(['old.aup3', 'movie.scape'], '/projects'), ['/projects/old.aup3', '/projects/movie.scape']);
+});
+
+test('pending project dispatch stays serial and retries its visible head for a replacement renderer', async () => {
+	const firstAttempt = Promise.withResolvers();
+	const continueFirstAttempt = Promise.withResolvers();
+	const attempts = [];
+	const delivered = [];
+	const deliver = async (filePath) => {
+		attempts.push(filePath);
+		if (attempts.length === 1) {
+			firstAttempt.resolve();
+			await continueFirstAttempt.promise;
+			return false;
+		}
+		delivered.push(filePath);
+		return true;
+	};
+	const queue = new PendingProjectQueue(deliver);
+	assert.equal(queue.enqueue('/projects/a.scape'), true);
+	const firstDispatch = queue.dispatch();
+	await firstAttempt.promise;
+	assert.equal(queue.enqueue('/projects/a.scape'), false, 'the in-flight head remains deduplicated');
+	assert.equal(queue.enqueue('/projects/b.scape'), true);
+	const replacementDispatch = queue.dispatch();
+	continueFirstAttempt.resolve();
+	await Promise.all([firstDispatch, replacementDispatch]);
+
+	assert.deepEqual(attempts, ['/projects/a.scape', '/projects/a.scape', '/projects/b.scape']);
+	assert.deepEqual(delivered, ['/projects/a.scape', '/projects/b.scape']);
 });
 
 test('native file filters cover the editor import and export formats', () => {

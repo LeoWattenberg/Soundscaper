@@ -612,16 +612,26 @@
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
 					]
+				},
+				{
+					"id": "renderer-document-owned-read-lifecycle",
+					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. For each committed-document owner, the store reserves one of at most 128 pending or live capability slots before its first file-open await. Before descriptor publication it checks that the owner's aggregate declared selected-file bytes remain at or below the non-raiseable 64 GiB ceiling and that the owner remains active. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry synchronously remove the capability from lookup before draining its handle. Main-frame non-same-document navigation, renderer loss, actual window close, and application shutdown synchronously fence the affected owner or store and remove its published capabilities from lookup before draining every admitted open and handle close. A delayed dialog or open or stat completion after owner revocation closes its candidate without publication. Partial multi-file registration drains every rollback release and reports the primary and cleanup failures. OS-open paths remain serially deduplicated at a visible queue head until delivery to a current ready owner. Count or byte exhaustion deterministically refuses the new admission without evicting an existing handle. Revocation and shutdown attempt every close before rejecting on cleanup failure; shutdown permanently refuses new admission.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/constants.js" },
+						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+						{ "kind": "implementation", "path": "desktop/file-associations.js" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "implementation", "path": "desktop/renderer-save-owner.js" },
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "test", "path": "tests/desktop-read-capability-ownership.test.js" },
+						{ "kind": "test", "path": "tests/desktop-renderer-save-owner.test.js" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
-				{
-					"id": "read-capability-owner-lifecycle",
-					"exposure": "Capabilities lack a renderer-owner binding, renderer-destroy cleanup, and an aggregate per-session count/byte policy.",
-					"requiredControl": "Bind capabilities to the creating webContents and close them on release, expiry, navigation, destruction, and aggregate-budget eviction.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Lifecycle tests prove cleanup on renderer destruction and deterministic refusal at aggregate capability limits."]
-				},
 				{
 					"id": "whole-file-renderer-read",
 					"exposure": "The renderer file service materializes selected files as whole Blobs and does not propagate cancellation to fetch.",

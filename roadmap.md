@@ -618,7 +618,26 @@ models or native implementations.
   window creation, renews its lease, and suppresses intentional-close renewal
   races. One [shutdown barrier](desktop/application-lifecycle.ts) coordinates
   in-flight startup and awaits library, read-capability, and save-session
-  disposal exactly once before process exit. Atomic save disposal now closes
+  disposal exactly once before process exit. Desktop read capabilities now
+  reuse the opaque main-owned committed-document identity, reserve at most 128
+  pending/live admissions per committed-document owner before file open, and
+  enforce 64 GiB of that owner's aggregate declared selected-file bytes before
+  descriptor publication. Explicit
+  release, expiry, non-same-document navigation, renderer loss, actual close,
+  and shutdown synchronously invalidate lookup and drain admitted opens and
+  handle closes; delayed dialog/open results for revoked owners cannot publish,
+  partial multi-file rollback drains and aggregates every cleanup, serialized
+  OS-open dispatch preserves one deduplicated queue head across owner
+  replacement, count or byte exhaustion refuses without eviction, and cleanup
+  failure is reported after every close is attempted. The focused
+  [read-capability regression](tests/desktop-read-capability-ownership.test.js)
+  covers owner isolation, concurrent pending admission, exact count and byte
+  boundaries, late completion, rollback aggregation, cleanup failure, and
+  permanent shutdown; the
+  [desktop protocol regression](tests/desktop-protocol.test.js) covers
+  replacement-renderer queue retry.
+  Renderer fetch still materializes a whole `Blob` without cancellation, so
+  `whole-file-renderer-read` remains open. Atomic save disposal now closes
   target and session admission synchronously, drains every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
   `finish` settle through its sync-and-rename commit boundary, and then aborts

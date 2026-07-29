@@ -84,7 +84,7 @@ test('desktop main initializes and disposes the library without expanding render
 	assert.equal(packageMetadata.scripts['desktop:dev'], 'npm run desktop:prepare && electron .desktop-build/app');
 });
 
-test('desktop main owns save capabilities by committed renderer document', async () => {
+test('desktop main owns file capabilities by committed renderer document', async () => {
 	const mainSource = await readFile(join(ROOT, 'desktop', 'main.mjs'), 'utf8');
 	assert.match(
 		mainSource,
@@ -118,14 +118,47 @@ test('desktop main owns save capabilities by committed renderer document', async
 	const revokeSource = mainSource.slice(revokeStart, revokeEnd);
 	assert.ok(revokeStart >= 0);
 	assert.ok(
-		revokeSource.indexOf('rendererSaveOwnership.revoke') < revokeSource.indexOf('startRendererSaveRevocation'),
+		revokeSource.indexOf('rendererSaveOwnership.revoke') < revokeSource.indexOf('rendererReady = false')
+			&& revokeSource.indexOf('rendererReady = false') < revokeSource.indexOf('startRendererSaveRevocation'),
 		'revocation closes document admission synchronously before asynchronous cleanup',
 	);
 	const cleanupStart = mainSource.indexOf('function startRendererSaveRevocation');
 	const cleanupEnd = mainSource.indexOf('\nfunction ', cleanupStart + 1);
 	const cleanupSource = mainSource.slice(cleanupStart, cleanupEnd);
 	assert.match(cleanupSource, /saves\.revokeOwner\(owner\)\.catch/u);
+	assert.match(cleanupSource, /readCapabilities\.revokeOwner\(owner\)\.catch/u);
 	assert.match(cleanupSource, /Desktop renderer save cleanup failed/u);
+	assert.match(cleanupSource, /Desktop renderer read cleanup failed/u);
+
+	const chooseReadStart = mainSource.indexOf('async function chooseFiles');
+	const chooseReadEnd = mainSource.indexOf('\nfunction ', chooseReadStart);
+	const chooseReadSource = mainSource.slice(chooseReadStart, chooseReadEnd);
+	const readCaptureIndex = chooseReadSource.indexOf('rendererSaveOwnerFor(event)');
+	const readDialogIndex = chooseReadSource.indexOf('await dialog.showOpenDialog');
+	assert.ok(readCaptureIndex >= 0 && readCaptureIndex < readDialogIndex,
+		'read-dialog ownership is captured before awaiting user input');
+	assert.match(chooseReadSource, /registerPath\(filePath, \{ owner \}\)/u);
+	assert.match(chooseReadSource, /throwAfterReadCapabilityRollback\(readCapabilities, descriptors, owner, error\)/u);
+
+	const chooseReadHandler = mainSource.slice(
+		mainSource.indexOf('handle(IPC.chooseFiles'),
+		mainSource.indexOf('\n\thandle(', mainSource.indexOf('handle(IPC.chooseFiles') + 1),
+	);
+	assert.match(chooseReadHandler, /\(event, value\).*chooseFiles\(event, value\)/su);
+	const releaseReadHandler = mainSource.slice(
+		mainSource.indexOf('handle(IPC.releaseRead'),
+		mainSource.indexOf('\n\thandle(', mainSource.indexOf('handle(IPC.releaseRead') + 1),
+	);
+	assert.match(releaseReadHandler, /rendererSaveOwnerFor\(event\)/u);
+
+	assert.match(mainSource, /new PendingProjectQueue\(deliverPendingProject\)/u);
+	const dispatchStart = mainSource.indexOf('async function deliverPendingProject');
+	const dispatchEnd = mainSource.indexOf('\nfunction ', dispatchStart);
+	const dispatchSource = mainSource.slice(dispatchStart, dispatchEnd);
+	assert.match(dispatchSource, /currentOwnerFor\(mainWindow\.webContents\)/u);
+	assert.match(dispatchSource, /registerPath\(filePath, \{ owner \}\)/u);
+	assert.match(dispatchSource, /isRendererSaveOwnerCurrent\(owner\).*return false/su,
+		'owner replacement leaves the serialized queue head for the next ready document');
 
 	const ownerForStart = mainSource.indexOf('function rendererSaveOwnerFor');
 	const ownerForEnd = mainSource.indexOf('\nfunction ', ownerForStart + 1);

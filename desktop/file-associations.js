@@ -1,6 +1,44 @@
 import { extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+export class PendingProjectQueue {
+	#deliver;
+	#dispatchPromise = null;
+	#dispatchRequested = false;
+	#paths = [];
+
+	constructor(deliver) {
+		if (typeof deliver !== 'function') throw new TypeError('Pending project delivery callback is required');
+		this.#deliver = deliver;
+	}
+
+	enqueue(filePath) {
+		if (this.#paths.includes(filePath)) return false;
+		this.#paths.push(filePath);
+		return true;
+	}
+
+	dispatch() {
+		this.#dispatchRequested = true;
+		this.#dispatchPromise ??= Promise.resolve().then(() => this.#drain());
+		return this.#dispatchPromise;
+	}
+
+	async #drain() {
+		try {
+			do {
+				this.#dispatchRequested = false;
+				while (this.#paths.length) {
+					if (!await this.#deliver(this.#paths[0])) break;
+					this.#paths.shift();
+				}
+			} while (this.#dispatchRequested);
+		} finally {
+			this.#dispatchPromise = null;
+		}
+	}
+}
+
 export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 	const paths = [];
 	for (const argument of Array.isArray(argv) ? argv : []) {
