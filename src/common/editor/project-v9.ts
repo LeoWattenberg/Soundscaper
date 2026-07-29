@@ -23,6 +23,7 @@ import {
 	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
+import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 
 export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = 9;
 export const AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_SCHEMA_VERSION;
@@ -66,20 +67,22 @@ export const createProjectBinV9 = createProjectBinV8;
 export function createAudioEditorProjectV9(options: AudioEditorProjectV9Options = {}): AudioEditorProjectV9 {
 	const { featureRequirements = { schemaVersion: 1, requirements: [] }, ...baseOptions } = options;
 	const base = createAudioEditorProjectV8(baseOptions);
+	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(featureRequirements, { sources: base.sources });
 	return {
 		...base,
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-		featureRequirements: normalizeProjectFeatureRequirements(featureRequirements, { sources: base.sources }),
+		featureRequirements: reconcileProjectOwnedFeatureRequirements(base, normalizedFeatureRequirements),
 	};
 }
 
 export function cloneAudioEditorProjectV9(project: AudioEditorProjectV9): AudioEditorProjectV9 {
 	const copy = clone(project);
+	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(copy.featureRequirements, {
+		sources: copy.sources as readonly Readonly<Record<string, unknown>>[],
+	});
 	return {
 		...copy,
-		featureRequirements: normalizeProjectFeatureRequirements(copy.featureRequirements, {
-			sources: copy.sources as readonly Readonly<Record<string, unknown>>[],
-		}),
+		featureRequirements: reconcileProjectOwnedFeatureRequirements(copy, normalizedFeatureRequirements),
 	};
 }
 

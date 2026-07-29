@@ -4,6 +4,7 @@ import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
 import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './adm-project-metadata.ts';
 import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
+import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 export { createStableId } from './stable-id.js';
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
@@ -268,7 +269,10 @@ export function commitProject(project, mutate, options = {}) {
 	mutate(draft);
 	draft.revision = project.revision + 1;
 	draft.updatedAt = isoTimestamp(options.now);
-	if (draft.schemaVersion === 9) draft.featureRequirements = normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources });
+	if (draft.schemaVersion === 9) {
+		const featureRequirements = normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources });
+		draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, featureRequirements);
+	}
 	validateAudioEditorProject(draft);
 	return draft;
 }
