@@ -170,6 +170,32 @@ test('a reservation remains held while switch publication invokes re-entrant sub
 	assert.equal(activation.release(), true);
 });
 
+test('a blocked re-entrant subscriber cannot abort authorized activation publication', () => {
+	const first = project('first-project');
+	const second = project('second-project');
+	const controller = createAudioEditorSessionController();
+	controller.openProject(first);
+	controller.openProject(second, { activate: false });
+	const capture = controller.captureProjectHistory(second.id);
+	const activation = controller.beginProjectActivation(second.id, {
+		expectedHistoryToken: capture.token,
+	});
+	let observedActiveProjectId = null;
+	controller.subscribe(() => {
+		controller.updateProject(second.id, (value) => ({ ...value, title: 'Blocked' }));
+	});
+	controller.subscribe((snapshot) => {
+		observedActiveProjectId = snapshot.activeProjectId;
+	});
+
+	assert.equal(controller.switchProject(second.id, { activationToken: activation.token }), true);
+	assert.equal(observedActiveProjectId, second.id);
+	assert.equal(controller.getSnapshot().activeProjectId, second.id);
+	assert.equal(controller.getProject(second.id).title, second.title);
+	assert.equal(controller.assertProjectHistoryToken(second.id, capture.token), true);
+	assert.equal(activation.release(), true);
+});
+
 function project(id) {
 	return createAudioEditorProjectV2({ id, title: id, now: NOW });
 }

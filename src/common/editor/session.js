@@ -284,7 +284,7 @@ export function createAudioEditorSessionController(options = {}) {
 	function publish() {
 		invalidate();
 		const snapshot = getSnapshot();
-		for (const listener of [...listeners]) listener(snapshot);
+		activationReservations.publish(listeners, snapshot);
 	}
 
 	function finishMutation(beforeCounts, reason, result = {}) {
