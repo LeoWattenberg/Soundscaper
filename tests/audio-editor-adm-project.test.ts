@@ -14,6 +14,7 @@ import {
 	migrateAudioEditorProject,
 	migrateAudioEditorProjectV6ToV7,
 	migrateAudioEditorProjectV7ToV8,
+	migrateAudioEditorProjectV8ToV9,
 } from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
@@ -337,7 +338,7 @@ test('V6 migration adds null ADM, preserves stereo routing, and leaves the input
 	assert.equal(migrated.masterChannels, 2);
 	assert.deepEqual(migrated.mixer, v6.mixer);
 	assert.deepEqual(migrateAudioEditorProject(v6), {
-		project: migrateAudioEditorProjectV7ToV8(migrated), migrated: true, fromVersion: 6, readOnly: false, reason: null,
+		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(migrated)), migrated: true, fromVersion: 6, readOnly: false, reason: null,
 	});
 });
 
@@ -348,13 +349,14 @@ test('V7 loading clones current projects and preserves future projects read-only
 	});
 	assert.notStrictEqual(loadAudioEditorProjectV7(current).project, current);
 	assert.deepEqual(migrateAudioEditorProject(current), {
-		project: migrateAudioEditorProjectV7ToV8(current), migrated: true, fromVersion: 7, readOnly: false, reason: null,
+		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(current)), migrated: true, fromVersion: 7, readOnly: false, reason: null,
 	});
 	const future = { ...current, schemaVersion: 9, futureData: { retained: true } };
 	assert.deepEqual(loadAudioEditorProjectV7(future), {
 		project: future, readOnly: true, reason: 'newer-schema',
 	});
-	assert.deepEqual(migrateAudioEditorProject(future), {
-		project: future, migrated: false, fromVersion: 9, readOnly: true, reason: 'newer-schema',
+	const genericFuture = { ...future, schemaVersion: 10 };
+	assert.deepEqual(migrateAudioEditorProject(genericFuture), {
+		project: genericFuture, migrated: false, fromVersion: 10, readOnly: true, reason: 'newer-schema',
 	});
 });

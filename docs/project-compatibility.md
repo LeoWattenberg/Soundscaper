@@ -33,14 +33,41 @@ turn an unknown schema into the current schema.
 
 ## Retained migrations
 
-Schema 8 is the current writable schema. Inputs from schemas 1 through 7 are
-validated and migrated atomically to schema 8. Migration functions must be
+Schema 9 is the current writable schema. Inputs from schemas 1 through 8 are
+validated and migrated atomically to schema 9. Migration functions must be
 pure: the input fixture is retained unchanged, and failure publishes neither a
 partial project nor partial history.
 
 Every new schema version must add fixtures for its immediate predecessor and
 the oldest retained schema. Project state, history, clipboard state, `.scape`,
 and both product profiles must agree on the same migration boundary.
+
+## Project feature requirements
+
+Schema 9 establishes the raw-project declaration and evaluation foundation. Its
+root-level `featureRequirements` value is a bounded, normalized manifest with a
+closed manifest version, canonical namespaced feature identifiers, unique
+requirement IDs, closed bypass or rendered-fallback dispositions, and bounded
+display strings. A rendered-fallback descriptor must reference an existing
+project source of the declared audio or video kind and carry a canonical
+lowercase SHA-256 string. That validates descriptor syntax and source identity;
+it does not hash or authenticate the referenced media bytes.
+
+Schemas 1 through 8 migrate to the canonical empty manifest rather than
+inventing requirements. The pure evaluator compares a normalized manifest with
+caller-declared known and available feature IDs and reports available,
+unavailable, and unknown entries with effective native, bypassed, or
+rendered-fallback dispositions. Unknown feature IDs remain declarative data and
+cannot activate code. Malformed current-schema manifest state fails validation;
+a newer outer project schema is instead cloned opaquely and returned read-only
+before current-manifest normalization.
+
+This stage does not establish dedicated `.scape` inspection/open or preservation
+evidence for feature requirements, controller enforcement or read-only policy,
+an actionable compatibility-report surface, unavailable-feature or bypass UI,
+verification or runtime use of fallback media, or a general opaque native-state
+round trip. Those outcomes remain governed by the planned compatibility rows
+and roadmap exit gate.
 
 ## Opaque state
 

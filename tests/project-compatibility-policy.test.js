@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-v8.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-v9.ts';
 import { SCAPE_FORMAT_VERSION } from '../src/common/editor/scape-project.js';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
@@ -33,6 +33,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
+		'project-feature-requirements-core': 'implemented',
 		'future-core-read-only': 'implemented',
 		'future-scape-round-trip': 'planned',
 		'json-opaque-extensions': 'implemented',
@@ -60,6 +61,24 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 			);
 		}
 	}
+
+	const featureRequirements = rules.get('project-feature-requirements-core');
+	for (const reference of [
+		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-v9.ts',
+		'src/common/editor/migration.js',
+		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-project-v9.test.ts',
+	]) assert.ok(featureRequirements.evidence.includes(reference), reference);
+	assert.match(featureRequirements.currentBehavior, /bounded.*rendered-fallback.*digest syntax/iu);
+	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
+
+	const unavailable = rules.get('unavailable-native-feature');
+	assert.equal(unavailable.status, 'planned');
+	assert.match(
+		unavailable.currentBehavior,
+		/\.scape inspection\/open.*controller enforcement.*visible placeholder.*digest verification.*fallback use.*opaque native-state/iu,
+	);
 });
 
 test('schema retirement and forward-read rules fail closed without claiming unsupported losslessness', async () => {
@@ -80,5 +99,8 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /Core document versus `\.scape`/u);
 	assert.match(documentation, /not\s+byte-for-byte/u);
 	assert.match(documentation, /binary opaque/iu);
+	assert.match(documentation, /Project feature requirements/u);
+	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
+	assert.match(documentation, /does not establish dedicated `\.scape` inspection\/open/iu);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

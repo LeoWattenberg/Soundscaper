@@ -58,12 +58,14 @@ export {
 export * from './project-v6.ts';
 export * from './project-v7.ts';
 export * from './project-v8.ts';
+export * from './project-v9.ts';
+export * from './project-feature-requirements.ts';
 export {
 	AUDIO_EDITOR_MEDIA_KINDS,
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	AUDIO_EDITOR_TRACK_TYPES,
-} from './project-v8.ts';
+} from './project-v9.ts';
 export {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	cloneProject,

@@ -1,10 +1,10 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-28",
+	"groundedAt": "2026-07-29",
 	"projectSchema": {
-		"currentVersion": 8,
+		"currentVersion": 9,
 		"minimumReadableVersion": 1,
-		"retainedMigrationSources": [1, 2, 3, 4, 5, 6, 7]
+		"retainedMigrationSources": [1, 2, 3, 4, 5, 6, 7, 8]
 	},
 	"portableArchive": {
 		"currentFormatVersion": 1,
@@ -35,20 +35,35 @@
 			"id": "legacy-schema-migration",
 			"status": "implemented",
 			"requiredOutcome": "Every retained schema migrates atomically to the current editable schema without mutating its input.",
-			"currentBehavior": "Schemas 1 through 7 are validated and migrated to schema 8; a failed migration publishes no partial project.",
+			"currentBehavior": "Schemas 1 through 8 are validated and migrated to schema 9; a failed migration publishes no partial project.",
 			"evidence": [
 				"src/common/editor/migration.js",
-				"tests/audio-editor-project-v2.test.js"
+				"src/common/editor/project-v9.ts",
+				"tests/audio-editor-project-v2.test.js",
+				"tests/audio-editor-project-v9.test.ts"
 			]
 		},
 		{
 			"id": "current-schema-editing",
 			"status": "implemented",
-			"requiredOutcome": "The current schema validates, clones, edits, saves, and reopens as an editable document.",
-			"currentBehavior": "Schema 8 is the maintained writable schema and is cloned at the load boundary.",
+			"requiredOutcome": "The current raw project schema validates, clones, and routes as editable at the core load and migration boundary.",
+			"currentBehavior": "Schema 9 is the maintained writable raw-project schema and is cloned at the load boundary; this rule does not claim feature-requirement handling at the portable-archive or controller boundary.",
 			"evidence": [
-				"src/common/editor/project-v8.ts",
-				"tests/audio-editor-project-v8.test.ts"
+				"src/common/editor/project-v9.ts",
+				"tests/audio-editor-project-v9.test.ts"
+			]
+		},
+		{
+			"id": "project-feature-requirements-core",
+			"status": "implemented",
+			"requiredOutcome": "Current raw project documents carry a bounded normalized declarative feature-requirements manifest, retained-schema migrations initialize its canonical empty form without inventing requirements, and pure evaluation classifies caller-declared availability without activating project data.",
+			"currentBehavior": "Schema 9 validates and deep-clones manifest schema 1, canonical feature identifiers, unique requirement IDs, closed dispositions, bounded collections and strings, and rendered-fallback descriptor source kind and digest syntax. V1-V8 migration initializes an empty manifest, and evaluation reports available, unavailable, and unknown requirements with native, bypassed, or rendered-fallback effective dispositions without mutating the manifest.",
+			"evidence": [
+				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/project-v9.ts",
+				"src/common/editor/migration.js",
+				"tests/audio-editor-project-feature-requirements.test.ts",
+				"tests/audio-editor-project-v9.test.ts"
 			]
 		},
 		{
@@ -58,7 +73,7 @@
 			"currentBehavior": "The core migration boundary returns newer objects as structured clones with readOnly=true and reason=newer-schema.",
 			"evidence": [
 				"src/common/editor/migration.js",
-				"tests/audio-editor-project-v8.test.ts",
+				"tests/audio-editor-project-v9.test.ts",
 				"tests/audio-editor-project-v2.test.js"
 			]
 		},
@@ -101,9 +116,13 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "AUP4 missing effects preserve focused opaque nodes, but there is no general project feature-requirements and fallback manifest yet.",
+			"currentBehavior": "The schema 9 raw-domain manifest and evaluator can declare requirements, bypass intent, and rendered-fallback descriptors, but dedicated .scape inspection/open and preservation evidence, controller enforcement and compatibility reporting, visible placeholder and bypass UI, referenced-media digest verification and fallback use, and a general opaque native-state round trip are not implemented.",
 			"evidence": [
+				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/project-v9.ts",
 				"src/common/editor/aup4-effects.js",
+				"tests/audio-editor-project-feature-requirements.test.ts",
+				"tests/audio-editor-project-v9.test.ts",
 				"tests/aup4-effects.test.js",
 				"roadmap.md#2-shared-platform-storage-and-media-foundation"
 			]

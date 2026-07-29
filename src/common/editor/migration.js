@@ -34,11 +34,16 @@ import {
 	validateAudioEditorProjectV7,
 } from './project-v7.ts';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV8,
 	loadAudioEditorProjectV8,
 	validateAudioEditorProjectV8,
 } from './project-v8.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createAudioEditorProjectV9,
+	loadAudioEditorProjectV9,
+	validateAudioEditorProjectV9,
+} from './project-v9.ts';
 
 const PROJECT_V1_KEYS = new Set([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate', 'masterChannels',
@@ -378,9 +383,23 @@ export function migrateAudioEditorProjectV1ToV8(value) {
 	return migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV1ToV7(value));
 }
 
+export function migrateAudioEditorProjectV8ToV9(value) {
+	if (!value || typeof value !== 'object' || value.schemaVersion !== 8) {
+		throw new RangeError('An AudioEditorProjectV8 project is required.');
+	}
+	const loaded = loadAudioEditorProjectV8(value);
+	if (loaded.readOnly) throw new RangeError('An AudioEditorProjectV8 project is required.');
+	const project = createAudioEditorProjectV9({
+		...loaded.project,
+		now: loaded.project.createdAt,
+	});
+	validateAudioEditorProjectV9(project);
+	return project;
+}
+
 /**
  * Version-aware load/migration boundary. Future documents are returned intact
- * and read-only; V1-V6 are migrated atomically; V7 is validated and cloned.
+ * and read-only; V1-V8 are migrated atomically; V9 is validated and cloned.
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
@@ -398,7 +417,7 @@ export function migrateAudioEditorProject(value) {
 		};
 	}
 	if (schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		const loaded = loadAudioEditorProjectV8(value);
+		const loaded = loadAudioEditorProjectV9(value);
 		const migrated = (value.tracks || []).some((track) => track?.type !== 'label' && (
 			Object.hasOwn(track, 'channelCount')
 			|| Object.hasOwn(track, 'channelLayout')
@@ -413,7 +432,9 @@ export function migrateAudioEditorProject(value) {
 			reason: null,
 		};
 	}
-	const project = schemaVersion === 7
+	const v8Project = schemaVersion === 8
+		? value
+		: schemaVersion === 7
 		? migrateAudioEditorProjectV7ToV8(value)
 		: schemaVersion === 6
 			? migrateAudioEditorProjectV6ToV8(value)
@@ -426,6 +447,7 @@ export function migrateAudioEditorProject(value) {
 						: schemaVersion === 2
 							? migrateAudioEditorProjectV2ToV8(value)
 							: migrateAudioEditorProjectV1ToV8(value);
+	const project = migrateAudioEditorProjectV8ToV9(v8Project);
 	return {
 		project,
 		migrated: true,

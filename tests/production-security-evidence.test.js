@@ -60,6 +60,44 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 });
 
+test('project feature requirements are bounded declarative state rather than an activation boundary', async () => {
+	const matrix = await readMatrix();
+	const boundary = matrix.boundaries.find(({ id }) => id === 'external-input-to-parser');
+	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
+	const control = projectDocuments?.currentControls.find(
+		({ id }) => id === 'project-schema-and-forward-read-validation',
+	);
+
+	assert.ok(boundary);
+	assert.ok(projectDocuments);
+	assert.equal(projectDocuments.status, 'partial');
+	assert.equal(projectDocuments.releaseDisposition, 'conditional');
+	assert.ok(control);
+	for (const path of [
+		'src/common/editor/migration.js',
+		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-v9.ts',
+		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-project-v9.test.ts',
+	]) assert.ok(control.evidence.some((item) => item.path === path), path);
+	for (const path of [
+		'src/common/editor/migration.js',
+		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-v9.ts',
+	]) assert.ok(boundary.entryPoints.includes(path), path);
+
+	assert.match(control.summary, /bounded declarative.*deep-frozen/iu);
+	assert.match(control.summary, /duplicate requirement IDs.*noncanonical feature IDs.*unsupported dispositions/iu);
+	assert.match(control.summary, /without executing project-supplied identifiers or mutating/iu);
+	assert.match(control.summary, /does not verify referenced fallback bytes/iu);
+	assert.match(control.summary, /does not.*\.scape inspection\/open.*controller enforcement.*runtime fallback use.*UI/iu);
+
+	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
+	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
+	assert.match(documentation, /do not qualify dedicated `\.scape` inspection\/open.*controller enforcement.*runtime fallback use.*UI/iu);
+});
+
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {
 	const matrix = await readMatrix();
 	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');

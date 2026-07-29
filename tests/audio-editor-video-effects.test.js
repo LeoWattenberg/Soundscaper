@@ -23,6 +23,7 @@ import {
 	migrateAudioEditorProjectV5ToV6,
 	migrateAudioEditorProjectV6ToV7,
 	migrateAudioEditorProjectV7ToV8,
+	migrateAudioEditorProjectV8ToV9,
 } from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
@@ -329,9 +330,9 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 	assert.deepEqual(migrated.clips[0].videoEffects, []);
 	assert.equal(validateAudioEditorProjectV5(migrated), true);
 	assert.equal(validateAudioEditorProject(migrated), true);
-	const current = migrateAudioEditorProjectV7ToV8(
+	const current = migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(
 		migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV5ToV6(migrated)),
-	);
+	));
 	assert.deepEqual(migrateAudioEditorProject(v4), {
 		project: current,
 		migrated: true,
@@ -340,11 +341,11 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 		reason: null,
 	});
 
-	const future = { ...current, schemaVersion: 9, futureField: { retained: true } };
+	const future = { ...current, schemaVersion: 10, futureField: { retained: true } };
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 9,
+		fromVersion: 10,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

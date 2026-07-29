@@ -44,18 +44,23 @@
 			"data": "Untrusted project documents, ZIP records, media bytes, metadata, and codec arguments",
 			"entryPoints": [
 				"src/common/editor/scape-project.js",
-				"src/common/editor/project-v8.ts",
+				"src/common/editor/migration.js",
+				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/project-v9.ts",
 				"src/common/editor/wav-import.js",
 				"src/common/editor/adm-xml-compression.ts"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
-				{ "kind": "implementation", "path": "src/common/editor/project-v8.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/migration.js" },
+				{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/project-v9.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/wav-import.js" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
-				{ "kind": "test", "path": "tests/audio-editor-project-v8.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-project-feature-requirements.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-project-v9.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-wav-import.test.js" }
 			]
 		},
@@ -218,10 +223,14 @@
 			"currentControls": [
 				{
 					"id": "project-schema-and-forward-read-validation",
-					"summary": "Core project migration validates supported schemas and opens newer schemas read-only without overwriting them.",
+					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. This control does not verify referenced fallback bytes or qualify .scape inspection/open and preservation, controller enforcement, runtime fallback use, compatibility-report UI, or bypass UI.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/project-v8.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-v8.test.ts" }
+						{ "kind": "implementation", "path": "src/common/editor/migration.js" },
+						{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/project-v9.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-feature-requirements.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-v9.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-v2.test.js" }
 					]
 				},
 				{

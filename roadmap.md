@@ -758,9 +758,16 @@ models or native implementations.
 - **Electron Enhanced — Planned:** support durable linked media through scoped
   path capabilities/bookmarks, relink, watch detection, copy/consolidate, and
   opt-in managed media. Portable `.scape` export still embeds everything needed.
-- **Shared — Planned:** add a project feature-requirements manifest. Unknown or
-  unavailable native features stay visible, bypassed when necessary, and
-  round-trip unchanged alongside frozen/rendered fallbacks.
+- **Shared — In progress:** schema V9 adds a bounded, normalized, declarative
+  root-level `featureRequirements` manifest; V1–V8 migration initializes its
+  canonical empty form; and a pure shared evaluator reports available,
+  unavailable, and unknown requirements with effective native, bypassed, or
+  rendered-fallback dispositions against explicitly declared support. The
+  schema validates fallback descriptor source identity and kind plus digest
+  syntax, not the referenced media bytes. Dedicated `.scape` inspection/open
+  and preservation evidence, controller enforcement and compatibility reports,
+  actual fallback integrity/use, unavailable-feature and bypass UI, and opaque
+  native-state round trips remain planned.
 
 ### Exit gate
 

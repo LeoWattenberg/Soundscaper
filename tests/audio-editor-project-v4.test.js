@@ -8,6 +8,7 @@ import {
 	migrateAudioEditorProjectV5ToV6,
 	migrateAudioEditorProjectV6ToV7,
 	migrateAudioEditorProjectV7ToV8,
+	migrateAudioEditorProjectV8ToV9,
 } from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
@@ -234,9 +235,9 @@ test('V3 to V4 migration preserves project state and adds audio/bin discriminato
 	});
 	assert.equal(validateAudioEditorProjectV4(migrated), true);
 	assert.equal(validateAudioEditorProject(migrated), true);
-	const current = migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(
+	const current = migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(
 		migrateAudioEditorProjectV5ToV6(migrateAudioEditorProjectV4ToV5(migrated)),
-	));
+	)));
 	assert.deepEqual(migrateAudioEditorProject(v3), {
 		project: current,
 		migrated: true,
@@ -264,10 +265,11 @@ test('V4 validates paired lanes, linked timeline clips, and compound Project Bin
 		readOnly: true,
 		reason: 'newer-schema',
 	});
-	assert.deepEqual(migrateAudioEditorProject(future), {
-		project: future,
+	const genericFuture = { ...future, schemaVersion: 10 };
+	assert.deepEqual(migrateAudioEditorProject(genericFuture), {
+		project: genericFuture,
 		migrated: false,
-		fromVersion: 9,
+		fromVersion: 10,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

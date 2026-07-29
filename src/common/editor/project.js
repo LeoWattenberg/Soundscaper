@@ -3,6 +3,7 @@ import { createStableId } from './stable-id.js';
 import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
 import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './adm-project-metadata.ts';
+import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
 export { createStableId } from './stable-id.js';
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
@@ -19,7 +20,6 @@ export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
  * @property {48000} sampleRate
  * @property {number} originalSampleRate
  */
-
 /**
  * @typedef {Object} AudioEditorClipV1
  * @property {string} id
@@ -32,7 +32,6 @@ export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
  * @property {number} fadeOutFrames
  * @property {boolean} reversed
  */
-
 /**
  * @typedef {Object} AudioEditorEffectV1
  * @property {string} id
@@ -42,7 +41,6 @@ export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
  * @property {Record<string, *> | null} [context]
  * @property {Record<string, *> | null} [state]
  */
-
 /**
  * @typedef {Object} AudioEditorTrackV1
  * @property {string} id
@@ -270,6 +268,7 @@ export function commitProject(project, mutate, options = {}) {
 	mutate(draft);
 	draft.revision = project.revision + 1;
 	draft.updatedAt = isoTimestamp(options.now);
+	if (draft.schemaVersion === 9) draft.featureRequirements = normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources });
 	validateAudioEditorProject(draft);
 	return draft;
 }
@@ -284,6 +283,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 6) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata);
 	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
+	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && Boolean(normalizeProjectFeatureRequirements(project.featureRequirements, { sources: project.sources }));
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}

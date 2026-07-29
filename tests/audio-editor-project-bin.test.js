@@ -14,6 +14,7 @@ import {
 	migrateAudioEditorProjectV4ToV6,
 	migrateAudioEditorProjectV6ToV7,
 	migrateAudioEditorProjectV7ToV8,
+	migrateAudioEditorProjectV8ToV9,
 } from '../src/common/editor/migration.js';
 import {
 	findProjectBinClip,
@@ -121,9 +122,9 @@ test('V3 adds an empty project bin and V2 migration is atomic', () => {
 		reason: 'newer-schema',
 	});
 	assert.deepEqual(migrateAudioEditorProject(v2), {
-		project: migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(
+		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(
 			migrateAudioEditorProjectV4ToV6(migrateAudioEditorProjectV3ToV4(migrated)),
-		)),
+		))),
 		migrated: true,
 		fromVersion: 2,
 		readOnly: false,

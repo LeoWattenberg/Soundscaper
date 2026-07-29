@@ -6,6 +6,7 @@ import type { ProjectBextMetadata } from './project-bext-metadata.ts';
 import type { IxmlMetadata } from './ixml.ts';
 import type { CartMetadata } from './cart-metadata.ts';
 import type { AdmProjectMetadata } from './adm-project-metadata.ts';
+import type { ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 
@@ -157,6 +158,11 @@ export type EditorProjectV8 = Omit<EditorProjectV7, 'schemaVersion'> & Readonly<
 	schemaVersion: 8;
 }>;
 
+export type EditorProjectV9 = Omit<EditorProjectV8, 'schemaVersion'> & Readonly<{
+	schemaVersion: 9;
+	featureRequirements: ProjectFeatureRequirementsManifest;
+}>;
+
 export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 	readonly schemaVersion: Version;
 	readonly id: EditorId;
@@ -173,7 +179,7 @@ export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 export type EditorProjectV2 = EditorLegacyProject<2>;
 export type EditorProjectV3 = EditorLegacyProject<3>;
 export type EditorProjectV4 = EditorLegacyProject<4>;
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8;
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

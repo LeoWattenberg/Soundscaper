@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { migrateAudioEditorProject, migrateAudioEditorProjectV7ToV8 } from '../src/common/editor/migration.js';
+import {
+	migrateAudioEditorProject,
+	migrateAudioEditorProjectV7ToV8,
+	migrateAudioEditorProjectV8ToV9,
+} from '../src/common/editor/migration.js';
 import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
 import {
 	createAudioEditorProjectV8,
@@ -48,7 +52,7 @@ test('V7 to V8 migration is pure and preserves ADM metadata', () => {
 	assert.deepEqual(v8.metadata, v7.metadata);
 	assert.deepEqual(v7, original);
 	assert.deepEqual(migrateAudioEditorProject(v7), {
-		project: v8,
+		project: migrateAudioEditorProjectV8ToV9(v8),
 		migrated: true,
 		fromVersion: 7,
 		readOnly: false,
