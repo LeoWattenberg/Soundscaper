@@ -1,36 +1,37 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+	ffmpegRuntimeStageSummary,
+	verifyFfmpegRuntimeManifest,
+} from './lib/ffmpeg-runtime-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSET_ROOT = resolve(process.argv[2] || resolve(ROOT, 'release/desktop'));
 const TRANSLATION_BASE_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
-const FFMPEG_SOURCE_MANIFEST = resolve(ROOT, 'desktop/ffmpeg-corresponding-source.json');
-const FFMPEG_RUNTIME = Object.freeze({
-	package: '@ffmpeg/core',
-	version: '0.12.10',
-	javascriptSha256: '67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3',
-	wasmSha256: '9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7',
-});
 const EXPECTED_RUNTIME_MANIFESTS = Object.freeze([
-	'runtime-manifest-linux-arm64.json',
-	'runtime-manifest-linux-x64.json',
-	'runtime-manifest-mac-arm64.json',
-	'runtime-manifest-mac-x64.json',
-	'runtime-manifest-win-arm64.json',
-	'runtime-manifest-win-x64.json',
+	'runtime-manifest-soundscaper-linux-arm64.json',
+	'runtime-manifest-soundscaper-linux-x64.json',
+	'runtime-manifest-soundscaper-mac-arm64.json',
+	'runtime-manifest-soundscaper-mac-x64.json',
+	'runtime-manifest-soundscaper-win-arm64.json',
+	'runtime-manifest-soundscaper-win-x64.json',
 ]);
 
-async function main() {
-	const ffmpegCorrespondingSource = await loadFfmpegCorrespondingSource();
-	await mkdir(ASSET_ROOT, { recursive: true });
+export async function main() {
+	const runtimeRelease = await verifyFfmpegRuntimeManifest({
+		repositoryRoot: ROOT,
+		purpose: 'desktop-release',
+	});
+	const ffmpegCorrespondingSource = loadFfmpegCorrespondingSource(runtimeRelease);
 	const entries = await readdir(ASSET_ROOT, { withFileTypes: true });
-	const manifestNames = entries
-		.filter((entry) => entry.isFile() && /^runtime-manifest-.+\.json$/u.test(entry.name))
-		.map((entry) => entry.name)
+	const packageFiles = regularDesktopReleaseFileNames(entries);
+	const manifestNames = packageFiles
+		.filter((name) => /^runtime-manifest-.+\.json$/u.test(name))
 		.sort();
 	assert(JSON.stringify(manifestNames) === JSON.stringify(EXPECTED_RUNTIME_MANIFESTS),
 		`Expected runtime manifests for all six native builds; received: ${manifestNames.join(', ') || '<none>'}.`);
@@ -38,19 +39,21 @@ async function main() {
 		name,
 		value: parseJson(await readFile(resolve(ASSET_ROOT, name)), name),
 	})));
+	validateDesktopRuntimeManifests(manifests, runtimeRelease);
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
 		assert(manifest.value.applicationVersion === canonical.applicationVersion,
 			`${manifest.name} has a different application version.`);
 		assert(manifest.value.translations?.releaseId === canonical.translations?.releaseId,
 			`${manifest.name} has a different translation release.`);
-		assert(JSON.stringify(manifest.value.ffmpeg) === JSON.stringify(canonical.ffmpeg),
-			`${manifest.name} has a different FFmpeg runtime.`);
 	}
+	validateDesktopReleasePackageInventory(packageFiles, canonical.applicationVersion);
+	const sourceSidecarPath = resolve(ASSET_ROOT, 'ffmpeg-corresponding-source.json');
+	assert((await readFile(sourceSidecarPath)).equals(runtimeRelease.evidence.correspondingSource.bytes),
+		'FFmpeg corresponding-source sidecar does not match the policy manifest.');
 
 	const translationSource = canonical.translations?.source?.archive;
-	validateDescriptor(translationSource, 'translation source archive', 32 * 1024 * 1024);
-	const translationSourceName = `Audacity-translations-${canonical.translations.releaseId}-source.zip`;
+	const translationSourceName = desktopTranslationSourceName(canonical.translations?.releaseId, translationSource);
 	await fetchVerified(
 		new URL(translationSource.path, TRANSLATION_BASE_URL),
 		resolve(ASSET_ROOT, translationSourceName),
@@ -69,53 +72,74 @@ async function main() {
 		ffmpegCorrespondingSource.source,
 		'FFmpeg corresponding-source archive',
 	);
-	await copyFile(resolve(ROOT, 'LICENSE'), resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'));
-	await copyFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md'), resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'));
+	await writeFile(resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
+	await writeFile(resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'), runtimeRelease.evidence.notices.bytes, { flag: 'wx' });
+	await writeFile(resolve(ASSET_ROOT, 'ffmpeg-runtime-manifest.json'), runtimeRelease.manifestBytes, { flag: 'wx' });
 
-	const releaseFiles = (await readdir(ASSET_ROOT, { withFileTypes: true }))
-		.filter((entry) => entry.isFile() && entry.name !== 'SHA256SUMS')
-		.map((entry) => entry.name)
+	const releaseFiles = regularDesktopReleaseFileNames(await readdir(ASSET_ROOT, { withFileTypes: true }))
+		.filter((name) => name !== 'SHA256SUMS')
 		.sort();
-	const requiredPackages = [
-		['Linux x64 AppImage', /^Soundscaper-.+-linux-(?:x64|x86_64)\.AppImage$/u],
-		['Linux x64 Debian package', /^Soundscaper-.+-linux-(?:x64|amd64)\.deb$/u],
-		['Linux ARM64 AppImage', /^Soundscaper-.+-linux-arm64\.AppImage$/u],
-		['Linux ARM64 Debian package', /^Soundscaper-.+-linux-arm64\.deb$/u],
-		['macOS Intel DMG', /^Soundscaper-.+-mac-x64\.dmg$/u],
-		['macOS Apple silicon DMG', /^Soundscaper-.+-mac-arm64\.dmg$/u],
-		['Windows x64 installer', /^Soundscaper-.+-win-x64\.exe$/u],
-		['Windows x64 ZIP', /^Soundscaper-.+-win-x64\.zip$/u],
-		['Windows ARM64 installer', /^Soundscaper-.+-win-arm64\.exe$/u],
-		['Windows ARM64 ZIP', /^Soundscaper-.+-win-arm64\.zip$/u],
-	];
-	for (const [label, pattern] of requiredPackages) {
-		assert(releaseFiles.some((name) => pattern.test(name)), `Missing expected ${label}.`);
-	}
 	const checksums = [];
 	for (const name of releaseFiles) {
 		const bytes = await readFile(resolve(ASSET_ROOT, name));
 		checksums.push(`${sha256(bytes)}  ${name}`);
 	}
-	await writeFile(resolve(ASSET_ROOT, 'SHA256SUMS'), `${checksums.join('\n')}\n`);
+	await writeFile(resolve(ASSET_ROOT, 'SHA256SUMS'), `${checksums.join('\n')}\n`, { flag: 'wx' });
 	console.log(`Prepared ${releaseFiles.length} release assets and SHA256SUMS in ${ASSET_ROOT}`);
 }
 
-async function loadFfmpegCorrespondingSource() {
-	let manifest;
-	try {
-		manifest = parseJson(await readFile(FFMPEG_SOURCE_MANIFEST), 'FFmpeg corresponding-source manifest');
-	} catch (error) {
-		if (error?.code !== 'ENOENT') throw error;
-		throw new Error(
-			'Public desktop release is blocked: desktop/ffmpeg-corresponding-source.json is missing. '
-			+ 'Create and audit a complete digest-pinned source bundle for the shipped FFmpeg core and every enabled dependency before publishing binaries.',
-		);
+export function validateDesktopReleasePackageInventory(packageFiles, applicationVersion) {
+	assert(typeof applicationVersion === 'string' && applicationVersion.length > 0,
+		'Desktop runtime manifests have no application version.');
+	const version = escapeRegex(applicationVersion);
+	const requiredPackages = [
+		['Linux x64 AppImage', new RegExp(`^Soundscaper-${version}-linux-(?:x64|x86_64)\\.AppImage$`, 'u')],
+		['Linux x64 Debian package', new RegExp(`^Soundscaper-${version}-linux-(?:x64|amd64)\\.deb$`, 'u')],
+		['Linux ARM64 AppImage', new RegExp(`^Soundscaper-${version}-linux-arm64\\.AppImage$`, 'u')],
+		['Linux ARM64 Debian package', new RegExp(`^Soundscaper-${version}-linux-arm64\\.deb$`, 'u')],
+		['macOS Intel DMG', new RegExp(`^Soundscaper-${version}-mac-x64\\.dmg$`, 'u')],
+		['macOS Apple silicon DMG', new RegExp(`^Soundscaper-${version}-mac-arm64\\.dmg$`, 'u')],
+		['Windows x64 installer', new RegExp(`^Soundscaper-${version}-win-x64\\.exe$`, 'u')],
+		['Windows x64 ZIP', new RegExp(`^Soundscaper-${version}-win-x64\\.zip$`, 'u')],
+		['Windows ARM64 installer', new RegExp(`^Soundscaper-${version}-win-arm64\\.exe$`, 'u')],
+		['Windows ARM64 ZIP', new RegExp(`^Soundscaper-${version}-win-arm64\\.zip$`, 'u')],
+	];
+	const releasePackages = packageFiles.filter((name) => /\.(?:AppImage|deb|dmg|exe|zip)$/u.test(name));
+	for (const [label, pattern] of requiredPackages) {
+		assert(releasePackages.filter((name) => pattern.test(name)).length === 1, `Expected exactly one ${label}.`);
 	}
+	assert(releasePackages.length === requiredPackages.length,
+		`Unexpected or duplicate desktop package: ${releasePackages.join(', ') || '<none>'}.`);
+	assert(packageFiles.includes('ffmpeg-corresponding-source.json'),
+		'Missing FFmpeg corresponding-source sidecar.');
+	const allowedInputs = new Set([...releasePackages, ...EXPECTED_RUNTIME_MANIFESTS, 'ffmpeg-corresponding-source.json']);
+	const unexpectedInputs = packageFiles.filter((name) => !allowedInputs.has(name));
+	assert(unexpectedInputs.length === 0,
+		`Unexpected desktop release input: ${unexpectedInputs.join(', ')}.`);
+}
+
+export function regularDesktopReleaseFileNames(entries) {
+	const invalid = entries.filter((entry) => !entry.isFile() || entry.isSymbolicLink());
+	assert(invalid.length === 0, `Desktop release input is not a regular file: ${invalid.map(({ name }) => name).join(', ')}.`);
+	return entries.map(({ name }) => name).sort();
+}
+
+export function desktopTranslationSourceName(releaseId, descriptor) {
+	const normalizedId = String(releaseId ?? '');
+	assert(/^[1-9][0-9]*$/u.test(normalizedId), 'Translation release ID is invalid.');
+	validateDescriptor(descriptor, 'translation source archive', 32 * 1024 * 1024);
+	assert(!descriptor.path.includes('%') && descriptor.path.startsWith(`releases/${normalizedId}/source/`)
+		&& descriptor.path.endsWith('.zip'),
+		'Translation source archive path does not match its release.');
+	return `Audacity-translations-${normalizedId}-source.zip`;
+}
+
+function loadFfmpegCorrespondingSource(runtimeRelease) {
+	const manifest = parseJson(
+		runtimeRelease.evidence.correspondingSource.bytes,
+		'FFmpeg corresponding-source manifest',
+	);
 	assert(manifest.schemaVersion === 1, 'FFmpeg corresponding-source manifest has an unsupported schema.');
-	for (const [key, expected] of Object.entries(FFMPEG_RUNTIME)) {
-		assert(manifest.runtime?.[key] === expected,
-			`FFmpeg corresponding-source manifest runtime field ${key} does not match the shipped core.`);
-	}
 	for (const [key, label] of [['source', 'FFmpeg corresponding-source archive'], ['buildSource', 'ffmpeg.wasm build-script source archive']]) {
 		const source = manifest[key];
 		assert(source && typeof source === 'object' && !Array.isArray(source),
@@ -130,6 +154,17 @@ async function loadFfmpegCorrespondingSource() {
 			`${label} byte length is invalid.`);
 	}
 	return manifest;
+}
+
+export function validateDesktopRuntimeManifests(manifests, runtimeRelease) {
+	const expected = JSON.stringify(ffmpegRuntimeStageSummary(runtimeRelease));
+	for (const manifest of manifests) {
+		assert(JSON.stringify(manifest.value.ffmpeg) === expected,
+			`${manifest.name} does not match the verified FFmpeg runtime policy manifest.`);
+		const identity = /^runtime-manifest-soundscaper-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
+		assert(manifest.value.productId === 'soundscaper' && manifest.value.target?.platform === identity?.[1]
+			&& manifest.value.target?.arch === identity?.[2], `${manifest.name} has invalid product or target identity.`);
+	}
 }
 
 async function fetchVerified(url, output, descriptor, label) {
@@ -206,11 +241,21 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
+function escapeRegex(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
 function assert(condition, message) {
 	if (!condition) throw new Error(message);
 }
 
-main().catch((error) => {
-	console.error(`Desktop release asset preparation failed: ${error.message}`);
-	process.exitCode = 1;
-});
+function isMainModule() {
+	return Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url;
+}
+
+if (isMainModule()) {
+	main().catch((error) => {
+		console.error(`Desktop release asset preparation failed: ${error.message}`);
+		process.exitCode = 1;
+	});
+}

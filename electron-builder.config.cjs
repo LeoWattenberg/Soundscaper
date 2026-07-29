@@ -9,6 +9,7 @@ module.exports = {
 	compression: 'maximum',
 	asar: true,
 	npmRebuild: false,
+	beforePack: './scripts/desktop-before-pack.mjs',
 	afterPack: './scripts/desktop-after-pack.mjs',
 	directories: {
 		app: '.desktop-build/app',
@@ -25,7 +26,7 @@ module.exports = {
 		{ from: '.desktop-build/renderer', to: 'renderer' },
 		{ from: '.desktop-build/runtime', to: 'runtime' },
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
-		{ from: 'THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
+		{ from: '.desktop-build/licenses/THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
 	fileAssociations: [

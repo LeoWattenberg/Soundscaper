@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-28",
+	"groundedAt": "2026-07-29",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -20,7 +20,7 @@
 			"description": "Versioned optional runtimes fetched from assets.soundscaper.org rather than bundled into Pages.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "blocked",
-			"evidence": ["src/common/editor/ffmpeg.js", "scripts/publish-runtime-assets.mjs"]
+			"evidence": ["src/common/editor/ffmpeg.js", "config/ffmpeg-runtime-manifest.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/publish-runtime-assets.mjs"]
 		},
 		{
 			"id": "electron-renderer",
@@ -34,7 +34,7 @@
 			"description": "FFmpeg and translation runtime assets staged beside the Electron renderer.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/desktop-prepare.mjs", "electron-builder.config.cjs"]
+			"evidence": ["config/ffmpeg-runtime-manifest.json", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-shell",
@@ -48,7 +48,7 @@
 			"description": "Public desktop packages, notices, checksums, and corresponding-source archives.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/ffmpeg-runtime-manifest.json", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"npmProductionClosure": [
@@ -261,7 +261,7 @@
 			"id": "ffmpeg-core-wasm",
 			"status": "blocked",
 			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets", "desktop-release-assets"],
-			"evidence": ["THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/desktop-release-assets.mjs"]
+			"evidence": ["config/ffmpeg-runtime-manifest.json", "THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/desktop-release-assets.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "electron-runtime",
@@ -273,6 +273,7 @@
 	"ffmpeg": {
 		"package": "@ffmpeg/core",
 		"version": "0.12.10",
+		"runtimeManifest": "config/ffmpeg-runtime-manifest.json",
 		"correspondingSourceManifest": "desktop/ffmpeg-corresponding-source.json",
 		"enabledExternalLibraries": [
 			"x264",
@@ -301,6 +302,11 @@
 			"id": "desktop-notice-delivery",
 			"status": "implemented",
 			"evidence": ["electron-builder.config.cjs", "scripts/desktop-release-assets.mjs"]
+		},
+		{
+			"id": "ffmpeg-runtime-manifest-integrity",
+			"status": "implemented",
+			"evidence": [".gitattributes", ".github/workflows/desktop-preview.yml", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "electron-builder.config.cjs", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/audit-ffmpeg-runtime.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-release-package-inventory.test.js", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "web-notice-delivery",

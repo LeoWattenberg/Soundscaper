@@ -75,6 +75,16 @@ approval. `blocked` means a required fact, review, source bundle, or delivery
 path is absent. Gates may only move from `blocked` when the missing evidence is
 checked in and an automated test verifies it.
 
+The checked-in FFmpeg runtime policy manifest is an engineering integrity gate,
+not a license or patent approval. It binds installed runtime bytes to the
+current notice, source descriptor, licensing matrix, and release policy, and
+its authorizations are derived from the matrix's fail-closed gates. Its review
+marker and payload digest are self-declared consistency evidence, not an
+independently authenticated approval. Local desktop assembly may use the
+verified runtime for preview testing, while public runtime upload and the
+current Soundscaper public desktop-release assembler remain blocked whenever
+their notice, corresponding-source, or patent gates are blocked.
+
 ## Copyleft and corresponding source
 
 The preferred source, build scripts, local modifications, configuration, and

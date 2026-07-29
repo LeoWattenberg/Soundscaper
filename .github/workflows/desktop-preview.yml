@@ -135,6 +135,9 @@ jobs:
 
       - name: Stage the offline renderer and runtimes
         run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 
       - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
         run: npx electron-builder --config electron-builder.config.cjs --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never

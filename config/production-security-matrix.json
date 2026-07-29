@@ -999,15 +999,54 @@
 						{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" },
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
+				},
+				{
+					"id": "validated-ffmpeg-runtime-publication",
+					"summary": "One checked-in, self-consistent FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under a fixed tested code policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before desktop preparation deletes its build root, before the current Soundscaper public desktop-release assembler reads its asset directory, or before the publisher invokes Wrangler. The assembler requires exact Soundscaper product/target manifests and a version-matched package inventory before network access. Desktop runtime staging is transactional, and both staging and upload consume private snapshots of bytes retained by validation. Electron Builder's beforePack hook rejects staged runtime-summary, manifest, or notice drift present when the hook runs; publication authorizations mirror the fail-closed licensing gates. Offline regressions prove invalid preflight never enters desktop assembly or invokes Wrangler and tested staged drift is rejected at beforePack. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval.",
+					"evidence": [
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" },
+						{ "kind": "document", "path": ".gitattributes" },
+						{ "kind": "document", "path": "THIRD_PARTY_LICENSES.md" },
+						{ "kind": "document", "path": "config/ffmpeg-runtime-manifest.json" },
+						{ "kind": "document", "path": "config/production-licensing-matrix.json" },
+						{ "kind": "document", "path": "config/release-severity-policy.json" },
+						{ "kind": "document", "path": "desktop/ffmpeg-corresponding-source.json" },
+						{ "kind": "document", "path": "docs/production-licensing-policy.md" },
+						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
+						{ "kind": "document", "path": "r2-cors.json" },
+						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-manifest.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-publisher.mjs" },
+						{ "kind": "implementation", "path": "scripts/publish-runtime-assets.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-before-pack.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-release-assets.mjs" },
+						{ "kind": "audit", "path": "scripts/audit-ffmpeg-runtime.mjs" },
+						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
+						{ "kind": "test", "path": "tests/ffmpeg-runtime-manifest.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
-					"id": "external-runtime-publication",
-					"exposure": "External FFmpeg publication is not yet tied to a single digest, corresponding-source, notice, and security-policy gate.",
-					"requiredControl": "Gate every runtime upload and desktop assembly on one reviewed manifest and fail closed before network publication.",
+					"id": "served-external-runtime-authentication",
+					"exposure": "The publisher's content-addressed layout and pointer contract are code-defined rather than bound as manifest fields, and remote writes have no conditional-create or read-back proof. The browser and release workflows still hard-code the 0.12.10 path instead of checking the manifest prefix or resolving and authenticating the pointer, and they retain no verified rollback version; asset-host mutation or a partial update can therefore deny or substitute the runtime.",
+					"requiredControl": "Bind the release-path and pointer schema/cache contract in reviewed policy, resolve the final pointer at the consumer boundary, authenticate the full manifest and asset digests, make publication conditional and verify remote reads before pointer promotion, compare workflow and consumer configuration with the policy manifest, and retain the last complete verified version for rollback.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Cross-browser offline/runtime-cache tests reject altered or incomplete remote releases and recover through the last complete digest-verified version."]
+				},
+				{
+					"id": "runtime-manifest-review-attestation",
+					"exposure": "The review status, reviewer, date, and payload digest are self-declared in the same editable manifest. They prove internal consistency and detect stale linked evidence, but do not independently authenticate approval.",
+					"requiredControl": "Require independent approval through protected repository and publication workflows, and bind a signature or immutable CI attestation to the full manifest digest before public authorization can become approved.",
 					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Tampered, incomplete, or unreviewed runtime manifests prevent upload and desktop assembly in offline unit tests."]
+					"acceptanceCriteria": ["A publication attempt with no independently verifiable approval attestation fails before any remote operation, and an attestation for a different manifest digest is rejected."]
+				},
+				{
+					"id": "desktop-runtime-package-copy-integrity",
+					"exposure": "Electron Builder verifies the live staged runtime and notice in beforePack, then copies those paths into package resources. A mutation after that hook but before or during the copy is not detected by the current afterPack checks.",
+					"requiredControl": "Verify the exact packaged runtime manifest, assets, and notice after extraResources copying, or package from an immutable verified snapshot whose identity is checked in the final artifact.",
+					"ownerMilestone": "8A",
+					"acceptanceCriteria": ["A packaging test mutates staging after beforePack and proves the final package is rejected unless its runtime and notice match the policy manifest."]
 				},
 				{
 					"id": "signed-update-qualification",

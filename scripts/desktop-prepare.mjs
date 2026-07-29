@@ -4,7 +4,6 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
 	cp,
-	copyFile,
 	mkdir,
 	readFile,
 	rm,
@@ -12,7 +11,7 @@ import {
 	writeFile,
 } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 import { generateDesktopIcon } from './desktop-icons.mjs';
@@ -20,6 +19,11 @@ import {
 	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from './lib/desktop-project-library-runtime.mjs';
+import {
+	stageVerifiedFfmpegNotice,
+	stageVerifiedFfmpegRuntime,
+	verifyFfmpegRuntimeManifest,
+} from './lib/ffmpeg-runtime-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
@@ -27,78 +31,67 @@ const APP_ROOT = resolve(BUILD_ROOT, 'app');
 const RENDERER_ROOT = resolve(BUILD_ROOT, 'renderer');
 const RUNTIME_ROOT = resolve(BUILD_ROOT, 'runtime');
 const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
+const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.md');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
-const FFMPEG_VERSION = '0.12.10';
-const FFMPEG_BUILD_SOURCE_VERSION = '12.15';
-const FFMPEG_FILES = Object.freeze({
-	'ffmpeg-core.js': '67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3',
-	'ffmpeg-core.wasm': '9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7',
-});
 
 async function main() {
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
 	assert(projectPackage.name === 'soundscaper', 'Run desktop preparation from the Soundscaper checkout.');
-	assert(projectPackage.dependencies?.['@ffmpeg/core'] === FFMPEG_VERSION,
-		`package.json must pin @ffmpeg/core ${FFMPEG_VERSION}.`);
 	await assertFile(resolve(ROOT, 'desktop/main.mjs'), 'desktop/main.mjs');
 	await assertFile(resolve(ROOT, 'desktop/preload.mjs'), 'desktop/preload.mjs');
-
-	await rm(BUILD_ROOT, { recursive: true, force: true });
-	await mkdir(BUILD_ROOT, { recursive: true });
-	const desktopRuntime = await compileDesktopProjectLibraryRuntime({
+	await admitDesktopFfmpegAssembly({
 		repositoryRoot: ROOT,
-		outputRoot: DESKTOP_RUNTIME_ROOT,
-	});
-	const ffmpeg = await stageFfmpeg();
-	const translations = await stageTranslations();
-	await generateDesktopIcon({
-		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
-	});
-	await buildRenderer();
-	await stageApplication(projectPackage);
+		assemble: async (ffmpegRelease) => {
+			await rm(BUILD_ROOT, { recursive: true, force: true });
+			await mkdir(BUILD_ROOT, { recursive: true });
+			const desktopRuntime = await compileDesktopProjectLibraryRuntime({
+				repositoryRoot: ROOT,
+				outputRoot: DESKTOP_RUNTIME_ROOT,
+			});
+			const ffmpeg = await stageFfmpeg(ffmpegRelease);
+			const translations = await stageTranslations();
+			await generateDesktopIcon({
+				...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
+			});
+			await buildRenderer(ffmpegRelease);
+			await stageApplication(projectPackage);
 
-	const stageManifest = {
-		schemaVersion: 1,
-		applicationVersion: projectPackage.version,
-		desktopRuntime,
-		ffmpeg,
-		translations,
-	};
-	await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
-	console.log(`Prepared ${PRODUCT_NAME} desktop ${projectPackage.version} in ${BUILD_ROOT}`);
+			const stageManifest = {
+				schemaVersion: 1,
+				productId: PRODUCT_ID,
+				applicationVersion: projectPackage.version,
+				target: {
+					platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM?.trim() || null,
+					arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH?.trim() || null,
+				},
+				desktopRuntime,
+				ffmpeg,
+				translations,
+			};
+			await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
+			console.log(`Prepared ${PRODUCT_NAME} desktop ${projectPackage.version} in ${BUILD_ROOT}`);
+		},
+	});
 }
 
-async function stageFfmpeg() {
-	const packageRoot = resolve(ROOT, 'node_modules/@ffmpeg/core');
-	const packageMetadata = parseJson(await readFile(resolve(packageRoot, 'package.json')), '@ffmpeg/core/package.json');
-	assert(packageMetadata.version === FFMPEG_VERSION,
-		`Installed @ffmpeg/core is ${packageMetadata.version || '<unknown>'}; expected ${FFMPEG_VERSION}. Run npm ci.`);
-	const outputRoot = resolve(RUNTIME_ROOT, `ffmpeg/${FFMPEG_VERSION}`);
-	await mkdir(outputRoot, { recursive: true });
-	const files = {};
-	for (const [name, expectedSha256] of Object.entries(FFMPEG_FILES)) {
-		const source = resolve(packageRoot, `dist/esm/${name}`);
-		const bytes = await readFile(source);
-		const actualSha256 = sha256(bytes);
-		assert(actualSha256 === expectedSha256,
-			`@ffmpeg/core ${name} digest mismatch: expected ${expectedSha256}, received ${actualSha256}.`);
-		await copyFile(source, resolve(outputRoot, name));
-		files[name] = { byteLength: bytes.byteLength, sha256: actualSha256 };
-	}
-	const manifest = {
-		schemaVersion: 1,
-		package: '@ffmpeg/core',
-		version: FFMPEG_VERSION,
-		license: 'GPL-2.0-or-later',
-		source: `https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v${FFMPEG_BUILD_SOURCE_VERSION}`,
-		files,
-	};
-	await writeJson(resolve(outputRoot, 'manifest.json'), manifest);
-	return manifest;
+export async function admitDesktopFfmpegAssembly({ repositoryRoot = ROOT, assemble }) {
+	assert(typeof assemble === 'function', 'Desktop FFmpeg assembly callback is required.');
+	const release = await verifyFfmpegRuntimeManifest({
+		repositoryRoot,
+		purpose: 'desktop-assembly',
+	});
+	return assemble(release);
+}
+
+async function stageFfmpeg(release) {
+	const outputRoot = resolve(RUNTIME_ROOT, `ffmpeg/${release.manifest.package.version}`);
+	const summary = await stageVerifiedFfmpegRuntime({ release, outputRoot });
+	await stageVerifiedFfmpegNotice({ release, outputPath: DESKTOP_NOTICE_PATH });
+	return summary;
 }
 
 async function stageTranslations() {
@@ -191,13 +184,13 @@ async function ensureTranslationObject(descriptor, label, localSource) {
 	return bytes;
 }
 
-async function buildRenderer() {
+async function buildRenderer(ffmpegRelease) {
 	const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
 	await run(process.execPath, [vite, 'build', '--outDir', RENDERER_ROOT], {
 		env: {
 			...process.env,
 			SCAPE_PRODUCT: PRODUCT_ID,
-			PUBLIC_FFMPEG_CORE_BASE_URL: `${APP_SCHEME}://bundle/runtime/ffmpeg/0.12.10`,
+			PUBLIC_FFMPEG_CORE_BASE_URL: `${APP_SCHEME}://bundle/${ffmpegRelease.manifest.runtime.publicPrefix}`,
 			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,
 		},
 	});
@@ -321,7 +314,13 @@ function assert(condition, message) {
 	if (!condition) throw new Error(message);
 }
 
-main().catch((error) => {
-	console.error(`Desktop preparation failed: ${error.message}`);
-	process.exitCode = 1;
-});
+function isMainModule() {
+	return Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url;
+}
+
+if (isMainModule()) {
+	main().catch((error) => {
+		console.error(`Desktop preparation failed: ${error.message}`);
+		process.exitCode = 1;
+	});
+}

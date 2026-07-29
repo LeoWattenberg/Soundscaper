@@ -105,7 +105,7 @@ Audacity is a registered trademark. This project is not affiliated with or endor
 
 The editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. The combined core is GPL-2.0-or-later and is used for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
 
-- package source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10>
+- package source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>
 - npm source archive: <https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz>
 - npm archive integrity: `sha512-dzNplnn2Nxle2c2i2rrDhqcB19q9cglCkWnoMTDN9Q9l3PvdjZWd1HfSPjCNWc/p8Q3CT+Es9fWOR0UhAeYQZA==`
 - Emscripten compiler/runtime reported by the artifact: `3.1.40` (`5c27e79dd0a9c4e27ef2326841698cdd4f6b5784`)
@@ -122,15 +122,13 @@ That upstream build enables GPL components and the following separately licensed
 
 The npm core artifacts themselves are unpatched. Local integration is confined to `src/common/editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
 
-The desktop release tooling retrieves the exact `v0.12.10` ffmpeg.wasm build
-repository archive and verifies that it is 1,115,568 bytes with SHA-256
-`3f1c3f94143d11e3bbb322bd8a1a3189965f31162cf7e889fd3b7e21a928d1ea`.
-That archive contains the build recipe, but it is not by itself complete
-corresponding source for FFmpeg and every enabled dependency. Automated binary
-upload and public GitHub release creation are therefore disabled until a
-complete, audited, digest-pinned bundle is described by
-`desktop/ffmpeg-corresponding-source.json`; the release assembler refuses to run
-while that manifest is absent.
+`desktop/ffmpeg-corresponding-source.json` currently pins an FFmpeg source
+archive and the `v12.15` ffmpeg.wasm build-source archive. It does not inventory
+or pin complete corresponding source for every enabled external library.
+Release tooling validates those descriptors, and the checked-in runtime policy
+manifest hashes them to reject provenance drift, but neither check establishes
+corresponding-source completeness. Public desktop release and qualified Web
+runtime distribution therefore remain blocked by the licensing matrix.
 
 ## Video-effect behavioral references
 
@@ -175,7 +173,7 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `@fontsource/ubuntu` 5.3.0 — Ubuntu Font Licence 1.0; self-hosted WOFF/WOFF2 distribution of Ubuntu, Copyright 2010-2011 Canonical Ltd.; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/ubuntu>; upstream font source: <https://launchpad.net/ubuntu-font-family>; full license text is retained in the installed package's `LICENSE` file
 - `@ffmpeg/ffmpeg` 0.12.15 — MIT; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
 - `@ffmpeg/types` 0.12.4 — MIT; transitive type definitions used by the FFmpeg wrapper and not emitted as runtime JavaScript; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
-- `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; build scripts and upstream source references: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10>; a complete corresponding-source snapshot for the exact npm binary remains required by the release gate above
+- `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; build scripts and upstream source references: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>; a complete corresponding-source snapshot for the exact npm binary remains required by the release gate above
 - `@sqlite.org/sqlite-wasm` 3.53.0-build1 — official SQLite WebAssembly distribution; SQLite core is dedicated to the public domain; source and blessing: <https://sqlite.org/wasm/doc/trunk/index.md> and <https://sqlite.org/copyright.html>
 - `@zip.js/zip.js` 2.8.33 — BSD-3-Clause; Copyright © 2023 Gildas Lormeau; source and license: <https://github.com/gildas-lormeau/zip.js/tree/v2.8.33>
 - `@noble/hashes` 2.2.0 — MIT; Copyright © 2022 Paul Miller; source and license: <https://github.com/paulmillr/noble-hashes/tree/2.2.0>

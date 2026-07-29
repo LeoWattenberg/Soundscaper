@@ -391,6 +391,52 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		desktopWrite.residualRisks.some(({ id }) => id === 'write-owner-and-capacity-lifecycle'),
 		false,
 	);
+
+	const runtimeSupplyChain = risks.get('runtime-supply-chain');
+	const validatedRuntime = runtimeSupplyChain.currentControls.find(
+		({ id }) => id === 'validated-ffmpeg-runtime-publication',
+	);
+	assert.ok(validatedRuntime);
+	for (const path of [
+		'.gitattributes',
+		'.github/workflows/desktop-preview.yml',
+		'THIRD_PARTY_LICENSES.md',
+		'config/ffmpeg-runtime-manifest.json',
+		'config/production-licensing-matrix.json',
+		'config/release-severity-policy.json',
+		'desktop/ffmpeg-corresponding-source.json',
+		'docs/production-licensing-policy.md',
+		'electron-builder.config.cjs',
+		'r2-cors.json',
+		'scripts/lib/ffmpeg-runtime-manifest.mjs',
+		'scripts/lib/ffmpeg-runtime-publisher.mjs',
+		'scripts/publish-runtime-assets.mjs',
+		'scripts/desktop-prepare.mjs',
+		'scripts/desktop-before-pack.mjs',
+		'scripts/desktop-release-assets.mjs',
+		'scripts/audit-ffmpeg-runtime.mjs',
+		'tests/desktop-release-package-inventory.test.js',
+		'tests/ffmpeg-runtime-manifest.test.js',
+	]) assert.ok(validatedRuntime.evidence.some((item) => item.path === path));
+	assert.match(
+		validatedRuntime.summary,
+		/self-consistent.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*separately derives a full-manifest-SHA release prefix and no-store final pointer.*current Soundscaper public desktop-release assembler.*exact Soundscaper product\/target manifests.*version-matched package inventory.*runtime staging is transactional.*private snapshots.*beforePack hook rejects.*drift present when the hook runs.*invalid preflight never enters desktop assembly or invokes Wrangler.*tested staged drift is rejected at beforePack.*do not authenticate independent human approval/iu,
+	);
+	assert.equal(runtimeSupplyChain.residualRisks.some(
+		({ id }) => id === 'external-runtime-publication',
+	), false);
+	assert.ok(runtimeSupplyChain.residualRisks.some(
+		({ id }) => id === 'served-external-runtime-authentication',
+	));
+	assert.ok(runtimeSupplyChain.residualRisks.some(
+		({ id }) => id === 'runtime-manifest-review-attestation',
+	));
+	assert.ok(runtimeSupplyChain.residualRisks.some(
+		({ id }) => id === 'desktop-runtime-package-copy-integrity',
+	));
+	assert.ok(runtimeSupplyChain.residualRisks.some(
+		({ id }) => id === 'signed-update-qualification',
+	));
 });
 
 test('security claims point to checked-in implementation and verification evidence', async () => {

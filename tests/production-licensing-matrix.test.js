@@ -127,11 +127,14 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	const matrix = await readJson(matrixUrl);
 	const gates = new Map(matrix.releaseGates.map((gate) => [gate.id, gate]));
 
+	assert.equal(gates.size, matrix.releaseGates.length, 'release gate IDs must be unique');
 	assert.equal(gates.get('desktop-notice-delivery').status, 'implemented');
+	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').status, 'implemented');
 	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-codec-patent-review').status, 'blocked');
 	assert.deepEqual(matrix.ffmpeg.enabledExternalLibraries, ENABLED_FFMPEG_LIBRARIES);
+	assert.equal(matrix.ffmpeg.runtimeManifest, 'config/ffmpeg-runtime-manifest.json');
 	assert.equal(matrix.ffmpeg.correspondingSourceManifest, 'desktop/ffmpeg-corresponding-source.json');
 	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
 	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);

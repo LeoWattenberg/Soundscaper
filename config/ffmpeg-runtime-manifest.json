@@ -1,0 +1,127 @@
+{
+	"schemaVersion": 1,
+	"id": "ffmpeg-core-0.12.10",
+	"package": {
+		"name": "@ffmpeg/core",
+		"version": "0.12.10",
+		"lockPath": "node_modules/@ffmpeg/core",
+		"resolved": "https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz",
+		"integrity": "sha512-dzNplnn2Nxle2c2i2rrDhqcB19q9cglCkWnoMTDN9Q9l3PvdjZWd1HfSPjCNWc/p8Q3CT+Es9fWOR0UhAeYQZA==",
+		"license": "GPL-2.0-or-later"
+	},
+	"runtime": {
+		"publicPrefix": "runtime/ffmpeg/0.12.10",
+		"cacheControl": "public, max-age=31536000, immutable",
+		"files": [
+			{
+				"name": "ffmpeg-core.js",
+				"byteLength": 111804,
+				"sha256": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3",
+				"contentType": "text/javascript; charset=utf-8"
+			},
+			{
+				"name": "ffmpeg-core.wasm",
+				"byteLength": 32232419,
+				"sha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7",
+				"contentType": "application/wasm"
+			}
+		]
+	},
+	"publication": {
+		"bucket": "soundscaper-assets",
+		"manifestName": "manifest.json",
+		"noticeName": "THIRD_PARTY_LICENSES.md",
+		"correspondingSourceName": "ffmpeg-corresponding-source.json",
+		"corsOrigins": [
+			"http://127.0.0.1:4321",
+			"http://localhost:4321",
+			"https://framescaper.org",
+			"https://kw.media",
+			"https://soundscaper.org"
+		],
+		"cors": {
+			"path": "r2-cors.json",
+			"byteLength": 369,
+			"sha256": "c7dfdd99e932d2e0ab20da63fad6ad253d7ae38e93e1133b5ac18bb675925b6c"
+		}
+	},
+	"evidence": {
+		"lineEndings": {
+			"path": ".gitattributes",
+			"byteLength": 473,
+			"sha256": "1b1ceb162010adea9df646e2cb59290b5f08c77874dd1820bbdbb4e9f0d40f10"
+		},
+		"correspondingSource": {
+			"path": "desktop/ffmpeg-corresponding-source.json",
+			"byteLength": 780,
+			"sha256": "5d37f33d6106e8f747a26992ed32485ff11ded9d72abb3f9ad7c0683ec6fe19a"
+		},
+		"notices": {
+			"path": "THIRD_PARTY_LICENSES.md",
+			"byteLength": 20507,
+			"sha256": "06bcf29a1b346671d340271b8b757dbc6d8168394a9640f21d045a569aef2b18"
+		},
+		"releaseSeverityPolicy": {
+			"path": "config/release-severity-policy.json",
+			"byteLength": 5936,
+			"sha256": "e014512be78dda2e694cdcfaa226add21e14e5d372e96dcb1c67acdb575b5eb4"
+		},
+		"licensingPolicy": {
+			"path": "docs/production-licensing-policy.md",
+			"byteLength": 9117,
+			"sha256": "29669611ed3f7dc8bd6a23e91a4996002c0fcac075f68a41ca9f2261fc81184f"
+		},
+		"licensingMatrix": {
+			"path": "config/production-licensing-matrix.json",
+			"byteLength": 14091,
+			"sha256": "63ce3265d83bb93642f45a51015b20edf38adaff0f637627d2598f8642c27268"
+		},
+		"securityMatrix": {
+			"path": "config/production-security-matrix.json",
+			"byteLength": 66077,
+			"sha256": "781c14d567faef4aee13fdd75009ffdc4f603993a7a681f4b6c342e8effce2c4"
+		},
+		"threatModel": {
+			"path": "docs/production-threat-model.md",
+			"byteLength": 23838,
+			"sha256": "fa305267ceee1f74389b3c0b9cf20db509ec26770cb353b675e9659d25b34a74"
+		}
+	},
+	"security": {
+		"matrixPath": "config/production-security-matrix.json",
+		"riskId": "runtime-supply-chain",
+		"controlId": "validated-ffmpeg-runtime-publication"
+	},
+	"authorizations": {
+		"desktopAssembly": {
+			"status": "approved",
+			"blockedBy": []
+		},
+		"runtimePublication": {
+			"status": "blocked",
+			"blockedBy": [
+				"ffmpeg-enabled-codec-patent-review",
+				"ffmpeg-enabled-library-corresponding-source",
+				"web-notice-delivery"
+			]
+		},
+		"desktopRelease": {
+			"status": "blocked",
+			"blockedBy": [
+				"ffmpeg-enabled-codec-patent-review",
+				"ffmpeg-enabled-library-corresponding-source"
+			]
+		}
+	},
+	"review": {
+		"status": "approved",
+		"reviewedAt": "2026-07-29",
+		"reviewer": "Soundscaper release maintainers",
+		"scopes": [
+			"desktop-assembly",
+			"desktop-release-policy",
+			"runtime-publication-policy"
+		],
+		"payloadSha256": "46222957968116b11d445ba285b4e9575269699dfce159be4a6386eac477b523"
+	}
+}

@@ -26,7 +26,7 @@
   },
   "scripts/desktop-release-assets.mjs": {
     "preserve-caught-error": {
-      "count": 2
+      "count": 1
     }
   },
   "src/common/editor/app.js": {

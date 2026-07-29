@@ -1,1 +1,11 @@
 patches/**/*.patch text eol=lf
+/.gitattributes text eol=lf
+/THIRD_PARTY_LICENSES.md text eol=lf
+/config/ffmpeg-runtime-manifest.json text eol=lf
+/config/production-licensing-matrix.json text eol=lf
+/config/production-security-matrix.json text eol=lf
+/config/release-severity-policy.json text eol=lf
+/desktop/ffmpeg-corresponding-source.json text eol=lf
+/docs/production-licensing-policy.md text eol=lf
+/docs/production-threat-model.md text eol=lf
+/r2-cors.json text eol=lf
