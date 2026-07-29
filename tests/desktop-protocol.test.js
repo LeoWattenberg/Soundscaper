@@ -189,4 +189,8 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	await bridge.v1.editText('selectAll');
 	assert.deepEqual(calls[2], { method: 'invoke', channel: 'soundscaper:v1:text:edit', value: 'selectAll' });
 	assert.throws(() => bridge.v1.editText('select-all'), /Unsupported text edit command/);
+	await bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: 123 });
+	assert.equal(calls[3].method, 'invoke');
+	assert.equal(calls[3].channel, 'soundscaper:v1:save:begin');
+	assert.deepEqual({ ...calls[3].value }, { targetId: 'a'.repeat(48), maximumSize: 123 });
 });

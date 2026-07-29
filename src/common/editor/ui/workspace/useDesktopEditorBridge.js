@@ -56,6 +56,7 @@ export function useDesktopEditorBridge({
 			try {
 				const current = controller.getSnapshot();
 				const activeWork = current.importing
+					|| current.save?.state === 'saving'
 					|| current.recording
 					|| current.recordingStarting
 					|| current.recordingScheduling
@@ -74,7 +75,8 @@ export function useDesktopEditorBridge({
 					await Promise.resolve(controller.actions.nyquist.cancel());
 					await Promise.resolve(controller.actions.transport.stop());
 					const remaining = controller.getSnapshot();
-					if (remaining.importing || remaining.processingEffect || remaining.analysisProcessing) return;
+					if (remaining.importing || remaining.save?.state === 'saving'
+						|| remaining.processingEffect || remaining.analysisProcessing) return;
 				}
 				await controller.actions.project.flush();
 				allow = true;

@@ -222,6 +222,7 @@ export function createProjectSwitchService<
 			runtime.state.parametricEqGestures.clear();
 			runtime.state.videoEffectGestures.clear();
 			runtime.lifetime.cancelTask('analysis');
+			runtime.lifetime.cancelTask('native-project-save');
 			runtime.cancelTimedRecording({ publish: false, status: false });
 			runtime.cancelRecordingStart();
 			runtime.state.exportAbort?.abort();

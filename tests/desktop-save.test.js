@@ -45,6 +45,23 @@ test('chunked saves use sequential backpressure and atomically replace the desti
 	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
 });
 
+test('bounded streaming saves publish their actual length below the admitted maximum', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-bounded-save-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const destination = join(root, 'project.scape');
+	await writeFile(destination, 'original');
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const target = targets.registerPath(destination, { purpose: 'project' });
+	const { writeId } = await manager.begin({ targetId: target.id, maximumSize: 10 });
+	await manager.writeChunk({ writeId, offset: 0, bytes: new TextEncoder().encode('scape') });
+
+	assert.deepEqual(await manager.finish(writeId), { byteLength: 5 });
+	assert.equal(await readFile(destination, 'utf8'), 'scape');
+	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
+});
+
 test('aborting and failed completion preserve an existing destination', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-abort-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -95,4 +112,64 @@ test('save chunks cannot exceed their declared byte length', async (context) => 
 		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
 		/exceeds its declared size/u,
 	);
+});
+
+test('bounded streaming saves cannot exceed their admitted maximum', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-bounded-limit-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const target = targets.registerPath(join(root, 'bounded.scape'), { purpose: 'project' });
+	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	await assert.rejects(
+		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
+		/exceeds its admitted maximum/u,
+	);
+	await manager.abort(session.writeId);
+});
+
+test('bounded streaming mode rejects non-project save capabilities', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-bounded-purpose-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const target = targets.registerPath(join(root, 'audio.wav'), { purpose: 'audio' });
+	await assert.rejects(
+		manager.begin({ targetId: target.id, maximumSize: 10 }),
+		/restricted to project save targets/u,
+	);
+});
+
+test('save-session abort waits for an acknowledged write before closing staging', async () => {
+	let releaseWrite;
+	let markWriteStarted;
+	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
+	const writeGate = new Promise((resolve) => { releaseWrite = resolve; });
+	const events = [];
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => ({
+			async write(_buffer, _offset, length) {
+				events.push('write');
+				markWriteStarted();
+				await writeGate;
+				return { bytesWritten: length };
+			},
+			async close() { events.push('close'); },
+		}),
+		unlinkImpl: async () => { events.push('unlink'); },
+	});
+	const target = targets.registerPath('/tmp/stream-race.scape', { purpose: 'project' });
+	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	const writing = manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1) });
+	await writeStarted;
+	const aborting = manager.abortAll();
+	await Promise.resolve();
+	assert.deepEqual(events, ['write']);
+	releaseWrite();
+	await Promise.all([writing, aborting]);
+	assert.deepEqual(events, ['write', 'close', 'unlink']);
 });

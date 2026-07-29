@@ -1,3 +1,8 @@
+import {
+	createDesktopPreparedSave,
+	createFileSystemPreparedSave,
+} from './file-save-stream.ts';
+
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
@@ -25,6 +30,7 @@ export function createAudioEditorFileService(options = {}) {
 		openReadDescriptor,
 		releaseRead,
 		chooseSaveTarget,
+		prepareSave,
 		writeFile,
 		saveFile,
 		createDownload,
@@ -98,6 +104,28 @@ export function createAudioEditorFileService(options = {}) {
 		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal);
 		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName, request.signal);
 		return triggerBrowserDownload(blob, fileName, request.signal);
+	}
+
+	async function prepareSave(request = {}) {
+		throwIfAborted(request.signal);
+		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName);
+		let target = request.target;
+		if (target === undefined) {
+			try {
+				target = await chooseSaveTarget({ ...request, suggestedName: fileName });
+				throwIfAborted(request.signal);
+			} catch (error) {
+				throwIfAborted(request.signal);
+				if (error?.name === 'AbortError') return Object.freeze({ mode: 'cancelled', cancelled: true, fileName });
+				throw error;
+			}
+		}
+		if (!target) return Object.freeze({ mode: 'cancelled', cancelled: true, fileName });
+		if (bridge) return createDesktopPreparedSave({ bridge, target, fileName, signal: request.signal });
+		if (typeof target.createWritable === 'function') {
+			return createFileSystemPreparedSave({ target, fileName, signal: request.signal });
+		}
+		return Object.freeze({ mode: 'blob', target, fileName });
 	}
 
 	async function saveFile(request = {}) {

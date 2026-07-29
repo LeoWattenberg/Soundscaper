@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	EditorDisposedError,
-	type EditorProjectToken,
-	type EditorTaskScope,
-} from './lifecycle.ts';
+import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
+import { prepareNativeScapeSave, publishNativeScape } from './native-scape-save.ts';
 import type {
 	Aup4CompatibilityIssue,
 	Aup4DecodedSource,
@@ -25,12 +22,7 @@ import type {
 	ScapeImportResult,
 } from './native-project-types.ts';
 
-export type {
-	NativeProjectServiceRuntime,
-	OpenScapeOptions,
-	SaveAup4Options,
-	SaveScapeOptions,
-} from './native-project-types.ts';
+export type { NativeProjectServiceRuntime, OpenScapeOptions, SaveAup4Options, SaveScapeOptions } from './native-project-types.ts';
 
 const READ_ONLY_AUP4_ISSUES = new Set(['EDITABLE_LIMIT_EXCEEDED']);
 
@@ -124,33 +116,32 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		}
 	}
 
-	async function saveScape(options: SaveScapeOptions = {}): Promise<NativeSavedFile & {
+	async function saveScape(options: SaveScapeOptions = {}): Promise<(NativeSavedFile & {
 		readonly manifest: Readonly<Record<string, unknown>>;
-	}> {
+	}) | Readonly<{ cancelled: true }>> {
 		const projectAtStart = requireProject();
 		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
 		if (runtime.hasMissingTimelineSources(projectAtStart)) throw new Error(runtime.copy.missingSourcesPreventSave);
 		const operation = beginProjectTask('native-project-save', projectAtStart.id);
 		try {
+			const fileName = runtime.ensureScapeFileName(options.fileName || projectAtStart.title);
+			const prepared = await prepareNativeScapeSave(runtime.fileService, {
+				fileName, mimeType: runtime.scapeMimeType, options, signal: operation.task.signal,
+			});
+			if (prepared.mode === 'cancelled') return { cancelled: true };
+			assertOwnership(operation.task, operation.projectToken);
 			await runtime.flushProject();
 			assertOwnership(operation.task, operation.projectToken);
 			const snapshot = requireOwnedProject(projectAtStart.id);
 			beginSave(operation.task, operation.projectToken);
-			const exported = await runtime.exportScapeProject(snapshot, runtime.store, { signal: operation.task.signal });
-			assertOwnership(operation.task, operation.projectToken);
-			const saved = await runtime.fileService.saveFile({
-				purpose: 'project',
-				blob: exported.blob,
-				suggestedName: runtime.ensureScapeFileName(options.fileName || snapshot.title),
-				mimeType: runtime.scapeMimeType,
-				target: options.saveTarget,
-				useFileSystemAccess: options.useFileSystemAccess !== false,
-				signal: operation.task.signal,
+			const { exported, saved } = await publishNativeScape(runtime, {
+				assertReadyToCommit: () => assertOwnership(operation.task, operation.projectToken),
+				fileName, prepared, project: snapshot, signal: operation.task.signal,
 			});
-			assertOwnership(operation.task, operation.projectToken);
-			finishSave(operation.task, operation.projectToken, 'saved');
-			runtime.setStatus(runtime.copy.projectSaved, 'success');
-			runtime.publishDocumentSnapshot();
+			if (finishSave(operation.task, operation.projectToken, 'saved')) {
+				runtime.setStatus(runtime.copy.projectSaved, 'success');
+				runtime.publishDocumentSnapshot();
+			}
 			return { ...saved, manifest: exported.manifest };
 		} catch (error) {
 			failSave(operation.task, operation.projectToken);
@@ -339,9 +330,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				'save',
 				snapshot.id,
 			);
-			finishSave(operation.task, operation.projectToken, 'saved');
-			runtime.setStatus(runtime.copy.aup4Saved, 'success');
-			runtime.publishDocumentSnapshot();
+			const saveFinished = finishSave(operation.task, operation.projectToken, 'saved');
+			if (saveFinished) runtime.setStatus(runtime.copy.aup4Saved, 'success');
+			if (saveFinished) runtime.publishDocumentSnapshot();
 			return { ...saved, validation, compatibilityReport };
 		} catch (error) {
 			failSave(operation.task, operation.projectToken);
@@ -512,11 +503,21 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		runtime.publishDocumentSnapshot();
 	}
 
-	function finishSave(task: EditorTaskScope, token: EditorProjectToken, state: 'saved'): void {
-		if (saveOwner !== task) throw projectChangedError();
-		assertOwnership(task, token);
-		runtime.state.saveState = state;
+	function finishSave(task: EditorTaskScope, token: EditorProjectToken, state: 'saved'): boolean {
+		if (saveOwner !== task) return false;
 		saveOwner = null;
+		if (!ownershipIsCurrent(task, token)) {
+			try {
+				runtime.projectGeneration.assertCurrent(token);
+			} catch {
+				return false;
+			}
+			runtime.state.saveState = 'dirty';
+			runtime.publishDocumentSnapshot();
+			return false;
+		}
+		runtime.state.saveState = state;
+		return true;
 	}
 
 	function failSave(task: EditorTaskScope, token: EditorProjectToken): void {

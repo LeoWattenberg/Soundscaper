@@ -248,6 +248,7 @@ function createFixture() {
 
 test('project activation resets scoped state and publishes only after sources are loaded', async () => {
 	const fixture = createFixture();
+	const nativeSave = fixture.lifetime.startTask('native-project-save');
 	const next = project('next-project', [
 		{ id: 'labels', type: 'label' },
 		{ id: 'audio', type: 'audio' },
@@ -267,6 +268,7 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(fixture.events.indexOf('engine-load:next-project') < fixture.events.indexOf('publish'));
 	assert.ok(fixture.events.includes('save-now'));
 	assert.ok(fixture.events.includes('save-project:next-project'));
+	assert.equal(nativeSave.signal.aborted, true);
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
 });
 

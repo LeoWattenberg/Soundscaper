@@ -189,6 +189,10 @@ async function createWindow() {
 	});
 	lockNavigation(mainWindow);
 	installArtifactSmokeProbe(mainWindow);
+	mainWindow.webContents.on('render-process-gone', () => abortRendererSaveSessions());
+	mainWindow.webContents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
+		if (isMainFrame) abortRendererSaveSessions();
+	});
 	mainWindow.once('ready-to-show', () => mainWindow?.show());
 	mainWindow.on('enter-full-screen', () => sendToRenderer(IPC.fullscreenChanged, { fullscreen: true }));
 	mainWindow.on('leave-full-screen', () => sendToRenderer(IPC.fullscreenChanged, { fullscreen: false }));
@@ -200,12 +204,19 @@ async function createWindow() {
 		sendToRenderer(IPC.closeRequested, pendingClose);
 	});
 	mainWindow.on('closed', () => {
+		abortRendererSaveSessions();
 		mainWindow = null;
 		rendererReady = false;
 		pendingClose = null;
 	});
 	await mainWindow.loadURL(`${APP_ORIGIN}/`);
 	return mainWindow;
+}
+
+function abortRendererSaveSessions() {
+	void saves.abortAll().catch((error) => {
+		console.error('Desktop renderer save cleanup failed:', cleanError(error));
+	});
 }
 
 function registerIpcHandlers() {
@@ -220,7 +231,11 @@ function registerIpcHandlers() {
 	handle(IPC.chooseFiles, (_event, value) => chooseFiles(value));
 	handle(IPC.releaseRead, (_event, id) => readCapabilities.release(opaqueId(id, 64)));
 	handle(IPC.chooseSaveTarget, (_event, value) => chooseSaveTarget(value));
-	handle(IPC.beginWrite, (_event, value) => saves.begin({ targetId: opaqueId(value?.targetId, 48), size: value?.size }));
+	handle(IPC.beginWrite, (_event, value) => saves.begin({
+		targetId: opaqueId(value?.targetId, 48),
+		size: value?.size,
+		maximumSize: value?.maximumSize,
+	}));
 	handle(IPC.writeChunk, (_event, value) => saves.writeChunk({ writeId: opaqueId(value?.writeId, 32), offset: value?.offset, bytes: value?.bytes }));
 	handle(IPC.finishWrite, (_event, id) => saves.finish(opaqueId(id, 32)));
 	handle(IPC.abortWrite, (_event, id) => saves.abort(opaqueId(id, 32)));
@@ -301,7 +316,9 @@ async function chooseSaveTarget(value) {
 		defaultPath: choice.suggestedName,
 		filters: choice.filters,
 	});
-	return result.canceled || !result.filePath ? null : saveTargets.registerPath(result.filePath);
+	return result.canceled || !result.filePath
+		? null
+		: saveTargets.registerPath(result.filePath, { purpose: choice.purpose });
 }
 
 function respondToClose(value) {

@@ -111,6 +111,28 @@ export interface NativeSavedFile extends Readonly<Record<string, unknown>> {
 	readonly cancelled?: boolean;
 }
 
+export interface NativeCancelledSave {
+	readonly mode: 'cancelled';
+	readonly cancelled: true;
+	readonly fileName: string;
+}
+
+export interface NativeBlobSave {
+	readonly mode: 'blob';
+	readonly fileName: string;
+	readonly target: unknown;
+}
+
+export interface NativeDirectSave {
+	readonly mode: 'stream';
+	createWritable(maximumBytes: number): Promise<WritableStream<Uint8Array>>;
+	bytesWritten(): number;
+	commit(): Promise<NativeSavedFile>;
+	abort(reason?: unknown): Promise<void>;
+}
+
+export type NativePreparedSave = NativeCancelledSave | NativeBlobSave | NativeDirectSave;
+
 export interface NativeProjectFileService {
 	readonly isDesktop: boolean;
 	chooseSaveTarget(request: Readonly<{
@@ -118,6 +140,15 @@ export interface NativeProjectFileService {
 		suggestedName: string;
 		mimeType: string;
 	}>): Promise<unknown>;
+	prepareSave(request: Readonly<{
+		purpose: 'project';
+		suggestedName: string;
+		mimeType: string;
+		target?: unknown;
+		types: readonly unknown[];
+		useFileSystemAccess: boolean;
+		signal: AbortSignal;
+	}>): Promise<NativePreparedSave>;
 	saveFile(request: NativeFileSaveRequest): Promise<NativeSavedFile>;
 }
 
@@ -218,7 +249,8 @@ export interface ScapeImportResult extends Readonly<Record<string, unknown>> {
 }
 
 export interface ScapeExportResult {
-	readonly blob: Blob;
+	readonly blob: Blob | null;
+	readonly byteLength?: number;
 	readonly manifest: Readonly<Record<string, unknown>>;
 }
 
@@ -280,7 +312,10 @@ export interface NativeProjectServiceRuntime {
 	readonly exportScapeProject: (
 		project: NativeProjectDocument,
 		store: NativeProjectStore,
-		options: Readonly<{ signal: AbortSignal }>,
+		options: Readonly<{
+			createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;
+			signal: AbortSignal;
+		}>,
 	) => Promise<ScapeExportResult>;
 	readonly normalizeCompatibilityReport: (
 		report: unknown,

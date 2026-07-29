@@ -53,25 +53,28 @@ export async function exportScapeProject(project, store, options = {}) {
 	if (!store?.readSourceChunks || !store?.loadMediaAsset) throw new TypeError('A project store is required.');
 	const signal = options.signal;
 	const writable = options.writable;
+	const createWritable = options.createWritable;
+	if (writable && createWritable) throw new TypeError('Choose one Scape streaming destination.');
+	if (createWritable !== undefined && typeof createWritable !== 'function') {
+		throw new TypeError('The Scape destination factory must be a function.');
+	}
 	throwIfScapeAborted(signal);
 	const plan = await prepareScapeExport(project, store, {
 		maximumBlobBytes: options.maximumBlobBytes,
-		output: writable ? 'stream' : 'blob',
+		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
 	});
-	const mediaBySourceId = new Map();
-	for (const asset of plan.assets) {
-		if (asset.kind !== 'video') continue;
-		const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey), signal);
-		if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
-		const blob = canonicalMediaContentBlob(loaded);
-		if (blob.size !== asset.size) {
-			throw new Error(`Media source ${asset.source.name || asset.sourceId} changed since archive admission.`);
-		}
-		mediaBySourceId.set(asset.sourceId, blob);
+	const resolvedWritable = createWritable
+		? await awaitScapeOperation(createWritable(plan.maximumArchiveBytes), signal)
+		: writable;
+	if ((writable || createWritable) && (!resolvedWritable || typeof resolvedWritable.getWriter !== 'function')) {
+		throw new TypeError('The Scape streaming destination is not writable.');
 	}
-	throwIfScapeAborted(signal);
-	const destination = createScapeExportDestination(writable, SCAPE_MIME_TYPE);
+	const destination = createScapeExportDestination(
+		resolvedWritable,
+		SCAPE_MIME_TYPE,
+		plan.maximumArchiveBytes,
+	);
 	const writer = new ZipWriter(destination.target, {
 		dataDescriptor: true,
 		dataDescriptorSignature: true,
@@ -81,11 +84,23 @@ export async function exportScapeProject(project, store, options = {}) {
 		useWebWorkers: false,
 		signal,
 	});
+	const mediaBySourceId = new Map();
 	const assets = [];
 	let blob;
 	let manifest;
 
 	try {
+		for (const asset of plan.assets) {
+			if (asset.kind !== 'video') continue;
+			const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey), signal);
+			if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
+			const mediaBlob = canonicalMediaContentBlob(loaded);
+			if (mediaBlob.size !== asset.size) {
+				throw new Error(`Media source ${asset.source.name || asset.sourceId} changed since archive admission.`);
+			}
+			mediaBySourceId.set(asset.sourceId, mediaBlob);
+		}
+		throwIfScapeAborted(signal);
 		await awaitScapeOperation(writer.add(PROJECT_ENTRY, scapeBytesStream(plan.projectBytes), {
 			level: 0,
 			zip64: true,
@@ -131,7 +146,7 @@ export async function exportScapeProject(project, store, options = {}) {
 		return destination.abort(writer, error);
 	}
 	if (blob) assertScapeExportBlob(plan, blob);
-	return { blob, manifest };
+	return { blob, manifest, byteLength: destination.byteLength };
 }
 
 export async function importScapeProject(input, store, options = {}) {

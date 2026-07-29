@@ -246,7 +246,33 @@ test('streamed Scape output is exempt from final-Blob admission', async () => {
 		writable: destination,
 	});
 	assert.equal(result.blob, null);
-	assert.ok(chunks.reduce((total, chunk) => total + chunk.byteLength, 0) > 1);
+	const byteLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+	assert.ok(byteLength > 1);
+	assert.equal(result.byteLength, byteLength);
+});
+
+test('plan-aware streamed Scape output receives its admitted maximum before payload reads', async () => {
+	const events: string[] = [];
+	let admittedMaximum = 0;
+	const chunks: Uint8Array[] = [];
+	const store = {
+		async getMediaAssetMetadata() { events.push('metadata'); return { size: 1 }; },
+		async loadMediaAsset() { events.push('payload'); return new Blob(['x']); },
+		readSourceChunks() { return (async function* () {})(); },
+	};
+	const exported = await exportScapeProject(videoProject('plan-aware-stream'), store, {
+		async createWritable(maximumArchiveBytes: number) {
+			events.push('destination');
+			admittedMaximum = maximumArchiveBytes;
+			return new WritableStream<Uint8Array>({
+				write(chunk) { chunks.push(chunk.slice()); },
+			});
+		},
+	});
+	assert.deepEqual(events, ['metadata', 'destination', 'payload']);
+	assert.equal(exported.blob, null);
+	assert.equal(exported.byteLength, chunks.reduce((total, chunk) => total + chunk.byteLength, 0));
+	assert.ok(admittedMaximum >= exported.byteLength);
 });
 
 test('save admission snapshots its destination classification before awaited metadata', async () => {

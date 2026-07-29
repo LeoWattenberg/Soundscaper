@@ -98,6 +98,118 @@ test('desktop file service aborts an in-flight save when its signal is cancelled
 	assert.equal(finishCalls, 0);
 });
 
+test('desktop file service exposes a bounded direct-save stream with acknowledged backpressure', async () => {
+	const calls = [];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseSaveTarget(request) {
+				calls.push(['choose', request]);
+				return { id: 'target-stream', name: 'session.scape' };
+			},
+			async beginWrite(request) {
+				calls.push(['begin', request]);
+				return { writeId: 'write-stream', chunkSize: 3 };
+			},
+			async writeChunk(request) {
+				calls.push(['chunk', request.offset, [...request.bytes]]);
+				return { nextOffset: request.offset + request.bytes.byteLength };
+			},
+			async finishWrite(writeId) {
+				calls.push(['finish', writeId]);
+				return { byteLength: 5 };
+			},
+			async abortWrite(writeId) { calls.push(['abort', writeId]); },
+		},
+	});
+	const prepared = await service.prepareSave({
+		purpose: 'project',
+		suggestedName: 'session.scape',
+		mimeType: 'application/vnd.soundscaper.scape+zip',
+	});
+	assert.equal(prepared.mode, 'stream');
+	const writable = await prepared.createWritable(99);
+	const writer = writable.getWriter();
+	await writer.write(Uint8Array.of(1, 2, 3, 4, 5));
+	await writer.close();
+	assert.equal(prepared.bytesWritten(), 5);
+	await prepared.commit();
+
+	assert.deepEqual(prepared.savedFile(), {
+		method: 'desktop', fileName: 'session.scape', size: 5,
+	});
+	assert.deepEqual(calls, [
+		['choose', {
+			purpose: 'project',
+			suggestedName: 'session.scape',
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+		}],
+		['begin', { targetId: 'target-stream', maximumSize: 99 }],
+		['chunk', 0, [1, 2, 3]],
+		['chunk', 3, [4, 5]],
+		['finish', 'write-stream'],
+	]);
+});
+
+test('browser file service streams to File System Access and retains Blob download fallback', async () => {
+	const calls = [];
+	const handle = {
+		name: 'session.scape',
+		async createWritable() {
+			calls.push(['open']);
+			return {
+				async write(bytes) { calls.push(['write', [...bytes]]); },
+				async close() { calls.push(['close']); },
+				async abort(reason) { calls.push(['abort', reason]); },
+			};
+		},
+	};
+	const service = createAudioEditorFileService({
+		bridge: null,
+		scope: { showSaveFilePicker: async () => handle },
+	});
+	const prepared = await service.prepareSave({
+		purpose: 'project',
+		suggestedName: 'session.scape',
+		useFileSystemAccess: true,
+	});
+	assert.equal(prepared.mode, 'stream');
+	const writer = (await prepared.createWritable(4)).getWriter();
+	await writer.write(Uint8Array.of(1, 2, 3, 4));
+	await writer.close();
+	assert.equal(prepared.bytesWritten(), 4);
+	await prepared.commit();
+	assert.deepEqual(prepared.savedFile(), {
+		method: 'file-system-access', fileName: 'session.scape', size: 4,
+	});
+	assert.deepEqual(calls, [['open'], ['write', [1, 2, 3, 4]], ['close']]);
+
+	const fallback = await service.prepareSave({
+		purpose: 'project',
+		suggestedName: 'fallback.scape',
+		useFileSystemAccess: false,
+	});
+	assert.equal(fallback.mode, 'blob');
+	assert.deepEqual(fallback.target, { browserDownload: true, name: 'fallback.scape' });
+});
+
+test('direct-save streams abort without publishing when their admitted maximum is exceeded', async () => {
+	const aborted = [];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseSaveTarget() { return { id: 'target-limit', name: 'large.scape' }; },
+			async beginWrite() { return { writeId: 'write-limit', chunkSize: 10 }; },
+			async writeChunk() { throw new Error('must not cross the bridge'); },
+			async finishWrite() { throw new Error('must not publish'); },
+			async abortWrite(writeId) { aborted.push(writeId); },
+		},
+	});
+	const prepared = await service.prepareSave({ purpose: 'project', suggestedName: 'large.scape' });
+	const writer = (await prepared.createWritable(1)).getWriter();
+	await assert.rejects(writer.write(Uint8Array.of(1, 2)), /admitted maximum/iu);
+	await writer.abort().catch(() => undefined);
+	assert.deepEqual(aborted, ['write-limit']);
+});
+
 test('desktop read descriptors become named files and are always released', async () => {
 	const released = [];
 	const service = createAudioEditorFileService({

@@ -109,6 +109,7 @@ function createFixture(overrides: Partial<NativeProjectServiceRuntime> = {}) {
 		fileService: {
 			isDesktop: false,
 			chooseSaveTarget: async () => ({ browserDownload: true }),
+			prepareSave: async (request) => ({ mode: 'blob', fileName: request.suggestedName, target: { browserDownload: true } }),
 			saveFile: async (request) => ({ fileName: request.suggestedName, size: request.blob.size }),
 		},
 		getProject: () => activeProject,
@@ -243,6 +244,7 @@ test('Scape save passes the same task AbortSignal into file publication', async 
 		fileService: {
 			isDesktop: false,
 			chooseSaveTarget: async () => ({ browserDownload: true }),
+			prepareSave: async (request) => ({ mode: 'blob', fileName: request.suggestedName, target: { browserDownload: true } }),
 			saveFile: async (request) => {
 				fileSignal = request.signal;
 				savingStarted.resolve();
@@ -427,6 +429,7 @@ test('Scape open and save preserve the archive manifest and file contract', asyn
 	assert.deepEqual(fixture.switched, ['scape-imported']);
 	assert.equal(fixture.state.importing, false);
 	const saved = await service.saveScape({ fileName: 'session', useFileSystemAccess: false });
+	assert.ok('manifest' in saved);
 	assert.deepEqual(saved.manifest, { projectId: 'scape-imported' });
 	assert.equal(fixture.state.saveState, 'saved');
 	assert.equal(fixture.statuses.filter(({ message }) => message === 'Project saved.').length, 2);
@@ -568,6 +571,7 @@ test('cancelled desktop targets and retryable initialization do not mutate save 
 		fileService: {
 			isDesktop: true,
 			chooseSaveTarget: async () => { throw new DOMException('cancelled', 'AbortError'); },
+			prepareSave: async () => ({ mode: 'cancelled', cancelled: true, fileName: 'cancelled.scape' }),
 			saveFile: async () => ({}),
 		},
 		createAup4Client: () => ({

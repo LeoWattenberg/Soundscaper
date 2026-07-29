@@ -40,10 +40,7 @@ const api = Object.freeze({
 		purpose: text(options?.purpose, 24),
 		suggestedName: text(options?.suggestedName, 220),
 	}),
-	beginWrite: (options) => ipcRenderer.invoke(CHANNELS.beginWrite, {
-		targetId: opaqueId(options?.targetId, 48),
-		size: safeInteger(options?.size),
-	}),
+	beginWrite: (options) => ipcRenderer.invoke(CHANNELS.beginWrite, saveDeclaration(options)),
 	writeChunk: (options) => {
 		const bytes = binary(options?.bytes);
 		if (bytes.byteLength > MAX_CHUNK_BYTES) throw new RangeError('Save chunk is too large');
@@ -125,6 +122,17 @@ function safeInteger(value) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError('Expected a non-negative safe integer');
 	return number;
+}
+
+function saveDeclaration(options) {
+	const targetId = opaqueId(options?.targetId, 48);
+	const exactSize = options?.size !== undefined;
+	if (exactSize === (options?.maximumSize !== undefined)) {
+		throw new RangeError('Expected exactly one exact size or admitted maximum');
+	}
+	return exactSize
+		? { targetId, size: safeInteger(options.size) }
+		: { targetId, maximumSize: safeInteger(options.maximumSize) };
 }
 
 function binary(value) {

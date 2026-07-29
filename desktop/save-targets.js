@@ -22,9 +22,9 @@ export class SaveTargetStore {
 		this.#randomBytes = randomBytesImpl;
 	}
 
-	registerPath(filePath) {
+	registerPath(filePath, { purpose } = {}) {
 		const id = this.#newId();
-		const entry = { id, path: filePath, name: basename(filePath), expiresAt: this.#now() + this.#ttlMs, timer: null };
+		const entry = { id, path: filePath, name: basename(filePath), purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
 		entry.timer = setTimeout(() => this.release(id), this.#ttlMs);
 		entry.timer.unref?.();
 		this.#entries.set(id, entry);
@@ -78,10 +78,17 @@ export class AtomicSaveManager {
 		this.#randomBytes = randomBytesImpl;
 	}
 
-	async begin({ targetId, size }) {
-		const declaredSize = validateDeclaredSize(size);
+	async begin({ targetId, size, maximumSize }) {
+		const exactSize = size !== undefined;
+		if (exactSize === (maximumSize !== undefined)) {
+			throw new RangeError('A save requires exactly one exact size or admitted maximum');
+		}
+		const admittedSize = validateDeclaredSize(exactSize ? size : maximumSize);
 		const target = this.#targets.consume(targetId);
 		if (!target) throw new Error('Save target expired or was already used');
+		if (!exactSize && target.purpose !== 'project') {
+			throw new Error('Bounded streaming is restricted to project save targets');
+		}
 		const writeId = this.#newId();
 		const temporaryPath = join(dirname(target.path), `.${basename(target.path)}.${writeId}.soundscaper-part`);
 		let handle;
@@ -95,9 +102,11 @@ export class AtomicSaveManager {
 			targetPath: target.path,
 			temporaryPath,
 			handle,
-			declaredSize,
+			exactSize,
+			admittedSize,
 			written: 0,
 			busy: false,
+			idle: Promise.resolve(),
 		});
 		return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
 	}
@@ -108,7 +117,13 @@ export class AtomicSaveManager {
 		const buffer = toBuffer(bytes);
 		if (buffer.byteLength > MAX_SAVE_CHUNK_BYTES) throw new RangeError('Save chunk is too large');
 		if (!Number.isSafeInteger(offset) || offset !== session.written) throw new RangeError('Save chunk offset is out of sequence');
-		if (buffer.byteLength > session.declaredSize - session.written) throw new RangeError('Save exceeds its declared size');
+		if (buffer.byteLength > session.admittedSize - session.written) {
+			throw new RangeError(session.exactSize
+				? 'Save exceeds its declared size'
+				: 'Save exceeds its admitted maximum');
+		}
+		let markIdle;
+		session.idle = new Promise((resolve) => { markIdle = resolve; });
 		session.busy = true;
 		try {
 			let cursor = 0;
@@ -121,13 +136,16 @@ export class AtomicSaveManager {
 			return Object.freeze({ nextOffset: session.written });
 		} finally {
 			session.busy = false;
+			markIdle();
 		}
 	}
 
 	async finish(writeId) {
 		const session = this.#session(writeId);
 		if (session.busy) throw new Error('Save write is still in progress');
-		if (session.written !== session.declaredSize) throw new Error('Save ended before the declared size was written');
+		if (session.exactSize && session.written !== session.admittedSize) {
+			throw new Error('Save ended before the declared size was written');
+		}
 		this.#sessions.delete(session.id);
 		try {
 			await session.handle.sync();
@@ -144,14 +162,20 @@ export class AtomicSaveManager {
 	async abort(writeId) {
 		const session = this.#sessions.get(String(writeId || ''));
 		if (!session) return false;
+		if (session.busy) await session.idle;
+		if (this.#sessions.get(session.id) !== session) return false;
 		this.#sessions.delete(session.id);
 		await session.handle.close().catch(() => {});
 		await this.#unlink(session.temporaryPath).catch(() => {});
 		return true;
 	}
 
-	async dispose() {
+	async abortAll() {
 		await Promise.all([...this.#sessions.keys()].map((id) => this.abort(id)));
+	}
+
+	async dispose() {
+		await this.abortAll();
 		this.#targets.dispose();
 	}
 
