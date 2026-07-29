@@ -60,6 +60,55 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 });
 
+test('legacy AUP XML evidence pins a format-specific structural budget', async () => {
+	const matrix = await readMatrix();
+	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
+	assert.ok(projectDocuments);
+	assert.equal(projectDocuments.status, 'partial');
+	assert.equal(projectDocuments.releaseDisposition, 'conditional');
+
+	const legacyAup = projectDocuments.currentControls.find(
+		({ id }) => id === 'legacy-aup-xml-structural-budget',
+	);
+	assert.ok(legacyAup);
+	assert.match(
+		legacyAup.summary,
+		/format-specific.*legacy `?\.aup`? XML.*authoritative declared `File\.size`.*independently measures.*returned text.*UTF-8 byte length.*16 MiB.*100,000.*elements.*400,000.*attributes.*depth.*128.*lower-only.*before.*`?_data`?.*block.*conversion.*project\/source persistence.*publication.*does not qualify.*elapsed time.*other project families.*PCM amplification.*total import working set/iu,
+	);
+	for (const path of [
+		'src/common/editor/aup-legacy-xml.ts',
+		'src/common/editor/aup-legacy.js',
+		'src/common/editor/controller/project-import-service.ts',
+		'tests/audio-editor-aup-legacy.test.js',
+		'tests/audio-editor-aup-legacy-import-boundary.test.ts',
+	]) assert.ok(legacyAup.evidence.some((item) => item.path === path));
+
+	const sharedBudget = projectDocuments.residualRisks.find(({ id }) => id === 'shared-project-parse-budget');
+	const malformedCorpus = projectDocuments.residualRisks.find(({ id }) => id === 'malformed-project-corpus');
+	assert.ok(sharedBudget);
+	assert.match(
+		sharedBudget.exposure,
+		/legacy `?\.aup`? XML.*format-specific.*other supported project.*aggregate.*elapsed-time.*`?_data`?.*PCM amplification.*working set/iu,
+	);
+	assert.ok(malformedCorpus);
+	assert.match(
+		malformedCorpus.exposure,
+		/focused legacy `?\.aup`? XML.*declared.*returned.*element.*attribute.*depth.*does not yet cover every supported project family/iu,
+	);
+
+	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	assert.match(
+		documentation,
+		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*measured UTF-8 byte length.*returned text.*16 MiB.*100,000.*400,000.*128.*before.*`?_data`?.*persistence.*format-specific.*does not.*elapsed time.*other project families.*PCM amplification.*working set.*corpus/isu,
+	);
+
+	const roadmap = await readFile(roadmapUrl, 'utf8');
+	assert.match(
+		roadmap,
+		/security control matrix.*legacy.*\.aup.*XML.*16\s+MiB.*100,000.*400,000.*128.*before.*_data.*project or\s+source\s+persistence.*format-specific.*elapsed time.*other project\s+families.*PCM amplification.*working set/isu,
+	);
+});
+
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {
 	const matrix = await readMatrix();
 	const desktopWrite = matrix.risks.find(({ id }) => id === 'desktop-write-path-capabilities');

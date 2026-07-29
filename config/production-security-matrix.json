@@ -232,19 +232,30 @@
 						{ "kind": "test", "path": "tests/aup4-conversion.test.js" },
 						{ "kind": "test", "path": "tests/audacity-project-import.test.js" }
 					]
+				},
+				{
+					"id": "legacy-aup-xml-structural-budget",
+					"summary": "A format-specific legacy `.aup` XML structural budget caps authoritative declared `File.size` and independently measures the returned text's UTF-8 byte length at 16 MiB, with at most 100,000 retained elements, 400,000 attributes, and maximum depth at 128 through lower-only test seams. Limits reject before any legacy `_data` block read, conversion, project/source persistence, or imported-project publication. This narrow control does not qualify elapsed time, other project families, selected `_data` bytes or decoded PCM amplification, or the total import working set.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/aup-legacy-xml.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/aup-legacy.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-import-service.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy-import-boundary.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "shared-project-parse-budget",
-					"exposure": "Format-specific parsers do not yet share a single byte, node, depth, or elapsed-time budget.",
-					"requiredControl": "Apply documented per-format and aggregate budgets before persistence.",
+					"exposure": "Legacy `.aup` XML now has a format-specific structural budget, but other supported project parsers still do not share aggregate byte, node, depth, or elapsed-time budgets; selected `_data` bytes, decoded PCM amplification, and the total legacy-import working set remain outside the XML qualification.",
+					"requiredControl": "Apply documented per-format and aggregate byte, node, depth, and elapsed-time budgets before persistence, including legacy block and PCM work.",
 					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Boundary tests reject oversized and deeply nested project fixtures before any project or source write."]
+					"acceptanceCriteria": ["Remaining project-family boundary tests reject oversized and deeply nested fixtures before writes, and qualified aggregate and elapsed-time budgets cover parser orchestration and legacy `_data` materialization."]
 				},
 				{
 					"id": "malformed-project-corpus",
-					"exposure": "The maintained malformed-project corpus does not yet cover every supported project family.",
+					"exposure": "Focused legacy `.aup` XML boundary and no-publication fixtures cover declared and returned bytes, element, attribute, and depth limits, but the maintained malformed-project corpus does not yet cover every supported project family.",
 					"requiredControl": "Maintain regression and fuzz fixtures for each supported project parser.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["CI runs parser corpus tests with storage publication assertions for each family."]

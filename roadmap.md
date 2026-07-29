@@ -203,7 +203,20 @@ reviewable gates before expanding the schema or native boundary.
   [security regression](tests/production-security-matrix.test.js) keeps partial
   controls visible, verifies the satisfied current-surface archive-expansion
   gate, and prevents planned helper and plug-in surfaces from being treated as
-  enabled. Controlled FFmpeg publication, desktop staging, pre-pack and
+  enabled. Within the still-partial project-document risk, the format-specific
+  legacy [`.aup` XML parser](src/common/editor/aup-legacy-xml.ts) now caps both
+  authoritative declared size and the independently measured UTF-8 byte length
+  of returned text at 16 MiB, retained elements at 100,000, attributes at
+  400,000, and depth at 128
+  through non-raiseable ceilings with lower-only test seams. Structural
+  rejection occurs before any `_data` block read, conversion, project or source
+  persistence, or imported-project publication, as covered by the focused
+  [parser](tests/audio-editor-aup-legacy.test.js) and
+  [import-boundary](tests/audio-editor-aup-legacy-import-boundary.test.ts)
+  regressions. That format-specific tier leaves elapsed time, other project
+  families, selected `_data` bytes and decoded PCM amplification, the total
+  import working set, and cross-format malformed/fuzz corpus coverage open.
+  Controlled FFmpeg publication, desktop staging, pre-pack and
   packaged-resource verification, and the current Soundscaper public
   desktop-release assembler now share one
   [checked-in policy manifest](config/ffmpeg-runtime-manifest.json) with

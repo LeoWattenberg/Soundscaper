@@ -1,20 +1,17 @@
-export class LegacyAupError extends Error {
-	constructor(message, code = 'LEGACY_AUP_ERROR', details = {}) {
-		super(message);
-		this.name = 'LegacyAupError';
-		this.code = code;
-		this.details = details;
-	}
-}
+import {
+	LEGACY_AUP_XML_HARD_LIMITS,
+	LegacyAupError,
+	readLegacyAupXml,
+} from './aup-legacy-xml.ts';
+
+export { LEGACY_AUP_XML_HARD_LIMITS, LegacyAupError };
 
 /**
  * Parse an Audacity 1.x/2.x `.aup` XML project plus user-selected `_data`
  * files into the structured representation consumed by the legacy AUP converter.
  */
 export async function decodeLegacyAupProject(projectFile, dataFiles, options = {}) {
-	if (!projectFile || typeof projectFile.text !== 'function') throw new TypeError('A legacy Audacity project file is required.');
-	const xml = await projectFile.text();
-	const root = parseLegacyXml(xml);
+	const root = await readLegacyAupXml(projectFile, options.parseLimits);
 	const project = root.name === 'project' ? root : findDescendant(root, 'project');
 	if (!project) throw new LegacyAupError('The AUP file has no project element.', 'INVALID_PROJECT_XML');
 	const files = indexLegacyFiles(dataFiles || []);
@@ -24,7 +21,7 @@ export async function decodeLegacyAupProject(projectFile, dataFiles, options = {
 	const corrupt = [];
 	const physicalTracks = [];
 	let completed = 0;
-	const totalBlocks = descendants(project, 'simpleblockfile').length;
+	const totalBlocks = countDescendants(project, 'simpleblockfile');
 	for (const [trackIndex, trackNode] of waveTracks.entries()) {
 		const trackRate = positiveRate(attribute(trackNode, 'rate', projectRate));
 		const clips = [];
@@ -149,36 +146,6 @@ export function decodeAuBlockFile(bytes) {
 	return output;
 }
 
-function parseLegacyXml(xml) {
-	const synthetic = { name: '#document', attributes: {}, children: [] };
-	const stack = [synthetic];
-	const tokens = String(xml).match(/<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[\s\S]*?>|<[^>]+>/gi) || [];
-	for (const token of tokens) {
-		if (/^<\/?[!?]/.test(token)) continue;
-		if (/^<\//.test(token)) {
-			const name = normalizedName(token.slice(2, -1));
-			const node = stack.pop();
-			if (!node || normalizedName(node.name) !== name) throw new LegacyAupError(`Mismatched legacy AUP XML tag: ${name}.`, 'INVALID_PROJECT_XML');
-			continue;
-		}
-		if (stack.length > 512) throw new LegacyAupError('Legacy AUP XML is nested too deeply.', 'INVALID_PROJECT_XML');
-		const selfClosing = /\/\s*>$/.test(token);
-		const content = token.slice(1, selfClosing ? token.lastIndexOf('/') : -1).trim();
-		const nameMatch = /^([^\s/>]+)/.exec(content);
-		if (!nameMatch) continue;
-		const node = { name: nameMatch[1], attributes: {}, children: [] };
-		const attributeText = content.slice(nameMatch[0].length);
-		for (const match of attributeText.matchAll(/([^\s=]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) {
-			node.attributes[match[1]] = decodeEntities(match[3] ?? match[4] ?? '');
-		}
-		stack.at(-1).children.push(node);
-		if (!selfClosing) stack.push(node);
-	}
-	if (stack.length !== 1) throw new LegacyAupError('Legacy AUP XML has unclosed elements.', 'INVALID_PROJECT_XML');
-	if (synthetic.children.length !== 1) throw new LegacyAupError('Legacy AUP XML must have one root element.', 'INVALID_PROJECT_XML');
-	return synthetic.children[0];
-}
-
 function indexLegacyFiles(values) {
 	const map = new Map();
 	for (const file of values) {
@@ -229,12 +196,12 @@ function concatenate(parts) {
 }
 
 function children(node, name) { const expected = normalizedName(name); return (node?.children || []).filter((child) => normalizedName(child.name) === expected); }
-function descendants(node, name) { const output = []; const expected = normalizedName(name); const visit = (entry) => { for (const child of entry.children || []) { if (normalizedName(child.name) === expected) output.push(child); visit(child); } }; visit(node); return output; }
-function findDescendant(node, name) { return descendants({ children: [node] }, name)[0] || null; }
+function countDescendants(node, name) { const expected = normalizedName(name); let count = 0; const pending = []; appendPending(pending, node?.children); while (pending.length) { const child = pending.pop(); if (normalizedName(child.name) === expected) count += 1; appendPending(pending, child.children); } return count; }
+function findDescendant(node, name) { const expected = normalizedName(name); const pending = [node]; while (pending.length) { const entry = pending.pop(); if (normalizedName(entry?.name) === expected) return entry; appendPending(pending, entry?.children); } return null; }
+function appendPending(pending, values) { for (let index = (values?.length || 0) - 1; index >= 0; index -= 1) pending.push(values[index]); }
 function attribute(node, name, fallback) { const expected = normalizedName(name); for (const [key, value] of Object.entries(node?.attributes || {})) if (normalizedName(key) === expected) return value; return fallback; }
 function booleanAttribute(node, name, fallback) { const value = attribute(node, name, fallback); return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true'; }
 function normalizedName(value) { return String(value || '').trim().toLowerCase(); }
-function decodeEntities(value) { return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
 function cloneNode(node) { return JSON.parse(JSON.stringify(node)); }
 function signed24(view, offset) { const value = view.getUint8(offset) << 16 | view.getUint8(offset + 1) << 8 | view.getUint8(offset + 2); return value & 0x800000 ? value - 0x1000000 : value; }
 function positiveRate(value) { const number = Math.round(Number(value)); if (!Number.isSafeInteger(number) || number <= 0 || number > 768_000) throw new LegacyAupError('Legacy project sample rate is invalid.', 'INVALID_SAMPLE_RATE'); return number; }

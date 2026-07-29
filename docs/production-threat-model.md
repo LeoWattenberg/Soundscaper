@@ -39,7 +39,7 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 
 ### Malformed projects and media
 
-`external-project-document-validation` is **partial**. Core project migration validates supported schemas and preserves newer schemas as read-only; AUP4 conversion sanitizes imported structure. Parser families do not yet share aggregate byte, node, depth, and time budgets, and the malformed-project regression corpus is incomplete.
+`external-project-document-validation` is **partial**. Core project migration validates supported schemas and preserves newer schemas as read-only; AUP4 conversion sanitizes imported structure. Legacy `.aup` XML now applies a format-specific structural budget: authoritative declared `File.size` and the independently measured UTF-8 byte length of returned text are each capped at 16 MiB, retained elements at 100,000, attributes at 400,000, and depth at 128 through non-raiseable production ceilings and lower-only test seams. Limits reject before any legacy `_data` block read, conversion, project/source persistence, or imported-project publication. This format-specific tier does not qualify elapsed time, other project families, selected `_data` bytes or decoded PCM amplification, or the total import working set. The cross-format malformed-project regression and fuzz corpus remains incomplete.
 
 `external-media-parser-bounds` is **partial**. WAV/ADM paths have explicit structural and expansion limits, and custom FFmpeg output arguments and protocols are constrained. Compressed audio/video still needs a broad malformed-input corpus, decode budgets, and—when native decoding arrives—a supervised crash-isolated process.
 
