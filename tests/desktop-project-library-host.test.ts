@@ -35,6 +35,8 @@ test('desktop host opens the product-neutral appData library and releases it on 
 	assert.deepEqual(host.snapshot(), {
 		closed: false,
 		owner: SOUNDSCAPER_OWNER,
+		fencingToken: 1,
+		tookOverStaleLease: false,
 		recovery: {
 			outcome: 'clean',
 			previousRevision: null,
@@ -153,8 +155,9 @@ test('desktop host suppresses a queued renewal failure after intentional close',
 	context.after(() => host.close());
 
 	await started;
-	await host.close();
+	const closing = host.close();
 	rejectRenewal?.(new Error('queued renewal failure'));
+	await closing;
 	await delay(0);
 	assert.deepEqual(leaseLosses, []);
 });

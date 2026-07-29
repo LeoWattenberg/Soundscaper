@@ -1,10 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	type DesktopLibraryMetadata,
 	createDesktopProjectLibraryPaths,
 	type DesktopLibraryLease,
 	type DesktopLibraryOwner,
 } from './project-library-contract.ts';
+import {
+	type DesktopLibraryCommitProjectOptions,
+	type DesktopLibraryLoadedProject,
+	DesktopLibraryProjectStore,
+} from './project-library-projects.ts';
 import {
 	type DesktopLibraryRecoveryResult,
 	SharedDesktopProjectLibrary,
@@ -25,8 +31,12 @@ export interface DesktopProjectLibraryHostOptions {
 export interface DesktopProjectLibraryHostSnapshot {
 	readonly closed: boolean;
 	readonly owner: DesktopLibraryOwner;
+	readonly fencingToken: number;
+	readonly tookOverStaleLease: boolean;
 	readonly recovery: DesktopLibraryRecoveryResult;
 }
+
+export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitProjectOptions, 'lease'>;
 
 /** Owns the shared library only inside the Electron main process. */
 export class DesktopProjectLibraryHost {
@@ -36,8 +46,11 @@ export class DesktopProjectLibraryHost {
 	#leaseTtlMs: number;
 	#library: SharedDesktopProjectLibrary;
 	#onLeaseLost: (error: unknown) => void;
+	#operations = new Set<Promise<unknown>>();
+	#projectCommitTail: Promise<void> = Promise.resolve();
+	#projects: DesktopLibraryProjectStore;
 	#recovery: DesktopLibraryRecoveryResult;
-	#renewalActive = false;
+	#renewalPromise: Promise<void> | null = null;
 	#renewalTimer: ReturnType<typeof setInterval>;
 
 	private constructor(
@@ -47,6 +60,7 @@ export class DesktopProjectLibraryHost {
 		options: DesktopProjectLibraryHostOptions,
 	) {
 		this.#library = library;
+		this.#projects = new DesktopLibraryProjectStore(library);
 		this.#lease = lease;
 		this.#recovery = recovery;
 		this.#leaseTtlMs = options.leaseTtlMs ?? DEFAULT_LEASE_TTL_MS;
@@ -55,7 +69,7 @@ export class DesktopProjectLibraryHost {
 			options.renewIntervalMs ?? DEFAULT_RENEW_INTERVAL_MS,
 			this.#leaseTtlMs,
 		);
-		this.#renewalTimer = setInterval(() => { void this.#renewLease(); }, renewIntervalMs);
+		this.#renewalTimer = setInterval(() => { this.#beginRenewal(); }, renewIntervalMs);
 		this.#renewalTimer.unref?.();
 	}
 
@@ -82,7 +96,28 @@ export class DesktopProjectLibraryHost {
 		return Object.freeze({
 			closed: this.#closed,
 			owner: Object.freeze({ ...this.#lease.owner }),
+			fencingToken: this.#lease.fencingToken,
+			tookOverStaleLease: this.#lease.tookOverStaleLease,
 			recovery: Object.freeze({ ...this.#recovery }),
+		});
+	}
+
+	readCatalog(): DesktopLibraryMetadata {
+		this.#assertAccepting();
+		return this.#projects.readCatalog();
+	}
+
+	readProject(entryId: string, signal?: AbortSignal): Promise<DesktopLibraryLoadedProject | null> {
+		return this.#admit(() => this.#projects.readProject(entryId, signal));
+	}
+
+	commitProject(options: DesktopProjectLibraryHostCommitOptions): Promise<DesktopLibraryLoadedProject> {
+		return this.#admit(() => {
+			const commit = this.#projectCommitTail.then(
+				() => this.#projects.commitProject({ ...options, lease: this.#lease }),
+			);
+			this.#projectCommitTail = commit.then(() => undefined, () => undefined);
+			return commit;
 		});
 	}
 
@@ -90,24 +125,47 @@ export class DesktopProjectLibraryHost {
 		if (this.#closePromise) return this.#closePromise;
 		this.#closed = true;
 		clearInterval(this.#renewalTimer);
-		this.#closePromise = this.#close();
+		this.#closePromise = this.#close([...this.#operations], this.#renewalPromise);
 		return this.#closePromise;
 	}
 
-	async #close(): Promise<void> {
-		try {
-			await this.#library.releaseLease(this.#lease);
-		} finally {
-			this.#library.close();
+	async #close(operations: readonly Promise<unknown>[], renewal: Promise<void> | null): Promise<void> {
+		const failures: unknown[] = [];
+		if (renewal) await renewal;
+		const results = await Promise.allSettled(operations);
+		for (const result of results) {
+			if (result.status === 'rejected') failures.push(result.reason);
 		}
+		try {
+			if (!await this.#library.releaseLease(this.#lease)) {
+				failures.push(new Error('Desktop project library host no longer owns its lease during close'));
+			}
+		} catch (error) {
+			failures.push(error);
+		} finally {
+			try {
+				this.#library.close();
+			} catch (error) {
+				failures.push(error);
+			}
+		}
+		throwHostFailures(failures);
+	}
+
+	#beginRenewal(): void {
+		if (this.#closed || this.#renewalPromise) return;
+		const renewal = this.#renewLease();
+		this.#renewalPromise = renewal;
+		void renewal.then(
+			() => { if (this.#renewalPromise === renewal) this.#renewalPromise = null; },
+			() => { if (this.#renewalPromise === renewal) this.#renewalPromise = null; },
+		);
 	}
 
 	async #renewLease(): Promise<void> {
-		if (this.#closed || this.#renewalActive) return;
-		this.#renewalActive = true;
 		try {
 			const renewed = await this.#library.renewLease(this.#lease, this.#leaseTtlMs);
-			if (!this.#closed) this.#lease = renewed;
+			this.#lease = renewed;
 		} catch (error) {
 			clearInterval(this.#renewalTimer);
 			if (this.#closed) return;
@@ -116,9 +174,31 @@ export class DesktopProjectLibraryHost {
 			} catch {
 				// A host callback cannot restore a lost fencing token.
 			}
-		} finally {
-			this.#renewalActive = false;
 		}
+	}
+
+	#admit<Result>(operation: () => Promise<Result>): Promise<Result> {
+		try {
+			this.#assertAccepting();
+		} catch (error) {
+			return Promise.reject(error);
+		}
+		let admitted: Promise<Result>;
+		try {
+			admitted = operation();
+		} catch (error) {
+			return Promise.reject(error);
+		}
+		this.#operations.add(admitted);
+		void admitted.then(
+			() => { this.#operations.delete(admitted); },
+			() => { this.#operations.delete(admitted); },
+		);
+		return admitted;
+	}
+
+	#assertAccepting(): void {
+		if (this.#closed) throw new Error('Desktop project library host is closed');
 	}
 }
 
@@ -127,4 +207,10 @@ function validateRenewInterval(value: number, leaseTtlMs: number): number {
 		throw new RangeError('Desktop project library renewal interval must be shorter than its lease TTL');
 	}
 	return value;
+}
+
+function throwHostFailures(failures: readonly unknown[]): void {
+	if (failures.length === 0) return;
+	if (failures.length === 1) throw failures[0];
+	throw new AggregateError(failures, 'Desktop project library host shutdown failed');
 }
