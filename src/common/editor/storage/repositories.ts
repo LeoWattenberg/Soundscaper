@@ -7,7 +7,7 @@ import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
 import { PcmMigrationRepository } from './pcm-migration-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
-import { ProjectRepository } from './project-repository.ts';
+import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { SourceReadRepository } from './source-read-repository.ts';
@@ -16,7 +16,7 @@ import { SourceRepository } from './source-repository.ts';
 import { SourceWriteRepository } from './source-write-repository.ts';
 
 export interface StorageRepositories {
-	readonly projects: ProjectRepository;
+	readonly projects: ProjectRepositoryPort;
 	readonly settings: KeyValueRepository;
 	readonly analysis: KeyValueRepository;
 	readonly sources: SourceRepository;

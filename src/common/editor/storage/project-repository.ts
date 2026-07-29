@@ -10,11 +10,16 @@ import {
 import { publishSource } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
-interface ProjectDocument {
+export interface ProjectDocument {
 	readonly id: string;
 	readonly revision?: number;
 	readonly updatedAt?: unknown;
 	readonly [field: string]: unknown;
+}
+
+export interface ProjectRevision {
+	readonly revision: number;
+	readonly project: ProjectDocument;
 }
 
 interface ProjectRevisionRecord {
@@ -29,8 +34,17 @@ export interface ProjectLoadOptions {
 	readonly signal?: AbortSignal;
 }
 
+/** Structural project seam implemented by local and desktop-shared repositories. */
+export interface ProjectRepositoryPort {
+	save(project: ProjectDocument): Promise<ProjectDocument>;
+	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
+	list(): Promise<ProjectDocument[]>;
+	listRevisions(projectId: string): Promise<ProjectRevision[]>;
+	delete(projectId: string): Promise<void>;
+}
+
 /** Durable project snapshots and their bounded revision history. */
-export class ProjectRepository {
+export class ProjectRepository implements ProjectRepositoryPort {
 	readonly #port: StorageRepositoryPort;
 	readonly #revisionLimit: number;
 
@@ -119,7 +133,7 @@ export class ProjectRepository {
 			.sort(sortProjects);
 	}
 
-	async listRevisions(projectId: string): Promise<Array<{ revision: number; project: ProjectDocument }>> {
+	async listRevisions(projectId: string): Promise<ProjectRevision[]> {
 		const database = await this.#port.database();
 		const records = !database
 			? [...this.#port.memory.revisions.values()].map(asRevision).filter(isRevisionFor(projectId))
