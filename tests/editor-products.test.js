@@ -28,7 +28,7 @@ test('product profiles are immutable and resolve distinct routes and capability 
 	assert.equal(Object.isFrozen(productProfile('framescaper').shortcuts.disabledCommandIds), true);
 });
 
-test('controllers enforce product authoring boundaries while retaining the shared project model', async () => {
+test('controllers enforce product authoring boundaries while retaining the shared project model', async (context) => {
 	const soundStore = createProjectStore({ indexedDB: null, databaseName: `products-sound-${Date.now()}` });
 	const frameStore = createProjectStore({ indexedDB: null, databaseName: `products-frame-${Date.now()}` });
 	const soundscaper = createEditorController(null, {
@@ -38,6 +38,9 @@ test('controllers enforce product authoring boundaries while retaining the share
 	const framescaper = createEditorController(null, {
 		productId: 'framescaper',
 		store: frameStore,
+	});
+	context.after(async () => {
+		await Promise.all([soundscaper.dispose(), framescaper.dispose()]);
 	});
 	await Promise.all([soundscaper.ready, framescaper.ready]);
 
@@ -92,7 +95,15 @@ test('controllers enforce product authoring boundaries while retaining the share
 	const mixedDocument = structuredClone(framescaper.getSnapshot().project);
 	mixedDocument.id = 'framescaper-preservation';
 	mixedDocument.opaqueExtensions = { futureProducer: { untouched: ['value', 7] } };
-	mixedDocument.tracks[0].effects = [createEffect('delay', { id: 'preserved-audio-effect' })];
+	mixedDocument.tracks[0].effects = [createEffect('missing', {
+		id: 'preserved-audio-effect',
+		missing: {
+			name: 'Foreign effect',
+			nativeId: 'foreign-effect',
+			reason: 'plugin-unavailable',
+			source: 'aup4',
+		},
+	})];
 	const preserved = JSON.stringify({
 		effects: mixedDocument.tracks[0].effects,
 		opaqueExtensions: mixedDocument.opaqueExtensions,
@@ -107,8 +118,6 @@ test('controllers enforce product authoring boundaries while retaining the share
 		opaqueExtensions: saved.opaqueExtensions,
 		projectBin: saved.projectBin,
 	}), preserved);
-
-	await Promise.all([soundscaper.dispose(), framescaper.dispose()]);
 });
 
 function assertRestricted(controller, path, capability) {
