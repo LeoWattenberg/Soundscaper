@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PRODUCT_PROFILES } from '../src/common/products.js';
+import { audioEffectTypes } from '../src/common/editor/effects.js';
 import {
+	PROJECT_FEATURE_AUDIO_EFFECT_TYPES,
 	PROJECT_FEATURE_CAPABILITY_IDS,
 } from '../src/common/editor/project-feature-capabilities.ts';
 import {
@@ -31,6 +33,8 @@ test('the feature registry explicitly covers every maintained product capability
 		assert.match(featureId, /^org\.soundscaper\.capability\.[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 	}
 	assert.equal(Object.isFrozen(PROJECT_FEATURE_CAPABILITY_IDS), true);
+	assert.deepEqual([...PROJECT_FEATURE_AUDIO_EFFECT_TYPES].sort(), audioEffectTypes().sort());
+	assert.equal(Object.isFrozen(PROJECT_FEATURE_AUDIO_EFFECT_TYPES), true);
 });
 
 test('product capability reports distinguish available, unavailable, and unregistered features', () => {

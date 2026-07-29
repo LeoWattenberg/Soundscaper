@@ -24,6 +24,32 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 
 export type ProjectFeatureCapabilityKey = keyof typeof PROJECT_FEATURE_CAPABILITY_IDS;
 
+/** Maintained rack processors owned by the first-party audio-effects capability. */
+export const PROJECT_FEATURE_AUDIO_EFFECT_TYPES = Object.freeze([
+	'highpass',
+	'lowpass',
+	'eq',
+	'compressor',
+	'limiter',
+	'gate',
+	'reverb',
+	'delay',
+	'audacity-auto-duck',
+	'audacity-bass-treble',
+	'audacity-click-removal',
+	'audacity-compressor',
+	'audacity-distortion',
+	'audacity-echo',
+	'audacity-filter-curve-eq',
+	'audacity-graphic-eq',
+	'audacity-invert',
+	'audacity-limiter',
+	'audacity-noise-reduction',
+	'audacity-phaser',
+	'audacity-classic-filters',
+	'audacity-wahwah',
+] as const);
+
 export interface ProjectFeatureCapabilitySnapshot {
 	readonly knownFeatureIds: readonly string[];
 	readonly availableFeatureIds: readonly string[];
