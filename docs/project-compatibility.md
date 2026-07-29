@@ -76,6 +76,48 @@ The report is retained per tab, remains deeply frozen across session metadata
 clones, and is exposed on the document snapshot. Future schemas produce no
 feature report, and their `featureRequirements` value is not traversed.
 
+Raw and stored-project controller activation has a separate integrity admission
+step for exact schema 9. It verifies the authoritative project that would be
+activated, including existing same-ID tab history, before project-generation
+invalidation, recording or engine shutdown, lock changes, session publication,
+ordinary engine-source loading, or normal activation persistence. Admission
+reads explicitly disable on-access PCM migration scheduling and retained-media
+digest claim/backfill, so verification itself does not publish storage
+maintenance. Audio fallbacks are read from their local `storageKey` and hashed
+as the canonical
+`audio-f32le-chunks-v1` sequence: a four-byte little-endian frame count followed
+by planar little-endian Float32 channel bytes for each checked project chunk.
+That path shares `.scape` export's PCM geometry validation and cumulative
+65,536-chunk ceiling. Video fallbacks resolve their retained original-media
+`storageKey`, require a genuine immutable `Blob`, and hash its actual body
+sequentially through the non-raiseable 4 MiB media-digest window. Identical
+source claims are hashed once. Unique claimed audio bytes and video sizes share
+a non-raiseable 64 GiB cumulative ceiling that rejects before fallback body
+reads. Conflicting digests reject before storage reads, and a missing,
+malformed, or mismatched local asset rejects activation. The controller binds
+existing-tab verification to an opaque session-owned history token. After
+verification it upgrades that token—or the still-absent project ID—to one
+exclusive session activation reservation before the first activation side
+effect. The reservation rejects target history replacement, close/reopen, and
+competing active-project publication through synchronous session publication,
+and is released in `finally`. The controller-lifetime signal is propagated
+through verification, and maintained
+store operations cooperate with it to cancel and close an active audio
+iterator. Read-only video-metadata preflight is raced against cancellation, so
+an injected provider that ignores its signal may continue after the admission
+has rejected. A provider-stalled fallback body read can instead delay
+cancellation settlement and iterator cleanup. Empty manifests and future
+schemas perform no asset reads, and future `featureRequirements` state is not
+traversed.
+
+This is a point-in-time guarantee at the maintained controller admission
+boundary. Calling `store.loadProject()` directly does not verify fallback
+bytes, and the admission does not continuously bind bytes against a later
+low-level source replacement, establish publisher authenticity, or substitute
+fallback media at runtime. It also does not provide post-open placeholders,
+per-feature bypass controls, future-schema preservation, or a complete
+third-party activation gate.
+
 The same selected product service now powers a programmatic current-format `.scape`
 inspection report. The composition root snapshots the selected product
 and injects its evaluator as provider-owned state, so caller options cannot
@@ -141,10 +183,13 @@ hash the potentially reference-scale asset bodies.
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 post-open unavailable-feature placeholders or per-feature bypass controls,
-or third-party feature activation. A raw or stored-project load does not verify
-fallback bytes, and runtime use of fallback media is not implemented. Those
-outcomes remain governed by the planned compatibility rows and roadmap exit
-gate.
+or third-party feature activation. After archive acceptance and import, the
+separate maintained controller admission described above verifies the local
+bytes referenced by the authoritative exact-schema-9 activation project. That
+does not make metadata-only inspection a body-verification route, does not
+cover direct store loads, and does not implement runtime fallback use. The
+remaining outcomes stay governed by the planned compatibility rows and roadmap
+exit gate.
 
 ## Opaque state
 

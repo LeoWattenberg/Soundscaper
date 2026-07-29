@@ -832,11 +832,38 @@ models or native implementations.
   aggregate bytes, 100,000 traversal nodes, and depth 128 before decoded-byte
   allocation or project work. Other buffer views reject; other project schemas
   retain ordinary JSON behavior and tag-shaped future state is not traversed.
-  Raw- and stored-project fallback verification and runtime use,
-  post-open unavailable-feature placeholders and per-feature bypass UI, and
-  arbitrary future-schema archive preservation remain planned. Third-party
-  discovery, loading, and isolation remain separate later surfaces rather than
-  blockers for this first-party contract.
+  Maintained raw- and stored-project controller activation now verifies every
+  exact-schema-V9 rendered-fallback claim against its referenced local bytes
+  before activation side effects. The authoritative activation project wins,
+  including existing same-ID tab history. After verification and before the
+  first activation side effect, the controller upgrades that history token—or
+  the still-absent project ID—into one exclusive session activation
+  reservation. It rejects target history replacement, close/reopen, and
+  competing active-project publication through synchronous session publication,
+  then releases in `finally`. Admission reads disable on-access PCM migration
+  scheduling and retained-media digest claim/backfill, so verification does not
+  publish storage maintenance. Audio verification hashes the
+  canonical `audio-f32le-chunks-v1` sequence under the same checked geometry
+  and cumulative 65,536-chunk ceiling as `.scape` export; video verification
+  hashes the genuine immutable original-media `Blob` body through the
+  non-raiseable 4 MiB digest window. Unique claimed audio bytes and admitted
+  video sizes share a non-raiseable 64 GiB cumulative ceiling before body reads.
+  Verification is sequential and cooperatively cancellable through the
+  maintained store. Read-only video-metadata preflight is raced against
+  cancellation, so an injected signal-ignoring provider may continue after the
+  admission rejects. An already-started fallback body read from such a provider
+  can instead delay cancellation settlement and iterator cleanup.
+  Verification deduplicates matching claims, rejects conflicting digests
+  before storage reads, and performs no asset reads or feature-manifest
+  traversal for future schemas. This is an admission-time controller guarantee,
+  not a guarantee for arbitrary direct `store.loadProject()` calls, continuous
+  binding against
+  later low-level source replacement, publisher authenticity, or runtime
+  fallback substitution. Post-open unavailable-feature placeholders,
+  per-feature bypass UI, runtime fallback use, and arbitrary future-schema
+  archive preservation remain planned. Complete third-party discovery,
+  loading, and isolation remain separate later surfaces rather than blockers
+  for this first-party contract.
 
 ### Exit gate
 
@@ -855,9 +882,9 @@ models or native implementations.
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
   pre-open compatibility decision. This exit remains open until its subsequent
-  `.scape` round trip is faithful for runtime fallback behavior, raw/stored
-  fallback integrity, post-open placeholder and bypass behavior, and arbitrary
-  future-schema archive preservation.
+  `.scape` round trip is faithful for runtime fallback behavior, post-open
+  placeholder and bypass behavior, and arbitrary future-schema archive
+  preservation.
 
 ## 3. Parallel editorial foundations
 

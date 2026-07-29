@@ -67,12 +67,16 @@ test('project feature requirements are bounded and fail closed at activation and
 	const control = projectDocuments?.currentControls.find(
 		({ id }) => id === 'project-schema-and-forward-read-validation',
 	);
+	const fallbackAdmission = projectDocuments?.currentControls.find(
+		({ id }) => id === 'controller-rendered-fallback-admission',
+	);
 
 	assert.ok(boundary);
 	assert.ok(projectDocuments);
 	assert.equal(projectDocuments.status, 'partial');
 	assert.equal(projectDocuments.releaseDisposition, 'conditional');
 	assert.ok(control);
+	assert.ok(fallbackAdmission);
 	for (const path of [
 		'src/common/editor/migration.js',
 		'src/common/editor/project-feature-requirements.ts',
@@ -130,8 +134,38 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /current-format.*exact schema 9.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
 	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
 	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
-	assert.match(control.summary, /raw.*stored-project.*do(?:es)? not verify.*fallback bytes/iu);
-	assert.match(control.summary, /does not.*provide.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
+	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-9 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
+	assert.match(control.summary, /runtime fallback substitution.*post-open unavailable-feature placeholders.*per-feature bypass UI.*outside this control/iu);
+	for (const path of [
+		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/storage/media-content-digest.ts',
+		'src/common/editor/storage.js',
+		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage/source-repository.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-repository.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/session-activation.js',
+		'src/common/editor/session.js',
+		'src/common/editor/app.js',
+		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-source-read-cancellation.test.ts',
+		'tests/audio-editor-media-asset-load.test.ts',
+		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
+		'tests/audio-editor-session-project-activation.test.js',
+	]) assert.ok(fallbackAdmission.evidence.some((item) => item.path === path), path);
+	assert.match(
+		fallbackAdmission.summary,
+		/authoritative exact-schema-9.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
+	);
+	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(fallbackAdmission.summary, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
+	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*before storage reads/iu);
+	assert.match(
+		fallbackAdmission.summary,
+		/no asset read.*future schemas.*point-in-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*future schemas.*placeholder.*bypass.*third-party/iu,
+	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
@@ -145,8 +179,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);
 	assert.match(documentation, /current-format.*exact schema 9.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
 	assert.match(documentation, /export.*project root.*source records.*same sources.*accessors.*`toJSON` hooks.*without invocation.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
-	assert.match(documentation, /inspection.*does not hash.*asset bodies.*raw.*stored-project.*do(?:es)? not verify.*fallback bytes/iu);
-	assert.match(documentation, /do not qualify.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
+	assert.match(documentation, /inspection.*does not hash.*asset bodies.*maintained exact-schema-9 controller activation.*referenced local audio and video fallback bytes/iu);
+	assert.match(documentation, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
+	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*continuous integrity.*runtime fallback use.*future-schema.*outside/iu);
+	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {

@@ -103,7 +103,7 @@
 			"id": "current-controller-feature-report",
 			"status": "implemented",
 			"requiredOutcome": "Maintained current-schema projects are evaluated against a stable selected-product capability registry before activation, and every unavailable or unregistered requirement makes the document intrinsically read-only with a per-tab compatibility report.",
-			"currentBehavior": "Explicit stable broad org.soundscaper.capability feature IDs map one-to-one to the capability keys in both maintained product profiles. Only a strict true profile value is available; registered non-true capabilities are unavailable and unregistered feature IDs are unknown. The controller evaluates exact schema 9 from the actual project history that will be activated before activation side effects and makes every report containing an unavailable or unknown requirement intrinsically read-only. When an existing same-ID tab wins, its stored read-only declaration also wins over the ignored incoming document's flags. The report is retained per tab, remains deeply frozen across session metadata clones, and is exposed on the document snapshot. Future schemas return no report and featureRequirements is not traversed. This rule does not verify fallback media bytes or use fallback media at runtime.",
+			"currentBehavior": "Explicit stable broad org.soundscaper.capability feature IDs map one-to-one to the capability keys in both maintained product profiles. Only a strict true profile value is available; registered non-true capabilities are unavailable and unregistered feature IDs are unknown. The controller evaluates exact schema 9 from the actual project history that will be activated before activation side effects and makes every report containing an unavailable or unknown requirement intrinsically read-only. When an existing same-ID tab wins, its stored read-only declaration also wins over the ignored incoming document's flags. The report is retained per tab, remains deeply frozen across session metadata clones, and is exposed on the document snapshot. Future schemas return no report and featureRequirements is not traversed. A separate controller-admission rule verifies declared fallback bytes; runtime fallback use remains outside this report rule.",
 			"evidence": [
 				"src/common/editor/project-feature-capabilities.ts",
 				"src/common/editor/project-feature-report-metadata.ts",
@@ -115,6 +115,31 @@
 				"tests/audio-editor-project-switch-service.test.ts",
 				"tests/audio-editor-session.test.js",
 				"tests/audio-editor-document-snapshot.test.ts"
+			]
+		},
+		{
+			"id": "current-controller-rendered-fallback-integrity",
+			"status": "implemented",
+			"requiredOutcome": "Every rendered fallback referenced by an exact-current-schema raw or stored project admitted through the maintained controller is verified against its canonical local stored bytes before activation side effects.",
+			"currentBehavior": "The controller verifies the authoritative exact-schema-9 activation project, including existing same-ID tab history bound by a session-owned history token. After verification it obtains one exclusive session activation reservation before project-generation invalidation, recording or engine shutdown, lock changes, ordinary engine-source loading, or normal activation persistence. The reservation rejects target history replacement, close/reopen, and competing active-project publication through synchronous session publication and is released in finally. Admission reads disable on-access PCM migration scheduling and retained-media digest claim/backfill, so verification does not publish storage maintenance. Audio claims hash the canonical audio-f32le-chunks-v1 sequence through the same checked PCM geometry and cumulative 65,536-chunk ceiling as .scape export. Video claims hash a genuine immutable original-media Blob body incrementally through the non-raiseable 4 MiB media-digest window. Unique claimed audio bytes and admitted video sizes share a non-raiseable 64 GiB cumulative ceiling before fallback body reads. Verification is sequential and cooperatively cancellable through the maintained store. Read-only video-metadata preflight is raced against cancellation, so an injected signal-ignoring provider may continue after admission rejects; a provider-stalled fallback body read can instead delay cancellation settlement and iterator cleanup. Verification deduplicates identical source claims, rejects conflicting digests before storage reads, and rejects missing, malformed, or mismatched local assets. Empty manifests and future schemas perform no asset reads, and future featureRequirements are not traversed. This admission-time rule does not verify arbitrary direct store.loadProject calls, continuously bind against later low-level source replacement, establish publisher authenticity, substitute fallback media at runtime, or provide a complete third-party activation gate.",
+			"evidence": [
+				"src/common/editor/project-fallback-integrity.ts",
+				"src/common/editor/scape-archive-media.ts",
+				"src/common/editor/storage/media-content-digest.ts",
+				"src/common/editor/storage.js",
+				"src/common/editor/storage/source-read-repository.ts",
+				"src/common/editor/storage/source-repository.ts",
+				"src/common/editor/storage/media-asset-digest-backfill.ts",
+				"src/common/editor/storage/media-repository.ts",
+				"src/common/editor/controller/project-switch-service.ts",
+				"src/common/editor/session-activation.js",
+				"src/common/editor/session.js",
+				"src/common/editor/app.js",
+				"tests/audio-editor-project-fallback-integrity.test.ts",
+				"tests/audio-editor-source-read-cancellation.test.ts",
+				"tests/audio-editor-media-asset-load.test.ts",
+				"tests/audio-editor-project-switch-fallback-integrity.test.ts",
+				"tests/audio-editor-session-project-activation.test.js"
 			]
 		},
 		{
@@ -208,13 +233,16 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. The bounded current-schema .scape codec also preserves supported Uint8Array and ArrayBuffer opaque native/effect state byte-exactly without activation; other buffer views remain unsupported. Post-open visible placeholders and per-feature bypass UI, raw- and stored-project fallback-byte verification, fallback runtime use, and arbitrary future-schema archive preservation are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. Maintained exact-schema-9 controller activation also verifies referenced local audio and video fallback bytes before activation side effects. The bounded current-schema .scape codec preserves supported Uint8Array and ArrayBuffer opaque native/effect state byte-exactly without activation; other buffer views remain unsupported. Post-open visible placeholders and per-feature bypass UI, fallback runtime use, and arbitrary future-schema archive preservation are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",
+				"src/common/editor/project-fallback-integrity.ts",
 				"src/common/editor/aup4-effects.js",
 				"tests/audio-editor-project-feature-requirements.test.ts",
 				"tests/audio-editor-project-v9.test.ts",
+				"tests/audio-editor-project-fallback-integrity.test.ts",
+				"tests/audio-editor-project-switch-fallback-integrity.test.ts",
 				"tests/aup4-effects.test.js",
 				"roadmap.md#2-shared-platform-storage-and-media-foundation"
 			]

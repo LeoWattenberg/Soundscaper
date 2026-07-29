@@ -40,6 +40,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-scape-feature-requirements': 'implemented',
 		'current-scape-rendered-fallback-integrity': 'implemented',
 		'current-controller-feature-report': 'implemented',
+		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
 		'future-core-read-only': 'implemented',
@@ -157,6 +158,46 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		/future schemas.*no report.*featureRequirements is not traversed/iu,
 	);
 
+	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
+	assert.deepEqual(controllerFallbackIntegrity.evidence, [
+		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/storage/media-content-digest.ts',
+		'src/common/editor/storage.js',
+		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage/source-repository.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-repository.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/session-activation.js',
+		'src/common/editor/session.js',
+		'src/common/editor/app.js',
+		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-source-read-cancellation.test.ts',
+		'tests/audio-editor-media-asset-load.test.ts',
+		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
+		'tests/audio-editor-session-project-activation.test.js',
+	]);
+	assert.match(
+		controllerFallbackIntegrity.requiredOutcome,
+		/exact-current-schema.*raw or stored project.*maintained controller.*canonical local stored bytes.*before activation side effects/iu,
+	);
+	assert.match(
+		controllerFallbackIntegrity.currentBehavior,
+		/authoritative exact-schema-9.*same-ID tab history.*session-owned history token.*exclusive session activation reservation.*before project-generation invalidation.*engine shutdown.*lock changes.*source loading.*persistence.*history replacement.*close.reopen.*competing active-project publication.*session publication.*released in finally/iu,
+	);
+	assert.match(
+		controllerFallbackIntegrity.currentBehavior,
+		/audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable.*Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
+	);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /deduplicates.*conflicting digests.*before storage reads/iu);
+	assert.match(
+		controllerFallbackIntegrity.currentBehavior,
+		/empty manifests.*future schemas.*no asset reads.*not traversed.*admission-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*third-party/iu,
+	);
+
 	const currentScapePreOpenFeatureReport = rules.get('current-scape-pre-open-feature-report');
 	assert.deepEqual(currentScapePreOpenFeatureReport.evidence, [
 		'src/common/editor/project-feature-capabilities.ts',
@@ -224,7 +265,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*visible placeholder.*raw.*stored-project.*runtime use.*future-schema archive preservation/iu,
+		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*controller activation.*local audio and video fallback bytes.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*visible placeholder.*runtime use.*future-schema archive preservation/iu,
 	);
 });
 
@@ -281,6 +322,6 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /export.*snapshots.*fallback claims.*before.*destination/isu);
 	assert.match(documentation, /inspection.*descriptor binding.*does not read or\s+hash.*asset bodies/isu);
 	assert.match(documentation, /import.*hashes.*asset body.*before.*source or project publication/isu);
-	assert.match(documentation, /raw or stored-project.*does\s+not verify.*fallback bytes.*runtime use/isu);
+	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party activation gate/isu);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });
