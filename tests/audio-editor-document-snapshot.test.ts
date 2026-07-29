@@ -35,6 +35,10 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 			aup4CompatibilityReport: { direction: 'import' },
 			aup4CompatibilityReportDismissed: true,
 			featureRequirementsReport: { compatible: false, items: [{ featureId: 'unknown' }] },
+			featureRequirementsAudioEffectPlaybackBypass: {
+				schemaVersion: 1,
+				placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
+			},
 		}),
 		recordingPreviewSnapshot: (preview) => preview,
 		getAudioDevicesSnapshot: () => ({ inputSupported: true }),
@@ -73,6 +77,10 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 	assert.deepEqual(snapshot.featureRequirementsCompatibility, {
 		compatible: false, items: [{ featureId: 'unknown' }],
+	});
+	assert.deepEqual(snapshot.audioEffectPlaybackBypass, {
+		schemaVersion: 1,
+		placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
 	});
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);

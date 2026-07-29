@@ -39,6 +39,7 @@ export interface ProjectLifecycleTabMetadata {
 	readonly intrinsicReadOnlyReason?: string | null;
 	readonly featureRequirementsReadOnly?: boolean;
 	readonly featureRequirementsReport?: unknown;
+	readonly featureRequirementsAudioEffectPlaybackBypass?: unknown;
 	readonly [key: string]: unknown;
 }
 

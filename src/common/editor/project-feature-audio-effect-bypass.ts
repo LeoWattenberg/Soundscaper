@@ -56,13 +56,14 @@ const EMPTY_RESULT = Object.freeze({ metadata: null });
  * never mutated or copied into placeholder metadata.
  */
 export function projectFeatureAudioEffectPlaybackBypass<
-	Project extends Readonly<Record<string, unknown>>,
+	Project extends object,
 >(
 	project: Project,
 	report: ProjectFeatureRequirementsReport | null | undefined,
 	options: ProjectFeatureAudioEffectBypassOptions = {},
 ): ProjectFeatureAudioEffectBypassProjection<Project> {
-	if (dataProperty(project, 'schemaVersion', 'project') !== 9) return unchanged(project);
+	const projectRecord = recordValue(project, 'project');
+	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
 	const requirementIds = qualifyingRequirementIds(report);
 	if (requirementIds.length === 0) return unchanged(project);
 	const maximumAffectedEffects = lowerOnlyLimit(
@@ -72,7 +73,6 @@ export function projectFeatureAudioEffectPlaybackBypass<
 	);
 	const placeholders: ProjectFeatureAudioEffectPlaceholder[] = [];
 
-	const projectRecord = recordValue(project, 'project');
 	let tracksChanged = false;
 	const tracksValue = dataProperty(projectRecord, 'tracks', 'project');
 	const tracks = Array.isArray(tracksValue) ? tracksValue.map((owner, index) => {
@@ -236,4 +236,3 @@ function replaceDataProperties(value: RecordValue, replacements: Record<string, 
 	}
 	return Object.freeze(Object.create(Object.getPrototypeOf(value) as object | null, descriptors) as RecordValue);
 }
-

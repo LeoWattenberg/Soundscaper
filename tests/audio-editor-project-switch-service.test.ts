@@ -3,22 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	EditorControllerLifetime,
-	EditorProjectGeneration,
-	isEditorDisposedError,
-} from '../src/common/editor/controller/lifecycle.ts';
-import type {
-	ProjectLifecycleHistory,
-	ProjectLifecycleLock,
-	ProjectLifecycleProject,
-	ProjectLifecycleTab,
-} from '../src/common/editor/controller/project-lifecycle-types.ts';
-import {
-	createProjectSwitchService,
-	type ProjectSwitchServiceRuntime,
-	type ProjectSwitchState,
-} from '../src/common/editor/controller/project-switch-service.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../src/common/editor/controller/lifecycle.ts';
+import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../src/common/editor/controller/project-lifecycle-types.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../src/common/editor/controller/project-switch-service.ts';
 import {
 	SCAPE_INSPECTION_TASK,
 	createScapeInspectionService,
@@ -37,6 +24,7 @@ interface TestTrack {
 	readonly id: string;
 	readonly type: string;
 	readonly name?: string;
+	readonly effectsActive?: boolean; readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
 
 interface TestProject extends ProjectLifecycleProject {
@@ -78,7 +66,7 @@ function lock(projectId: string, readOnly = false): TestLock {
 	};
 }
 
-function createFixture() {
+function createFixture(productCapabilities: Readonly<Record<string, unknown>> = { audioEffects: true, videoEffects: false }) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
 	const scapeInspectionQuiescence = createScapeInspectionQuiescence();
@@ -86,6 +74,7 @@ function createFixture() {
 	let currentProject: TestProject | null = oldProject;
 	let createdSequence = 0;
 	let migrationReadOnly = false;
+	let loadedEngineProject: TestProject | null = null;
 	let acquire: (projectId: string) => Promise<ProjectLifecycleLock> = async (projectId) => lock(projectId);
 	let loadSources: (value: TestProject) => Promise<unknown> = async () => undefined;
 	const events: string[] = [];
@@ -159,7 +148,7 @@ function createFixture() {
 		lifetime,
 		projectGeneration,
 		scapeInspectionQuiescence,
-		productCapabilities: { audioEffects: true, videoEffects: false },
+		productCapabilities,
 		copy: {
 			ready: 'Ready',
 			projectOpenOtherTab: 'Open elsewhere',
@@ -226,7 +215,10 @@ function createFixture() {
 		},
 		retainLiveClipIds: () => { events.push('retain-clips'); },
 		evictUnreferencedSourceCaches: () => { events.push('evict-sources'); },
-		loadEngineProject: (value: TestProject) => { events.push(`engine-load:${value.id}`); },
+		loadEngineProject: (value: TestProject) => {
+			loadedEngineProject = value;
+			events.push(`engine-load:${value.id}`);
+		},
 		recordOpenedProject: async (projectId: string, guard: <Value>(value: Value | PromiseLike<Value>) => Promise<Value>) => {
 			await guard(Promise.resolve());
 			events.push(`record-opened:${projectId}`);
@@ -253,6 +245,7 @@ function createFixture() {
 		state,
 		statuses,
 		getProject: () => currentProject,
+		getLoadedEngineProject: () => loadedEngineProject,
 		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
@@ -284,6 +277,7 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(fixture.events.includes('save-project:next-project'));
 	assert.equal(fixture.state.readOnly, false);
 	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsReport != null, true);
+	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsAudioEffectPlaybackBypass, null);
 	assert.equal(nativeSave.signal.aborted, true);
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
 });
@@ -561,10 +555,12 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	assert.equal(fixture.state.readOnly, true);
 });
 
-test('feature compatibility is reported and enforced before a project becomes editable', async () => {
-	const fixture = createFixture();
-	const next = { ...project('feature-project'), schemaVersion: 9, featureRequirements: { schemaVersion: 1, requirements: [{
-			id: 'video-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, displayName: 'Video effects', disposition: 'bypass', fallback: null,
+test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
+	const fixture = createFixture({ audioEffects: false, videoEffects: false });
+	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };
+	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: 9,
+		featureRequirements: { schemaVersion: 1, requirements: [{
+			id: 'audio-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, displayName: 'Audio effects', disposition: 'bypass', fallback: null,
 		}],
 	} };
 	await fixture.service.switchProject(next, { save: true });
@@ -573,10 +569,17 @@ test('feature compatibility is reported and enforced before a project becomes ed
 	assert.equal(fixture.state.readOnly, true);
 	assert.equal(report.compatible, false);
 	assert.equal(metadata?.featureRequirementsReadOnly, true);
+	assert.deepEqual(metadata?.featureRequirementsAudioEffectPlaybackBypass, {
+		schemaVersion: 1, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		requirementIds: ['audio-effects'], placeholders: [{ scope: 'track', ownerId: 'audio-a', effectId: 'compressor-a', effectType: 'compressor' }],
+	});
+	assert.strictEqual(fixture.getProject()?.tracks[0]?.effects?.[0], effect);
+	assert.deepEqual(fixture.getLoadedEngineProject()?.tracks[0]?.effects?.[0], { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: true, params: {} });
 	assert.equal(fixture.events.includes('save-project:feature-project'), false);
 	assert.deepEqual(fixture.statuses.at(-1), ['Read-only', 'error']);
 	await fixture.service.switchProject(project(next.id));
 	assert.equal(fixture.getProject(), next);
+	assert.equal(fixture.getLoadedEngineProject()?.tracks[0]?.effects?.[0]?.bypassed, true);
 	assert.equal(fixture.state.readOnly, true);
 	assert.equal((fixture.getTabMetadata(next.id)?.featureRequirementsReport as typeof report).compatible, false);
 	const historyProject = { ...next, id: 'history-project', title: 'history-project' };
