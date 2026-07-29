@@ -56,13 +56,18 @@
 		{
 			"id": "project-feature-requirements-core",
 			"status": "implemented",
-			"requiredOutcome": "Current raw project documents carry a bounded normalized declarative feature-requirements manifest, retained-schema migrations initialize its canonical empty form without inventing requirements, and pure evaluation classifies caller-declared availability without activating project data.",
-			"currentBehavior": "Schema 9 validates and deep-clones manifest schema 1, canonical feature identifiers, unique requirement IDs, closed dispositions, bounded collections and strings, and rendered-fallback descriptor source kind and digest syntax. V1-V8 migration initializes an empty manifest, and evaluation reports available, unavailable, and unknown requirements while retaining the declared bypass or rendered-fallback disposition separately from the native, bypassed, or rendered-fallback effective disposition without mutating the manifest.",
+			"requiredOutcome": "Current raw project documents carry a bounded normalized declarative feature-requirements manifest, retained-schema migrations do not invent publisher declarations, maintained exact-current-schema create, load, clone, and commit paths reconcile editor-owned first-party declarations from project state, and pure evaluation classifies caller-declared availability without activating project data.",
+			"currentBehavior": "Schema 9 validates and deep-clones manifest schema 1, canonical feature identifiers, unique requirement IDs, closed dispositions, bounded collections and strings, and rendered-fallback descriptor source kind and digest syntax. Exact-schema-9 create, load, clone, and commit reconcile the reserved soundscaper.audio-effects bypass requirement when a maintained first-party processor exists in a non-label or non-video track, mixer group, mixer send, or master rack. Disabled effects and inactive racks still declare preservation, missing or foreign effect types do not, an explicit publisher audio-effects declaration wins without duplication, and a conflicting use of the reserved requirement ID rejects. V1-V8 migration starts from an empty publisher manifest and applies the same owned reconciliation. Evaluation reports available, unavailable, and unknown requirements while retaining the declared bypass or rendered-fallback disposition separately from the native, bypassed, or rendered-fallback effective disposition without mutating the manifest.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/project-feature-capabilities.ts",
+				"src/common/editor/project-owned-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",
+				"src/common/editor/project.js",
 				"src/common/editor/migration.js",
 				"tests/audio-editor-project-feature-requirements.test.ts",
+				"tests/audio-editor-project-feature-capabilities.test.ts",
+				"tests/audio-editor-project-owned-feature-requirements.test.ts",
 				"tests/audio-editor-project-v9.test.ts"
 			]
 		},
@@ -121,7 +126,7 @@
 			"id": "current-post-open-feature-report",
 			"status": "implemented",
 			"requiredOutcome": "An activated exact-current-schema document with an incompatible feature report keeps a persistent structured notice associated with the active tab without activating project data or offering a compatibility override.",
-			"currentBehavior": "The maintained workspace consumes the active document snapshot's deeply frozen featureRequirementsCompatibility report directly. When compatible is false, it derives a separate frozen notice from only unavailable and unknown items, recomputes their counts, and persistently displays a non-dismissible localized document-level region with bounded display names, stable feature IDs, availability, and the declared bypass or rendered-fallback disposition whenever that project tab is active. The effective disposition remains available as structured metadata rather than being mislabeled as the declaration. Available items are excluded; evaluator messages and fallback internals are not read or rendered; and the notice exposes no activation controls or claims about runtime fallback or third-party loading. Switching to a compatible or null-report tab removes the notice, and switching back restores it from that active tab's report. Future schemas produce a null report, and the workspace does not inspect their featureRequirements value. This document-level notice is not an affected-object placeholder, per-feature bypass control, runtime fallback selection, future-schema guarantee, or third-party activation gate.",
+			"currentBehavior": "The maintained workspace consumes the active document snapshot's deeply frozen featureRequirementsCompatibility report directly. When compatible is false, it derives a separate frozen notice from only unavailable and unknown items, recomputes their counts, and persistently displays a non-dismissible localized document-level region with bounded display names, stable feature IDs, availability, and the declared bypass or rendered-fallback disposition whenever that project tab is active. The effective disposition remains available as structured metadata rather than being mislabeled as the declaration. Available items are excluded; evaluator messages and fallback internals are not read or rendered; and the notice exposes no activation controls or claims about rendered-fallback substitution or third-party loading. Switching to a compatible or null-report tab removes the notice, and switching back restores it from that active tab's report. Future schemas produce a null report, and the workspace does not inspect their featureRequirements value. Outside the separate first-party audio-effect rule, this document-level notice is not a generic affected-object placeholder, per-feature bypass control, runtime fallback selection, future-schema guarantee, or third-party activation gate.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/controller/document-snapshot.ts",
@@ -129,6 +134,29 @@
 				"src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx",
 				"src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx",
 				"tests/audio-editor-project-feature-requirements.test.ts",
+				"tests/audio-editor-document-snapshot.test.ts",
+				"tests/audio-editor-project-feature-compatibility-notice.test.ts",
+				"tests/browser/audio-editor-scape-open-compatibility.spec.js"
+			]
+		},
+		{
+			"id": "current-first-party-audio-effect-playback-bypass",
+			"status": "implemented",
+			"requiredOutcome": "On maintained exact-current-schema activation, unavailable maintained first-party audio rack effects declared for bypass reach the editor engine only through a bounded non-persisted bypass projection while canonical state remains unchanged and every affected object stays visibly identified on its active tab.",
+			"currentBehavior": "The controller evaluates the authoritative actual project history and projects only exact schema 9 when its soundscaper-project report contains a registered audioEffects item that is unavailable, declares bypass, and has the effective bypassed disposition. Active, enabled, not-already-bypassed maintained processors in non-label and non-video track, mixer-group, mixer-send, and master racks become minimal bypassed engine copies; inactive racks, disabled or already-bypassed effects, and missing or foreign effect types remain untouched. Stable IDs and effect types are bounded, the lower-only production ceiling is 4,096 affected effects, overflow rejects instead of truncating, and placeholder metadata never reads or retains effect params, context, state, or other payloads. Only engine loading receives the projection: the canonical project, history, source loading, persistence, and save paths remain unchanged. Projection metadata is deeply frozen across per-tab session clones and the document snapshot. The active compatibility notice matches that metadata to one qualifying requirement and renders localized control-free affected-effect placeholders with maintained effect labels and canonical track, group, send, or master ownership without reading effect payloads. Future schemas return unchanged before rack traversal. This rule does not cover unknown or third-party effects, rendered-fallback substitution, offline render or export, per-feature activation controls, or arbitrary future schemas.",
+			"evidence": [
+				"src/common/editor/project-feature-audio-effect-bypass.ts",
+				"src/common/editor/project-feature-capabilities.ts",
+				"src/common/editor/project-feature-report-metadata.ts",
+				"src/common/editor/session.js",
+				"src/common/editor/controller/project-switch-service.ts",
+				"src/common/editor/controller/document-snapshot.ts",
+				"src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx",
+				"src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx",
+				"tests/audio-editor-project-feature-audio-effect-bypass.test.ts",
+				"tests/audio-editor-project-feature-capabilities.test.ts",
+				"tests/audio-editor-project-switch-service.test.ts",
+				"tests/audio-editor-session.test.js",
 				"tests/audio-editor-document-snapshot.test.ts",
 				"tests/audio-editor-project-feature-compatibility-notice.test.ts",
 				"tests/browser/audio-editor-scape-open-compatibility.spec.js"
@@ -250,16 +278,24 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, a persistent document-level post-open report follows the active tab, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. Maintained exact-schema-9 controller activation also verifies referenced local audio and video fallback bytes before activation side effects. The bounded current-schema .scape codec preserves supported Uint8Array and ArrayBuffer opaque native/effect state byte-exactly without activation; other buffer views remain unsupported. Per-object visible placeholders and per-feature bypass UI, fallback runtime use, and arbitrary future-schema archive preservation are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained exact-schema-9 create, load, clone, and commit paths reconcile the owned first-party audio-effects requirement, and the bounded first-party audio-effect slice now loads qualifying unavailable rack processors through a transient engine bypass projection while persistent localized control-free affected-object placeholders follow the active tab. Maintained opens provide an actionable pre-open read-only or cancel decision, the broader persistent document-level post-open report follows the active tab, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. Maintained exact-schema-9 controller activation also verifies referenced local audio and video fallback bytes before activation side effects. The bounded current-schema .scape codec preserves supported Uint8Array and ArrayBuffer opaque native/effect state byte-exactly without activation; other buffer views remain unsupported. Generic per-object placeholders and per-feature bypass controls beyond this maintained first-party audio-effect slice, rendered-fallback runtime use, and arbitrary future-schema archive preservation are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/project-owned-feature-requirements.ts",
+				"src/common/editor/project-feature-audio-effect-bypass.ts",
 				"src/common/editor/project-v9.ts",
+				"src/common/editor/controller/project-switch-service.ts",
 				"src/common/editor/project-fallback-integrity.ts",
 				"src/common/editor/aup4-effects.js",
+				"src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx",
 				"tests/audio-editor-project-feature-requirements.test.ts",
+				"tests/audio-editor-project-owned-feature-requirements.test.ts",
+				"tests/audio-editor-project-feature-audio-effect-bypass.test.ts",
 				"tests/audio-editor-project-v9.test.ts",
 				"tests/audio-editor-project-fallback-integrity.test.ts",
 				"tests/audio-editor-project-switch-fallback-integrity.test.ts",
+				"tests/audio-editor-project-feature-compatibility-notice.test.ts",
+				"tests/browser/audio-editor-scape-open-compatibility.spec.js",
 				"tests/aup4-effects.test.js",
 				"roadmap.md#2-shared-platform-storage-and-media-foundation"
 			]

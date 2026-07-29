@@ -86,6 +86,9 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/scape-export-plan.ts',
 		'src/common/editor/scape-project.js',
 		'src/common/editor/project-feature-capabilities.ts',
+		'src/common/editor/project-owned-feature-requirements.ts',
+		'src/common/editor/project-feature-audio-effect-bypass.ts',
+		'src/common/editor/project.js',
 		'src/common/editor/project-feature-report-metadata.ts',
 		'src/common/editor/session.js',
 		'src/common/editor/controller/project-feature-compatibility-service.ts',
@@ -107,6 +110,8 @@ test('project feature requirements are bounded and fail closed at activation and
 		'tests/audio-editor-scape-feature-requirements.test.ts',
 		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
 		'tests/audio-editor-project-feature-capabilities.test.ts',
+		'tests/audio-editor-project-owned-feature-requirements.test.ts',
+		'tests/audio-editor-project-feature-audio-effect-bypass.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-session.test.js',
 		'tests/audio-editor-document-snapshot.test.ts',
@@ -129,6 +134,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /without executing project-supplied identifiers or mutating/iu);
 	assert.match(control.summary, /current-schema.*current-format.*\.scape.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(control.summary, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
+	assert.match(control.summary, /schema 9.*create.*load.*clone.*commit.*reserved `soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
 	assert.match(control.summary, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*null.*not traversed/iu);
 	assert.match(control.summary, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(control.summary, /current-format \.scape inspection.*provider-owned.*caller.*override.*exact schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*null.*not traversed/iu);
@@ -137,11 +143,14 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /localized.*stable feature IDs.*declared disposition.*defaults? focus.*Cancel.*Escape/iu);
 	assert.match(control.summary, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
 	assert.match(control.summary, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
+	assert.match(control.summary, /exact schema 9.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
+	assert.match(control.summary, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*params.*context.*state.*not read.*deep-frozen.*affected-object inventory.*localized.*no controls/iu);
+	assert.match(control.summary, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
 	assert.match(control.summary, /current-format.*exact schema 9.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
 	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
 	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
 	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-9 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
-	assert.match(control.summary, /runtime fallback substitution.*per-object unavailable-feature placeholders.*per-feature bypass UI.*outside this control/iu);
+	assert.match(control.summary, /generic runtime fallback substitution.*generic unavailable-feature placeholders.*general per-feature activation controls.*outside/iu);
 	for (const path of [
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/scape-archive-media.ts',
@@ -178,10 +187,14 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /do(?:es)? not hash or authenticate the referenced media bytes/iu);
 	assert.match(documentation, /current-schema.*current-format `\.scape`.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
+	assert.match(documentation, /schema 9.*create.*load.*clone.*commit.*`soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(documentation, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
 	assert.match(documentation, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
+	assert.match(documentation, /exact schema 9.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
+	assert.match(documentation, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*does not read.*params.*context.*state.*deep-frozen.*localized.*noninteractive affected-object inventory/iu);
+	assert.match(documentation, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
 	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);

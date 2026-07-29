@@ -54,9 +54,19 @@ project source of the declared audio or video kind and carry a canonical
 lowercase SHA-256 string. That validates descriptor syntax and source identity;
 it does not hash or authenticate the referenced media bytes.
 
-Schemas 1 through 8 migrate to the canonical empty manifest rather than
-inventing requirements. The pure evaluator compares a normalized manifest with
-caller-declared known and available feature IDs and reports available,
+Schemas 1 through 8 begin migration with the canonical empty publisher manifest
+rather than inventing publisher requirements. Maintained exact-schema-9 create,
+load, clone, and commit paths then reconcile the editor-owned
+`soundscaper.audio-effects` bypass requirement when a maintained first-party
+processor exists in a non-label or non-video track, mixer group, mixer send, or
+master rack. Disabled effects and inactive racks still require preservation;
+missing or foreign effect types do not. An explicit publisher declaration for
+the audio-effects capability wins without duplication, while conflicting use of
+the reserved owned requirement ID rejects. Retained-schema migration applies
+that same reconciliation after starting from the empty publisher manifest.
+
+The pure evaluator compares a normalized manifest with caller-declared known
+and available feature IDs and reports available,
 unavailable, and unknown entries. Each item retains its declared bypass or
 rendered-fallback disposition separately from its effective native, bypassed,
 or rendered-fallback disposition. Unknown feature IDs remain declarative data and
@@ -77,6 +87,24 @@ The report is retained per tab, remains deeply frozen across session metadata
 clones, and is exposed on the document snapshot. Future schemas produce no
 feature report, and their `featureRequirements` value is not traversed.
 
+For the maintained first-party audio-effect slice, the controller derives a
+transient playback projection from that authoritative activation project and
+report before activation side effects. Projection requires exact schema 9 and a
+registered audio-effects item that is unavailable, declares bypass, and has the
+effective bypassed disposition. Active, enabled, not-already-bypassed maintained
+processors in non-label and non-video track, mixer-group, mixer-send, and master
+racks become minimal bypassed copies only for editor engine loading. Inactive
+racks, disabled or already-bypassed effects, and missing or foreign effect types
+remain untouched. Stable IDs and effect types are bounded, a count above 4,096
+rejects rather than truncates, and future schemas return
+unchanged before rack traversal.
+
+The canonical project, history, source loading, persistence, and save paths do
+not receive that projection. Deeply frozen per-tab session metadata and the
+document snapshot identify each affected scope, owner ID, effect ID, and effect
+type without reading or retaining effect params, context, state, or other
+payloads.
+
 For an incompatible active document, the maintained active workspace consumes
 `featureRequirementsCompatibility` directly and derives a separate frozen
 structured notice containing only unavailable and unknown requirements. A
@@ -86,9 +114,13 @@ declared disposition while that active tab is selected; the effective
 disposition remains structured metadata rather than being mislabeled as the
 declaration. The region is keyboard-focusable when its bounded list scrolls.
 It does not render the evaluator's message, read fallback internals, expose an
-activation control, or claim runtime fallback or third-party loading. A
-compatible or `null` report produces no notice, tab switching follows the
-per-tab report, and the workspace never traverses future-schema
+activation control, or claim rendered-fallback substitution or third-party
+loading. For a qualifying audio-effects item, the same notice matches the
+frozen projection metadata to one requirement and nests persistent localized,
+control-free affected-effect placeholders. Each row uses the maintained effect
+label and canonical track, group, send, or master owner name while reading no
+effect payload. A compatible or `null` report produces no notice, tab switching
+follows the per-tab report, and the workspace never traverses future-schema
 `featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
@@ -129,9 +161,12 @@ This is a point-in-time guarantee at the maintained controller admission
 boundary. Calling `store.loadProject()` directly does not verify fallback
 bytes, and the admission does not continuously bind bytes against a later
 low-level source replacement, establish publisher authenticity, or substitute
-fallback media at runtime. It also does not provide affected-object placeholders,
-per-feature bypass controls, future-schema preservation, or a complete
-third-party activation gate.
+fallback media at runtime. The separate maintained first-party audio-effect
+projection provides only the bounded editor-playback bypass and visible
+affected-effect placeholders described above. It does not provide generic
+per-feature bypass controls, rendered-fallback substitution, offline render or
+export behavior, future-schema preservation, or a complete third-party
+activation gate.
 
 The same selected product service now powers a programmatic current-format `.scape`
 inspection report. The composition root snapshots the selected product
@@ -197,8 +232,9 @@ hash the potentially reference-scale asset bodies.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
-affected-object unavailable-feature placeholders or per-feature bypass controls,
-or third-party feature activation. After archive acceptance and import, the
+generic affected-object unavailable-feature placeholders or per-feature bypass
+controls beyond the maintained first-party audio-effect slice, or third-party
+feature activation. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route, does not
@@ -246,6 +282,11 @@ Unavailable capabilities follow this order once their owning milestones land:
 3. use a digest-linked frozen render or reproducible proxy when one exists;
 4. keep relink/unfreeze information with the project; and
 5. report every omission or fallback during interchange and delivery.
+
+The maintained first-party audio-effect slice now implements the first two
+steps for active known rack processors during editor playback only. It does not
+generalize those placeholders or bypass semantics to unknown or third-party
+effects and does not implement rendered-fallback or proxy use.
 
 Video proxy relationships are owned by milestone 3. Audio freeze, unfreeze,
 commit, and rendered fallback state are owned by milestone 4. The absence of

@@ -41,6 +41,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-scape-rendered-fallback-integrity': 'implemented',
 		'current-controller-feature-report': 'implemented',
 		'current-post-open-feature-report': 'implemented',
+		'current-first-party-audio-effect-playback-bypass': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -75,12 +76,30 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const featureRequirements = rules.get('project-feature-requirements-core');
 	for (const reference of [
 		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-feature-capabilities.ts',
+		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/project-v9.ts',
+		'src/common/editor/project.js',
 		'src/common/editor/migration.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-project-feature-capabilities.test.ts',
+		'tests/audio-editor-project-owned-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
 	]) assert.ok(featureRequirements.evidence.includes(reference), reference);
 	assert.match(featureRequirements.currentBehavior, /bounded.*rendered-fallback.*digest syntax/iu);
+	assert.match(
+		featureRequirements.requiredOutcome,
+		/retained-schema.*do not invent publisher.*create, load, clone, and commit.*editor-owned first-party/iu,
+	);
+	assert.match(
+		featureRequirements.currentBehavior,
+		/exact-schema-9 create, load, clone, and commit.*reserved soundscaper\.audio-effects.*non-label.*non-video.*mixer group.*mixer send.*master rack/iu,
+	);
+	assert.match(
+		featureRequirements.currentBehavior,
+		/disabled effects.*inactive racks.*missing or foreign.*explicit publisher.*wins without duplication.*conflicting.*reserved requirement ID rejects/iu,
+	);
+	assert.match(featureRequirements.currentBehavior, /V1-V8 migration.*empty publisher manifest.*same owned reconciliation/iu);
 	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
 
 	const currentScapeFeatureRequirements = rules.get('current-scape-feature-requirements');
@@ -183,13 +202,64 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(postOpenFeatureReport.currentBehavior, /effective disposition.*structured metadata/iu);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
-		/available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu,
+		/available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*rendered-fallback substitution.*third-party/iu,
 	);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
 		/compatible or null-report tab.*removes.*switching back.*active tab/iu,
 	);
 	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
+	assert.match(
+		postOpenFeatureReport.currentBehavior,
+		/outside.*separate first-party audio-effect rule.*not a generic affected-object placeholder.*per-feature bypass control/iu,
+	);
+
+	const audioEffectPlaybackBypass = rules.get('current-first-party-audio-effect-playback-bypass');
+	assert.deepEqual(audioEffectPlaybackBypass.evidence, [
+		'src/common/editor/project-feature-audio-effect-bypass.ts',
+		'src/common/editor/project-feature-capabilities.ts',
+		'src/common/editor/project-feature-report-metadata.ts',
+		'src/common/editor/session.js',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document-snapshot.ts',
+		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
+		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
+		'tests/audio-editor-project-feature-audio-effect-bypass.test.ts',
+		'tests/audio-editor-project-feature-capabilities.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-session.test.js',
+		'tests/audio-editor-document-snapshot.test.ts',
+		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]);
+	assert.match(
+		audioEffectPlaybackBypass.requiredOutcome,
+		/exact-current-schema.*unavailable.*first-party audio rack effects.*bounded non-persisted bypass projection.*canonical state.*visibly identified.*active tab/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/authoritative actual project history.*exact schema 9.*soundscaper-project.*audioEffects.*unavailable.*declares bypass.*effective bypassed/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/active, enabled, not-already-bypassed.*track.*mixer-group.*mixer-send.*master.*inactive racks.*disabled or already-bypassed.*missing or foreign/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/bounded.*4,096.*overflow rejects.*placeholder metadata.*never reads or retains.*params.*context.*state.*payloads/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/only engine loading.*canonical project.*history.*source loading.*persistence.*save paths.*unchanged.*deeply frozen.*per-tab.*document snapshot/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/active compatibility notice.*one qualifying requirement.*localized control-free affected-effect placeholders.*effect labels.*track, group, send, or master.*without reading effect payloads/iu,
+	);
+	assert.match(
+		audioEffectPlaybackBypass.currentBehavior,
+		/future schemas.*before rack traversal.*unknown or third-party effects.*rendered-fallback substitution.*offline render or export.*activation controls/iu,
+	);
 
 	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
 	assert.deepEqual(controllerFallbackIntegrity.evidence, [
@@ -298,7 +368,15 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*persistent document-level post-open report.*intrinsically read-only.*archive.*fallback.*integrity.*controller activation.*local audio and video fallback bytes.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*per-object visible placeholders.*runtime use.*future-schema archive preservation/iu,
+		/controller report.*\.scape.*inspection report.*owned first-party audio-effects requirement.*transient engine bypass projection.*persistent localized control-free affected-object placeholders.*actionable.*pre-open.*persistent document-level post-open report.*intrinsically read-only/iu,
+	);
+	assert.match(
+		unavailable.currentBehavior,
+		/archive.*fallback.*integrity.*controller activation.*local audio and video fallback bytes.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported/iu,
+	);
+	assert.match(
+		unavailable.currentBehavior,
+		/generic per-object placeholders.*beyond.*first-party audio-effect slice.*rendered-fallback runtime use.*future-schema archive preservation.*not implemented/iu,
 	);
 });
 
@@ -331,6 +409,14 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(documentation, /Project feature requirements/u);
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
+	assert.match(
+		documentation,
+		/Schemas 1 through 8.*empty publisher manifest.*exact-schema-9 create,\s+load, clone, and commit.*`soundscaper\.audio-effects`.*non-label.*non-video.*mixer group.*mixer send.*master rack/isu,
+	);
+	assert.match(
+		documentation,
+		/Disabled effects.*inactive racks.*missing or foreign.*explicit publisher declaration.*wins without duplication.*conflicting use.*reserved.*rejects/isu,
+	);
 	assert.match(documentation, /Current-schema and current-format `\.scape` preservation/iu);
 	assert.match(documentation, /independent\s+retention root/iu);
 	assert.match(
@@ -344,13 +430,29 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /future schemas produce no\s+feature report, and\s+their `featureRequirements` value is not traversed/iu);
 	assert.match(
 		documentation,
+		/first-party audio-effect slice.*transient playback projection.*authoritative activation project.*exact schema 9.*registered audio-effects.*unavailable.*declares bypass.*effective bypassed/isu,
+	);
+	assert.match(
+		documentation,
+		/Active, enabled, not-already-bypassed.*track.*mixer-group.*mixer-send.*master.*Inactive\s+racks.*disabled or already-bypassed.*missing or foreign.*4,096.*rejects rather than truncates.*future schemas.*before rack traversal/isu,
+	);
+	assert.match(
+		documentation,
+		/canonical project.*history.*source loading.*persistence.*save paths.*do\s+not receive.*Deeply frozen per-tab.*document snapshot.*scope.*owner ID.*effect ID.*effect\s+type.*without reading or retaining.*params.*context.*state.*payloads/isu,
+	);
+	assert.match(
+		documentation,
 		/active workspace.*`featureRequirementsCompatibility`.*directly.*frozen.*only unavailable and unknown/isu,
 	);
 	assert.match(documentation, /persistent.*non-dismissible.*document-level.*localized.*counts.*bounded display name.*stable feature ID.*availability.*declared disposition.*active tab/isu);
 	assert.match(documentation, /effective\s+disposition.*structured metadata/iu);
 	assert.match(
 		documentation,
-		/does not render.*evaluator.*message.*fallback.*activation control.*runtime fallback.*third-party/isu,
+		/does not render.*evaluator.*message.*fallback.*activation control.*rendered-fallback substitution.*third-party/isu,
+	);
+	assert.match(
+		documentation,
+		/qualifying audio-effects item.*frozen projection metadata.*one requirement.*persistent localized.*control-free affected-effect placeholders.*maintained\s+effect\s+label.*track, group, send, or master.*reading\s+no\s+effect\s+payload/isu,
 	);
 	assert.match(documentation, /compatible or `null` report.*no notice.*future.*not traversed/isu);
 	assert.match(
@@ -366,6 +468,10 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /export.*snapshots.*fallback claims.*before.*destination/isu);
 	assert.match(documentation, /inspection.*descriptor binding.*does not read or\s+hash.*asset bodies/isu);
 	assert.match(documentation, /import.*hashes.*asset body.*before.*source or project publication/isu);
-	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party activation gate/isu);
+	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party\s+activation gate/isu);
+	assert.match(
+		documentation,
+		/first-party audio-effect slice.*first two\s+steps.*editor playback only.*does not\s+generalize.*unknown or third-party.*does not implement rendered-fallback or proxy use/isu,
+	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });
