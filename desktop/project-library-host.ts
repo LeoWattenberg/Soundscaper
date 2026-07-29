@@ -51,6 +51,7 @@ export class DesktopProjectLibraryHost {
 	#projects: DesktopLibraryProjectStore;
 	#recovery: DesktopLibraryRecoveryResult;
 	#renewalPromise: Promise<void> | null = null;
+	#renewalsStopped = false;
 	#renewalTimer: ReturnType<typeof setInterval>;
 
 	private constructor(
@@ -124,18 +125,19 @@ export class DesktopProjectLibraryHost {
 	close(): Promise<void> {
 		if (this.#closePromise) return this.#closePromise;
 		this.#closed = true;
-		clearInterval(this.#renewalTimer);
-		this.#closePromise = this.#close([...this.#operations], this.#renewalPromise);
+		this.#closePromise = this.#close([...this.#operations]);
 		return this.#closePromise;
 	}
 
-	async #close(operations: readonly Promise<unknown>[], renewal: Promise<void> | null): Promise<void> {
+	async #close(operations: readonly Promise<unknown>[]): Promise<void> {
 		const failures: unknown[] = [];
-		if (renewal) await renewal;
 		const results = await Promise.allSettled(operations);
 		for (const result of results) {
 			if (result.status === 'rejected') failures.push(result.reason);
 		}
+		this.#renewalsStopped = true;
+		clearInterval(this.#renewalTimer);
+		if (this.#renewalPromise) await this.#renewalPromise;
 		try {
 			if (!await this.#library.releaseLease(this.#lease)) {
 				failures.push(new Error('Desktop project library host no longer owns its lease during close'));
@@ -153,7 +155,7 @@ export class DesktopProjectLibraryHost {
 	}
 
 	#beginRenewal(): void {
-		if (this.#closed || this.#renewalPromise) return;
+		if (this.#renewalsStopped || this.#renewalPromise) return;
 		const renewal = this.#renewLease();
 		this.#renewalPromise = renewal;
 		void renewal.then(
@@ -167,6 +169,7 @@ export class DesktopProjectLibraryHost {
 			const renewed = await this.#library.renewLease(this.#lease, this.#leaseTtlMs);
 			this.#lease = renewed;
 		} catch (error) {
+			this.#renewalsStopped = true;
 			clearInterval(this.#renewalTimer);
 			if (this.#closed) return;
 			try {

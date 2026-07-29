@@ -5,6 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import {
@@ -94,7 +95,12 @@ test('desktop host close fences late work and drains an admitted project commit'
 		return originalCommitProject.call(this, options);
 	};
 	context.after(() => { prototype.commitProject = originalCommitProject; });
-	const host = await startHost(appDataPath, SOUNDSCAPER_OWNER);
+	const host = await DesktopProjectLibraryHost.start({
+		appDataPath,
+		owner: SOUNDSCAPER_OWNER,
+		leaseTtlMs: 1_000,
+		renewIntervalMs: 100,
+	});
 	context.after(() => host.close());
 	const commit = host.commitProject(commitOptions(1, 'soundscaper', 10_001));
 	await started;
@@ -104,6 +110,7 @@ test('desktop host close fences late work and drains an admitted project commit'
 		() => host.commitProject(commitOptions(2, 'soundscaper', 10_002)),
 		/host is closed/u,
 	);
+	await delay(1_100);
 	continueCommit?.();
 	const committed = await commit;
 	await closing;
