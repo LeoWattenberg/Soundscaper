@@ -78,6 +78,7 @@ import {
 	projectEnvelope,
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
+import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
 import { createAudioEditorProjectV9 } from './project-v9.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
@@ -772,6 +773,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createHistory: createEditorHistory,
 		executeCommand: executeEditorCommand,
 		migrateProject: migrateAudioEditorProject,
+		verifyProjectFallbackIntegrity: (activeProject, verifyOptions) => verifyProjectFallbackIntegrity(activeProject, store, verifyOptions),
 		assignPreferredInputToTrack: (trackId) => assignPreferredInputToTrack(trackId),
 		cancelTimedRecording,
 		cancelRecordingStart,
@@ -798,9 +800,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		loadProjectSources,
 		retainLiveClipIds: projectRetentionService.retainLiveClipIds,
 		evictUnreferencedSourceCaches: () => evictUnreferencedSourceCaches(
-			sourceBuffers,
-			sourcePeaks,
-			projectRetentionService.liveSessionSourceIds(),
+			sourceBuffers, sourcePeaks, projectRetentionService.liveSessionSourceIds(),
 		),
 		loadEngineProject: (activeProject) => engine.loadProject(activeProject, sourceBuffers),
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),

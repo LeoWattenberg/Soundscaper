@@ -20,6 +20,10 @@ import type {
 
 export type ProjectSwitchGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
 
+export interface ProjectFallbackIntegrityAdmission<Project> {
+	assertCurrent(project: Project): void;
+}
+
 export interface ProjectSwitchOptions<History> {
 	readonly save?: boolean;
 	readonly skipFlush?: boolean;
@@ -68,6 +72,7 @@ export interface ProjectSwitchState<
 }
 
 export interface ProjectSwitchLifetime {
+	readonly signal: AbortSignal;
 	capture(): EditorLifetimeToken;
 	assertActive(token: EditorLifetimeToken): void;
 	guard<Value>(value: PromiseLike<Value> | Value, token: EditorLifetimeToken): Promise<Value>;
@@ -78,8 +83,14 @@ export interface ProjectSwitchSession<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 > {
-	switchProject(projectId: string): void;
+	captureProjectHistory(projectId: string): Readonly<{ history: History; token: unknown }>;
+	beginProjectActivation(projectId: string, options: Readonly<{
+		expectedHistoryToken?: unknown;
+		requireAbsent?: boolean;
+	}>): Readonly<{ token: unknown; release(): boolean }>;
+	switchProject(projectId: string, options?: Readonly<{ activationToken?: unknown }>): void;
 	openProject(project: Project, options: Readonly<{
+		activationToken?: unknown;
 		history?: History;
 		readOnly: boolean;
 		readOnlyReason: string | null;
@@ -123,6 +134,10 @@ export interface ProjectSwitchServiceRuntime<
 		project: Project;
 		readOnly: boolean;
 	}>;
+	readonly verifyProjectFallbackIntegrity: (
+		project: Project,
+		options: Readonly<{ signal?: AbortSignal }>,
+	) => PromiseLike<ProjectFallbackIntegrityAdmission<Project>> | ProjectFallbackIntegrityAdmission<Project>;
 	readonly assignPreferredInputToTrack: (trackId: string) => void;
 	readonly cancelTimedRecording: (options: Readonly<{ publish: false; status: false }>) => unknown;
 	readonly cancelRecordingStart: () => unknown;
@@ -251,10 +266,25 @@ export function createProjectSwitchService<
 		token: EditorLifetimeToken,
 	): Promise<void> {
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
-		const existingTab = runtime.sessionTab(nextProject.id);
-		const activationProject = existingTab?.history.present ?? options.history?.present ?? nextProject;
+		const projectId = nextProject.id;
+		const existingCapture = runtime.sessionTab(projectId)
+			? runtime.session.captureProjectHistory(projectId)
+			: null;
+		const activationHistory = existingCapture?.history
+			?? (options.history ? structuredClone(options.history) : runtime.createHistory(nextProject));
+		const activationProject = activationHistory.present;
+		if (activationProject.id !== projectId) {
+			throw new RangeError('Project activation history must belong to the requested project.');
+		}
+		const fallbackAdmission = await guard(runtime.verifyProjectFallbackIntegrity(activationProject, {
+			signal: runtime.lifetime.signal,
+		}));
+		fallbackAdmission.assertCurrent(activationProject);
 		const featureRequirementsReport = featureCompatibility.evaluate(activationProject);
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
+		const activation = runtime.session.beginProjectActivation(projectId, existingCapture
+			? { expectedHistoryToken: existingCapture.token }
+			: { requireAbsent: true });
 		try {
 			runtime.projectGeneration.invalidate();
 			runtime.state.rackEffectGestures.clear();
@@ -274,17 +304,17 @@ export function createProjectSwitchService<
 			await guard(runtime.stopRecording().catch(() => undefined));
 			runtime.persistActiveSessionUiState();
 			const previousProject = runtime.getProject();
-			if (!options.skipFlush && previousProject && previousProject.id !== nextProject.id && !runtime.state.readOnly) {
+			if (!options.skipFlush && previousProject && previousProject.id !== projectId && !runtime.state.readOnly) {
 				await guard(runtime.saveNow());
 			}
 			runtime.cancelScheduledSave();
 			runtime.stopEngine();
 			runtime.cancelEffectPreview({ publish: false });
 			if (!runtime.state.projectLock
-				|| runtime.state.projectLock.projectId !== nextProject.id
+				|| runtime.state.projectLock.projectId !== projectId
 				|| runtime.state.projectLock.readOnly) {
 				await guard(runtime.releaseProjectLock());
-				const nextLock = await runtime.acquireProjectLock(nextProject.id, { force: true });
+				const nextLock = await runtime.acquireProjectLock(projectId, { force: true });
 				try {
 					runtime.lifetime.assertActive(token);
 				} catch (error) {
@@ -295,10 +325,10 @@ export function createProjectSwitchService<
 			}
 			const activeLock = runtime.state.projectLock;
 			if (!activeLock) throw new Error('Project activation requires an acquired project lock.');
-			runtime.watchProjectLockLoss(nextProject.id, activeLock);
+			runtime.watchProjectLockLoss(projectId, activeLock);
 			const lockReadOnly = Boolean(activeLock.readOnly);
-			const existingMetadata = existingTab?.metadata || {};
-			const retainStoredReadOnly = existingTab != null || options.readOnly == null;
+			const existingMetadata = existingCapture ? runtime.sessionTab(projectId)?.metadata || {} : {};
+			const retainStoredReadOnly = existingCapture != null || options.readOnly == null;
 			const declaredReadOnly = retainStoredReadOnly
 				? Boolean(existingMetadata.declaredReadOnly ?? (
 					existingMetadata.featureRequirementsReadOnly ? false : existingMetadata.intrinsicReadOnly
@@ -313,9 +343,11 @@ export function createProjectSwitchService<
 			const intrinsicReadOnlyReason = declaredReadOnlyReason
 				?? (featureRequirementsReadOnly ? runtime.copy.projectReadOnly : null);
 			runtime.state.readOnly = Boolean(intrinsicReadOnly || lockReadOnly);
-			if (existingTab) runtime.session.switchProject(nextProject.id);
-			else runtime.session.openProject(nextProject, {
-				history: options.history,
+			if (existingCapture) {
+				runtime.session.switchProject(projectId, { activationToken: activation.token });
+			} else runtime.session.openProject(activationProject, {
+				activationToken: activation.token,
+				history: activationHistory,
 				readOnly: runtime.state.readOnly,
 				readOnlyReason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
 				lockMethod: activeLock.method,
@@ -328,7 +360,7 @@ export function createProjectSwitchService<
 					featureRequirementsReport,
 				},
 			});
-			runtime.session.updateProjectMetadata(nextProject.id, {
+			runtime.session.updateProjectMetadata(projectId, {
 				declaredReadOnly,
 				declaredReadOnlyReason,
 				intrinsicReadOnly,
@@ -336,23 +368,24 @@ export function createProjectSwitchService<
 				featureRequirementsReadOnly,
 				featureRequirementsReport,
 			});
-			runtime.session.setProjectReadOnly(nextProject.id, {
+			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
 				reason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
 				lockMethod: activeLock.method,
 			});
-			runtime.state.history = runtime.session.getProjectHistory(nextProject.id);
+			runtime.state.history = runtime.session.getProjectHistory(projectId);
 			const activeProject = runtime.state.history.present;
+			fallbackAdmission.assertCurrent(activeProject);
 			runtime.setProject(activeProject);
 			runtime.projectGeneration.activate(activeProject.id);
 			await guard(runtime.loadRecordingRouting(activeProject));
-			const tabMetadata = runtime.sessionTab(nextProject.id)?.metadata || {};
+			const tabMetadata = runtime.sessionTab(projectId)?.metadata || {};
 			runtime.state.selectedTrackId = runtime.findTrack(activeProject, tabMetadata.selectedTrackId)?.id
 				?? activeProject.tracks.find((track) => track.type !== 'label')?.id
 				?? activeProject.tracks[0]?.id
 				?? null;
 			runtime.state.selectedClipId = runtime.findClip(activeProject, tabMetadata.selectedClipId)?.id ?? null;
-			runtime.state.clipboard = runtime.session.clipboardForProject(nextProject.id)?.descriptor ?? null;
+			runtime.state.clipboard = runtime.session.clipboardForProject(projectId)?.descriptor ?? null;
 			resetProjectScopedState();
 			if (runtime.state.outputUrl) runtime.revokeOutputUrl(runtime.state.outputUrl);
 			runtime.state.outputUrl = null;
@@ -366,7 +399,7 @@ export function createProjectSwitchService<
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
 			runtime.loadEngineProject(activeProject);
-			await runtime.recordOpenedProject(nextProject.id, guard);
+			await runtime.recordOpenedProject(projectId, guard);
 			if (options.save && !runtime.state.readOnly) {
 				await guard(runtime.saveProject(activeProject));
 				runtime.session.markProjectSaved(activeProject.id);
@@ -380,7 +413,7 @@ export function createProjectSwitchService<
 			else if (runtime.state.readOnly) {
 				runtime.setStatus(options.readOnlyReason || runtime.copy.projectReadOnly, 'error');
 			}
-			runtime.scheduleProjectLockRecovery(nextProject.id, activeLock);
+			runtime.scheduleProjectLockRecovery(projectId, activeLock);
 		} catch (error) {
 			if (runtime.isDisposedError(error)) {
 				await runtime.releaseProjectLock().catch(() => undefined);
@@ -389,6 +422,8 @@ export function createProjectSwitchService<
 				runtime.revokeVideoVisuals();
 			}
 			throw error;
+		} finally {
+			activation.release();
 		}
 	}
 

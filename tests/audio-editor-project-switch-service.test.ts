@@ -130,6 +130,8 @@ function createFixture() {
 		projects: [],
 	};
 	const session = {
+		captureProjectHistory(projectId: string) { const history = tabs.get(projectId)?.history; if (!history) throw new Error(`Missing history for ${projectId}.`); return { history, token: history }; },
+		beginProjectActivation() { return { token: Object.freeze({}), release: () => true }; },
 		switchProject(projectId: string) {
 			events.push(`session-switch:${projectId}`);
 		},
@@ -147,14 +149,8 @@ function createFixture() {
 			if (!tab) return;
 			tabs.set(projectId, { ...tab, metadata: { ...tab.metadata, ...metadata } });
 		},
-		setProjectReadOnly(projectId: string, update: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['setProjectReadOnly']>[1]) {
-			readOnlyUpdates.push({ projectId, ...update });
-		},
-		getProjectHistory(projectId: string) {
-			const history = tabs.get(projectId)?.history;
-			if (!history) throw new Error(`Missing session history for ${projectId}.`);
-			return history;
-		},
+		setProjectReadOnly(projectId: string, update: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['setProjectReadOnly']>[1]) { readOnlyUpdates.push({ projectId, ...update }); },
+		getProjectHistory(projectId: string) { const history = tabs.get(projectId)?.history; if (!history) throw new Error(`Missing session history for ${projectId}.`); return history; },
 		clipboardForProject() { return { descriptor: { type: 'clip' } }; },
 		markProjectSaved(projectId: string) { events.push(`marked-saved:${projectId}`); },
 	};
@@ -187,6 +183,7 @@ function createFixture() {
 			return { present: { ...history.present, tracks: [...history.present.tracks, prepared] } };
 		},
 		migrateProject: (value: unknown) => ({ project: value as TestProject, readOnly: migrationReadOnly }),
+		verifyProjectFallbackIntegrity: () => ({ assertCurrent() {} }),
 		assignPreferredInputToTrack: (trackId: string) => { assignedTracks.push(trackId); },
 		cancelTimedRecording: () => { events.push('cancel-timed'); },
 		cancelRecordingStart: () => { events.push('cancel-recording-start'); },
@@ -584,7 +581,7 @@ test('feature compatibility is reported and enforced before a project becomes ed
 	assert.equal((fixture.getTabMetadata(next.id)?.featureRequirementsReport as typeof report).compatible, false);
 	const historyProject = { ...next, id: 'history-project', title: 'history-project' };
 	await fixture.service.switchProject(project(historyProject.id), { history: { present: historyProject } });
-	assert.equal(fixture.getProject(), historyProject);
+	assert.deepEqual(fixture.getProject(), historyProject);
 	assert.equal(fixture.state.readOnly, true);
 });
 
