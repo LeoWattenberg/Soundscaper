@@ -114,9 +114,10 @@ Material constraints in the current foundation are also roadmap inputs:
   export is capped at 1280x720 and 30 fps;
 - FFmpeg WebAssembly is single-threaded, serialized through one worker, and
   returns complete in-memory outputs;
-- source assets can already stream through parts of `.scape`, but normal project
-  saves, desktop reads, several compressed imports, and final outputs still have
-  reference-scale paths that materialize a whole `Blob` or byte array;
+- `.scape` now streams to selected File System Access and desktop targets, but
+  desktop reads, several compressed imports, browser-download fallback, and
+  final render outputs still have reference-scale paths that materialize a
+  whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products currently use separate persistent Chromium
   partitions rather than one desktop project library;
@@ -326,9 +327,26 @@ models or native implementations.
   rejection ordering and video-size drift, and keeps explicit streaming
   destinations outside the Blob-only ceiling.
   This bounds final archive bytes, not total renderer heap or process RSS:
-  current saves can retain admitted native video Blob handles and zip.js still
-  assembles the non-streaming result, while no production file service yet
-  supplies the explicit streaming destination. Video import now routes zip.js
+  current saves can retain admitted native video Blob handles, and the Web Core
+  browser-download fallback still asks zip.js to assemble a bounded final Blob.
+  Production File System Access and Electron saves now select their target
+  before asynchronous flush, open a plan-aware destination with the admitted
+  archive maximum, re-chunk output to at most 4 MiB, and compare independent
+  exact byte counts before an explicit publication commit. Electron further
+  splits output into acknowledged one-MiB IPC writes, permits maximum-bounded
+  mode only for project capabilities, syncs and atomically renames staging, and
+  cleans active sessions on navigation, renderer loss, window close, or
+  shutdown. Cancellation or project switching before FSA close/desktop rename
+  aborts staging; a successful commit remains truthfully reported even if the
+  task is cancelled immediately afterward. The
+  [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
+  [destination regression](tests/audio-editor-scape-export-destination.test.ts),
+  [desktop regressions](tests/desktop-save.test.js), and
+  [browser workflow](tests/browser/audio-editor-scape-direct-save.spec.js)
+  reconstruct and reopen the streamed archive while preserving the 512 MiB
+  fallback. The workflow passes Chromium and Firefox here; the pinned WebKit
+  binary cannot launch on this host because required system libraries are
+  absent. Video import now routes zip.js
   emissions, pinned to a non-raiseable 4 MiB, through a strict-TS
   [bounded extractor](src/common/editor/scape-archive-video.ts) that charges the
   actual-byte budget and independently hashes each emission before awaiting a
@@ -344,12 +362,15 @@ models or native implementations.
   metadata drift, and unchanged inventory. The
   [archive-expansion security gate](config/production-security-matrix.json) is
   therefore satisfied for the current canonical STORE import surface.
-  Production direct-to-target save wiring remains open. The 64 MiB fallback
-  limit bounds admitted payload bytes, not total renderer heap or process RSS.
-- **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale project
-  saves and renders directly to a user-selected file or native target without a
-  final renderer-sized `Blob`. A size-limited browser download remains the Web
-  Core fallback when no streaming destination exists.
+  The 64 MiB fallback limit bounds admitted payload bytes, not total renderer
+  heap or process RSS.
+- **Web Enhanced / Electron Enhanced — Implemented (`.scape`):** stream portable
+  project saves directly to a user-selected File System Access or atomic native
+  target without a final renderer-sized `Blob`. A size-limited browser download
+  remains the Web Core fallback when no streaming destination exists.
+- **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale render
+  outputs directly to a user-selected file or native target without a final
+  renderer-sized `Blob`.
 - **Web Core — In progress:** the strict-TS
   [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
   publishes usage, quota, free space, pressure, eviction protection, fallback
@@ -435,8 +456,8 @@ models or native implementations.
   payload scope; the capacity service's headroom and transactional quota
   rollback remain necessary. Current render resident/worker memory, a genuine
   pre-encode proxy maximum, autosave/revision publication bounds, and
-  whole-process resident-set evidence remain open; the `.scape` final-Blob
-  save-publication bound is covered above.
+  whole-process resident-set evidence remain open; the direct `.scape`
+  publication maximum and browser-download final-Blob bound are covered above.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.
@@ -735,8 +756,9 @@ and batches without hidden conversions.
   restoration provenance, BWF/RF64/BW64/ADM conformance, and deterministic AUP4
   omission/conversion reporting.
 - **Electron Enhanced — Planned:** add restartable background queues, direct
-  streaming to paths, large archives, and additional professional deliverables
-  that pass license and conformance review.
+  streaming for render and delivery paths, reference-scale archive operations,
+  and additional professional deliverables that pass license and conformance
+  review.
 - **Shared — Planned:** extend immersive delivery from current beds toward
   reviewed object/binaural workflows without weakening existing ADM passthrough.
 

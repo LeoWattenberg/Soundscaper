@@ -74,6 +74,14 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 		'tests/audio-editor-streaming-media-storage.test.ts',
 		'tests/audio-editor-streaming-media-lifecycle.test.ts',
 	],
+	'bounded-direct-archive-publication': [
+		'src/common/editor/scape-export-destination.ts',
+		'src/common/editor/controller/native-scape-save.ts',
+		'src/common/editor/file-save-stream.ts',
+		'tests/audio-editor-scape-export-destination.test.ts',
+		'tests/audio-editor-native-scape-save.test.ts',
+		'tests/browser/audio-editor-scape-direct-save.spec.js',
+	],
 };
 
 async function readMatrix() {
@@ -202,6 +210,10 @@ test('planned native and plug-in surfaces stay disabled and archive expansion is
 		implementedControls.get('bounded-streaming-media-extraction').summary,
 		/4 MiB.*awaited transactional storage write.*native Blob chunks.*64 MiB/iu,
 	);
+	assert.match(
+		implementedControls.get('bounded-direct-archive-publication').summary,
+		/4 MiB.*independent byte counts.*File System Access.*desktop.*512 MiB/iu,
+	);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
 	assert.equal(residuals.has('compression-amplification-policy'), false);
 	assert.equal(residuals.has('incomplete-zip-layout-validation'), false);
@@ -226,6 +238,7 @@ test('planned native and plug-in surfaces stay disabled and archive expansion is
 	assert.ok(implementedControls.has('bounded-streaming-media-extraction'));
 	const cancellation = risks.get('long-job-cancellation');
 	assert.ok(cancellation.currentControls.some(({ id }) => id === 'streamed-media-maintenance-abort'));
+	assert.ok(cancellation.currentControls.some(({ id }) => id === 'direct-scape-save-rollback'));
 	assert.ok(cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'));
 });
 

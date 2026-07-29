@@ -160,18 +160,27 @@
 			"entryPoints": [
 				"src/common/editor/controller/lifecycle.ts",
 				"src/common/editor/controller/native-project-service.ts",
+				"src/common/editor/controller/native-scape-save.ts",
 				"src/common/editor/scape-project.js",
+				"src/common/editor/scape-export-destination.ts",
+				"src/common/editor/file-save-stream.ts",
 				"src/common/editor/file-service.js"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/controller/lifecycle.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/controller/native-scape-save.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-export-destination.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 				{ "kind": "test", "path": "tests/audio-editor-controller-lifecycle.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-export-destination.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+				{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" },
 				{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
 			]
 		},
@@ -483,6 +492,21 @@
 					]
 				},
 				{
+					"id": "bounded-direct-archive-publication",
+					"summary": "Canonical save output is re-chunked to at most 4 MiB, constrained by the admitted archive maximum, and verified by independent byte counts before publication. File System Access and desktop project targets remain staged until an explicit commit; desktop additionally negotiates one-MiB acknowledged IPC writes and synced rename. The non-streaming browser-download fallback retains its non-raiseable 512 MiB final-Blob ceiling.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-destination.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-scape-save.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-export-destination.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" }
+					]
+				},
+				{
 					"id": "abort-signal-propagation-and-rollback",
 					"summary": "The tested .scape open/save path propagates one task AbortSignal through ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes readers, returns source iterators, aborts unpublished destinations and audio writers, deletes provisional media, and restores the prior project plus its retained revisions.",
 					"evidence": [
@@ -617,26 +641,39 @@
 			"currentControls": [
 				{
 					"id": "opaque-single-use-atomic-save",
-					"summary": "A user-selected target becomes a short-lived single-use token; sequential one-MiB chunks are checked against declared length and committed by synced same-directory rename with abort cleanup.",
+					"summary": "A user-selected target becomes a short-lived single-use token; sequential one-MiB chunks are checked against an exact length and committed by synced same-directory rename with abort cleanup.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/save-targets.js" },
 						{ "kind": "implementation", "path": "desktop/preload.mjs" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" },
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
 					]
+				},
+				{
+					"id": "bounded-project-stream-save",
+					"summary": "Only project save capabilities may select bounded streaming mode. Main rejects writes above the archive-admitted maximum, waits for an active chunk acknowledgement before abort cleanup, and removes sessions on navigation, renderer loss, window close, or shutdown; explicit finish remains the sync-and-rename commit boundary.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "write-owner-and-capacity-lifecycle",
-					"exposure": "Save sessions are not bound to renderer lifetime, declared size permits any safe integer, and aggregate disk capacity is not preflighted.",
-					"requiredControl": "Bind sessions to webContents, enforce product working-set limits, preflight storage, and clean sessions on renderer destruction.",
+					"exposure": "Active sessions are cleaned on main-frame navigation, renderer loss, window close, and shutdown, but unconsumed target capabilities are not owner-bound and aggregate session/disk capacity is not preflighted.",
+					"requiredControl": "Bind every target and session to its webContents owner, enforce aggregate product working-set limits, and preflight available storage.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Renderer-destruction, capacity, aggregate-session, and practical maximum-size tests fail without replacing the destination."]
 				},
 				{
 					"id": "in-flight-write-cancellation",
-					"exposure": "A bounded IPC chunk cannot be interrupted once the main process has begun its write, and parent-directory durability is not qualified.",
+					"exposure": "A bounded IPC chunk must finish or fail before abort closes staging; sync/rename is the non-cancellable commit boundary, and parent-directory durability is not qualified.",
 					"requiredControl": "Define the cancellation acknowledgement and platform durability contract for active save operations.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Fault-injection tests cover cancellation during write, sync, and rename on every supported desktop platform."]
@@ -807,12 +844,26 @@
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }
 					]
+				},
+				{
+					"id": "direct-scape-save-rollback",
+					"summary": "Project saves choose one target before asynchronous flush, stream through a plan-aware bounded destination, abort staging on project switch or failure, compare independent exact byte counts, and perform one explicit non-cancellable publication commit. Cancellation after a successful commit is reported as committed without stale success UI.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-scape-save.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The tested native .scape open/save path now propagates and rolls back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",
+					"exposure": "The tested native .scape open/save and direct-save publication paths now propagate and roll back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]
