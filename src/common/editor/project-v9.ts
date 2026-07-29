@@ -15,16 +15,15 @@ import {
 	createVideoClipV8,
 	createVideoSourceV8,
 	createVideoTrackV8,
-	validateAudioEditorProjectV8,
-	type AudioEditorProjectV8,
 	type AudioEditorProjectV8Options,
 } from './project-v8.ts';
-import {
-	normalizeProjectFeatureRequirements,
-	type ProjectFeatureRequirementsManifest,
-} from './project-feature-requirements.ts';
+import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	validateAudioEditorProjectV9,
+	type AudioEditorProjectV9,
+} from './project-v9-validation.ts';
 
 export {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -32,11 +31,7 @@ export {
 } from './project-schema-version.ts';
 export const AUDIO_EDITOR_MEDIA_KINDS = V8_MEDIA_KINDS;
 export const AUDIO_EDITOR_TRACK_TYPES = V8_TRACK_TYPES;
-
-export interface AudioEditorProjectV9 extends Omit<AudioEditorProjectV8, 'schemaVersion'> {
-	readonly schemaVersion: 9;
-	readonly featureRequirements: ProjectFeatureRequirementsManifest;
-}
+export { validateAudioEditorProjectV9, type AudioEditorProjectV9 } from './project-v9-validation.ts';
 
 export interface AudioEditorProjectV9Options extends AudioEditorProjectV8Options {
 	readonly featureRequirements?: unknown;
@@ -87,18 +82,6 @@ export function cloneAudioEditorProjectV9(project: AudioEditorProjectV9): AudioE
 		...copy,
 		featureRequirements: reconcileProjectOwnedFeatureRequirements(copy, normalizedFeatureRequirements),
 	};
-}
-
-export function validateAudioEditorProjectV9(project: unknown): project is AudioEditorProjectV9 {
-	const candidate = objectValue(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
-	}
-	validateAudioEditorProjectV8({ ...candidate, schemaVersion: 8 });
-	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
-		sources: candidate.sources as readonly Readonly<Record<string, unknown>>[],
-	});
-	return true;
 }
 
 export function loadAudioEditorProjectV9(value: unknown): {

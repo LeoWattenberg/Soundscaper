@@ -16,6 +16,7 @@ import {
 	loadAudioEditorProjectV9,
 	validateAudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import { validateAudioEditorProjectV9 as validateAudioEditorProjectV9Direct } from '../src/common/editor/project-v9-validation.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 
@@ -42,6 +43,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 	});
 
 	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 9);
+	assert.strictEqual(validateAudioEditorProjectV9, validateAudioEditorProjectV9Direct);
 	assert.equal(project.schemaVersion, 9);
 	assert.deepEqual(project.featureRequirements, input);
 	assert.notStrictEqual(project.featureRequirements, input);
