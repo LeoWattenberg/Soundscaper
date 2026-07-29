@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import {
 	DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 	MAX_LIBRARY_PROJECT_DOCUMENT_BYTES,
+	MAX_LIBRARY_PROJECT_ID_BYTES,
 	type DesktopLibraryProject,
 } from './project-library-contract.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
@@ -114,16 +115,30 @@ function currentProjectRoot(value: unknown): CurrentDesktopProjectRoot {
 	if (project.schemaVersion !== DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION) {
 		throw new RangeError('Desktop shared project service accepts only the current project schema');
 	}
-	if (typeof project.id !== 'string' || !project.id.trim()) {
-		throw new TypeError('Desktop shared project id must be a non-empty string');
-	}
-	if (typeof project.title !== 'string' || !project.title.trim()) {
-		throw new TypeError('Desktop shared project title must be a non-empty string');
-	}
+	sharedProjectId(project.id);
+	humanText(project.title, 'title', 255);
 	if (!Number.isSafeInteger(project.revision) || Number(project.revision) < 0) {
 		throw new RangeError('Desktop shared project revision must be a non-negative safe integer');
 	}
 	return project as CurrentDesktopProjectRoot;
+}
+
+function sharedProjectId(value: unknown): string {
+	if (typeof value !== 'string' || !value.trim()) {
+		throw new TypeError('Desktop shared project id must be a non-empty string');
+	}
+	if (Buffer.byteLength(value, 'utf8') > MAX_LIBRARY_PROJECT_ID_BYTES) {
+		throw new RangeError('Desktop shared project id exceeds its byte limit');
+	}
+	return value;
+}
+
+function humanText(value: unknown, label: string, maximumLength: number): string {
+	if (typeof value !== 'string' || !value || value.length > maximumLength
+		|| value.trim() !== value || /[\u0000-\u001f\u007f]/u.test(value)) {
+		throw new TypeError(`Desktop shared project ${label} is invalid`);
+	}
+	return value;
 }
 
 function projectDescriptor(project: DesktopLibraryProject): DesktopSharedProjectDescriptor {

@@ -86,7 +86,14 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
 	context.after(() => host.close());
-	const service = new DesktopSharedProjectLibraryService(host, {
+	let commitCalls = 0;
+	const service = new DesktopSharedProjectLibraryService({
+		commitProjectById: (options) => { commitCalls += 1; return host.commitProjectById(options); },
+		deleteProjectById: (options) => host.deleteProjectById(options),
+		readCatalog: () => host.readCatalog(),
+		readProjectById: (projectId, signal) => host.readProjectById(projectId, signal),
+		snapshot: () => host.snapshot(),
+	}, {
 		now: () => 10_000,
 		createEntryId: () => 'opaque-entry-0002',
 	});
@@ -95,13 +102,18 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		{ ...current, schemaVersion: 8 },
 		{ ...current, schemaVersion: 10 },
 		{ ...current, id: '' },
+		{ ...current, id: 'x'.repeat(4 * 1024 + 1) },
+		{ ...current, title: 'x'.repeat(256) },
+		{ ...current, title: ' Editor project' },
+		{ ...current, title: 'Editor\u0000project' },
 		{ ...current, revision: -1 },
 	]) {
 		await assert.rejects(
 			() => service.commitSharedProject(serializeScapeProjectDocument(candidate)),
-			/schema|non-empty|revision/u,
+			/schema|non-empty|byte limit|title|revision/u,
 		);
 	}
+	assert.equal(commitCalls, 0);
 	assert.equal(host.readCatalog().revision, 0);
 	assert.deepEqual(await readdir(fixture.paths.projectsRoot), []);
 });
