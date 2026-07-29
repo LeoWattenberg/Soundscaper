@@ -15,8 +15,10 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import {
+	createAudioClipV9,
 	createAudioEditorProjectV9,
 	createAudioSourceV9,
+	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	parseScapeProjectDocument,
@@ -98,6 +100,36 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		createEntryId: () => 'opaque-entry-0002',
 	});
 	const current = parseScapeProjectDocument(currentDocument(1)) as Record<string, unknown>;
+	const source = createAudioSourceV9({
+		id: 'domain-source-1',
+		name: 'Domain source',
+		storageKey: 'domain-source-storage-1',
+		frameCount: 48_000,
+		channelCount: 2,
+		sampleRate: 48_000,
+	});
+	const withSource = createAudioEditorProjectV9({
+		id: 'domain-project-1',
+		title: 'Domain project',
+		revision: 1,
+		now: NOW,
+		sources: [source],
+	});
+	const clip = createAudioClipV9({
+		id: 'domain-clip-1',
+		sourceId: source.id,
+		durationFrames: 48_000,
+	});
+	const track = createAudioTrackV9({ id: 'domain-track-1', clipIds: [clip.id] });
+	const withGraph = createAudioEditorProjectV9({
+		id: 'domain-graph-project-1',
+		title: 'Domain graph project',
+		revision: 1,
+		now: NOW,
+		sources: [source],
+		clips: [clip],
+		tracks: [track],
+	});
 	for (const candidate of [
 		{ ...current, schemaVersion: 8 },
 		{ ...current, schemaVersion: 10 },
@@ -107,15 +139,41 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		{ ...current, title: ' Editor project' },
 		{ ...current, title: 'Editor\u0000project' },
 		{ ...current, revision: -1 },
+		{ ...current, sources: {} },
+		{ ...current, projectBin: { clips: {} } },
+		{ ...current, featureRequirements: { schemaVersion: 1, requirements: {} } },
+		{ ...withSource, sources: [source, source] },
+		{ ...withGraph, clips: [{ ...clip, sourceId: 'missing-source' }] },
+		{ ...withGraph, tracks: [{ ...track, clipIds: ['missing-clip'] }] },
 	]) {
 		await assert.rejects(
 			() => service.commitSharedProject(serializeScapeProjectDocument(candidate)),
-			/schema|non-empty|byte limit|title|revision/u,
+			/schema|non-empty|byte limit|title|revision|array|duplicate|missing/u,
 		);
 	}
 	assert.equal(commitCalls, 0);
 	assert.equal(host.readCatalog().revision, 0);
 	assert.deepEqual(await readdir(fixture.paths.projectsRoot), []);
+});
+
+test('editor service rejects a domain-invalid stored project before returning it', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+	const project = parseScapeProjectDocument(currentDocument(1)) as Record<string, unknown>;
+	await host.commitProjectById({
+		createEntryId: () => 'opaque-entry-0007',
+		name: 'Editor project',
+		preferredProduct: 'soundscaper',
+		project: { ...project, sources: {} },
+		updatedAtMs: 10_000,
+	});
+	const reader = new DesktopSharedProjectLibraryService(host);
+
+	await assert.rejects(
+		() => reader.readSharedProject('editor-project-1'),
+		/sources.*array/iu,
+	);
 });
 
 test('canonical source references remain metadata-only and do not claim managed media', async (context) => {

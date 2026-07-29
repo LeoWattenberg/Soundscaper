@@ -1,7 +1,7 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"allowJs": false,
+		"allowJs": true,
 		"declaration": false,
 		"incremental": false,
 		"module": "NodeNext",
@@ -23,6 +23,7 @@
 		"desktop/project-library-projects.ts",
 		"desktop/project-library.ts",
 		"src/common/editor/project-schema-version.ts",
+		"src/common/editor/project-v9-validation.ts",
 		"src/common/editor/scape-project-document.ts"
 	],
 	"exclude": ["dist", "node_modules", "test-results"]

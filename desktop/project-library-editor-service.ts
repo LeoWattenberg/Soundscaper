@@ -14,6 +14,7 @@ import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
+import { validateAudioEditorProjectV9 } from '../src/common/editor/project-v9-validation.ts';
 
 const ENTRY_ID = /^[A-Za-z0-9_-]{8,128}$/u;
 
@@ -120,6 +121,7 @@ function currentProjectRoot(value: unknown): CurrentDesktopProjectRoot {
 	if (!Number.isSafeInteger(project.revision) || Number(project.revision) < 0) {
 		throw new RangeError('Desktop shared project revision must be a non-negative safe integer');
 	}
+	validateAudioEditorProjectV9(project);
 	return project as CurrentDesktopProjectRoot;
 }
 

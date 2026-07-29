@@ -11,6 +11,8 @@ import {
 	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
+import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -28,8 +30,24 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-persistence.js',
 		'desktop/project-library-projects.js',
 		'desktop/project-library.js',
+		'src/common/editor/adm-project-metadata.js',
+		'src/common/editor/broadcast-wave.js',
+		'src/common/editor/cart-metadata.js',
+		'src/common/editor/ixml.js',
+		'src/common/editor/persisted-audio-effect-validation.js',
+		'src/common/editor/project-bext-metadata.js',
+		'src/common/editor/project-feature-requirements.js',
 		'src/common/editor/project-schema-version.js',
+		'src/common/editor/project-v9-document-validation.js',
+		'src/common/editor/project-v9-media-validation.js',
+		'src/common/editor/project-v9-validation-primitives.js',
+		'src/common/editor/project-v9-validation.js',
 		'src/common/editor/scape-project-document.js',
+		'src/common/editor/stable-id.js',
+		'src/common/editor/terminal-channel-widths.js',
+		'src/common/editor/video-effects.js',
+		'src/common/editor/video-timeline.js',
+		'src/common/editor/wav-opaque-chunks.js',
 	]);
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
@@ -39,6 +57,30 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const editorService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-service.js')).href}?test=${Date.now()}`);
 	assert.equal(typeof runtime.DesktopProjectLibraryHost?.start, 'function');
 	assert.equal(typeof editorService.DesktopSharedProjectLibraryService, 'function');
+	let commitCalls = 0;
+	const service = new editorService.DesktopSharedProjectLibraryService({
+		commitProjectById: async ({ project }) => {
+			commitCalls += 1;
+			return { catalog: {}, project };
+		},
+		deleteProjectById: async () => false,
+		readCatalog: () => ({ projects: [] }),
+		readProjectById: async () => null,
+		snapshot: () => ({ owner: { product: 'soundscaper' } }),
+	}, {
+		createEntryId: () => 'packaging-entry-0001',
+		now: () => 10_000,
+	});
+	const project = createAudioEditorProjectV9({
+		id: 'packaging-project',
+		title: 'Packaging project',
+		now: '2026-07-30T12:00:00.000Z',
+	});
+	const validDocument = serializeScapeProjectDocument(project);
+	assert.equal(await service.commitSharedProject(validDocument), validDocument);
+	const invalidDocument = serializeScapeProjectDocument({ ...project, tempo: { ...project.tempo, bpm: 0 } });
+	await assert.rejects(() => service.commitSharedProject(invalidDocument), /tempo\.bpm/u);
+	assert.equal(commitCalls, 1);
 });
 
 test('desktop staging excludes raw TypeScript and includes the compiled runtime', async (context) => {
@@ -58,6 +100,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
 	const stagedMain = await readFile(join(applicationDesktopRoot, 'main.mjs'), 'utf8');
 	const runtimeImports = [...stagedMain.matchAll(/from ['"]\.\/project-library-runtime\/([^'"]+)['"]/gu)];
