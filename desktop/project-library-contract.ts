@@ -6,6 +6,7 @@ export const DESKTOP_LIBRARY_SCHEMA_VERSION = 2 as const;
 export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 9 as const;
 export const MAX_LIBRARY_METADATA_BYTES = 4 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECT_DOCUMENT_BYTES = 256 * 1024 * 1024;
+export const MAX_LIBRARY_PROJECT_ID_BYTES = 4 * 1024;
 export const MAX_LIBRARY_PROJECTS = 10_000;
 export const MAX_LIBRARY_MEDIA = 50_000;
 
@@ -15,6 +16,7 @@ const EXACT_PATH_KEYS = Object.freeze(['libraryRoot', 'databasePath', 'projectsR
 const METADATA_KEYS = Object.freeze(['schemaVersion', 'revision', 'projects', 'media']);
 const PROJECT_KEYS = Object.freeze([
 	'id',
+	'projectId',
 	'name',
 	'metadataFile',
 	'preferredProduct',
@@ -48,6 +50,7 @@ export interface DesktopLibraryOwner {
 
 export interface DesktopLibraryProject {
 	readonly id: string;
+	readonly projectId: string;
 	readonly name: string;
 	readonly metadataFile: string;
 	readonly preferredProduct: DesktopLibraryProduct;
@@ -223,6 +226,7 @@ function validateProject(value: unknown): DesktopLibraryProject {
 	}
 	return Object.freeze({
 		id,
+		projectId: projectId(record.projectId),
 		name: humanText(record.name, 'project name', 255),
 		metadataFile,
 		preferredProduct,
@@ -232,6 +236,16 @@ function validateProject(value: unknown): DesktopLibraryProject {
 		byteLength,
 		sha256,
 	});
+}
+
+function projectId(value: unknown): string {
+	if (typeof value !== 'string' || !value.trim()) {
+		throw new TypeError('Desktop library project identity must be a non-empty string');
+	}
+	if (Buffer.byteLength(value, 'utf8') > MAX_LIBRARY_PROJECT_ID_BYTES) {
+		throw new RangeError('Desktop library project identity exceeds its byte limit');
+	}
+	return value;
 }
 
 function validateMedia(value: unknown): DesktopLibraryMedia {

@@ -145,6 +145,12 @@ export class SharedDesktopProjectLibrary {
 		return row && row.active && row.lease.expiresAtMs > this.#timestamp() ? row.lease : null;
 	}
 
+	assertLease(lease: DesktopLibraryLease): DesktopLibraryLease {
+		this.#assertOpen();
+		const token = validateLeaseToken(lease);
+		return this.#transaction(() => this.#assertLeaseOwned(token));
+	}
+
 	async acquireLease(options: DesktopLibraryAcquireLeaseOptions): Promise<DesktopLibraryLease> {
 		this.#assertOpen();
 		const owner = validateDesktopLibraryOwner(options.owner);

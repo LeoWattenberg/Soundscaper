@@ -363,6 +363,7 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 		revision,
 		projects: [{
 			id: 'shared-project-1',
+			projectId: 'editor-project-1',
 			name: 'Shared project',
 			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',

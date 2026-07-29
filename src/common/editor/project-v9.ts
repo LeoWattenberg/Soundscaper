@@ -24,9 +24,12 @@ import {
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
-export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = 9;
-export const AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_SCHEMA_VERSION;
+export {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
+} from './project-schema-version.ts';
 export const AUDIO_EDITOR_MEDIA_KINDS = V8_MEDIA_KINDS;
 export const AUDIO_EDITOR_TRACK_TYPES = V8_TRACK_TYPES;
 

@@ -9,7 +9,7 @@
 		"noEmit": false,
 		"outDir": ".desktop-build/desktop-runtime",
 		"rewriteRelativeImportExtensions": true,
-		"rootDir": "desktop",
+		"rootDir": ".",
 		"sourceMap": false,
 		"types": ["node"]
 	},
@@ -19,7 +19,10 @@
 		"desktop/project-library-contract.ts",
 		"desktop/project-library-host.ts",
 		"desktop/project-library-persistence.ts",
-		"desktop/project-library.ts"
+		"desktop/project-library-projects.ts",
+		"desktop/project-library.ts",
+		"src/common/editor/project-schema-version.ts",
+		"src/common/editor/scape-project-document.ts"
 	],
 	"exclude": ["dist", "node_modules", "test-results"]
 }

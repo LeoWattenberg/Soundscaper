@@ -30,12 +30,12 @@ import {
 import {
 	DesktopApplicationShutdown,
 	resolveDesktopProjectLibraryAppData,
-} from './project-library-runtime/application-lifecycle.js';
+} from './project-library-runtime/desktop/application-lifecycle.js';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import { PendingProjectQueue, extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
-import { DesktopProjectLibraryHost } from './project-library-runtime/project-library-host.js';
+import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';

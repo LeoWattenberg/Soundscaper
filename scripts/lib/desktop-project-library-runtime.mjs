@@ -5,12 +5,15 @@ import { cp, mkdir, readdir, readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
 const EXPECTED_RUNTIME_FILES = Object.freeze([
-	'application-lifecycle.js',
-	'project-library-abort.js',
-	'project-library-contract.js',
-	'project-library-host.js',
-	'project-library-persistence.js',
-	'project-library.js',
+	'desktop/application-lifecycle.js',
+	'desktop/project-library-abort.js',
+	'desktop/project-library-contract.js',
+	'desktop/project-library-host.js',
+	'desktop/project-library-persistence.js',
+	'desktop/project-library-projects.js',
+	'desktop/project-library.js',
+	'src/common/editor/project-schema-version.js',
+	'src/common/editor/scape-project-document.js',
 ]);
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
@@ -23,10 +26,7 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		'--project', resolve(root, 'tsconfig.desktop-runtime.json'),
 		'--outDir', output,
 	], root);
-	const files = (await readdir(output, { withFileTypes: true }))
-		.filter((entry) => entry.isFile())
-		.map((entry) => entry.name)
-		.sort();
+	const files = await listRuntimeFiles(output);
 	assertExpectedRuntime(files);
 	for (const name of files) {
 		const source = await readFile(join(output, name), 'utf8');
@@ -43,16 +43,24 @@ export async function stageDesktopApplicationSources({
 	const sourceRoot = resolveRequiredPath(desktopSourceRoot, 'desktop source root');
 	const applicationRoot = resolveRequiredPath(applicationDesktopRoot, 'application desktop root');
 	const compiledRoot = resolveRequiredPath(runtimeRoot, 'compiled desktop runtime root');
-	const runtimeFiles = (await readdir(compiledRoot, { withFileTypes: true }))
-		.filter((entry) => entry.isFile())
-		.map((entry) => entry.name)
-		.sort();
+	const runtimeFiles = await listRuntimeFiles(compiledRoot);
 	assertExpectedRuntime(runtimeFiles);
 	await cp(sourceRoot, applicationRoot, {
 		recursive: true,
 		filter: (source) => extname(source) !== '.ts',
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+}
+
+async function listRuntimeFiles(root, relativeRoot = '') {
+	const entries = await readdir(join(root, relativeRoot), { withFileTypes: true });
+	const files = [];
+	for (const entry of entries) {
+		const relativePath = relativeRoot ? `${relativeRoot}/${entry.name}` : entry.name;
+		if (entry.isDirectory()) files.push(...await listRuntimeFiles(root, relativePath));
+		else if (entry.isFile()) files.push(relativePath);
+	}
+	return files.sort();
 }
 
 function assertExpectedRuntime(files) {

@@ -20,18 +20,21 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const outputRoot = join(temporaryRoot, 'runtime');
 	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
 	assert.deepEqual(result.files, [
-		'application-lifecycle.js',
-		'project-library-abort.js',
-		'project-library-contract.js',
-		'project-library-host.js',
-		'project-library-persistence.js',
-		'project-library.js',
+		'desktop/application-lifecycle.js',
+		'desktop/project-library-abort.js',
+		'desktop/project-library-contract.js',
+		'desktop/project-library-host.js',
+		'desktop/project-library-persistence.js',
+		'desktop/project-library-projects.js',
+		'desktop/project-library.js',
+		'src/common/editor/project-schema-version.js',
+		'src/common/editor/scape-project-document.js',
 	]);
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
 	}
-	const runtime = await import(`${pathToFileURL(join(outputRoot, 'project-library-host.js')).href}?test=${Date.now()}`);
+	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
 	assert.equal(typeof runtime.DesktopProjectLibraryHost?.start, 'function');
 });
 
@@ -48,7 +51,15 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'project-library-host.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
+	const stagedMain = await readFile(join(applicationDesktopRoot, 'main.mjs'), 'utf8');
+	const runtimeImports = [...stagedMain.matchAll(/from ['"]\.\/project-library-runtime\/([^'"]+)['"]/gu)];
+	assert.ok(runtimeImports.length > 0, 'desktop main must import its compiled runtime');
+	for (const [, relativePath] of runtimeImports) {
+		await access(join(applicationDesktopRoot, 'project-library-runtime', relativePath));
+	}
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
 
