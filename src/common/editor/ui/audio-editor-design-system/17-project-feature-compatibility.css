@@ -13,6 +13,11 @@
 	font-size: 11px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: -2px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility header {
 	display: grid;
 	align-content: start;

@@ -82,6 +82,8 @@ test.describe('Scape open feature decisions', () => {
 		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
 		await expect(notice.getByRole('button')).toHaveCount(0);
 		await expect(notice).not.toContainText(/verified|active at runtime|plug-?in|third-party/iu);
+		await notice.focus();
+		await expect(notice).toBeFocused();
 		await assertAccessibleBasics(notice);
 		await assertNoSeriousAxeViolations(page, '[data-project-feature-compatibility]');
 

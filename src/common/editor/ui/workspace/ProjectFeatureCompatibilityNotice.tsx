@@ -34,6 +34,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	return <aside
 		className="kw-audio-editor__project-feature-compatibility"
 		aria-labelledby={headingId}
+		tabIndex={0}
 		data-project-feature-compatibility
 	>
 		<header>

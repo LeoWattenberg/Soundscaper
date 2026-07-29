@@ -91,6 +91,7 @@ test('the post-open region stays structured, localized, and free of activation c
 	}));
 
 	assert.match(english, /<aside[^>]*data-project-feature-compatibility/iu);
+	assert.match(english, /<aside[^>]*tabindex="0"/iu);
 	assert.match(english, /role="status"[^>]*aria-atomic="true"/iu);
 	assert.match(english, /Video effects.*org\.soundscaper\.capability\.video-effects/isu);
 	assert.match(english, /data-declared-disposition="bypass"/u);
