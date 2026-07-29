@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js';
@@ -215,6 +216,18 @@ test('strict .scape envelope enforces one-to-one reserved and asset entry owners
 		);
 	});
 
+	await context.test('duplicate source descriptor', async () => {
+		const duplicate = entryFixture('audio/source-duplicate.f32c', 'asset');
+		const fixture = envelopeFixture((manifest) => {
+			manifest.assets.push({ ...manifest.assets[0]!, entry: duplicate.entry.filename });
+		}, [duplicate]);
+
+		await assert.rejects(
+			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
+			/duplicate \.scape source asset: source-1/iu,
+		);
+	});
+
 	await context.test('unreferenced extra entry', async () => {
 		const fixture = envelopeFixture(undefined, [entryFixture('extra.bin', 'not-owned')]);
 
@@ -253,6 +266,48 @@ test('inspect and import share fail-closed envelope validation before storage wr
 	await assert.rejects(importScapeProject(archive, store), /unreferenced entry: extra\.bin/iu);
 	await assert.rejects(inspectScapeProject(archive), /unreferenced entry: extra\.bin/iu);
 	assert.equal(storageWrites, 0);
+});
+
+test('inspect and import require a project-source and manifest-asset bijection before storage access', async (context) => {
+	const audioSource = {
+		kind: 'audio',
+		id: 'source-1',
+		storageKey: 'source-1',
+		name: 'source.wav',
+		mimeType: 'audio/wav',
+		frameCount: 1,
+		channelCount: 1,
+		sampleRate: 48_000,
+		originalSampleRate: 48_000,
+	};
+	const cases = [{
+		name: 'orphan manifest descriptor',
+		project: portableProject([]),
+		assets: [archiveAsset('orphan-source', 'audio')],
+		expected: /one-to-one mapping/iu,
+	}, {
+		name: 'missing manifest descriptor',
+		project: portableProject([audioSource]),
+		assets: [],
+		expected: /one-to-one mapping/iu,
+	}, {
+		name: 'incompatible descriptor kind',
+		project: portableProject([audioSource]),
+		assets: [archiveAsset('source-1', 'video')],
+		expected: /source source-1 has an incompatible asset kind/iu,
+	}];
+
+	for (const scenario of cases) {
+		await context.test(scenario.name, async () => {
+			const archive = await archiveWithProjectAssets(scenario.project, scenario.assets);
+			const calls: string[] = [];
+			const store = storageCallTracker(calls);
+
+			await assert.rejects(inspectScapeProject(archive, store), scenario.expected);
+			await assert.rejects(importScapeProject(archive, store), scenario.expected);
+			assert.deepEqual(calls, []);
+		});
+	}
 });
 
 interface EntryFixture {
@@ -368,4 +423,96 @@ async function archiveWithUnreferencedEntry(): Promise<Blob> {
 	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
 	await writer.add('extra.bin', new TextReader('not-owned'), { level: 0, zip64: true });
 	return writer.close(undefined, { zip64: true });
+}
+
+interface PortableArchiveAsset {
+	readonly sourceId: string;
+	readonly kind: 'audio' | 'video';
+	readonly entry: string;
+	readonly encoding: string;
+	readonly contents: string;
+}
+
+function portableProject(sources: readonly Record<string, unknown>[]) {
+	return createAudioEditorProjectV6({
+		id: 'scape-source-bijection-project',
+		title: 'Source bijection project',
+		sources,
+		clips: [],
+		tracks: [],
+	});
+}
+
+function archiveAsset(sourceId: string, kind: 'audio' | 'video'): PortableArchiveAsset {
+	return {
+		sourceId,
+		kind,
+		entry: kind === 'video' ? `video/${sourceId}.original` : `audio/${sourceId}.f32c`,
+		encoding: kind === 'video' ? 'original' : 'audio-f32le-chunks-v1',
+		contents: 'asset',
+	};
+}
+
+async function archiveWithProjectAssets(
+	project: ReturnType<typeof createAudioEditorProjectV6>,
+	assets: readonly PortableArchiveAsset[],
+): Promise<Blob> {
+	const projectText = JSON.stringify(project);
+	const projectBytes = TEXT_ENCODER.encode(projectText);
+	const manifest = {
+		format: 'scape-project',
+		formatVersion: 1,
+		createdAt: '2026-07-28T00:00:00.000Z',
+		project: {
+			entry: 'project.json',
+			mimeType: 'application/json',
+			schemaVersion: project.schemaVersion,
+			size: projectBytes.byteLength,
+			sha256: sha256(projectBytes),
+		},
+		assets: assets.map((asset) => {
+			const bytes = TEXT_ENCODER.encode(asset.contents);
+			return {
+				sourceId: asset.sourceId,
+				kind: asset.kind,
+				entry: asset.entry,
+				encoding: asset.encoding,
+				size: bytes.byteLength,
+				sha256: sha256(bytes),
+			};
+		}),
+	};
+	const writer = new ZipWriter(new BlobWriter('application/vnd.soundscaper.scape+zip'), {
+		level: 0,
+		useWebWorkers: false,
+		zip64: true,
+	});
+	await writer.add('project.json', new TextReader(projectText), { level: 0, zip64: true });
+	for (const asset of assets) {
+		await writer.add(asset.entry, new TextReader(asset.contents), { level: 0, zip64: true });
+	}
+	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
+	return writer.close(undefined, { zip64: true });
+}
+
+function sha256(bytes: Uint8Array): string {
+	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function storageCallTracker(calls: string[]) {
+	const called = (name: string, result: unknown) => async () => {
+		calls.push(name);
+		return result;
+	};
+	return {
+		loadProject: called('loadProject', null),
+		listProjectRevisions: called('listProjectRevisions', []),
+		getSourceMetadata: called('getSourceMetadata', null),
+		getMediaAssetMetadata: called('getMediaAssetMetadata', null),
+		beginSourceWrite: called('beginSourceWrite', null),
+		beginMediaAssetWrite: called('beginMediaAssetWrite', null),
+		saveProject: called('saveProject', undefined),
+		deleteProject: called('deleteProject', undefined),
+		deleteSource: called('deleteSource', undefined),
+	};
 }

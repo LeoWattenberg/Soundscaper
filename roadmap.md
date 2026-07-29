@@ -274,7 +274,16 @@ models or native implementations.
   [archive envelope](src/common/editor/scape-archive-envelope.ts) that bounds
   metadata and declared expansion with non-raiseable hard limits, rejects
   encrypted/extra/aliased entries, and verifies descriptor ownership before
-  storage writes. One shared
+  storage writes. After project migration, a strict-TS
+  [source/asset index](src/common/editor/scape-project-assets.ts) also requires
+  equal source and descriptor counts, unique exact IDs, and identical media
+  kinds before collision handling, transaction creation, or any storage call.
+  Its focused
+  [identity regression](tests/audio-editor-scape-project-assets.test.ts) and
+  [archive workflow regression](tests/audio-editor-scape-archive-envelope.test.ts)
+  cover reordered canonical descriptors plus orphan, missing, duplicate,
+  invalid, and kind-mismatched identities. The portable format's structural
+  integrity gate is therefore enforced for its current surface. One shared
   [actual-byte budget](src/common/editor/scape-expanded-byte-budget.ts) charges
   manifest, project, and every extracted asset chunk before retention, while
   checked PCM geometry keeps its framing buffer to 16 MiB plus four bytes.

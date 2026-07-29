@@ -305,8 +305,8 @@
 			"assets": ["project integrity", "source identity", "persistent storage namespace"],
 			"actor": "A .scape archive contains unsafe names, duplicates, inconsistent descriptors, or altered payload bytes.",
 			"impact": "high",
-			"status": "partial",
-			"releaseDisposition": "conditional",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
 			"ownerMilestone": "2",
 			"currentControls": [
 				{
@@ -326,17 +326,20 @@
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" }
 					]
+				},
+				{
+					"id": "migrated-project-source-bijection",
+					"summary": "After project migration, import and inspection require equal source/descriptor counts, unique exact case-sensitive source IDs, and identical audio/video kinds before collision handling, transaction creation, or any storage call.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-project-assets.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project-assets.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
 				}
 			],
-			"residualRisks": [
-				{
-					"id": "project-source-descriptor-bijection",
-					"exposure": "Entry ownership is one-to-one, but the envelope does not yet reject a manifest asset descriptor that no migrated project source references.",
-					"requiredControl": "Require a one-to-one mapping between migrated project source IDs and manifest asset source IDs before collision handling or persistence.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Import and inspection reject extra or duplicate source descriptors before any storage call while preserving canonical exports."]
-				}
-			]
+			"residualRisks": []
 		},
 		{
 			"id": "scape-archive-expansion",

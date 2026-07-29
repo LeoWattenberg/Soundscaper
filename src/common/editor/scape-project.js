@@ -37,6 +37,7 @@ import {
 	assertScapeImportStore,
 	ScapeImportTransaction,
 } from './scape-import-transaction.ts';
+import { indexScapeProjectAssets } from './scape-project-assets.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
@@ -161,14 +162,15 @@ export async function importScapeProject(input, store, options = {}) {
 				manifest,
 				projectText,
 			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal);
-			assertScapeImportStore(store);
-			transaction = new ScapeImportTransaction(store, signal);
 			const audioChunkBudget = new ScapeAudioChunkBudget();
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
 			throwIfScapeAborted(signal);
 			const loaded = migrateAudioEditorProject(JSON.parse(projectText));
 			let project = structuredClone(loaded.project);
+			const assetBySourceId = indexScapeProjectAssets(project, manifest);
+			assertScapeImportStore(store);
+			transaction = new ScapeImportTransaction(store, signal);
 			const existingProject = await awaitScapeOperation(store.loadProject(project.id), signal);
 			const collision = options.collision || 'copy';
 			if (existingProject && collision === 'cancel') throw new Error('A project with this ID already exists.');
@@ -181,16 +183,9 @@ export async function importScapeProject(input, store, options = {}) {
 			}
 			await transaction.captureProject(project.id);
 
-			const assetBySourceId = new Map(manifest.assets.map((asset) => [asset.sourceId, asset]));
-			if (assetBySourceId.size !== manifest.assets.length) throw new Error('The .scape manifest contains duplicate source assets.');
 			const sourceIdMap = new Map();
 			for (const source of project.sources || []) {
 				throwIfScapeAborted(signal);
-				const asset = assetBySourceId.get(source.id);
-				if (!asset) throw new Error(`The .scape archive is missing source ${source.id}.`);
-				if ((source.kind === 'video' ? 'video' : 'audio') !== asset.kind) {
-					throw new Error(`Source ${source.id} has an incompatible asset kind.`);
-				}
 				const occupied = source.kind === 'video'
 					? await awaitScapeOperation(store.getMediaAssetMetadata(source.storageKey || source.id), signal)
 					: await awaitScapeOperation(store.getSourceMetadata(source.storageKey || source.id), signal);
@@ -330,6 +325,7 @@ export async function inspectScapeProject(input, store = null, options = {}) {
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
+		indexScapeProjectAssets(loaded.project, manifest);
 		const existing = store?.loadProject
 			? await awaitScapeOperation(store.loadProject(loaded.project.id), signal)
 			: null;

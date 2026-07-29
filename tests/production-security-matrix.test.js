@@ -107,7 +107,7 @@ test('security matrix covers the production threat-model surfaces without promot
 	const expectedStatuses = {
 		'external-project-document-validation': 'partial',
 		'external-media-parser-bounds': 'partial',
-		'scape-archive-structure-integrity': 'partial',
+		'scape-archive-structure-integrity': 'enforced',
 		'scape-archive-expansion': 'enforced',
 		'electron-renderer-ipc-boundary': 'enforced',
 		'desktop-static-resource-paths': 'enforced',
@@ -156,7 +156,7 @@ test('security matrix covers the production threat-model surfaces without promot
 	}
 });
 
-test('planned native and plug-in surfaces stay disabled and archive expansion is qualified', async () => {
+test('planned native and plug-in surfaces stay disabled and portable archive controls are qualified', async () => {
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
 
@@ -165,6 +165,27 @@ test('planned native and plug-in surfaces stay disabled and archive expansion is
 		assert.equal(risk.status, 'planned');
 		assert.equal(risk.releaseDisposition, 'surface-disabled');
 	}
+
+	const archiveStructure = risks.get('scape-archive-structure-integrity');
+	assert.equal(archiveStructure.status, 'enforced');
+	assert.deepEqual(archiveStructure.residualRisks, []);
+	const sourceBijection = archiveStructure.currentControls.find(
+		({ id }) => id === 'migrated-project-source-bijection',
+	);
+	assert.ok(sourceBijection);
+	for (const path of [
+		'src/common/editor/scape-project-assets.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-project-assets.test.ts',
+		'tests/audio-editor-scape-archive-envelope.test.ts',
+		'tests/audio-editor-scape-project.test.js',
+	]) {
+		assert.ok(
+			sourceBijection.evidence.some((item) => item.path === path),
+			`project source bijection needs evidence from ${path}`,
+		);
+	}
+	assert.match(sourceBijection.summary, /equal source\/descriptor counts.*case-sensitive source IDs.*audio\/video kinds.*before.*storage call/iu);
 
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');
