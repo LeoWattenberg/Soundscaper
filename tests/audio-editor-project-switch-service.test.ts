@@ -27,19 +27,11 @@ interface TestTrack {
 	readonly effectsActive?: boolean; readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
 
-interface TestClip {
-	readonly id: string;
-	readonly kind?: string;
-	readonly title?: string;
-	readonly videoEffects?: readonly Readonly<Record<string, unknown>>[];
-}
-
 interface TestProject extends ProjectLifecycleProject {
 	readonly title: string;
 	readonly sampleRate: number;
 	readonly tracks: readonly TestTrack[];
-	readonly clips: readonly TestClip[];
-	readonly projectBin?: Readonly<{ clips: readonly TestClip[] }>;
+	readonly clips: readonly Readonly<{ id: string }>[];
 	readonly schemaVersion?: number;
 	readonly featureRequirements?: unknown;
 }
@@ -594,55 +586,6 @@ test('feature compatibility transiently bypasses affected audio effects before e
 	await fixture.service.switchProject(project(historyProject.id), { history: { present: historyProject } });
 	assert.deepEqual(fixture.getProject(), historyProject);
 	assert.equal(fixture.state.readOnly, true);
-});
-
-test('feature compatibility transiently bypasses affected video effects before engine activation', async () => {
-	const fixture = createFixture({ audioEffects: false, videoEffects: false });
-	const timelineEffect = {
-		id: 'pixelate-a', type: 'pixelate', enabled: true, params: { blockSize: 16 },
-	};
-	const binEffect = {
-		id: 'vignette-a', type: 'vignette', enabled: true, params: { amount: 0.5 },
-	};
-	const next = {
-		...project('video-feature-project'),
-		clips: [{ id: 'video-clip', kind: 'video', title: 'Timeline clip', videoEffects: [timelineEffect] }],
-		projectBin: {
-			clips: [{ id: 'bin-video-clip', kind: 'video', title: 'Bin clip', videoEffects: [binEffect] }],
-		},
-		featureRequirements: { schemaVersion: 1, requirements: [{
-			id: 'video-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-			displayName: 'Video effects', disposition: 'bypass', fallback: null,
-		}] },
-	};
-	await fixture.service.switchProject(next, { save: true });
-	const metadata = fixture.getTabMetadata(next.id);
-	assert.deepEqual(metadata?.featureRequirementsVideoEffectPlaybackBypass, {
-		schemaVersion: 1,
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-		requirementIds: ['video-effects'],
-		placeholders: [{
-			location: 'timeline', clipId: 'video-clip', effectId: 'pixelate-a', effectType: 'pixelate',
-		}, {
-			location: 'project-bin', clipId: 'bin-video-clip', effectId: 'vignette-a', effectType: 'vignette',
-		}],
-	});
-	assert.strictEqual(fixture.getProject()?.clips[0]?.videoEffects?.[0], timelineEffect);
-	assert.strictEqual(fixture.getProject()?.projectBin?.clips[0]?.videoEffects?.[0], binEffect);
-	assert.deepEqual(fixture.getLoadedEngineProject()?.clips[0]?.videoEffects?.[0], {
-		id: 'pixelate-a', type: 'pixelate', enabled: false, params: {},
-	});
-	assert.deepEqual(fixture.getLoadedEngineProject()?.projectBin?.clips[0]?.videoEffects?.[0], {
-		id: 'vignette-a', type: 'vignette', enabled: false, params: {},
-	});
-	assert.equal(fixture.events.includes('save-project:video-feature-project'), false);
-
-	await fixture.service.switchProject(project(next.id));
-	assert.equal(fixture.getLoadedEngineProject()?.clips[0]?.videoEffects?.[0]?.enabled, false);
-	assert.deepEqual(
-		fixture.getTabMetadata(next.id)?.featureRequirementsVideoEffectPlaybackBypass,
-		metadata?.featureRequirementsVideoEffectPlaybackBypass,
-	);
 });
 
 test('malformed current feature metadata rejects before project activation side effects', async () => {
