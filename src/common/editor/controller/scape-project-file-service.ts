@@ -15,8 +15,8 @@ import {
 } from './scape-inspection-quiescence.ts';
 import {
 	createScapeOpenRequestService,
-	type ScapeCollisionRequester,
 	type ScapeOpenInspection,
+	type ScapeOpenDecisionRequester,
 	type ScapeOpenRequestOptions,
 } from './scape-open-request-service.ts';
 
@@ -72,5 +72,5 @@ export function createScapeProjectFileService<
 
 export type ScapeProjectFileInspectOptions = ScapeInspectionOptions;
 export type ScapeProjectFileOpenOptions = ScapeOpenRequestOptions;
-export type ScapeProjectCollisionRequester<Inspection extends ScapeOpenInspection> =
-	ScapeCollisionRequester<Inspection>;
+export type ScapeProjectOpenDecisionRequester<Inspection extends ScapeOpenInspection> =
+	ScapeOpenDecisionRequester<Inspection>;

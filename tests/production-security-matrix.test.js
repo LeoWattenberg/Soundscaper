@@ -303,17 +303,18 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		scapeInspectionQuiescence.summary,
 		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*registered injected collision-provider settlement.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*rejects later inspection admission.*drains every captured generation.*retained provider continuation.*before project work.*overlapping queued switches.*permanent fence.*before engine and storage teardown.*exact registration abort reason.*provider fulfillment or rejection.*without replacing.*primary outcome.*cleanup failures.*all captured generations.*remaining teardown/iu,
 	);
-	const scapeCollisionContinuation = cancellation.currentControls.find(
-		({ id }) => id === 'owned-scape-collision-continuation',
+	const scapeOpenDecisionContinuation = cancellation.currentControls.find(
+		({ id }) => id === 'owned-scape-open-decision-continuation',
 	);
-	assert.ok(scapeCollisionContinuation);
+	assert.ok(scapeOpenDecisionContinuation);
 	for (const path of [
 		'src/common/editor/controller/scape-open-request-service.ts',
 		'src/common/editor/controller/scape-project-file-service.ts',
 		'src/common/editor/controller/action-facade.ts',
 		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/ui/workspace/scape-collision-continuation.ts',
-		'src/common/editor/ui/workspace/useScapeCollisionContinuation.ts',
+		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
+		'src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts',
+		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
 		'src/common/editor/ui/workspace/AudioEditorWorkspace.jsx',
 		'src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx',
 		'src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js',
@@ -321,15 +322,17 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/app.js',
 		'tests/audio-editor-scape-open-request-service.test.ts',
 		'tests/audio-editor-scape-project-file-service.test.ts',
-		'tests/audio-editor-scape-collision-continuation.test.ts',
+		'tests/audio-editor-scape-open-decision-continuation.test.ts',
+		'tests/audio-editor-scape-open-decision-dialog.test.ts',
 		'tests/audio-editor-scape-inspection-controller.test.ts',
 		'tests/audio-editor-controller-action-facade.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/browser/audio-editor-scape-direct-save.spec.js',
-	]) assert.ok(scapeCollisionContinuation.evidence.some((item) => item.path === path));
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]) assert.ok(scapeOpenDecisionContinuation.evidence.some((item) => item.path === path));
 	assert.match(
-		scapeCollisionContinuation.summary,
-		/replaceable request task.*before inspection.*signal.*collision choice.*opaque prompt.*exact identity.*replacement.*project switching.*terminal disposal.*exact cancellation reasons.*explicit user cancel.*finishes.*before native open.*expected lifecycle unwind.*focus/iu,
+		scapeOpenDecisionContinuation.summary,
+		/replaceable request task.*before inspection.*signal.*closed.*open decision.*opaque prompt.*exact identity.*replacement.*project switching.*terminal disposal.*exact cancellation reasons.*explicit user cancel.*finishes.*before native open.*default.*Cancel.*Escape.*focus/iu,
 	);
 	const projectIoResidual = cancellation.residualRisks.find(
 		({ id }) => id === 'project-io-signal-propagation',

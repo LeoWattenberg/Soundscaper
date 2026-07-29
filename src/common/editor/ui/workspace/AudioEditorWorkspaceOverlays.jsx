@@ -1,7 +1,5 @@
 import React from 'react';
-import { Button } from '@dilsonspickles/components';
-
-import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -40,19 +38,18 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		preferencesPage,
 		projectBinEffectivelyOpen,
 		run,
-		scapeCollision,
+		scapeOpenDecision,
 		setActiveSurface,
 		setDialog,
 		setDialogSourceKey,
 		setDialogValue,
 		setEffectWindow,
 		setMacroDraft,
-		settleScapeCollision,
+		settleScapeOpenDecision,
 		showArmControls,
 		snapshot,
 		toggleWorkspacePanel,
 	} = model;
-	const scapeCollisionDescriptionId = React.useId();
 	return <>
 
 			{capabilities.audioEffects && effectWindow && (
@@ -224,28 +221,12 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					onClose={() => setDialog(null)}
 				/>
 			)}
-			{scapeCollision && (
-				<AudioEditorDialogShell
-					title={copy.scapeCollisionTitle}
-					onClose={() => settleScapeCollision(scapeCollision, 'cancel')}
-					initialFocus=".audio-editor-scape-collision-copy"
-					ariaDescribedBy={scapeCollisionDescriptionId}
-				>
-					<p id={scapeCollisionDescriptionId}>
-						{copy.scapeCollisionMessage.replace('{title}', scapeCollision.inspected.title)}
-					</p>
-					<div className="kw-audio-editor-dialog__actions">
-						<Button className="audio-editor-scape-collision-copy" onClick={() => settleScapeCollision(scapeCollision, 'copy')}>
-							{copy.scapeOpenAsCopy}
-						</Button>
-						<Button variant="secondary" onClick={() => settleScapeCollision(scapeCollision, 'replace')}>
-							{copy.projectBinReplace}
-						</Button>
-						<Button variant="secondary" onClick={() => settleScapeCollision(scapeCollision, 'cancel')}>
-							{copy.cancel}
-						</Button>
-					</div>
-				</AudioEditorDialogShell>
+			{scapeOpenDecision && (
+				<ScapeOpenDecisionDialog
+					copy={copy}
+					prompt={scapeOpenDecision}
+					onSettle={settleScapeOpenDecision}
+				/>
 			)}
 	</>;
 }

@@ -76,6 +76,7 @@ test.describe('direct Scape save publication', () => {
 		const collision = page.getByRole('dialog', { name: 'Project already exists', exact: true });
 		await expect(collision).toBeVisible();
 		await expect(collision).toHaveAccessibleDescription(/has the same ID\.$/u);
+		await expect(collision.getByRole('button', { name: 'Replace', exact: true })).toHaveCount(0);
 		const openAsCopy = collision.getByRole('button', { name: 'Open as copy', exact: true });
 		await expect(openAsCopy).toBeFocused();
 		const resize = collision.getByRole('button', { name: 'Resize: Project already exists', exact: true });

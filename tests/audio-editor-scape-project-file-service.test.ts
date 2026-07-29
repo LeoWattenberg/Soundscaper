@@ -32,6 +32,7 @@ test('Scape project file composition shares owned inspection with collision-gate
 	assert.equal(await service.inspectScape(inspectedFile, { marker: 'direct' }), inspected);
 	assert.deepEqual(
 		await service.openScapeFile(openedFile, (request) => {
+			assert.equal(request.kind, 'collision');
 			assert.equal(request.file, openedFile);
 			assert.equal(request.inspected, inspected);
 			return 'replace';
@@ -46,4 +47,39 @@ test('Scape project file composition shares owned inspection with collision-gate
 	assert.equal((inspectionCalls[0]?.[2] as Readonly<Record<string, unknown>>).marker, 'direct');
 	assert.equal((inspectionCalls[1]?.[2] as Readonly<Record<string, unknown>>).marker, 'open');
 	assert.deepEqual(openCalls, [[openedFile, { collision: 'replace' }]]);
+});
+
+test('Scape project file composition blocks incompatible archives before native open', async () => {
+	const report = Object.freeze({ compatible: false });
+	const inspected = Object.freeze({
+		exists: false,
+		id: 'incompatible-project',
+		title: 'Incompatible project',
+		featureRequirementsCompatibility: report,
+	});
+	const openCalls: unknown[][] = [];
+	const requests: unknown[] = [];
+	const service = createScapeProjectFileService({
+		lifetime: new EditorControllerLifetime(),
+		store: null,
+		productCapabilities: {},
+		inspectScapeProject: () => inspected,
+		openScape: (...args) => { openCalls.push(args); return 'opened'; },
+	});
+	const file = new Blob(['incompatible']);
+
+	assert.deepEqual(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		assert.equal(request.kind, 'compatibility');
+		assert.equal(request.inspected.featureRequirementsCompatibility, report);
+		return 'cancel';
+	}), { cancelled: true });
+	assert.deepEqual(openCalls, []);
+
+	assert.equal(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		return 'open-read-only';
+	}), 'opened');
+	assert.equal(requests.length, 2);
+	assert.deepEqual(openCalls, [[file, { collision: 'copy' }]]);
 });

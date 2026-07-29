@@ -5,7 +5,7 @@ import {
 	RECORDING_METER_SETTINGS_STORAGE_KEY,
 	productStorageKey,
 } from '../meter-settings.ts';
-import { isExpectedWorkspaceCancellation } from './scape-collision-continuation.ts';
+import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuation.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,

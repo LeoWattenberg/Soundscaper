@@ -86,10 +86,31 @@ or activation. Future project schemas return `null`, and their
 This report does not verify or activate rendered fallbacks, and it is not a
 third-party activation gate.
 
-The normal no-collision open workflow does not yet surface that programmatic
-result, so there is no actionable compatibility decision UI before such an
-open. Collision prompts also remain collision decisions rather than
-unavailable-feature or bypass UI.
+The maintained normal no-collision open workflow now turns an incompatible
+exact-schema-9 report into an explicit choice: **Open read-only** or **Cancel**.
+If the imported ID also collides, the dialog presents the compatibility report
+and the collision together with **Open as read-only copy** or **Cancel** as a
+single decision. Compatible collisions offer the safe **Open as copy** or
+**Cancel** choices. A future-schema `null` report does not enter this feature
+decision. The low-level native-open API remains outside this maintained-UI rule
+and retains its caller-supplied collision policy; third-party activation is
+likewise not gated here.
+
+The decision belongs to one replaceable request lifecycle from inspection
+through user settlement. Cancel resolves before import, persistence, or
+activation and late settlement after replacement, project switching, caller
+abort, or disposal cannot open the archive. The localized dialog shows each
+affected feature's bounded display name, stable feature ID, availability, and
+declared disposition; it does not render the evaluator's fallback-use message
+or claim that fallback bytes were verified. Incompatible decisions initially
+focus Cancel, and Escape dismisses the dialog and restores focus.
+
+Acceptance carries no trusted read-only flag into the importer. It maps the
+accepted no-collision or combined choice to the existing copy policy, then the
+controller evaluates the actual project history again before activation and
+enforces its intrinsically read-only result. This second evaluation also keeps
+same-ID session history authoritative and makes the UI decision a consent
+boundary rather than a capability override.
 
 Current-schema and current-format `.scape` preservation is now part of this
 contract. A rendered-fallback descriptor makes its source an independent
@@ -102,11 +123,10 @@ reference through the same mapping.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
-an actionable normal-open compatibility decision UI, unavailable-feature or
-bypass UI, verification of the declared digest against referenced media bytes,
-runtime use of fallback media, or a general opaque native-state round trip.
-Those outcomes remain governed by the planned compatibility rows and roadmap
-exit gate.
+post-open unavailable-feature placeholders or per-feature bypass controls,
+verification of the declared digest against referenced media bytes, runtime use
+of fallback media, or a general opaque native-state round trip. Those outcomes
+remain governed by the planned compatibility rows and roadmap exit gate.
 
 ## Opaque state
 

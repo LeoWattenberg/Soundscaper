@@ -1,48 +1,51 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type {
-	ScapeCollisionChoice,
-	ScapeCollisionRequest,
+	ScapeOpenDecisionChoice,
+	ScapeOpenDecisionKind,
+	ScapeOpenDecisionRequest,
 	ScapeOpenInspection,
 } from '../../controller/scape-open-request-service.ts';
 
-export interface ScapeCollisionPrompt<Inspection extends ScapeOpenInspection> {
+export interface ScapeOpenDecisionPrompt<Inspection extends ScapeOpenInspection> {
 	readonly requestId: number;
+	readonly kind: ScapeOpenDecisionKind;
 	readonly file: Blob;
 	readonly inspected: Inspection;
 }
 
-export interface ScapeCollisionContinuationRuntime<Inspection extends ScapeOpenInspection> {
-	readonly publish: (prompt: ScapeCollisionPrompt<Inspection> | null) => void;
+export interface ScapeOpenDecisionContinuationRuntime<Inspection extends ScapeOpenInspection> {
+	readonly publish: (prompt: ScapeOpenDecisionPrompt<Inspection> | null) => void;
 }
 
-interface PendingCollision<Inspection extends ScapeOpenInspection> {
-	readonly prompt: ScapeCollisionPrompt<Inspection>;
+interface PendingDecision<Inspection extends ScapeOpenInspection> {
+	readonly prompt: ScapeOpenDecisionPrompt<Inspection>;
 	readonly signal: AbortSignal;
-	readonly resolve: (choice: ScapeCollisionChoice) => void;
+	readonly resolve: (choice: ScapeOpenDecisionChoice) => void;
 	readonly reject: (reason?: unknown) => void;
 	readonly abort: () => void;
 }
 
-export function createScapeCollisionContinuation<Inspection extends ScapeOpenInspection>(
-	runtime: ScapeCollisionContinuationRuntime<Inspection>,
+export function createScapeOpenDecisionContinuation<Inspection extends ScapeOpenInspection>(
+	runtime: ScapeOpenDecisionContinuationRuntime<Inspection>,
 ) {
-	let pending: PendingCollision<Inspection> | null = null;
+	let pending: PendingDecision<Inspection> | null = null;
 	let sequence = 0;
 	let disposed = false;
 
 	return Object.freeze({ dispose, request, settle });
 
-	function request(value: ScapeCollisionRequest<Inspection>): Promise<ScapeCollisionChoice> {
-		if (disposed) return Promise.reject(abortError('The Scape collision prompt has been disposed.'));
-		if (pending) rejectPending(pending, abortError('The Scape collision prompt was superseded.'), true);
+	function request(value: ScapeOpenDecisionRequest<Inspection>): Promise<ScapeOpenDecisionChoice> {
+		if (disposed) return Promise.reject(abortError('The Scape open decision has been disposed.'));
+		if (pending) rejectPending(pending, abortError('The Scape open decision was superseded.'), true);
 		const prompt = Object.freeze({
 			requestId: ++sequence,
+			kind: value.kind,
 			file: value.file,
 			inspected: value.inspected,
 		});
-		return new Promise<ScapeCollisionChoice>((resolve, reject) => {
-			const record: PendingCollision<Inspection> = {
+		return new Promise<ScapeOpenDecisionChoice>((resolve, reject) => {
+			const record: PendingDecision<Inspection> = {
 				prompt,
 				signal: value.signal,
 				resolve,
@@ -67,12 +70,10 @@ export function createScapeCollisionContinuation<Inspection extends ScapeOpenIns
 		});
 	}
 
-	function settle(prompt: unknown, choice: ScapeCollisionChoice): boolean {
-		if (choice !== 'copy' && choice !== 'replace' && choice !== 'cancel') {
-			throw new RangeError('Unknown Scape collision choice.');
-		}
+	function settle(prompt: unknown, choice: ScapeOpenDecisionChoice): boolean {
 		const record = pending;
 		if (!record || record.prompt !== prompt) return false;
+		assertChoiceForKind(record.prompt.kind, choice);
 		clearPending(record);
 		try {
 			runtime.publish(null);
@@ -87,11 +88,11 @@ export function createScapeCollisionContinuation<Inspection extends ScapeOpenIns
 	function dispose(): void {
 		if (disposed) return;
 		disposed = true;
-		if (pending) rejectPending(pending, abortError('The Scape collision prompt has been disposed.'), false);
+		if (pending) rejectPending(pending, abortError('The Scape open decision has been disposed.'), false);
 	}
 
 	function rejectPending(
-		record: PendingCollision<Inspection>,
+		record: PendingDecision<Inspection>,
 		reason: unknown,
 		publish: boolean,
 	): void {
@@ -106,12 +107,20 @@ export function createScapeCollisionContinuation<Inspection extends ScapeOpenIns
 		}
 	}
 
-	function clearPending(record: PendingCollision<Inspection>): boolean {
+	function clearPending(record: PendingDecision<Inspection>): boolean {
 		if (pending !== record) return false;
 		pending = null;
 		record.signal.removeEventListener('abort', record.abort);
 		return true;
 	}
+}
+
+function assertChoiceForKind(kind: ScapeOpenDecisionKind, choice: ScapeOpenDecisionChoice): void {
+	const valid = choice === 'cancel'
+		|| (kind === 'compatibility' && choice === 'open-read-only')
+		|| (kind === 'collision' && (choice === 'copy' || choice === 'replace'))
+		|| (kind === 'compatibility-collision' && choice === 'copy-read-only');
+	if (!valid) throw new RangeError(`The ${choice} choice is not available for a ${kind} decision.`);
 }
 
 export function isExpectedWorkspaceCancellation(error: unknown): boolean {

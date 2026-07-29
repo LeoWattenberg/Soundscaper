@@ -358,6 +358,11 @@
 	color: var(--kw-editor-muted);
 }
 
+#kw-audio-editor-design-system .audio-editor-scape-open-decision .kw-audio-editor-compatibility-counts dt,
+#kw-audio-editor-design-system .audio-editor-scape-open-decision .kw-audio-editor-compatibility-items small {
+	color: var(--kw-editor-text);
+}
+
 #kw-audio-editor-design-system .kw-audio-editor-project-list {
 	display: grid;
 	max-height: 430px;

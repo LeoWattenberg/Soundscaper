@@ -326,6 +326,15 @@ const COPY_ENTRIES = Object.freeze([
 	["bextMetadataImportWarning","Some Broadcast WAV metadata was invalid or unsupported; usable audio was imported.","Einige Broadcast-WAV-Metadaten waren ungültig oder wurden nicht unterstützt; verwendbare Audiodaten wurden importiert."],
 	["bextTimeReferenceConversionWarning","The BEXT time reference cannot be represented at the project sample rate.","Die BEXT-Zeitreferenz kann mit der Projekt-Samplerate nicht dargestellt werden."],
 	["bextSpotOutOfRangeWarning","The BEXT time reference produces a negative or unrepresentable timeline position; the source was placed at frame zero.","Die BEXT-Zeitreferenz ergibt eine negative oder nicht darstellbare Timeline-Position; die Quelle wurde bei Frame null platziert."],
+	["scapeCompatibilityTitle","Project features unavailable","Projektfunktionen nicht verfügbar"],
+	["scapeCompatibilityMessage","“{title}” requires features this editor cannot use. Review them before opening the project read-only.","„{title}“ benötigt Funktionen, die dieser Editor nicht verwenden kann. Prüfe sie, bevor du das Projekt schreibgeschützt öffnest."],
+	["scapeCompatibilityAffectedFeatures","Affected features","Betroffene Funktionen"],
+	["scapeCompatibilityUnavailable","Unavailable","Nicht verfügbar"],
+	["scapeCompatibilityUnknown","Unknown","Unbekannt"],
+	["scapeCompatibilityBypassed","Bypass declared","Umgehung deklariert"],
+	["scapeCompatibilityRenderedFallback","Rendered fallback declared","Gerenderte Ersatzquelle deklariert"],
+	["scapeOpenReadOnly","Open read-only","Schreibgeschützt öffnen"],
+	["scapeOpenReadOnlyCopy","Open as read-only copy","Als schreibgeschützte Kopie öffnen"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

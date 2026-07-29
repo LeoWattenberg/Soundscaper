@@ -46,6 +46,102 @@ test('a non-colliding request releases continuation ownership before native open
 	assert.equal(chooserCalls, 0);
 });
 
+test('an incompatible non-colliding request requires an explicit decision before read-only open', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const file = new Blob(['incompatible']);
+	const inspected = Object.freeze({
+		exists: false,
+		title: 'Incompatible project',
+		featureRequirementsCompatibility: Object.freeze({ compatible: false }),
+	});
+	const opens: unknown[][] = [];
+	const requests: unknown[] = [];
+	const service = createScapeOpenRequestService({
+		lifetime,
+		inspectScape: () => inspected,
+		openScape: (...args) => { opens.push(args); return 'opened'; },
+	});
+
+	assert.deepEqual(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		assert.equal(request.kind, 'compatibility');
+		return 'cancel';
+	}), { cancelled: true });
+	assert.deepEqual(opens, []);
+	assert.equal(requests.length, 1);
+	assert.equal((requests[0] as Readonly<{ inspected?: unknown }>).inspected, inspected);
+
+	assert.equal(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		assert.equal(request.kind, 'compatibility');
+		return 'open-read-only';
+	}), 'opened');
+	assert.deepEqual(opens, [[file, { collision: 'copy' }]]);
+	assert.equal(requests.length, 2);
+	assert.equal(Object.isFrozen(requests[1]), true);
+	await assert.rejects(service.openScapeFile(file, () => 'replace'), /open read-only.*cancel/iu);
+	assert.equal(opens.length, 1);
+});
+
+test('an incompatible collision asks once and only permits a read-only copy', async () => {
+	const file = new Blob(['combined']);
+	const inspected = Object.freeze({
+		exists: true,
+		title: 'Combined decision',
+		featureRequirementsCompatibility: Object.freeze({ compatible: false }),
+	});
+	const requests: unknown[] = [];
+	const opens: unknown[][] = [];
+	const service = createScapeOpenRequestService({
+		lifetime: new EditorControllerLifetime(),
+		inspectScape: () => inspected,
+		openScape: (...args) => { opens.push(args); return 'opened'; },
+	});
+
+	assert.equal(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		assert.equal(request.kind, 'compatibility-collision');
+		assert.equal(request.inspected, inspected);
+		return 'copy-read-only';
+	}), 'opened');
+	assert.equal(requests.length, 1);
+	assert.deepEqual(opens, [[file, { collision: 'copy' }]]);
+
+	assert.deepEqual(await service.openScapeFile(file, (request) => {
+		requests.push(request);
+		assert.equal(request.kind, 'compatibility-collision');
+		return 'cancel';
+	}), { cancelled: true });
+	assert.equal(requests.length, 2);
+	assert.equal(opens.length, 1);
+	await assert.rejects(service.openScapeFile(file, () => 'replace'), /read-only copy.*cancel/iu);
+	assert.equal(opens.length, 1);
+});
+
+test('compatible and future-schema null reports do not create a feature decision', async () => {
+	const compatible = new Blob(['compatible']);
+	const future = new Blob(['future']);
+	const opens: unknown[][] = [];
+	let chooserCalls = 0;
+	const service = createScapeOpenRequestService({
+		lifetime: new EditorControllerLifetime(),
+		inspectScape: (file) => ({
+			exists: false,
+			featureRequirementsCompatibility: file === compatible ? { compatible: true } : null,
+		}),
+		openScape: (...args) => { opens.push(args); return 'opened'; },
+	});
+	const choose = () => { chooserCalls += 1; return 'cancel' as const; };
+
+	assert.equal(await service.openScapeFile(compatible, choose), 'opened');
+	assert.equal(await service.openScapeFile(future, choose), 'opened');
+	assert.equal(chooserCalls, 0);
+	assert.deepEqual(opens, [
+		[compatible, { collision: 'copy' }],
+		[future, { collision: 'copy' }],
+	]);
+});
+
 test('a collision choice uses its owned file once and explicit cancel opens nothing', async () => {
 	const lifetime = new EditorControllerLifetime();
 	const file = new Blob(['collision']);
@@ -60,6 +156,7 @@ test('a collision choice uses its owned file once and explicit cancel opens noth
 
 	assert.equal(await service.openScapeFile(file, (request) => {
 		requests.push(request);
+		assert.equal(request.kind, 'collision');
 		assert.equal(request.file, file);
 		assert.equal(request.inspected, inspected);
 		assert.ok(request.signal instanceof AbortSignal);

@@ -5,9 +5,12 @@ import type { EditorControllerLifetime } from './lifecycle.ts';
 export const SCAPE_OPEN_REQUEST_TASK = 'scape-open-request';
 
 export type ScapeCollisionChoice = 'copy' | 'replace' | 'cancel';
+export type ScapeOpenDecisionChoice = ScapeCollisionChoice | 'open-read-only' | 'copy-read-only';
+export type ScapeOpenDecisionKind = 'compatibility' | 'collision' | 'compatibility-collision';
 
 export interface ScapeOpenInspection {
 	readonly exists: boolean;
+	readonly featureRequirementsCompatibility?: Readonly<{ compatible: boolean }> | null;
 	readonly [name: string]: unknown;
 }
 
@@ -15,15 +18,16 @@ export type ScapeOpenRequestOptions = Readonly<Record<string, unknown>> & Readon
 	signal?: AbortSignal;
 }>;
 
-export interface ScapeCollisionRequest<Inspection extends ScapeOpenInspection> {
+export interface ScapeOpenDecisionRequest<Inspection extends ScapeOpenInspection> {
+	readonly kind: ScapeOpenDecisionKind;
 	readonly file: Blob;
 	readonly inspected: Inspection;
 	readonly signal: AbortSignal;
 }
 
-export type ScapeCollisionRequester<Inspection extends ScapeOpenInspection> = (
-	request: ScapeCollisionRequest<Inspection>,
-) => PromiseLike<ScapeCollisionChoice> | ScapeCollisionChoice;
+export type ScapeOpenDecisionRequester<Inspection extends ScapeOpenInspection> = (
+	request: ScapeOpenDecisionRequest<Inspection>,
+) => PromiseLike<ScapeOpenDecisionChoice> | ScapeOpenDecisionChoice;
 
 export interface ScapeOpenRequestRuntime<Inspection extends ScapeOpenInspection, Result> {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
@@ -47,7 +51,7 @@ export function createScapeOpenRequestService<
 
 	async function openScapeFile(
 		file: Blob,
-		requestCollision: ScapeCollisionRequester<Inspection>,
+		requestOpenDecision: ScapeOpenDecisionRequester<Inspection>,
 		options: ScapeOpenRequestOptions = {},
 	): Promise<Result | typeof CANCELLED> {
 		const task = runtime.lifetime.startTask(SCAPE_OPEN_REQUEST_TASK);
@@ -62,8 +66,10 @@ export function createScapeOpenRequestService<
 			const inspected = await awaitWithSignal(runtime.inspectScape(file, ownedOptions), signal);
 			throwIfAborted(signal);
 			task.assertCurrent();
-			if (inspected.exists) {
-				const choice = await awaitWithSignal(requestCollision(Object.freeze({
+			const kind = getOpenDecisionKind(inspected);
+			if (kind !== null) {
+				const choice = await awaitWithSignal(requestOpenDecision(Object.freeze({
+					kind,
 					file,
 					inspected,
 					signal,
@@ -71,7 +77,7 @@ export function createScapeOpenRequestService<
 				throwIfAborted(signal);
 				task.assertCurrent();
 				if (choice === 'cancel') return CANCELLED;
-				collision = assertCollisionChoice(choice);
+				collision = resolveOpenDecision(kind, choice);
 			}
 		} finally {
 			task.finish();
@@ -80,8 +86,25 @@ export function createScapeOpenRequestService<
 	}
 }
 
-function assertCollisionChoice(value: unknown): 'copy' | 'replace' {
-	if (value === 'copy' || value === 'replace') return value;
+function getOpenDecisionKind(inspected: ScapeOpenInspection): ScapeOpenDecisionKind | null {
+	const incompatible = inspected.featureRequirementsCompatibility?.compatible === false;
+	if (incompatible) return inspected.exists ? 'compatibility-collision' : 'compatibility';
+	return inspected.exists ? 'collision' : null;
+}
+
+function resolveOpenDecision(
+	kind: ScapeOpenDecisionKind,
+	value: unknown,
+): Exclude<ScapeCollisionChoice, 'cancel'> {
+	if (kind === 'compatibility' && value === 'open-read-only') return 'copy';
+	if (kind === 'compatibility-collision' && value === 'copy-read-only') return 'copy';
+	if (kind === 'collision' && (value === 'copy' || value === 'replace')) return value;
+	if (kind === 'compatibility') {
+		throw new RangeError('Choose open read-only or cancel for the incompatible Scape project.');
+	}
+	if (kind === 'compatibility-collision') {
+		throw new RangeError('Choose a read-only copy or cancel for the incompatible Scape project collision.');
+	}
 	throw new RangeError('Choose copy, replace, or cancel for the existing Scape project.');
 }
 

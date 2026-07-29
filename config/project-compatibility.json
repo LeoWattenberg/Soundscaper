@@ -103,7 +103,7 @@
 			"id": "current-scape-pre-open-feature-report",
 			"status": "implemented",
 			"requiredOutcome": "Current-format portable archive inspection evaluates maintained project feature requirements against the selected product before collision lookup, import, persistence, or activation without interpreting future project schemas.",
-			"currentBehavior": "The selected product is snapshotted through the shared compatibility service and injected into inspection as a provider-owned option after caller options, so a caller cannot override it. After current-format archive integrity and project-source validation, exact schema 9 is evaluated before project collision lookup and returned as a deeply frozen featureRequirementsCompatibility report. Future project schemas return null and featureRequirements is not traversed. This is a programmatic inspection surface, not an actionable normal-open compatibility UI, fallback-byte verification, runtime fallback use, or third-party activation gate.",
+			"currentBehavior": "The selected product is snapshotted through the shared compatibility service and injected into inspection as a provider-owned option after caller options, so a caller cannot override it. After current-format archive integrity and project-source validation, exact schema 9 is evaluated before project collision lookup and returned as a deeply frozen featureRequirementsCompatibility report. Future project schemas return null and featureRequirements is not traversed. This programmatic surface is the foundation for the maintained open decision; it does not verify fallback bytes, use fallbacks at runtime, or gate third-party activation.",
 			"evidence": [
 				"src/common/editor/project-feature-capabilities.ts",
 				"src/common/editor/controller/project-feature-compatibility-service.ts",
@@ -114,6 +114,27 @@
 				"tests/audio-editor-scape-feature-requirements.test.ts",
 				"tests/audio-editor-scape-inspection-service.test.ts",
 				"tests/audio-editor-scape-project-file-service.test.ts"
+			]
+		},
+		{
+			"id": "current-scape-open-feature-decision",
+			"status": "implemented",
+			"requiredOutcome": "Every current-format, exact-current-schema archive opened through the maintained workspace/UI file routes with an incompatible selected-product feature report requires explicit compatibility-bearing consent or cancellation before import, persistence, or activation, in both collision and no-collision flows.",
+			"currentBehavior": "Maintained workspace/UI file-open routes use one replaceable owned request from inspection through a closed decision. A no-collision incompatible report permits only open-read-only or cancel; a combined incompatibility and ID collision permits only copy-read-only or cancel in one decision; compatible collisions permit only copy or cancel. Distinct compatibility-bearing choices fail closed against stale collision callbacks. Cancel resolves before native import, persistence, or activation. The localized dialog exposes bounded display names, stable feature IDs, availability, and declared disposition without claiming fallback verification or runtime use; incompatible decisions default focus to Cancel and support Escape dismissal and focus restoration. Acceptance passes only the existing copy collision policy into native open, after which the controller reevaluates the actual project history and enforces it as intrinsically read-only. Future-schema null reports skip this decision. The low-level native-open API retains its caller-supplied collision policy, and it and third-party activation remain outside this rule.",
+			"evidence": [
+				"src/common/editor/controller/scape-open-request-service.ts",
+				"src/common/editor/controller/scape-project-file-service.ts",
+				"src/common/editor/controller/project-switch-service.ts",
+				"src/common/editor/ui/workspace/scape-open-decision-continuation.ts",
+				"src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts",
+				"src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx",
+				"src/common/editor/ui/workspace/AudioEditorWorkspace.jsx",
+				"src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx",
+				"tests/audio-editor-scape-open-request-service.test.ts",
+				"tests/audio-editor-scape-project-file-service.test.ts",
+				"tests/audio-editor-scape-open-decision-continuation.test.ts",
+				"tests/audio-editor-scape-open-decision-dialog.test.ts",
+				"tests/browser/audio-editor-scape-open-compatibility.spec.js"
 			]
 		},
 		{
@@ -166,7 +187,7 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and programmatic current-format .scape inspection report preserve and classify declared requirements; an unavailable or unknown requirement makes the activated project intrinsically read-only. An actionable normal-open compatibility UI, visible placeholder and bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Post-open visible placeholders and per-feature bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",

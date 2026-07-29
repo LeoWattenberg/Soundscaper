@@ -4,19 +4,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createScapeCollisionContinuation,
+	createScapeOpenDecisionContinuation,
 	isExpectedWorkspaceCancellation,
-} from '../src/common/editor/ui/workspace/scape-collision-continuation.ts';
+} from '../src/common/editor/ui/workspace/scape-open-decision-continuation.ts';
 
 test('replacement rejects the prior prompt and only the current opaque prompt can settle', async () => {
 	const published: unknown[] = [];
-	const owner = createScapeCollisionContinuation({ publish: (value) => { published.push(value); } });
+	const owner = createScapeOpenDecisionContinuation({ publish: (value) => { published.push(value); } });
 	const firstSignal = new AbortController();
 	const secondSignal = new AbortController();
-	const first = owner.request({ file: new Blob(['first']), inspected: { exists: true, title: 'First' }, signal: firstSignal.signal });
+	const first = owner.request({ kind: 'collision', file: new Blob(['first']), inspected: { exists: true, title: 'First' }, signal: firstSignal.signal });
 	const firstPrompt = published.at(-1);
 	const firstRejected = assert.rejects(first, { name: 'AbortError' });
-	const second = owner.request({ file: new Blob(['second']), inspected: { exists: true, title: 'Second' }, signal: secondSignal.signal });
+	const second = owner.request({ kind: 'collision', file: new Blob(['second']), inspected: { exists: true, title: 'Second' }, signal: secondSignal.signal });
 	const secondPrompt = published.at(-1);
 
 	await firstRejected;
@@ -31,8 +31,8 @@ test('replacement rejects the prior prompt and only the current opaque prompt ca
 test('signal cancellation clears and rejects a prompt with the exact reason', async () => {
 	const published: unknown[] = [];
 	const signal = new AbortController();
-	const owner = createScapeCollisionContinuation({ publish: (value) => { published.push(value); } });
-	const pending = owner.request({ file: new Blob(['switch']), inspected: { exists: true }, signal: signal.signal });
+	const owner = createScapeOpenDecisionContinuation({ publish: (value) => { published.push(value); } });
+	const pending = owner.request({ kind: 'collision', file: new Blob(['switch']), inspected: { exists: true }, signal: signal.signal });
 	const prompt = published.at(-1);
 	const reason = new DOMException('Project switched.', 'AbortError');
 
@@ -46,12 +46,13 @@ test('signal cancellation clears and rejects a prompt with the exact reason', as
 test('signal cancellation preserves a null reason and cannot hang when clearing publication throws', async () => {
 	const signal = new AbortController();
 	const clearError = new Error('The prompt renderer could not clear.');
-	const owner = createScapeCollisionContinuation({
+	const owner = createScapeOpenDecisionContinuation({
 		publish: (value) => {
 			if (value === null) throw clearError;
 		},
 	});
 	const pending = owner.request({
+		kind: 'collision',
 		file: new Blob(['abort']),
 		inspected: { exists: true },
 		signal: signal.signal,
@@ -65,13 +66,14 @@ test('signal cancellation preserves a null reason and cannot hang when clearing 
 test('a failed clear publication rejects a settled choice instead of hanging', async () => {
 	let prompt: unknown = null;
 	const clearError = new Error('The prompt renderer could not clear.');
-	const owner = createScapeCollisionContinuation({
+	const owner = createScapeOpenDecisionContinuation({
 		publish: (value) => {
 			if (value === null) throw clearError;
 			prompt = value;
 		},
 	});
 	const pending = owner.request({
+		kind: 'collision',
 		file: new Blob(['choice']),
 		inspected: { exists: true },
 		signal: new AbortController().signal,
@@ -84,21 +86,48 @@ test('a failed clear publication rejects a settled choice instead of hanging', a
 
 test('explicit cancel resolves normally without opening and disposal is terminal', async () => {
 	const published: unknown[] = [];
-	const owner = createScapeCollisionContinuation({ publish: (value) => { published.push(value); } });
-	const first = owner.request({ file: new Blob(['cancel']), inspected: { exists: true }, signal: new AbortController().signal });
+	const owner = createScapeOpenDecisionContinuation({ publish: (value) => { published.push(value); } });
+	const first = owner.request({ kind: 'collision', file: new Blob(['cancel']), inspected: { exists: true }, signal: new AbortController().signal });
 	assert.equal(owner.settle(published.at(-1), 'cancel'), true);
 	assert.equal(await first, 'cancel');
 
-	const pending = owner.request({ file: new Blob(['dispose']), inspected: { exists: true }, signal: new AbortController().signal });
+	const pending = owner.request({ kind: 'collision', file: new Blob(['dispose']), inspected: { exists: true }, signal: new AbortController().signal });
 	const prompt = published.at(-1);
 	owner.dispose();
 	owner.dispose();
 	await assert.rejects(pending, { name: 'AbortError' });
 	assert.equal(owner.settle(prompt, 'replace'), false);
 	await assert.rejects(
-		owner.request({ file: new Blob(['late']), inspected: { exists: true }, signal: new AbortController().signal }),
+		owner.request({ kind: 'collision', file: new Blob(['late']), inspected: { exists: true }, signal: new AbortController().signal }),
 		{ name: 'AbortError' },
 	);
+});
+
+test('each decision kind only settles with one of its closed choices', async () => {
+	const published: unknown[] = [];
+	const owner = createScapeOpenDecisionContinuation({ publish: (value) => { published.push(value); } });
+	const compatibility = owner.request({
+		kind: 'compatibility',
+		file: new Blob(['compatibility']),
+		inspected: { exists: false },
+		signal: new AbortController().signal,
+	});
+	const compatibilityPrompt = published.at(-1);
+	assert.equal((compatibilityPrompt as Readonly<{ kind?: unknown }>).kind, 'compatibility');
+	assert.throws(() => owner.settle(compatibilityPrompt, 'copy'), /not available.*compatibility/iu);
+	assert.equal(owner.settle(compatibilityPrompt, 'open-read-only'), true);
+	assert.equal(await compatibility, 'open-read-only');
+
+	const combined = owner.request({
+		kind: 'compatibility-collision',
+		file: new Blob(['combined']),
+		inspected: { exists: true },
+		signal: new AbortController().signal,
+	});
+	const combinedPrompt = published.at(-1);
+	assert.throws(() => owner.settle(combinedPrompt, 'replace'), /not available.*compatibility-collision/iu);
+	assert.equal(owner.settle(combinedPrompt, 'copy-read-only'), true);
+	assert.equal(await combined, 'copy-read-only');
 });
 
 test('workspace cancellation classification suppresses lifecycle unwind only', () => {

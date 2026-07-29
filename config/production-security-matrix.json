@@ -223,7 +223,7 @@
 			"currentControls": [
 				{
 					"id": "project-schema-and-forward-read-validation",
-					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. Current-schema, current-format .scape paths preserve the manifest and fallback-only source assets, including collision remapping. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 9 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot. Current-format .scape inspection receives the same selected-product evaluator as a provider-owned option that caller options cannot override; exact schema 9 is evaluated after archive and source validation but before project collision lookup and returns a deep-frozen report, while future schemas return null and featureRequirements is not traversed. This control does not verify referenced fallback bytes or provide an actionable normal-open compatibility UI, runtime fallback use, unavailable-feature UI, or bypass UI.",
+					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. Current-schema, current-format .scape paths preserve the manifest and fallback-only source assets, including collision remapping. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 9 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot. Current-format .scape inspection receives the same selected-product evaluator as a provider-owned option that caller options cannot override; exact schema 9 is evaluated after archive and source validation but before project collision lookup and returns a deep-frozen report, while future schemas return null and featureRequirements is not traversed. Maintained workspace/UI file-open routes turn incompatible exact-schema reports into one closed decision: no-collision permits only open-read-only or cancel, and a combined incompatibility and collision permits only copy-read-only or cancel. Cancel settles before native import, persistence, or activation. Acceptance passes only copy into native open, after which the controller reevaluates the actual project history and enforces it as intrinsically read-only. The localized dialog shows bounded display names, stable feature IDs, availability, and declared disposition, defaults focus to Cancel, and supports Escape dismissal and focus restoration. The low-level native-open API and third-party activation remain outside this control. This control does not verify referenced fallback bytes or provide runtime fallback use, post-open unavailable-feature placeholders, or per-feature bypass UI.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/migration.js" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
@@ -238,6 +238,10 @@
 						{ "kind": "implementation", "path": "src/common/editor/controller/document-snapshot.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/scape-inspection-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/scape-project-file-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/scape-open-request-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/scape-open-decision-continuation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx" },
 						{ "kind": "implementation", "path": "src/common/editor/app.js" },
 						{ "kind": "test", "path": "tests/audio-editor-project-feature-requirements.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-v9.test.ts" },
@@ -249,7 +253,11 @@
 						{ "kind": "test", "path": "tests/audio-editor-session.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-document-snapshot.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-scape-project-file-service.test.ts" }
+						{ "kind": "test", "path": "tests/audio-editor-scape-project-file-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-open-request-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-open-decision-continuation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-open-decision-dialog.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" }
 					]
 				},
 				{
@@ -982,15 +990,16 @@
 					]
 				},
 				{
-					"id": "owned-scape-collision-continuation",
-					"summary": "Public .scape file opens start one replaceable request task before inspection and carry its signal through collision choice. The UI owns one opaque prompt and settles its exact identity only once. Replacement, project switching, and terminal disposal synchronously clear and reject pending prompts with exact cancellation reasons, while explicit user cancel resolves normally. Request ownership finishes before native open starts; expected lifecycle unwind is suppressed from generic errors, and the shared dialog shell provides safe initial focus, focus containment, Escape dismissal, and focus restoration.",
+					"id": "owned-scape-open-decision-continuation",
+					"summary": "Public .scape file opens start one replaceable request task before inspection and carry its signal through one closed open decision. The UI owns one opaque prompt and settles its exact identity only once. Replacement, project switching, and terminal disposal synchronously clear and reject pending prompts with exact cancellation reasons, while explicit user cancel resolves normally. Request ownership finishes before native open starts; expected lifecycle unwind is suppressed from generic errors. Compatible collision prompts preserve their existing focus behavior, while incompatible prompts default to Cancel; the shared dialog shell provides focus containment, Escape dismissal, and focus restoration.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/controller/scape-open-request-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/scape-project-file-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/action-facade.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/scape-collision-continuation.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useScapeCollisionContinuation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/scape-open-decision-continuation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx" },
 						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/AudioEditorWorkspace.jsx" },
 						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx" },
 						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js" },
@@ -998,11 +1007,13 @@
 						{ "kind": "implementation", "path": "src/common/editor/app.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-open-request-service.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project-file-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-scape-collision-continuation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-open-decision-continuation.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-open-decision-dialog.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-controller.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-controller-action-facade.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" }
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" }
 					]
 				},
 				{

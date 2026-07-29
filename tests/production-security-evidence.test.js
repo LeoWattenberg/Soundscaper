@@ -87,6 +87,10 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/controller/document-snapshot.ts',
 		'src/common/editor/controller/scape-inspection-service.ts',
 		'src/common/editor/controller/scape-project-file-service.ts',
+		'src/common/editor/controller/scape-open-request-service.ts',
+		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
+		'src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts',
+		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
@@ -98,6 +102,10 @@ test('project feature requirements are bounded and fail closed at activation and
 		'tests/audio-editor-document-snapshot.test.ts',
 		'tests/audio-editor-scape-inspection-service.test.ts',
 		'tests/audio-editor-scape-project-file-service.test.ts',
+		'tests/audio-editor-scape-open-request-service.test.ts',
+		'tests/audio-editor-scape-open-decision-continuation.test.ts',
+		'tests/audio-editor-scape-open-decision-dialog.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 	for (const path of [
 		'src/common/editor/migration.js',
@@ -113,8 +121,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*null.*not traversed/iu);
 	assert.match(control.summary, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(control.summary, /current-format \.scape inspection.*provider-owned.*caller.*override.*exact schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*null.*not traversed/iu);
+	assert.match(control.summary, /one.*decision.*no-collision.*open-read-only.*cancel.*combined.*copy-read-only.*cancel/iu);
+	assert.match(control.summary, /cancel.*before.*import.*persistence.*activation.*actual project history.*intrinsically read-only/iu);
+	assert.match(control.summary, /localized.*stable feature IDs.*declared disposition.*defaults? focus.*Cancel.*Escape/iu);
 	assert.match(control.summary, /does not verify referenced fallback bytes/iu);
-	assert.match(control.summary, /does not.*provide.*actionable.*normal-open.*UI.*runtime fallback use/iu);
+	assert.match(control.summary, /does not.*provide.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
@@ -124,7 +135,9 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
-	assert.match(documentation, /do not qualify.*actionable.*normal-open.*UI.*runtime fallback use/iu);
+	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
+	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);
+	assert.match(documentation, /do not qualify.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {

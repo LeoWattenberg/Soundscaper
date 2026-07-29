@@ -35,6 +35,19 @@ test('recording preparation failures are localized in English and German', () =>
 	assert.equal(GERMAN_COPY.timedRecordingAssignedInputsUnavailable, 'Alle zugewiesenen Aufnahme-Eingänge müssen für die zeitgesteuerte Aufnahme verfügbar bleiben.');
 });
 
+test('Scape feature decisions are explicit in English and German', () => {
+	assert.equal(ENGLISH_COPY.scapeCompatibilityTitle, 'Project features unavailable');
+	assert.equal(GERMAN_COPY.scapeCompatibilityTitle, 'Projektfunktionen nicht verfügbar');
+	assert.equal(ENGLISH_COPY.scapeOpenReadOnly, 'Open read-only');
+	assert.equal(GERMAN_COPY.scapeOpenReadOnly, 'Schreibgeschützt öffnen');
+	assert.equal(ENGLISH_COPY.scapeOpenReadOnlyCopy, 'Open as read-only copy');
+	assert.equal(GERMAN_COPY.scapeOpenReadOnlyCopy, 'Als schreibgeschützte Kopie öffnen');
+	assert.match(ENGLISH_COPY.scapeCompatibilityMessage, /\{title\}.*read-only/iu);
+	assert.match(GERMAN_COPY.scapeCompatibilityMessage, /\{title\}.*schreibgeschützt/iu);
+	assert.equal(ENGLISH_COPY.scapeCompatibilityRenderedFallback, 'Rendered fallback declared');
+	assert.equal(GERMAN_COPY.scapeCompatibilityRenderedFallback, 'Gerenderte Ersatzquelle deklariert');
+});
+
 test('normalizes explicit BCP-47 locales without a German/English clamp', () => {
 	assert.equal(normalizeLocale('pt_BR'), 'pt-BR');
 	assert.equal(normalizeLocale('ar'), 'ar');

@@ -37,6 +37,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-scape-feature-requirements': 'implemented',
 		'current-controller-feature-report': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
+		'current-scape-open-feature-decision': 'implemented',
 		'future-core-read-only': 'implemented',
 		'future-scape-round-trip': 'planned',
 		'json-opaque-extensions': 'implemented',
@@ -140,14 +141,36 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		currentScapePreOpenFeatureReport.currentBehavior,
-		/future project schemas.*null.*featureRequirements.*not traversed.*programmatic.*not.*actionable.*normal.*open.*UI/iu,
+		/future project schemas.*null.*featureRequirements.*not traversed.*foundation.*open.*decision/iu,
 	);
+
+	const currentScapeOpenFeatureDecision = rules.get('current-scape-open-feature-decision');
+	assert.equal(currentScapeOpenFeatureDecision.status, 'implemented');
+	for (const reference of [
+		'src/common/editor/controller/scape-open-request-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
+		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
+		'tests/audio-editor-scape-open-request-service.test.ts',
+		'tests/audio-editor-scape-open-decision-continuation.test.ts',
+		'tests/audio-editor-scape-open-decision-dialog.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]) assert.ok(currentScapeOpenFeatureDecision.evidence.includes(reference), reference);
+	assert.match(
+		currentScapeOpenFeatureDecision.currentBehavior,
+		/no-collision.*open-read-only.*cancel.*combined.*copy-read-only.*cancel.*one.*decision/iu,
+	);
+	assert.match(
+		currentScapeOpenFeatureDecision.currentBehavior,
+		/cancel.*before.*import.*persistence.*activation.*actual project history.*intrinsically read-only/iu,
+	);
+	assert.match(currentScapeOpenFeatureDecision.currentBehavior, /localized.*stable feature ID.*declared disposition.*default focus.*Cancel.*Escape/iu);
 
 	const unavailable = rules.get('unavailable-native-feature');
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*programmatic.*\.scape.*inspection report.*intrinsically read-only.*actionable.*normal-open.*UI.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
+		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
 	);
 });
 
@@ -187,7 +210,10 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 		/programmatic current-format `\.scape`\s+inspection.*selected product.*caller.*override.*exact schema\s+9.*deeply frozen.*before.*collision lookup.*import.*persistence.*activation/isu,
 	);
 	assert.match(documentation, /Future project\s+schemas.*`null`.*`featureRequirements`.*not traversed/isu);
-	assert.match(documentation, /normal no-collision open.*actionable.*UI/isu);
+	assert.match(documentation, /normal no-collision open.*Open read-only.*Cancel/isu);
+	assert.match(documentation, /collision.*Open as read-only copy.*Cancel.*single decision/isu);
+	assert.match(documentation, /Cancel.*before\s+import, persistence, or\s+activation/isu);
+	assert.match(documentation, /controller.*actual project history.*intrinsically read-only/isu);
 	assert.match(documentation, /does not establish arbitrary future-schema archive preservation/iu);
 	assert.match(documentation, /verification of the declared digest\s+against referenced media bytes/iu);
 	assert.match(documentation, /Freeze and proxy fallback/u);

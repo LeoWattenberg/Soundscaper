@@ -423,18 +423,19 @@ models or native implementations.
   reject the switch or disposal after every captured generation settles. Public
   file opens add a higher-level
   [request service](src/common/editor/controller/scape-open-request-service.ts)
-  whose replaceable task spans inspection through the collision choice, is
+  whose replaceable task spans inspection through the required open decision, is
   cancelled synchronously before awaited project-switch work, and releases its
   ownership before native open begins. A React-independent
-  [continuation owner](src/common/editor/ui/workspace/scape-collision-continuation.ts)
-  publishes one opaque file/inspection prompt, settles its exact identity once,
-  rejects and clears stale prompts on replacement, switching, or disposal, and
-  leaves explicit user Cancel as a normal result. The shared dialog shell adds
-  safe initial focus, focus containment, Escape dismissal, and focus
-  restoration, while expected lifecycle unwind is kept out of generic error
-  UI. Focused [inspection](tests/audio-editor-scape-inspection-service.test.ts),
+  [continuation owner](src/common/editor/ui/workspace/scape-open-decision-continuation.ts)
+  publishes one opaque kind/file/inspection prompt, accepts only the closed
+  choices for that kind, settles its exact identity once, rejects and clears
+  stale prompts on replacement, switching, or disposal, and leaves explicit
+  user Cancel as a normal result. The shared dialog shell adds safe initial
+  focus, focus containment, Escape dismissal, and focus restoration, while
+  expected lifecycle unwind is kept out of generic error UI. Focused
+  [inspection](tests/audio-editor-scape-inspection-service.test.ts),
   [request](tests/audio-editor-scape-open-request-service.test.ts),
-  [continuation](tests/audio-editor-scape-collision-continuation.test.ts),
+  [continuation](tests/audio-editor-scape-open-decision-continuation.test.ts),
   [quiescence](tests/audio-editor-scape-inspection-quiescence.test.ts),
   [public-controller](tests/audio-editor-scape-inspection-controller.test.ts),
   project-switch, and browser coverage preserve exact abort reasons, ignore
@@ -783,13 +784,21 @@ models or native implementations.
   by caller options, exact schema V9 is evaluated into a deeply frozen
   compatibility report after archive and source validation but before collision
   lookup, and inspection performs no import, persistence, or activation. Future
-  project schemas return `null` without traversing `featureRequirements`. The
-  normal no-collision open path
-  does not yet expose an actionable compatibility decision UI. Actual fallback
-  digest verification and runtime use, unavailable-feature and bypass UI,
-  arbitrary future-schema archive preservation, and opaque native-state round
-  trips remain planned. Third-party discovery, loading, and isolation remain
-  separate later surfaces rather than blockers for this first-party contract.
+  project schemas return `null` without traversing `featureRequirements`.
+  Maintained workspace/UI file opens now surface incompatible exact-schema-V9 reports
+  before native import: no-collision opens require **Open read-only** or
+  **Cancel**, while an ID collision is combined into one **Open as read-only
+  copy** or **Cancel** decision. Cancel performs no import, persistence, or
+  activation. The localized dialog lists bounded feature names, stable IDs,
+  availability, and declared dispositions, defaults focus to Cancel, and keeps
+  Escape focus restoration. Acceptance passes only the existing copy policy;
+  the controller still evaluates the actual history before activation and
+  enforces intrinsic read-only state. Actual fallback digest verification and
+  runtime use, post-open unavailable-feature placeholders and per-feature bypass
+  UI, arbitrary future-schema archive preservation, and opaque native-state
+  round trips remain planned. Third-party discovery, loading, and isolation
+  remain separate later surfaces rather than blockers for this first-party
+  contract.
 
 ### Exit gate
 
@@ -806,8 +815,10 @@ models or native implementations.
   legacy-library recovery fixtures preserve both original libraries.
 - Clearing a cache removes only reproducible derivatives, not originals,
   canonical PCM, or the last recoverable project revision.
-- Opening a project with unavailable native features produces an actionable
-  compatibility report and a faithful subsequent `.scape` round trip.
+- Opening a project with unavailable native features now produces the actionable
+  pre-open compatibility decision. This exit remains open until its subsequent
+  `.scape` round trip is faithful for the remaining fallback and opaque-state
+  contract.
 
 ## 3. Parallel editorial foundations
 

@@ -21,7 +21,7 @@ import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
-import { useScapeCollisionContinuation } from './useScapeCollisionContinuation.ts';
+import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
@@ -75,10 +75,10 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
 	const {
-		requestScapeCollision,
-		scapeCollision,
-		settleScapeCollision,
-	} = useScapeCollisionContinuation();
+		requestScapeOpenDecision,
+		scapeOpenDecision,
+		settleScapeOpenDecision,
+	} = useScapeOpenDecisionContinuation();
 	const {
 		floatingToolbarPosition,
 		floatingToolbarRef,
@@ -217,8 +217,8 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
 	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
-		? controller.actions.project.openScapeFile(file, requestScapeCollision)
-		: controller.actions.project.openAudacityProject(file)), [controller, requestScapeCollision]);
+		? controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
+		: controller.actions.project.openAudacityProject(file)), [controller, requestScapeOpenDecision]);
 	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
 		const routed = partitionWorkspaceFiles(files);
 		for (const file of routed.projects) await openProjectFile(file);
@@ -546,7 +546,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		revealProjectBin,
 		run,
 		saveText,
-		scapeCollision,
+		scapeOpenDecision,
 		searchEntries,
 		setActiveSurface,
 		setDialog,
@@ -559,7 +559,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
 		setShowArmControls,
-		settleScapeCollision,
+		settleScapeOpenDecision,
 		showArmControls,
 		snapshot,
 		statusMessage,
