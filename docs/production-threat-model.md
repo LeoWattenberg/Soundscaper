@@ -132,11 +132,16 @@ staging. Inspection now passes its owned signal into the default project
 collision lookup. That repository promptly races stalled database admission,
 rejects before a pre-cancelled memory read, and aborts and drains an active
 read-only IndexedDB transaction while preserving the exact reason. A defensive
-read-only Scape boundary also rejects a signal-ignoring injected lookup
-promptly, closes the archive reader, and suppresses the late result. Project
-switching and controller disposal now join coordinator-owned inspection
-cleanup, but a signal-ignoring injected lookup can continue after the defensive
-read boundary rejects and the archive reader closes.
+public inspection service gives the read-only Scape boundary a narrow retention
+capability. The boundary normalizes and registers an injected lookup with the
+same inspection admission in its synchronous read callback before returning the
+provider promise to the abort race, then still rejects a
+signal-ignoring provider promptly, closes the archive reader, and suppresses a
+late result or failure. Project switching and controller disposal now join both
+coordinator-owned inspection cleanup and registered provider settlement. A
+provider that ignores its signal can still consume resources until settlement,
+and a never-settling provider can hold the lifecycle barrier indefinitely
+because inspection providers have no deadline or admission cap.
 The bounded desktop materializer now forwards a supplied signal, destroys the
 protocol stream, and releases its capability on abort, but current desktop open
 and import orchestration does not consistently own or provide that signal.

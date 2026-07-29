@@ -8,6 +8,7 @@ export type ScapeInspectionOutcome = Readonly<
 export interface ScapeInspectionAdmission {
 	readonly signal: AbortSignal;
 	cancel(reason: unknown): void;
+	retain(settlement: PromiseLike<unknown>): void;
 	finish(outcome: ScapeInspectionOutcome): void;
 }
 
@@ -28,7 +29,7 @@ interface ActiveInspection {
 	readonly outcome: Promise<ScapeInspectionOutcome>;
 }
 
-/** Retains every inspection generation until its archive-reader cleanup settles. */
+/** Retains every inspection generation until its cleanup and registered continuations settle. */
 export function createScapeInspectionQuiescence(): ScapeInspectionQuiescence {
 	const active = new Set<ActiveInspection>();
 	const fences = new Map<object, unknown>();
@@ -45,16 +46,32 @@ export function createScapeInspectionQuiescence(): ScapeInspectionQuiescence {
 		const inspection = Object.freeze({ controller, outcome });
 		active.add(inspection);
 		let finished = false;
+		let retained = 0;
+		let recordedOutcome: ScapeInspectionOutcome | null = null;
+		const settleIfReady = (): void => {
+			if (!finished || retained !== 0 || !recordedOutcome) return;
+			active.delete(inspection);
+			settle(recordedOutcome);
+		};
 		return Object.freeze({
 			signal: controller.signal,
 			cancel(reason: unknown) {
 				if (!finished) controller.abort(reason);
 			},
+			retain(settlement: PromiseLike<unknown>) {
+				if (finished) throw new Error('Cannot retain work after a Scape inspection has finished.');
+				retained += 1;
+				const release = (): void => {
+					retained -= 1;
+					settleIfReady();
+				};
+				void Promise.resolve(settlement).then(release, release);
+			},
 			finish(result: ScapeInspectionOutcome) {
 				if (finished) return;
 				finished = true;
-				active.delete(inspection);
-				settle(Object.freeze({ ...result }));
+				recordedOutcome = Object.freeze({ ...result });
+				settleIfReady();
 			},
 		});
 	}

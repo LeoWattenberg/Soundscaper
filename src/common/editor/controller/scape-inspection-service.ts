@@ -22,10 +22,15 @@ export interface ScapeInspectionStore {
 	): PromiseLike<unknown> | unknown;
 }
 
+export interface ScapeInspectionRetention {
+	retain(settlement: PromiseLike<unknown>): void;
+}
+
 export type ScapeProjectInspector<Result> = (
 	file: Blob,
 	store: ScapeInspectionStore | null,
 	options: Readonly<Record<string, unknown>> & Readonly<{ signal: AbortSignal }>,
+	retention: ScapeInspectionRetention,
 ) => PromiseLike<Result> | Result;
 
 export interface ScapeInspectionService<Result> {
@@ -49,6 +54,9 @@ export function createScapeInspectionService<Result = unknown>(
 
 	async function inspect(file: Blob, options: ScapeInspectionOptions = {}): Promise<Result> {
 		const admission = quiescence.admit();
+		const retention = Object.freeze({
+			retain: (settlement: PromiseLike<unknown>) => { admission.retain(settlement); },
+		});
 		let task: EditorTaskScope | null = null;
 		let signal: AbortSignal = admission.signal;
 		let outcome: ScapeInspectionOutcome = Object.freeze({ status: 'fulfilled' });
@@ -65,7 +73,7 @@ export function createScapeInspectionService<Result = unknown>(
 			if (signal.aborted) cancelAdmission();
 			const ownedOptions = Object.freeze({ ...snapshot, signal });
 			throwIfAborted(signal);
-			const result = await inspectProject(file, runtime.store, ownedOptions);
+			const result = await inspectProject(file, runtime.store, ownedOptions, retention);
 			throwIfAborted(signal);
 			task.assertCurrent();
 			return result;

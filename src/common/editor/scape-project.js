@@ -320,8 +320,9 @@ export async function importScapeProject(input, store, options = {}) {
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
  * @param {{ signal?: AbortSignal }} options
+ * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
  */
-export async function inspectScapeProject(input, store = null, options = {}) {
+export async function inspectScapeProject(input, store = null, options = {}, retention = {}) {
 	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
 	const signal = options.signal;
 	return withScapeArchiveReader(input, signal, async (entries) => {
@@ -336,7 +337,11 @@ export async function inspectScapeProject(input, store = null, options = {}) {
 		indexScapeProjectAssets(loaded.project, manifest);
 		const existing = store?.loadProject
 			? await awaitScapeReadOperation(
-				() => store.loadProject(loaded.project.id, { signal }),
+				() => {
+					const lookup = Promise.resolve(store.loadProject(loaded.project.id, { signal }));
+					retention.retain?.(lookup);
+					return lookup;
+				},
 				signal,
 			)
 			: null;

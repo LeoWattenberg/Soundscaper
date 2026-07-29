@@ -410,7 +410,8 @@ models or native implementations.
   controller ownership, rejects late results after replacement, project
   switching, or disposal, and releases completed tasks in `finally`. A focused
   [quiescence coordinator](src/common/editor/controller/scape-inspection-quiescence.ts)
-  retains current and superseded generations through archive-reader cleanup.
+  retains current and superseded generations through archive-reader cleanup and
+  any collision-provider settlement registered by the inspection boundary.
   Project-switch admission installs a reference-counted temporary fence,
   cancels captured work with one shared legacy supersession `AbortError` per
   admission, rejects new inspection admission, and drains every captured
@@ -442,16 +443,21 @@ models or native implementations.
   passes that owned signal into its project-collision read. The default store
   rejects before a pre-cancelled memory read, promptly races stalled database
   admission, and aborts and drains an active read-only IndexedDB transaction;
-  the read-only Scape boundary also rejects a signal-ignoring injected store
-  promptly, closes the archive reader, and suppresses its late result. Focused
+  the public service gives the read-only Scape boundary a narrow retention
+  capability, and that boundary normalizes and registers an injected lookup
+  with the same inspection admission in its synchronous read callback before
+  returning the provider promise to the abort race. It still rejects a
+  signal-ignoring store promptly, closes the archive reader, and suppresses its
+  late result or failure. Focused
   [repository](tests/audio-editor-project-load-cancellation.test.ts),
   [store-forwarding](tests/audio-editor-storage-repositories.test.ts), and
   [inspection-storage](tests/audio-editor-scape-inspection-storage-cancellation.test.ts)
   regressions preserve the exact cancellation reason across those boundaries.
-  Switching and disposal now join coordinator-owned inspection cleanup, but a
-  signal-ignoring injected lookup can still continue after the defensive read
-  boundary rejects and the archive reader closes; that provider continuation
-  remains outside the coordinator's ownership. The
+  Switching and disposal now join both coordinator-owned inspection cleanup
+  and registered provider settlement. A provider that ignores its signal can
+  still consume resources until it settles, and one that never settles can hold
+  the lifecycle barrier indefinitely because inspection providers have no
+  deadline or admission cap yet. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused

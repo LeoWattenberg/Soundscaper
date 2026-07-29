@@ -121,6 +121,52 @@ test('terminal drain waits all captured generations before surfacing cleanup fai
 	await assert.rejects(draining, (error: unknown) => error === cleanupFailure);
 });
 
+test('finished inspections retain provider continuations through fulfillment or rejection', async (context) => {
+	for (const providerOutcome of ['fulfilled', 'rejected'] as const) {
+		await context.test(providerOutcome, async () => {
+			const quiescence = createScapeInspectionQuiescence();
+			const inspection = quiescence.admit();
+			const provider = deferred<unknown>();
+			const secondProvider = deferred<unknown>();
+			inspection.retain(provider.promise);
+			inspection.retain(secondProvider.promise);
+
+			const reason = new DOMException('The active project changed.', 'AbortError');
+			const fence = quiescence.beginFence(reason);
+			const waiting = fence.wait();
+			inspection.finish({ status: 'rejected', reason: inspection.signal.reason });
+			const draining = quiescence.drain();
+
+			assert.equal(
+				await settlesByNextTurn(waiting),
+				false,
+				'a finished public inspection must remain fenced while its provider continues',
+			);
+			assert.equal(
+				await settlesByNextTurn(draining),
+				false,
+				'terminal drain must retain the same provider continuation',
+			);
+
+			if (providerOutcome === 'fulfilled') provider.resolve('late provider result');
+			else provider.reject(new Error('late provider failure'));
+			assert.equal(
+				await settlesByNextTurn(waiting),
+				false,
+				'settling one retained provider must not release another',
+			);
+			secondProvider.resolve('second late provider result');
+			await Promise.all([waiting, draining]);
+			await new Promise<void>((resolve) => { setImmediate(resolve); });
+			fence.release();
+			assert.throws(
+				() => { inspection.retain(Promise.resolve()); },
+				/Cannot retain work after a Scape inspection has finished/,
+			);
+		});
+	}
+});
+
 function assertThrowsExact(operation: () => unknown, reason: unknown, message?: string): void {
 	assert.throws(operation, (error: unknown) => error === reason, message);
 }
@@ -130,4 +176,14 @@ async function settlesByNextTurn(promise: Promise<unknown>): Promise<boolean> {
 		promise.then(() => true, () => true),
 		new Promise<false>((resolve) => { setImmediate(() => resolve(false)); }),
 	]);
+}
+
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	let reject: (reason?: unknown) => void = () => undefined;
+	const promise = new Promise<Value>((complete, fail) => {
+		resolve = complete;
+		reject = fail;
+	});
+	return { promise, reject, resolve };
 }

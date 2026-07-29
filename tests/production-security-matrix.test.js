@@ -280,7 +280,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	]) assert.ok(scapeInspection.evidence.some((item) => item.path === path));
 	assert.match(
 		scapeInspection.summary,
-		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*project-collision read.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*exact cancellation reason.*signal-ignoring injected lookup.*closes its archive reader.*suppresses the late result/iu,
+		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*project-collision read.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*exact cancellation reason.*retention capability.*normalizes and registers.*same inspection admission.*synchronous read callback.*returning the provider promise.*abort race.*signal-ignoring provider.*closes its archive reader.*suppresses the late result or failure/iu,
 	);
 	const scapeInspectionQuiescence = cancellation.currentControls.find(
 		({ id }) => id === 'fenced-scape-inspection-quiescence',
@@ -301,7 +301,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	]) assert.ok(scapeInspectionQuiescence.evidence.some((item) => item.path === path));
 	assert.match(
 		scapeInspectionQuiescence.summary,
-		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*rejects later inspection admission.*drains every captured generation before project work.*overlapping queued switches.*permanent fence.*before engine and storage teardown.*exact registration abort reason.*cleanup failures.*all captured generations.*remaining teardown/iu,
+		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*registered injected collision-provider settlement.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*rejects later inspection admission.*drains every captured generation.*retained provider continuation.*before project work.*overlapping queued switches.*permanent fence.*before engine and storage teardown.*exact registration abort reason.*provider fulfillment or rejection.*without replacing.*primary outcome.*cleanup failures.*all captured generations.*remaining teardown/iu,
 	);
 	const scapeCollisionContinuation = cancellation.currentControls.find(
 		({ id }) => id === 'owned-scape-collision-continuation',
@@ -338,11 +338,11 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection store lookup.*no abortable repository API/iu);
-	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join|injected lookup can continue after that boundary rejects/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /whole-file desktop reads/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*join coordinator-owned inspection cleanup.*injected lookup can continue.*desktop materializer.*supplied signal.*release.*abort.*open.*import.*does not consistently own or provide.*AUP4.*broad storage operations/iu,
+		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*registers and retains.*normalized provider promise.*project switching.*controller disposal.*join.*provider settlement.*never-settling provider.*hold lifecycle barriers.*no provider deadline or admission cap.*desktop materializer.*supplied signal.*release.*abort.*open.*import.*does not consistently own or provide.*AUP4.*broad storage operations/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',
