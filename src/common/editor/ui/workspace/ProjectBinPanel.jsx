@@ -156,7 +156,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				}}
 			/>
 			<div className="kw-audio-editor__project-bin-import" data-project-bin-import>
-				<div aria-hidden="true" className="kw-audio-editor__project-bin-import-icon">＋</div>
+				<div aria-hidden="true" className="kw-audio-editor__project-bin-import-icon">+</div>
 				<p>
 					<strong>{copy.projectBinDropTitle}</strong>
 					<span>{copy.projectBinDropHint}</span>

@@ -405,7 +405,16 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('matches the desktop, tablet, and mobile editor shells in light and dark themes', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name !== 'chromium', 'The canonical visual baselines use desktop Chromium.');
 		test.setTimeout(60_000);
+		await page.addInitScript(() => {
+			const gibibyte = 1024 ** 3;
+			Object.defineProperty(navigator.storage, 'estimate', {
+				configurable: true,
+				value: () => Promise.resolve({ usage: gibibyte, quota: 10 * gibibyte }),
+			});
+		});
 		const editor = await bootEditor(page, '/embed/en/');
+		await expect(editor.locator('[data-storage-capacity] > summary'))
+			.toHaveText('Storage: 9.0 GB free · Normal pressure');
 		await editor.locator('[data-import-input]').setInputFiles([toneA]);
 		await expect(editor.locator('[data-project-bin-item]')).toHaveCount(1);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
