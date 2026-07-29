@@ -76,8 +76,9 @@ interface PreparedProjectDocument {
 
 /**
  * Main-process-only project-file owner. It validates the canonical persistence
- * envelope and root identity; the editor remains responsible for full domain
- * validation before commit and activation. No filesystem path is returned.
+ * envelope and root identity; the main-owned identity service applies strict
+ * maintained-domain current-schema validation before calling or returning from
+ * this lower store boundary. No filesystem path is returned.
  */
 export class DesktopLibraryProjectStore {
 	#library: SharedDesktopProjectLibrary;

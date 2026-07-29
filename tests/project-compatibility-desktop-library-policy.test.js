@@ -20,9 +20,17 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'desktop/project-library-ipc.js',
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
+		'src/common/editor/persisted-audio-effect-validation.ts',
+		'src/common/editor/project-v9-document-validation.ts',
+		'src/common/editor/project-v9-media-validation.ts',
+		'src/common/editor/project-v9-validation-primitives.ts',
+		'src/common/editor/project-v9-validation.ts',
+		'src/common/editor/project-v9.ts',
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage.js',
 		'src/common/editor/app.js',
+		'tests/audio-editor-project-v9-validation.test.ts',
+		'tests/persisted-audio-effect-validation.test.ts',
 		'tests/desktop-project-library-projects.test.ts',
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
@@ -33,7 +41,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	]);
 	assert.match(
 		rule.requiredOutcome,
-		/desktop editor.*fully validates.*exact-current-schema.*bounded pathless main-process service.*latest metadata.*catalog pointer.*fenced lease.*without exposing filesystem paths.*catalog entry IDs.*lease capabilities.*renderer/iu,
+		/bounded pathless main-owned service.*validates.*maintained exact-current-schema project domain.*before host staging.*catalog publication.*before returning.*shared read document.*renderer repeats validation.*defense in depth.*without receiving filesystem paths.*catalog entry IDs.*lease capabilities/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -45,11 +53,15 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
+		/main-owned identity service.*shared strict exact-V9 maintained-persistence-domain validator.*before permitting host staging.*catalog publication.*renderer commit.*validates.*loaded commit result.*stored project again.*before returning.*canonical document.*strictly checks core project, document, media, and graph structures.*without loading legacy migrations.*executable effect and worker runtimes.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
 		/host serializes commits.*renews.*draining admitted work.*identity service.*owner-scoped IPC.*bounded project summaries.*canonical documents.*renderer-owner revocation.*fences new work.*drains admitted operations/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/renderer repository.*fully validates exact schema 9.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
+		/renderer repository.*repeats.*maintained-persistence-domain exact-V9 validation.*defense in depth.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -57,7 +69,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/full schema 9 controller activation validation.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged preload\/IPC\/executable handoff.*per-platform parent-directory or power-loss durability.*outside.*earlier Soundscaper shared-library migration.*deferred and unsupported/iu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged preload\/IPC\/executable handoff.*per-platform parent-directory or power-loss durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
 	);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
@@ -68,7 +80,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/main process.*bounded tagged-binary Scape codec.*256 MiB.*root schema, identity, title, and\s+revision.*writes and syncs.*stage file.*atomic\s+rename.*verifies.*exact \+1\s+catalog revision.*fenced journal/isu,
+		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V9 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document.*strictly checks core project,\s+document, media, and graph structures.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility\s+metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*writes and syncs.*stage file.*atomic\s+rename.*verifies.*exact \+1\s+catalog revision.*fenced\s+journal/isu,
 	);
 	assert.match(
 		documentation,
@@ -76,7 +88,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/renderer repository.*fully validates.*exact\s+schema 9.*before local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
+		/renderer repository.*repeats.*maintained-persistence-domain exact-V9\s+validation.*defense in depth.*before\s+local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
 	);
 	assert.match(
 		documentation,
@@ -84,6 +96,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/full schema 9 controller activation validation.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged cross-product lifecycle.*per-platform parent-directory and\s+power-loss durability.*outside.*earlier Soundscaper shared-library\s+migration.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*orphan reclamation.*packaged cross-product lifecycle.*per-platform parent-directory and power-loss durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 });

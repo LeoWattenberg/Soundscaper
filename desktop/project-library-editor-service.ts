@@ -46,7 +46,9 @@ type DesktopSharedProjectLibraryHost = Pick<DesktopProjectLibraryHost,
 
 /**
  * Main-process facade for the editor's canonical-text project boundary.
- * Catalog implementation details and filesystem capabilities never cross it.
+ * Strict maintained-domain current-schema validation runs before store mutation
+ * or read return;
+ * catalog implementation details and filesystem capabilities never cross it.
  */
 export class DesktopSharedProjectLibraryService {
 	#createEntryId: () => string;

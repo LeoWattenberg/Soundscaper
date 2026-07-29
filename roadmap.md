@@ -774,8 +774,22 @@ models or native implementations.
   identity, and revision, so interruption or lease loss leaves the previous
   complete project/catalog pair authoritative or the new complete pair
   readable; a safe unreachable immutable file may remain for future
-  reclamation. Full V9 domain validation remains the editor activation
-  boundary.
+  reclamation. The main-owned editor service now applies the shared
+  [strict exact-V9 maintained-persistence-domain validator](src/common/editor/project-v9-validation.ts)
+  to a decoded renderer commit before host staging or catalog publication, then
+  to the loaded commit result and stored project before returning either
+  canonical document. Focused
+  [validator regressions](tests/audio-editor-project-v9-validation.test.ts)
+  cover the maintained persistence-domain module closure, representative deep
+  invalid document mutations, and exclusion of legacy migrations and executable
+  effect or worker runtimes. All audio effects receive common structural and
+  cloneability checks. Type-specific semantic checks cover missing-effect
+  compatibility metadata and parametric EQ; other first- and third-party effect
+  semantics and activation are intentionally not gated at this stage. The
+  [service](tests/desktop-project-library-editor-service.test.ts) and
+  [packaged-runtime](tests/desktop-project-library-packaging.test.js)
+  regressions prove invalid input does not reach the commit boundary and invalid
+  host or stored results do not escape through renderer responses.
   The main-only host serializes project commits and keeps renewing its lease
   while admitted work drains. A focused
   [host handoff regression](tests/desktop-project-library-handoff.test.ts)
@@ -793,9 +807,10 @@ models or native implementations.
   draining admitted operations when a renderer owner is revoked.
   The strict-TS
   [renderer repository](src/common/editor/storage/desktop-shared-project-repository.ts)
-  fully validates and canonically reserializes exact schema 9 before local
-  mutation, treats shared latest documents and summary lists as authoritative,
-  and retains revision history plus source/media data in a product-local shadow.
+  repeats the same maintained-persistence-domain exact-V9 validation as defense
+  in depth and canonically reserializes it before local mutation, treats shared
+  latest documents and summary lists as authoritative, and retains revision
+  history plus source/media data in a product-local shadow.
   It admits source metadata without claiming that source bytes are available to
   the other product. Remote failure leaves an identical canonical retry in the
   shadow; same-revision identical commit is a catalog no-op. Delete commits
@@ -813,9 +828,12 @@ models or native implementations.
   preload/IPC/multi-process or executable qualification. Managed-media copy,
   consolidation, relink, playback, and cross-product source bytes;
   unreachable-file collection; packaged handoff; and per-OS/architecture
-  power-loss durability remain open. Earlier Soundscaper shared-library
-  migration is deliberately deferred and unsupported by this current-only
-  contract; Audacity project import compatibility remains separate.
+  power-loss durability remain open. Activation-specific feature-capability
+  evaluation and rendered-fallback byte verification remain editor-owned.
+  Migration from pre-shared, product-private Soundscaper libraries is
+  intentionally not a current priority and remains deferred and unsupported by
+  this current-only contract; Audacity project import compatibility remains a
+  separate boundary.
 - **Electron Enhanced — Planned:** bind selected-file capabilities to the
   existing bounded
   [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)

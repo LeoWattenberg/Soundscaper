@@ -54,15 +54,25 @@ exposed to a renderer.
 
 Before publication, the main process canonicalizes the document with the
 bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
-ceiling. It validates only the persistence root schema, identity, title, and
-revision; full schema 9 domain validation remains the responsibility of editor
-activation. The store writes and syncs a private stage file, performs an atomic
-rename, syncs the project directory where the platform supports it, and
-verifies the resulting immutable file against its byte-length, digest, schema,
-identity, and revision descriptor. Only then does it publish an exact +1
-catalog revision through the existing fenced journal, so a reader observes the
-old or new complete project-and-catalog pair. The main-only host serializes
-commits and renews its lease while it drains admitted work during close.
+ceiling. The low-level store validates the persistence root schema, identity,
+title, and revision. The main-owned identity service applies the shared strict
+exact-V9 maintained-persistence-domain validator to the decoded document before
+permitting host staging or catalog publication of a renderer commit. The same
+service validates the loaded commit result and a stored project again before
+returning either canonical document. The validator strictly checks core project,
+document, media, and graph structures without loading legacy migrations or
+executable effect and worker runtimes. All audio effects must be cloneable and
+carry the generic effect identity, enabled, and parameter structure.
+Type-specific semantic checks currently cover missing-effect compatibility
+metadata and parametric EQ; other first- and third-party effect payload semantics
+are intentionally not gated yet. The store
+writes and syncs a private stage file, performs an atomic rename, syncs the
+project directory where the platform supports it, and verifies the resulting
+immutable file against its byte-length, digest, schema, identity, and revision
+descriptor. Only then does it publish an exact +1 catalog revision through the
+existing fenced journal, so a reader observes the old or new complete project-and-catalog pair.
+The main-only host serializes commits and renews its lease while it drains
+admitted work during close.
 
 The main identity service and owner-scoped IPC expose only bounded project
 summaries, canonical documents, project identities, and delete results. The
@@ -72,15 +82,16 @@ admitted before revocation. The preload repeats the non-raiseable 256 MiB UTF-8
 document, 4 KiB project-ID, and 10,000-summary ceilings without exposing a path
 or fencing value.
 
-The renderer repository fully validates and canonically reserializes exact
-schema 9 before local mutation. The shared catalog is authoritative for latest
-loads and summary lists, while product-local IndexedDB retains revision history,
-source records, and media bytes. A remote commit failure therefore leaves a
-retryable local shadow; identical same-revision retry is a catalog no-op. A
-shared delete commits remotely first and reports, rather than reverses, failed
-local cleanup. A detected desktop with an incomplete shared-project bridge
-fails closed instead of falling back to its former product-private project
-catalog.
+The renderer repository repeats the same maintained-persistence-domain exact-V9
+validation as defense in depth and canonically reserializes the document before
+local mutation. The shared catalog is authoritative for latest loads and
+summary lists, while
+product-local IndexedDB retains revision history, source records, and media
+bytes. A remote commit failure therefore leaves a retryable local shadow;
+identical same-revision retry is a catalog no-op. A shared delete commits
+remotely first and reports, rather than reverses, failed local cleanup. A
+detected desktop with an incomplete shared-project bridge fails closed instead
+of falling back to its former product-private project catalog.
 
 A composed source-free editor fixture creates and autosaves in Soundscaper,
 closes its fenced host, discovers and bootstrap-reopens the same identity and
@@ -91,13 +102,14 @@ Soundscaper desktop-store selection, renderer repository, main service, and
 host; focused tests separately pin preload and IPC behavior. It is not one
 packaged preload/IPC/multi-process or executable handoff qualification.
 
-This rule is current-only. Full schema 9 controller activation validation
-remains editor-owned. Managed-media publication, copy, consolidation, relink,
-playback, and cross-product source-byte availability; orphan reclamation;
-packaged cross-product lifecycle; and per-platform parent-directory and
-power-loss durability remain outside it. Earlier Soundscaper shared-library
-migration is deliberately deferred and unsupported by this contract; Audacity
-project import compatibility is a separate boundary.
+This rule is current-only. Activation-specific feature-capability evaluation
+and rendered-fallback byte verification remain editor-owned. Managed-media
+publication, copy, consolidation, relink, playback, and cross-product
+source-byte availability; orphan reclamation; packaged cross-product lifecycle;
+and per-platform parent-directory and power-loss durability remain outside it.
+Migration from pre-shared, product-private Soundscaper libraries is
+intentionally not a current priority and remains deferred and unsupported by
+this contract; Audacity project import compatibility is a separate boundary.
 
 ## Project feature requirements
 

@@ -46,7 +46,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		({ path }) => path === 'tests/desktop-project-library-packaging.test.js',
 	));
 	assert.ok(libraryBoundary);
-	assert.match(libraryBoundary.data, /schemaVersion-9 root-admitted project documents/iu);
+	assert.match(libraryBoundary.data, /maintained-domain-validated exact schemaVersion-9 project documents/iu);
 	assert.deepEqual(libraryBoundary.entryPoints, [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library.ts',
@@ -76,6 +76,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
 		'src/common/editor/scape-project-document.ts',
+		'src/common/editor/persisted-audio-effect-validation.ts',
+		'src/common/editor/project-v9-document-validation.ts',
+		'src/common/editor/project-v9-media-validation.ts',
+		'src/common/editor/project-v9-validation-primitives.ts',
+		'src/common/editor/project-v9-validation.ts',
 		'src/common/editor/project-v9.ts',
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage.js',
@@ -86,6 +91,8 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
 		'tests/desktop-project-library-ipc.test.js',
+		'tests/audio-editor-project-v9-validation.test.ts',
+		'tests/persisted-audio-effect-validation.test.ts',
 		'tests/audio-editor-desktop-shared-project-repository.test.ts',
 		'tests/audio-editor-storage-lifecycle.test.js',
 		'tests/desktop-project-library-editor-handoff.test.ts',
@@ -98,11 +105,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		control.summary,
+		/main-owned editor service.*bounded document.*strict exact-schema-9 maintained-persistence-domain validator.*before calling host commit.*before project staging.*loaded commit result.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*invalid loaded commit result.*input-side failures.*do not reach a host commit or project file.*packaged runtime.*validator.*emitted and active/isu,
+	);
+	assert.match(
+		control.summary,
 		/identity service.*frozen preload.*owner-scoped IPC.*bounded pathless list, read, commit, and delete.*256 MiB.*4 KiB.*10,000-summary.*catalog summaries.*entry IDs.*main-owned catalog\/filesystem paths.*digests.*product preferences.*raw `?updatedAtMs`? fields.*leases.*fencing tokens.*revocation fences new work.*drains admitted operations/isu,
 	);
 	assert.match(
 		control.summary,
-		/renderer repository.*fully validates and canonically reserializes exact schema 9.*before local mutation.*shared latest document and summary list.*authoritative.*product-local revision, source, and media shadow.*fails closed.*incomplete desktop bridge/isu,
+		/renderer repository.*repeats maintained-persistence-domain exact-schema-9 validation and canonical reserialization.*before local mutation.*shared latest document and summary list.*authoritative.*product-local revision, source, and media shadow.*fails closed.*incomplete desktop bridge/isu,
 	);
 	assert.match(
 		control.summary,
@@ -114,22 +125,18 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 			'shared-library-cross-product-media-availability',
 			'shared-library-orphan-reclamation',
 			'shared-library-packaged-platform-durability',
-			'shared-library-privileged-domain-validation',
 		],
 	);
-	const domainValidation = risk.residualRisks.find(
-		({ id }) => id === 'shared-library-privileged-domain-validation',
+	assert.equal(
+		risk.residualRisks.some(({ id }) => id === 'shared-library-privileged-domain-validation'),
+		false,
 	);
 	const managedMedia = risk.residualRisks.find(
 		({ id }) => id === 'shared-library-cross-product-media-availability',
 	);
 	assert.match(
-		domainValidation?.exposure ?? '',
-		/privileged IPC service.*root.*identity.*title.*revision.*full schema-9 domain validation.*renderer repository.*compromised renderer.*bounded.*domain-invalid latest document.*honest clients reject/isu,
-	);
-	assert.match(
 		managedMedia?.exposure ?? '',
-		/source metadata.*shared document.*source and media bytes.*product-local shadows.*copy.*consolidation.*relink.*playback.*earlier Soundscaper.*migration.*deliberately deferred and unsupported.*not a current required control/isu,
+		/source metadata.*shared document.*source and media bytes.*product-local shadows.*copy.*consolidation.*relink.*playback.*migration from pre-shared, product-private Soundscaper libraries.*deliberately deferred and unsupported.*not a current required control/isu,
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',

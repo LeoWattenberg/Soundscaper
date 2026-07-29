@@ -64,15 +64,19 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
+		/main-owned editor service.*bounded document.*strict exact-schema-9 maintained-persistence-domain validator.*before.*host commit.*before project staging.*loaded commit result.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*invalid loaded commit result.*input-side failures.*do not reach a host commit or project file.*packaged-runtime fixture.*validator.*emitted and active/isu,
+	);
+	assert.match(
+		documentation,
 		/identity service.*frozen preload.*owner-scoped IPC.*bounded, pathless list, read, commit, and delete.*256 MiB.*4 KiB.*10,000-summary.*catalog summaries.*entry IDs.*main-owned catalog\/filesystem paths.*digests.*product preferences.*raw `updatedAtMs` fields.*leases.*fencing tokens.*owner revocation.*fences new work.*drains admitted operations/isu,
 	);
 	assert.match(
 		documentation,
-		/renderer repository.*fully validates and canonically reserializes exact schema 9.*before local mutation.*product-local shadow.*shared latest document and summary list.*authoritative.*fails closed.*incomplete desktop bridge.*source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
+		/renderer repository.*repeats maintained-persistence-domain exact-schema-9 validation and canonical reserialization.*before local mutation.*product-local shadow.*shared latest document and summary list.*authoritative.*fails closed.*incomplete desktop bridge.*source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
 	);
 	assert.match(
 		documentation,
-		/privileged IPC service.*full schema-9 domain validation.*renderer repository.*compromised renderer.*domain-invalid latest document.*honest clients reject.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*orphan-file reclamation.*packaged lifecycle.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use.*earlier Soundscaper.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/privileged service.*compromised renderer.*maintained-domain-invalid exact-schema-9 publication.*before.*host.*stage a project.*maintained-domain-invalid loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats.*same validation.*closes.*privileged-domain-validation residual.*maintained persistence domain.*shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*main-process RSS.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*orphan-file reclamation.*packaged lifecycle.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use.*migration from pre-shared, product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 });
 
@@ -287,7 +291,11 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	assert.ok(sharedBudget);
 	assert.match(
 		sharedBudget.exposure,
-		/legacy `?\.aup`? XML.*canonical, default-sized simple\/silent `?_data`?.*structural.*referenced-input.*block-geometry.*retained-PCM.*indexed-lookup.*parser-owned pending-window.*other supported project.*elapsed-time.*clon.*aliases.*customized Audacity block sizes.*provider-internal.*downstream.*garbage-collection lag.*total renderer RSS.*cancellation.*streaming-scale/iu,
+		/legacy `?\.aup`? XML.*canonical, default-sized simple\/silent `?_data`?.*structural.*referenced-input.*block-geometry.*retained-PCM.*indexed-lookup.*parser-owned pending-window.*main-process shared-project service.*strict exact-schema-9 maintained-persistence-domain validator.*before host commit and staging.*before returning a stored read.*256 MiB.*input-byte bound.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*total main-process RSS.*other supported project.*elapsed-time.*clon.*aliases.*customized Audacity block sizes.*provider-internal.*downstream.*garbage-collection lag.*total renderer RSS.*cancellation.*streaming-scale/iu,
+	);
+	assert.match(
+		sharedBudget.requiredControl,
+		/aggregate byte.*node.*depth.*CPU or elapsed-time.*cancellation.*end-to-end working-set.*main shared-project validator.*remaining project families.*downstream legacy-import/iu,
 	);
 	assert.ok(malformedCorpus);
 	assert.match(
@@ -299,6 +307,10 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	assert.match(
 		documentation,
 		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*UTF-8 byte length.*16 MiB.*100,000.*400,000.*128.*canonical, default-sized simple\/silent `?_data`?.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM.*exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*precedes retained-PCM allocation or block reads.*precedes decoded-block allocation.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned window.*precedes conversion.*persistence.*publication.*do not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale.*corpus/isu,
+	);
+	assert.match(
+		documentation,
+		/shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*total main-process RSS.*main shared validator/iu,
 	);
 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
