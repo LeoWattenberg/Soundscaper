@@ -213,9 +213,34 @@ reviewable gates before expanding the schema or native boundary.
   persistence, or imported-project publication, as covered by the focused
   [parser](tests/audio-editor-aup-legacy.test.js) and
   [import-boundary](tests/audio-editor-aup-legacy-import-boundary.test.ts)
-  regressions. That format-specific tier leaves elapsed time, other project
-  families, selected `_data` bytes and decoded PCM amplification, the total
-  import working set, and cross-format malformed/fuzz corpus coverage open.
+  regressions. The legacy
+  [block/PCM budget](src/common/editor/aup-legacy-block-budget.ts) now also caps
+  selected companion files and materializing simple/silent references at
+  65,536 each, referenced physical files at 2 MiB, AU sample payloads at 1 MiB,
+  decoded or silent blocks at 524,288 frames, authoritative unique referenced
+  bytes at 512 MiB, and retained Float32 PCM at 512 MiB. Checked lower-only
+  admission charges repeated references, silence, and linked-track zero-fill;
+  requires positive block lengths, a complete AU header, and equal paired
+  linked-channel lengths; and rejects retained-PCM geometry before allocation
+  or block reads. AU payload/frame rejection precedes decoded-block allocation,
+  and returned bytes must equal snapshotted `File.size`. Bounded exact/basename
+  indexes prevent reference-by-file lookup multiplication. Native-endian
+  Audacity AU data is supported, each unique block is read and decoded once,
+  and preallocated clip outputs limit the logically reachable parser-owned
+  window beyond retained PCM to one 2 MiB encoded file and one 2 MiB decoded
+  block. Equal or admitted zero-padded linked channels reach conversion without
+  normalization copies. The focused
+  [block regressions](tests/audio-editor-aup-legacy-block-budget.test.ts),
+  [compatibility regressions](tests/audio-editor-aup-legacy-block-compatibility.test.ts),
+  and late-failure import-boundary fixture prove refusal before conversion,
+  project/source persistence, or imported-project publication. This control is
+  intentionally scoped to canonical default-sized blocks: customized Audacity
+  block sizes above the policy ceilings remain unsupported. The tier also
+  leaves XML/opaque clone amplification, elapsed time and cancellation,
+  aliases, provider-internal copies and garbage-collection lag, downstream
+  conversion, waveform, storage, and persistence working sets, total renderer
+  RSS, noncanonical AU padding, other project families, streaming-scale legacy
+  import, and cross-format malformed/fuzz corpus coverage open.
   Controlled FFmpeg publication, desktop staging, pre-pack and
   packaged-resource verification, and the current Soundscaper public
   desktop-release assembler now share one

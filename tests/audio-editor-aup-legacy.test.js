@@ -22,7 +22,7 @@ test('legacy AUP import decodes AU blocks into structured tracks and labels', as
 		</project>`;
 	const decoded = await decodeLegacyAupProject(
 		legacyProjectFile('Legacy.aup', xml),
-		[{ name: 'e0000.au', webkitRelativePath: 'Legacy_data/e00/d00/e0000.au', arrayBuffer: async () => block.buffer.slice(0) }],
+		[{ name: 'e0000.au', webkitRelativePath: 'Legacy_data/e00/d00/e0000.au', size: block.byteLength, arrayBuffer: async () => block.buffer.slice(0) }],
 	);
 	assert.equal(decoded.sampleRate, 44_100);
 	assert.equal(decoded.tracks.length, 2);
@@ -298,6 +298,7 @@ function trackedLegacyProject(xml, { size = utf8Bytes(xml) } = {}) {
 		},
 		dataFiles: [{
 			name: 'e0000.au',
+			size: block.byteLength,
 			async arrayBuffer() {
 				calls.block += 1;
 				return block.buffer.slice(0);

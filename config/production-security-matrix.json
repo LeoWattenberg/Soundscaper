@@ -243,19 +243,32 @@
 						{ "kind": "test", "path": "tests/audio-editor-aup-legacy.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-aup-legacy-import-boundary.test.ts" }
 					]
+				},
+				{
+					"id": "legacy-aup-block-pcm-working-set-budget",
+					"summary": "Supported canonical, default-sized legacy `.aup` simple and silent block materialization has non-raiseable production ceilings and lower-only test seams: 65,536 selected companion files and 65,536 materializing references, 2 MiB per referenced physical file, 1 MiB per AU sample payload, 524,288 decoded or silent frames per block, 512 MiB of authoritative unique referenced `File.size`, and 512 MiB of retained Float32 PCM including repeated references, silence, and linked-track zero-fill. Bounded exact/basename indexes prevent reference-by-file lookup multiplication; positive block lengths, the 24-byte AU header minimum, and equal-length paired linked clips are required. Checked admission covers selected/reference counts, declared bytes, and retained PCM before retained-PCM allocation or block reads, while AU payload/frame checks precede decoded-block allocation. Actual `ArrayBuffer.byteLength` must equal snapshotted declared size. Audacity's native-endian AU representation is accepted, each unique file is read and decoded once, and one preallocated output per physical clip makes the logically reachable parser-owned pending window beyond retained PCM at most one 2 MiB encoded file plus one 2 MiB decoded block. Equal or admitted zero-padded linked channels pass conversion without channel-normalization copies. Refusal precedes conversion, project/source persistence, and imported-project publication. This format-specific control does not qualify XML-tree or opaque-extension clone amplification, elapsed time or cancellation, aliases, customized Audacity block-size settings above the policy ceilings, provider-internal copies or garbage-collection lag, downstream conversion/waveform/storage/persistence working sets, total renderer RSS, noncanonical AU padding, other project families, or streaming-scale legacy import.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/aup-legacy-block-budget.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/aup-legacy.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-import-service.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy-block-budget.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy-block-compatibility.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-aup-legacy-import-boundary.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "shared-project-parse-budget",
-					"exposure": "Legacy `.aup` XML now has a format-specific structural budget, but other supported project parsers still do not share aggregate byte, node, depth, or elapsed-time budgets; selected `_data` bytes, decoded PCM amplification, and the total legacy-import working set remain outside the XML qualification.",
-					"requiredControl": "Apply documented per-format and aggregate byte, node, depth, and elapsed-time budgets before persistence, including legacy block and PCM work.",
+					"exposure": "Legacy `.aup` XML and supported canonical, default-sized simple/silent `_data` materialization now have format-specific structural, referenced-input, block-geometry, retained-PCM, indexed-lookup, and parser-owned pending-window budgets. Other supported project parsers still do not share aggregate byte, node, depth, or elapsed-time budgets, while XML-tree and opaque-extension cloning, aliases, customized Audacity block sizes above policy ceilings, provider-internal allocation, downstream conversion/waveform/storage/persistence amplification, garbage-collection lag, total renderer RSS, cancellation, and streaming-scale legacy import remain outside this qualification.",
+					"requiredControl": "Apply documented per-format and aggregate byte, node, depth, elapsed-time, cancellation, and end-to-end working-set budgets before persistence, including remaining project families and downstream legacy-import work.",
 					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Remaining project-family boundary tests reject oversized and deeply nested fixtures before writes, and qualified aggregate and elapsed-time budgets cover parser orchestration and legacy `_data` materialization."]
+					"acceptanceCriteria": ["Remaining project-family boundary tests reject oversized and deeply nested fixtures before writes, and qualified aggregate, cancellation, elapsed-time, and end-to-end working-set budgets cover parser orchestration and downstream materialization."]
 				},
 				{
 					"id": "malformed-project-corpus",
-					"exposure": "Focused legacy `.aup` XML boundary and no-publication fixtures cover declared and returned bytes, element, attribute, and depth limits, but the maintained malformed-project corpus does not yet cover every supported project family.",
+					"exposure": "Focused legacy `.aup` XML and AU-block boundary/no-publication fixtures cover declared and returned XML bytes, elements, attributes, depth, selected and referenced counts, indexed lookup and ambiguity, declared/actual block bytes and the header minimum, positive block and payload/frame geometry, native endianness, pre-allocation refusal, retained PCM, silence, repeated references, stereo padding, and unequal linked-pair rejection, but the maintained malformed-project corpus does not yet cover every supported project family.",
 					"requiredControl": "Maintain regression and fuzz fixtures for each supported project parser.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["CI runs parser corpus tests with storage publication assertions for each family."]

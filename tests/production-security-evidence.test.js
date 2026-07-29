@@ -60,7 +60,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 });
 
-test('legacy AUP XML evidence pins a format-specific structural budget', async () => {
+test('legacy AUP evidence pins structural and block-materialization budgets', async () => {
 	const matrix = await readMatrix();
 	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
 	assert.ok(projectDocuments);
@@ -83,29 +83,63 @@ test('legacy AUP XML evidence pins a format-specific structural budget', async (
 		'tests/audio-editor-aup-legacy-import-boundary.test.ts',
 	]) assert.ok(legacyAup.evidence.some((item) => item.path === path));
 
+	const blockBudget = projectDocuments.currentControls.find(
+		({ id }) => id === 'legacy-aup-block-pcm-working-set-budget',
+	);
+	assert.ok(blockBudget);
+	assert.match(
+		blockBudget.summary,
+		/canonical, default-sized legacy `?\.aup`?.*simple and silent.*non-raiseable.*lower-only.*65,536 selected.*65,536 materializing references.*2 MiB.*physical file.*1 MiB.*sample payload.*524,288.*frames per block.*512 MiB.*unique referenced `File\.size`.*512 MiB.*retained Float32 PCM.*bounded exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*before retained-PCM allocation or block reads.*payload\/frame checks precede decoded-block allocation.*actual `ArrayBuffer\.byteLength`.*snapshotted declared size.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned pending window.*2 MiB encoded.*2 MiB decoded.*without channel-normalization copies.*precedes conversion.*persistence.*publication.*does not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale/iu,
+	);
+	for (const path of [
+		'src/common/editor/aup-legacy-block-budget.ts',
+		'src/common/editor/aup-legacy.js',
+		'src/common/editor/controller/project-import-service.ts',
+		'tests/audio-editor-aup-legacy-block-budget.test.ts',
+		'tests/audio-editor-aup-legacy-block-compatibility.test.ts',
+		'tests/audio-editor-aup-legacy.test.js',
+		'tests/audio-editor-aup-legacy-import-boundary.test.ts',
+	]) assert.ok(blockBudget.evidence.some((item) => item.path === path));
+
 	const sharedBudget = projectDocuments.residualRisks.find(({ id }) => id === 'shared-project-parse-budget');
 	const malformedCorpus = projectDocuments.residualRisks.find(({ id }) => id === 'malformed-project-corpus');
 	assert.ok(sharedBudget);
 	assert.match(
 		sharedBudget.exposure,
-		/legacy `?\.aup`? XML.*format-specific.*other supported project.*aggregate.*elapsed-time.*`?_data`?.*PCM amplification.*working set/iu,
+		/legacy `?\.aup`? XML.*canonical, default-sized simple\/silent `?_data`?.*structural.*referenced-input.*block-geometry.*retained-PCM.*indexed-lookup.*parser-owned pending-window.*other supported project.*elapsed-time.*clon.*aliases.*customized Audacity block sizes.*provider-internal.*downstream.*garbage-collection lag.*total renderer RSS.*cancellation.*streaming-scale/iu,
 	);
 	assert.ok(malformedCorpus);
 	assert.match(
 		malformedCorpus.exposure,
-		/focused legacy `?\.aup`? XML.*declared.*returned.*element.*attribute.*depth.*does not yet cover every supported project family/iu,
+		/focused legacy `?\.aup`? XML and AU-block.*declared.*returned XML bytes.*elements.*attributes.*depth.*selected.*referenced.*indexed lookup.*ambiguity.*declared\/actual block bytes.*header minimum.*positive block.*payload\/frame.*native endianness.*pre-allocation refusal.*retained PCM.*silence.*repeated references.*stereo padding.*unequal linked-pair rejection.*does not yet cover every supported project family/iu,
 	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(
 		documentation,
-		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*measured UTF-8 byte length.*returned text.*16 MiB.*100,000.*400,000.*128.*before.*`?_data`?.*persistence.*format-specific.*does not.*elapsed time.*other project families.*PCM amplification.*working set.*corpus/isu,
+		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*UTF-8 byte length.*16 MiB.*100,000.*400,000.*128.*canonical, default-sized simple\/silent `?_data`?.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM.*exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*precedes retained-PCM allocation or block reads.*precedes decoded-block allocation.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned window.*precedes conversion.*persistence.*publication.*do not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale.*corpus/isu,
 	);
 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
-		/security control matrix.*legacy.*\.aup.*XML.*16\s+MiB.*100,000.*400,000.*128.*before.*_data.*project or\s+source\s+persistence.*format-specific.*elapsed time.*other project\s+families.*PCM amplification.*working set/isu,
+		/security control matrix.*legacy.*\.aup.*XML.*16\s+MiB.*100,000.*400,000.*128/isu,
+	);
+	assert.match(
+		roadmap,
+		/block\/PCM budget.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM/isu,
+	);
+	assert.match(
+		roadmap,
+		/before allocation\s+or block reads.*decoded-block allocation.*exact\/basename.*native-endian.*unique block.*preallocated clip outputs.*parser-owned/isu,
+	);
+	assert.match(
+		roadmap,
+		/prove refusal before conversion.*project\/source persistence.*imported-project publication/isu,
+	);
+	assert.match(
+		roadmap,
+		/default-sized blocks.*customized Audacity.*unsupported.*(?:still|also)\s+leaves.*elapsed\s+time.*aliases.*garbage-collection lag.*total renderer\s+RSS.*streaming-scale/isu,
 	);
 });
 
