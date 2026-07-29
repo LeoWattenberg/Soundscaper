@@ -12,7 +12,8 @@
 		"malformed-projects-media": [
 			"external-project-document-validation",
 			"external-media-parser-bounds",
-			"scape-archive-structure-integrity"
+			"scape-archive-structure-integrity",
+			"shared-desktop-project-library-integrity"
 		],
 		"archive-expansion": [
 			"scape-archive-structure-integrity",
@@ -30,7 +31,8 @@
 			"electron-renderer-ipc-boundary",
 			"desktop-static-resource-paths",
 			"desktop-read-path-capabilities",
-			"desktop-write-path-capabilities"
+			"desktop-write-path-capabilities",
+			"shared-desktop-project-library-integrity"
 		],
 		"job-cancellation": [
 			"long-job-cancellation"
@@ -128,6 +130,29 @@
 				{ "kind": "implementation", "path": "desktop/protocol.js" },
 				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 				{ "kind": "test", "path": "tests/desktop-save.test.js" }
+			]
+		},
+		{
+			"id": "electron-main-to-shared-project-library",
+			"from": "Soundscaper or Framescaper Electron main-process host",
+			"to": "Product-neutral appData SQLite catalog and project-document tree",
+			"data": "Fenced lease records, metadata journals, exact-current-schema project documents, and immutable digest-bound relative paths",
+			"entryPoints": [
+				"desktop/project-library-contract.ts",
+				"desktop/project-library.ts",
+				"desktop/project-library-projects.ts",
+				"desktop/project-library-host.ts"
+			],
+			"evidence": [
+				{ "kind": "implementation", "path": "desktop/project-library-contract.ts" },
+				{ "kind": "implementation", "path": "desktop/project-library.ts" },
+				{ "kind": "implementation", "path": "desktop/project-library-projects.ts" },
+				{ "kind": "implementation", "path": "desktop/project-library-host.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library-handoff.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+				{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
 			]
 		},
 		{
@@ -863,6 +888,60 @@
 					"requiredControl": "Define the cancellation acknowledgement and platform durability contract for active save operations.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Fault-injection tests cover cancellation during write, sync, and rename on every supported desktop platform."]
+				}
+			]
+		},
+		{
+			"id": "shared-desktop-project-library-integrity",
+			"title": "Shared desktop projects or their catalog publish inconsistently across product ownership",
+			"boundaryIds": ["electron-main-to-shared-project-library"],
+			"assets": ["shared project integrity", "catalog consistency", "cross-product lease ownership"],
+			"actor": "A competing or crashed desktop product, or a malformed or tampered appData project document, attempts stale or inconsistent publication.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "2",
+			"currentControls": [
+				{
+					"id": "fenced-current-schema-project-catalog-publication",
+					"summary": "The main-process-only metadata schema 2 binds a separate opaque library entry ID to the project identity, exact schema 9, project revision, bounded byte length, SHA-256, and derived immutable revision-and-digest path. The project store uses the canonical tagged-binary codec, enforces the non-raiseable 256 MiB document ceiling through a lower-only test seam, validates the persistence root identity, and writes a private file, syncs it, atomically renames it, syncs the containing directory where supported, and reverifies its length, digest, schema, ID, and revision before an exact plus-one catalog journal publication. Lease ownership is checked before staging, before publication, and transactionally at catalog commit. The main-only host serializes commits, renews its lease while close drains admitted work, and proves a source-free orderly Soundscaper-to-Framescaper-to-Soundscaper handoff with fencing tokens 1, 2, and 3 and no stale takeover. Full schema-9 domain validation remains the editor activation boundary, and no renderer path or IPC surface is added.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/project-library-contract.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-persistence.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-projects.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-host.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project-document.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-host.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-handoff.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
+					]
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "shared-library-editor-media-and-migration-integration",
+					"exposure": "The authoritative renderer/editor project store and managed-media copy, consolidation, relink, and playback flows are not wired to this main-only host. Full schema-9 domain validation remains editor-owned, and earlier Soundscaper library or project migration is not implemented.",
+					"requiredControl": "Integrate the authoritative editor store and managed-media lifecycle through a narrow validated bridge, then define any deliberately supported legacy migration policy.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["A mixed-media project hands off between both products without copying or relinking, with activation validation and cancellation tests covering the complete publication boundary."]
+				},
+				{
+					"id": "shared-library-orphan-reclamation",
+					"exposure": "An interruption or lease loss after immutable-file publication but before catalog publication can leave a safe unreferenced project document; no fenced garbage collector reclaims it yet.",
+					"requiredControl": "Implement lease-fenced orphan discovery and reclamation that cannot remove a document visible to a current or recoverable catalog revision.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Crash and lease-loss tests prove that garbage collection removes only unreachable immutable files while preserving current, previous, and prepared catalog references."]
+				},
+				{
+					"id": "shared-library-packaged-platform-durability",
+					"exposure": "The host-level handoff is not a packaged multi-process or executable lifecycle test. Parent-directory power-loss durability, Windows directory-sync behavior, and junction or time-of-check/time-of-use handling are not qualified on every supported OS and architecture.",
+					"requiredControl": "Qualify packaged cross-product ownership and interruption recovery with platform-specific path-identity and durability controls.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Packaged OS/architecture smoke and fault-injection tests cover process handoff, power loss at every publication phase, parent-directory persistence, and Windows junction behavior."]
 				}
 			]
 		},

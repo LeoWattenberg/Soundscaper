@@ -88,7 +88,14 @@
 				},
 				"electron-enhanced": {
 					"status": "partial",
-					"evidence": ["desktop/main.mjs", "desktop/preload.mjs", "tests/desktop-smoke.test.js"]
+					"evidence": [
+						"desktop/main.mjs",
+						"desktop/preload.mjs",
+						"desktop/project-library-projects.ts",
+						"desktop/project-library-host.ts",
+						"tests/desktop-project-library-handoff.test.ts",
+						"tests/desktop-smoke.test.js"
+					]
 				},
 				"electron-only": {
 					"status": "partial",
@@ -145,7 +152,14 @@
 				},
 				"electron-enhanced": {
 					"status": "partial",
-					"evidence": ["desktop/main.mjs", "desktop/preload.mjs", "tests/desktop-smoke.test.js"]
+					"evidence": [
+						"desktop/main.mjs",
+						"desktop/preload.mjs",
+						"desktop/project-library-projects.ts",
+						"desktop/project-library-host.ts",
+						"tests/desktop-project-library-handoff.test.ts",
+						"tests/desktop-smoke.test.js"
+					]
 				},
 				"electron-only": {
 					"status": "not-applicable",

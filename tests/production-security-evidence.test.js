@@ -58,6 +58,10 @@ test('threat-model documentation defines the limits of enforced controls', async
 		documentation,
 		/bounded desktop materializer.*forwards a supplied signal.*releases its capability on abort.*open.*import orchestration does not consistently own or provide that signal/isu,
 	);
+	assert.match(
+		documentation,
+		/shared-desktop-project-library-integrity.*partial.*main-process-only host.*product-neutral appData library.*no renderer path or IPC surface.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*opaque binary state.*non-raiseable 256 MiB.*lower-only test seam.*persistence root.*without claiming.*full schema-9 domain validation.*private file.*syncs it.*atomically renames it.*reverifies.*before an exact plus-one journaled catalog commit.*before staging.*before publication.*transactionally at catalog commit.*old or new complete file-and-catalog pair.*stale fencing token cannot publish.*serializes commits.*continues lease renewal while close fences new work and drains admitted work.*source-free host test.*Soundscaper-to-Framescaper-to-Soundscaper handoff.*fencing tokens 1, 2, and 3.*no stale takeover.*same project identity.*committed-revision continuity.*not authoritative renderer\/editor persistence.*managed-media.*earlier Soundscaper library and project migration.*orphan-file reclamation.*packaged multi-process\/executable handoff.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use/isu,
+	);
 });
 
 test('project feature requirements are bounded and fail closed at activation and pre-open inspection', async () => {
