@@ -786,11 +786,14 @@ models or native implementations.
   Exact-schema-V9 create, load, clone, and commit paths now reconcile the
   reserved `soundscaper.audio-effects` bypass declaration whenever a maintained
   first-party processor exists in a non-label or non-video track, mixer group,
-  mixer send, or master rack. Disabled effects and inactive racks still declare
-  preservation; missing or foreign effect types do not. An explicit publisher
-  audio-effects declaration wins without duplication, and a conflicting use of
-  the reserved requirement ID rejects. Retained-schema migration applies this
-  same owned reconciliation after starting from the empty publisher manifest.
+  mixer send, or master rack, and the reserved `soundscaper.video-effects`
+  bypass declaration whenever a maintained first-party video effect exists on a
+  timeline or Project Bin video clip. Disabled effects and inactive audio racks
+  still declare preservation; missing or foreign effect types and video-effect
+  stacks on non-video clips do not. An explicit publisher declaration for the
+  same capability wins without duplication, and conflicting use of either
+  reserved requirement ID rejects. Retained-schema migration applies this same
+  owned reconciliation after starting from the empty publisher manifest.
   Fallback descriptors independently root their source metadata through project and
   history compaction. Current-format schema V9 `.scape` export/open preserves
   the manifest and fallback-only source assets, while copy import rewrites known
@@ -826,15 +829,35 @@ models or native implementations.
   and missing or foreign effect types remain untouched. The canonical project,
   history, source loading, persistence, and save paths remain unchanged. Stable
   identifiers and effect types are bounded, a count above 4,096 rejects without
-  truncation, and frozen per-tab metadata records only scope,
-  owner ID, effect ID, and effect type without reading params, context, state,
-  or other payloads. The active compatibility notice matches that metadata to
+  truncation, and each frozen placeholder entry records only scope, owner ID,
+  effect ID, and effect type without reading params, context, state, or other
+  payloads. The active compatibility notice matches that metadata to
   one qualifying requirement and persistently renders localized, control-free
   affected-effect placeholders with maintained effect labels and canonical
   track, group, send, or master ownership. Future schemas return unchanged
   before rack traversal. This does not cover unknown or third-party effects,
   rendered-fallback substitution, offline render or export behavior, or
   per-feature activation controls.
+  The maintained first-party video-effect slice similarly projects only an
+  exact-schema-V9 authoritative activation project whose registered
+  `videoEffects` report item is unavailable with declared bypass and effective
+  bypassed dispositions. Enabled maintained effects on timeline and Project Bin
+  video clips become minimal disabled copies in the transient activation
+  projection. The WebGL preview filters exact affected effects from timeline
+  stacks using the trusted projection metadata while preserving unchanged stack
+  references; the canonical project, history, source loading, persistence,
+  save, and export paths remain unchanged. Stable identifiers are bounded to 256
+  characters, effect types to 128 characters, the combined count above 4,096
+  rejects without truncation, and each frozen placeholder entry records only
+  location, clip ID, effect ID, and effect type without reading params or other
+  opaque payloads. The active compatibility notice matches one qualifying
+  requirement and persistently renders localized,
+  control-free affected-effect placeholders with maintained labels and
+  canonical Timeline or Project Bin clip ownership. Future schemas return
+  unchanged before clip or Project Bin traversal. This does not cover unknown
+  or third-party effects, rendered-fallback substitution, offline render or
+  export behavior, per-feature activation controls, or earlier Soundscaper
+  project schemas.
   The same selected-product service now powers programmatic current-format
   `.scape` inspection: provider-owned capability evaluation cannot be replaced
   by caller options. After archive and source validation, every exact-schema-V9
@@ -899,10 +922,10 @@ models or native implementations.
   later low-level source replacement, publisher authenticity, or runtime
   fallback substitution. Generic affected-object unavailable-feature
   placeholders and per-feature bypass controls beyond the bounded maintained
-  first-party audio-effect slice, rendered-fallback runtime use, and arbitrary
-  future-schema archive preservation remain planned. Complete third-party
-  discovery, loading, and isolation remain separate later surfaces rather than
-  blockers for this first-party contract.
+  first-party audio- and video-effect slices, rendered-fallback runtime use, and
+  arbitrary future-schema archive preservation remain planned. Complete
+  third-party discovery, loading, and isolation remain separate later surfaces
+  rather than blockers for this first-party contract.
 
 ### Exit gate
 
@@ -922,10 +945,12 @@ models or native implementations.
 - Opening a project with unavailable native features now produces the actionable
   pre-open compatibility decision and persistent per-tab post-open document
   report. A maintained Soundscaper-to-Framescaper `.scape` handoff now proves the
-  bounded first-party audio-effect engine bypass and persistent control-free
-  affected-effect placeholders. This exit remains open for rendered-fallback
-  runtime behavior, generic unavailable-feature placeholder and bypass controls,
-  and arbitrary future-schema archive preservation.
+  bounded first-party audio-effect engine bypass, and a maintained
+  Framescaper-to-Soundscaper handoff proves first-party video-effect preservation
+  and persistent control-free affected-effect placeholders. This exit remains
+  open for rendered-fallback runtime behavior,
+  generic unavailable-feature placeholder and bypass controls, third-party
+  activation, and arbitrary future-schema archive preservation.
 
 ## 3. Parallel editorial foundations
 

@@ -88,6 +88,8 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/project-feature-audio-effect-bypass.ts',
+		'src/common/editor/project-feature-video-effect-bypass.ts',
+		'src/common/editor/video-effects.js',
 		'src/common/editor/project.js',
 		'src/common/editor/project-feature-report-metadata.ts',
 		'src/common/editor/session.js',
@@ -103,6 +105,8 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/ui/workspace/project-feature-compatibility-notice.ts',
 		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
 		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
+		'src/common/editor/ui/workspace/video-preview-effect-bypass.ts',
+		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
@@ -112,6 +116,8 @@ test('project feature requirements are bounded and fail closed at activation and
 		'tests/audio-editor-project-feature-capabilities.test.ts',
 		'tests/audio-editor-project-owned-feature-requirements.test.ts',
 		'tests/audio-editor-project-feature-audio-effect-bypass.test.ts',
+		'tests/audio-editor-project-feature-video-effect-bypass.test.ts',
+		'tests/audio-editor-video-preview-effect-bypass.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-session.test.js',
 		'tests/audio-editor-document-snapshot.test.ts',
@@ -135,6 +141,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /current-schema.*current-format.*\.scape.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(control.summary, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
 	assert.match(control.summary, /schema 9.*create.*load.*clone.*commit.*reserved `soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
+	assert.match(control.summary, /same paths.*reserved `soundscaper\.video-effects`.*timeline.*Project Bin.*video clips.*disabled.*publisher-authored.*take precedence.*missing.*foreign.*non-video clips.*do not trigger.*reserved-ID conflicts.*reject/iu);
 	assert.match(control.summary, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*null.*not traversed/iu);
 	assert.match(control.summary, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(control.summary, /current-format \.scape inspection.*provider-owned.*caller.*override.*exact schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*null.*not traversed/iu);
@@ -146,6 +153,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /exact schema 9.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
 	assert.match(control.summary, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*params.*context.*state.*not read.*deep-frozen.*affected-object inventory.*localized.*no controls/iu);
 	assert.match(control.summary, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
+	assert.match(control.summary, /exact schema 9.*registered `videoEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*preview-playback projection.*before activation side effects.*canonical project.*history.*source loading.*persistence.*save paths.*offline render.*video export.*unchanged/iu);
+	assert.match(control.summary, /enabled maintained first-party.*timeline.*Project Bin.*minimal disabled engine copies.*4,096.*256-character stable-ID.*128-character effect-type.*params.*context.*state.*opaque payloads.*not read/iu);
+	assert.match(control.summary, /cached selector.*exact timeline clip-ID.*effect-ID.*effect-type.*before compositor rendering.*active-effect counting.*preserving unchanged stack references.*Project Bin.*not a compositor input/iu);
+	assert.match(control.summary, /deep-frozen.*location.*clip ID.*effect ID.*effect type.*localized labels.*canonical clip ownership.*no controls.*future schemas.*before clip or Project Bin traversal/iu);
+	assert.match(control.summary, /already-disabled.*foreign.*unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*earlier Soundscaper project schemas.*outside this video slice/iu);
 	assert.match(control.summary, /current-format.*exact schema 9.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
 	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
 	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
@@ -188,6 +200,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /current-schema.*current-format `\.scape`.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
 	assert.match(documentation, /schema 9.*create.*load.*clone.*commit.*`soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
+	assert.match(documentation, /same paths.*`soundscaper\.video-effects`.*timeline.*Project Bin.*video clips.*disabled.*publisher-authored.*take precedence.*missing.*foreign.*non-video clips.*do not trigger.*reserved-ID conflicts.*reject/iu);
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(documentation, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
@@ -195,6 +208,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /exact schema 9.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
 	assert.match(documentation, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*does not read.*params.*context.*state.*deep-frozen.*localized.*noninteractive affected-object inventory/iu);
 	assert.match(documentation, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
+	assert.match(documentation, /exact schema 9.*registered `videoEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*preview-playback projection.*before activation side effects.*canonical project.*history.*source loading.*persistence.*save paths.*video export.*unchanged/iu);
+	assert.match(documentation, /enabled maintained first-party.*timeline.*Project Bin.*minimal disabled copies.*4,096.*256-character stable-ID.*128-character effect-type.*does not read.*params.*context.*state.*opaque payloads/iu);
+	assert.match(documentation, /deep-frozen.*Timeline or Project Bin.*location.*clip ID.*effect ID.*effect type.*localized.*control-free/iu);
+	assert.match(documentation, /cached selector.*exact timeline.*clip ID.*effect ID.*effect type.*compositor rendering.*active-effect counting.*Project Bin.*not.*compositor/iu);
+	assert.match(documentation, /future schemas.*before clip or Project Bin traversal.*unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
 	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);

@@ -42,6 +42,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-controller-feature-report': 'implemented',
 		'current-post-open-feature-report': 'implemented',
 		'current-first-party-audio-effect-playback-bypass': 'implemented',
+		'current-first-party-video-effect-playback-bypass': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -78,6 +79,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'src/common/editor/project-feature-requirements.ts',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
+		'src/common/editor/video-effects.js',
 		'src/common/editor/project-v9.ts',
 		'src/common/editor/project.js',
 		'src/common/editor/migration.js',
@@ -97,7 +99,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		featureRequirements.currentBehavior,
-		/disabled effects.*inactive racks.*missing or foreign.*explicit publisher.*wins without duplication.*conflicting.*reserved requirement ID rejects/iu,
+		/reserved soundscaper\.video-effects.*timeline.*Project Bin.*video clip.*disabled effects.*inactive audio racks.*missing or foreign.*non-video clips.*explicit publisher.*wins without duplication.*conflicting.*reserved requirement ID rejects/iu,
 	);
 	assert.match(featureRequirements.currentBehavior, /V1-V8 migration.*empty publisher manifest.*same owned reconciliation/iu);
 	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
@@ -211,7 +213,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
-		/outside.*separate first-party audio-effect rule.*not a generic affected-object placeholder.*per-feature bypass control/iu,
+		/outside.*separate first-party audio- and video-effect rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
 	);
 
 	const audioEffectPlaybackBypass = rules.get('current-first-party-audio-effect-playback-bypass');
@@ -259,6 +261,56 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(
 		audioEffectPlaybackBypass.currentBehavior,
 		/future schemas.*before rack traversal.*unknown or third-party effects.*rendered-fallback substitution.*offline render or export.*activation controls/iu,
+	);
+
+	const videoEffectPlaybackBypass = rules.get('current-first-party-video-effect-playback-bypass');
+	assert.deepEqual(videoEffectPlaybackBypass.evidence, [
+		'src/common/editor/project-feature-video-effect-bypass.ts',
+		'src/common/editor/video-effects.js',
+		'src/common/editor/project-feature-capabilities.ts',
+		'src/common/editor/project-feature-report-metadata.ts',
+		'src/common/editor/session.js',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document-snapshot.ts',
+		'src/common/editor/ui/workspace/video-preview-effect-bypass.ts',
+		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
+		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
+		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
+		'tests/audio-editor-project-feature-video-effect-bypass.test.ts',
+		'tests/audio-editor-video-preview-effect-bypass.test.ts',
+		'tests/audio-editor-project-feature-capabilities.test.ts',
+		'tests/audio-editor-session.test.js',
+		'tests/audio-editor-document-snapshot.test.ts',
+		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]);
+	assert.match(
+		videoEffectPlaybackBypass.requiredOutcome,
+		/exact-current-schema.*unavailable.*first-party video effects.*bounded non-persisted bypass projection.*canonical state.*timeline or Project Bin.*active tab/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/authoritative actual project history.*exact schema 9.*soundscaper-project.*videoEffects.*unavailable.*declares bypass.*effective bypassed/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/enabled maintained effects.*timeline.*Project Bin.*minimal disabled.*disabled effects.*missing, foreign, or wrong-kind.*untouched/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/256 characters.*128 characters.*4,096.*across both locations.*overflow rejects.*placeholder entry.*location.*clip ID.*effect ID.*effect type.*without reading or retaining.*params.*context.*state.*opaque payloads/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/transient engine loading.*WebGL preview.*exact affected effects.*timeline stacks.*trusted metadata.*caching selectors.*unchanged stack references.*canonical project.*history.*source loading.*persistence.*save.*export or offline-render.*unchanged/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/deeply frozen.*per-tab.*document snapshot.*one qualifying requirement.*localized control-free affected-effect placeholders.*effect labels.*Timeline or Project Bin.*without reading effect payloads/iu,
+	);
+	assert.match(
+		videoEffectPlaybackBypass.currentBehavior,
+		/future schemas.*before clip or Project Bin traversal.*unknown or third-party effects.*rendered-fallback substitution.*export or offline render.*activation controls.*earlier Soundscaper project schemas/iu,
 	);
 
 	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
@@ -368,7 +420,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*owned first-party audio-effects requirement.*transient engine bypass projection.*persistent localized control-free affected-object placeholders.*actionable.*pre-open.*persistent document-level post-open report.*intrinsically read-only/iu,
+		/controller report.*\.scape.*inspection report.*owned first-party audio- and video-effects requirements.*audio-effect slice.*transient engine bypass projection.*video-effect slice.*minimal disabled activation copies.*WebGL preview.*persistent localized control-free affected-object placeholders.*actionable.*pre-open.*persistent document-level post-open report.*intrinsically read-only/iu,
 	);
 	assert.match(
 		unavailable.currentBehavior,
@@ -376,7 +428,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/generic per-object placeholders.*beyond.*first-party audio-effect slice.*rendered-fallback runtime use.*future-schema archive preservation.*not implemented/iu,
+		/generic per-object placeholders.*beyond.*first-party audio- and video-effect slices.*rendered-fallback runtime use.*future-schema archive preservation.*not implemented/iu,
 	);
 });
 
@@ -415,7 +467,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/Disabled effects.*inactive racks.*missing or foreign.*explicit publisher declaration.*wins without duplication.*conflicting use.*reserved.*rejects/isu,
+		/`soundscaper\.video-effects`.*timeline or Project Bin.*video clip.*Disabled effects.*inactive audio racks.*missing or foreign.*non-video clips.*publisher declaration.*wins without duplication.*conflicting use.*reserved.*rejects/isu,
 	);
 	assert.match(documentation, /Current-schema and current-format `\.scape` preservation/iu);
 	assert.match(documentation, /independent\s+retention root/iu);
@@ -442,6 +494,18 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
+		/first-party video-effect slice.*transient activation projection.*exact schema 9.*registered video-effects.*unavailable.*declares bypass.*effective bypassed/isu,
+	);
+	assert.match(
+		documentation,
+		/Enabled maintained effects.*timeline.*Project Bin.*minimal disabled copies.*disabled effects.*missing, foreign, or wrong-kind.*256 characters.*128 characters.*4,096.*rejects rather\s+than truncates.*future schemas.*before clip or Project Bin traversal/isu,
+	);
+	assert.match(
+		documentation,
+		/WebGL\s+preview.*exact affected effects.*timeline stacks.*trusted\s+metadata.*caches.*preserves unchanged stack references.*Canonical project.*history.*source loading.*persistence.*save.*export.*offline-render.*do\s+not receive.*placeholder entry.*location.*clip ID.*effect ID.*effect type.*opaque payloads.*earlier\s+Soundscaper/isu,
+	);
+	assert.match(
+		documentation,
 		/active workspace.*`featureRequirementsCompatibility`.*directly.*frozen.*only unavailable and unknown/isu,
 	);
 	assert.match(documentation, /persistent.*non-dismissible.*document-level.*localized.*counts.*bounded display name.*stable feature ID.*availability.*declared disposition.*active tab/isu);
@@ -452,9 +516,9 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/qualifying audio-effects item.*frozen projection metadata.*one requirement.*persistent localized.*control-free affected-effect placeholders.*maintained\s+effect\s+label.*track, group, send, or master.*reading\s+no\s+effect\s+payload/isu,
+		/qualifying audio- or video-effects items.*frozen projection metadata.*one requirement.*persistent localized.*control-free affected-effect placeholders.*Audio rows.*track, group, send, or master.*video rows.*Timeline or Project\s+Bin.*Neither inventory reads effect payloads/isu,
 	);
-	assert.match(documentation, /compatible or `null` report.*no notice.*future.*not traversed/isu);
+	assert.match(documentation, /compatible or `null`\s+report.*no notice.*future.*not traversed/isu);
 	assert.match(
 		documentation,
 		/programmatic current-format `\.scape`\s+inspection.*selected product.*caller.*override.*exact schema\s+9.*before.*collision lookup.*deeply\s+frozen.*import.*persistence.*activation/isu,
@@ -471,7 +535,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party\s+activation gate/isu);
 	assert.match(
 		documentation,
-		/first-party audio-effect slice.*first two\s+steps.*editor playback only.*does not\s+generalize.*unknown or third-party.*does not implement rendered-fallback or proxy use/isu,
+		/first-party audio- and video-effect slices.*first two\s+steps.*editor playback only.*do\s+not generalize.*unknown or third-party.*do\s+not implement rendered-fallback or proxy use.*Video export.*offline render.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });
