@@ -5,42 +5,47 @@ export interface ActiveMediaAssetIdentity {
 	readonly path?: string;
 }
 
-export interface MediaAssetWriteRegistration {
+export interface MediaAssetLifecycleRegistration {
 	attachAbort(abort: () => Promise<void>): void;
+	setIdentity(identity: ActiveMediaAssetIdentity): void;
 	release(): void;
 }
 
-export interface MediaAssetWriteMaintenance {
+export interface MediaAssetMaintenance {
 	abortActive(): Promise<void>;
 	release(): void;
 }
 
-interface ActiveMediaAssetWrite {
-	readonly identity: ActiveMediaAssetIdentity;
+interface ActiveMediaAssetOperation {
+	identity: ActiveMediaAssetIdentity;
 	abort: (() => Promise<void>) | null;
 }
 
-/** Serializes destructive maintenance with unpublished media payloads. */
-export class MediaAssetWriteCoordinator {
-	readonly #active = new Map<symbol, ActiveMediaAssetWrite>();
+/** Serializes destructive maintenance with admitted media reads and writes. */
+export class MediaAssetLifecycleCoordinator {
+	readonly #active = new Map<symbol, ActiveMediaAssetOperation>();
 	#maintenanceCount = 0;
 	#permanentlyClosed = false;
 
 	assertAccepting(): void {
-		if (this.#permanentlyClosed) throw new Error('Streamed media storage is closed.');
-		if (this.#maintenanceCount) throw new Error('Streamed media storage is under maintenance.');
+		if (this.#permanentlyClosed) throw new Error('Media asset storage is closed.');
+		if (this.#maintenanceCount) throw new Error('Media asset storage is under maintenance.');
 	}
 
-	register(identity: ActiveMediaAssetIdentity): MediaAssetWriteRegistration {
+	register(identity: ActiveMediaAssetIdentity = {}): MediaAssetLifecycleRegistration {
 		this.assertAccepting();
-		const key = Symbol('active-media-write');
-		const active: ActiveMediaAssetWrite = { identity: Object.freeze({ ...identity }), abort: null };
+		const key = Symbol('active-media-operation');
+		const active: ActiveMediaAssetOperation = { identity: Object.freeze({ ...identity }), abort: null };
 		this.#active.set(key, active);
 		let released = false;
 		return {
 			attachAbort: (abort) => {
-				if (released || active.abort) throw new Error('The media writer registration is not attachable.');
+				if (released || active.abort) throw new Error('The media operation registration is not attachable.');
 				active.abort = abort;
+			},
+			setIdentity: (nextIdentity) => {
+				if (released) throw new Error('The media operation registration is released.');
+				active.identity = Object.freeze({ ...nextIdentity });
 			},
 			release: () => {
 				if (released) return;
@@ -50,7 +55,7 @@ export class MediaAssetWriteCoordinator {
 		};
 	}
 
-	beginMaintenance({ permanent = false }: Readonly<{ permanent?: boolean }> = {}): MediaAssetWriteMaintenance {
+	beginMaintenance({ permanent = false }: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance {
 		if (permanent) this.#permanentlyClosed = true;
 		this.#maintenanceCount += 1;
 		const active = [...this.#active.values()];
@@ -78,19 +83,19 @@ export class MediaAssetWriteCoordinator {
 	}
 }
 
-async function abortAll(active: readonly ActiveMediaAssetWrite[]): Promise<void> {
+async function abortAll(active: readonly ActiveMediaAssetOperation[]): Promise<void> {
 	const results = await Promise.allSettled(active.map(({ abort }) => {
-		if (!abort) return Promise.reject(new Error('An active media writer has no abort handler.'));
+		if (!abort) return Promise.reject(new Error('An active media operation has no abort handler.'));
 		return abort();
 	}));
 	const errors = results
 		.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 		.map(({ reason }) => reason);
-	if (errors.length) throw new AggregateError(errors, 'One or more active media writers could not be aborted.');
+	if (errors.length) throw new AggregateError(errors, 'One or more active media operations could not be aborted.');
 }
 
 function identityValues(
-	active: Iterable<ActiveMediaAssetWrite>,
+	active: Iterable<ActiveMediaAssetOperation>,
 	field: keyof ActiveMediaAssetIdentity,
 ): ReadonlySet<string> {
 	const values = new Set<string>();

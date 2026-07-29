@@ -4,6 +4,7 @@ import {
 	mediaAssetChunkKey,
 	MediaAssetChunkRecords,
 } from './media-asset-chunk-records.ts';
+import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import {
 	MediaAssetStagingLease,
@@ -62,7 +63,14 @@ export async function prepareMediaAssetStaging({
 			}
 			return { sink, lease };
 		}
-		await lease.release();
+		try {
+			await lease.release();
+		} catch (cleanupError) {
+			throw new MediaAssetCleanupError(
+				[cleanupError],
+				'Media staging fallback lease cleanup failed.',
+			);
+		}
 	}
 	if (!database && expectedBytes > maximumMemoryBytes) {
 		throw new RangeError('Streamed media exceeds the fixed 64 MiB process-memory media limit.');
@@ -83,7 +91,9 @@ export async function abortPreparedMediaAssetStaging(
 		.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 		.map(({ reason }) => reason);
 	if (errors.length === 1) throw errors[0];
-	if (errors.length > 1) throw new AggregateError(errors, 'Media staging sink and lease cleanup both failed.');
+	if (errors.length > 1) {
+		throw new MediaAssetCleanupError(errors, 'Media staging sink and lease cleanup both failed.');
+	}
 }
 
 function chunkSink(
@@ -143,7 +153,7 @@ async function abortStagingAfterFailure(
 	try {
 		await abortPreparedMediaAssetStaging(prepared);
 	} catch (cleanupError) {
-		throw new AggregateError([primary, cleanupError], 'Media staging and cleanup both failed.');
+		throw new MediaAssetCleanupError([primary, cleanupError], 'Media staging and cleanup both failed.');
 	}
 	throw primary;
 }
@@ -155,7 +165,10 @@ async function releaseLeaseAfterFailure(
 	try {
 		await lease.release();
 	} catch (cleanupError) {
-		throw new AggregateError([primary, cleanupError], 'Media staging admission and lease cleanup both failed.');
+		throw new MediaAssetCleanupError(
+			[primary, cleanupError],
+			'Media staging admission and lease cleanup both failed.',
+		);
 	}
 	throw primary;
 }

@@ -10,6 +10,8 @@ change can be reviewed without loading the complete storage implementation:
   record, and background migration workflows live in the corresponding
   `source-*-repository.ts` and `pcm-migration-repository.ts` modules.
 - `media-repository.ts` owns original media and video-derivative records.
+- `media-asset-lifecycle-coordinator.ts` fences admitted retained-media loads
+  and streamed writes while clear or close drains their terminal settlement.
 - `pcm-repository.ts` owns PCM codec fallback, validation, and corruption errors.
 - `opfs-repository.ts` owns the `audio-editor-sources` directory, blobs, and PCM
   containers.
@@ -28,6 +30,20 @@ change can be reviewed without loading the complete storage implementation:
   paths from IndexedDB metadata.
 - Do not bypass `AudioEditorProjectStore` for application calls. Its database
   state and `close()` behavior prevent work from restarting after disposal.
+- Register retained-media loads with the shared lifecycle before their first
+  await. Once a streamed-writer begin passes synchronous argument and signal
+  validation, register it before its first awaited backend operation and attach
+  its prepared staging identity after preparation returns. Release only after
+  publication or cleanup can no longer continue. Propagate staged-path and
+  durable-lease cleanup failure through the maintenance barrier; never report
+  successful quiescence while cleanup is known to have failed.
+- The facade tracks one active clear and one shared close barrier. Clear captures
+  its backend admission before its first wait; close installs the permanent
+  media and terminal facade fences before its first await, joins an admitted
+  clear without revoking that clear's captured availability fallback, and
+  returns the same terminal cleanup promise to concurrent callers. Do not extend
+  that close-time fallback exception to unrelated pending database admission
+  when no clear is active.
 - Keep repository modules acyclic and below the repository's 600-line limit.
 
 When changing a repository, add a focused test for its domain and retain the

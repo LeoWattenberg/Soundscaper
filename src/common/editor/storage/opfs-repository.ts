@@ -13,6 +13,7 @@ import {
 	type BlobLike,
 	type StorageRecord,
 } from './media-records.ts';
+import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 
 interface PcmIndexEntry {
 	readonly index: number;
@@ -405,7 +406,7 @@ async function openBinaryWriter(
 		try {
 			await remove();
 		} catch (removeError) {
-			throw new AggregateError(
+			throw new MediaAssetCleanupError(
 				[error, removeError],
 				'OPFS media writer creation and staged-file removal both failed.',
 			);
@@ -439,7 +440,7 @@ async function openBinaryWriter(
 				await remove();
 			} catch (removeError) {
 				if (abortError !== undefined) {
-					throw new AggregateError(
+					throw new MediaAssetCleanupError(
 						[abortError, removeError],
 						'OPFS media writer abort and staged-file removal both failed.',
 					);

@@ -7,11 +7,12 @@ import {
 	mediaAssetChunkKey,
 	mediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
+import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import {
-	MediaAssetWriteCoordinator,
-	type MediaAssetWriteMaintenance,
-} from './media-asset-write-coordinator.ts';
+	MediaAssetLifecycleCoordinator,
+} from './media-asset-lifecycle-coordinator.ts';
+import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
 import {
 	abortPreparedMediaAssetStaging,
@@ -70,12 +71,13 @@ export class MediaAssetWriteRepository {
 	readonly #opfs: OpfsRepository;
 	readonly #chunks: MediaAssetChunkRecords;
 	readonly #staging: MediaAssetStagingRepository;
-	readonly #coordinator = new MediaAssetWriteCoordinator();
+	readonly #coordinator: MediaAssetLifecycleCoordinator;
 	readonly #disposal: MediaAssetDisposalRepository;
 
-	constructor(port: StorageRepositoryPort, opfs: OpfsRepository) {
+	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, coordinator: MediaAssetLifecycleCoordinator) {
 		this.#port = port;
 		this.#opfs = opfs;
+		this.#coordinator = coordinator;
 		this.#chunks = new MediaAssetChunkRecords(port);
 		this.#staging = new MediaAssetStagingRepository(port);
 		this.#disposal = new MediaAssetDisposalRepository(
@@ -102,54 +104,59 @@ export class MediaAssetWriteRepository {
 			throw new TypeError('A streamed media asset requires an expected SHA-256 digest.');
 		}
 		throwIfAborted(options.signal);
-		const database = await this.#port.database();
-		throwIfAborted(options.signal);
-		if (await this.#assetExists(id, database)) {
-			throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
-		}
-		const prepared = await prepareMediaAssetStaging({
-			sourceId: id,
-			expectedBytes,
-			maximumMemoryBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES,
-			database,
-			chunks: this.#chunks,
-			staging: this.#staging,
-			opfs: this.#opfs,
-			signal: options.signal,
-		});
-		let registration;
+		const admission = new MediaAssetWriteAdmission(this.#coordinator, options.signal);
+		let prepared: PreparedMediaAssetStaging | null = null;
+		let managed: ManagedMediaAssetWriter | null = null;
 		try {
-			registration = this.#coordinator.register({
+			const database = await this.#port.database();
+			admission.throwIfCancelled();
+			if (await this.#assetExists(id, database)) {
+				throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
+			}
+			admission.throwIfCancelled();
+			prepared = await prepareMediaAssetStaging({
+				sourceId: id,
+				expectedBytes,
+				maximumMemoryBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES,
+				database,
+				chunks: this.#chunks,
+				staging: this.#staging,
+				opfs: this.#opfs,
+				signal: admission.signal,
+			});
+			admission.setIdentity({
 				mediaChunkToken: prepared.sink.mediaChunkToken,
 				path: prepared.sink.path,
 			});
+			admission.throwIfCancelled();
+			managed = this.#writer(
+				id, metadata, expectedBytes, expectedSha256, prepared,
+				() => { admission.release(); }, database, options.signal,
+			);
+			admission.bindWriterAbort(managed.abortForMaintenance);
+			admission.complete();
+			admission.throwIfCancelled();
+			return managed.writer;
 		} catch (error) {
+			let cleanupError: unknown;
+			let cleanupFailed = false;
 			try {
-				await abortPreparedMediaAssetStaging(prepared);
-			} catch (cleanupError) {
-				throw new AggregateError(
-					[error, cleanupError],
-					'Media writer admission and staged-payload cleanup both failed.',
-				);
+				if (managed) await managed.abortForMaintenance();
+				else if (prepared) await abortPreparedMediaAssetStaging(prepared);
+			} catch (cleanupFailure) {
+				cleanupFailed = true;
+				cleanupError = cleanupFailure;
+			} finally {
+				admission.release();
+				if (cleanupFailed) admission.failCleanup(cleanupError);
+				else if (error instanceof MediaAssetCleanupError) admission.failCleanup(error);
+				else admission.complete();
+			}
+			if (cleanupFailed) {
+				throw new AggregateError([error, cleanupError], 'Media writer admission and cleanup both failed.');
 			}
 			throw error;
 		}
-		const managed = this.#writer(
-			id,
-			metadata,
-			expectedBytes,
-			expectedSha256,
-			prepared,
-			registration.release,
-			database,
-			options.signal,
-		);
-		registration.attachAbort(managed.abortForMaintenance);
-		return managed.writer;
-	}
-
-	beginMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetWriteMaintenance {
-		return this.#coordinator.beginMaintenance(options);
 	}
 
 	activeStaging(): Promise<ActiveMediaAssetStaging> { return this.#staging.activeIdentities(); }
@@ -273,7 +280,7 @@ export class MediaAssetWriteRepository {
 			try {
 				await cleanup();
 			} catch (cleanupError) {
-				throw new AggregateError([primary, cleanupError], 'Media staging and cleanup both failed.');
+				throw new MediaAssetCleanupError([primary, cleanupError], 'Media staging and cleanup both failed.');
 			} finally {
 				onSettled();
 			}

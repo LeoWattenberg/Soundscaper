@@ -47,6 +47,9 @@ export class AudioEditorProjectStore {
 		this.degradedReason = indexedDB ? null : 'indexeddb-unavailable';
 		this.closed = false;
 		this.closing = false;
+		this.closeRequested = false;
+		this.closePromise = null;
+		this.clearPromise = null;
 		this.databasePromise = null;
 		this.memory = getMemoryDatabase(databaseName);
 		const repositories = repositoryFactory({
@@ -302,15 +305,39 @@ export class AudioEditorProjectStore {
 	}
 
 	async clear() {
-		return this.retentionRepository.clear();
+		this.#assertOpen();
+		if (!this.clearPromise) {
+			const operation = this.retentionRepository.clear();
+			this.clearPromise = operation;
+			void operation.then(
+				() => { if (this.clearPromise === operation) this.clearPromise = null; },
+				() => { if (this.clearPromise === operation) this.clearPromise = null; },
+			);
+		}
+		return this.clearPromise;
 	}
 
-	async close() {
-		if (this.closed || this.closing || this.storeState === 'closing') return;
+	close() {
+		if (this.closePromise) return this.closePromise;
+		if (this.closed) return Promise.resolve();
+		this.closePromise = this.#close();
+		return this.closePromise;
+	}
+
+	async #close() {
 		const mediaMaintenance = this.mediaRepository.beginAssetMaintenance({ permanent: true });
-		this.closing = true;
+		this.closeRequested = true;
 		this.storeState = 'closing';
 		const closeErrors = [];
+		const clearing = this.clearPromise;
+		if (clearing) {
+			try {
+				await clearing;
+			} catch (error) {
+				closeErrors.push(error);
+			}
+		}
+		this.closing = true;
 		try {
 			await mediaMaintenance.abortActive();
 		} catch (error) {
@@ -336,7 +363,7 @@ export class AudioEditorProjectStore {
 	}
 
 	#assertOpen() {
-		if (this.closed || this.closing) throw new EditorStoreClosedError();
+		if (this.closed || this.closing || this.closeRequested) throw new EditorStoreClosedError();
 		if (this.storeState === 'version-stale') throw new EditorStoreVersionStaleError();
 	}
 
@@ -359,7 +386,8 @@ export class AudioEditorProjectStore {
 				return database;
 			}).catch((error) => {
 				this.databasePromise = null;
-				if (this.closed || this.closing || error instanceof EditorStoreClosedError) throw error;
+				const closeBlocksFallback = this.closeRequested && !this.clearPromise;
+				if (this.closed || this.closing || closeBlocksFallback || error instanceof EditorStoreClosedError) throw error;
 				const fallbackReason = memoryFallbackReason(error);
 				if (!this.memoryFallback || !fallbackReason) {
 					this.storeState = error instanceof EditorStoreBlockedError ? 'version-stale' : 'error';

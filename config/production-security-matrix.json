@@ -864,12 +864,29 @@
 				},
 				{
 					"id": "streamed-media-maintenance-abort",
-					"summary": "Within one project-store instance, clear and close stop writer admission, actively abort staged chunk or OPFS sinks, wait for terminal cleanup, and prevent a stalled OPFS write or shutdown race from publishing late state.",
+					"summary": "Within one project-store instance, every streamed-writer begin that passes synchronous argument and signal validation registers with the per-store lifecycle before its first awaited backend operation. After staging preparation returns, the admission attaches its chunk-token or OPFS-path identity and terminal writer abort before begin can return. Clear establishes a temporary admission fence and close a permanent one; both reject later begins, signal and drain captured pre-staging begins, abort staged chunk or OPFS sinks and active writers, and cannot settle while a pre-fence begin could still return a live writer or publish late state. A cleanup failure rejects the maintenance barrier instead of reporting successful quiescence.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
-						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-coordinator.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-cleanup-error.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-lifecycle-coordinator.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-staged-sink.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-admission.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/opfs-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/retention-repository.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-write-admission.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }
+					]
+				},
+				{
+					"id": "serialized-store-maintenance-shutdown",
+					"summary": "Within one AudioEditorProjectStore, the facade tracks one active clear and one shared close barrier. Clear establishes media maintenance and captures its backend-admission promise before its first wait. Close installs the permanent media fence and terminal facade state before its first await, then joins an already admitted clear. Concurrent close callers return the same terminal-cleanup promise, and an admitted clear retains its normal memory fallback when database availability fails while an unrelated pending database admission remains fenced when no clear is active. The overlap regressions prove clear settles before close and neither close caller settles before the captured media operation drains.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/retention-repository.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-digest-lifecycle.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" }
 					]
 				},
 				{
@@ -888,6 +905,19 @@
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-schema.test.ts" },
 						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" }
+					]
+				},
+				{
+					"id": "retained-media-load-maintenance-quiescence",
+					"summary": "Every retained-media load registers synchronously with the same per-store lifecycle coordinator used by streamed writers before its first await. Clear holds a temporary admission fence and close a permanent fence; both signal captured loads through cancellation linked with the caller and await terminal settlement before data deletion or database close. The multi-chunk regression proves a digest that observes the maintenance abort cannot publish version-one provenance or return a payload after maintenance settles; a standalone clear then reopens admission while close remains terminal.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-lifecycle-coordinator.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-digest-backfill.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/retention-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "test", "path": "tests/audio-editor-media-digest-lifecycle.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-digest-backfill.test.ts" }
 					]
 				},
 				{
@@ -920,13 +950,6 @@
 				}
 			],
 			"residualRisks": [
-				{
-					"id": "legacy-media-digest-lifecycle-quiescence",
-					"exposure": "A retained-media digest backfill that already captured its Blob is cancellation-aware and replacement-fenced, but store clear or close does not yet own and await that read. Clear/delete and closed IndexedDB prevent late publication; degraded memory-mode close leaves its private map live, so bounded hashing can continue and publish version-one metadata after close.",
-					"requiredControl": "Register digest backfills with the store lifecycle coordinator, abort them during clear and close, and await their terminal settlement before maintenance returns.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Clear and close during a multi-chunk legacy digest abort the read, await settlement, and leave no provenance or retained payload publication."]
-				},
 				{
 					"id": "project-io-signal-propagation",
 					"exposure": "The tested native .scape open/save and direct-save publication paths now propagate and roll back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",

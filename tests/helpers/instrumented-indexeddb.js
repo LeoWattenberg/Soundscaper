@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createRequestFailurePlan } from './instrumented-indexeddb-failures.js';
+
 export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true } = {}) {
 	const databases = new Map();
-	const pendingPutFailures = new Map();
+	const requestFailures = createRequestFailurePlan();
 	const pendingGetObservers = new Map();
 	const stats = {
 		activeTransactions: 0,
@@ -31,11 +33,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 			queueMicrotask(() => {
 				let database = databases.get(name);
 				if (!database) {
-					database = new FakeDatabase(stats, (storeName) => {
-						const failure = pendingPutFailures.get(storeName);
-						if (failure) pendingPutFailures.delete(storeName);
-						return failure;
-					});
+					database = new FakeDatabase(stats, requestFailures.take);
 					databases.set(name, database);
 				}
 				const nextVersion = requestedVersion ?? (database.version || 1);
@@ -84,9 +82,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 			});
 			return request;
 		},
-		failNextPutForStore(storeName, error = new Error(`Planned put failure for ${storeName}.`)) {
-			pendingPutFailures.set(storeName, error);
-		},
+		...requestFailures.controls,
 		onNextGetForStore(storeName, observer) { pendingGetObservers.set(storeName, () => { pendingGetObservers.delete(storeName); observer(); }); },
 		recordCount(databaseName, storeName) {
 			return databases.get(databaseName)?.stores.get(storeName)?.records.size || 0;
@@ -107,9 +103,9 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 }
 
 class FakeDatabase {
-	constructor(stats, takePutFailure) {
+	constructor(stats, takeRequestFailure) {
 		this.stats = stats;
-		this.takePutFailure = takePutFailure;
+		this.takeRequestFailure = takeRequestFailure;
 		this.version = 0;
 		this.stores = new Map();
 		this.upgradeTransaction = null;
@@ -226,7 +222,7 @@ class FakeObjectStore {
 
 	put(value) {
 		return fakeRequest(this.transaction, () => {
-			const failure = this.transaction.database.takePutFailure(this.data.name);
+			const failure = this.transaction.database.takeRequestFailure('put', this.data.name);
 			if (failure) throw failure;
 			const stored = clone(value);
 			this.data.records.set(stored[this.data.keyPath], stored);
@@ -260,7 +256,11 @@ class FakeObjectStore {
 		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).length);
 	}
 	delete(key) {
-		return fakeRequest(this.transaction, () => this.data.records.delete(key));
+		return fakeRequest(this.transaction, () => {
+			const failure = this.transaction.database.takeRequestFailure('delete', this.data.name);
+			if (failure) throw failure;
+			return this.data.records.delete(key);
+		});
 	}
 	clear() {
 		return fakeRequest(this.transaction, () => this.data.records.clear());

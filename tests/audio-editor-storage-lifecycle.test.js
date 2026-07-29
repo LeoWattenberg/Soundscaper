@@ -52,6 +52,57 @@ test('only known IndexedDB availability errors enable memory fallback', async ()
 	await corrupted.close();
 });
 
+test('close preserves memory fallback for a clear admitted before the terminal fence', async () => {
+	const store = createProjectStore({
+		indexedDB: { open() { throw new DOMException('restricted', 'SecurityError'); } },
+		preferOpfs: false,
+		databaseName: `storage-clear-close-fallback-${Date.now()}-${Math.random()}`,
+	});
+	store.memory.settings.set('seed', { key: 'seed', value: true });
+	const settlementOrder = [];
+
+	const clearing = store.clear();
+	const observedClear = clearing.then(
+		() => { settlementOrder.push('clear'); },
+		() => { settlementOrder.push('clear-rejected'); },
+	);
+	const closing = store.close();
+	const observedClose = closing.then(
+		() => { settlementOrder.push('close'); },
+		() => { settlementOrder.push('close-rejected'); },
+	);
+	const [clearResult, closeResult] = await Promise.allSettled([clearing, closing]);
+	await Promise.all([observedClear, observedClose]);
+
+	assert.equal(
+		clearResult.status,
+		'fulfilled',
+		'an admitted clear must retain the fallback decision it captured before close',
+	);
+	assert.equal(closeResult.status, 'fulfilled');
+	assert.deepEqual(settlementOrder, ['clear', 'close']);
+	assert.equal(store.memory.settings.size, 0, 'the admitted clear must empty fallback memory');
+	assert.equal(store.getStatus().backend, 'memory');
+	assert.equal(store.getStatus().state, 'closed');
+});
+
+test('close does not enable memory fallback for an unrelated pending database admission', async () => {
+	const store = createProjectStore({
+		indexedDB: { open() { throw new DOMException('restricted', 'SecurityError'); } },
+		preferOpfs: false,
+		databaseName: `storage-close-no-fallback-${Date.now()}-${Math.random()}`,
+	});
+
+	const saving = store.saveSetting('must-not-publish', true);
+	const closing = store.close();
+	const [saveResult, closeResult] = await Promise.allSettled([saving, closing]);
+
+	assert.equal(saveResult.status, 'rejected');
+	assert.equal(closeResult.status, 'fulfilled');
+	assert.equal(store.memory.settings.has('must-not-publish'), false);
+	assert.equal(store.getStatus().state, 'closed');
+});
+
 test('a blocked open rejects and closes a late successful connection', async () => {
 	let request;
 	let closeCalls = 0;

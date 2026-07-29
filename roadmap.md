@@ -521,12 +521,34 @@ models or native implementations.
   leaves a retryable unverified claim. The focused
   [backfill regression](tests/audio-editor-media-digest-backfill.test.ts) covers
   memory, IndexedDB Blob, OPFS, and chunked records, concurrent migration,
-  exact cancellation, and same-shaped stale-load replacement races; the
+  exact cancellation, and same-shaped stale-load replacement races. A focused
+  [lifecycle regression](tests/audio-editor-media-digest-lifecycle.test.ts)
+  stalls the second bounded hash read and proves that clear's temporary fence
+  and close's permanent fence reject later loads, signal and drain the captured
+  load before maintenance settles, and prevent a post-maintenance version-one
+  update. It also proves that close joins an already admitted clear, concurrent
+  close callers share the same terminal drain, and clear settles before close.
+  Clear then reopens admission, while close keeps it terminal. A
+  streamed-writer begin that passes synchronous argument and signal validation
+  now reserves lifecycle admission before its first awaited backend or OPFS
+  operation, attaches its prepared staging identity after preparation returns,
+  and cannot return a live writer after a clear or close fence. The focused
+  [writer-admission regression](tests/audio-editor-media-write-admission.test.ts)
+  stalls both the first repository-backend await and OPFS directory acquisition
+  before staging, proves maintenance waits for rollback, rejects later begins,
+  and distinguishes clear's reopened admission from close's terminal state. A
+  pre-return OPFS path or clean-fallback lease cleanup failure now rejects the
+  maintenance barrier instead of reporting successful quiescence, with focused
+  coverage in the
+  [streamed-media lifecycle regression](tests/audio-editor-streaming-media-lifecycle.test.ts).
+  Close also preserves an admitted clear's normal IndexedDB-availability memory
+  fallback while joining it without reopening fallback for unrelated pending
+  work when no clear is active, as pinned by the
+  [store lifecycle regression](tests/audio-editor-storage-lifecycle.test.js). The
   [schema regression](tests/audio-editor-derivative-cache-schema.test.ts) covers
   cutover and rollback. Original/proxy relationships, relink state, bounded
-  reproducible derivative descriptions, total record-overhead accounting, and
-  clear/close quiescence for an already admitted legacy hash remain open without
-  placing disposable previews in project history.
+  reproducible derivative descriptions, and total record-overhead accounting
+  remain open without placing disposable previews in project history.
 - **Electron Enhanced — In progress:** the product-neutral strict-TS
   [desktop library foundation](desktop/project-library.ts) uses a fixed
   application-data scope rather than either Chromium profile, size-bounded and

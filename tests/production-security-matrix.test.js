@@ -258,7 +258,41 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	}
 	assert.ok(implementedControls.has('bounded-streaming-media-extraction'));
 	const cancellation = risks.get('long-job-cancellation');
-	assert.ok(cancellation.currentControls.some(({ id }) => id === 'streamed-media-maintenance-abort'));
+	const streamedMaintenance = cancellation.currentControls.find(
+		({ id }) => id === 'streamed-media-maintenance-abort',
+	);
+	assert.ok(streamedMaintenance);
+	for (const path of [
+		'src/common/editor/storage/media-asset-cleanup-error.ts',
+		'src/common/editor/storage/media-asset-lifecycle-coordinator.ts',
+		'src/common/editor/storage/media-asset-staged-sink.ts',
+		'src/common/editor/storage/media-asset-write-admission.ts',
+		'src/common/editor/storage/media-asset-write-repository.ts',
+		'src/common/editor/storage/media-repository.ts',
+		'src/common/editor/storage/opfs-repository.ts',
+		'src/common/editor/storage/retention-repository.ts',
+		'src/common/editor/storage.js',
+		'tests/audio-editor-media-write-admission.test.ts',
+		'tests/audio-editor-streaming-media-lifecycle.test.ts',
+	]) assert.ok(streamedMaintenance.evidence.some((item) => item.path === path));
+	assert.match(
+		streamedMaintenance.summary,
+		/every streamed-writer begin.*passes synchronous argument and signal validation.*per-store lifecycle.*before its first awaited backend operation.*after staging preparation returns.*chunk-token or OPFS-path identity.*terminal writer abort.*before begin can return.*clear.*temporary admission fence.*close.*permanent.*reject later begins.*drain captured pre-staging begins.*abort staged chunk or OPFS sinks.*active writers.*cannot settle.*pre-fence begin.*return a live writer.*publish late state.*cleanup failure.*rejects the maintenance barrier/iu,
+	);
+	const serializedMaintenance = cancellation.currentControls.find(
+		({ id }) => id === 'serialized-store-maintenance-shutdown',
+	);
+	assert.ok(serializedMaintenance);
+	for (const path of [
+		'src/common/editor/storage.js',
+		'src/common/editor/storage/retention-repository.ts',
+		'tests/audio-editor-media-digest-lifecycle.test.ts',
+		'tests/audio-editor-storage-lifecycle.test.js',
+	]) assert.ok(serializedMaintenance.evidence.some((item) => item.path === path));
+	assert.match(
+		serializedMaintenance.summary,
+		/one active clear.*one shared close barrier.*clear establishes media maintenance.*captures its backend-admission promise.*before its first wait.*close installs the permanent media fence.*terminal facade state.*before its first await.*joins an already admitted clear.*concurrent close callers return the same terminal-cleanup promise.*admitted clear retains its normal memory fallback.*unrelated pending database admission remains fenced when no clear is active.*clear settles before close.*neither close caller settles.*media operation drains/iu,
+	);
 	assert.ok(cancellation.currentControls.some(({ id }) => id === 'direct-scape-save-rollback'));
 	const stagingLeases = cancellation.currentControls.find(
 		({ id }) => id === 'cross-context-streamed-media-staging-leases',
@@ -293,9 +327,26 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		digestBackfill.summary,
 		/schema v6.*spoofable provenance.*no inherited hash.*version-zero Web-Crypto content claim.*bounded four-MiB reads.*token-checked compare-and-set.*stale delete or replacement/iu,
 	);
-	assert.ok(cancellation.residualRisks.some(
+	const digestMaintenance = cancellation.currentControls.find(
+		({ id }) => id === 'retained-media-load-maintenance-quiescence',
+	);
+	assert.ok(digestMaintenance);
+	for (const path of [
+		'src/common/editor/storage/media-asset-lifecycle-coordinator.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-repository.ts',
+		'src/common/editor/storage/retention-repository.ts',
+		'src/common/editor/storage.js',
+		'tests/audio-editor-media-digest-lifecycle.test.ts',
+		'tests/audio-editor-media-digest-backfill.test.ts',
+	]) assert.ok(digestMaintenance.evidence.some((item) => item.path === path));
+	assert.match(
+		digestMaintenance.summary,
+		/registers synchronously.*same per-store lifecycle.*before its first await.*clear.*temporary admission fence.*close.*permanent fence.*signal captured loads.*await terminal settlement.*data deletion or database close.*multi-chunk.*observes the maintenance abort.*cannot publish version-one provenance.*return a payload.*standalone clear.*reopens admission.*close remains terminal/iu,
+	);
+	assert.equal(cancellation.residualRisks.some(
 		({ id }) => id === 'legacy-media-digest-lifecycle-quiescence',
-	));
+	), false);
 	assert.equal(
 		cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'),
 		false,

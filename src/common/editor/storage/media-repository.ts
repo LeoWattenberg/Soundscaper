@@ -19,6 +19,7 @@ import {
 } from './derivative-cache-policy.ts';
 import { readDerivativeCacheInventory } from './derivative-cache-inventory.ts';
 import { MediaAssetDigestBackfill } from './media-asset-digest-backfill.ts';
+import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
 import {
@@ -26,7 +27,6 @@ import {
 	type MediaAssetWriteOptions,
 	type MediaAssetWriter,
 } from './media-asset-write-repository.ts';
-import type { MediaAssetWriteMaintenance } from './media-asset-write-coordinator.ts';
 import {
 	binaryMetadata,
 	mediaAssetMetadata,
@@ -64,13 +64,13 @@ interface MediaRepositoryOptions {
 	>>;
 	readonly now?: () => number;
 }
-
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
 	readonly #cacheLimits: NormalizedDerivativeCacheLimits;
 	readonly #now: () => number;
+	readonly #assetLifecycle = new MediaAssetLifecycleCoordinator();
 	readonly #assetWrites: MediaAssetWriteRepository;
 	readonly #assetDigests: MediaAssetDigestBackfill;
 
@@ -81,8 +81,8 @@ export class MediaRepository {
 			options.cacheLimits ?? DEFAULT_DERIVATIVE_CACHE_LIMITS,
 		);
 		this.#now = options.now ?? Date.now;
-		this.#assetWrites = new MediaAssetWriteRepository(port, opfs);
-		this.#assetDigests = new MediaAssetDigestBackfill(port, this.#assetWrites);
+		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle);
+		this.#assetDigests = new MediaAssetDigestBackfill(port, this.#assetWrites, this.#assetLifecycle);
 	}
 
 	beginAssetWrite(
@@ -92,7 +92,7 @@ export class MediaRepository {
 	): Promise<MediaAssetWriter> {
 		return this.#assetWrites.begin(sourceId, metadata, options);
 	}
-	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetWriteMaintenance { return this.#assetWrites.beginMaintenance(options); }
+	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }
 	activeAssetStaging() { return this.#assetWrites.activeStaging(); }
 	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }
 	invalidateAssetStagingStore(store: IDBObjectStore) { return this.#assetWrites.invalidateStagingStore(store); }

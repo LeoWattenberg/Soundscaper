@@ -12,6 +12,7 @@ import {
 	trustedMediaContentSha256,
 	verifiedMediaContentDigest,
 } from './media-content-provenance.ts';
+import type { MediaAssetLifecycleCoordinator } from './media-asset-lifecycle-coordinator.ts';
 import type { BlobLike, StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -38,18 +39,41 @@ interface ClaimedMediaAsset {
 export class MediaAssetDigestBackfill {
 	readonly #port: StorageRepositoryPort;
 	readonly #loader: MediaAssetDigestLoader;
+	readonly #lifecycle: MediaAssetLifecycleCoordinator;
 
-	constructor(port: StorageRepositoryPort, loader: MediaAssetDigestLoader) {
+	constructor(
+		port: StorageRepositoryPort,
+		loader: MediaAssetDigestLoader,
+		lifecycle: MediaAssetLifecycleCoordinator,
+	) {
 		this.#port = port;
 		this.#loader = loader;
+		this.#lifecycle = lifecycle;
 	}
 
-	async load(
+	load(
 		sourceId: string,
 		options: MediaAssetDigestLoadOptions = {},
 	): Promise<BlobLike | null> {
+		const registration = this.#lifecycle.register();
+		const cancellation = linkedAbortController(options.signal);
+		const operation = this.#load(sourceId, cancellation.signal);
+		const settled = operation.finally(() => {
+			cancellation.release();
+			registration.release();
+		});
+		registration.attachAbort(() => {
+			cancellation.abort(mediaMaintenanceAbortReason());
+			return settled.then(
+				() => undefined,
+				() => undefined,
+			);
+		});
+		return settled;
+	}
+
+	async #load(sourceId: string, signal: AbortSignal): Promise<BlobLike | null> {
 		const id = nonEmptyString(sourceId);
-		const signal = options.signal;
 		throwIfAborted(signal);
 		const database = await this.#port.database();
 		throwIfAborted(signal);
@@ -204,6 +228,41 @@ function nonEmptyString(value: unknown): string {
 function clone<Value>(value: Value): Value {
 	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
 	return JSON.parse(JSON.stringify(value)) as Value;
+}
+
+interface LinkedAbortController {
+	readonly signal: AbortSignal;
+	abort(reason: unknown): void;
+	release(): void;
+}
+
+function linkedAbortController(external?: AbortSignal): LinkedAbortController {
+	const controller = new AbortController();
+	const abortFromExternal = (): void => { controller.abort(external?.reason); };
+	let listening = false;
+	if (external?.aborted) abortFromExternal();
+	else if (external) {
+		external.addEventListener('abort', abortFromExternal, { once: true });
+		listening = true;
+	}
+	return {
+		signal: controller.signal,
+		abort: (reason) => { controller.abort(reason); },
+		release: () => {
+			if (!listening) return;
+			listening = false;
+			external?.removeEventListener('abort', abortFromExternal);
+		},
+	};
+}
+
+function mediaMaintenanceAbortReason(): Error {
+	if (typeof DOMException === 'function') {
+		return new DOMException('Media storage maintenance cancelled the retained-media read.', 'AbortError');
+	}
+	const error = new Error('Media storage maintenance cancelled the retained-media read.');
+	error.name = 'AbortError';
+	return error;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

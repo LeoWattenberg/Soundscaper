@@ -88,12 +88,14 @@ export class RetentionRepository {
 
 	async clear(): Promise<void> {
 		const maintenance = this.#options.media.beginAssetMaintenance();
+		const databasePromise = this.#options.port.database();
+		void databasePromise.catch(() => undefined);
 		try {
 			await maintenance.abortActive();
 			await this.#options.sources.stopBackgroundWork();
 			const opfsRecords: StorageRecord[] = [];
 			const stagedPaths = new Set<string>();
-			const database = await this.#options.port.database();
+			const database = await databasePromise;
 			if (!database) {
 				const invalidated = this.#options.media.invalidateAssetStagingMemory();
 				for (const path of invalidated.paths) stagedPaths.add(path);

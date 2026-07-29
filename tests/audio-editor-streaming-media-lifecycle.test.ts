@@ -5,7 +5,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
-import { MEDIA_ASSET_STAGING_STATE_KEY } from '../src/common/editor/storage/media-asset-staging-schema.ts';
+import {
+	MEDIA_ASSET_STAGING_STATE_KEY,
+	MEDIA_ASSET_STAGING_STORE_NAME,
+} from '../src/common/editor/storage/media-asset-staging-schema.ts';
 import { MEDIA_ASSET_STREAM_CHUNK_BYTES } from '../src/common/editor/storage/media-asset-write-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
@@ -153,6 +156,98 @@ test('clear preempts a stalled OPFS write instead of waiting for storage I/O', a
 	assert.equal(completedBeforeRelease, true);
 	assert.equal(opfs.files.size, 0);
 	assert.equal(store.memory.mediaAssets.size, 0);
+});
+
+test('clear reports failed cleanup for a streamed writer cancelled before begin returns', async () => {
+	const opfs = transientlyFailingPreReturnOpfs();
+	const store = createProjectStore({
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
+		databaseName: uniqueDatabaseName('stream-lifecycle-pre-return-cleanup-failure'),
+		preferOpfs: true,
+		opfsRoot: opfs.directory,
+	});
+	const beginning = store.beginMediaAssetWrite('pre-return-cleanup-failure', {}, {
+		expectedBytes: 1,
+		expectedSha256: digest(Uint8Array.of(1)),
+	});
+	await opfs.writerOpenStarted;
+
+	const clearing = store.clear();
+	const results = Promise.allSettled([beginning, clearing]);
+	opfs.releaseWriterOpen();
+	const [beginResult, clearResult] = await results;
+
+	try {
+		assert.equal(beginResult?.status, 'rejected', 'the interrupted writer begin must reject');
+		if (beginResult?.status === 'rejected') {
+			assert.equal(nestedErrorContains(beginResult.reason, opfs.removeError), true);
+		}
+		assert.equal(
+			clearResult?.status,
+			'rejected',
+			'clear must surface failed pre-return staging cleanup instead of claiming quiescence',
+		);
+		if (clearResult?.status === 'rejected') {
+			assert.equal(nestedErrorContains(clearResult.reason, opfs.removeError), true);
+		}
+		assert.equal(opfs.files.size, 1, 'the failed removal fixture must retain the staged path');
+		assert.equal(opfs.removeCalls, 1, 'the writer rollback must make the failed removal attempt');
+	} finally {
+		if (beginResult?.status === 'fulfilled') await beginResult.value.abort();
+		await store.close().catch(() => undefined);
+	}
+});
+
+test('clear reports failed lease release during clean OPFS fallback', async () => {
+	const databaseName = uniqueDatabaseName('stream-lifecycle-fallback-release-failure');
+	const indexedDB = createInstrumentedIndexedDB();
+	const opfs = cleanlyFallingBackOpfs();
+	const store = createProjectStore({
+		indexedDB,
+		memoryFallback: false,
+		databaseName,
+		preferOpfs: true,
+		opfsRoot: opfs.directory,
+	});
+	const beginning = store.beginMediaAssetWrite('fallback-release-failure', {}, {
+		expectedBytes: 1,
+		expectedSha256: digest(Uint8Array.of(1)),
+	});
+	void beginning.catch(() => undefined);
+	await opfs.writerOpenStarted;
+
+	const releaseError = new Error('Planned fallback lease release failure.');
+	indexedDB.failNextDeleteForStore(MEDIA_ASSET_STAGING_STORE_NAME, releaseError);
+	let clearing: Promise<void> | null = null;
+	let markClearStarted: (() => void) | undefined;
+	const clearStarted = new Promise<void>((resolve) => { markClearStarted = resolve; });
+	indexedDB.onNextGetForStore(MEDIA_ASSET_STAGING_STORE_NAME, () => {
+		clearing = store.clear();
+		markClearStarted?.();
+	});
+	opfs.releaseWriterOpen();
+	await clearStarted;
+	assert.ok(clearing);
+	const [beginResult, clearResult] = await Promise.allSettled([beginning, clearing]);
+
+	assert.equal(beginResult?.status, 'rejected');
+	if (beginResult?.status === 'rejected') {
+		assert.equal(nestedErrorContains(beginResult.reason, releaseError), true);
+	}
+	assert.equal(clearResult?.status, 'rejected', 'maintenance must surface failed fallback lease cleanup');
+	if (clearResult?.status === 'rejected') {
+		assert.equal(nestedErrorContains(clearResult.reason, releaseError), true);
+	}
+	assert.equal(
+		indexedDB.recordCount(databaseName, MEDIA_ASSET_STAGING_STORE_NAME) > 1,
+		true,
+		'the failed release must leave its durable lease visible',
+	);
+
+	await store.clear();
+	assert.equal(indexedDB.recordCount(databaseName, MEDIA_ASSET_STAGING_STORE_NAME), 1);
+	await store.close();
 });
 
 for (const operation of ['delete', 'prune'] as const) {
@@ -345,6 +440,99 @@ function fakeOpfs({ stallAborts = false, stallWrites = false } = {}) {
 		writeStarted,
 		releaseAbort: () => { releaseAbort?.(); },
 		releaseWrite: () => { releaseWrite?.(); },
+	};
+}
+
+function nestedErrorContains(error: unknown, expected: unknown): boolean {
+	if (error === expected) return true;
+	return error instanceof AggregateError
+		&& error.errors.some((entry) => nestedErrorContains(entry, expected));
+}
+
+function transientlyFailingPreReturnOpfs() {
+	const files = new Map<string, Blob>();
+	const removeError = new Error('Transient staged path removal failure.');
+	let markWriterOpenStarted: (() => void) | undefined;
+	let releaseWriterOpen: (() => void) | undefined;
+	const writerOpenStarted = new Promise<void>((resolve) => { markWriterOpenStarted = resolve; });
+	const writerOpenRelease = new Promise<void>((resolve) => { releaseWriterOpen = resolve; });
+	let removeCalls = 0;
+	const directory = {
+		async getDirectoryHandle() { return directory; },
+		async getFileHandle(path: string, options: Readonly<{ create?: boolean }> = {}) {
+			if (!files.has(path) && !options.create) throw new DOMException('missing', 'NotFoundError');
+			if (!files.has(path)) files.set(path, new Blob());
+			return {
+				async createWritable() {
+					markWriterOpenStarted?.();
+					await writerOpenRelease;
+					return {
+						async write() { /* The regression cancels before the first write. */ },
+						async close() { /* The regression cancels before close. */ },
+						async abort() { /* Path removal is owned by the OPFS repository. */ },
+					};
+				},
+				async getFile() {
+					const file = files.get(path);
+					if (!file) throw new DOMException('missing', 'NotFoundError');
+					return file;
+				},
+			};
+		},
+		async removeEntry(path: string) {
+			removeCalls += 1;
+			if (removeCalls === 1) throw removeError;
+			if (!files.delete(path)) throw new DOMException('missing', 'NotFoundError');
+		},
+		async *entries() {
+			for (const path of files.keys()) yield [path, await directory.getFileHandle(path)];
+		},
+	};
+	return {
+		directory: directory as unknown as FileSystemDirectoryHandle,
+		files,
+		removeError,
+		writerOpenStarted,
+		releaseWriterOpen: () => { releaseWriterOpen?.(); },
+		get removeCalls() { return removeCalls; },
+	};
+}
+
+function cleanlyFallingBackOpfs() {
+	const files = new Map<string, Blob>();
+	let markWriterOpenStarted: (() => void) | undefined;
+	let releaseWriterOpen: (() => void) | undefined;
+	const writerOpenStarted = new Promise<void>((resolve) => { markWriterOpenStarted = resolve; });
+	const writerOpenRelease = new Promise<void>((resolve) => { releaseWriterOpen = resolve; });
+	const directory = {
+		async getDirectoryHandle() { return directory; },
+		async getFileHandle(path: string, options: Readonly<{ create?: boolean }> = {}) {
+			if (!files.has(path) && !options.create) throw new DOMException('missing', 'NotFoundError');
+			if (!files.has(path)) files.set(path, new Blob());
+			return {
+				async createWritable(): Promise<never> {
+					markWriterOpenStarted?.();
+					await writerOpenRelease;
+					throw new Error('OPFS writer creation fell back cleanly.');
+				},
+				async getFile() {
+					const file = files.get(path);
+					if (!file) throw new DOMException('missing', 'NotFoundError');
+					return file;
+				},
+			};
+		},
+		async removeEntry(path: string) {
+			if (!files.delete(path)) throw new DOMException('missing', 'NotFoundError');
+		},
+		async *entries() {
+			for (const path of files.keys()) yield [path, await directory.getFileHandle(path)];
+		},
+	};
+	return {
+		directory: directory as unknown as FileSystemDirectoryHandle,
+		writerOpenStarted,
+		releaseWriterOpen: () => { releaseWriterOpen?.(); },
 	};
 }
 
