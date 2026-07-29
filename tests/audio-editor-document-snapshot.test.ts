@@ -39,6 +39,12 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 				schemaVersion: 1,
 				placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
 			},
+			featureRequirementsVideoEffectPlaybackBypass: {
+				schemaVersion: 1,
+				placeholders: [{
+					location: 'timeline', clipId: 'clip', effectId: 'video-effect', effectType: 'pixelate',
+				}],
+			},
 		}),
 		recordingPreviewSnapshot: (preview) => preview,
 		getAudioDevicesSnapshot: () => ({ inputSupported: true }),
@@ -81,6 +87,12 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.deepEqual(snapshot.audioEffectPlaybackBypass, {
 		schemaVersion: 1,
 		placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
+	});
+	assert.deepEqual(snapshot.videoEffectPlaybackBypass, {
+		schemaVersion: 1,
+		placeholders: [{
+			location: 'timeline', clipId: 'clip', effectId: 'video-effect', effectType: 'pixelate',
+		}],
 	});
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);

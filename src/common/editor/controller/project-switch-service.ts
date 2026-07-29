@@ -2,6 +2,7 @@
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
 import { projectFeatureAudioEffectPlaybackBypass } from '../project-feature-audio-effect-bypass.ts';
+import { projectFeatureVideoEffectPlaybackBypass } from '../project-feature-video-effect-bypass.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
@@ -287,6 +288,10 @@ export function createProjectSwitchService<
 			activationProject,
 			featureRequirementsReport,
 		);
+		const videoEffectPlaybackProjection = projectFeatureVideoEffectPlaybackBypass(
+			audioEffectPlaybackProjection.project,
+			featureRequirementsReport,
+		);
 		const activation = runtime.session.beginProjectActivation(projectId, existingCapture
 			? { expectedHistoryToken: existingCapture.token }
 			: { requireAbsent: true });
@@ -364,6 +369,7 @@ export function createProjectSwitchService<
 					featureRequirementsReadOnly,
 					featureRequirementsReport,
 					featureRequirementsAudioEffectPlaybackBypass: audioEffectPlaybackProjection.metadata,
+					featureRequirementsVideoEffectPlaybackBypass: videoEffectPlaybackProjection.metadata,
 				},
 			});
 			runtime.session.updateProjectMetadata(projectId, {
@@ -374,6 +380,7 @@ export function createProjectSwitchService<
 				featureRequirementsReadOnly,
 				featureRequirementsReport,
 				featureRequirementsAudioEffectPlaybackBypass: audioEffectPlaybackProjection.metadata,
+				featureRequirementsVideoEffectPlaybackBypass: videoEffectPlaybackProjection.metadata,
 			});
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
@@ -405,7 +412,7 @@ export function createProjectSwitchService<
 			await guard(runtime.loadProjectSources(activeProject));
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
-			runtime.loadEngineProject(audioEffectPlaybackProjection.project);
+			runtime.loadEngineProject(videoEffectPlaybackProjection.project);
 			await runtime.recordOpenedProject(projectId, guard);
 			if (options.save && !runtime.state.readOnly) {
 				await guard(runtime.saveProject(activeProject));

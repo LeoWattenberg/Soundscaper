@@ -6,6 +6,7 @@ export function freezeProjectFeatureReportMetadata<Value>(value: Value): Value {
 	for (const key of [
 		'featureRequirementsReport',
 		'featureRequirementsAudioEffectPlaybackBypass',
+		'featureRequirementsVideoEffectPlaybackBypass',
 	]) {
 		const child = metadata[key];
 		if (child && typeof child === 'object') deepFreeze(child, new WeakSet<object>());

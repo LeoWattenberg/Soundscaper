@@ -139,15 +139,24 @@ test('feature compatibility metadata remains deeply frozen across session clones
 		requirementIds: ['soundscaper.audio-effects'],
 		placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
 	};
+	const videoBypass = {
+		schemaVersion: 1,
+		featureId: 'org.soundscaper.capability.video-effects',
+		requirementIds: ['soundscaper.video-effects'],
+		placeholders: [{ location: 'timeline', clipId: 'clip', effectId: 'video-effect', effectType: 'pixelate' }],
+	};
 	const updated = controller.updateProjectMetadata(project.id, {
 		featureRequirementsReport: report,
 		featureRequirementsAudioEffectPlaybackBypass: bypass,
+		featureRequirementsVideoEffectPlaybackBypass: videoBypass,
 	});
 	const retained = controller.getSnapshot().tabs[0].metadata.featureRequirementsReport;
 	const retainedBypass = controller.getSnapshot().tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass;
+	const retainedVideoBypass = controller.getSnapshot().tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass;
 
 	assert.notEqual(updated.featureRequirementsReport, report);
 	assert.notEqual(updated.featureRequirementsAudioEffectPlaybackBypass, bypass);
+	assert.notEqual(updated.featureRequirementsVideoEffectPlaybackBypass, videoBypass);
 	for (const value of [
 		updated.featureRequirementsReport, updated.featureRequirementsReport.counts,
 		updated.featureRequirementsReport.items, updated.featureRequirementsReport.items[0],
@@ -160,13 +169,26 @@ test('feature compatibility metadata remains deeply frozen across session clones
 		updated.featureRequirementsAudioEffectPlaybackBypass.placeholders[0],
 		retainedBypass, retainedBypass.placeholders, retainedBypass.placeholders[0],
 	]) assert.equal(Object.isFrozen(value), true);
+	for (const value of [
+		updated.featureRequirementsVideoEffectPlaybackBypass,
+		updated.featureRequirementsVideoEffectPlaybackBypass.requirementIds,
+		updated.featureRequirementsVideoEffectPlaybackBypass.placeholders,
+		updated.featureRequirementsVideoEffectPlaybackBypass.placeholders[0],
+		retainedVideoBypass, retainedVideoBypass.placeholders, retainedVideoBypass.placeholders[0],
+	]) assert.equal(Object.isFrozen(value), true);
 	const serialized = controller.serialize();
 	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass, bypass);
+	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass, videoBypass);
 	const restored = createAudioEditorSessionController({ snapshot: serialized });
 	const restoredBypass = restored.getSnapshot().tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass;
+	const restoredVideoBypass = restored.getSnapshot().tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass;
 	for (const value of [restoredBypass, restoredBypass.requirementIds, restoredBypass.placeholders, restoredBypass.placeholders[0]]) {
 		assert.equal(Object.isFrozen(value), true);
 	}
+	for (const value of [
+		restoredVideoBypass, restoredVideoBypass.requirementIds,
+		restoredVideoBypass.placeholders, restoredVideoBypass.placeholders[0],
+	]) assert.equal(Object.isFrozen(value), true);
 });
 
 test('cross-project clipboard retains source metadata and owns source roots after its origin closes', () => {
