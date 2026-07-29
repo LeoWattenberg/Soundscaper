@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ProjectFeatureAudioEffectBypassMetadata } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
+import type { ProjectFeatureVideoEffectBypassMetadata } from '../src/common/editor/project-feature-video-effect-bypass.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
 import {
@@ -253,6 +254,99 @@ test('audio-effect placeholders require qualifying playback-bypass metadata and 
 	assert.equal(duplicateRequirements.match(/data-audio-effect-placeholder=/gu)?.length, 1);
 });
 
+test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {
+	let payloadReads = 0;
+	const guardedClip = (id: string, title: string) => {
+		const clip: Record<string, unknown> & { id: string; kind: string; title: string } = {
+			id, kind: 'video', title,
+		};
+		Object.defineProperty(clip, 'videoEffects', {
+			enumerable: true,
+			get(): never {
+				payloadReads += 1;
+				throw new Error('videoEffects payload was read');
+			},
+		});
+		return clip;
+	};
+	const project = {
+		clips: [guardedClip('timeline-clip', 'Opening shot')],
+		projectBin: { clips: [guardedClip('bin-clip', 'Library shot')] },
+	};
+	const videoEffectPlaybackBypass = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		requirementIds: ['video-effects'],
+		placeholders: [{
+			location: 'timeline', clipId: 'timeline-clip', effectId: 'pixelate-effect', effectType: 'pixelate',
+		}, {
+			location: 'project-bin', clipId: 'bin-clip', effectId: 'vignette-effect', effectType: 'vignette',
+		}],
+	} satisfies ProjectFeatureVideoEffectBypassMetadata;
+	const incompatible = report(false, [item(
+		'video-effects',
+		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		'Video effects',
+		'unavailable',
+		'bypassed',
+	)]);
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		project,
+		videoEffectPlaybackBypass,
+	}));
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: GERMAN_COPY,
+		project,
+		videoEffectPlaybackBypass,
+	}));
+
+	assert.equal(payloadReads, 0);
+	assert.match(english, /data-project-feature-video-effect-placeholders/iu);
+	assert.match(english, /<h4[^>]*>Affected video effects<\/h4>/iu);
+	assertVideoPlaceholderAttributes(english, 'pixelate-effect', 'timeline', 'timeline-clip', 'pixelate');
+	assertVideoPlaceholderAttributes(english, 'vignette-effect', 'project-bin', 'bin-clip', 'vignette');
+	assert.match(videoPlaceholderMarkup(english, 'pixelate-effect'), /Pixelate.*Timeline.*Opening shot.*Bypassed during editor playback/isu);
+	assert.match(videoPlaceholderMarkup(english, 'vignette-effect'), /Vignette.*Project bin.*Library shot.*Bypassed during editor playback/isu);
+	assert.doesNotMatch(english, /<button|<input|<select|<textarea|<a\b/iu);
+	assert.match(german, /Betroffene Videoeffekte/iu);
+	assert.match(videoPlaceholderMarkup(german, 'pixelate-effect'), /Verpixeln.*Timeline.*Opening shot.*Bei der Wiedergabe im Editor umgangen/isu);
+});
+
+test('video-effect placeholders require exact qualifying metadata and render once for duplicate requirements', () => {
+	const project = { clips: [{ id: 'clip', kind: 'video', title: 'Clip' }] };
+	const metadata = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		requirementIds: ['video-effects', 'video-effects-copy'],
+		placeholders: [{
+			location: 'timeline', clipId: 'clip', effectId: 'effect', effectType: 'pixelate',
+		}],
+	} satisfies ProjectFeatureVideoEffectBypassMetadata;
+	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: report(false, [
+			item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'bypassed'),
+			item('video-effects-copy', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects copy', 'unavailable', 'bypassed'),
+		]),
+		copy: ENGLISH_COPY,
+		project,
+		videoEffectPlaybackBypass: metadata,
+	}));
+	const wrongFeature = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: report(false, [
+			item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'bypassed'),
+		]),
+		copy: ENGLISH_COPY,
+		project,
+		videoEffectPlaybackBypass: { ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects } as never,
+	}));
+
+	assert.equal(duplicateRequirements.match(/data-video-effect-placeholder=/gu)?.length, 1);
+	assert.doesNotMatch(wrongFeature, /data-video-effect-placeholder/iu);
+});
+
 function assertPlaceholderAttributes(
 	markup: string,
 	effectId: string,
@@ -273,6 +367,29 @@ function placeholderMarkup(markup: string, effectId: string): string {
 		'iu',
 	));
 	assert.ok(row, `Missing placeholder row for ${effectId}.`);
+	return row[0];
+}
+
+function assertVideoPlaceholderAttributes(
+	markup: string,
+	effectId: string,
+	location: string,
+	clipId: string,
+	effectType: string,
+): void {
+	const row = markup.match(new RegExp(
+		`<[^>]+(?=[^>]*data-video-effect-placeholder="${effectId}")(?=[^>]*data-location="${location}")(?=[^>]*data-clip-id="${clipId}")(?=[^>]*data-effect-type="${effectType}")(?=[^>]*data-effective-disposition="bypassed")[^>]*>`,
+		'iu',
+	));
+	assert.ok(row, `Missing stable video placeholder attributes for ${effectId}.`);
+}
+
+function videoPlaceholderMarkup(markup: string, effectId: string): string {
+	const row = markup.match(new RegExp(
+		`<li(?=[^>]*data-video-effect-placeholder="${effectId}")[^>]*>[\\s\\S]*?<\\/li>`,
+		'iu',
+	));
+	assert.ok(row, `Missing video placeholder row for ${effectId}.`);
 	return row[0];
 }
 

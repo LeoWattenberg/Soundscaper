@@ -9,6 +9,11 @@ import type {
 } from '../../project-feature-audio-effect-bypass.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
+import type {
+	ProjectFeatureVideoEffectBypassMetadata,
+	ProjectFeatureVideoEffectPlaceholder,
+} from '../../project-feature-video-effect-bypass.ts';
+import { videoEffectDefinition } from '../../video-effects.js';
 import {
 	createProjectFeatureCompatibilityNotice,
 	projectFeatureAvailabilityLabel,
@@ -20,6 +25,7 @@ interface ProjectFeatureCompatibilityNoticeCopy {
 	readonly scapeCompatibilityTitle: string;
 	readonly scapeCompatibilityAffectedFeatures: string;
 	readonly scapeCompatibilityAffectedAudioEffects: string;
+	readonly scapeCompatibilityAffectedVideoEffects: string;
 	readonly scapeCompatibilityEditorPlaybackBypassed: string;
 	readonly scapeCompatibilityUnavailable: string;
 	readonly scapeCompatibilityUnknown: string;
@@ -29,6 +35,8 @@ interface ProjectFeatureCompatibilityNoticeCopy {
 	readonly groupBus: string;
 	readonly sendBus: string;
 	readonly master: string;
+	readonly timeline: string;
+	readonly panelProjectBin: string;
 	readonly [key: string]: string;
 }
 
@@ -40,10 +48,13 @@ const resolveAudioEffectLabel = audioEffectLabel as unknown as (
 interface NamedEffectOwner {
 	readonly id: string;
 	readonly name?: string | null;
+	readonly title?: string | null;
 }
 
 interface AudioEffectOwnerProject {
 	readonly tracks?: readonly NamedEffectOwner[];
+	readonly clips?: readonly NamedEffectOwner[];
+	readonly projectBin?: Readonly<{ readonly clips?: readonly NamedEffectOwner[] }> | null;
 	readonly mixer?: Readonly<{
 		readonly groups?: readonly NamedEffectOwner[];
 		readonly sends?: readonly NamedEffectOwner[];
@@ -54,6 +65,7 @@ interface ProjectFeatureCompatibilityNoticeProps {
 	readonly project?: AudioEffectOwnerProject | null;
 	readonly report: ProjectFeatureRequirementsReport | null | undefined;
 	readonly audioEffectPlaybackBypass?: ProjectFeatureAudioEffectBypassMetadata | null;
+	readonly videoEffectPlaybackBypass?: ProjectFeatureVideoEffectBypassMetadata | null;
 	readonly copy: ProjectFeatureCompatibilityNoticeCopy;
 }
 
@@ -61,6 +73,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	project,
 	report,
 	audioEffectPlaybackBypass,
+	videoEffectPlaybackBypass,
 	copy,
 }: ProjectFeatureCompatibilityNoticeProps) {
 	const headingId = useId();
@@ -68,6 +81,9 @@ export default function ProjectFeatureCompatibilityNotice({
 	if (!notice) return null;
 	const audioEffectPlaceholderRequirementId = notice.items.find((item) => (
 		audioEffectPlaceholders(item, audioEffectPlaybackBypass).length > 0
+	))?.requirementId ?? null;
+	const videoEffectPlaceholderRequirementId = notice.items.find((item) => (
+		videoEffectPlaceholders(item, videoEffectPlaybackBypass).length > 0
 	))?.requirementId ?? null;
 	return <aside
 		className="kw-audio-editor__project-feature-compatibility"
@@ -95,8 +111,11 @@ export default function ProjectFeatureCompatibilityNotice({
 			<h3 id={`${headingId}-affected`}>{copy.scapeCompatibilityAffectedFeatures}</h3>
 			<ul className="kw-audio-editor-compatibility-items" data-project-feature-requirements>
 				{notice.items.map((item) => {
-					const placeholders = item.requirementId === audioEffectPlaceholderRequirementId
+					const audioPlaceholders = item.requirementId === audioEffectPlaceholderRequirementId
 						? audioEffectPlaceholders(item, audioEffectPlaybackBypass)
+						: [];
+					const videoPlaceholders = item.requirementId === videoEffectPlaceholderRequirementId
+						? videoEffectPlaceholders(item, videoEffectPlaybackBypass)
 						: [];
 					return <li
 						key={item.requirementId}
@@ -111,13 +130,13 @@ export default function ProjectFeatureCompatibilityNotice({
 						<small>
 							{projectFeatureAvailabilityLabel(item, copy)} · {projectFeatureDispositionLabel(item, copy)}
 						</small>
-						{placeholders.length > 0 && <div
+						{audioPlaceholders.length > 0 && <div
 							className="kw-audio-editor-compatibility-audio-effects"
 							data-project-feature-audio-effect-placeholders
 						>
 							<h4>{copy.scapeCompatibilityAffectedAudioEffects}</h4>
 							<ul aria-label={copy.scapeCompatibilityAffectedAudioEffects}>
-								{placeholders.map((placeholder) => <li
+								{audioPlaceholders.map((placeholder) => <li
 									key={`${placeholder.scope}:${placeholder.ownerId ?? 'master'}:${placeholder.effectId}`}
 									data-audio-effect-placeholder={placeholder.effectId}
 									data-scope={placeholder.scope}
@@ -127,6 +146,26 @@ export default function ProjectFeatureCompatibilityNotice({
 								>
 									<strong>{resolveAudioEffectLabel(placeholder.effectType, copy)}</strong>
 									<small>{audioEffectOwnerLabel(placeholder, project, copy)}</small>
+									<small>{copy.scapeCompatibilityEditorPlaybackBypassed}</small>
+								</li>)}
+							</ul>
+						</div>}
+						{videoPlaceholders.length > 0 && <div
+							className="kw-audio-editor-compatibility-video-effects"
+							data-project-feature-video-effect-placeholders
+						>
+							<h4>{copy.scapeCompatibilityAffectedVideoEffects}</h4>
+							<ul aria-label={copy.scapeCompatibilityAffectedVideoEffects}>
+								{videoPlaceholders.map((placeholder) => <li
+									key={`${placeholder.location}:${placeholder.clipId}:${placeholder.effectId}`}
+									data-video-effect-placeholder={placeholder.effectId}
+									data-location={placeholder.location}
+									data-clip-id={placeholder.clipId}
+									data-effect-type={placeholder.effectType}
+									data-effective-disposition="bypassed"
+								>
+									<strong>{videoEffectLabel(placeholder.effectType, copy)}</strong>
+									<small>{videoEffectOwnerLabel(placeholder, project, copy)}</small>
 									<small>{copy.scapeCompatibilityEditorPlaybackBypassed}</small>
 								</li>)}
 							</ul>
@@ -169,4 +208,43 @@ function audioEffectOwnerLabel(
 			? copy.groupBus
 			: copy.sendBus;
 	return ownerName ? `${scopeLabel} · ${ownerName}` : scopeLabel;
+}
+
+function videoEffectPlaceholders(
+	item: Readonly<{ requirementId: string; featureId: string; effectiveDisposition: string }>,
+	metadata: ProjectFeatureVideoEffectBypassMetadata | null | undefined,
+): readonly ProjectFeatureVideoEffectPlaceholder[] {
+	if (
+		metadata?.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
+		|| item.featureId !== metadata.featureId
+		|| item.effectiveDisposition !== 'bypassed'
+		|| !metadata.requirementIds.includes(item.requirementId)
+	) return [];
+	return metadata.placeholders;
+}
+
+function videoEffectLabel(
+	effectType: string,
+	copy: ProjectFeatureCompatibilityNoticeCopy,
+): string {
+	try {
+		const definition = videoEffectDefinition(effectType);
+		return copy[definition.labelKey] || definition.label;
+	} catch {
+		return effectType;
+	}
+}
+
+function videoEffectOwnerLabel(
+	placeholder: ProjectFeatureVideoEffectPlaceholder,
+	project: AudioEffectOwnerProject | null | undefined,
+	copy: ProjectFeatureCompatibilityNoticeCopy,
+): string {
+	const collection = placeholder.location === 'timeline'
+		? project?.clips
+		: project?.projectBin?.clips;
+	const clip = collection?.find((candidate) => candidate.id === placeholder.clipId);
+	const clipName = (clip?.title || clip?.name)?.trim();
+	const locationLabel = placeholder.location === 'timeline' ? copy.timeline : copy.panelProjectBin;
+	return clipName ? `${locationLabel} · ${clipName}` : locationLabel;
 }

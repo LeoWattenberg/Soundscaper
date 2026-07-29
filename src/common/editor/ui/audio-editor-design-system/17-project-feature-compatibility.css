@@ -68,21 +68,24 @@
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects {
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-video-effects {
 	display: grid;
 	gap: 4px;
 	padding-top: 6px;
 	border-top: 1px solid var(--kw-editor-border);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects ul {
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects ul,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-video-effects ul {
 	display: grid;
 	gap: 4px;
 	padding: 0;
 	list-style: none;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects li {
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects li,
+#kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-video-effects li {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: 4px;
