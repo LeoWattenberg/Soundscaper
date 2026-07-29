@@ -2,5 +2,6 @@
 
 export const MEDIA_ASSET_CHUNK_STORE_NAME = 'mediaAssetChunks';
 export const MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME = 'mediaChunkToken';
+export const MEDIA_ASSET_CHUNK_STORAGE_TYPE = 'indexeddb-media-chunks-v1';
 export const MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME = 'mediaChunkToken';
 export const BINARY_PATH_REFERENCE_INDEX_NAME = 'path';

@@ -260,7 +260,25 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	const cancellation = risks.get('long-job-cancellation');
 	assert.ok(cancellation.currentControls.some(({ id }) => id === 'streamed-media-maintenance-abort'));
 	assert.ok(cancellation.currentControls.some(({ id }) => id === 'direct-scape-save-rollback'));
-	assert.ok(cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'));
+	const stagingLeases = cancellation.currentControls.find(
+		({ id }) => id === 'cross-context-streamed-media-staging-leases',
+	);
+	assert.ok(stagingLeases);
+	for (const path of [
+		'src/common/editor/storage/media-asset-staging-schema.ts',
+		'src/common/editor/storage/media-asset-staging-repository.ts',
+		'src/common/editor/storage/media-asset-staged-sink.ts',
+		'src/common/editor/storage/media-asset-disposal-repository.ts',
+		'src/common/editor/storage/media-asset-write-repository.ts',
+		'src/common/editor/storage/retention-repository.ts',
+		'tests/audio-editor-cross-context-media-lifecycle.test.ts',
+		'tests/audio-editor-media-asset-disposal.test.ts',
+		'tests/browser/audio-editor-storage-migration.spec.js',
+	]) assert.ok(stagingLeases.evidence.some((item) => item.path === path));
+	assert.equal(
+		cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'),
+		false,
+	);
 });
 
 test('security claims point to checked-in implementation and verification evidence', async () => {

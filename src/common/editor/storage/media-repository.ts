@@ -92,8 +92,9 @@ export class MediaRepository {
 		return this.#assetWrites.begin(sourceId, metadata, options);
 	}
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetWriteMaintenance { return this.#assetWrites.beginMaintenance(options); }
-	activeAssetPaths(): ReadonlySet<string> { return this.#assetWrites.activePaths(); }
-
+	activeAssetStaging() { return this.#assetWrites.activeStaging(); }
+	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }
+	invalidateAssetStagingStore(store: IDBObjectStore) { return this.#assetWrites.invalidateStagingStore(store); }
 	async writeAsset(
 		sourceId: string,
 		input: unknown,
@@ -189,7 +190,7 @@ export class MediaRepository {
 		await this.#opfs.deleteBinaryRecords([disposableRecord, ...derivatives]);
 	}
 
-	cleanupStaleAssetChunks(records: readonly StorageRecord[], cutoff: number): Promise<void> { return this.#assetWrites.cleanupStaleChunks(records, cutoff); }
+	cleanupStaleAssetChunks(records: readonly StorageRecord[], cutoff: number, protectedTokens: ReadonlySet<string>): Promise<void> { return this.#assetWrites.cleanupStaleChunks(records, cutoff, protectedTokens); }
 	prepareDetachedPayloadDisposal(record: StorageRecord): Promise<StorageRecord | null> { return this.#assetWrites.prepareDetachedPayloadDisposal(record); }
 
 	async saveDerivative(sourceId: string, {

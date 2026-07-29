@@ -53,6 +53,11 @@ export interface OpfsBinaryWriter {
 	abort(): Promise<void>;
 }
 
+export interface OpfsBinaryWriterPlan {
+	readonly path: string;
+	open(): Promise<OpfsBinaryWriter | null>;
+}
+
 interface ContainerWriterInstance {
 	write(chunk: StoredPcmChunk): Promise<void>;
 	close(): Promise<Record<string, unknown>>;
@@ -154,71 +159,20 @@ export class OpfsRepository {
 		}
 	}
 
-	async createBinaryWriter(
+	async planBinaryWriter(
 		prefix: string,
 		{ signal }: { readonly signal?: AbortSignal } = {},
-	): Promise<OpfsBinaryWriter | null> {
+	): Promise<OpfsBinaryWriterPlan | null> {
 		throwIfAborted(signal);
 		const directory = await this.directory();
 		throwIfAborted(signal);
 		if (!directory?.getFileHandle) return null;
 		const stem = String(prefix || 'media').replace(/[^a-z0-9._-]+/giu, '-').slice(0, 80);
 		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/giu, '-')}.blob`;
-		const remove = (): Promise<void> => removeStagedPath(directory, path);
-		let writable: FileSystemWritableFileStream | undefined;
-		try {
-			const handle = await directory.getFileHandle(path, { create: true });
-			throwIfAborted(signal);
-			writable = await handle.createWritable();
-			throwIfAborted(signal);
-			let closed = false;
-			return {
-				path,
-				async write(bytes, options = {}) {
-					if (closed) throw new Error('The OPFS media writer is closed.');
-					throwIfAborted(options.signal ?? signal);
-					await writable?.write(copyArrayBuffer(bytes));
-					throwIfAborted(options.signal ?? signal);
-				},
-				async close(options = {}) {
-					if (closed) return;
-					throwIfAborted(options.signal ?? signal);
-					await writable?.close();
-					closed = true;
-					throwIfAborted(options.signal ?? signal);
-				},
-				async abort() {
-					let abortError: unknown;
-					if (!closed) {
-						closed = true;
-						try { await writable?.abort(); } catch (error) { abortError = error; }
-					}
-					try {
-						await remove();
-					} catch (removeError) {
-						if (abortError !== undefined) {
-							throw new AggregateError(
-								[abortError, removeError],
-								'OPFS media writer abort and staged-file removal both failed.',
-							);
-						}
-						throw removeError;
-					}
-				},
-			};
-		} catch (error) {
-			try { await writable?.abort(); } catch { /* Creation may not have reached a writable stream. */ }
-			try {
-				await remove();
-			} catch (removeError) {
-				throw new AggregateError(
-					[error, removeError],
-					'OPFS media writer creation and staged-file removal both failed.',
-				);
-			}
-			throwIfAborted(signal);
-			return null;
-		}
+		return {
+			path,
+			open: () => openBinaryWriter(directory, path, signal),
+		};
 	}
 
 	async deleteBinaryRecords(records: readonly (StorageRecord | null | undefined)[]): Promise<void> {
@@ -432,6 +386,68 @@ export class OpfsRepository {
 			throw new Error('The requested local audio source is missing.');
 		}
 	}
+}
+
+async function openBinaryWriter(
+	directory: FileSystemDirectoryHandle,
+	path: string,
+	defaultSignal?: AbortSignal,
+): Promise<OpfsBinaryWriter | null> {
+	const remove = (): Promise<void> => removeStagedPath(directory, path);
+	let writable: FileSystemWritableFileStream | undefined;
+	try {
+		const handle = await directory.getFileHandle(path, { create: true });
+		throwIfAborted(defaultSignal);
+		writable = await handle.createWritable();
+		throwIfAborted(defaultSignal);
+	} catch (error) {
+		try { await writable?.abort(); } catch { /* Creation may not have reached a writable stream. */ }
+		try {
+			await remove();
+		} catch (removeError) {
+			throw new AggregateError(
+				[error, removeError],
+				'OPFS media writer creation and staged-file removal both failed.',
+			);
+		}
+		throwIfAborted(defaultSignal);
+		return null;
+	}
+	let closed = false;
+	return {
+		path,
+		async write(bytes, options = {}) {
+			if (closed) throw new Error('The OPFS media writer is closed.');
+			throwIfAborted(options.signal ?? defaultSignal);
+			await writable?.write(copyArrayBuffer(bytes));
+			throwIfAborted(options.signal ?? defaultSignal);
+		},
+		async close(options = {}) {
+			if (closed) return;
+			throwIfAborted(options.signal ?? defaultSignal);
+			await writable?.close();
+			closed = true;
+			throwIfAborted(options.signal ?? defaultSignal);
+		},
+		async abort() {
+			let abortError: unknown;
+			if (!closed) {
+				closed = true;
+				try { await writable?.abort(); } catch (error) { abortError = error; }
+			}
+			try {
+				await remove();
+			} catch (removeError) {
+				if (abortError !== undefined) {
+					throw new AggregateError(
+						[abortError, removeError],
+						'OPFS media writer abort and staged-file removal both failed.',
+					);
+				}
+				throw removeError;
+			}
+		},
+	};
 }
 
 function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string, unknown> {

@@ -415,26 +415,38 @@ models or native implementations.
   and fail-before-delete corruption handling; a real
   [browser migration](tests/browser/audio-editor-storage-migration.spec.js)
   exercises v2-to-v3 backfill in evergreen engines. The one-time legacy
-  migration still reads one Blob-bearing row at a time. IndexedDB schema v4 now
+  migration still reads one Blob-bearing row at a time. IndexedDB schema v4
   adds a dedicated token-indexed
   [media chunk store](src/common/editor/storage/media-asset-chunk-records.ts)
   plus token and cross-binary-path reference indexes without rewriting legacy
-  media. The bounded
+  media. Schema v5 adds a generation-fenced
+  [staging owner store](src/common/editor/storage/media-asset-staging-repository.ts)
+  with unique chunk-token and OPFS-path indexes and expiring leases; its
+  additive migration preserves v4 media/chunks and rolls the store, sentinel,
+  and version back together if initialization fails. The bounded
   [media writer](src/common/editor/storage/media-asset-write-repository.ts)
   coalesces emissions into at most 4 MiB source-owned native Blob rows, verifies
   SHA-256 and exact geometry during load, limits degraded process-memory payload
-  admission to 64 MiB, and publishes immutable metadata last. Clear and close
-  block new admission, abort same-instance staging—including a stalled OPFS
-  write—and wait for cleanup; temporary cleanup preserves active identities,
-  removes malformed or stale orphans, and cross-delete checks protect retained
-  chunk tokens and OPFS paths across source, original, and derivative owners.
-  Focused
+  admission to 64 MiB, and publishes immutable metadata last. A lease is now
+  durable before any streamed payload exists; each chunk write and final
+  metadata publication validates that lease in the same IndexedDB transaction
+  as its mutation, while OPFS checks ownership before and after awaited I/O.
+  Clear and close still block new admission, abort same-instance staging—including
+  a stalled OPFS write—and wait for cleanup. Cross-instance clear atomically
+  rotates the staging generation with record deletion, cleanup snapshots live
+  ownership before inventory and reclaims expired/crashed staging, and disposal
+  refuses to follow corrupted metadata into a foreign live lease. When durable
+  IndexedDB coordination is unavailable, streamed assets remain in the bounded
+  process-memory fallback instead of creating shared OPFS staging. Focused
   [storage](tests/audio-editor-streaming-media-storage.test.ts),
   [load-corruption](tests/audio-editor-media-asset-load.test.ts), and
-  [lifecycle](tests/audio-editor-streaming-media-lifecycle.test.ts) regressions
+  [same-instance lifecycle](tests/audio-editor-streaming-media-lifecycle.test.ts),
+  [two-store lifecycle](tests/audio-editor-cross-context-media-lifecycle.test.ts),
+  and [schema](tests/audio-editor-derivative-cache-schema.test.ts) regressions,
+  plus the real [browser migration](tests/browser/audio-editor-storage-migration.spec.js),
   cover all three backends, shutdown admission, cancellation, publication
-  ambiguity, and corrupted references. Durable staging coordination across
-  separate tabs/store instances remains open. Every cache publication
+  ambiguity, migration rollback, live cleanup retention, clear fencing,
+  expired-stage reclamation, and corrupted references. Every cache publication
   now enforces frozen 512 MiB binary-payload, 4,096-entry, and 30-day limits at
   the sole media-repository owner. Memory plans before mutation; IndexedDB
   replaces and evicts payload/companion pairs in one serialized transaction,

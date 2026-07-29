@@ -31,14 +31,35 @@ test('streaming media storage publishes documented non-raiseable byte boundaries
 	assert.equal(store.memory.mediaAssets.size, 0);
 });
 
+test('degraded memory streaming never creates uncoordinated OPFS staging', async () => {
+	const files = new Map<string, Blob>();
+	const store = createProjectStore({
+		indexedDB: null,
+		databaseName: uniqueDatabaseName('stream-media-degraded-opfs'),
+		preferOpfs: true,
+		opfsRoot: createOpfsDirectory(files),
+	});
+	const bytes = Uint8Array.of(6, 7, 8);
+	const writer = await store.beginMediaAssetWrite('degraded-media', {}, {
+		expectedBytes: bytes.byteLength,
+		expectedSha256: digest(bytes),
+	});
+
+	assert.equal(files.size, 0);
+	await writer.write(bytes);
+	await writer.commit();
+	assert.equal(files.size, 0);
+	assert.equal(store.memory.mediaAssetChunks.size, 1);
+});
+
 for (const backend of ['memory', 'indexeddb', 'opfs'] as const) {
 	test(`${backend} streaming media writes coalesce tiny emissions and load exact bytes`, async () => {
 		const files = new Map<string, Blob>();
-		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const indexedDB = backend === 'memory' ? null : createInstrumentedIndexedDB();
 		const databaseName = uniqueDatabaseName(`stream-media-${backend}`);
 		const store = createProjectStore({
 			indexedDB,
-			memoryFallback: backend !== 'indexeddb',
+			memoryFallback: backend === 'memory',
 			preferOpfs: backend === 'opfs',
 			databaseName,
 			opfsRoot: backend === 'opfs' ? createOpfsDirectory(files) : null,
@@ -378,7 +399,8 @@ test('OPFS staged-file removal failures are surfaced with the primary write fail
 	const files = new Map<string, Blob>();
 	const removeError = new DOMException('staged file is locked', 'NoModificationAllowedError');
 	const store = createProjectStore({
-		indexedDB: null,
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
 		databaseName: uniqueDatabaseName('stream-media-opfs-remove-failure'),
 		opfsRoot: createOpfsDirectory(files, { removeError }),
 	});

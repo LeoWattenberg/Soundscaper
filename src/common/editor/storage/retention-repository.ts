@@ -9,6 +9,7 @@ import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 } from './media-asset-chunk-schema.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import {
 	candidateEligibleAt,
 	isOpfsPcmStorage,
@@ -62,6 +63,8 @@ export class RetentionRepository {
 	}
 
 	async cleanupTemporaryAssets({ maximumAgeMs = 24 * 60 * 60 * 1000 } = {}): Promise<void> {
+		const cutoff = Date.now() - Math.max(0, Number(maximumAgeMs) || 0);
+		const activeStaging = await this.#options.media.activeAssetStaging();
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
 		const mediaAssets = await this.#options.media.assetRecords();
@@ -73,10 +76,13 @@ export class RetentionRepository {
 			...sources.map((source) => source.path),
 			...binaryRecords.map((record) => record.path),
 		].filter(isString));
-		for (const path of this.#options.media.activeAssetPaths()) paths.add(path);
-		const cutoff = Date.now() - maximumAgeMs;
+		for (const path of activeStaging.paths) paths.add(path);
 		await this.#options.sourceRecords.cleanupStaleChunks(tokens, cutoff);
-		await this.#options.media.cleanupStaleAssetChunks(mediaAssets, cutoff);
+		await this.#options.media.cleanupStaleAssetChunks(
+			mediaAssets,
+			cutoff,
+			activeStaging.mediaChunkTokens,
+		);
 		await this.#options.opfs.cleanupOrphans(paths, cutoff);
 	}
 
@@ -86,14 +92,19 @@ export class RetentionRepository {
 			await maintenance.abortActive();
 			await this.#options.sources.stopBackgroundWork();
 			const opfsRecords: StorageRecord[] = [];
+			const stagedPaths = new Set<string>();
 			const database = await this.#options.port.database();
 			if (!database) {
+				const invalidated = this.#options.media.invalidateAssetStagingMemory();
+				for (const path of invalidated.paths) stagedPaths.add(path);
 				opfsRecords.push(
 					...[...this.#options.port.memory.sources.values()].map(asStorageRecord).filter(isOpfsSource),
 					...[...this.#options.port.memory.mediaAssets.values()].map(asStorageRecord).filter(isOpfsRecord),
 					...[...this.#options.port.memory.videoDerivatives.values()].map(asStorageRecord).filter(isOpfsRecord),
 				);
-				for (const value of Object.values(this.#options.port.memory)) value.clear();
+				for (const value of Object.values(this.#options.port.memory)) {
+					if (value !== this.#options.port.memory.mediaAssetStaging) value.clear();
+				}
 			} else {
 				await transact(database, [
 					'projects',
@@ -104,6 +115,7 @@ export class RetentionRepository {
 					'sourceChunks',
 					'mediaAssets',
 					MEDIA_ASSET_CHUNK_STORE_NAME,
+					MEDIA_ASSET_STAGING_STORE_NAME,
 					VIDEO_DERIVATIVE_STORE_NAME,
 					DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 				], 'readwrite', async (stores) => {
@@ -115,13 +127,20 @@ export class RetentionRepository {
 					opfsRecords.push(...await storedSourcesRequest);
 					opfsRecords.push(...await storedMediaAssetsRequest);
 					opfsRecords.push(...await storedDerivativeEntriesRequest);
-					for (const store of Object.values(stores)) store.clear();
+					const invalidated = await this.#options.media.invalidateAssetStagingStore(
+						stores[MEDIA_ASSET_STAGING_STORE_NAME],
+					);
+					for (const path of invalidated.paths) stagedPaths.add(path);
+					for (const [storeName, store] of Object.entries(stores)) {
+						if (storeName !== MEDIA_ASSET_STAGING_STORE_NAME) store.clear();
+					}
 				});
 			}
 			for (const record of opfsRecords) {
 				if (record.sourceToken) await this.#options.sources.deleteStored(record);
 				else await this.#options.opfs.deleteBinaryRecords([record]);
 			}
+			for (const path of stagedPaths) await this.#options.opfs.deletePath(path);
 		} finally {
 			maintenance.release();
 		}

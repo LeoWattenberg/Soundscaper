@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { MEDIA_ASSET_STAGING_STATE_KEY } from '../src/common/editor/storage/media-asset-staging-schema.ts';
 import { MEDIA_ASSET_STREAM_CHUNK_BYTES } from '../src/common/editor/storage/media-asset-write-repository.ts';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('temporary cleanup preserves a suspended chunk writer until it aborts', async () => {
 	const store = memoryStore('stream-lifecycle-cleanup-chunks');
@@ -44,7 +46,8 @@ test('temporary cleanup removes malformed chunk rows that cannot belong to a val
 test('temporary cleanup preserves an active OPFS staging path', async () => {
 	const opfs = fakeOpfs();
 	const store = createProjectStore({
-		indexedDB: null,
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
 		databaseName: uniqueDatabaseName('stream-lifecycle-cleanup-opfs'),
 		preferOpfs: true,
 		opfsRoot: opfs.directory,
@@ -73,6 +76,7 @@ test('clear aborts staged media, leaves no inventory, and reopens writer admissi
 
 	assert.equal(store.memory.mediaAssetChunks.size, 0);
 	assert.equal(store.memory.mediaAssets.size, 0);
+	assert.deepEqual([...store.memory.mediaAssetStaging.keys()], [MEDIA_ASSET_STAGING_STATE_KEY]);
 	await assert.rejects(writer.commit(), /writer is closed/iu);
 
 	const replacement = Uint8Array.of(8);
@@ -103,7 +107,8 @@ test('close aborts staged media before closing the backing store', async () => {
 test('close rejects new storage work while an active writer is still aborting', async () => {
 	const opfs = fakeOpfs({ stallAborts: true });
 	const store = createProjectStore({
-		indexedDB: null,
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
 		databaseName: uniqueDatabaseName('stream-lifecycle-close-admission'),
 		preferOpfs: true,
 		opfsRoot: opfs.directory,
@@ -124,7 +129,8 @@ test('close rejects new storage work while an active writer is still aborting', 
 test('clear preempts a stalled OPFS write instead of waiting for storage I/O', async () => {
 	const opfs = fakeOpfs({ stallWrites: true });
 	const store = createProjectStore({
-		indexedDB: null,
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
 		databaseName: uniqueDatabaseName('stream-lifecycle-stalled-write'),
 		preferOpfs: true,
 		opfsRoot: opfs.directory,
@@ -205,9 +211,12 @@ test('delete cannot cross-delete an OPFS file through a corrupted media path', a
 
 test('delete cannot cross-delete an active OPFS staging path through corrupted metadata', async () => {
 	const opfs = fakeOpfs();
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('stream-lifecycle-active-path-delete');
 	const store = createProjectStore({
-		indexedDB: null,
-		databaseName: uniqueDatabaseName('stream-lifecycle-active-path-delete'),
+		indexedDB,
+		memoryFallback: false,
+		databaseName,
 		preferOpfs: true,
 		opfsRoot: opfs.directory,
 	});
@@ -217,7 +226,7 @@ test('delete cannot cross-delete an active OPFS staging path through corrupted m
 		expectedSha256: digest(bytes),
 	});
 	const [activePath] = opfs.files.keys();
-	store.memory.mediaAssets.set('active-path-attacker', {
+	indexedDB.seedRecord(databaseName, 'mediaAssets', {
 		sourceId: 'active-path-attacker',
 		storage: 'opfs',
 		path: activePath,

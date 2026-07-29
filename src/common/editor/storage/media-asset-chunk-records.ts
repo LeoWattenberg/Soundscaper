@@ -11,6 +11,8 @@ import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
 } from './media-asset-chunk-schema.ts';
+import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 export { MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME };
@@ -40,13 +42,25 @@ export class MediaAssetChunkRecords {
 		this.#port = port;
 	}
 
-	async write(record: MediaAssetChunkRecord, capturedDatabase?: IDBDatabase | null): Promise<void> {
+	async write(
+		record: MediaAssetChunkRecord,
+		capturedDatabase?: IDBDatabase | null,
+		lease?: MediaAssetStagingLease,
+	): Promise<void> {
 		const database = capturedDatabase === undefined
 			? await this.#port.database()
 			: capturedDatabase;
-		if (!database) this.#port.memory.mediaAssetChunks.set(record.key, cloneChunk(record));
-		else await transact(database, MEDIA_ASSET_CHUNK_STORE_NAME, 'readwrite', (stores) => {
-			stores[MEDIA_ASSET_CHUNK_STORE_NAME].put(record);
+		if (!database) {
+			lease?.assertInMemory({ renew: true });
+			this.#port.memory.mediaAssetChunks.set(record.key, cloneChunk(record));
+			return;
+		}
+		const storeNames = lease
+			? [MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_STAGING_STORE_NAME]
+			: [MEDIA_ASSET_CHUNK_STORE_NAME];
+		await transact(database, storeNames, 'readwrite', async (stores) => {
+			if (lease) await lease.assertInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], { renew: true });
+			await request(stores[MEDIA_ASSET_CHUNK_STORE_NAME].put(record));
 		});
 	}
 

@@ -9,6 +9,7 @@ export interface EditorMemoryDatabase {
 	readonly sourceChunks: Map<string, unknown>;
 	readonly mediaAssets: Map<string, unknown>;
 	readonly mediaAssetChunks: Map<string, unknown>;
+	readonly mediaAssetStaging: Map<string, unknown>;
 	readonly videoDerivatives: Map<string, unknown>;
 }
 
@@ -30,6 +31,7 @@ export function getMemoryDatabase(name: string): EditorMemoryDatabase {
 			sourceChunks: new Map(),
 			mediaAssets: new Map(),
 			mediaAssetChunks: new Map(),
+			mediaAssetStaging: new Map(),
 			videoDerivatives: new Map(),
 		};
 		memoryDatabases.set(name, database);

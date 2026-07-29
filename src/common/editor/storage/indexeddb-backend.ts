@@ -12,11 +12,19 @@ import {
 	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
 	MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
 } from './media-asset-chunk-schema.ts';
+import {
+	MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME,
+	MEDIA_ASSET_STAGING_KIND_INDEX_NAME,
+	MEDIA_ASSET_STAGING_PATH_INDEX_NAME,
+	MEDIA_ASSET_STAGING_SCHEMA_VERSION,
+	MEDIA_ASSET_STAGING_STATE_KEY,
+	MEDIA_ASSET_STAGING_STORE_NAME,
+	MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME,
+} from './media-asset-staging-schema.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
 const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
-const MEDIA_ASSET_CHUNK_SCHEMA_VERSION = 4;
-const DATABASE_VERSION = MEDIA_ASSET_CHUNK_SCHEMA_VERSION;
+const DATABASE_VERSION = MEDIA_ASSET_STAGING_SCHEMA_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -113,6 +121,21 @@ export function openDatabase(
 							{ unique: false },
 						);
 					}
+				}
+				if (!database.objectStoreNames.contains(MEDIA_ASSET_STAGING_STORE_NAME)) {
+					const store = database.createObjectStore(MEDIA_ASSET_STAGING_STORE_NAME, { keyPath: 'key' });
+					store.createIndex(MEDIA_ASSET_STAGING_KIND_INDEX_NAME, MEDIA_ASSET_STAGING_KIND_INDEX_NAME, { unique: false });
+					store.createIndex(MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, { unique: true });
+					store.createIndex(MEDIA_ASSET_STAGING_PATH_INDEX_NAME, MEDIA_ASSET_STAGING_PATH_INDEX_NAME, { unique: true });
+					store.createIndex(MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, { unique: false });
+					const stateRequest = store.put({
+						key: MEDIA_ASSET_STAGING_STATE_KEY,
+						kind: 'state',
+						generation: 'initial',
+					});
+					stateRequest.onerror = () => abortUpgrade(
+						stateRequest.error || new Error('Could not initialize media staging maintenance state.'),
+					);
 				}
 				if (!database.objectStoreNames.contains(VIDEO_DERIVATIVE_STORE_NAME)) {
 					const store = database.createObjectStore(VIDEO_DERIVATIVE_STORE_NAME, { keyPath: 'key' });

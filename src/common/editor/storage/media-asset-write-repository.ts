@@ -7,24 +7,36 @@ import {
 	mediaAssetChunkKey,
 	mediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
+import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import {
 	MediaAssetWriteCoordinator,
 	type MediaAssetWriteMaintenance,
 } from './media-asset-write-coordinator.ts';
 import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
 import {
+	abortPreparedMediaAssetStaging,
+	prepareMediaAssetStaging,
+	type PreparedMediaAssetStaging,
+} from './media-asset-staged-sink.ts';
+import {
+	type ActiveMediaAssetStaging,
+	type MediaAssetStagingLease,
+	MediaAssetStagingRepository,
+} from './media-asset-staging-repository.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import {
 	binaryMetadata,
 	mediaAssetMetadata,
 	type BlobLike,
 	type StorageRecord,
 } from './media-records.ts';
-import type { OpfsBinaryWriter, OpfsRepository } from './opfs-repository.ts';
+import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { request, transact } from './indexeddb-backend.ts';
 
 export const MEDIA_ASSET_STREAM_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES = 64 * 1024 * 1024;
-export const MEDIA_ASSET_CHUNK_STORAGE_TYPE = 'indexeddb-media-chunks-v1';
+export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
@@ -43,15 +55,6 @@ export interface MediaAssetWriter {
 	abort(): Promise<void>;
 }
 
-interface StagedMediaSink {
-	readonly storage: string;
-	readonly path?: string;
-	readonly mediaChunkToken?: string;
-	write(bytes: Uint8Array, index: number, signal?: AbortSignal): Promise<void>;
-	close(signal?: AbortSignal): Promise<void>;
-	abort(): Promise<void>;
-}
-
 interface ManagedMediaAssetWriter {
 	readonly writer: MediaAssetWriter;
 	abortForMaintenance(): Promise<void>;
@@ -62,6 +65,7 @@ export class MediaAssetWriteRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
 	readonly #chunks: MediaAssetChunkRecords;
+	readonly #staging: MediaAssetStagingRepository;
 	readonly #coordinator = new MediaAssetWriteCoordinator();
 	readonly #disposal: MediaAssetDisposalRepository;
 
@@ -69,10 +73,12 @@ export class MediaAssetWriteRepository {
 		this.#port = port;
 		this.#opfs = opfs;
 		this.#chunks = new MediaAssetChunkRecords(port);
+		this.#staging = new MediaAssetStagingRepository(port);
 		this.#disposal = new MediaAssetDisposalRepository(
 			port,
 			this.#chunks,
 			() => this.#coordinator.activePaths(),
+			(identity) => this.#staging.isActive(identity),
 		);
 	}
 
@@ -97,26 +103,25 @@ export class MediaAssetWriteRepository {
 		if (await this.#assetExists(id, database)) {
 			throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
 		}
-		const opfsWriter = await this.#opfs.createBinaryWriter(`media-${id}`, {
+		const prepared = await prepareMediaAssetStaging({
+			sourceId: id,
+			expectedBytes,
+			maximumMemoryBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES,
+			database,
+			chunks: this.#chunks,
+			staging: this.#staging,
+			opfs: this.#opfs,
 			signal: options.signal,
 		});
-		let sink: StagedMediaSink;
-		if (opfsWriter) sink = opfsSink(opfsWriter);
-		else {
-			if (!database && expectedBytes > MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES) {
-				throw new RangeError('Streamed media exceeds the fixed 64 MiB process-memory media limit.');
-			}
-			sink = this.#chunkSink(id, createMediaChunkToken(id), database);
-		}
 		let registration;
 		try {
 			registration = this.#coordinator.register({
-				mediaChunkToken: sink.mediaChunkToken,
-				path: sink.path,
+				mediaChunkToken: prepared.sink.mediaChunkToken,
+				path: prepared.sink.path,
 			});
 		} catch (error) {
 			try {
-				await sink.abort();
+				await abortPreparedMediaAssetStaging(prepared);
 			} catch (cleanupError) {
 				throw new AggregateError(
 					[error, cleanupError],
@@ -130,7 +135,7 @@ export class MediaAssetWriteRepository {
 			metadata,
 			expectedBytes,
 			expectedSha256,
-			sink,
+			prepared,
 			registration.release,
 			database,
 			options.signal,
@@ -143,8 +148,10 @@ export class MediaAssetWriteRepository {
 		return this.#coordinator.beginMaintenance(options);
 	}
 
-	activePaths(): ReadonlySet<string> {
-		return this.#coordinator.activePaths();
+	activeStaging(): Promise<ActiveMediaAssetStaging> { return this.#staging.activeIdentities(); }
+	invalidateStagingMemory(): ActiveMediaAssetStaging { return this.#staging.invalidateMemory(); }
+	invalidateStagingStore(store: IDBObjectStore): Promise<ActiveMediaAssetStaging> {
+		return this.#staging.invalidateStore(store);
 	}
 
 	async load(record: StorageRecord, missingMessage: string): Promise<BlobLike> {
@@ -204,32 +211,14 @@ export class MediaAssetWriteRepository {
 		return this.#disposal.prepare(record);
 	}
 
-	async cleanupStaleChunks(records: readonly StorageRecord[], cutoff: number): Promise<void> {
+	async cleanupStaleChunks(
+		records: readonly StorageRecord[],
+		cutoff: number,
+		protectedTokens: ReadonlySet<string> = new Set(),
+	): Promise<void> {
 		const retained = new Set(records.map(({ mediaChunkToken }) => mediaChunkToken).filter(isString));
-		for (const token of this.#coordinator.activeMediaChunkTokens()) retained.add(token);
+		for (const token of protectedTokens) retained.add(token);
 		await this.#chunks.cleanupStale(retained, cutoff);
-	}
-
-	#chunkSink(sourceId: string, token: string, database: IDBDatabase | null): StagedMediaSink {
-		return {
-			storage: MEDIA_ASSET_CHUNK_STORAGE_TYPE,
-			mediaChunkToken: token,
-			write: async (bytes, index, signal) => {
-				throwIfAborted(signal);
-				await this.#chunks.write({
-					key: mediaAssetChunkKey(token, index),
-					sourceId,
-					mediaChunkToken: token,
-					index,
-					payload: new Blob([exactArrayBuffer(bytes)]),
-					byteLength: bytes.byteLength,
-					createdAt: Date.now(),
-				}, database);
-				throwIfAborted(signal);
-			},
-			close: async (signal) => { throwIfAborted(signal); },
-			abort: () => this.#chunks.delete(token, database),
-		};
 	}
 
 	#writer(
@@ -237,11 +226,12 @@ export class MediaAssetWriteRepository {
 		metadata: Readonly<Record<string, unknown>>,
 		expectedBytes: number,
 		expectedSha256: string,
-		sink: StagedMediaSink,
+		prepared: PreparedMediaAssetStaging,
 		onSettled: () => void,
 		database: IDBDatabase | null,
 		defaultSignal?: AbortSignal,
 	): ManagedMediaAssetWriter {
+		const { lease, sink } = prepared;
 		const digest = sha256.create();
 		const pendingCapacity = Math.min(expectedBytes, MEDIA_ASSET_STREAM_CHUNK_BYTES);
 		let pending = pendingCapacity ? new Uint8Array(pendingCapacity) : new Uint8Array();
@@ -261,7 +251,7 @@ export class MediaAssetWriteRepository {
 			if (maintenanceAborted) throw maintenanceAbortReason;
 		};
 		const cleanup = (): Promise<void> => {
-			cleanupPromise ??= sink.abort();
+			cleanupPromise ??= abortPreparedMediaAssetStaging(prepared);
 			return cleanupPromise;
 		};
 		const abortWith = async (primary: unknown): Promise<never> => {
@@ -291,6 +281,7 @@ export class MediaAssetWriteRepository {
 			const signal = options.signal ?? defaultSignal;
 			try {
 				if (activeWrite) await activeWrite;
+				await lease.checkpoint();
 				throwIfMaintenanceAborted();
 				throwIfAborted(signal);
 				if (bytesWritten !== expectedBytes) {
@@ -321,7 +312,7 @@ export class MediaAssetWriteRepository {
 					pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 				};
 				publicationStarted = true;
-				await this.#publish(record, signal, database);
+				await this.#publish(record, signal, database, lease);
 				state = 'committed';
 				onSettled();
 				return mediaAssetMetadata(record);
@@ -354,6 +345,9 @@ export class MediaAssetWriteRepository {
 						}
 						const snapshot = new Uint8Array(input.byteLength);
 						snapshot.set(input);
+						await lease.checkpoint();
+						throwIfMaintenanceAborted();
+						throwIfAborted(signal);
 						digest.update(snapshot);
 						bytesWritten += snapshot.byteLength;
 						let offset = 0;
@@ -364,6 +358,7 @@ export class MediaAssetWriteRepository {
 							offset += count;
 							if (pendingBytes === pending.byteLength) await flush(signal);
 						}
+						await lease.checkpoint();
 						throwIfMaintenanceAborted();
 						throwIfAborted(signal);
 					} catch (error) {
@@ -454,14 +449,17 @@ export class MediaAssetWriteRepository {
 		record: StorageRecord,
 		signal: AbortSignal | undefined,
 		database: IDBDatabase | null,
+		lease: MediaAssetStagingLease,
 	): Promise<void> {
 		const sourceId = record.sourceId as string;
 		throwIfAborted(signal);
 		if (!database) {
+			lease.assertInMemory();
 			if (this.#port.memory.mediaAssets.has(sourceId)) {
 				throw new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
 			}
 			throwIfAborted(signal);
+			lease.completeInMemory();
 			try {
 				this.#port.memory.mediaAssets.set(sourceId, clone(record));
 			} catch (error) {
@@ -472,13 +470,21 @@ export class MediaAssetWriteRepository {
 		}
 		let mutationStarted = false;
 		try {
-			await transact(database, 'mediaAssets', 'readwrite', async ({ mediaAssets }) => {
+			await transact(database, [
+				'mediaAssets',
+				MEDIA_ASSET_STAGING_STORE_NAME,
+			], 'readwrite', async (stores) => {
+				const mediaAssets = stores.mediaAssets;
+				const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
 				if (await request(mediaAssets.get(sourceId))) {
 					throw new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
 				}
 				throwIfAborted(signal);
+				await lease.assertInStore(staging);
+				throwIfAborted(signal);
 				mutationStarted = true;
 				await request(mediaAssets.put(record));
+				await lease.completeInStore(staging);
 			});
 		} catch (error) {
 			if (!mutationStarted) throw error;
@@ -517,22 +523,6 @@ class MediaPublicationReconciliationError extends AggregateError {
 	}
 }
 
-function opfsSink(writer: OpfsBinaryWriter): StagedMediaSink {
-	return {
-		storage: 'opfs',
-		path: writer.path,
-		write: (bytes, _index, signal) => writer.write(bytes, { signal }),
-		close: (signal) => writer.close({ signal }),
-		abort: () => writer.abort(),
-	};
-}
-
-function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	const buffer = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(buffer).set(bytes);
-	return buffer;
-}
-
 function nonNegativeSafeInteger(value: unknown, message: string): number {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError(message);
@@ -548,12 +538,6 @@ function nonEmptyString(value: unknown, message: string): string {
 function nonNegativeInteger(value: unknown, fallback: number): number {
 	const number = Number(value);
 	return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
-}
-
-function createMediaChunkToken(sourceId: string): string {
-	const random = globalThis.crypto?.randomUUID?.()
-		?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-	return `media-${sourceId}-${random}`;
 }
 
 function hex(bytes: Uint8Array): string {

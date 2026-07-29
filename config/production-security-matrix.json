@@ -849,6 +849,24 @@
 					]
 				},
 				{
+					"id": "cross-context-streamed-media-staging-leases",
+					"summary": "IndexedDB schema v5 publishes generation-fenced ownership before streamed chunk or OPFS staging exists. Chunk writes and immutable metadata publication validate the live lease in their mutation transaction; clear rotates the generation atomically, cleanup retains live identities and reclaims expired staging, and degraded memory mode never creates uncoordinated shared OPFS staging.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-staging-schema.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-staging-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-staged-sink.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-chunk-records.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-disposal-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/retention-repository.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-cross-context-media-lifecycle.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-asset-disposal.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-schema.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" }
+					]
+				},
+				{
 					"id": "direct-scape-save-rollback",
 					"summary": "Project saves choose one target before asynchronous flush, stream through a plan-aware bounded destination, abort staging on project switch or failure, compare independent exact byte counts, and perform one explicit non-cancellable publication commit. Cancellation after a successful commit is reported as committed without stale success UI.",
 					"evidence": [
@@ -870,13 +888,6 @@
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]
-				},
-				{
-					"id": "cross-context-storage-maintenance",
-					"exposure": "Active streamed-media coordination currently covers one project-store instance. Cleanup or clear initiated by another tab or store instance cannot yet abort or durably retain that writer's unpublished token or OPFS path.",
-					"requiredControl": "Publish a durable cross-context staging lease or equivalent ownership record, validate it at every write/publication boundary, and invalidate it atomically during destructive maintenance.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Two-store IndexedDB and OPFS tests prove cleanup preserves a live writer, clear prevents its late publication, and expired/crashed staging is eventually reclaimed."]
 				},
 				{
 					"id": "user-cancel-control",

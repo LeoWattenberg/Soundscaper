@@ -10,6 +10,7 @@ import {
 	BINARY_PATH_REFERENCE_INDEX_NAME,
 	MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
 } from './media-asset-chunk-schema.ts';
+import type { MediaAssetStagingIdentity } from './media-asset-staging-repository.ts';
 import type { StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -18,15 +19,18 @@ export class MediaAssetDisposalRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #chunks: MediaAssetChunkRecords;
 	readonly #activePaths: () => ReadonlySet<string>;
+	readonly #isActiveStaging: (identity: MediaAssetStagingIdentity) => Promise<boolean>;
 
 	constructor(
 		port: StorageRepositoryPort,
 		chunks: MediaAssetChunkRecords,
 		activePaths: () => ReadonlySet<string>,
+		isActiveStaging: (identity: MediaAssetStagingIdentity) => Promise<boolean>,
 	) {
 		this.#port = port;
 		this.#chunks = chunks;
 		this.#activePaths = activePaths;
+		this.#isActiveStaging = isActiveStaging;
 	}
 
 	async prepare(record: StorageRecord): Promise<StorageRecord | null> {
@@ -38,7 +42,12 @@ export class MediaAssetDisposalRepository {
 	async #deleteChunks(record: StorageRecord): Promise<void> {
 		const token = typeof record.mediaChunkToken === 'string' ? record.mediaChunkToken : '';
 		const sourceId = typeof record.sourceId === 'string' ? record.sourceId : '';
-		if (!token || !sourceId || await this.#hasMediaReference(MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME, token)) return;
+		if (
+			!token
+			|| !sourceId
+			|| await this.#isActiveStaging({ mediaChunkToken: token })
+			|| await this.#hasMediaReference(MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME, token)
+		) return;
 		await this.#chunks.deleteOwned(token, sourceId);
 	}
 
@@ -56,6 +65,7 @@ export class MediaAssetDisposalRepository {
 
 	async #hasBinaryPathReference(path: string): Promise<boolean> {
 		if (this.#activePaths().has(path)) return true;
+		if (await this.#isActiveStaging({ path })) return true;
 		const database = await this.#port.database();
 		if (!database) {
 			return [
