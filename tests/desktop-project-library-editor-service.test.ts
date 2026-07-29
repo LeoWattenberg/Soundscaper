@@ -156,6 +156,34 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 	assert.deepEqual(await readdir(fixture.paths.projectsRoot), []);
 });
 
+test('editor service rejects a domain-invalid host commit result before returning it', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+	let commitCalls = 0;
+	const service = new DesktopSharedProjectLibraryService({
+		commitProjectById: async (options) => {
+			commitCalls += 1;
+			const loaded = await host.commitProjectById(options);
+			return { ...loaded, project: { ...loaded.project, sources: {} } };
+		},
+		deleteProjectById: (options) => host.deleteProjectById(options),
+		readCatalog: () => host.readCatalog(),
+		readProjectById: (projectId, signal) => host.readProjectById(projectId, signal),
+		snapshot: () => host.snapshot(),
+	}, {
+		now: () => 10_000,
+		createEntryId: () => 'opaque-entry-0008',
+	});
+
+	await assert.rejects(
+		() => service.commitSharedProject(currentDocument(1)),
+		/sources.*array/iu,
+	);
+	assert.equal(commitCalls, 1);
+	assert.equal(host.readCatalog().revision, 1);
+});
+
 test('editor service rejects a domain-invalid stored project before returning it', async (context) => {
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
