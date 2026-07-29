@@ -20,6 +20,7 @@
 		"desktop/project-library-editor-service.ts",
 		"desktop/project-library-host.ts",
 		"desktop/project-library-persistence.ts",
+		"desktop/project-library-reclamation.ts",
 		"desktop/project-library-projects.ts",
 		"desktop/project-library.ts",
 		"src/common/editor/project-schema-version.ts",

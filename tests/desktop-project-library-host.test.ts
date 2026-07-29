@@ -43,6 +43,13 @@ test('desktop host opens the product-neutral appData library and releases it on 
 			publishedRevision: null,
 			restoredPrevious: false,
 		},
+		reclamation: {
+			canonicalFiles: 0,
+			complete: true,
+			protectedFiles: 0,
+			reclaimedFiles: 0,
+			scannedEntries: 0,
+		},
 	});
 
 	const observer = await SharedDesktopProjectLibrary.open(createDesktopProjectLibraryPaths(appDataPath));

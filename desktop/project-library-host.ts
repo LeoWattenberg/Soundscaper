@@ -17,6 +17,10 @@ import {
 	type DesktopLibraryRecoveryResult,
 	SharedDesktopProjectLibrary,
 } from './project-library.ts';
+import {
+	type DesktopLibraryProjectReclamationResult,
+	DesktopLibraryProjectReclaimer,
+} from './project-library-reclamation.ts';
 
 const DEFAULT_LEASE_TTL_MS = 30_000;
 const DEFAULT_RENEW_INTERVAL_MS = 10_000;
@@ -36,6 +40,7 @@ export interface DesktopProjectLibraryHostSnapshot {
 	readonly fencingToken: number;
 	readonly tookOverStaleLease: boolean;
 	readonly recovery: DesktopLibraryRecoveryResult;
+	readonly reclamation: DesktopLibraryProjectReclamationResult;
 }
 
 export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitProjectOptions, 'lease'>;
@@ -53,6 +58,7 @@ export class DesktopProjectLibraryHost {
 	#operations = new Set<Promise<unknown>>();
 	#projectMutationTail: Promise<void> = Promise.resolve();
 	#projects: DesktopLibraryProjectStore;
+	#reclamation: DesktopLibraryProjectReclamationResult | null = null;
 	#recovery: DesktopLibraryRecoveryResult;
 	#renewalPromise: Promise<void> | null = null;
 	#renewalsStopped = false;
@@ -82,6 +88,7 @@ export class DesktopProjectLibraryHost {
 		const paths = createDesktopProjectLibraryPaths(options.appDataPath);
 		const library = await SharedDesktopProjectLibrary.open(paths);
 		let lease: DesktopLibraryLease | null = null;
+		let host: DesktopProjectLibraryHost | null = null;
 		try {
 			lease = await library.acquireLease({
 				owner: options.owner,
@@ -89,21 +96,36 @@ export class DesktopProjectLibraryHost {
 				signal: options.signal,
 			});
 			const recovery = await library.recoverMetadata({ lease, signal: options.signal });
-			return new DesktopProjectLibraryHost(library, lease, recovery, options);
+			host = new DesktopProjectLibraryHost(library, lease, recovery, options);
+			host.#reclamation = await new DesktopLibraryProjectReclaimer(paths).reclaim({
+				lease,
+				signal: options.signal,
+			});
+			return host;
 		} catch (error) {
-			if (lease) await library.releaseLease(lease).catch(() => false);
-			library.close();
+			if (host) {
+				try {
+					await host.close();
+				} catch (cleanupError) {
+					throw new AggregateError([error, cleanupError], 'Desktop project library startup cleanup failed');
+				}
+			} else {
+				if (lease) await library.releaseLease(lease).catch(() => false);
+				library.close();
+			}
 			throw error;
 		}
 	}
 
 	snapshot(): DesktopProjectLibraryHostSnapshot {
+		if (!this.#reclamation) throw new Error('Desktop project library host startup is incomplete');
 		return Object.freeze({
 			closed: this.#closed,
 			owner: Object.freeze({ ...this.#lease.owner }),
 			fencingToken: this.#lease.fencingToken,
 			tookOverStaleLease: this.#lease.tookOverStaleLease,
 			recovery: Object.freeze({ ...this.#recovery }),
+			reclamation: Object.freeze({ ...this.#reclamation }),
 		});
 	}
 
