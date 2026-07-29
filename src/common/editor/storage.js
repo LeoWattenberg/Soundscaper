@@ -7,6 +7,7 @@ import {
 import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
+import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -33,6 +34,8 @@ export class AudioEditorProjectStore {
 		migrateLegacyPcmOnAccess = true,
 		derivativeCacheLimits = undefined,
 		derivativeCacheNow = undefined,
+		desktopProjectBridge = null,
+		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
 	} = {}) {
 		this.databaseName = databaseName;
@@ -68,7 +71,13 @@ export class AudioEditorProjectStore {
 			estimateStorage: () => this.estimateStorage(),
 			isMemoryBackend: () => this.backend === 'memory',
 		});
-		this.projectRepository = repositories.projects;
+		this.projectRepository = desktopProjectBridge
+			? new DesktopSharedProjectRepository({
+				bridge: desktopProjectBridge,
+				shadow: repositories.projects,
+				onLocalCleanupError: onDesktopSharedProjectLocalCleanupError,
+			})
+			: repositories.projects;
 		this.settingsRepository = repositories.settings;
 		this.analysisRepository = repositories.analysis;
 		this.sourceRepository = repositories.sources;
@@ -109,6 +118,10 @@ export class AudioEditorProjectStore {
 
 	async deleteProject(projectId) {
 		return this.projectRepository.delete(projectId);
+	}
+
+	preservesProjectsOnClear() {
+		return this.projectRepository instanceof DesktopSharedProjectRepository;
 	}
 
 	async duplicateProject(projectId, { id, title } = {}) {
@@ -407,4 +420,8 @@ export class AudioEditorProjectStore {
 function createId(prefix) {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function reportDesktopSharedProjectLocalCleanupError() {
+	globalThis.console?.error?.('A deleted shared project could not be removed from this product local cache.');
 }

@@ -274,4 +274,16 @@ test('handoff guards missing and read-only projects, while local reset clears al
 	assert.equal(fixture.calls.includes('clear-store'), true);
 	assert.equal(fixture.calls.includes('clear-clipboard'), true);
 	assert.equal(Object.isFrozen(fixture.state.projects), true);
+	assert.deepEqual(fixture.state.projects, []);
+});
+
+test('local reset refreshes projects that survive in the shared desktop catalog', async () => {
+	const fixture = createFixture();
+	fixture.runtime.store.preservesProjectsOnClear = () => true;
+
+	await createProjectAdminService(fixture.runtime).clearLocalData();
+
+	assert.deepEqual(fixture.state.projects, [{ id: 'listed', title: 'Listed', revision: 1 }]);
+	assert.equal(Object.isFrozen(fixture.state.projects), true);
+	assert.ok(fixture.calls.indexOf('list') > fixture.calls.indexOf('new-project'));
 });

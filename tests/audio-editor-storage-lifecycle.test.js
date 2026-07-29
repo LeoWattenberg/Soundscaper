@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { createEditorController } from '../src/common/editor/facade.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('memory storage reports that it is ephemeral and close is terminal', async () => {
@@ -23,6 +24,102 @@ test('memory storage reports that it is ephemeral and close is terminal', async 
 	await store.close();
 	assert.equal(store.getStatus().state, 'closed');
 	await assert.rejects(() => store.loadSetting('after-close'), { code: 'STORE_CLOSED' });
+});
+
+test('a desktop controller without the shared project capability fails closed', () => {
+	assert.throws(
+		() => createEditorController(null, { fileService: { isDesktop: true } }),
+		/bridge\.listSharedProjects is required/iu,
+	);
+});
+
+test('desktop project bridges replace only the latest-project repository and advertise clear preservation', async () => {
+	const localProjects = createProjectRepository([{ id: 'local-project', title: 'Local', revision: 1 }]);
+	const repositories = createRepositoryFixture(localProjects);
+	const bridge = {
+		listSharedProjects: async () => [{
+			id: 'shared-project',
+			title: 'Shared',
+			revision: 2,
+			updatedAt: '2026-07-29T12:00:00.000Z',
+		}],
+		readSharedProject: async () => null,
+		commitSharedProject: async (document) => document,
+		deleteSharedProject: async () => true,
+	};
+	const desktop = createProjectStore({
+		indexedDB: null,
+		desktopProjectBridge: bridge,
+		repositoryFactory: () => repositories,
+	});
+	const browser = createProjectStore({
+		indexedDB: null,
+		repositoryFactory: () => repositories,
+	});
+	assert.throws(() => createProjectStore({
+		indexedDB: null,
+		desktopProjectBridge: { listSharedProjects: async () => [] },
+		repositoryFactory: () => repositories,
+	}), /bridge\.readSharedProject is required/iu);
+
+	assert.equal(desktop.preservesProjectsOnClear(), true);
+	assert.deepEqual(await desktop.listProjects(), [{
+		id: 'shared-project',
+		title: 'Shared',
+		revision: 2,
+		updatedAt: '2026-07-29T12:00:00.000Z',
+	}]);
+	assert.equal(browser.preservesProjectsOnClear(), false);
+	assert.deepEqual(await browser.listProjects(), [{ id: 'local-project', title: 'Local', revision: 1 }]);
+	assert.strictEqual(desktop.sourceRepository, repositories.sources);
+	assert.strictEqual(desktop.mediaRepository, repositories.media);
+});
+
+test('desktop project-store composition forwards local shadow cleanup failures to its reporter', async () => {
+	let reportedError = null;
+	const projects = createProjectRepository([]);
+	projects.delete = async () => { throw new Error('local cleanup failed'); };
+	const store = createProjectStore({
+		indexedDB: null,
+		desktopProjectBridge: {
+			listSharedProjects: async () => [],
+			readSharedProject: async () => null,
+			commitSharedProject: async (document) => document,
+			deleteSharedProject: async () => true,
+		},
+		onDesktopSharedProjectLocalCleanupError: (error) => { reportedError = error; },
+		repositoryFactory: () => createRepositoryFixture(projects),
+	});
+
+	await store.deleteProject('shared-project');
+
+	assert.equal(reportedError?.name, 'DesktopSharedProjectLocalCleanupError');
+	assert.equal(reportedError?.projectId, 'shared-project');
+});
+
+test('desktop project-store composition reports local cleanup failure by default without logging project data', async () => {
+	const projects = createProjectRepository([]);
+	projects.delete = async () => { throw new Error('sensitive local cleanup detail'); };
+	const messages = [];
+	const originalConsoleError = globalThis.console.error;
+	globalThis.console.error = (message) => { messages.push(message); };
+	try {
+		const store = createProjectStore({
+			indexedDB: null,
+			desktopProjectBridge: {
+				listSharedProjects: async () => [],
+				readSharedProject: async () => null,
+				commitSharedProject: async (document) => document,
+				deleteSharedProject: async () => true,
+			},
+			repositoryFactory: () => createRepositoryFixture(projects),
+		});
+		await store.deleteProject('sensitive-project-id');
+	} finally {
+		globalThis.console.error = originalConsoleError;
+	}
+
+	assert.deepEqual(messages, ['A deleted shared project could not be removed from this product local cache.']);
 });
 
 test('only known IndexedDB availability errors enable memory fallback', async () => {
@@ -157,3 +254,26 @@ test('versionchange closes the connection and prevents implicit reopening', asyn
 	assert.equal(openCalls, 1);
 	await store.close();
 });
+
+function createProjectRepository(projects) {
+	return {
+		save: async (project) => project,
+		load: async (projectId) => projects.find(({ id }) => id === projectId) || null,
+		list: async () => structuredClone(projects),
+		listRevisions: async () => [],
+		delete: async () => {},
+	};
+}
+
+function createRepositoryFixture(projects) {
+	return {
+		projects,
+		settings: {},
+		analysis: {},
+		sources: {},
+		media: {},
+		opfs: {},
+		pcm: {},
+		retention: {},
+	};
+}

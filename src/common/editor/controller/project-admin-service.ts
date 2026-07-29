@@ -209,7 +209,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		state.history = null;
 		setProject(null);
 		await newProject({ skipFlush: true });
-		state.projects = Object.freeze([]);
+		state.projects = Object.freeze(store.preservesProjectsOnClear?.() ? await store.listProjects() : []);
 		publishDocumentSnapshot();
 	}
 
