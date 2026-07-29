@@ -168,6 +168,74 @@ test.describe('Scape open feature decisions', () => {
 		await assertAffectedInvertPlaceholder(framescaper);
 		expect(errors).toEqual([]);
 	});
+
+	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }) => {
+		test.setTimeout(90_000);
+		const fixture = await createGeneratedVideoFixture(page, {
+			name: 'compatibility-video.webm',
+			color: '#4f46e5',
+			accent: '#fef3c7',
+			frequency: 330,
+			width: 96,
+			height: 54,
+			frameCount: 6,
+		});
+		const errors = collectClientErrors(page);
+		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
+		await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
+		await importFiles(framescaper, [fixture]);
+
+		const videoClip = framescaper.locator('[data-clip-kind="video"]').first();
+		await expect(videoClip).toBeVisible();
+		await videoClip.click({ button: 'right' });
+		const clipMenu = page.locator('.audio-editor-clip-context-menu');
+		await expect(clipMenu).toBeVisible();
+		await clipMenu.locator('[data-action-id="clip-properties"]').click();
+		const clipDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const rack = clipDialog.locator('[data-video-effect-rack]');
+		await expect(rack).toBeVisible();
+		const picker = rack.locator('[data-video-effect-picker]');
+		await picker.getByRole('button').click();
+		await page.getByRole('option', { name: 'Pixelate', exact: true }).click();
+		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
+		const pixelate = rack.locator('[data-video-effect-type="pixelate"]');
+		await expect(pixelate).toHaveCount(1);
+		const effectId = await pixelate.getAttribute('data-video-effect-id');
+		expect(effectId).toBeTruthy();
+		await clipDialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+		const exported = await captureScapeArchive(page, framescaper);
+		const originalFramescaperId = await framescaper.getAttribute('data-project-id');
+		const incomingId = `${originalFramescaperId}-soundscaper-video-effect`;
+		const archive = await rewriteArchive(exported, ({ project }) => {
+			project.id = incomingId;
+			project.title = 'Framescaper effect handoff';
+		});
+		const soundscaper = await bootEditor(page, '/embed/en/');
+		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
+		const originalSoundscaperId = await soundscaper.getAttribute('data-project-id');
+		await setScapeInput(soundscaper.locator('[data-aup4-input]'), archive);
+
+		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+		await expect(decision).toHaveAttribute('data-scape-open-decision', 'compatibility');
+		await expect(decision.getByText('Video effects', { exact: true })).toBeVisible();
+		await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
+		await expect(soundscaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+
+		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
+		const originalTab = soundscaper.getByRole('tab', { name: 'Untitled project', exact: true });
+		await originalTab.focus();
+		await page.keyboard.press('Enter');
+		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
+		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
+		const incomingTab = soundscaper.getByRole('tab', { name: 'Framescaper effect handoff', exact: true });
+		await incomingTab.focus();
+		await page.keyboard.press('Enter');
+		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
+		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
+		expect(errors).toEqual([]);
+	});
 });
 
 async function captureScapeArchive(page, editor) {
@@ -271,4 +339,81 @@ async function assertAffectedInvertPlaceholder(editor) {
 	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
 	await expect(placeholder).toContainText(/Invert\s*Track · .+\s*Bypassed during editor playback/su);
 	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
+}
+
+async function assertAffectedPixelatePlaceholder(editor, effectId) {
+	const placeholders = editor.locator('[data-project-feature-video-effect-placeholders]');
+	await expect(placeholders).toBeVisible();
+	await expect(placeholders.locator('h4')).toHaveText('Affected video effects');
+	const placeholder = placeholders.locator('[data-video-effect-placeholder]');
+	await expect(placeholder).toHaveCount(1);
+	await expect(placeholder).toHaveAttribute('data-video-effect-placeholder', effectId);
+	await expect(placeholder).toHaveAttribute('data-location', 'timeline');
+	await expect(placeholder).toHaveAttribute('data-clip-id', /.+/u);
+	await expect(placeholder).toHaveAttribute('data-effect-type', 'pixelate');
+	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
+	await expect(placeholder).toContainText(/Pixelate\s*Timeline · .+\s*Bypassed during editor playback/su);
+	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
+}
+
+async function createGeneratedVideoFixture(page, options) {
+	const base64 = await page.evaluate(async (fixture) => {
+		const frameCount = Math.max(2, Number(fixture.frameCount) || 6);
+		const canvas = document.createElement('canvas');
+		canvas.width = fixture.width;
+		canvas.height = fixture.height;
+		const context = canvas.getContext('2d');
+		const videoStream = canvas.captureStream(15);
+		const audioContext = new AudioContext({ sampleRate: 48_000 });
+		const oscillator = audioContext.createOscillator();
+		const gain = audioContext.createGain();
+		const audioDestination = audioContext.createMediaStreamDestination();
+		oscillator.frequency.value = fixture.frequency;
+		gain.gain.value = 0.04;
+		oscillator.connect(gain).connect(audioDestination);
+		oscillator.start();
+		await audioContext.resume();
+		const stream = new MediaStream([
+			...videoStream.getVideoTracks(),
+			...audioDestination.stream.getAudioTracks(),
+		]);
+		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+			? 'video/webm;codecs=vp8,opus'
+			: 'video/webm';
+		const recorder = new MediaRecorder(stream, {
+			mimeType,
+			videoBitsPerSecond: 120_000,
+			audioBitsPerSecond: 32_000,
+		});
+		const chunks = [];
+		recorder.addEventListener('dataavailable', (event) => {
+			if (event.data.size) chunks.push(event.data);
+		});
+		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
+		recorder.start();
+		for (let frame = 0; frame < frameCount; frame += 1) {
+			context.fillStyle = fixture.color;
+			context.fillRect(0, 0, canvas.width, canvas.height);
+			context.fillStyle = fixture.accent;
+			const markerSize = Math.max(5, Math.round(Math.min(canvas.width, canvas.height) / 5));
+			const markerX = Math.round((canvas.width - markerSize) * frame / (frameCount - 1));
+			context.fillRect(markerX, Math.round((canvas.height - markerSize) / 2), markerSize, markerSize);
+			await new Promise((resolve) => setTimeout(resolve, 65));
+		}
+		recorder.stop();
+		await stopped;
+		stream.getTracks().forEach((track) => track.stop());
+		oscillator.stop();
+		await audioContext.close();
+		const blob = new Blob(chunks, { type: 'video/webm' });
+		const bytes = new Uint8Array(await blob.arrayBuffer());
+		let binary = '';
+		for (const byte of bytes) binary += String.fromCharCode(byte);
+		return btoa(binary);
+	}, options);
+	return {
+		name: options.name,
+		mimeType: 'video/webm',
+		buffer: Buffer.from(base64, 'base64'),
+	};
 }
