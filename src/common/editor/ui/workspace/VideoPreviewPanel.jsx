@@ -4,6 +4,7 @@ import { resolveVideoExportCanvas } from '../../video-export.js';
 import { resolveActiveVideoLayers, resolveVideoCompositionIntervals } from '../../video-timeline.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { createVideoPreviewCompositor } from '../video-preview-compositor.js';
+import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts';
 
 const EMPTY_VIDEO_EFFECT_STACK = Object.freeze([]);
 
@@ -93,6 +94,7 @@ function synchronizeVideoPreviewCompositorLayers(
 	timeline,
 	timelineFrame,
 	videoElements,
+	videoEffectBypass,
 ) {
 	const interval = findVideoPreviewTimelineInterval(timeline.intervals, timelineFrame);
 	if (!interval || interval.kind !== 'composition') {
@@ -134,7 +136,10 @@ function synchronizeVideoPreviewCompositorLayers(
 			targetLayer.entries[targetEntryCount] = targetEntry;
 			targetEntry.clipId = clip.clipId;
 			targetEntry.video = videoElements.get(clip.clipId) || null;
-			targetEntry.effects = clip.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK;
+			targetEntry.effects = videoEffectBypass.effectsFor(
+				clip.clipId,
+				clip.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK,
+			);
 			targetEntry.opacity = clip.opacityStart
 				+ (clip.opacityEnd - clip.opacityStart) * intervalProgress;
 			targetEntryCount += 1;
@@ -227,6 +232,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
 	);
 	const project = snapshot.project;
+	const videoEffectBypass = useMemo(
+		() => createVideoPreviewEffectBypass(snapshot.videoEffectPlaybackBypass),
+		[snapshot.videoEffectPlaybackBypass],
+	);
 	const referenceCanvas = useMemo(() => {
 		if (!project) return { width: 1_280, height: 720 };
 		try {
@@ -286,7 +295,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 	const unavailableCount = activeEntries.length - renderableEntries.length;
 	const topActiveEntry = [...activeEntries].reverse().find((entry) => entry.opacity > 0) || null;
 	const activeEffectCount = activeEntries.reduce((count, entry) => (
-		count + (entry.clip?.videoEffects || []).filter((effect) => effect.enabled !== false).length
+		count + videoEffectBypass.activeEffectCount(entry.clipId, entry.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK)
 	), 0);
 	const updateCompositorState = useCallback((nextState) => {
 		if (compositorStateRef.current === nextState) return;
@@ -309,6 +318,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 			compositorTimelineRef.current,
 			timelineFrame,
 			videoElementsRef.current,
+			videoEffectBypass,
 		);
 		if (layersSynchronized) {
 			releaseRetiredVideoPreviewElements(compositor, retiredVideoElementsRef.current);
@@ -327,7 +337,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 		if (renderedCount >= 0 && playhead.transportState === 'playing') {
 			animationFrameRef.current = requestAnimationFrame(renderPreviewFrameCallback);
 		}
-	}, [controller, updateCompositorState]);
+	}, [controller, updateCompositorState, videoEffectBypass]);
 	const requestPreviewFrame = useCallback(() => {
 		if (animationFrameRef.current) return;
 		animationFrameRef.current = requestAnimationFrame(renderPreviewFrame);
