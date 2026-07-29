@@ -34,6 +34,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		getCurrentTabMetadata: () => ({
 			aup4CompatibilityReport: { direction: 'import' },
 			aup4CompatibilityReportDismissed: true,
+			featureRequirementsReport: { compatible: false, items: [{ featureId: 'unknown' }] },
 		}),
 		recordingPreviewSnapshot: (preview) => preview,
 		getAudioDevicesSnapshot: () => ({ inputSupported: true }),
@@ -69,6 +70,9 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.equal(snapshot.storage.ephemeral, true);
 	assert.deepEqual(snapshot.aup4Compatibility, {
 		report: { direction: 'import' }, dismissed: true,
+	});
+	assert.deepEqual(snapshot.featureRequirementsCompatibility, {
+		compatible: false, items: [{ featureId: 'unknown' }],
 	});
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);

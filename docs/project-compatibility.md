@@ -62,6 +62,24 @@ cannot activate code. Malformed current-schema manifest state fails validation;
 a newer outer project schema is instead cloned opaquely and returned read-only
 before current-manifest normalization.
 
+At the controller boundary, explicit stable broad capability IDs map one-to-one
+to the maintained keys in each selected product profile. The controller snapshots that
+profile at construction: only a strict `true` value makes a registered feature
+available, a registered non-true value is unavailable, and an unregistered ID
+is unknown. It evaluates exact schema 9 from the actual project history that
+will be activated, before activation side effects. A report containing an
+unavailable or unknown requirement makes the project intrinsically read-only.
+When an existing same-ID tab wins, its stored read-only declaration also wins
+over the ignored incoming document's flags.
+The report is retained per tab, remains deeply frozen across session metadata
+clones, and is exposed on the document snapshot. Future schemas produce no
+feature report, and their `featureRequirements` value is not traversed.
+
+This activation-time report is not yet a `.scape` pre-open inspection report.
+Archive inspection cannot promise the same actionable compatibility surface
+until that separate path is implemented, and reporting does not itself verify
+or activate rendered fallbacks.
+
 Current-schema and current-format `.scape` preservation is now part of this
 contract. A rendered-fallback descriptor makes its source an independent
 retention root even when no timeline or Project Bin clip references it. Project
@@ -73,8 +91,8 @@ reference through the same mapping.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
-controller enforcement or read-only policy, an actionable compatibility-report
-surface, unavailable-feature or bypass UI, verification of the declared digest
+an actionable `.scape` pre-open compatibility-report surface,
+unavailable-feature or bypass UI, verification of the declared digest
 against referenced media bytes, runtime use of fallback media, or a general
 opaque native-state round trip. Those outcomes remain governed by the planned
 compatibility rows and roadmap exit gate.

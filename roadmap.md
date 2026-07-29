@@ -768,10 +768,20 @@ models or native implementations.
   the manifest and fallback-only source assets, while copy import rewrites known
   fallback source references with colliding source identities. The schema
   validates fallback descriptor source identity and kind plus digest syntax,
-  not the referenced media bytes. Controller enforcement and compatibility
-  reports, actual fallback digest verification and runtime use,
-  unavailable-feature and bypass UI, arbitrary future-schema archive
-  preservation, and opaque native-state round trips remain planned.
+  not the referenced media bytes. Explicit stable broad feature IDs map
+  one-to-one to the maintained selected-product capability keys; only strict `true` is
+  available, registered non-true capabilities are unavailable, and unregistered
+  IDs are unknown. Exact schema V9 is evaluated from the actual project history
+  that will be activated before activation side effects; every report containing
+  an unavailable or unknown requirement makes the project intrinsically read-only.
+  When an existing same-ID tab wins, its stored read-only declaration also wins
+  over the ignored incoming document's flags.
+  The report is retained per tab, remains deeply frozen across session metadata
+  clones, and is exposed on the document snapshot.
+  Future schemas are not traversed. A `.scape` pre-open compatibility report,
+  actual fallback digest verification and runtime use, unavailable-feature and
+  bypass UI, arbitrary future-schema archive preservation, and opaque
+  native-state round trips remain planned.
 
 ### Exit gate
 

@@ -108,7 +108,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			operation.task.assertCurrent();
 			publicationToken = runtime.projectGeneration.capture(imported.project.id);
-			runtime.setStatus(runtime.copy.projectSaved, 'success');
+			runtime.setStatus(runtime.state.readOnly ? runtime.copy.projectReadOnly : runtime.copy.projectSaved, runtime.state.readOnly ? 'error' : 'success');
 			return imported;
 		} finally {
 			finishImport(operation.task, publicationToken);

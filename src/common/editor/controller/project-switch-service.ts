@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
+import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
@@ -13,6 +14,7 @@ import type {
 	ProjectLifecycleLock,
 	ProjectLifecycleProject,
 	ProjectLifecycleTab,
+	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts';
 
@@ -82,10 +84,7 @@ export interface ProjectSwitchSession<
 		readOnly: boolean;
 		readOnlyReason: string | null;
 		lockMethod: string;
-		metadata: Readonly<{
-			intrinsicReadOnly: boolean;
-			intrinsicReadOnlyReason: string | null;
-		}>;
+		metadata: ProjectLifecycleTabMetadata;
 	}>): void;
 	updateProjectMetadata(projectId: string, metadata: Readonly<Record<string, unknown>>): void;
 	setProjectReadOnly(projectId: string, update: ProjectReadOnlyUpdate): void;
@@ -99,6 +98,7 @@ export interface ProjectSwitchServiceRuntime<
 	History extends ProjectLifecycleHistory<Project>,
 > {
 	readonly state: ProjectSwitchState<Project, History>;
+	readonly productCapabilities: Readonly<Record<string, unknown>>;
 	readonly lifetime: ProjectSwitchLifetime;
 	readonly scapeInspectionQuiescence: Pick<ScapeInspectionQuiescence, 'beginFence'>;
 	readonly projectGeneration: Readonly<{
@@ -172,6 +172,7 @@ export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 >(runtime: ProjectSwitchServiceRuntime<Project, History>) {
+	const featureCompatibility = createProjectFeatureCompatibilityService(runtime.productCapabilities);
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -250,6 +251,10 @@ export function createProjectSwitchService<
 		token: EditorLifetimeToken,
 	): Promise<void> {
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
+		const existingTab = runtime.sessionTab(nextProject.id);
+		const activationProject = existingTab?.history.present ?? options.history?.present ?? nextProject;
+		const featureRequirementsReport = featureCompatibility.evaluate(activationProject);
+		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
 		try {
 			runtime.projectGeneration.invalidate();
 			runtime.state.rackEffectGestures.clear();
@@ -292,14 +297,21 @@ export function createProjectSwitchService<
 			if (!activeLock) throw new Error('Project activation requires an acquired project lock.');
 			runtime.watchProjectLockLoss(nextProject.id, activeLock);
 			const lockReadOnly = Boolean(activeLock.readOnly);
-			const existingTab = runtime.sessionTab(nextProject.id);
 			const existingMetadata = existingTab?.metadata || {};
-			const intrinsicReadOnly = options.readOnly == null
-				? Boolean(existingMetadata.intrinsicReadOnly)
+			const retainStoredReadOnly = existingTab != null || options.readOnly == null;
+			const declaredReadOnly = retainStoredReadOnly
+				? Boolean(existingMetadata.declaredReadOnly ?? (
+					existingMetadata.featureRequirementsReadOnly ? false : existingMetadata.intrinsicReadOnly
+				))
 				: Boolean(options.readOnly);
-			const intrinsicReadOnlyReason = options.readOnlyReason
-				?? existingMetadata.intrinsicReadOnlyReason
-				?? null;
+			const declaredReadOnlyReason = declaredReadOnly
+				? retainStoredReadOnly
+					? existingMetadata.declaredReadOnlyReason ?? existingMetadata.intrinsicReadOnlyReason ?? null
+					: options.readOnlyReason ?? null
+				: null;
+			const intrinsicReadOnly = Boolean(declaredReadOnly || featureRequirementsReadOnly);
+			const intrinsicReadOnlyReason = declaredReadOnlyReason
+				?? (featureRequirementsReadOnly ? runtime.copy.projectReadOnly : null);
 			runtime.state.readOnly = Boolean(intrinsicReadOnly || lockReadOnly);
 			if (existingTab) runtime.session.switchProject(nextProject.id);
 			else runtime.session.openProject(nextProject, {
@@ -307,11 +319,22 @@ export function createProjectSwitchService<
 				readOnly: runtime.state.readOnly,
 				readOnlyReason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
 				lockMethod: activeLock.method,
-				metadata: { intrinsicReadOnly, intrinsicReadOnlyReason },
+				metadata: {
+					declaredReadOnly,
+					declaredReadOnlyReason,
+					intrinsicReadOnly,
+					intrinsicReadOnlyReason,
+					featureRequirementsReadOnly,
+					featureRequirementsReport,
+				},
 			});
 			runtime.session.updateProjectMetadata(nextProject.id, {
+				declaredReadOnly,
+				declaredReadOnlyReason,
 				intrinsicReadOnly,
 				intrinsicReadOnlyReason,
+				featureRequirementsReadOnly,
+				featureRequirementsReport,
 			});
 			runtime.session.setProjectReadOnly(nextProject.id, {
 				readOnly: runtime.state.readOnly,

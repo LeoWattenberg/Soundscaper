@@ -1,8 +1,8 @@
 import { createClipboardDescriptor } from './commands.js';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from './history.js';
+import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
 import { collectHistorySourceIds } from './retention.js';
-
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION = 1;
 
@@ -261,7 +261,7 @@ function normalizeTab(value) {
 		readOnlyReason: readOnly ? String(value.readOnlyReason || 'read-only') : null,
 		lockMethod: value.lockMethod == null ? null : String(value.lockMethod),
 		dirty: Boolean(value.dirty),
-		metadata: clone(value.metadata || {}),
+		metadata: freezeProjectFeatureReportMetadata(clone(value.metadata || {})),
 	};
 }
 
@@ -453,9 +453,9 @@ export function createAudioEditorSessionController(options = {}) {
 		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
 			throw new TypeError('Project tab metadata must be an object.');
 		}
-		tab.metadata = metadataOptions.replace ? clone(candidate) : { ...tab.metadata, ...clone(candidate) };
+		tab.metadata = freezeProjectFeatureReportMetadata(metadataOptions.replace ? clone(candidate) : { ...tab.metadata, ...clone(candidate) });
 		publish();
-		return clone(tab.metadata);
+		return freezeProjectFeatureReportMetadata(clone(tab.metadata));
 	}
 
 	function markProjectSaved(projectId) {
@@ -546,7 +546,7 @@ export function createAudioEditorSessionController(options = {}) {
 				readOnlyReason: tab.readOnlyReason,
 				lockMethod: tab.lockMethod,
 				dirty: tab.dirty,
-				metadata: clone(tab.metadata),
+				metadata: freezeProjectFeatureReportMetadata(clone(tab.metadata)),
 			})),
 			clipboard: clone(clipboard),
 			sourceReferenceCounts: countsObject(countsFor(tabs, clipboard)),

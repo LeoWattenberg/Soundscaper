@@ -42,6 +42,7 @@ interface ProjectTabSnapshot {
 interface CurrentTabMetadata {
 	readonly aup4CompatibilityReport?: unknown;
 	readonly aup4CompatibilityReportDismissed?: boolean;
+	readonly featureRequirementsReport?: unknown;
 }
 
 export interface EditorDocumentSnapshotState {
@@ -251,6 +252,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 				dismissed: Boolean(currentTabMetadata.aup4CompatibilityReportDismissed),
 			})
 			: null,
+		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
 		storage: Object.freeze({ ...state.storageEstimate, ...runtime.getStorageStatus() }),
 		analysis: state.analysisResult,
 		analysisVisuals: state.analysisVisuals,

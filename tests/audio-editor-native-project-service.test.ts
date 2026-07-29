@@ -423,16 +423,17 @@ test('Scape open and save preserve the archive manifest and file contract', asyn
 		}),
 	});
 	const service = createNativeProjectService(fixture.runtime);
-
+	fixture.state.readOnly = true;
 	const opened = await service.openScape(nativeFile('session.SCAPE', 20), { collision: 'copy' });
 	assert.equal(opened?.project.id, 'scape-imported');
 	assert.deepEqual(fixture.switched, ['scape-imported']);
-	assert.equal(fixture.state.importing, false);
+	assert.deepEqual(fixture.statuses.at(-1), { message: 'Project is read-only.', state: 'error' });
+	fixture.state.readOnly = false;
 	const saved = await service.saveScape({ fileName: 'session', useFileSystemAccess: false });
 	assert.ok('manifest' in saved);
 	assert.deepEqual(saved.manifest, { projectId: 'scape-imported' });
 	assert.equal(fixture.state.saveState, 'saved');
-	assert.equal(fixture.statuses.filter(({ message }) => message === 'Project saved.').length, 2);
+	assert.equal(fixture.statuses.filter(({ message }) => message === 'Project saved.').length, 1);
 });
 
 test('native project validation and editing gates reject before starting work', async () => {

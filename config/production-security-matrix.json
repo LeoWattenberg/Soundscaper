@@ -223,14 +223,26 @@
 			"currentControls": [
 				{
 					"id": "project-schema-and-forward-read-validation",
-					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. This control does not verify referenced fallback bytes or qualify .scape inspection/open and preservation, controller enforcement, runtime fallback use, compatibility-report UI, or bypass UI.",
+					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. Current-schema, current-format .scape paths preserve the manifest and fallback-only source assets, including collision remapping. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 9 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot while future schemas remain opaque. This control does not verify referenced fallback bytes or provide a .scape pre-open compatibility report, runtime fallback use, unavailable-feature UI, or bypass UI.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/migration.js" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-v9.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/retention.js" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/project-feature-capabilities.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/project-feature-report-metadata.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/session.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-feature-compatibility-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-feature-requirements.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-v9.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-v2.test.js" }
+						{ "kind": "test", "path": "tests/audio-editor-project-v2.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-feature-requirement-retention.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-feature-requirements.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-feature-capabilities.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-session.test.js" }
 					]
 				},
 				{

@@ -124,6 +124,26 @@ test('each tab owns independent history, dirty state, rename state, and read-onl
 	assert.deepEqual(futureTab.metadata, { compatibilityReport: ['newer writer'] });
 });
 
+test('feature compatibility reports remain deeply frozen across session metadata clones', () => {
+	const project = audioProject('feature-report-project', 'feature-report-source');
+	const controller = createAudioEditorSessionController({ projects: [project] });
+	const report = {
+		schemaVersion: 1,
+		compatible: false,
+		counts: { available: 0, unavailable: 1, unknown: 0 },
+		items: [{ featureId: 'org.soundscaper.capability.video-effects', availability: 'unavailable' }],
+	};
+	const updated = controller.updateProjectMetadata(project.id, { featureRequirementsReport: report });
+	const retained = controller.getSnapshot().tabs[0].metadata.featureRequirementsReport;
+
+	assert.notEqual(updated.featureRequirementsReport, report);
+	for (const value of [
+		updated.featureRequirementsReport, updated.featureRequirementsReport.counts,
+		updated.featureRequirementsReport.items, updated.featureRequirementsReport.items[0],
+		retained, retained.counts, retained.items, retained.items[0],
+	]) assert.equal(Object.isFrozen(value), true);
+});
+
 test('cross-project clipboard retains source metadata and owns source roots after its origin closes', () => {
 	const released = [];
 	const first = audioProject('project-z', 'source-z');

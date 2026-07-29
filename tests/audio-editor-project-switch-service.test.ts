@@ -25,6 +25,7 @@ import {
 } from '../src/common/editor/controller/scape-inspection-service.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -43,6 +44,8 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly sampleRate: number;
 	readonly tracks: readonly TestTrack[];
 	readonly clips: readonly Readonly<{ id: string }>[];
+	readonly schemaVersion?: number;
+	readonly featureRequirements?: unknown;
 }
 
 interface TestHistory extends ProjectLifecycleHistory<TestProject> {
@@ -59,7 +62,10 @@ function project(
 	id: string,
 	tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }],
 ): TestProject {
-	return { id, title: id, sampleRate: 48_000, tracks, clips: [] };
+	return {
+		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: 9,
+		featureRequirements: { schemaVersion: 1, requirements: [] },
+	};
 }
 
 function lock(projectId: string, readOnly = false): TestLock {
@@ -157,6 +163,7 @@ function createFixture() {
 		lifetime,
 		projectGeneration,
 		scapeInspectionQuiescence,
+		productCapabilities: { audioEffects: true, videoEffects: false },
 		copy: {
 			ready: 'Ready',
 			projectOpenOtherTab: 'Open elsewhere',
@@ -249,6 +256,7 @@ function createFixture() {
 		state,
 		statuses,
 		getProject: () => currentProject,
+		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
 		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
@@ -277,6 +285,8 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(fixture.events.indexOf('engine-load:next-project') < fixture.events.indexOf('publish'));
 	assert.ok(fixture.events.includes('save-now'));
 	assert.ok(fixture.events.includes('save-project:next-project'));
+	assert.equal(fixture.state.readOnly, false);
+	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsReport != null, true);
 	assert.equal(nativeSave.signal.aborted, true);
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
 });
@@ -538,16 +548,53 @@ test('a lock acquired after terminal disposal is released without activating the
 test('new and migrated projects preserve preparation and read-only semantics', async () => {
 	const fixture = createFixture();
 	await fixture.service.newProject({ title: '   ', sampleRate: 44_100 });
-
-	assert.equal(fixture.getProject()?.title, 'Untitled');
-	assert.equal(fixture.getProject()?.sampleRate, 44_100);
-	assert.equal(fixture.getProject()?.tracks[0]?.name, 'Track 1');
+	assert.deepEqual([fixture.getProject()?.title, fixture.getProject()?.sampleRate, fixture.getProject()?.tracks[0]?.name], ['Untitled', 44_100, 'Track 1']);
 	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
 
 	fixture.setMigrationReadOnly(true);
-	const future = project('future-project');
+	const future = { ...project('future-project'), schemaVersion: 10,
+		get featureRequirements(): never { throw new Error('future feature metadata was traversed'); } };
 	await fixture.service.openProject(future);
 	assert.equal(fixture.getProject(), future);
 	assert.equal(fixture.state.readOnly, true);
+	assert.equal(fixture.getTabMetadata(future.id)?.featureRequirementsReport, null);
 	assert.deepEqual(fixture.statuses.at(-1), ['Future project', 'error']);
+	await fixture.service.switchProject(project(future.id), { readOnly: false });
+	assert.equal(fixture.getProject(), future);
+	assert.equal(fixture.state.readOnly, true);
+});
+
+test('feature compatibility is reported and enforced before a project becomes editable', async () => {
+	const fixture = createFixture();
+	const next = { ...project('feature-project'), schemaVersion: 9, featureRequirements: { schemaVersion: 1, requirements: [{
+			id: 'video-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, displayName: 'Video effects', disposition: 'bypass', fallback: null,
+		}],
+	} };
+	await fixture.service.switchProject(next, { save: true });
+	const metadata = fixture.getTabMetadata(next.id);
+	const report = metadata?.featureRequirementsReport as Readonly<Record<string, unknown>>;
+	assert.equal(fixture.state.readOnly, true);
+	assert.equal(report.compatible, false);
+	assert.equal(metadata?.featureRequirementsReadOnly, true);
+	assert.equal(fixture.events.includes('save-project:feature-project'), false);
+	assert.deepEqual(fixture.statuses.at(-1), ['Read-only', 'error']);
+	await fixture.service.switchProject(project(next.id));
+	assert.equal(fixture.getProject(), next);
+	assert.equal(fixture.state.readOnly, true);
+	assert.equal((fixture.getTabMetadata(next.id)?.featureRequirementsReport as typeof report).compatible, false);
+	const historyProject = { ...next, id: 'history-project', title: 'history-project' };
+	await fixture.service.switchProject(project(historyProject.id), { history: { present: historyProject } });
+	assert.equal(fixture.getProject(), historyProject);
+	assert.equal(fixture.state.readOnly, true);
+});
+
+test('malformed current feature metadata rejects before project activation side effects', async () => {
+	const fixture = createFixture();
+	const malformed = {
+		...project('malformed-feature-project'), schemaVersion: 9,
+		featureRequirements: { schemaVersion: 1, requirements: {} },
+	};
+	await assert.rejects(fixture.service.switchProject(malformed), /requirements must be an array/iu);
+	assert.equal(fixture.getProject()?.id, 'old-project');
+	assert.deepEqual(fixture.events, []);
 });

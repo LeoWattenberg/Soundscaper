@@ -35,6 +35,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-schema-editing': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
+		'current-controller-feature-report': 'implemented',
 		'future-core-read-only': 'implemented',
 		'future-scape-round-trip': 'planned',
 		'json-opaque-extensions': 'implemented',
@@ -93,11 +94,38 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		/does not authenticate.*media bytes.*arbitrary future schemas/iu,
 	);
 
+	const currentControllerFeatureReport = rules.get('current-controller-feature-report');
+	assert.deepEqual(currentControllerFeatureReport.evidence, [
+		'src/common/editor/project-feature-capabilities.ts',
+		'src/common/editor/project-feature-report-metadata.ts',
+		'src/common/editor/session.js',
+		'src/common/editor/controller/project-feature-compatibility-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document-snapshot.ts',
+		'tests/audio-editor-project-feature-capabilities.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-session.test.js',
+		'tests/audio-editor-document-snapshot.test.ts',
+	]);
+	assert.match(
+		currentControllerFeatureReport.currentBehavior,
+		/stable broad.*map one-to-one.*strict true.*unavailable.*unregistered.*unknown/iu,
+	);
+	assert.match(
+		currentControllerFeatureReport.currentBehavior,
+		/exact schema 9.*actual project history.*before activation side effects.*unavailable or unknown.*intrinsically read-only.*deeply frozen.*session metadata clones.*document snapshot/iu,
+	);
+	assert.match(currentControllerFeatureReport.currentBehavior, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
+	assert.match(
+		currentControllerFeatureReport.currentBehavior,
+		/future schemas.*no report.*featureRequirements is not traversed.*does not provide a \.scape pre-open inspection report/iu,
+	);
+
 	const unavailable = rules.get('unavailable-native-feature');
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller enforcement.*compatibility reporting.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
+		/controller report.*intrinsically read-only.*\.scape pre-open inspection report.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
 	);
 });
 
@@ -123,6 +151,16 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
 	assert.match(documentation, /Current-schema and current-format `\.scape` preservation/iu);
 	assert.match(documentation, /independent\s+retention root/iu);
+	assert.match(
+		documentation,
+		/explicit stable broad capability IDs map one-to-one\s+to the maintained keys in each selected product profile/iu,
+	);
+	assert.match(documentation, /Only a strict `true` value makes a registered feature\s+available/iu);
+	assert.match(documentation, /exact schema 9[\s\S]*before activation side effects/iu);
+	assert.match(documentation, /actual project history[\s\S]*deeply frozen across session metadata[\s\S]*document snapshot/iu);
+	assert.match(documentation, /same-ID tab[\s\S]*stored read-only declaration[\s\S]*ignored incoming[\s\S]*flags/iu);
+	assert.match(documentation, /future schemas produce no\s+feature report, and\s+their `featureRequirements` value is not traversed/iu);
+	assert.match(documentation, /`\.scape` pre-open inspection report/iu);
 	assert.match(documentation, /does not establish arbitrary future-schema archive preservation/iu);
 	assert.match(documentation, /verification of the declared digest\s+against referenced media bytes/iu);
 	assert.match(documentation, /Freeze and proxy fallback/u);

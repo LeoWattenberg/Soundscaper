@@ -763,7 +763,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape });
 	const projectSwitchService = createProjectSwitchService({
-		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy,
+		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
 		createProject: createAudioEditorProjectV9,

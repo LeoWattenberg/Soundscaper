@@ -6,7 +6,10 @@ import type { ProjectBextMetadata } from './project-bext-metadata.ts';
 import type { IxmlMetadata } from './ixml.ts';
 import type { CartMetadata } from './cart-metadata.ts';
 import type { AdmProjectMetadata } from './adm-project-metadata.ts';
-import type { ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
+import type {
+	ProjectFeatureRequirementsManifest,
+	ProjectFeatureRequirementsReport,
+} from './project-feature-requirements.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 
@@ -221,6 +224,7 @@ export interface EditorSnapshot {
 	readonly selectedTrackId: EditorId | null;
 	readonly selectedClipId: EditorId | null;
 	readonly readOnly: boolean;
+	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly [feature: string]: unknown;
