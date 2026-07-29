@@ -8,6 +8,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
 	'desktop/project-library-abort.js',
 	'desktop/project-library-contract.js',
+	'desktop/project-library-editor-service.js',
 	'desktop/project-library-host.js',
 	'desktop/project-library-persistence.js',
 	'desktop/project-library-projects.js',

@@ -23,6 +23,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/application-lifecycle.js',
 		'desktop/project-library-abort.js',
 		'desktop/project-library-contract.js',
+		'desktop/project-library-editor-service.js',
 		'desktop/project-library-host.js',
 		'desktop/project-library-persistence.js',
 		'desktop/project-library-projects.js',
@@ -35,7 +36,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
 	}
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
+	const editorService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-service.js')).href}?test=${Date.now()}`);
 	assert.equal(typeof runtime.DesktopProjectLibraryHost?.start, 'function');
+	assert.equal(typeof editorService.DesktopSharedProjectLibraryService, 'function');
 });
 
 test('desktop staging excludes raw TypeScript and includes the compiled runtime', async (context) => {
@@ -50,7 +53,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 		runtimeRoot,
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
+	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
@@ -63,7 +68,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
 
-test('desktop main initializes and disposes the library without expanding renderer IPC', async () => {
+test('desktop main initializes, exposes, and disposes the shared library through bounded IPC', async () => {
 	const [mainSource, preloadSource, prepareSource, packageMetadata] = await Promise.all([
 		readFile(join(ROOT, 'desktop', 'main.mjs'), 'utf8'),
 		readFile(join(ROOT, 'desktop', 'preload.mjs'), 'utf8'),
@@ -74,6 +79,8 @@ test('desktop main initializes and disposes the library without expanding render
 	const appDataIndex = mainSource.indexOf("app.getPath('appData')");
 	assert.ok(readyIndex >= 0 && appDataIndex > readyIndex, 'shared appData is resolved only after Electron is ready');
 	assert.match(mainSource, /DesktopProjectLibraryHost\.start/u);
+	assert.match(mainSource, /new DesktopSharedProjectLibraryService\(projectLibraryHost\)/u);
+	assert.match(mainSource, /registerDesktopProjectLibraryIpc\(\{ handle, ownerFor: rendererSaveOwnerFor/u);
 	assert.match(mainSource, /owner: \{ product: PRODUCT_ID/u);
 	assert.match(mainSource, /new DesktopApplicationShutdown/u);
 	assert.match(mainSource, /name: 'project library', run: closeProjectLibraryHost/u);
@@ -138,6 +145,7 @@ test('desktop main owns file capabilities by committed renderer document', async
 	const cleanupSource = mainSource.slice(cleanupStart, cleanupEnd);
 	assert.match(cleanupSource, /saves\.revokeOwner\(owner\)\.catch/u);
 	assert.match(cleanupSource, /readCapabilities\.revokeOwner\(owner\)\.catch/u);
+	assert.match(cleanupSource, /projectLibraryIpc\?\.revokeOwner\(owner\)\.catch/u);
 	assert.match(cleanupSource, /Desktop renderer save cleanup failed/u);
 	assert.match(cleanupSource, /Desktop renderer read cleanup failed/u);
 

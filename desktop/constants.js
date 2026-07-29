@@ -40,6 +40,9 @@ export const MAX_SAVE_TARGETS = 16;
 export const MAX_SAVE_SESSIONS = 4;
 export const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 export const MAX_SAVE_ADMITTED_BYTES = MAX_DESKTOP_SAVE_BYTES;
+export const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
+export const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
+export const MAX_SHARED_PROJECTS = 10_000;
 
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',
@@ -50,6 +53,10 @@ export const IPC = Object.freeze({
 	writeChunk: 'soundscaper:v1:save:chunk',
 	finishWrite: 'soundscaper:v1:save:finish',
 	abortWrite: 'soundscaper:v1:save:abort',
+	listSharedProjects: 'soundscaper:v1:projects:list',
+	readSharedProject: 'soundscaper:v1:projects:read',
+	commitSharedProject: 'soundscaper:v1:projects:commit',
+	deleteSharedProject: 'soundscaper:v1:projects:delete',
 	setLocale: 'soundscaper:v1:locale:set',
 	setFullscreen: 'soundscaper:v1:fullscreen:set',
 	checkForUpdates: 'soundscaper:v1:updates:check',

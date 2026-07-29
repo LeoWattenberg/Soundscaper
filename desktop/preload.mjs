@@ -14,6 +14,10 @@ const CHANNELS = Object.freeze({
 	writeChunk: 'soundscaper:v1:save:chunk',
 	finishWrite: 'soundscaper:v1:save:finish',
 	abortWrite: 'soundscaper:v1:save:abort',
+	listSharedProjects: 'soundscaper:v1:projects:list',
+	readSharedProject: 'soundscaper:v1:projects:read',
+	commitSharedProject: 'soundscaper:v1:projects:commit',
+	deleteSharedProject: 'soundscaper:v1:projects:delete',
 	setLocale: 'soundscaper:v1:locale:set',
 	setFullscreen: 'soundscaper:v1:fullscreen:set',
 	checkForUpdates: 'soundscaper:v1:updates:check',
@@ -30,6 +34,10 @@ const CHANNELS = Object.freeze({
 const MAX_CHUNK_BYTES = 1024 * 1024;
 const MAX_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2;
 const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
+const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
+const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
+const MAX_SHARED_PROJECTS = 10_000;
+const SHARED_PROJECT_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
@@ -54,6 +62,19 @@ const api = Object.freeze({
 	},
 	finishWrite: (writeId) => ipcRenderer.invoke(CHANNELS.finishWrite, opaqueId(writeId, 32)),
 	abortWrite: (writeId) => ipcRenderer.invoke(CHANNELS.abortWrite, opaqueId(writeId, 32)),
+	listSharedProjects: () => ipcRenderer.invoke(CHANNELS.listSharedProjects).then(sharedProjectSummaries),
+	readSharedProject: (projectId) => ipcRenderer.invoke(
+		CHANNELS.readSharedProject,
+		sharedProjectId(projectId),
+	).then(nullableProjectDocument),
+	commitSharedProject: (document) => ipcRenderer.invoke(
+		CHANNELS.commitSharedProject,
+		projectDocument(document),
+	).then(projectDocument),
+	deleteSharedProject: (projectId) => ipcRenderer.invoke(
+		CHANNELS.deleteSharedProject,
+		sharedProjectId(projectId),
+	).then(strictBoolean),
 	setLocale: (locale) => ipcRenderer.invoke(CHANNELS.setLocale, text(locale, 32)),
 	setFullscreen: (enabled) => ipcRenderer.invoke(CHANNELS.setFullscreen, enabled === true),
 	checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
@@ -152,6 +173,98 @@ function saveSize(value) {
 	const size = safeInteger(value);
 	if (size > MAX_DESKTOP_SAVE_BYTES) throw new RangeError('Save size is too large');
 	return size;
+}
+
+function sharedProjectSummaries(value) {
+	if (!Array.isArray(value) || value.length > MAX_SHARED_PROJECTS) {
+		throw new RangeError('Desktop shared-project service returned an invalid project count');
+	}
+	const summaries = Array.from(value, (summary) => Object.freeze({
+		id: sharedProjectId(summary?.id),
+		title: sharedProjectTitle(summary?.title),
+		revision: safeInteger(summary?.revision),
+		updatedAt: sharedProjectInstant(summary?.updatedAt),
+	}));
+	if (new Set(summaries.map(({ id }) => id)).size !== summaries.length) {
+		throw new TypeError('Desktop shared-project service returned duplicate project ids');
+	}
+	return Object.freeze(summaries);
+}
+
+function sharedProjectId(value) {
+	if (typeof value !== 'string' || !value.trim()) {
+		throw new TypeError('Desktop shared-project id must be a non-empty string');
+	}
+	if (utf8Bytes(value, MAX_SHARED_PROJECT_ID_BYTES) > MAX_SHARED_PROJECT_ID_BYTES) {
+		throw new RangeError('Desktop shared-project id exceeds its byte limit');
+	}
+	return value;
+}
+
+function sharedProjectTitle(value) {
+	if (typeof value !== 'string' || !value || value.length > 255
+		|| value.trim() !== value || hasControlCharacters(value)) {
+		throw new TypeError('Desktop shared-project title is invalid');
+	}
+	return value;
+}
+
+function hasControlCharacters(value) {
+	for (let index = 0; index < value.length; index += 1) {
+		const code = value.charCodeAt(index);
+		if (code <= 0x1f || code === 0x7f) return true;
+	}
+	return false;
+}
+
+function sharedProjectInstant(value) {
+	if (typeof value !== 'string' || !SHARED_PROJECT_INSTANT.test(value)) {
+		throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
+	}
+	const date = new Date(value);
+	if (!Number.isFinite(date.getTime()) || date.toISOString() !== value) {
+		throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
+	}
+	return value;
+}
+
+function projectDocument(value, maximumBytes = MAX_SHARED_PROJECT_DOCUMENT_BYTES) {
+	if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1
+		|| maximumBytes > MAX_SHARED_PROJECT_DOCUMENT_BYTES) {
+		throw new RangeError('Desktop shared-project document byte limit cannot exceed its hard limit');
+	}
+	if (typeof value !== 'string' || value.length === 0) {
+		throw new TypeError('Desktop shared-project document must be a non-empty string');
+	}
+	if (utf8Bytes(value, maximumBytes) > maximumBytes) {
+		throw new RangeError('Desktop shared-project document exceeds its byte limit');
+	}
+	return value;
+}
+
+function nullableProjectDocument(value) {
+	return value === null ? null : projectDocument(value);
+}
+
+function strictBoolean(value) {
+	if (typeof value !== 'boolean') throw new TypeError('Desktop shared-project delete result must be a boolean');
+	return value;
+}
+
+function utf8Bytes(value, maximumBytes) {
+	let bytes = 0;
+	for (let index = 0; index < value.length; index += 1) {
+		const code = value.charCodeAt(index);
+		if (code <= 0x7f) bytes += 1;
+		else if (code <= 0x7ff) bytes += 2;
+		else if (code >= 0xd800 && code <= 0xdbff
+			&& value.charCodeAt(index + 1) >= 0xdc00 && value.charCodeAt(index + 1) <= 0xdfff) {
+			bytes += 4;
+			index += 1;
+		} else bytes += 3;
+		if (bytes > maximumBytes) return bytes;
+	}
+	return bytes;
 }
 
 function binary(value) {

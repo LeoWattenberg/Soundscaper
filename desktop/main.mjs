@@ -35,6 +35,8 @@ import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-ca
 import { PendingProjectQueue, extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
+import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
+import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
@@ -64,6 +66,7 @@ let rendererReady = false;
 let pendingClose = null;
 let projectLibraryHost = null;
 let projectLibraryStartup = null;
+let projectLibraryIpc = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
@@ -150,7 +153,7 @@ async function startApplication() {
 	}));
 	if (applicationShutdown.requested) return;
 	configureSessionSecurity(desktopSession);
-	registerIpcHandlers();
+	registerIpcHandlers(new DesktopSharedProjectLibraryService(projectLibraryHost));
 	installMenu();
 	await createWindow();
 	void checkForUpdates(false);
@@ -235,6 +238,7 @@ function revokeRendererSaveOwner(webContents) {
 }
 
 function startRendererSaveRevocation(owner) {
+	void projectLibraryIpc?.revokeOwner(owner).catch((error) => console.error('Desktop renderer project-library cleanup failed:', cleanError(error)));
 	void readCapabilities.revokeOwner(owner).catch((error) => {
 		console.error('Desktop renderer read cleanup failed:', cleanError(error));
 	});
@@ -258,7 +262,8 @@ function isRendererSaveOwnerCurrent(owner) {
 	} catch { return false; }
 }
 
-function registerIpcHandlers() {
+function registerIpcHandlers(projectLibraryService) {
+	projectLibraryIpc = registerDesktopProjectLibraryIpc({ handle, ownerFor: rendererSaveOwnerFor, service: projectLibraryService });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,

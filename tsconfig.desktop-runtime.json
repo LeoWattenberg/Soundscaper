@@ -17,6 +17,7 @@
 		"desktop/application-lifecycle.ts",
 		"desktop/project-library-abort.ts",
 		"desktop/project-library-contract.ts",
+		"desktop/project-library-editor-service.ts",
 		"desktop/project-library-host.ts",
 		"desktop/project-library-persistence.ts",
 		"desktop/project-library-projects.ts",

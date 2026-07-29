@@ -283,9 +283,10 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		Object.keys(bridge.v1).sort(),
 		[
 			'abortWrite', 'beginWrite', 'checkForUpdates', 'chooseFiles', 'chooseSaveTarget',
-			'editText', 'finishWrite', 'getEnvironment', 'onCloseRequested', 'onFullscreenChanged',
-			'onMenuCommand', 'onOpenProject', 'openExternal', 'releaseRead', 'respondToClose',
-			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk',
+			'commitSharedProject', 'deleteSharedProject', 'editText', 'finishWrite',
+			'getEnvironment', 'listSharedProjects', 'onCloseRequested', 'onFullscreenChanged',
+			'onMenuCommand', 'onOpenProject', 'openExternal', 'readSharedProject', 'releaseRead',
+			'respondToClose', 'setFullscreen', 'setLocale', 'signalReady', 'writeChunk',
 		].sort(),
 	);
 	assert.equal(Object.isFrozen(bridge.v1), true);
