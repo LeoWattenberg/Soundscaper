@@ -1,8 +1,17 @@
 import { createClipboardDescriptor } from './commands.js';
-import { AUDIO_EDITOR_HISTORY_LIMIT } from './history.js';
 import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
 import { collectHistorySourceIds } from './retention.js';
+import { createProjectActivationReservations, projectHistoryChangedError } from './session-activation.js';
+import {
+	clone,
+	createHistory,
+	nonEmptyString,
+	nonNegativeInteger,
+	normalizeProject,
+	positiveInteger,
+	validateProject,
+} from './session-history.js';
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION = 1;
 
@@ -29,73 +38,15 @@ export const AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION = 1;
  * @property {boolean} disposed
  */
 
-function clone(value) {
-	if (value === undefined || value === null) return value;
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
-}
-
-function nonEmptyString(value, name) {
-	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} must be a non-empty string.`);
-	return value;
-}
-
-function positiveInteger(value, name) {
-	if (!Number.isSafeInteger(value) || value <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
-	return value;
-}
-
-function nonNegativeInteger(value, name) {
-	if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
-	return value;
-}
-
-function validateProject(project, name = 'project') {
-	if (!project || typeof project !== 'object') throw new TypeError(`A ${name} is required.`);
-	positiveInteger(project.schemaVersion, `${name}.schemaVersion`);
-	nonEmptyString(project.id, `${name}.id`);
-	nonEmptyString(project.title, `${name}.title`);
-	if (!Array.isArray(project.sources) || !Array.isArray(project.clips) || !Array.isArray(project.tracks)) {
-		throw new TypeError(`${name} sources, clips, and tracks must be arrays.`);
-	}
-	return project;
-}
-
-function normalizeProject(project, name = 'project') {
-	return clone(validateProject(project, name));
-}
-
-function createHistory(project, history) {
-	if (!history) {
-		return {
-			limit: AUDIO_EDITOR_HISTORY_LIMIT,
-			present: normalizeProject(project),
-			undoStack: [],
-			redoStack: [],
-		};
-	}
-	if (!history || typeof history !== 'object') throw new TypeError('Project history is required.');
-	positiveInteger(history.limit, 'history.limit');
-	if (!Array.isArray(history.undoStack) || !Array.isArray(history.redoStack)) {
-		throw new TypeError('Project history stacks must be arrays.');
-	}
-	const normalized = clone(history);
-	const present = validateProject(normalized.present, 'history.present');
-	if (present.id !== project.id) throw new RangeError('Project history must belong to the open project.');
-	const normalizeEntry = (entry, name) => {
-		if (!entry || typeof entry !== 'object') throw new TypeError(`${name} must be a history entry.`);
-		const snapshot = validateProject(entry.project, `${name}.project`);
-		if (snapshot.id !== project.id) throw new RangeError(`${name} belongs to another project.`);
-		return entry;
-	};
-	return {
-		...normalized,
-		limit: normalized.limit,
-		present,
-		undoStack: normalized.undoStack.map((entry, index) => normalizeEntry(entry, `history.undoStack[${index}]`)),
-		redoStack: normalized.redoStack.map((entry, index) => normalizeEntry(entry, `history.redoStack[${index}]`)),
-	};
-}
+/**
+ * A detached history snapshot paired with a private ownership token. The token
+ * is deliberately absent from serialized session state and becomes stale when
+ * its tab's history is replaced, closed, or restored as a new tab.
+ *
+ * @typedef {Object} AudioEditorSessionProjectHistoryCapture
+ * @property {Object} history
+ * @property {object} token
+ */
 
 function sourceIdsFromDescriptor(descriptor) {
 	const ids = new Set();
@@ -256,6 +207,7 @@ function normalizeTab(value) {
 	return {
 		projectId: normalizedProject.id,
 		history,
+		historyToken: Object.freeze({}),
 		sourceIds: collectHistorySourceIds(history),
 		readOnly,
 		readOnlyReason: readOnly ? String(value.readOnlyReason || 'read-only') : null,
@@ -298,6 +250,9 @@ export function createAudioEditorSessionController(options = {}) {
 	let snapshotCache = null;
 	const listeners = new Set();
 	const onSourcesReleased = typeof options.onSourcesReleased === 'function' ? options.onSourcesReleased : null;
+	const activationReservations = createProjectActivationReservations(
+		(projectId) => tabs.find((candidate) => candidate.projectId === projectId),
+	);
 
 	if (options.snapshot) restoreSnapshot(options.snapshot);
 	for (const entry of options.projects || []) {
@@ -347,13 +302,17 @@ export function createAudioEditorSessionController(options = {}) {
 		ensureUsable();
 		const candidateProject = validateProject(project);
 		const existing = tabs.find((tab) => tab.projectId === candidateProject.id);
+		const activates = existing
+			? openOptions.activate !== false && activeProjectId !== existing.projectId
+			: openOptions.activate !== false || !activeProjectId;
+		activationReservations.assertOpen(candidateProject.id, openOptions, activates);
 		if (existing) {
-			const activated = openOptions.activate !== false && activeProjectId !== existing.projectId;
-			if (activated) {
+			if (openOptions.requireAbsent) throw projectHistoryChangedError();
+			if (activates) {
 				activeProjectId = existing.projectId;
 				publish();
 			}
-			return { projectId: existing.projectId, opened: false, activated, releasedSourceIds: [] };
+			return { projectId: existing.projectId, opened: false, activated: activates, releasedSourceIds: [] };
 		}
 		const schemaVersion = Number(candidateProject.schemaVersion);
 		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
@@ -366,14 +325,18 @@ export function createAudioEditorSessionController(options = {}) {
 			dirty: openOptions.dirty,
 			metadata: openOptions.metadata,
 		});
+		activationReservations.markOpened(tab.projectId, openOptions);
 		tabs.push(tab);
-		const activated = openOptions.activate !== false || !activeProjectId;
-		if (activated) activeProjectId = tab.projectId;
+		if (activates) activeProjectId = tab.projectId;
 		publish();
-		return { projectId: tab.projectId, opened: true, activated, releasedSourceIds: [] };
+		return { projectId: tab.projectId, opened: true, activated: activates, releasedSourceIds: [] };
 	}
 
-	function switchProject(projectId) {
+	function switchProject(projectId, switchOptions = {}) {
+		activationReservations.assertSwitch(projectId, switchOptions);
+		if (Object.hasOwn(switchOptions, 'expectedHistoryToken')) {
+			assertProjectHistoryToken(projectId, switchOptions.expectedHistoryToken);
+		}
 		const tab = requireTab(projectId);
 		if (activeProjectId === tab.projectId) return false;
 		activeProjectId = tab.projectId;
@@ -382,6 +345,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function updateProject(projectId, update, updateOptions = {}) {
+		activationReservations.assertMutable(projectId);
 		const tab = requireWritableTab(projectId);
 		const beforeCounts = countsFor(tabs, clipboard);
 		const previous = tab.history.present;
@@ -400,12 +364,14 @@ export function createAudioEditorSessionController(options = {}) {
 				redoStack: [],
 			};
 		}
+		tab.historyToken = Object.freeze({});
 		tab.sourceIds = collectHistorySourceIds(tab.history);
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'project-update', { project: clone(next) });
 	}
 
 	function updateProjectHistory(projectId, history, updateOptions = {}) {
+		activationReservations.assertMutable(projectId);
 		const tab = requireWritableTab(projectId);
 		const beforeCounts = countsFor(tabs, clipboard);
 		const nextHistory = createHistory(tab.history.present, history);
@@ -413,6 +379,7 @@ export function createAudioEditorSessionController(options = {}) {
 			throw new RangeError('Project history updates cannot change schema version.');
 		}
 		tab.history = nextHistory;
+		tab.historyToken = Object.freeze({});
 		tab.sourceIds = collectHistorySourceIds(nextHistory);
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'history-update', { history: clone(tab.history) });
@@ -467,6 +434,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function closeProject(projectId, closeOptions = {}) {
+		activationReservations.assertMutable(projectId);
 		const tab = requireTab(projectId);
 		if (tab.dirty && !closeOptions.force) {
 			return { closed: false, reason: 'dirty', releasedSourceIds: [] };
@@ -527,6 +495,33 @@ export function createAudioEditorSessionController(options = {}) {
 		return clone(requireTab(projectId).history);
 	}
 
+	/**
+	 * Captures a detached view without exposing the private tab object.
+	 * @returns {AudioEditorSessionProjectHistoryCapture}
+	 */
+	function captureProjectHistory(projectId = activeProjectId) {
+		const tab = requireTab(projectId);
+		return Object.freeze({ history: clone(tab.history), token: tab.historyToken });
+	}
+
+	/**
+	 * Fails closed when asynchronous preparation no longer owns the same private
+	 * tab history, without invalidating captures for metadata-only updates.
+	 */
+	function assertProjectHistoryToken(projectId, token) {
+		ensureUsable();
+		const tab = tabs.find((candidate) => candidate.projectId === projectId);
+		if (!tab || tab.historyToken !== token) throw projectHistoryChangedError();
+		return true;
+	}
+
+	/** Reserves history ownership until the caller releases after publication. */
+	// Metadata-only updates intentionally remain available while one is held.
+	function beginProjectActivation(projectId, activationOptions) {
+		ensureUsable();
+		return activationReservations.begin(projectId, activationOptions);
+	}
+
 	function getSourceReferenceCounts() {
 		ensureUsable();
 		return countsObject(countsFor(tabs, clipboard));
@@ -567,6 +562,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function restoreSnapshot(snapshot) {
+		activationReservations.assertRestorable();
 		if (!snapshot || typeof snapshot !== 'object') throw new TypeError('A saved session snapshot is required.');
 		if (snapshot.schemaVersion !== AUDIO_EDITOR_SESSION_SCHEMA_VERSION) {
 			throw new RangeError(`Unsupported audio editor session schema version: ${snapshot.schemaVersion}.`);
@@ -588,6 +584,7 @@ export function createAudioEditorSessionController(options = {}) {
 	function dispose() {
 		if (disposed) return { disposed: true, releasedSourceIds: [] };
 		const beforeCounts = countsFor(tabs, clipboard);
+		activationReservations.clear();
 		tabs = [];
 		clipboard = null;
 		activeProjectId = null;
@@ -613,6 +610,9 @@ export function createAudioEditorSessionController(options = {}) {
 		clipboardForProject,
 		getProject,
 		getProjectHistory,
+		captureProjectHistory,
+		assertProjectHistoryToken,
+		beginProjectActivation,
 		getSourceReferenceCounts,
 		getSnapshot,
 		serialize,
