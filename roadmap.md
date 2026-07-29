@@ -103,7 +103,7 @@ The roadmap builds on what exists instead of re-planning it.
 | Framescaper | **Implemented** | MP4/M4V/WebM ingest, linked A/V lanes, Project Bin placement, layered video tracks, trim/split/stretch domain operations, ripple edits, two-clip linear crossfades, WebGL preview, and MP4/WebM rendering. Its product profile disables recording and its recording shortcuts are inert. |
 | Video effects batch 1 | **Implemented** | Color Adjust, Pixelate, Vignette, Gaussian Blur, Sharpen, and RGB Split with ordered stacks, undo, WebGL preview, and allowlisted FFmpeg export. |
 | Video effects batch 2 | **Implemented** | Chroma Key, Luma Key, Spill Suppression, Glow, Outline, and Drop Shadow, including new controls, project migration, preview/export parity, and benchmarks. |
-| Electron | **Implemented** | Hardened offline wrapper with native dialogs, capability-scoped reads, atomic chunked saves, menus, lifecycle handling, associations, packaged runtimes, and Windows system-audio selection. It is not yet a native media engine. |
+| Electron | **Implemented** | Hardened offline wrapper with native dialogs, capability-scoped reads, atomic chunked saves, menus, lifecycle handling, associations, packaged runtimes, Windows system-audio selection, and a product-neutral current-schema latest-project library. It is not yet a native media engine. |
 | Automated evidence | **Implemented** | Broad Node coverage plus a maintained Playwright Chromium/Firefox/WebKit functional matrix, deterministic video-effect parity fixtures, desktop smoke tests, architecture limits, chunk-size checks, and reproducibility audits. |
 
 Material constraints in the current foundation are also roadmap inputs:
@@ -121,8 +121,10 @@ Material constraints in the current foundation are also roadmap inputs:
   browser-download fallback, and final render outputs also retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
-- the two Electron products currently use separate persistent Chromium
-  partitions rather than one desktop project library;
+- the two Electron products retain separate Chromium partitions for their
+  product-local revision, source, and media shadows, while exact-schema-9 latest
+  project metadata is shared through the main-process library; source and media
+  bytes are not yet cross-product desktop storage;
 - no native codec worker, audio backend, effect host, or background job service
   exists; and
 - the maintained browser suite targets all three Playwright engines, while
@@ -750,7 +752,7 @@ models or native implementations.
   sync, and rename plus close/unlink failures, proves disposal cannot overtake
   them, and rejects delayed target registration and session work. The
   desktop staging pipeline compiles this runtime to ESM, excludes raw TypeScript
-  from the packaged app, and keeps renderer IPC unchanged. The
+  from the packaged app, and stages the pathless shared-project IPC helper. The
   [desktop regression](tests/desktop-project-library.test.ts) proves atomic
   cross-connection visibility, a real second-process lease holder, stale
   takeover, abortable bounded waiting, interrupted-write recovery, and
@@ -776,15 +778,44 @@ models or native implementations.
   boundary.
   The main-only host serializes project commits and keeps renewing its lease
   while admitted work drains. A focused
-  [handoff regression](tests/desktop-project-library-handoff.test.ts) proves an
-  orderly source-free Soundscaper → Framescaper → Soundscaper transfer in
-  one product-neutral application-data library: each product acquires a higher
-  fencing token without stale takeover and observes the same project identity
-  and committed revision. Managed-media commits, authoritative renderer/editor
-  persistence integration, legacy-library migration, unreachable-file
-  collection, packaged multi-process handoff, and per-OS/architecture
-  power-loss durability remain open. No raw path or new renderer IPC surface is
-  exposed by this slice.
+  [host handoff regression](tests/desktop-project-library-handoff.test.ts)
+  proves an orderly source-free Soundscaper → Framescaper → Soundscaper lease
+  transfer in one product-neutral application-data library: each product
+  acquires a higher fencing token without stale takeover and observes the same
+  project identity and committed revision.
+  The strict-TS
+  [identity service](desktop/project-library-editor-service.ts) and bounded
+  [owner-scoped IPC](desktop/project-library-ipc.js) now expose only pathless
+  list, read, commit, and delete operations. Main and preload independently
+  enforce the 256 MiB UTF-8 document, 4 KiB identity, and 10,000-summary hard
+  ceilings, strip catalog entry IDs, paths, digests, product preferences,
+  raw `updatedAtMs` fields, leases, and fencing tokens, and fence new work while
+  draining admitted operations when a renderer owner is revoked.
+  The strict-TS
+  [renderer repository](src/common/editor/storage/desktop-shared-project-repository.ts)
+  fully validates and canonically reserializes exact schema 9 before local
+  mutation, treats shared latest documents and summary lists as authoritative,
+  and retains revision history plus source/media data in a product-local shadow.
+  It admits source metadata without claiming that source bytes are available to
+  the other product. Remote failure leaves an identical canonical retry in the
+  shadow; same-revision identical commit is a catalog no-op. Delete commits
+  remotely first, with bounded reporting if local cleanup then fails.
+  The real editor store selects this repository for a complete desktop bridge,
+  fails closed on an incomplete bridge instead of reopening a private catalog,
+  leaves web storage unchanged, and refreshes shared summaries after clearing a
+  product-local shadow. A composed
+  [editor handoff regression](tests/desktop-project-library-editor-handoff.test.ts)
+  creates and autosaves a source-free exact-V9 project through Soundscaper's
+  default desktop-store selection, closes the fenced host, discovers and
+  bootstrap-reopens the same identity and revision from a fresh
+  Framescaper-local store, then publishes the next Framescaper revision with an
+  empty shared media catalog. This is editor-layer composition, not one packaged
+  preload/IPC/multi-process or executable qualification. Managed-media copy,
+  consolidation, relink, playback, and cross-product source bytes;
+  unreachable-file collection; packaged handoff; and per-OS/architecture
+  power-loss durability remain open. Earlier Soundscaper shared-library
+  migration is deliberately deferred and unsupported by this current-only
+  contract; Audacity project import compatibility remains separate.
 - **Electron Enhanced — Planned:** bind selected-file capabilities to the
   existing bounded
   [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
@@ -792,10 +823,10 @@ models or native implementations.
   without a final renderer `Blob`.
   Until then, inputs above the qualified 512 MiB materialization tier fail
   admission explicitly.
-- **Electron Enhanced — Planned:** migrate each existing app library idempotently
-  into the shared store. Record source identity and completion, merge without
-  overwriting conflicts, retain both legacy libraries until verification, and
-  provide a tested rollback/read-only recovery path.
+- **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
+  installations emerge, define an explicit migration from product-private app
+  libraries into the shared store. Current builds intentionally support only the
+  exact-schema-9 shared contract; Audacity project import remains independent.
 - **Electron Enhanced — Planned:** support durable linked media through scoped
   path capabilities/bookmarks, relink, watch detection, copy/consolidate, and
   opt-in managed media. Portable `.scape` export still embeds everything needed.
@@ -959,11 +990,13 @@ models or native implementations.
   committed state or a recoverable journal, never a half-published project.
 - A mixed-media project hands off between both web products and both Electron
   products without copying managed media or losing history-visible state.
-  The Electron host-level source-free project/catalog handoff is now proven,
-  but it does not yet qualify managed-media portability or close this gate.
+  The composed Electron editor-layer source-free autosave, discovery, reopen,
+  and next-revision handoff is now proven, but there is no media in that fixture;
+  it does not qualify managed-media portability or close this gate.
 - Simultaneous opens across the two Electron apps serialize through the shared
-  lease, and repeated migration, interrupted migration, conflict, rollback, and
-  legacy-library recovery fixtures preserve both original libraries.
+  lease. A packaged two-executable lifecycle fixture remains open; migration
+  from pre-shared Soundscaper libraries is deliberately outside the current
+  compatibility target rather than a milestone prerequisite.
 - Clearing a cache removes only reproducible derivatives, not originals,
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
@@ -973,8 +1006,9 @@ models or native implementations.
   Framescaper-to-Soundscaper handoff proves first-party video-effect preservation
   and persistent control-free affected-effect placeholders. This exit remains
   open for rendered-fallback runtime behavior,
-  generic unavailable-feature placeholder and bypass controls, third-party
-  activation, and arbitrary future-schema archive preservation.
+  generic unavailable-feature placeholder and bypass controls, and arbitrary
+  future-schema archive preservation. Complete third-party activation is a
+  deliberately separate later surface, not a milestone-2 prerequisite.
 
 ## 3. Parallel editorial foundations
 

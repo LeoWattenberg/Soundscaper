@@ -56,14 +56,25 @@
 		{
 			"id": "current-desktop-project-catalog-commit",
 			"status": "implemented",
-			"requiredOutcome": "The main-process shared desktop library publishes one exact-current-schema project persistence envelope and its catalog pointer under a fenced lease without exposing filesystem paths to a renderer.",
-			"currentBehavior": "Metadata schema 2 binds a separate opaque library entry ID to the bounded project identity, exact schema 9, project revision, byte length, SHA-256 digest, and derived immutable revision-and-digest path. The main-only store canonicalizes the document with the bounded tagged-binary Scape codec, enforces the non-raiseable 256 MiB document ceiling, validates root schema, identity, title, and revision, writes and syncs a private stage file, atomically renames it, verifies the immutable file against the catalog descriptor, and only then publishes an exact +1 catalog revision through the fenced metadata journal. The host serializes commits, renews its lease while draining admitted work, and proves an orderly source-free Soundscaper-to-Framescaper-to-Soundscaper lease handoff with increasing fencing tokens, the same project identity, and committed-revision continuity. Full schema 9 domain validation remains an editor activation responsibility. Legacy Soundscaper project migration, managed-media publication, renderer persistence integration, orphan reclamation, packaged multi-process handoff, and per-platform parent-directory or power-loss durability remain outside this rule.",
+			"requiredOutcome": "The desktop editor fully validates exact-current-schema projects before a bounded pathless main-process service publishes their latest metadata and catalog pointer under a fenced lease, without exposing filesystem paths, catalog entry IDs, or lease capabilities to the renderer.",
+			"currentBehavior": "Metadata schema 2 binds a separate opaque library entry ID to the bounded project identity, exact schema 9, project revision, byte length, SHA-256 digest, and derived immutable revision-and-digest path. The main-only store canonicalizes the document with the bounded tagged-binary Scape codec, enforces the non-raiseable 256 MiB document ceiling, validates root schema, identity, title, and revision, writes and syncs a private stage file, atomically renames it, verifies the immutable file against the catalog descriptor, and only then publishes an exact +1 catalog revision through the fenced metadata journal. The host serializes commits and renews its lease while draining admitted work. Its identity service and owner-scoped IPC expose only bounded project summaries, canonical documents, identities, and delete results; main strips catalog internals, while renderer-owner revocation fences new work and drains admitted operations. The renderer repository fully validates exact schema 9 before local mutation, keeps revision and source/media data in a product-local shadow, treats the shared latest document and summary list as authoritative, and fails closed on an incomplete desktop bridge. A composed source-free editor fixture creates and autosaves in Soundscaper, closes the fenced host, discovers and bootstrap-reopens the same identity and revision from a fresh Framescaper-local store, and commits the next revision in Framescaper while the shared media catalog remains empty. Full schema 9 controller activation validation remains editor-owned. Managed-media publication and cross-product source-byte availability, orphan reclamation, packaged preload/IPC/executable handoff, and per-platform parent-directory or power-loss durability remain outside this rule. Earlier Soundscaper shared-library migration is deliberately deferred and unsupported by this current-only contract.",
 			"evidence": [
 				"desktop/project-library-contract.ts",
 				"desktop/project-library-projects.ts",
 				"desktop/project-library-host.ts",
+				"desktop/project-library-editor-service.ts",
+				"desktop/project-library-ipc.js",
+				"desktop/preload.mjs",
+				"desktop/main.mjs",
+				"src/common/editor/storage/desktop-shared-project-repository.ts",
+				"src/common/editor/storage.js",
+				"src/common/editor/app.js",
 				"tests/desktop-project-library-projects.test.ts",
 				"tests/desktop-project-library-handoff.test.ts",
+				"tests/desktop-project-library-editor-service.test.ts",
+				"tests/desktop-project-library-ipc.test.js",
+				"tests/audio-editor-desktop-shared-project-repository.test.ts",
+				"tests/desktop-project-library-editor-handoff.test.ts",
 				"tests/desktop-project-library-packaging.test.js"
 			]
 		},

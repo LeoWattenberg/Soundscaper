@@ -45,11 +45,12 @@ and both product profiles must agree on the same migration boundary.
 
 ## Shared desktop current-schema persistence
 
-The main-process shared desktop library has one implemented current-schema
-persistence envelope. Metadata schema 2 binds a separate opaque library entry
-ID to the project identity, exact schema 9, project revision, byte length,
-SHA-256 digest, and a derived immutable revision-and-digest path. No filesystem
-path or lease capability is exposed to a renderer by this host boundary.
+The desktop editor has one implemented current-schema shared persistence
+envelope. Metadata schema 2 binds a separate opaque library entry ID to the
+project identity, exact schema 9, project revision, byte length, SHA-256 digest,
+and a derived immutable revision-and-digest path. No filesystem path, catalog
+entry ID, digest, product preference, timestamp source, or lease capability is
+exposed to a renderer.
 
 Before publication, the main process canonicalizes the document with the
 bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
@@ -60,19 +61,43 @@ rename, syncs the project directory where the platform supports it, and
 verifies the resulting immutable file against its byte-length, digest, schema,
 identity, and revision descriptor. Only then does it publish an exact +1
 catalog revision through the existing fenced journal, so a reader observes the
-old or new complete project-and-catalog pair.
+old or new complete project-and-catalog pair. The main-only host serializes
+commits and renews its lease while it drains admitted work during close.
 
-The main-only host serializes commits, renews its lease while it drains admitted
-work during close, and has a source-free orderly
-Soundscaper-to-Framescaper-to-Soundscaper handoff fixture. That fixture proves
-increasing fencing tokens without stale takeover, the same project identity,
-and committed-revision continuity across the products. It is not a packaged
-multi-process or executable handoff qualification.
+The main identity service and owner-scoped IPC expose only bounded project
+summaries, canonical documents, project identities, and delete results. The
+main process strips catalog implementation fields; navigation, renderer loss,
+and window close fence new work for that renderer owner and drain operations
+admitted before revocation. The preload repeats the non-raiseable 256 MiB UTF-8
+document, 4 KiB project-ID, and 10,000-summary ceilings without exposing a path
+or fencing value.
 
-This rule is current-only. Legacy Soundscaper project migration, managed media,
-renderer persistence integration, full schema 9 domain validation beyond the
-root envelope, orphan reclamation, packaged multi-process handoff, and
-per-platform parent-directory and power-loss durability remain outside it.
+The renderer repository fully validates and canonically reserializes exact
+schema 9 before local mutation. The shared catalog is authoritative for latest
+loads and summary lists, while product-local IndexedDB retains revision history,
+source records, and media bytes. A remote commit failure therefore leaves a
+retryable local shadow; identical same-revision retry is a catalog no-op. A
+shared delete commits remotely first and reports, rather than reverses, failed
+local cleanup. A detected desktop with an incomplete shared-project bridge
+fails closed instead of falling back to its former product-private project
+catalog.
+
+A composed source-free editor fixture creates and autosaves in Soundscaper,
+closes its fenced host, discovers and bootstrap-reopens the same identity and
+revision from a fresh Framescaper-local store, and commits the next revision in
+Framescaper. It also proves a higher fencing token without stale takeover and
+an empty shared media catalog. This composes the real controller, default
+Soundscaper desktop-store selection, renderer repository, main service, and
+host; focused tests separately pin preload and IPC behavior. It is not one
+packaged preload/IPC/multi-process or executable handoff qualification.
+
+This rule is current-only. Full schema 9 controller activation validation
+remains editor-owned. Managed-media publication, copy, consolidation, relink,
+playback, and cross-product source-byte availability; orphan reclamation;
+packaged cross-product lifecycle; and per-platform parent-directory and
+power-loss durability remain outside it. Earlier Soundscaper shared-library
+migration is deliberately deferred and unsupported by this contract; Audacity
+project import compatibility is a separate boundary.
 
 ## Project feature requirements
 

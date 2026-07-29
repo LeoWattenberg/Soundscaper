@@ -80,13 +80,24 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-projects.ts',
 		'desktop/project-library-host.ts',
+		'desktop/project-library-editor-service.ts',
+		'desktop/project-library-ipc.js',
+		'desktop/preload.mjs',
+		'desktop/main.mjs',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage.js',
+		'src/common/editor/app.js',
 		'tests/desktop-project-library-projects.test.ts',
 		'tests/desktop-project-library-handoff.test.ts',
+		'tests/desktop-project-library-editor-service.test.ts',
+		'tests/desktop-project-library-ipc.test.js',
+		'tests/audio-editor-desktop-shared-project-repository.test.ts',
+		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.match(
 		desktopProjectCatalogCommit.requiredOutcome,
-		/main-process.*exact-current-schema.*persistence envelope.*catalog pointer.*fenced lease.*without exposing filesystem paths.*renderer/iu,
+		/desktop editor.*fully validates.*exact-current-schema.*bounded pathless main-process service.*latest metadata.*catalog pointer.*fenced lease.*without exposing filesystem paths.*catalog entry IDs.*lease capabilities.*renderer/iu,
 	);
 	assert.match(
 		desktopProjectCatalogCommit.currentBehavior,
@@ -98,11 +109,19 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		desktopProjectCatalogCommit.currentBehavior,
-		/host serializes commits.*renews.*draining admitted work.*source-free Soundscaper-to-Framescaper-to-Soundscaper.*increasing fencing tokens.*same project identity.*committed-revision continuity/iu,
+		/host serializes commits.*renews.*draining admitted work.*identity service.*owner-scoped IPC.*bounded project summaries.*canonical documents.*renderer-owner revocation.*fences new work.*drains admitted operations/iu,
 	);
 	assert.match(
 		desktopProjectCatalogCommit.currentBehavior,
-		/full schema 9 domain validation.*editor activation.*legacy Soundscaper project migration.*managed-media publication.*renderer persistence integration.*orphan reclamation.*packaged multi-process handoff.*per-platform parent-directory or power-loss durability.*outside/iu,
+		/renderer repository.*fully validates exact schema 9.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/composed source-free editor fixture.*creates and autosaves in Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision in Framescaper.*media catalog remains empty/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/full schema 9 controller activation validation.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged preload\/IPC\/executable handoff.*per-platform parent-directory or power-loss durability.*outside.*earlier Soundscaper shared-library migration.*deferred and unsupported/iu,
 	);
 
 	const featureRequirements = rules.get('project-feature-requirements-core');
@@ -490,11 +509,19 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/serializes commits.*renews.*drains.*source-free.*Soundscaper-to-Framescaper-to-Soundscaper.*increasing fencing tokens.*same project identity.*committed-revision continuity/isu,
+		/identity service.*owner-scoped IPC.*bounded project\s+summaries.*canonical documents.*renderer loss.*fence new work.*drain operations/isu,
 	);
 	assert.match(
 		documentation,
-		/legacy Soundscaper project migration.*managed media.*renderer persistence integration.*full schema 9 domain validation.*orphan reclamation.*packaged multi-process handoff.*per-platform parent-directory and power-loss durability.*outside/isu,
+		/renderer repository.*fully validates.*exact\s+schema 9.*before local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
+	);
+	assert.match(
+		documentation,
+		/composed source-free editor fixture.*creates and autosaves in Soundscaper.*same identity and\s+revision.*fresh Framescaper-local store.*next revision in\s+Framescaper.*empty shared media catalog.*not one\s+packaged preload\/IPC\/multi-process/isu,
+	);
+	assert.match(
+		documentation,
+		/full schema 9 controller activation validation.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged cross-product lifecycle.*per-platform parent-directory and\s+power-loss durability.*outside.*earlier Soundscaper shared-library\s+migration.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 	assert.match(documentation, /do not promise\s+byte-for-byte/u);
 	assert.match(documentation, /exact schema 9.*JSON-semantic.*byte-exact preservation.*supported bounded tagged binary/isu);
