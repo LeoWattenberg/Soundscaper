@@ -186,8 +186,9 @@ reviewable gates before expanding the schema or native boundary.
   [compatibility contract](docs/project-compatibility.md) define forward
   read-only behavior, type-specific opaque preservation, the minimum retained
   migrations, freeze/proxy fallback requirements, and schema-retirement rules.
-  Its [policy regression](tests/project-compatibility-policy.test.js) keeps
-  unimplemented future-archive and binary-opaque guarantees explicitly planned.
+  Its [policy regression](tests/project-compatibility-policy.test.js) keeps the
+  unimplemented future-archive guarantee explicitly planned while verifying the
+  bounded current-schema binary-opaque `.scape` contract.
 - **Shared — Implemented:** the machine-readable
   [severity policy](config/release-severity-policy.json) and its
   [release, waiver, and recovery procedure](docs/release-policy.md) fail closed
@@ -815,16 +816,27 @@ models or native implementations.
   enforces intrinsic read-only state. Export snapshots the admitted project root
   and complete source records before asynchronous asset work, serializes those
   same sources and the bounded normalized fallback manifest used for validation,
-  rejects project/source `toJSON` rewrite hooks, hashes completed canonical asset
-  output, and rejects a mismatch before manifest write or destination commit. Import binds
+  rejects project-root/source-record accessors and callable `toJSON` hooks
+  without invocation, hashes completed canonical asset output, and rejects a
+  mismatch before manifest write or destination commit. Import binds
   claims before collision or storage, then hashes each extracted body against
   its descriptor before source or project publication; copy remapping changes
-  the source ID without changing the digest. Raw- and stored-project fallback
-  verification and runtime use, post-open unavailable-feature placeholders and
-  per-feature bypass UI, arbitrary future-schema archive preservation, and
-  opaque native-state round trips remain planned. Third-party discovery,
-  loading, and isolation remain separate later surfaces rather than blockers
-  for this first-party contract.
+  the source ID without changing the digest. Exact-schema-V9 `.scape` export,
+  import, and inspection now preserve `Uint8Array`, offset-view, and
+  `ArrayBuffer` opaque native/effect state through one collision-safe tagged
+  codec. The codec copies bytes, restores the explicit binary type without
+  interpreting it, rejects project-container accessors, callable container
+  `toJSON` hooks, cycles, reserved-tag collisions, malformed or noncanonical
+  base64, length drift, duplicate IDs, and unknown descriptor fields, and
+  applies lower-only ceilings of 256 payloads, 4 MiB per payload, 8 MiB
+  aggregate bytes, 100,000 traversal nodes, and depth 128 before decoded-byte
+  allocation or project work. Other buffer views reject; other project schemas
+  retain ordinary JSON behavior and tag-shaped future state is not traversed.
+  Raw- and stored-project fallback verification and runtime use,
+  post-open unavailable-feature placeholders and per-feature bypass UI, and
+  arbitrary future-schema archive preservation remain planned. Third-party
+  discovery, loading, and isolation remain separate later surfaces rather than
+  blockers for this first-party contract.
 
 ### Exit gate
 
@@ -844,7 +856,8 @@ models or native implementations.
 - Opening a project with unavailable native features now produces the actionable
   pre-open compatibility decision. This exit remains open until its subsequent
   `.scape` round trip is faithful for runtime fallback behavior, raw/stored
-  fallback integrity, and the remaining opaque-state contract.
+  fallback integrity, post-open placeholder and bypass behavior, and arbitrary
+  future-schema archive preservation.
 
 ## 3. Parallel editorial foundations
 

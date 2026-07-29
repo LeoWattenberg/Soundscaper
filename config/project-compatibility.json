@@ -9,7 +9,7 @@
 	"portableArchive": {
 		"currentFormatVersion": 1,
 		"futureFormatBehavior": "reject-before-persistence",
-		"roundTripGuarantee": "json-semantic-not-byte-identical"
+		"roundTripGuarantee": "current-schema-semantic-plus-bounded-tagged-binary-not-byte-identical"
 	},
 	"forwardReadOnly": {
 		"scope": "raw-project-document",
@@ -85,7 +85,7 @@
 			"id": "current-scape-rendered-fallback-integrity",
 			"status": "implemented",
 			"requiredOutcome": "Current-format, exact-current-schema .scape routes bind every rendered fallback claim to its canonical archive asset and reject a kind or digest mismatch before publication.",
-			"currentBehavior": "Export snapshots the admitted project root and complete source records before asynchronous asset work and serializes the same source snapshots and bounded normalized fallback manifest used for validation. Project- and source-level toJSON hooks are rejected so they cannot rewrite the admitted serialization; export then hashes every emitted source body and rejects a mismatch against the completed descriptors before manifest write or destination commit. Import and inspection bind each exact-schema-9 fallback source ID, kind, and SHA-256 to the canonical manifest asset before collision lookup or storage; import then verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not read or hash asset bodies. Copy import rewrites the source ID while preserving the verified digest. Future schemas return and featureRequirements is not traversed. Raw-project and stored-project loads plus runtime fallback use remain outside this route-specific integrity rule.",
+			"currentBehavior": "Export snapshots the admitted project root and complete source records before asynchronous asset work and serializes the same source snapshots and bounded normalized fallback manifest used for validation. Project-root and source-record accessors and callable toJSON hooks are rejected without invocation so they cannot rewrite the admitted serialization; export then hashes every emitted source body and rejects a mismatch against the completed descriptors before manifest write or destination commit. Import and inspection bind each exact-schema-9 fallback source ID, kind, and SHA-256 to the canonical manifest asset before collision lookup or storage; import then verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not read or hash asset bodies. Copy import rewrites the source ID while preserving the verified digest. Future schemas return and featureRequirements is not traversed. Raw-project and stored-project loads plus runtime fallback use remain outside this route-specific integrity rule.",
 			"evidence": [
 				"src/common/editor/scape-project-assets.ts",
 				"src/common/editor/scape-export-plan.ts",
@@ -190,14 +190,17 @@
 		},
 		{
 			"id": "binary-opaque-native-state",
-			"status": "planned",
-			"milestone": "2",
-			"requiredOutcome": "Binary opaque state uses a tagged, bounded JSON encoding and round-trips byte-exactly through .scape.",
-			"currentBehavior": "Structured-clone paths retain typed arrays, but project.json uses plain JSON and does not yet provide a tagged binary codec.",
+			"status": "implemented",
+			"requiredOutcome": "Supported Uint8Array and ArrayBuffer opaque state in exact-current-schema, current-format .scape projects uses a tagged, bounded JSON encoding and round-trips byte-exactly without activation.",
+			"currentBehavior": "Exact schema 9 export encodes Uint8Array values, offset-view bytes, and ArrayBuffer values with a reserved tagged descriptor under lower-only limits of 256 payloads, 4 MiB per payload, 8 MiB aggregate bytes, 100,000 traversal nodes, and depth 128; other ArrayBuffer views reject. Import and inspection validate the closed descriptor schema, unique positive IDs, canonical base64, exact byte lengths, and all limits before allocating decoded payloads, then restore the declared binary type without interpreting its bytes. Reserved-tag collisions, project-container accessors, and callable container toJSON hooks reject without invocation. Other project schemas retain ordinary JSON behavior and their tag-shaped data is not traversed.",
 			"evidence": [
 				"src/common/editor/aup4-effects.js",
+				"src/common/editor/scape-project-document.ts",
+				"src/common/editor/scape-export-plan.ts",
 				"src/common/editor/scape-project.js",
-				"tests/aup4-effects.test.js"
+				"tests/aup4-effects.test.js",
+				"tests/audio-editor-scape-project-document.test.ts",
+				"tests/audio-editor-scape-project.test.js"
 			]
 		},
 		{
@@ -205,7 +208,7 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. Post-open visible placeholders and per-feature bypass UI, raw- and stored-project fallback-byte verification, fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. The bounded current-schema .scape codec also preserves supported Uint8Array and ArrayBuffer opaque native/effect state byte-exactly without activation; other buffer views remain unsupported. Post-open visible placeholders and per-feature bypass UI, raw- and stored-project fallback-byte verification, fallback runtime use, and arbitrary future-schema archive preservation are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",

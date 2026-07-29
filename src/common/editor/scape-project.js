@@ -44,6 +44,7 @@ import {
 	ScapeImportTransaction,
 } from './scape-import-transaction.ts';
 import { indexScapeProjectAssets } from './scape-project-assets.ts';
+import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
@@ -172,7 +173,7 @@ export async function importScapeProject(input, store, options = {}) {
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
 			throwIfScapeAborted(signal);
-			const loaded = migrateAudioEditorProject(JSON.parse(projectText));
+			const loaded = migrateAudioEditorProject(parseScapeProjectDocument(projectText));
 			let project = structuredClone(loaded.project);
 			const assetBySourceId = indexScapeProjectAssets(project, manifest);
 			assertScapeImportStore(store);
@@ -347,7 +348,7 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
-		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
+		const loaded = migrateAudioEditorProject(parseScapeProjectDocument(projectText));
 		indexScapeProjectAssets(loaded.project, manifest);
 		const featureRequirementsCompatibility = options.projectFeatureCompatibility
 			? options.projectFeatureCompatibility.evaluate(loaded.project)

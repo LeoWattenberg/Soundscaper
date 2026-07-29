@@ -22,7 +22,10 @@ test('project compatibility policy matches the maintained schema and archive for
 	);
 	assert.equal(policy.portableArchive.currentFormatVersion, SCAPE_FORMAT_VERSION);
 	assert.equal(policy.portableArchive.futureFormatBehavior, 'reject-before-persistence');
-	assert.equal(policy.portableArchive.roundTripGuarantee, 'json-semantic-not-byte-identical');
+	assert.equal(
+		policy.portableArchive.roundTripGuarantee,
+		'current-schema-semantic-plus-bounded-tagged-binary-not-byte-identical',
+	);
 });
 
 test('compatibility rules distinguish enforced guarantees from planned lossless fallbacks', async () => {
@@ -42,7 +45,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'future-core-read-only': 'implemented',
 		'future-scape-round-trip': 'planned',
 		'json-opaque-extensions': 'implemented',
-		'binary-opaque-native-state': 'planned',
+		'binary-opaque-native-state': 'implemented',
 		'unavailable-native-feature': 'planned',
 		'video-proxy-fallback': 'planned',
 		'audio-freeze-fallback': 'planned',
@@ -116,7 +119,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		fallbackIntegrity.currentBehavior,
-		/export.*snapshot.*admitted project.*source records.*same source snapshots.*normalized fallback manifest.*toJSON.*rejected.*hash.*reject.*manifest.*commit.*import.*before.*collision.*storage.*body.*SHA-256.*publication/iu,
+		/export.*snapshot.*admitted project.*source records.*same source snapshots.*normalized fallback manifest.*accessors.*toJSON hooks.*without invocation.*hash.*reject.*manifest.*commit.*import.*before.*collision.*storage.*body.*SHA-256.*publication/iu,
 	);
 	assert.match(
 		fallbackIntegrity.currentBehavior,
@@ -197,11 +200,31 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(currentScapeOpenFeatureDecision.currentBehavior, /localized.*stable feature ID.*declared disposition.*default focus.*Cancel.*Escape/iu);
 
+	const binaryOpaqueState = rules.get('binary-opaque-native-state');
+	assert.deepEqual(binaryOpaqueState.evidence, [
+		'src/common/editor/aup4-effects.js',
+		'src/common/editor/scape-project-document.ts',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-project.js',
+		'tests/aup4-effects.test.js',
+		'tests/audio-editor-scape-project-document.test.ts',
+		'tests/audio-editor-scape-project.test.js',
+	]);
+	assert.match(binaryOpaqueState.requiredOutcome, /Uint8Array.*ArrayBuffer.*exact-current-schema.*current-format.*tagged.*bounded.*byte-exactly.*without activation/iu);
+	assert.match(
+		binaryOpaqueState.currentBehavior,
+		/schema 9.*Uint8Array.*offset-view.*ArrayBuffer.*reserved tagged descriptor.*256 payloads.*4 MiB.*8 MiB.*100,000.*depth 128.*other ArrayBuffer views reject/iu,
+	);
+	assert.match(
+		binaryOpaqueState.currentBehavior,
+		/import and inspection.*closed descriptor.*unique positive IDs.*canonical base64.*exact byte lengths.*before allocating.*declared binary type.*without interpreting.*reserved-tag collisions.*accessor.*toJSON.*other project schemas.*not traversed/iu,
+	);
+
 	const unavailable = rules.get('unavailable-native-feature');
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*visible placeholder.*raw.*stored-project.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
+		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*visible placeholder.*raw.*stored-project.*runtime use.*future-schema archive preservation/iu,
 	);
 });
 
@@ -221,8 +244,17 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 
 	const documentation = await readFile(documentationUrl, 'utf8');
 	assert.match(documentation, /Core document versus `\.scape`/u);
-	assert.match(documentation, /not\s+byte-for-byte/u);
+	assert.match(documentation, /do not promise\s+byte-for-byte/u);
+	assert.match(documentation, /exact schema 9.*JSON-semantic.*byte-exact preservation.*supported bounded tagged binary/isu);
 	assert.match(documentation, /binary opaque/iu);
+	assert.match(
+		documentation,
+		/exact schema 9.*format 1.*Uint8Array.*offset view.*ArrayBuffer.*\$soundscaperOpaqueBinary.*256 payloads.*4 MiB.*8 MiB.*100,000.*depth 128/isu,
+	);
+	assert.match(
+		documentation,
+		/validate every descriptor.*unique positive payload ID.*base64.*declared\s+length.*before allocating decoded bytes.*does not traverse or decode.*future-schema/isu,
+	);
 	assert.match(documentation, /Project feature requirements/u);
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
 	assert.match(documentation, /Current-schema and current-format `\.scape` preservation/iu);

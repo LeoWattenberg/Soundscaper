@@ -144,7 +144,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);
 	assert.match(documentation, /current-format.*exact schema 9.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
-	assert.match(documentation, /export.*project root.*source records.*same sources.*`toJSON` rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
+	assert.match(documentation, /export.*project root.*source records.*same sources.*accessors.*`toJSON` hooks.*without invocation.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
 	assert.match(documentation, /inspection.*does not hash.*asset bodies.*raw.*stored-project.*do(?:es)? not verify.*fallback bytes/iu);
 	assert.match(documentation, /do not qualify.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
 });

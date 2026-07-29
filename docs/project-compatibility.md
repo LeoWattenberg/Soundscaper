@@ -22,9 +22,10 @@ boundaries.
   called compatible.
 - A future `.scape` `formatVersion` is rejected before project persistence.
   Container-version support is never inferred from the inner project version.
-- Current `.scape` round trips promise JSON-semantic project equality, not
-  byte-for-byte `project.json` equality, ZIP entry ordering, timestamps, or JSON
-  formatting.
+- Current-format exact schema 9 `.scape` round trips promise JSON-semantic
+  equality plus byte-exact preservation for the supported bounded tagged binary
+  types described below. They do not promise byte-for-byte `project.json`
+  equality, ZIP entry ordering, timestamps, or JSON formatting.
 
 Read-only means that commands, autosave, overwrite, and migration publication
 must remain disabled. A future document may be inspected or exported unchanged
@@ -126,10 +127,11 @@ reference through the same mapping while preserving the digest.
 The maintained export plan snapshots the admitted project root and complete
 source records before its first asynchronous asset operation, then serializes
 those same source records and the same bounded normalized fallback manifest into
-`project.json`. Project- and source-level `toJSON` hooks are rejected rather than
-allowed to rewrite that admitted serialization. Export hashes the actual
-canonical audio or video asset output and rejects a claim-to-descriptor mismatch
-before writing the manifest or committing a destination. Inspection and import perform the same
+`project.json`. Project-root and source-record accessors and callable `toJSON`
+hooks are rejected without invocation rather than allowed to rewrite that
+admitted serialization. Export hashes the actual canonical audio or video asset
+output and rejects a claim-to-descriptor mismatch before writing the manifest or
+committing a destination. Inspection and import perform the same
 claim-to-manifest descriptor binding before compatibility evaluation, collision
 lookup, or transactional storage. Import additionally hashes each extracted
 asset body against that descriptor before source or project publication. Thus
@@ -139,14 +141,14 @@ hash the potentially reference-scale asset bodies.
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 post-open unavailable-feature placeholders or per-feature bypass controls,
-or a general opaque native-state round trip. A raw or stored-project load does
-not verify fallback bytes, and runtime use of fallback media is not implemented.
-Those outcomes remain governed by the planned compatibility rows and roadmap
-exit gate.
+or third-party feature activation. A raw or stored-project load does not verify
+fallback bytes, and runtime use of fallback media is not implemented. Those
+outcomes remain governed by the planned compatibility rows and roadmap exit
+gate.
 
 ## Opaque state
 
-Opaque preservation is type-specific.
+Binary opaque state and JSON-compatible opaque preservation are type-specific.
 
 - Unknown JSON-compatible fields from schema 1 are collected under
   `opaqueExtensions.legacyV1`. Maintained JSON-compatible
@@ -154,11 +156,23 @@ Opaque preservation is type-specific.
   semantically unchanged.
 - A newer raw core document is structured-cloned, so typed arrays can remain
   typed arrays inside that in-memory read-only result.
-- Binary opaque native/effect state is not yet lossless through `.scape` because
-  plain JSON serialization turns typed arrays into ordinary keyed objects. The
-  required milestone 2 codec must use an explicit tag, bounded byte length, and
-  canonical base64 or equivalent representation; decode must reject malformed,
-  oversized, or duplicate payloads.
+- Exact schema 9, format 1 `.scape` export preserves `Uint8Array` values,
+  including only the addressed bytes of an offset view, and `ArrayBuffer`
+  values through the reserved `$soundscaperOpaqueBinary` tag. Its descriptor is
+  closed and versioned, identifies the restored type, declares an exact byte
+  length, and carries canonical base64. Non-raiseable production limits admit
+  at most 256 payloads, 4 MiB per payload, 8 MiB in aggregate, 100,000 traversed
+  nodes, and depth 128; tests may only lower those limits. Import and inspection
+  validate every descriptor, unique positive payload ID, base64 form, declared
+  length, collision, and aggregate budget before allocating decoded bytes or
+  starting collision and persistence work. Serialization copies the bytes and
+  rejects reserved-tag collisions, project-container accessors, cycles, and
+  callable container `toJSON` hooks rather than activating project code. Other
+  `ArrayBuffer` views are unsupported and reject instead of being converted
+  silently.
+- Other schema versions keep ordinary JSON semantics. In particular, the codec
+  does not traverse or decode tag-shaped state in a future-schema document;
+  unchanged future `.scape` re-export remains a separate planned guarantee.
 
 Unknown fields and unavailable features must never be interpreted as executable
 code. Preservation does not imply activation.

@@ -199,7 +199,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		`rendered fallback integrity needs evidence from ${path}`);
 	assert.match(
 		fallbackIntegrity.summary,
-		/exact schema 9.*claim.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*toJSON rewrites.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*inspection.*does not hash.*asset bodies/iu,
+		/exact schema 9.*claim.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*accessors.*toJSON hooks.*without invocation.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*inspection.*does not hash.*asset bodies/iu,
 	);
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');

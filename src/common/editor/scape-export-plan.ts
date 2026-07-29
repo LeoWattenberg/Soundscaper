@@ -28,6 +28,7 @@ import {
 	snapshotScapeProjectFallbackIntegrity,
 	type ScapeProjectFallbackClaim,
 } from './scape-project-assets.ts';
+import { serializeScapeProjectDocument } from './scape-project-document.ts';
 
 const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
 const PLACEHOLDER_SHA256 = '0'.repeat(64);
@@ -107,8 +108,7 @@ export async function prepareScapeExport(
 	if (fallbackSnapshot.featureRequirements) {
 		project.featureRequirements = fallbackSnapshot.featureRequirements;
 	}
-	const projectText = JSON.stringify(project);
-	if (typeof projectText !== 'string') throw new TypeError('The project cannot be serialized.');
+	const projectText = serializeScapeProjectDocument(project);
 	const projectBytes = TEXT_ENCODER.encode(projectText);
 	if (projectBytes.byteLength > SCAPE_ARCHIVE_LIMITS.maximumProjectBytes) {
 		throw new RangeError('project.json exceeds the metadata limit.');
@@ -311,7 +311,18 @@ function snapshotScapeExportSource(
 
 function snapshotScapeExportRecord(value: Record<string, unknown>, label: string): Record<string, unknown> {
 	const snapshot = Object.create(null) as Record<string, unknown>;
-	for (const key of Object.keys(value)) snapshot[key] = value[key];
+	for (const key of Object.keys(value)) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${label} property ${key} accessors are not supported by portable export.`);
+		}
+		Object.defineProperty(snapshot, key, {
+			value: descriptor.value,
+			enumerable: true,
+			configurable: true,
+			writable: true,
+		});
+	}
 	if (typeof snapshot.toJSON === 'function') {
 		throw new TypeError(`${label} toJSON hooks are not supported by portable export.`);
 	}

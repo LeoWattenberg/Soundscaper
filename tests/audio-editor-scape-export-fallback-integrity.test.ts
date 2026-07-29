@@ -47,7 +47,7 @@ test('Scape export aborts an unpublished destination when a rendered fallback di
 	assert.equal(aborts, 1);
 });
 
-test('Scape export serializes the same normalized fallback snapshot that it verifies', async () => {
+test('Scape export rejects a feature-requirements accessor without invoking it', async () => {
 	const sourceStore = memoryStore('scape-feature-export-snapshot');
 	const project = featureProject('scape-feature-export-snapshot');
 	const admittedRequirements = project.featureRequirements;
@@ -70,10 +70,11 @@ test('Scape export serializes the same normalized fallback snapshot that it veri
 	});
 	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 
-	const exported = await exportScapeProject(project, sourceStore);
-	assert.ok(exported.blob instanceof Blob);
-	assert.equal((await inspectScapeProject(exported.blob)).id, project.id);
-	assert.equal(reads, 1);
+	await assert.rejects(
+		() => exportScapeProject(project, sourceStore),
+		/Project property featureRequirements accessors.*not supported/iu,
+	);
+	assert.equal(reads, 0);
 });
 
 test('Scape export rejects a project-level toJSON hook instead of bypassing its admitted snapshot', async () => {
@@ -86,7 +87,7 @@ test('Scape export rejects a project-level toJSON hook instead of bypassing its 
 	);
 });
 
-test('Scape export serializes the same source identity snapshot used by fallback validation', async () => {
+test('Scape export rejects a source-identity accessor without invoking it', async () => {
 	const sourceStore = memoryStore('scape-feature-export-source-snapshot');
 	const project = featureProject('scape-feature-export-source-snapshot');
 	const source = firstSource(project);
@@ -100,10 +101,11 @@ test('Scape export serializes the same source identity snapshot used by fallback
 	});
 	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 
-	const exported = await exportScapeProject(project, sourceStore);
-	assert.ok(exported.blob instanceof Blob);
-	assert.equal((await inspectScapeProject(exported.blob)).id, project.id);
-	assert.equal(reads, 1);
+	await assert.rejects(
+		() => exportScapeProject(project, sourceStore),
+		/Project source 1 property id accessors.*not supported/iu,
+	);
+	assert.equal(reads, 0);
 });
 
 test('Scape export rejects a source-level toJSON hook before it can rewrite source identity', async () => {

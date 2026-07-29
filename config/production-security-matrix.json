@@ -44,6 +44,7 @@
 			"data": "Untrusted project documents, ZIP records, media bytes, metadata, and codec arguments",
 			"entryPoints": [
 				"src/common/editor/scape-project.js",
+				"src/common/editor/scape-project-document.ts",
 				"src/common/editor/migration.js",
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",
@@ -53,12 +54,14 @@
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-project-document.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/migration.js" },
 				{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/project-v9.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/wav-import.js" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-project-document.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-project-feature-requirements.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-project-v9.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-wav-import.test.js" }
@@ -403,7 +406,7 @@
 				},
 				{
 					"id": "rendered-fallback-asset-integrity",
-					"summary": "For current-format exact schema 9 archives, every rendered-fallback claim is bound to its canonical asset descriptor before compatibility evaluation, collision lookup, or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project/source toJSON rewrites, and compares each completed, actually hashed asset digest before manifest write or destination commit. Import verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not hash asset bodies; future-schema feature requirements remain opaque.",
+					"summary": "For current-format exact schema 9 archives, every rendered-fallback claim is bound to its canonical asset descriptor before compatibility evaluation, collision lookup, or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project-root/source-record accessors and callable toJSON hooks without invocation, and compares each completed, actually hashed asset digest before manifest write or destination commit. Import verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not hash asset bodies; future-schema feature requirements remain opaque.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/scape-project-assets.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-export-plan.ts" },
@@ -415,6 +418,17 @@
 						{ "kind": "test", "path": "tests/audio-editor-scape-export-fallback-integrity.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" }
+					]
+				},
+				{
+					"id": "bounded-current-schema-opaque-binary-codec",
+					"summary": "Exact-schema-9, current-format export copies Uint8Array, offset-view, and ArrayBuffer bytes into a reserved versioned tag under lower-only ceilings of 256 payloads, 4 MiB per payload, 8 MiB aggregate bytes, 100,000 traversed nodes, and depth 128. Import and inspection validate closed descriptors, unique positive IDs, canonical base64, exact lengths, reserved-tag collisions, and the complete budget before decoded-byte allocation, collision lookup, transaction creation, or storage. Decoding restores only the declared binary type and never interprets or activates its bytes. Project-container accessors, callable container toJSON hooks, cycles, unsupported binary views, malformed tags, and ambiguous tags reject. Other project schemas use ordinary JSON semantics and tag-shaped future state is not traversed.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-project-document.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-plan.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project-document.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
 					]
 				}
 			],
