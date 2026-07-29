@@ -762,12 +762,16 @@ models or native implementations.
   root-level `featureRequirements` manifest; V1–V8 migration initializes its
   canonical empty form; and a pure shared evaluator reports available,
   unavailable, and unknown requirements with effective native, bypassed, or
-  rendered-fallback dispositions against explicitly declared support. The
-  schema validates fallback descriptor source identity and kind plus digest
-  syntax, not the referenced media bytes. Dedicated `.scape` inspection/open
-  and preservation evidence, controller enforcement and compatibility reports,
-  actual fallback integrity/use, unavailable-feature and bypass UI, and opaque
-  native-state round trips remain planned.
+  rendered-fallback dispositions against explicitly declared support. Fallback
+  descriptors independently root their source metadata through project and
+  history compaction. Current-format schema V9 `.scape` export/open preserves
+  the manifest and fallback-only source assets, while copy import rewrites known
+  fallback source references with colliding source identities. The schema
+  validates fallback descriptor source identity and kind plus digest syntax,
+  not the referenced media bytes. Controller enforcement and compatibility
+  reports, actual fallback digest verification and runtime use,
+  unavailable-feature and bypass UI, arbitrary future-schema archive
+  preservation, and opaque native-state round trips remain planned.
 
 ### Exit gate
 

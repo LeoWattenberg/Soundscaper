@@ -12,6 +12,15 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	for (const clip of clips) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
+	if (project?.schemaVersion === 9) {
+		const requirements = project.featureRequirements?.requirements;
+		if (Array.isArray(requirements)) {
+			for (const requirement of requirements) {
+				const sourceId = requirement?.fallback?.sourceId;
+				if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+			}
+		}
+	}
 	return target;
 }
 

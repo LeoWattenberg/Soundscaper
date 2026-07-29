@@ -212,6 +212,26 @@ export function normalizeProjectFeatureRequirements(
 	});
 }
 
+export function remapProjectFeatureRequirementSourceIds(
+	manifest: ProjectFeatureRequirementsManifest,
+	sourceIdMap: ReadonlyMap<string, string>,
+	options: NormalizeProjectFeatureRequirementsOptions,
+): ProjectFeatureRequirementsManifest {
+	const remapped = {
+		schemaVersion: manifest.schemaVersion,
+		requirements: manifest.requirements.map((requirement) => ({
+			...requirement,
+			fallback: requirement.fallback == null
+				? null
+				: {
+					...requirement.fallback,
+					sourceId: sourceIdMap.get(requirement.fallback.sourceId) ?? requirement.fallback.sourceId,
+				},
+		})),
+	};
+	return normalizeProjectFeatureRequirements(remapped, options);
+}
+
 function featureIdSet(value: ReadonlySet<string>, name: string): Set<string> {
 	if (!value || typeof value.has !== 'function' || typeof value[Symbol.iterator] !== 'function') {
 		throw new TypeError(`${name} must be a set of feature IDs.`);

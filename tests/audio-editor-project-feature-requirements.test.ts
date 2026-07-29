@@ -7,6 +7,7 @@ import {
 	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
 	evaluateProjectFeatureRequirements,
 	normalizeProjectFeatureRequirements,
+	remapProjectFeatureRequirementSourceIds,
 } from '../src/common/editor/project-feature-requirements.ts';
 
 const AUDIO_DIGEST = 'ab'.repeat(32);
@@ -152,6 +153,23 @@ test('feature requirement IDs must be unique', () => {
 		requirement({ id: 'duplicate' }),
 		requirement({ id: 'duplicate', featureId: 'org.soundscaper.native.other' }),
 	]), { sources: SOURCES }), /duplicate.*requirement.*id/iu);
+});
+
+test('fallback source remapping is pure, validated, and deeply frozen', () => {
+	const normalized = normalizeProjectFeatureRequirements(manifest([requirement({
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST },
+	})]), { sources: SOURCES });
+	const remapped = remapProjectFeatureRequirementSourceIds(
+		normalized,
+		new Map([['rendered-audio', 'copied-audio']]),
+		{ sources: [{ id: 'copied-audio', kind: 'audio' }] },
+	);
+
+	assert.equal(normalized.requirements[0]?.fallback?.sourceId, 'rendered-audio');
+	assert.equal(remapped.requirements[0]?.fallback?.sourceId, 'copied-audio');
+	assert.equal(Object.isFrozen(remapped), true);
+	assert.equal(Object.isFrozen(remapped.requirements[0]?.fallback), true);
 });
 
 test('feature IDs are canonical namespaced identifiers and dispositions are closed', () => {

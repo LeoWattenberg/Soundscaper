@@ -5,6 +5,7 @@ import {
 
 import { createStableId } from './project.js';
 import { migrateAudioEditorProject } from './migration.js';
+import { remapProjectFeatureRequirementSourceIds } from './project-feature-requirements.ts';
 import {
 	aggregateScapeErrors,
 	awaitScapeOperation,
@@ -192,15 +193,20 @@ export async function importScapeProject(input, store, options = {}) {
 			for (const source of project.sources || []) {
 				throwIfScapeAborted(signal);
 				const occupied = source.kind === 'video'
-					? await awaitScapeOperation(store.getMediaAssetMetadata(source.storageKey || source.id), signal)
-					: await awaitScapeOperation(store.getSourceMetadata(source.storageKey || source.id), signal);
+					? await awaitScapeOperation(store.getMediaAssetMetadata(source.id), signal)
+					: await awaitScapeOperation(store.getSourceMetadata(source.id), signal);
 				const nextId = occupied ? createStableId(source.kind === 'video' ? 'video-source' : 'source') : source.id;
 				sourceIdMap.set(source.id, nextId);
 				source.id = nextId;
 				source.storageKey = nextId;
 			}
-			for (const clip of [...(project.clips || []), ...(project.projectBin?.clips || [])]) {
-				clip.sourceId = sourceIdMap.get(clip.sourceId) || clip.sourceId;
+			remapScapeProjectSourceReferences(project, sourceIdMap);
+			if (!loaded.readOnly && project.schemaVersion === 9) {
+				project.featureRequirements = remapProjectFeatureRequirementSourceIds(
+					project.featureRequirements,
+					sourceIdMap,
+					{ sources: project.sources },
+				);
 			}
 
 			for (const [originalSourceId, finalSourceId] of sourceIdMap) {
@@ -310,6 +316,12 @@ export async function importScapeProject(input, store, options = {}) {
 	} catch (error) {
 		if (transaction) return transaction.rollback(error);
 		throw error;
+	}
+}
+
+function remapScapeProjectSourceReferences(project, sourceIdMap) {
+	for (const clip of [...(project.clips || []), ...(project.projectBin?.clips || [])]) {
+		clip.sourceId = sourceIdMap.get(clip.sourceId) || clip.sourceId;
 	}
 }
 

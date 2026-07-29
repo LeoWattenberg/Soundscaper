@@ -67,6 +67,21 @@
 			]
 		},
 		{
+			"id": "current-scape-feature-requirements",
+			"status": "implemented",
+			"requiredOutcome": "A current-schema portable archive retains the normalized feature-requirements manifest and every fallback-only source asset, including consistent known source-reference rewriting on copy collisions.",
+			"currentBehavior": "Schema 9 rendered-fallback descriptors root source metadata during project and history compaction. Current-format .scape export serializes the manifest and every project source asset, import preserves the manifest and its evaluation semantics, and copy import rewrites known fallback source IDs through the same collision map as source identity. This rule does not authenticate descriptor digests against media bytes or cover arbitrary future schemas.",
+			"evidence": [
+				"src/common/editor/retention.js",
+				"src/common/editor/project-feature-requirements.ts",
+				"src/common/editor/scape-export-plan.ts",
+				"src/common/editor/scape-project.js",
+				"src/common/editor/scape-project-assets.ts",
+				"tests/audio-editor-feature-requirement-retention.test.ts",
+				"tests/audio-editor-scape-feature-requirements.test.ts"
+			]
+		},
+		{
 			"id": "future-core-read-only",
 			"status": "implemented",
 			"requiredOutcome": "A raw project document with a newer schema is cloned without normalization and cannot enter a mutation or overwrite path.",
@@ -116,7 +131,7 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 raw-domain manifest and evaluator can declare requirements, bypass intent, and rendered-fallback descriptors, but dedicated .scape inspection/open and preservation evidence, controller enforcement and compatibility reporting, visible placeholder and bypass UI, referenced-media digest verification and fallback use, and a general opaque native-state round trip are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, and current-format .scape paths preserve declared requirements and rendered-fallback references, but controller enforcement and actionable compatibility reporting, visible placeholder and bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",

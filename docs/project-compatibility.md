@@ -62,12 +62,22 @@ cannot activate code. Malformed current-schema manifest state fails validation;
 a newer outer project schema is instead cloned opaquely and returned read-only
 before current-manifest normalization.
 
-This stage does not establish dedicated `.scape` inspection/open or preservation
-evidence for feature requirements, controller enforcement or read-only policy,
-an actionable compatibility-report surface, unavailable-feature or bypass UI,
-verification or runtime use of fallback media, or a general opaque native-state
-round trip. Those outcomes remain governed by the planned compatibility rows
-and roadmap exit gate.
+Current-schema and current-format `.scape` preservation is now part of this
+contract. A rendered-fallback descriptor makes its source an independent
+retention root even when no timeline or Project Bin clip references it. Project
+and history compaction therefore retain that source metadata, current-format
+export includes its source asset with the full manifest, and reopen preserves
+the normalized manifest and its evaluation semantics. When a copy import
+rewrites colliding source identity, it rewrites the known fallback descriptor
+reference through the same mapping.
+
+This archive evidence is deliberately limited to schema 9 and `.scape` format
+1. It does not establish arbitrary future-schema archive preservation,
+controller enforcement or read-only policy, an actionable compatibility-report
+surface, unavailable-feature or bypass UI, verification of the declared digest
+against referenced media bytes, runtime use of fallback media, or a general
+opaque native-state round trip. Those outcomes remain governed by the planned
+compatibility rows and roadmap exit gate.
 
 ## Opaque state
 

@@ -34,6 +34,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
 		'project-feature-requirements-core': 'implemented',
+		'current-scape-feature-requirements': 'implemented',
 		'future-core-read-only': 'implemented',
 		'future-scape-round-trip': 'planned',
 		'json-opaque-extensions': 'implemented',
@@ -73,11 +74,30 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(featureRequirements.currentBehavior, /bounded.*rendered-fallback.*digest syntax/iu);
 	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
 
+	const currentScapeFeatureRequirements = rules.get('current-scape-feature-requirements');
+	assert.deepEqual(currentScapeFeatureRequirements.evidence, [
+		'src/common/editor/retention.js',
+		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-project.js',
+		'src/common/editor/scape-project-assets.ts',
+		'tests/audio-editor-feature-requirement-retention.test.ts',
+		'tests/audio-editor-scape-feature-requirements.test.ts',
+	]);
+	assert.match(
+		currentScapeFeatureRequirements.currentBehavior,
+		/rendered-fallback.*compaction.*every project source asset.*copy import.*collision map/iu,
+	);
+	assert.match(
+		currentScapeFeatureRequirements.currentBehavior,
+		/does not authenticate.*media bytes.*arbitrary future schemas/iu,
+	);
+
 	const unavailable = rules.get('unavailable-native-feature');
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/\.scape inspection\/open.*controller enforcement.*visible placeholder.*digest verification.*fallback use.*opaque native-state/iu,
+		/controller enforcement.*compatibility reporting.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
 	);
 });
 
@@ -101,6 +121,9 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /binary opaque/iu);
 	assert.match(documentation, /Project feature requirements/u);
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
-	assert.match(documentation, /does not establish dedicated `\.scape` inspection\/open/iu);
+	assert.match(documentation, /Current-schema and current-format `\.scape` preservation/iu);
+	assert.match(documentation, /independent\s+retention root/iu);
+	assert.match(documentation, /does not establish arbitrary future-schema archive preservation/iu);
+	assert.match(documentation, /verification of the declared digest\s+against referenced media bytes/iu);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });
