@@ -667,6 +667,21 @@ models or native implementations.
   operation drain, and cleanup-error reporting without adding an owner field to
   the renderer bridge; the existing
   [bridge-contract regression](tests/desktop-protocol.test.js) pins that payload.
+  Save admission now enforces 16 outstanding product-wide save targets, 4
+  pending or live save sessions, and 65 GiB per-save and aggregate admitted
+  bytes, covering the canonical 64 GiB expanded `.scape` envelope plus its
+  bounded STORE/ZIP overhead. Global count and byte reservations are installed
+  synchronously before the first await, and production ceilings expose
+  lower-only test seams. Main fail-closes malformed, failed, or insufficient
+  BigInt `statfs` available-space results before staging open. The preflight is
+  a point-in-time check, not an operating-system reservation, so later external
+  disk use may still make a write fail safely. Charges release when no staging
+  was acquired, cleanup is acknowledged, or commit completes; a staging cleanup
+  failure keeps the count and bytes charged. The focused
+  [save-capacity regression](tests/desktop-save-capacity.test.js) pins the exact
+  count, byte, practical-size, and available-space boundaries, concurrent
+  pending admission, lower-only seams, and cleanup accounting without changing
+  the renderer IPC shape.
   Its focused
   [save-session regression](tests/desktop-save.test.js) injects stalls at open,
   sync, and rename plus close/unlink failures, proves disposal cannot overtake

@@ -5,6 +5,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
+const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 const EVIDENCE_KINDS = ['implementation', 'test', 'workflow', 'audit', 'document'];
 
 test('security claims point to checked-in implementation and verification evidence', async () => {
@@ -56,6 +57,49 @@ test('threat-model documentation defines the limits of enforced controls', async
 	assert.match(
 		documentation,
 		/bounded desktop materializer.*forwards a supplied signal.*releases its capability on abort.*open.*import orchestration does not consistently own or provide that signal/isu,
+	);
+});
+
+test('desktop save admission evidence pins product-wide capacity before staging', async () => {
+	const matrix = await readMatrix();
+	const desktopWrite = matrix.risks.find(({ id }) => id === 'desktop-write-path-capabilities');
+	assert.ok(desktopWrite);
+	assert.equal(desktopWrite.status, 'partial');
+	assert.equal(desktopWrite.releaseDisposition, 'conditional');
+
+	const admission = desktopWrite.currentControls.find(
+		({ id }) => id === 'aggregate-save-capacity-and-disk-admission',
+	);
+	assert.ok(admission);
+	assert.match(
+		admission.summary,
+		/16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously.*before the first await.*lower-only.*bigint `statfs`.*available.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged/iu,
+	);
+	for (const path of [
+		'desktop/constants.js',
+		'desktop/preload.mjs',
+		'desktop/save-targets.js',
+		'tests/desktop-save-capacity.test.js',
+		'tests/desktop-protocol.test.js',
+	]) assert.ok(admission.evidence.some((item) => item.path === path));
+
+	assert.equal(desktopWrite.residualRisks.some(
+		({ id }) => id === 'write-capacity-and-disk-admission',
+	), false);
+	assert.ok(desktopWrite.residualRisks.some(
+		({ id }) => id === 'in-flight-write-cancellation',
+	));
+
+	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	assert.match(
+		documentation,
+		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide save targets.*4 pending or live save sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously before the first await.*lower-only.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
+	);
+
+	const roadmap = await readFile(roadmapUrl, 'utf8');
+	assert.match(
+		roadmap,
+		/Electron Enhanced — In progress:.*16 outstanding product-wide save targets.*4\s+pending or live save sessions.*65 GiB per-save and aggregate admitted\s+bytes.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup\s+failure.*charged/isu,
 	);
 });
 

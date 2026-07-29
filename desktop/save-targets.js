@@ -1,10 +1,13 @@
 import { randomBytes } from 'node:crypto';
-import { open, rename, unlink } from 'node:fs/promises';
+import { open, rename, statfs, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
 import {
+	MAX_DESKTOP_SAVE_BYTES,
+	MAX_SAVE_ADMITTED_BYTES,
 	MAX_SAVE_CHUNK_BYTES,
-	MAX_SAVE_BYTES,
+	MAX_SAVE_SESSIONS,
+	MAX_SAVE_TARGETS,
 } from './constants.js';
 import { validateDeclaredSize } from './validation.js';
 
@@ -13,20 +16,31 @@ const DEFAULT_TTL_MS = 15 * 60 * 1000;
 export class SaveTargetStore {
 	#disposed = false;
 	#entries = new Map();
+	#maximumTargets;
 	#now;
 	#randomBytes;
 	#revokedOwners = new WeakMap();
 	#ttlMs;
 
-	constructor({ ttlMs = DEFAULT_TTL_MS, now = Date.now, randomBytesImpl = randomBytes } = {}) {
+	constructor({
+		ttlMs = DEFAULT_TTL_MS,
+		now = Date.now,
+		randomBytesImpl = randomBytes,
+		maximumTargets = MAX_SAVE_TARGETS,
+	} = {}) {
 		this.#ttlMs = ttlMs;
 		this.#now = now;
 		this.#randomBytes = randomBytesImpl;
+		this.#maximumTargets = boundedLimit(maximumTargets, MAX_SAVE_TARGETS, 'Save target capacity');
 	}
 
 	registerPath(filePath, { owner, purpose } = {}) {
 		if (this.#disposed) throw new Error('Save target store is disposed');
 		this.#assertOwnerActive(owner);
+		this.#sweepExpired();
+		if (this.#entries.size >= this.#maximumTargets) {
+			throw new RangeError(`Save target capacity reached its product-wide limit of ${this.#maximumTargets}`);
+		}
 		const id = this.#newId();
 		const entry = { id, path: filePath, name: basename(filePath), owner, purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
 		entry.timer = setTimeout(() => this.#releaseEntry(entry), this.#ttlMs);
@@ -76,6 +90,13 @@ export class SaveTargetStore {
 		return id;
 	}
 
+	#sweepExpired() {
+		const now = this.#now();
+		for (const entry of this.#entries.values()) {
+			if (entry.expiresAt <= now) this.#releaseEntry(entry);
+		}
+	}
+
 	#assertOwnerActive(owner) {
 		requireOwner(owner);
 		if (this.#revokedOwners.get(owner)) throw new Error('Save target owner was revoked');
@@ -94,64 +115,112 @@ export class SaveTargetStore {
 }
 
 export class AtomicSaveManager {
+	#admittedBytes = 0;
 	#cleanupErrors = [];
 	#closing = false;
 	#disposePromise = null;
+	#maximumAdmittedBytes;
+	#maximumSaveBytes;
+	#maximumSessions;
 	#open;
 	#operations = new Set();
 	#ownerStates = new WeakMap();
 	#randomBytes;
 	#rename;
+	#reservedSessions = 0;
 	#revocations = new Set();
 	#sessions = new Map();
+	#statfs;
 	#targets;
 	#unlink;
 
-	constructor({ targets, openImpl = open, renameImpl = rename, unlinkImpl = unlink, randomBytesImpl = randomBytes } = {}) {
+	constructor({
+		targets,
+		openImpl = open,
+		renameImpl = rename,
+		statfsImpl = statfs,
+		unlinkImpl = unlink,
+		randomBytesImpl = randomBytes,
+		maximumSessions = MAX_SAVE_SESSIONS,
+		maximumSaveBytes = MAX_DESKTOP_SAVE_BYTES,
+		maximumAdmittedBytes = MAX_SAVE_ADMITTED_BYTES,
+	} = {}) {
 		if (!targets) throw new TypeError('A SaveTargetStore is required');
 		this.#targets = targets;
 		this.#open = openImpl;
 		this.#rename = renameImpl;
+		this.#statfs = statfsImpl;
 		this.#unlink = unlinkImpl;
 		this.#randomBytes = randomBytesImpl;
+		this.#maximumSessions = boundedLimit(maximumSessions, MAX_SAVE_SESSIONS, 'Save session capacity');
+		this.#maximumSaveBytes = boundedLimit(maximumSaveBytes, MAX_DESKTOP_SAVE_BYTES, 'Practical save maximum');
+		this.#maximumAdmittedBytes = boundedLimit(
+			maximumAdmittedBytes,
+			MAX_SAVE_ADMITTED_BYTES,
+			'Aggregate admitted save bytes',
+		);
 	}
 
 	begin(options = {}) {
-		return this.#admit(options.owner, () => this.#begin(options.owner, options));
+		let exactSize;
+		let admittedSize;
+		let reservation;
+		const owner = options?.owner;
+		try {
+			if (this.#closing) throw new Error('Save manager is shutting down');
+			const state = this.#ownerState(owner);
+			if (state.revoked) throw new Error('Save renderer owner was revoked');
+			exactSize = options?.size !== undefined;
+			if (exactSize === (options?.maximumSize !== undefined)) {
+				throw new RangeError('A save requires exactly one exact size or admitted maximum');
+			}
+			admittedSize = validateDeclaredSize(exactSize ? options.size : options.maximumSize);
+			reservation = this.#reserve(admittedSize);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+		return this.#admit(owner, () => this.#begin(owner, options, exactSize, admittedSize, reservation))
+			.catch((error) => {
+				this.#releaseReservation(reservation);
+				throw error;
+			});
 	}
 
-	async #begin(owner, { targetId, size, maximumSize }) {
-		const exactSize = size !== undefined;
-		if (exactSize === (maximumSize !== undefined)) {
-			throw new RangeError('A save requires exactly one exact size or admitted maximum');
-		}
-		const admittedSize = validateDeclaredSize(exactSize ? size : maximumSize);
-		const target = this.#targets.consume(targetId, { owner });
-		if (!target) throw new Error('Save target expired or was already used');
-		if (!exactSize && target.purpose !== 'project') {
-			throw new Error('Bounded streaming is restricted to project save targets');
-		}
-		const writeId = this.#newId();
-		const temporaryPath = join(dirname(target.path), `.${basename(target.path)}.${writeId}.soundscaper-part`);
-		let handle;
+	async #begin(owner, { targetId }, exactSize, admittedSize, reservation) {
 		try {
-			handle = await this.#open(temporaryPath, 'wx', 0o600);
+			const target = this.#targets.consume(targetId, { owner });
+			if (!target) throw new Error('Save target expired or was already used');
+			if (!exactSize && target.purpose !== 'project') {
+				throw new Error('Bounded streaming is restricted to project save targets');
+			}
+			const writeId = this.#newId();
+			const targetDirectory = dirname(target.path);
+			const temporaryPath = join(targetDirectory, `.${basename(target.path)}.${writeId}.soundscaper-part`);
+			await this.#assertAvailableStorage(targetDirectory);
+			let handle;
+			try {
+				handle = await this.#open(temporaryPath, 'wx', 0o600);
+			} catch (error) {
+				throw new Error('Could not create the temporary save file', { cause: error });
+			}
+			this.#sessions.set(writeId, {
+				id: writeId,
+				owner,
+				targetPath: target.path,
+				temporaryPath,
+				handle,
+				exactSize,
+				admittedSize,
+				reservation,
+				written: 0,
+				busy: false,
+				idle: Promise.resolve(),
+			});
+			return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
 		} catch (error) {
-			throw new Error('Could not create the temporary save file', { cause: error });
+			this.#releaseReservation(reservation);
+			throw error;
 		}
-		this.#sessions.set(writeId, {
-			id: writeId,
-			owner,
-			targetPath: target.path,
-			temporaryPath,
-			handle,
-			exactSize,
-			admittedSize,
-			written: 0,
-			busy: false,
-			idle: Promise.resolve(),
-		});
-		return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
 	}
 
 	writeChunk(options = {}) {
@@ -204,6 +273,7 @@ export class AtomicSaveManager {
 			await session.handle.close();
 			handleClosed = true;
 			await this.#rename(session.temporaryPath, session.targetPath);
+			this.#releaseReservation(session.reservation);
 			return Object.freeze({ byteLength: session.written });
 		} catch (error) {
 			await this.#cleanupSession(session, { closeHandle: !handleClosed });
@@ -250,6 +320,47 @@ export class AtomicSaveManager {
 		this.#targets.dispose();
 		this.#disposePromise = this.#dispose();
 		return this.#disposePromise;
+	}
+
+	#reserve(admittedSize) {
+		if (admittedSize > this.#maximumSaveBytes) {
+			throw new RangeError(`Save exceeds the practical per-save maximum of ${this.#maximumSaveBytes} bytes`);
+		}
+		if (this.#reservedSessions >= this.#maximumSessions) {
+			throw new RangeError(`Save session capacity reached its product-wide limit of ${this.#maximumSessions}`);
+		}
+		if (admittedSize > this.#maximumAdmittedBytes - this.#admittedBytes) {
+			throw new RangeError(`Aggregate admitted save bytes exceed the product-wide limit of ${this.#maximumAdmittedBytes}`);
+		}
+		this.#reservedSessions += 1;
+		this.#admittedBytes += admittedSize;
+		return { admittedSize, released: false };
+	}
+
+	#releaseReservation(reservation) {
+		if (!reservation || reservation.released) return false;
+		reservation.released = true;
+		this.#reservedSessions -= 1;
+		this.#admittedBytes -= reservation.admittedSize;
+		return true;
+	}
+
+	async #assertAvailableStorage(targetDirectory) {
+		let details;
+		try {
+			details = await this.#statfs(targetDirectory, { bigint: true });
+		} catch (error) {
+			throw new Error('Could not inspect filesystem capacity for the save', { cause: error });
+		}
+		let availableBytes;
+		try {
+			availableBytes = availableStorageBytes(details);
+		} catch (error) {
+			throw new Error('Filesystem capacity information is invalid', { cause: error });
+		}
+		if (availableBytes < BigInt(this.#admittedBytes)) {
+			throw new RangeError('Available disk space is below the aggregate admitted save capacity');
+		}
 	}
 
 	#admit(owner, operation) {
@@ -333,6 +444,7 @@ export class AtomicSaveManager {
 		}
 		this.#cleanupErrors.push(...errors);
 		this.#ownerState(session.owner).cleanupErrors.push(...errors);
+		if (!errors.length) this.#releaseReservation(session.reservation);
 		return errors;
 	}
 
@@ -388,4 +500,26 @@ function requireOwner(owner) {
 	}
 }
 
-export const SAVE_LIMITS = Object.freeze({ chunkBytes: MAX_SAVE_CHUNK_BYTES, totalBytes: MAX_SAVE_BYTES });
+function boundedLimit(value, maximum, label) {
+	if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+		throw new RangeError(`${label} must be a non-negative integer no greater than the hard limit of ${maximum}`);
+	}
+	return value;
+}
+
+function availableStorageBytes(details) {
+	if (!details || typeof details !== 'object'
+		|| typeof details.bavail !== 'bigint' || details.bavail < 0n
+		|| typeof details.bsize !== 'bigint' || details.bsize <= 0n) {
+		throw new TypeError('Expected non-negative bigint bavail and positive bigint bsize values');
+	}
+	return details.bavail * details.bsize;
+}
+
+export const SAVE_LIMITS = Object.freeze({
+	chunkBytes: MAX_SAVE_CHUNK_BYTES,
+	totalBytes: MAX_DESKTOP_SAVE_BYTES,
+	targets: MAX_SAVE_TARGETS,
+	sessions: MAX_SAVE_SESSIONS,
+	admittedBytes: MAX_SAVE_ADMITTED_BYTES,
+});

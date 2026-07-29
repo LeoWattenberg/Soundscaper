@@ -27,7 +27,7 @@ import {
 	validateDeclaredSize,
 	validateSaveChoice,
 } from '../desktop/validation.js';
-import { MAX_SAVE_BYTES } from '../desktop/constants.js';
+import { MAX_DESKTOP_SAVE_BYTES, MAX_SAVE_BYTES } from '../desktop/constants.js';
 
 test('desktop document and locale validation accepts only committed editor routes', () => {
 	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
@@ -300,4 +300,14 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	assert.equal(calls[3].method, 'invoke');
 	assert.equal(calls[3].channel, 'soundscaper:v1:save:begin');
 	assert.deepEqual({ ...calls[3].value }, { targetId: 'a'.repeat(48), maximumSize: 123 });
+	await bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES });
+	assert.deepEqual(
+		{ ...calls[4].value },
+		{ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES },
+	);
+	assert.throws(
+		() => bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES + 1 }),
+		/save size is too large/iu,
+	);
+	assert.equal(calls.length, 5, 'oversized declarations do not cross IPC');
 });

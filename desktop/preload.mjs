@@ -29,6 +29,7 @@ const CHANNELS = Object.freeze({
 
 const MAX_CHUNK_BYTES = 1024 * 1024;
 const MAX_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2;
+const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
@@ -143,8 +144,14 @@ function saveDeclaration(options) {
 		throw new RangeError('Expected exactly one exact size or admitted maximum');
 	}
 	return exactSize
-		? { targetId, size: safeInteger(options.size) }
-		: { targetId, maximumSize: safeInteger(options.maximumSize) };
+		? { targetId, size: saveSize(options.size) }
+		: { targetId, maximumSize: saveSize(options.maximumSize) };
+}
+
+function saveSize(value) {
+	const size = safeInteger(value);
+	if (size > MAX_DESKTOP_SAVE_BYTES) throw new RangeError('Save size is too large');
+	return size;
 }
 
 function binary(value) {

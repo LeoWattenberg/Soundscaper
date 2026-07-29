@@ -712,16 +712,20 @@
 						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
 					]
+				},
+				{
+					"id": "aggregate-save-capacity-and-disk-admission",
+					"summary": "Main enforces 16 outstanding product-wide targets, 4 pending or live sessions, and 65 GiB per-save and aggregate admitted bytes, covering the canonical 64 GiB expanded `.scape` envelope plus its bounded STORE/ZIP overhead. Global count and byte reservations are taken synchronously before the first await, and production ceilings expose lower-only test seams. A fail-closed bigint `statfs` available-space check completes before staging open. The check is point-in-time admission, not an operating-system reservation; charges release only after no staging was acquired, an acknowledged cleanup, or a completed commit, and a staging cleanup failure leaves them charged.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/constants.js" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
-				{
-					"id": "write-capacity-and-disk-admission",
-					"exposure": "Per-document target and session ownership is enforced, but aggregate target, session, and admitted-byte capacity plus available disk and a practical maximum save size are not preflighted.",
-					"requiredControl": "Enforce aggregate product working-set limits and preflight available storage before opening staging or replacing a destination.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Capacity, aggregate-session, admitted-byte, available-disk, and practical maximum-size tests refuse before staging or destination replacement."]
-				},
 				{
 					"id": "in-flight-write-cancellation",
 					"exposure": "A bounded IPC chunk must finish or fail before abort closes staging; sync/rename is the non-cancellable commit boundary, and parent-directory durability is not qualified.",

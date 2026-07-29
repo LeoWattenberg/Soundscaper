@@ -519,9 +519,9 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		rendererOwnedSave.summary,
 		/committed main-document owner.*synchronously fences admission.*delayed dialog results.*drains admitted begin.*chunk.*finish.*abort.*sync-and-rename.*aborts remaining staging.*fresh-owner session admission waits.*stale commit cannot overtake/iu,
 	);
-	assert.ok(desktopWrite.residualRisks.some(
+	assert.equal(desktopWrite.residualRisks.some(
 		({ id }) => id === 'write-capacity-and-disk-admission',
-	));
+	), false);
 	assert.equal(
 		desktopWrite.residualRisks.some(({ id }) => id === 'write-owner-and-capacity-lifecycle'),
 		false,

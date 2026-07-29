@@ -36,6 +36,10 @@ export const MAX_READ_CAPABILITIES_PER_OWNER = 128;
 export const MAX_READ_CAPABILITY_BYTES_PER_OWNER = 512 * 1024 ** 2;
 export const MAX_SAVE_CHUNK_BYTES = 1024 * 1024;
 export const MAX_SAVE_BYTES = Number.MAX_SAFE_INTEGER;
+export const MAX_SAVE_TARGETS = 16;
+export const MAX_SAVE_SESSIONS = 4;
+export const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
+export const MAX_SAVE_ADMITTED_BYTES = MAX_DESKTOP_SAVE_BYTES;
 
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',
