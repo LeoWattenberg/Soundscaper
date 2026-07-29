@@ -294,6 +294,7 @@ class FakeIndex {
 		this.data = data;
 		this.name = name;
 		this.keyPath = data.indexes.get(name);
+		this.objectStore = new FakeObjectStore(transaction, data);
 	}
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;

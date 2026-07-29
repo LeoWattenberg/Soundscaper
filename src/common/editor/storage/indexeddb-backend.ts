@@ -447,7 +447,7 @@ export function transactionCompletion(transaction: IDBTransaction): Promise<void
 
 export function deleteByIndex(index: IDBIndex, key: IDBValidKey): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const cursorRequest = index.openCursor(key);
+		const cursorRequest = index.openKeyCursor(key);
 		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate IndexedDB records.'));
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;
@@ -455,7 +455,7 @@ export function deleteByIndex(index: IDBIndex, key: IDBValidKey): Promise<void> 
 				resolve();
 				return;
 			}
-			cursor.delete();
+			index.objectStore.delete(cursor.primaryKey);
 			cursor.continue();
 		};
 	});

@@ -65,24 +65,28 @@ test('IndexedDB promise adapters reject every asynchronous error callback', asyn
 
 	const deleteCursor = requestHarness<IDBCursor | null>(null, null);
 	const deletePromise = deleteByIndex({
-		openCursor: () => deleteCursor,
+		openKeyCursor: () => deleteCursor,
 	} as unknown as IDBIndex, 'source');
 	deleteCursor.onerror?.();
 	await assert.rejects(deletePromise, /enumerate IndexedDB records/u);
 });
 
-test('deleteByIndex deletes and advances every matching value cursor', async () => {
-	const cursorRequest = requestHarness<IDBCursorWithValue | null>(null, null);
+test('deleteByIndex deletes primary keys without materializing matching values', async () => {
+	const cursorRequest = requestHarness<IDBCursor | null>(null, null);
 	const deleted: IDBValidKey[] = [];
 	const advanced: IDBValidKey[] = [];
 	const cursors = ['first', 'second'].map((primaryKey) => ({
 		primaryKey,
-		value: { primaryKey },
-		delete() { deleted.push(primaryKey); },
 		continue() { advanced.push(primaryKey); },
-	})) as unknown as IDBCursorWithValue[];
+	})) as unknown as IDBCursor[];
 	const deletion = deleteByIndex({
-		openCursor(key: IDBValidKey) {
+		objectStore: {
+			delete(primaryKey: IDBValidKey) {
+				deleted.push(primaryKey);
+				return requestHarness(undefined);
+			},
+		},
+		openKeyCursor(key: IDBValidKey) {
 			assert.equal(key, 'source');
 			return cursorRequest;
 		},
