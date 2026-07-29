@@ -63,7 +63,7 @@ export class RetentionRepository {
 	}
 
 	async cleanupTemporaryAssets({ maximumAgeMs = 24 * 60 * 60 * 1000 } = {}): Promise<void> {
-		const cutoff = Date.now() - Math.max(0, Number(maximumAgeMs) || 0);
+		const cutoff = Date.now() - maximumAgeMs;
 		const activeStaging = await this.#options.media.activeAssetStaging();
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
