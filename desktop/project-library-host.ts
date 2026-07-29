@@ -7,7 +7,9 @@ import {
 	type DesktopLibraryOwner,
 } from './project-library-contract.ts';
 import {
+	type DesktopLibraryCommitProjectByIdOptions,
 	type DesktopLibraryCommitProjectOptions,
+	type DesktopLibraryDeleteProjectByIdOptions,
 	type DesktopLibraryLoadedProject,
 	DesktopLibraryProjectStore,
 } from './project-library-projects.ts';
@@ -37,6 +39,8 @@ export interface DesktopProjectLibraryHostSnapshot {
 }
 
 export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitProjectOptions, 'lease'>;
+export type DesktopProjectLibraryHostCommitByIdOptions = Omit<DesktopLibraryCommitProjectByIdOptions, 'lease'>;
+export type DesktopProjectLibraryHostDeleteByIdOptions = Omit<DesktopLibraryDeleteProjectByIdOptions, 'lease'>;
 
 /** Owns the shared library only inside the Electron main process. */
 export class DesktopProjectLibraryHost {
@@ -47,7 +51,7 @@ export class DesktopProjectLibraryHost {
 	#library: SharedDesktopProjectLibrary;
 	#onLeaseLost: (error: unknown) => void;
 	#operations = new Set<Promise<unknown>>();
-	#projectCommitTail: Promise<void> = Promise.resolve();
+	#projectMutationTail: Promise<void> = Promise.resolve();
 	#projects: DesktopLibraryProjectStore;
 	#recovery: DesktopLibraryRecoveryResult;
 	#renewalPromise: Promise<void> | null = null;
@@ -112,14 +116,20 @@ export class DesktopProjectLibraryHost {
 		return this.#admit(() => this.#projects.readProject(entryId, signal));
 	}
 
+	readProjectById(projectId: string, signal?: AbortSignal): Promise<DesktopLibraryLoadedProject | null> {
+		return this.#admit(() => this.#projects.readProjectById(projectId, signal));
+	}
+
 	commitProject(options: DesktopProjectLibraryHostCommitOptions): Promise<DesktopLibraryLoadedProject> {
-		return this.#admit(() => {
-			const commit = this.#projectCommitTail.then(
-				() => this.#projects.commitProject({ ...options, lease: this.#lease }),
-			);
-			this.#projectCommitTail = commit.then(() => undefined, () => undefined);
-			return commit;
-		});
+		return this.#mutateProject(() => this.#projects.commitProject({ ...options, lease: this.#lease }));
+	}
+
+	commitProjectById(options: DesktopProjectLibraryHostCommitByIdOptions): Promise<DesktopLibraryLoadedProject> {
+		return this.#mutateProject(() => this.#projects.commitProjectById({ ...options, lease: this.#lease }));
+	}
+
+	deleteProjectById(options: DesktopProjectLibraryHostDeleteByIdOptions): Promise<boolean> {
+		return this.#mutateProject(() => this.#projects.deleteProjectById({ ...options, lease: this.#lease }));
 	}
 
 	close(): Promise<void> {
@@ -178,6 +188,14 @@ export class DesktopProjectLibraryHost {
 				// A host callback cannot restore a lost fencing token.
 			}
 		}
+	}
+
+	#mutateProject<Result>(operation: () => Promise<Result>): Promise<Result> {
+		return this.#admit(() => {
+			const mutation = this.#projectMutationTail.then(operation);
+			this.#projectMutationTail = mutation.then(() => undefined, () => undefined);
+			return mutation;
+		});
 	}
 
 	#admit<Result>(operation: () => Promise<Result>): Promise<Result> {

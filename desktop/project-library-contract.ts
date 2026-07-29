@@ -145,6 +145,7 @@ export function validateDesktopLibraryMetadata(value: unknown): DesktopLibraryMe
 	const projects = record.projects.map((project) => validateProject(project));
 	const media = record.media.map((entry) => validateMedia(entry));
 	assertUnique(projects.map(({ id }) => id), 'project id');
+	assertUnique(projects.map(({ projectId }) => projectId), 'project identity');
 	assertPortablePathUnique(projects.map(({ metadataFile }) => metadataFile), 'project metadata path');
 	assertUnique(media.map(({ id }) => id), 'media id');
 	assertPortablePathUnique(media.map(({ relativeFile }) => relativeFile), 'media path');

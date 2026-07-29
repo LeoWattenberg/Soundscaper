@@ -46,6 +46,16 @@ export interface DesktopLibraryCommitProjectOptions {
 	readonly signal?: AbortSignal;
 }
 
+export interface DesktopLibraryCommitProjectByIdOptions extends Omit<DesktopLibraryCommitProjectOptions, 'entryId'> {
+	readonly createEntryId: () => string;
+}
+
+export interface DesktopLibraryDeleteProjectByIdOptions {
+	readonly lease: DesktopLibraryLease;
+	readonly projectId: string;
+	readonly signal?: AbortSignal;
+}
+
 export interface DesktopLibraryLoadedProject {
 	readonly catalog: DesktopLibraryProject;
 	readonly project: Readonly<Record<string, unknown>>;
@@ -56,6 +66,12 @@ interface CurrentProjectRoot extends Record<string, unknown> {
 	readonly id: string;
 	readonly title: string;
 	readonly revision: number;
+}
+
+interface PreparedProjectDocument {
+	readonly bytes: Uint8Array;
+	readonly project: CurrentProjectRoot;
+	readonly sha256: string;
 }
 
 /**
@@ -90,17 +106,60 @@ export class DesktopLibraryProjectStore {
 		return freezeLoadedProject(catalog, project);
 	}
 
+	async readProjectById(projectId: string, signal?: AbortSignal): Promise<DesktopLibraryLoadedProject | null> {
+		throwIfAborted(signal);
+		const catalog = projectByIdentity(this.#library.readMetadata(), projectId);
+		if (!catalog) return null;
+		const project = await this.#readDocument(catalog, signal);
+		return freezeLoadedProject(catalog, project);
+	}
+
 	async commitProject(options: DesktopLibraryCommitProjectOptions): Promise<DesktopLibraryLoadedProject> {
 		throwIfAborted(options.signal);
 		this.#library.assertLease(options.lease);
-		const documentJson = serializeScapeProjectDocument(options.project);
-		const bytes = Buffer.from(documentJson, 'utf8');
-		this.#assertDocumentBytes(bytes.byteLength);
-		const project = currentProjectRoot(parseScapeProjectDocument(documentJson));
-		const sha256 = digest(bytes);
+		return this.#commitPrepared(options, this.#prepareDocument(options.project));
+	}
+
+	async commitProjectById(options: DesktopLibraryCommitProjectByIdOptions): Promise<DesktopLibraryLoadedProject> {
+		throwIfAborted(options.signal);
+		this.#library.assertLease(options.lease);
+		const prepared = this.#prepareDocument(options.project);
 		const current = this.#library.readMetadata();
+		const existing = projectByIdentity(current, prepared.project.id);
+		const entryId = existing?.id ?? options.createEntryId();
+		return this.#commitPrepared({ ...options, entryId }, prepared, current);
+	}
+
+	async deleteProjectById(options: DesktopLibraryDeleteProjectByIdOptions): Promise<boolean> {
+		throwIfAborted(options.signal);
+		this.#library.assertLease(options.lease);
+		const current = this.#library.readMetadata();
+		const existing = projectByIdentity(current, options.projectId);
+		if (!existing) return false;
+		const next = validateDesktopLibraryMetadata({
+			schemaVersion: current.schemaVersion,
+			revision: current.revision + 1,
+			projects: current.projects.filter(({ id }) => id !== existing.id),
+			media: current.media,
+		});
+		throwIfAborted(options.signal);
+		this.#library.assertLease(options.lease);
+		await this.#library.publishMetadata({ lease: options.lease, metadata: next, signal: options.signal });
+		return true;
+	}
+
+	async #commitPrepared(
+		options: DesktopLibraryCommitProjectOptions,
+		prepared: PreparedProjectDocument,
+		current: DesktopLibraryMetadata = this.#library.readMetadata(),
+	): Promise<DesktopLibraryLoadedProject> {
+		const { bytes, project, sha256 } = prepared;
 		const existing = current.projects.find(({ id }) => id === options.entryId);
 		assertRevisionCanAdvance(existing, project, sha256);
+		if (existing && project.revision === existing.projectRevision) {
+			const persisted = await this.#readDocument(existing, options.signal);
+			return freezeLoadedProject(existing, persisted);
+		}
 		const candidate = {
 			id: options.entryId,
 			projectId: project.id,
@@ -125,6 +184,17 @@ export class DesktopLibraryProjectStore {
 		this.#library.assertLease(options.lease);
 		await this.#library.publishMetadata({ lease: options.lease, metadata: next, signal: options.signal });
 		return freezeLoadedProject(catalog, project);
+	}
+
+	#prepareDocument(value: unknown): PreparedProjectDocument {
+		const documentJson = serializeScapeProjectDocument(value);
+		const bytes = Buffer.from(documentJson, 'utf8');
+		this.#assertDocumentBytes(bytes.byteLength);
+		return {
+			bytes,
+			project: currentProjectRoot(parseScapeProjectDocument(documentJson)),
+			sha256: digest(bytes),
+		};
 	}
 
 	async #ensureDocument(
@@ -259,6 +329,21 @@ function requiredProject(metadata: DesktopLibraryMetadata, entryId: string): Des
 	const project = metadata.projects.find(({ id }) => id === entryId);
 	if (!project) throw new Error('Validated desktop library project entry is missing');
 	return project;
+}
+
+function projectByIdentity(
+	metadata: DesktopLibraryMetadata,
+	projectId: string,
+): DesktopLibraryProject | undefined {
+	if (typeof projectId !== 'string' || !projectId.trim()) {
+		throw new TypeError('Desktop library project identity must be a non-empty string');
+	}
+	if (Buffer.byteLength(projectId, 'utf8') > MAX_LIBRARY_PROJECT_ID_BYTES) {
+		throw new RangeError('Desktop library project identity exceeds its byte limit');
+	}
+	const matches = metadata.projects.filter((project) => project.projectId === projectId);
+	if (matches.length > 1) throw new Error('Desktop library catalog has a duplicate project identity');
+	return matches[0];
 }
 
 function maximumDocumentBytes(value: number | undefined): number {

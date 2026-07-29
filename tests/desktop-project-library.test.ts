@@ -147,6 +147,30 @@ test('project catalog entries bind exact-schema immutable document descriptors',
 	}
 });
 
+test('project catalog identities are globally unique independently of opaque entry ids', () => {
+	const metadata = populatedMetadata(1);
+	const project = metadata.projects[0];
+	assert.ok(project);
+	assert.throws(
+		() => validateDesktopLibraryMetadata({
+			...metadata,
+			projects: [
+				project,
+				{
+					...project,
+					id: 'shared-project-2',
+					metadataFile: createDesktopLibraryProjectMetadataFile(
+						'shared-project-2',
+						project.projectRevision,
+						project.sha256,
+					),
+				},
+			],
+		}),
+		/duplicate project identity/u,
+	);
+});
+
 test('cross-process leases expose owners and expiry and fence stale holders', async (context) => {
 	const fixture = await createFixture(context);
 	const first = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
