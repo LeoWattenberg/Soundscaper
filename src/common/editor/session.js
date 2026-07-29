@@ -434,7 +434,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function closeProject(projectId, closeOptions = {}) {
-		activationReservations.assertMutable(projectId);
+		activationReservations.assertMutable(projectId, activeProjectId === projectId);
 		const tab = requireTab(projectId);
 		if (tab.dirty && !closeOptions.force) {
 			return { closed: false, reason: 'dirty', releasedSourceIds: [] };

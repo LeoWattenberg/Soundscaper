@@ -42,8 +42,10 @@ export function createProjectActivationReservations(findTab) {
 		});
 	}
 
-	function assertMutable(projectId) {
-		if (reservations.has(projectId)) throw projectActivationReservedError();
+	function assertMutable(projectId, changesActiveProject = false) {
+		if (reservations.has(projectId) || (changesActiveProject && reservations.size)) {
+			throw projectActivationReservedError();
+		}
 	}
 
 	function assertSwitch(projectId, options = {}) {

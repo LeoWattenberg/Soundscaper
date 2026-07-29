@@ -88,6 +88,8 @@ test('an existing-project activation reservation blocks replacement until its ma
 	})));
 	assertActivationBlocked(() => controller.updateProjectHistory(second.id, controller.getProjectHistory(second.id)));
 	assertActivationBlocked(() => controller.closeProject(second.id, { force: true }));
+	assertActivationBlocked(() => controller.closeProject(first.id, { force: true }));
+	assert.equal(controller.getSnapshot().activeProjectId, first.id);
 	assertActivationBlocked(() => controller.openProject(second));
 	assertActivationBlocked(() => controller.switchProject(second.id));
 	assertActivationBlocked(() => controller.openProject(project('activating-project')));
