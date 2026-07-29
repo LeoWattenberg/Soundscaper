@@ -14,6 +14,11 @@ test.describe('Web Core storage visibility', () => {
 		const panel = editor.locator('[data-storage-capacity]');
 		await expect(panel).toBeVisible();
 		await expect(panel.locator('summary')).toContainText('Storage:');
+		await editor.getByRole('button', { name: 'Play options', exact: true }).click();
+		const playAtSpeed = editor.getByRole('menuitem', { name: 'Play at speed', exact: true });
+		await expect(playAtSpeed).toBeVisible();
+		await playAtSpeed.click({ trial: true });
+		await page.keyboard.press('Escape');
 		await panel.locator('summary').click();
 		await expect(panel.getByRole('button', { name: 'Refresh estimate', exact: true })).toBeVisible();
 		await expect(panel.getByRole('button', { name: 'Request persistent storage', exact: true })).toHaveCount(1);
