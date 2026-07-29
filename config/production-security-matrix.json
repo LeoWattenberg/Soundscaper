@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-28",
+	"groundedAt": "2026-07-29",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -675,15 +675,28 @@
 						{ "kind": "test", "path": "tests/desktop-save.test.js" },
 						{ "kind": "test", "path": "tests/desktop-application-lifecycle.test.ts" }
 					]
+				},
+				{
+					"id": "renderer-document-owned-save-lifecycle",
+					"summary": "Every target and derived session is bound to one committed main-document owner. Owner revocation on main-document navigation, renderer loss, or actual window close synchronously fences admission, invalidates unconsumed targets including delayed dialog results, drains admitted begin, chunk, finish, and abort operations through any admitted sync-and-rename commit, then aborts remaining staging. Fresh-owner session admission waits for that drain so a stale commit cannot overtake a replacement save.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/renderer-save-owner.js" },
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "test", "path": "tests/desktop-renderer-save-owner.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
-					"id": "write-owner-and-capacity-lifecycle",
-					"exposure": "Active sessions are cleaned on main-frame navigation, renderer loss, window close, and shutdown, but unconsumed target capabilities are not owner-bound and aggregate session/disk capacity is not preflighted.",
-					"requiredControl": "Bind every target and session to its webContents owner, enforce aggregate product working-set limits, and preflight available storage.",
+					"id": "write-capacity-and-disk-admission",
+					"exposure": "Per-document target and session ownership is enforced, but aggregate target, session, and admitted-byte capacity plus available disk and a practical maximum save size are not preflighted.",
+					"requiredControl": "Enforce aggregate product working-set limits and preflight available storage before opening staging or replacing a destination.",
 					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Renderer-destruction, capacity, aggregate-session, and practical maximum-size tests fail without replacing the destination."]
+					"acceptanceCriteria": ["Capacity, aggregate-session, admitted-byte, available-disk, and practical maximum-size tests refuse before staging or destination replacement."]
 				},
 				{
 					"id": "in-flight-write-cancellation",

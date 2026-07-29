@@ -8,6 +8,9 @@ import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
 import { MAX_SAVE_CHUNK_BYTES } from '../desktop/constants.js';
 import { AtomicSaveManager, SaveTargetStore } from '../desktop/save-targets.js';
 
+const TEST_OWNER = Object.freeze({ name: 'renderer-test-owner' });
+const REPLACEMENT_TEST_OWNER = Object.freeze({ name: 'replacement-renderer-test-owner' });
+
 test('read capabilities expose opaque same-origin descriptors and expire cleanly', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-read-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -34,13 +37,13 @@ test('chunked saves use sequential backpressure and atomically replace the desti
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(destination);
-	const { writeId, chunkSize } = await manager.begin({ targetId: target.id, size: 6 });
+	const target = targets.registerPath(destination, { owner: TEST_OWNER });
+	const { writeId, chunkSize } = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: 6 });
 	assert.equal(chunkSize, MAX_SAVE_CHUNK_BYTES);
-	assert.deepEqual(await manager.writeChunk({ writeId, offset: 0, bytes: new Uint8Array([1, 2, 3]) }), { nextOffset: 3 });
-	await assert.rejects(() => manager.writeChunk({ writeId, offset: 2, bytes: new Uint8Array([4]) }), /out of sequence/u);
-	assert.deepEqual(await manager.writeChunk({ writeId, offset: 3, bytes: new Uint8Array([4, 5, 6]) }), { nextOffset: 6 });
-	assert.deepEqual(await manager.finish(writeId), { byteLength: 6 });
+	assert.deepEqual(await manager.writeChunk({ owner: TEST_OWNER, writeId, offset: 0, bytes: new Uint8Array([1, 2, 3]) }), { nextOffset: 3 });
+	await assert.rejects(() => manager.writeChunk({ owner: TEST_OWNER, writeId, offset: 2, bytes: new Uint8Array([4]) }), /out of sequence/u);
+	assert.deepEqual(await manager.writeChunk({ owner: TEST_OWNER, writeId, offset: 3, bytes: new Uint8Array([4, 5, 6]) }), { nextOffset: 6 });
+	assert.deepEqual(await manager.finish(writeId, { owner: TEST_OWNER }), { byteLength: 6 });
 	assert.deepEqual([...await readFile(destination)], [1, 2, 3, 4, 5, 6]);
 	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
 });
@@ -53,11 +56,11 @@ test('bounded streaming saves publish their actual length below the admitted max
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(destination, { purpose: 'project' });
-	const { writeId } = await manager.begin({ targetId: target.id, maximumSize: 10 });
-	await manager.writeChunk({ writeId, offset: 0, bytes: new TextEncoder().encode('scape') });
+	const target = targets.registerPath(destination, { owner: TEST_OWNER, purpose: 'project' });
+	const { writeId } = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 10 });
+	await manager.writeChunk({ owner: TEST_OWNER, writeId, offset: 0, bytes: new TextEncoder().encode('scape') });
 
-	assert.deepEqual(await manager.finish(writeId), { byteLength: 5 });
+	assert.deepEqual(await manager.finish(writeId, { owner: TEST_OWNER }), { byteLength: 5 });
 	assert.equal(await readFile(destination, 'utf8'), 'scape');
 	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
 });
@@ -71,17 +74,17 @@ test('aborting and failed completion preserve an existing destination', async (c
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
 
-	let target = targets.registerPath(destination);
-	let session = await manager.begin({ targetId: target.id, size: 5 });
-	await manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('new') });
-	await assert.rejects(() => manager.finish(session.writeId), /declared size/u);
-	await manager.abort(session.writeId);
+	let target = targets.registerPath(destination, { owner: TEST_OWNER });
+	let session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: 5 });
+	await manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('new') });
+	await assert.rejects(() => manager.finish(session.writeId, { owner: TEST_OWNER }), /declared size/u);
+	await manager.abort(session.writeId, { owner: TEST_OWNER });
 	assert.equal(await readFile(destination, 'utf8'), 'original');
 
-	target = targets.registerPath(destination);
-	session = await manager.begin({ targetId: target.id, size: 3 });
-	await manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('new') });
-	await manager.abort(session.writeId);
+	target = targets.registerPath(destination, { owner: TEST_OWNER });
+	session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: 3 });
+	await manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('new') });
+	await manager.abort(session.writeId, { owner: TEST_OWNER });
 	assert.equal(await readFile(destination, 'utf8'), 'original');
 	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
 });
@@ -92,10 +95,10 @@ test('save chunks enforce the one MiB boundary', async (context) => {
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(join(root, 'large.wav'));
-	const session = await manager.begin({ targetId: target.id, size: MAX_SAVE_CHUNK_BYTES + 1 });
+	const target = targets.registerPath(join(root, 'large.wav'), { owner: TEST_OWNER });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: MAX_SAVE_CHUNK_BYTES + 1 });
 	await assert.rejects(
-		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: new Uint8Array(MAX_SAVE_CHUNK_BYTES + 1) }),
+		() => manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new Uint8Array(MAX_SAVE_CHUNK_BYTES + 1) }),
 		/chunk is too large/u,
 	);
 });
@@ -106,10 +109,10 @@ test('save chunks cannot exceed their declared byte length', async (context) => 
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(join(root, 'bounded.wav'));
-	const session = await manager.begin({ targetId: target.id, size: 1 });
+	const target = targets.registerPath(join(root, 'bounded.wav'), { owner: TEST_OWNER });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: 1 });
 	await assert.rejects(
-		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
+		() => manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
 		/exceeds its declared size/u,
 	);
 });
@@ -120,13 +123,13 @@ test('bounded streaming saves cannot exceed their admitted maximum', async (cont
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(join(root, 'bounded.scape'), { purpose: 'project' });
-	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	const target = targets.registerPath(join(root, 'bounded.scape'), { owner: TEST_OWNER, purpose: 'project' });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
 	await assert.rejects(
-		() => manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
+		() => manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1, 2) }),
 		/exceeds its admitted maximum/u,
 	);
-	await manager.abort(session.writeId);
+	await manager.abort(session.writeId, { owner: TEST_OWNER });
 });
 
 test('bounded streaming mode rejects non-project save capabilities', async (context) => {
@@ -135,9 +138,9 @@ test('bounded streaming mode rejects non-project save capabilities', async (cont
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(join(root, 'audio.wav'), { purpose: 'audio' });
+	const target = targets.registerPath(join(root, 'audio.wav'), { owner: TEST_OWNER, purpose: 'audio' });
 	await assert.rejects(
-		manager.begin({ targetId: target.id, maximumSize: 10 }),
+		manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 10 }),
 		/restricted to project save targets/u,
 	);
 });
@@ -162,11 +165,11 @@ test('save-session abort waits for an acknowledged write before closing staging'
 		}),
 		unlinkImpl: async () => { events.push('unlink'); },
 	});
-	const target = targets.registerPath('/tmp/stream-race.scape', { purpose: 'project' });
-	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
-	const writing = manager.writeChunk({ writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1) });
+	const target = targets.registerPath('/tmp/stream-race.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	const writing = manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: Uint8Array.of(1) });
 	await writeStarted;
-	const aborting = manager.abortAll();
+	const aborting = manager.abort(session.writeId, { owner: TEST_OWNER });
 	await Promise.resolve();
 	assert.deepEqual(events, ['write']);
 	releaseWrite();
@@ -193,8 +196,8 @@ test('save-session disposal drains a begin still opening staging before rejectin
 		},
 		unlinkImpl: async () => { events.push('unlink'); },
 	});
-	const target = targets.registerPath('/tmp/begin-shutdown-race.scape', { purpose: 'project' });
-	const beginning = manager.begin({ targetId: target.id, maximumSize: 1 });
+	const target = targets.registerPath('/tmp/begin-shutdown-race.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const beginning = manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
 	await openStarted;
 
 	let disposalSettled = false;
@@ -202,20 +205,20 @@ test('save-session disposal drains a begin still opening staging before rejectin
 	void disposing.then(() => { disposalSettled = true; });
 	assert.equal(manager.dispose(), disposing, 'disposal is one shared shutdown barrier');
 	assert.throws(
-		() => targets.registerPath('/tmp/late-save.scape', { purpose: 'project' }),
+		() => targets.registerPath('/tmp/late-save.scape', { owner: TEST_OWNER, purpose: 'project' }),
 		/shutting down|disposed/u,
 		'target admission closes synchronously with save-session admission',
 	);
 	await assert.rejects(
-		manager.begin({ targetId: target.id, maximumSize: 1 }),
+		manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 }),
 		/shutting down|disposed/u,
 	);
 	await assert.rejects(
-		manager.writeChunk({ writeId: 'late', offset: 0, bytes: Uint8Array.of(1) }),
+		manager.writeChunk({ owner: TEST_OWNER, writeId: 'late', offset: 0, bytes: Uint8Array.of(1) }),
 		/shutting down|disposed/u,
 	);
-	await assert.rejects(manager.finish('late'), /shutting down|disposed/u);
-	await assert.rejects(manager.abort('late'), /shutting down|disposed/u);
+	await assert.rejects(manager.finish('late', { owner: TEST_OWNER }), /shutting down|disposed/u);
+	await assert.rejects(manager.abort('late', { owner: TEST_OWNER }), /shutting down|disposed/u);
 	await new Promise((resolve) => { setImmediate(resolve); });
 	assert.equal(disposalSettled, false, 'shutdown waits for an admitted begin');
 	releaseOpen();
@@ -249,11 +252,11 @@ test('save-session disposal drains a rejected write and aborts every remaining s
 		},
 		unlinkImpl: async (path) => { events.push(`unlink-${path.includes('first') ? 0 : 1}`); },
 	});
-	const firstTarget = targets.registerPath('/tmp/first.scape', { purpose: 'project' });
-	const secondTarget = targets.registerPath('/tmp/second.scape', { purpose: 'project' });
-	const first = await manager.begin({ targetId: firstTarget.id, maximumSize: 1 });
-	await manager.begin({ targetId: secondTarget.id, maximumSize: 1 });
-	const writing = manager.writeChunk({ writeId: first.writeId, offset: 0, bytes: Uint8Array.of(1) });
+	const firstTarget = targets.registerPath('/tmp/first.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const secondTarget = targets.registerPath('/tmp/second.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const first = await manager.begin({ owner: TEST_OWNER, targetId: firstTarget.id, maximumSize: 1 });
+	await manager.begin({ owner: TEST_OWNER, targetId: secondTarget.id, maximumSize: 1 });
+	const writing = manager.writeChunk({ owner: TEST_OWNER, writeId: first.writeId, offset: 0, bytes: Uint8Array.of(1) });
 	await writeStarted;
 
 	let disposalSettled = false;
@@ -286,10 +289,10 @@ test('save-session disposal reports every unacknowledged close and unlink', asyn
 			if (path.includes('unlink-failure')) throw new Error('injected unlink failure');
 		},
 	});
-	let target = targets.registerPath('/tmp/close-failure.scape', { purpose: 'project' });
-	await manager.begin({ targetId: target.id, maximumSize: 1 });
-	target = targets.registerPath('/tmp/unlink-failure.scape', { purpose: 'project' });
-	await manager.begin({ targetId: target.id, maximumSize: 1 });
+	let target = targets.registerPath('/tmp/close-failure.scape', { owner: TEST_OWNER, purpose: 'project' });
+	await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	target = targets.registerPath('/tmp/unlink-failure.scape', { owner: TEST_OWNER, purpose: 'project' });
+	await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
 
 	await assert.rejects(manager.dispose(), (error) => {
 		assert.ok(error instanceof AggregateError);
@@ -301,7 +304,7 @@ test('save-session disposal reports every unacknowledged close and unlink', asyn
 		return true;
 	});
 	assert.throws(
-		() => targets.registerPath('/tmp/after-cleanup-failure.scape', { purpose: 'project' }),
+		() => targets.registerPath('/tmp/after-cleanup-failure.scape', { owner: TEST_OWNER, purpose: 'project' }),
 		/disposed/u,
 	);
 });
@@ -324,9 +327,9 @@ test('save-session disposal reports cleanup failure from an admitted failed fini
 		}),
 		unlinkImpl: async () => { throw new Error('injected unlink failure'); },
 	});
-	const target = targets.registerPath('/tmp/finish-cleanup-failure.scape', { purpose: 'project' });
-	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
-	const finishing = manager.finish(session.writeId);
+	const target = targets.registerPath('/tmp/finish-cleanup-failure.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId, { owner: TEST_OWNER });
 	await syncStarted;
 	const disposing = manager.dispose();
 	releaseSync();
@@ -359,9 +362,9 @@ test('save-session disposal waits for an admitted finish to cross its commit bou
 		renameImpl: async () => { events.push('rename'); },
 		unlinkImpl: async () => { events.push('unlink'); },
 	});
-	const target = targets.registerPath('/tmp/finish-shutdown-race.scape', { purpose: 'project' });
-	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
-	const finishing = manager.finish(session.writeId);
+	const target = targets.registerPath('/tmp/finish-shutdown-race.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId, { owner: TEST_OWNER });
 	await syncStarted;
 
 	let disposalSettled = false;
@@ -374,7 +377,7 @@ test('save-session disposal waits for an admitted finish to cross its commit bou
 	await disposing;
 
 	assert.deepEqual(events, ['sync', 'close', 'rename']);
-	await assert.rejects(manager.finish(session.writeId), /shutting down|disposed/u);
+	await assert.rejects(manager.finish(session.writeId, { owner: TEST_OWNER }), /shutting down|disposed/u);
 });
 
 test('save-session disposal cannot overtake an admitted atomic rename', async () => {
@@ -397,9 +400,9 @@ test('save-session disposal cannot overtake an admitted atomic rename', async ()
 		},
 		unlinkImpl: async () => { events.push('unlink'); },
 	});
-	const target = targets.registerPath('/tmp/rename-shutdown-race.scape', { purpose: 'project' });
-	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
-	const finishing = manager.finish(session.writeId);
+	const target = targets.registerPath('/tmp/rename-shutdown-race.scape', { owner: TEST_OWNER, purpose: 'project' });
+	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId, { owner: TEST_OWNER });
 	await renameStarted;
 
 	let disposalSettled = false;
@@ -413,7 +416,7 @@ test('save-session disposal cannot overtake an admitted atomic rename', async ()
 	assert.deepEqual(events, ['sync', 'close', 'rename']);
 });
 
-test('navigation abort remains reusable for later save admission', async () => {
+test('renderer-owner revocation permits a replacement document to save', async () => {
 	const events = [];
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({
@@ -423,13 +426,13 @@ test('navigation abort remains reusable for later save admission', async () => {
 		}),
 		unlinkImpl: async () => { events.push('unlink'); },
 	});
-	let target = targets.registerPath('/tmp/navigation-before.scape', { purpose: 'project' });
-	await manager.begin({ targetId: target.id, maximumSize: 1 });
-	await manager.abortAll();
+	let target = targets.registerPath('/tmp/navigation-before.scape', { owner: TEST_OWNER, purpose: 'project' });
+	await manager.begin({ owner: TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	await manager.revokeOwner(TEST_OWNER);
 
-	target = targets.registerPath('/tmp/navigation-after.scape', { purpose: 'project' });
-	const replacement = await manager.begin({ targetId: target.id, maximumSize: 1 });
-	await manager.abort(replacement.writeId);
+	target = targets.registerPath('/tmp/navigation-after.scape', { owner: REPLACEMENT_TEST_OWNER, purpose: 'project' });
+	const replacement = await manager.begin({ owner: REPLACEMENT_TEST_OWNER, targetId: target.id, maximumSize: 1 });
+	await manager.abort(replacement.writeId, { owner: REPLACEMENT_TEST_OWNER });
 	assert.deepEqual(events, ['close', 'unlink', 'close', 'unlink']);
 	await manager.dispose();
 });

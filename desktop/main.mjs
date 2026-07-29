@@ -36,6 +36,7 @@ import { extractProjectPaths } from './file-associations.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/project-library-host.js';
+import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
@@ -54,6 +55,7 @@ const pendingOpenPaths = [];
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
+const rendererSaveOwnership = new RendererSaveOwnership();
 
 let mainWindow = null;
 let settings = null;
@@ -189,9 +191,15 @@ async function createWindow() {
 	});
 	lockNavigation(mainWindow);
 	installArtifactSmokeProbe(mainWindow);
-	mainWindow.webContents.on('render-process-gone', () => abortRendererSaveSessions());
-	mainWindow.webContents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
-		if (isMainFrame) abortRendererSaveSessions();
+	const webContents = mainWindow.webContents;
+	webContents.on('render-process-gone', () => revokeRendererSaveOwner(webContents));
+	webContents.on('did-start-navigation', (details) => {
+		if (details.isMainFrame && !details.isSameDocument) revokeRendererSaveOwner(webContents);
+	});
+	webContents.on('did-frame-navigate', (_event, url, _code, _status, isMainFrame, frameProcessId, frameRoutingId) => {
+		if (isMainFrame && isEditorDocumentUrl(url)) {
+			activateRendererSaveOwner(webContents, frameProcessId, frameRoutingId);
+		}
 	});
 	mainWindow.once('ready-to-show', () => mainWindow?.show());
 	mainWindow.on('enter-full-screen', () => sendToRenderer(IPC.fullscreenChanged, { fullscreen: true }));
@@ -204,7 +212,7 @@ async function createWindow() {
 		sendToRenderer(IPC.closeRequested, pendingClose);
 	});
 	mainWindow.on('closed', () => {
-		abortRendererSaveSessions();
+		revokeRendererSaveOwner(webContents);
 		mainWindow = null;
 		rendererReady = false;
 		pendingClose = null;
@@ -213,9 +221,29 @@ async function createWindow() {
 	return mainWindow;
 }
 
-function abortRendererSaveSessions() {
-	void saves.abortAll().catch((error) => {
+function activateRendererSaveOwner(webContents, processId, frameId) {
+	if (!mainWindow || mainWindow.webContents !== webContents) return;
+	const { revokedOwner } = rendererSaveOwnership.activate({ webContents, processId, frameId });
+	if (revokedOwner) startRendererSaveRevocation(revokedOwner);
+}
+
+function revokeRendererSaveOwner(webContents) {
+	const owner = rendererSaveOwnership.revoke(webContents);
+	if (!owner) return;
+	startRendererSaveRevocation(owner);
+}
+
+function startRendererSaveRevocation(owner) {
+	void saves.revokeOwner(owner).catch((error) => {
 		console.error('Desktop renderer save cleanup failed:', cleanError(error));
+	});
+}
+
+function rendererSaveOwnerFor(event) {
+	return rendererSaveOwnership.ownerFor({
+		sender: event.sender,
+		processId: event.processId,
+		frameId: event.frameId,
 	});
 }
 
@@ -230,15 +258,16 @@ function registerIpcHandlers() {
 	}));
 	handle(IPC.chooseFiles, (_event, value) => chooseFiles(value));
 	handle(IPC.releaseRead, (_event, id) => readCapabilities.release(opaqueId(id, 64)));
-	handle(IPC.chooseSaveTarget, (_event, value) => chooseSaveTarget(value));
-	handle(IPC.beginWrite, (_event, value) => saves.begin({
+	handle(IPC.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
+	handle(IPC.beginWrite, (event, value) => saves.begin({
+		owner: rendererSaveOwnerFor(event),
 		targetId: opaqueId(value?.targetId, 48),
 		size: value?.size,
 		maximumSize: value?.maximumSize,
 	}));
-	handle(IPC.writeChunk, (_event, value) => saves.writeChunk({ writeId: opaqueId(value?.writeId, 32), offset: value?.offset, bytes: value?.bytes }));
-	handle(IPC.finishWrite, (_event, id) => saves.finish(opaqueId(id, 32)));
-	handle(IPC.abortWrite, (_event, id) => saves.abort(opaqueId(id, 32)));
+	handle(IPC.writeChunk, (event, value) => saves.writeChunk({ owner: rendererSaveOwnerFor(event), writeId: opaqueId(value?.writeId, 32), offset: value?.offset, bytes: value?.bytes }));
+	handle(IPC.finishWrite, (event, id) => saves.finish(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
+	handle(IPC.abortWrite, (event, id) => saves.abort(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
 	handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);
 		await settings.setLocale(locale);
@@ -285,7 +314,10 @@ function on(channel, listener) {
 
 function assertTrustedIpc(event) {
 	if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error('IPC sender is not the application window');
-	assertEditorDocumentUrl(event.senderFrame?.url || event.sender.getURL());
+	if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame) {
+		throw new Error('IPC sender is not the active main document');
+	}
+	assertEditorDocumentUrl(event.senderFrame.url);
 }
 
 async function chooseFiles(value) {
@@ -309,7 +341,8 @@ async function chooseFiles(value) {
 	}
 }
 
-async function chooseSaveTarget(value) {
+async function chooseSaveTarget(event, value) {
+	const owner = rendererSaveOwnerFor(event);
 	const choice = validateSaveChoice(value);
 	const result = await dialog.showSaveDialog(mainWindow, {
 		title: choice.purpose === 'project' ? 'Export Audacity interchange' : 'Export',
@@ -318,7 +351,7 @@ async function chooseSaveTarget(value) {
 	});
 	return result.canceled || !result.filePath
 		? null
-		: saveTargets.registerPath(result.filePath, { purpose: choice.purpose });
+		: saveTargets.registerPath(result.filePath, { owner, purpose: choice.purpose });
 }
 
 function respondToClose(value) {
@@ -415,11 +448,16 @@ function installArtifactSmokeProbe(window) {
 				environment: await window.soundscaperDesktop?.v1?.getEnvironment?.(),
 				hasEditor: Boolean(document.querySelector('main')),
 				nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
+				saveOwnerReady: await window.soundscaperDesktop?.v1?.beginWrite?.({
+					targetId: '0'.repeat(48),
+					size: 0,
+				}).then(() => false, (error) => /Save target expired or was already used/u.test(String(error?.message || error))),
 			}))()`);
 			const valid = result.url === `${APP_ORIGIN}/`
 				&& result.title === APP_NAME
 				&& result.hasEditor
 				&& !result.nodeExposed
+				&& result.saveOwnerReady
 				&& result.bridge.includes('getEnvironment')
 				&& result.bridge.includes('chooseFiles')
 				&& result.bridge.includes('beginWrite')

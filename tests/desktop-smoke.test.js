@@ -66,6 +66,7 @@ test('desktop smoke validates the application-reported platform and target archi
 		environment: { arch: 'arm64', platform: 'win32', version: '1.0.0' },
 		hasEditor: true,
 		nodeExposed: false,
+		saveOwnerReady: true,
 		title: 'Soundscaper',
 		url: 'soundscaper-app://bundle/',
 	};
@@ -81,6 +82,10 @@ test('desktop smoke validates the application-reported platform and target archi
 	assert.throws(
 		() => assertDesktopSmokePayload({ ...payload, environment: { ...payload.environment, platform: 'linux' } }, expected),
 		/target platform/u,
+	);
+	assert.throws(
+		() => assertDesktopSmokePayload({ ...payload, saveOwnerReady: false }, expected),
+		/save owner/u,
 	);
 });
 

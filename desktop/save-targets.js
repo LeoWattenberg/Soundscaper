@@ -15,6 +15,7 @@ export class SaveTargetStore {
 	#entries = new Map();
 	#now;
 	#randomBytes;
+	#revokedOwners = new WeakMap();
 	#ttlMs;
 
 	constructor({ ttlMs = DEFAULT_TTL_MS, now = Date.now, randomBytesImpl = randomBytes } = {}) {
@@ -23,45 +24,72 @@ export class SaveTargetStore {
 		this.#randomBytes = randomBytesImpl;
 	}
 
-	registerPath(filePath, { purpose } = {}) {
+	registerPath(filePath, { owner, purpose } = {}) {
 		if (this.#disposed) throw new Error('Save target store is disposed');
+		this.#assertOwnerActive(owner);
 		const id = this.#newId();
-		const entry = { id, path: filePath, name: basename(filePath), purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
-		entry.timer = setTimeout(() => this.release(id), this.#ttlMs);
+		const entry = { id, path: filePath, name: basename(filePath), owner, purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
+		entry.timer = setTimeout(() => this.#releaseEntry(entry), this.#ttlMs);
 		entry.timer.unref?.();
 		this.#entries.set(id, entry);
 		return Object.freeze({ id, name: entry.name });
 	}
 
-	consume(id) {
+	consume(id, { owner } = {}) {
+		this.#assertOwnerActive(owner);
 		const entry = this.#entries.get(String(id || ''));
-		if (!entry || entry.expiresAt <= this.#now()) {
-			if (entry) this.release(entry.id);
+		if (!entry) return null;
+		this.#assertEntryOwner(entry, owner);
+		if (entry.expiresAt <= this.#now()) {
+			this.#releaseEntry(entry);
 			return null;
 		}
-		this.#entries.delete(entry.id);
-		clearTimeout(entry.timer);
+		this.#releaseEntry(entry);
 		return entry;
 	}
 
-	release(id) {
+	release(id, { owner } = {}) {
+		requireOwner(owner);
 		const entry = this.#entries.get(String(id || ''));
 		if (!entry) return false;
-		this.#entries.delete(entry.id);
-		clearTimeout(entry.timer);
-		return true;
+		this.#assertEntryOwner(entry, owner);
+		return this.#releaseEntry(entry);
+	}
+
+	revokeOwner(owner) {
+		requireOwner(owner);
+		this.#revokedOwners.set(owner, true);
+		for (const entry of this.#entries.values()) {
+			if (entry.owner === owner) this.#releaseEntry(entry);
+		}
 	}
 
 	dispose() {
 		if (this.#disposed) return;
 		this.#disposed = true;
-		for (const id of [...this.#entries.keys()]) this.release(id);
+		for (const entry of [...this.#entries.values()]) this.#releaseEntry(entry);
 	}
 
 	#newId() {
 		let id;
 		do id = this.#randomBytes(24).toString('hex'); while (this.#entries.has(id));
 		return id;
+	}
+
+	#assertOwnerActive(owner) {
+		requireOwner(owner);
+		if (this.#revokedOwners.get(owner)) throw new Error('Save target owner was revoked');
+	}
+
+	#assertEntryOwner(entry, owner) {
+		if (entry.owner !== owner) throw new Error('Save target belongs to another renderer owner');
+	}
+
+	#releaseEntry(entry) {
+		if (this.#entries.get(entry.id) !== entry) return false;
+		this.#entries.delete(entry.id);
+		clearTimeout(entry.timer);
+		return true;
 	}
 }
 
@@ -71,8 +99,10 @@ export class AtomicSaveManager {
 	#disposePromise = null;
 	#open;
 	#operations = new Set();
+	#ownerStates = new WeakMap();
 	#randomBytes;
 	#rename;
+	#revocations = new Set();
 	#sessions = new Map();
 	#targets;
 	#unlink;
@@ -86,17 +116,17 @@ export class AtomicSaveManager {
 		this.#randomBytes = randomBytesImpl;
 	}
 
-	begin(options) {
-		return this.#admit(() => this.#begin(options));
+	begin(options = {}) {
+		return this.#admit(options.owner, () => this.#begin(options.owner, options));
 	}
 
-	async #begin({ targetId, size, maximumSize }) {
+	async #begin(owner, { targetId, size, maximumSize }) {
 		const exactSize = size !== undefined;
 		if (exactSize === (maximumSize !== undefined)) {
 			throw new RangeError('A save requires exactly one exact size or admitted maximum');
 		}
 		const admittedSize = validateDeclaredSize(exactSize ? size : maximumSize);
-		const target = this.#targets.consume(targetId);
+		const target = this.#targets.consume(targetId, { owner });
 		if (!target) throw new Error('Save target expired or was already used');
 		if (!exactSize && target.purpose !== 'project') {
 			throw new Error('Bounded streaming is restricted to project save targets');
@@ -111,6 +141,7 @@ export class AtomicSaveManager {
 		}
 		this.#sessions.set(writeId, {
 			id: writeId,
+			owner,
 			targetPath: target.path,
 			temporaryPath,
 			handle,
@@ -123,12 +154,12 @@ export class AtomicSaveManager {
 		return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
 	}
 
-	writeChunk(options) {
-		return this.#admit(() => this.#writeChunk(options));
+	writeChunk(options = {}) {
+		return this.#admit(options.owner, () => this.#writeChunk(options.owner, options));
 	}
 
-	async #writeChunk({ writeId, offset, bytes }) {
-		const session = this.#session(writeId);
+	async #writeChunk(owner, { writeId, offset, bytes }) {
+		const session = this.#session(writeId, owner);
 		if (session.busy) throw new Error('Concurrent save writes are not allowed');
 		const buffer = toBuffer(bytes);
 		if (buffer.byteLength > MAX_SAVE_CHUNK_BYTES) throw new RangeError('Save chunk is too large');
@@ -156,12 +187,12 @@ export class AtomicSaveManager {
 		}
 	}
 
-	finish(writeId) {
-		return this.#admit(() => this.#finish(writeId));
+	finish(writeId, { owner } = {}) {
+		return this.#admit(owner, () => this.#finish(writeId, owner));
 	}
 
-	async #finish(writeId) {
-		const session = this.#session(writeId);
+	async #finish(writeId, owner) {
+		const session = this.#session(writeId, owner);
 		if (session.busy) throw new Error('Save write is still in progress');
 		if (session.exactSize && session.written !== session.admittedSize) {
 			throw new Error('Save ended before the declared size was written');
@@ -180,13 +211,14 @@ export class AtomicSaveManager {
 		}
 	}
 
-	abort(writeId) {
-		return this.#admit(() => this.#abort(writeId));
+	abort(writeId, { owner } = {}) {
+		return this.#admit(owner, () => this.#abort(writeId, owner));
 	}
 
-	async #abort(writeId) {
+	async #abort(writeId, owner) {
 		const session = this.#sessions.get(String(writeId || ''));
 		if (!session) return false;
+		this.#assertSessionOwner(session, owner);
 		if (session.busy) await session.idle;
 		if (this.#sessions.get(session.id) !== session) return false;
 		this.#sessions.delete(session.id);
@@ -194,8 +226,22 @@ export class AtomicSaveManager {
 		return true;
 	}
 
-	abortAll() {
-		return this.#admit(() => this.#abortAll());
+	revokeOwner(owner) {
+		let state;
+		try {
+			state = this.#ownerState(owner);
+			if (state.revocation) return state.revocation;
+			if (this.#closing) return this.#disposePromise;
+			state.revoked = true;
+			this.#targets.revokeOwner(owner);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+		state.revocation = this.#revokeOwner(owner, state);
+		const completion = state.revocation.then(() => undefined, () => undefined);
+		this.#revocations.add(completion);
+		void completion.then(() => this.#revocations.delete(completion));
+		return state.revocation;
 	}
 
 	dispose() {
@@ -206,32 +252,63 @@ export class AtomicSaveManager {
 		return this.#disposePromise;
 	}
 
-	#admit(operation) {
+	#admit(owner, operation) {
 		if (this.#closing) return Promise.reject(new Error('Save manager is shutting down'));
+		let state;
+		try {
+			state = this.#ownerState(owner);
+			if (state.revoked) throw new Error('Save renderer owner was revoked');
+		} catch (error) {
+			return Promise.reject(error);
+		}
+		const priorRevocations = [...this.#revocations];
+		return this.#trackOperation(priorRevocations.length
+			? async () => {
+				await Promise.all(priorRevocations);
+				if (this.#closing) throw new Error('Save manager is shutting down');
+				if (state.revoked) throw new Error('Save renderer owner was revoked');
+				return operation();
+			}
+			: operation, state.operations);
+	}
+
+	#trackOperation(operation, ownerOperations) {
 		let markComplete;
 		// Disposal drains failures too without taking ownership of the caller's error.
 		const completion = new Promise((resolve) => { markComplete = resolve; });
 		this.#operations.add(completion);
+		ownerOperations?.add(completion);
 		let result;
 		try {
 			result = operation();
 		} catch (error) {
 			this.#operations.delete(completion);
+			ownerOperations?.delete(completion);
 			markComplete();
 			return Promise.reject(error);
 		}
 		return Promise.resolve(result).finally(() => {
 			this.#operations.delete(completion);
+			ownerOperations?.delete(completion);
 			markComplete();
 		});
 	}
 
 	async #abortAll() {
-		await Promise.all([...this.#sessions.keys()].map((id) => this.#abort(id)));
+		await Promise.all([...this.#sessions.values()].map((session) => this.#abortSession(session)));
+	}
+
+	async #revokeOwner(owner, state) {
+		await Promise.all([...state.operations]);
+		const sessions = [...this.#sessions.values()].filter((session) => session.owner === owner);
+		await Promise.all(sessions.map((session) => this.#abortSession(session)));
+		if (state.cleanupErrors.length) {
+			throw new AggregateError([...state.cleanupErrors], 'Renderer save staging cleanup failed');
+		}
 	}
 
 	async #dispose() {
-		await Promise.all([...this.#operations]);
+		await Promise.all([...this.#operations, ...this.#revocations]);
 		await this.#abortAll();
 		if (this.#cleanupErrors.length) {
 			throw new AggregateError([...this.#cleanupErrors], 'Desktop save staging cleanup failed');
@@ -255,13 +332,37 @@ export class AtomicSaveManager {
 			}
 		}
 		this.#cleanupErrors.push(...errors);
+		this.#ownerState(session.owner).cleanupErrors.push(...errors);
 		return errors;
 	}
 
-	#session(id) {
+	async #abortSession(session) {
+		if (session.busy) await session.idle;
+		if (this.#sessions.get(session.id) !== session) return false;
+		this.#sessions.delete(session.id);
+		await this.#cleanupSession(session);
+		return true;
+	}
+
+	#session(id, owner) {
 		const session = this.#sessions.get(String(id || ''));
 		if (!session) throw new Error('Unknown save session');
+		this.#assertSessionOwner(session, owner);
 		return session;
+	}
+
+	#assertSessionOwner(session, owner) {
+		if (session.owner !== owner) throw new Error('Save session belongs to another renderer owner');
+	}
+
+	#ownerState(owner) {
+		requireOwner(owner);
+		let state = this.#ownerStates.get(owner);
+		if (!state) {
+			state = { cleanupErrors: [], operations: new Set(), revoked: false, revocation: null };
+			this.#ownerStates.set(owner, state);
+		}
+		return state;
 	}
 
 	#newId() {
@@ -279,6 +380,12 @@ function toBuffer(value) {
 
 function isMissingPathError(error) {
 	return error && typeof error === 'object' && error.code === 'ENOENT';
+}
+
+function requireOwner(owner) {
+	if ((typeof owner !== 'object' || owner === null) && typeof owner !== 'function') {
+		throw new TypeError('A renderer save owner object reference is required');
+	}
 }
 
 export const SAVE_LIMITS = Object.freeze({ chunkBytes: MAX_SAVE_CHUNK_BYTES, totalBytes: MAX_SAVE_BYTES });

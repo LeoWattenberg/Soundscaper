@@ -42,6 +42,7 @@ export function assertDesktopSmokePayload(payload, expected) {
 	assert(payload?.title === expected.title, 'Smoke loaded an unexpected document title.');
 	assert(payload?.hasEditor === true, 'Smoke did not render the editor document.');
 	assert(payload?.nodeExposed === false, 'Smoke exposed Node.js globals to the renderer.');
+	assert(payload?.saveOwnerReady === true, 'Smoke did not activate the main-document save owner.');
 	assert(
 		JSON.stringify(payload?.bridge) === JSON.stringify(expected.bridge),
 		'Smoke bridge surface does not match the reviewed v1 contract.',

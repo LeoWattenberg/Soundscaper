@@ -316,6 +316,30 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		saveShutdown.summary,
 		/synchronously rejects new target and save-session admission.*sync-and-rename.*late-opened staging.*idempotent disposal barrier.*rejects on unacknowledged handle close or staging removal/iu,
 	);
+	const rendererOwnedSave = desktopWrite.currentControls.find(
+		({ id }) => id === 'renderer-document-owned-save-lifecycle',
+	);
+	assert.ok(rendererOwnedSave);
+	for (const path of [
+		'desktop/renderer-save-owner.js',
+		'desktop/save-targets.js',
+		'desktop/main.mjs',
+		'tests/desktop-renderer-save-owner.test.js',
+		'tests/desktop-save-ownership.test.js',
+		'tests/desktop-project-library-packaging.test.js',
+		'tests/desktop-protocol.test.js',
+	]) assert.ok(rendererOwnedSave.evidence.some((item) => item.path === path));
+	assert.match(
+		rendererOwnedSave.summary,
+		/committed main-document owner.*synchronously fences admission.*delayed dialog results.*drains admitted begin.*chunk.*finish.*abort.*sync-and-rename.*aborts remaining staging.*fresh-owner session admission waits.*stale commit cannot overtake/iu,
+	);
+	assert.ok(desktopWrite.residualRisks.some(
+		({ id }) => id === 'write-capacity-and-disk-admission',
+	));
+	assert.equal(
+		desktopWrite.residualRisks.some(({ id }) => id === 'write-owner-and-capacity-lifecycle'),
+		false,
+	);
 });
 
 test('security claims point to checked-in implementation and verification evidence', async () => {

@@ -47,6 +47,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 		runtimeRoot,
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
+	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'project-library-host.js'));
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
@@ -81,4 +82,60 @@ test('desktop main initializes and disposes the library without expanding render
 	assert.match(prepareSource, /stageDesktopApplicationSources/u);
 	assert.match(prepareSource, /desktopRuntime/u);
 	assert.equal(packageMetadata.scripts['desktop:dev'], 'npm run desktop:prepare && electron .desktop-build/app');
+});
+
+test('desktop main owns save capabilities by committed renderer document', async () => {
+	const mainSource = await readFile(join(ROOT, 'desktop', 'main.mjs'), 'utf8');
+	assert.match(
+		mainSource,
+		/webContents\.on\('did-start-navigation'.*details\.isMainFrame && !details\.isSameDocument.*revokeRendererSaveOwner\(webContents\)/su,
+	);
+	assert.match(mainSource, /webContents\.on\('did-frame-navigate'.*frameProcessId.*frameRoutingId.*activateRendererSaveOwner/su);
+	assert.match(mainSource, /webContents\.on\('render-process-gone'.*revokeRendererSaveOwner/su);
+	assert.match(mainSource, /mainWindow\.on\('closed'.*revokeRendererSaveOwner\(webContents\)/su);
+
+	const chooseStart = mainSource.indexOf('async function chooseSaveTarget');
+	const chooseEnd = mainSource.indexOf('\nfunction ', chooseStart);
+	const chooseSource = mainSource.slice(chooseStart, chooseEnd);
+	const captureIndex = chooseSource.indexOf('rendererSaveOwnerFor(event)');
+	const dialogIndex = chooseSource.indexOf('await dialog.showSaveDialog');
+	assert.ok(captureIndex >= 0 && captureIndex < dialogIndex, 'save-dialog ownership is captured before awaiting user input');
+	assert.match(chooseSource, /registerPath\(result\.filePath, \{ owner,/u);
+
+	for (const channel of ['beginWrite', 'writeChunk', 'finishWrite', 'abortWrite']) {
+		const handlerStart = mainSource.indexOf(`handle(IPC.${channel}`);
+		const handlerEnd = mainSource.indexOf('\n\thandle(', handlerStart + 1);
+		assert.ok(handlerStart >= 0, `missing ${channel} handler`);
+		assert.match(
+			mainSource.slice(handlerStart, handlerEnd),
+			/rendererSaveOwnerFor\(event\)/u,
+			`${channel} must receive its owner from trusted main-process state`,
+		);
+	}
+
+	const revokeStart = mainSource.indexOf('function revokeRendererSaveOwner');
+	const revokeEnd = mainSource.indexOf('\nfunction ', revokeStart + 1);
+	const revokeSource = mainSource.slice(revokeStart, revokeEnd);
+	assert.ok(revokeStart >= 0);
+	assert.ok(
+		revokeSource.indexOf('rendererSaveOwnership.revoke') < revokeSource.indexOf('startRendererSaveRevocation'),
+		'revocation closes document admission synchronously before asynchronous cleanup',
+	);
+	const cleanupStart = mainSource.indexOf('function startRendererSaveRevocation');
+	const cleanupEnd = mainSource.indexOf('\nfunction ', cleanupStart + 1);
+	const cleanupSource = mainSource.slice(cleanupStart, cleanupEnd);
+	assert.match(cleanupSource, /saves\.revokeOwner\(owner\)\.catch/u);
+	assert.match(cleanupSource, /Desktop renderer save cleanup failed/u);
+
+	const ownerForStart = mainSource.indexOf('function rendererSaveOwnerFor');
+	const ownerForEnd = mainSource.indexOf('\nfunction ', ownerForStart + 1);
+	const ownerForSource = mainSource.slice(ownerForStart, ownerForEnd);
+	assert.match(ownerForSource, /event\.processId/u);
+	assert.match(ownerForSource, /event\.frameId/u);
+
+	const trustStart = mainSource.indexOf('function assertTrustedIpc');
+	const trustEnd = mainSource.indexOf('\nfunction ', trustStart + 1);
+	const trustSource = mainSource.slice(trustStart, trustEnd);
+	assert.match(trustSource, /!event\.senderFrame/u);
+	assert.match(trustSource, /event\.sender\.mainFrame/u);
 });

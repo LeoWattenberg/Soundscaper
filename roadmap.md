@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Engineering roadmap, last grounded against the repository on 2026-07-28.
+> Engineering roadmap, last grounded against the repository on 2026-07-29.
 > Milestones are ordered by dependency and close only when their exit gates pass;
 > they are not release-date promises.
 
@@ -344,13 +344,20 @@ models or native implementations.
   exact byte counts before an explicit publication commit. Electron further
   splits output into acknowledged one-MiB IPC writes, permits maximum-bounded
   mode only for project capabilities, syncs and atomically renames staging, and
-  cleans active sessions on navigation, renderer loss, window close, or
-  shutdown. Cancellation or project switching before FSA close/desktop rename
-  aborts staging; a successful commit remains truthfully reported even if the
-  task is cancelled immediately afterward. The
+  binds every target and derived session to one opaque, main-owned committed
+  document identity without expanding renderer IPC. Main-document navigation,
+  renderer loss, or actual window close synchronously fences that owner,
+  invalidates unused targets including delayed dialog results, drains admitted
+  operations through any already-admitted sync-and-rename commit, and then
+  aborts remaining staging. Replacement-owner session admission waits for that
+  drain, so an older admitted commit cannot overtake a newer save to the same
+  destination. Cancellation or project switching before FSA
+  close/desktop rename aborts staging; a successful commit remains truthfully
+  reported even if the task is cancelled immediately afterward. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
-  [desktop regressions](tests/desktop-save.test.js), and
+  [desktop regressions](tests/desktop-save.test.js), focused
+  [owner-lifecycle regression](tests/desktop-save-ownership.test.js), and
   [browser workflow](tests/browser/audio-editor-scape-direct-save.spec.js)
   reconstruct and reopen the streamed archive while preserving the 512 MiB
   fallback. The workflow passes Chromium and Firefox here; the pinned WebKit
@@ -537,11 +544,23 @@ models or native implementations.
   `finish` settle through its sync-and-rename commit boundary, and then aborts
   any remaining or late-opened staging. Unacknowledged handle close or staging
   removal rejects the failure-aware shutdown barrier instead of reporting a
-  clean exit. Its focused
+  clean exit. Each target and derived session also requires one opaque owner for
+  the committed main-frame document. Navigation, renderer loss, and actual
+  window close synchronously fence that owner before asynchronous drain and
+  cleanup; unused targets and delayed dialog results are invalidated, admitted
+  operations settle through any admitted commit, and remaining staging is
+  aborted. Fresh-owner session admission waits for prior drains so an old commit
+  cannot land after its replacement. The focused
+  [document-generation](tests/desktop-renderer-save-owner.test.js)
+  and [owner-teardown](tests/desktop-save-ownership.test.js) regressions prove
+  stale-frame isolation, fresh-document reuse, target/session isolation, stalled
+  operation drain, and cleanup-error reporting without adding an owner field to
+  the renderer bridge; the existing
+  [bridge-contract regression](tests/desktop-protocol.test.js) pins that payload.
+  Its focused
   [save-session regression](tests/desktop-save.test.js) injects stalls at open,
   sync, and rename plus close/unlink failures, proves disposal cannot overtake
-  them, rejects delayed target registration and session work, and keeps
-  navigation cleanup reusable. The
+  them, and rejects delayed target registration and session work. The
   desktop staging pipeline compiles this runtime to ESM, excludes raw TypeScript
   from the packaged app, and keeps renderer IPC unchanged. The
   [desktop regression](tests/desktop-project-library.test.ts) proves atomic
