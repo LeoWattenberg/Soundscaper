@@ -78,6 +78,24 @@ test('deferred MIDI and Framescaper capture capabilities are absent from maintai
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });
 
+test('Electron Enhanced inventory includes the shared editor project boundary', async () => {
+	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
+	for (const productId of PRODUCT_IDS) {
+		const evidence = inventory.products[productId].platforms['electron-enhanced'].evidence;
+		for (const path of [
+			'desktop/project-library-editor-service.ts',
+			'desktop/project-library-ipc.js',
+			'src/common/editor/storage/desktop-shared-project-repository.ts',
+			'src/common/editor/storage.js',
+			'src/common/editor/app.js',
+			'tests/desktop-project-library-editor-service.test.ts',
+			'tests/desktop-project-library-ipc.test.js',
+			'tests/audio-editor-desktop-shared-project-repository.test.ts',
+			'tests/desktop-project-library-editor-handoff.test.ts',
+		]) assert.ok(evidence.includes(path), `${productId} is missing ${path}`);
+	}
+});
+
 test('every capability claim points at checked-in evidence', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 	const evidence = [

@@ -60,7 +60,19 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/shared-desktop-project-library-integrity.*partial.*main-process-only host.*product-neutral appData library.*no renderer path or IPC surface.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*opaque binary state.*non-raiseable 256 MiB.*lower-only test seam.*persistence root.*without claiming.*full schema-9 domain validation.*private file.*syncs it.*atomically renames it.*reverifies.*before an exact plus-one journaled catalog commit.*before staging.*before publication.*transactionally at catalog commit.*old or new complete file-and-catalog pair.*stale fencing token cannot publish.*serializes commits.*continues lease renewal while close fences new work and drains admitted work.*source-free host test.*Soundscaper-to-Framescaper-to-Soundscaper handoff.*fencing tokens 1, 2, and 3.*no stale takeover.*same project identity.*committed-revision continuity.*not authoritative renderer\/editor persistence.*managed-media.*earlier Soundscaper library and project migration.*orphan-file reclamation.*packaged multi-process\/executable handoff.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use/isu,
+		/shared-desktop-project-library-integrity.*partial.*product-neutral appData library.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*opaque binary state.*non-raiseable 256 MiB.*lower-only test seam.*persistence root.*private file.*syncs it.*atomically renames it.*reverifies.*before an exact plus-one journaled catalog commit.*before staging.*before publication.*transactionally at catalog commit.*old or new complete file-and-catalog pair.*stale fencing token cannot publish.*serializes commits.*continues lease renewal while close fences new work and drains admitted work/isu,
+	);
+	assert.match(
+		documentation,
+		/identity service.*frozen preload.*owner-scoped IPC.*bounded, pathless list, read, commit, and delete.*256 MiB.*4 KiB.*10,000-summary.*catalog summaries.*entry IDs.*main-owned catalog\/filesystem paths.*digests.*product preferences.*raw `updatedAtMs` fields.*leases.*fencing tokens.*owner revocation.*fences new work.*drains admitted operations/isu,
+	);
+	assert.match(
+		documentation,
+		/renderer repository.*fully validates and canonically reserializes exact schema 9.*before local mutation.*product-local shadow.*shared latest document and summary list.*authoritative.*fails closed.*incomplete desktop bridge.*source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
+	);
+	assert.match(
+		documentation,
+		/privileged IPC service.*full schema-9 domain validation.*renderer repository.*compromised renderer.*domain-invalid latest document.*honest clients reject.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*orphan-file reclamation.*packaged lifecycle.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use.*earlier Soundscaper.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 });
 
