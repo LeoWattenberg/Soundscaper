@@ -311,7 +311,6 @@ class FakeIndex {
 			index: this.name, query, direction: 'next',
 		});
 	}
-
 	values(query) {
 		return this.entries(query).map(({ value }) => value);
 	}
