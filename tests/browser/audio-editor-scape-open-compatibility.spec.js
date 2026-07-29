@@ -71,17 +71,19 @@ test.describe('Scape open feature decisions', () => {
 		await expect(notice.locator('[data-project-feature-unavailable-count]')).toHaveText('1');
 		await expect(notice.locator('[data-project-feature-unknown-count]')).toHaveText('1');
 		const bypassed = notice.locator('[data-project-feature-requirement="org.soundscaper.capability.video-effects"]');
+		await expect(bypassed).toBeVisible();
 		await expect(bypassed).toContainText('Video effects');
 		await expect(bypassed).toContainText('Unavailable · Bypass declared');
 		await expect(bypassed).toHaveAttribute('data-declared-disposition', 'bypass');
 		await expect(bypassed).toHaveAttribute('data-effective-disposition', 'bypassed');
 		const rendered = notice.locator('[data-project-feature-requirement="org.example.future-mixer"]');
+		await expect(rendered).toBeVisible();
 		await expect(rendered).toContainText('Future mixer');
 		await expect(rendered).toContainText('Unknown · Rendered fallback declared');
 		await expect(rendered).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
 		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
 		await expect(notice.getByRole('button')).toHaveCount(0);
-		await expect(notice).not.toContainText(/verified|active at runtime|plug-?in|third-party/iu);
+		await expect(notice).not.toContainText(/verified|active(?: at runtime)?|playing|loaded|in use|plug-?in|third-party/iu);
 		await notice.focus();
 		await expect(notice).toBeFocused();
 		await assertAccessibleBasics(notice);
@@ -97,6 +99,7 @@ test.describe('Scape open feature decisions', () => {
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
 		await expect(notice).toBeVisible();
+		await expect(rendered).toBeVisible();
 		await expect(rendered).toContainText('Future mixer');
 		expect(errors).toEqual([]);
 	});
