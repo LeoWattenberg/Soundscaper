@@ -1,8 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
+import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js';
+
+import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	createAudioEditorProjectV9,
@@ -12,6 +18,7 @@ import {
 } from '../src/common/editor/project-v9.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_SOURCE_ID = 'rendered-fallback-source';
@@ -62,6 +69,54 @@ test('schema-V9 feature requirements retain their compatibility semantics throug
 	assert.equal(validateAudioEditorProjectV9(reopened), true);
 });
 
+test('pre-open Scape inspection reports selected-product feature compatibility', async () => {
+	const sourceStore = memoryStore('scape-feature-inspection-source');
+	const project = featureProject('scape-feature-inspection', FALLBACK_SOURCE_ID, {
+		native: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		fallback: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+	});
+	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, [0.25, -0.5, 0.75, 0]);
+	const exported = await exportScapeProject(project, sourceStore);
+	assert.ok(exported.blob instanceof Blob);
+	const service = createScapeProjectFileService({
+		lifetime: new EditorControllerLifetime(),
+		store: null,
+		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		openScape: () => { throw new Error('Inspection must not open the archive.'); },
+	});
+
+	const inspected = await service.inspectScape(exported.blob, {
+		projectFeatureCompatibility: {
+			evaluate() {
+				throw new Error('Caller compatibility evaluators must not replace the selected product.');
+			},
+		},
+	});
+	const report = inspected.featureRequirementsCompatibility;
+	assert.ok(report);
+	assert.deepEqual(report.items.map(({ availability }) => availability), ['available', 'unavailable']);
+	assert.deepEqual(report.counts, { available: 1, unavailable: 1, unknown: 0 });
+	assert.equal(report.compatible, false);
+	assert.equal(Object.isFrozen(report), true);
+	assert.equal(Object.isFrozen(report.items), true);
+});
+
+test('pre-open Scape inspection leaves future project feature requirements opaque', async () => {
+	const archive = await futureProjectArchive();
+	const service = createScapeProjectFileService({
+		lifetime: new EditorControllerLifetime(),
+		store: null,
+		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		openScape: () => { throw new Error('Inspection must not open the archive.'); },
+	});
+
+	const inspected = await service.inspectScape(archive);
+
+	assert.equal(inspected.schemaVersion, 10);
+	assert.equal(inspected.readOnly, true);
+	assert.equal(inspected.featureRequirementsCompatibility, null);
+});
+
 test('Scape copy import admits collisions against destination IDs and remaps rendered fallbacks', async () => {
 	const sourceStore = memoryStore('scape-feature-copy-source');
 	const targetStore = memoryStore('scape-feature-copy-target');
@@ -104,7 +159,11 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.equal(validateAudioEditorProjectV9(reopened), true);
 });
 
-function featureProject(id: string, storageKey = FALLBACK_SOURCE_ID): AudioEditorProjectV9 {
+function featureProject(
+	id: string,
+	storageKey = FALLBACK_SOURCE_ID,
+	featureIds = { native: NATIVE_FEATURE_ID, fallback: FALLBACK_FEATURE_ID },
+): AudioEditorProjectV9 {
 	const source = createAudioSourceV9({
 		id: FALLBACK_SOURCE_ID,
 		storageKey,
@@ -124,13 +183,13 @@ function featureProject(id: string, storageKey = FALLBACK_SOURCE_ID): AudioEdito
 			schemaVersion: 1,
 			requirements: [{
 				id: 'native-spectral-repair',
-				featureId: NATIVE_FEATURE_ID,
+				featureId: featureIds.native,
 				displayName: 'Spectral repair',
 				disposition: 'bypass',
 				fallback: null,
 			}, {
 				id: 'fallback-linear-phase-eq',
-				featureId: FALLBACK_FEATURE_ID,
+				featureId: featureIds.fallback,
 				displayName: 'Linear phase EQ',
 				disposition: 'rendered-fallback',
 				fallback: {
@@ -171,4 +230,35 @@ async function storedSamples(store: ProjectStore, sourceId: string): Promise<num
 		samples.push(...chunk.channels[0]);
 	}
 	return samples;
+}
+
+async function futureProjectArchive(): Promise<Blob> {
+	const projectText = JSON.stringify({
+		schemaVersion: 10,
+		id: 'future-feature-project',
+		title: 'Future feature project',
+		sources: [],
+		featureRequirements: null,
+	});
+	const projectBytes = new TextEncoder().encode(projectText);
+	const manifest = {
+		format: 'scape-project',
+		formatVersion: 1,
+		project: {
+			entry: 'project.json',
+			mimeType: 'application/json',
+			schemaVersion: 10,
+			size: projectBytes.byteLength,
+			sha256: createHash('sha256').update(projectBytes).digest('hex'),
+		},
+		assets: [],
+	};
+	const writer = new ZipWriter(new BlobWriter('application/vnd.soundscaper.scape+zip'), {
+		level: 0,
+		useWebWorkers: false,
+		zip64: true,
+	});
+	await writer.add('project.json', new TextReader(projectText), { level: 0, zip64: true });
+	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
+	return writer.close(undefined, { zip64: true });
 }

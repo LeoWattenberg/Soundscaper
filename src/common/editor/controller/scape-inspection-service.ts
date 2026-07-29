@@ -41,6 +41,7 @@ export interface ScapeInspectionServiceRuntime<Result> {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	readonly scapeInspectionQuiescence?: Pick<ScapeInspectionQuiescence, 'admit'>;
 	readonly store: ScapeInspectionStore | null;
+	readonly providerOptions?: Readonly<Record<string, unknown>>;
 	readonly inspectScapeProject?: ScapeProjectInspector<Result>;
 }
 
@@ -50,6 +51,7 @@ export function createScapeInspectionService<Result = unknown>(
 	const inspectProject = runtime.inspectScapeProject
 		?? (inspectScapeArchive as ScapeProjectInspector<Result>);
 	const quiescence = runtime.scapeInspectionQuiescence ?? createScapeInspectionQuiescence();
+	const providerOptions = Object.freeze({ ...runtime.providerOptions });
 	return Object.freeze({ inspect });
 
 	async function inspect(file: Blob, options: ScapeInspectionOptions = {}): Promise<Result> {
@@ -71,7 +73,7 @@ export function createScapeInspectionService<Result = unknown>(
 			]);
 			signal.addEventListener('abort', cancelAdmission, { once: true });
 			if (signal.aborted) cancelAdmission();
-			const ownedOptions = Object.freeze({ ...snapshot, signal });
+			const ownedOptions = Object.freeze({ ...snapshot, ...providerOptions, signal });
 			throwIfAborted(signal);
 			const result = await inspectProject(file, runtime.store, ownedOptions, retention);
 			throwIfAborted(signal);

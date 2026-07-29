@@ -15,6 +15,7 @@ test('Scape project file composition shares owned inspection with collision-gate
 	const service = createScapeProjectFileService({
 		lifetime,
 		store,
+		productCapabilities: {},
 		inspectScapeProject: (file, receivedStore, options) => {
 			inspectionCalls.push([file, receivedStore, options]);
 			return inspected;

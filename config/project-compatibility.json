@@ -85,7 +85,7 @@
 			"id": "current-controller-feature-report",
 			"status": "implemented",
 			"requiredOutcome": "Maintained current-schema projects are evaluated against a stable selected-product capability registry before activation, and every unavailable or unregistered requirement makes the document intrinsically read-only with a per-tab compatibility report.",
-			"currentBehavior": "Explicit stable broad org.soundscaper.capability feature IDs map one-to-one to the capability keys in both maintained product profiles. Only a strict true profile value is available; registered non-true capabilities are unavailable and unregistered feature IDs are unknown. The controller evaluates exact schema 9 from the actual project history that will be activated before activation side effects and makes every report containing an unavailable or unknown requirement intrinsically read-only. When an existing same-ID tab wins, its stored read-only declaration also wins over the ignored incoming document's flags. The report is retained per tab, remains deeply frozen across session metadata clones, and is exposed on the document snapshot. Future schemas return no report and featureRequirements is not traversed. This rule does not provide a .scape pre-open inspection report, verify fallback media bytes, or use fallback media at runtime.",
+			"currentBehavior": "Explicit stable broad org.soundscaper.capability feature IDs map one-to-one to the capability keys in both maintained product profiles. Only a strict true profile value is available; registered non-true capabilities are unavailable and unregistered feature IDs are unknown. The controller evaluates exact schema 9 from the actual project history that will be activated before activation side effects and makes every report containing an unavailable or unknown requirement intrinsically read-only. When an existing same-ID tab wins, its stored read-only declaration also wins over the ignored incoming document's flags. The report is retained per tab, remains deeply frozen across session metadata clones, and is exposed on the document snapshot. Future schemas return no report and featureRequirements is not traversed. This rule does not verify fallback media bytes or use fallback media at runtime.",
 			"evidence": [
 				"src/common/editor/project-feature-capabilities.ts",
 				"src/common/editor/project-feature-report-metadata.ts",
@@ -97,6 +97,23 @@
 				"tests/audio-editor-project-switch-service.test.ts",
 				"tests/audio-editor-session.test.js",
 				"tests/audio-editor-document-snapshot.test.ts"
+			]
+		},
+		{
+			"id": "current-scape-pre-open-feature-report",
+			"status": "implemented",
+			"requiredOutcome": "Current-format portable archive inspection evaluates maintained project feature requirements against the selected product before collision lookup, import, persistence, or activation without interpreting future project schemas.",
+			"currentBehavior": "The selected product is snapshotted through the shared compatibility service and injected into inspection as a provider-owned option after caller options, so a caller cannot override it. After current-format archive integrity and project-source validation, exact schema 9 is evaluated before project collision lookup and returned as a deeply frozen featureRequirementsCompatibility report. Future project schemas return null and featureRequirements is not traversed. This is a programmatic inspection surface, not an actionable normal-open compatibility UI, fallback-byte verification, runtime fallback use, or third-party activation gate.",
+			"evidence": [
+				"src/common/editor/project-feature-capabilities.ts",
+				"src/common/editor/controller/project-feature-compatibility-service.ts",
+				"src/common/editor/controller/scape-inspection-service.ts",
+				"src/common/editor/controller/scape-project-file-service.ts",
+				"src/common/editor/scape-project.js",
+				"src/common/editor/app.js",
+				"tests/audio-editor-scape-feature-requirements.test.ts",
+				"tests/audio-editor-scape-inspection-service.test.ts",
+				"tests/audio-editor-scape-project-file-service.test.ts"
 			]
 		},
 		{
@@ -149,7 +166,7 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, and selected-product controller report preserve and classify declared requirements; an unavailable or unknown requirement makes the activated project intrinsically read-only. A .scape pre-open inspection report, visible placeholder and bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and programmatic current-format .scape inspection report preserve and classify declared requirements; an unavailable or unknown requirement makes the activated project intrinsically read-only. An actionable normal-open compatibility UI, visible placeholder and bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",

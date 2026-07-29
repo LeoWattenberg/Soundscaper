@@ -331,7 +331,9 @@ function remapScapeProjectSourceReferences(project, sourceIdMap) {
  *   projectId: string,
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
- * @param {{ signal?: AbortSignal }} options
+ * @param {{ signal?: AbortSignal, projectFeatureCompatibility?: {
+ *   evaluate: (project: unknown) => unknown,
+ * } }} options
  * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
  */
 export async function inspectScapeProject(input, store = null, options = {}, retention = {}) {
@@ -347,6 +349,9 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		throwIfScapeAborted(signal);
 		const loaded = migrateAudioEditorProject(JSON.parse(projectText));
 		indexScapeProjectAssets(loaded.project, manifest);
+		const featureRequirementsCompatibility = options.projectFeatureCompatibility
+			? options.projectFeatureCompatibility.evaluate(loaded.project)
+			: null;
 		const existing = store?.loadProject
 			? await awaitScapeReadOperation(
 				() => {
@@ -364,6 +369,7 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 			readOnly: loaded.readOnly,
 			exists: Boolean(existing),
 			manifest,
+			featureRequirementsCompatibility,
 		});
 	}, options.archiveReaderFactory);
 }

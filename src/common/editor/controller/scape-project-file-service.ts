@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import {
 	createScapeInspectionService,
 	type ScapeInspectionOptions,
@@ -24,6 +26,7 @@ export interface ScapeProjectInspection extends ScapeOpenInspection {
 	readonly schemaVersion: number;
 	readonly readOnly: boolean;
 	readonly manifest: Readonly<Record<string, unknown>>;
+	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 }
 
 export interface ScapeProjectFileServiceRuntime<
@@ -33,6 +36,7 @@ export interface ScapeProjectFileServiceRuntime<
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	readonly scapeInspectionQuiescence?: ScapeInspectionQuiescence;
 	readonly store: ScapeInspectionStore | null;
+	readonly productCapabilities: Readonly<Record<string, unknown>>;
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
 	readonly openScape: (
 		file: Blob,
@@ -46,10 +50,12 @@ export function createScapeProjectFileService<
 >(runtime: ScapeProjectFileServiceRuntime<Inspection, Result>) {
 	const scapeInspectionQuiescence = runtime.scapeInspectionQuiescence
 		?? createScapeInspectionQuiescence();
+	const projectFeatureCompatibility = createProjectFeatureCompatibilityService(runtime.productCapabilities);
 	const inspectionService = createScapeInspectionService<Inspection>({
 		lifetime: runtime.lifetime,
 		scapeInspectionQuiescence,
 		store: runtime.store,
+		providerOptions: { projectFeatureCompatibility },
 		inspectScapeProject: runtime.inspectScapeProject,
 	});
 	const openRequestService = createScapeOpenRequestService<Inspection, Result>({

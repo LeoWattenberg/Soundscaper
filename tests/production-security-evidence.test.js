@@ -60,7 +60,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 });
 
-test('project feature requirements are bounded and fail closed at activation', async () => {
+test('project feature requirements are bounded and fail closed at activation and pre-open inspection', async () => {
 	const matrix = await readMatrix();
 	const boundary = matrix.boundaries.find(({ id }) => id === 'external-input-to-parser');
 	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
@@ -84,6 +84,10 @@ test('project feature requirements are bounded and fail closed at activation', a
 		'src/common/editor/session.js',
 		'src/common/editor/controller/project-feature-compatibility-service.ts',
 		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document-snapshot.ts',
+		'src/common/editor/controller/scape-inspection-service.ts',
+		'src/common/editor/controller/scape-project-file-service.ts',
+		'src/common/editor/app.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
@@ -91,6 +95,9 @@ test('project feature requirements are bounded and fail closed at activation', a
 		'tests/audio-editor-project-feature-capabilities.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-session.test.js',
+		'tests/audio-editor-document-snapshot.test.ts',
+		'tests/audio-editor-scape-inspection-service.test.ts',
+		'tests/audio-editor-scape-project-file-service.test.ts',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 	for (const path of [
 		'src/common/editor/migration.js',
@@ -103,19 +110,21 @@ test('project feature requirements are bounded and fail closed at activation', a
 	assert.match(control.summary, /without executing project-supplied identifiers or mutating/iu);
 	assert.match(control.summary, /current-schema.*current-format.*\.scape.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(control.summary, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
-	assert.match(control.summary, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*opaque/iu);
+	assert.match(control.summary, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*null.*not traversed/iu);
 	assert.match(control.summary, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
+	assert.match(control.summary, /current-format \.scape inspection.*provider-owned.*caller.*override.*exact schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*null.*not traversed/iu);
 	assert.match(control.summary, /does not verify referenced fallback bytes/iu);
-	assert.match(control.summary, /does not.*\.scape pre-open compatibility report.*runtime fallback use.*UI/iu);
+	assert.match(control.summary, /does not.*provide.*actionable.*normal-open.*UI.*runtime fallback use/iu);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
 	assert.match(documentation, /current-schema.*current-format `\.scape`.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
-	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*opaque/iu);
+	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
-	assert.match(documentation, /do not qualify.*`\.scape` pre-open compatibility report.*runtime fallback use.*UI/iu);
+	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
+	assert.match(documentation, /do not qualify.*actionable.*normal-open.*UI.*runtime fallback use/iu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {

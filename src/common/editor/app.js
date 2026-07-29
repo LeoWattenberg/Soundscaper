@@ -761,7 +761,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: (callback, delayMs) => Number(globalThis.setTimeout(callback, delayMs)),
 		clearTimer: (timer) => globalThis.clearTimeout(timer),
 	});
-	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape });
+	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape, productCapabilities: product.capabilities });
 	const projectSwitchService = createProjectSwitchService({
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,

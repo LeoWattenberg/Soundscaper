@@ -75,10 +75,21 @@ The report is retained per tab, remains deeply frozen across session metadata
 clones, and is exposed on the document snapshot. Future schemas produce no
 feature report, and their `featureRequirements` value is not traversed.
 
-This activation-time report is not yet a `.scape` pre-open inspection report.
-Archive inspection cannot promise the same actionable compatibility surface
-until that separate path is implemented, and reporting does not itself verify
-or activate rendered fallbacks.
+The same selected product service now powers a programmatic current-format `.scape`
+inspection report. The composition root snapshots the selected product
+and injects its evaluator as provider-owned state, so caller options cannot
+override it. After archive integrity and project-source validation, exact schema
+9 is evaluated into a deeply frozen `featureRequirementsCompatibility` report
+before any project collision lookup. Inspection performs no import, persistence,
+or activation. Future project schemas return `null`, and their
+`featureRequirements` value is not traversed.
+This report does not verify or activate rendered fallbacks, and it is not a
+third-party activation gate.
+
+The normal no-collision open workflow does not yet surface that programmatic
+result, so there is no actionable compatibility decision UI before such an
+open. Collision prompts also remain collision decisions rather than
+unavailable-feature or bypass UI.
 
 Current-schema and current-format `.scape` preservation is now part of this
 contract. A rendered-fallback descriptor makes its source an independent
@@ -91,11 +102,11 @@ reference through the same mapping.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
-an actionable `.scape` pre-open compatibility-report surface,
-unavailable-feature or bypass UI, verification of the declared digest
-against referenced media bytes, runtime use of fallback media, or a general
-opaque native-state round trip. Those outcomes remain governed by the planned
-compatibility rows and roadmap exit gate.
+an actionable normal-open compatibility decision UI, unavailable-feature or
+bypass UI, verification of the declared digest against referenced media bytes,
+runtime use of fallback media, or a general opaque native-state round trip.
+Those outcomes remain governed by the planned compatibility rows and roadmap
+exit gate.
 
 ## Opaque state
 

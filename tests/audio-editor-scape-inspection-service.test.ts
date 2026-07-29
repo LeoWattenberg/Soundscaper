@@ -48,6 +48,32 @@ test('inspection owns its signal and snapshots caller options before async work'
 	assert.equal(capture.received.signal.aborted, false, 'completed inspection releases its task');
 });
 
+test('inspection snapshots provider options and keeps them authoritative over caller options', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const providerOptions = { marker: 'provider', providerOnly: 'owned' };
+	const capture: { received: Readonly<Record<string, unknown>> | null } = { received: null };
+	const service = createScapeInspectionService({
+		lifetime,
+		store: null,
+		providerOptions,
+		inspectScapeProject: (_input, _store, options) => {
+			capture.received = options;
+			return 'inspected';
+		},
+	});
+	providerOptions.marker = 'mutated';
+
+	assert.equal(await service.inspect(new Blob(['scape']), {
+		marker: 'caller',
+		providerOnly: 'forged',
+	}), 'inspected');
+	assert.ok(capture.received);
+	assert.equal(capture.received.marker, 'provider');
+	assert.equal(capture.received.providerOnly, 'owned');
+	assert.ok(capture.received.signal instanceof AbortSignal);
+	assert.equal(Object.isFrozen(capture.received), true);
+});
+
 test('inspection composes caller cancellation and preserves its exact reason', async () => {
 	const lifetime = new EditorControllerLifetime();
 	const caller = new AbortController();

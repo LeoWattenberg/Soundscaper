@@ -778,10 +778,18 @@ models or native implementations.
   over the ignored incoming document's flags.
   The report is retained per tab, remains deeply frozen across session metadata
   clones, and is exposed on the document snapshot.
-  Future schemas are not traversed. A `.scape` pre-open compatibility report,
-  actual fallback digest verification and runtime use, unavailable-feature and
-  bypass UI, arbitrary future-schema archive preservation, and opaque
-  native-state round trips remain planned.
+  The same selected-product service now powers programmatic current-format
+  `.scape` inspection: provider-owned capability evaluation cannot be replaced
+  by caller options, exact schema V9 is evaluated into a deeply frozen
+  compatibility report after archive and source validation but before collision
+  lookup, and inspection performs no import, persistence, or activation. Future
+  project schemas return `null` without traversing `featureRequirements`. The
+  normal no-collision open path
+  does not yet expose an actionable compatibility decision UI. Actual fallback
+  digest verification and runtime use, unavailable-feature and bypass UI,
+  arbitrary future-schema archive preservation, and opaque native-state round
+  trips remain planned. Third-party discovery, loading, and isolation remain
+  separate later surfaces rather than blockers for this first-party contract.
 
 ### Exit gate
 
