@@ -54,6 +54,20 @@
 			]
 		},
 		{
+			"id": "current-desktop-project-catalog-commit",
+			"status": "implemented",
+			"requiredOutcome": "The main-process shared desktop library publishes one exact-current-schema project persistence envelope and its catalog pointer under a fenced lease without exposing filesystem paths to a renderer.",
+			"currentBehavior": "Metadata schema 2 binds a separate opaque library entry ID to the bounded project identity, exact schema 9, project revision, byte length, SHA-256 digest, and derived immutable revision-and-digest path. The main-only store canonicalizes the document with the bounded tagged-binary Scape codec, enforces the non-raiseable 256 MiB document ceiling, validates root schema, identity, title, and revision, writes and syncs a private stage file, atomically renames it, verifies the immutable file against the catalog descriptor, and only then publishes an exact +1 catalog revision through the fenced metadata journal. The host serializes commits, renews its lease while draining admitted work, and proves an orderly source-free Soundscaper-to-Framescaper-to-Soundscaper lease handoff with increasing fencing tokens, the same project identity, and committed-revision continuity. Full schema 9 domain validation remains an editor activation responsibility. Legacy Soundscaper project migration, managed-media publication, renderer persistence integration, orphan reclamation, packaged multi-process handoff, and per-platform parent-directory or power-loss durability remain outside this rule.",
+			"evidence": [
+				"desktop/project-library-contract.ts",
+				"desktop/project-library-projects.ts",
+				"desktop/project-library-host.ts",
+				"tests/desktop-project-library-projects.test.ts",
+				"tests/desktop-project-library-handoff.test.ts",
+				"tests/desktop-project-library-packaging.test.js"
+			]
+		},
+		{
 			"id": "project-feature-requirements-core",
 			"status": "implemented",
 			"requiredOutcome": "Current raw project documents carry a bounded normalized declarative feature-requirements manifest, retained-schema migrations do not invent publisher declarations, maintained exact-current-schema create, load, clone, and commit paths reconcile editor-owned first-party declarations from project state, and pure evaluation classifies caller-declared availability without activating project data.",

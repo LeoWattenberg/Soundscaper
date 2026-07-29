@@ -43,6 +43,37 @@ Every new schema version must add fixtures for its immediate predecessor and
 the oldest retained schema. Project state, history, clipboard state, `.scape`,
 and both product profiles must agree on the same migration boundary.
 
+## Shared desktop current-schema persistence
+
+The main-process shared desktop library has one implemented current-schema
+persistence envelope. Metadata schema 2 binds a separate opaque library entry
+ID to the project identity, exact schema 9, project revision, byte length,
+SHA-256 digest, and a derived immutable revision-and-digest path. No filesystem
+path or lease capability is exposed to a renderer by this host boundary.
+
+Before publication, the main process canonicalizes the document with the
+bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
+ceiling. It validates only the persistence root schema, identity, title, and
+revision; full schema 9 domain validation remains the responsibility of editor
+activation. The store writes and syncs a private stage file, performs an atomic
+rename, syncs the project directory where the platform supports it, and
+verifies the resulting immutable file against its byte-length, digest, schema,
+identity, and revision descriptor. Only then does it publish an exact +1
+catalog revision through the existing fenced journal, so a reader observes the
+old or new complete project-and-catalog pair.
+
+The main-only host serializes commits, renews its lease while it drains admitted
+work during close, and has a source-free orderly
+Soundscaper-to-Framescaper-to-Soundscaper handoff fixture. That fixture proves
+increasing fencing tokens without stale takeover, the same project identity,
+and committed-revision continuity across the products. It is not a packaged
+multi-process or executable handoff qualification.
+
+This rule is current-only. Legacy Soundscaper project migration, managed media,
+renderer persistence integration, full schema 9 domain validation beyond the
+root envelope, orphan reclamation, packaged multi-process handoff, and
+per-platform parent-directory and power-loss durability remain outside it.
+
 ## Project feature requirements
 
 Schema 9 establishes the raw-project declaration and evaluation foundation. Its

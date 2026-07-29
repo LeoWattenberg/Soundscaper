@@ -36,6 +36,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
+		'current-desktop-project-catalog-commit': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
 		'current-scape-rendered-fallback-integrity': 'implemented',
@@ -73,6 +74,36 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 			);
 		}
 	}
+
+	const desktopProjectCatalogCommit = rules.get('current-desktop-project-catalog-commit');
+	assert.deepEqual(desktopProjectCatalogCommit.evidence, [
+		'desktop/project-library-contract.ts',
+		'desktop/project-library-projects.ts',
+		'desktop/project-library-host.ts',
+		'tests/desktop-project-library-projects.test.ts',
+		'tests/desktop-project-library-handoff.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
+	]);
+	assert.match(
+		desktopProjectCatalogCommit.requiredOutcome,
+		/main-process.*exact-current-schema.*persistence envelope.*catalog pointer.*fenced lease.*without exposing filesystem paths.*renderer/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/metadata schema 2.*separate opaque library entry ID.*project identity.*exact schema 9.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/main-only.*canonicalizes.*bounded tagged-binary Scape codec.*non-raiseable 256 MiB.*root schema, identity, title, and revision.*writes and syncs.*stage file.*atomically renames.*verifies.*catalog descriptor.*exact \+1 catalog revision.*fenced metadata journal/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/host serializes commits.*renews.*draining admitted work.*source-free Soundscaper-to-Framescaper-to-Soundscaper.*increasing fencing tokens.*same project identity.*committed-revision continuity/iu,
+	);
+	assert.match(
+		desktopProjectCatalogCommit.currentBehavior,
+		/full schema 9 domain validation.*editor activation.*legacy Soundscaper project migration.*managed-media publication.*renderer persistence integration.*orphan reclamation.*packaged multi-process handoff.*per-platform parent-directory or power-loss durability.*outside/iu,
+	);
 
 	const featureRequirements = rules.get('project-feature-requirements-core');
 	for (const reference of [
@@ -448,6 +479,23 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 
 	const documentation = await readFile(documentationUrl, 'utf8');
 	assert.match(documentation, /Core document versus `\.scape`/u);
+	assert.match(documentation, /Shared desktop current-schema persistence/u);
+	assert.match(
+		documentation,
+		/metadata schema 2.*separate opaque library entry\s+ID.*exact schema 9.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/isu,
+	);
+	assert.match(
+		documentation,
+		/main process.*bounded tagged-binary Scape codec.*256 MiB.*root schema, identity, title, and\s+revision.*writes and syncs.*stage file.*atomic\s+rename.*verifies.*exact \+1\s+catalog revision.*fenced journal/isu,
+	);
+	assert.match(
+		documentation,
+		/serializes commits.*renews.*drains.*source-free.*Soundscaper-to-Framescaper-to-Soundscaper.*increasing fencing tokens.*same project identity.*committed-revision continuity/isu,
+	);
+	assert.match(
+		documentation,
+		/legacy Soundscaper project migration.*managed media.*renderer persistence integration.*full schema 9 domain validation.*orphan reclamation.*packaged multi-process handoff.*per-platform parent-directory and power-loss durability.*outside/isu,
+	);
 	assert.match(documentation, /do not promise\s+byte-for-byte/u);
 	assert.match(documentation, /exact schema 9.*JSON-semantic.*byte-exact preservation.*supported bounded tagged binary/isu);
 	assert.match(documentation, /binary opaque/iu);

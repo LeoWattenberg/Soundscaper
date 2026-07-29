@@ -759,10 +759,32 @@ models or native implementations.
   [lifecycle](tests/desktop-application-lifecycle.test.ts), and
   [packaging](tests/desktop-project-library-packaging.test.js) regressions cover
   lease release/recovery, serialized failure-aware shutdown, isolated smoke
-  data, and importable staged output. Actual project/catalog and managed-media
-  commits, explicit cross-product handoff and lease transfer, legacy migration,
-  and packaged OS/architecture lifecycle smoke remain open; no raw path or new
-  renderer IPC surface is exposed by this foundation.
+  data, and importable staged output. Metadata schema 2 now binds each
+  product-neutral library entry to a separate bounded project identity, exact
+  current project schema, project revision, byte length, SHA-256 digest, and
+  derived immutable revision/digest path. The strict-TS
+  [project document store](desktop/project-library-projects.ts) reuses the
+  canonical tagged-binary `.scape` codec, preserves opaque binary values,
+  enforces the 256 MiB document ceiling with a lower-only test seam, validates
+  persistence-root identity, and publishes a synced private temporary file by
+  atomic rename before advancing the catalog exactly one revision through the
+  fenced recovery journal. Reads recheck length, digest, exact schema, project
+  identity, and revision, so interruption or lease loss leaves the previous
+  complete project/catalog pair authoritative or the new complete pair
+  readable; a safe unreachable immutable file may remain for future
+  reclamation. Full V9 domain validation remains the editor activation
+  boundary.
+  The main-only host serializes project commits and keeps renewing its lease
+  while admitted work drains. A focused
+  [handoff regression](tests/desktop-project-library-handoff.test.ts) proves an
+  orderly source-free Soundscaper → Framescaper → Soundscaper transfer in
+  one product-neutral application-data library: each product acquires a higher
+  fencing token without stale takeover and observes the same project identity
+  and committed revision. Managed-media commits, authoritative renderer/editor
+  persistence integration, legacy-library migration, unreachable-file
+  collection, packaged multi-process handoff, and per-OS/architecture
+  power-loss durability remain open. No raw path or new renderer IPC surface is
+  exposed by this slice.
 - **Electron Enhanced — Planned:** bind selected-file capabilities to the
   existing bounded
   [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
@@ -937,6 +959,8 @@ models or native implementations.
   committed state or a recoverable journal, never a half-published project.
 - A mixed-media project hands off between both web products and both Electron
   products without copying managed media or losing history-visible state.
+  The Electron host-level source-free project/catalog handoff is now proven,
+  but it does not yet qualify managed-media portability or close this gate.
 - Simultaneous opens across the two Electron apps serialize through the shared
   lease, and repeated migration, interrupted migration, conflict, rollback, and
   legacy-library recovery fixtures preserve both original libraries.
