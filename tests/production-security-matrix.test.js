@@ -310,13 +310,15 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/scape-archive-reader.ts',
 		'src/common/editor/app.js',
 		'tests/audio-editor-scape-inspection-quiescence.test.ts',
+		'tests/audio-editor-scape-inspection-quiescence-bounds.test.ts',
 		'tests/audio-editor-scape-inspection-service.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-project-switch-inspection-timeout.test.ts',
 		'tests/audio-editor-scape-inspection-controller.test.ts',
 	]) assert.ok(scapeInspectionQuiescence.evidence.some((item) => item.path === path));
 	assert.match(
 		scapeInspectionQuiescence.summary,
-		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*registered injected collision-provider settlement.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*rejects later inspection admission.*drains every captured generation.*retained provider continuation.*before project work.*overlapping queued switches.*permanent fence.*before engine and storage teardown.*exact registration abort reason.*provider fulfillment or rejection.*without replacing.*primary outcome.*cleanup failures.*all captured generations.*remaining teardown/iu,
+		/registers before its first await.*retains current and superseded generations.*archive-reader cleanup.*registered injected collision-provider settlement.*eight lower-only production slots.*synchronously before task creation or archive work.*reference-counted temporary fence.*shared legacy supersession AbortError per admission.*permanent fence.*exact lifetime reason.*30-second settlement deadline per inspection.*reused without reset.*exact registration abort reason.*provider fulfillment or rejection.*without replacing.*primary outcome.*typed non-benign barrier failure.*aggregates.*cleanup failures.*does not remove or release.*capacity charge.*actually settles.*project switching rejects before project work.*disposal continues remaining engine and storage teardown.*rejecting/iu,
 	);
 	const scapeOpenDecisionContinuation = cancellation.currentControls.find(
 		({ id }) => id === 'owned-scape-open-decision-continuation',
@@ -356,11 +358,11 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection store lookup.*no abortable repository API/iu);
-	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join|injected lookup can continue after that boundary rejects/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join|injected lookup can continue after that boundary rejects|hold lifecycle barriers indefinitely|no provider deadline or admission cap/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /whole-file desktop reads/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*registers and retains.*normalized provider promise.*project switching.*controller disposal.*join.*provider settlement.*never-settling provider.*hold lifecycle barriers.*no provider deadline or admission cap.*desktop materializer.*supplied signal.*release.*abort.*open.*import.*does not consistently own or provide.*AUP4.*broad storage operations/iu,
+		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*registers and retains.*normalized provider promise.*project switching.*controller disposal.*join.*provider settlement.*lower-only per-inspection deadline.*admission.*capacity-bounded.*provider.*continue consuming resources.*typed barrier timeout.*keeps its admission slot.*does not sandbox or force-terminate.*desktop materializer.*supplied signal.*release.*abort.*open.*import.*does not consistently own or provide.*AUP4.*broad storage operations/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',

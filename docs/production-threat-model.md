@@ -93,13 +93,21 @@ cancellation, and rejects signal-ignoring results after replacement, project
 switching, or disposal. A controller-level coordinator retains current and
 superseded generations through archive-reader cleanup. Project-switch admission
 synchronously installs a reference-counted temporary fence, cancels captured
-work with one shared legacy supersession `AbortError` per admission, and drains
-it before project work; overlapping queued switches retain admission fencing
-until the last settles.
-Controller disposal installs a permanent fence and drains before engine or
-storage teardown using the exact lifetime reason. Only the exact registration
-abort reason is benign; cleanup failures reject after all captured generations
-settle, while disposal continues the remaining teardown before rejecting.
+work with one shared legacy supersession `AbortError` per admission, and waits
+for settlement up to the shared deadline before project work; overlapping
+queued switches retain admission fencing until the last settles. Controller
+disposal installs a permanent fence and observes the same bounded wait before
+engine or storage teardown using the exact lifetime reason. Only the exact
+registration abort reason is benign; cleanup failures reject after captured
+work settles or remain observable alongside a deadline failure, while disposal
+continues the remaining teardown before rejecting.
+The coordinator now reserves a maximum of eight active admissions before task
+creation or archive work. Cancellation, a temporary or permanent fence, and
+drain arm one lower-only 30-second settlement deadline per admission;
+overlapping barriers reuse the same deadline without extending it. Expiry is a
+typed non-benign barrier failure, is aggregated with an already observed
+cleanup failure, and does not remove the active record. A timed-out admission
+therefore remains capacity-charged until its retained work actually settles.
 Public file opens add one
 replaceable request task spanning inspection through collision choice. The UI
 continuation owns one opaque prompt, settles its exact identity once, clears and
@@ -140,10 +148,14 @@ same inspection admission in its synchronous read callback before returning the
 provider promise to the abort race, then still rejects a
 signal-ignoring provider promptly, closes the archive reader, and suppresses a
 late result or failure. Project switching and controller disposal now join both
-coordinator-owned inspection cleanup and registered provider settlement. A
-provider that ignores its signal can still consume resources until settlement,
-and a never-settling provider can hold the lifecycle barrier indefinitely
-because inspection providers have no deadline or admission cap.
+coordinator-owned inspection cleanup and registered provider settlement up to
+the admission's shared deadline. Project switching rejects before project work
+on timeout; disposal records the timeout, completes remaining engine and
+storage teardown, reaches its disposed phase, and then rejects. A provider that
+ignores its signal can still consume resources after that timeout and retains
+its capacity charge until settlement. The coordinator does not claim to
+force-terminate or sandbox third-party provider code; stricter provider gating
+remains deferred.
 The bounded desktop materializer now forwards a supplied signal, destroys the
 protocol stream, and releases its capability on abort, but current desktop open
 and import orchestration does not consistently own or provide that signal.

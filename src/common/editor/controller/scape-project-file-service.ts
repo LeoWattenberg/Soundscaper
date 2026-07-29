@@ -12,6 +12,7 @@ import {
 import {
 	createScapeInspectionQuiescence,
 	type ScapeInspectionQuiescence,
+	type ScapeInspectionQuiescenceOptions,
 } from './scape-inspection-quiescence.ts';
 import {
 	createScapeOpenRequestService,
@@ -35,6 +36,7 @@ export interface ScapeProjectFileServiceRuntime<
 > {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	readonly scapeInspectionQuiescence?: ScapeInspectionQuiescence;
+	readonly scapeInspectionQuiescenceOptions?: ScapeInspectionQuiescenceOptions;
 	readonly store: ScapeInspectionStore | null;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
@@ -49,7 +51,7 @@ export function createScapeProjectFileService<
 	Result = unknown,
 >(runtime: ScapeProjectFileServiceRuntime<Inspection, Result>) {
 	const scapeInspectionQuiescence = runtime.scapeInspectionQuiescence
-		?? createScapeInspectionQuiescence();
+		?? createScapeInspectionQuiescence(runtime.scapeInspectionQuiescenceOptions);
 	const projectFeatureCompatibility = createProjectFeatureCompatibilityService(runtime.productCapabilities);
 	const inspectionService = createScapeInspectionService<Inspection>({
 		lifetime: runtime.lifetime,

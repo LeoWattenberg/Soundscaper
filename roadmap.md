@@ -414,13 +414,14 @@ models or native implementations.
   any collision-provider settlement registered by the inspection boundary.
   Project-switch admission installs a reference-counted temporary fence,
   cancels captured work with one shared legacy supersession `AbortError` per
-  admission, rejects new inspection admission, and drains every captured
-  generation before project work; overlapping queued switches keep that fence
-  until the last switch settles. Controller disposal installs a permanent
-  fence with the exact lifetime reason and drains before engine or storage
-  teardown. Only rejection
-  with the exact registration abort reason is benign; reader-cleanup failures
-  reject the switch or disposal after every captured generation settles. Public
+  admission, rejects new inspection admission, and waits for every captured
+  generation up to its shared settlement deadline before project work;
+  overlapping queued switches keep that fence until the last switch settles.
+  Controller disposal installs a permanent fence with the exact lifetime reason
+  and observes the same bounded wait before engine or storage teardown. Only
+  rejection with the exact registration abort reason is benign; reader-cleanup
+  failures reject after captured work settles or remain observable alongside a
+  deadline failure. Public
   file opens add a higher-level
   [request service](src/common/editor/controller/scape-open-request-service.ts)
   whose replaceable task spans inspection through the required open decision, is
@@ -455,10 +456,26 @@ models or native implementations.
   [inspection-storage](tests/audio-editor-scape-inspection-storage-cancellation.test.ts)
   regressions preserve the exact cancellation reason across those boundaries.
   Switching and disposal now join both coordinator-owned inspection cleanup
-  and registered provider settlement. A provider that ignores its signal can
-  still consume resources until it settles, and one that never settles can hold
-  the lifecycle barrier indefinitely because inspection providers have no
-  deadline or admission cap yet. The
+  and registered provider settlement. The coordinator applies frozen,
+  lower-only production ceilings of eight active inspections and a 30-second
+  settlement deadline. Admission reserves capacity synchronously before task
+  creation or archive work; lifecycle cancellation, project-switch fencing,
+  terminal close, and drain arm one absolute deadline per inspection, reused
+  without reset by overlapping barriers. Expiry rejects the barrier with a
+  typed non-benign timeout, preserves any observed cleanup failure alongside
+  it, and leaves the inspection capacity-charged until its retained provider
+  actually settles. Project switching therefore fails before project work,
+  while disposal continues remaining engine and storage teardown before
+  rejecting. Focused
+  [bounds](tests/audio-editor-scape-inspection-quiescence-bounds.test.ts) and
+  [project-switch](tests/audio-editor-project-switch-inspection-timeout.test.ts)
+  and
+  [controller](tests/audio-editor-scape-inspection-controller.test.ts)
+  regressions pin those limits, admission order, shared deadlines, late
+  capacity release, and disposal completion. This bounds first-party lifecycle
+  waits without claiming termination of a signal-ignoring provider: such a
+  provider can still consume resources after timeout, and stricter third-party
+  execution gating remains deferred. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused

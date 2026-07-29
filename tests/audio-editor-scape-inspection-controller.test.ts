@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
 
+import type { ScapeInspectionQuiescenceOptions } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
 		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
@@ -20,6 +22,9 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const {
+	ScapeInspectionSettlementTimeoutError,
+} = await import('../src/common/editor/controller/scape-inspection-quiescence.ts');
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -237,6 +242,80 @@ test('reader close failure rejects inspection and disposal after remaining teard
 	} finally {
 		closeGate.resolve();
 		if (pending) await Promise.allSettled([pending]);
+		await controller.dispose().catch(() => undefined);
+	}
+});
+
+test('controller disposal completes teardown after a non-settling inspection deadline', async () => {
+	const events: string[] = [];
+	const started = deferred<void>();
+	const neverSettles = deferred<void>();
+	const timerHandle = Object.freeze({ id: 'scape-inspection-deadline' });
+	const timer: { deadline: (() => void) | null } = { deadline: null };
+	let closeCalls = 0;
+	let inspectionSignal: AbortSignal | undefined;
+	const quiescenceOptions: ScapeInspectionQuiescenceOptions = {
+		limits: { maximumActiveInspections: 1, settlementTimeoutMs: 5 },
+		setTimeout(callback, delayMs) {
+			assert.equal(delayMs, 5);
+			assert.equal(timer.deadline, null, 'one admission must own only one deadline');
+			timer.deadline = callback;
+			return timerHandle;
+		},
+		clearTimeout(handle) {
+			assert.equal(handle, timerHandle);
+			timer.deadline = null;
+		},
+	};
+	const store = createObservedStore(events, 'scape-inspection-disposal-deadline');
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		locale: 'en',
+		store,
+		engine: createTestEngine(() => { events.push('engine-dispose'); }),
+		ffmpeg: { dispose() {} },
+		scapeInspectionQuiescenceOptions: quiescenceOptions,
+	});
+
+	try {
+		await controller.ready;
+		const inspect = controller.actions.project.inspectScape;
+		if (typeof inspect !== 'function') throw new TypeError('Scape inspection must be callable.');
+		const pending = inspect(new Blob(['synthetic archive']), {
+			archiveReaderFactory: (_input: Blob, signal?: AbortSignal) => {
+				assert.ok(signal);
+				inspectionSignal = signal;
+				return {
+					async *getEntriesGenerator() {
+						started.resolve();
+						await neverSettles.promise;
+						return false;
+					},
+					async close() { closeCalls += 1; },
+				};
+			},
+		});
+		void pending.catch(() => undefined);
+		await started.promise;
+
+		const disposing = controller.dispose();
+		assert.equal(inspectionSignal?.aborted, true);
+		assert.equal(await settlesByNextTurn(disposing), false);
+		assert.ok(timer.deadline, 'disposal must arm the inspection settlement deadline');
+		timer.deadline();
+		timer.deadline = null;
+
+		await assert.rejects(disposing, (error: unknown) => (
+			error instanceof ScapeInspectionSettlementTimeoutError
+			&& error.timeoutMs === 5
+			&& error.pendingInspections === 1
+		));
+		assert.ok(events.includes('engine-dispose'), 'engine teardown must continue after the timeout');
+		assert.ok(events.includes('store-close'), 'storage teardown must continue after the timeout');
+		assert.equal(controller.getSnapshot().phase, 'disposed');
+		assert.equal(closeCalls, 0, 'a signal-ignoring reader must not be reported as closed');
+	} finally {
+		timer.deadline?.();
 		await controller.dispose().catch(() => undefined);
 	}
 });
