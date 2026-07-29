@@ -439,7 +439,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('resizes tracks from track-control-panel edges and caps their height to the timeline', async ({ page }) => {
-		await page.setViewportSize({ width: 1_440, height: 1_000 });
+		await page.setViewportSize({ width: 1_440, height: 1_400 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
