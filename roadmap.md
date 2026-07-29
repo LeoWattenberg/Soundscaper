@@ -780,8 +780,9 @@ models or native implementations.
 - **Shared — In progress:** schema V9 adds a bounded, normalized, declarative
   root-level `featureRequirements` manifest; V1–V8 migration initializes its
   canonical empty form; and a pure shared evaluator reports available,
-  unavailable, and unknown requirements with effective native, bypassed, or
-  rendered-fallback dispositions against explicitly declared support. Fallback
+  unavailable, and unknown requirements while retaining declared bypass or
+  rendered-fallback dispositions separately from effective native, bypassed,
+  or rendered-fallback dispositions against explicitly declared support. Fallback
   descriptors independently root their source metadata through project and
   history compaction. Current-format schema V9 `.scape` export/open preserves
   the manifest and fallback-only source assets, while copy import rewrites known
@@ -797,6 +798,17 @@ models or native implementations.
   over the ignored incoming document's flags.
   The report is retained per tab, remains deeply frozen across session metadata
   clones, and is exposed on the document snapshot.
+  For an incompatible active document, the maintained workspace now derives a
+  separate frozen structured notice directly from that snapshot. Its persistent,
+  non-dismissible document-level region recomputes unavailable and unknown
+  counts and lists bounded display names, stable feature IDs, availability, and
+  declared dispositions while the owning tab is active. Effective disposition
+  remains structured metadata. The bounded scrolling region is keyboard
+  focusable; it never reads evaluator messages or fallback descriptors, offers
+  no activation controls, and makes no runtime-fallback or third-party-loading
+  claim. Compatible and future-schema `null` reports render no notice, and tab
+  switching follows the per-tab report without traversing future
+  `featureRequirements` state.
   The same selected-product service now powers programmatic current-format
   `.scape` inspection: provider-owned capability evaluation cannot be replaced
   by caller options. After archive and source validation, every exact-schema-V9
@@ -859,7 +871,7 @@ models or native implementations.
   not a guarantee for arbitrary direct `store.loadProject()` calls, continuous
   binding against
   later low-level source replacement, publisher authenticity, or runtime
-  fallback substitution. Post-open unavailable-feature placeholders,
+  fallback substitution. Affected-object unavailable-feature placeholders,
   per-feature bypass UI, runtime fallback use, and arbitrary future-schema
   archive preservation remain planned. Complete third-party discovery,
   loading, and isolation remain separate later surfaces rather than blockers
@@ -881,9 +893,10 @@ models or native implementations.
 - Clearing a cache removes only reproducible derivatives, not originals,
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
-  pre-open compatibility decision. This exit remains open until its subsequent
-  `.scape` round trip is faithful for runtime fallback behavior, post-open
-  placeholder and bypass behavior, and arbitrary future-schema archive
+  pre-open compatibility decision and persistent per-tab post-open document
+  report. This exit remains open until its subsequent `.scape` round trip is
+  faithful for runtime fallback behavior, affected-object placeholder and
+  bypass behavior, and arbitrary future-schema archive
   preservation.
 
 ## 3. Parallel editorial foundations

@@ -40,6 +40,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-scape-feature-requirements': 'implemented',
 		'current-scape-rendered-fallback-integrity': 'implemented',
 		'current-controller-feature-report': 'implemented',
+		'current-post-open-feature-report': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -158,6 +159,38 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		/future schemas.*no report.*featureRequirements is not traversed/iu,
 	);
 
+	const postOpenFeatureReport = rules.get('current-post-open-feature-report');
+	assert.deepEqual(postOpenFeatureReport.evidence, [
+		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/controller/document-snapshot.ts',
+		'src/common/editor/ui/workspace/project-feature-compatibility-notice.ts',
+		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
+		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
+		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-document-snapshot.test.ts',
+		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]);
+	assert.match(
+		postOpenFeatureReport.requiredOutcome,
+		/activated.*exact-current-schema.*incompatible.*persistent.*structured.*active tab/iu,
+	);
+	assert.match(
+		postOpenFeatureReport.currentBehavior,
+		/document snapshot.*directly.*frozen notice.*only unavailable and unknown.*counts/iu,
+	);
+	assert.match(postOpenFeatureReport.currentBehavior, /non-dismissible.*localized.*document-level.*bounded display names.*stable feature IDs.*availability.*declared.*disposition/iu);
+	assert.match(postOpenFeatureReport.currentBehavior, /effective disposition.*structured metadata/iu);
+	assert.match(
+		postOpenFeatureReport.currentBehavior,
+		/available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu,
+	);
+	assert.match(
+		postOpenFeatureReport.currentBehavior,
+		/compatible or null-report tab.*removes.*switching back.*active tab/iu,
+	);
+	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
+
 	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
 	assert.deepEqual(controllerFallbackIntegrity.evidence, [
 		'src/common/editor/project-fallback-integrity.ts',
@@ -265,7 +298,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*controller activation.*local audio and video fallback bytes.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*visible placeholder.*runtime use.*future-schema archive preservation/iu,
+		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*persistent document-level post-open report.*intrinsically read-only.*archive.*fallback.*integrity.*controller activation.*local audio and video fallback bytes.*supported Uint8Array.*ArrayBuffer.*opaque native\/effect state.*byte-exactly.*without activation.*other buffer views.*unsupported.*per-object visible placeholders.*runtime use.*future-schema archive preservation/iu,
 	);
 });
 
@@ -309,6 +342,17 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /actual project history[\s\S]*deeply frozen across session metadata[\s\S]*document snapshot/iu);
 	assert.match(documentation, /same-ID tab[\s\S]*stored read-only declaration[\s\S]*ignored incoming[\s\S]*flags/iu);
 	assert.match(documentation, /future schemas produce no\s+feature report, and\s+their `featureRequirements` value is not traversed/iu);
+	assert.match(
+		documentation,
+		/active workspace.*`featureRequirementsCompatibility`.*directly.*frozen.*only unavailable and unknown/isu,
+	);
+	assert.match(documentation, /persistent.*non-dismissible.*document-level.*localized.*counts.*bounded display name.*stable feature ID.*availability.*declared disposition.*active tab/isu);
+	assert.match(documentation, /effective\s+disposition.*structured metadata/iu);
+	assert.match(
+		documentation,
+		/does not render.*evaluator.*message.*fallback.*activation control.*runtime fallback.*third-party/isu,
+	);
+	assert.match(documentation, /compatible or `null` report.*no notice.*future.*not traversed/isu);
 	assert.match(
 		documentation,
 		/programmatic current-format `\.scape`\s+inspection.*selected product.*caller.*override.*exact schema\s+9.*before.*collision lookup.*deeply\s+frozen.*import.*persistence.*activation/isu,

@@ -97,6 +97,9 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
 		'src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts',
 		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
+		'src/common/editor/ui/workspace/project-feature-compatibility-notice.ts',
+		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
+		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
@@ -112,6 +115,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		'tests/audio-editor-scape-open-request-service.test.ts',
 		'tests/audio-editor-scape-open-decision-continuation.test.ts',
 		'tests/audio-editor-scape-open-decision-dialog.test.ts',
+		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 	for (const path of [
@@ -131,11 +135,13 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /one.*decision.*no-collision.*open-read-only.*cancel.*combined.*copy-read-only.*cancel/iu);
 	assert.match(control.summary, /cancel.*before.*import.*persistence.*activation.*actual project history.*intrinsically read-only/iu);
 	assert.match(control.summary, /localized.*stable feature IDs.*declared disposition.*defaults? focus.*Cancel.*Escape/iu);
+	assert.match(control.summary, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
+	assert.match(control.summary, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
 	assert.match(control.summary, /current-format.*exact schema 9.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
 	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
 	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
 	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-9 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
-	assert.match(control.summary, /runtime fallback substitution.*post-open unavailable-feature placeholders.*per-feature bypass UI.*outside this control/iu);
+	assert.match(control.summary, /runtime fallback substitution.*per-object unavailable-feature placeholders.*per-feature bypass UI.*outside this control/iu);
 	for (const path of [
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/scape-archive-media.ts',
@@ -174,6 +180,8 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
+	assert.match(documentation, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
+	assert.match(documentation, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
 	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);

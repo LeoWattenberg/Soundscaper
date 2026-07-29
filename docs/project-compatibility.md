@@ -57,8 +57,9 @@ it does not hash or authenticate the referenced media bytes.
 Schemas 1 through 8 migrate to the canonical empty manifest rather than
 inventing requirements. The pure evaluator compares a normalized manifest with
 caller-declared known and available feature IDs and reports available,
-unavailable, and unknown entries with effective native, bypassed, or
-rendered-fallback dispositions. Unknown feature IDs remain declarative data and
+unavailable, and unknown entries. Each item retains its declared bypass or
+rendered-fallback disposition separately from its effective native, bypassed,
+or rendered-fallback disposition. Unknown feature IDs remain declarative data and
 cannot activate code. Malformed current-schema manifest state fails validation;
 a newer outer project schema is instead cloned opaquely and returned read-only
 before current-manifest normalization.
@@ -75,6 +76,20 @@ over the ignored incoming document's flags.
 The report is retained per tab, remains deeply frozen across session metadata
 clones, and is exposed on the document snapshot. Future schemas produce no
 feature report, and their `featureRequirements` value is not traversed.
+
+For an incompatible active document, the maintained active workspace consumes
+`featureRequirementsCompatibility` directly and derives a separate frozen
+structured notice containing only unavailable and unknown requirements. A
+persistent, non-dismissible document-level localized region shows recomputed
+counts, bounded display names, stable feature IDs, availability, and the
+declared disposition while that active tab is selected; the effective
+disposition remains structured metadata rather than being mislabeled as the
+declaration. The region is keyboard-focusable when its bounded list scrolls.
+It does not render the evaluator's message, read fallback internals, expose an
+activation control, or claim runtime fallback or third-party loading. A
+compatible or `null` report produces no notice, tab switching follows the
+per-tab report, and the workspace never traverses future-schema
+`featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
 step for exact schema 9. It verifies the authoritative project that would be
@@ -114,7 +129,7 @@ This is a point-in-time guarantee at the maintained controller admission
 boundary. Calling `store.loadProject()` directly does not verify fallback
 bytes, and the admission does not continuously bind bytes against a later
 low-level source replacement, establish publisher authenticity, or substitute
-fallback media at runtime. It also does not provide post-open placeholders,
+fallback media at runtime. It also does not provide affected-object placeholders,
 per-feature bypass controls, future-schema preservation, or a complete
 third-party activation gate.
 
@@ -182,7 +197,7 @@ hash the potentially reference-scale asset bodies.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
-post-open unavailable-feature placeholders or per-feature bypass controls,
+affected-object unavailable-feature placeholders or per-feature bypass controls,
 or third-party feature activation. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
