@@ -173,3 +173,263 @@ test('save-session abort waits for an acknowledged write before closing staging'
 	await Promise.all([writing, aborting]);
 	assert.deepEqual(events, ['write', 'close', 'unlink']);
 });
+
+test('save-session disposal drains a begin still opening staging before rejecting new work', async () => {
+	let markOpenStarted;
+	let releaseOpen;
+	const openStarted = new Promise((resolve) => { markOpenStarted = resolve; });
+	const openGate = new Promise((resolve) => { releaseOpen = resolve; });
+	const events = [];
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => {
+			events.push('open');
+			markOpenStarted();
+			await openGate;
+			return {
+				async close() { events.push('close'); },
+			};
+		},
+		unlinkImpl: async () => { events.push('unlink'); },
+	});
+	const target = targets.registerPath('/tmp/begin-shutdown-race.scape', { purpose: 'project' });
+	const beginning = manager.begin({ targetId: target.id, maximumSize: 1 });
+	await openStarted;
+
+	let disposalSettled = false;
+	const disposing = manager.dispose();
+	void disposing.then(() => { disposalSettled = true; });
+	assert.equal(manager.dispose(), disposing, 'disposal is one shared shutdown barrier');
+	assert.throws(
+		() => targets.registerPath('/tmp/late-save.scape', { purpose: 'project' }),
+		/shutting down|disposed/u,
+		'target admission closes synchronously with save-session admission',
+	);
+	await assert.rejects(
+		manager.begin({ targetId: target.id, maximumSize: 1 }),
+		/shutting down|disposed/u,
+	);
+	await assert.rejects(
+		manager.writeChunk({ writeId: 'late', offset: 0, bytes: Uint8Array.of(1) }),
+		/shutting down|disposed/u,
+	);
+	await assert.rejects(manager.finish('late'), /shutting down|disposed/u);
+	await assert.rejects(manager.abort('late'), /shutting down|disposed/u);
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(disposalSettled, false, 'shutdown waits for an admitted begin');
+	releaseOpen();
+	await Promise.all([beginning, disposing]);
+
+	assert.deepEqual(events, ['open', 'close', 'unlink']);
+	assert.equal(manager.dispose(), disposing, 'the settled shutdown barrier remains idempotent');
+});
+
+test('save-session disposal drains a rejected write and aborts every remaining stage', async () => {
+	let markWriteStarted;
+	let releaseWrite;
+	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
+	const writeGate = new Promise((resolve) => { releaseWrite = resolve; });
+	const events = [];
+	let handleId = 0;
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => {
+			const id = handleId++;
+			return {
+				async write() {
+					events.push(`write-${id}`);
+					markWriteStarted();
+					await writeGate;
+					throw new Error('injected write failure');
+				},
+				async close() { events.push(`close-${id}`); },
+			};
+		},
+		unlinkImpl: async (path) => { events.push(`unlink-${path.includes('first') ? 0 : 1}`); },
+	});
+	const firstTarget = targets.registerPath('/tmp/first.scape', { purpose: 'project' });
+	const secondTarget = targets.registerPath('/tmp/second.scape', { purpose: 'project' });
+	const first = await manager.begin({ targetId: firstTarget.id, maximumSize: 1 });
+	await manager.begin({ targetId: secondTarget.id, maximumSize: 1 });
+	const writing = manager.writeChunk({ writeId: first.writeId, offset: 0, bytes: Uint8Array.of(1) });
+	await writeStarted;
+
+	let disposalSettled = false;
+	const disposing = manager.dispose();
+	void disposing.then(() => { disposalSettled = true; });
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(disposalSettled, false, 'shutdown waits for the failing admitted write');
+	releaseWrite();
+	await assert.rejects(writing, /injected write failure/u);
+	await disposing;
+
+	assert.deepEqual(events.slice(0, 1), ['write-0']);
+	assert.deepEqual(new Set(events.slice(1)), new Set(['close-0', 'close-1', 'unlink-0', 'unlink-1']));
+});
+
+test('save-session disposal reports every unacknowledged close and unlink', async () => {
+	let handleId = 0;
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => {
+			const id = handleId++;
+			return {
+				async close() {
+					if (id === 0) throw new Error('injected close failure');
+				},
+			};
+		},
+		unlinkImpl: async (path) => {
+			if (path.includes('unlink-failure')) throw new Error('injected unlink failure');
+		},
+	});
+	let target = targets.registerPath('/tmp/close-failure.scape', { purpose: 'project' });
+	await manager.begin({ targetId: target.id, maximumSize: 1 });
+	target = targets.registerPath('/tmp/unlink-failure.scape', { purpose: 'project' });
+	await manager.begin({ targetId: target.id, maximumSize: 1 });
+
+	await assert.rejects(manager.dispose(), (error) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.message, /save staging cleanup failed/u);
+		assert.deepEqual(
+			new Set(error.errors.map((failure) => failure.message)),
+			new Set(['Could not close the temporary save file', 'Could not remove the temporary save file']),
+		);
+		return true;
+	});
+	assert.throws(
+		() => targets.registerPath('/tmp/after-cleanup-failure.scape', { purpose: 'project' }),
+		/disposed/u,
+	);
+});
+
+test('save-session disposal reports cleanup failure from an admitted failed finish', async () => {
+	let markSyncStarted;
+	let releaseSync;
+	const syncStarted = new Promise((resolve) => { markSyncStarted = resolve; });
+	const syncGate = new Promise((resolve) => { releaseSync = resolve; });
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => ({
+			async sync() {
+				markSyncStarted();
+				await syncGate;
+				throw new Error('injected sync failure');
+			},
+			async close() { throw new Error('injected close failure'); },
+		}),
+		unlinkImpl: async () => { throw new Error('injected unlink failure'); },
+	});
+	const target = targets.registerPath('/tmp/finish-cleanup-failure.scape', { purpose: 'project' });
+	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId);
+	await syncStarted;
+	const disposing = manager.dispose();
+	releaseSync();
+
+	await assert.rejects(finishing, /Could not commit the saved file/u);
+	await assert.rejects(disposing, (error) => (
+		error instanceof AggregateError
+		&& error.errors.length === 2
+		&& /save staging cleanup failed/u.test(error.message)
+	));
+});
+
+test('save-session disposal waits for an admitted finish to cross its commit boundary', async () => {
+	let markSyncStarted;
+	let releaseSync;
+	const syncStarted = new Promise((resolve) => { markSyncStarted = resolve; });
+	const syncGate = new Promise((resolve) => { releaseSync = resolve; });
+	const events = [];
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => ({
+			async sync() {
+				events.push('sync');
+				markSyncStarted();
+				await syncGate;
+			},
+			async close() { events.push('close'); },
+		}),
+		renameImpl: async () => { events.push('rename'); },
+		unlinkImpl: async () => { events.push('unlink'); },
+	});
+	const target = targets.registerPath('/tmp/finish-shutdown-race.scape', { purpose: 'project' });
+	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId);
+	await syncStarted;
+
+	let disposalSettled = false;
+	const disposing = manager.dispose();
+	void disposing.then(() => { disposalSettled = true; });
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(disposalSettled, false, 'shutdown waits for an admitted finish');
+	releaseSync();
+	assert.deepEqual(await finishing, { byteLength: 0 });
+	await disposing;
+
+	assert.deepEqual(events, ['sync', 'close', 'rename']);
+	await assert.rejects(manager.finish(session.writeId), /shutting down|disposed/u);
+});
+
+test('save-session disposal cannot overtake an admitted atomic rename', async () => {
+	let markRenameStarted;
+	let releaseRename;
+	const renameStarted = new Promise((resolve) => { markRenameStarted = resolve; });
+	const renameGate = new Promise((resolve) => { releaseRename = resolve; });
+	const events = [];
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => ({
+			async sync() { events.push('sync'); },
+			async close() { events.push('close'); },
+		}),
+		renameImpl: async () => {
+			events.push('rename');
+			markRenameStarted();
+			await renameGate;
+		},
+		unlinkImpl: async () => { events.push('unlink'); },
+	});
+	const target = targets.registerPath('/tmp/rename-shutdown-race.scape', { purpose: 'project' });
+	const session = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	const finishing = manager.finish(session.writeId);
+	await renameStarted;
+
+	let disposalSettled = false;
+	const disposing = manager.dispose();
+	void disposing.then(() => { disposalSettled = true; });
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(disposalSettled, false, 'shutdown waits for the atomic rename');
+	releaseRename();
+	await Promise.all([finishing, disposing]);
+
+	assert.deepEqual(events, ['sync', 'close', 'rename']);
+});
+
+test('navigation abort remains reusable for later save admission', async () => {
+	const events = [];
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({
+		targets,
+		openImpl: async () => ({
+			async close() { events.push('close'); },
+		}),
+		unlinkImpl: async () => { events.push('unlink'); },
+	});
+	let target = targets.registerPath('/tmp/navigation-before.scape', { purpose: 'project' });
+	await manager.begin({ targetId: target.id, maximumSize: 1 });
+	await manager.abortAll();
+
+	target = targets.registerPath('/tmp/navigation-after.scape', { purpose: 'project' });
+	const replacement = await manager.begin({ targetId: target.id, maximumSize: 1 });
+	await manager.abort(replacement.writeId);
+	assert.deepEqual(events, ['close', 'unlink', 'close', 'unlink']);
+	await manager.dispose();
+});

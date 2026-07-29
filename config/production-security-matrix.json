@@ -664,6 +664,17 @@
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
 					]
+				},
+				{
+					"id": "terminal-save-shutdown-quiescence",
+					"summary": "Shutdown synchronously rejects new target and save-session admission, drains operations admitted before the fence through any sync-and-rename commit, aborts remaining or late-opened staging, and exposes one idempotent disposal barrier that rejects on unacknowledged handle close or staging removal.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "implementation", "path": "desktop/application-lifecycle.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" },
+						{ "kind": "test", "path": "tests/desktop-application-lifecycle.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [

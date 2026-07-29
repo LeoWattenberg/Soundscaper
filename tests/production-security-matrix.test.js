@@ -279,6 +279,22 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		cancellation.residualRisks.some(({ id }) => id === 'cross-context-storage-maintenance'),
 		false,
 	);
+	const desktopWrite = risks.get('desktop-write-path-capabilities');
+	const saveShutdown = desktopWrite.currentControls.find(
+		({ id }) => id === 'terminal-save-shutdown-quiescence',
+	);
+	assert.ok(saveShutdown);
+	for (const path of [
+		'desktop/save-targets.js',
+		'desktop/main.mjs',
+		'desktop/application-lifecycle.ts',
+		'tests/desktop-save.test.js',
+		'tests/desktop-application-lifecycle.test.ts',
+	]) assert.ok(saveShutdown.evidence.some((item) => item.path === path));
+	assert.match(
+		saveShutdown.summary,
+		/synchronously rejects new target and save-session admission.*sync-and-rename.*late-opened staging.*idempotent disposal barrier.*rejects on unacknowledged handle close or staging removal/iu,
+	);
 });
 
 test('security claims point to checked-in implementation and verification evidence', async () => {

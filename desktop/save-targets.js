@@ -11,6 +11,7 @@ import { validateDeclaredSize } from './validation.js';
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 
 export class SaveTargetStore {
+	#disposed = false;
 	#entries = new Map();
 	#now;
 	#randomBytes;
@@ -23,6 +24,7 @@ export class SaveTargetStore {
 	}
 
 	registerPath(filePath, { purpose } = {}) {
+		if (this.#disposed) throw new Error('Save target store is disposed');
 		const id = this.#newId();
 		const entry = { id, path: filePath, name: basename(filePath), purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
 		entry.timer = setTimeout(() => this.release(id), this.#ttlMs);
@@ -51,6 +53,8 @@ export class SaveTargetStore {
 	}
 
 	dispose() {
+		if (this.#disposed) return;
+		this.#disposed = true;
 		for (const id of [...this.#entries.keys()]) this.release(id);
 	}
 
@@ -62,7 +66,11 @@ export class SaveTargetStore {
 }
 
 export class AtomicSaveManager {
+	#cleanupErrors = [];
+	#closing = false;
+	#disposePromise = null;
 	#open;
+	#operations = new Set();
 	#randomBytes;
 	#rename;
 	#sessions = new Map();
@@ -78,7 +86,11 @@ export class AtomicSaveManager {
 		this.#randomBytes = randomBytesImpl;
 	}
 
-	async begin({ targetId, size, maximumSize }) {
+	begin(options) {
+		return this.#admit(() => this.#begin(options));
+	}
+
+	async #begin({ targetId, size, maximumSize }) {
 		const exactSize = size !== undefined;
 		if (exactSize === (maximumSize !== undefined)) {
 			throw new RangeError('A save requires exactly one exact size or admitted maximum');
@@ -111,7 +123,11 @@ export class AtomicSaveManager {
 		return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
 	}
 
-	async writeChunk({ writeId, offset, bytes }) {
+	writeChunk(options) {
+		return this.#admit(() => this.#writeChunk(options));
+	}
+
+	async #writeChunk({ writeId, offset, bytes }) {
 		const session = this.#session(writeId);
 		if (session.busy) throw new Error('Concurrent save writes are not allowed');
 		const buffer = toBuffer(bytes);
@@ -140,43 +156,106 @@ export class AtomicSaveManager {
 		}
 	}
 
-	async finish(writeId) {
+	finish(writeId) {
+		return this.#admit(() => this.#finish(writeId));
+	}
+
+	async #finish(writeId) {
 		const session = this.#session(writeId);
 		if (session.busy) throw new Error('Save write is still in progress');
 		if (session.exactSize && session.written !== session.admittedSize) {
 			throw new Error('Save ended before the declared size was written');
 		}
 		this.#sessions.delete(session.id);
+		let handleClosed = false;
 		try {
 			await session.handle.sync();
 			await session.handle.close();
+			handleClosed = true;
 			await this.#rename(session.temporaryPath, session.targetPath);
 			return Object.freeze({ byteLength: session.written });
 		} catch (error) {
-			await session.handle.close().catch(() => {});
-			await this.#unlink(session.temporaryPath).catch(() => {});
+			await this.#cleanupSession(session, { closeHandle: !handleClosed });
 			throw new Error('Could not commit the saved file', { cause: error });
 		}
 	}
 
-	async abort(writeId) {
+	abort(writeId) {
+		return this.#admit(() => this.#abort(writeId));
+	}
+
+	async #abort(writeId) {
 		const session = this.#sessions.get(String(writeId || ''));
 		if (!session) return false;
 		if (session.busy) await session.idle;
 		if (this.#sessions.get(session.id) !== session) return false;
 		this.#sessions.delete(session.id);
-		await session.handle.close().catch(() => {});
-		await this.#unlink(session.temporaryPath).catch(() => {});
+		await this.#cleanupSession(session);
 		return true;
 	}
 
-	async abortAll() {
-		await Promise.all([...this.#sessions.keys()].map((id) => this.abort(id)));
+	abortAll() {
+		return this.#admit(() => this.#abortAll());
 	}
 
-	async dispose() {
-		await this.abortAll();
+	dispose() {
+		if (this.#disposePromise) return this.#disposePromise;
+		this.#closing = true;
 		this.#targets.dispose();
+		this.#disposePromise = this.#dispose();
+		return this.#disposePromise;
+	}
+
+	#admit(operation) {
+		if (this.#closing) return Promise.reject(new Error('Save manager is shutting down'));
+		let markComplete;
+		// Disposal drains failures too without taking ownership of the caller's error.
+		const completion = new Promise((resolve) => { markComplete = resolve; });
+		this.#operations.add(completion);
+		let result;
+		try {
+			result = operation();
+		} catch (error) {
+			this.#operations.delete(completion);
+			markComplete();
+			return Promise.reject(error);
+		}
+		return Promise.resolve(result).finally(() => {
+			this.#operations.delete(completion);
+			markComplete();
+		});
+	}
+
+	async #abortAll() {
+		await Promise.all([...this.#sessions.keys()].map((id) => this.#abort(id)));
+	}
+
+	async #dispose() {
+		await Promise.all([...this.#operations]);
+		await this.#abortAll();
+		if (this.#cleanupErrors.length) {
+			throw new AggregateError([...this.#cleanupErrors], 'Desktop save staging cleanup failed');
+		}
+	}
+
+	async #cleanupSession(session, { closeHandle = true } = {}) {
+		const errors = [];
+		if (closeHandle) {
+			try {
+				await session.handle.close();
+			} catch (error) {
+				errors.push(new Error('Could not close the temporary save file', { cause: error }));
+			}
+		}
+		try {
+			await this.#unlink(session.temporaryPath);
+		} catch (error) {
+			if (!isMissingPathError(error)) {
+				errors.push(new Error('Could not remove the temporary save file', { cause: error }));
+			}
+		}
+		this.#cleanupErrors.push(...errors);
+		return errors;
 	}
 
 	#session(id) {
@@ -196,6 +275,10 @@ function toBuffer(value) {
 	if (value instanceof ArrayBuffer) return Buffer.from(value);
 	if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
 	throw new TypeError('Save chunks must be binary data');
+}
+
+function isMissingPathError(error) {
+	return error && typeof error === 'object' && error.code === 'ENOENT';
 }
 
 export const SAVE_LIMITS = Object.freeze({ chunkBytes: MAX_SAVE_CHUNK_BYTES, totalBytes: MAX_SAVE_BYTES });

@@ -516,9 +516,19 @@ models or native implementations.
   window creation, renews its lease, and suppresses intentional-close renewal
   races. One [shutdown barrier](desktop/application-lifecycle.ts) coordinates
   in-flight startup and awaits library, read-capability, and save-session
-  disposal exactly once before process exit. The desktop staging pipeline
-  compiles this runtime to ESM, excludes raw TypeScript from the packaged app,
-  and keeps renderer IPC unchanged. The
+  disposal exactly once before process exit. Atomic save disposal now closes
+  target and session admission synchronously, drains every `begin`, chunk,
+  `finish`, or abort operation admitted before shutdown, lets an admitted
+  `finish` settle through its sync-and-rename commit boundary, and then aborts
+  any remaining or late-opened staging. Unacknowledged handle close or staging
+  removal rejects the failure-aware shutdown barrier instead of reporting a
+  clean exit. Its focused
+  [save-session regression](tests/desktop-save.test.js) injects stalls at open,
+  sync, and rename plus close/unlink failures, proves disposal cannot overtake
+  them, rejects delayed target registration and session work, and keeps
+  navigation cleanup reusable. The
+  desktop staging pipeline compiles this runtime to ESM, excludes raw TypeScript
+  from the packaged app, and keeps renderer IPC unchanged. The
   [desktop regression](tests/desktop-project-library.test.ts) proves atomic
   cross-connection visibility, a real second-process lease holder, stale
   takeover, abortable bounded waiting, interrupted-write recovery, and
@@ -529,7 +539,6 @@ models or native implementations.
   lease release/recovery, serialized failure-aware shutdown, isolated smoke
   data, and importable staged output. Actual project/catalog and managed-media
   commits, explicit cross-product handoff and lease transfer, legacy migration,
-  quiescence for IPC saves still entering `begin` or `finish` during shutdown,
   and packaged OS/architecture lifecycle smoke remain open; no raw path or new
   renderer IPC surface is exposed by this foundation.
 - **Electron Enhanced — Planned:** migrate each existing app library idempotently
