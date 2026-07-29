@@ -22,6 +22,54 @@ test('scape project assets are indexed by exact migrated source identity', () =>
 	assert.equal(indexScapeProjectAssets({ sources: [] }, { assets: [] }).size, 0);
 });
 
+test('current Scape projects bind every rendered fallback digest to its canonical asset', () => {
+	const audio = descriptor('audio-source', 'audio');
+	const video = descriptor('video-source', 'video');
+	const project = featureProject(audio.sha256, [{
+		id: 'shared-fallback-a',
+		featureId: 'org.soundscaper.native.shared-a',
+		displayName: 'Shared fallback A',
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: audio.sourceId, sha256: audio.sha256 },
+	}, {
+		id: 'shared-fallback-b',
+		featureId: 'org.soundscaper.native.shared-b',
+		displayName: 'Shared fallback B',
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: audio.sourceId, sha256: audio.sha256 },
+	}, {
+		id: 'video-fallback',
+		featureId: 'org.soundscaper.native.video-fallback',
+		displayName: 'Video fallback',
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'video', sourceId: video.sourceId, sha256: video.sha256 },
+	}], [
+		{ id: audio.sourceId, kind: audio.kind },
+		{ id: video.sourceId, kind: video.kind },
+	]);
+
+	const indexed = indexScapeProjectAssets(project, { assets: [video, audio] });
+	assert.equal(indexed.get(audio.sourceId), audio);
+	assert.equal(indexed.get(video.sourceId), video);
+	assert.throws(
+		() => indexScapeProjectAssets(featureProject('f'.repeat(64)), { assets: [audio] }),
+		/rendered fallback.*SHA-256.*asset/iu,
+	);
+});
+
+test('future Scape projects leave feature requirements opaque while indexing sources', () => {
+	const audio = descriptor('audio-source', 'audio');
+	const project = {
+		schemaVersion: 10,
+		sources: [{ id: audio.sourceId, kind: audio.kind }],
+	};
+	Object.defineProperty(project, 'featureRequirements', {
+		get() { throw new Error('future feature requirements must remain opaque'); },
+	});
+
+	assert.equal(indexScapeProjectAssets(project, { assets: [audio] }).get(audio.sourceId), audio);
+});
+
 test('scape project assets reject non-bijective or invalid source identities', async (context) => {
 	const audio = descriptor('audio-source', 'audio');
 	const video = descriptor('video-source', 'video');
@@ -106,5 +154,23 @@ function descriptor(sourceId: string, kind: 'audio' | 'video'): ScapeAssetDescri
 		encoding: kind === 'video' ? 'original' : 'audio-f32le-chunks-v1',
 		size: 5,
 		sha256: '0'.repeat(64),
+	};
+}
+
+function featureProject(
+	sha256: string,
+	requirements: readonly Readonly<Record<string, unknown>>[] = [{
+		id: 'fallback-feature',
+		featureId: 'org.soundscaper.native.fallback-feature',
+		displayName: 'Fallback feature',
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: 'audio-source', sha256 },
+	}],
+	sources: readonly Readonly<Record<string, unknown>>[] = [{ id: 'audio-source', kind: 'audio' }],
+): Readonly<Record<string, unknown>> {
+	return {
+		schemaVersion: 9,
+		sources,
+		featureRequirements: { schemaVersion: 1, requirements },
 	};
 }

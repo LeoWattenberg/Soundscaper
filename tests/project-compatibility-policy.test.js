@@ -35,6 +35,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-schema-editing': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
+		'current-scape-rendered-fallback-integrity': 'implemented',
 		'current-controller-feature-report': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -93,7 +94,37 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
-		/does not authenticate.*media bytes.*arbitrary future schemas/iu,
+		/digest integrity.*route-specific.*arbitrary future schemas/iu,
+	);
+
+	const fallbackIntegrity = rules.get('current-scape-rendered-fallback-integrity');
+	assert.deepEqual(fallbackIntegrity.evidence, [
+		'src/common/editor/scape-project-assets.ts',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/scape-archive-video.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-project-assets.test.ts',
+		'tests/audio-editor-scape-feature-requirements.test.ts',
+		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
+		'tests/audio-editor-scape-project.test.js',
+		'tests/audio-editor-scape-streaming-video.test.ts',
+	]);
+	assert.match(
+		fallbackIntegrity.requiredOutcome,
+		/current-format.*exact-current-schema.*rendered fallback.*canonical archive asset.*before publication/iu,
+	);
+	assert.match(
+		fallbackIntegrity.currentBehavior,
+		/export.*snapshot.*admitted project.*source records.*same source snapshots.*normalized fallback manifest.*toJSON.*rejected.*hash.*reject.*manifest.*commit.*import.*before.*collision.*storage.*body.*SHA-256.*publication/iu,
+	);
+	assert.match(
+		fallbackIntegrity.currentBehavior,
+		/inspection.*descriptor binding.*does not read or hash.*asset bodies.*future schemas.*not traversed/iu,
+	);
+	assert.match(
+		fallbackIntegrity.currentBehavior,
+		/copy.*source ID.*digest.*raw-project.*stored-project.*runtime fallback use.*outside/iu,
 	);
 
 	const currentControllerFeatureReport = rules.get('current-controller-feature-report');
@@ -170,7 +201,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.equal(unavailable.status, 'planned');
 	assert.match(
 		unavailable.currentBehavior,
-		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*visible placeholder.*digest verification.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
+		/controller report.*\.scape.*inspection report.*actionable.*pre-open.*read-only.*intrinsically read-only.*archive.*fallback.*integrity.*visible placeholder.*raw.*stored-project.*runtime use.*future-schema archive preservation.*opaque native-state/iu,
 	);
 });
 
@@ -207,7 +238,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /future schemas produce no\s+feature report, and\s+their `featureRequirements` value is not traversed/iu);
 	assert.match(
 		documentation,
-		/programmatic current-format `\.scape`\s+inspection.*selected product.*caller.*override.*exact schema\s+9.*deeply frozen.*before.*collision lookup.*import.*persistence.*activation/isu,
+		/programmatic current-format `\.scape`\s+inspection.*selected product.*caller.*override.*exact schema\s+9.*before.*collision lookup.*deeply\s+frozen.*import.*persistence.*activation/isu,
 	);
 	assert.match(documentation, /Future project\s+schemas.*`null`.*`featureRequirements`.*not traversed/isu);
 	assert.match(documentation, /normal no-collision open.*Open read-only.*Cancel/isu);
@@ -215,6 +246,9 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /Cancel.*before\s+import, persistence, or\s+activation/isu);
 	assert.match(documentation, /controller.*actual project history.*intrinsically read-only/isu);
 	assert.match(documentation, /does not establish arbitrary future-schema archive preservation/iu);
-	assert.match(documentation, /verification of the declared digest\s+against referenced media bytes/iu);
+	assert.match(documentation, /export.*snapshots.*fallback claims.*before.*destination/isu);
+	assert.match(documentation, /inspection.*descriptor binding.*does not read or\s+hash.*asset bodies/isu);
+	assert.match(documentation, /import.*hashes.*asset body.*before.*source or project publication/isu);
+	assert.match(documentation, /raw or stored-project.*does\s+not verify.*fallback bytes.*runtime use/isu);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

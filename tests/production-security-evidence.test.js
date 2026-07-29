@@ -78,6 +78,8 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/project-feature-requirements.ts',
 		'src/common/editor/project-v9.ts',
 		'src/common/editor/retention.js',
+		'src/common/editor/scape-project-assets.ts',
+		'src/common/editor/scape-export-plan.ts',
 		'src/common/editor/scape-project.js',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-report-metadata.ts',
@@ -96,6 +98,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		'tests/audio-editor-project-v9.test.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
 		'tests/audio-editor-scape-feature-requirements.test.ts',
+		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
 		'tests/audio-editor-project-feature-capabilities.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-session.test.js',
@@ -124,12 +127,15 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /one.*decision.*no-collision.*open-read-only.*cancel.*combined.*copy-read-only.*cancel/iu);
 	assert.match(control.summary, /cancel.*before.*import.*persistence.*activation.*actual project history.*intrinsically read-only/iu);
 	assert.match(control.summary, /localized.*stable feature IDs.*declared disposition.*defaults? focus.*Cancel.*Escape/iu);
-	assert.match(control.summary, /does not verify referenced fallback bytes/iu);
+	assert.match(control.summary, /current-format.*exact schema 9.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
+	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
+	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
+	assert.match(control.summary, /raw.*stored-project.*do(?:es)? not verify.*fallback bytes/iu);
 	assert.match(control.summary, /does not.*provide.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
-	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
+	assert.match(documentation, /do(?:es)? not hash or authenticate the referenced media bytes/iu);
 	assert.match(documentation, /current-schema.*current-format `\.scape`.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
 	assert.match(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
@@ -137,6 +143,9 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 9.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
 	assert.match(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);
+	assert.match(documentation, /current-format.*exact schema 9.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
+	assert.match(documentation, /export.*project root.*source records.*same sources.*`toJSON` rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
+	assert.match(documentation, /inspection.*does not hash.*asset bodies.*raw.*stored-project.*do(?:es)? not verify.*fallback bytes/iu);
 	assert.match(documentation, /do not qualify.*runtime fallback use.*post-open.*placeholder.*bypass/iu);
 });
 

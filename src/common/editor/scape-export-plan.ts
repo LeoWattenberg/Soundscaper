@@ -23,6 +23,11 @@ import {
 	maximumScapeStoreArchiveBytes,
 	resolveScapeBlobMaximumBytes,
 } from './scape-export-estimate.ts';
+import {
+	assertScapeProjectFallbackAssets,
+	snapshotScapeProjectFallbackIntegrity,
+	type ScapeProjectFallbackClaim,
+} from './scape-project-assets.ts';
 
 const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
 const PLACEHOLDER_SHA256 = '0'.repeat(64);
@@ -37,8 +42,9 @@ interface ScapeExportSource extends Partial<ScapeAudioSource> {
 }
 
 interface ScapeExportProject extends Record<string, unknown> {
-	readonly schemaVersion?: unknown;
-	readonly sources?: readonly ScapeExportSource[];
+	schemaVersion?: unknown;
+	sources?: readonly ScapeExportSource[];
+	featureRequirements?: unknown;
 }
 
 interface ScapeExportMetadataStore {
@@ -61,6 +67,7 @@ export interface ScapeExportPlan {
 	readonly projectDescriptor: ScapeProjectDescriptor;
 	readonly createdAt: string;
 	readonly assets: readonly PlannedScapeExportAsset[];
+	readonly fallbackClaims: readonly ScapeProjectFallbackClaim[];
 	readonly manifestBytes: number;
 	readonly maximumArchiveBytes: number;
 	readonly maximumBlobBytes: number;
@@ -79,17 +86,27 @@ export async function prepareScapeExport(
 	options: ScapeExportPlanOptions,
 ): Promise<Readonly<ScapeExportPlan>> {
 	if (!isRecord(projectInput)) throw new TypeError('A project is required.');
-	const project = projectInput as ScapeExportProject;
+	const project = snapshotScapeExportProject(projectInput);
+	const projectSchemaVersion = positiveSafeInteger(project.schemaVersion, 'Project schema version');
 	const sourceInputs = project.sources ?? [];
 	if (!Array.isArray(sourceInputs)) throw new TypeError('Project sources must be an array.');
-	if (sourceInputs.length + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+	const sourceCount = sourceInputs.length;
+	if (sourceCount + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
 		throw new RangeError('The project has too many sources for the portable archive.');
 	}
-	const sources = sourceInputs.map(snapshotScapeExportSource);
+	const sources: ScapeExportSource[] = [];
+	for (let index = 0; index < sourceCount; index += 1) {
+		sources.push(snapshotScapeExportSource(sourceInputs[index], index, projectSchemaVersion));
+	}
+	project.sources = Object.freeze(sources);
 	const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(sources);
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
+	const fallbackSnapshot = snapshotScapeProjectFallbackIntegrity(project);
+	if (fallbackSnapshot.featureRequirements) {
+		project.featureRequirements = fallbackSnapshot.featureRequirements;
+	}
 	const projectText = JSON.stringify(project);
 	if (typeof projectText !== 'string') throw new TypeError('The project cannot be serialized.');
 	const projectBytes = TEXT_ENCODER.encode(projectText);
@@ -99,7 +116,7 @@ export async function prepareScapeExport(
 	const projectDescriptor: ScapeProjectDescriptor = Object.freeze({
 		entry: SCAPE_PROJECT_ENTRY,
 		mimeType: 'application/json',
-		schemaVersion: positiveSafeInteger(project.schemaVersion, 'Project schema version'),
+		schemaVersion: projectSchemaVersion,
 		size: projectBytes.byteLength,
 		sha256: digestScapeBytes(projectBytes),
 	});
@@ -166,6 +183,7 @@ export async function prepareScapeExport(
 		projectDescriptor,
 		createdAt,
 		assets: Object.freeze(assets),
+		fallbackClaims: fallbackSnapshot.claims,
 		manifestBytes,
 		maximumArchiveBytes,
 		maximumBlobBytes,
@@ -207,6 +225,10 @@ export function serializeScapeExportManifest(
 			throw new Error('The Scape export manifest drifted from its admitted plan.');
 		}
 	}
+	assertScapeProjectFallbackAssets(
+		plan.fallbackClaims,
+		new Map(assets.map((asset) => [asset.sourceId, asset])),
+	);
 	const manifest = createManifest(plan.createdAt, plan.projectDescriptor, assets);
 	const text = JSON.stringify(manifest);
 	if (TEXT_ENCODER.encode(text).byteLength !== plan.manifestBytes) {
@@ -255,22 +277,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function snapshotScapeExportSource(value: unknown, index: number): ScapeExportSource {
-	if (!isRecord(value)) throw new TypeError(`Project source ${String(index + 1)} must be an object.`);
-	return Object.freeze({
-		kind: value.kind,
-		id: value.id,
-		storageKey: value.storageKey,
-		name: value.name,
-		mimeType: value.mimeType,
-		frameCount: value.frameCount,
-		channelCount: value.channelCount,
-		chunkFrames: value.chunkFrames,
-	} as ScapeExportSource);
+function snapshotScapeExportProject(value: Record<string, unknown>): ScapeExportProject {
+	return snapshotScapeExportRecord(value, 'Project') as ScapeExportProject;
+}
+
+function snapshotScapeExportSource(
+	value: unknown,
+	index: number,
+	projectSchemaVersion: number,
+): ScapeExportSource {
+	const label = `Project source ${String(index + 1)}`;
+	if (!isRecord(value)) throw new TypeError(`${label} must be an object.`);
+	const snapshot = snapshotScapeExportRecord(
+		value,
+		label,
+	) as ScapeExportSource;
+	if (snapshot.kind === undefined) Reflect.set(snapshot, 'kind', 'audio');
+	if (snapshot.kind !== 'audio' && snapshot.kind !== 'video') {
+		throw new TypeError(`${label} kind must be audio or video.`);
+	}
+	if (projectSchemaVersion < 4 && snapshot.kind === 'video') {
+		throw new TypeError(`${label} cannot be video in project schema ${String(projectSchemaVersion)}.`);
+	}
+	if (snapshot.kind !== 'video') {
+		const layout = scapeAudioSourceLayout(snapshot as ScapeAudioSource);
+		if (layout.frameCount < 1) throw new RangeError(`${label} must contain at least one frame.`);
+		Reflect.set(snapshot, 'frameCount', layout.frameCount);
+		Reflect.set(snapshot, 'channelCount', layout.channelCount);
+		Reflect.set(snapshot, 'chunkFrames', layout.chunkFrames);
+	}
+	return Object.freeze(snapshot);
+}
+
+function snapshotScapeExportRecord(value: Record<string, unknown>, label: string): Record<string, unknown> {
+	const snapshot = Object.create(null) as Record<string, unknown>;
+	for (const key of Object.keys(value)) snapshot[key] = value[key];
+	if (typeof snapshot.toJSON === 'function') {
+		throw new TypeError(`${label} toJSON hooks are not supported by portable export.`);
+	}
+	return snapshot;
 }
 
 function nonEmptyString(value: unknown, field: string): string {
-	if (typeof value !== 'string' || !value) throw new TypeError(`${field} is required.`);
+	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required.`);
 	return value;
 }
 

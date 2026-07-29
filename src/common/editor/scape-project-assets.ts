@@ -1,13 +1,34 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ScapeAssetDescriptor } from './scape-archive-envelope.ts';
+import {
+	normalizeProjectFeatureRequirements,
+	type ProjectFeatureFallback,
+	type ProjectFeatureRequirementsManifest,
+} from './project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
 
 interface ScapeProjectWithSources {
+	readonly schemaVersion?: unknown;
+	readonly featureRequirements?: unknown;
 	readonly sources: readonly unknown[];
 }
 
 interface ScapeManifestAssets {
 	readonly assets: readonly ScapeAssetDescriptor[];
+}
+
+export type ScapeProjectFallbackClaim = ProjectFeatureFallback;
+
+const NO_FALLBACK_CLAIMS: readonly ScapeProjectFallbackClaim[] = Object.freeze([]);
+const NO_FALLBACK_SNAPSHOT: ScapeProjectFallbackSnapshot = Object.freeze({
+	featureRequirements: null,
+	claims: NO_FALLBACK_CLAIMS,
+});
+
+export interface ScapeProjectFallbackSnapshot {
+	readonly featureRequirements: ProjectFeatureRequirementsManifest | null;
+	readonly claims: readonly ScapeProjectFallbackClaim[];
 }
 
 /**
@@ -52,7 +73,42 @@ export function indexScapeProjectAssets(
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
 	}
+	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project).claims, assetBySourceId);
 	return assetBySourceId;
+}
+
+/** Snapshots the bounded normalized fallback contract from the exact current project schema. */
+export function snapshotScapeProjectFallbackIntegrity(project: unknown): ScapeProjectFallbackSnapshot {
+	if (!project || typeof project !== 'object' || Array.isArray(project)) {
+		throw new TypeError('The migrated .scape project must be an object.');
+	}
+	const candidate = project as ScapeProjectWithSources;
+	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return NO_FALLBACK_SNAPSHOT;
+	const sources = projectSources(project) as readonly Readonly<{ id?: unknown; kind?: unknown }>[];
+	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources });
+	const claims = Object.freeze(manifest.requirements.flatMap((requirement) => (
+		requirement.disposition === 'rendered-fallback' && requirement.fallback
+			? [Object.freeze({ ...requirement.fallback })]
+			: []
+	)));
+	return Object.freeze({ featureRequirements: manifest, claims });
+}
+
+/** Binds serialized fallback claims to the completed canonical asset descriptors. */
+export function assertScapeProjectFallbackAssets(
+	claims: readonly ScapeProjectFallbackClaim[],
+	assetBySourceId: ReadonlyMap<string, ScapeAssetDescriptor>,
+): void {
+	for (const claim of claims) {
+		const asset = assetBySourceId.get(claim.sourceId);
+		if (!asset) throw new Error(`The .scape archive is missing rendered fallback source ${claim.sourceId}.`);
+		if (claim.kind !== asset.kind) {
+			throw new Error(`Rendered fallback source ${claim.sourceId} kind does not match its .scape asset.`);
+		}
+		if (claim.sha256 !== asset.sha256) {
+			throw new Error(`Rendered fallback source ${claim.sourceId} SHA-256 does not match its .scape asset.`);
+		}
+	}
 }
 
 function projectSources(project: unknown): readonly unknown[] {

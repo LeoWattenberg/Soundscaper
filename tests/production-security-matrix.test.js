@@ -178,14 +178,29 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'tests/audio-editor-scape-project-assets.test.ts',
 		'tests/audio-editor-scape-archive-envelope.test.ts',
 		'tests/audio-editor-scape-project.test.js',
-	]) {
-		assert.ok(
-			sourceBijection.evidence.some((item) => item.path === path),
-			`project source bijection needs evidence from ${path}`,
-		);
-	}
+	]) assert.ok(
+		sourceBijection.evidence.some((item) => item.path === path),
+		`project source bijection needs evidence from ${path}`);
 	assert.match(sourceBijection.summary, /equal source\/descriptor counts.*case-sensitive source IDs.*audio\/video kinds.*before.*storage call/iu);
-
+	const fallbackIntegrity = archiveStructure.currentControls.find(
+		({ id }) => id === 'rendered-fallback-asset-integrity');
+	assert.ok(fallbackIntegrity);
+	for (const path of [
+		'src/common/editor/scape-project-assets.ts',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-archive-media.ts', 'src/common/editor/scape-archive-video.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-scape-project-assets.test.ts',
+		'tests/audio-editor-scape-feature-requirements.test.ts',
+		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
+		'tests/audio-editor-scape-project.test.js', 'tests/audio-editor-scape-streaming-video.test.ts',
+	]) assert.ok(
+		fallbackIntegrity.evidence.some((item) => item.path === path),
+		`rendered fallback integrity needs evidence from ${path}`);
+	assert.match(
+		fallbackIntegrity.summary,
+		/exact schema 9.*claim.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*toJSON rewrites.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*inspection.*does not hash.*asset bodies/iu,
+	);
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');
 	assert.equal(archiveExpansion.releaseGate.status, 'satisfied');

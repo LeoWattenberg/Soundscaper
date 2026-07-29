@@ -79,12 +79,14 @@ The same selected product service now powers a programmatic current-format `.sca
 inspection report. The composition root snapshots the selected product
 and injects its evaluator as provider-owned state, so caller options cannot
 override it. After archive integrity and project-source validation, exact schema
-9 is evaluated into a deeply frozen `featureRequirementsCompatibility` report
-before any project collision lookup. Inspection performs no import, persistence,
-or activation. Future project schemas return `null`, and their
-`featureRequirements` value is not traversed.
-This report does not verify or activate rendered fallbacks, and it is not a
-third-party activation gate.
+9 fallback claims are bound by source ID, kind, and SHA-256 to their canonical
+manifest asset before evaluation and any project collision lookup. The deeply
+frozen `featureRequirementsCompatibility` report therefore follows descriptor
+binding, but inspection does not read or hash asset bodies and performs no
+import, persistence, or activation. Future project schemas return `null`, and
+their `featureRequirements` value is not traversed. This report does not claim
+body verification or activate rendered fallbacks, and it is not a third-party
+activation gate.
 
 The maintained normal no-collision open workflow now turns an incompatible
 exact-schema-9 report into an explicit choice: **Open read-only** or **Cancel**.
@@ -119,14 +121,28 @@ and history compaction therefore retain that source metadata, current-format
 export includes its source asset with the full manifest, and reopen preserves
 the normalized manifest and its evaluation semantics. When a copy import
 rewrites colliding source identity, it rewrites the known fallback descriptor
-reference through the same mapping.
+reference through the same mapping while preserving the digest.
+
+The maintained export plan snapshots the admitted project root and complete
+source records before its first asynchronous asset operation, then serializes
+those same source records and the same bounded normalized fallback manifest into
+`project.json`. Project- and source-level `toJSON` hooks are rejected rather than
+allowed to rewrite that admitted serialization. Export hashes the actual
+canonical audio or video asset output and rejects a claim-to-descriptor mismatch
+before writing the manifest or committing a destination. Inspection and import perform the same
+claim-to-manifest descriptor binding before compatibility evaluation, collision
+lookup, or transactional storage. Import additionally hashes each extracted
+asset body against that descriptor before source or project publication. Thus
+inspection remains metadata-only; descriptor binding there does not read or
+hash the potentially reference-scale asset bodies.
 
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 post-open unavailable-feature placeholders or per-feature bypass controls,
-verification of the declared digest against referenced media bytes, runtime use
-of fallback media, or a general opaque native-state round trip. Those outcomes
-remain governed by the planned compatibility rows and roadmap exit gate.
+or a general opaque native-state round trip. A raw or stored-project load does
+not verify fallback bytes, and runtime use of fallback media is not implemented.
+Those outcomes remain governed by the planned compatibility rows and roadmap
+exit gate.
 
 ## Opaque state
 

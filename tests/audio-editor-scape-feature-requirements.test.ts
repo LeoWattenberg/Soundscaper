@@ -4,7 +4,14 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js';
+import {
+	BlobReader,
+	BlobWriter,
+	TextReader,
+	TextWriter,
+	ZipReader,
+	ZipWriter,
+} from '@zip.js/zip.js';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
@@ -16,14 +23,19 @@ import {
 	validateAudioEditorProjectV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import {
+	exportScapeProject,
+	importScapeProject,
+	inspectScapeProject,
+} from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_SOURCE_ID = 'rendered-fallback-source';
 const FALLBACK_STORAGE_KEY = 'rendered-fallback-storage';
-const FALLBACK_DIGEST = 'ab'.repeat(32);
+const FALLBACK_SAMPLES = [0.25, -0.5, 0.75, 0] as const;
+const FALLBACK_DIGEST = audioAssetDigest(FALLBACK_SAMPLES);
 const NATIVE_FEATURE_ID = 'org.soundscaper.native.spectral-repair';
 const FALLBACK_FEATURE_ID = 'org.soundscaper.native.linear-phase-eq';
 
@@ -40,7 +52,7 @@ test('schema-V9 feature requirements retain their compatibility semantics throug
 	const sourceStore = memoryStore('scape-feature-roundtrip-source');
 	const targetStore = memoryStore('scape-feature-roundtrip-target');
 	const project = featureProject('scape-feature-roundtrip');
-	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, [0.25, -0.5, 0.75, 0]);
+	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 
 	const exported = await exportScapeProject(project, sourceStore);
 	const imported = await importScapeProject(exported.blob, targetStore) as ScapeImportResult;
@@ -75,7 +87,7 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 		native: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 		fallback: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 	});
-	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, [0.25, -0.5, 0.75, 0]);
+	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 	const exported = await exportScapeProject(project, sourceStore);
 	assert.ok(exported.blob instanceof Blob);
 	const service = createScapeProjectFileService({
@@ -101,6 +113,88 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 	assert.equal(Object.isFrozen(report.items), true);
 });
 
+test('Scape inspection rejects a fallback digest mismatch before evaluation or collision lookup', async () => {
+	const sourceStore = memoryStore('scape-feature-inspection-mismatch-source');
+	const project = featureProject('scape-feature-inspection-mismatch');
+	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
+	const exported = await exportScapeProject(project, sourceStore);
+	assert.ok(exported.blob instanceof Blob);
+	const mismatched = await rewriteFallbackDigest(exported.blob, 'f'.repeat(64));
+	let evaluations = 0;
+	let collisionReads = 0;
+
+	await assert.rejects(
+		() => inspectScapeProject(mismatched, {
+			loadProject() {
+				collisionReads += 1;
+				return null;
+			},
+		}, {
+			projectFeatureCompatibility: {
+				evaluate() {
+					evaluations += 1;
+					return null;
+				},
+			},
+		}),
+		/rendered fallback.*SHA-256.*asset/iu,
+	);
+	assert.equal(evaluations, 0);
+	assert.equal(collisionReads, 0);
+});
+
+test('Scape copy import rejects a fallback digest mismatch before transactional store access', async () => {
+	const sourceStore = memoryStore('scape-feature-import-mismatch-source');
+	const project = featureProject('scape-feature-import-mismatch');
+	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
+	const exported = await exportScapeProject(project, sourceStore);
+	assert.ok(exported.blob instanceof Blob);
+	const mismatched = await rewriteFallbackDigest(exported.blob, 'f'.repeat(64));
+	const backingStore = memoryStore('scape-feature-import-mismatch-target');
+	await backingStore.saveProject(createAudioEditorProjectV9({
+		id: project.id,
+		title: 'Existing mismatch target',
+		now: NOW,
+	}));
+	await persistFallbackSource(backingStore, FALLBACK_SOURCE_ID, [1, 1, 1, 1]);
+	const beforeProjects = await backingStore.listProjects();
+	const beforeSources = await backingStore.listSources();
+	const calls = {
+		loadProject: 0,
+		getSourceMetadata: 0,
+		beginSourceWrite: 0,
+		saveProject: 0,
+	};
+	const targetStore = new Proxy(backingStore, {
+		get(target, property, receiver) {
+			const value: unknown = Reflect.get(target, property, receiver);
+			if (typeof value !== 'function') return value;
+			if (typeof property === 'string' && Object.hasOwn(calls, property)) {
+				const operation = property as keyof typeof calls;
+				return (...args: unknown[]) => {
+					calls[operation] += 1;
+					return Reflect.apply(value, target, args);
+				};
+			}
+			return value.bind(target);
+		},
+	});
+
+	await assert.rejects(
+		() => importScapeProject(mismatched, targetStore, { collision: 'copy' }),
+		/rendered fallback.*SHA-256.*asset/iu,
+	);
+	assert.deepEqual(calls, {
+		loadProject: 0,
+		getSourceMetadata: 0,
+		beginSourceWrite: 0,
+		saveProject: 0,
+	});
+	assert.deepEqual(await backingStore.listProjects(), beforeProjects);
+	assert.deepEqual(await backingStore.listSources(), beforeSources);
+	assert.deepEqual(await storedSamples(backingStore, FALLBACK_SOURCE_ID), [1, 1, 1, 1]);
+});
+
 test('pre-open Scape inspection leaves future project feature requirements opaque', async () => {
 	const archive = await futureProjectArchive();
 	const service = createScapeProjectFileService({
@@ -121,7 +215,7 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	const sourceStore = memoryStore('scape-feature-copy-source');
 	const targetStore = memoryStore('scape-feature-copy-target');
 	const project = featureProject('scape-feature-collision', FALLBACK_STORAGE_KEY);
-	await persistFallbackSource(sourceStore, FALLBACK_STORAGE_KEY, [0.25, -0.5, 0.75, 0]);
+	await persistFallbackSource(sourceStore, FALLBACK_STORAGE_KEY, FALLBACK_SAMPLES);
 	await targetStore.saveProject(createAudioEditorProjectV9({
 		id: project.id,
 		title: 'Existing project',
@@ -146,6 +240,7 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.notEqual(copied.project.id, project.id);
 	assert.notEqual(copiedSourceId, FALLBACK_SOURCE_ID);
 	assert.equal(copiedFallback?.sourceId, copiedSourceId);
+	assert.equal(copiedFallback?.sha256, FALLBACK_DIGEST);
 	assert.equal(Object.isFrozen(copied.project.featureRequirements), true);
 	assert.ok(await targetStore.getSourceMetadata(FALLBACK_SOURCE_ID));
 	assert.ok(await targetStore.getSourceMetadata(copiedSourceId));
@@ -163,6 +258,7 @@ function featureProject(
 	id: string,
 	storageKey = FALLBACK_SOURCE_ID,
 	featureIds = { native: NATIVE_FEATURE_ID, fallback: FALLBACK_FEATURE_ID },
+	fallbackDigest = FALLBACK_DIGEST,
 ): AudioEditorProjectV9 {
 	const source = createAudioSourceV9({
 		id: FALLBACK_SOURCE_ID,
@@ -195,7 +291,7 @@ function featureProject(
 				fallback: {
 					kind: 'audio',
 					sourceId: FALLBACK_SOURCE_ID,
-					sha256: FALLBACK_DIGEST,
+					sha256: fallbackDigest,
 				},
 			}],
 		},
@@ -238,7 +334,13 @@ async function futureProjectArchive(): Promise<Blob> {
 		id: 'future-feature-project',
 		title: 'Future feature project',
 		sources: [],
-		featureRequirements: null,
+		featureRequirements: {
+			schemaVersion: 999,
+			requirements: [{
+				disposition: 'rendered-fallback',
+				fallback: { kind: 'future', sourceId: 'missing', sha256: 'not-a-digest' },
+			}],
+		},
 	});
 	const projectBytes = new TextEncoder().encode(projectText);
 	const manifest = {
@@ -261,4 +363,69 @@ async function futureProjectArchive(): Promise<Blob> {
 	await writer.add('project.json', new TextReader(projectText), { level: 0, zip64: true });
 	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
 	return writer.close(undefined, { zip64: true });
+}
+
+function audioAssetDigest(samples: readonly number[]): string {
+	const bytes = Buffer.alloc(4 + samples.length * Float32Array.BYTES_PER_ELEMENT);
+	bytes.writeUInt32LE(samples.length, 0);
+	for (const [index, sample] of samples.entries()) {
+		bytes.writeFloatLE(sample, 4 + index * Float32Array.BYTES_PER_ELEMENT);
+	}
+	return createHash('sha256').update(bytes).digest('hex');
+}
+
+async function rewriteFallbackDigest(blob: Blob, sha256: string): Promise<Blob> {
+	const reader = new ZipReader(new BlobReader(blob), { useWebWorkers: false });
+	try {
+		const entries = (await reader.getEntries()).map(scapeFixtureEntry);
+		const projectEntry = entries.find(({ filename }) => filename === 'project.json');
+		const manifestEntry = entries.find(({ filename }) => filename === 'manifest.json');
+		assert.ok(projectEntry);
+		assert.ok(manifestEntry);
+		const project = JSON.parse(await projectEntry.getData(new TextWriter())) as AudioEditorProjectV9;
+		const fallback = project.featureRequirements.requirements.find(
+			(requirement) => requirement.disposition === 'rendered-fallback',
+		)?.fallback;
+		assert.ok(fallback);
+		Reflect.set(fallback, 'sha256', sha256);
+		const projectText = JSON.stringify(project);
+		const projectBytes = new TextEncoder().encode(projectText);
+		const manifest = JSON.parse(await manifestEntry.getData(new TextWriter())) as {
+			project: { size: number; sha256: string };
+		};
+		manifest.project.size = projectBytes.byteLength;
+		manifest.project.sha256 = createHash('sha256').update(projectBytes).digest('hex');
+		const writer = new ZipWriter(new BlobWriter('application/vnd.soundscaper.scape+zip'), {
+			level: 0,
+			useWebWorkers: false,
+			zip64: true,
+		});
+		for (const entry of entries) {
+			if (entry.filename === 'project.json') {
+				await writer.add(entry.filename, new TextReader(projectText), { level: 0, zip64: true });
+			} else if (entry.filename === 'manifest.json') {
+				await writer.add(entry.filename, new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
+			} else {
+				const asset = await entry.getData(new BlobWriter());
+				await writer.add(entry.filename, asset.stream(), { level: 0, zip64: true });
+			}
+		}
+		return writer.close(undefined, { zip64: true });
+	} finally {
+		await reader.close();
+	}
+}
+
+interface ScapeFixtureEntry {
+	readonly filename: string;
+	getData(writer: TextWriter): Promise<string>;
+	getData(writer: BlobWriter): Promise<Blob>;
+}
+
+function scapeFixtureEntry(value: unknown): ScapeFixtureEntry {
+	if (!value || typeof value !== 'object' || typeof Reflect.get(value, 'filename') !== 'string'
+		|| typeof Reflect.get(value, 'getData') !== 'function') {
+		throw new TypeError('Expected a Scape fixture file entry.');
+	}
+	return value as ScapeFixtureEntry;
 }

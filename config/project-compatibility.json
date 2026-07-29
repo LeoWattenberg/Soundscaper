@@ -70,7 +70,7 @@
 			"id": "current-scape-feature-requirements",
 			"status": "implemented",
 			"requiredOutcome": "A current-schema portable archive retains the normalized feature-requirements manifest and every fallback-only source asset, including consistent known source-reference rewriting on copy collisions.",
-			"currentBehavior": "Schema 9 rendered-fallback descriptors root source metadata during project and history compaction. Current-format .scape export serializes the manifest and every project source asset, import preserves the manifest and its evaluation semantics, and copy import rewrites known fallback source IDs through the same collision map as source identity. This rule does not authenticate descriptor digests against media bytes or cover arbitrary future schemas.",
+			"currentBehavior": "Schema 9 rendered-fallback descriptors root source metadata during project and history compaction. Current-format .scape export serializes the manifest and every project source asset, import preserves the manifest and its evaluation semantics, and copy import rewrites known fallback source IDs through the same collision map as source identity. Digest integrity is governed by the route-specific current-scape-rendered-fallback-integrity rule; arbitrary future schemas remain outside this rule.",
 			"evidence": [
 				"src/common/editor/retention.js",
 				"src/common/editor/project-feature-requirements.ts",
@@ -79,6 +79,24 @@
 				"src/common/editor/scape-project-assets.ts",
 				"tests/audio-editor-feature-requirement-retention.test.ts",
 				"tests/audio-editor-scape-feature-requirements.test.ts"
+			]
+		},
+		{
+			"id": "current-scape-rendered-fallback-integrity",
+			"status": "implemented",
+			"requiredOutcome": "Current-format, exact-current-schema .scape routes bind every rendered fallback claim to its canonical archive asset and reject a kind or digest mismatch before publication.",
+			"currentBehavior": "Export snapshots the admitted project root and complete source records before asynchronous asset work and serializes the same source snapshots and bounded normalized fallback manifest used for validation. Project- and source-level toJSON hooks are rejected so they cannot rewrite the admitted serialization; export then hashes every emitted source body and rejects a mismatch against the completed descriptors before manifest write or destination commit. Import and inspection bind each exact-schema-9 fallback source ID, kind, and SHA-256 to the canonical manifest asset before collision lookup or storage; import then verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not read or hash asset bodies. Copy import rewrites the source ID while preserving the verified digest. Future schemas return and featureRequirements is not traversed. Raw-project and stored-project loads plus runtime fallback use remain outside this route-specific integrity rule.",
+			"evidence": [
+				"src/common/editor/scape-project-assets.ts",
+				"src/common/editor/scape-export-plan.ts",
+				"src/common/editor/scape-archive-media.ts",
+				"src/common/editor/scape-archive-video.ts",
+				"src/common/editor/scape-project.js",
+				"tests/audio-editor-scape-project-assets.test.ts",
+				"tests/audio-editor-scape-feature-requirements.test.ts",
+				"tests/audio-editor-scape-export-fallback-integrity.test.ts",
+				"tests/audio-editor-scape-project.test.js",
+				"tests/audio-editor-scape-streaming-video.test.ts"
 			]
 		},
 		{
@@ -103,7 +121,7 @@
 			"id": "current-scape-pre-open-feature-report",
 			"status": "implemented",
 			"requiredOutcome": "Current-format portable archive inspection evaluates maintained project feature requirements against the selected product before collision lookup, import, persistence, or activation without interpreting future project schemas.",
-			"currentBehavior": "The selected product is snapshotted through the shared compatibility service and injected into inspection as a provider-owned option after caller options, so a caller cannot override it. After current-format archive integrity and project-source validation, exact schema 9 is evaluated before project collision lookup and returned as a deeply frozen featureRequirementsCompatibility report. Future project schemas return null and featureRequirements is not traversed. This programmatic surface is the foundation for the maintained open decision; it does not verify fallback bytes, use fallbacks at runtime, or gate third-party activation.",
+			"currentBehavior": "The selected product is snapshotted through the shared compatibility service and injected into inspection as a provider-owned option after caller options, so a caller cannot override it. After current-format archive integrity, project-source validation, and rendered-fallback claim-to-descriptor binding, exact schema 9 is evaluated before project collision lookup and returned as a deeply frozen featureRequirementsCompatibility report. Inspection does not hash asset bodies. Future project schemas return null and featureRequirements is not traversed. This programmatic surface is the foundation for the maintained open decision; it does not use fallbacks at runtime or gate third-party activation.",
 			"evidence": [
 				"src/common/editor/project-feature-capabilities.ts",
 				"src/common/editor/controller/project-feature-compatibility-service.ts",
@@ -187,7 +205,7 @@
 			"status": "planned",
 			"milestone": "2",
 			"requiredOutcome": "Unavailable native features remain visible and bypassable, retain editable opaque state, declare requirements, and reference an audible or visible fallback when available.",
-			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Post-open visible placeholders and per-feature bypass UI, referenced-media digest verification and fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
+			"currentBehavior": "The schema 9 manifest, evaluator, retention roots, current-format .scape paths, selected-product controller report, and current-format .scape inspection report preserve and classify declared requirements. Maintained opens now provide an actionable pre-open read-only or cancel decision, and the controller still makes an activated project with an unavailable or unknown requirement intrinsically read-only. Current-format exact-schema .scape archive fallback integrity verifies the declared digest against the canonical asset, while inspection performs pre-collision descriptor binding without reading asset bodies. Post-open visible placeholders and per-feature bypass UI, raw- and stored-project fallback-byte verification, fallback runtime use, arbitrary future-schema archive preservation, and a general opaque native-state round trip are not implemented.",
 			"evidence": [
 				"src/common/editor/project-feature-requirements.ts",
 				"src/common/editor/project-v9.ts",

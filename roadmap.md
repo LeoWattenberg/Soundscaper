@@ -781,10 +781,12 @@ models or native implementations.
   clones, and is exposed on the document snapshot.
   The same selected-product service now powers programmatic current-format
   `.scape` inspection: provider-owned capability evaluation cannot be replaced
-  by caller options, exact schema V9 is evaluated into a deeply frozen
-  compatibility report after archive and source validation but before collision
-  lookup, and inspection performs no import, persistence, or activation. Future
-  project schemas return `null` without traversing `featureRequirements`.
+  by caller options. After archive and source validation, every exact-schema-V9
+  rendered-fallback claim is bound by source ID, kind, and SHA-256 to its
+  canonical manifest asset before compatibility evaluation or collision lookup.
+  Inspection returns a deeply frozen report but does not read or hash asset
+  bodies and performs no import, persistence, or activation. Future project
+  schemas return `null` without traversing `featureRequirements`.
   Maintained workspace/UI file opens now surface incompatible exact-schema-V9 reports
   before native import: no-collision opens require **Open read-only** or
   **Cancel**, while an ID collision is combined into one **Open as read-only
@@ -793,12 +795,19 @@ models or native implementations.
   availability, and declared dispositions, defaults focus to Cancel, and keeps
   Escape focus restoration. Acceptance passes only the existing copy policy;
   the controller still evaluates the actual history before activation and
-  enforces intrinsic read-only state. Actual fallback digest verification and
-  runtime use, post-open unavailable-feature placeholders and per-feature bypass
-  UI, arbitrary future-schema archive preservation, and opaque native-state
-  round trips remain planned. Third-party discovery, loading, and isolation
-  remain separate later surfaces rather than blockers for this first-party
-  contract.
+  enforces intrinsic read-only state. Export snapshots the admitted project root
+  and complete source records before asynchronous asset work, serializes those
+  same sources and the bounded normalized fallback manifest used for validation,
+  rejects project/source `toJSON` rewrite hooks, hashes completed canonical asset
+  output, and rejects a mismatch before manifest write or destination commit. Import binds
+  claims before collision or storage, then hashes each extracted body against
+  its descriptor before source or project publication; copy remapping changes
+  the source ID without changing the digest. Raw- and stored-project fallback
+  verification and runtime use, post-open unavailable-feature placeholders and
+  per-feature bypass UI, arbitrary future-schema archive preservation, and
+  opaque native-state round trips remain planned. Third-party discovery,
+  loading, and isolation remain separate later surfaces rather than blockers
+  for this first-party contract.
 
 ### Exit gate
 
@@ -817,8 +826,8 @@ models or native implementations.
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
   pre-open compatibility decision. This exit remains open until its subsequent
-  `.scape` round trip is faithful for the remaining fallback and opaque-state
-  contract.
+  `.scape` round trip is faithful for runtime fallback behavior, raw/stored
+  fallback integrity, and the remaining opaque-state contract.
 
 ## 3. Parallel editorial foundations
 

@@ -223,12 +223,14 @@
 			"currentControls": [
 				{
 					"id": "project-schema-and-forward-read-validation",
-					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. Current-schema, current-format .scape paths preserve the manifest and fallback-only source assets, including collision remapping. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 9 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot. Current-format .scape inspection receives the same selected-product evaluator as a provider-owned option that caller options cannot override; exact schema 9 is evaluated after archive and source validation but before project collision lookup and returns a deep-frozen report, while future schemas return null and featureRequirements is not traversed. Maintained workspace/UI file-open routes turn incompatible exact-schema reports into one closed decision: no-collision permits only open-read-only or cancel, and a combined incompatibility and collision permits only copy-read-only or cancel. Cancel settles before native import, persistence, or activation. Acceptance passes only copy into native open, after which the controller reevaluates the actual project history and enforces it as intrinsically read-only. The localized dialog shows bounded display names, stable feature IDs, availability, and declared disposition, defaults focus to Cancel, and supports Escape dismissal and focus restoration. The low-level native-open API and third-party activation remain outside this control. This control does not verify referenced fallback bytes or provide runtime fallback use, post-open unavailable-feature placeholders, or per-feature bypass UI.",
+					"summary": "Core project migration validates retained schemas and opens newer schemas as opaque clones read-only without overwriting them. Schema 9 normalizes a bounded declarative feature-requirements manifest into a deep-frozen clone, rejecting duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax. Its pure evaluator classifies caller-declared availability without executing project-supplied identifiers or mutating the manifest. Current-schema, current-format .scape paths preserve the manifest and fallback-only source assets, including collision remapping. On current-format exact schema 9 routes, each rendered-fallback claim is bound to its canonical asset descriptor before collision lookup or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project/source toJSON rewrites, and hashes completed asset output before manifest write or destination commit; import verifies each asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding but does not hash asset bodies. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 9 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot. Current-format .scape inspection receives the same selected-product evaluator as a provider-owned option that caller options cannot override; exact schema 9 is evaluated after archive and source validation but before project collision lookup and returns a deep-frozen report, while future schemas return null and featureRequirements is not traversed. Maintained workspace/UI file-open routes turn incompatible exact-schema reports into one closed decision: no-collision permits only open-read-only or cancel, and a combined incompatibility and collision permits only copy-read-only or cancel. Cancel settles before native import, persistence, or activation. Acceptance passes only copy into native open, after which the controller reevaluates the actual project history and enforces it as intrinsically read-only. The localized dialog shows bounded display names, stable feature IDs, availability, and declared disposition, defaults focus to Cancel, and supports Escape dismissal and focus restoration. The low-level native-open API and third-party activation remain outside this control. Raw and stored-project loads do not verify fallback bytes. This control does not provide runtime fallback use, post-open unavailable-feature placeholders, or per-feature bypass UI.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/migration.js" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-requirements.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-v9.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/retention.js" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project-assets.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-plan.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-capabilities.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-report-metadata.ts" },
@@ -248,6 +250,7 @@
 						{ "kind": "test", "path": "tests/audio-editor-project-v2.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-feature-requirement-retention.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-feature-requirements.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-export-fallback-integrity.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-feature-capabilities.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-session.test.js" },
@@ -396,6 +399,22 @@
 						{ "kind": "test", "path": "tests/audio-editor-scape-project-assets.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" }
+					]
+				},
+				{
+					"id": "rendered-fallback-asset-integrity",
+					"summary": "For current-format exact schema 9 archives, every rendered-fallback claim is bound to its canonical asset descriptor before compatibility evaluation, collision lookup, or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project/source toJSON rewrites, and compares each completed, actually hashed asset digest before manifest write or destination commit. Import verifies the extracted asset body size and SHA-256 before source or project publication. Inspection performs descriptor binding only and does not hash asset bodies; future-schema feature requirements remain opaque.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-project-assets.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-export-plan.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-video.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project-assets.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-feature-requirements.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-export-fallback-integrity.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" }
 					]
 				}
 			],
