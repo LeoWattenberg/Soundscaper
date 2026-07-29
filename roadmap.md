@@ -201,14 +201,16 @@ reviewable gates before expanding the schema or native boundary.
   [security regression](tests/production-security-matrix.test.js) keeps partial
   controls visible, verifies the satisfied current-surface archive-expansion
   gate, and prevents planned helper and plug-in surfaces from being treated as
-  enabled. Controlled FFmpeg publication, desktop staging, pre-pack
-  verification, and the current Soundscaper public desktop-release assembler
-  now share one [checked-in policy manifest](config/ffmpeg-runtime-manifest.json)
-  and [offline invalid-preflight/post-stage-tamper regression](tests/ffmpeg-runtime-manifest.test.js).
-  This closes repository-owned publication admission only; independently
-  authenticated approval, browser-side runtime authentication, remote pointer
-  qualification, packaged-resource revalidation, and rollback caching remain
-  planned.
+  enabled. Controlled FFmpeg publication, desktop staging, pre-pack and
+  packaged-resource verification, and the current Soundscaper public
+  desktop-release assembler now share one
+  [checked-in policy manifest](config/ffmpeg-runtime-manifest.json) with
+  [offline invalid-preflight/post-stage-tamper](tests/ffmpeg-runtime-manifest.test.js)
+  and [post-copy package-tamper](tests/desktop-packaged-ffmpeg-runtime.test.js)
+  regressions. This closes repository-owned publication admission and the
+  Electron extra-resource copy boundary; independently authenticated approval,
+  browser-side runtime authentication, remote pointer qualification, and
+  rollback caching remain planned.
 - **Shared — Implemented:** the
   [licensing and provenance matrix](config/production-licensing-matrix.json)
   derives the exact production lockfile closure and separates every web,

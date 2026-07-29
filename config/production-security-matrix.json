@@ -993,16 +993,17 @@
 				},
 				{
 					"id": "desktop-fuse-and-package-integrity",
-					"summary": "Desktop packaging applies Electron fuses and checks packaged ASAR integrity before preview smoke tests.",
+					"summary": "Desktop packaging verifies copied FFmpeg runtime, manifest, and notice bytes before applying Electron fuses, and checks packaged ASAR integrity before preview smoke tests.",
 					"evidence": [
 						{ "kind": "implementation", "path": "scripts/desktop-after-pack.mjs" },
 						{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" },
+						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				},
 				{
 					"id": "validated-ffmpeg-runtime-publication",
-					"summary": "One checked-in, self-consistent FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under a fixed tested code policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before desktop preparation deletes its build root, before the current Soundscaper public desktop-release assembler reads its asset directory, or before the publisher invokes Wrangler. The assembler requires exact Soundscaper product/target manifests and a version-matched package inventory before network access. Desktop runtime staging is transactional, and both staging and upload consume private snapshots of bytes retained by validation. Electron Builder's beforePack hook rejects staged runtime-summary, manifest, or notice drift present when the hook runs; publication authorizations mirror the fail-closed licensing gates. Offline regressions prove invalid preflight never enters desktop assembly or invokes Wrangler and tested staged drift is rejected at beforePack. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval.",
+					"summary": "One checked-in, self-consistent FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under a fixed tested code policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before desktop preparation deletes its build root, before the current Soundscaper public desktop-release assembler reads its asset directory, or before the publisher invokes Wrangler. The assembler requires exact Soundscaper product/target manifests and a version-matched package inventory before network access. Desktop runtime staging is transactional, and both staging and upload consume private snapshots of bytes retained by validation. Electron Builder's beforePack hook rejects staged runtime-summary, manifest, or notice drift present when the hook runs; its afterPack hook independently revalidates the copied runtime inventory, manifest, and notice before fuse or signing work. Publication authorizations mirror the fail-closed licensing gates. Offline regressions prove invalid preflight never enters desktop assembly or invokes Wrangler, tested staged drift is rejected at beforePack, and post-copy tampering cannot reach fuse work. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval.",
 					"evidence": [
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" },
 						{ "kind": "document", "path": ".gitattributes" },
@@ -1019,8 +1020,10 @@
 						{ "kind": "implementation", "path": "scripts/publish-runtime-assets.mjs" },
 						{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
 						{ "kind": "implementation", "path": "scripts/desktop-before-pack.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-after-pack.mjs" },
 						{ "kind": "implementation", "path": "scripts/desktop-release-assets.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-ffmpeg-runtime.mjs" },
+						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
 						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
 						{ "kind": "test", "path": "tests/ffmpeg-runtime-manifest.test.js" }
 					]
@@ -1040,13 +1043,6 @@
 					"requiredControl": "Require independent approval through protected repository and publication workflows, and bind a signature or immutable CI attestation to the full manifest digest before public authorization can become approved.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["A publication attempt with no independently verifiable approval attestation fails before any remote operation, and an attestation for a different manifest digest is rejected."]
-				},
-				{
-					"id": "desktop-runtime-package-copy-integrity",
-					"exposure": "Electron Builder verifies the live staged runtime and notice in beforePack, then copies those paths into package resources. A mutation after that hook but before or during the copy is not detected by the current afterPack checks.",
-					"requiredControl": "Verify the exact packaged runtime manifest, assets, and notice after extraResources copying, or package from an immutable verified snapshot whose identity is checked in the final artifact.",
-					"ownerMilestone": "8A",
-					"acceptanceCriteria": ["A packaging test mutates staging after beforePack and proves the final package is rejected unless its runtime and notice match the policy manifest."]
 				},
 				{
 					"id": "signed-update-qualification",

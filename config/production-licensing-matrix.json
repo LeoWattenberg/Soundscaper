@@ -301,12 +301,12 @@
 		{
 			"id": "desktop-notice-delivery",
 			"status": "implemented",
-			"evidence": ["electron-builder.config.cjs", "scripts/desktop-release-assets.mjs"]
+			"evidence": ["electron-builder.config.cjs", "scripts/desktop-after-pack.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-packaged-ffmpeg-runtime.test.js"]
 		},
 		{
 			"id": "ffmpeg-runtime-manifest-integrity",
 			"status": "implemented",
-			"evidence": [".gitattributes", ".github/workflows/desktop-preview.yml", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "electron-builder.config.cjs", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/audit-ffmpeg-runtime.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-release-package-inventory.test.js", "tests/ffmpeg-runtime-manifest.test.js"]
+			"evidence": [".gitattributes", ".github/workflows/desktop-preview.yml", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "electron-builder.config.cjs", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/audit-ffmpeg-runtime.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-packaged-ffmpeg-runtime.test.js", "tests/desktop-release-package-inventory.test.js", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "web-notice-delivery",

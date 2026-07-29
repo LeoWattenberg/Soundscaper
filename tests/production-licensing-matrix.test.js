@@ -133,6 +133,11 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-codec-patent-review').status, 'blocked');
+	for (const gateId of ['desktop-notice-delivery', 'ffmpeg-runtime-manifest-integrity']) {
+		for (const path of ['scripts/desktop-after-pack.mjs', 'tests/desktop-packaged-ffmpeg-runtime.test.js']) {
+			assert.ok(gates.get(gateId).evidence.includes(path), `${gateId} must retain post-copy verification evidence`);
+		}
+	}
 	assert.deepEqual(matrix.ffmpeg.enabledExternalLibraries, ENABLED_FFMPEG_LIBRARIES);
 	assert.equal(matrix.ffmpeg.runtimeManifest, 'config/ffmpeg-runtime-manifest.json');
 	assert.equal(matrix.ffmpeg.correspondingSourceManifest, 'desktop/ffmpeg-corresponding-source.json');

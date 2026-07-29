@@ -49,9 +49,11 @@ on every surface. Conversely, a development dependency can be a shipped
 runtime, as Electron demonstrates. Each surface must deliver the notices and,
 where applicable, corresponding source required for the actual artifact.
 Desktop packages copy the repository license, `THIRD_PARTY_LICENSES.md`, and
-the retained license directory. The current web application has no versioned
-route or deployed notice artifact for `THIRD_PARTY_LICENSES.md`; web notice
-delivery therefore remains blocked even though the repository notice exists.
+the retained license directory. Packaging revalidates the copied FFmpeg runtime
+and aggregate notice against the checked-in policy before fuse or signing work.
+The current web application has no versioned route or deployed notice artifact
+for `THIRD_PARTY_LICENSES.md`; web notice delivery therefore remains blocked
+even though the repository notice exists.
 
 ## Provenance evidence
 
