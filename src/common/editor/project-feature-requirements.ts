@@ -39,6 +39,7 @@ export interface ProjectFeatureRequirementsReportItem {
 	readonly featureId: string;
 	readonly displayName: string;
 	readonly availability: ProjectFeatureAvailability;
+	readonly declaredDisposition: ProjectFeatureRequirementDisposition;
 	readonly disposition: ProjectFeatureEffectiveDisposition;
 	readonly fallback: ProjectFeatureFallback | null;
 	readonly message: string;
@@ -297,6 +298,7 @@ export function evaluateProjectFeatureRequirements(
 			featureId: requirement.featureId,
 			displayName: requirement.displayName,
 			availability,
+			declaredDisposition: requirement.disposition,
 			disposition,
 			fallback: requirement.fallback,
 			message,

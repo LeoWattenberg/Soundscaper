@@ -50,7 +50,7 @@ export default function ScapeOpenDecisionDialog({ copy, prompt, onSettle }) {
 							<li key={item.requirementId} data-severity="warning" data-scape-feature-requirement={item.featureId}>
 								<strong>{item.displayName}</strong>
 								<small>{item.featureId}</small>
-								<small>{availabilityCopy(item.availability, copy)} · {dispositionCopy(item.disposition, copy)}</small>
+								<small>{availabilityCopy(item.availability, copy)} · {dispositionCopy(item.declaredDisposition, copy)}</small>
 							</li>
 						))}
 					</ul>
@@ -87,8 +87,8 @@ function availabilityCopy(availability, copy) {
 		: copy.scapeCompatibilityUnavailable;
 }
 
-function dispositionCopy(disposition, copy) {
-	return disposition === 'rendered-fallback'
+function dispositionCopy(declaredDisposition, copy) {
+	return declaredDisposition === 'rendered-fallback'
 		? copy.scapeCompatibilityRenderedFallback
 		: copy.scapeCompatibilityBypassed;
 }

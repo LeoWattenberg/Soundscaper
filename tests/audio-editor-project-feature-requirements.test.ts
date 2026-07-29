@@ -60,15 +60,17 @@ test('feature requirements normalize available, unavailable, and unknown native 
 	assert.deepEqual(report.items.map((item: {
 		requirementId: string;
 		availability: string;
+		declaredDisposition: string;
 		disposition: string;
 	}) => ({
 		requirementId: item.requirementId,
 		availability: item.availability,
+		declaredDisposition: item.declaredDisposition,
 		disposition: item.disposition,
 	})), [
-		{ requirementId: 'available', availability: 'available', disposition: 'native' },
-		{ requirementId: 'unavailable', availability: 'unavailable', disposition: 'bypassed' },
-		{ requirementId: 'unknown', availability: 'unknown', disposition: 'rendered-fallback' },
+		{ requirementId: 'available', availability: 'available', declaredDisposition: 'bypass', disposition: 'native' },
+		{ requirementId: 'unavailable', availability: 'unavailable', declaredDisposition: 'bypass', disposition: 'bypassed' },
+		{ requirementId: 'unknown', availability: 'unknown', declaredDisposition: 'rendered-fallback', disposition: 'rendered-fallback' },
 	]);
 	for (const item of report.items.filter((candidate: {
 		availability: string;
