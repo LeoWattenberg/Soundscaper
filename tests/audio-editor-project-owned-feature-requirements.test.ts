@@ -13,7 +13,11 @@ import {
 import {
 	createAudioEditorProjectV9,
 	createAudioTrackV9,
+	createVideoClipV9,
+	createVideoSourceV9,
+	createVideoTrackV9,
 } from '../src/common/editor/project-v9.ts';
+import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 1 as const, requirements: Object.freeze([]) });
 
@@ -22,11 +26,36 @@ interface MutableRackProject {
 	readonly master: { effects: unknown[] };
 }
 
+interface MutableVideoEffectProject {
+	readonly clips: Array<{ videoEffects: unknown[] }>;
+}
+
 function audioTrackWithEffect(id = 'effect-a') {
 	return createAudioTrackV9({
 		id: 'track-a',
 		name: 'Track A',
 		effects: [createEffect('compressor', { id })],
+	});
+}
+
+function videoSource() {
+	return createVideoSourceV9({
+		id: 'video-source',
+		frameCount: 1,
+		width: 16,
+		height: 16,
+		frameRate: 30,
+		videoCodec: 'vp9',
+	});
+}
+
+function videoClipWithEffect(id = 'video-effect-a', enabled = true) {
+	return createVideoClipV9({
+		id: 'video-clip',
+		sourceId: 'video-source',
+		durationFrames: 1,
+		sourceDurationFrames: 1,
+		videoEffects: [createVideoEffect('pixelate', { id, enabled })],
 	});
 }
 
@@ -51,6 +80,75 @@ test('owned audio-effect requirements follow maintained rack state across create
 	assert.deepEqual(restored.featureRequirements.requirements.map(({ id }) => id), [
 		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
 	]);
+});
+
+test('owned video-effect requirements follow maintained timeline state across create and commit', () => {
+	const project = createAudioEditorProjectV9({
+		sources: [videoSource()],
+		clips: [videoClipWithEffect()],
+		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
+	});
+	assert.deepEqual(project.featureRequirements.requirements, [{
+		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoEffects,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		displayName: 'Video effects',
+		disposition: 'bypass',
+		fallback: null,
+	}]);
+
+	const removed = commitProject(project, (draft: MutableVideoEffectProject) => {
+		draft.clips[0]!.videoEffects = [];
+	}) as unknown as typeof project;
+	assert.deepEqual(removed.featureRequirements.requirements, []);
+
+	const restored = commitProject(removed, (draft: MutableVideoEffectProject) => {
+		draft.clips[0]!.videoEffects = [createVideoEffect('glow', { id: 'restored-video-effect' })];
+	}) as unknown as typeof project;
+	assert.deepEqual(restored.featureRequirements.requirements.map(({ id }) => id), [
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoEffects,
+	]);
+});
+
+test('disabled and Project Bin video effects still declare the owned preservation requirement', () => {
+	for (const project of [createAudioEditorProjectV9({
+		sources: [videoSource()],
+		clips: [videoClipWithEffect('disabled-video-effect', false)],
+		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
+	}), createAudioEditorProjectV9({
+		sources: [videoSource()],
+		projectBin: { clips: [videoClipWithEffect('bin-video-effect')] },
+	})]) {
+		assert.equal(
+			project.featureRequirements.requirements[0]?.featureId,
+			PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		);
+	}
+});
+
+test('audio and video ownership reconcile independently while foreign video state stays inert', () => {
+	const project = createAudioEditorProjectV9({
+		sources: [videoSource()],
+		clips: [videoClipWithEffect()],
+		tracks: [
+			audioTrackWithEffect(),
+			createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] }),
+		],
+	});
+	assert.deepEqual(project.featureRequirements.requirements.map(({ id }) => id), [
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoEffects,
+	]);
+
+	const inert = reconcileProjectOwnedFeatureRequirements({
+		clips: [{
+			kind: 'audio',
+			videoEffects: [createVideoEffect('pixelate', { id: 'forged-audio-video-effect' })],
+		}, {
+			kind: 'video',
+			videoEffects: [{ id: 'foreign-video-effect', type: 'org.example.foreign' }],
+		}],
+	}, EMPTY_MANIFEST);
+	assert.strictEqual(inert, EMPTY_MANIFEST);
 });
 
 test('disabled and inactive maintained effects still declare preservation requirements, while missing effects do not', () => {
@@ -113,18 +211,40 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 	assert.deepEqual(reconciled.requirements, [explicit]);
 });
 
+test('explicit video-effect requirements win without being overwritten or duplicated', () => {
+	const explicit = {
+		id: 'publisher-video-bypass',
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		displayName: 'Publisher video effects',
+		disposition: 'bypass' as const,
+		fallback: null,
+	};
+	const project = createAudioEditorProjectV9({
+		sources: [videoSource()],
+		clips: [videoClipWithEffect()],
+		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
+		featureRequirements: { schemaVersion: 1, requirements: [explicit] },
+	});
+	assert.deepEqual(project.featureRequirements.requirements, [explicit]);
+});
+
 test('the reserved owned ID fails closed on a conflicting publisher declaration', () => {
-	assert.throws(() => reconcileProjectOwnedFeatureRequirements(
+	for (const [id, project] of [[
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
 		{ tracks: [audioTrackWithEffect()] },
-		{
+	], [
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoEffects,
+		{ clips: [videoClipWithEffect()] },
+	]] as const) {
+		assert.throws(() => reconcileProjectOwnedFeatureRequirements(project, {
 			...EMPTY_MANIFEST,
 			requirements: [{
-				id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
+				id,
 				featureId: 'org.example.conflict',
 				displayName: 'Conflicting requirement',
 				disposition: 'bypass',
 				fallback: null,
 			}],
-		},
-	), /reserved.*audio.*requirement|owned.*requirement.*conflict/iu);
+		}), /reserved.*(?:audio|video).*requirement|owned.*requirement.*conflict/iu);
+	}
 });
