@@ -258,6 +258,33 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	}
 	assert.ok(implementedControls.has('bounded-streaming-media-extraction'));
 	const cancellation = risks.get('long-job-cancellation');
+	const scapeInspection = cancellation.currentControls.find(
+		({ id }) => id === 'owned-scape-inspection-lifecycle',
+	);
+	assert.ok(scapeInspection);
+	for (const path of [
+		'src/common/editor/controller/scape-inspection-service.ts',
+		'src/common/editor/controller/action-facade.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/app.js',
+		'tests/audio-editor-scape-inspection-service.test.ts',
+		'tests/audio-editor-scape-inspection-controller.test.ts',
+		'tests/audio-editor-controller-action-facade.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+	]) assert.ok(scapeInspection.evidence.some((item) => item.path === path));
+	assert.match(
+		scapeInspection.summary,
+		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*closes its archive reader/iu,
+	);
+	const projectIoResidual = cancellation.residualRisks.find(
+		({ id }) => id === 'project-io-signal-propagation',
+	);
+	assert.ok(projectIoResidual);
+	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
+	assert.match(
+		projectIoResidual.exposure,
+		/inspection store lookup.*no abortable repository API.*do not join inspection cleanup.*collision continuation.*outside controller lifetime.*AUP4.*whole-file desktop reads/iu,
+	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',
 	);

@@ -863,6 +863,20 @@
 					]
 				},
 				{
+					"id": "owned-scape-inspection-lifecycle",
+					"summary": "Public .scape inspection starts one distinct named controller task before archive work, snapshots caller options, and composes the caller signal with the owned signal. Replacement, project switching, and terminal disposal synchronously abort ownership; a post-await current-task check rejects signal-ignoring late results, and finally releases completed tasks. Focused regressions preserve exact cancellation reasons, pin switch cancellation before awaited project work, verify composition-root routing, and prove the inspection promise closes its archive reader on disposal.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/scape-inspection-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/action-facade.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-switch-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/app.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-inspection-controller.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-controller-action-facade.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" }
+					]
+				},
+				{
 					"id": "streamed-media-maintenance-abort",
 					"summary": "Within one project-store instance, every streamed-writer begin that passes synchronous argument and signal validation registers with the per-store lifecycle before its first awaited backend operation. After staging preparation returns, the admission attaches its chunk-token or OPFS-path identity and terminal writer abort before begin can return. Clear establishes a temporary admission fence and close a permanent one; both reject later begins, signal and drain captured pre-staging begins, abort staged chunk or OPFS sinks and active writers, and cannot settle while a pre-fence begin could still return a live writer or publish late state. A cleanup failure rejects the maintenance barrier instead of reporting successful quiescence.",
 					"evidence": [
@@ -952,7 +966,7 @@
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The tested native .scape open/save and direct-save publication paths now propagate and roll back cancellation, but inspection has no owned controller task and AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports do not share that qualified contract.",
+					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection now owns cancellation and rejects stale results. The inspection store lookup still has no abortable repository API, project switching and controller disposal do not join inspection cleanup, and the post-inspection collision continuation remains outside controller lifetime; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]

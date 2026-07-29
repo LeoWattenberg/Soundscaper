@@ -19,6 +19,7 @@ import {
 	type ProjectSwitchServiceRuntime,
 	type ProjectSwitchState,
 } from '../src/common/editor/controller/project-switch-service.ts';
+import { SCAPE_INSPECTION_TASK } from '../src/common/editor/controller/scape-inspection-service.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -270,6 +271,19 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(fixture.events.includes('save-project:next-project'));
 	assert.equal(nativeSave.signal.aborted, true);
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
+});
+
+test('project activation aborts an in-flight Scape inspection before switching', async () => {
+	const fixture = createFixture();
+	const inspection = fixture.lifetime.startTask(SCAPE_INSPECTION_TASK);
+	inspection.signal.addEventListener('abort', () => { fixture.events.push('abort-inspection'); }, { once: true });
+
+	await fixture.service.switchProject(project('next-project'));
+
+	assert.equal(inspection.signal.aborted, true);
+	assert.ok(inspection.signal.reason instanceof DOMException);
+	assert.equal(inspection.signal.reason.name, 'AbortError');
+	assert.ok(fixture.events.indexOf('abort-inspection') < fixture.events.indexOf('stop-recording'));
 });
 
 test('the project queue prevents a second activation from overlapping source loading', async () => {

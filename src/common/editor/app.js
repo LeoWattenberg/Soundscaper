@@ -95,7 +95,6 @@ import {
 	SCAPE_MIME_TYPE,
 	exportScapeProject,
 	importScapeProject,
-	inspectScapeProject,
 } from './scape-project.js';
 import {
 	applyAudioSelectionEffectAsync,
@@ -175,6 +174,7 @@ import {
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
+import { createScapeInspectionService } from './controller/scape-inspection-service.ts';
 import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
@@ -1704,7 +1704,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
 		getProjectBinClipVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
-		importEffectPresets, importFiles, importLabelFile, inspectScapeProject,
+		importEffectPresets, importFiles, importLabelFile, inspectScape: createScapeInspectionService({ lifetime, store }).inspect,
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,

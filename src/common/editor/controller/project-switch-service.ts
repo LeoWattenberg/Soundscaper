@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
+import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
 	ProjectLifecycleCopy,
 	ProjectLifecycleHistory,
@@ -218,6 +219,7 @@ export function createProjectSwitchService<
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		try {
 			runtime.projectGeneration.invalidate();
+			runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK);
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();
 			runtime.state.videoEffectGestures.clear();

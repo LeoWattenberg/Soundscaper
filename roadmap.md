@@ -362,7 +362,21 @@ models or native implementations.
   drain, so an older admitted commit cannot overtake a newer save to the same
   destination. Cancellation or project switching before FSA
   close/desktop rename aborts staging; a successful commit remains truthfully
-  reported even if the task is cancelled immediately afterward. The
+  reported even if the task is cancelled immediately afterward. Public
+  inspection now routes through a strict-TS
+  [lifecycle service](src/common/editor/controller/scape-inspection-service.ts)
+  that starts a distinct named task before archive work, snapshots options,
+  composes caller cancellation with controller ownership, rejects late results
+  after replacement, project switching, or disposal, and releases completed
+  tasks in `finally`. Its focused
+  [service regression](tests/audio-editor-scape-inspection-service.test.ts),
+  [public-controller regression](tests/audio-editor-scape-inspection-controller.test.ts),
+  and project-switch coverage preserve exact abort reasons, pin cancellation
+  before awaited switch work, and prove the inspection promise closes its
+  reader on disposal. This is an abort and stale-result contract, not a drain:
+  storage collision lookup is not independently interruptible, controller
+  switching/disposal does not await inspection cleanup, and the collision
+  dialog continuation remains outside controller lifetime. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused

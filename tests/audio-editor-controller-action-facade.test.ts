@@ -110,3 +110,23 @@ test('controller action facade exposes explicit safe storage operations', async 
 	await cleanupDerivatives();
 	assert.deepEqual(calls, ['refresh', 'persist', 'cleanup', 'cleanup-derivatives']);
 });
+
+test('controller action facade routes Scape inspection through its owned service', async () => {
+	const calls: unknown[][] = [];
+	const base = createRuntime();
+	const expected = Object.freeze({ id: 'inspected-project' });
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'inspectScape') return (...args: unknown[]) => { calls.push(args); return expected; };
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const inspect = actions.project.inspectScape;
+	if (typeof inspect !== 'function') throw new TypeError('Scape inspection must be callable.');
+	const file = new Blob(['scape']);
+	const options = { marker: 'owned-service' };
+
+	assert.equal(await inspect(file, options), expected);
+	assert.deepEqual(calls, [[file, options]]);
+});
