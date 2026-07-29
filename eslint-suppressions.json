@@ -29,11 +29,6 @@
       "count": 2
     }
   },
-  "src/common/aup3.js": {
-    "no-useless-assignment": {
-      "count": 1
-    }
-  },
   "src/common/editor/app.js": {
     "no-unused-vars": {
       "count": 1
