@@ -91,11 +91,7 @@ import {
 	createSmoothSampleRange,
 	persistImmutableSampleEdit,
 } from './sample-edit.js';
-import {
-	SCAPE_MIME_TYPE,
-	exportScapeProject,
-	importScapeProject,
-} from './scape-project.js';
+import { SCAPE_MIME_TYPE, exportScapeProject, importScapeProject } from './scape-project.js';
 import {
 	applyAudioSelectionEffectAsync,
 	estimateAudioSelectionEffectOutputFrames,
@@ -174,7 +170,7 @@ import {
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
-import { createScapeInspectionService } from './controller/scape-inspection-service.ts';
+import { createScapeProjectFileService } from './controller/scape-project-file-service.ts';
 import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
@@ -1685,6 +1681,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRecordingTrackRoute,
 		streamAudioChannelCount,
 	});
+	const { inspectScape, openScapeFile } = createScapeProjectFileService({ lifetime, store, openScape });
 	const actions = guardControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
@@ -1704,11 +1701,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
 		getProjectBinClipVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
-		importEffectPresets, importFiles, importLabelFile, inspectScape: createScapeInspectionService({ lifetime, store }).inspect,
+		importEffectPresets, importFiles, importLabelFile, inspectScape,
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
-		openAudacityProject, openAup4, openProject, openScape, overwriteClips,
+		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,

@@ -40,7 +40,9 @@ test('public Scape inspection is lifetime-owned and closes its reader on disposa
 	try {
 		await controller.ready;
 		const inspect = controller.actions.project.inspectScape;
+		const open = controller.actions.project.openScapeFile;
 		if (typeof inspect !== 'function') throw new TypeError('Scape inspection must be callable.');
+		if (typeof open !== 'function') throw new TypeError('Scape file open must be callable.');
 		const pending = inspect(new Blob(['synthetic archive']), {
 			archiveReaderFactory: (_input: Blob, signal?: AbortSignal) => {
 				assert.ok(signal);

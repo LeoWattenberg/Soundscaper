@@ -21,6 +21,7 @@ import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
+import { useScapeCollisionContinuation } from './useScapeCollisionContinuation.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
@@ -53,7 +54,6 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');
-	const [scapeCollision, setScapeCollision] = useState(null);
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [showArmControls, setShowArmControls] = useState(false);
 	const [automationToolEnabled, setAutomationToolEnabled] = useState(false);
@@ -72,9 +72,13 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
-	const scapeCollisionResolverRef = useRef(null);
 	const editorRef = useRef(null);
 	const workspaceRef = useRef(null);
+	const {
+		requestScapeCollision,
+		scapeCollision,
+		settleScapeCollision,
+	} = useScapeCollisionContinuation();
 	const {
 		floatingToolbarPosition,
 		floatingToolbarRef,
@@ -212,17 +216,9 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		setDialog('projects');
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
-	const openScapeFile = useCallback(async (file) => {
-		const inspected = await controller.actions.project.inspectScape(file);
-		if (!inspected.exists) return controller.actions.project.openScape(file, { collision: 'copy' });
-		return new Promise((resolve, reject) => {
-			scapeCollisionResolverRef.current = { resolve, reject };
-			setScapeCollision({ file, inspected });
-		});
-	}, [controller]);
 	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
-		? openScapeFile(file)
-		: controller.actions.project.openAudacityProject(file)), [controller, openScapeFile]);
+		? controller.actions.project.openScapeFile(file, requestScapeCollision)
+		: controller.actions.project.openAudacityProject(file)), [controller, requestScapeCollision]);
 	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
 		const routed = partitionWorkspaceFiles(files);
 		for (const file of routed.projects) await openProjectFile(file);
@@ -236,19 +232,6 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		for (const file of routed.labels) await controller.actions.labels.importFile(file);
 		return files.length;
 	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
-	const settleScapeCollision = useCallback((choice) => {
-		const pending = scapeCollisionResolverRef.current;
-		const file = scapeCollision?.file;
-		scapeCollisionResolverRef.current = null;
-		setScapeCollision(null);
-		if (!pending) return;
-		if (choice === 'cancel') {
-			pending.resolve({ cancelled: true });
-			return;
-		}
-		Promise.resolve(controller.actions.project.openScape(file, { collision: choice }))
-			.then(pending.resolve, pending.reject);
-	}, [controller, scapeCollision]);
 	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
 		const files = [];

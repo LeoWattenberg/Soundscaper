@@ -130,3 +130,23 @@ test('controller action facade routes Scape inspection through its owned service
 	assert.equal(await inspect(file, options), expected);
 	assert.deepEqual(calls, [[file, options]]);
 });
+
+test('controller action facade routes Scape file opens through continuation ownership', async () => {
+	const calls: unknown[][] = [];
+	const base = createRuntime();
+	const expected = Object.freeze({ cancelled: true });
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'openScapeFile') return (...args: unknown[]) => { calls.push(args); return expected; };
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const open = actions.project.openScapeFile;
+	if (typeof open !== 'function') throw new TypeError('Scape file open must be callable.');
+	const file = new Blob(['scape']);
+	const choose = () => 'cancel';
+
+	assert.equal(await open(file, choose), expected);
+	assert.deepEqual(calls, [[file, choose]]);
+});

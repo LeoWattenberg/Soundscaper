@@ -5,6 +5,7 @@ import {
 	RECORDING_METER_SETTINGS_STORAGE_KEY,
 	productStorageKey,
 } from '../meter-settings.ts';
+import { isExpectedWorkspaceCancellation } from './scape-collision-continuation.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -70,6 +71,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	const uiFlags = parityUi.flags;
 
 	const onError = useCallback((error) => {
+		if (isExpectedWorkspaceCancellation(error)) return;
 		const message = error instanceof Error ? error.message : String(error || copy.unknownError);
 		setLocalError(copy.genericError.replace('{message}', message));
 	}, [copy.genericError, copy.unknownError]);

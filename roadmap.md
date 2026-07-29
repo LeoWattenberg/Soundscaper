@@ -368,15 +368,27 @@ models or native implementations.
   that starts a distinct named task before archive work, snapshots options,
   composes caller cancellation with controller ownership, rejects late results
   after replacement, project switching, or disposal, and releases completed
-  tasks in `finally`. Its focused
-  [service regression](tests/audio-editor-scape-inspection-service.test.ts),
-  [public-controller regression](tests/audio-editor-scape-inspection-controller.test.ts),
-  and project-switch coverage preserve exact abort reasons, pin cancellation
-  before awaited switch work, and prove the inspection promise closes its
-  reader on disposal. This is an abort and stale-result contract, not a drain:
-  storage collision lookup is not independently interruptible, controller
-  switching/disposal does not await inspection cleanup, and the collision
-  dialog continuation remains outside controller lifetime. The
+  tasks in `finally`. Public file opens add a higher-level
+  [request service](src/common/editor/controller/scape-open-request-service.ts)
+  whose replaceable task spans inspection through the collision choice, is
+  cancelled synchronously before awaited project-switch work, and releases its
+  ownership before native open begins. A React-independent
+  [continuation owner](src/common/editor/ui/workspace/scape-collision-continuation.ts)
+  publishes one opaque file/inspection prompt, settles its exact identity once,
+  rejects and clears stale prompts on replacement, switching, or disposal, and
+  leaves explicit user Cancel as a normal result. The shared dialog shell adds
+  safe initial focus, focus containment, Escape dismissal, and focus
+  restoration, while expected lifecycle unwind is kept out of generic error
+  UI. Focused [inspection](tests/audio-editor-scape-inspection-service.test.ts),
+  [request](tests/audio-editor-scape-open-request-service.test.ts),
+  [continuation](tests/audio-editor-scape-collision-continuation.test.ts),
+  [public-controller](tests/audio-editor-scape-inspection-controller.test.ts),
+  project-switch, and browser coverage preserve exact abort reasons, ignore
+  stale or double choices, pin cancellation before awaited switch work, and
+  prove the inspection promise closes its reader on disposal. This is an abort
+  and stale-result contract, not a drain: storage collision lookup is not
+  independently interruptible, and controller switching/disposal does not
+  await inspection cleanup. The
   [direct-save unit regressions](tests/audio-editor-native-scape-save.test.ts),
   [destination regression](tests/audio-editor-scape-export-destination.test.ts),
   [desktop regressions](tests/desktop-save.test.js), focused

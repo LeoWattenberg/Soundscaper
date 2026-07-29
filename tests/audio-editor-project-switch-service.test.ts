@@ -20,6 +20,7 @@ import {
 	type ProjectSwitchState,
 } from '../src/common/editor/controller/project-switch-service.ts';
 import { SCAPE_INSPECTION_TASK } from '../src/common/editor/controller/scape-inspection-service.ts';
+import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -273,17 +274,28 @@ test('project activation resets scoped state and publishes only after sources ar
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
 });
 
-test('project activation aborts an in-flight Scape inspection before switching', async () => {
+test('project activation aborts in-flight Scape ownership before a queued switch can start', async () => {
 	const fixture = createFixture();
+	const queueGate = deferred<void>();
+	fixture.state.projectQueue = queueGate.promise;
 	const inspection = fixture.lifetime.startTask(SCAPE_INSPECTION_TASK);
+	const openRequest = fixture.lifetime.startTask(SCAPE_OPEN_REQUEST_TASK);
 	inspection.signal.addEventListener('abort', () => { fixture.events.push('abort-inspection'); }, { once: true });
+	openRequest.signal.addEventListener('abort', () => { fixture.events.push('abort-open-request'); }, { once: true });
 
-	await fixture.service.switchProject(project('next-project'));
+	const switching = fixture.service.switchProject(project('next-project'));
 
 	assert.equal(inspection.signal.aborted, true);
 	assert.ok(inspection.signal.reason instanceof DOMException);
 	assert.equal(inspection.signal.reason.name, 'AbortError');
+	assert.equal(openRequest.signal.aborted, true);
+	assert.ok(openRequest.signal.reason instanceof DOMException);
+	assert.equal(openRequest.signal.reason.name, 'AbortError');
+	assert.equal(fixture.events.includes('stop-recording'), false);
+	queueGate.resolve();
+	await switching;
 	assert.ok(fixture.events.indexOf('abort-inspection') < fixture.events.indexOf('stop-recording'));
+	assert.ok(fixture.events.indexOf('abort-open-request') < fixture.events.indexOf('stop-recording'));
 });
 
 test('the project queue prevents a second activation from overlapping source loading', async () => {

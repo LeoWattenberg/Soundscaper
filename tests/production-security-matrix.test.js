@@ -276,14 +276,43 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		scapeInspection.summary,
 		/distinct named controller task.*snapshots caller options.*composes the caller signal.*replacement.*project switching.*terminal disposal.*post-await current-task check.*signal-ignoring late results.*finally releases completed tasks.*closes its archive reader/iu,
 	);
+	const scapeCollisionContinuation = cancellation.currentControls.find(
+		({ id }) => id === 'owned-scape-collision-continuation',
+	);
+	assert.ok(scapeCollisionContinuation);
+	for (const path of [
+		'src/common/editor/controller/scape-open-request-service.ts',
+		'src/common/editor/controller/scape-project-file-service.ts',
+		'src/common/editor/controller/action-facade.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/ui/workspace/scape-collision-continuation.ts',
+		'src/common/editor/ui/workspace/useScapeCollisionContinuation.ts',
+		'src/common/editor/ui/workspace/AudioEditorWorkspace.jsx',
+		'src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx',
+		'src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js',
+		'src/common/editor/ui/AudioEditorDialogShell.tsx',
+		'src/common/editor/app.js',
+		'tests/audio-editor-scape-open-request-service.test.ts',
+		'tests/audio-editor-scape-project-file-service.test.ts',
+		'tests/audio-editor-scape-collision-continuation.test.ts',
+		'tests/audio-editor-scape-inspection-controller.test.ts',
+		'tests/audio-editor-controller-action-facade.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/browser/audio-editor-scape-direct-save.spec.js',
+	]) assert.ok(scapeCollisionContinuation.evidence.some((item) => item.path === path));
+	assert.match(
+		scapeCollisionContinuation.summary,
+		/replaceable request task.*before inspection.*signal.*collision choice.*opaque prompt.*exact identity.*replacement.*project switching.*terminal disposal.*exact cancellation reasons.*explicit user cancel.*finishes.*before native open.*expected lifecycle unwind.*focus/iu,
+	);
 	const projectIoResidual = cancellation.residualRisks.find(
 		({ id }) => id === 'project-io-signal-propagation',
 	);
 	assert.ok(projectIoResidual);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection has no owned controller task/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection store lookup.*no abortable repository API.*do not join inspection cleanup.*collision continuation.*outside controller lifetime.*AUP4.*whole-file desktop reads/iu,
+		/inspection.*collision continuation.*own cancellation.*inspection store lookup.*no abortable repository API.*do not join inspection cleanup.*AUP4.*whole-file desktop reads/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',

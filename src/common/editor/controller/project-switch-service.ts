@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
+import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
 	ProjectLifecycleCopy,
@@ -198,11 +199,17 @@ export function createProjectSwitchService<
 		await switchProject(loaded.project, { readOnly: loaded.readOnly, readOnlyReason });
 	}
 
+	function cancelScapeProjectFileTasks(): void {
+		runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK);
+		runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK);
+	}
+
 	function switchProject(
 		nextProject: Project,
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
+		cancelScapeProjectFileTasks();
 		const operation = runtime.state.projectQueue.then(async () => {
 			runtime.lifetime.assertActive(token);
 			await performProjectSwitch(nextProject, options, token);
@@ -219,7 +226,7 @@ export function createProjectSwitchService<
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		try {
 			runtime.projectGeneration.invalidate();
-			runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK);
+			cancelScapeProjectFileTasks();
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();
 			runtime.state.videoEffectGestures.clear();

@@ -49,6 +49,7 @@ export interface AudioEditorDialogShellProps {
 	readonly closeOnEscape?: boolean;
 	readonly closeOnOutside?: boolean;
 	readonly initialFocus?: InitialFocus;
+	readonly ariaDescribedBy?: string;
 	readonly dataAttributes?: DataAttributes;
 	readonly overlayClassName?: string;
 	readonly overlayDataAttributes?: DataAttributes;
@@ -84,6 +85,7 @@ export default function AudioEditorDialogShell({
 	closeOnEscape = true,
 	closeOnOutside = true,
 	initialFocus = 'first',
+	ariaDescribedBy,
 	dataAttributes = {},
 	overlayClassName = '',
 	overlayDataAttributes = {},
@@ -223,6 +225,7 @@ export default function AudioEditorDialogShell({
 				role="dialog"
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
+				aria-describedby={ariaDescribedBy}
 				resizeLabel={`Resize: ${title}`}
 				style={{
 					width: `min(${resolvedWidth}, calc(100vw - 32px))`,

@@ -65,14 +65,35 @@ test.describe('direct Scape save publication', () => {
 		expect(saved.pickerOptions.types[0].accept['application/vnd.soundscaper.scape+zip']).toEqual(['.scape']);
 
 		const archive = Buffer.concat(saved.chunks.map((chunk) => Buffer.from(chunk)));
-		await editor.locator('[data-aup4-input]').setInputFiles({
+		const projectInput = editor.locator('[data-aup4-input]');
+		const fileMenu = editor.getByRole('menuitem', { name: 'File', exact: true });
+		await fileMenu.focus();
+		await projectInput.setInputFiles({
 			name: 'direct.scape',
 			mimeType: 'application/vnd.soundscaper.scape+zip',
 			buffer: archive,
 		});
 		const collision = page.getByRole('dialog', { name: 'Project already exists', exact: true });
 		await expect(collision).toBeVisible();
-		await collision.getByRole('button', { name: 'Open as copy', exact: true }).click();
+		await expect(collision).toHaveAccessibleDescription(/has the same ID\.$/u);
+		const openAsCopy = collision.getByRole('button', { name: 'Open as copy', exact: true });
+		await expect(openAsCopy).toBeFocused();
+		const resize = collision.getByRole('button', { name: 'Resize: Project already exists', exact: true });
+		await resize.focus();
+		await page.keyboard.press('Tab');
+		await expect(collision.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(collision).toBeHidden();
+		await expect(fileMenu).toBeFocused();
+
+		await projectInput.setInputFiles({
+			name: 'direct.scape',
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+			buffer: archive,
+		});
+		await expect(collision).toBeVisible();
+		await expect(openAsCopy).toBeFocused();
+		await openAsCopy.click();
 		await expect(editor.locator('[data-project-name]')).toContainText('copy');
 		expect(errors).toEqual([]);
 	});

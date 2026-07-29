@@ -1,5 +1,7 @@
 import React from 'react';
-import { Button, DialogHeader } from '@dilsonspickles/components';
+import { Button } from '@dilsonspickles/components';
+
+import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -50,6 +52,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		snapshot,
 		toggleWorkspacePanel,
 	} = model;
+	const scapeCollisionDescriptionId = React.useId();
 	return <>
 
 			{capabilities.audioEffects && effectWindow && (
@@ -222,21 +225,27 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				/>
 			)}
 			{scapeCollision && (
-				<div className="kw-audio-editor-dialog-backdrop" onMouseDown={(event) => {
-					if (event.target === event.currentTarget) settleScapeCollision('cancel');
-				}}>
-					<section className="kw-audio-editor-dialog" role="dialog" aria-modal="true" aria-label={copy.scapeCollisionTitle}>
-						<DialogHeader title={copy.scapeCollisionTitle} os="windows" onClose={() => settleScapeCollision('cancel')} />
-						<div className="kw-audio-editor-dialog__body">
-							<p>{copy.scapeCollisionMessage.replace('{title}', scapeCollision.inspected.title)}</p>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button autoFocus onClick={() => settleScapeCollision('copy')}>{copy.scapeOpenAsCopy}</Button>
-								<Button variant="secondary" onClick={() => settleScapeCollision('replace')}>{copy.projectBinReplace}</Button>
-								<Button variant="secondary" onClick={() => settleScapeCollision('cancel')}>{copy.cancel}</Button>
-							</div>
-						</div>
-					</section>
-				</div>
+				<AudioEditorDialogShell
+					title={copy.scapeCollisionTitle}
+					onClose={() => settleScapeCollision(scapeCollision, 'cancel')}
+					initialFocus=".audio-editor-scape-collision-copy"
+					ariaDescribedBy={scapeCollisionDescriptionId}
+				>
+					<p id={scapeCollisionDescriptionId}>
+						{copy.scapeCollisionMessage.replace('{title}', scapeCollision.inspected.title)}
+					</p>
+					<div className="kw-audio-editor-dialog__actions">
+						<Button className="audio-editor-scape-collision-copy" onClick={() => settleScapeCollision(scapeCollision, 'copy')}>
+							{copy.scapeOpenAsCopy}
+						</Button>
+						<Button variant="secondary" onClick={() => settleScapeCollision(scapeCollision, 'replace')}>
+							{copy.projectBinReplace}
+						</Button>
+						<Button variant="secondary" onClick={() => settleScapeCollision(scapeCollision, 'cancel')}>
+							{copy.cancel}
+						</Button>
+					</div>
+				</AudioEditorDialogShell>
 			)}
 	</>;
 }
