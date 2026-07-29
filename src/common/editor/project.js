@@ -54,7 +54,6 @@ export const EDITOR_TIMELINE_MINIMUM_SECONDS = 30;
  * @property {AudioEditorEffectV1[]} effects
  * @property {string[]} clipIds
  */
-
 /**
  * Canonical persistence document. PCM is referenced by immutable source keys and
  * never included in undo snapshots or serialized commands.
@@ -269,10 +268,7 @@ export function commitProject(project, mutate, options = {}) {
 	mutate(draft);
 	draft.revision = project.revision + 1;
 	draft.updatedAt = isoTimestamp(options.now);
-	if (draft.schemaVersion === 9) {
-		const featureRequirements = normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources });
-		draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, featureRequirements);
-	}
+	if (draft.schemaVersion === 9) draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources }));
 	validateAudioEditorProject(draft);
 	return draft;
 }
