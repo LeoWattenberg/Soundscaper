@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { getEventListeners } from 'node:events';
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -78,6 +80,82 @@ test('CSP hashes exact inline script bodies and byte ranges are bounded', () => 
 	assert.deepEqual(parseSingleRange('bytes=-3', 10), { start: 7, end: 9, length: 3 });
 	assert.throws(() => parseSingleRange('bytes=20-30', 10), (error) => error.status === 416);
 	assert.throws(() => parseSingleRange('bytes=1-2,4-5', 10), (error) => error.status === 416);
+});
+
+test('capability protocol abort destroys the active read stream and detaches its listener', async () => {
+	const id = 'a'.repeat(64);
+	const destroyed = [];
+	let emitted = false;
+	const stream = new Readable({
+		read() {
+			if (emitted) return;
+			emitted = true;
+			this.push(Buffer.from('chunk'));
+		},
+		destroy(error, callback) {
+			destroyed.push(error);
+			callback(error);
+		},
+	});
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: {
+			get: (candidate) => candidate === id ? {
+				id,
+				size: 5,
+				mimeType: 'application/octet-stream',
+				handle: { createReadStream: () => stream },
+			} : null,
+		},
+	});
+	const controller = new AbortController();
+	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+		signal: controller.signal,
+	});
+	const response = await handler(request);
+	const reader = response.body.getReader();
+	const readerClosed = reader.closed.catch((error) => error);
+	const first = await reader.read();
+	assert.equal(new TextDecoder().decode(first.value), 'chunk');
+	assert.equal(getEventListeners(request.signal, 'abort').length, 1);
+	const streamClosed = new Promise((resolve) => stream.once('close', resolve));
+	const reason = new DOMException('cancel capability response', 'AbortError');
+
+	controller.abort(reason);
+	await streamClosed;
+	assert.equal(destroyed.length, 1);
+	assert.equal(destroyed[0], reason);
+	assert.equal(getEventListeners(request.signal, 'abort').length, 0);
+	assert.equal(await readerClosed, reason);
+});
+
+test('capability protocol removes its abort listener after a normal stream end without close', async () => {
+	const id = 'b'.repeat(64);
+	const stream = Readable.from([Buffer.from('done')], { emitClose: false });
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: {
+			get: (candidate) => candidate === id ? {
+				id,
+				size: 4,
+				mimeType: 'application/octet-stream',
+				handle: { createReadStream: () => stream },
+			} : null,
+		},
+	});
+	const controller = new AbortController();
+	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+		signal: controller.signal,
+	});
+	const response = await handler(request);
+	assert.equal(getEventListeners(request.signal, 'abort').length, 1);
+	const streamEnded = new Promise((resolve) => stream.once('end', resolve));
+
+	assert.equal(await response.text(), 'done');
+	await streamEnded;
+	assert.equal(getEventListeners(request.signal, 'abort').length, 0);
 });
 
 test('file association arguments accept only unique Scape and Audacity project paths', () => {

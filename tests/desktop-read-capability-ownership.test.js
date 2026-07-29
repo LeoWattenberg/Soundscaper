@@ -215,6 +215,28 @@ test('read capability byte admission closes an over-budget candidate', async (co
 	assert.equal(boundaryHandle.closeCalls, 0);
 });
 
+test('production per-owner read bytes allow exactly 512 MiB and refuse the next byte', async (context) => {
+	assert.equal(MAX_READ_CAPABILITY_BYTES_PER_OWNER, 512 * 1024 ** 2);
+	const boundaryHandle = fakeHandle({ size: MAX_READ_CAPABILITY_BYTES_PER_OWNER });
+	const excessHandle = fakeHandle({ size: 1 });
+	const handles = [boundaryHandle, excessHandle];
+	let openCalls = 0;
+	const store = new ReadCapabilityStore({
+		openImpl: async () => handles[openCalls++],
+	});
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+	const boundary = await store.registerPath('/tmp/exact-production-boundary.wav', { owner: OWNER_A });
+
+	await assert.rejects(
+		store.registerPath('/tmp/one-byte-over-production-budget.wav', { owner: OWNER_A }),
+		/byte|capabilit|limit/iu,
+	);
+	assert.equal(openCalls, 2, 'declared size is inspected before aggregate-byte admission');
+	assert.ok(store.get(boundary.id), 'the exact 512 MiB boundary remains published');
+	assert.equal(boundaryHandle.closeCalls, 0);
+	assert.equal(excessHandle.closeCalls, 1, 'the unpublished over-budget candidate is closed');
+});
+
 test('production read capability ceilings cannot be raised through test seams', () => {
 	assert.throws(
 		() => new ReadCapabilityStore({ maximumCount: MAX_READ_CAPABILITIES_PER_OWNER + 1 }),

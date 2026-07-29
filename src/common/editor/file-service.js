@@ -2,8 +2,13 @@ import {
 	createDesktopPreparedSave,
 	createFileSystemPreparedSave,
 } from './file-save-stream.ts';
+import {
+	DESKTOP_READ_HARD_LIMIT_BYTES,
+	materializeDesktopReadBlob,
+} from './desktop-read-materialization.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
+const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
@@ -20,6 +25,7 @@ export function createAudioEditorFileService(options = {}) {
 	const fetchFile = options.fetch || scope.fetch?.bind(scope);
 	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
+	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
 
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
@@ -28,6 +34,7 @@ export function createAudioEditorFileService(options = {}) {
 		getEnvironment: () => bridge?.getEnvironment?.() ?? null,
 		chooseFiles,
 		openReadDescriptor,
+		withReadDescriptors,
 		releaseRead,
 		chooseSaveTarget,
 		prepareSave,
@@ -56,19 +63,49 @@ export function createAudioEditorFileService(options = {}) {
 		return Array.isArray(descriptors) ? descriptors.filter(isReadDescriptor) : [];
 	}
 
-	async function openReadDescriptor(descriptor) {
+	async function openReadDescriptor(descriptor, request = {}) {
 		const FileConstructor = scope.File || globalThis.File;
-		if (typeof FileConstructor === 'function' && descriptor instanceof FileConstructor) return descriptor;
-		if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
-		if (typeof fetchFile !== 'function') throw new Error('Desktop file reads are unavailable.');
-		try {
-			const response = await fetchFile(descriptor.url, { credentials: 'omit', cache: 'no-store' });
-			if (!response?.ok) throw new Error(`Desktop file read failed with status ${response?.status || 'unknown'}.`);
-			const blob = await response.blob();
-			return createNamedFile(blob, descriptor, scope);
-		} finally {
-			await releaseRead(descriptor.id);
+		if (typeof FileConstructor === 'function' && descriptor instanceof FileConstructor) {
+			throwIfAborted(request.signal);
+			return descriptor;
 		}
+		if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
+		return withReadCleanup([descriptor.id], releaseRead, async () => {
+			const blob = await materializeReadDescriptor(descriptor, request.signal);
+			return createNamedFile(blob, descriptor, scope);
+		});
+	}
+
+	async function withReadDescriptors(descriptors, request = {}, consume) {
+		if (!Array.isArray(descriptors)) throw new TypeError('Desktop read descriptors must be an array.');
+		if (typeof consume !== 'function') throw new TypeError('A desktop read consumer is required.');
+		const readIds = uniqueReadIds(descriptors);
+		return withReadCleanup(readIds, releaseRead, async () => {
+			let aggregateBytes = 0;
+			for (const descriptor of descriptors) {
+				if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
+				if (descriptor.size > readMaximumBytes - aggregateBytes) {
+					throw new RangeError('The desktop read aggregate exceeds its admitted maximum.');
+				}
+				aggregateBytes += descriptor.size;
+			}
+			throwIfAborted(request.signal);
+			const files = [];
+			for (const descriptor of descriptors) {
+				const blob = await materializeReadDescriptor(descriptor, request.signal);
+				files.push(createNamedFile(blob, descriptor, scope));
+			}
+			return consume(Object.freeze(files));
+		});
+	}
+
+	async function materializeReadDescriptor(descriptor, signal) {
+		if (typeof fetchFile !== 'function') throw new Error('Desktop file reads are unavailable.');
+		return materializeDesktopReadBlob(descriptor, {
+			fetch: fetchFile,
+			signal: signal ?? NEVER_ABORTED_READ_SIGNAL,
+			maximumBytes: readMaximumBytes,
+		});
 	}
 
 	async function releaseRead(id) {
@@ -240,7 +277,56 @@ function subscribeBridgeEvent(bridge, method, listener) {
 }
 
 function isReadDescriptor(value) {
-	return Boolean(value && typeof value === 'object' && value.id != null && typeof value.url === 'string' && value.url);
+	return Boolean(value && typeof value === 'object'
+		&& value.id != null
+		&& typeof value.url === 'string' && value.url
+		&& Number.isSafeInteger(value.size) && value.size >= 0);
+}
+
+function desktopReadMaximum(value) {
+	if (value === undefined) return DESKTOP_READ_HARD_LIMIT_BYTES;
+	const maximum = value;
+	if (!Number.isSafeInteger(maximum) || maximum < 0 || maximum > DESKTOP_READ_HARD_LIMIT_BYTES) {
+		throw new RangeError('The desktop read maximum must not exceed its hard limit.');
+	}
+	return maximum;
+}
+
+function uniqueReadIds(descriptors) {
+	return [...new Set(descriptors
+		.map((descriptor) => descriptor?.id)
+		.filter((id) => id != null)
+		.map(String))];
+}
+
+async function withReadCleanup(readIds, release, operation) {
+	let value;
+	let primaryError;
+	let operationFailed = false;
+	try {
+		value = await operation();
+	} catch (error) {
+		operationFailed = true;
+		primaryError = error;
+	}
+	const cleanupResults = await Promise.allSettled(readIds.map((id) => release(id)));
+	const cleanupErrors = cleanupResults
+		.filter((result) => result.status === 'rejected')
+		.map((result) => result.reason);
+	if (operationFailed) {
+		if (cleanupErrors.length) {
+			throw new AggregateError(
+				[primaryError, ...cleanupErrors],
+				'The desktop read failed and its capability cleanup was incomplete.',
+				{ cause: primaryError },
+			);
+		}
+		throw primaryError;
+	}
+	if (cleanupErrors.length) {
+		throw new AggregateError(cleanupErrors, 'Desktop read capability cleanup was incomplete.');
+	}
+	return value;
 }
 
 function createNamedFile(blob, descriptor, scope) {

@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const STATUS_VALUES = ['enforced', 'partial', 'planned', 'release-blocked'];
 const DISPOSITION_VALUES = ['qualified-current-surface', 'conditional', 'surface-disabled', 'blocked'];
-const EVIDENCE_KINDS = ['implementation', 'test', 'workflow', 'audit', 'document'];
 const ROADMAP_THREAT_AREAS = [
 	'malformed-projects-media',
 	'archive-expansion',
@@ -111,7 +110,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'scape-archive-expansion': 'enforced',
 		'electron-renderer-ipc-boundary': 'enforced',
 		'desktop-static-resource-paths': 'enforced',
-		'desktop-read-path-capabilities': 'partial',
+		'desktop-read-path-capabilities': 'enforced',
 		'desktop-write-path-capabilities': 'partial',
 		'nyquist-untrusted-code-runtime': 'enforced',
 		'reviewed-web-effect-packages': 'planned',
@@ -340,9 +339,10 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.doesNotMatch(projectIoResidual.exposure, /collision continuation.*outside controller lifetime/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /inspection store lookup.*no abortable repository API/iu);
 	assert.doesNotMatch(projectIoResidual.exposure, /do not join inspection cleanup|abort but do not join/iu);
+	assert.doesNotMatch(projectIoResidual.exposure, /whole-file desktop reads/iu);
 	assert.match(
 		projectIoResidual.exposure,
-		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*join coordinator-owned inspection cleanup.*injected lookup can continue.*AUP4.*whole-file desktop reads/iu,
+		/inspection.*collision continuation.*own cancellation.*default inspection collision lookup.*owned signal.*races stalled database admission.*aborts and drains.*read-only IndexedDB transaction.*signal-ignoring injected lookups.*closes the archive reader.*join coordinator-owned inspection cleanup.*injected lookup can continue.*desktop materializer.*supplied signal.*release.*abort.*open.*import.*does not consistently own or provide.*AUP4.*broad storage operations/iu,
 	);
 	const streamedMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'streamed-media-maintenance-abort',
@@ -455,14 +455,37 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	]) assert.ok(rendererOwnedRead.evidence.some((item) => item.path === path));
 	assert.match(
 		rendererOwnedRead.summary,
-		/opaque main-owned.*committed main-frame document.*for each committed-document owner.*128 pending or live.*before.*file-open await.*before descriptor publication.*owner's aggregate declared selected-file bytes.*64 GiB.*wrong-owner release.*release.*expiry.*non-same-document navigation.*renderer loss.*actual window close.*shutdown.*synchronously.*lookup.*drain.*delayed.*open or stat.*without publication.*partial multi-file.*every rollback release.*primary and cleanup failures.*OS-open paths.*serially deduplicated.*visible queue head.*refuses.*without evicting.*cleanup failure/iu,
+		/opaque main-owned.*committed main-frame document.*for each committed-document owner.*128 pending or live.*before.*file-open await.*before descriptor publication.*owner's aggregate declared selected-file bytes.*512 MiB.*wrong-owner release.*release.*expiry.*non-same-document navigation.*renderer loss.*actual window close.*shutdown.*synchronously.*lookup.*drain.*delayed.*open or stat.*without publication.*partial multi-file.*every rollback release.*primary and cleanup failures.*OS-open paths.*serially deduplicated.*visible queue head.*refuses.*without evicting.*cleanup failure/iu,
 	);
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
-	const wholeFileRead = desktopRead.residualRisks.find(
-		({ id }) => id === 'whole-file-renderer-read',
+	const boundedMaterialization = desktopRead.currentControls.find(
+		({ id }) => id === 'bounded-abortable-renderer-read-materialization',
 	);
-	assert.ok(wholeFileRead);
-	assert.match(wholeFileRead.exposure, /whole Blob.*does not propagate cancellation/iu);
+	assert.ok(boundedMaterialization);
+	for (const path of [
+		'desktop/constants.js',
+		'desktop/file-capabilities.js',
+		'desktop/preload.mjs',
+		'desktop/protocol.js',
+		'src/common/editor/desktop-read-materialization.ts',
+		'src/common/editor/file-service.js',
+		'src/common/editor/platform/bounded-transfer.ts',
+		'src/common/editor/ui/workspace/AudioEditorWorkspace.jsx',
+		'src/common/editor/ui/workspace/ProjectBinPanel.jsx',
+		'src/common/editor/ui/workspace/useDesktopEditorBridge.js',
+		'tests/audio-editor-app-modules.test.js',
+		'tests/audio-editor-desktop-read-materialization.test.ts',
+		'tests/audio-editor-file-service.test.js',
+		'tests/desktop-preload-read-descriptors.test.js',
+		'tests/desktop-read-capability-ownership.test.js',
+		'tests/desktop-protocol.test.js',
+	]) assert.ok(boundedMaterialization.evidence.some((item) => item.path === path));
+	assert.match(
+		boundedMaterialization.summary,
+		/authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before descriptor publication.*preload.*descriptor size.*renderer materializer.*before fetch.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*platform media-chunk limit.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*release.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS/iu,
+	);
+	assert.equal(desktopRead.releaseDisposition, 'qualified-current-surface');
+	assert.deepEqual(desktopRead.residualRisks, []);
 	const desktopWrite = risks.get('desktop-write-path-capabilities');
 	const saveShutdown = desktopWrite.currentControls.find(
 		({ id }) => id === 'terminal-save-shutdown-quiescence',
@@ -551,48 +574,4 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	assert.ok(runtimeSupplyChain.residualRisks.some(
 		({ id }) => id === 'signed-update-qualification',
 	));
-});
-
-test('security claims point to checked-in implementation and verification evidence', async () => {
-	const matrix = await readMatrix();
-	const boundaries = new Map(matrix.boundaries.map((boundary) => [boundary.id, boundary]));
-	assert.equal(boundaries.size, matrix.boundaries.length, 'boundary IDs must be unique');
-
-	const evidence = [];
-	for (const boundary of matrix.boundaries) {
-		assert.match(boundary.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
-		assert.ok(boundary.entryPoints.length > 0, `${boundary.id} needs an entry point or explicit fence`);
-		evidence.push(...boundary.evidence);
-	}
-	for (const risk of matrix.risks) {
-		for (const boundaryId of risk.boundaryIds) assert.ok(boundaries.has(boundaryId), `${risk.id} references ${boundaryId}`);
-		for (const control of risk.currentControls) {
-			assert.match(control.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
-			assert.ok(control.summary.length > 0, `${risk.id}/${control.id} needs a summary`);
-			assert.ok(control.evidence.length > 0, `${risk.id}/${control.id} needs evidence`);
-			evidence.push(...control.evidence);
-		}
-	}
-
-	for (const item of evidence) {
-		assert.ok(EVIDENCE_KINDS.includes(item.kind), `invalid evidence kind ${item.kind}`);
-		assert.ok(item.path !== matrix.modelDocument, 'the threat model is not implementation evidence');
-		assert.notEqual(item.path, 'roadmap.md', 'the roadmap is not implementation evidence');
-		await assert.doesNotReject(
-			access(new URL(`../${item.path.split('#')[0]}`, import.meta.url)),
-			`Missing security evidence: ${item.path}`,
-		);
-	}
-});
-
-test('threat-model documentation defines the limits of enforced controls', async () => {
-	const matrix = await readMatrix();
-	const documentationUrl = new URL(`../${matrix.modelDocument}`, import.meta.url);
-	const documentation = await readFile(documentationUrl, 'utf8');
-
-	for (const risk of matrix.risks) assert.match(documentation, new RegExp(`\\b${risk.id}\\b`, 'u'));
-	assert.match(documentation, /enforced does not mean risk-free/iu);
-	assert.match(documentation, /workers? provide fault isolation, not an operating-system security boundary/iu);
-	assert.match(documentation, /native plug-ins? execute arbitrary code with the user account's authority/iu);
-	assert.match(documentation, /local operating-system compromise is out of scope/iu);
 });

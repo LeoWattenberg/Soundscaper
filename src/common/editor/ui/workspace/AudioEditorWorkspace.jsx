@@ -234,12 +234,12 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
 	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
-		const files = [];
-		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
-		if (purpose === 'project') {
-			for (const file of files) await openProjectFile(file);
-		} else if (files.length) await importRoutedFiles(files, importOptions);
-		return files.length;
+		return fileService.withReadDescriptors(descriptors, {}, async (files) => {
+			if (purpose === 'project') {
+				for (const file of files) await openProjectFile(file);
+			} else if (files.length) await importRoutedFiles(files, importOptions);
+			return files.length;
+		});
 	}, [fileService, importRoutedFiles, openProjectFile]);
 
 	const openSurface = useCallback((surface, options = {}) => {

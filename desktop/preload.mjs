@@ -28,13 +28,14 @@ const CHANNELS = Object.freeze({
 });
 
 const MAX_CHUNK_BYTES = 1024 * 1024;
+const MAX_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2;
 
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
 	chooseFiles: (options) => ipcRenderer.invoke(CHANNELS.chooseFiles, {
 		purpose: text(options?.purpose, 24),
 		multiple: options?.multiple === true,
-	}),
+	}).then(sanitizeReadDescriptors),
 	releaseRead: (id) => ipcRenderer.invoke(CHANNELS.releaseRead, opaqueId(id, 64)),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
 		purpose: text(options?.purpose, 24),
@@ -88,10 +89,15 @@ function sanitizeReadDescriptor(value) {
 		id: opaqueId(value?.id, 64),
 		url: trustedCapabilityUrl(value?.url, value?.id),
 		name: text(value?.name, 255),
-		size: safeInteger(value?.size),
+		size: readDescriptorSize(value?.size),
 		mimeType: text(value?.mimeType, 128),
 		lastModified: safeInteger(value?.lastModified),
 	});
+}
+
+function sanitizeReadDescriptors(values) {
+	if (!Array.isArray(values)) throw new TypeError('Expected read descriptors');
+	return Object.freeze(values.map(sanitizeReadDescriptor));
 }
 
 function trustedCapabilityUrl(value, id) {
@@ -122,6 +128,12 @@ function safeInteger(value) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError('Expected a non-negative safe integer');
 	return number;
+}
+
+function readDescriptorSize(value) {
+	const size = safeInteger(value);
+	if (size > MAX_READ_DESCRIPTOR_BYTES) throw new RangeError('Read descriptor is too large');
+	return size;
 }
 
 function saveDeclaration(options) {

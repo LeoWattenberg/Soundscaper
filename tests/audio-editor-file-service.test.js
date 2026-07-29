@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 
@@ -214,12 +215,16 @@ test('desktop read descriptors become named files and are always released', asyn
 	const released = [];
 	const service = createAudioEditorFileService({
 		bridge: { async releaseRead(id) { released.push(id); } },
-		fetch: async () => new Response(new Blob(['SQLite format 3'], { type: 'application/x-audacity-project' })),
+		fetch: async () => new Response(
+			new Blob(['SQLite format 3'], { type: 'application/x-audacity-project' }),
+			{ headers: { 'Content-Length': '15' } },
+		),
 	});
 	const file = await service.openReadDescriptor({
 		id: 'read-1',
 		url: 'soundscaper-app://read/read-1',
 		name: 'Session.aup4',
+		size: 15,
 		mimeType: 'application/x-audacity-project',
 		lastModified: 123,
 	});
@@ -228,6 +233,192 @@ test('desktop read descriptors become named files and are always released', asyn
 	assert.equal(file.lastModified, 123);
 	assert.equal(await file.text(), 'SQLite format 3');
 	assert.deepEqual(released, ['read-1']);
+});
+
+test('desktop reads honor a pre-aborted signal and await exactly-once capability release', async () => {
+	const reason = new DOMException('cancel open', 'AbortError');
+	const controller = new AbortController();
+	controller.abort(reason);
+	let fetchCalls = 0;
+	let releaseCalls = 0;
+	let finishRelease;
+	let announceRelease;
+	const releaseGate = new Promise((resolve) => { finishRelease = resolve; });
+	const releaseStarted = new Promise((resolve) => { announceRelease = resolve; });
+	const service = createAudioEditorFileService({
+		bridge: {
+			async releaseRead() {
+				releaseCalls += 1;
+				announceRelease();
+				await releaseGate;
+			},
+		},
+		fetch: async () => {
+			fetchCalls += 1;
+			throw new Error('must not fetch');
+		},
+	});
+	const operation = service.openReadDescriptor({
+		id: 'read-abort', url: 'soundscaper-app://read/read-abort', name: 'cancel.wav', size: 4,
+	}, { signal: controller.signal });
+	await releaseStarted;
+	assert.equal(releaseCalls, 1);
+	assert.equal(fetchCalls, 0);
+	let settled = false;
+	void operation.finally(() => { settled = true; }).catch(() => undefined);
+	await Promise.resolve();
+	assert.equal(settled, false);
+	finishRelease();
+	await assert.rejects(operation, (error) => error === reason);
+	assert.equal(releaseCalls, 1);
+});
+
+test('desktop reads promptly abort a stalled body, cancel its reader, and release its capability', async () => {
+	const controller = new AbortController();
+	const reason = new DOMException('cancel stalled open', 'AbortError');
+	let startRead;
+	const readStarted = new Promise((resolve) => { startRead = resolve; });
+	const cancelled = [];
+	const released = [];
+	const reader = {
+		read() {
+			startRead();
+			return new Promise(() => undefined);
+		},
+		cancel(cancelReason) {
+			cancelled.push(cancelReason);
+			return new Promise(() => undefined);
+		},
+	};
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead(id) { released.push(id); } },
+		fetch: async (_url, init) => {
+			assert.equal(init.signal, controller.signal);
+			return {
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'Content-Length': '1' }),
+				body: { getReader: () => reader },
+			};
+		},
+	});
+	const operation = service.openReadDescriptor({
+		id: 'read-stalled', url: 'soundscaper-app://read/read-stalled', name: 'stalled.wav', size: 1,
+	}, { signal: controller.signal });
+	await readStarted;
+	controller.abort(reason);
+	const timeout = Symbol('timeout');
+	const outcome = await Promise.race([
+		operation.then(() => undefined, (error) => error),
+		delay(250, timeout, { ref: false }),
+	]);
+	assert.notEqual(outcome, timeout, 'service abort must not await a stalled reader cancellation');
+	assert.equal(outcome, reason);
+	assert.deepEqual(cancelled, [reason]);
+	assert.deepEqual(released, ['read-stalled']);
+});
+
+test('desktop read failures preserve primary and cleanup errors', async () => {
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead() { throw new Error('release failed'); } },
+		fetch: async () => new Response('denied', { status: 500 }),
+	});
+	await assert.rejects(() => service.openReadDescriptor({
+		id: 'read-failed', url: 'soundscaper-app://read/read-failed', name: 'failed.wav', size: 6,
+	}), (error) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.errors[0].message, /status 500/u);
+		assert.match(error.errors[1].message, /release failed/u);
+		assert.equal(error.cause, error.errors[0]);
+		return true;
+	});
+});
+
+test('scoped desktop reads retain capabilities through consumption and release every descriptor', async () => {
+	const released = [];
+	const descriptors = [
+		{ id: 'read-a', url: 'soundscaper-app://read/read-a', name: 'a.wav', size: 1 },
+		{ id: 'read-b', url: 'soundscaper-app://read/read-b', name: 'b.wav', size: 1 },
+	];
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead(id) { released.push(id); } },
+		fetch: async (url) => new Response(url.endsWith('a') ? 'a' : 'b', {
+			headers: { 'Content-Length': '1' },
+		}),
+	});
+	const result = await service.withReadDescriptors(descriptors, {}, async (files) => {
+		assert.deepEqual(released, []);
+		assert.deepEqual(await Promise.all(files.map((file) => file.text())), ['a', 'b']);
+		return 'consumed';
+	});
+	assert.equal(result, 'consumed');
+	assert.deepEqual(released, ['read-a', 'read-b']);
+});
+
+test('scoped desktop reads reject aggregate excess before fetching and release unopened descriptors', async () => {
+	const released = [];
+	let fetchCalls = 0;
+	let consumed = false;
+	const descriptors = [
+		{ id: 'read-c', url: 'soundscaper-app://read/read-c', name: 'c.wav', size: 2 },
+		{ id: 'read-d', url: 'soundscaper-app://read/read-d', name: 'd.wav', size: 2 },
+	];
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead(id) { released.push(id); } },
+		readMaximumBytes: 3,
+		fetch: async () => {
+			fetchCalls += 1;
+			throw new Error('must not fetch');
+		},
+	});
+	await assert.rejects(() => service.withReadDescriptors(descriptors, {}, async () => {
+		consumed = true;
+	}), /aggregate.*maximum|maximum.*aggregate/iu);
+	assert.equal(fetchCalls, 0);
+	assert.equal(consumed, false);
+	assert.deepEqual(released, ['read-c', 'read-d']);
+});
+
+test('desktop file-service read ceilings are lower-only numeric test seams', () => {
+	assert.throws(
+		() => createAudioEditorFileService({ bridge: {}, readMaximumBytes: '3' }),
+		/hard limit/iu,
+	);
+	assert.throws(
+		() => createAudioEditorFileService({ bridge: {}, readMaximumBytes: 512 * 1024 ** 2 + 1 }),
+		/hard limit/iu,
+	);
+});
+
+test('scoped desktop read failure releases current and unattempted capabilities with all-settled cleanup', async () => {
+	const released = [];
+	const fetched = [];
+	const descriptors = [
+		{ id: 'read-e', url: 'soundscaper-app://read/read-e', name: 'e.wav', size: 1 },
+		{ id: 'read-f', url: 'soundscaper-app://read/read-f', name: 'f.wav', size: 1 },
+		{ id: 'read-g', url: 'soundscaper-app://read/read-g', name: 'g.wav', size: 1 },
+	];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async releaseRead(id) {
+				released.push(id);
+				if (id === 'read-f') throw new Error('cleanup f');
+			},
+		},
+		fetch: async (url) => {
+			fetched.push(url);
+			if (url.endsWith('f')) return new Response('failed', { status: 500 });
+			return new Response('e', { headers: { 'Content-Length': '1' } });
+		},
+	});
+	await assert.rejects(() => service.withReadDescriptors(descriptors, {}, async () => undefined), (error) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.errors[0].message, /status 500/u);
+		assert.match(error.errors[1].message, /cleanup f/u);
+		return true;
+	});
+	assert.deepEqual(fetched, descriptors.slice(0, 2).map(({ url }) => url));
+	assert.deepEqual(released, ['read-e', 'read-f', 'read-g']);
 });
 
 test('browser file service preserves anchor-download behavior', async () => {

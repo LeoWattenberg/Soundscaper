@@ -114,10 +114,12 @@ Material constraints in the current foundation are also roadmap inputs:
   export is capped at 1280x720 and 30 fps;
 - FFmpeg WebAssembly is single-threaded, serialized through one worker, and
   returns complete in-memory outputs;
-- `.scape` now streams to selected File System Access and desktop targets, but
-  desktop reads, several compressed imports, browser-download fallback, and
-  final render outputs still have reference-scale paths that materialize a
-  whole `Blob` or byte array;
+- `.scape` now streams to selected File System Access and desktop targets. The
+  current desktop-read tier admits at most 512 MiB of active declared input per
+  committed-document owner before materializing a whole `Blob`; reference-scale
+  reads above that bound fail rather than stream. Several compressed imports,
+  browser-download fallback, and final render outputs also retain bounded or
+  reference-scale paths that materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products currently use separate persistent Chromium
   partitions rather than one desktop project library;
@@ -621,8 +623,8 @@ models or native implementations.
   disposal exactly once before process exit. Desktop read capabilities now
   reuse the opaque main-owned committed-document identity, reserve at most 128
   pending/live admissions per committed-document owner before file open, and
-  enforce 64 GiB of that owner's aggregate declared selected-file bytes before
-  descriptor publication. Explicit
+  enforce 512 MiB of that owner's aggregate active declared selected-file bytes
+  before descriptor publication. Explicit
   release, expiry, non-same-document navigation, renderer loss, actual close,
   and shutdown synchronously invalidate lookup and drain admitted opens and
   handle closes; delayed dialog/open results for revoked owners cannot publish,
@@ -636,9 +638,18 @@ models or native implementations.
   permanent shutdown; the
   [desktop protocol regression](tests/desktop-protocol.test.js) covers
   replacement-renderer queue retry.
-  Renderer fetch still materializes a whole `Blob` without cancellation, so
-  `whole-file-renderer-read` remains open. Atomic save disposal now closes
-  target and session admission synchronously, drains every `begin`, chunk,
+  The bounded materialization tier is also landed: preload sanitation and the
+  strict-TS [renderer admission](src/common/editor/desktop-read-materialization.ts)
+  repeat the 512 MiB ceiling before fetch, require exact `Content-Length`,
+  emitted-byte, and final `Blob`-size agreement, and copy retained response
+  parts at the non-raiseable 16 MiB platform media-chunk limit. The body reader
+  forwards a caller-supplied abort signal without calling `response.blob()`, and
+  scoped descriptor use releases every capability after success, failure, or
+  cancellation. Protocol request abort destroys its file stream. This closes
+  `whole-file-renderer-read` for the qualified bounded surface, but it does not
+  bound decoder amplification or whole-process RSS and does not qualify a
+  reference-scale desktop read. Atomic save disposal now
+  closes target and session admission synchronously, drains every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
   `finish` settle through its sync-and-rename commit boundary, and then aborts
   any remaining or late-opened staging. Unacknowledged handle close or staging
@@ -674,6 +685,13 @@ models or native implementations.
   commits, explicit cross-product handoff and lease transfer, legacy migration,
   and packaged OS/architecture lifecycle smoke remain open; no raw path or new
   renderer IPC surface is exposed by this foundation.
+- **Electron Enhanced — Planned:** bind selected-file capabilities to the
+  existing bounded
+  [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
+  and pass the planned 8 GiB logical project fixture through range-backed reads
+  without a final renderer `Blob`.
+  Until then, inputs above the qualified 512 MiB materialization tier fail
+  admission explicitly.
 - **Electron Enhanced — Planned:** migrate each existing app library idempotently
   into the shared store. Record source identity and completion, merge without
   overwriting conflicts, retain both legacy libraries until verification, and

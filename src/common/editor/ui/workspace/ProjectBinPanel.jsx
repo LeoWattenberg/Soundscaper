@@ -48,9 +48,9 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			return;
 		}
 		const descriptors = await fileService.chooseFiles({ purpose: 'media', multiple: true });
-		const files = [];
-		for (const descriptor of descriptors) files.push(await fileService.openReadDescriptor(descriptor));
-		if (files.length) await importFiles(files);
+		await fileService.withReadDescriptors(descriptors, {}, async (files) => {
+			if (files.length) await importFiles(files);
+		});
 	});
 	const isFileDrag = (dataTransfer) => {
 		const types = [...(dataTransfer?.types || [])];

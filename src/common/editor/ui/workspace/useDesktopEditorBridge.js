@@ -23,8 +23,9 @@ export function useDesktopEditorBridge({
 		const openDescriptor = (descriptor) => {
 			const operation = desktopOpenQueueRef.current
 				.catch(() => undefined)
-				.then(() => fileService.openReadDescriptor(descriptor))
-				.then(openProjectFile);
+				.then(() => fileService.withReadDescriptors(
+					[descriptor], {}, ([file]) => openProjectFile(file),
+				));
 			desktopOpenQueueRef.current = operation;
 			void operation.catch(onError);
 		};

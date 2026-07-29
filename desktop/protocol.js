@@ -205,7 +205,43 @@ async function serveCapability(request, url, store) {
 	if (range) headers['Content-Range'] = `bytes ${start}-${end}/${entry.size}`;
 	if (request.method === 'HEAD' || entry.size === 0) return new Response(null, { status, headers });
 	const stream = entry.handle.createReadStream({ start, end, autoClose: false });
-	return new Response(Readable.toWeb(stream), { status, headers });
+	const body = Readable.toWeb(stream);
+	bindRequestAbortToStream(request.signal, stream);
+	return new Response(body, { status, headers });
+}
+
+function bindRequestAbortToStream(signal, stream) {
+	if (!signal?.addEventListener || !signal?.removeEventListener || !stream?.once || !stream?.destroy) return;
+	let attached = false;
+	const detach = () => {
+		stream.removeListener?.('end', detach);
+		stream.removeListener?.('error', detach);
+		stream.removeListener?.('close', detach);
+		if (!attached) return;
+		attached = false;
+		signal.removeEventListener('abort', onAbort);
+	};
+	const onAbort = () => {
+		detach();
+		if (!stream.destroyed) stream.destroy(streamAbortError(signal.reason));
+	};
+	stream.once('end', detach);
+	stream.once('error', detach);
+	stream.once('close', detach);
+	if (signal.aborted) {
+		onAbort();
+		return;
+	}
+	attached = true;
+	signal.addEventListener('abort', onAbort, { once: true });
+	if (signal.aborted) onAbort();
+}
+
+function streamAbortError(reason) {
+	if (reason instanceof Error) return reason;
+	const error = new Error('Desktop capability request was aborted', reason === undefined ? undefined : { cause: reason });
+	error.name = 'AbortError';
+	return error;
 }
 
 function assertContained(root, candidate) {

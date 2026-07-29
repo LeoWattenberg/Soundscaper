@@ -599,8 +599,8 @@
 			"assets": ["local file confidentiality", "file-handle availability", "renderer memory"],
 			"actor": "Compromised renderer content reuses or accumulates capabilities, or triggers a large whole-file read.",
 			"impact": "high",
-			"status": "partial",
-			"releaseDisposition": "conditional",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
 			"ownerMilestone": "1",
 			"currentControls": [
 				{
@@ -615,7 +615,7 @@
 				},
 				{
 					"id": "renderer-document-owned-read-lifecycle",
-					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. For each committed-document owner, the store reserves one of at most 128 pending or live capability slots before its first file-open await. Before descriptor publication it checks that the owner's aggregate declared selected-file bytes remain at or below the non-raiseable 64 GiB ceiling and that the owner remains active. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry synchronously remove the capability from lookup before draining its handle. Main-frame non-same-document navigation, renderer loss, actual window close, and application shutdown synchronously fence the affected owner or store and remove its published capabilities from lookup before draining every admitted open and handle close. A delayed dialog or open or stat completion after owner revocation closes its candidate without publication. Partial multi-file registration drains every rollback release and reports the primary and cleanup failures. OS-open paths remain serially deduplicated at a visible queue head until delivery to a current ready owner. Count or byte exhaustion deterministically refuses the new admission without evicting an existing handle. Revocation and shutdown attempt every close before rejecting on cleanup failure; shutdown permanently refuses new admission.",
+					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. For each committed-document owner, the store reserves one of at most 128 pending or live capability slots before its first file-open await. Before descriptor publication it checks that the owner's aggregate declared selected-file bytes remain at or below the non-raiseable 512 MiB ceiling and that the owner remains active. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry synchronously remove the capability from lookup before draining its handle. Main-frame non-same-document navigation, renderer loss, actual window close, and application shutdown synchronously fence the affected owner or store and remove its published capabilities from lookup before draining every admitted open and handle close. A delayed dialog or open or stat completion after owner revocation closes its candidate without publication. Partial multi-file registration drains every rollback release and reports the primary and cleanup failures. OS-open paths remain serially deduplicated at a visible queue head until delivery to a current ready owner. Count or byte exhaustion deterministically refuses the new admission without evicting an existing handle. Revocation and shutdown attempt every close before rejecting on cleanup failure; shutdown permanently refuses new admission.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/constants.js" },
 						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
@@ -629,17 +629,31 @@
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" }
 					]
+				},
+				{
+					"id": "bounded-abortable-renderer-read-materialization",
+					"summary": "Authoritative main-process admission limits aggregate active declared selected-file bytes to a non-raiseable 512 MiB per committed-document owner before descriptor publication. The preload sanitizes descriptor size as a safe non-negative integer within that ceiling, and the renderer materializer repeats admission before fetch, requires exact declared Content-Length, emitted-byte, and final Blob-size agreement, and reads only the response body stream. Retained response parts are copied and split at the non-raiseable 16 MiB platform media-chunk limit. The materializer forwards the caller-provided AbortSignal, promptly races and cancels a stalled body read with its exact reason, and never calls response.blob(). A scoped descriptor batch releases every capability after its callback on success, failure, or cancellation, while request abort destroys the corresponding protocol file stream. This is a bounded whole-Blob tier for the current surface, not a bound on decoder amplification or whole-process RSS; larger range-backed reads remain outside the qualified surface.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/constants.js" },
+						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-read-materialization.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
+						{ "kind": "implementation", "path": "src/common/editor/platform/bounded-transfer.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/AudioEditorWorkspace.jsx" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/ProjectBinPanel.jsx" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useDesktopEditorBridge.js" },
+						{ "kind": "test", "path": "tests/audio-editor-app-modules.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-read-materialization.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+						{ "kind": "test", "path": "tests/desktop-preload-read-descriptors.test.js" },
+						{ "kind": "test", "path": "tests/desktop-read-capability-ownership.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+					]
 				}
 			],
-			"residualRisks": [
-				{
-					"id": "whole-file-renderer-read",
-					"exposure": "The renderer file service materializes selected files as whole Blobs and does not propagate cancellation to fetch.",
-					"requiredControl": "Use AbortSignal-aware bounded streaming or explicit format-size admission before Blob materialization.",
-					"ownerMilestone": "1",
-					"acceptanceCriteria": ["Large-file and abort tests demonstrate bounded memory and immediate handle release."]
-				}
-			]
+			"residualRisks": []
 		},
 		{
 			"id": "desktop-write-path-capabilities",
@@ -1024,7 +1038,7 @@
 			"residualRisks": [
 				{
 					"id": "project-io-signal-propagation",
-					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The default inspection collision lookup accepts the owned signal, promptly races stalled database admission, and aborts and drains its read-only IndexedDB transaction; the defensive Scape boundary also rejects signal-ignoring injected lookups promptly and closes the archive reader. Project switching and controller disposal now join coordinator-owned inspection cleanup, but a signal-ignoring injected lookup can continue after that boundary rejects; AUP4, whole-file desktop reads, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
+					"exposure": "The tested native .scape open/save and direct-save publication paths propagate and roll back cancellation, and public inspection and its post-inspection collision continuation now own cancellation and reject stale results. The default inspection collision lookup accepts the owned signal, promptly races stalled database admission, and aborts and drains its read-only IndexedDB transaction; the defensive Scape boundary also rejects signal-ignoring injected lookups promptly and closes the archive reader. Project switching and controller disposal now join coordinator-owned inspection cleanup, but a signal-ignoring injected lookup can continue after that boundary rejects. The bounded desktop materializer forwards a supplied signal and releases its capability on abort, but open and import orchestration does not consistently own or provide that signal; AUP4, broad storage operations, and remaining desktop transports also do not share the qualified end-to-end contract.",
 					"requiredControl": "Propagate one signal through every long-job layer and acknowledge cancellation only after readers, writers, workers, and staged records are closed or rolled back.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Cancellation during read, parse, source write, project save, file write, and project switch leaves no late publication or orphaned session."]

@@ -33,7 +33,7 @@ export const SUPPORTED_LOCALES = Object.freeze([
 export const READ_CAPABILITY_PREFIX = '/_desktop/read/';
 export const RUNTIME_PREFIX = '/runtime/';
 export const MAX_READ_CAPABILITIES_PER_OWNER = 128;
-export const MAX_READ_CAPABILITY_BYTES_PER_OWNER = 64 * 1024 ** 3;
+export const MAX_READ_CAPABILITY_BYTES_PER_OWNER = 512 * 1024 ** 2;
 export const MAX_SAVE_CHUNK_BYTES = 1024 * 1024;
 export const MAX_SAVE_BYTES = Number.MAX_SAFE_INTEGER;
 
