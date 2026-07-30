@@ -137,7 +137,8 @@ Material constraints in the current foundation are also roadmap inputs:
   authentication. Browser `.scape` files retain their Blob source. Several
   compressed imports and browser-download fallback retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array. Final
-  render formats and routes outside the narrow exact-size, realtime WAV/AIFF/BWF
+  render formats and routes outside the narrow exact-size, realtime
+  WAV/AIFF/BWF/authored-BW64
   direct-save slice described below retain that limitation as well;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products retain separate Chromium partitions for their
@@ -648,8 +649,8 @@ models or native implementations.
   target without a final renderer-sized `Blob`. A size-limited browser download
   remains the Web Core fallback when no streaming destination exists.
 - **Web Enhanced / Electron Enhanced — In progress:** the first bounded direct
-  render slice is exactly one mix with format `wav`, `aiff`, or `bwf`, a
-  `realtime-stream` render plan, and one output. WAV requires the exact MIME
+  render slice is exactly one mix with format `wav`, `aiff`, `bwf`, or authored
+  `bw64`, a `realtime-stream` render plan, and one output. WAV requires the exact MIME
   type and `.wav` extension plus an exact positive safe-integer planned file
   byte count at or below 65 GiB. AIFF requires `audio/aiff` and the canonical
   `.aiff` extension plus an exact count at or below 4,294,967,303 bytes, its
@@ -661,13 +662,25 @@ models or native implementations.
   below 65 GiB. Its plan and encoding must contain the same canonical normalized
   version-2 BEXT, and direct admission permits only integer int16, int20, or
   int24 PCM. It rejects a plan `container`, ADM, `preDataChunks`, and
-  `trailingChunks`, keeping BW64 and opaque chunks outside the direct slice;
+  `trailingChunks`, keeping BW64 and opaque chunks outside the direct BWF variant;
   standard BWF metadata, markers, iXML, and CART may remain. A direct-eligible
-  realtime BWF request with `measureLoudness: true` fails closed before target,
-  preflight, or render because bounded two-pass measurement is unimplemented;
-  this makes no measured-loudness claim. The desktop `audio-pcm-mix` policy
-  permits `.wav`, `.aif`, and `.aiff` names, while controller admission remains
-  canonical `.wav` or `.aiff`. A dedicated `audio-pcm-mix` target opens only
+  authored BW64 plan requires both format and container `bw64`, `audio/wav`,
+  the canonical `.wav` extension, and an exact positive safe-integer layout
+  recomputed by `inspectWavLayout` at or below 69,793,218,560 bytes (65 GiB).
+  That is an admission ceiling, not an exercised scale claim. Admission permits
+  only int16, int20, or int24 PCM with the same canonical normalized version-2
+  BEXT in the plan and encoding. Admission requires authored normalized ADM metadata for
+  mono, stereo, or 5.1, with exact bed channel order and an identity preserve
+  mapping. Canonical CHNA before PCM and AXML after PCM must be byte-identical
+  in `plan.adm` and the top-level plan. Standard RIFF metadata, markers, iXML,
+  and CART remain inside the exact geometry calculation. ADM passthrough and
+  opaque source chunks are deferred outside this route. A direct-eligible
+  realtime BWF or BW64 request with `measureLoudness: true` fails closed before
+  target, preflight, or render because bounded two-pass measurement is
+  unimplemented; this makes no measured-loudness claim. The desktop
+  `audio-pcm-mix` policy permits `.wav`, `.aif`, and `.aiff` names, while
+  controller admission remains canonical `.wav` or `.aiff`. A dedicated
+  `audio-pcm-mix` target opens only
   through File System Access or Electron exact-size writing. The shared PCM
   route requests 16,384-frame chunks and derives the pending-chunk count from
   the render channel count. This bounds queued planar Float32 PCM to 32 MiB; it
@@ -685,17 +698,21 @@ models or native implementations.
   boundary: ownership lost during commit returns the committed result without
   stale success UI, and committed-result disagreement is a post-publication
   integrity failure, not rollback. This direct route completes without a final
-  renderer-sized `Blob`. BW64, opaque pre-data or trailing chunks, ADM, other
-  PCM containers, compressed or custom audio, video, stems, and non-realtime
-  renders retain their existing staging or in-memory paths. The Web Core
+  renderer-sized `Blob`. ADM passthrough, opaque source chunks, other PCM
+  containers, compressed or custom audio, video, stems, and non-realtime renders
+  retain their existing staging or in-memory paths. The Web Core
   browser-download fallback also retains its existing final `Blob`. Focused
   Node BWF evidence has five cases covering admission, exact layout and
   publication, loudness fail-closed behavior, four-way diagnostics, and
-  mid-stream cancellation; the full maintained Node suite remained green at
-  381 tests. Focused WAV and AIFF evidence retains completion, cancellation,
-  exact AIFF geometry, padding, metadata, cleanup, and shared commit accounting;
-  the wider WAV suite additionally covers cleanup failures, ownership races,
-  and the commit boundary. A separate opt-in
+  mid-stream cancellation. Focused Node authored BW64 evidence has six cases
+  covering closed admission across mono, stereo, and 5.1 integer plans, exact
+  standard-metadata preparation, canonical ds64/BEXT/fmt/CHNA/data/AXML
+  streaming and publication, loudness fail-closed behavior, four-way
+  diagnostics, and mid-stream cancellation. The full maintained Node suite
+  remained green at 382 tests. Focused WAV and AIFF evidence retains completion,
+  cancellation, exact AIFF geometry, padding, metadata, cleanup, and shared
+  commit accounting; the wider WAV suite additionally covers cleanup failures,
+  ownership races, and the commit boundary. A separate opt-in
   [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
   streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
   with pinned SHA-256 through the production planner, controller, real
@@ -710,16 +727,24 @@ models or native implementations.
   remain unqualified because this deterministic Node witness is an ownership-
   bound correctness gate, not a browser/process memory measurement.
   Run it with `npm run test:reference:wav-385mib`; routine Node and coverage
-  discovery fast-skips it. A compact Chromium and Firefox WAV, AIFF, and BWF
-  workflow runs six combined cases with an injected File System Access target
-  and simulated mobile planner profile to drive the maintained export UI
-  through the production realtime route. The WAV and AIFF cases retain only a
-  bounded header prefix plus counters and validate RIFF or FORM, COMM, and SSND
-  geometry. The BWF case retains a 2 KiB prefix and validates RIFF, bext, fmt,
-  and data geometry, the authored description, a 64-bit TimeReference, and a
-  two-row CodingHistory. All use at-most-4-MiB serial writes, observe no Object
-  URL or browser download, then cancel a second export after PCM reaches the
-  target and observe one abort without close or publication. These cases
+  discovery fast-skips it. Maintained Chromium and Firefox WAV, AIFF, BWF, and
+  BW64 coverage now comprises eight format/engine cases with an injected File
+  System Access target and simulated mobile planner profile to drive the
+  maintained export UI through the production realtime route. The WAV and AIFF
+  cases retain only a bounded header prefix plus counters and validate RIFF or
+  FORM, COMM, and SSND geometry. The BWF case retains a 2 KiB prefix and
+  validates RIFF, bext, fmt, and data geometry, the authored description, a
+  64-bit TimeReference, and a two-row CodingHistory. The authored BW64 case uses
+  a 33.1-second stereo source and 384 kHz 16-bit output; its 101,683,200-byte
+  float-plan geometry exceeds 96 MiB but is not a final-file or scale
+  qualification. It retains only a 2 KiB
+  prefix and 8 KiB suffix while validating BW64, ds64, BEXT, fmt, canonical
+  stereo CHNA, data, authored trailing AXML, and exact post-PCM placement. All
+  use at-most-4-MiB serial writes, observe no Object URL or browser download,
+  then cancel a second export after PCM reaches the target and observe one abort
+  without close, commit, or publication. The new BW64 case passed one focused
+  Chromium run in 42.2 seconds and one focused Firefox run in 45.8 seconds;
+  this does not claim a fresh combined rerun of the six earlier cases. These cases
   qualify application-path browser plumbing and pre-commit rollback, not native
   picker availability.
   WebKit remains unqualified because its pinned runtime cannot launch on this
@@ -744,9 +769,10 @@ models or native implementations.
 
   The packaged harness validates the application's save choice and purpose but
   then supplies its isolated native target without exercising the OS picker.
-  The 385 MiB witness and packaged evidence are WAV only, with no BWF scale
-  qualification. Neither AIFF nor BWF has packaged, native-picker, heap, RSS,
-  or platform qualification. The WAV harness is not a 65 GiB run and does
+  The 385 MiB witness and packaged evidence are WAV only, with no BWF or BW64
+  scale qualification. AIFF, BWF, and BW64 have no packaged, native-picker,
+  heap, RSS, or platform qualification. The 65 GiB BW64 ceiling is admission,
+  not scale qualification. The WAV harness is not a 65 GiB run and does
   not qualify heap or RSS, quota, filesystem or parent-directory durability,
   crash or power-loss behavior, Windows, macOS, ARM, installers, Framescaper,
   or other formats. The exact decode and frame geometry is specific to the
