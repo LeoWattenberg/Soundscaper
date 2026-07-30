@@ -605,6 +605,17 @@
 					]
 				},
 				{
+					"id": "bounded-random-access-archive-reading",
+					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. This foundation is not yet connected to desktop selected-file capabilities, so it does not yet qualify larger desktop opens.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-byte-source.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-layout-witness.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-layout.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-archive-byte-source.test.ts" }
+					]
+				},
+				{
 					"id": "bounded-archive-operation-counts",
 					"summary": "Archive enumeration is hard-capped at 4,096 entries, bounding zip.js pairwise layout comparisons, and one archive-wide budget is capped at 65,536 canonical PCM chunks before another source-writer call or chunk allocation.",
 					"evidence": [

@@ -354,11 +354,28 @@ models or native implementations.
   crossing. A shared non-raiseable 33 MiB central-directory ceiling applies
   before zip.js construction and to export admission; the conservative export
   bound includes the pinned writer's greater-than-4-GiB Zip64 local-offset
-  field so a canonical save remains importable. Its
+  field so a canonical save remains importable. Archive consumption now also
+  shares a strict-TS bounded
+  [random-access byte source](src/common/editor/scape-archive-byte-source.ts)
+  across Blob and future range transports. Providers may declare a lower read
+  maximum beneath the 33 MiB logical ceiling; native typed-array slots enforce
+  exact result length and defensive ownership. A
+  [structural witness](src/common/editor/scape-archive-layout-witness.ts)
+  retains at most 69,271,649 bytes for the canonical writer profile, including
+  central comments, rejects inconsistent overlapping observations, and serves
+  the admitted end/central/local/descriptor bytes unchanged while fetching only
+  payload gaps. This deliberately qualifies canonical `.scape` structure, not
+  arbitrary third-party ZIP local-extra expansion, and is not yet wired to
+  desktop selected-file capabilities; the 512 MiB desktop materialization
+  ceiling therefore remains unchanged. Its
   [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
   offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
   zeroed no-descriptor fields, and boundary crossing with bounded cancellable
-  reads. The
+  reads. The focused
+  [byte-source regression](tests/audio-editor-scape-archive-byte-source.test.ts)
+  adds Blob parity, lower provider limits, exact cancellation, hostile typed
+  arrays and Blob overrides, structural swaps, comment retention, and body-gap
+  range isolation. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without

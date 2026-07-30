@@ -449,6 +449,15 @@ asset body against that descriptor before source or project publication. Thus
 inspection remains metadata-only; descriptor binding there does not read or
 hash the potentially reference-scale asset bodies.
 
+Blob-backed and random-access `.scape` reads now share the same canonical
+archive-structure admission. A private witness retains at most 69,271,649 bytes
+of admitted end, central, local-header, name/extra/comment, and descriptor data,
+then replays those bytes while reading only payload gaps from the provider. This
+ceiling exactly follows the maintained writer/export profile; archives that use
+otherwise legal but noncanonical aggregate local-extra expansion are not a
+compatibility target. The transport seam does not yet raise the desktop 512 MiB
+selected-file materialization ceiling.
+
 This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 generic affected-object unavailable-feature placeholders or per-feature bypass
