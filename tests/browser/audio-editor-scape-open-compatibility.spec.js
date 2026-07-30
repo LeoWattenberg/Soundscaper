@@ -9,13 +9,14 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { asymmetricStereoTone, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
 	addRackEffect,
 	bootEditor,
 	chooseFileAction,
+	clipByName,
 	closeEffectsPanel,
 	collectClientErrors,
 	importFiles,
@@ -169,6 +170,63 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('plays an admitted Soundscaper audio-effects render in Framescaper', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const soundscaper = await bootEditor(page, '/embed/en/');
+		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
+		const originalId = await soundscaper.getAttribute('data-project-id');
+		expect(originalId).toBeTruthy();
+		await importFiles(soundscaper, [toneA, asymmetricStereoTone]);
+		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Invert');
+		await closeEffectsPanel(effectsPanel);
+
+		const exported = await captureScapeArchive(page, soundscaper);
+		const incomingId = `${originalId}-framescaper-audio-render`;
+		const archive = await audioEffectsRenderedFallbackArchive(exported, {
+			id: incomingId,
+			title: 'Soundscaper rendered fallback handoff',
+			fallbackSourceName: asymmetricStereoTone.name,
+		});
+		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
+		await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
+		await setScapeInput(framescaper.locator('[data-aup4-input]'), archive);
+
+		const dialog = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+		await expect(dialog).toHaveAttribute('data-scape-open-decision', 'compatibility');
+		await expect(dialog.getByText('Audio effects', { exact: true })).toBeVisible();
+		await expect(dialog.getByText(/Unavailable.*Rendered fallback declared/iu)).toBeVisible();
+		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
+		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+
+		const notice = framescaper.locator('[data-project-feature-compatibility]');
+		const requirement = notice.locator(
+			'[data-project-feature-requirement="org.soundscaper.capability.audio-effects"]',
+		);
+		await expect(requirement).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
+		await expect(requirement).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
+		await expect(requirement.locator('[data-project-feature-audio-rendered-fallback]'))
+			.toHaveText('Rendered fallback active during editor playback');
+		await expect(notice.locator('[data-project-feature-audio-effect-placeholders]')).toHaveCount(0);
+		await expect(clipByName(framescaper, toneA.name)).toBeVisible();
+		await expect(clipByName(framescaper, asymmetricStereoTone.name)).toHaveCount(0);
+
+		await installAudioBufferScheduleProbe(page);
+		await framescaper.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(framescaper.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await expect.poll(() => scheduledAudioBufferCount(page)).toBe(1);
+		await framescaper.getByRole('button', { name: 'Stop', exact: true }).click();
+		const [scheduled] = await scheduledAudioBuffers(page);
+		expect(scheduled).toMatchObject({ sampleRate: 48_000, channelCount: 2 });
+		expect(scheduled.frameCount).toBeGreaterThan(0);
+		expect(scheduled.channelPeaks[0]).toBeGreaterThan(0.09);
+		expect(scheduled.channelPeaks[0]).toBeLessThan(0.11);
+		expect(scheduled.channelPeaks[1]).toBeGreaterThan(0.69);
+		expect(scheduled.channelPeaks[1]).toBeLessThan(0.71);
+		expect(errors).toEqual([]);
+	});
+
 	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }) => {
 		test.setTimeout(90_000);
 		const fixture = await createGeneratedVideoFixture(page, {
@@ -287,6 +345,42 @@ async function incompatibleArchive(input, { id, title }) {
 	});
 }
 
+async function audioEffectsRenderedFallbackArchive(input, { id, title, fallbackSourceName }) {
+	return rewriteArchive(input, ({ project, manifest }) => {
+		if (project.schemaVersion !== 9) throw new Error('Rendered fallback fixture requires schema 9.');
+		project.id = id;
+		project.title = title;
+		const source = project.sources.find((candidate) => (
+			candidate.kind === 'audio' && candidate.name === fallbackSourceName
+		));
+		const asset = manifest.assets.find((candidate) => (
+			candidate.kind === 'audio' && candidate.sourceId === source?.id
+		));
+		if (!source || !asset) throw new Error('Rendered fallback fixture requires its exported audio asset.');
+		// The archive asset is raw PCM. Author it at the project rate even when the
+		// host AudioContext decoded the WAV fixture at a different device rate.
+		source.sampleRate = project.sampleRate;
+		const clipIds = new Set(project.clips
+			.filter((clip) => clip.kind === 'audio' && clip.sourceId === source.id)
+			.map((clip) => clip.id));
+		if (!clipIds.size) throw new Error('Rendered fallback fixture requires one timeline fallback clip.');
+		project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
+		for (const track of project.tracks) {
+			if (Array.isArray(track.clipIds)) track.clipIds = track.clipIds.filter((clipId) => !clipIds.has(clipId));
+		}
+		project.featureRequirements = {
+			schemaVersion: 1,
+			requirements: [{
+				id: 'publisher-audio-render',
+				featureId: 'org.soundscaper.capability.audio-effects',
+				displayName: 'Audio effects',
+				disposition: 'rendered-fallback',
+				fallback: { kind: 'audio', sourceId: source.id, sha256: asset.sha256 },
+			}],
+		};
+	});
+}
+
 async function rewriteArchive(input, mutate) {
 	const reader = new ZipReader(new BlobReader(new Blob([input])), { useWebWorkers: false });
 	const entries = await reader.getEntries();
@@ -324,6 +418,38 @@ async function setScapeInput(input, buffer) {
 		mimeType: 'application/vnd.soundscaper.scape+zip',
 		buffer,
 	});
+}
+
+async function installAudioBufferScheduleProbe(page) {
+	await page.evaluate(() => {
+		globalThis.__scapeCompatibilityScheduledAudio = [];
+		const start = AudioBufferSourceNode.prototype.start;
+		AudioBufferSourceNode.prototype.start = function captureScheduledAudio(...args) {
+			const buffer = this.buffer;
+			if (buffer) {
+				const channelPeaks = Array.from({ length: buffer.numberOfChannels }, (_value, channel) => {
+					let peak = 0;
+					for (const sample of buffer.getChannelData(channel)) peak = Math.max(peak, Math.abs(sample));
+					return peak;
+				});
+				globalThis.__scapeCompatibilityScheduledAudio.push({
+					frameCount: buffer.length,
+					sampleRate: buffer.sampleRate,
+					channelCount: buffer.numberOfChannels,
+					channelPeaks,
+				});
+			}
+			return start.apply(this, args);
+		};
+	});
+}
+
+async function scheduledAudioBufferCount(page) {
+	return page.evaluate(() => globalThis.__scapeCompatibilityScheduledAudio.length);
+}
+
+async function scheduledAudioBuffers(page) {
+	return page.evaluate(() => globalThis.__scapeCompatibilityScheduledAudio);
 }
 
 async function assertAffectedInvertPlaceholder(editor) {
