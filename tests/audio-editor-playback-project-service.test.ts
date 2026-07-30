@@ -7,6 +7,7 @@ import {
 	applyCanonicalProjectToPlaybackEngine,
 	createPlaybackProjectService,
 } from '../src/common/editor/controller/playback-project-service.ts';
+import type { ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
@@ -64,7 +65,7 @@ test('the playback service composes capability evaluation with a required render
 	assert.deepEqual(result.project.tracks.map((track) => track.id), [
 		PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
 	]);
-	assert.strictEqual(canonical.tracks[0]?.effects[0]?.type, 'compressor');
+	assert.strictEqual((canonical.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.type, 'compressor');
 	assert.equal(Object.isFrozen(result), true);
 	assert.equal(Object.isFrozen(result.requiredAudioSourceIds), true);
 });
@@ -81,7 +82,7 @@ test('the playback service retains the existing bounded bypass path and never tr
 	assert.equal(projected.audioRenderedFallback, null);
 	assert.deepEqual(projected.requiredAudioSourceIds, []);
 	assert.equal(projected.audioEffectPlaybackBypass?.placeholders[0]?.effectId, 'limiter-a');
-	assert.equal(projected.project.tracks[0]?.effects[0]?.bypassed, true);
+	assert.equal((projected.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed, true);
 
 	const future = {
 		...bypass,
@@ -103,7 +104,7 @@ test('playback reapplies only the projected document after required sources are 
 	const transient = new Map<string, unknown>([['fallback-source', Object.freeze({ fallback: true })]]);
 	const sourceChunkProviders = new Map<string, unknown>();
 	const events: string[] = [];
-	const applied: Array<Readonly<Record<string, unknown>>> = [];
+	const applied: Array<typeof canonical> = [];
 	const result = await applyCanonicalProjectToPlaybackEngine(canonical, {
 		projectForPlayback: (project) => service.projectForPlayback(project),
 		getCurrentProject: () => canonical,

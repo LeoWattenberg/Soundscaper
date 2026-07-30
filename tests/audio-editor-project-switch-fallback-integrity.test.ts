@@ -29,6 +29,7 @@ import {
 interface TestProject extends ProjectLifecycleProject {
 	readonly marker: string;
 	readonly tracks: readonly Readonly<{ id: string; type: string }>[];
+	readonly clips?: readonly Readonly<{ sourceId: string }>[];
 }
 
 interface TestHistory extends ProjectLifecycleHistory<TestProject> {
