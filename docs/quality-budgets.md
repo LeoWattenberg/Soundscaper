@@ -136,17 +136,19 @@ payload is exactly 385 MiB, one MiB above the desktop 384 MiB output-memory thre
 the complete 403,701,804-byte RIFF has pinned SHA-256
 `f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe`.
 The opt-in Node witness uses the production planner, export controller,
-64-packet PCM sink queue, passthrough streaming resampler, WAV stream encoder,
-and exact-size direct-destination adapter. A counting SHA-256 target retains
-only the 44-byte header prefix, counters, and digest state. It verifies 770
-4,096-frame render packets, 771 serial destination writes, four-way exact byte
+channel-aware PCM sink queue, passthrough streaming resampler, WAV stream
+encoder, and exact-size direct-destination adapter. A counting SHA-256 target
+retains only the 44-byte header prefix, counters, and digest state. It verifies
+193 render packets requested at 16,384 frames, a 16-packet/32-MiB pending-PCM
+ceiling, 98 serial destination writes including the header, four-way exact byte
 agreement, no temporary-storage preflight or final `Blob`, and cancellation
-after the first PCM packet without close or commit.
+after the first 4 MiB coalesced PCM write without close or commit.
 
-The witness records a conservative 34,603,352-byte structural maximum for
-path-owned binary backing stores: 64 queued 524,288-byte PCM packets, one mapped
-packet, one encoder emission, two 44-byte header copies, and the 32-channel
-Float64 dither state. That is below the planned 64 MiB buffered-binary budget.
+The witness records a conservative 41,943,384-byte structural maximum for
+path-owned binary backing stores: 16 queued 2,097,152-byte PCM packets, one
+mapped packet, one encoder emission, the 4 MiB coalescing buffer, two 44-byte
+header copies, and the 32-channel Float64 dither state. That is below the
+planned 64 MiB buffered-binary budget.
 It is an ownership-derived correctness bound, not a renderer-heap or process-RSS
 measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
 may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and

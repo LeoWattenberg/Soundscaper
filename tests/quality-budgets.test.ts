@@ -266,12 +266,12 @@ test('quality budget contract names numeric gates for every later milestone with
 		referenceScaleEnvironmentOverride: 'SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1',
 		routineNodeTestBehavior: 'skip-with-reference-command',
 		routineCoverageBehavior: 'skip-with-reference-command',
-		generatorRevision: 1,
+		generatorRevision: 2,
 		sampleRate: 48_000,
 		channelCount: 32,
 		sampleFormat: 'float32',
 		signal: 'silence',
-		packetFrames: 4_096,
+		packetFrames: 16_384,
 		outputFrames: 3_153_920,
 		outputPcmBytes: 403_701_760,
 		outputFileBytes: 403_701_804,
@@ -279,10 +279,11 @@ test('quality budget contract names numeric gates for every later milestone with
 		desktopOutputThresholdBytes: 402_653_184,
 		renderStrategy: 'realtime-stream',
 		renderReason: 'output-memory',
-		renderPackets: 770,
-		maximumPendingPackets: 64,
-		maximumEncoderEmissionBytes: 524_288,
-		maximumPathOwnedBinaryBytes: 34_603_352,
+		renderPackets: 193,
+		maximumPendingPackets: 16,
+		maximumPendingPcmBytes: 33_554_432,
+		maximumDestinationWriteBytes: 4_194_304,
+		maximumPathOwnedBinaryBytes: 41_943_384,
 		maximumBudgetBufferedBinaryBytes: 67_108_864,
 		retainedOutputPayloadBytes: 0,
 		oversizePreflightBytesRead: 0,
@@ -290,19 +291,19 @@ test('quality budget contract names numeric gates for every later milestone with
 		productionPipeline: [
 			'export-planner',
 			'export-controller',
-			'64-packet-pcm-sink-queue',
+			'channel-aware-32-mib-pcm-sink-queue',
 			'passthrough-streaming-resampler',
 			'wav-stream-encoder',
 			'direct-exact-size-destination',
 		],
-		cancellationAfterPcmVerified: true,
+		cancellationAfterCoalescedPcmWriteVerified: true,
 		rendererHeapQualified: false,
 		processRssQualified: false,
 		filesystemDurabilityQualified: false,
 		packagedElectronQualified: false,
 	});
 	assert.match(directWavFixture?.limitation ?? '', /Node.*counting SHA-256 target/iu);
-	assert.match(directWavFixture?.limitation ?? '', /typed-array backing bytes.*ownership/iu);
+	assert.match(directWavFixture?.limitation ?? '', /typed-array and coalescing-buffer backing bytes.*ownership/iu);
 	assert.match(directWavFixture?.limitation ?? '', /not.*renderer heap.*process RSS/iu);
 	assert.match(directWavFixture?.limitation ?? '', /File System Access.*Electron filesystem/iu);
 	assert.match(directWavFixture?.limitation ?? '', /quota.*durability/iu);

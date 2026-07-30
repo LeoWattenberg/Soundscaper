@@ -10,15 +10,16 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import {
+	DIRECT_WAV_DESTINATION_WRITE_BYTES,
+	DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES,
 	DIRECT_WAV_MAXIMUM_FILE_BYTES,
+	DIRECT_WAV_RENDER_CHUNK_FRAMES,
+	directWavMaximumPendingChunks,
 	prepareDirectWavDestination,
 } from '../src/common/editor/controller/direct-wav-export.ts';
 import { createExportPlan as createAudioExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
-import {
-	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS,
-	createAsyncPlanarPcmSinkQueue,
-} from '../src/common/editor/pcm-sink.js';
+import { createAsyncPlanarPcmSinkQueue } from '../src/common/editor/pcm-sink.js';
 import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import { createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 import { createWavStreamEncoder } from '../src/common/editor/wav.js';
@@ -30,14 +31,17 @@ const FLOAT64_DITHER_STATE_BYTES = CHANNEL_COUNT * Float64Array.BYTES_PER_ELEMEN
 const FRAME_COUNT = 3_153_920;
 const HEADER_BYTES = 44;
 const MAXIMUM_BUFFERED_BINARY_BYTES = 64 * 1024 ** 2;
+const MAXIMUM_PENDING_PACKETS = directWavMaximumPendingChunks(CHANNEL_COUNT);
 const OUTPUT_PCM_BYTES = 385 * 1024 ** 2;
 const OUTPUT_FILE_BYTES = HEADER_BYTES + OUTPUT_PCM_BYTES;
-const PACKET_FRAMES = 4_096;
+const PACKET_FRAMES = DIRECT_WAV_RENDER_CHUNK_FRAMES;
 const PACKET_BYTES = PACKET_FRAMES * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT;
-const PACKET_COUNT = FRAME_COUNT / PACKET_FRAMES;
+const PACKET_COUNT = Math.ceil(FRAME_COUNT / PACKET_FRAMES);
+const PCM_DESTINATION_WRITE_COUNT = Math.ceil(OUTPUT_PCM_BYTES / DIRECT_WAV_DESTINATION_WRITE_BYTES);
 const PATH_OWNED_BINARY_UPPER_BOUND =
-	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS * PACKET_BYTES
+	MAXIMUM_PENDING_PACKETS * PACKET_BYTES
 	+ 2 * PACKET_BYTES
+	+ DIRECT_WAV_DESTINATION_WRITE_BYTES
 	+ 2 * HEADER_BYTES
 	+ FLOAT64_DITHER_STATE_BYTES;
 const REFERENCE_COMMAND = 'npm run test:reference:wav-385mib';
@@ -66,7 +70,9 @@ interface ExportState {
 }
 
 interface RenderRun {
+	chunkFrames: number;
 	frames: number;
+	maximumPendingLimit: number;
 	maximumPendingPackets: number;
 	packets: number;
 }
@@ -79,7 +85,7 @@ interface CountingSession {
 	closeCalls: number;
 	commitCalls: number;
 	maximumConcurrentWrites: number;
-	maximumEmissionBytes: number;
+	maximumWriteBytes: number;
 	outputSha256: string | null;
 	writeCalls: number;
 }
@@ -100,8 +106,11 @@ interface ReferenceFixture {
 test('portable desktop-threshold gate streams an actual 385 MiB WAV through the production route without output retention', {
 	skip: RUN_REFERENCE_GATE ? false : SKIP_MESSAGE,
 }, async (context) => {
-	assert.equal(FRAME_COUNT % PACKET_FRAMES, 0);
-	assert.equal(PACKET_COUNT, 770);
+	assert.equal(FRAME_COUNT % PACKET_FRAMES, PACKET_FRAMES / 2);
+	assert.equal(PACKET_COUNT, 193);
+	assert.equal(MAXIMUM_PENDING_PACKETS, 16);
+	assert.equal(MAXIMUM_PENDING_PACKETS * PACKET_BYTES, DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES);
+	assert.equal(PCM_DESTINATION_WRITE_COUNT, 97);
 	assert.equal(OUTPUT_PCM_BYTES, FRAME_COUNT * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT);
 	assert.equal(OUTPUT_PCM_BYTES, DESKTOP_OUTPUT_THRESHOLD_BYTES + 1024 ** 2);
 	assert.ok(PATH_OWNED_BINARY_UPPER_BOUND <= MAXIMUM_BUFFERED_BINARY_BYTES);
@@ -128,8 +137,8 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.equal(saved.expectedBytes, OUTPUT_FILE_BYTES);
 	assert.equal(saved.bytesWritten, OUTPUT_FILE_BYTES);
 	assert.equal(saved.outputSha256, EXPECTED_OUTPUT_SHA256);
-	assert.equal(saved.writeCalls, 1 + PACKET_COUNT);
-	assert.equal(saved.maximumEmissionBytes, PACKET_BYTES);
+	assert.equal(saved.writeCalls, 1 + PCM_DESTINATION_WRITE_COUNT);
+	assert.equal(saved.maximumWriteBytes, DIRECT_WAV_DESTINATION_WRITE_BYTES);
 	assert.equal(saved.maximumConcurrentWrites, 1);
 	assert.equal(saved.closeCalls, 1);
 	assert.equal(saved.commitCalls, 1);
@@ -150,8 +159,10 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 		waveId: 'WAVE',
 	});
 	assert.deepEqual(fixture.renderRuns[0], {
+		chunkFrames: PACKET_FRAMES,
 		frames: FRAME_COUNT,
-		maximumPendingPackets: AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS,
+		maximumPendingLimit: MAXIMUM_PENDING_PACKETS,
+		maximumPendingPackets: MAXIMUM_PENDING_PACKETS,
 		packets: PACKET_COUNT,
 	});
 	assert.equal(fixture.preflightCalls(), 0);
@@ -162,13 +173,14 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	fixture.cancelNextExportAfterPcm();
 	assert.equal(await fixture.service.handleExportAction('export', exportSettings()), undefined);
 	const cancelled = fixture.sessions[1];
-	assert.equal(cancelled.writeCalls, 2, 'the cancelled target receives its header and first PCM packet');
-	assert.equal(cancelled.bytesWritten, HEADER_BYTES + PACKET_BYTES);
+	assert.equal(cancelled.writeCalls, 2, 'the cancelled target receives its header and first coalesced PCM write');
+	assert.equal(cancelled.bytesWritten, HEADER_BYTES + DIRECT_WAV_DESTINATION_WRITE_BYTES);
 	assert.equal(cancelled.closeCalls, 0);
 	assert.equal(cancelled.commitCalls, 0);
 	assert.equal(cancelled.abortCalls, 1);
 	assert.equal(cancelled.outputSha256, null);
-	assert.equal(fixture.renderRuns[1].maximumPendingPackets, AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS);
+	assert.equal(fixture.renderRuns[1].maximumPendingLimit, MAXIMUM_PENDING_PACKETS);
+	assert.equal(fixture.renderRuns[1].maximumPendingPackets, MAXIMUM_PENDING_PACKETS);
 	assert.deepEqual(fixture.errors, []);
 
 	let oversizeTargetCalls = 0;
@@ -185,9 +197,9 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.deepEqual(oversize, { cancelled: null, destination: null });
 
 	context.diagnostic(JSON.stringify({
-		profile: 'direct-wav-385mib-counting-sha256-node-v1',
+		profile: 'direct-wav-385mib-counting-sha256-node-v2',
 		fixtureId: 'm2-direct-wav-385mib-v1',
-		generatorRevision: 1,
+		generatorRevision: 2,
 		durationMs: Math.round(performance.now() - startedAt),
 		outputFrames: FRAME_COUNT,
 		outputPcmBytes: OUTPUT_PCM_BYTES,
@@ -197,7 +209,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 		renderReason: plan.render.reason,
 		renderPackets: fixture.renderRuns[0].packets,
 		maximumPendingPackets: fixture.renderRuns[0].maximumPendingPackets,
-		maximumEncoderEmissionBytes: saved.maximumEmissionBytes,
+		maximumDestinationWriteBytes: saved.maximumWriteBytes,
 		retainedOutputPayloadBytes: 0,
 		budgetMetrics: {
 			'streaming.maxBufferedBinaryBytes': PATH_OWNED_BINARY_UPPER_BOUND,
@@ -346,27 +358,36 @@ function createReferenceRenderEngine(renderRuns: RenderRun[]) {
 	return {
 		loadProject() {},
 		async renderMixRealtime(request: Readonly<{
+			chunkFrames?: number;
+			maximumPendingChunks?: number;
 			onChunk: (
 				channels: readonly Float32Array[],
 				metadata: Readonly<{ sampleRate: number }>,
 			) => Promise<void> | void;
 			signal: AbortSignal;
 		}>) {
-			const run: RenderRun = { frames: 0, maximumPendingPackets: 0, packets: 0 };
+			const chunkFrames = request.chunkFrames ?? 4_096;
+			const maximumPendingLimit = request.maximumPendingChunks ?? 64;
+			const run: RenderRun = {
+				chunkFrames, frames: 0, maximumPendingLimit, maximumPendingPackets: 0, packets: 0,
+			};
 			renderRuns.push(run);
-			const queue = createAsyncPlanarPcmSinkQueue(request.onChunk);
+			const queue = createAsyncPlanarPcmSinkQueue(request.onChunk, {
+				maximumPendingChunks: maximumPendingLimit,
+			});
 			const abort = () => { queue.abort(request.signal.reason); };
 			request.signal.addEventListener('abort', abort, { once: true });
 			try {
-				for (let packet = 0; packet < PACKET_COUNT; packet += 1) {
+				for (let frameOffset = 0; frameOffset < FRAME_COUNT; frameOffset += chunkFrames) {
 					if (request.signal.aborted) throw request.signal.reason;
+					const frames = Math.min(chunkFrames, FRAME_COUNT - frameOffset);
 					const channels = Array.from(
 						{ length: CHANNEL_COUNT },
-						() => new Float32Array(PACKET_FRAMES),
+						() => new Float32Array(frames),
 					);
 					assert.equal(queue.enqueue(channels, { sampleRate: 48_000 }), true);
 					run.maximumPendingPackets = Math.max(run.maximumPendingPackets, queue.pendingChunks);
-					if (queue.pendingChunks === AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS) {
+					if (queue.pendingChunks === maximumPendingLimit) {
 						await queue.settled();
 					}
 				}
@@ -398,7 +419,7 @@ function createCountingTarget(options: Readonly<{
 		closeCalls: 0,
 		commitCalls: 0,
 		maximumConcurrentWrites: 0,
-		maximumEmissionBytes: 0,
+		maximumWriteBytes: 0,
 		outputSha256: null,
 		writeCalls: 0,
 	};
@@ -422,7 +443,7 @@ function createCountingTarget(options: Readonly<{
 						digest.update(chunk);
 						session.bytesWritten += chunk.byteLength;
 						session.writeCalls += 1;
-						session.maximumEmissionBytes = Math.max(session.maximumEmissionBytes, chunk.byteLength);
+						session.maximumWriteBytes = Math.max(session.maximumWriteBytes, chunk.byteLength);
 						if (options.cancelAfterPcm && session.writeCalls === 2 && !cancelRequested) {
 							cancelRequested = true;
 							await options.onCancel();
