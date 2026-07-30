@@ -17,6 +17,7 @@ import {
 } from '../meter-settings.ts';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
+import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
@@ -216,9 +217,17 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		setDialog('projects');
 		run(() => controller.actions.project.list());
 	}, [controller, run]);
+	const openScapeProjectFile = useCallback((file) => (
+		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
+	), [controller, requestScapeOpenDecision]);
 	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
-		? controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
-		: controller.actions.project.openAudacityProject(file)), [controller, requestScapeOpenDecision]);
+		? openScapeProjectFile(file)
+		: controller.actions.project.openAudacityProject(file)), [controller, openScapeProjectFile]);
+	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
+		fileService,
+		descriptor,
+		{ openMaterialized: openProjectFile, openScape: openScapeProjectFile },
+	), [fileService, openProjectFile, openScapeProjectFile]);
 	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
 		const routed = partitionWorkspaceFiles(files);
 		for (const file of routed.projects) await openProjectFile(file);
@@ -234,13 +243,15 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
 	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
+		if (purpose === 'project') {
+			for (const descriptor of descriptors) await openDesktopProjectDescriptor(descriptor);
+			return descriptors.length;
+		}
 		return fileService.withReadDescriptors(descriptors, {}, async (files) => {
-			if (purpose === 'project') {
-				for (const file of files) await openProjectFile(file);
-			} else if (files.length) await importRoutedFiles(files, importOptions);
+			if (files.length) await importRoutedFiles(files, importOptions);
 			return files.length;
 		});
-	}, [fileService, importRoutedFiles, openProjectFile]);
+	}, [fileService, importRoutedFiles, openDesktopProjectDescriptor]);
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
@@ -444,7 +455,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		fileService,
 		onError,
 		openDesktopFiles,
-		openProjectFile,
+		openDesktopProjectDescriptor,
 		openSurface,
 		run,
 		setIsFullscreen,

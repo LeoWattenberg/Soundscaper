@@ -6,9 +6,11 @@ import {
 	DESKTOP_READ_HARD_LIMIT_BYTES,
 	materializeDesktopReadBlob,
 } from './desktop-read-materialization.ts';
+import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
+const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
@@ -34,6 +36,7 @@ export function createAudioEditorFileService(options = {}) {
 		getEnvironment: () => bridge?.getEnvironment?.() ?? null,
 		chooseFiles,
 		openReadDescriptor,
+		withScapeReadDescriptor,
 		withReadDescriptors,
 		releaseRead,
 		chooseSaveTarget,
@@ -96,6 +99,29 @@ export function createAudioEditorFileService(options = {}) {
 				files.push(createNamedFile(blob, descriptor, scope));
 			}
 			return consume(Object.freeze(files));
+		});
+	}
+
+	async function withScapeReadDescriptor(descriptor, request = {}, consume) {
+		const readIds = uniqueReadIds([descriptor]);
+		return withReadCleanup(readIds, releaseRead, async () => {
+			if (!isReadDescriptor(descriptor)
+				|| typeof descriptor.name !== 'string'
+				|| !/\.scape$/iu.test(descriptor.name)
+				|| descriptor.mimeType !== SCAPE_MIME_TYPE) {
+				throw new TypeError('A canonical desktop Scape read descriptor is required.');
+			}
+			if (descriptor.size > readMaximumBytes) {
+				throw new RangeError('The desktop Scape read exceeds its admitted maximum.');
+			}
+			if (typeof consume !== 'function') throw new TypeError('A desktop Scape read consumer is required.');
+			if (typeof fetchFile !== 'function') throw new Error('Desktop Scape range reads are unavailable.');
+			if (typeof bridge?.releaseRead !== 'function') {
+				throw new Error('Desktop Scape capability release is unavailable.');
+			}
+			throwIfAborted(request.signal);
+			const source = createDesktopScapeArchiveByteSource(descriptor, { fetch: fetchFile });
+			return consume(source);
 		});
 	}
 

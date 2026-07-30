@@ -56,13 +56,14 @@ test('menus and keyboard runtime are not owned by the React app shell', async ()
 });
 
 test('desktop read callers retain capabilities for their scoped consumers', async () => {
-	const owners = await Promise.all([
-		'workspace/AudioEditorWorkspace.jsx',
-		'workspace/ProjectBinPanel.jsx',
-		'workspace/useDesktopEditorBridge.js',
-	].map(async (path) => [path, await readFile(new URL(path, UI_ROOT), 'utf8')]));
-	for (const [path, source] of owners) {
-		assert.match(source, /fileService\.withReadDescriptors\(/u, path);
-		assert.doesNotMatch(source, /fileService\.openReadDescriptor\(/u, path);
+	const workspace = await readFile(new URL('workspace/AudioEditorWorkspace.jsx', UI_ROOT), 'utf8');
+	const projectBin = await readFile(new URL('workspace/ProjectBinPanel.jsx', UI_ROOT), 'utf8');
+	const desktopBridge = await readFile(new URL('workspace/useDesktopEditorBridge.js', UI_ROOT), 'utf8');
+	assert.match(workspace, /withDesktopProjectReadDescriptor\(/u);
+	assert.match(workspace, /fileService\.withReadDescriptors\(/u);
+	assert.match(projectBin, /fileService\.withReadDescriptors\(/u);
+	assert.match(desktopBridge, /openDesktopProjectDescriptor\(descriptor\)/u);
+	for (const source of [workspace, projectBin, desktopBridge]) {
+		assert.doesNotMatch(source, /fileService\.openReadDescriptor\(/u);
 	}
 });

@@ -8,7 +8,7 @@ export function useDesktopEditorBridge({
 	fileService,
 	onError,
 	openDesktopFiles,
-	openProjectFile,
+	openDesktopProjectDescriptor,
 	openSurface,
 	run,
 	setIsFullscreen,
@@ -23,9 +23,7 @@ export function useDesktopEditorBridge({
 		const openDescriptor = (descriptor) => {
 			const operation = desktopOpenQueueRef.current
 				.catch(() => undefined)
-				.then(() => fileService.withReadDescriptors(
-					[descriptor], {}, ([file]) => openProjectFile(file),
-				));
+				.then(() => openDesktopProjectDescriptor(descriptor));
 			desktopOpenQueueRef.current = operation;
 			void operation.catch(onError);
 		};
@@ -104,5 +102,5 @@ export function useDesktopEditorBridge({
 			active = false;
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
-	}, [controller, durationFrames, fileService, onError, openDesktopFiles, openProjectFile, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	}, [controller, durationFrames, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 }
