@@ -114,18 +114,22 @@ Material constraints in the current foundation are also roadmap inputs:
   export is capped at 1280x720 and 30 fps;
 - FFmpeg WebAssembly is single-threaded, serialized through one worker, and
   returns complete in-memory outputs;
-- `.scape` now streams to selected File System Access and desktop targets. The
-  current desktop-read tier still admits at most 512 MiB of active declared
-  input per committed-document owner. Canonical `.scape` descriptors selected
-  through either the native dialog or an OS file association now use one shared
-  router and a branded range byte source instead of a whole renderer `Blob`.
-  One awaited file-service capability scope spans inspection, any open decision,
-  and import before releasing that descriptor exactly once. The browser `Blob`
-  path and Audacity or other desktop inputs retain their existing
-  materialization, while reference-scale reads above 512 MiB still fail because
-  separate large-project admission has not landed. Several compressed imports,
-  browser-download fallback, and final render outputs also retain bounded or
-  reference-scale paths that materialize a whole `Blob` or byte array;
+- `.scape` now streams to selected File System Access and desktop targets.
+  Main assigns immutable desktop-read profiles before publication: Audacity and
+  other materialized inputs retain a 512 MiB per-owner aggregate ceiling, while
+  canonical native-dialog and OS-associated `.scape` files use a separate
+  range profile with at most four pending/live capabilities and 65 GiB of
+  admitted bytes globally and per committed-document owner. The range protocol
+  permits one active request globally and only exact closed `GET` ranges of at
+  most 16 MiB. One shared router and awaited file-service scope span inspection,
+  any open decision, and import without assembling a renderer `Blob`, then
+  release the descriptor exactly once. An exact 8 GiB sparse Zip64 witness now
+  reaches current-schema inspection and collision cancellation with less than
+  8 MiB transferred; it does not yet qualify huge-asset integrity, full import,
+  browser/main-process memory, or storage quota. Browser `.scape` files retain
+  their Blob source. Several compressed imports, browser-download fallback, and
+  final render outputs also retain bounded or reference-scale paths that
+  materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products retain separate Chromium partitions for their
   product-local revision, source, and media shadows, while exact-schema-9 latest
@@ -391,9 +395,20 @@ models or native implementations.
   the admitted end/central/local/descriptor bytes unchanged while fetching only
   payload gaps. This deliberately qualifies canonical `.scape` structure, not
   arbitrary third-party ZIP local-extra expansion. This routing removes final
-  renderer-Blob materialization for admitted canonical desktop `.scape` opens,
-  but no separate large-project admission exists: the qualified selected-file
-  size remains 512 MiB, and the planned 8 GiB logical fixture is still pending.
+  renderer-Blob materialization for admitted canonical desktop `.scape` opens.
+  A main-only selection service assigns `materialized-v1` or `scape-range-v1`
+  from the trusted purpose and terminal path before opening the file. The Scape
+  profile has an independent non-raiseable four-capability and 65 GiB aggregate
+  ledger both globally and per committed-document owner, while both profiles
+  share the existing 128-capability owner count. Profile identity is carried by
+  the store entry, descriptor, URL, and request lease; a mismatch or malformed
+  Scape request refuses before expiry renewal or request acquisition. Scape
+  protocol requests are `GET`-only exact closed ranges no larger than 16 MiB,
+  with one active Scape range request globally. Failed native cleanup retains
+  its charge and fences new Scape range admission instead of claiming released
+  capacity. The ZIP byte-source reader also makes payload streams consumption-
+  driven, so overlap-only layout checks no longer trigger zip.js's eager 4 MiB
+  payload pull.
   Its
   [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
   offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
@@ -401,8 +416,9 @@ models or native implementations.
   reads. The focused
   [byte-source regression](tests/audio-editor-scape-archive-byte-source.test.ts)
   adds Blob parity, lower provider limits, exact cancellation, hostile typed
-  arrays and Blob overrides, structural swaps, comment retention, and body-gap
-  range isolation. The focused
+  arrays and Blob overrides, structural swaps, comment retention, body-gap
+  range isolation, and a real greater-than-4-MiB regression that excludes eager
+  payload prefetch before the unavoidable ZIP end-search suffix. The focused
   [desktop range regression](tests/audio-editor-desktop-scape-archive-byte-source.test.ts)
   adds exact 16 MiB HTTP splitting, descriptor/fetch snapshots, response and
   stream refusal, exact-EOF serialization, first-admitted-error preservation,
@@ -414,7 +430,16 @@ models or native implementations.
   abort does not bypass the authoritative release barrier. The
   [desktop routing regression](tests/audio-editor-desktop-project-file-routing.test.ts)
   proves `.scape` descriptors avoid whole-file materialization while Audacity
-  descriptors retain it. The
+  descriptors retain it. The exact
+  [8 GiB sparse range witness](tests/desktop-scape-sparse-range-integration.test.ts)
+  follows the production project/asset/manifest order through the real
+  capability store, protocol, range adapter, file service, router, and inspector.
+  It admits exact at-most-16-MiB `206` responses, transfers less than 8 MiB,
+  touches only the asset's final at-most-65,557-byte ZIP end-search suffix, and
+  cancels an existing-ID collision before materialization or import. Its huge
+  asset CRC and manifest-declared digest are deliberate placeholders, so this is
+  structural/transport evidence rather than payload-integrity, full-import, or
+  memory qualification. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without
@@ -744,18 +769,30 @@ models or native implementations.
   disposal exactly once before process exit. Desktop read capabilities now
   reuse the opaque main-owned committed-document identity, reserve at most 128
   pending/live admissions per committed-document owner before file open, and
-  enforce 512 MiB of that owner's aggregate active declared selected-file bytes
-  before descriptor publication. Explicit
+  bind every store entry, descriptor, URL, and lease to one main-assigned
+  versioned profile. Materialized inputs enforce 512 MiB of owner-aggregate
+  active declared bytes before publication. Canonical `.scape` range inputs use
+  an independent four-capability and 65 GiB aggregate ledger globally and per
+  owner; count is reserved before open, bytes after regular-file `stat`, and a
+  cleanup failure retains the range charge and fences further range admission.
+  Explicit
   release, expiry, non-same-document navigation, renderer loss, actual close,
   and shutdown synchronously invalidate lookup and drain admitted opens and
   handle closes; delayed dialog/open results for revoked owners cannot publish,
   partial multi-file rollback drains and aggregates every cleanup, serialized
   OS-open dispatch preserves one deduplicated queue head across owner
-  replacement, count or byte exhaustion refuses without eviction, and cleanup
-  failure is reported after every close is attempted. Each published token now
-  admits one active protocol request and serves exact single ranges from its
-  pinned handle. Normal Web-body completion retains that handle for the next
-  serialized request; cancellation, request abort, stream error, release,
+  replacement. Temporary count or aggregate-byte pressure now retains that
+  head, and a successful capability release schedules redispatch without making
+  its acknowledgement wait for the next file open; intrinsic oversize still
+  reports instead of retrying. A renderer-send failure releases its descriptor
+  before the error is reported. Count or byte exhaustion never evicts an
+  existing handle, and cleanup failure is reported after every close is
+  attempted. Each published token now admits one active protocol request from
+  its pinned handle. Materialized requests retain their established method and
+  range behavior; `scape-range-v1` accepts only exact closed `GET` ranges and
+  shares one global active-request gate. Normal Web-body completion retains
+  that handle for the next serialized request; cancellation, request abort,
+  stream error, release,
   expiry, owner revocation, and shutdown instead join one retirement barrier
   that fences lookup, drains native stream close, and acknowledges pinned-handle
   close before settling. Failed cleanup remains visible only to the correct
@@ -771,7 +808,11 @@ models or native implementations.
   [desktop protocol regression](tests/desktop-protocol.test.js) covers
   replacement-renderer queue retry plus real-`FileHandle` reuse, unread-body
   exclusivity, cancellation retirement, abort-before-read, and paused-stream
-  failure.
+  failure. The focused
+  [association backpressure regression](tests/desktop-file-association-delivery.test.js)
+  proves that four real Scape descriptors publish, a fifth stays at the queue
+  head without opening a handle, release redispatches it, send failure cleans up
+  before reporting, and release acknowledgement does not wait on subsequent I/O.
   The bounded materialization tier is also landed for Audacity and other
   selected inputs: preload sanitation and the
   strict-TS [renderer admission](src/common/editor/desktop-read-materialization.ts)
@@ -783,9 +824,11 @@ models or native implementations.
   cancellation. Protocol request abort destroys its file stream. This closes
   `whole-file-renderer-read` for the qualified bounded surface, but it does not
   bound decoder amplification or whole-process RSS. Canonical desktop `.scape`
-  descriptors instead use the branded range scope described above, but remain
-  subject to the same qualified 512 MiB selected-file admission and therefore
-  do not yet qualify a reference-scale desktop read. Atomic save disposal now
+  descriptors are excluded from this materialization profile and instead use
+  the independent branded range scope described above. The exact 8 GiB sparse
+  inspection witness qualifies its structural range transport, but not a full
+  huge-asset import or a renderer/main-process memory budget. Atomic save
+  disposal now
   closes target and session admission synchronously, drains every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
   `finish` settle through its sync-and-rename commit boundary, and then aborts
@@ -1039,10 +1082,13 @@ models or native implementations.
   share one strict router into that source. One awaited file-service capability
   scope spans inspection, any open decision, and import before exact-once
   release; browser `.scape` files retain their Blob path, and Audacity plus
-  other project/media families retain bounded materialization. Still add
-  separate main-assigned large-project admission and pass the planned 8 GiB
-  logical `.scape` fixture without a final renderer `Blob`. Until those
-  admission gates land, inputs above the qualified 512 MiB tier fail explicitly.
+  other project/media families retain bounded materialization. The separate
+  main-assigned `scape-range-v1` admission profile and exact 8 GiB sparse Zip64
+  inspection/collision-cancel witness are now landed without a final renderer
+  `Blob`. Still qualify a complete huge-asset import with real digest/CRC bytes,
+  packaged desktop workflow evidence, and measured renderer/main-process memory
+  and storage behavior. The materialized profile continues to fail above its
+  independent 512 MiB ceiling rather than falling through to the Scape route.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
   installations emerge, define compatibility beyond the retained V1–V8
   raw-document migration paths, especially an explicit migration from the prior

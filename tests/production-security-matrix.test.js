@@ -236,7 +236,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	);
 	assert.match(
 		implementedControls.get('local-header-and-overlap-validation').summary,
-		/33 MiB.*exact classic\/Zip64.*data descriptor.*before zip\.js construction.*greater-than-4-GiB/iu,
+		/33 MiB.*exact classic\/Zip64.*data descriptor.*without extracting or hashing entry bodies.*before zip\.js construction.*fixed ZIP end-record search.*65,557 bytes.*final payload tail.*greater-than-4-GiB/iu,
 	);
 	assert.match(
 		implementedControls.get('compression-ratio-or-store-policy').summary,

@@ -593,7 +593,7 @@
 				},
 				{
 					"id": "local-header-and-overlap-validation",
-					"summary": "A bounded raw-layout preflight, under a shared non-raiseable 33 MiB central-directory cap, anchors exact classic/Zip64 end and central-directory records, validates every central/local header and data descriptor without reading payloads, and rejects gaps, overlap, or entry ranges crossing the central directory before zip.js construction. Export admission reserves the pinned writer's greater-than-4-GiB Zip64 offset branch so produced archives remain admissible.",
+					"summary": "A bounded raw-layout preflight, under a shared non-raiseable 33 MiB central-directory cap, anchors exact classic/Zip64 end and central-directory records, validates every central/local header and data descriptor without extracting or hashing entry bodies, and rejects gaps, overlap, or entry ranges crossing the central directory before zip.js construction. Its fixed ZIP end-record search can overlap at most 65,557 bytes of a final payload tail. Export admission reserves the pinned writer's greater-than-4-GiB Zip64 offset branch so produced archives remain admissible.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-layout.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
@@ -606,9 +606,13 @@
 				},
 				{
 					"id": "bounded-random-access-archive-reading",
-					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. The strict renderer adapter snapshots the descriptor URL/declared size and fetch implementation, splits logical reads into exact at-most-16-MiB partial responses, serializes through stream done, and terminally fences the first admitted abort or transport failure without exposing release authority. Canonical desktop project-dialog and OS-association `.scape` descriptors now share one explicit router; the file service requires a terminal `.scape` name and exact canonical MIME, constructs the branded source inside one awaited scope spanning inspection, any open decision, and import, and awaits exact-once capability release after the consumer settles. Browser Blob and materialized Audacity or other paths are unchanged. Separate large-project admission is absent, so the routed range path remains inside the qualified 512 MiB selected-file ceiling and larger desktop opens remain unqualified.",
+					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. A zero-high-water-mark ZIP payload stream makes overlap-only checks lazy instead of prefetching the start of a large entry. Main assigns terminal canonical `.scape` projects the immutable `scape-range-v1` profile, while Audacity and other desktop inputs remain `materialized-v1`. The strict renderer adapter snapshots the descriptor URL/declared size and fetch implementation, splits reads into exact at-most-16-MiB `206` responses, serializes through stream done, and terminally fences the first admitted abort or transport failure without exposing release authority. Project-dialog and OS-association `.scape` descriptors share one explicit router and awaited scope spanning inspection, any open decision, import, and exact-once release. An exact sparse 8 GiB Zip64 current-schema witness traverses the real read-capability store, protocol shim, adapter, inspection, collision lookup, and cancellation before import with less than 8 MiB transferred and only an at-most-65,557-byte EOCD-search overlap into its placeholder huge asset. Sparse-host dependence, the Node protocol shim rather than packaged UI, and placeholder huge-asset digest and CRC mean this witness does not qualify payload integrity, full import, RSS, browser heap, quota behavior, whole-archive atomicity, or publisher authentication.",
 					"evidence": [
+						{ "kind": "implementation", "path": "desktop/constants.js" },
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "implementation", "path": "desktop/read-selection-service.js" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-scape-archive-byte-source.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-read-profile.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-byte-source.ts" },
@@ -621,7 +625,11 @@
 						{ "kind": "test", "path": "tests/audio-editor-desktop-project-file-routing.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-scape-archive-byte-source.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service-scape-ranges.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-scape-project-byte-source.test.ts" }
+						{ "kind": "test", "path": "tests/audio-editor-scape-project-byte-source.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-read-selection-service.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-range-protocol.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-sparse-range-integration.test.ts" },
+						{ "kind": "test", "path": "tests/helpers/sparse-scape-zip64-fixture.ts" }
 					]
 				},
 				{
@@ -817,11 +825,15 @@
 				},
 				{
 					"id": "serialized-range-request-lifecycle",
-					"summary": "Each capability admits one active protocol request and serves exact single byte ranges. A successful Web response body must reach done before its request lease is released, preserving the pinned handle for a later serialized read. Body cancellation, request abort, or inner stream failure fences and retires the entire capability, waits for native stream close and pinned handle close, and settles the renderer only after that cleanup barrier. Explicit release, expiry, owner revocation, and shutdown join the same retirement. A failed cleanup tombstone remains observable only to the correct owner until owner or store teardown, token allocation cannot alias a live tombstone, and descriptor lookup does not expose the raw handle. The strict renderer archive adapter performs serialized at-most-16-MiB exact partial-response reads through stream done, snapshots the descriptor URL/declared size and fetch implementation, permanently fences the first admitted failure with one stable reason, and exposes no raw handle or release operation; queued-only abort does not poison the source. Canonical desktop project-dialog and OS-association `.scape` descriptors share one router into an awaited file-service scope that requires a terminal `.scape` name and exact canonical MIME, constructs the source inside that scope, spans inspection, any open decision, and import, and releases exactly once only after the consumer settles on success, failure, cancellation, or abort. Browser Blob and materialized Audacity or other paths are unchanged. No separate large-project admission exists, so this routed range path remains within the qualified 512 MiB selected-file surface.",
+					"summary": "The immutable main-assigned read profile is bound through the store entry, frozen descriptor, canonical URL, lookup, and request lease. Unknown or mismatched profiles and malformed range requests refuse before lease acquisition or TTL renewal, and the store repeats expected-profile comparison before renewal. `scape-range-v1` accepts only `GET` with one exact closed range wholly inside the declared file, caps it at 16 MiB, and always responds `206`; full-file, `HEAD`, suffix, open-ended, multiple, oversized, and EOF-overrun requests refuse. One shared Scape admission gate permits one active range request globally. A successful Web response body must reach done before its lease releases, preserving the pinned handle for a later request. Body cancellation, request abort, or inner stream failure fences and retires the entire capability, waits for native stream close and pinned handle close, and settles the renderer after that cleanup barrier; explicit release, expiry, owner revocation, and shutdown join the same retirement. A failed cleanup tombstone remains visible only to the correct owner until owner or store teardown, token allocation cannot alias it, and lookup exposes no raw handle. Preload validation repeats exact profile, name, MIME, profile-size, and canonical URL-path rules with no query or fragment. Renderer validation excludes Scape from generic materialization, admits only canonical `scape-range-v1` descriptors to the strict archive adapter, verifies each partial response through stream done, and owns exact release after success, failure, cancellation, abort, or invalid routing. Project-dialog and OS-association `.scape` descriptors share that awaited scope; browser Blob and materialized Audacity or other paths are unchanged.",
 					"evidence": [
+						{ "kind": "implementation", "path": "desktop/constants.js" },
 						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
 						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "implementation", "path": "desktop/read-capability-admission.js" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-scape-archive-byte-source.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-read-profile.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-byte-source.ts" },
@@ -832,22 +844,30 @@
 						{ "kind": "test", "path": "tests/audio-editor-desktop-project-file-routing.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-scape-archive-byte-source.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service-scape-ranges.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-preload-read-descriptors.test.js" },
 						{ "kind": "test", "path": "tests/desktop-read-capability-leases.test.js" },
-						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-range-protocol.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-read-capabilities.test.js" }
 					]
 				},
 				{
 					"id": "renderer-document-owned-read-lifecycle",
-					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. For each committed-document owner, the store reserves one of at most 128 pending or live capability slots before its first file-open await. Before descriptor publication it checks that the owner's aggregate declared selected-file bytes remain at or below the non-raiseable 512 MiB ceiling and that the owner remains active. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry synchronously remove the capability from lookup before draining its handle. Main-frame non-same-document navigation, renderer loss, actual window close, and application shutdown synchronously fence the affected owner or store and remove its published capabilities from lookup before draining every admitted open and handle close. A delayed dialog or open or stat completion after owner revocation closes its candidate without publication. Partial multi-file registration drains every rollback release and reports the primary and cleanup failures. OS-open paths remain serially deduplicated at a visible queue head until delivery to a current ready owner. Count or byte exhaustion deterministically refuses the new admission without evicting an existing handle. Revocation and shutdown attempt every close before rejecting on cleanup failure; shutdown permanently refuses new admission.",
+					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. Main selects one immutable profile and both profiles share at most 128 pending or live capability slots per owner, reserved before the first file-open await. `materialized-v1` retains a non-raiseable 512 MiB aggregate declared-byte ceiling per owner. Canonical terminal Scape projects use the independent `scape-range-v1` admission of at most four capabilities and 65 GiB aggregate declared bytes both globally and per owner; count reserves before open and bytes charge after stat but before publication. A failed candidate or retirement cleanup retains its range charge and fences new range admission. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry synchronously remove it from lookup before draining its handle. Navigation, renderer loss, window close, and shutdown fence the affected owner or store before draining every admitted open and handle close; delayed dialog, open, or stat completion closes without publication. Partial multi-file registration drains every rollback release and reports primary plus cleanup failures. OS-open paths remain serially deduplicated at one visible queue head. With four real Scape descriptors admitted globally, the fifth refuses before open and remains queued; one acknowledged release redispatches it. A renderer-send failure releases its descriptor before reporting and removing that head. Transient count or aggregate-byte pressure is retryable without eviction, but an individually oversized file is not. Revocation and shutdown attempt every close before rejecting on cleanup failure, and shutdown permanently refuses new admission.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/constants.js" },
 						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
 						{ "kind": "implementation", "path": "desktop/file-associations.js" },
 						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "implementation", "path": "desktop/read-capability-admission.js" },
+						{ "kind": "implementation", "path": "desktop/read-selection-service.js" },
 						{ "kind": "implementation", "path": "desktop/renderer-save-owner.js" },
 						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "test", "path": "tests/desktop-file-association-delivery.test.js" },
 						{ "kind": "test", "path": "tests/desktop-read-capability-ownership.test.js" },
+						{ "kind": "test", "path": "tests/desktop-read-selection-service.test.js" },
 						{ "kind": "test", "path": "tests/desktop-renderer-save-owner.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-read-capabilities.test.js" },
 						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" }
@@ -855,12 +875,13 @@
 				},
 				{
 					"id": "bounded-abortable-renderer-read-materialization",
-					"summary": "Authoritative main-process admission limits aggregate active declared selected-file bytes to a non-raiseable 512 MiB per committed-document owner before descriptor publication. The preload sanitizes descriptor size as a safe non-negative integer within that ceiling, and the renderer materializer repeats admission before fetch, requires exact declared Content-Length, emitted-byte, and final Blob-size agreement, and reads only the response body stream. Retained response parts are copied and split at the non-raiseable 16 MiB platform media-chunk limit. The materializer forwards the caller-provided AbortSignal, promptly races and cancels a stalled body read with its exact reason, and never calls response.blob(). A scoped descriptor batch releases every capability after its callback on success, failure, or cancellation, while request abort destroys the corresponding protocol file stream. This is a bounded whole-Blob tier for the current surface, not a bound on decoder amplification or whole-process RSS; larger range-backed reads remain outside the qualified surface.",
+					"summary": "This control applies only to main-assigned `materialized-v1` descriptors. Authoritative main-process admission limits their aggregate active declared selected-file bytes to a non-raiseable 512 MiB per committed-document owner before publication. The preload validates the exact materialized profile, name, MIME, safe size, and canonical profile-bearing URL. The renderer repeats profile admission before fetch and rejects any Scape name, canonical Scape MIME, or `scape-range-v1` descriptor instead of materializing it. For admitted materialized reads it requires exact declared Content-Length, emitted-byte, and final Blob-size agreement and reads only the response body stream. Retained parts are copied and split at the non-raiseable 16 MiB platform media-chunk limit. The materializer forwards the caller's AbortSignal, promptly races and cancels a stalled body read with its exact reason, and never calls response.blob(). A scoped descriptor batch releases every capability after its callback on success, failure, or cancellation, while request abort destroys the protocol file stream. This is a bounded whole-Blob tier, not a bound on decoder amplification or whole-process RSS; Scape is excluded and handled by the separately admitted range profile.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/constants.js" },
 						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
 						{ "kind": "implementation", "path": "desktop/preload.mjs" },
 						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-read-profile.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-read-materialization.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 						{ "kind": "implementation", "path": "src/common/editor/platform/bounded-transfer.ts" },
@@ -869,6 +890,7 @@
 						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/useDesktopEditorBridge.js" },
 						{ "kind": "test", "path": "tests/audio-editor-app-modules.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-read-materialization.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-project-file-routing.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 						{ "kind": "test", "path": "tests/desktop-preload-read-descriptors.test.js" },
 						{ "kind": "test", "path": "tests/desktop-read-capability-ownership.test.js" },

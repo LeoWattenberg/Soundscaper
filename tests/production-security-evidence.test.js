@@ -52,7 +52,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	assert.match(documentation, /local operating-system compromise is out of scope/iu);
 	assert.match(
 		documentation,
-		/desktop-read-path-capabilities.*enforced for the current bounded 512 MiB selected-file surface.*preload.*renderer materializer.*exact declared `Content-Length`.*emitted-byte.*final `Blob`-size.*response body stream.*16 MiB.*platform media-chunk limit.*caller-supplied `AbortSignal`.*stalled body read.*exact reason.*never calls `response\.blob\(\)`.*scoped descriptor.*protocol request abort.*materialization tier.*whole `Blob`.*canonical desktop `?\.scape`?.*sole range-backed project route.*same declared-size admission.*not decoder amplification or whole-process RSS.*larger range-backed reads.*fail admission/isu,
+		/desktop-read-path-capabilities.*enforced for the current versioned materialized and Scape range profiles.*main assigns an immutable `?materialized-v1`?.*`?scape-range-v1`?.*store.*frozen descriptor.*canonical capability URL.*request lease.*128 pending\/live.*`?materialized-v1`?.*512 MiB.*per-owner.*`?scape-range-v1`?.*at most four capabilities.*65 GiB.*globally and per owner.*count.*before open.*bytes.*after stat.*before descriptor publication.*cleanup failure.*retains the range charge.*fences.*OS-open dispatch.*four Scape descriptors.*fifth.*unopened.*acknowledged release.*redispatches.*renderer-send failure.*releases.*descriptor/isu,
 	);
 	assert.match(
 		documentation,
@@ -60,7 +60,15 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*strict renderer archive adapter.*16-MiB.*ranges.*through `done`.*descriptor URL\/declared size.*fetch implementation.*first admitted terminal error.*active, queued, and future reads.*no release operation.*queued-only abort.*does not poison.*Project-dialog.*OS-association.*same explicit router.*terminal `?\.scape`?.*exact canonical Scape MIME.*awaited file-service scope.*inspection.*collision decision.*import.*exactly once.*success.*failure.*user cancellation.*abort.*authoritative cleanup barrier.*Browser Blob.*Audacity.*No separate large-project admission.*512 MiB/isu,
+		/`?scape-range-v1`? protocol.*only `GET`.*closed `?bytes=start-end`? range.*at most 16 MiB.*wholly inside.*always responds `206`.*full-file.*`HEAD`.*suffix.*open-ended.*multiple.*oversized.*end-of-file-overrun.*refuse.*profile parsing.*descriptor\/profile comparison.*range validation.*before acquisition.*cannot renew.*TTL.*store repeats.*expected-profile.*before renewal.*one active range request globally.*successful Web response body.*`?done`?.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*preload validation.*exact profile.*name.*MIME.*profile-specific size.*canonical URL-path.*no query or fragment.*renderer repeats.*generic materialization rejects Scape.*strict archive adapter.*partial-response contract.*exactly once.*invalid or mismatched renderer route.*released before refusal.*Browser Blob.*Audacity/isu,
+	);
+	assert.match(
+		documentation,
+		/`?materialized-v1`? tier.*whole `?Blob`?.*512 MiB.*excludes Scape.*declared `?Content-Length`?.*emitted-byte.*final `?Blob`?-size.*16 MiB.*caller.*`?AbortSignal`?.*never calls `?response\.blob\(\)`?.*not decoder amplification or whole-process RSS/isu,
+	);
+	assert.match(
+		documentation,
+		/exact 8 GiB sparse Zip64 `?\.scape`? fixture.*current schema.*real read-capability store.*protocol handler.*renderer adapter.*structural inspection.*collision lookup.*cancellation before import.*less than 8 MiB.*65,557-byte suffix.*sparse-file support.*Node protocol shim.*manifest digest.*ZIP CRC.*placeholders.*does not qualify payload integrity.*full import.*process RSS.*browser heap.*filesystem quota.*whole-archive atomicity.*publisher authentication/isu,
 	);
 	assert.match(
 		documentation,

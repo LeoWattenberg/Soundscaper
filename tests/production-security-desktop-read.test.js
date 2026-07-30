@@ -20,17 +20,30 @@ test('desktop read capability evidence remains qualified for its current surface
 		'desktop/file-capabilities.js',
 		'desktop/file-associations.js',
 		'desktop/main.mjs',
+		'desktop/read-capability-admission.js',
+		'desktop/read-selection-service.js',
 		'desktop/renderer-save-owner.js',
 		'desktop/protocol.js',
+		'tests/desktop-file-association-delivery.test.js',
 		'tests/desktop-read-capability-ownership.test.js',
+		'tests/desktop-read-selection-service.test.js',
 		'tests/desktop-renderer-save-owner.test.js',
+		'tests/desktop-scape-read-capabilities.test.js',
 		'tests/desktop-project-library-packaging.test.js',
 		'tests/desktop-protocol.test.js',
 		'tests/desktop-save.test.js',
 	]) assert.ok(rendererOwnedRead.evidence.some((item) => item.path === path));
 	assert.match(
 		rendererOwnedRead.summary,
-		/opaque main-owned.*committed main-frame document.*for each committed-document owner.*128 pending or live.*before.*file-open await.*before descriptor publication.*owner's aggregate declared selected-file bytes.*512 MiB.*wrong-owner release.*release.*expiry.*non-same-document navigation.*renderer loss.*actual window close.*shutdown.*synchronously.*lookup.*drain.*delayed.*open or stat.*without publication.*partial multi-file.*every rollback release.*primary and cleanup failures.*OS-open paths.*serially deduplicated.*visible queue head.*refuses.*without evicting.*cleanup failure/iu,
+		/opaque main-owned.*committed main-frame document.*immutable profile.*both profiles.*128 pending or live capability slots per owner.*before the first file-open await.*`materialized-v1`.*512 MiB.*per owner.*`scape-range-v1`.*four capabilities.*65 GiB.*globally and per owner.*count reserves before open.*bytes charge after stat.*before publication/iu,
+	);
+	assert.match(
+		rendererOwnedRead.summary,
+		/cleanup retains its range charge.*fences new range admission.*wrong-owner release.*correct release and expiry.*navigation.*renderer loss.*window close.*shutdown.*delayed dialog, open, or stat.*without publication.*partial multi-file.*rollback release/iu,
+	);
+	assert.match(
+		rendererOwnedRead.summary,
+		/OS-open paths.*visible queue head.*four real Scape descriptors.*fifth refuses before open.*acknowledged release redispatches.*renderer-send failure releases its descriptor.*transient count or aggregate-byte pressure.*retryable without eviction.*individually oversized file is not/iu,
 	);
 
 	const leasedRangeRead = desktopRead.currentControls.find(
@@ -38,9 +51,13 @@ test('desktop read capability evidence remains qualified for its current surface
 	);
 	assert.ok(leasedRangeRead);
 	for (const path of [
+		'desktop/constants.js',
 		'desktop/file-capabilities.js',
+		'desktop/preload.mjs',
 		'desktop/protocol.js',
+		'desktop/read-capability-admission.js',
 		'src/common/editor/desktop-scape-archive-byte-source.ts',
+		'src/common/editor/desktop-read-profile.ts',
 		'src/common/editor/file-service.js',
 		'src/common/editor/scape-abort.ts',
 		'src/common/editor/scape-archive-byte-source.ts',
@@ -51,12 +68,15 @@ test('desktop read capability evidence remains qualified for its current surface
 		'tests/audio-editor-desktop-project-file-routing.test.ts',
 		'tests/audio-editor-desktop-scape-archive-byte-source.test.ts',
 		'tests/audio-editor-file-service-scape-ranges.test.ts',
+		'tests/desktop-preload-read-descriptors.test.js',
 		'tests/desktop-read-capability-leases.test.js',
 		'tests/desktop-protocol.test.js',
+		'tests/desktop-scape-range-protocol.test.js',
+		'tests/desktop-scape-read-capabilities.test.js',
 	]) assert.ok(leasedRangeRead.evidence.some((item) => item.path === path));
 	assert.match(
 		leasedRangeRead.summary,
-		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*strict renderer archive adapter.*16-MiB.*exact partial-response.*stream done.*descriptor URL\/declared size.*fetch implementation.*first admitted failure.*stable reason.*no raw handle or release operation.*queued-only abort.*does not poison.*project-dialog.*OS-association.*\.scape.*one router.*awaited file-service scope.*terminal.*exact canonical MIME.*inspection.*open decision.*import.*exactly once.*success.*failure.*cancellation.*abort.*Browser Blob.*Audacity.*no separate large-project admission.*512 MiB/iu,
+		/immutable main-assigned read profile.*store entry.*frozen descriptor.*canonical URL.*lookup.*request lease.*unknown or mismatched profiles.*malformed range.*before lease acquisition or TTL renewal.*store repeats.*expected-profile.*before renewal.*`scape-range-v1`.*only `GET`.*exact closed range.*inside.*16 MiB.*always responds `206`.*full-file.*`HEAD`.*suffix.*open-ended.*multiple.*oversized.*EOF-overrun.*refuse.*one active range request globally.*successful Web response body.*done.*pinned handle.*body cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*no raw handle.*preload.*exact profile.*name.*MIME.*profile-size.*canonical URL-path.*no query or fragment.*renderer.*excludes Scape.*generic materialization.*exact release.*success.*failure.*cancellation.*abort.*invalid routing.*project-dialog.*OS-association.*awaited scope.*Browser Blob.*Audacity/iu,
 	);
 
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
@@ -69,6 +89,7 @@ test('desktop read capability evidence remains qualified for its current surface
 		'desktop/file-capabilities.js',
 		'desktop/preload.mjs',
 		'desktop/protocol.js',
+		'src/common/editor/desktop-read-profile.ts',
 		'src/common/editor/desktop-read-materialization.ts',
 		'src/common/editor/file-service.js',
 		'src/common/editor/platform/bounded-transfer.ts',
@@ -76,6 +97,7 @@ test('desktop read capability evidence remains qualified for its current surface
 		'src/common/editor/ui/workspace/ProjectBinPanel.jsx',
 		'src/common/editor/ui/workspace/useDesktopEditorBridge.js',
 		'tests/audio-editor-app-modules.test.js',
+		'tests/audio-editor-desktop-project-file-routing.test.ts',
 		'tests/audio-editor-desktop-read-materialization.test.ts',
 		'tests/audio-editor-file-service.test.js',
 		'tests/desktop-preload-read-descriptors.test.js',
@@ -84,7 +106,7 @@ test('desktop read capability evidence remains qualified for its current surface
 	]) assert.ok(boundedMaterialization.evidence.some((item) => item.path === path));
 	assert.match(
 		boundedMaterialization.summary,
-		/authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before descriptor publication.*preload.*descriptor size.*renderer materializer.*before fetch.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*platform media-chunk limit.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*release.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS/iu,
+		/only.*main-assigned `materialized-v1`.*authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before publication.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape is excluded.*separately admitted range profile/iu,
 	);
 	assert.equal(desktopRead.releaseDisposition, 'qualified-current-surface');
 	assert.deepEqual(desktopRead.residualRisks, []);
