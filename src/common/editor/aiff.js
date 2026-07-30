@@ -1,6 +1,9 @@
 import { createAiffId3Chunk } from './id3-metadata.js';
 
 const AIFF_VERSION_1 = 0xa2805140;
+const UINT32_MAX = 0xffffffff;
+
+export const AIFF_MAXIMUM_FILE_BYTES = UINT32_MAX + 8;
 
 /**
  * Encodes aligned planar PCM as AIFF (integer) or AIFF-C (32-bit float).
@@ -26,32 +29,19 @@ export function encodeAiff(input, options = {}) {
  * the frame count is declared up front so the file header can be emitted first.
  */
 export function createAiffStreamEncoder(options = {}) {
-	const sampleRate = positiveInteger(options.sampleRate, 48_000, 'AIFF sample rate');
-	const channelCount = integerInRange(options.channelCount, 1, 32, 2, 'AIFF channel count');
-	const totalFrames = integerInRange(options.totalFrames, 0, 0xffffffff, 0, 'AIFF frame count');
-	const format = normalizeAiffSampleFormat(options);
-	const floatingPoint = format === 'float32';
-	const bitDepth = Number(format.replace(/\D/g, ''));
-	const bytesPerSample = bitDepth / 8;
-	const dataBytes = totalFrames * channelCount * bytesPerSample;
-	if (!Number.isSafeInteger(dataBytes)) throw new RangeError('AIFF output size exceeds JavaScript integer precision.');
-	const padBytes = dataBytes % 2;
+	const metadataChunk = createAiffId3Chunk(options.metadata);
+	const layout = prepareAiffLayout(options, metadataChunk.byteLength);
+	const {
+		sampleRate, channelCount, totalFrames, sampleFormat: format, floatingPoint,
+		bitDepth, bytesPerSample, dataPadByteLength: padBytes,
+		byteLength: totalByteLength,
+	} = layout;
 	const collect = options.collect ?? !options.onChunk;
 	const onChunk = typeof options.onChunk === 'function' ? options.onChunk : null;
 	const dither = floatingPoint ? 'none' : normalizeDither(options.dither);
 	const ditherState = new Float64Array(channelCount);
 	const random = typeof options.random === 'function' ? options.random : Math.random;
-	const metadataChunk = createAiffId3Chunk(options.metadata);
-	const header = createAiffHeader({
-		sampleRate,
-		channelCount,
-		totalFrames,
-		bitDepth,
-		float: floatingPoint,
-		trailingByteLength: metadataChunk.byteLength,
-	});
-	const totalByteLength = header.byteLength + dataBytes + padBytes + metadataChunk.byteLength;
-	if (totalByteLength - 8 > 0xffffffff) throw new RangeError('AIFF output cannot exceed its 32-bit FORM size.');
+	const header = createAiffHeaderFromLayout(layout);
 	const chunks = collect ? [header] : [];
 	const pending = [];
 	let writtenFrames = 0;
@@ -130,48 +120,105 @@ export function createAiffStreamEncoder(options = {}) {
 	}
 }
 
-export function createAiffHeader({ sampleRate = 48_000, channelCount = 2, totalFrames = 0, bitDepth = 24, float = false, trailingByteLength = 0 } = {}) {
-	const rate = positiveInteger(sampleRate, 48_000, 'AIFF sample rate');
-	const channels = integerInRange(channelCount, 1, 32, 2, 'AIFF channel count');
-	const frames = integerInRange(totalFrames, 0, 0xffffffff, 0, 'AIFF frame count');
-	const depth = float ? 32 : normalizeIntegerBitDepth(bitDepth);
-	const dataBytes = frames * channels * (depth / 8);
-	if (!Number.isSafeInteger(dataBytes)) throw new RangeError('AIFF output size exceeds JavaScript integer precision.');
-	const padBytes = dataBytes % 2;
-	const trailingSize = integerInRange(trailingByteLength, 0, 0xffffffff, 0, 'AIFF trailing chunk size');
+/**
+ * Inspect the exact AIFF/AIFF-C file layout without allocating PCM or file-sized buffers.
+ * An explicit `trailingByteLength` takes precedence over encoded `metadata` size.
+ *
+ * @param {{ sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16|24|32, float?: boolean, sampleFormat?: string, trailingByteLength?: number, metadata?: Record<string, *> }} [options]
+ * @returns {{ container: 'aiff'|'aifc', byteLength: number, headerByteLength: number, formSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number }}
+ */
+export function inspectAiffLayout(options = {}) {
+	const layout = prepareAiffLayout(options);
+	return Object.freeze({
+		container: layout.container,
+		byteLength: layout.byteLength,
+		headerByteLength: layout.headerByteLength,
+		formSize: layout.formSize,
+		dataByteLength: layout.dataByteLength,
+		dataPadByteLength: layout.dataPadByteLength,
+		trailingByteLength: layout.trailingByteLength,
+	});
+}
 
-	const compressionName = float ? pascalString('32-bit floating point') : null;
-	const commSize = float ? 18 + 4 + compressionName.byteLength : 18;
-	const headerSize = 12 + (float ? 12 : 0) + 8 + commSize + 16;
-	const fileSize = headerSize + dataBytes + padBytes + trailingSize;
-	if (fileSize - 8 > 0xffffffff) throw new RangeError('AIFF output cannot exceed its 32-bit FORM size.');
-	const header = new Uint8Array(headerSize);
+export function createAiffHeader(options = {}) {
+	return createAiffHeaderFromLayout(prepareAiffLayout(options));
+}
+
+function createAiffHeaderFromLayout(layout) {
+	const {
+		sampleRate, channelCount, totalFrames, bitDepth, floatingPoint,
+		compressionName, commSize, headerByteLength, formSize, dataByteLength,
+	} = layout;
+	const header = new Uint8Array(headerByteLength);
 	const view = new DataView(header.buffer);
 	let offset = 0;
 
 	writeAscii(view, offset, 'FORM'); offset += 4;
-	view.setUint32(offset, fileSize - 8, false); offset += 4;
-	writeAscii(view, offset, float ? 'AIFC' : 'AIFF'); offset += 4;
-	if (float) {
+	view.setUint32(offset, formSize, false); offset += 4;
+	writeAscii(view, offset, floatingPoint ? 'AIFC' : 'AIFF'); offset += 4;
+	if (floatingPoint) {
 		writeAscii(view, offset, 'FVER'); offset += 4;
 		view.setUint32(offset, 4, false); offset += 4;
 		view.setUint32(offset, AIFF_VERSION_1, false); offset += 4;
 	}
 	writeAscii(view, offset, 'COMM'); offset += 4;
 	view.setUint32(offset, commSize, false); offset += 4;
-	view.setUint16(offset, channels, false); offset += 2;
-	view.setUint32(offset, frames, false); offset += 4;
-	view.setUint16(offset, depth, false); offset += 2;
-	header.set(encodeIeeeExtended80(rate), offset); offset += 10;
-	if (float) {
+	view.setUint16(offset, channelCount, false); offset += 2;
+	view.setUint32(offset, totalFrames, false); offset += 4;
+	view.setUint16(offset, bitDepth, false); offset += 2;
+	header.set(encodeIeeeExtended80(sampleRate), offset); offset += 10;
+	if (floatingPoint) {
 		writeAscii(view, offset, 'fl32'); offset += 4;
 		header.set(compressionName, offset); offset += compressionName.byteLength;
 	}
 	writeAscii(view, offset, 'SSND'); offset += 4;
-	view.setUint32(offset, dataBytes + 8, false); offset += 4;
+	view.setUint32(offset, dataByteLength + 8, false); offset += 4;
 	view.setUint32(offset, 0, false); offset += 4;
 	view.setUint32(offset, 0, false);
 	return header;
+}
+
+function prepareAiffLayout(options = {}, forcedTrailingByteLength) {
+	const sampleRate = positiveInteger(options.sampleRate, 48_000, 'AIFF sample rate');
+	const channelCount = integerInRange(options.channelCount, 1, 32, 2, 'AIFF channel count');
+	const totalFrames = integerInRange(options.totalFrames, 0, UINT32_MAX, 0, 'AIFF frame count');
+	const sampleFormat = normalizeAiffSampleFormat(options);
+	const floatingPoint = sampleFormat === 'float32';
+	const bitDepth = Number(sampleFormat.replace(/\D/g, ''));
+	const bytesPerSample = bitDepth / 8;
+	const dataByteLength = totalFrames * channelCount * bytesPerSample;
+	if (!Number.isSafeInteger(dataByteLength)) {
+		throw new RangeError('AIFF output size exceeds JavaScript integer precision.');
+	}
+	const dataPadByteLength = dataByteLength % 2;
+	const requestedTrailingByteLength = forcedTrailingByteLength ?? options.trailingByteLength;
+	const trailingByteLength = requestedTrailingByteLength == null
+		? createAiffId3Chunk(options.metadata).byteLength
+		: integerInRange(requestedTrailingByteLength, 0, UINT32_MAX, 0, 'AIFF trailing chunk size');
+	const compressionName = floatingPoint ? pascalString('32-bit floating point') : null;
+	const commSize = floatingPoint ? 18 + 4 + compressionName.byteLength : 18;
+	const headerByteLength = 12 + (floatingPoint ? 12 : 0) + 8 + commSize + 16;
+	const byteLength = headerByteLength + dataByteLength + dataPadByteLength + trailingByteLength;
+	const formSize = byteLength - 8;
+	if (formSize > UINT32_MAX) throw new RangeError('AIFF output cannot exceed its 32-bit FORM size.');
+	return Object.freeze({
+		container: floatingPoint ? 'aifc' : 'aiff',
+		byteLength,
+		headerByteLength,
+		formSize,
+		dataByteLength,
+		dataPadByteLength,
+		trailingByteLength,
+		sampleRate,
+		channelCount,
+		totalFrames,
+		sampleFormat,
+		floatingPoint,
+		bitDepth,
+		bytesPerSample,
+		compressionName,
+		commSize,
+	});
 }
 
 /** Encodes a positive sample rate as the 80-bit extended value used by AIFF. */

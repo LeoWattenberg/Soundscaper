@@ -18,6 +18,7 @@ import {
 	getMediaExportFormat,
 	normalizeMediaExportSettings,
 } from './media-export.js';
+import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
 import {
@@ -75,6 +76,8 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number} outputBytesPerRender
  * @property {number|null} outputFileBytesPerRender
  * @property {number} requiredTemporaryBytes
+ * @property {ReturnType<typeof normalizeMediaExportSettings>} encoding
+ * @property {Readonly<Record<string, string>>} metadata
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean }} render
  * @property {Array<{kind: string, fileName: string, trackId: string | null}>} outputs
  * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
@@ -199,23 +202,28 @@ export function createExportPlan(project, options = {}) {
 		encoding,
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
-	const outputLayout = format === 'wav' || format === 'bwf' || format === 'bw64'
-		? inspectWavLayout({
-			container: adm ? 'bw64' : 'auto',
-			sampleRate,
-			channelCount: encoding.channelCount,
-			totalFrames: outputFrames,
-			bitDepth: encoding.bitDepth,
-			float: encoding.floatingPoint,
-			metadata: encoding.metadata,
-			markers,
-			ixml,
-			cart,
-			bext,
-			preDataChunks: adm?.preDataChunks,
-			trailingChunks: adm?.trailingChunks,
+	const outputLayout = format === 'aiff'
+		? inspectAiffLayout({
+			sampleRate, channelCount: encoding.channelCount, totalFrames: outputFrames,
+			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata,
 		})
-		: null;
+		: format === 'wav' || format === 'bwf' || format === 'bw64'
+			? inspectWavLayout({
+				container: adm ? 'bw64' : 'auto',
+				sampleRate,
+				channelCount: encoding.channelCount,
+				totalFrames: outputFrames,
+				bitDepth: encoding.bitDepth,
+				float: encoding.floatingPoint,
+				metadata: encoding.metadata,
+				markers,
+				ixml,
+				cart,
+				bext,
+				preDataChunks: adm?.preDataChunks,
+				trailingChunks: adm?.trailingChunks,
+			})
+			: null;
 	const render = chooseRenderStrategy({
 		mobile: Boolean(options.mobile),
 		outputBytes,
