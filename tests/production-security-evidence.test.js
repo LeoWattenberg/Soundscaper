@@ -293,11 +293,15 @@ test('project feature requirements are bounded and fail closed at activation and
 	);
 	assert.match(
 		fallbackPlayback.summary,
-		/initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure.*readiness failure.*prevents.*engine load.*canonical project.*history.*save.*export.*offline render.*unchanged.*active during editor playback/iu,
+		/initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/iu,
 	);
 	assert.match(
 		fallbackPlayback.summary,
-		/point-in-time.*not a durable byte lease.*stale.*cache or provider state.*does not roll.*back.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+		/initial activation.*only the required fallback source.*before.*session activation reservation.*activation side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*promptly.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status.*readiness failure.*active project, tab, and lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers.*engine load.*canonical project.*history.*save.*export.*offline render.*unchanged.*active during editor playback/iu,
+	);
+	assert.match(
+		fallbackPlayback.summary,
+		/point-in-time.*not a durable byte lease.*successful prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*canonical playback reapply.*ensureProjectSourcesAvailable.*identity-fenced.*non-abortable.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
 	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
@@ -331,9 +335,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
 	assert.match(documentation, /first-party audio rendered-fallback playback.*exact schema 9.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
 	assert.match(documentation, /stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/isu);
-	assert.match(documentation, /not a durable byte lease.*stale.*cache or chunk-provider state.*does not roll.*back.*generic and video fallback/isu);
+	assert.match(documentation, /initial activation.*only the required fallback source.*before.*session.*activation reservation.*activation.*side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*exact reason.*late settlement.*buffers.*chunk providers.*engine.*chunk sources.*missing-source state.*status.*readiness failure.*active project.*tab.*lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers/isu);
+	assert.match(documentation, /not a durable byte lease.*successful.*prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*ensureProjectSourcesAvailable.*identity-fenced.*non-abortable.*generic and video fallback/isu);
 	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(roadmap, /first-party audio whole-mix editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider readiness.*unit coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open/isu);
+	assert.match(roadmap, /first-party audio whole-mix editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider.*readiness.*unit.*coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open/isu);
+	assert.match(roadmap, /unit evidence.*required-only preparation before.*activation reservation and side effects.*prompt lifetime cancellation.*signal-ignoring metadata.*audio-context.*decoded-body stalls.*exact.*reason preservation.*no late source or status publication.*merge.*prepared and ordinary transient buffers.*successful reusable cache or.*provider state.*not rolled back.*canonical playback.*reapply preparation.*non-abortable/isu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {

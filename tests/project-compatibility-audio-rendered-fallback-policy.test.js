@@ -22,7 +22,11 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/removes canonical audio clips and tracks.*neutral.*mixer and master.*retains video and label.*initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure.*readiness failure.*prevents.*engine load/iu,
+		/removes canonical audio clips and tracks.*neutral.*mixer and master.*retains video and label.*initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/initial activation.*only the required fallback source.*before.*session activation reservation.*activation side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*promptly.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status.*readiness failure.*active project, tab, and lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers.*projected engine load/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -30,7 +34,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/point-in-time.*not.*durable byte lease.*stale.*source preparation.*cache or provider state.*activation source failure.*does not roll.*back.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+		/point-in-time.*not.*durable byte lease.*successful prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*canonical playback reapply.*ensureProjectSourcesAvailable.*identity-fenced.*non-abortable.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -51,8 +55,12 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
 	const roadmap = await readFile(new URL('../roadmap.md', import.meta.url), 'utf8');
 	assert.match(documentation, /exact schema 9.*first-party audio-effects rendered fallback.*whole-mix.*frame zero.*editor playback/isu);
+	assert.match(documentation, /initial activation.*only the required fallback source.*before.*session.*activation reservation.*activation.*side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*exact signal.*reason.*late settlement.*buffers.*chunk providers.*engine.*chunk sources.*missing-source state.*status.*active project.*tab.*lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers/isu);
+	assert.match(documentation, /successful.*prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*ensureProjectSourcesAvailable.*identity fence.*not.*abortable.*does not prefetch or revalidate/isu);
 	assert.match(documentation, /point-in-time.*not a durable byte lease.*generic and video.*fallback.*remain/isu);
 	assert.match(roadmap, /exact-schema-V9.*first-party audio-effects rendered\s+fallback/isu);
 	assert.match(roadmap, /For editor\s+playback.*whole-mix clip.*frame zero/isu);
-	assert.match(roadmap, /editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider readiness.*unit coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open.*rendered-fallback\s+runtime behavior\s+beyond.*first-party audio whole-mix/isu);
+	assert.match(roadmap, /initial activation.*only.*required fallback source.*before.*session.*activation reservation.*activation.*side effects.*metadata.*audio-context.*decoded.*body stalls.*controller-lifetime signal.*exact reason.*late settlement.*buffers.*chunk.*providers.*engine.*chunk sources.*missing-source state.*status.*active project.*tab.*lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers/isu);
+	assert.match(roadmap, /successful.*prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*ensureProjectSourcesAvailable.*not.*abortable/isu);
+	assert.match(roadmap, /editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider.*readiness.*unit.*coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open.*rendered-fallback\s+runtime behavior\s+beyond.*first-party audio whole-mix/isu);
 });

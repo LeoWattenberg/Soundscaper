@@ -341,9 +341,16 @@ Fallback-only sources are required explicitly and their stored metadata is
 rechecked. Short sources are decoded and their buffer geometry must match
 exactly; oversized sources must expose a streamable chunk provider. Readiness
 does not prefetch or revalidate streamed chunks, so a later provider failure
-remains possible. A readiness failure prevents the projected engine load. The
-canonical project, history, persistence, save, export, and offline-render paths
-never receive this projection.
+remains possible. Initial activation prepares only the required fallback source
+before obtaining the session activation reservation or performing activation
+side effects. Metadata, audio-context, and decoded-body stalls race the
+controller-lifetime signal; cancellation rejects promptly with the exact signal
+reason, and late settlement cannot publish buffers, chunk providers, engine
+chunk sources, missing-source state, or status. A readiness failure leaves the
+active project, tab, and lock unchanged. Ordinary-source transient buffers are
+later merged with the prepared fallback buffers before projected engine load.
+The canonical project, history, persistence, save, export, and offline-render
+paths never receive this projection.
 
 Deeply frozen per-tab and document-snapshot metadata drives one localized
 active-during-editor-playback indicator bound to the exact report requirement;
@@ -433,11 +440,16 @@ not verify fallback bytes, and admission does not continuously bind them against
 a later low-level source replacement or establish publisher authenticity.
 Admission itself does not substitute fallback media at runtime; the separate exact-schema-9
 first-party audio whole-mix projection described above performs the narrow
-editor-playback substitution. Required-source preparation has no transaction or
-AbortSignal: the canonical identity fence suppresses a stale engine apply, but
-a stale read may still publish cache or chunk-provider state. An activation
-source failure occurs after tab, lock, and session publication and does not roll
-those effects back. The maintained projections do not provide generic
+editor-playback substitution. Initial required-source preparation is
+lifetime-abortable and occurs before activation reservation and side effects.
+A signal-ignoring metadata, context, or decoded-body operation may continue
+internally after cancellation, but its late settlement is fenced from buffer,
+provider, engine-source, missing-source, and status publication. Successful
+prepared cache or stream-provider state remains reusable and is not rolled back
+if reservation or later activation fails. Canonical playback reapply through
+`ensureProjectSourcesAvailable` retains the canonical identity fence but is not
+abortable. Readiness does not prefetch or revalidate streamed chunks. The
+maintained projections do not provide generic
 per-feature bypass controls, generic or video rendered-fallback substitution,
 ADM or surround fallback playback, export or offline-render substitution,
 future-schema preservation, earlier Soundscaper-schema compatibility, or a

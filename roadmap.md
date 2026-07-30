@@ -1489,13 +1489,24 @@ models or native implementations.
   projection. Required stored metadata is rechecked; short decoded-buffer
   geometry must match exactly, while oversized sources must expose a streamable chunk
   provider. Stream chunks are not prefetched or revalidated at readiness, so a
-  later provider failure remains possible; readiness failure prevents engine
-  load. Canonical project, history, persistence, save, export, and offline
-  render remain unchanged. Frozen per-tab metadata drives a localized
-  active-playback indicator without exposing the source ID or digest. This does
-  not cover generic or video fallback, freeze/proxy authoring, ADM or surround
-  playback, unknown or third-party activation, future schemas, or earlier
-  Soundscaper project schemas.
+  later provider failure remains possible. Initial activation prepares only the
+  required fallback source before obtaining the session activation reservation
+  or performing activation side effects. Metadata, audio-context, and decoded
+  body stalls race the controller-lifetime signal; cancellation rejects promptly
+  with that exact reason, and late settlement cannot publish buffers, chunk
+  providers, engine chunk sources, missing-source state, or status. A readiness
+  failure therefore leaves the active project, tab, and lock unchanged. After
+  activation publication, ordinary-source transient buffers are merged with the
+  prepared fallback buffers before engine load. Canonical project, history,
+  persistence, save, export, and offline render remain unchanged. Frozen per-tab
+  metadata drives a localized active-playback indicator without exposing the
+  source ID or digest. Successful prepared cache or stream-provider state is
+  reusable and is not rolled back if reservation or later activation fails.
+  Canonical playback reapply remains identity-fenced but its separate
+  `ensureProjectSourcesAvailable` call is not abortable. This does not cover
+  generic or video fallback, freeze/proxy authoring, ADM or surround playback,
+  unknown or third-party activation, future schemas, or earlier Soundscaper
+  project schemas.
   The maintained first-party video-effect slice similarly projects only an
   exact-schema-V9 authoritative activation project whose registered
   `videoEffects` report item is unavailable with declared bypass and effective
@@ -1587,14 +1598,18 @@ models or native implementations.
   binding against later low-level source replacement, publisher authenticity,
   or substitution by the admission step itself. It is point-in-time, not a
   durable byte lease. The separate exact-V9 first-party audio whole-mix slice
-  performs the narrow editor-playback substitution described above. Its source
-  preparation is not transactional or abortable: the canonical identity fence
-  suppresses stale engine apply, but a stale read may publish cache or provider
-  state, and activation source failure after tab, lock, and session publication
-  does not roll those effects back. Generic affected-object unavailable-feature
-  placeholders and per-feature bypass controls beyond the bounded maintained
-  first-party audio- and video-effect slices, generic or video rendered-fallback
-  runtime use, and arbitrary future-schema archive preservation remain planned. Complete
+  performs the narrow editor-playback substitution described above. Its initial
+  required-source preparation is lifetime-abortable and precedes activation
+  reservation and side effects; signal-ignoring metadata, context, or decoded
+  body work may continue internally, but late settlement is fenced from source
+  and status publication. This is not a complete source transaction: successful
+  reusable cache or stream-provider state is not rolled back if reservation or
+  later activation fails, and canonical playback reapply source preparation is
+  identity-fenced but non-abortable. Stream chunks are not prefetched or
+  revalidated. Generic affected-object unavailable-feature placeholders and
+  per-feature bypass controls beyond the bounded maintained first-party audio-
+  and video-effect slices, generic or video rendered-fallback runtime use, and
+  arbitrary future-schema archive preservation remain planned. Complete
   third-party discovery, loading, and isolation remain separate later surfaces
   rather than blockers for this first-party contract.
 
@@ -1632,8 +1647,15 @@ models or native implementations.
   and persistent control-free affected-effect placeholders. Exact-schema-V9
   first-party audio whole-mix editor playback through the short decoded-source
   path, including its persistent active-fallback indicator, is browser-qualified.
-  Oversized stream-provider readiness has unit coverage only; readiness does not
-  prefetch or revalidate its chunks after point-in-time admission. This exit
+  Unit evidence additionally qualifies required-only preparation before
+  activation reservation and side effects, prompt lifetime cancellation of
+  signal-ignoring metadata, audio-context, and decoded-body stalls with exact
+  reason preservation and no late source or status publication, plus the merge
+  of prepared and ordinary transient buffers. Oversized stream-provider
+  readiness has unit coverage only; readiness does not prefetch or revalidate
+  its chunks after point-in-time admission. Successful reusable cache or
+  provider state is not rolled back after a later activation failure, and
+  canonical playback reapply preparation remains non-abortable. This exit
   remains open for rendered-fallback runtime behavior
   beyond the maintained first-party audio whole-mix slice,
   generic unavailable-feature placeholder and bypass controls, and arbitrary
