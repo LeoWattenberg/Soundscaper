@@ -341,14 +341,24 @@ Fallback-only sources are required explicitly and their stored metadata is
 rechecked. Short sources are decoded and their buffer geometry must match
 exactly; oversized sources must expose a streamable chunk provider. Readiness
 does not prefetch or revalidate streamed chunks, so a later provider failure
-remains possible. Initial activation prepares only the required fallback source
-before obtaining the session activation reservation or performing activation
-side effects. Metadata, audio-context, and decoded-body stalls race the
+remains possible. Initial activation stages only the required fallback source's
+decoded buffer or stream-provider candidate privately before obtaining the
+activation reservation, without changing shared buffer, provider, or engine
+chunk-source state. Metadata, audio-context, and decoded-body stalls race the
 controller-lifetime signal; cancellation rejects promptly with the exact signal
 reason, and late settlement cannot publish buffers, chunk providers, engine
-chunk sources, missing-source state, or status. A readiness failure leaves the
-active project, tab, and lock unchanged. Ordinary-source transient buffers are
-later merged with the prepared fallback buffers before projected engine load.
+chunk sources, missing-source state, or status. If post-preparation currentness
+or reservation fails, the stage is discarded and the prior buffer and provider
+identities, engine chunk-source state, active project, tab, and lock remain
+unchanged. After currentness and reservation succeed, ordinary-source loading
+excludes the required fallback. Ordinary transient buffers and the staged
+required representation are composed into private source-buffer and
+chunk-source snapshots; the staged required representation wins a conflicting
+transient before those snapshots reach the engine. After the engine callback
+succeeds and the lifetime signal remains active, commit runs its caller-supplied
+synchronous project-identity or activation-admission assertion immediately
+before shared publication, with no intervening await; only then do the shared
+source maps change.
 Each canonical playback reapply owns one replaceable controller-lifetime task.
 A newer reapply or a successful project switch aborts stalled metadata,
 audio-context, or decoded-body source preparation with the exact signal reason;
@@ -451,12 +461,15 @@ editor-playback substitution. Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
 A signal-ignoring metadata, context, or decoded-body operation may continue
 internally after cancellation, but its late settlement is fenced from buffer,
-provider, engine-source, missing-source, and status publication. Successful
-prepared cache or stream-provider state remains reusable and is not rolled back
-if reservation or later activation fails. An `engine.applyProject` call already
-entered is not abortable or transactional; cancellation is observed only after
-that call settles. Readiness does not prefetch or revalidate streamed chunks. The
-maintained projections do not provide generic
+provider, engine-source, missing-source, and status publication. An engine
+application already entered is not abortable or transactional and can leave
+engine-side effects after callback failure or cancellation. A later activation
+failure after a successful commit does not roll back committed shared source
+state or earlier activation effects. Ordinary-source loading remains outside
+this required-source staging transaction, and short-buffer retention after
+engine application remains subject to cache-fit policy. Readiness does not
+prefetch or revalidate streamed chunks. The maintained projections do not
+provide generic
 per-feature bypass controls, generic or video rendered-fallback substitution,
 ADM or surround fallback playback, export or offline-render substitution,
 future-schema preservation, earlier Soundscaper-schema compatibility, or a

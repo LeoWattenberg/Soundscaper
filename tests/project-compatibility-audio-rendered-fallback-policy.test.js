@@ -26,7 +26,11 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/initial activation.*only the required fallback source.*before.*session activation reservation.*activation side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*promptly.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status.*readiness failure.*active project, tab, and lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers.*projected engine load/iu,
+		/initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*session activation reservation.*without mutating.*shared source-buffer or provider.*engine chunk sources.*currentness or reservation.*discarded.*prior buffer and provider identities.*active project, tab, and lock.*unchanged/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/ordinary-source loading.*excludes.*required fallback.*private source-buffer and chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback succeeds.*lifetime signal.*active.*synchronous project-identity or activation-admission assertion.*immediately before shared publication.*no intervening await.*shared source maps/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -34,7 +38,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/point-in-time.*not.*durable byte lease.*successful prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails/iu,
+		/point-in-time.*not.*durable byte lease/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -42,7 +46,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/engine\.applyProject.*already\s+entered.*not abortable.*transactional.*streamed chunks.*not prefetched or revalidated.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -57,6 +61,8 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 		'tests/audio-editor-playback-project-service.test.ts',
 		'tests/audio-editor-source-lifecycle-service.test.ts',
 		'tests/audio-editor-source-audio.test.ts',
+		'tests/audio-editor-required-source-preparation.test.ts',
+		'tests/audio-editor-project-switch-source-preparation.test.ts',
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
@@ -65,14 +71,16 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
 	const roadmap = await readFile(new URL('../roadmap.md', import.meta.url), 'utf8');
 	assert.match(documentation, /exact schema 9.*first-party audio-effects rendered fallback.*whole-mix.*frame zero.*editor playback/isu);
-	assert.match(documentation, /initial activation.*only the required fallback source.*before.*session.*activation reservation.*activation.*side effects.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*exact signal.*reason.*late settlement.*buffers.*chunk providers.*engine.*chunk sources.*missing-source state.*status.*active project.*tab.*lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers/isu);
+	assert.match(documentation, /initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*activation reservation.*without changing.*shared buffer.*provider.*engine.*chunk-source state.*currentness.*reservation.*fails.*discarded.*prior buffer.*provider.*identities.*active project.*tab.*lock.*unchanged/isu);
+	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
-	assert.match(documentation, /successful.*prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*engine\.applyProject.*already\s+entered.*not abortable.*transactional.*does not prefetch or revalidate/isu);
+	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
 	assert.match(documentation, /point-in-time.*not a durable byte lease.*generic and video.*fallback.*remain/isu);
 	assert.match(roadmap, /exact-schema-V9.*first-party audio-effects rendered\s+fallback/isu);
 	assert.match(roadmap, /For editor\s+playback.*whole-mix clip.*frame zero/isu);
-	assert.match(roadmap, /initial activation.*only.*required fallback source.*before.*session.*activation reservation.*activation.*side effects.*metadata.*audio-context.*decoded.*body stalls.*controller-lifetime signal.*exact reason.*late settlement.*buffers.*chunk.*providers.*engine.*chunk sources.*missing-source state.*status.*active project.*tab.*lock unchanged.*ordinary-source transient buffers.*merged.*prepared fallback buffers/isu);
+	assert.match(roadmap, /initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*activation reservation.*without changing.*shared buffer.*provider.*engine.*chunk-source state.*currentness.*reservation.*fails.*discarded.*prior buffer.*provider.*identities.*active project.*tab.*lock.*unchanged/isu);
+	assert.match(roadmap, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required.*representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(roadmap, /each canonical playback reapply.*replaceable.*controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact reason.*late settlement.*buffer.*provider.*engine.*missing-source.*status.*only the.*newest source-ready projection.*engine/isu);
-	assert.match(roadmap, /successful.*prepared cache or stream-provider state.*reusable.*not rolled back.*reservation or later activation fails.*engine\.applyProject.*already\s+entered.*not abortable.*transactional/isu);
-	assert.match(roadmap, /editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider.*readiness.*unit.*coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open.*rendered-fallback\s+runtime behavior\s+beyond.*first-party audio whole-mix/isu);
+	assert.match(roadmap, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy/isu);
+	assert.match(roadmap, /editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider.*readiness.*unit.*coverage only.*does not.*prefetch or revalidate.*chunks after.*point-in-time admission.*exit.*remains open.*rendered-fallback\s+runtime behavior\s+beyond.*first-party audio whole-mix/isu);
 });

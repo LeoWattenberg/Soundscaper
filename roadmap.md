@@ -1487,29 +1487,42 @@ models or native implementations.
   neutralizes mixer and master processing, while retaining video and label
   timing. Initial activation and later engine reapplies share the same playback
   projection. Required stored metadata is rechecked; short decoded-buffer
-  geometry must match exactly, while oversized sources must expose a streamable chunk
-  provider. Stream chunks are not prefetched or revalidated at readiness, so a
-  later provider failure remains possible. Initial activation prepares only the
-  required fallback source before obtaining the session activation reservation
-  or performing activation side effects. Metadata, audio-context, and decoded
-  body stalls race the controller-lifetime signal; cancellation rejects promptly
-  with that exact reason, and late settlement cannot publish buffers, chunk
-  providers, engine chunk sources, missing-source state, or status. A readiness
-  failure therefore leaves the active project, tab, and lock unchanged. After
-  activation publication, ordinary-source transient buffers are merged with the
-  prepared fallback buffers before engine load. Canonical project, history,
-  persistence, save, export, and offline render remain unchanged. Frozen per-tab
+  geometry must match exactly, while oversized sources must expose a streamable
+  chunk provider. Stream chunks are not prefetched or revalidated at readiness, so a
+  later provider failure remains possible. Initial activation stages only the
+  required fallback source's decoded buffer or stream-provider candidate
+  privately before obtaining the activation reservation, without changing
+  shared buffer, provider, or engine chunk-source state. Metadata, audio-context,
+  and decoded body stalls race the controller-lifetime signal; cancellation
+  rejects promptly with that exact reason, and late settlement cannot publish
+  buffers, chunk providers, engine chunk sources, missing-source state, or
+  status. If post-preparation currentness or reservation fails, the stage is
+  discarded and the prior buffer and provider identities, engine chunk-source
+  state, active project, tab, and lock remain unchanged. After currentness and
+  reservation succeed, ordinary-source loading excludes the required fallback.
+  Ordinary transient buffers and the staged required representation are composed
+  into private source-buffer and chunk-source snapshots; the staged required
+  representation wins a conflicting transient before those snapshots reach the
+  engine. After the engine callback succeeds and the lifetime signal remains
+  active, commit runs its caller-supplied synchronous project-identity or
+  activation-admission assertion immediately before shared publication, with no
+  intervening await between that assertion and mutation of the shared source
+  maps. Canonical project, history, persistence, save, export, and offline
+  render remain unchanged. Frozen per-tab
   metadata drives a localized active-playback indicator without exposing the
   source ID or digest. Each canonical playback reapply owns one replaceable
   controller-lifetime task. A newer reapply or a successful project switch
   aborts stalled metadata, audio-context, and decoded-body preparation with the
   exact reason, and late settlement cannot publish a buffer, provider, engine
   source, missing-source state, or status. In the tested stalled-preparation
-  race, only the newest source-ready projection enters the engine. Successful
-  prepared cache or stream-provider state is reusable and is not rolled back if
-  reservation or later activation fails. An `engine.applyProject` call already
-  entered is not abortable or transactional. Streamed chunks are not prefetched
-  or revalidated after readiness. This does not cover
+  race, only the newest source-ready projection enters the engine. An engine
+  application already entered is not abortable or transactional and can leave
+  engine-side effects after callback failure or cancellation. A later activation
+  failure after a successful commit does not roll back committed shared source
+  state or earlier activation effects. Ordinary-source loading remains outside
+  this required-source staging transaction, and short-buffer retention after
+  engine application remains subject to cache-fit policy. Streamed chunks are
+  not prefetched or revalidated after readiness. This does not cover
   generic or video fallback, freeze/proxy authoring, ADM or surround playback,
   unknown or third-party activation, future schemas, or earlier Soundscaper
   project schemas.
@@ -1605,19 +1618,28 @@ models or native implementations.
   or substitution by the admission step itself. It is point-in-time, not a
   durable byte lease. The separate exact-V9 first-party audio whole-mix slice
   performs the narrow editor-playback substitution described above. Its initial
-  required-source preparation is lifetime-abortable and precedes activation
-  reservation and side effects; signal-ignoring metadata, context, or decoded
-  body work may continue internally, but late settlement is fenced from source
-  and status publication. This is not a complete source transaction: successful
-  reusable cache or stream-provider state is not rolled back if reservation or
-  later activation fails. Each canonical playback reapply owns one replaceable
-  controller-lifetime task; a newer reapply or a successful project switch
+  required-source preparation stages the decoded buffer or stream-provider
+  candidate privately and is lifetime-abortable before activation reservation
+  and side effects. Signal-ignoring metadata, context, or decoded body work may
+  continue internally, but late settlement is fenced from source and status
+  publication. Failed currentness or reservation discards the stage without
+  replacing prior shared source identities. After both succeed, the staged
+  required representation and ordinary transients form private engine-input
+  snapshots. After the engine callback succeeds while the lifetime remains
+  active, commit runs a synchronous project-identity or activation-admission
+  assertion immediately before shared publication, with no intervening await;
+  only then do the shared source maps change. Each canonical playback reapply
+  owns one replaceable controller-lifetime task; a newer reapply or a successful project switch
   aborts stalled metadata, audio-context, and decoded-body preparation with the
   exact reason and fences late buffer, provider, engine-source, missing-source,
   and status publication. Only the newest source-ready projection enters the
-  engine in the tested stalled-preparation race. An `engine.applyProject` call
-  already entered is not abortable or transactional. Stream chunks are not
-  prefetched or revalidated. Generic affected-object unavailable-feature
+  engine in the tested stalled-preparation race. This is not a complete source
+  or activation transaction: an engine call already entered is not abortable or
+  transactional and may leave engine-side effects after failure or cancellation;
+  a later activation failure does not roll back a successful commit; ordinary-
+  source loading is outside the required-source stage; and short-buffer retention
+  remains subject to cache-fit policy. Stream chunks are not prefetched or
+  revalidated. Generic affected-object unavailable-feature
   placeholders and
   per-feature bypass controls beyond the bounded maintained first-party audio-
   and video-effect slices, generic or video rendered-fallback runtime use, and
@@ -1659,19 +1681,24 @@ models or native implementations.
   and persistent control-free affected-effect placeholders. Exact-schema-V9
   first-party audio whole-mix editor playback through the short decoded-source
   path, including its persistent active-fallback indicator, is browser-qualified.
-  Unit evidence additionally qualifies required-only preparation before
-  activation reservation and side effects, prompt lifetime cancellation of
-  signal-ignoring metadata, audio-context, and decoded-body stalls with exact
-  reason preservation and no late source or status publication, plus the merge
-  of prepared and ordinary transient buffers. Each canonical playback reapply
-  now owns one replaceable controller-lifetime task; a newer reapply or a
-  successful project switch aborts stalled source preparation, and only the
-  newest source-ready projection enters the engine in the tested race. Oversized
-  stream-provider readiness has unit coverage only and does not prefetch or revalidate
-  chunks after point-in-time admission. Successful reusable
-  cache or provider state is not rolled back after a later activation failure,
-  and an `engine.applyProject` call already entered is not abortable or
-  transactional.
+  Unit evidence additionally qualifies private required-source staging before
+  activation reservation, prompt lifetime cancellation of signal-ignoring
+  metadata, audio-context, and decoded-body stalls with exact reason preservation
+  and no late source or status publication, discard on failed currentness or
+  reservation with prior shared identities intact, and private engine-input
+  snapshots in which the staged fallback wins a conflicting transient. Shared
+  source maps publish only after the engine callback succeeds while the lifetime
+  remains active and a synchronous project-identity or activation-admission
+  assertion runs immediately before publication with no intervening await. Each
+  canonical playback reapply owns one replaceable
+  controller-lifetime task; a newer reapply or a successful project switch
+  aborts stalled source preparation, and only the newest source-ready projection
+  enters the engine in the tested race. Oversized stream-provider readiness has
+  unit coverage only and does not prefetch or revalidate chunks after
+  point-in-time admission. An entered engine call remains non-abortable and
+  non-transactional; later activation failure does not undo a successful commit,
+  ordinary-source loading is outside the required-source transaction, and
+  short-buffer retention remains subject to cache-fit policy.
   This exit
   remains open for rendered-fallback runtime behavior
   beyond the maintained first-party audio whole-mix slice,
