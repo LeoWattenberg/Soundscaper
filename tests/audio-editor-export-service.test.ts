@@ -142,9 +142,11 @@ function createFixture() {
 		renderMix: async () => audio,
 		async renderMixRealtime(range: {
 			onChunk: (channels: Float32Array[], metadata?: { sampleRate?: number }) => void;
+			onProgress?: (progress: Readonly<{ progress: number }>) => void;
 		}) {
 			calls.push('render-realtime');
 			if (realtimeThrows) throw new Error('realtime failed');
+			range.onProgress?.({ progress: 0.25 });
 			range.onChunk(audio.channels, { sampleRate: 44_100 });
 			return { sampleRate: 44_100 };
 		},
@@ -294,6 +296,12 @@ function createFixture() {
 		sourceBuffers,
 		state,
 		stemProject: (value: TestProject) => structuredClone(value),
+		taskProgress: {
+			begin: () => ({ setPhase: () => true, finish: () => true }),
+			getSnapshot: () => ({ kind: 'export' }),
+			setActivePhase: () => true,
+			updateActive: () => true,
+		},
 		store: {
 			loadMediaAsset: async () => mediaAvailable ? new Blob([Uint8Array.of(1)]) : null,
 		},
@@ -327,7 +335,6 @@ function createFixture() {
 		setSinkPersistent: (value: boolean) => { sinkPersistent = value; },
 	};
 }
-
 test('export action cancellation and preconditions preserve idle state', async () => {
 	const fixture = createFixture();
 	let aborted = false;
@@ -470,6 +477,7 @@ test('realtime exports stream native PCM and transcode staged compressed formats
 	assert.equal(nativeResult.mimeType, 'audio/wav');
 	assert.equal(native.calls.includes('sink-write'), true);
 	assert.equal(native.calls.includes('render-realtime'), true);
+	assert.deepEqual(native.progress, [0.25]);
 	await native.state.outputCleanup?.();
 	assert.equal(native.calls.includes('sink-remove'), true);
 

@@ -548,6 +548,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				sampleRate: renderSampleRate,
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
 				...(directDestination ? directWavRenderQueueOptions(Number(snapshot.masterChannels || 2)) : {}),
+				...withRenderProgress({}),
 				signal,
 				onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
 					renderedSampleRate = metadata.sampleRate || renderedSampleRate;
