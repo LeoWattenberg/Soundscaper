@@ -196,6 +196,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		outputFrames: requestedOutputFrames = null,
 		preRollFrames = 0,
 		chunkFrames = 4096,
+		maximumPendingChunks = undefined,
 		onChunk,
 		onProgress = null,
 		signal,
@@ -331,7 +332,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		};
 		failParametricEqRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
-		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { onError: failRender }) as SinkQueue;
+		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { maximumPendingChunks, onError: failRender }) as SinkQueue;
 		const queue = sinkQueue;
 		const abort = () => failRender(createAbortError());
 		signal?.addEventListener('abort', abort, { once: true });

@@ -136,6 +136,7 @@ export type EnginePcmChunkSink = (
 export interface EngineRealtimeRenderOptions extends EngineRenderMixOptions {
 	readonly sampleRate?: number;
 	readonly chunkFrames?: number;
+	readonly maximumPendingChunks?: number;
 	readonly onChunk?: EnginePcmChunkSink;
 }
 

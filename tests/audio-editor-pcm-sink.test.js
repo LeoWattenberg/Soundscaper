@@ -273,6 +273,29 @@ test('realtime engine rejects producer overrun without retaining an unbounded qu
 	});
 });
 
+test('realtime engine honors an explicitly bounded pending-chunk window', async () => {
+	const chunkCount = AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS + 1;
+	let writes = 0;
+	await withMockRealtimeRenderer((context) => {
+		for (let index = 0; index < chunkCount; index += 1) {
+			context.emit({
+				type: 'audio-chunk', frameOffset: index,
+				channels: [Float32Array.of(index), Float32Array.of(-index)],
+			});
+		}
+		context.emit({ type: 'done', frames: chunkCount });
+	}, async () => {
+		const engine = createRealtimeFixtureEngine();
+		const result = await engine.renderMixToSink({
+			sink: async () => { writes += 1; },
+			outputFrames: chunkCount,
+			maximumPendingChunks: chunkCount,
+		});
+		assert.equal(writes, chunkCount);
+		assert.equal(result.chunkCount, chunkCount);
+	});
+});
+
 function createRealtimeFixtureEngine() {
 	const engine = createAudioEditorEngine();
 	engine.loadProject({
