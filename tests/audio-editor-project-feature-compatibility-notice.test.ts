@@ -6,6 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { ProjectFeatureAudioEffectBypassMetadata } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
+import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import type { ProjectFeatureVideoEffectBypassMetadata } from '../src/common/editor/project-feature-video-effect-bypass.ts';
@@ -252,6 +253,42 @@ test('audio-effect placeholders require qualifying playback-bypass metadata and 
 	assert.doesNotMatch(withoutMetadata, /data-audio-effect-placeholder/iu);
 	assert.doesNotMatch(withRenderedFallback, /data-audio-effect-placeholder/iu);
 	assert.equal(duplicateRequirements.match(/data-audio-effect-placeholder=/gu)?.length, 1);
+});
+
+test('audio rendered fallback activation is localized and bound to its exact requirement', () => {
+	const metadata = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		requirementId: 'audio-effects',
+		sourceId: 'rendered-source',
+		trackId: 'soundscaper:rendered-audio-fallback:track',
+		clipId: 'soundscaper:rendered-audio-fallback:clip',
+	} satisfies ProjectFeatureAudioRenderedFallbackMetadata;
+	const incompatible = report(false, [
+		item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'rendered-fallback'),
+		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
+	]);
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		audioRenderedFallback: metadata,
+	}));
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: GERMAN_COPY,
+		audioRenderedFallback: metadata,
+	}));
+	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		audioRenderedFallback: { ...metadata, requirementId: 'missing' },
+	}));
+
+	assert.equal(english.match(/data-project-feature-audio-rendered-fallback/gu)?.length, 1);
+	assert.match(english, /Rendered fallback active during editor playback/u);
+	assert.match(german, /Gerenderte Ersatzwiedergabe im Editor aktiv/u);
+	assert.doesNotMatch(english, /rendered-source|soundscaper:rendered-audio-fallback/iu);
+	assert.doesNotMatch(mismatched, /data-project-feature-audio-rendered-fallback/iu);
 });
 
 test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {

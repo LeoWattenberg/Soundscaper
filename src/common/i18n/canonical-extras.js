@@ -332,6 +332,7 @@ const COPY_ENTRIES = Object.freeze([
 	["scapeCompatibilityAffectedAudioEffects","Affected audio effects","Betroffene Audioeffekte"],
 	["scapeCompatibilityAffectedVideoEffects","Affected video effects","Betroffene Videoeffekte"],
 	["scapeCompatibilityEditorPlaybackBypassed","Bypassed during editor playback","Bei der Wiedergabe im Editor umgangen"],
+	["scapeCompatibilityEditorPlaybackFallback","Rendered fallback active during editor playback","Gerenderte Ersatzwiedergabe im Editor aktiv"],
 	["scapeCompatibilityUnavailable","Unavailable","Nicht verfügbar"],
 	["scapeCompatibilityUnknown","Unknown","Unbekannt"],
 	["scapeCompatibilityBypassed","Bypass declared","Umgehung deklariert"],

@@ -7,6 +7,7 @@ import type {
 	ProjectFeatureAudioEffectBypassMetadata,
 	ProjectFeatureAudioEffectPlaceholder,
 } from '../../project-feature-audio-effect-bypass.ts';
+import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
 import type {
@@ -27,6 +28,7 @@ interface ProjectFeatureCompatibilityNoticeCopy {
 	readonly scapeCompatibilityAffectedAudioEffects: string;
 	readonly scapeCompatibilityAffectedVideoEffects: string;
 	readonly scapeCompatibilityEditorPlaybackBypassed: string;
+	readonly scapeCompatibilityEditorPlaybackFallback: string;
 	readonly scapeCompatibilityUnavailable: string;
 	readonly scapeCompatibilityUnknown: string;
 	readonly scapeCompatibilityBypassed: string;
@@ -65,6 +67,7 @@ interface ProjectFeatureCompatibilityNoticeProps {
 	readonly project?: AudioEffectOwnerProject | null;
 	readonly report: ProjectFeatureRequirementsReport | null | undefined;
 	readonly audioEffectPlaybackBypass?: ProjectFeatureAudioEffectBypassMetadata | null;
+	readonly audioRenderedFallback?: ProjectFeatureAudioRenderedFallbackMetadata | null;
 	readonly videoEffectPlaybackBypass?: ProjectFeatureVideoEffectBypassMetadata | null;
 	readonly copy: ProjectFeatureCompatibilityNoticeCopy;
 }
@@ -73,6 +76,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	project,
 	report,
 	audioEffectPlaybackBypass,
+	audioRenderedFallback,
 	videoEffectPlaybackBypass,
 	copy,
 }: ProjectFeatureCompatibilityNoticeProps) {
@@ -130,6 +134,11 @@ export default function ProjectFeatureCompatibilityNotice({
 						<small>
 							{projectFeatureAvailabilityLabel(item, copy)} · {projectFeatureDispositionLabel(item, copy)}
 						</small>
+						{audioRenderedFallbackApplies(item, audioRenderedFallback) && <small
+							data-project-feature-audio-rendered-fallback
+						>
+							{copy.scapeCompatibilityEditorPlaybackFallback}
+						</small>}
 						{audioPlaceholders.length > 0 && <div
 							className="kw-audio-editor-compatibility-audio-effects"
 							data-project-feature-audio-effect-placeholders
@@ -175,6 +184,22 @@ export default function ProjectFeatureCompatibilityNotice({
 			</ul>
 		</section>
 	</aside>;
+}
+
+function audioRenderedFallbackApplies(
+	item: Readonly<{
+		requirementId: string;
+		featureId: string;
+		availability: string;
+		effectiveDisposition: string;
+	}>,
+	metadata: ProjectFeatureAudioRenderedFallbackMetadata | null | undefined,
+): boolean {
+	return metadata?.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		&& item.featureId === metadata.featureId
+		&& item.requirementId === metadata.requirementId
+		&& item.availability === 'unavailable'
+		&& item.effectiveDisposition === 'rendered-fallback';
 }
 
 function audioEffectPlaceholders(
