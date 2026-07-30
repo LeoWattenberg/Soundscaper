@@ -40,6 +40,7 @@ export interface ProjectLifecycleTabMetadata {
 	readonly featureRequirementsReadOnly?: boolean;
 	readonly featureRequirementsReport?: unknown;
 	readonly featureRequirementsAudioEffectPlaybackBypass?: unknown;
+	readonly featureRequirementsAudioRenderedFallback?: unknown;
 	readonly featureRequirementsVideoEffectPlaybackBypass?: unknown;
 	readonly [key: string]: unknown;
 }

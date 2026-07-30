@@ -197,6 +197,10 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
+import {
+	applyCanonicalProjectToPlaybackEngine,
+	createPlaybackProjectService,
+} from './controller/playback-project-service.ts';
 import { createRecordingRoutingService } from './controller/recording-routing-service.ts';
 import { createRecordingInputCoordinationService } from './controller/recording-input-coordination-service.ts';
 import { createMicrophoneMeterService } from './controller/microphone-meter-service.ts';
@@ -562,6 +566,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceChunkProviders, sourcePcmBytes, sourcePeaks, state, store,
 		waveformPcmWindowContains, waveformPeaksHaveRms,
 	});
+	const playbackProjectService = createPlaybackProjectService(product.capabilities);
 	const preferencesService = createEditorPreferencesService({
 		productId,
 		preferenceSettingKey,
@@ -802,7 +807,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		evictUnreferencedSourceCaches: () => evictUnreferencedSourceCaches(
 			sourceBuffers, sourcePeaks, projectRetentionService.liveSessionSourceIds(),
 		),
-		loadEngineProject: (activeProject) => engine.loadProject(activeProject, sourceBuffers),
+		loadEngineProject: (activeProject, transientBuffers) => engine.loadProject(activeProject,
+			transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers, { chunkSources: sourceChunkProviders }),
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),
 		saveProject: (activeProject) => store.saveProject(activeProject),
 		listProjects: () => store.listProjects(),
@@ -2058,16 +2064,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return sourceLifecycleService.clearWaveformPcmWindows();
 	}
 
-	async function loadProjectSources(project) {
-		return sourceLifecycleService.loadProjectSources(project);
+	async function loadProjectSources(project, options) {
+		return sourceLifecycleService.loadProjectSources(project, options);
 	}
 
 	async function activateStoredSource(source, metadata, { buffer = null } = {}) {
 		return sourceLifecycleService.activateStoredSource(source, metadata, { buffer });
 	}
 
-	async function ensureProjectSourcesAvailable(snapshot) {
-		return sourceLifecycleService.ensureProjectSourcesAvailable(snapshot);
+	async function ensureProjectSourcesAvailable(snapshot, options) {
+		return sourceLifecycleService.ensureProjectSourcesAvailable(snapshot, options);
 	}
 
 	async function listProjects() {
@@ -2555,18 +2561,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function applyProjectToPlaybackEngine(snapshot) {
-		const previousPlayback = engine.getState();
-		const transientBuffers = await ensureProjectSourcesAvailable(snapshot);
-		if (snapshot !== project) return;
-		const playbackBuffers = transientBuffers.size
-			? new Map([...sourceBuffers, ...transientBuffers])
-			: sourceBuffers;
-		await engine.applyProject(snapshot, playbackBuffers, { chunkSources: sourceChunkProviders });
-		if (previousPlayback.state === 'playing'
-			&& previousPlayback.playbackMode === 'staffpad'
-			&& engine.getState().state !== 'playing') {
-			setStatus(copy.ready);
-		}
+		return applyCanonicalProjectToPlaybackEngine(snapshot, {
+			projectForPlayback: playbackProjectService.projectForPlayback,
+			getCurrentProject: () => project, ensureProjectSourcesAvailable,
+			sourceBuffers, sourceChunkProviders, engine,
+			setReadyStatus: () => setStatus(copy.ready),
+		});
 	}
 
 	function beginPlaybackCachePreparation(...args) {

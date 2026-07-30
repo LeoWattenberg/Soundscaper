@@ -6,6 +6,7 @@ export function freezeProjectFeatureReportMetadata<Value>(value: Value): Value {
 	for (const key of [
 		'featureRequirementsReport',
 		'featureRequirementsAudioEffectPlaybackBypass',
+		'featureRequirementsAudioRenderedFallback',
 		'featureRequirementsVideoEffectPlaybackBypass',
 	]) {
 		const child = metadata[key];

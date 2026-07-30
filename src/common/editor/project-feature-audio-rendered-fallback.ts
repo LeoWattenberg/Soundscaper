@@ -46,7 +46,7 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureAudioRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
+	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	assertManifestBinding(projectRecord, qualified);
@@ -329,6 +329,13 @@ function dataProperty(value: RecordValue, key: string, name: string): unknown {
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
 		throw new TypeError(`${name}.${key} must be an own data property.`);
 	}
+	return descriptor.value;
+}
+
+function optionalDataProperty(value: RecordValue, key: string, name: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor) return undefined;
+	if (!Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be an own data property.`);
 	return descriptor.value;
 }
 

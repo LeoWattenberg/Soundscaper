@@ -16,6 +16,15 @@ import {
 	type ProjectSwitchState,
 } from '../src/common/editor/controller/project-switch-service.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import { createEffect } from '../src/common/editor/effects.js';
+import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import {
+	createAudioClipV9,
+	createAudioEditorProjectV9,
+	createAudioSourceV9,
+	createAudioTrackV9,
+} from '../src/common/editor/project-v9.ts';
 
 interface TestProject extends ProjectLifecycleProject {
 	readonly marker: string;
@@ -43,9 +52,13 @@ type FallbackIntegrityRuntime = ProjectSwitchServiceRuntime<TestProject, TestHis
 
 interface FixtureOptions {
 	readonly storedProject?: TestProject;
+	readonly productCapabilities?: Readonly<Record<string, unknown>>;
 	readonly verify: FallbackIntegrityRuntime['verifyProjectFallbackIntegrity'];
 	readonly onStopRecording?: (replaceTabProject: (candidate: TestProject) => void) => void;
-	readonly onLoadProjectSources?: (candidate: TestProject) => void;
+	readonly onLoadProjectSources?: (
+		candidate: TestProject,
+		options: Readonly<{ requiredAudioSourceIds?: readonly string[] }>,
+	) => void;
 }
 
 test('raw project fallback verification rejects before activation side effects', async () => {
@@ -228,6 +241,49 @@ test('controller disposal aborts in-flight verification with the exact lifetime 
 	assert.deepEqual(fixture.effects, ['verify:dispose']);
 });
 
+test('activation loads a required rendered source and sends only the transient whole-mix projection to the engine', async () => {
+	const source = createAudioSourceV9({
+		id: 'original-source', storageKey: 'original-source', frameCount: 4,
+		channelCount: 2, sampleRate: 48_000,
+	});
+	const fallback = createAudioSourceV9({
+		id: 'fallback-source', storageKey: 'fallback-source', frameCount: 6,
+		channelCount: 2, sampleRate: 48_000,
+	});
+	const clip = createAudioClipV9({ id: 'original-clip', sourceId: source.id, durationFrames: 4 });
+	const track = createAudioTrackV9({
+		id: 'original-track', clipIds: [clip.id],
+		effects: [createEffect('compressor', { id: 'effect-a' })],
+	});
+	const canonical = Object.freeze({
+		...createAudioEditorProjectV9({
+			id: 'rendered-project', now: '2026-07-30T12:00:00.000Z',
+			sources: [source, fallback], clips: [clip], tracks: [track],
+			featureRequirements: { schemaVersion: 1, requirements: [{
+				id: 'publisher-render',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				displayName: 'Publisher render', disposition: 'rendered-fallback',
+				fallback: { kind: 'audio', sourceId: fallback.id, sha256: 'ef'.repeat(32) },
+			}] },
+		}),
+		marker: 'rendered',
+	}) as unknown as TestProject;
+	const fixture = createFixture({
+		productCapabilities: { audioEffects: false, videoEffects: true },
+		verify: (candidate) => admission(candidate),
+	});
+
+	await fixture.service.switchProject(canonical);
+
+	assert.strictEqual(fixture.currentProject()?.tracks[0]?.id, 'original-track');
+	assert.deepEqual(fixture.requiredAudioSourceIds(), ['fallback-source']);
+	assert.equal(fixture.loadedEngineProject()?.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
+	assert.equal(fixture.loadedEngineProject()?.clips?.[0]?.sourceId, 'fallback-source');
+	assert.equal(fixture.loadedTransientBuffers()?.get('fallback-source'), 'prepared-buffer');
+	assert.ok(fixture.effects.indexOf('verify:rendered') < fixture.effects.indexOf('sources:rendered-project'));
+	assert.ok(fixture.effects.indexOf('sources:rendered-project') < fixture.effects.indexOf('engine:load:rendered-project'));
+});
+
 function project(id: string, marker: string): TestProject {
 	return Object.freeze({ id, marker, tracks: [] });
 }
@@ -244,6 +300,9 @@ function admission(projectAtVerification: TestProject): FallbackIntegrityAdmissi
 
 function createFixture(options: FixtureOptions) {
 	const effects: string[] = [];
+	let loadedEngineProject: TestProject | null = null;
+	let loadedTransientBuffers: ReadonlyMap<unknown, unknown> | null = null;
+	let requiredAudioSourceIds: readonly string[] = [];
 	const lifetime = new EditorControllerLifetime();
 	const activeProject = project('active-project', 'active');
 	let currentProject: TestProject | null = activeProject;
@@ -393,7 +452,7 @@ function createFixture(options: FixtureOptions) {
 		state,
 		lifetime,
 		scapeInspectionQuiescence: createScapeInspectionQuiescence(),
-		productCapabilities: {},
+		productCapabilities: options.productCapabilities ?? {},
 		projectGeneration: {
 			invalidate() { effects.push('generation:invalidate'); },
 			activate(projectId: string) { effects.push(`generation:activate:${projectId}`); },
@@ -448,13 +507,21 @@ function createFixture(options: FixtureOptions) {
 		revokeOutputUrl: () => undefined,
 		revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
-		loadProjectSources: async (candidate: TestProject) => {
+		loadProjectSources: async (candidate: TestProject, loadOptions: Readonly<{
+			requiredAudioSourceIds?: readonly string[];
+		}> = {}) => {
 			effects.push(`sources:${candidate.id}`);
-			options.onLoadProjectSources?.(candidate);
+			requiredAudioSourceIds = loadOptions.requiredAudioSourceIds ?? [];
+			options.onLoadProjectSources?.(candidate, loadOptions);
+			return new Map([['fallback-source', 'prepared-buffer']]);
 		},
 		retainLiveClipIds: () => undefined,
 		evictUnreferencedSourceCaches: () => undefined,
-		loadEngineProject: (candidate: TestProject) => { effects.push(`engine:load:${candidate.id}`); },
+		loadEngineProject: (candidate: TestProject, transientBuffers: ReadonlyMap<unknown, unknown>) => {
+			loadedEngineProject = candidate;
+			loadedTransientBuffers = transientBuffers;
+			effects.push(`engine:load:${candidate.id}`);
+		},
 		recordOpenedProject: async (projectId: string) => { effects.push(`session:record:${projectId}`); },
 		saveProject: async () => undefined,
 		listProjects: async () => [],
@@ -469,6 +536,9 @@ function createFixture(options: FixtureOptions) {
 		effects,
 		lifetime,
 		currentProject: () => currentProject,
+		loadedEngineProject: () => loadedEngineProject,
+		loadedTransientBuffers: () => loadedTransientBuffers,
+		requiredAudioSourceIds: () => requiredAudioSourceIds,
 		addTabProject,
 		replaceTabProject,
 		service: createProjectSwitchService(runtime),

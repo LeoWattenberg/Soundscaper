@@ -39,6 +39,11 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 				schemaVersion: 1,
 				placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
 			},
+			featureRequirementsAudioRenderedFallback: {
+				schemaVersion: 1,
+				requirementId: 'audio-effects',
+				sourceId: 'rendered-source',
+			},
 			featureRequirementsVideoEffectPlaybackBypass: {
 				schemaVersion: 1,
 				placeholders: [{
@@ -87,6 +92,11 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.deepEqual(snapshot.audioEffectPlaybackBypass, {
 		schemaVersion: 1,
 		placeholders: [{ scope: 'track', ownerId: 'track', effectId: 'effect', effectType: 'compressor' }],
+	});
+	assert.deepEqual(snapshot.audioRenderedFallback, {
+		schemaVersion: 1,
+		requirementId: 'audio-effects',
+		sourceId: 'rendered-source',
 	});
 	assert.deepEqual(snapshot.videoEffectPlaybackBypass, {
 		schemaVersion: 1,

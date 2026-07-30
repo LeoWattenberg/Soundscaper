@@ -44,6 +44,7 @@ interface CurrentTabMetadata {
 	readonly aup4CompatibilityReportDismissed?: boolean;
 	readonly featureRequirementsReport?: unknown;
 	readonly featureRequirementsAudioEffectPlaybackBypass?: unknown;
+	readonly featureRequirementsAudioRenderedFallback?: unknown;
 	readonly featureRequirementsVideoEffectPlaybackBypass?: unknown;
 }
 
@@ -256,6 +257,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			: null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
 		audioEffectPlaybackBypass: currentTabMetadata.featureRequirementsAudioEffectPlaybackBypass ?? null,
+		audioRenderedFallback: currentTabMetadata.featureRequirementsAudioRenderedFallback ?? null,
 		videoEffectPlaybackBypass: currentTabMetadata.featureRequirementsVideoEffectPlaybackBypass ?? null,
 		storage: Object.freeze({ ...state.storageEstimate, ...runtime.getStorageStatus() }),
 		analysis: state.analysisResult,

@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
-import { projectFeatureAudioEffectPlaybackBypass } from '../project-feature-audio-effect-bypass.ts';
-import { projectFeatureVideoEffectPlaybackBypass } from '../project-feature-video-effect-bypass.ts';
-import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
+import { createPlaybackProjectService } from './playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
@@ -166,10 +164,12 @@ export interface ProjectSwitchServiceRuntime<
 	readonly revokeOutputUrl: (url: string) => void;
 	readonly revokeVideoVisuals: () => void;
 	readonly clearWaveformPcmWindows: () => void;
-	readonly loadProjectSources: (project: Project) => PromiseLike<unknown> | unknown;
+	readonly loadProjectSources: (project: Project, options?: Readonly<{
+		readonly requiredAudioSourceIds?: readonly string[];
+	}>) => PromiseLike<unknown> | unknown;
 	readonly retainLiveClipIds: () => void;
 	readonly evictUnreferencedSourceCaches: () => void;
-	readonly loadEngineProject: (project: Project) => void;
+	readonly loadEngineProject: (project: Project, transientSourceBuffers?: unknown) => void;
 	readonly recordOpenedProject: (projectId: string, guard: ProjectSwitchGuard) => Promise<unknown>;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
@@ -189,7 +189,7 @@ export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 >(runtime: ProjectSwitchServiceRuntime<Project, History>) {
-	const featureCompatibility = createProjectFeatureCompatibilityService(runtime.productCapabilities);
+	const playbackProjects = createPlaybackProjectService(runtime.productCapabilities);
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -282,16 +282,9 @@ export function createProjectSwitchService<
 			signal: runtime.lifetime.signal,
 		}));
 		fallbackAdmission.assertCurrent(activationProject);
-		const featureRequirementsReport = featureCompatibility.evaluate(activationProject);
+		const playbackProjection = playbackProjects.projectForPlayback(activationProject);
+		const featureRequirementsReport = playbackProjection.featureRequirementsReport;
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
-		const audioEffectPlaybackProjection = projectFeatureAudioEffectPlaybackBypass(
-			activationProject,
-			featureRequirementsReport,
-		);
-		const videoEffectPlaybackProjection = projectFeatureVideoEffectPlaybackBypass(
-			audioEffectPlaybackProjection.project,
-			featureRequirementsReport,
-		);
 		const activation = runtime.session.beginProjectActivation(projectId, existingCapture
 			? { expectedHistoryToken: existingCapture.token }
 			: { requireAbsent: true });
@@ -368,8 +361,9 @@ export function createProjectSwitchService<
 					intrinsicReadOnlyReason,
 					featureRequirementsReadOnly,
 					featureRequirementsReport,
-					featureRequirementsAudioEffectPlaybackBypass: audioEffectPlaybackProjection.metadata,
-					featureRequirementsVideoEffectPlaybackBypass: videoEffectPlaybackProjection.metadata,
+					featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
+					featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
+					featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
 				},
 			});
 			runtime.session.updateProjectMetadata(projectId, {
@@ -379,8 +373,9 @@ export function createProjectSwitchService<
 				intrinsicReadOnlyReason,
 				featureRequirementsReadOnly,
 				featureRequirementsReport,
-				featureRequirementsAudioEffectPlaybackBypass: audioEffectPlaybackProjection.metadata,
-				featureRequirementsVideoEffectPlaybackBypass: videoEffectPlaybackProjection.metadata,
+				featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
+				featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
+				featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
 			});
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
@@ -409,10 +404,12 @@ export function createProjectSwitchService<
 			runtime.state.missingSourceIds.clear();
 			runtime.revokeVideoVisuals();
 			runtime.clearWaveformPcmWindows();
-			await guard(runtime.loadProjectSources(activeProject));
+			const transientSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
+				requiredAudioSourceIds: playbackProjection.requiredAudioSourceIds,
+			}));
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
-			runtime.loadEngineProject(videoEffectPlaybackProjection.project);
+			runtime.loadEngineProject(playbackProjection.project, transientSourceBuffers);
 			await runtime.recordOpenedProject(projectId, guard);
 			if (options.save && !runtime.state.readOnly) {
 				await guard(runtime.saveProject(activeProject));
