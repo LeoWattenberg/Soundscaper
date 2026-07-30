@@ -1,0 +1,388 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { createHash } from 'node:crypto';
+
+const SMOKE_ARGUMENT = '--soundscaper-smoke';
+const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
+const SMOKE_PLAN_PREFIX = '--soundscaper-smoke-plan=';
+const PROJECT_LIBRARY_MODE = 'project-library-handoff-v1';
+const MAXIMUM_PLAN_BYTES = 64 * 1024;
+const DIGEST = /^[a-f\d]{64}$/u;
+const STAGE_PRODUCTS = Object.freeze({
+	publish: 'soundscaper',
+	advance: 'framescaper',
+	return: 'soundscaper',
+});
+
+export const DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SMOKE';
+
+const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
+	url: location.href,
+	title: document.title,
+	bridge: Object.keys(window.soundscaperDesktop?.v1 || {}).sort(),
+	environment: await window.soundscaperDesktop?.v1?.getEnvironment?.(),
+	hasEditor: Boolean(document.querySelector('main')),
+	nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
+	saveOwnerReady: await window.soundscaperDesktop?.v1?.beginWrite?.({
+		targetId: '0'.repeat(48),
+		size: 0,
+	}).then(() => false, (error) => /Save target expired or was already used/u.test(String(error?.message || error))),
+}))()`;
+
+export function parseDesktopSmokeConfiguration(argv) {
+	if (!Array.isArray(argv) || argv.some((argument) => typeof argument !== 'string')) {
+		throw new TypeError('Desktop smoke arguments must be strings');
+	}
+	const smokeCount = argv.filter((argument) => argument === SMOKE_ARGUMENT).length;
+	const modes = valuesForPrefix(argv, SMOKE_MODE_PREFIX);
+	const plans = valuesForPrefix(argv, SMOKE_PLAN_PREFIX);
+	if (smokeCount === 0) {
+		if (modes.length || plans.length) throw new TypeError('Desktop smoke mode and plan require smoke mode');
+		return Object.freeze({ mode: 'disabled', plan: null });
+	}
+	if (smokeCount !== 1) throw new TypeError('Desktop smoke requires exactly one smoke argument');
+	if (modes.length === 0 && plans.length === 0) {
+		return Object.freeze({ mode: 'artifact', plan: null });
+	}
+	if (modes.length === 0 && plans.length > 0) {
+		throw new TypeError('Desktop smoke plan requires project-library smoke mode');
+	}
+	if (modes.length !== 1) throw new TypeError('Desktop smoke requires exactly one smoke mode');
+	if (modes[0] !== PROJECT_LIBRARY_MODE) throw new TypeError('Unsupported desktop smoke mode');
+	if (plans.length !== 1) throw new TypeError('Project-library smoke mode requires exactly one smoke plan');
+	return deepFreeze({ mode: PROJECT_LIBRARY_MODE, plan: decodePlan(plans[0]) });
+}
+
+export function createDesktopSmokeProbe(options) {
+	const configuration = parseDesktopSmokeConfiguration(options?.argv);
+	const exit = requiredFunction(options?.exit, 'exit');
+	const log = options?.log ?? console.log;
+	const reportError = options?.reportError ?? console.error;
+	const schedule = options?.setTimeout ?? setTimeout;
+	const cancel = options?.clearTimeout ?? clearTimeout;
+	const appName = requiredText(options?.appName, 'application name');
+	const appOrigin = requiredText(options?.appOrigin, 'application origin');
+	const productId = requiredProduct(options?.productId);
+	const projectLibraryEvidence = options?.projectLibraryEvidence;
+	if (configuration.mode === PROJECT_LIBRARY_MODE && typeof projectLibraryEvidence !== 'function') {
+		throw new TypeError('Project-library smoke requires a main-process evidence callback');
+	}
+
+	let attachedWindow = null;
+	let timeout = null;
+	let started = false;
+	let finished = false;
+
+	const finish = async (code) => {
+		if (finished) return;
+		finished = true;
+		if (timeout !== null) cancel(timeout);
+		await exit(code);
+	};
+	const fail = async (message) => {
+		reportError(message);
+		await finish(2);
+	};
+
+	const attach = (window) => {
+		if (configuration.mode === 'disabled') return;
+		if (attachedWindow) throw new Error('Desktop smoke probe is already attached');
+		if (!window?.webContents || typeof window.webContents.once !== 'function') {
+			throw new TypeError('Desktop smoke requires a BrowserWindow');
+		}
+		attachedWindow = window;
+		timeout = schedule(() => {
+			void fail(`${prefixFor(configuration.mode)} timed out`);
+		}, 15_000);
+		window.webContents.once('did-fail-load', (_event, code, description) => {
+			void fail(`${prefixFor(configuration.mode)} load failed: ${String(code)} ${String(description)}`);
+		});
+		if (configuration.mode === 'artifact') {
+			window.webContents.once('did-finish-load', () => { void runArtifact(window); });
+		}
+	};
+
+	const runArtifact = async (window) => {
+		if (started || finished) return;
+		started = true;
+		try {
+			const result = await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
+			const valid = result?.url === `${appOrigin}/`
+				&& result?.title === appName
+				&& result?.hasEditor === true
+				&& result?.nodeExposed === false
+				&& result?.saveOwnerReady === true
+				&& result?.bridge?.includes('getEnvironment')
+				&& result?.bridge?.includes('chooseFiles')
+				&& result?.bridge?.includes('beginWrite')
+				&& result?.bridge?.includes('respondToClose');
+			log(`SOUNDSCAPER_DESKTOP_SMOKE ${JSON.stringify(result)}`);
+			await finish(valid ? 0 : 2);
+		} catch (error) {
+			await fail(`SOUNDSCAPER_DESKTOP_SMOKE failed: ${cleanError(error)}`);
+		}
+	};
+
+	const rendererReady = async () => {
+		if (configuration.mode !== PROJECT_LIBRARY_MODE || started || finished) return;
+		started = true;
+		try {
+			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
+			const plan = configuration.plan;
+			if (!plan || plan.productId !== productId) throw new Error('Packaged smoke plan targets a different product');
+			const rendererResult = await attachedWindow.webContents.executeJavaScript(
+				`(${runProjectLibraryRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
+			);
+			const summary = validateSummary(rendererResult?.summary, plan.target);
+			const evidence = await projectLibraryEvidence(plan.target.id);
+			const payload = projectLibraryPayload(plan, summary, evidence);
+			log(`${DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
+			await finish(0);
+		} catch (error) {
+			await fail(`${DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX} failed: ${cleanError(error)}`);
+		}
+	};
+
+	return Object.freeze({ attach, rendererReady });
+}
+
+export async function runProjectLibraryRendererSmoke(scope, plan) {
+	const api = scope?.scapeDesktop?.v1;
+	if (!api || typeof api.readSharedProject !== 'function'
+		|| typeof api.commitSharedProject !== 'function'
+		|| typeof api.listSharedProjects !== 'function') {
+		throw new Error('Packaged project-library bridge is incomplete');
+	}
+
+	const digest = async (text) => {
+		const bytes = new scope.TextEncoder().encode(text);
+		const value = await scope.crypto.subtle.digest('SHA-256', bytes);
+		return [...new Uint8Array(value)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+	};
+	const validate = async (document, expected, label) => {
+		if (typeof document !== 'string') throw new Error(`${label} is not a canonical project document`);
+		let project;
+		try { project = JSON.parse(document); } catch { throw new Error(`${label} is not a canonical project document`); }
+		if (JSON.stringify(project) !== document) throw new Error(`${label} is not a canonical project document`);
+		if (!project || typeof project !== 'object' || Array.isArray(project)
+			|| project.schemaVersion !== 9 || project.id !== expected.id
+			|| project.title !== expected.title || project.revision !== expected.revision) {
+			throw new Error(`${label} does not match its project descriptor`);
+		}
+		if (!Array.isArray(project.sources) || project.sources.length !== 0
+			|| !Array.isArray(project.clips) || project.clips.length !== 0
+			|| (project.tracks !== undefined && (!Array.isArray(project.tracks) || project.tracks.length !== 0))
+			|| !project.projectBin || !Array.isArray(project.projectBin.clips)
+			|| project.projectBin.clips.length !== 0) {
+			throw new Error(`${label} must remain source-free`);
+		}
+		if (await digest(document) !== expected.sha256) throw new Error(`${label} SHA-256 changed before handoff`);
+		return project;
+	};
+
+	const current = await api.readSharedProject(plan.target.id);
+	if (plan.previous === null) {
+		if (current !== null) throw new Error('Publish target already exists before handoff');
+	} else {
+		await validate(current, plan.previous, 'Previous shared project');
+	}
+	await validate(plan.target.document, plan.target, 'Target shared project');
+	const committed = await api.commitSharedProject(plan.target.document);
+	await validate(committed, plan.target, 'Committed shared project');
+	const reread = await api.readSharedProject(plan.target.id);
+	await validate(reread, plan.target, 'Reread shared project');
+	const summaries = await api.listSharedProjects();
+	if (!Array.isArray(summaries)) throw new Error('Shared project summaries are unavailable');
+	const matches = summaries.filter((candidate) => candidate?.id === plan.target.id);
+	if (matches.length !== 1) throw new Error('Shared project summary is missing or duplicated');
+	const summary = matches[0];
+	if (summary.title !== plan.target.title || summary.revision !== plan.target.revision) {
+		throw new Error('Shared project summary does not match the committed target');
+	}
+	return { summary: { id: summary.id, title: summary.title, revision: summary.revision } };
+}
+
+function decodePlan(encoded) {
+	if (typeof encoded !== 'string' || !/^[A-Za-z0-9_-]+$/u.test(encoded)) {
+		throw new TypeError('Desktop smoke plan must use canonical base64url');
+	}
+	const bytes = Buffer.from(encoded, 'base64url');
+	if (bytes.toString('base64url') !== encoded) throw new TypeError('Desktop smoke plan must use canonical base64url');
+	if (bytes.byteLength > MAXIMUM_PLAN_BYTES) throw new RangeError('Desktop smoke plan exceeds its 64 KiB byte limit');
+	const text = bytes.toString('utf8');
+	let value;
+	try { value = JSON.parse(text); } catch (error) {
+		throw new TypeError('Desktop smoke plan is not valid JSON', { cause: error });
+	}
+	if (canonicalJson(value) !== text) throw new TypeError('Desktop smoke plan must use canonical JSON');
+	return validatePlan(value);
+}
+
+function validatePlan(value) {
+	const plan = strictRecord(value, ['mode', 'previous', 'productId', 'schemaVersion', 'stage', 'target'], 'smoke plan');
+	if (plan.schemaVersion !== 1 || plan.mode !== PROJECT_LIBRARY_MODE) {
+		throw new TypeError('Desktop smoke plan has an unsupported schema or mode');
+	}
+	const productId = requiredProduct(plan.productId);
+	const stage = String(plan.stage);
+	if (!Object.hasOwn(STAGE_PRODUCTS, stage)) throw new TypeError('Unsupported smoke stage; expected publish, advance, or return');
+	if (STAGE_PRODUCTS[stage] !== productId) throw new TypeError('Desktop smoke stage targets an unexpected product');
+	const previous = plan.previous === null ? null : validateDescriptor(plan.previous, 'previous project');
+	if (stage === 'publish' && previous !== null) throw new TypeError('Publish smoke previous descriptor must be null');
+	if (stage !== 'publish' && previous === null) throw new TypeError(`${stage} smoke requires a previous project descriptor`);
+	const targetRecord = strictRecord(
+		plan.target,
+		['document', 'id', 'revision', 'sha256', 'title'],
+		'target project',
+	);
+	const target = {
+		...validateDescriptor({
+			id: targetRecord.id,
+			title: targetRecord.title,
+			revision: targetRecord.revision,
+			sha256: targetRecord.sha256,
+		}, 'target project'),
+		document: requiredText(targetRecord.document, 'target document'),
+	};
+	if (previous && (previous.id !== target.id || previous.revision >= target.revision)) {
+		throw new TypeError('Desktop smoke target must advance the previous project identity and revision');
+	}
+	validateMainDocument(target.document, target, 'Target project');
+	return deepFreeze({
+		schemaVersion: 1,
+		mode: PROJECT_LIBRARY_MODE,
+		stage,
+		productId,
+		previous,
+		target,
+	});
+}
+
+function validateDescriptor(value, label) {
+	const descriptor = strictRecord(value, ['id', 'revision', 'sha256', 'title'], `${label} descriptor`);
+	const id = requiredText(descriptor.id, `${label} id`);
+	const title = requiredText(descriptor.title, `${label} title`);
+	const revision = descriptor.revision;
+	if (!Number.isSafeInteger(revision) || revision < 0) throw new TypeError(`${label} revision is invalid`);
+	const sha256 = String(descriptor.sha256);
+	if (!DIGEST.test(sha256)) throw new TypeError(`${label} SHA-256 is invalid`);
+	return Object.freeze({ id, title, revision, sha256 });
+}
+
+function validateMainDocument(document, descriptor, label) {
+	let project;
+	try { project = JSON.parse(document); } catch (error) {
+		throw new TypeError(`${label} is not a canonical document`, { cause: error });
+	}
+	if (JSON.stringify(project) !== document) throw new TypeError(`${label} is not a canonical document`);
+	if (project?.schemaVersion !== 9 || project.id !== descriptor.id
+		|| project.title !== descriptor.title || project.revision !== descriptor.revision) {
+		throw new TypeError(`${label} does not match its descriptor`);
+	}
+	if (!Array.isArray(project.sources) || project.sources.length
+		|| !Array.isArray(project.clips) || project.clips.length
+		|| (project.tracks !== undefined && (!Array.isArray(project.tracks) || project.tracks.length))
+		|| !project.projectBin || !Array.isArray(project.projectBin.clips) || project.projectBin.clips.length) {
+		throw new TypeError(`${label} must remain source-free`);
+	}
+	if (sha256(document) !== descriptor.sha256) throw new TypeError(`${label} SHA-256 does not match its descriptor`);
+}
+
+function projectLibraryPayload(plan, summary, evidence) {
+	const host = evidence?.host;
+	const target = evidence?.target;
+	if (host?.owner?.product !== plan.productId) throw new Error('Project-library smoke host owner does not match the package');
+	if (!Number.isSafeInteger(host?.fencingToken) || host.fencingToken < 1) throw new Error('Project-library smoke fencing token is invalid');
+	if (host.tookOverStaleLease !== false) throw new Error('Project-library smoke unexpectedly took over a stale lease');
+	if (host.recovery?.outcome !== 'clean') throw new Error('Project-library smoke recovery was not clean');
+	if (!Number.isSafeInteger(evidence?.catalogRevision) || evidence.catalogRevision < 1) {
+		throw new Error('Project-library smoke catalog revision is invalid');
+	}
+	if (target?.projectId !== plan.target.id || target?.name !== plan.target.title
+		|| target?.projectRevision !== plan.target.revision || target?.sha256 !== plan.target.sha256) {
+		throw new Error('Project-library smoke catalog row does not match the target');
+	}
+	if (target.preferredProduct !== plan.productId) throw new Error('Project-library smoke preferred product is invalid');
+	return {
+		schemaVersion: 1,
+		mode: PROJECT_LIBRARY_MODE,
+		stage: plan.stage,
+		productId: plan.productId,
+		project: descriptorWithoutDocument(plan.target),
+		summary,
+		host: {
+			owner: { product: host.owner.product },
+			fencingToken: host.fencingToken,
+			tookOverStaleLease: false,
+			recovery: { outcome: 'clean' },
+		},
+		preferredProduct: target.preferredProduct,
+		catalogRevision: evidence.catalogRevision,
+	};
+}
+
+function validateSummary(value, target) {
+	const summary = strictRecord(value, ['id', 'revision', 'title'], 'renderer smoke summary');
+	if (summary.id !== target.id || summary.title !== target.title || summary.revision !== target.revision) {
+		throw new Error('Renderer smoke summary does not match the target');
+	}
+	return Object.freeze({ id: summary.id, title: summary.title, revision: summary.revision });
+}
+
+function descriptorWithoutDocument(value) {
+	return { id: value.id, title: value.title, revision: value.revision, sha256: value.sha256 };
+}
+
+function valuesForPrefix(argv, prefix) {
+	return argv.filter((argument) => argument.startsWith(prefix)).map((argument) => argument.slice(prefix.length));
+}
+
+function strictRecord(value, keys, label) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.getPrototypeOf(value) !== Object.prototype
+		|| JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) {
+		throw new TypeError(`Desktop ${label} has unsupported fields or is not a closed object`);
+	}
+	return value;
+}
+
+function canonicalJson(value) {
+	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+	if (value && typeof value === 'object') {
+		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+	}
+	return JSON.stringify(value);
+}
+
+function deepFreeze(value) {
+	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+	for (const item of Object.values(value)) deepFreeze(item);
+	return Object.freeze(value);
+}
+
+function requiredFunction(value, label) {
+	if (typeof value !== 'function') throw new TypeError(`Desktop smoke ${label} callback is required`);
+	return value;
+}
+
+function requiredText(value, label) {
+	if (typeof value !== 'string' || !value || value.includes('\0')) throw new TypeError(`Desktop smoke ${label} is invalid`);
+	return value;
+}
+
+function requiredProduct(value) {
+	if (value !== 'soundscaper' && value !== 'framescaper') throw new TypeError('Desktop smoke product is invalid');
+	return value;
+}
+
+function prefixFor(mode) {
+	return mode === PROJECT_LIBRARY_MODE ? DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX : 'SOUNDSCAPER_DESKTOP_SMOKE';
+}
+
+function sha256(value) {
+	return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function cleanError(error) {
+	return error instanceof Error ? error.message : String(error);
+}

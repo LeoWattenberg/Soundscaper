@@ -128,6 +128,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 		runtimeRoot,
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
+	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
@@ -161,6 +162,12 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.ok(readyIndex >= 0 && appDataIndex > readyIndex, 'shared appData is resolved only after Electron is ready');
 	assert.match(mainSource, /DesktopProjectLibraryHost\.start/u);
 	assert.match(mainSource, /new DesktopSharedProjectLibraryService\(projectLibraryHost\)/u);
+	assert.match(mainSource, /createDesktopSmokeProbe\(\{/u);
+	assert.match(mainSource, /projectLibraryEvidence: projectLibrarySmokeEvidence/u);
+	assert.match(mainSource, /desktopSmokeProbe\.attach\(mainWindow\)/u);
+	assert.match(mainSource, /on\(IPC\.rendererReady.*desktopSmokeProbe\.rendererReady\(\)/su);
+	assert.match(mainSource, /projectLibrarySmokeEvidence.*projectLibraryHost\.snapshot\(\).*projectLibraryHost\.readCatalog\(\)/su);
+	assert.doesNotMatch(mainSource, /webContents\.executeJavaScript/u);
 	assert.match(mainSource, /registerDesktopProjectLibraryIpc\(\{ handle, ownerFor: rendererSaveOwnerFor/u);
 	assert.match(mainSource, /owner: \{ product: PRODUCT_ID/u);
 	assert.match(mainSource, /new DesktopApplicationShutdown/u);

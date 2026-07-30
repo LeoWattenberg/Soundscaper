@@ -39,6 +39,7 @@ import {
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
+import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
 import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
@@ -93,6 +94,14 @@ const applicationShutdown = new DesktopApplicationShutdown({
 	reportError: (name, error) => {
 		console.error(`Desktop ${name} shutdown failed:`, cleanError(error));
 	},
+});
+const desktopSmokeProbe = createDesktopSmokeProbe({
+	argv: process.argv,
+	appName: APP_NAME,
+	appOrigin: APP_ORIGIN,
+	productId: PRODUCT_ID,
+	exit: exitApplication,
+	projectLibraryEvidence: projectLibrarySmokeEvidence,
 });
 
 app.setName(APP_NAME);
@@ -206,7 +215,7 @@ async function createWindow() {
 		},
 	});
 	lockNavigation(mainWindow);
-	installArtifactSmokeProbe(mainWindow);
+	desktopSmokeProbe.attach(mainWindow);
 	const webContents = mainWindow.webContents;
 	webContents.on('render-process-gone', () => revokeRendererSaveOwner(webContents));
 	webContents.on('did-start-navigation', (details) => {
@@ -325,6 +334,7 @@ function registerIpcHandlers(projectLibraryService) {
 	});
 	on(IPC.rendererReady, () => {
 		rendererReady = true;
+		void desktopSmokeProbe.rendererReady();
 		void pendingOpenProjects.dispatch();
 	});
 	on(IPC.respondToClose, (_event, response) => respondToClose(response));
@@ -453,51 +463,6 @@ function lockNavigation(window) {
 	window.webContents.on('will-attach-webview', (event) => event.preventDefault());
 }
 
-function installArtifactSmokeProbe(window) {
-	if (!process.argv.includes('--soundscaper-smoke')) return;
-	const timeout = setTimeout(() => {
-		console.error('SOUNDSCAPER_DESKTOP_SMOKE timed out');
-		void exitApplication(2);
-	}, 15_000);
-	window.webContents.once('did-fail-load', (_event, code, description) => {
-		clearTimeout(timeout);
-		console.error(`SOUNDSCAPER_DESKTOP_SMOKE load failed: ${code} ${description}`);
-		void exitApplication(2);
-	});
-	window.webContents.once('did-finish-load', async () => {
-		try {
-			const result = await window.webContents.executeJavaScript(`(async () => ({
-				url: location.href,
-				title: document.title,
-				bridge: Object.keys(window.soundscaperDesktop?.v1 || {}).sort(),
-				environment: await window.soundscaperDesktop?.v1?.getEnvironment?.(),
-				hasEditor: Boolean(document.querySelector('main')),
-				nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
-				saveOwnerReady: await window.soundscaperDesktop?.v1?.beginWrite?.({
-					targetId: '0'.repeat(48),
-					size: 0,
-				}).then(() => false, (error) => /Save target expired or was already used/u.test(String(error?.message || error))),
-			}))()`);
-			const valid = result.url === `${APP_ORIGIN}/`
-				&& result.title === APP_NAME
-				&& result.hasEditor
-				&& !result.nodeExposed
-				&& result.saveOwnerReady
-				&& result.bridge.includes('getEnvironment')
-				&& result.bridge.includes('chooseFiles')
-				&& result.bridge.includes('beginWrite')
-				&& result.bridge.includes('respondToClose');
-			console.log(`SOUNDSCAPER_DESKTOP_SMOKE ${JSON.stringify(result)}`);
-			clearTimeout(timeout);
-			await exitApplication(valid ? 0 : 2);
-		} catch (error) {
-			clearTimeout(timeout);
-			console.error(`SOUNDSCAPER_DESKTOP_SMOKE failed: ${cleanError(error)}`);
-			await exitApplication(2);
-		}
-	});
-}
-
 function installMenu() {
 	const command = (id) => () => sendToRenderer(IPC.menuCommand, { command: id });
 	const template = [
@@ -585,6 +550,15 @@ function opaqueId(value, length) {
 
 function cleanError(error) {
 	return String(error?.message || 'Unknown error').replace(/[\r\n]/gu, ' ').slice(0, 300);
+}
+
+function projectLibrarySmokeEvidence(projectId) {
+	if (!projectLibraryHost) throw new Error('Desktop project library is unavailable');
+	const host = projectLibraryHost.snapshot();
+	const catalog = projectLibraryHost.readCatalog();
+	const matches = catalog.projects.filter((project) => project.projectId === projectId);
+	if (matches.length !== 1) throw new Error('Desktop smoke target catalog row is missing or duplicated');
+	return { host, catalogRevision: catalog.revision, target: matches[0] };
 }
 
 async function closeProjectLibraryHost() {
