@@ -4,6 +4,7 @@ import {
 	inspectPreservedAdmRiffChunks,
 	sameBextMetadata,
 	splitAdmRiffChunkSequence,
+	validateAdmPassthroughPayload,
 	validateAdmRiffChunkSequence,
 } from './adm-riff-passthrough.ts';
 import {
@@ -25,13 +26,7 @@ import {
 	createAdmChna,
 	createRiffAxmlChunk,
 	createRiffChnaChunk,
-	inspectAdmAxml,
-	parseChnaPayload,
-	validateAdmCommonDefinitionChna,
-	validateAdmChnaConsistency,
 } from './adm-metadata.ts';
-import { inspectBxmlAdmPayload } from './wav-adm-import.ts';
-import { validateAdmSxmlPayload } from './adm-sxml.ts';
 import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
 import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
 import {
@@ -187,6 +182,9 @@ export function createExportPlan(project, options = {}) {
 			throw new Error('ADM passthrough with preserved BEXT cannot add replacement BEXT metadata.');
 		}
 		bext = null;
+		const encodingWithoutBext = { ...encoding };
+		delete encodingWithoutBext.bext;
+		encoding = Object.freeze(encodingWithoutBext);
 	}
 	if (preservedRiffChunks?.markers) markers = Object.freeze([]);
 	if (preservedRiffChunks?.ixml) ixml = null;
@@ -327,87 +325,13 @@ function resolveBw64Adm(project, options) {
 			channelOrder: admBedChannelOrder(metadata.bed.layout),
 		});
 	}
-	const reparsedChna = validateAdmPassthroughPayload(metadata);
+	const channelOrder = validateAdmPassthroughPayload(metadata);
 	validateAdmRiffChunkSequence(metadata);
 	return Object.freeze({
 		metadata,
 		channelCount,
-		channelOrder: admChnaChannelOrder(reparsedChna),
+		channelOrder,
 	});
-}
-
-function admChnaChannelOrder(chna) {
-	if (!chna) return Object.freeze([]);
-	const channelOrder = Array.from({ length: chna.numTracks }, () => '');
-	for (const { trackIndex, trackRef } of chna.entries) {
-		if (!channelOrder[trackIndex - 1]) channelOrder[trackIndex - 1] = trackRef;
-	}
-	return Object.freeze(channelOrder);
-}
-
-function validateAdmPassthroughPayload(metadata) {
-	if (metadata.serialPayload) {
-		validateAdmSxmlPayload(decodeBase64(metadata.serialPayload.base64));
-	}
-	const rawChna = metadata.chna.rawBase64
-		? parseChnaPayload(decodeBase64(metadata.chna.rawBase64))
-		: null;
-	if (rawChna && rawChna.numTracks !== metadata.geometry.channelCount) {
-		throw new Error('Persisted ADM CHNA track count does not match its source geometry.');
-	}
-	if (Boolean(rawChna) !== (metadata.chna.entries.length > 0)) {
-		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
-	}
-	if (rawChna && !sameAdmChnaEntries(rawChna.entries, metadata.chna.entries)) {
-		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
-	}
-	const staticPayloads = [
-		...(metadata.payload.kind === 'sxml' ? [] : [metadata.payload]),
-		...(metadata.auxiliaryPayloads ?? []),
-	];
-	const classifiedStatic = staticPayloads.map((payload) => {
-		const bytes = decodeBase64(payload.kind === 'axml' ? payload.rawBase64 : payload.base64);
-		return {
-			payload,
-			empty: payload.kind === 'axml' && bytes.byteLength === 0,
-			document: payload.kind === 'axml'
-				? bytes.byteLength === 0 ? null : inspectAdmAxml(bytes)
-				: inspectBxmlAdmPayload(bytes),
-		};
-	});
-	const documentedStatic = classifiedStatic.filter(({ document }) => document);
-	if (documentedStatic.length > 1) throw new Error('Persisted AXML and BXML both carry static ADM.');
-	const carrier = documentedStatic[0] ?? classifiedStatic.find(({ empty }) => empty);
-	if (metadata.payload.kind === 'sxml') {
-		if (carrier) throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
-		validateAdmSxmlPayload(decodeBase64(metadata.payload.base64));
-		return rawChna;
-	}
-	if (!rawChna) throw new Error('Static ADM passthrough requires CHNA metadata.');
-	if (!carrier || carrier.payload !== metadata.payload) {
-		throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
-	}
-	if (carrier.empty) {
-		validateAdmCommonDefinitionChna(rawChna, metadata.geometry.channelCount);
-		return rawChna;
-	}
-	validateAdmChnaConsistency(carrier.document, rawChna, metadata.geometry.channelCount);
-	return rawChna;
-}
-
-function sameAdmChnaEntries(rawEntries, normalizedEntries) {
-	return rawEntries.length === normalizedEntries.length && rawEntries.every((raw, index) => {
-		const normalized = normalizedEntries[index];
-		return normalized
-			&& raw.trackIndex === normalized.trackIndex
-			&& equalAdmId(raw.uid, normalized.audioTrackUid)
-			&& equalAdmId(raw.trackRef, normalized.audioTrackFormatIdRef)
-			&& equalAdmId(raw.packRef, normalized.audioPackFormatIdRef);
-	});
-}
-
-function equalAdmId(left, right) {
-	return String(left).toUpperCase() === String(right).toUpperCase();
 }
 
 function createBw64AdmExport(project, resolved, { range, outputFrames, encoding }) {

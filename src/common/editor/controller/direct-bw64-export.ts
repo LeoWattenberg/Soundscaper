@@ -4,8 +4,17 @@ import {
 	admBedChannelOrder,
 	validateAdmProjectMetadata,
 	type AdmAuthoredMetadata,
+	type AdmPassthroughMetadata,
 } from '../adm-project-metadata.ts';
+import {
+	inspectPreservedAdmRiffChunks,
+	splitAdmRiffChunkSequence,
+	validateAdmPassthroughPayload,
+	validateAdmRiffChunkSequence,
+	type PreservedAdmRiffKinds,
+} from '../adm-riff-passthrough.ts';
 import { createAdmChna, createRiffAxmlChunk, createRiffChnaChunk } from '../adm-metadata.ts';
+import type { BextMetadata } from '../broadcast-wave.ts';
 import type { CartMetadataInput } from '../cart-metadata.ts';
 import type { IxmlMetadataInput } from '../ixml.ts';
 import type { RiffMarkerInput } from '../riff-markers.ts';
@@ -36,7 +45,12 @@ const ADM_PLAN_FIELDS = Object.freeze([
 interface DirectBw64Encoding {
 	readonly bext?: unknown;
 	readonly bitDepth?: unknown;
+	readonly channelCount?: unknown;
+	readonly channelMapping?: unknown;
+	readonly dither?: unknown;
 	readonly floatingPoint?: unknown;
+	readonly inputChannelCount?: unknown;
+	readonly sampleRate?: unknown;
 	readonly sampleFormat?: unknown;
 }
 
@@ -56,6 +70,8 @@ interface DirectBw64Plan {
 	readonly channelCount?: unknown;
 	readonly channelMapping?: unknown;
 	readonly container?: unknown;
+	readonly dither?: unknown;
+	readonly ditherMode?: unknown;
 	readonly encoding?: DirectBw64Encoding;
 	readonly format?: unknown;
 	readonly ixml?: IxmlMetadataInput | null;
@@ -67,9 +83,26 @@ interface DirectBw64Plan {
 	readonly outputFrames?: number;
 	readonly outputs?: unknown;
 	readonly preDataChunks?: unknown;
+	readonly range?: unknown;
 	readonly render?: Readonly<{ readonly strategy?: unknown }>;
 	readonly sampleRate?: number;
+	readonly tailFrames?: unknown;
 	readonly trailingChunks?: unknown;
+}
+
+type DirectRiffChunks = Uint8Array | readonly Uint8Array[] | undefined;
+
+interface CanonicalPassthroughAdmPlan {
+	readonly adm: DirectBw64AdmPlan & {
+		readonly mode: 'passthrough';
+		readonly metadata: AdmPassthroughMetadata;
+		readonly channelCount: number;
+		readonly channelOrder: readonly string[];
+	};
+	readonly metadata: AdmPassthroughMetadata;
+	readonly preDataChunks: DirectRiffChunks;
+	readonly preserved: PreservedAdmRiffKinds;
+	readonly trailingChunks: DirectRiffChunks;
 }
 
 interface DirectBw64RequestedSettings extends Readonly<Record<string, unknown>> {
@@ -136,23 +169,31 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 		|| Number(plan.outputFileBytesPerRender) > DIRECT_BW64_MAXIMUM_FILE_BYTES
 		|| (bitDepth !== 16 && bitDepth !== 20 && bitDepth !== 24)
 		|| encoding?.floatingPoint !== false
-		|| encoding.sampleFormat !== `int${String(bitDepth)}`
-		|| !isCanonicalBextV2(plan.bext)
-		|| !isCanonicalBextV2(encoding.bext)
-		|| !sameCanonicalBext(plan.bext, encoding.bext)) {
+		|| encoding.sampleFormat !== `int${String(bitDepth)}`) {
 		return false;
 	}
 	const adm = canonicalAuthoredAdmPlan(plan.adm);
-	if (!adm) return false;
+	if (adm) return directAuthoredBw64Plan(plan, encoding, bitDepth, adm);
+	const passthrough = canonicalPassthroughAdmPlan(plan.adm);
+	return passthrough !== null && directPassthroughBw64Plan(plan, encoding, bitDepth, passthrough);
+}
+
+function directAuthoredBw64Plan(
+	plan: DirectBw64Plan,
+	encoding: DirectBw64Encoding,
+	bitDepth: 16 | 20 | 24,
+	adm: NonNullable<ReturnType<typeof canonicalAuthoredAdmPlan>>,
+): boolean {
+	if (!isCanonicalBextV2(plan.bext)
+		|| !isCanonicalBextV2(encoding.bext)
+		|| !sameCanonicalBext(plan.bext, encoding.bext)) return false;
 	const channelOrder = admBedChannelOrder(adm.metadata.bed.layout);
 	if (plan.channelCount !== channelOrder.length
 		|| adm.channelCount !== channelOrder.length
 		|| !sameStrings(adm.channelOrder, channelOrder)
-		|| !isCanonicalPreserveMapping(plan.channelMapping, channelOrder.length)) {
-		return false;
-	}
-	const canonicalChna = createRiffChnaChunk(createAdmChna({ layout: adm.metadata.bed.layout }));
-	const canonicalAxml = createRiffAxmlChunk({
+		|| !isCanonicalPreserveMapping(plan.channelMapping, channelOrder.length)) return false;
+	const preDataChunks = createRiffChnaChunk(createAdmChna({ layout: adm.metadata.bed.layout }));
+	const trailingChunks = createRiffAxmlChunk({
 		programmeName: adm.metadata.programme.name,
 		contentName: adm.metadata.content.name,
 		programmeLanguage: adm.metadata.programme.language,
@@ -160,17 +201,74 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 		bedName: adm.metadata.bed.name,
 		layout: adm.metadata.bed.layout,
 	});
-	if (!sameBytes(adm.preDataChunks, canonicalChna)
-		|| !sameBytes(plan.preDataChunks, canonicalChna)
-		|| !sameBytes(adm.trailingChunks, canonicalAxml)
-		|| !sameBytes(plan.trailingChunks, canonicalAxml)) {
-		return false;
+	if (!sameBytes(adm.preDataChunks, preDataChunks)
+		|| !sameBytes(plan.preDataChunks, preDataChunks)
+		|| !sameBytes(adm.trailingChunks, trailingChunks)
+		|| !sameBytes(plan.trailingChunks, trailingChunks)) return false;
+	return hasExactWavLayout(plan, bitDepth, plan.bext, preDataChunks, trailingChunks);
+}
+
+function directPassthroughBw64Plan(
+	plan: DirectBw64Plan,
+	encoding: DirectBw64Encoding,
+	bitDepth: 16 | 20 | 24,
+	validated: CanonicalPassthroughAdmPlan,
+): boolean {
+	const { adm, metadata, preDataChunks, preserved, trailingChunks } = validated;
+	const { geometry } = metadata;
+	if (plan.sampleRate !== geometry.sampleRate
+		|| encoding.sampleRate !== geometry.sampleRate
+		|| plan.channelCount !== geometry.channelCount
+		|| encoding.channelCount !== geometry.channelCount
+		|| encoding.inputChannelCount !== geometry.channelCount
+		|| adm.channelCount !== geometry.channelCount
+		|| plan.outputFrames !== geometry.frameCount
+		|| bitDepth !== geometry.bitDepth
+		|| geometry.float !== false
+		|| plan.tailFrames !== 0
+		|| plan.dither !== false
+		|| plan.ditherMode !== 'none'
+		|| encoding.dither !== 'none'
+		|| !isFullRange(plan.range, geometry.frameCount)
+		|| !isCanonicalPreserveMapping(plan.channelMapping, geometry.channelCount)
+		|| !isCanonicalPreserveMapping(encoding.channelMapping, geometry.channelCount)
+		|| !sameRiffChunks(adm.preDataChunks, preDataChunks)
+		|| !sameRiffChunks(plan.preDataChunks, preDataChunks)
+		|| !sameRiffChunks(adm.trailingChunks, trailingChunks)
+		|| !sameRiffChunks(plan.trailingChunks, trailingChunks)) return false;
+	if ((preserved.markers && plan.markers?.length !== 0)
+		|| (preserved.ixml && plan.ixml !== null)
+		|| (preserved.cart && plan.cart !== null)
+		|| ((preserved.id3 || preserved.info) && Object.keys(plan.metadata ?? {}).length !== 0)) return false;
+	let bext: BextMetadata | undefined;
+	if (preserved.bext) {
+		if (Object.hasOwn(plan, 'bext')
+			|| Object.hasOwn(encoding, 'bext')
+			|| plan.bext !== undefined
+			|| encoding.bext !== undefined) return false;
+	} else {
+		if (!Object.hasOwn(plan, 'bext')
+			|| !Object.hasOwn(encoding, 'bext')
+			|| !isCanonicalBextV2(plan.bext)
+			|| !isCanonicalBextV2(encoding.bext)
+			|| !sameCanonicalBext(plan.bext, encoding.bext)) return false;
+		bext = plan.bext;
 	}
+	return hasExactWavLayout(plan, bitDepth, bext, preDataChunks, trailingChunks);
+}
+
+function hasExactWavLayout(
+	plan: DirectBw64Plan,
+	bitDepth: 16 | 20 | 24,
+	bext: BextMetadata | undefined,
+	preDataChunks: DirectRiffChunks,
+	trailingChunks: DirectRiffChunks,
+): boolean {
 	try {
 		const options: Parameters<typeof inspectWavLayout>[0] = {
 			container: 'bw64' as const,
 			sampleRate: plan.sampleRate,
-			channelCount: plan.channelCount,
+			channelCount: Number(plan.channelCount),
 			totalFrames: plan.outputFrames,
 			bitDepth,
 			float: false,
@@ -178,9 +276,9 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 			markers: plan.markers,
 			ixml: plan.ixml,
 			cart: plan.cart,
-			bext: plan.bext,
-			preDataChunks: canonicalChna,
-			trailingChunks: canonicalAxml,
+			bext,
+			preDataChunks,
+			trailingChunks,
 		};
 		const layout = inspectWavLayout(options);
 		return layout.container === 'bw64'
@@ -189,6 +287,50 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 	} catch {
 		return false;
 	}
+}
+
+function canonicalPassthroughAdmPlan(value: unknown): CanonicalPassthroughAdmPlan | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const candidate = value as DirectBw64AdmPlan;
+	if (candidate.mode !== 'passthrough'
+		|| Object.keys(candidate).length !== ADM_PLAN_FIELDS.length
+		|| !ADM_PLAN_FIELDS.every((field) => Object.hasOwn(candidate, field))
+		|| !candidate.metadata
+		|| typeof candidate.metadata !== 'object'
+		|| Array.isArray(candidate.metadata)) return null;
+	try {
+		validateAdmProjectMetadata({ adm: candidate.metadata });
+	} catch {
+		return null;
+	}
+	const metadata = candidate.metadata as AdmPassthroughMetadata;
+	if (metadata.mode !== 'passthrough'
+		|| metadata.valid !== true
+		|| metadata.warnings.length !== 0
+		|| !metadata.riffChunkSequence?.length
+		|| !Number.isSafeInteger(candidate.channelCount)
+		|| !Array.isArray(candidate.channelOrder)) return null;
+	let channelOrder: readonly string[];
+	let split: ReturnType<typeof splitAdmRiffChunkSequence>;
+	try {
+		channelOrder = validateAdmPassthroughPayload(metadata);
+		validateAdmRiffChunkSequence(metadata);
+		split = splitAdmRiffChunkSequence(metadata);
+	} catch {
+		return null;
+	}
+	const preDataChunks = compactRiffChunks(split.preDataChunks);
+	const trailingChunks = compactRiffChunks(split.trailingChunks);
+	if (!sameStrings(candidate.channelOrder, channelOrder)
+		|| !sameRiffChunks(candidate.preDataChunks, preDataChunks)
+		|| !sameRiffChunks(candidate.trailingChunks, trailingChunks)) return null;
+	return Object.freeze({
+		adm: candidate as CanonicalPassthroughAdmPlan['adm'],
+		metadata,
+		preDataChunks,
+		preserved: inspectPreservedAdmRiffChunks(metadata),
+		trailingChunks,
+	});
 }
 
 function canonicalAuthoredAdmPlan(value: unknown): (DirectBw64AdmPlan & {
@@ -254,6 +396,29 @@ function isCanonicalPreserveMapping(value: unknown, channelCount: number): boole
 			&& contribution.channel === index
 			&& contribution.gain === 1;
 	});
+}
+
+function isFullRange(value: unknown, frameCount: number): boolean {
+	if (!isRecord(value) || !sameKeys(value, ['startFrame', 'endFrame', 'durationFrames'])) return false;
+	return value.startFrame === 0
+		&& value.endFrame === frameCount
+		&& value.durationFrames === frameCount;
+}
+
+function compactRiffChunks(chunks: readonly Uint8Array[]): DirectRiffChunks {
+	if (chunks.length === 0) return undefined;
+	return chunks.length === 1 ? chunks[0] : chunks;
+}
+
+function sameRiffChunks(value: unknown, expected: DirectRiffChunks): boolean {
+	if (expected === undefined) return value === undefined;
+	if (expected instanceof Uint8Array) return sameBytes(value, expected);
+	return Array.isArray(value)
+		&& value.length === expected.length
+		&& value.every((chunk, index) => {
+			const expectedChunk = expected[index];
+			return expectedChunk !== undefined && sameBytes(chunk, expectedChunk);
+		});
 }
 
 function sameKeys(value: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean {

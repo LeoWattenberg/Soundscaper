@@ -2,6 +2,14 @@
 
 import { normalizeBextMetadata, type BextMetadataInput } from './broadcast-wave.ts';
 import type { AdmPassthroughMetadata } from './adm-project-metadata.ts';
+import {
+	inspectAdmAxml,
+	parseChnaPayload,
+	validateAdmCommonDefinitionChna,
+	validateAdmChnaConsistency,
+} from './adm-metadata.ts';
+import { validateAdmSxmlPayload } from './adm-sxml.ts';
+import { inspectBxmlAdmPayload } from './wav-adm-import.ts';
 import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
 
 type StoredAdmPayload = AdmPassthroughMetadata['payload']
@@ -35,6 +43,61 @@ export function inspectPreservedAdmRiffChunks(metadata: AdmPassthroughMetadata):
 		}
 	}
 	return Object.freeze(result);
+}
+
+/**
+ * Revalidates the exact stored ADM carriers and derives renderer order only
+ * from the reparsed raw CHNA bytes. CHNA-less serial ADM has no RIFF channel
+ * labels, so its validated order is empty.
+ */
+export function validateAdmPassthroughPayload(metadata: AdmPassthroughMetadata): readonly string[] {
+	if (metadata.serialPayload) {
+		validateAdmSxmlPayload(decodeBase64(metadata.serialPayload.base64));
+	}
+	const rawChna = metadata.chna.rawBase64
+		? parseChnaPayload(decodeBase64(metadata.chna.rawBase64))
+		: null;
+	if (rawChna && rawChna.numTracks !== metadata.geometry.channelCount) {
+		throw new Error('Persisted ADM CHNA track count does not match its source geometry.');
+	}
+	if (Boolean(rawChna) !== (metadata.chna.entries.length > 0)) {
+		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
+	}
+	if (rawChna && !sameAdmChnaEntries(rawChna.entries, metadata.chna.entries)) {
+		throw new Error('Persisted ADM CHNA bytes and normalized entries disagree.');
+	}
+	const staticPayloads = [
+		...(metadata.payload.kind === 'sxml' ? [] : [metadata.payload]),
+		...(metadata.auxiliaryPayloads ?? []),
+	];
+	const classifiedStatic = staticPayloads.map((payload) => {
+		const bytes = decodeBase64(payload.kind === 'axml' ? payload.rawBase64 : payload.base64);
+		return {
+			payload,
+			empty: payload.kind === 'axml' && bytes.byteLength === 0,
+			document: payload.kind === 'axml'
+				? bytes.byteLength === 0 ? null : inspectAdmAxml(bytes)
+				: inspectBxmlAdmPayload(bytes),
+		};
+	});
+	const documentedStatic = classifiedStatic.filter(({ document }) => document);
+	if (documentedStatic.length > 1) throw new Error('Persisted AXML and BXML both carry static ADM.');
+	const carrier = documentedStatic[0] ?? classifiedStatic.find(({ empty }) => empty);
+	if (metadata.payload.kind === 'sxml') {
+		if (carrier) throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
+		validateAdmSxmlPayload(decodeBase64(metadata.payload.base64));
+		return admChnaChannelOrder(rawChna);
+	}
+	if (!rawChna) throw new Error('Static ADM passthrough requires CHNA metadata.');
+	if (!carrier || carrier.payload !== metadata.payload) {
+		throw new Error('Persisted ADM payload selection disagrees with its static XML chunks.');
+	}
+	if (carrier.empty) validateAdmCommonDefinitionChna(rawChna, metadata.geometry.channelCount);
+	else {
+		if (!carrier.document) throw new Error('Persisted ADM payload selection has no static ADM document.');
+		validateAdmChnaConsistency(carrier.document, rawChna, metadata.geometry.channelCount);
+	}
+	return admChnaChannelOrder(rawChna);
 }
 
 export function validateAdmRiffChunkSequence(metadata: AdmPassthroughMetadata): void {
@@ -90,6 +153,33 @@ export function sameBextMetadata(left: BextMetadataInput, right: BextMetadataInp
 
 function storedPayloadBytes(payload: StoredAdmPayload): Uint8Array {
 	return decodeBase64(payload.kind === 'axml' ? payload.rawBase64 : payload.base64);
+}
+
+function admChnaChannelOrder(chna: ReturnType<typeof parseChnaPayload> | null): readonly string[] {
+	if (!chna) return Object.freeze([]);
+	const channelOrder = Array.from({ length: chna.numTracks }, () => '');
+	for (const { trackIndex, trackRef } of chna.entries) {
+		if (!channelOrder[trackIndex - 1]) channelOrder[trackIndex - 1] = trackRef;
+	}
+	return Object.freeze(channelOrder);
+}
+
+function sameAdmChnaEntries(
+	rawEntries: ReturnType<typeof parseChnaPayload>['entries'],
+	normalizedEntries: AdmPassthroughMetadata['chna']['entries'],
+): boolean {
+	return rawEntries.length === normalizedEntries.length && rawEntries.every((raw, index) => {
+		const normalized = normalizedEntries[index];
+		return normalized
+			&& raw.trackIndex === normalized.trackIndex
+			&& equalAdmId(raw.uid, normalized.audioTrackUid)
+			&& equalAdmId(raw.trackRef, normalized.audioTrackFormatIdRef)
+			&& equalAdmId(raw.packRef, normalized.audioPackFormatIdRef);
+	});
+}
+
+function equalAdmId(left: string, right: string): boolean {
+	return left.toUpperCase() === right.toUpperCase();
 }
 
 function riffChunkPayload(chunk: Uint8Array): Uint8Array {
