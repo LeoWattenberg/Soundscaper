@@ -478,6 +478,20 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		rendererOwnedRead.summary,
 		/opaque main-owned.*committed main-frame document.*for each committed-document owner.*128 pending or live.*before.*file-open await.*before descriptor publication.*owner's aggregate declared selected-file bytes.*512 MiB.*wrong-owner release.*release.*expiry.*non-same-document navigation.*renderer loss.*actual window close.*shutdown.*synchronously.*lookup.*drain.*delayed.*open or stat.*without publication.*partial multi-file.*every rollback release.*primary and cleanup failures.*OS-open paths.*serially deduplicated.*visible queue head.*refuses.*without evicting.*cleanup failure/iu,
 	);
+	const leasedRangeRead = desktopRead.currentControls.find(
+		({ id }) => id === 'serialized-range-request-lifecycle',
+	);
+	assert.ok(leasedRangeRead);
+	for (const path of [
+		'desktop/file-capabilities.js',
+		'desktop/protocol.js',
+		'tests/desktop-read-capability-leases.test.js',
+		'tests/desktop-protocol.test.js',
+	]) assert.ok(leasedRangeRead.evidence.some((item) => item.path === path));
+	assert.match(
+		leasedRangeRead.summary,
+		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*not yet.*archive byte source/iu,
+	);
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
 	const boundedMaterialization = desktopRead.currentControls.find(
 		({ id }) => id === 'bounded-abortable-renderer-read-materialization',

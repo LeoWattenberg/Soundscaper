@@ -606,7 +606,7 @@
 				},
 				{
 					"id": "bounded-random-access-archive-reading",
-					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. This foundation is not yet connected to desktop selected-file capabilities, so it does not yet qualify larger desktop opens.",
+					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. This foundation is not yet connected to the leased desktop range transport, so it does not yet qualify larger desktop opens.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-byte-source.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-layout-witness.ts" },
@@ -804,6 +804,16 @@
 						{ "kind": "implementation", "path": "desktop/protocol.js" },
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					]
+				},
+				{
+					"id": "serialized-range-request-lifecycle",
+					"summary": "Each capability admits one active protocol request and serves exact single byte ranges. A successful Web response body must reach done before its request lease is released, preserving the pinned handle for a later serialized read. Body cancellation, request abort, or inner stream failure fences and retires the entire capability, waits for native stream close and pinned handle close, and settles the renderer only after that cleanup barrier. Explicit release, expiry, owner revocation, and shutdown join the same retirement. A failed cleanup tombstone remains observable only to the correct owner until owner or store teardown, token allocation cannot alias a live tombstone, and descriptor lookup does not expose the raw handle. This transport lifecycle is implemented but is not yet connected to the archive byte source, so it does not raise the qualified 512 MiB materialization surface.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
+						{ "kind": "implementation", "path": "desktop/protocol.js" },
+						{ "kind": "test", "path": "tests/desktop-read-capability-leases.test.js" },
+						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
 					]
 				},
 				{

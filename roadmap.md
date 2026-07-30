@@ -117,7 +117,9 @@ Material constraints in the current foundation are also roadmap inputs:
 - `.scape` now streams to selected File System Access and desktop targets. The
   current desktop-read tier admits at most 512 MiB of active declared input per
   committed-document owner before materializing a whole `Blob`; reference-scale
-  reads above that bound fail rather than stream. Several compressed imports,
+  reads above that bound fail rather than stream. Its main-process protocol now
+  has a serialized exact-range lease lifecycle, but the archive reader is not
+  yet connected to it. Several compressed imports,
   browser-download fallback, and final render outputs also retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
@@ -366,7 +368,7 @@ models or native implementations.
   the admitted end/central/local/descriptor bytes unchanged while fetching only
   payload gaps. This deliberately qualifies canonical `.scape` structure, not
   arbitrary third-party ZIP local-extra expansion, and is not yet wired to
-  desktop selected-file capabilities; the 512 MiB desktop materialization
+  the leased desktop range transport; the 512 MiB desktop materialization
   ceiling therefore remains unchanged. Its
   [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
   offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
@@ -713,13 +715,26 @@ models or native implementations.
   partial multi-file rollback drains and aggregates every cleanup, serialized
   OS-open dispatch preserves one deduplicated queue head across owner
   replacement, count or byte exhaustion refuses without eviction, and cleanup
-  failure is reported after every close is attempted. The focused
+  failure is reported after every close is attempted. Each published token now
+  admits one active protocol request and serves exact single ranges from its
+  pinned handle. Normal Web-body completion retains that handle for the next
+  serialized request; cancellation, request abort, stream error, release,
+  expiry, owner revocation, and shutdown instead join one retirement barrier
+  that fences lookup, drains native stream close, and acknowledges pinned-handle
+  close before settling. Failed cleanup remains visible only to the correct
+  owner until owner or store teardown, token allocation cannot alias a live
+  retirement, and renderer lookup never exposes the raw handle. The focused
   [read-capability regression](tests/desktop-read-capability-ownership.test.js)
   covers owner isolation, concurrent pending admission, exact count and byte
   boundaries, late completion, rollback aggregation, cleanup failure, and
-  permanent shutdown; the
+  permanent shutdown. A dedicated
+  [request-lease regression](tests/desktop-read-capability-leases.test.js)
+  covers serialization, range-stream draining, tombstones, expiry, revocation,
+  and disposal; the
   [desktop protocol regression](tests/desktop-protocol.test.js) covers
-  replacement-renderer queue retry.
+  replacement-renderer queue retry plus real-`FileHandle` reuse, unread-body
+  exclusivity, cancellation retirement, abort-before-read, and paused-stream
+  failure.
   The bounded materialization tier is also landed: preload sanitation and the
   strict-TS [renderer admission](src/common/editor/desktop-read-materialization.ts)
   repeat the 512 MiB ceiling before fetch, require exact `Content-Length`,
@@ -976,13 +991,15 @@ models or native implementations.
   prior shared `v1` scope or product-private libraries—is not a current priority
   or milestone prerequisite and remains unsupported by this current-only
   contract. Audacity project interchange remains a separate roadmap boundary.
-- **Electron Enhanced — Planned:** bind selected-file capabilities to the
-  existing bounded
-  [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
-  and pass the planned 8 GiB logical project fixture through range-backed reads
-  without a final renderer `Blob`.
-  Until then, inputs above the qualified 512 MiB materialization tier fail
-  admission explicitly.
+- **Electron Enhanced — Planned:** connect canonical `.scape` selected-file
+  descriptors to the strict
+  [archive byte-source contract](src/common/editor/scape-archive-byte-source.ts)
+  through a strict-TS adapter over the leased exact-range transport. Keep other
+  project and media families on their existing bounded materialization paths,
+  add separate main-assigned large-project admission, and pass the planned
+  8 GiB logical `.scape` fixture through range-backed reads without a final
+  renderer `Blob`. Until then, inputs above the qualified 512 MiB
+  materialization tier fail admission explicitly.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
   installations emerge, define compatibility beyond the retained V1–V8
   raw-document migration paths, especially an explicit migration from the prior

@@ -60,6 +60,10 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
+		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*not yet connected.*archive byte source/isu,
+	);
+	assert.match(
+		documentation,
 		/shared-desktop-project-library-integrity.*partial.*product-neutral appData library.*fresh filesystem library scope `?v2`?.*ignores rather than migrates.*prior shared `?v1`? scope.*schema 1 database.*`?v2`? path.*rejected instead of implicitly migrated.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*opaque binary state.*non-raiseable 256 MiB.*lower-only test seam.*persistence root.*reserves.*canonical path.*unique random attempt.*lease.*fencing-token.*authoritative project and stage inventories.*same immediate transaction.*before exclusive stage creation.*exact-lease cleanup.*acknowledged.*exclusive-open failure.*registration.*without unlinking.*error after exclusive creation.*registered random stage.*lost-lease or failed cleanup.*registration.*takeover.*successful materialization.*exact metadata and stage paths.*lease ID.*fencing token.*renames and syncs.*marks the canonical row materialized.*removes the stage row.*every catalog reference.*before an exact plus-one journaled catalog commit.*before staging.*before publication.*transactionally at catalog commit.*old or new complete file-and-catalog pair.*stale fencing token cannot publish.*serializes commits.*continues lease renewal while close fences new work and drains admitted work/isu,
 	);
 	assert.match(

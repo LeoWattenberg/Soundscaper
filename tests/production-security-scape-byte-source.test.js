@@ -17,7 +17,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.ok(control);
 	assert.match(
 		control.summary,
-		/lower-only.*33 MiB.*native `Uint8Array`.*69,271,649-byte.*comments.*conflicting overlaps.*payload gaps.*Blob.*not yet.*desktop/iu,
+		/lower-only.*33 MiB.*native `Uint8Array`.*69,271,649-byte.*comments.*conflicting overlaps.*payload gaps.*Blob.*not yet connected.*leased desktop range transport/iu,
 	);
 	for (const path of [
 		'src/common/editor/scape-archive-byte-source.ts',
@@ -33,11 +33,11 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	assert.match(
 		threatModel,
-		/scape-archive-structure-integrity.*branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*bounded structural snapshot.*not whole-archive atomicity.*not yet connected.*desktop selected-file capabilities/isu,
+		/scape-archive-structure-integrity.*branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*bounded structural snapshot.*not whole-archive atomicity.*not yet connected.*leased desktop range transport/isu,
 	);
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
-		/random-access byte source.*69,271,649 bytes.*canonical writer profile.*payload gaps.*not yet wired.*desktop selected-file capabilities.*512 MiB/isu,
+		/random-access byte source.*69,271,649 bytes.*canonical writer profile.*payload gaps.*not yet wired.*leased desktop range transport.*512 MiB/isu,
 	);
 });
