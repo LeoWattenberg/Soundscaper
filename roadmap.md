@@ -663,9 +663,20 @@ models or native implementations.
   renderer-sized `Blob`. Other PCM formats, compressed or custom audio, video,
   stems, and non-realtime renders retain their existing staging or in-memory
   paths. The Web Core browser-download fallback also retains its existing final
-  `Blob`. Focused Node evidence covers the closed direct-WAV contract and
-  rollback; a browser workflow and packaged Electron reference-scale acceptance
-  are not yet qualified.
+  `Blob`. Focused Node evidence covers the closed direct-WAV contract, cleanup
+  failures, ownership races, and commit boundary. A compact Chromium and Firefox
+  workflow uses an injected File System Access target and simulated mobile
+  planner profile to drive the maintained export UI through the production
+  realtime route. It retains only a bounded header prefix plus counters,
+  validates structurally valid RIFF bytes and exact written-byte accounting,
+  observes no Object URL or browser download, then cancels a second export after
+  PCM reaches the target and observes one abort without close or publication.
+  This qualifies application-path browser plumbing and pre-commit rollback, not
+  native picker availability. The 65 GiB value remains an admission ceiling,
+  not a tested browser file size; reference-scale heap, process RSS, quota,
+  filesystem durability, and actual-device mobile behavior remain unqualified.
+  Commit-race acceptance remains Node-only, and packaged Electron reference-scale
+  acceptance is not qualified.
 - **Web Core — In progress:** the strict-TS
   [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
   publishes usage, quota, free space, pressure, eviction protection, fallback

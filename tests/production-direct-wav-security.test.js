@@ -11,6 +11,8 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const exactDirectWav = findControl(matrix, 'desktop-write-path-capabilities', 'exact-direct-wav-mix-save');
 	const directWavRollback = findControl(matrix, 'long-job-cancellation', 'direct-wav-mix-save-rollback');
+	const controllerIoBoundary = matrix.boundaries.find(({ id }) => id === 'controller-task-to-io');
+	assert.ok(controllerIoBoundary, 'controller-task-to-io');
 
 	for (const path of [
 		'desktop/validation.js',
@@ -22,10 +24,19 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		'tests/audio-editor-file-service.test.js',
 		'tests/audio-editor-pcm-sink.test.js',
 		'tests/desktop-pcm-mix-save-purpose.test.js',
+		'tests/browser/audio-editor-direct-wav-save.spec.js',
 	]) assert.ok(exactDirectWav.evidence.some((item) => item.path === path), path);
+	assert.ok(
+		controllerIoBoundary.evidence.some((item) => item.path === 'tests/browser/audio-editor-direct-wav-save.spec.js'),
+		'controller-task-to-io browser evidence',
+	);
 	assert.match(
 		exactDirectWav.summary,
-		/dedicated `audio-pcm-mix` purpose.*one plain-WAV mix.*`realtime-stream`.*65 GiB.*exact-size.*not maximum-bounded.*File System Access or Electron.*encoder-emission retention.*one destination write at a time.*64-packet PCM queue.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*no final renderer `Blob`.*BWF.*BW64.*AIFF.*compressed.*video.*stems.*outside.*browser workflow acceptance.*not qualified/iu,
+		/dedicated `audio-pcm-mix` purpose.*one plain-WAV mix.*`realtime-stream`.*65 GiB.*exact-size.*not maximum-bounded.*File System Access or Electron.*encoder-emission retention.*one destination write at a time.*64-packet PCM queue.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*no final renderer `Blob`.*BWF.*BW64.*AIFF.*compressed.*video.*stems.*outside/iu,
+	);
+	assert.match(
+		exactDirectWav.summary,
+		/Chromium and Firefox.*injected File System Access target.*mobile planner profile.*valid RIFF.*no Object URL.*native picker.*65 GiB.*reference-scale.*packaged Electron.*not qualified/iu,
 	);
 
 	for (const path of [
@@ -36,10 +47,15 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		'tests/audio-editor-export-direct-wav.test.ts',
 		'tests/audio-editor-file-service.test.js',
 		'tests/audio-editor-pcm-sink.test.js',
+		'tests/browser/audio-editor-direct-wav-save.spec.js',
 	]) assert.ok(directWavRollback.evidence.some((item) => item.path === path), path);
 	assert.match(
 		directWavRollback.summary,
-		/target before rendering.*owned export task signal.*awaits each destination write.*64-packet PCM queue.*failure or cancellation before commit.*abort.*staging cleanup.*planned.*encoder-finalized.*destination-written.*before.*non-cancellable commit.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback.*browser workflow acceptance.*not qualified/iu,
+		/target before rendering.*owned export task signal.*awaits each destination write.*64-packet PCM queue.*failure or cancellation before commit.*abort.*staging cleanup.*planned.*encoder-finalized.*destination-written.*before.*non-cancellable commit.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/iu,
+	);
+	assert.match(
+		directWavRollback.summary,
+		/Chromium and Firefox.*after PCM.*one abort.*no close.*commit-race.*Node-only/iu,
 	);
 });
 
@@ -48,7 +64,11 @@ test('direct WAV documentation records byte, buffering, rollback, and acceptance
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(
 		documentation,
-		/one plain-WAV mix.*`realtime-stream`.*65 GiB.*direct File System Access or Electron.*encoder-emission retention.*one destination write at a time.*64-packet.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*without a final renderer `Blob`.*BWF.*BW64.*AIFF.*compressed audio.*video.*stems.*remain.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback.*browser workflow acceptance.*not yet qualified/isu,
+		/one plain-WAV mix.*`realtime-stream`.*65 GiB.*direct File System Access or Electron.*encoder-emission retention.*one destination write at a time.*64-packet.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*without a final renderer `Blob`.*BWF.*BW64.*AIFF.*compressed audio.*video.*stems.*remain.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
+	);
+	assert.match(
+		documentation,
+		/Chromium and Firefox.*injected File System Access target.*mobile\s+planner profile.*valid RIFF.*no Object URL.*after\s+PCM.*abort.*without close.*native picker.*65 GiB.*reference-scale.*commit-race.*Node-only.*packaged Electron.*not qualified/isu,
 	);
 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
@@ -66,7 +86,11 @@ test('direct WAV documentation records byte, buffering, rollback, and acceptance
 	);
 	assert.match(
 		roadmap,
-		/direct route.*without a final\s+renderer-sized `Blob`.*other PCM.*compressed.*audio.*video.*stems.*browser-download.*existing final.*`Blob`.*focused Node evidence.*browser workflow.*not yet qualified/isu,
+		/direct route.*without a final\s+renderer-sized `Blob`.*other PCM.*compressed.*audio.*video.*stems.*browser-download.*existing final.*`Blob`/isu,
+	);
+	assert.match(
+		roadmap,
+		/Chromium and Firefox.*injected File System Access target.*mobile\s+planner profile.*valid RIFF.*no Object URL.*after\s+PCM.*abort.*without close.*native picker.*65 GiB.*reference-scale.*commit-race.*Node-only.*packaged Electron.*not qualified/isu,
 	);
 });
 
