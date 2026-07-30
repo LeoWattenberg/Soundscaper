@@ -1,13 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 const NORMALIZED_ABORT_REASONS = new WeakMap<DOMException, unknown>();
+const NORMALIZED_ABORT_ERRORS = new WeakMap<AbortSignal, DOMException>();
 
 export function throwIfScapeAborted(signal?: AbortSignal): void {
 	if (!signal?.aborted) return;
-	if (signal.reason instanceof Error) throw signal.reason;
+	throw scapeAbortReason(signal);
+}
+
+/** Returns one stable Error boundary for every aborted signal. */
+export function scapeAbortReason(signal: AbortSignal): Error {
+	if (!signal.aborted) throw new TypeError('A .scape abort reason requires an aborted signal.');
+	if (signal.reason instanceof Error) return signal.reason;
+	const retained = NORMALIZED_ABORT_ERRORS.get(signal);
+	if (retained) return retained;
 	const error = new DOMException('The .scape operation was cancelled.', 'AbortError');
+	NORMALIZED_ABORT_ERRORS.set(signal, error);
 	NORMALIZED_ABORT_REASONS.set(error, signal.reason);
-	throw error;
+	return error;
 }
 
 /** Restores only abort reasons wrapped by this module's Scape boundary. */
