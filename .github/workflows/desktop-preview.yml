@@ -182,6 +182,13 @@ jobs:
           SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
 
+      - name: Smoke packaged direct WAV export
+        if: matrix.product == 'soundscaper' && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        run: npm run desktop:smoke:direct-wav
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_XVFB: 'true'
+
       - name: Retain the verified runtime manifest
         shell: bash
         run: |
