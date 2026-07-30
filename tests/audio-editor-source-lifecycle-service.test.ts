@@ -337,53 +337,68 @@ test('playback reapply source preparation enforces required fallback readiness',
 test('abort promptly and atomically cancels signal-ignoring required source readiness', async () => {
 	const timeout = Symbol('timeout');
 	const outcomes = [];
-	for (const stall of ['metadata', 'context', 'buffer'] as const) {
-		const fixture = createRequiredSourceFixture({ stall });
-		fixture.cachedBuffers.clear();
-		fixture.sourceChunkProviders.clear();
-		const controller = new AbortController();
-		const reason = new DOMException(`cancel stalled ${stall} readiness`, 'AbortError');
-		const loadOptions = {
-			requiredAudioSourceIds: [fixture.source.id],
-			signal: controller.signal,
-		};
-		const operation = fixture.service.loadProjectSources(fixture.project, loadOptions);
-		const terminal = operation.then(
-			(value) => ({ kind: 'fulfilled' as const, value }),
-			(error: unknown) => ({ kind: 'rejected' as const, error }),
-		);
-		await fixture.stallStarted;
-		controller.abort(reason);
-		const prompt = await Promise.race([
-			terminal,
-			delay(250, timeout, { ref: false }),
-		]);
-		fixture.resolveStall();
-		await terminal;
-		await nextTurn();
-		outcomes.push({
-			stall,
-			reason,
-			prompt,
-			cachedBuffers: fixture.cachedBuffers.size,
-			providers: fixture.sourceChunkProviders.size,
-			enginePublications: fixture.publishedProviders.length,
-			missingSources: fixture.missingSourceIds.size,
-			statuses: fixture.statuses.length,
-		});
+	const stalls = [
+		{ name: 'metadata', stall: 'metadata', long: false },
+		{ name: 'metadata (long stream)', stall: 'metadata', long: true },
+		{ name: 'context', stall: 'context', long: false },
+		{ name: 'buffer', stall: 'buffer', long: false },
+	] as const;
+	for (const operationName of ['initial load', 'playback reapply'] as const) {
+		for (const stallCase of stalls) {
+			const fixture = createRequiredSourceFixture({
+				stall: stallCase.stall,
+				long: stallCase.long,
+			});
+			fixture.cachedBuffers.clear();
+			fixture.sourceChunkProviders.clear();
+			const controller = new AbortController();
+			const reason = new DOMException(`cancel stalled ${stallCase.name} readiness`, 'AbortError');
+			const loadOptions = {
+				requiredAudioSourceIds: [fixture.source.id],
+				signal: controller.signal,
+			};
+			const operation = operationName === 'initial load'
+				? fixture.service.loadProjectSources(fixture.project, loadOptions)
+				: fixture.service.ensureProjectSourcesAvailable(fixture.project, loadOptions);
+			const terminal = operation.then(
+				(value) => ({ kind: 'fulfilled' as const, value }),
+				(error: unknown) => ({ kind: 'rejected' as const, error }),
+			);
+			await fixture.stallStarted;
+			controller.abort(reason);
+			const prompt = await Promise.race([
+				terminal,
+				delay(250, timeout, { ref: false }),
+			]);
+			fixture.resolveStall();
+			await terminal;
+			await nextTurn();
+			outcomes.push({
+				operationName,
+				stall: stallCase.name,
+				reason,
+				prompt,
+				cachedBuffers: fixture.cachedBuffers.size,
+				providers: fixture.sourceChunkProviders.size,
+				enginePublications: fixture.publishedProviders.length,
+				missingSources: fixture.missingSourceIds.size,
+				statuses: fixture.statuses.length,
+			});
+		}
 	}
 
 	for (const outcome of outcomes) {
-		assert.notEqual(outcome.prompt, timeout, `${outcome.stall} abort must not await the storage provider`);
+		const label = `${outcome.operationName} ${outcome.stall}`;
+		assert.notEqual(outcome.prompt, timeout, `${label} abort must not await the storage provider`);
 		assert.equal(typeof outcome.prompt, 'object');
 		if (typeof outcome.prompt !== 'object') continue;
 		assert.equal(outcome.prompt.kind, 'rejected');
 		if (outcome.prompt.kind !== 'rejected') continue;
-		assert.equal(outcome.prompt.error, outcome.reason, `${outcome.stall} must preserve the exact abort reason`);
-		assert.equal(outcome.cachedBuffers, 0, `${outcome.stall} late completion must not publish a buffer`);
-		assert.equal(outcome.providers, 0, `${outcome.stall} late completion must not publish a provider`);
-		assert.equal(outcome.enginePublications, 0, `${outcome.stall} late completion must not publish engine sources`);
-		assert.equal(outcome.missingSources, 0, `${outcome.stall} cancellation must not mark the source missing`);
-		assert.equal(outcome.statuses, 0, `${outcome.stall} cancellation must not publish an error status`);
+		assert.equal(outcome.prompt.error, outcome.reason, `${label} must preserve the exact abort reason`);
+		assert.equal(outcome.cachedBuffers, 0, `${label} late completion must not publish a buffer`);
+		assert.equal(outcome.providers, 0, `${label} late completion must not publish a provider`);
+		assert.equal(outcome.enginePublications, 0, `${label} late completion must not publish engine sources`);
+		assert.equal(outcome.missingSources, 0, `${label} cancellation must not mark the source missing`);
+		assert.equal(outcome.statuses, 0, `${label} cancellation must not publish an error status`);
 	}
 });

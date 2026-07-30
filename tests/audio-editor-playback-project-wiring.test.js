@@ -10,14 +10,16 @@ test('initial activation and later engine reapplies share the transient playback
 	const app = await readFile(APP_URL, 'utf8');
 	assert.match(
 		app,
-		/import \{\s*applyCanonicalProjectToPlaybackEngine,\s*createPlaybackProjectService,\s*\} from '\.\/controller\/playback-project-service\.ts';/u,
+		/import \{\s*createPlaybackProjectApplyService,\s*createPlaybackProjectService,\s*\} from '\.\/controller\/playback-project-service\.ts';/u,
 	);
 	assert.match(app, /const playbackProjectService = createPlaybackProjectService\(product\.capabilities\);/u);
+	const taskOwner = app.match(/const playbackProjectApplyService = createPlaybackProjectApplyService\(\{(?<body>[\s\S]*?)\n\t\}\);/u);
+	assert.ok(taskOwner?.groups?.body, 'playback reapplies must have a replaceable task owner');
+	assert.match(taskOwner.groups.body, /lifetime.*projectForPlayback: playbackProjectService\.projectForPlayback/u);
+	assert.match(taskOwner.groups.body, /ensureProjectSourcesAvailable.*sourceBuffers.*sourceChunkProviders.*engine/su);
 	const applyOwner = app.match(/function applyProjectToPlaybackEngine\(snapshot\) \{(?<body>[\s\S]*?)\n\t\}/u);
 	assert.ok(applyOwner?.groups?.body, 'the playback reapply owner must remain a focused function');
-	assert.match(applyOwner.groups.body, /applyCanonicalProjectToPlaybackEngine\(snapshot/u);
-	assert.match(applyOwner.groups.body, /projectForPlayback: playbackProjectService\.projectForPlayback/u);
-	assert.match(applyOwner.groups.body, /ensureProjectSourcesAvailable/u);
+	assert.match(applyOwner.groups.body, /playbackProjectApplyService\.apply\(snapshot\)/u);
 	assert.doesNotMatch(applyOwner.groups.body, /engine\.applyProject/u);
 	assert.match(app, /loadEngineProject:.*chunkSources: sourceChunkProviders/su);
 });

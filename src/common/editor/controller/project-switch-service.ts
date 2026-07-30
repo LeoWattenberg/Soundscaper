@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
-import { createPlaybackProjectService } from './playback-project-service.ts';
+import { PLAYBACK_PROJECT_APPLY_TASK, createPlaybackProjectService } from './playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type {
@@ -299,6 +299,7 @@ export function createProjectSwitchService<
 			? { expectedHistoryToken: existingCapture.token }
 			: { requireAbsent: true });
 		try {
+			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
 			runtime.projectGeneration.invalidate();
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();

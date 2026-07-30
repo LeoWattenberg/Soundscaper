@@ -313,38 +313,63 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			.map((clip: any) => clip.sourceId));
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
-		let context = null;
+		throwIfSourceLoadAborted(options.signal);
+		let context: any = null;
 		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
 			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
 		))) {
 			const required = requiredSourceIds.has(source.id);
 			if (required) {
-				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				const metadata = await awaitSourceLoadOperation(
+					() => store.getSourceMetadata(source.storageKey || source.id),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
 				assertRequiredSourceMetadata(source, metadata);
 				const useChunkStream = sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
 				if (useChunkStream) {
-					sourceBuffers.delete(source.id);
 					if (!registerStoredChunkProvider(source, metadata)) {
 						throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
 					}
+					sourceBuffers.delete(source.id);
 					continue;
 				}
+				context ??= await awaitSourceLoadOperation(
+					() => engine.getAudioContext?.({ resume: false }),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
+				const buffer = await awaitSourceLoadOperation(
+					() => readStoredAudioBuffer(store, source, context),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
+				assertRequiredSourceBuffer(source, buffer);
 				forgetChunkProvider(source.id);
 				sourceBuffers.delete(source.id);
-				context ||= await engine.getAudioContext?.({ resume: false });
-				const buffer = await readStoredAudioBuffer(store, source, context);
-				assertRequiredSourceBuffer(source, buffer);
 				if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
 				continue;
 			}
 			if (!sourceChunkProviders.has(source.id)) {
-				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				const metadata = await awaitSourceLoadOperation(
+					() => store.getSourceMetadata(source.storageKey || source.id),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
 				if (!metadata) continue;
 				registerStoredChunkProvider(source, metadata);
 			}
 			if (sourceChunkProviders.has(source.id) || sourceBuffers.has(source.id)) continue;
-			context ||= await engine.getAudioContext?.({ resume: false });
-			const buffer = await readStoredAudioBuffer(store, source, context);
+			context ??= await awaitSourceLoadOperation(
+				() => engine.getAudioContext?.({ resume: false }),
+				options.signal,
+			);
+			throwIfSourceLoadAborted(options.signal);
+			const buffer = await awaitSourceLoadOperation(
+				() => readStoredAudioBuffer(store, source, context),
+				options.signal,
+			);
+			throwIfSourceLoadAborted(options.signal);
 			if (!buffer) continue;
 			if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
 		}

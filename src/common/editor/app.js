@@ -198,7 +198,7 @@ import { createProjectBootstrapService } from './controller/project-bootstrap-se
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
 import {
-	applyCanonicalProjectToPlaybackEngine,
+	createPlaybackProjectApplyService,
 	createPlaybackProjectService,
 } from './controller/playback-project-service.ts';
 import { createRecordingRoutingService } from './controller/recording-routing-service.ts';
@@ -567,6 +567,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		waveformPcmWindowContains, waveformPeaksHaveRms,
 	});
 	const playbackProjectService = createPlaybackProjectService(product.capabilities);
+	const playbackProjectApplyService = createPlaybackProjectApplyService({
+		lifetime, projectForPlayback: playbackProjectService.projectForPlayback, getCurrentProject: () => project,
+		ensureProjectSourcesAvailable, sourceBuffers, sourceChunkProviders, engine,
+		setReadyStatus: () => setStatus(copy.ready),
+	});
 	const preferencesService = createEditorPreferencesService({
 		productId,
 		preferenceSettingKey,
@@ -2561,12 +2566,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function applyProjectToPlaybackEngine(snapshot) {
-		return applyCanonicalProjectToPlaybackEngine(snapshot, {
-			projectForPlayback: playbackProjectService.projectForPlayback,
-			getCurrentProject: () => project, ensureProjectSourcesAvailable,
-			sourceBuffers, sourceChunkProviders, engine,
-			setReadyStatus: () => setStatus(copy.ready),
-		});
+		return playbackProjectApplyService.apply(snapshot);
 	}
 
 	function beginPlaybackCachePreparation(...args) {

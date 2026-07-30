@@ -5,8 +5,11 @@ import test from 'node:test';
 
 import {
 	applyCanonicalProjectToPlaybackEngine,
+	createPlaybackProjectApplyService,
 	createPlaybackProjectService,
+	PLAYBACK_PROJECT_APPLY_TASK,
 } from '../src/common/editor/controller/playback-project-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import type { ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
@@ -19,6 +22,12 @@ import {
 } from '../src/common/editor/project-v9.ts';
 
 const DIGEST = 'cd'.repeat(32);
+
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
 
 function fallbackProject() {
 	const source = createAudioSourceV9({
@@ -157,4 +166,62 @@ test('a canonical identity change during source preparation suppresses the stale
 	});
 	assert.equal(applied, false);
 	assert.equal(engineCalls, 0);
+});
+
+test('a newer playback reapply aborts stalled source readiness and alone reaches the engine', async () => {
+	const first = { ...fallbackProject(), id: 'first-project' };
+	const second = { ...fallbackProject(), id: 'second-project' };
+	let current: typeof first | null = first;
+	const lifetime = new EditorControllerLifetime();
+	const started = deferred<void>();
+	const taskNames: string[] = [];
+	const sourceSignals: AbortSignal[] = [];
+	const appliedProjectIds: string[] = [];
+	let sourceCalls = 0;
+	const applyService = createPlaybackProjectApplyService({
+		lifetime: {
+			startTask(name: string) {
+				taskNames.push(name);
+				return lifetime.startTask(name);
+			},
+		},
+		projectForPlayback: createPlaybackProjectService({
+			audioEffects: false, videoEffects: true,
+		}).projectForPlayback,
+		getCurrentProject: () => current,
+		ensureProjectSourcesAvailable: async (
+			_project: typeof first,
+			options: Readonly<{ requiredAudioSourceIds: readonly string[]; signal?: AbortSignal }>,
+		) => {
+			const signal = options.signal;
+			assert.ok(signal);
+			sourceCalls += 1;
+			sourceSignals.push(signal);
+			if (sourceCalls !== 1) return new Map();
+			started.resolve();
+			return new Promise<never>((_resolve, reject) => {
+				signal.addEventListener('abort', () => { reject(signal.reason); }, { once: true });
+			});
+		},
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			applyProject(project: typeof first) { appliedProjectIds.push(project.id); },
+		},
+		setReadyStatus() {},
+	});
+
+	const firstApply = applyService.apply(first);
+	await started.promise;
+	current = second;
+	const secondApply = applyService.apply(second);
+	await assert.rejects(firstApply, (error) => (
+		error === sourceSignals[0]?.reason
+		&& error instanceof DOMException
+		&& error.name === 'AbortError'
+	));
+	assert.equal(await secondApply, true);
+	assert.deepEqual(taskNames, [PLAYBACK_PROJECT_APPLY_TASK, PLAYBACK_PROJECT_APPLY_TASK]);
+	assert.deepEqual(appliedProjectIds, ['second-project']);
 });

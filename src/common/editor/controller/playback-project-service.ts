@@ -28,6 +28,8 @@ export interface PlaybackProjectService {
 	projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project>;
 }
 
+export const PLAYBACK_PROJECT_APPLY_TASK = 'playback-project-apply';
+
 interface PlaybackEngineState {
 	readonly state?: unknown;
 	readonly playbackMode?: unknown;
@@ -47,12 +49,29 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 	readonly getCurrentProject: () => Project | null;
 	readonly ensureProjectSourcesAvailable: (
 		project: Project,
-		options: Readonly<{ requiredAudioSourceIds: readonly string[] }>,
+		options: Readonly<{
+			readonly requiredAudioSourceIds: readonly string[];
+			readonly signal?: AbortSignal;
+		}>,
 	) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
 	readonly sourceBuffers: ReadonlyMap<unknown, unknown>;
 	readonly sourceChunkProviders: ReadonlyMap<unknown, unknown>;
 	readonly engine: PlaybackProjectEngine<Project>;
 	readonly setReadyStatus: () => void;
+}
+
+export interface ApplyCanonicalProjectOptions {
+	readonly signal?: AbortSignal;
+}
+
+export interface PlaybackProjectApplyServiceRuntime<Project extends object>
+	extends ApplyCanonicalProjectRuntime<Project> {
+	readonly lifetime: Readonly<{
+		startTask(name: string): Readonly<{
+			readonly signal: AbortSignal;
+			finish(): void;
+		}>;
+	}>;
 }
 
 /** Compose every maintained transient project feature for editor playback. */
@@ -86,6 +105,22 @@ export function createPlaybackProjectService(
 	}
 }
 
+/** Own each playback reapply as one replaceable controller-lifetime task. */
+export function createPlaybackProjectApplyService<Project extends object>(
+	runtime: PlaybackProjectApplyServiceRuntime<Project>,
+) {
+	return Object.freeze({ apply });
+
+	async function apply(project: Project): Promise<boolean> {
+		const task = runtime.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK);
+		try {
+			return await applyCanonicalProjectToPlaybackEngine(project, runtime, { signal: task.signal });
+		} finally {
+			task.finish();
+		}
+	}
+}
+
 /**
  * Reapply one canonical snapshot through the same transient feature projection
  * used during activation. The identity check remains against the canonical
@@ -94,12 +129,16 @@ export function createPlaybackProjectService(
 export async function applyCanonicalProjectToPlaybackEngine<Project extends object>(
 	canonicalProject: Project,
 	runtime: ApplyCanonicalProjectRuntime<Project>,
+	options: ApplyCanonicalProjectOptions = {},
 ): Promise<boolean> {
+	throwIfPlaybackProjectApplyAborted(options.signal);
 	const previousPlayback = runtime.engine.getState();
 	const projection = runtime.projectForPlayback(canonicalProject);
 	const transientBuffers = await runtime.ensureProjectSourcesAvailable(projection.project, {
 		requiredAudioSourceIds: projection.requiredAudioSourceIds,
+		signal: options.signal,
 	});
+	throwIfPlaybackProjectApplyAborted(options.signal);
 	if (runtime.getCurrentProject() !== canonicalProject) return false;
 	const playbackBuffers = transientBuffers.size
 		? new Map([...runtime.sourceBuffers, ...transientBuffers])
@@ -107,10 +146,15 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 	await runtime.engine.applyProject(projection.project, playbackBuffers, {
 		chunkSources: runtime.sourceChunkProviders,
 	});
+	throwIfPlaybackProjectApplyAborted(options.signal);
 	if (
 		previousPlayback.state === 'playing'
 		&& previousPlayback.playbackMode === 'staffpad'
 		&& runtime.engine.getState().state !== 'playing'
 	) runtime.setReadyStatus();
 	return true;
+}
+
+function throwIfPlaybackProjectApplyAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) throw signal.reason;
 }
