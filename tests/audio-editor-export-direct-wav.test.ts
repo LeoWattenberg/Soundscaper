@@ -9,14 +9,10 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import {
-	DIRECT_WAV_DESTINATION_WRITE_BYTES,
-	DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES,
-	DIRECT_WAV_MAXIMUM_FILE_BYTES,
-	DIRECT_WAV_RENDER_CHUNK_FRAMES,
-	createDirectWavEncoder,
-	directWavMaximumPendingChunks,
-	prepareDirectWavDestination,
-} from '../src/common/editor/controller/direct-wav-export.ts';
+	DIRECT_PCM_DESTINATION_WRITE_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES, DIRECT_PCM_RENDER_CHUNK_FRAMES,
+	createDirectPcmEncoder, directPcmMaximumPendingChunks,
+} from '../src/common/editor/controller/direct-pcm-export.ts';
+import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
 
 interface TestPlan extends Record<string, unknown> {
 	mode: string;
@@ -295,19 +291,19 @@ function createFixture(
 	};
 }
 
-test('direct WAV encoder coalesces bounded PCM writes and awaits each destination flush', async () => {
-	assert.equal(DIRECT_WAV_DESTINATION_WRITE_BYTES, 4 * 1024 * 1024);
-	const half = DIRECT_WAV_DESTINATION_WRITE_BYTES / 2;
+test('direct PCM encoder coalesces bounded container writes and awaits each destination flush', async () => {
+	assert.equal(DIRECT_PCM_DESTINATION_WRITE_BYTES, 4 * 1024 * 1024);
+	const half = DIRECT_PCM_DESTINATION_WRITE_BYTES / 2;
 	const releaseWrite = deferred();
 	const writeStarted = deferred();
 	const writes: Uint8Array[] = [];
 	let closed = false;
 	let encoderOnChunk: ((chunk: Uint8Array) => void) | null = null;
 	let block = 0;
-	const encoder = await createDirectWavEncoder({
+	const encoder = await createDirectPcmEncoder({
 		async write(chunk) {
 			writes.push(chunk.slice());
-			if (chunk.byteLength === DIRECT_WAV_DESTINATION_WRITE_BYTES) {
+			if (chunk.byteLength === DIRECT_PCM_DESTINATION_WRITE_BYTES) {
 				writeStarted.resolve();
 				await releaseWrite.promise;
 			}
@@ -326,7 +322,7 @@ test('direct WAV encoder coalesces bounded PCM writes and awaits each destinatio
 			},
 			finalize() { return { byteLength: 1 + 2 * half }; },
 		};
-	}, {});
+	}, {}, 'WAV');
 
 	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1]);
 	await encoder.write([Float32Array.of(0)]);
@@ -335,7 +331,7 @@ test('direct WAV encoder coalesces bounded PCM writes and awaits each destinatio
 	const second = encoder.write([Float32Array.of(0)]).then(() => { secondSettled = true; });
 	await writeStarted.promise;
 	assert.equal(secondSettled, false);
-	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1, DIRECT_WAV_DESTINATION_WRITE_BYTES]);
+	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1, DIRECT_PCM_DESTINATION_WRITE_BYTES]);
 	releaseWrite.resolve();
 	await second;
 	assert.equal(await encoder.finalize(), 1 + 2 * half);
@@ -376,8 +372,8 @@ test('exact realtime WAV mixes await coalesced destination writes and publish no
 	assert.equal(fixture.downloads.length, 0);
 	assert.deepEqual(fixture.preflights, []);
 	assert.equal(fixture.calls.includes('temporary:create'), false);
-	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_WAV_RENDER_CHUNK_FRAMES);
-	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directWavMaximumPendingChunks(2));
+	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
+	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directPcmMaximumPendingChunks(2));
 	assert.deepEqual(fixture.prepareRequests.map((request) => ({
 		purpose: request.purpose,
 		suggestedName: request.suggestedName,
@@ -415,19 +411,19 @@ test('direct WAV resamples before a selection-only channel expansion', async () 
 	assert.deepEqual(fixture.resamplerChannelCounts, [2]);
 });
 test('direct WAV pending PCM capacity is byte-bounded across render channel counts', () => {
-	assert.equal(DIRECT_WAV_RENDER_CHUNK_FRAMES, 16_384);
-	assert.equal(DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES, 32 * 1024 ** 2);
-	assert.equal(directWavMaximumPendingChunks(1), 512);
-	assert.equal(directWavMaximumPendingChunks(2), 256);
-	assert.equal(directWavMaximumPendingChunks(16), 32);
-	assert.equal(directWavMaximumPendingChunks(32), 16);
+	assert.equal(DIRECT_PCM_RENDER_CHUNK_FRAMES, 16_384);
+	assert.equal(DIRECT_PCM_MAXIMUM_PENDING_BYTES, 32 * 1024 ** 2);
+	assert.equal(directPcmMaximumPendingChunks(1), 512);
+	assert.equal(directPcmMaximumPendingChunks(2), 256);
+	assert.equal(directPcmMaximumPendingChunks(16), 32);
+	assert.equal(directPcmMaximumPendingChunks(32), 16);
 	for (let channels = 1; channels <= 32; channels += 1) {
-		const retainedBytes = directWavMaximumPendingChunks(channels)
-			* DIRECT_WAV_RENDER_CHUNK_FRAMES * channels * Float32Array.BYTES_PER_ELEMENT;
-		assert.ok(retainedBytes <= DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES);
+		const retainedBytes = directPcmMaximumPendingChunks(channels)
+			* DIRECT_PCM_RENDER_CHUNK_FRAMES * channels * Float32Array.BYTES_PER_ELEMENT;
+		assert.ok(retainedBytes <= DIRECT_PCM_MAXIMUM_PENDING_BYTES);
 	}
 	for (const invalid of [0, 1.5, 33, Number.NaN]) {
-		assert.throws(() => directWavMaximumPendingChunks(invalid), /channel count/iu);
+		assert.throws(() => directPcmMaximumPendingChunks(invalid), /channel count/iu);
 	}
 });
 

@@ -10,13 +10,10 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import {
-	DIRECT_WAV_DESTINATION_WRITE_BYTES,
-	DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES,
-	DIRECT_WAV_MAXIMUM_FILE_BYTES,
-	DIRECT_WAV_RENDER_CHUNK_FRAMES,
-	directWavMaximumPendingChunks,
-	prepareDirectWavDestination,
-} from '../src/common/editor/controller/direct-wav-export.ts';
+	DIRECT_PCM_DESTINATION_WRITE_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES,
+	DIRECT_PCM_RENDER_CHUNK_FRAMES, directPcmMaximumPendingChunks,
+} from '../src/common/editor/controller/direct-pcm-export.ts';
+import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
 import { createExportPlan as createAudioExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 import { createAsyncPlanarPcmSinkQueue } from '../src/common/editor/pcm-sink.js';
@@ -31,17 +28,17 @@ const FLOAT64_DITHER_STATE_BYTES = CHANNEL_COUNT * Float64Array.BYTES_PER_ELEMEN
 const FRAME_COUNT = 3_153_920;
 const HEADER_BYTES = 44;
 const MAXIMUM_BUFFERED_BINARY_BYTES = 64 * 1024 ** 2;
-const MAXIMUM_PENDING_PACKETS = directWavMaximumPendingChunks(CHANNEL_COUNT);
+const MAXIMUM_PENDING_PACKETS = directPcmMaximumPendingChunks(CHANNEL_COUNT);
 const OUTPUT_PCM_BYTES = 385 * 1024 ** 2;
 const OUTPUT_FILE_BYTES = HEADER_BYTES + OUTPUT_PCM_BYTES;
-const PACKET_FRAMES = DIRECT_WAV_RENDER_CHUNK_FRAMES;
+const PACKET_FRAMES = DIRECT_PCM_RENDER_CHUNK_FRAMES;
 const PACKET_BYTES = PACKET_FRAMES * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT;
 const PACKET_COUNT = Math.ceil(FRAME_COUNT / PACKET_FRAMES);
-const PCM_DESTINATION_WRITE_COUNT = Math.ceil(OUTPUT_PCM_BYTES / DIRECT_WAV_DESTINATION_WRITE_BYTES);
+const PCM_DESTINATION_WRITE_COUNT = Math.ceil(OUTPUT_PCM_BYTES / DIRECT_PCM_DESTINATION_WRITE_BYTES);
 const PATH_OWNED_BINARY_UPPER_BOUND =
 	MAXIMUM_PENDING_PACKETS * PACKET_BYTES
 	+ 2 * PACKET_BYTES
-	+ DIRECT_WAV_DESTINATION_WRITE_BYTES
+	+ DIRECT_PCM_DESTINATION_WRITE_BYTES
 	+ 2 * HEADER_BYTES
 	+ FLOAT64_DITHER_STATE_BYTES;
 const REFERENCE_COMMAND = 'npm run test:reference:wav-385mib';
@@ -109,7 +106,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.equal(FRAME_COUNT % PACKET_FRAMES, PACKET_FRAMES / 2);
 	assert.equal(PACKET_COUNT, 193);
 	assert.equal(MAXIMUM_PENDING_PACKETS, 16);
-	assert.equal(MAXIMUM_PENDING_PACKETS * PACKET_BYTES, DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES);
+	assert.equal(MAXIMUM_PENDING_PACKETS * PACKET_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES);
 	assert.equal(PCM_DESTINATION_WRITE_COUNT, 97);
 	assert.equal(OUTPUT_PCM_BYTES, FRAME_COUNT * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT);
 	assert.equal(OUTPUT_PCM_BYTES, DESKTOP_OUTPUT_THRESHOLD_BYTES + 1024 ** 2);
@@ -138,7 +135,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.equal(saved.bytesWritten, OUTPUT_FILE_BYTES);
 	assert.equal(saved.outputSha256, EXPECTED_OUTPUT_SHA256);
 	assert.equal(saved.writeCalls, 1 + PCM_DESTINATION_WRITE_COUNT);
-	assert.equal(saved.maximumWriteBytes, DIRECT_WAV_DESTINATION_WRITE_BYTES);
+	assert.equal(saved.maximumWriteBytes, DIRECT_PCM_DESTINATION_WRITE_BYTES);
 	assert.equal(saved.maximumConcurrentWrites, 1);
 	assert.equal(saved.closeCalls, 1);
 	assert.equal(saved.commitCalls, 1);
@@ -174,7 +171,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.equal(await fixture.service.handleExportAction('export', exportSettings()), undefined);
 	const cancelled = fixture.sessions[1];
 	assert.equal(cancelled.writeCalls, 2, 'the cancelled target receives its header and first coalesced PCM write');
-	assert.equal(cancelled.bytesWritten, HEADER_BYTES + DIRECT_WAV_DESTINATION_WRITE_BYTES);
+	assert.equal(cancelled.bytesWritten, HEADER_BYTES + DIRECT_PCM_DESTINATION_WRITE_BYTES);
 	assert.equal(cancelled.closeCalls, 0);
 	assert.equal(cancelled.commitCalls, 0);
 	assert.equal(cancelled.abortCalls, 1);

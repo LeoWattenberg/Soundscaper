@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
-import { commitDirectWavDestination, createDirectWavEncoder, directWavRenderQueueOptions, prepareDirectWavDestination, type DirectWavDestination } from './direct-wav-export.ts';
+import { commitDirectPcmDestination, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
+import { createDirectWavEncoder, prepareDirectWavDestination } from './direct-wav-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
-
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,7 +61,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		let exportProject = cloneProject(getProject());
 		const exportSources = new Map(sourceBuffers);
 		let pendingCleanup = null;
-		let pendingDirectDestination: DirectWavDestination | null = null;
+		let pendingDirectDestination: DirectPcmDestination | null = null;
 		try {
 			const settings = normalizeExportSettings(requestedSettings || {});
 			const plan = createExportPlan(exportProject, {
@@ -141,11 +141,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			assertExportCurrent();
 			if (directOutput) {
 				await clearPreviousExportOutput();
-				const published = await commitDirectWavDestination(
+				const published = await commitDirectPcmDestination(
 					pendingDirectDestination!,
 					plan.outputFileBytesPerRender,
 					directOutput.byteLength,
-					assertExportCurrent,
+					assertExportCurrent, 'WAV',
 				);
 				pendingDirectDestination = null;
 				const result = Object.freeze({
@@ -361,7 +361,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
 		sourceMap: RuntimeValue = sourceBuffers,
 		progressRange: RuntimeValue = { start: 0, end: 1 },
-		directDestination: DirectWavDestination | null = null,
+		directDestination: DirectPcmDestination | null = null,
 	) {
 		throwIfAborted(signal);
 		const progressSpan = progressRange.end - progressRange.start;
@@ -486,7 +486,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	async function renderRealtimeEncoded(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
 		sourceMap: RuntimeValue = sourceBuffers,
-		directDestination: DirectWavDestination | null = null,
+		directDestination: DirectPcmDestination | null = null,
 	) {
 		await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
@@ -547,7 +547,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 				sampleRate: renderSampleRate,
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-				...(directDestination ? directWavRenderQueueOptions(Number(snapshot.masterChannels || 2)) : {}),
+				...(directDestination ? directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), 'WAV') : {}),
 				...withRenderProgress({}),
 				signal,
 				onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {

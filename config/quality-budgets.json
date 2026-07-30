@@ -321,6 +321,7 @@
 				"src/common/editor/pcm-sink.js",
 				"src/common/editor/resample.js",
 				"src/common/editor/wav.js",
+				"src/common/editor/controller/direct-pcm-export.ts",
 				"src/common/editor/controller/direct-wav-export.ts",
 				"src/common/editor/controller/export-service.ts",
 				"tests/audio-editor-export-direct-wav-reference.test.ts",
