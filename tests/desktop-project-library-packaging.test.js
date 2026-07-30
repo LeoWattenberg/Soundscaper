@@ -129,6 +129,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
+	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
@@ -236,7 +237,10 @@ test('desktop main owns file capabilities by committed renderer document', async
 	const readDialogIndex = chooseReadSource.indexOf('await dialog.showOpenDialog');
 	assert.ok(readCaptureIndex >= 0 && readCaptureIndex < readDialogIndex,
 		'read-dialog ownership is captured before awaiting user input');
-	assert.match(chooseReadSource, /registerPath\(filePath, \{ owner \}\)/u);
+	assert.match(
+		chooseReadSource,
+		/registerSelectedReadCapability\(readCapabilities, filePath, \{ owner, purpose: choice\.purpose \}\)/u,
+	);
 	assert.match(chooseReadSource, /throwAfterReadCapabilityRollback\(readCapabilities, descriptors, owner, error\)/u);
 
 	const chooseReadHandler = mainSource.slice(
@@ -255,7 +259,10 @@ test('desktop main owns file capabilities by committed renderer document', async
 	const dispatchEnd = mainSource.indexOf('\nfunction ', dispatchStart);
 	const dispatchSource = mainSource.slice(dispatchStart, dispatchEnd);
 	assert.match(dispatchSource, /currentOwnerFor\(mainWindow\.webContents\)/u);
-	assert.match(dispatchSource, /registerPath\(filePath, \{ owner \}\)/u);
+	assert.match(
+		dispatchSource,
+		/registerSelectedReadCapability\(readCapabilities, filePath, \{ owner, purpose: 'project' \}\)/u,
+	);
 	assert.match(dispatchSource, /isRendererSaveOwnerCurrent\(owner\).*return false/su,
 		'owner replacement leaves the serialized queue head for the next ready document');
 

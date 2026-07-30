@@ -222,6 +222,7 @@ test('desktop read descriptors become named files and are always released', asyn
 	});
 	const file = await service.openReadDescriptor({
 		id: 'read-1',
+		readProfile: 'materialized-v1',
 		url: 'soundscaper-app://read/read-1',
 		name: 'Session.aup4',
 		size: 15,
@@ -259,7 +260,7 @@ test('desktop reads honor a pre-aborted signal and await exactly-once capability
 		},
 	});
 	const operation = service.openReadDescriptor({
-		id: 'read-abort', url: 'soundscaper-app://read/read-abort', name: 'cancel.wav', size: 4,
+		id: 'read-abort', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-abort', name: 'cancel.wav', size: 4,
 	}, { signal: controller.signal });
 	await releaseStarted;
 	assert.equal(releaseCalls, 1);
@@ -303,7 +304,7 @@ test('desktop reads promptly abort a stalled body, cancel its reader, and releas
 		},
 	});
 	const operation = service.openReadDescriptor({
-		id: 'read-stalled', url: 'soundscaper-app://read/read-stalled', name: 'stalled.wav', size: 1,
+		id: 'read-stalled', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-stalled', name: 'stalled.wav', size: 1,
 	}, { signal: controller.signal });
 	await readStarted;
 	controller.abort(reason);
@@ -324,7 +325,7 @@ test('desktop read failures preserve primary and cleanup errors', async () => {
 		fetch: async () => new Response('denied', { status: 500 }),
 	});
 	await assert.rejects(() => service.openReadDescriptor({
-		id: 'read-failed', url: 'soundscaper-app://read/read-failed', name: 'failed.wav', size: 6,
+		id: 'read-failed', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-failed', name: 'failed.wav', size: 6,
 	}), (error) => {
 		assert.ok(error instanceof AggregateError);
 		assert.match(error.errors[0].message, /status 500/u);
@@ -337,8 +338,8 @@ test('desktop read failures preserve primary and cleanup errors', async () => {
 test('scoped desktop reads retain capabilities through consumption and release every descriptor', async () => {
 	const released = [];
 	const descriptors = [
-		{ id: 'read-a', url: 'soundscaper-app://read/read-a', name: 'a.wav', size: 1 },
-		{ id: 'read-b', url: 'soundscaper-app://read/read-b', name: 'b.wav', size: 1 },
+		{ id: 'read-a', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-a', name: 'a.wav', size: 1 },
+		{ id: 'read-b', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-b', name: 'b.wav', size: 1 },
 	];
 	const service = createAudioEditorFileService({
 		bridge: { async releaseRead(id) { released.push(id); } },
@@ -360,8 +361,8 @@ test('scoped desktop reads reject aggregate excess before fetching and release u
 	let fetchCalls = 0;
 	let consumed = false;
 	const descriptors = [
-		{ id: 'read-c', url: 'soundscaper-app://read/read-c', name: 'c.wav', size: 2 },
-		{ id: 'read-d', url: 'soundscaper-app://read/read-d', name: 'd.wav', size: 2 },
+		{ id: 'read-c', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-c', name: 'c.wav', size: 2 },
+		{ id: 'read-d', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-d', name: 'd.wav', size: 2 },
 	];
 	const service = createAudioEditorFileService({
 		bridge: { async releaseRead(id) { released.push(id); } },
@@ -394,9 +395,9 @@ test('scoped desktop read failure releases current and unattempted capabilities 
 	const released = [];
 	const fetched = [];
 	const descriptors = [
-		{ id: 'read-e', url: 'soundscaper-app://read/read-e', name: 'e.wav', size: 1 },
-		{ id: 'read-f', url: 'soundscaper-app://read/read-f', name: 'f.wav', size: 1 },
-		{ id: 'read-g', url: 'soundscaper-app://read/read-g', name: 'g.wav', size: 1 },
+		{ id: 'read-e', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-e', name: 'e.wav', size: 1 },
+		{ id: 'read-f', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-f', name: 'f.wav', size: 1 },
+		{ id: 'read-g', readProfile: 'materialized-v1', url: 'soundscaper-app://read/read-g', name: 'g.wav', size: 1 },
 	];
 	const service = createAudioEditorFileService({
 		bridge: {

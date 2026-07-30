@@ -8,9 +8,13 @@ import {
 	APP_HOST,
 	APP_SCHEME,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_MATERIALIZED_V1,
+	READ_PROFILE_SCAPE_RANGE_V1,
 	RUNTIME_PREFIX,
 } from './constants.js';
 import { assertAppUrl } from './validation.js';
+
+const MAX_SCAPE_RANGE_RESPONSE_BYTES = 16 * 1024 ** 2;
 
 const MIME_TYPES = Object.freeze({
 	'.avif': 'image/avif',
@@ -186,14 +190,20 @@ async function serveStaticFile(request, root, pathname) {
 
 async function serveCapability(request, url, store) {
 	const remainder = url.pathname.slice(READ_CAPABILITY_PREFIX.length);
-	const id = remainder.split('/')[0];
-	if (!/^[a-f0-9]{64}$/u.test(id)) throw new ProtocolError(404, 'Capability not found');
-	const lease = store.acquireRequest(id);
+	const [readProfile, id] = remainder.split('/');
+	if (!isReadProfile(readProfile) || !/^[a-f0-9]{64}$/u.test(id)) {
+		throw new ProtocolError(404, 'Capability not found');
+	}
+	const descriptor = store.get(id);
+	if (!descriptor || descriptor.readProfile !== readProfile) {
+		throw new ProtocolError(404, 'Capability not found');
+	}
+	const range = requestRange(request, readProfile, descriptor.size);
+	const lease = store.acquireRequest(id, readProfile);
 	if (!lease) throw new ProtocolError(404, 'Capability not found');
 	let bodyOwnsLease = false;
 	let streamCreated = false;
 	try {
-		const range = parseSingleRange(request.headers.get('range'), lease.size);
 		const status = range ? 206 : 200;
 		const start = range?.start ?? 0;
 		const end = range?.end ?? Math.max(lease.size - 1, 0);
@@ -221,6 +231,36 @@ async function serveCapability(request, url, store) {
 			else await lease.close();
 		}
 	}
+}
+
+function isReadProfile(value) {
+	return value === READ_PROFILE_MATERIALIZED_V1 || value === READ_PROFILE_SCAPE_RANGE_V1;
+}
+
+function requestRange(request, readProfile, size) {
+	if (readProfile === READ_PROFILE_MATERIALIZED_V1) {
+		return parseSingleRange(request.headers.get('range'), size);
+	}
+	if (request.method !== 'GET') throw new ProtocolError(405, 'Method not allowed');
+	const match = /^bytes=(\d+)-(\d+)$/u.exec(request.headers.get('range') || '');
+	if (!match || size <= 0) throw new ProtocolError(416, 'Range not satisfiable');
+	const start = Number(match[1]);
+	const requestedEnd = Number(match[2]);
+	if (
+		!Number.isSafeInteger(start)
+		|| !Number.isSafeInteger(requestedEnd)
+		|| start > requestedEnd
+		|| start >= size
+		|| requestedEnd >= size
+	) {
+		throw new ProtocolError(416, 'Range not satisfiable');
+	}
+	const end = requestedEnd;
+	const length = end - start + 1;
+	if (length > MAX_SCAPE_RANGE_RESPONSE_BYTES) {
+		throw new ProtocolError(416, 'Range not satisfiable');
+	}
+	return { start, end, length };
 }
 
 function leasedResponseBody(stream, lease, signal) {

@@ -32,7 +32,11 @@ const CHANNELS = Object.freeze({
 });
 
 const MAX_CHUNK_BYTES = 1024 * 1024;
-const MAX_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2;
+const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
+const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
+const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
+const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2;
+const MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES = 65 * 1024 ** 3;
 const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
 const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
@@ -107,12 +111,18 @@ function subscribe(channel, listener, sanitize) {
 }
 
 function sanitizeReadDescriptor(value) {
+	const id = opaqueId(value?.id, 64);
+	const readProfile = readDescriptorProfile(value?.readProfile);
+	const name = readDescriptorName(value?.name);
+	const mimeType = readDescriptorMimeType(value?.mimeType);
+	assertReadDescriptorProfile(readProfile, name, mimeType);
 	return Object.freeze({
-		id: opaqueId(value?.id, 64),
-		url: trustedCapabilityUrl(value?.url, value?.id),
-		name: text(value?.name, 255),
-		size: readDescriptorSize(value?.size),
-		mimeType: text(value?.mimeType, 128),
+		id,
+		readProfile,
+		url: trustedCapabilityUrl(value?.url, { id, readProfile, name }),
+		name,
+		size: readDescriptorSize(value?.size, readProfile),
+		mimeType,
 		lastModified: safeInteger(value?.lastModified),
 	});
 }
@@ -122,9 +132,17 @@ function sanitizeReadDescriptors(values) {
 	return Object.freeze(values.map(sanitizeReadDescriptor));
 }
 
-function trustedCapabilityUrl(value, id) {
-	const url = new URL(String(value || ''));
-	if (!['soundscaper-app:', 'framescaper-app:'].includes(url.protocol) || url.hostname !== 'bundle' || !url.pathname.startsWith(`/_desktop/read/${opaqueId(id, 64)}/`)) {
+function trustedCapabilityUrl(value, { id, readProfile, name }) {
+	let url;
+	try {
+		url = new URL(String(value || ''));
+	} catch {
+		throw new TypeError('Invalid read capability URL');
+	}
+	const expectedPath = `/_desktop/read/${readProfile}/${id}/${encodeURIComponent(name)}`;
+	if (!['soundscaper-app:', 'framescaper-app:'].includes(url.protocol)
+		|| url.hostname !== 'bundle' || url.port || url.username || url.password
+		|| url.search || url.hash || url.pathname !== expectedPath) {
 		throw new TypeError('Invalid read capability URL');
 	}
 	return url.href;
@@ -152,9 +170,44 @@ function safeInteger(value) {
 	return number;
 }
 
-function readDescriptorSize(value) {
+function readDescriptorProfile(value) {
+	const profile = String(value || '');
+	if (![READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
+		throw new TypeError('Invalid read descriptor profile');
+	}
+	return profile;
+}
+
+function readDescriptorName(value) {
+	const name = text(value, 255);
+	if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
+		throw new TypeError('Invalid read descriptor name');
+	}
+	return name;
+}
+
+function readDescriptorMimeType(value) {
+	const mimeType = text(value, 128);
+	if (!mimeType) throw new TypeError('Invalid read descriptor MIME type');
+	return mimeType;
+}
+
+function assertReadDescriptorProfile(readProfile, name, mimeType) {
+	const hasScapeName = /\.scape$/iu.test(name);
+	const hasScapeMime = mimeType === SCAPE_PROJECT_MIME_TYPE;
+	if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) {
+		if (!hasScapeName || !hasScapeMime) throw new TypeError('Invalid Scape range read descriptor');
+	} else if (hasScapeName || hasScapeMime) {
+		throw new TypeError('Invalid materialized read descriptor profile');
+	}
+}
+
+function readDescriptorSize(value, readProfile) {
 	const size = safeInteger(value);
-	if (size > MAX_READ_DESCRIPTOR_BYTES) throw new RangeError('Read descriptor is too large');
+	const maximum = readProfile === READ_PROFILE_SCAPE_RANGE_V1
+		? MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES
+		: MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES;
+	if (size > maximum) throw new RangeError('Read descriptor is too large for its profile');
 	return size;
 }
 

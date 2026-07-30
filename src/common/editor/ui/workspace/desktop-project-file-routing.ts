@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ScapeArchiveByteSource } from '../../scape-archive-byte-source.ts';
+import {
+	DESKTOP_READ_PROFILE_MATERIALIZED,
+	DESKTOP_READ_PROFILE_SCAPE_RANGE,
+} from '../../desktop-read-profile.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export interface DesktopProjectReadDescriptor {
+	readonly readProfile?: unknown;
 	readonly name?: unknown;
+	readonly mimeType?: unknown;
 }
 
 export interface DesktopProjectReadService<Value> {
@@ -38,9 +44,13 @@ export async function withDesktopProjectReadDescriptor<Value>(
 		|| typeof consumers.openScape !== 'function') {
 		throw new TypeError('Desktop project consumers are required.');
 	}
-	const name = typeof descriptor?.name === 'string' ? descriptor.name : '';
-	if (/\.scape$/iu.test(name)) {
+	if (descriptor?.readProfile === DESKTOP_READ_PROFILE_SCAPE_RANGE) {
 		return fileService.withScapeReadDescriptor(descriptor, {}, consumers.openScape);
+	}
+	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED) {
+		return fileService.withReadDescriptors([descriptor], {}, () => {
+			throw new TypeError('A supported desktop project read profile is required.');
+		});
 	}
 	return fileService.withReadDescriptors([descriptor], {}, (files) => {
 		if (files.length !== 1 || !(files[0] instanceof Blob)) {

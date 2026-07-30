@@ -28,7 +28,11 @@ import {
 	validateDeclaredSize,
 	validateSaveChoice,
 } from '../desktop/validation.js';
-import { MAX_DESKTOP_SAVE_BYTES, MAX_SAVE_BYTES } from '../desktop/constants.js';
+import {
+	MAX_DESKTOP_SAVE_BYTES,
+	MAX_SAVE_BYTES,
+	READ_PROFILE_MATERIALIZED_V1,
+} from '../desktop/constants.js';
 
 test('desktop document and locale validation accepts only committed editor routes', () => {
 	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
@@ -102,6 +106,7 @@ test('capability protocol abort destroys the active read stream and detaches its
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
+			get: (candidate) => candidate === id ? materializedDescriptor(id, 5) : null,
 			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 5,
@@ -113,7 +118,7 @@ test('capability protocol abort destroys the active read stream and detaches its
 		},
 	});
 	const controller = new AbortController();
-	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+	const request = new Request(materializedCapabilityUrl(id, 'input.bin'), {
 		signal: controller.signal,
 	});
 	const response = await handler(request);
@@ -150,6 +155,7 @@ test('capability protocol abort discards bytes buffered before the first respons
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
+			get: (candidate) => candidate === id ? materializedDescriptor(id, 8) : null,
 			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 8,
@@ -164,7 +170,7 @@ test('capability protocol abort discards bytes buffered before the first respons
 		},
 	});
 	const controller = new AbortController();
-	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+	const request = new Request(materializedCapabilityUrl(id, 'input.bin'), {
 		signal: controller.signal,
 	});
 	const response = await handler(request);
@@ -196,6 +202,7 @@ test('capability protocol retires an errored inner stream without another body r
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
+			get: (candidate) => candidate === id ? materializedDescriptor(id, 10) : null,
 			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 10,
@@ -209,7 +216,7 @@ test('capability protocol retires an errored inner stream without another body r
 			} : null,
 		},
 	});
-	const response = await handler(new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`));
+	const response = await handler(new Request(materializedCapabilityUrl(id, 'input.bin')));
 	const reader = response.body.getReader();
 	assert.equal(new TextDecoder().decode((await reader.read()).value), 'first');
 	const readerClosed = reader.closed.catch((error) => error);
@@ -229,6 +236,7 @@ test('capability protocol removes its abort listener after a normal stream end w
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
+			get: (candidate) => candidate === id ? materializedDescriptor(id, 4) : null,
 			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 4,
@@ -240,7 +248,7 @@ test('capability protocol removes its abort listener after a normal stream end w
 		},
 	});
 	const controller = new AbortController();
-	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+	const request = new Request(materializedCapabilityUrl(id, 'input.bin'), {
 		signal: controller.signal,
 	});
 	const response = await handler(request);
@@ -266,6 +274,7 @@ test('capability protocol closes bodyless and failed request leases exactly once
 			rendererRoot: '/unused-renderer',
 			runtimeRoot: '/unused-runtime',
 			readCapabilities: {
+				get: (candidate) => candidate === id ? materializedDescriptor(id, scenario.size) : null,
 				acquireRequest: (candidate) => candidate === id ? {
 					id,
 					size: scenario.size,
@@ -280,13 +289,14 @@ test('capability protocol closes bodyless and failed request leases exactly once
 				} : null,
 			},
 		});
-		const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/${scenario.name}`, {
+		const request = new Request(materializedCapabilityUrl(id, scenario.name), {
 			method: scenario.method,
 			headers: scenario.range ? { Range: scenario.range } : undefined,
 		});
 		const response = await handler(request);
 		assert.equal(response.status, scenario.status, scenario.name);
-		assert.equal(closeCalls, 1, `${scenario.name} closes its admitted request lease`);
+		assert.equal(closeCalls, scenario.name === 'invalid range' ? 0 : 1,
+			`${scenario.name} closes only an admitted request lease`);
 		assert.equal(streamCalls, scenario.streamFailure ? 1 : 0, scenario.name);
 	}
 });
@@ -300,6 +310,7 @@ test('capability protocol serves one exact leased byte range', async () => {
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
+			get: (candidate) => candidate === id ? materializedDescriptor(id, 10) : null,
 			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 10,
@@ -316,7 +327,7 @@ test('capability protocol serves one exact leased byte range', async () => {
 		},
 	});
 	const response = await handler(new Request(
-		`soundscaper-app://bundle/_desktop/read/${id}/range.bin`,
+		materializedCapabilityUrl(id, 'range.bin'),
 		{ headers: { Range: 'bytes=2-5' } },
 	));
 
@@ -550,6 +561,14 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	);
 	assert.equal(calls.length, 5, 'oversized declarations do not cross IPC');
 });
+
+function materializedCapabilityUrl(id, name) {
+	return `soundscaper-app://bundle/_desktop/read/${READ_PROFILE_MATERIALIZED_V1}/${id}/${encodeURIComponent(name)}`;
+}
+
+function materializedDescriptor(id, size) {
+	return Object.freeze({ id, size, readProfile: READ_PROFILE_MATERIALIZED_V1 });
+}
 
 async function remainsPending(promise) {
 	const marker = Symbol('pending');

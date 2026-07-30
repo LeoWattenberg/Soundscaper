@@ -6,6 +6,11 @@ import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import {
+	DESKTOP_READ_PROFILE_MATERIALIZED,
+	DESKTOP_READ_PROFILE_SCAPE_RANGE,
+	DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES,
+} from '../src/common/editor/desktop-read-profile.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import {
 	assertScapeArchiveByteSource,
@@ -53,6 +58,36 @@ test('desktop Scape read scopes retain one capability across serialized range co
 		'fetch:bytes=2-3',
 		'release:scape-read',
 	]);
+});
+
+test('an 8 GiB logical desktop Scape descriptor reads only its requested range', async () => {
+	const logicalSize = 8 * 1024 ** 3;
+	const lastOffset = logicalSize - 1;
+	const ranges: string[] = [];
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead() {} },
+		fetch: async (_url: string, init: RequestInit) => {
+			const range = new Headers(init.headers).get('Range');
+			assert.ok(range);
+			assert.equal(range, `bytes=${String(lastOffset)}-${String(lastOffset)}`);
+			ranges.push(range);
+			return new Response(Uint8Array.of(0x5a), {
+				status: 206,
+				headers: {
+					'Content-Length': '1',
+					'Content-Range': `bytes ${String(lastOffset)}-${String(lastOffset)}/${String(logicalSize)}`,
+				},
+			});
+		},
+	});
+
+	const value = await service.withScapeReadDescriptor(
+		scapeDescriptor({ size: logicalSize }),
+		{},
+		async (source: ScapeArchiveByteSource) => source.read({ offset: lastOffset, length: 1 }),
+	);
+	assert.deepEqual(value, Uint8Array.of(0x5a));
+	assert.deepEqual(ranges, [`bytes=${String(lastOffset)}-${String(lastOffset)}`]);
 });
 
 test('one desktop range scope spans Scape inspection, decision, and import', async () => {
@@ -154,7 +189,7 @@ test('desktop Scape read scopes fail closed before fetching and still release de
 	let fetchCalls = 0;
 	const service = createAudioEditorFileService({
 		bridge: { async releaseRead(id: string) { released.push(id); } },
-		readMaximumBytes: 3,
+		scapeReadMaximumBytes: 3,
 		fetch: async () => {
 			fetchCalls += 1;
 			throw new Error('must not fetch');
@@ -163,17 +198,52 @@ test('desktop Scape read scopes fail closed before fetching and still release de
 	const cases = [
 		{ ...scapeDescriptor({ id: 'wrong-name' }), name: 'project.aup4' },
 		{ ...scapeDescriptor({ id: 'wrong-mime' }), mimeType: 'application/octet-stream' },
+		{ ...scapeDescriptor({ id: 'wrong-profile' }), readProfile: DESKTOP_READ_PROFILE_MATERIALIZED },
 		scapeDescriptor({ id: 'oversized', size: 4 }),
 	];
 
 	for (const descriptor of cases) {
 		await assert.rejects(
 			service.withScapeReadDescriptor(descriptor, {}, async () => undefined),
-			/Scape.*descriptor|admitted maximum/iu,
+			/Scape.*(?:descriptor|profile)|admitted maximum/iu,
 		);
 	}
 	assert.equal(fetchCalls, 0);
-	assert.deepEqual(released, ['wrong-name', 'wrong-mime', 'oversized']);
+	assert.deepEqual(released, ['wrong-name', 'wrong-mime', 'wrong-profile', 'oversized']);
+});
+
+test('generic materialization refuses a Scape range profile before fetch and releases it', async () => {
+	let fetchCalls = 0;
+	const released: string[] = [];
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead(id: string) { released.push(id); } },
+		fetch: async () => {
+			fetchCalls += 1;
+			throw new Error('must not fetch');
+		},
+	});
+
+	await assert.rejects(
+		service.withReadDescriptors([scapeDescriptor()], {}, async () => undefined),
+		/materialized.*profile|profile.*materialized/iu,
+	);
+	assert.equal(fetchCalls, 0);
+	assert.deepEqual(released, ['scape-read']);
+});
+
+test('desktop Scape descriptor ceilings are independent lower-only seams', () => {
+	assert.equal(DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES, 65 * 1024 ** 3);
+	assert.throws(
+		() => createAudioEditorFileService({ bridge: {}, scapeReadMaximumBytes: '8' }),
+		/Scape.*hard limit/iu,
+	);
+	assert.throws(
+		() => createAudioEditorFileService({
+			bridge: {},
+			scapeReadMaximumBytes: DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES + 1,
+		}),
+		/Scape.*hard limit/iu,
+	);
 });
 
 test('desktop Scape read scopes preserve primary and release failures', async () => {
@@ -294,7 +364,8 @@ test('desktop Scape abort is prompt while outer settlement awaits authoritative 
 function scapeDescriptor(overrides: Readonly<Record<string, unknown>> = {}) {
 	return Object.freeze({
 		id: 'scape-read',
-		url: 'soundscaper-app://bundle/_desktop/read/scape-read/project.scape',
+		readProfile: DESKTOP_READ_PROFILE_SCAPE_RANGE,
+		url: 'soundscaper-app://bundle/_desktop/read/scape-range-v1/scape-read/project.scape',
 		name: 'project.scape',
 		size: 4,
 		mimeType: SCAPE_MIME_TYPE,

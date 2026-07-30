@@ -6,11 +6,16 @@ import {
 	DESKTOP_READ_HARD_LIMIT_BYTES,
 	materializeDesktopReadBlob,
 } from './desktop-read-materialization.ts';
+import {
+	assertDesktopMaterializedReadProfile,
+	assertDesktopScapeReadProfile,
+	desktopScapeReadMaximum,
+	isDesktopReadProfile,
+} from './desktop-read-profile.ts';
 import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
-const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
@@ -28,6 +33,7 @@ export function createAudioEditorFileService(options = {}) {
 	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
+	const scapeReadMaximumBytes = desktopScapeReadMaximum(options.scapeReadMaximumBytes);
 
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
@@ -74,6 +80,7 @@ export function createAudioEditorFileService(options = {}) {
 		}
 		if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
 		return withReadCleanup([descriptor.id], releaseRead, async () => {
+			assertDesktopMaterializedReadProfile(descriptor);
 			const blob = await materializeReadDescriptor(descriptor, request.signal);
 			return createNamedFile(blob, descriptor, scope);
 		});
@@ -87,6 +94,7 @@ export function createAudioEditorFileService(options = {}) {
 			let aggregateBytes = 0;
 			for (const descriptor of descriptors) {
 				if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
+				assertDesktopMaterializedReadProfile(descriptor);
 				if (descriptor.size > readMaximumBytes - aggregateBytes) {
 					throw new RangeError('The desktop read aggregate exceeds its admitted maximum.');
 				}
@@ -105,15 +113,8 @@ export function createAudioEditorFileService(options = {}) {
 	async function withScapeReadDescriptor(descriptor, request = {}, consume) {
 		const readIds = uniqueReadIds([descriptor]);
 		return withReadCleanup(readIds, releaseRead, async () => {
-			if (!isReadDescriptor(descriptor)
-				|| typeof descriptor.name !== 'string'
-				|| !/\.scape$/iu.test(descriptor.name)
-				|| descriptor.mimeType !== SCAPE_MIME_TYPE) {
-				throw new TypeError('A canonical desktop Scape read descriptor is required.');
-			}
-			if (descriptor.size > readMaximumBytes) {
-				throw new RangeError('The desktop Scape read exceeds its admitted maximum.');
-			}
+			if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
+			assertDesktopScapeReadProfile(descriptor, scapeReadMaximumBytes);
 			if (typeof consume !== 'function') throw new TypeError('A desktop Scape read consumer is required.');
 			if (typeof fetchFile !== 'function') throw new Error('Desktop Scape range reads are unavailable.');
 			if (typeof bridge?.releaseRead !== 'function') {
@@ -305,6 +306,7 @@ function subscribeBridgeEvent(bridge, method, listener) {
 function isReadDescriptor(value) {
 	return Boolean(value && typeof value === 'object'
 		&& value.id != null
+		&& isDesktopReadProfile(value.readProfile)
 		&& typeof value.url === 'string' && value.url
 		&& Number.isSafeInteger(value.size) && value.size >= 0);
 }

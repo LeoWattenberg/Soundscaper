@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
-import { MAX_SAVE_CHUNK_BYTES } from '../desktop/constants.js';
+import { MAX_SAVE_CHUNK_BYTES, READ_PROFILE_MATERIALIZED_V1 } from '../desktop/constants.js';
 import { AtomicSaveManager, SaveTargetStore } from '../desktop/save-targets.js';
 
 const TEST_OWNER = Object.freeze({ name: 'renderer-test-owner' });
@@ -41,7 +41,8 @@ test('read capabilities expose opaque same-origin descriptors and expire cleanly
 	const descriptor = await store.registerPath(input, { owner: TEST_OWNER });
 	assert.equal(descriptor.name, 'private project.aup4');
 	assert.equal(descriptor.size, 12);
-	assert.match(descriptor.url, /^soundscaper-app:\/\/bundle\/_desktop\/read\/[a-f0-9]{64}\//u);
+	assert.equal(descriptor.readProfile, READ_PROFILE_MATERIALIZED_V1);
+	assert.match(descriptor.url, /^soundscaper-app:\/\/bundle\/_desktop\/read\/materialized-v1\/[a-f0-9]{64}\//u);
 	assert.equal(String(descriptor).includes(input), false);
 	assert.ok(store.get(descriptor.id));
 	now = 1100;

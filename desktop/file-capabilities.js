@@ -1,13 +1,21 @@
 import { randomBytes } from 'node:crypto';
 import { open } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, extname } from 'node:path';
 
 import {
 	APP_ORIGIN,
 	MAX_READ_CAPABILITIES_PER_OWNER,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_MATERIALIZED_V1,
+	READ_PROFILE_SCAPE_RANGE_V1,
+	SCAPE_PROJECT_MIME_TYPE,
 } from './constants.js';
+import {
+	boundedReadLimit,
+	safeReadFileSize,
+	ScapeRangeReadAdmission,
+} from './read-capability-admission.js';
 import { mimeTypeForPath } from './validation.js';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
@@ -26,6 +34,7 @@ export class ReadCapabilityStore {
 	#randomBytes;
 	#revocations = new Set();
 	#retirements = new Map();
+	#scapeRangeAdmission;
 	#ttlMs;
 
 	constructor({
@@ -35,26 +44,58 @@ export class ReadCapabilityStore {
 		randomBytesImpl = randomBytes,
 		maximumCount = MAX_READ_CAPABILITIES_PER_OWNER,
 		maximumBytes = MAX_READ_CAPABILITY_BYTES_PER_OWNER,
+		maximumScapeRangeCount,
+		maximumScapeRangeBytes,
 	} = {}) {
 		this.#ttlMs = ttlMs;
 		this.#now = now;
 		this.#open = openImpl;
 		this.#randomBytes = randomBytesImpl;
-		this.#maximumCount = boundedLimit(
+		this.#maximumCount = boundedReadLimit(
 			maximumCount,
 			MAX_READ_CAPABILITIES_PER_OWNER,
 			'Read capability count',
 			{ allowZero: false },
 		);
-		this.#maximumBytes = boundedLimit(
+		this.#maximumBytes = boundedReadLimit(
 			maximumBytes,
 			MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 			'Read capability aggregate bytes',
 		);
+		this.#scapeRangeAdmission = new ScapeRangeReadAdmission({
+			maximumCount: maximumScapeRangeCount,
+			maximumBytes: maximumScapeRangeBytes,
+		});
 	}
 
 	registerPath(filePath, { owner, mimeType, displayName } = {}) {
+		return this.registerMaterializedPath(filePath, { owner, mimeType, displayName });
+	}
+
+	registerMaterializedPath(filePath, { owner, mimeType, displayName } = {}) {
+		return this.#admitPath(filePath, { owner, mimeType, displayName }, READ_PROFILE_MATERIALIZED_V1);
+	}
+
+	registerScapeRangePath(filePath, { owner } = {}) {
+		try {
+			const selectedPath = String(filePath || '');
+			if (extname(selectedPath).toLowerCase() !== '.scape'
+				|| mimeTypeForPath(selectedPath) !== SCAPE_PROJECT_MIME_TYPE) {
+				throw new TypeError('Scape range capabilities require a terminal .scape project path');
+			}
+			return this.#admitPath(selectedPath, {
+				owner,
+				mimeType: SCAPE_PROJECT_MIME_TYPE,
+				displayName: basename(selectedPath),
+			}, READ_PROFILE_SCAPE_RANGE_V1);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	#admitPath(filePath, { owner, mimeType, displayName }, readProfile) {
 		let state;
+		let rangeTicket = null;
 		try {
 			if (this.#disposed) throw new Error('Read capability store is disposed');
 			state = this.#ownerState(owner);
@@ -64,13 +105,20 @@ export class ReadCapabilityStore {
 				throw new RangeError(`Read capability count exceeds the per-owner limit of ${this.#maximumCount}`);
 			}
 			state.count += 1;
+			try {
+				if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) {
+					rangeTicket = this.#scapeRangeAdmission.reserve(owner);
+				}
+			} catch (error) {
+				state.count -= 1;
+				throw error;
+			}
 		} catch (error) {
 			return Promise.reject(error);
 		}
-		return this.#trackOperation(
-			() => this.#registerPath(filePath, { owner, mimeType, displayName }, state),
-			state,
-		);
+		return this.#trackOperation(() => this.#registerPath(filePath, {
+			owner, mimeType, displayName, readProfile, rangeTicket,
+		}, state), state);
 	}
 
 	get(id) {
@@ -78,11 +126,21 @@ export class ReadCapabilityStore {
 		return entry ? descriptorFor(entry) : null;
 	}
 
-	acquireRequest(id) {
+	acquireRequest(id, expectedProfile) {
 		const entry = this.#liveEntry(id);
-		if (!entry || entry.request) return null;
+		if (!entry || entry.request
+			|| (expectedProfile !== undefined && entry.readProfile !== expectedProfile)) return null;
+		const rangeRequest = entry.rangeTicket
+			? this.#scapeRangeAdmission.acquireRequest(entry.rangeTicket)
+			: null;
+		if (entry.rangeTicket && !rangeRequest) return null;
 		this.#renewExpiry(entry);
-		return this.#createRequestLease(entry);
+		try {
+			return this.#createRequestLease(entry, rangeRequest);
+		} catch (error) {
+			rangeRequest?.release();
+			throw error;
+		}
 	}
 
 	release(id, { owner } = {}) {
@@ -129,7 +187,7 @@ export class ReadCapabilityStore {
 		return this.#disposePromise;
 	}
 
-	async #registerPath(filePath, { owner, mimeType, displayName }, state) {
+	async #registerPath(filePath, { owner, mimeType, displayName, readProfile, rangeTicket }, state) {
 		let handle = null;
 		let accountedBytes = 0;
 		try {
@@ -137,11 +195,17 @@ export class ReadCapabilityStore {
 			this.#assertAdmissionActive(state);
 			const details = await handle.stat();
 			if (!details.isFile()) throw new TypeError('Selected input is not a regular file');
-			const size = safeFileSize(details.size);
+			const size = safeReadFileSize(details.size);
 			this.#assertAdmissionActive(state);
 			this.#sweepExpired(state);
-			if (size > this.#maximumBytes - state.bytes) {
-				throw new RangeError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
+			if (rangeTicket) {
+				this.#scapeRangeAdmission.charge(rangeTicket, size);
+			} else {
+				if (size > this.#maximumBytes - state.bytes) {
+					throw new RangeError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
+				}
+				state.bytes += size;
+				accountedBytes = size;
 			}
 			const id = this.#newId();
 			const name = cleanDisplayName(displayName || basename(filePath));
@@ -153,6 +217,8 @@ export class ReadCapabilityStore {
 				name,
 				size,
 				mimeType: mimeType || mimeTypeForPath(filePath),
+				readProfile,
+				rangeTicket,
 				lastModified: Math.trunc(details.mtimeMs),
 				expiresAt: this.#now() + this.#ttlMs,
 				request: null,
@@ -161,30 +227,33 @@ export class ReadCapabilityStore {
 			};
 			const descriptor = descriptorFor(entry);
 			this.#renewExpiry(entry);
-			state.bytes += size;
-			accountedBytes = size;
 			this.#entries.set(id, entry);
 			handle = null;
 			return descriptor;
 		} catch (error) {
 			if (!handle) {
-				state.count -= 1;
-				state.bytes -= accountedBytes;
+				this.#rollbackAdmission(state, rangeTicket, accountedBytes);
 				throw error;
 			}
 			try {
 				await this.#closeHandle(handle, state);
 			} catch (cleanupError) {
+				this.#scapeRangeAdmission.retainAndFence(rangeTicket);
 				throw new AggregateError(
 					[error, cleanupError],
 					'Read capability admission and candidate-handle cleanup both failed',
 					{ cause: cleanupError },
 				);
 			}
-			state.count -= 1;
-			state.bytes -= accountedBytes;
+			this.#rollbackAdmission(state, rangeTicket, accountedBytes);
 			throw error;
 		}
+	}
+
+	#rollbackAdmission(state, rangeTicket, accountedBytes) {
+		state.count -= 1;
+		state.bytes -= accountedBytes;
+		this.#scapeRangeAdmission.release(rangeTicket);
 	}
 
 	async #revokeOwner(state, releases) {
@@ -247,7 +316,14 @@ export class ReadCapabilityStore {
 			}
 			if (handleClosed) {
 				entry.state.count -= 1;
-				entry.state.bytes -= entry.size;
+				if (!entry.rangeTicket) entry.state.bytes -= entry.size;
+			}
+			if (entry.rangeTicket) {
+				if (handleClosed && cleanupErrors.length === 0) {
+					this.#scapeRangeAdmission.release(entry.rangeTicket);
+				} else {
+					this.#scapeRangeAdmission.retainAndFence(entry.rangeTicket);
+				}
 			}
 			if (cleanupErrors.length === 1) throw cleanupErrors[0];
 			if (cleanupErrors.length > 1) {
@@ -280,7 +356,7 @@ export class ReadCapabilityStore {
 		return cleanupError;
 	}
 
-	#createRequestLease(entry) {
+	#createRequestLease(entry, rangeRequest) {
 		const requestBarrier = Promise.withResolvers();
 		let completePromise = null;
 		let forceClosePromise = null;
@@ -304,6 +380,7 @@ export class ReadCapabilityStore {
 			if (settled) return;
 			settled = true;
 			if (entry.request === request) entry.request = null;
+			rangeRequest?.release();
 			requestBarrier.resolve();
 		};
 		const createReadStream = (options) => {
@@ -374,6 +451,7 @@ export class ReadCapabilityStore {
 			name: entry.name,
 			size: entry.size,
 			mimeType: entry.mimeType,
+			readProfile: entry.readProfile,
 			lastModified: entry.lastModified,
 			createReadStream,
 			close: complete,
@@ -488,27 +566,14 @@ function requireOwner(owner) {
 	return owner;
 }
 
-function boundedLimit(value, maximum, label, { allowZero = true } = {}) {
-	if (!Number.isSafeInteger(value) || value < (allowZero ? 0 : 1) || value > maximum) {
-		throw new RangeError(`${label} must be ${allowZero ? 'a non-negative' : 'a positive'} integer no greater than ${maximum}`);
-	}
-	return value;
-}
-
-function safeFileSize(value) {
-	if (!Number.isSafeInteger(value) || value < 0) {
-		throw new RangeError('Selected file size must be a non-negative safe integer');
-	}
-	return value;
-}
-
 function descriptorFor(entry) {
 	return Object.freeze({
 		id: entry.id,
-		url: `${APP_ORIGIN}${READ_CAPABILITY_PREFIX}${entry.id}/${encodeURIComponent(entry.name)}`,
+		url: `${APP_ORIGIN}${READ_CAPABILITY_PREFIX}${entry.readProfile}/${entry.id}/${encodeURIComponent(entry.name)}`,
 		name: entry.name,
 		size: entry.size,
 		mimeType: entry.mimeType,
+		readProfile: entry.readProfile,
 		lastModified: entry.lastModified,
 	});
 }

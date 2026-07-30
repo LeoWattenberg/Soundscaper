@@ -33,6 +33,7 @@ import {
 } from './project-library-runtime/desktop/application-lifecycle.js';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import { PendingProjectQueue, extractProjectPaths } from './file-associations.js';
+import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
@@ -349,7 +350,7 @@ async function chooseFiles(event, value) {
 	try {
 		for (const filePath of result.filePaths) {
 			if (!acceptsFile(choice.purpose, filePath)) throw new TypeError('The selected file type is not allowed');
-			descriptors.push(await readCapabilities.registerPath(filePath, { owner }));
+			descriptors.push(await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose }));
 		}
 		return descriptors;
 	} catch (error) {
@@ -388,7 +389,7 @@ async function deliverPendingProject(filePath) {
 	let owner = null;
 	try {
 		owner = rendererSaveOwnership.currentOwnerFor(mainWindow.webContents);
-		const descriptor = await readCapabilities.registerPath(filePath, { owner });
+		const descriptor = await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project' });
 		if (!isRendererSaveOwnerCurrent(owner)) {
 			await readCapabilities.release(descriptor.id, { owner });
 			return false;
