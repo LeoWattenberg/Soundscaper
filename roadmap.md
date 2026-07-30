@@ -123,13 +123,18 @@ Material constraints in the current foundation are also roadmap inputs:
   permits one active request globally and only exact closed `GET` ranges of at
   most 16 MiB. One shared router and awaited file-service scope span inspection,
   any open decision, and import without assembling a renderer `Blob`, then
-  release the descriptor exactly once. An exact 8 GiB sparse Zip64 witness now
-  reaches current-schema inspection and collision cancellation with less than
-  8 MiB transferred; it does not yet qualify huge-asset integrity, full import,
-  browser/main-process memory, or storage quota. Browser `.scape` files retain
-  their Blob source. Several compressed imports, browser-download fallback, and
-  final render outputs also retain bounded or reference-scale paths that
-  materialize a whole `Blob` or byte array;
+  release the descriptor exactly once. One exact 8 GiB sparse Zip64 witness now
+  keeps current-schema inspection and collision cancellation payload-lazy with
+  less than 8 MiB transferred. A separate witness imports the authentic pinned
+  asset through that real range pipeline into a counting independent-SHA
+  transactional sink with zero retained payload, bounded emissions, project
+  publication, and exact release/close. This does not qualify packaged Electron
+  UI, durable OPFS/IndexedDB storage, quota/preflight, renderer/browser heap,
+  main/renderer RSS, whole-archive storage atomicity, or publisher
+  authentication. Browser `.scape` files retain their Blob source. Several
+  compressed imports, browser-download fallback, and final render outputs also
+  retain bounded or reference-scale paths that materialize a whole `Blob` or
+  byte array;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products retain separate Chromium partitions for their
   product-local revision, source, and media shadows, while exact-schema-9 latest
@@ -436,10 +441,26 @@ models or native implementations.
   capability store, protocol, range adapter, file service, router, and inspector.
   It admits exact at-most-16-MiB `206` responses, transfers less than 8 MiB,
   touches only the asset's final at-most-65,557-byte ZIP end-search suffix, and
-  cancels an existing-ID collision before materialization or import. Its huge
-  asset CRC and manifest-declared digest are deliberate placeholders, so this is
-  structural/transport evidence rather than payload-integrity, full-import, or
-  memory qualification. The
+  cancels an existing-ID collision before materialization or import; this
+  inspection profile remains payload-lazy. The same fixture now pins its exact
+  8,589,932,094-byte sparse-zero asset to SHA-256
+  `7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be` and ZIP
+  CRC-32 `2909126900`. The standalone
+  [full-import witness](tests/desktop-scape-sparse-full-import-integration.test.ts)
+  sends that archive through the real capability store, protocol, desktop range
+  adapter, file service, project service, and importer into a transactional
+  counting sink. Strict ZIP signature checking validates the authentic CRC, with
+  the focused
+  [corruption regression](tests/audio-editor-scape-streaming-video.test.ts)
+  proving mismatch rejection; import validates the manifest SHA-256 while the
+  sink independently rehashes and counts the full asset without retaining its
+  payload. Every protocol response is an exact at-most-16-MiB `206`, every media
+  emission is at most 4 MiB, project publication follows media commit, capability
+  release and pinned-handle close are exact-once, and no whole-archive `Blob` is
+  created. This Node counting-sink evidence does not qualify packaged Electron
+  UI, real OPFS/IndexedDB durable storage, quota/preflight, renderer/browser heap,
+  main/renderer RSS, whole-archive storage atomicity, or publisher
+  authentication. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without
@@ -826,8 +847,10 @@ models or native implementations.
   bound decoder amplification or whole-process RSS. Canonical desktop `.scape`
   descriptors are excluded from this materialization profile and instead use
   the independent branded range scope described above. The exact 8 GiB sparse
-  inspection witness qualifies its structural range transport, but not a full
-  huge-asset import or a renderer/main-process memory budget. Atomic save
+  witnesses cover payload-lazy collision inspection and a full authentic-asset
+  import into a non-retaining counting sink, but not packaged Electron UI, real
+  durable application storage, quota/preflight, or renderer/main-process memory
+  budgets. Atomic save
   disposal now
   closes target and session admission synchronously, drains every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
@@ -1084,11 +1107,15 @@ models or native implementations.
   release; browser `.scape` files retain their Blob path, and Audacity plus
   other project/media families retain bounded materialization. The separate
   main-assigned `scape-range-v1` admission profile and exact 8 GiB sparse Zip64
-  inspection/collision-cancel witness are now landed without a final renderer
-  `Blob`. Still qualify a complete huge-asset import with real digest/CRC bytes,
-  packaged desktop workflow evidence, and measured renderer/main-process memory
-  and storage behavior. The materialized profile continues to fail above its
-  independent 512 MiB ceiling rather than falling through to the Scape route.
+  witnesses are now landed without a final renderer `Blob`: collision-cancel
+  inspection remains payload-lazy, while a standalone full import validates the
+  authentic pinned CRC and manifest SHA through the real range/service/import
+  path into a non-retaining counting independent-SHA transactional sink. Still
+  qualify the packaged Electron UI, real OPFS/IndexedDB durable storage,
+  quota/preflight, renderer/browser heap, main/renderer RSS, whole-archive
+  storage atomicity, and publisher authentication. The materialized profile
+  continues to fail above its independent 512 MiB ceiling rather than falling
+  through to the Scape route.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
   installations emerge, define compatibility beyond the retained V1–V8
   raw-document migration paths, especially an explicit migration from the prior

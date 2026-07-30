@@ -122,21 +122,44 @@ or sparse fixtures so the test does not commit multi-gigabyte generated files.
 The generator revision, seed, logical byte length, stream metadata, and expected
 digest must still be stable.
 
-The milestone 2 fixture now has a provisional desktop inspection witness. It
-creates an exact 8 GiB logical sparse Zip64 archive with current-schema project
-metadata, then inspects it through single exact closed ranges of at most 16 MiB.
-Every response is `206`, total transferred bytes stay below 8 MiB, collision
-cancellation happens before import, and the path never assembles a whole
-`Blob`. The test requires observable sparse-file support and skips when the
-filesystem cannot provide it. The huge asset digest and CRC are placeholders,
-so this is not payload-integrity, full-import, process-RSS, browser-heap, or
-storage-quota qualification. The milestone 2 bounded-memory workload therefore
-remains planned.
+The milestone 2 fixture remains provisional and requires observable sparse-file
+support. Its generator creates an exact 8,589,934,592-byte logical Zip64 archive
+with current-schema project metadata and an 8,589,932,094-byte sparse-zero video
+asset. That asset is pinned to SHA-256
+`7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be` and
+ZIP CRC-32 `2909126900`; these values are authentic fixture identity, not
+placeholders.
+
+The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
+remains payload-lazy. It follows the real capability store, protocol, desktop
+range adapter, file service, project router, and inspector through single exact
+closed ranges of at most 16 MiB. Every response is `206`, total transfer stays
+below 8 MiB, only the asset's bounded ZIP end-search suffix is touched, and an
+existing-ID collision cancels before import or whole-archive `Blob`
+materialization.
+
+The separate [full-import witness](../tests/desktop-scape-sparse-full-import-integration.test.ts)
+runs the same exact archive through the real capability store, protocol, desktop
+range adapter, file service, project service, and importer. The strict ZIP
+reader validates the authentic CRC; its focused
+[corruption regression](../tests/audio-editor-scape-streaming-video.test.ts)
+proves a stored-entry CRC mismatch is rejected. Import validates the manifest
+SHA-256, and a transactional counting sink independently rehashes and counts
+all 8,589,932,094 asset bytes without retaining payload chunks. The witness
+requires exact at-most-16-MiB `206` ranges, at-most-4-MiB media emissions,
+project publication after media commit, exact-once capability release and
+pinned-handle close, and no whole-archive `Blob` path.
+
+That counting sink is not real durable application storage. These witnesses do
+not qualify a packaged Electron UI, real OPFS or IndexedDB durable storage,
+quota or preflight behavior, renderer/browser heap, main/renderer RSS,
+whole-archive storage atomicity, or publisher authentication. The milestone 2
+bounded-memory workload therefore remains planned.
 
 The fixture specifications are deliberately concrete:
 
-- milestone 2: the provisional exact 8 GiB sparse Zip64 desktop
-  inspection/collision-cancel witness described above;
+- milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
+  inspection and counting-sink full-import witnesses described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video

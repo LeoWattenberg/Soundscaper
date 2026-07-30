@@ -158,9 +158,12 @@ test('quality budget contract names numeric gates for every later milestone with
 
 	const milestone2Fixture = fixtures.get('m2-streaming-project-8gib-v1');
 	assert.equal(milestone2Fixture?.status, 'provisional');
-	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-inspection-witness');
+	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-range-and-counting-import-witness');
 	assert.deepEqual(milestone2Fixture?.specification, {
 		logicalBytes: 8_589_934_592,
+		assetBytes: 8_589_932_094,
+		assetSha256: '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be',
+		assetCrc32: 2_909_126_900,
 		archiveFormat: 'zip64',
 		projectSchemaVersion: 9,
 		sparseFilesystemRequired: true,
@@ -168,31 +171,55 @@ test('quality budget contract names numeric gates for every later milestone with
 		rangeResponseStatus: 206,
 		maxRangeBytes: 16_777_216,
 		maxInspectionTransferBytesExclusive: 8_388_608,
-		wholeBlobMaterialization: false,
 		inspectionStopsAt: 'collision-cancel',
-		hugeAssetDigest: 'placeholder',
-		hugeAssetCrc32: 'placeholder',
-		payloadIntegrityQualified: false,
-		fullImportQualified: false,
-		processRssQualified: false,
-		browserHeapQualified: false,
-		storageQuotaQualified: false,
+		inspectionPayloadLazy: true,
+		inspectionWholeBlobMaterialization: false,
+		fullImportPipeline: [
+			'read-capability-store',
+			'protocol',
+			'desktop-range-adapter',
+			'file-service',
+			'project-file-service',
+			'scape-import',
+		],
+		fullImportSink: 'counting-independent-sha256-transactional-no-payload-retention',
+		zipCrcVerification: 'strict-reader-check-signature',
+		manifestSha256Verification: 'importer-and-independent-sink',
+		maxMediaEmissionBytes: 4_194_304,
+		retainedSinkPayloadBytes: 0,
+		projectPublicationVerified: true,
+		exactCapabilityReleaseCount: 1,
+		exactPinnedHandleCloseCount: 1,
+		fullImportWholeBlobMaterialization: false,
+		packagedElectronUiQualified: false,
+		opfsIndexedDbDurableStorageQualified: false,
+		quotaPreflightQualified: false,
+		rendererBrowserHeapQualified: false,
+		mainRendererRssQualified: false,
+		wholeArchiveStorageAtomicityQualified: false,
+		publisherAuthenticationQualified: false,
 	});
 	assert.match(milestone2Fixture?.limitation ?? '', /sparse filesystem/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /payload integrity/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /full import/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /counting.*sink/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /packaged Electron UI/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /OPFS.*IndexedDB/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /preflight/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /RSS/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /browser heap/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /quota/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /atomicity/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /publisher authentication/iu);
 	assert.deepEqual(milestone2Fixture?.evidence, [
 		'tests/desktop-scape-sparse-range-integration.test.ts',
+		'tests/desktop-scape-sparse-full-import-integration.test.ts',
+		'tests/audio-editor-scape-streaming-video.test.ts',
 		'tests/helpers/sparse-scape-zip64-fixture.ts',
 		'docs/quality-budgets.md#fixtures-and-project-sizes',
 	]);
 	assert.equal(
 		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
 		'planned',
-		'the inspection witness does not qualify the bounded-memory workload',
+		'the counting-sink witness does not qualify the bounded-memory workload',
 	);
 
 	const gpuEnvironment = environments.get('reference-linux-gpu-01');
