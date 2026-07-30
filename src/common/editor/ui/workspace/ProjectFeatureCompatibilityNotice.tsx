@@ -191,14 +191,17 @@ function audioRenderedFallbackApplies(
 		requirementId: string;
 		featureId: string;
 		availability: string;
+		declaredDisposition: string;
 		effectiveDisposition: string;
 	}>,
 	metadata: ProjectFeatureAudioRenderedFallbackMetadata | null | undefined,
 ): boolean {
-	return metadata?.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+	return metadata?.schemaVersion === 1
+		&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
 		&& item.availability === 'unavailable'
+		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.effectiveDisposition === 'rendered-fallback';
 }
 

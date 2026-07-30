@@ -256,13 +256,14 @@ test('audio-effect placeholders require qualifying playback-bypass metadata and 
 });
 
 test('audio rendered fallback activation is localized and bound to its exact requirement', () => {
+	let internalReads = 0;
 	const metadata = {
 		schemaVersion: 1,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 		requirementId: 'audio-effects',
-		sourceId: 'rendered-source',
-		trackId: 'soundscaper:rendered-audio-fallback:track',
-		clipId: 'soundscaper:rendered-audio-fallback:clip',
+		get sourceId() { internalReads += 1; return 'rendered-source'; },
+		get trackId() { internalReads += 1; return 'soundscaper:rendered-audio-fallback:track' as const; },
+		get clipId() { internalReads += 1; return 'soundscaper:rendered-audio-fallback:clip' as const; },
 	} satisfies ProjectFeatureAudioRenderedFallbackMetadata;
 	const incompatible = report(false, [
 		item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'rendered-fallback'),
@@ -278,17 +279,33 @@ test('audio rendered fallback activation is localized and bound to its exact req
 		copy: GERMAN_COPY,
 		audioRenderedFallback: metadata,
 	}));
+	assert.equal(internalReads, 0);
 	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		audioRenderedFallback: { ...metadata, requirementId: 'missing' },
 	}));
+	const malformed = [
+		{ report: incompatible, metadata: { ...metadata, schemaVersion: 2 } },
+		{ report: incompatible, metadata: { ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects } },
+		{ report: report(false, [{
+			...item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'rendered-fallback'),
+			declaredDisposition: 'bypass',
+		}]), metadata },
+		{ report: report(false, [item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unknown', 'rendered-fallback')]), metadata },
+		{ report: report(false, [item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'bypassed')]), metadata },
+	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: candidate.report,
+		copy: ENGLISH_COPY,
+		audioRenderedFallback: candidate.metadata as never,
+	})));
 
 	assert.equal(english.match(/data-project-feature-audio-rendered-fallback/gu)?.length, 1);
 	assert.match(english, /Rendered fallback active during editor playback/u);
 	assert.match(german, /Gerenderte Ersatzwiedergabe im Editor aktiv/u);
 	assert.doesNotMatch(english, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 	assert.doesNotMatch(mismatched, /data-project-feature-audio-rendered-fallback/iu);
+	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-audio-rendered-fallback/iu);
 });
 
 test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {

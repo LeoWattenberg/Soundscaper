@@ -41,8 +41,11 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 			},
 			featureRequirementsAudioRenderedFallback: {
 				schemaVersion: 1,
+				featureId: 'org.soundscaper.capability.audio-effects',
 				requirementId: 'audio-effects',
 				sourceId: 'rendered-source',
+				trackId: 'soundscaper:rendered-audio-fallback:track',
+				clipId: 'soundscaper:rendered-audio-fallback:clip',
 			},
 			featureRequirementsVideoEffectPlaybackBypass: {
 				schemaVersion: 1,
@@ -95,8 +98,11 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 	assert.deepEqual(snapshot.audioRenderedFallback, {
 		schemaVersion: 1,
+		featureId: 'org.soundscaper.capability.audio-effects',
 		requirementId: 'audio-effects',
 		sourceId: 'rendered-source',
+		trackId: 'soundscaper:rendered-audio-fallback:track',
+		clipId: 'soundscaper:rendered-audio-fallback:clip',
 	});
 	assert.deepEqual(snapshot.videoEffectPlaybackBypass, {
 		schemaVersion: 1,
@@ -144,6 +150,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 	});
 
 	assert.equal(snapshot.selection, null);
+	assert.equal(snapshot.audioRenderedFallback, null);
 	assert.equal(snapshot.recording, false);
 	assert.equal(snapshot.locale, 'de');
 });
