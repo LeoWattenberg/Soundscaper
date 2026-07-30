@@ -441,14 +441,13 @@ export function createProjectSwitchService<
 			fallbackAdmission.assertCurrent(activeProject);
 			if (preparedFallbackSources) {
 				await guard(preparedFallbackSources.commit(
-					async (preparedSources) => {
-						const result = await runtime.loadEngineProject(
-							playbackProjection.project, undefined, preparedSources,
-						);
-						fallbackAdmission.assertCurrent(activeProject);
-						return result;
+					(preparedSources) => runtime.loadEngineProject(
+						playbackProjection.project, undefined, preparedSources,
+					),
+					{
+						assertCurrent: () => fallbackAdmission.assertCurrent(activeProject),
+						transientBuffers: loadedSourceBuffers,
 					},
-					{ transientBuffers: loadedSourceBuffers },
 				));
 			} else await guard(runtime.loadEngineProject(playbackProjection.project, loadedSourceBuffers));
 			await runtime.recordOpenedProject(projectId, guard);

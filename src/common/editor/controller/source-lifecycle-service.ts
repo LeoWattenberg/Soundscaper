@@ -55,7 +55,10 @@ export interface PreparedProjectSourceInputs {
 export interface PreparedRequiredProjectSources {
 	commit<Result>(
 		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
-		options?: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }>,
+		options?: Readonly<{
+			assertCurrent?: () => void;
+			transientBuffers?: ReadonlyMap<string, unknown>;
+		}>,
 	): Promise<Result>;
 	discard(): void;
 }
@@ -335,10 +338,16 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 
 		async function commit<Result>(
 			apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
-			options: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }> = {},
+			options: Readonly<{
+				assertCurrent?: () => void;
+				transientBuffers?: ReadonlyMap<string, unknown>;
+			}> = {},
 		): Promise<Result> {
 			if (state !== 'prepared') throw new Error(`The required source preparation is already ${state}.`);
 			if (typeof apply !== 'function') throw new TypeError('Required source preparation commit needs an apply callback.');
+			if (options.assertCurrent != null && typeof options.assertCurrent !== 'function') {
+				throw new TypeError('Required source preparation currentness assertion must be a function.');
+			}
 			state = 'committing';
 			try {
 				throwIfSourceLoadAborted(signal);
@@ -358,6 +367,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					chunkSources: preparedProviders,
 				}));
 				throwIfSourceLoadAborted(signal);
+				options.assertCurrent?.();
 				for (const [sourceId, entry] of prepared) {
 					if (entry.kind === 'provider') {
 						sourceChunkProviders.set(sourceId, entry.value);

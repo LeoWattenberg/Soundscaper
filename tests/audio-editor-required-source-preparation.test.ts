@@ -14,7 +14,10 @@ interface RequiredSourcePreparation {
 			readonly sourceBuffers: ReadonlyMap<string, unknown>;
 			readonly chunkSources: ReadonlyMap<string, unknown>;
 		}>) => PromiseLike<Result> | Result,
-		options?: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }>,
+		options?: Readonly<{
+			assertCurrent?: () => void;
+			transientBuffers?: ReadonlyMap<string, unknown>;
+		}>,
 	): Promise<Result>;
 	discard(): void;
 }
@@ -254,6 +257,16 @@ test('cache publication failure preserves prior required source identities', asy
 	const fixture = createFixture({ cacheThrows: true });
 	const prepared = await prepare(fixture);
 	await assert.rejects(prepared.commit(() => undefined), /cache publication failed/iu);
+	assertUnpublished(fixture);
+});
+
+test('a publication-boundary currentness failure preserves prior required source identities', async () => {
+	const fixture = createFixture({ long: true });
+	const prepared = await prepare(fixture);
+	const stale = new DOMException('prepared source owner is stale', 'AbortError');
+	await assert.rejects(prepared.commit(() => undefined, {
+		assertCurrent() { throw stale; },
+	}), (error) => error === stale);
 	assertUnpublished(fixture);
 });
 

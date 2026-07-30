@@ -159,14 +159,14 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 		throwIfPlaybackProjectApplyAborted(options.signal);
 		if (runtime.getCurrentProject() !== canonicalProject) return false;
 		if (preparedSources) {
-			await preparedSources.commit(async (inputs) => {
-				await runtime.engine.applyProject(
-					projection.project,
-					inputs.sourceBuffers,
-					{ chunkSources: inputs.chunkSources },
-				);
-				throwIfPlaybackProjectApplyAborted(options.signal);
-				if (runtime.getCurrentProject() !== canonicalProject) throw STALE_PLAYBACK_PROJECT_APPLY;
+			await preparedSources.commit((inputs) => runtime.engine.applyProject(
+				projection.project,
+				inputs.sourceBuffers,
+				{ chunkSources: inputs.chunkSources },
+			), {
+				assertCurrent() {
+					if (runtime.getCurrentProject() !== canonicalProject) throw STALE_PLAYBACK_PROJECT_APPLY;
+				},
 			});
 		} else {
 			const playbackBuffers = transientBuffers.size

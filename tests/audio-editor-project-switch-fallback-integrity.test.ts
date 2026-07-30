@@ -46,7 +46,7 @@ interface FallbackIntegrityAdmission {
 }
 
 function preparedSourceLoad(): PreparedRequiredProjectSources {
-	return Object.freeze({ async commit<Result>(apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result, options: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }> = {}) { return await apply(Object.freeze({ sourceBuffers: new Map([...(options.transientBuffers ?? []), ['fallback-source', 'prepared-buffer'] as const]), chunkSources: new Map() })); }, discard() {} });
+	return Object.freeze({ async commit<Result>(apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result, options: Readonly<{ assertCurrent?: () => void; transientBuffers?: ReadonlyMap<string, unknown> }> = {}) { const result = await apply(Object.freeze({ sourceBuffers: new Map([...(options.transientBuffers ?? []), ['fallback-source', 'prepared-buffer'] as const]), chunkSources: new Map() })); options.assertCurrent?.(); return result; }, discard() {} });
 }
 
 type FallbackIntegrityRuntime = ProjectSwitchServiceRuntime<TestProject, TestHistory> & Readonly<{

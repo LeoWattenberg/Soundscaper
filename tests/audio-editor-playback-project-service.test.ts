@@ -38,8 +38,11 @@ function preparedSources(
 		async commit<Result>(apply: (inputs: Readonly<{
 			readonly sourceBuffers: ReadonlyMap<string, unknown>;
 			readonly chunkSources: ReadonlyMap<string, unknown>;
-		}>) => PromiseLike<Result> | Result): Promise<Result> {
+		}>) => PromiseLike<Result> | Result, options: Readonly<{
+			assertCurrent?: () => void;
+		}> = {}): Promise<Result> {
 			const result = await apply(Object.freeze({ sourceBuffers, chunkSources }));
+			options.assertCurrent?.();
 			onCommit();
 			return result;
 		},
@@ -215,6 +218,31 @@ test('a canonical identity change during engine apply suppresses staged source p
 	current = null;
 	release.resolve();
 	assert.equal(await applying, false);
+	assert.equal(sourceCommits, 0);
+});
+
+test('a microtask identity change after engine return suppresses staged source publication', async () => {
+	const canonical = fallbackProject();
+	let current: typeof canonical | null = canonical;
+	let sourceCommits = 0;
+	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: true });
+	const applied = await applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: (project) => service.projectForPlayback(project),
+		getCurrentProject: () => current,
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async () => preparedSources(
+			new Map(), new Map(), () => { sourceCommits += 1; },
+		),
+		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			async applyProject() {
+				queueMicrotask(() => { current = null; });
+			},
+		},
+		setReadyStatus() {},
+	});
+	assert.equal(applied, false);
 	assert.equal(sourceCommits, 0);
 });
 
