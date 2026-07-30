@@ -105,3 +105,181 @@ test('clearing waveform windows also forgets in-flight ownership', () => {
 	assert.equal(fixture.clipWaveformPcmRequests.size, 0);
 	assert.equal(fixture.clipWaveformPcmWindows.size, 0);
 });
+
+interface RequiredSourceFixtureOptions {
+	readonly long?: boolean;
+	readonly buffer?: Readonly<Record<string, unknown>> | null;
+	readonly cacheFits?: boolean;
+	readonly metadata?: Readonly<Record<string, unknown>> | null;
+}
+
+function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {}) {
+	const source = Object.freeze({
+		id: 'fallback-source', kind: 'audio', storageKey: 'fallback-storage',
+		frameCount: 4, channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
+	});
+	const project = Object.freeze({
+		id: 'fallback-project',
+		clips: Object.freeze([]),
+		projectBin: Object.freeze({ clips: Object.freeze([]) }),
+		sources: Object.freeze([source]),
+	});
+	const defaultBuffer = Object.freeze({
+		length: 4,
+		numberOfChannels: 2,
+		sampleRate: 48_000,
+		getChannelData: () => new Float32Array(4),
+	});
+	const loadedBuffer = options.buffer === undefined ? defaultBuffer : options.buffer;
+	const metadata = options.metadata === undefined ? Object.freeze({
+		id: source.id,
+		frameCount: source.frameCount,
+		channelCount: source.channelCount,
+		sampleRate: source.sampleRate,
+		chunkFrames: source.chunkFrames,
+		chunkCount: 1,
+	}) : options.metadata;
+	const cachedBuffers = new Map<string, unknown>([['fallback-source', Object.freeze({ stale: true })]]);
+	const sourceBuffers = {
+		has: (id: string) => cachedBuffers.has(id),
+		get: (id: string) => cachedBuffers.get(id),
+		delete: (id: string) => cachedBuffers.delete(id),
+		setIfFits(id: string, value: unknown) {
+			if (options.cacheFits === false) return false;
+			cachedBuffers.set(id, value);
+			return true;
+		},
+	};
+	const sourceChunkProviders = new Map<string, unknown>([[source.id, Object.freeze({ stale: true })]]);
+	const publishedProviders: Array<ReadonlyMap<string, unknown>> = [];
+	const statuses: string[] = [];
+	let bufferReads = 0;
+	const runtime: SourceLifecycleServiceRuntime = {
+		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
+		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
+		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 16,
+		activateVideoSource: async () => undefined,
+		allProjectClips: (value) => [...value.clips, ...(value.projectBin?.clips ?? [])],
+		audioBufferChannels: () => [],
+		clipSourceWindowRange: (_value, startFrame, endFrame) => ({ startFrame, endFrame }),
+		clipWaveformPcmRequests: new Map(),
+		clipWaveformPcmWindows: new Map(),
+		copy: {},
+		createStoredChunkProvider: () => Object.freeze({ marker: 'fresh-provider' }),
+		engine: {
+			getAudioContext: async () => Object.freeze({ createBuffer() {} }),
+			setChunkSources(providers: ReadonlyMap<string, unknown>) {
+				publishedProviders.push(new Map(providers));
+			},
+		},
+		findClip: () => null,
+		findSource: () => source,
+		generateStoredWaveformPeaks: async () => ({ levels: [] }),
+		generateWaveformPeaks: async () => ({ levels: [] }),
+		getProject: () => project,
+		isStreamableStoredSource: () => options.long === true,
+		legacyPeakCacheKey: (id) => `legacy:${id}`,
+		peakCacheKey: (id) => `peak:${id}`,
+		publishDocumentSnapshot: () => undefined,
+		readStoredAudioBuffer: async () => {
+			bufferReads += 1;
+			return loadedBuffer;
+		},
+		readWaveformPcmWindow: async () => [],
+		setStatus: (message) => { statuses.push(String(message)); },
+		sourceAudioBufferBytes: (value) => Number(value.length) * Number(value.numberOfChannels) * 4,
+		sourceBuffers,
+		sourceChunkProviders,
+		sourcePcmBytes: () => options.long ? 32 : 8,
+		sourcePeaks: new Map(),
+		state: { missingSourceIds: new Set<string>() },
+		store: {
+			getSourceMetadata: async () => metadata,
+			readSourceChunk: async () => ({ channels: [] }),
+			loadAnalysis: async () => null,
+			saveAnalysis: async () => undefined,
+			deleteAnalysis: async () => undefined,
+		},
+		waveformPcmWindowContains: () => false,
+		waveformPeaksHaveRms: () => true,
+	};
+	return {
+		bufferReads: () => bufferReads,
+		cachedBuffers,
+		project,
+		publishedProviders,
+		service: createSourceLifecycleService(runtime),
+		source,
+		sourceChunkProviders,
+		statuses,
+	};
+}
+
+test('fallback-only required long sources replace stale providers before playback', async () => {
+	const fixture = createRequiredSourceFixture({ long: true });
+	const transients = await fixture.service.loadProjectSources(fixture.project, {
+		requiredAudioSourceIds: [fixture.source.id],
+	});
+	assert.equal(transients.size, 0);
+	assert.deepEqual(fixture.sourceChunkProviders.get(fixture.source.id), { marker: 'fresh-provider' });
+	assert.equal(fixture.publishedProviders.length, 1);
+	assert.equal(fixture.bufferReads(), 0);
+});
+
+test('required short sources are reread and returned transiently when the shared cache is full', async () => {
+	const fixture = createRequiredSourceFixture({ cacheFits: false });
+	const transients = await fixture.service.loadProjectSources(fixture.project, {
+		requiredAudioSourceIds: [fixture.source.id],
+	});
+	assert.equal(fixture.bufferReads(), 1);
+	assert.equal(fixture.cachedBuffers.has(fixture.source.id), false, 'the stale buffer must be evicted');
+	assert.equal(transients.get(fixture.source.id)?.length, 4);
+	assert.equal(fixture.sourceChunkProviders.has(fixture.source.id), false);
+});
+
+test('required source preparation rejects missing bodies and geometry drift while ordinary loads stay best effort', async () => {
+	for (const fixture of [
+		createRequiredSourceFixture({ buffer: null }),
+		createRequiredSourceFixture({ buffer: {
+			length: 3, numberOfChannels: 2, sampleRate: 48_000,
+			getChannelData: () => new Float32Array(3),
+		} }),
+		createRequiredSourceFixture({ metadata: null, long: true }),
+	]) {
+		await assert.rejects(
+			fixture.service.loadProjectSources(fixture.project, {
+				requiredAudioSourceIds: [fixture.source.id],
+			}),
+			/rendered fallback|required.*source|unavailable|geometry|metadata/iu,
+		);
+	}
+
+	const ordinary = createRequiredSourceFixture({ buffer: null });
+	const project = {
+		...ordinary.project,
+		clips: [{ id: 'ordinary-clip', sourceId: ordinary.source.id }],
+	};
+	const transients = await ordinary.service.loadProjectSources(project);
+	assert.equal(transients.size, 0);
+	assert.equal(ordinary.statuses.length, 0, 'a legacy null decode remains a silent best-effort miss');
+});
+
+test('playback reapply source preparation enforces required fallback readiness', async () => {
+	const fixture = createRequiredSourceFixture({ cacheFits: false });
+	const playback = {
+		...fixture.project,
+		clips: [{ id: 'fallback-clip', kind: 'audio', sourceId: fixture.source.id }],
+	};
+	const transients = await fixture.service.ensureProjectSourcesAvailable(playback, {
+		requiredAudioSourceIds: [fixture.source.id],
+	});
+	assert.equal(transients.get(fixture.source.id)?.length, 4);
+
+	const missing = createRequiredSourceFixture({ buffer: null });
+	await assert.rejects(
+		missing.service.ensureProjectSourcesAvailable(playback, {
+			requiredAudioSourceIds: [missing.source.id],
+		}),
+		/rendered fallback|required.*source|unavailable/iu,
+	);
+});

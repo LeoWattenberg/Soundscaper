@@ -40,6 +40,10 @@ export interface SourceLifecycleServiceRuntime {
 	readonly waveformPeaksHaveRms: LegacyPort;
 }
 
+export interface SourceLifecycleLoadOptions {
+	readonly requiredAudioSourceIds?: readonly string[];
+}
+
 export function createSourceLifecycleService(runtime: SourceLifecycleServiceRuntime) {
 	const {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES, MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
@@ -133,20 +137,38 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		clipWaveformPcmRequests.clear();
 	}
 
-	async function loadProjectSources(project: any) {
+	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
+		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
 		const usedSourceIds = new Set(allProjectClips(project).map((clip: any) => clip.sourceId));
-		if (!usedSourceIds.size) return;
+		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
+		const transientBuffers = new Map<string, any>();
+		if (!usedSourceIds.size) return transientBuffers;
 		const context = await engine.getAudioContext?.({ resume: false });
 		for (const source of project.sources.filter((candidate: any) => usedSourceIds.has(candidate.id))) {
+			const required = requiredSourceIds.has(source.id);
 			try {
 				if (source.kind === 'video') {
+					if (required) throw new TypeError(`Required rendered fallback source ${source.id} must be audio.`);
 					await activateVideoSource(source);
 					continue;
 				}
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				if (required) assertRequiredSourceMetadata(source, metadata);
 				const chunkProvider = registerStoredChunkProvider(source, metadata);
 				const useChunkStream = Boolean(chunkProvider)
 					&& sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
+				if (required) {
+					if (useChunkStream) {
+						sourceBuffers.delete(source.id);
+						continue;
+					}
+					forgetChunkProvider(source.id);
+					sourceBuffers.delete(source.id);
+					const buffer = await readStoredAudioBuffer(store, source, context);
+					assertRequiredSourceBuffer(source, buffer);
+					if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
+					continue;
+				}
 				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
@@ -169,8 +191,10 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 				state.missingSourceIds.add(source.id);
 				const message = (error as Readonly<{ message?: string }> | null)?.message || String(error);
 				setStatus(`${source.name}: ${message}`, 'error');
+				if (required) throw error;
 			}
 		}
+		return transientBuffers;
 	}
 
 	function registerStoredChunkProvider(source: any, metadata: any) {
@@ -181,6 +205,11 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		// immediately so cache eviction cannot create a transient unplayable source.
 		engine.setChunkSources?.(sourceChunkProviders);
 		return provider;
+	}
+
+	function forgetChunkProvider(sourceId: string) {
+		if (!sourceChunkProviders.delete(sourceId)) return;
+		engine.setChunkSources?.(sourceChunkProviders);
 	}
 
 	async function activateStoredSource(source: any, metadata: any, { buffer = null }: any = {}) {
@@ -200,15 +229,40 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		return peaks;
 	}
 
-	async function ensureProjectSourcesAvailable(snapshot: any) {
+	async function ensureProjectSourcesAvailable(
+		snapshot: any,
+		options: SourceLifecycleLoadOptions = {},
+	) {
+		const requiredSourceIds = requiredAudioSourceIdSet(snapshot, options);
 		const usedSourceIds = new Set((snapshot?.clips || [])
 			.filter((clip: any) => clip.kind !== 'video')
 			.map((clip: any) => clip.sourceId));
+		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
 		let context = null;
 		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
 			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
 		))) {
+			const required = requiredSourceIds.has(source.id);
+			if (required) {
+				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				assertRequiredSourceMetadata(source, metadata);
+				const useChunkStream = sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
+				if (useChunkStream) {
+					sourceBuffers.delete(source.id);
+					if (!registerStoredChunkProvider(source, metadata)) {
+						throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
+					}
+					continue;
+				}
+				forgetChunkProvider(source.id);
+				sourceBuffers.delete(source.id);
+				context ||= await engine.getAudioContext?.({ resume: false });
+				const buffer = await readStoredAudioBuffer(store, source, context);
+				assertRequiredSourceBuffer(source, buffer);
+				if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
+				continue;
+			}
 			if (!sourceChunkProviders.has(source.id)) {
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 				if (!metadata) continue;
@@ -221,6 +275,53 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
 		}
 		return transientBuffers;
+	}
+
+	function requiredAudioSourceIdSet(project: any, options: SourceLifecycleLoadOptions) {
+		if (!options || typeof options !== 'object' || Array.isArray(options)) {
+			throw new TypeError('Source lifecycle load options must be an object.');
+		}
+		const values = options.requiredAudioSourceIds ?? [];
+		if (!Array.isArray(values)) throw new TypeError('Required audio source IDs must be an array.');
+		const ids = new Set<string>();
+		for (const value of values) {
+			if (typeof value !== 'string' || !value || value !== value.trim()) {
+				throw new TypeError('A required audio source ID must be a non-empty canonical string.');
+			}
+			ids.add(value);
+		}
+		if (!ids.size) return ids;
+		const sources = Array.isArray(project?.sources) ? project.sources : [];
+		for (const sourceId of ids) {
+			const matches = sources.filter((source: any) => source?.id === sourceId);
+			if (matches.length !== 1) {
+				throw new Error(`Required rendered fallback source ${sourceId} is unavailable.`);
+			}
+			if (matches[0]?.kind !== 'audio') {
+				throw new TypeError(`Required rendered fallback source ${sourceId} must be audio.`);
+			}
+		}
+		return ids;
+	}
+
+	function assertRequiredSourceMetadata(source: any, metadata: any) {
+		if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+			throw new Error(`Required rendered fallback source ${source.id} has no stored metadata.`);
+		}
+		if ((metadata.frameCount ?? metadata.frameLength) !== source.frameCount
+			|| metadata.channelCount !== source.channelCount
+			|| (metadata.sampleRate != null && metadata.sampleRate !== source.sampleRate)) {
+			throw new Error(`Required rendered fallback source ${source.id} metadata geometry changed.`);
+		}
+	}
+
+	function assertRequiredSourceBuffer(source: any, buffer: any) {
+		if (!buffer) throw new Error(`Required rendered fallback source ${source.id} is unavailable.`);
+		if (buffer.length !== source.frameCount
+			|| buffer.numberOfChannels !== source.channelCount
+			|| buffer.sampleRate !== source.sampleRate) {
+			throw new Error(`Required rendered fallback source ${source.id} buffer geometry changed.`);
+		}
 	}
 
 	return Object.freeze({
