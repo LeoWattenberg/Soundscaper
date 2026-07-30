@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-29",
+	"groundedAt": "2026-07-30",
 	"platformTiers": [
 		"web-core",
 		"web-enhanced",
@@ -65,7 +65,15 @@
 			"os": "linux",
 			"architecture": "x64",
 			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
+			"evidence": [
+				"desktop/desktop-smoke.js",
+				"scripts/lib/desktop-project-library-handoff-smoke.mjs",
+				"scripts/desktop-project-library-handoff-smoke.mjs",
+				"tests/desktop-smoke-probe.test.js",
+				"tests/desktop-project-library-handoff-smoke.test.js",
+				"tests/desktop-project-library-handoff-workflow.test.js",
+				".github/workflows/desktop-preview.yml"
+			]
 		},
 		{
 			"os": "linux",
@@ -91,10 +99,13 @@
 					"evidence": [
 						"desktop/main.mjs",
 						"desktop/preload.mjs",
+						"desktop/desktop-smoke.js",
 						"desktop/project-library-projects.ts",
 						"desktop/project-library-host.ts",
 						"desktop/project-library-editor-service.ts",
 						"desktop/project-library-ipc.js",
+						"scripts/lib/desktop-project-library-handoff-smoke.mjs",
+						"scripts/desktop-project-library-handoff-smoke.mjs",
 						"src/common/editor/storage/desktop-shared-project-repository.ts",
 						"src/common/editor/storage.js",
 						"src/common/editor/app.js",
@@ -103,7 +114,11 @@
 						"tests/desktop-project-library-ipc.test.js",
 						"tests/audio-editor-desktop-shared-project-repository.test.ts",
 						"tests/desktop-project-library-editor-handoff.test.ts",
-						"tests/desktop-smoke.test.js"
+						"tests/desktop-smoke.test.js",
+						"tests/desktop-smoke-probe.test.js",
+						"tests/desktop-project-library-handoff-smoke.test.js",
+						"tests/desktop-project-library-handoff-workflow.test.js",
+						".github/workflows/desktop-preview.yml"
 					]
 				},
 				"electron-only": {
@@ -164,10 +179,13 @@
 					"evidence": [
 						"desktop/main.mjs",
 						"desktop/preload.mjs",
+						"desktop/desktop-smoke.js",
 						"desktop/project-library-projects.ts",
 						"desktop/project-library-host.ts",
 						"desktop/project-library-editor-service.ts",
 						"desktop/project-library-ipc.js",
+						"scripts/lib/desktop-project-library-handoff-smoke.mjs",
+						"scripts/desktop-project-library-handoff-smoke.mjs",
 						"src/common/editor/storage/desktop-shared-project-repository.ts",
 						"src/common/editor/storage.js",
 						"src/common/editor/app.js",
@@ -176,7 +194,11 @@
 						"tests/desktop-project-library-ipc.test.js",
 						"tests/audio-editor-desktop-shared-project-repository.test.ts",
 						"tests/desktop-project-library-editor-handoff.test.ts",
-						"tests/desktop-smoke.test.js"
+						"tests/desktop-smoke.test.js",
+						"tests/desktop-smoke-probe.test.js",
+						"tests/desktop-project-library-handoff-smoke.test.js",
+						"tests/desktop-project-library-handoff-workflow.test.js",
+						".github/workflows/desktop-preview.yml"
 					]
 				},
 				"electron-only": {

@@ -24,6 +24,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const stageReclamationControl = risk?.currentControls.find(
 		({ id }) => id === 'lease-fenced-registered-project-stage-reclamation',
 	);
+	const packagedSourceFreeControl = risk?.currentControls.find(
+		({ id }) => id === 'packaged-linux-x64-source-free-project-library-handoff',
+	);
 	const preloadControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'sandboxed-versioned-preload-bridge',
 	);
@@ -92,6 +95,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.ok(mediaAdmissionControl);
 	assert.ok(reclamationControl);
 	assert.ok(stageReclamationControl);
+	assert.ok(packagedSourceFreeControl);
 	for (const path of [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
@@ -206,7 +210,27 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		control.summary,
-		/composed source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
+		/composed source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty/isu,
+	);
+	for (const [kind, path] of [
+		['implementation', 'desktop/desktop-smoke.js'],
+		['implementation', 'scripts/lib/desktop-project-library-handoff-smoke.mjs'],
+		['implementation', 'scripts/desktop-project-library-handoff-smoke.mjs'],
+		['test', 'tests/desktop-smoke-probe.test.js'],
+		['test', 'tests/desktop-project-library-handoff-smoke.test.js'],
+		['test', 'tests/desktop-project-library-handoff-workflow.test.js'],
+		['workflow', '.github/workflows/desktop-preview.yml'],
+	]) assert.ok(
+		packagedSourceFreeControl.evidence.some((item) => item.kind === kind && item.path === path),
+		`${kind}:${path}`,
+	);
+	assert.match(
+		packagedSourceFreeControl.summary,
+		/dedicated Linux x64 CI.*two separate unpacked.*Soundscaper.*Framescaper.*sequential Soundscaper.*Framescaper.*Soundscaper.*only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 9.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing tokens.*increasing catalog revisions.*preferred product.*awaits process exit.*lease release/isu,
+	);
+	assert.match(
+		packagedSourceFreeControl.summary,
+		/combined with.*composed editor.*closes only the generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap.*does not qualify packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
 	);
 	for (const path of [
 		'src/common/editor/controller/project-bootstrap-service.ts',
@@ -272,7 +296,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		platformDurability?.exposure ?? '',
-		/parent- or database-path replacement.*power-loss durability.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted reservation.*foreign regular collision.*registered random stage path.*eligible.*stale-stage cleanup.*registered non-regular or symlink stage replacements.*untouched and inventoried/isu,
+		/dedicated Linux x64.*source-free.*packaged preload\/IPC\/multi-process\/executable lifecycle.*qualified.*remaining OS and architecture matrix.*parent- or database-path replacement.*power-loss durability.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted reservation.*foreign regular collision.*registered random stage path.*eligible.*stale-stage cleanup.*registered non-regular or symlink stage replacements.*untouched and inventoried/isu,
 	);
 	assert.match(
 		platformDurability?.acceptanceCriteria.join(' ') ?? '',

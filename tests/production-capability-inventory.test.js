@@ -83,8 +83,11 @@ test('Electron Enhanced inventory includes the shared editor project boundary', 
 	for (const productId of PRODUCT_IDS) {
 		const evidence = inventory.products[productId].platforms['electron-enhanced'].evidence;
 		for (const path of [
+			'desktop/desktop-smoke.js',
 			'desktop/project-library-editor-service.ts',
 			'desktop/project-library-ipc.js',
+			'scripts/lib/desktop-project-library-handoff-smoke.mjs',
+			'scripts/desktop-project-library-handoff-smoke.mjs',
 			'src/common/editor/storage/desktop-shared-project-repository.ts',
 			'src/common/editor/storage.js',
 			'src/common/editor/app.js',
@@ -92,8 +95,30 @@ test('Electron Enhanced inventory includes the shared editor project boundary', 
 			'tests/desktop-project-library-ipc.test.js',
 			'tests/audio-editor-desktop-shared-project-repository.test.ts',
 			'tests/desktop-project-library-editor-handoff.test.ts',
+			'tests/desktop-smoke-probe.test.js',
+			'tests/desktop-project-library-handoff-smoke.test.js',
+			'tests/desktop-project-library-handoff-workflow.test.js',
+			'.github/workflows/desktop-preview.yml',
 		]) assert.ok(evidence.includes(path), `${productId} is missing ${path}`);
 	}
+});
+
+test('Linux x64 inventory pins the packaged source-free project-library handoff', async () => {
+	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
+	const target = inventory.desktopTargets.find(
+		({ os, architecture }) => os === 'linux' && architecture === 'x64',
+	);
+
+	assert.ok(target);
+	for (const path of [
+		'desktop/desktop-smoke.js',
+		'scripts/lib/desktop-project-library-handoff-smoke.mjs',
+		'scripts/desktop-project-library-handoff-smoke.mjs',
+		'tests/desktop-smoke-probe.test.js',
+		'tests/desktop-project-library-handoff-smoke.test.js',
+		'tests/desktop-project-library-handoff-workflow.test.js',
+		'.github/workflows/desktop-preview.yml',
+	]) assert.ok(target.evidence.includes(path), `linux/x64 is missing ${path}`);
 });
 
 test('every capability claim points at checked-in evidence', async () => {

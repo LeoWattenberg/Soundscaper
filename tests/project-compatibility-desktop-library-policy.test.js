@@ -6,6 +6,7 @@ import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 test('shared desktop project policy pins the current editor handoff boundary', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
@@ -29,6 +30,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'desktop/project-library-ipc.js',
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
+		'desktop/desktop-smoke.js',
+		'scripts/lib/desktop-project-library-handoff-smoke.mjs',
+		'scripts/desktop-project-library-handoff-smoke.mjs',
 		'src/common/editor/scape-project-document.ts',
 		'src/common/editor/scape-project-json-preflight.ts',
 		'src/common/editor/persisted-audio-effect-validation.ts',
@@ -55,6 +59,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-desktop-shared-project-repository.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
+		'tests/desktop-smoke-probe.test.js',
+		'tests/desktop-project-library-handoff-smoke.test.js',
+		'tests/desktop-project-library-handoff-workflow.test.js',
+		'.github/workflows/desktop-preview.yml',
 	]);
 	assert.match(
 		rule.requiredOutcome,
@@ -114,10 +122,17 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*packaged preload\/IPC\/executable handoff.*per-platform parent- and database-path identity.*power-loss durability.*interrupted foreign collisions.*registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*migration from the prior shared v1 scope or product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
+		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*share(?:d)? only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 9.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*strictly higher fencing tokens.*increasing catalog revisions.*preferred product.*process exit.*lease release/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/closes only the generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap.*not.*packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/iu,
 	);
 
-	const documentation = await readFile(documentationUrl, 'utf8');
+	const [documentation, roadmap] = await Promise.all([
+		readFile(documentationUrl, 'utf8'),
+		readFile(roadmapUrl, 'utf8'),
+	]);
 	assert.match(documentation, /Shared desktop current-schema persistence/u);
 	assert.match(
 		documentation,
@@ -189,11 +204,15 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/composed source-free editor fixture.*creates and autosaves in Soundscaper.*same identity and\s+revision.*fresh Framescaper-local store.*next revision in\s+Framescaper.*empty shared media catalog.*not one\s+packaged preload\/IPC\/multi-process/isu,
+		/composed source-free editor fixture.*creates and autosaves in Soundscaper.*same identity and\s+revision.*fresh Framescaper-local store.*next revision in\s+Framescaper.*empty shared media catalog/isu,
 	);
 	assert.match(
 		documentation,
-		/separate recipient-local admission.*does not acquire or transfer bytes.*activation-specific feature-capability\s+evaluation.*editor-owned.*managed-media\s+publication.*automatic\s+acquisition.*copy.*consolidation.*relink.*playback.*portable source-byte\s+transfer.*packaged cross-product lifecycle.*per-platform\s+parent- and database-path identity, power-loss durability, and interrupted\s+foreign collisions at registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted/isu,
+		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless\s+preload IPC.*exact[- ]SHA-256.*source-free.*schema 9.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale\s+takeover.*higher fencing tokens?.*increasing catalog revisions?.*preferred product.*process exit.*lease\s+release/isu,
+	);
+	assert.match(
+		documentation,
+		/closes only the generic packaged\s+source-free preload\/IPC\/multi-process\/executable lifecycle gap.*does not\s+qualify packaged controller autosave or tab activation.*source-bearing bytes,\s+playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
 	);
 	assert.match(
 		documentation,
@@ -201,6 +220,14 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
+	assert.match(
+		roadmap,
+		/dedicated Linux x64.*two separate unpacked.*source-free.*Soundscaper.*Framescaper.*Soundscaper.*packaged executables.*pathless preload IPC.*qualifies.*packaged source-free preload\/IPC\/multi-process\/executable.*Linux x64 only/isu,
+	);
+	assert.match(
+		roadmap,
+		/Simultaneous opens.*serialize through the shared\s+lease.*Linux x64.*source-free.*qualified.*remaining.*platform.*fault.*matrix.*open/isu,
+	);
 
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');

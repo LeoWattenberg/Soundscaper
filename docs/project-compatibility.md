@@ -219,16 +219,36 @@ revision from a fresh Framescaper-local store, and commits the next revision in
 Framescaper. It also proves a higher fencing token without stale takeover and
 an empty shared media catalog. This composes the real controller, default
 Soundscaper desktop-store selection, renderer repository, main service, and
-host; focused tests separately pin preload and IPC behavior. It is not one
-packaged preload/IPC/multi-process or executable handoff qualification.
+host.
+
+A maintained dedicated Linux x64 CI job builds two separate unpacked packages
+and runs them sequentially as Soundscaper → Framescaper → Soundscaper. The
+processes share only one isolated appData root, use separate product profiles,
+and the final process reuses the original Soundscaper profile. After the
+renderer-ready signal, each packaged executable drives the bounded pathless
+preload IPC, exact-SHA-256 verifies its expected canonical source-free schema 9
+document, commits revisions 1, 2, and 3, and checks both the renderer summary
+and the main-only catalog row. Each stage requires clean recovery, no stale
+takeover, a strictly higher fencing token, an increasing catalog revision, and
+the expected preferred product. The runner awaits process exit and lease
+release before launching the next stage.
+
+Combined with the composed editor fixture, that closes only the generic packaged
+source-free preload/IPC/multi-process/executable lifecycle gap. It does not
+qualify packaged controller autosave or tab activation; source-bearing bytes,
+playback, or managed media; concurrent opens; crash or stale takeover;
+interruption or power loss; parent-, database-, or project-root path identity;
+installers or file associations; or Windows, macOS, or ARM64. Third-party
+activation gating and legacy Soundscaper library migration remain deliberately
+separate from this slice.
 
 This catalog rule is current-only; the separate recipient-local admission above
 does not acquire or transfer bytes. Activation-specific feature-capability
 evaluation remains editor-owned. Managed-media publication, automatic
 acquisition, copy, consolidation, relink, playback, and portable source-byte
-transfer; packaged cross-product lifecycle; and per-platform
-parent- and database-path identity, power-loss durability, and interrupted
-foreign collisions at registered random stage paths remain outside it.
+transfer remain outside it. The remaining platform and fault matrix includes
+per-platform parent- and database-path identity, power-loss durability, and
+interrupted foreign collisions at registered random stage paths.
 Unregistered or legacy pre-inventory stage-looking files are deliberately
 foreign content and are not adopted or deleted.
 Existing V1–V8 raw-project migrations remain maintained. Compatibility beyond

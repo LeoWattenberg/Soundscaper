@@ -1047,6 +1047,26 @@ models or native implementations.
   transfer in one product-neutral application-data library: each product
   acquires a higher fencing token without stale takeover and observes the same
   project identity and committed revision.
+  A maintained [packaged probe](desktop/desktop-smoke.js),
+  [three-stage runner](scripts/lib/desktop-project-library-handoff-smoke.mjs),
+  [contract regression](tests/desktop-project-library-handoff-smoke.test.js),
+  and dedicated Linux x64 CI job now build two separate unpacked packages and
+  run the same source-free Soundscaper → Framescaper → Soundscaper sequence
+  through packaged executables. The processes share only an isolated
+  appData root, use separate product profiles while reusing the Soundscaper
+  profile for the return stage, wait for renderer ready, and drive bounded
+  pathless preload IPC. Every stage exact-hashes its expected canonical
+  source-free schema-9 document, commits revisions 1, 2, and 3, checks the
+  renderer summary and main-only catalog row, requires clean recovery without
+  stale takeover, and observes higher fencing tokens, increasing catalog
+  revisions, and the expected preferred product. The runner awaits each process
+  exit and lease release. Combined with the composed editor regression, this
+  qualifies the generic packaged source-free preload/IPC/multi-process/executable
+  lifecycle on Linux x64 only. It does not qualify packaged controller autosave
+  or tab activation, source-bearing bytes/playback/managed media, concurrent
+  opens, crash or stale takeover, interruption or power loss, path identity,
+  installers/file associations, Windows/macOS/ARM64, third-party activation
+  gating, or legacy Soundscaper library migration.
   The strict-TS
   [identity service](desktop/project-library-editor-service.ts) and bounded
   [owner-scoped IPC](desktop/project-library-ipc.js) now expose only pathless
@@ -1336,10 +1356,12 @@ models or native implementations.
   positive source-bearing transfer, explicit acquisition, packaged two-product
   playback, or managed-media portability, so this gate remains open.
 - Simultaneous opens across the two Electron apps serialize through the shared
-  lease. A packaged two-executable lifecycle fixture remains open; migration
-  from the prior shared `v1` scope or product-private Soundscaper libraries is
-  deliberately outside the current compatibility target rather than a
-  milestone prerequisite.
+  lease. The dedicated Linux x64 packaged source-free
+  Soundscaper → Framescaper → Soundscaper preload/IPC/multi-process/executable
+  lifecycle is qualified; the remaining platform and fault matrix stays open.
+  Migration from the prior shared `v1` scope or product-private Soundscaper
+  libraries is deliberately outside the current compatibility target rather
+  than a milestone prerequisite.
 - Clearing a cache removes only reproducible derivatives, not originals,
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
