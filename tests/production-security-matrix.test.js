@@ -33,6 +33,16 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 		'src/common/editor/scape-project.js',
 		'tests/audio-editor-scape-expansion.test.ts',
 	],
+	'point-in-time-import-capacity-admission': [
+		'src/common/editor/scape-import-capacity.ts',
+		'src/common/editor/scape-import-transaction.ts',
+		'src/common/editor/scape-project.js',
+		'src/common/editor/storage.js',
+		'tests/audio-editor-scape-import-capacity.test.ts',
+		'tests/audio-editor-scape-import-capacity-admission.test.ts',
+		'tests/audio-editor-storage-persistence.test.ts',
+		'tests/desktop-scape-sparse-full-import-integration.test.ts',
+	],
 	'safe-pcm-frame-arithmetic': [
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/wavpack/pcm.js',
@@ -250,6 +260,15 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		implementedControls.get('bounded-direct-archive-publication').summary,
 		/4 MiB.*independent byte counts.*File System Access.*desktop.*512 MiB/iu,
 	);
+	const capacitySummary = implementedControls.get('point-in-time-import-capacity-admission').summary;
+	for (const claim of [
+		/validated manifest assets.*collision-cancel decision.*before copy remapping.*transaction construction.*writer creation/iu,
+		/checked safe-integer sum.*ceil\(10%\).*optional storage estimator once/iu,
+		/cancel performs no estimate.*copy and replace.*full incoming asset total.*absent or unknown estimate permits.*known insufficient.*stable quota error/iu,
+		/cancellation.*signal-ignoring estimate.*no writer or extraction/iu,
+		/8,589,932,094.*9,448,925,304.*before its media writer/iu,
+		/does not update.*lastPreflight.*reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
+	]) assert.match(capacitySummary, claim);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
 	assert.equal(residuals.has('compression-amplification-policy'), false);
 	assert.equal(residuals.has('incomplete-zip-layout-validation'), false);

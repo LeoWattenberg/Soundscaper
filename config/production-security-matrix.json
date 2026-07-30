@@ -77,6 +77,7 @@
 			"entryPoints": [
 				"src/common/editor/scape-archive-reader.ts",
 				"src/common/editor/scape-archive-video.ts",
+				"src/common/editor/scape-import-capacity.ts",
 				"src/common/editor/scape-project.js",
 				"src/common/editor/scape-import-transaction.ts",
 				"src/common/editor/storage.js",
@@ -86,12 +87,15 @@
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-reader.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-video.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/scape-import-capacity.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 				{ "kind": "implementation", "path": "src/common/editor/storage.js" },
 				{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-archive-envelope.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity-admission.test.ts" },
+				{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" },
@@ -577,6 +581,20 @@
 					]
 				},
 				{
+					"id": "point-in-time-import-capacity-admission",
+					"summary": "After validated manifest assets and the existing-project collision-cancel decision, but before copy remapping, transaction construction or capture, source metadata reads, writer creation, or asset extraction, import computes a checked safe-integer sum of every incoming asset size plus exact ceil(10%) headroom and invokes the store's optional storage estimator once. An existing-ID cancel performs no estimate; copy and replace each charge the full incoming asset total without credit for replaced content. An absent or unknown estimate permits import, while known insufficient free bytes throw a stable quota error. Cancellation promptly abandons a signal-ignoring estimate, closes the archive reader, and starts no writer or extraction. The authentic 8 GiB sparse witness pins 8,589,932,094 asset bytes, exactly 9,448,925,304 required free bytes, and capacity estimation before its media writer. This is point-in-time admission only: it does not update the controller storage UI's lastPreflight snapshot, reserve capacity, establish real browser or filesystem quota accuracy, qualify durable OPFS or IndexedDB 8 GiB persistence, account for browser-record or filesystem-allocation overhead beyond the policy headroom, guarantee write-time success, or serialize concurrent writers.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/scape-import-capacity.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-persistence.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-scape-sparse-full-import-integration.test.ts" }
+					]
+				},
+				{
 					"id": "safe-pcm-frame-arithmetic",
 					"summary": "Audio extraction validates each four-byte frame header against the shared 65,536-frame and 64-channel geometry limits before checked byte-length calculation or allocation; parser-owned pending storage is capped at 16 MiB plus the header.",
 					"evidence": [
@@ -608,7 +626,7 @@
 				},
 				{
 					"id": "bounded-random-access-archive-reading",
-					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. A zero-high-water-mark ZIP payload stream makes overlap-only checks lazy instead of prefetching the start of a large entry. Main assigns terminal canonical `.scape` projects the immutable `scape-range-v1` profile, while Audacity and other desktop inputs remain `materialized-v1`. The strict renderer adapter snapshots the descriptor URL/declared size and fetch implementation, splits reads into exact at-most-16-MiB `206` responses, serializes through stream done, and terminally fences the first admitted abort or transport failure without exposing release authority. Project-dialog and OS-association `.scape` descriptors share one explicit router and awaited scope spanning inspection, any open decision, import, and exact-once release. The inspection collision-cancel witness traverses structural inspection and collision lookup before cancellation, transfers less than 8 MiB, touches the huge body only through the at-most-65,557-byte suffix overlapped by the ZIP end-record search, and does not hash that body. Its authentic exact 8 GiB sparse Zip64 current-schema fixture binds the 8,589,932,094-byte all-zero asset to SHA-256 7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be and CRC-32 2,909,126,900. A separate witness takes the full payload through the real read-capability store, Node protocol shim, renderer adapter, file service, project service, and full import into an independent counting-SHA-256 transactional sink with zero payload retention and no Blob materialization; capability release occurs exactly once and the pinned handle close occurs exactly once. That full-import witness remains verified reference evidence and is exposed as the opt-in portable reference-scale gate `npm run test:reference:scape-8gib`. Routine Node and coverage runs fast-skip it because a measured all-files coverage run passed but took 525 seconds. This scheduling does not demote or narrow the verified result; collision-cancel inspection and the corrupted-CRC negative rollback remain in routine coverage. Both witnesses require sparse-file support and use a Node protocol shim, not packaged UI. The counting sink does not qualify OPFS or IndexedDB durable 8 GiB persistence, filesystem quota or preflight behavior, browser heap or process RSS, whole-storage atomicity, or publisher authentication.",
+					"summary": "Archive validation and zip.js share a branded random-access byte source: providers declare a lower-only maximum beneath the non-raiseable 33 MiB logical read ceiling, and returned ranges are measured and copied through captured native `Uint8Array` slots. One exact 69,271,649-byte canonical-profile witness retains admitted end records, central headers, names, extras, comments, local structures, and descriptors; it rejects conflicting overlaps, serves witnessed bytes unchanged, and fetches only payload gaps. Blob behavior remains covered by parity tests. A zero-high-water-mark ZIP payload stream makes overlap-only checks lazy instead of prefetching the start of a large entry. Main assigns terminal canonical `.scape` projects the immutable `scape-range-v1` profile, while Audacity and other desktop inputs remain `materialized-v1`. The strict renderer adapter snapshots the descriptor URL/declared size and fetch implementation, splits reads into exact at-most-16-MiB `206` responses, serializes through stream done, and terminally fences the first admitted abort or transport failure without exposing release authority. Project-dialog and OS-association `.scape` descriptors share one explicit router and awaited scope spanning inspection, any open decision, import, and exact-once release. The inspection collision-cancel witness traverses structural inspection and collision lookup before cancellation, transfers less than 8 MiB, touches the huge body only through the at-most-65,557-byte suffix overlapped by the ZIP end-record search, and does not hash that body. Its authentic exact 8 GiB sparse Zip64 current-schema fixture binds the 8,589,932,094-byte all-zero asset to SHA-256 7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be and CRC-32 2,909,126,900. A separate witness takes the full payload through the real read-capability store, Node protocol shim, renderer adapter, file service, project service, and full import into an independent counting-SHA-256 transactional sink with zero payload retention and no Blob materialization; its point-in-time import-capacity estimate precedes the media writer and admits the exact 9,448,925,304-byte free-space requirement, capability release occurs exactly once, and the pinned handle close occurs exactly once. That full-import witness remains verified reference evidence and is exposed as the opt-in portable reference-scale gate `npm run test:reference:scape-8gib`. Routine Node and coverage runs fast-skip it because a measured all-files coverage run passed but took 525 seconds. This scheduling does not demote or narrow the verified result; collision-cancel inspection and the corrupted-CRC negative rollback remain in routine coverage. Both witnesses require sparse-file support and use a Node protocol shim, not packaged UI. The counting sink does not qualify OPFS or IndexedDB durable 8 GiB persistence, real browser or filesystem quota accuracy or reservation, write-time success under concurrent writers, browser heap or process RSS, whole-storage atomicity, or publisher authentication.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/constants.js" },
 						{ "kind": "implementation", "path": "desktop/file-capabilities.js" },
