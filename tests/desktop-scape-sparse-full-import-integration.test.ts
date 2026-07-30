@@ -34,6 +34,12 @@ import {
 
 const EXACT_ARCHIVE_BYTES = 8 * 1024 ** 3;
 const MAXIMUM_PROTOCOL_RANGE_BYTES = 16 * 1024 ** 2;
+const REFERENCE_SCALE_COMMAND = 'npm run test:reference:scape-8gib';
+const REFERENCE_SCALE_ENVIRONMENT = 'SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB';
+const REFERENCE_SCALE_NPM_LIFECYCLE = 'test:reference:scape-8gib';
+const REFERENCE_SCALE_SKIP_MESSAGE = `Reference-scale test skipped; run \`${REFERENCE_SCALE_COMMAND}\` (or set ${REFERENCE_SCALE_ENVIRONMENT}=1).`;
+const RUN_REFERENCE_SCALE_GATE = process.env.npm_lifecycle_event === REFERENCE_SCALE_NPM_LIFECYCLE
+	|| process.env[REFERENCE_SCALE_ENVIRONMENT] === '1';
 const ZERO_ASSET_SHA256 = '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be';
 const ZERO_ASSET_CRC32 = 2_909_126_900;
 
@@ -231,7 +237,9 @@ class CountingSha256ImportStore implements ScapeImportStore {
 	}
 }
 
-test('an exact 8 GiB sparse desktop Scape fully imports into a counting SHA sink without OPFS or RSS qualification', async (context) => {
+test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully imports into a counting SHA sink without OPFS or RSS qualification', {
+	skip: RUN_REFERENCE_SCALE_GATE ? false : REFERENCE_SCALE_SKIP_MESSAGE,
+}, async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-sparse-full-import-'));
 	let capabilityStore: ReadCapabilityStore | null = null;
 	context.after(async () => {

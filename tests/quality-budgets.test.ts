@@ -102,6 +102,13 @@ const configUrl = new URL('../config/quality-budgets.json', import.meta.url);
 
 test('quality budget contract names numeric gates for every later milestone without claiming qualification', async () => {
 	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
+	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
+		readonly scripts: Readonly<Record<string, string>>;
+	};
+	const referenceScaleTest = await readFile(
+		new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url),
+		'utf8',
+	);
 
 	assert.equal(config.schemaVersion, 1);
 	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
@@ -160,6 +167,12 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.equal(milestone2Fixture?.status, 'provisional');
 	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-range-and-counting-import-witness');
 	assert.deepEqual(milestone2Fixture?.specification, {
+		referenceScaleExecutionCommand: 'npm run test:reference:scape-8gib',
+		referenceScaleEnvironmentOverride: 'SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1',
+		routineNodeTestBehavior: 'skip-with-reference-command',
+		routineCoverageBehavior: 'skip-with-reference-command',
+		observedAllFilesCoverageTestResult: 'passed',
+		observedAllFilesCoverageTestDurationSeconds: 525,
 		logicalBytes: 8_589_934_592,
 		assetBytes: 8_589_932_094,
 		assetSha256: '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be',
@@ -209,7 +222,16 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.match(milestone2Fixture?.limitation ?? '', /quota/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /atomicity/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /publisher authentication/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /routine.*coverage.*skip/iu);
+	assert.equal(
+		packageMetadata.scripts['test:reference:scape-8gib'],
+		'node --import tsx --test tests/desktop-scape-sparse-full-import-integration.test.ts',
+	);
+	assert.match(referenceScaleTest, /process\.env\.npm_lifecycle_event/u);
+	assert.match(referenceScaleTest, /SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB/u);
+	assert.match(referenceScaleTest, /npm run test:reference:scape-8gib/u);
 	assert.deepEqual(milestone2Fixture?.evidence, [
+		'package.json',
 		'tests/desktop-scape-sparse-range-integration.test.ts',
 		'tests/desktop-scape-sparse-full-import-integration.test.ts',
 		'tests/audio-editor-scape-streaming-video.test.ts',

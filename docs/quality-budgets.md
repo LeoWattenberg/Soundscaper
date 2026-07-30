@@ -150,6 +150,15 @@ requires exact at-most-16-MiB `206` ranges, at-most-4-MiB media emissions,
 project publication after media commit, exact-once capability release and
 pinned-handle close, and no whole-archive `Blob` path.
 
+This full-import witness is an explicit portable reference-scale gate. Run it
+with `npm run test:reference:scape-8gib`; a direct Node-test invocation may opt
+in by setting `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1`. It passed when included
+in an all-files coverage run, but the instrumented test took an observed 525
+seconds. Routine `npm test` and `npm run test:coverage` discovery therefore
+reports a fast skip that names the dedicated command. The scheduling change
+does not remove or weaken any full-import assertion, and the observed duration
+is execution evidence rather than a performance qualification threshold.
+
 That counting sink is not real durable application storage. These witnesses do
 not qualify a packaged Electron UI, real OPFS or IndexedDB durable storage,
 quota or preflight behavior, renderer/browser heap, main/renderer RSS,

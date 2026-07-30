@@ -457,8 +457,14 @@ models or native implementations.
   payload. Every protocol response is an exact at-most-16-MiB `206`, every media
   emission is at most 4 MiB, project publication follows media commit, capability
   release and pinned-handle close are exact-once, and no whole-archive `Blob` is
-  created. This Node counting-sink evidence does not qualify packaged Electron
-  UI, real OPFS/IndexedDB durable storage, quota/preflight, renderer/browser heap,
+  created. The portable reference-scale gate runs explicitly with
+  `npm run test:reference:scape-8gib`, or with
+  `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1` for a direct Node-test invocation. It
+  passed in an all-files coverage run, where the instrumented test took an
+  observed 525 seconds; routine Node and coverage runs now report a fast skip
+  naming the dedicated command without weakening the gate's assertions. This
+  Node counting-sink evidence does not qualify packaged Electron UI, real
+  OPFS/IndexedDB durable storage, quota/preflight, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
   authentication. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
