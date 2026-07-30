@@ -21,6 +21,7 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		'src/common/editor/file-save-stream.ts',
 		'src/common/editor/pcm-sink.js',
 		'tests/audio-editor-export-direct-wav.test.ts',
+		'tests/audio-editor-export-direct-wav-reference.test.ts',
 		'tests/audio-editor-file-service.test.js',
 		'tests/audio-editor-pcm-sink.test.js',
 		'tests/desktop-pcm-mix-save-purpose.test.js',
@@ -30,6 +31,10 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		controllerIoBoundary.evidence.some((item) => item.path === 'tests/browser/audio-editor-direct-wav-save.spec.js'),
 		'controller-task-to-io browser evidence',
 	);
+	assert.ok(
+		controllerIoBoundary.evidence.some((item) => item.path === 'tests/audio-editor-export-direct-wav-reference.test.ts'),
+		'controller-task-to-io threshold-scale evidence',
+	);
 	assert.match(
 		exactDirectWav.summary,
 		/dedicated `audio-pcm-mix` purpose.*one plain-WAV mix.*`realtime-stream`.*65 GiB.*exact-size.*not maximum-bounded.*File System Access or Electron.*encoder-emission retention.*one destination write at a time.*64-packet PCM queue.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*no final renderer `Blob`.*BWF.*BW64.*AIFF.*compressed.*video.*stems.*outside/iu,
@@ -38,6 +43,10 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		exactDirectWav.summary,
 		/Chromium and Firefox.*injected File System Access target.*mobile planner profile.*valid RIFF.*no Object URL.*native picker.*65 GiB.*reference-scale.*packaged Electron.*not qualified/iu,
 	);
+	assert.match(
+		exactDirectWav.summary,
+		/385 MiB.*403,701,804-byte RIFF.*SHA-256.*planner.*controller.*64-packet.*resampler.*WAV encoder.*34,603,352-byte.*64 MiB.*zero.*payload\s+retention.*first\s+PCM\s+packet.*renderer heap.*process RSS.*not qualified/iu,
+	);
 
 	for (const path of [
 		'src/common/editor/controller/direct-wav-export.ts',
@@ -45,6 +54,7 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 		'src/common/editor/file-save-stream.ts',
 		'src/common/editor/pcm-sink.js',
 		'tests/audio-editor-export-direct-wav.test.ts',
+		'tests/audio-editor-export-direct-wav-reference.test.ts',
 		'tests/audio-editor-file-service.test.js',
 		'tests/audio-editor-pcm-sink.test.js',
 		'tests/browser/audio-editor-direct-wav-save.spec.js',
@@ -56,6 +66,10 @@ test('direct WAV security controls stay limited to the exact maintained route', 
 	assert.match(
 		directWavRollback.summary,
 		/Chromium and Firefox.*after PCM.*one abort.*no close.*commit-race.*Node-only/iu,
+	);
+	assert.match(
+		directWavRollback.summary,
+		/385 MiB.*first\s+PCM\s+packet.*abort.*without close or commit.*partial.*publication/iu,
 	);
 });
 
@@ -69,6 +83,10 @@ test('direct WAV documentation records byte, buffering, rollback, and acceptance
 	assert.match(
 		documentation,
 		/Chromium and Firefox.*injected File System Access target.*mobile\s+planner profile.*valid RIFF.*no Object URL.*after\s+PCM.*abort.*without close.*native picker.*65 GiB.*reference-scale.*commit-race.*Node-only.*packaged Electron.*not qualified/isu,
+	);
+	assert.match(
+		documentation,
+		/385 MiB.*403,701,804-byte RIFF.*SHA-256.*planner.*controller.*64-packet.*resampler.*WAV.*34,603,352-byte.*64 MiB.*zero.*payload\s+retention.*first\s+PCM\s+packet.*renderer heap.*process RSS.*unqualified/isu,
 	);
 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
@@ -91,6 +109,10 @@ test('direct WAV documentation records byte, buffering, rollback, and acceptance
 	assert.match(
 		roadmap,
 		/Chromium and Firefox.*injected File System Access target.*mobile\s+planner profile.*valid RIFF.*no Object URL.*after\s+PCM.*abort.*without close.*native picker.*65 GiB.*reference-scale.*commit-race.*Node-only.*packaged Electron.*not qualified/isu,
+	);
+	assert.match(
+		roadmap,
+		/385 MiB.*403,701,804-byte RIFF.*SHA-256.*64-packet PCM queue.*34,603,352-byte.*64 MiB.*zero.*payload\s+retention.*first\s+PCM\s+packet.*renderer heap.*process RSS.*unqualified/isu,
 	);
 });
 

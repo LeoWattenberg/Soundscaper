@@ -664,7 +664,19 @@ models or native implementations.
   stems, and non-realtime renders retain their existing staging or in-memory
   paths. The Web Core browser-download fallback also retains its existing final
   `Blob`. Focused Node evidence covers the closed direct-WAV contract, cleanup
-  failures, ownership races, and commit boundary. A compact Chromium and Firefox
+  failures, ownership races, and commit boundary. A separate opt-in
+  [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
+  streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
+  with pinned SHA-256 through the production planner, controller, real
+  64-packet PCM queue at its cap, passthrough resampler, WAV encoder, and
+  counting direct target. Its conservative 34,603,352-byte path-owned binary
+  maximum remains below the planned 64 MiB budget, with zero PCM payload
+  retention at the target. It then cancels a second run after the first PCM
+  packet without close, commit, or partial publication. Renderer heap and
+  process RSS remain unqualified because this deterministic Node witness is an
+  ownership-bound correctness gate, not a browser/process memory measurement.
+  Run it with `npm run test:reference:wav-385mib`; routine Node and coverage
+  discovery fast-skips it. A compact Chromium and Firefox
   workflow uses an injected File System Access target and simulated mobile
   planner profile to drive the maintained export UI through the production
   realtime route. It retains only a bounded header prefix plus counters,
@@ -673,8 +685,8 @@ models or native implementations.
   PCM reaches the target and observes one abort without close or publication.
   This qualifies application-path browser plumbing and pre-commit rollback, not
   native picker availability. The 65 GiB value remains an admission ceiling,
-  not a tested browser file size; reference-scale heap, process RSS, quota,
-  filesystem durability, and actual-device mobile behavior remain unqualified.
+  not a tested browser or Node file size; reference-scale heap, process RSS,
+  quota, filesystem durability, and actual-device mobile behavior remain unqualified.
   Commit-race acceptance remains Node-only, and packaged Electron reference-scale
   acceptance is not qualified.
 - **Web Core — In progress:** the strict-TS
