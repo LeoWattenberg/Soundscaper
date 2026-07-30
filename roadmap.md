@@ -669,12 +669,23 @@ models or native implementations.
   type and `.wav` extension plus an exact positive safe-integer planned file
   byte count at or below 65 GiB. AIFF requires `audio/aiff` and the canonical
   `.aiff` extension plus an exact count at or below 4,294,967,303 bytes, its
-  theoretical 32-bit FORM limit. Every current layout is even, so the largest
-  constructible current layout is 4,294,967,302 bytes. Exact integer AIFF,
-  AIFF-C float, odd PCM padding, and trailing ID3 metadata are planned from the
-  same encoder geometry. BWF requires `audio/wav` and the canonical `.wav`
-  extension plus an exact positive safe-integer planned file byte count at or
-  below 65 GiB. Admission requires an explicit valid sample rate, 1–32 channels,
+  theoretical 32-bit FORM limit. Direct admission requires an explicit valid
+  sample rate, 1–32 channels, from zero through 4,294,967,295 output frames,
+  non-array object metadata, and one canonical (`sampleFormat`, `bitDepth`,
+  `floatingPoint`) tuple: (`int16`, 16, false), (`int24`, 24, false),
+  (`int32`, 32, false), or (`float32`, 32, true). It recomputes
+  `inspectAiffLayout` from those same layout-affecting encoder options, requires
+  AIFF for integer PCM or AIFF-C for float32, and requires the recomputed and
+  planned byte counts to agree.
+  Malformed or stale fields and layouts reject before target selection. The
+  4,294,967,303-byte theoretical maximum is odd and unconstructible under the
+  current aligned layout. A layout-only witness allocates no PCM or output
+  bytes while admitting the largest current constructible 4,294,967,302-byte
+  layout and rejecting its next mono int16 frame. Exact integer AIFF, AIFF-C
+  float, odd PCM padding, and trailing ID3 metadata use that same encoder
+  geometry. BWF requires `audio/wav` and the canonical `.wav` extension plus an
+  exact positive safe-integer planned file byte count at or below 65 GiB.
+  Admission requires an explicit valid sample rate, 1–32 channels,
   a nonnegative safe-integer frame count, object metadata, a marker array, and
   null-or-object iXML and CART. It recomputes the automatic RIFF/RF64 layout with
   `inspectWavLayout` from the same encoder options used by streaming: sample
@@ -749,9 +760,14 @@ models or native implementations.
   compressed or custom audio, video, stems, and non-realtime renders retain
   their existing staging or in-memory paths. The Web Core
   browser-download fallback also retains its existing final `Blob`. Focused
-  Node BWF evidence has five cases covering admission, exact layout and
-  publication, loudness fail-closed behavior, four-way diagnostics, and
-  mid-stream cancellation. Focused Node authored BW64 evidence has six cases
+  Node AIFF evidence has four cases covering exact FORM and metadata geometry,
+  closed admission across all four canonical encoding tuples, malformed and
+  stale layout refusal before target selection, the exact 4,294,967,302-byte
+  constructible boundary and next-frame refusal without PCM or output
+  allocation, realtime direct publication, picker cancellation, and mid-stream
+  rollback. Focused Node BWF evidence has five cases covering admission, exact
+  layout and publication, loudness fail-closed behavior, four-way diagnostics,
+  and mid-stream cancellation. Focused Node authored BW64 evidence has six cases
   covering closed admission across mono, stereo, and 5.1 integer plans, exact
   standard-metadata preparation, canonical ds64/BEXT/fmt/CHNA/data/AXML
   streaming and publication, loudness fail-closed behavior, four-way
@@ -761,9 +777,8 @@ models or native implementations.
   nonstructural chunk bytes/order/placement and publication, closed admission,
   modeled-metadata collision refusal, stale or edited planning refusal, and
   loudness fail-closed behavior. It remained green at 383 test files. Focused
-  WAV and AIFF evidence retains completion,
-  cancellation, exact AIFF geometry, padding, metadata, cleanup, and shared
-  commit accounting; the wider WAV suite additionally covers cleanup failures,
+  WAV evidence retains completion, cancellation, cleanup, and shared commit
+  accounting; the wider WAV suite additionally covers cleanup failures,
   ownership races, and the commit boundary. A separate opt-in
   [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
   streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
