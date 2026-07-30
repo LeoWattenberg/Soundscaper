@@ -73,6 +73,17 @@ test('Scape range registration derives canonical identity from a terminal .scape
 	assert.equal(openCalls, 1);
 });
 
+test('read descriptors normalize pre-epoch filesystem timestamps before publication', async (context) => {
+	const store = new ReadCapabilityStore({
+		openImpl: async () => fakeHandle({ size: 1, mtimeMs: -1_234.5 }),
+	});
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+
+	const descriptor = await store.registerScapeRangePath('/tmp/archive.scape', { owner: OWNER_A });
+	assert.equal(descriptor.lastModified, 0);
+	assert.equal(store.get(descriptor.id)?.lastModified, 0);
+});
+
 test('large Scape ranges have an independent 65 GiB boundary and materialized reads remain at 512 MiB', async (context) => {
 	const boundaryHandle = fakeHandle({ size: MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES });
 	const rangeExcessHandle = fakeHandle({ size: MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES + 1 });
@@ -291,12 +302,12 @@ test('production Scape range limits are fixed at four capabilities and 65 GiB', 
 	);
 });
 
-function fakeHandle({ size, closeImpl = async () => undefined } = {}) {
+function fakeHandle({ size, mtimeMs = 1_700_000_000_000, closeImpl = async () => undefined } = {}) {
 	let closeCalls = 0;
 	return {
 		get closeCalls() { return closeCalls; },
 		async stat() {
-			return { isFile: () => true, size, mtimeMs: 1_700_000_000_000 };
+			return { isFile: () => true, size, mtimeMs };
 		},
 		async close() {
 			closeCalls += 1;

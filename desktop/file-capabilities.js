@@ -219,7 +219,7 @@ export class ReadCapabilityStore {
 				mimeType: mimeType || mimeTypeForPath(filePath),
 				readProfile,
 				rangeTicket,
-				lastModified: Math.trunc(details.mtimeMs),
+				lastModified: safeReadTimestamp(details.mtimeMs),
 				expiresAt: this.#now() + this.#ttlMs,
 				request: null,
 				retirement: null,
@@ -581,6 +581,11 @@ function descriptorFor(entry) {
 function cleanDisplayName(value) {
 	const name = String(value || 'file').replace(/[\u0000-\u001f/\\]/gu, '-').slice(0, 255);
 	return name || 'file';
+}
+
+function safeReadTimestamp(value) {
+	const timestamp = Math.trunc(value);
+	return Number.isSafeInteger(timestamp) ? Math.max(0, timestamp) : 0;
 }
 
 function readRequestRetiredError() {
