@@ -386,6 +386,10 @@ async function chooseFiles(event, value) {
 async function chooseSaveTarget(event, value) {
 	const owner = rendererSaveOwnerFor(event);
 	const choice = validateSaveChoice(value);
+	const smokeFilePath = await desktopSmokeProbe.resolveSavePath(choice);
+	if (smokeFilePath !== null) {
+		return saveTargets.registerPath(smokeFilePath, { owner, purpose: choice.purpose });
+	}
 	const result = await dialog.showSaveDialog(mainWindow, {
 		title: choice.purpose === 'project' ? 'Export Audacity interchange' : 'Export',
 		defaultPath: choice.suggestedName,

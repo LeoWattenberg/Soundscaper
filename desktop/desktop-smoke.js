@@ -2,6 +2,16 @@
 
 import { createHash } from 'node:crypto';
 
+import {
+	DESKTOP_DIRECT_WAV_SMOKE_MODE,
+	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
+	createDirectWavSmokeTargetHarness,
+	decodeDirectWavSmokePlan,
+	runDirectWavRendererSmoke,
+	validateDirectWavRendererResult,
+	validateDirectWavSmokeResult,
+} from './direct-wav-smoke.js';
+
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
 const SMOKE_PLAN_PREFIX = '--soundscaper-smoke-plan=';
@@ -45,12 +55,18 @@ export function parseDesktopSmokeConfiguration(argv) {
 		return Object.freeze({ mode: 'artifact', plan: null });
 	}
 	if (modes.length === 0 && plans.length > 0) {
-		throw new TypeError('Desktop smoke plan requires project-library smoke mode');
+		throw new TypeError('Desktop smoke plan requires project-library or direct-WAV smoke mode');
 	}
 	if (modes.length !== 1) throw new TypeError('Desktop smoke requires exactly one smoke mode');
-	if (modes[0] !== PROJECT_LIBRARY_MODE) throw new TypeError('Unsupported desktop smoke mode');
-	if (plans.length !== 1) throw new TypeError('Project-library smoke mode requires exactly one smoke plan');
-	return deepFreeze({ mode: PROJECT_LIBRARY_MODE, plan: decodePlan(plans[0]) });
+	if (modes[0] === PROJECT_LIBRARY_MODE) {
+		if (plans.length !== 1) throw new TypeError('Project-library smoke mode requires exactly one smoke plan');
+		return deepFreeze({ mode: PROJECT_LIBRARY_MODE, plan: decodePlan(plans[0]) });
+	}
+	if (modes[0] === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
+		if (plans.length !== 1) throw new TypeError('Direct-WAV smoke mode requires exactly one smoke plan');
+		return deepFreeze({ mode: DESKTOP_DIRECT_WAV_SMOKE_MODE, plan: decodeDirectWavSmokePlan(plans[0]) });
+	}
+	throw new TypeError('Unsupported desktop smoke mode');
 }
 
 export function createDesktopSmokeProbe(options) {
@@ -66,6 +82,13 @@ export function createDesktopSmokeProbe(options) {
 	const projectLibraryEvidence = options?.projectLibraryEvidence;
 	if (configuration.mode === PROJECT_LIBRARY_MODE && typeof projectLibraryEvidence !== 'function') {
 		throw new TypeError('Project-library smoke requires a main-process evidence callback');
+	}
+	const directWavTargetHarness = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
+		? options?.directWavTargetHarness ?? createDirectWavSmokeTargetHarness({ argv: options?.argv })
+		: null;
+	if (directWavTargetHarness && (typeof directWavTargetHarness.resolveSavePath !== 'function'
+		|| typeof directWavTargetHarness.evidence !== 'function')) {
+		throw new TypeError('Direct-WAV smoke requires a target harness');
 	}
 
 	let attachedWindow = null;
@@ -93,7 +116,7 @@ export function createDesktopSmokeProbe(options) {
 		attachedWindow = window;
 		timeout = schedule(() => {
 			void fail(`${prefixFor(configuration.mode)} timed out`);
-		}, 15_000);
+		}, configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE ? 180_000 : 15_000);
 		window.webContents.once('did-fail-load', (_event, code, description) => {
 			void fail(`${prefixFor(configuration.mode)} load failed: ${String(code)} ${String(description)}`);
 		});
@@ -124,12 +147,33 @@ export function createDesktopSmokeProbe(options) {
 	};
 
 	const rendererReady = async () => {
-		if (configuration.mode !== PROJECT_LIBRARY_MODE || started || finished) return;
+		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE].includes(configuration.mode)
+			|| started || finished) return;
 		started = true;
 		try {
 			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
 			const plan = configuration.plan;
 			if (!plan || plan.productId !== productId) throw new Error('Packaged smoke plan targets a different product');
+			if (configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
+				const renderer = validateDirectWavRendererResult(
+					await attachedWindow.webContents.executeJavaScript(
+						`(${runDirectWavRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
+						true,
+					),
+				);
+				const native = await directWavTargetHarness.evidence();
+				const payload = validateDirectWavSmokeResult({
+					schemaVersion: 1,
+					mode: DESKTOP_DIRECT_WAV_SMOKE_MODE,
+					productId,
+					token: plan.token,
+					renderer,
+					native,
+				}, plan);
+				log(`${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			const rendererResult = await attachedWindow.webContents.executeJavaScript(
 				`(${runProjectLibraryRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
 			);
@@ -139,11 +183,14 @@ export function createDesktopSmokeProbe(options) {
 			log(`${DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
 			await finish(0);
 		} catch (error) {
-			await fail(`${DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX} failed: ${cleanError(error)}`);
+			await fail(`${prefixFor(configuration.mode)} failed: ${cleanError(error)}`);
 		}
 	};
+	const resolveSavePath = async (choice) => configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
+		? directWavTargetHarness.resolveSavePath(choice)
+		: null;
 
-	return Object.freeze({ attach, rendererReady });
+	return Object.freeze({ attach, rendererReady, resolveSavePath });
 }
 
 export async function runProjectLibraryRendererSmoke(scope, plan) {
@@ -376,7 +423,9 @@ function requiredProduct(value) {
 }
 
 function prefixFor(mode) {
-	return mode === PROJECT_LIBRARY_MODE ? DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX : 'SOUNDSCAPER_DESKTOP_SMOKE';
+	if (mode === PROJECT_LIBRARY_MODE) return DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX;
+	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
+	return 'SOUNDSCAPER_DESKTOP_SMOKE';
 }
 
 function sha256(value) {

@@ -129,6 +129,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
+	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
@@ -204,8 +205,15 @@ test('desktop main owns file capabilities by committed renderer document', async
 	const chooseEnd = mainSource.indexOf('\nfunction ', chooseStart);
 	const chooseSource = mainSource.slice(chooseStart, chooseEnd);
 	const captureIndex = chooseSource.indexOf('rendererSaveOwnerFor(event)');
+	const validationIndex = chooseSource.indexOf('validateSaveChoice(value)');
+	const smokeTargetIndex = chooseSource.indexOf('await desktopSmokeProbe.resolveSavePath(choice)');
 	const dialogIndex = chooseSource.indexOf('await dialog.showSaveDialog');
 	assert.ok(captureIndex >= 0 && captureIndex < dialogIndex, 'save-dialog ownership is captured before awaiting user input');
+	assert.ok(
+		validationIndex >= 0 && smokeTargetIndex > validationIndex && smokeTargetIndex < dialogIndex,
+		'validated packaged-smoke targets bypass the native dialog before any user-selected path is admitted',
+	);
+	assert.match(chooseSource, /registerPath\(smokeFilePath, \{ owner, purpose: choice\.purpose \}\)/u);
 	assert.match(chooseSource, /registerPath\(result\.filePath, \{ owner,/u);
 
 	for (const channel of ['beginWrite', 'writeChunk', 'finishWrite', 'abortWrite']) {

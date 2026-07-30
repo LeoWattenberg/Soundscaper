@@ -10,10 +10,13 @@ import {
 	parseDesktopSmokeConfiguration,
 	runProjectLibraryRendererSmoke,
 } from '../desktop/desktop-smoke.js';
+import { DESKTOP_DIRECT_WAV_SMOKE_PREFIX } from '../desktop/direct-wav-smoke.js';
 
 const HANDOFF_MODE = '--soundscaper-smoke-mode=project-library-handoff-v1';
 const PROJECT_ID = 'packaged-handoff-project';
 const MODE = 'project-library-handoff-v1';
+const DIRECT_WAV_MODE = 'direct-wav-export-v1';
+const DIRECT_WAV_TOKEN = '0123456789abcdef0123456789abcdef';
 
 test('desktop smoke configuration preserves the base artifact probe', () => {
 	assert.deepEqual(parseDesktopSmokeConfiguration(['/opt/Soundscaper']), {
@@ -275,6 +278,126 @@ test('project-library lifecycle waits for renderer ready and emits only the runn
 	assert.doesNotMatch(serialized, /private-instance|processId|metadataFile/iu);
 });
 
+test('direct-WAV lifecycle resolves only smoke targets and emits bounded renderer and native evidence', async () => {
+	const plan = {
+		schemaVersion: 1,
+		mode: DIRECT_WAV_MODE,
+		productId: 'soundscaper',
+		token: DIRECT_WAV_TOKEN,
+	};
+	const selections = [];
+	const targetPaths = ['/private/smoke/completed.wav', '/private/smoke/cancelled.wav'];
+	const fixture = probeFixture({
+		argv: [
+			'/opt/Soundscaper',
+			'--soundscaper-smoke',
+			`--soundscaper-smoke-mode=${DIRECT_WAV_MODE}`,
+			`--soundscaper-smoke-plan=${encodePlan(plan)}`,
+			'--soundscaper-smoke-app-data=/private/smoke-root',
+		],
+		executionResult: {
+			imported: true,
+			completed: true,
+			cancelled: true,
+			realtimeCount: 2,
+			downloadVisible: false,
+		},
+		directWavTargetHarness: {
+			async resolveSavePath(choice) {
+				selections.push(choice.purpose);
+				return targetPaths[selections.length - 1] ?? null;
+			},
+			async evidence() {
+				return {
+					selectionPurposes: [...selections],
+					completedBytes: 202_751_788,
+					cancelledAbsent: true,
+					stagingFilesRemaining: 0,
+				};
+			},
+		},
+	});
+
+	fixture.probe.attach(fixture.window);
+	assert.deepEqual(fixture.scheduledDelays, [180_000]);
+	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[0]);
+	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
+	await fixture.probe.rendererReady();
+
+	assert.deepEqual(fixture.exits, [0]);
+	assert.deepEqual(fixture.window.webContents.userGestures, [true]);
+	assert.equal(fixture.errors.length, 0);
+	assert.equal(fixture.logs.length, 1);
+	assert.match(fixture.logs[0], new RegExp(`^${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} `, 'u'));
+	assert.deepEqual(JSON.parse(fixture.logs[0].slice(DESKTOP_DIRECT_WAV_SMOKE_PREFIX.length + 1)), {
+		schemaVersion: 1,
+		mode: DIRECT_WAV_MODE,
+		productId: 'soundscaper',
+		token: DIRECT_WAV_TOKEN,
+		renderer: {
+			imported: true,
+			completed: true,
+			cancelled: true,
+			realtimeCount: 2,
+			downloadVisible: false,
+		},
+		native: {
+			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix'],
+			completedBytes: 202_751_788,
+			cancelledAbsent: true,
+			stagingFilesRemaining: 0,
+		},
+	});
+	assert.doesNotMatch(fixture.logs[0], /private\/smoke/u);
+});
+
+test('direct-WAV lifecycle reports validation failures under its own bounded prefix', async () => {
+	const plan = {
+		schemaVersion: 1,
+		mode: DIRECT_WAV_MODE,
+		productId: 'soundscaper',
+		token: DIRECT_WAV_TOKEN,
+	};
+	let evidenceCalls = 0;
+	const fixture = probeFixture({
+		argv: [
+			'/opt/Soundscaper',
+			'--soundscaper-smoke',
+			`--soundscaper-smoke-mode=${DIRECT_WAV_MODE}`,
+			`--soundscaper-smoke-plan=${encodePlan(plan)}`,
+			'--soundscaper-smoke-app-data=/private/smoke-root',
+		],
+		executionResult: {
+			imported: true,
+			completed: true,
+			cancelled: true,
+			realtimeCount: 1,
+			downloadVisible: false,
+		},
+		directWavTargetHarness: {
+			resolveSavePath: async () => null,
+			evidence: async () => {
+				evidenceCalls += 1;
+				return {
+					selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix'],
+					completedBytes: 202_751_788,
+					cancelledAbsent: true,
+					stagingFilesRemaining: 0,
+				};
+			},
+		},
+	});
+	fixture.probe.attach(fixture.window);
+
+	await fixture.probe.rendererReady();
+
+	assert.deepEqual(fixture.exits, [2]);
+	assert.equal(fixture.logs.length, 0);
+	assert.equal(fixture.errors.length, 1);
+	assert.equal(evidenceCalls, 0);
+	assert.match(fixture.errors[0], new RegExp(`^${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} failed:`, 'u'));
+});
+
 function handoffPlan({
 	stage = 'publish',
 	productId = 'soundscaper',
@@ -371,11 +494,13 @@ function probeFixture({
 	appName = 'Soundscaper',
 	appOrigin = 'soundscaper-app://bundle',
 	plan = null,
+	directWavTargetHarness = undefined,
 }) {
 	const logs = [];
 	const errors = [];
 	const exits = [];
 	const evidenceCalls = [];
+	const scheduledDelays = [];
 	const window = fakeWindow(executionResult);
 	const target = plan?.target ?? handoffPlan().target;
 	const probe = createDesktopSmokeProbe({
@@ -405,21 +530,27 @@ function probeFixture({
 				},
 			};
 		},
-		setTimeout: () => 1,
+		directWavTargetHarness,
+		setTimeout: (_callback, delay) => {
+			scheduledDelays.push(delay);
+			return 1;
+		},
 		clearTimeout: () => undefined,
 	});
-	return { errors, evidenceCalls, exits, logs, probe, window };
+	return { errors, evidenceCalls, exits, logs, probe, scheduledDelays, window };
 }
 
 function fakeWindow(executionResult) {
 	const listeners = new Map();
 	const webContents = {
 		executions: [],
+		userGestures: [],
 		once(name, listener) {
 			listeners.set(name, listener);
 		},
-		async executeJavaScript(source) {
+		async executeJavaScript(source, userGesture = false) {
 			this.executions.push(source);
+			this.userGestures.push(userGesture === true);
 			return structuredClone(executionResult);
 		},
 		async emit(name, ...args) {
