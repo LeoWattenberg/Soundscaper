@@ -10,7 +10,7 @@ export const MAX_LIBRARY_PROJECT_ID_BYTES = 4 * 1024;
 export const MAX_LIBRARY_PROJECTS = 10_000;
 export const MAX_LIBRARY_MEDIA = 50_000;
 
-const LIBRARY_SCOPE = Object.freeze(['kw.media', 'scape-project-library', 'v1']);
+const LIBRARY_SCOPE = Object.freeze(['kw.media', 'scape-project-library', 'v2']);
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper'] as const);
 const EXACT_PATH_KEYS = Object.freeze(['libraryRoot', 'databasePath', 'projectsRoot', 'managedMediaRoot'] as const);
 const METADATA_KEYS = Object.freeze(['schemaVersion', 'revision', 'projects', 'media']);

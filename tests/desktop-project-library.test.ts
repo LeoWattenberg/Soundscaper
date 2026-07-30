@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -14,7 +14,9 @@ import { fileURLToPath } from 'node:url';
 import {
 	createDesktopLibraryProjectMetadataFile,
 	createDesktopProjectLibraryPaths,
+	type DesktopLibraryLease,
 	type DesktopLibraryMetadata,
+	type DesktopProjectLibraryPaths,
 	validateDesktopLibraryMetadata,
 } from '../desktop/project-library-contract.ts';
 import {
@@ -39,7 +41,7 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
 
 	assert.equal(isAbsolute(paths.libraryRoot), true);
-	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v1'));
+	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v2'));
 	assert.equal(relative(paths.libraryRoot, paths.databasePath), 'library.sqlite3');
 	assert.equal(relative(paths.libraryRoot, paths.projectsRoot), 'projects');
 	assert.equal(relative(paths.libraryRoot, paths.managedMediaRoot), 'media');
@@ -69,6 +71,7 @@ test('metadata publication is atomic, scoped, and strictly validated', async (co
 		second.close();
 	});
 	const lease = await first.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
+	await materializePopulatedProject(first, lease, fixture.paths);
 
 	assert.deepEqual(first.readMetadata(), emptyMetadata());
 	const revision = populatedMetadata(1);
@@ -291,6 +294,7 @@ test('recovery journals restore interrupted writes and recognize committed write
 	const fixture = await createFixture(context);
 	const initial = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	let lease = await initial.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
+	await materializePopulatedProject(initial, lease, fixture.paths);
 	await initial.publishMetadata({ lease, metadata: populatedMetadata(1) });
 	await initial.releaseLease(lease);
 	initial.close();
@@ -404,4 +408,18 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			sha256: 'a'.repeat(64),
 		}],
 	};
+}
+
+async function materializePopulatedProject(
+	library: SharedDesktopProjectLibrary,
+	lease: DesktopLibraryLease,
+	paths: DesktopProjectLibraryPaths,
+): Promise<void> {
+	const project = populatedMetadata(1).projects[0];
+	if (!project) throw new Error('Expected populated project metadata');
+	const stageFile = `${project.id}/.${'b'.repeat(32)}.stage`;
+	await mkdir(join(paths.projectsRoot, project.id), { recursive: true });
+	library.reserveProjectFile({ lease, metadataFile: project.metadataFile });
+	await writeFile(join(paths.projectsRoot, ...stageFile.split('/')), 'metadata publication fixture');
+	library.materializeProjectFile({ lease, metadataFile: project.metadataFile, stageFile });
 }

@@ -21,7 +21,10 @@ import test, { type TestContext } from 'node:test';
 import {
 	createDesktopLibraryProjectMetadataFile,
 	createDesktopProjectLibraryPaths,
+	type DesktopLibraryLease,
+	type DesktopProjectLibraryPaths,
 } from '../desktop/project-library-contract.ts';
+import { createDesktopLibraryProjectQuarantineFile } from '../desktop/project-library-file-inventory.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { DesktopLibraryProjectReclaimer } from '../desktop/project-library-reclamation.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
@@ -67,16 +70,18 @@ test('reclamation protects current and pending journal documents before recovery
 	);
 	assert.equal(await exists(secondPath), true, 'the losing immutable file exists before recovery');
 
-	const orphanDirectory = join(fixture.paths.projectsRoot, 'orphan-entry-01');
-	const orphanPath = join(orphanDirectory, `7-${'b'.repeat(64)}.json`);
-	const stagePath = join(orphanDirectory, `.${'c'.repeat(32)}.stage`);
-	await mkdir(orphanDirectory, { recursive: true });
-	await writeFile(orphanPath, 'unreachable immutable project');
-	await writeFile(stagePath, 'unrecognized stage remains conservative');
-	const reclaimer = new DesktopLibraryProjectReclaimer(fixture.paths, {
-		now: fixture.now,
-		randomId: () => 'd'.repeat(32),
+	const orphan = await materializeUnreachableFile({
+		library,
+		lease,
+		paths: fixture.paths,
+		entryId: 'orphan-entry-01',
+		revision: 7,
+		digest: 'b'.repeat(64),
+		stageId: 'd'.repeat(32),
 	});
+	const stagePath = join(fixture.paths.projectsRoot, 'orphan-entry-01', `.${'c'.repeat(32)}.stage`);
+	await writeFile(stagePath, 'unrecognized stage remains conservative');
+	const reclaimer = new DesktopLibraryProjectReclaimer(fixture.paths, { now: fixture.now });
 
 	const beforeRecovery = await reclaimer.reclaim({ lease });
 	assert.equal(beforeRecovery.canonicalFiles, 3);
@@ -84,7 +89,7 @@ test('reclamation protects current and pending journal documents before recovery
 	assert.equal(beforeRecovery.reclaimedFiles, 1);
 	assert.equal(await exists(join(fixture.paths.projectsRoot, first.catalog.metadataFile)), true);
 	assert.equal(await exists(secondPath), true);
-	assert.equal(await exists(orphanPath), false);
+	assert.equal(await exists(orphan.path), false);
 	assert.equal(await exists(stagePath), true);
 
 	assert.deepEqual(await library.recoverMetadata({ lease }), {
@@ -223,9 +228,16 @@ test('a higher fencing token can reuse a discovered orphan before stale reclamat
 	});
 	const original = await firstLibrary.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
 	const project = currentProject('reused identity', 1);
-	const candidatePath = immutablePath(fixture.paths.projectsRoot, ENTRY_A, project);
-	await mkdir(join(fixture.paths.projectsRoot, ENTRY_A), { recursive: true });
-	await writeFile(candidatePath, serializeScapeProjectDocument(project));
+	const candidate = await materializeUnreachableFile({
+		library: firstLibrary,
+		lease: original,
+		paths: fixture.paths,
+		entryId: ENTRY_A,
+		revision: project.revision,
+		digest: createHash('sha256').update(serializeScapeProjectDocument(project), 'utf8').digest('hex'),
+		stageId: '1'.repeat(32),
+		contents: serializeScapeProjectDocument(project),
+	});
 	let confirmPlanned: (() => void) | undefined;
 	let continueReclamation: (() => void) | undefined;
 	const planned = new Promise<void>((resolvePromise) => { confirmPlanned = resolvePromise; });
@@ -248,7 +260,7 @@ test('a higher fencing token can reuse a discovered orphan before stale reclamat
 	continueReclamation?.();
 	await assert.rejects(staleRun, /no longer owns the lease/u);
 	assert.deepEqual(await secondProjects.readProject(ENTRY_A), committed);
-	assert.equal(await exists(candidatePath), true);
+	assert.equal(await exists(candidate.path), true);
 	const replacementResult = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
 	}).reclaim({ lease: replacement });
@@ -261,13 +273,20 @@ test('batch boundaries permit lease renewal during a bounded reclamation pass', 
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
-	const directory = join(fixture.paths.projectsRoot, 'batch-orphan-entry');
-	await mkdir(directory, { recursive: true });
-	const candidates = Array.from({ length: 65 }, (_, index) => {
+	const candidates: string[] = [];
+	for (const index of Array.from({ length: 65 }, (_, candidateIndex) => candidateIndex)) {
 		const revision = index + 1;
-		return join(directory, `${String(revision)}-${revision.toString(16).padStart(64, '0')}.json`);
-	});
-	await Promise.all(candidates.map((path) => writeFile(path, 'unreachable immutable project')));
+		const candidate = await materializeUnreachableFile({
+			library,
+			lease,
+			paths: fixture.paths,
+			entryId: 'batch-orphan-entry',
+			revision,
+			digest: revision.toString(16).padStart(64, '0'),
+			stageId: revision.toString(16).padStart(32, '0'),
+		});
+		candidates.push(candidate.path);
+	}
 	let completedBatches = 0;
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
@@ -284,15 +303,26 @@ test('batch boundaries permit lease renewal during a bounded reclamation pass', 
 	assert.equal(await exists(candidates.at(-1) ?? ''), false);
 });
 
-test('a bounded inventory reports incomplete work without blocking a later retry', async (context) => {
+test('a bounded authoritative inventory reports incomplete work without blocking a later retry', async (context) => {
 	const fixture = await createFixture(context);
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
-	const directory = join(fixture.paths.projectsRoot, 'bounded-orphan-entry');
-	const orphanPath = join(directory, `1-${'6'.repeat(64)}.json`);
-	await mkdir(directory, { recursive: true });
-	await writeFile(orphanPath, 'retryable immutable project');
+	const projects = new DesktopLibraryProjectStore(library);
+	const protectedProject = await projects.commitProject({
+		...commitOptions(ENTRY_A, currentProject('bounded protected identity', 1)),
+		lease,
+	});
+	const protectedPath = join(fixture.paths.projectsRoot, protectedProject.catalog.metadataFile);
+	const orphan = await materializeUnreachableFile({
+		library,
+		lease,
+		paths: fixture.paths,
+		entryId: 'bounded-orphan-entry',
+		revision: 1,
+		digest: '6'.repeat(64),
+		stageId: '7'.repeat(32),
+	});
 
 	const bounded = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 1,
@@ -301,14 +331,16 @@ test('a bounded inventory reports incomplete work without blocking a later retry
 	assert.equal(bounded.complete, false);
 	assert.equal(bounded.scannedEntries, 1);
 	assert.equal(bounded.reclaimedFiles, 0);
-	assert.equal(await exists(orphanPath), true);
+	assert.equal(await exists(protectedPath), true);
+	assert.equal(await exists(orphan.path), true);
 	const retry = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 2,
 		now: fixture.now,
 	}).reclaim({ lease });
 	assert.equal(retry.complete, true);
 	assert.equal(retry.reclaimedFiles, 1);
-	assert.equal(await exists(orphanPath), false);
+	assert.equal(await exists(protectedPath), true);
+	assert.equal(await exists(orphan.path), false);
 });
 
 test('portable path aliases remain protected across filesystem case rules', async (context) => {
@@ -339,6 +371,9 @@ test('portable path aliases remain protected across filesystem case rules', asyn
 	} else {
 		await writeFile(aliasPath, await readFile(livePath));
 	}
+	const aliasMetadataFile = committed.catalog.metadataFile.toLowerCase();
+	library.reserveProjectFile({ lease, metadataFile: aliasMetadataFile });
+	library.materializeProjectFile({ lease, metadataFile: aliasMetadataFile, stageFile: null });
 
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
@@ -367,20 +402,39 @@ test('reclamation ignores foreign entries and symlinked project directories', {
 		writeFile(foreignPath, 'foreign'),
 		writeFile(quarantinePath, 'abandoned quarantine'),
 	]);
+	const tracked = await materializeUnreachableFile({
+		library,
+		lease,
+		paths: fixture.paths,
+		entryId: ENTRY_A,
+		revision: 1,
+		digest: 'd'.repeat(64),
+		stageId: 'e'.repeat(32),
+	});
+	const trackedQuarantinePath = join(
+		fixture.paths.projectsRoot,
+		...createDesktopLibraryProjectQuarantineFile(tracked.metadataFile).split('/'),
+	);
+	await rename(tracked.path, trackedQuarantinePath);
 	const outside = join(fixture.appDataRoot, 'outside-projects');
 	await mkdir(outside);
 	const outsideCanonical = join(outside, `1-${'c'.repeat(64)}.json`);
 	await writeFile(outsideCanonical, 'outside');
 	await symlink(outside, join(fixture.paths.projectsRoot, 'symlink-entry-1'), 'dir');
+	library.reserveProjectFile({
+		lease,
+		metadataFile: createDesktopLibraryProjectMetadataFile('symlink-entry-1', 1, 'c'.repeat(64)),
+	});
 
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
 	}).reclaim({ lease });
-	assert.equal(result.canonicalFiles, 0);
+	assert.equal(result.canonicalFiles, 2);
 	assert.equal(result.reclaimedFiles, 1, 'only the collector-owned quarantine is reclaimed');
 	assert.equal(await exists(stagePath), true);
 	assert.equal(await exists(foreignPath), true);
-	assert.equal(await exists(quarantinePath), false);
+	assert.equal(await readFile(quarantinePath, 'utf8'), 'abandoned quarantine');
+	assert.equal(await exists(trackedQuarantinePath), false);
 	assert.equal(await readFile(outsideCanonical, 'utf8'), 'outside');
 	assert.equal((await lstat(join(fixture.paths.projectsRoot, 'symlink-entry-1'))).isSymbolicLink(), true);
 });
@@ -424,10 +478,16 @@ test('corrupt pending journal metadata fails closed before filesystem mutation',
 		() => projects.commitProject({ ...commitOptions(ENTRY_A, currentProject('corrupt identity', 2)), lease }),
 		/corruptible journal/u,
 	);
-	const orphanDirectory = join(fixture.paths.projectsRoot, 'orphan-entry-02');
-	const orphanPath = join(orphanDirectory, `3-${'f'.repeat(64)}.json`);
-	await mkdir(orphanDirectory, { recursive: true });
-	await writeFile(orphanPath, 'must survive corrupt reference metadata');
+	const orphan = await materializeUnreachableFile({
+		library,
+		lease,
+		paths: fixture.paths,
+		entryId: 'orphan-entry-02',
+		revision: 3,
+		digest: 'f'.repeat(64),
+		stageId: '2'.repeat(32),
+		contents: 'must survive corrupt reference metadata',
+	});
 	const raw = new DatabaseSync(fixture.paths.databasePath);
 	raw.prepare("UPDATE metadata_journal SET previous_digest = 'invalid' WHERE state = 'prepared'").run();
 	raw.close();
@@ -436,7 +496,7 @@ test('corrupt pending journal metadata fails closed before filesystem mutation',
 		() => new DesktopLibraryProjectReclaimer(fixture.paths, { now: fixture.now }).reclaim({ lease }),
 		/journal previous metadata.*digest|integrity/iu,
 	);
-	assert.equal(await exists(orphanPath), true);
+	assert.equal(await exists(orphan.path), true);
 });
 
 async function createFixture(context: TestContext) {
@@ -480,6 +540,29 @@ function immutablePath(projectsRoot: string, entryId: string, project: ReturnTyp
 		projectsRoot,
 		createDesktopLibraryProjectMetadataFile(entryId, project.revision, sha256),
 	);
+}
+
+async function materializeUnreachableFile(options: Readonly<{
+	library: SharedDesktopProjectLibrary;
+	lease: DesktopLibraryLease;
+	paths: DesktopProjectLibraryPaths;
+	entryId: string;
+	revision: number;
+	digest: string;
+	stageId: string;
+	contents?: string;
+}>): Promise<Readonly<{ metadataFile: string; path: string }>> {
+	const metadataFile = createDesktopLibraryProjectMetadataFile(options.entryId, options.revision, options.digest);
+	const stageFile = `${options.entryId}/.${options.stageId}.stage`;
+	const stagePath = join(options.paths.projectsRoot, ...stageFile.split('/'));
+	await mkdir(join(options.paths.projectsRoot, options.entryId), { recursive: true });
+	options.library.reserveProjectFile({ lease: options.lease, metadataFile });
+	await writeFile(stagePath, options.contents ?? `unreachable project ${options.revision}`);
+	options.library.materializeProjectFile({ lease: options.lease, metadataFile, stageFile });
+	return Object.freeze({
+		metadataFile,
+		path: join(options.paths.projectsRoot, ...metadataFile.split('/')),
+	});
 }
 
 async function exists(path: string): Promise<boolean> {

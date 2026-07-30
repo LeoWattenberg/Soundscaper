@@ -7,7 +7,6 @@ import {
 	mkdir,
 	open,
 	readFile,
-	rename,
 	unlink,
 	type FileHandle,
 } from 'node:fs/promises';
@@ -180,7 +179,7 @@ export class DesktopLibraryProjectStore {
 			media: current.media,
 		});
 		const catalog = requiredProject(next, options.entryId);
-		await this.#ensureDocument(catalog, bytes, options.signal);
+		await this.#ensureDocument(catalog, bytes, options.lease, options.signal);
 		throwIfAborted(options.signal);
 		this.#library.assertLease(options.lease);
 		await this.#library.publishMetadata({ lease: options.lease, metadata: next, signal: options.signal });
@@ -201,16 +200,18 @@ export class DesktopLibraryProjectStore {
 	async #ensureDocument(
 		catalog: DesktopLibraryProject,
 		bytes: Uint8Array,
+		lease: DesktopLibraryLease,
 		signal?: AbortSignal,
 	): Promise<void> {
+		this.#library.reserveProjectFile({ lease, metadataFile: catalog.metadataFile });
 		try {
 			await this.#readDocument(catalog, signal);
+			this.#library.materializeProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile: null });
 			return;
 		} catch (error) {
 			if (!isMissingFile(error)) throw error;
 		}
 		const directory = join(this.#library.paths.projectsRoot, catalog.id);
-		const finalPath = join(this.#library.paths.projectsRoot, ...catalog.metadataFile.split('/'));
 		await mkdir(directory, { recursive: true, mode: 0o700 });
 		const directoryMetadata = await lstat(directory);
 		if (!directoryMetadata.isDirectory()) {
@@ -220,7 +221,8 @@ export class DesktopLibraryProjectStore {
 		throwIfAborted(signal);
 		const stageId = this.#randomId();
 		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop project stage id generator returned an invalid value');
-		const stagePath = join(directory, `.${stageId}.stage`);
+		const stageFile = `${catalog.id}/.${stageId}.stage`;
+		const stagePath = join(this.#library.paths.projectsRoot, ...stageFile.split('/'));
 		let handle: FileHandle | null = null;
 		let stageExists = false;
 		try {
@@ -232,9 +234,8 @@ export class DesktopLibraryProjectStore {
 			await handle.close();
 			handle = null;
 			throwIfAborted(signal);
-			await rename(stagePath, finalPath);
+			this.#library.materializeProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile });
 			stageExists = false;
-			await syncDirectory(directory);
 		} catch (error) {
 			await throwAfterStageCleanup(error, handle, stageExists ? stagePath : null);
 		}
@@ -368,16 +369,6 @@ function freezeLoadedProject(
 
 function isMissingFile(error: unknown): boolean {
 	return (error as NodeJS.ErrnoException)?.code === 'ENOENT';
-}
-
-async function syncDirectory(directory: string): Promise<void> {
-	if (process.platform === 'win32') return;
-	const handle = await open(directory, 'r');
-	try {
-		await handle.sync();
-	} finally {
-		await handle.close();
-	}
 }
 
 async function throwAfterStageCleanup(

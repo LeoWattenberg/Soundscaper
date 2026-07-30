@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { randomBytes } from 'node:crypto';
 import {
 	closeSync,
 	fsyncSync,
@@ -9,18 +8,25 @@ import {
 	renameSync,
 	unlinkSync,
 } from 'node:fs';
-import { opendir } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
-import { basename, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { setImmediate as waitForImmediate } from 'node:timers/promises';
 
 import { throwIfAborted } from './project-library-abort.ts';
 import {
-	createDesktopLibraryProjectMetadataFile,
 	type DesktopLibraryLease,
 	type DesktopProjectLibraryPaths,
 	validateDesktopProjectLibraryPaths,
 } from './project-library-contract.ts';
+import { assertDesktopProjectLibraryDatabaseIdentity } from './project-library-database.ts';
+import {
+	advanceDesktopLibraryProjectFileReclamation,
+	createDesktopLibraryProjectQuarantineFile,
+	ensureDesktopLibraryProjectFileReclamationCycle,
+	readDesktopLibraryProjectFileInventoryBatch,
+	removeDesktopLibraryProjectFileInventoryRow,
+	type DesktopLibraryProjectFileInventoryRow,
+} from './project-library-file-inventory.ts';
 import {
 	sameLease,
 	validateJournalRow,
@@ -30,13 +36,8 @@ import {
 	validatePersistedLease,
 } from './project-library-persistence.ts';
 
-const APPLICATION_ID = 0x53434150;
-const DATABASE_SCHEMA_VERSION = 1;
 const MAX_RECLAMATION_ENTRIES = 100_000;
 const RECLAMATION_BATCH_SIZE = 64;
-const QUARANTINE_ID = /^[a-f0-9]{32}$/u;
-const QUARANTINE_FILE = /^\.[a-f0-9]{32}\.orphan$/u;
-const CANONICAL_FILE = /^(0|[1-9][0-9]*)-([a-f0-9]{64})\.json$/u;
 
 export type DesktopLibraryProjectReclamationCheckpoint = 'batch' | 'planned';
 
@@ -46,7 +47,6 @@ export interface DesktopLibraryProjectReclaimerOptions {
 	) => void | Promise<void>;
 	readonly maximumEntries?: number;
 	readonly now?: () => number;
-	readonly randomId?: () => string;
 }
 
 export interface DesktopLibraryProjectReclaimOptions {
@@ -62,32 +62,17 @@ export interface DesktopLibraryProjectReclamationResult {
 	readonly reclaimedFiles: number;
 }
 
-interface ProjectFileCandidate {
-	readonly directory: string;
-	readonly path: string;
-	readonly relativePath: string;
-}
-
-interface ReclamationPlan {
-	readonly scannedEntries: number;
-	readonly canonicalFiles: readonly ProjectFileCandidate[];
-	readonly complete: boolean;
-	readonly quarantineFiles: readonly ProjectFileCandidate[];
-}
-
 /** Main-process startup maintenance. No path or lease value crosses IPC. */
 export class DesktopLibraryProjectReclaimer {
 	#checkpoint: (phase: DesktopLibraryProjectReclamationCheckpoint) => void | Promise<void>;
 	#maximumEntries: number;
 	#now: () => number;
 	#paths: DesktopProjectLibraryPaths;
-	#randomId: () => string;
 
 	constructor(paths: DesktopProjectLibraryPaths, options: DesktopLibraryProjectReclaimerOptions = {}) {
 		this.#paths = validateDesktopProjectLibraryPaths(paths);
 		this.#maximumEntries = maximumEntries(options.maximumEntries);
 		this.#now = options.now ?? Date.now;
-		this.#randomId = options.randomId ?? (() => randomBytes(16).toString('hex'));
 		this.#checkpoint = options.checkpoint ?? (() => {});
 	}
 
@@ -96,42 +81,39 @@ export class DesktopLibraryProjectReclaimer {
 		throwIfAborted(options.signal);
 		const database = openMaintenanceDatabase(this.#paths.databasePath);
 		try {
-			withImmediateTransaction(database, () => { assertLeaseOwned(database, lease, this.#now); });
-			const plan = await discoverProjectFiles(this.#paths, this.#maximumEntries, options.signal);
-			await this.#checkpoint('planned');
-			throwIfAborted(options.signal);
 			withImmediateTransaction(database, () => {
 				assertLeaseOwned(database, lease, this.#now);
 				protectedProjectFiles(database);
+				assertRealDirectory(this.#paths.projectsRoot, 'Desktop project reclamation root');
+				ensureDesktopLibraryProjectFileReclamationCycle(database);
 			});
+			await this.#checkpoint('planned');
+			throwIfAborted(options.signal);
+			let scannedEntries = 0;
+			let canonicalFiles = 0;
 			let protectedFiles = 0;
 			let reclaimedFiles = 0;
-			for (const batch of batches(plan.canonicalFiles, RECLAMATION_BATCH_SIZE)) {
+			let complete = false;
+			while (scannedEntries < this.#maximumEntries && !complete) {
 				throwIfAborted(options.signal);
-				const result = withImmediateTransaction(database, () => this.#reclaimCanonicalBatch(
+				const capacity = Math.min(RECLAMATION_BATCH_SIZE, this.#maximumEntries - scannedEntries);
+				const result = withImmediateTransaction(database, () => this.#reclaimInventoryBatch(
 					database,
 					lease,
-					batch,
+					capacity,
 					options.signal,
 				));
+				scannedEntries += result.scannedEntries;
+				canonicalFiles += result.canonicalFiles;
 				protectedFiles += result.protectedFiles;
 				reclaimedFiles += result.reclaimedFiles;
-				await this.#yieldAfterBatch(options.signal);
-			}
-			for (const batch of batches(plan.quarantineFiles, RECLAMATION_BATCH_SIZE)) {
-				throwIfAborted(options.signal);
-				reclaimedFiles += withImmediateTransaction(database, () => this.#removeQuarantineBatch(
-					database,
-					lease,
-					batch,
-					options.signal,
-				));
-				await this.#yieldAfterBatch(options.signal);
+				complete = result.complete;
+				if (result.scannedEntries > 0) await this.#yieldAfterBatch(options.signal);
 			}
 			return Object.freeze({
-				scannedEntries: plan.scannedEntries,
-				canonicalFiles: plan.canonicalFiles.length,
-				complete: plan.complete,
+				scannedEntries,
+				canonicalFiles,
+				complete,
 				protectedFiles,
 				reclaimedFiles,
 			});
@@ -140,69 +122,75 @@ export class DesktopLibraryProjectReclaimer {
 		}
 	}
 
-	#reclaimCanonicalBatch(
+	#reclaimInventoryBatch(
 		database: DatabaseSync,
 		lease: DesktopLibraryLease,
-		candidates: readonly ProjectFileCandidate[],
+		maximum: number,
 		signal?: AbortSignal,
-	): Readonly<{ protectedFiles: number; reclaimedFiles: number }> {
+	): Readonly<{
+		canonicalFiles: number;
+		complete: boolean;
+		protectedFiles: number;
+		reclaimedFiles: number;
+		scannedEntries: number;
+	}> {
 		assertLeaseOwned(database, lease, this.#now);
 		const protectedFiles = protectedProjectFiles(database);
 		assertRealDirectory(this.#paths.projectsRoot, 'Desktop project reclamation root');
+		const batch = readDesktopLibraryProjectFileInventoryBatch(database, maximum);
 		const affectedDirectories = new Set<string>();
+		const completedRows: number[] = [];
 		let protectedCount = 0;
 		let reclaimedCount = 0;
-		for (const candidate of candidates) {
+		for (const candidate of batch.rows) {
 			throwIfAborted(signal);
-			if (protectedFiles.has(portablePathKey(candidate.relativePath))) {
-				protectedCount += 1;
+			const paths = inventoryPaths(this.#paths.projectsRoot, candidate);
+			const protectedFile = protectedFiles.has(candidate.portableKey);
+			if (protectedFile) protectedCount += 1;
+			const directoryKind = directDirectoryKind(paths.directory);
+			if (directoryKind === 'missing') {
+				if (!protectedFile) completedRows.push(candidate.id);
 				continue;
 			}
-			if (!isRegularFile(candidate.directory, candidate.path)) continue;
-			const quarantinePath = this.#availableQuarantinePath(candidate.directory);
-			renameSync(candidate.path, quarantinePath);
-			affectedDirectories.add(candidate.directory);
-			if (removeRegularFile(quarantinePath)) reclaimedCount += 1;
-		}
-		for (const directory of affectedDirectories) syncDirectory(directory);
-		assertLeaseOwned(database, lease, this.#now);
-		return Object.freeze({ protectedFiles: protectedCount, reclaimedFiles: reclaimedCount });
-	}
-
-	#removeQuarantineBatch(
-		database: DatabaseSync,
-		lease: DesktopLibraryLease,
-		candidates: readonly ProjectFileCandidate[],
-		signal?: AbortSignal,
-	): number {
-		assertLeaseOwned(database, lease, this.#now);
-		protectedProjectFiles(database);
-		assertRealDirectory(this.#paths.projectsRoot, 'Desktop project reclamation root');
-		const affectedDirectories = new Set<string>();
-		let reclaimedFiles = 0;
-		for (const candidate of candidates) {
-			throwIfAborted(signal);
-			if (!isRegularFile(candidate.directory, candidate.path)) continue;
-			if (removeRegularFile(candidate.path)) {
-				reclaimedFiles += 1;
-				affectedDirectories.add(candidate.directory);
+			if (directoryKind !== 'directory') continue;
+			const canonicalKind = fileKind(paths.canonicalPath);
+			const quarantineKind = fileKind(paths.quarantinePath);
+			if (canonicalKind === 'other' || quarantineKind === 'other') continue;
+			if (protectedFile) {
+				if (canonicalKind === 'regular'
+					&& quarantineKind === 'regular'
+					&& removeRegularFile(paths.quarantinePath)) {
+					reclaimedCount += 1;
+					affectedDirectories.add(paths.directory);
+				}
+				continue;
+			}
+			if (quarantineKind === 'regular' && removeRegularFile(paths.quarantinePath)) {
+				reclaimedCount += 1;
+				affectedDirectories.add(paths.directory);
+			}
+			if (canonicalKind === 'regular') {
+				renameSync(paths.canonicalPath, paths.quarantinePath);
+				affectedDirectories.add(paths.directory);
+				if (removeRegularFile(paths.quarantinePath)) reclaimedCount += 1;
+			}
+			if (fileKind(paths.canonicalPath) === 'missing'
+				&& fileKind(paths.quarantinePath) === 'missing') {
+				completedRows.push(candidate.id);
 			}
 		}
 		for (const directory of affectedDirectories) syncDirectory(directory);
 		assertLeaseOwned(database, lease, this.#now);
-		return reclaimedFiles;
-	}
-
-	#availableQuarantinePath(directory: string): string {
-		for (let attempt = 0; attempt < 8; attempt += 1) {
-			const id = this.#randomId();
-			if (!QUARANTINE_ID.test(id)) {
-				throw new TypeError('Desktop project reclamation id generator returned an invalid value');
-			}
-			const path = join(directory, `.${id}.orphan`);
-			if (lstatSync(path, { throwIfNoEntry: false }) === undefined) return path;
-		}
-		throw new Error('Desktop project reclamation could not reserve a quarantine path');
+		for (const id of completedRows) removeDesktopLibraryProjectFileInventoryRow(database, id);
+		const lastId = batch.rows.at(-1)?.id ?? 0;
+		advanceDesktopLibraryProjectFileReclamation(database, lastId, batch.complete);
+		return Object.freeze({
+			canonicalFiles: batch.rows.length,
+			complete: batch.complete,
+			protectedFiles: protectedCount,
+			reclaimedFiles: reclaimedCount,
+			scannedEntries: batch.rows.length,
+		});
 	}
 
 	async #yieldAfterBatch(signal?: AbortSignal): Promise<void> {
@@ -212,49 +200,16 @@ export class DesktopLibraryProjectReclaimer {
 	}
 }
 
-async function discoverProjectFiles(
-	paths: DesktopProjectLibraryPaths,
-	maximum: number,
-	signal?: AbortSignal,
-): Promise<ReclamationPlan> {
-	const canonicalFiles: ProjectFileCandidate[] = [];
-	const quarantineFiles: ProjectFileCandidate[] = [];
-	let scannedEntries = 0;
-	let complete = true;
-	assertRealDirectory(paths.projectsRoot, 'Desktop project reclamation root');
-	const root = await opendir(paths.projectsRoot);
-	rootEntries: for await (const entry of root) {
-		throwIfAborted(signal);
-		if (scannedEntries >= maximum) {
-			complete = false;
-			break;
-		}
-		scannedEntries += 1;
-		if (!entry.isDirectory() || !isProjectEntryId(entry.name)) continue;
-		const directory = join(paths.projectsRoot, entry.name);
-		const scope = await opendir(directory);
-		for await (const child of scope) {
-			throwIfAborted(signal);
-			if (scannedEntries >= maximum) {
-				complete = false;
-				break rootEntries;
-			}
-			scannedEntries += 1;
-			if (!child.isFile()) continue;
-			const path = join(directory, child.name);
-			if (QUARANTINE_FILE.test(child.name)) {
-				quarantineFiles.push({ directory, path, relativePath: `${entry.name}/${child.name}` });
-				continue;
-			}
-			const relativePath = canonicalRelativePath(entry.name, child.name);
-			if (relativePath) canonicalFiles.push({ directory, path, relativePath });
-		}
-	}
+function inventoryPaths(
+	projectsRoot: string,
+	row: DesktopLibraryProjectFileInventoryRow,
+): Readonly<{ canonicalPath: string; directory: string; quarantinePath: string }> {
+	const canonicalPath = join(projectsRoot, ...row.metadataFile.split('/'));
+	const quarantineFile = createDesktopLibraryProjectQuarantineFile(row.metadataFile);
 	return Object.freeze({
-		scannedEntries,
-		canonicalFiles: Object.freeze(canonicalFiles),
-		complete,
-		quarantineFiles: Object.freeze(quarantineFiles),
+		canonicalPath,
+		directory: dirname(canonicalPath),
+		quarantinePath: join(projectsRoot, ...quarantineFile.split('/')),
 	});
 }
 
@@ -310,10 +265,7 @@ function openMaintenanceDatabase(path: string): DatabaseSync {
 	});
 	try {
 		database.exec('PRAGMA trusted_schema = OFF;');
-		if (pragmaNumber(database, 'application_id') !== APPLICATION_ID
-			|| pragmaNumber(database, 'user_version') !== DATABASE_SCHEMA_VERSION) {
-			throw new Error('Desktop project reclamation database identity is invalid');
-		}
+		assertDesktopProjectLibraryDatabaseIdentity(database);
 		return database;
 	} catch (error) {
 		database.close();
@@ -333,39 +285,28 @@ function withImmediateTransaction<Result>(database: DatabaseSync, operation: () 
 	}
 }
 
-function canonicalRelativePath(entryId: string, fileName: string): string | null {
-	const match = CANONICAL_FILE.exec(fileName);
-	if (!match) return null;
-	const revision = Number(match[1]);
-	if (!Number.isSafeInteger(revision)) return null;
-	try {
-		const relativePath = createDesktopLibraryProjectMetadataFile(entryId, revision, match[2]);
-		return basename(relativePath) === fileName ? relativePath : null;
-	} catch {
-		return null;
-	}
-}
-
-function isProjectEntryId(value: string): boolean {
-	try {
-		return createDesktopLibraryProjectMetadataFile(value, 0, '0'.repeat(64)).startsWith(`${value}/`);
-	} catch {
-		return false;
-	}
-}
-
 function portablePathKey(value: string): string {
 	return value.toLowerCase();
 }
 
-function isRegularFile(directory: string, path: string): boolean {
-	const directoryMetadata = lstatSync(directory, { throwIfNoEntry: false });
-	if (!directoryMetadata?.isDirectory()) return false;
-	return lstatSync(path, { throwIfNoEntry: false })?.isFile() === true;
+function fileKind(path: string): 'missing' | 'other' | 'regular' {
+	const metadata = lstatSync(path, { throwIfNoEntry: false });
+	if (!metadata) return 'missing';
+	return metadata.isFile() ? 'regular' : 'other';
+}
+
+function isRealDirectory(path: string): boolean {
+	return lstatSync(path, { throwIfNoEntry: false })?.isDirectory() === true;
+}
+
+function directDirectoryKind(path: string): 'directory' | 'missing' | 'other' {
+	const metadata = lstatSync(path, { throwIfNoEntry: false });
+	if (!metadata) return 'missing';
+	return metadata.isDirectory() ? 'directory' : 'other';
 }
 
 function assertRealDirectory(path: string, label: string): void {
-	if (lstatSync(path, { throwIfNoEntry: false })?.isDirectory() !== true) {
+	if (!isRealDirectory(path)) {
 		throw new TypeError(`${label} is not a direct filesystem directory`);
 	}
 }
@@ -386,24 +327,12 @@ function syncDirectory(directory: string): void {
 	}
 }
 
-function batches<Value>(values: readonly Value[], size: number): readonly (readonly Value[])[] {
-	const result: Value[][] = [];
-	for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
-	return result;
-}
-
 function maximumEntries(value: number | undefined): number {
 	const maximum = value ?? MAX_RECLAMATION_ENTRIES;
 	if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > MAX_RECLAMATION_ENTRIES) {
 		throw new RangeError('Desktop project reclamation entry limit is invalid');
 	}
 	return maximum;
-}
-
-function pragmaNumber(database: DatabaseSync, name: 'application_id' | 'user_version'): number {
-	const row = database.prepare(`PRAGMA ${name}`).get();
-	if (!row || !(name in row)) throw new Error(`Desktop project reclamation PRAGMA ${name} is missing`);
-	return nonNegativeInteger(row[name], `PRAGMA ${name}`);
 }
 
 function timestamp(value: unknown): number {

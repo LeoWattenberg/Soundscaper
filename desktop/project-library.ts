@@ -15,6 +15,13 @@ import {
 	validateDesktopLibraryOwner,
 	validateDesktopProjectLibraryPaths,
 } from './project-library-contract.ts';
+import { initializeDesktopProjectLibraryDatabase } from './project-library-database.ts';
+import {
+	assertDesktopLibraryProjectFilesMaterialized,
+	materializeDesktopLibraryProjectFile,
+	reserveDesktopLibraryProjectFile,
+	validateDesktopLibraryProjectFileInventory,
+} from './project-library-file-inventory.ts';
 import {
 	encodeMetadataRow,
 	freezeLease,
@@ -31,8 +38,6 @@ import {
 	validatePersistedLease,
 } from './project-library-persistence.ts';
 
-const APPLICATION_ID = 0x53434150;
-const DATABASE_SCHEMA_VERSION = 1;
 const MIN_LEASE_TTL_MS = 1_000;
 const MAX_LEASE_TTL_MS = 5 * 60 * 1_000;
 const MAX_LEASE_WAIT_MS = 60_000;
@@ -64,6 +69,15 @@ export interface DesktopLibraryPublishMetadataOptions {
 export interface DesktopLibraryRecoverMetadataOptions {
 	readonly lease: DesktopLibraryLease;
 	readonly signal?: AbortSignal;
+}
+
+export interface DesktopLibraryReserveProjectFileOptions {
+	readonly lease: DesktopLibraryLease;
+	readonly metadataFile: string;
+}
+
+export interface DesktopLibraryMaterializeProjectFileOptions extends DesktopLibraryReserveProjectFileOptions {
+	readonly stageFile: string | null;
 }
 
 export interface DesktopLibraryRecoveryResult {
@@ -151,6 +165,29 @@ export class SharedDesktopProjectLibrary {
 		return this.#transaction(() => this.#assertLeaseOwned(token));
 	}
 
+	reserveProjectFile(options: DesktopLibraryReserveProjectFileOptions): void {
+		this.#assertOpen();
+		const lease = validateLeaseToken(options.lease);
+		this.#transaction(() => {
+			this.#assertLeaseOwned(lease);
+			reserveDesktopLibraryProjectFile(this.#database, {
+				lease,
+				metadataFile: options.metadataFile,
+				registeredAtMs: this.#timestamp(),
+			});
+		});
+	}
+
+	materializeProjectFile(options: DesktopLibraryMaterializeProjectFileOptions): void {
+		this.#assertOpen();
+		const lease = validateLeaseToken(options.lease);
+		this.#transaction(() => {
+			this.#assertLeaseOwned(lease);
+			materializeDesktopLibraryProjectFile(this.#database, this.paths, { ...options, lease });
+			this.#assertLeaseOwned(lease);
+		});
+	}
+
 	async acquireLease(options: DesktopLibraryAcquireLeaseOptions): Promise<DesktopLibraryLease> {
 		this.#assertOpen();
 		const owner = validateDesktopLibraryOwner(options.owner);
@@ -203,7 +240,12 @@ export class SharedDesktopProjectLibrary {
 			throwIfAborted(options.signal);
 			const transactionId = this.#newId(JOURNAL_ID_PATTERN, 'journal transaction id');
 			const next = encodeMetadataRow(metadata, this.#timestamp());
-			this.#transaction(() => this.#preparePublication(transactionId, lease, next));
+			this.#transaction(() => this.#preparePublication(
+				transactionId,
+				lease,
+				next,
+				metadata.projects.map(({ metadataFile }) => metadataFile),
+			));
 			await this.#checkpoint('prepared');
 			throwIfAborted(options.signal);
 			this.#transaction(() => this.#commitPublication(transactionId, lease));
@@ -230,58 +272,8 @@ export class SharedDesktopProjectLibrary {
 	}
 
 	#initializeDatabase(): void {
-		const applicationId = numericField(this.#database.prepare('PRAGMA application_id').get(), 'application_id');
-		if (applicationId !== 0 && applicationId !== APPLICATION_ID) throw new Error('Desktop project library database belongs to another application');
-		const userVersion = numericField(this.#database.prepare('PRAGMA user_version').get(), 'user_version');
-		if (userVersion !== 0 && userVersion !== DATABASE_SCHEMA_VERSION) throw new Error('Unsupported desktop project library database version');
-		this.#database.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA trusted_schema = OFF;');
-		this.#database.exec(`
-			CREATE TABLE IF NOT EXISTS library_metadata (
-				singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-				revision INTEGER NOT NULL CHECK (revision >= 0),
-				json TEXT NOT NULL,
-				digest TEXT NOT NULL,
-				published_at_ms INTEGER NOT NULL CHECK (published_at_ms >= 0)
-			) STRICT;
-			CREATE TABLE IF NOT EXISTS library_lease (
-				singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-				active INTEGER NOT NULL CHECK (active IN (0, 1)),
-				lease_id TEXT,
-				fencing_token INTEGER NOT NULL CHECK (fencing_token >= 0),
-				owner_product TEXT,
-				owner_process_id INTEGER,
-				owner_instance_id TEXT,
-				acquired_at_ms INTEGER,
-				expires_at_ms INTEGER,
-				took_over INTEGER NOT NULL CHECK (took_over IN (0, 1))
-			) STRICT;
-			CREATE TABLE IF NOT EXISTS metadata_journal (
-				transaction_id TEXT PRIMARY KEY,
-				state TEXT NOT NULL CHECK (state IN ('prepared', 'committed', 'complete', 'recovered')),
-				previous_revision INTEGER NOT NULL CHECK (previous_revision >= 0),
-				previous_json TEXT NOT NULL,
-				previous_digest TEXT NOT NULL,
-				previous_published_at_ms INTEGER NOT NULL CHECK (previous_published_at_ms >= 0),
-				next_revision INTEGER NOT NULL CHECK (next_revision > 0),
-				next_json TEXT NOT NULL,
-				next_digest TEXT NOT NULL,
-				published_at_ms INTEGER NOT NULL CHECK (published_at_ms >= 0),
-				lease_id TEXT NOT NULL,
-				fencing_token INTEGER NOT NULL CHECK (fencing_token > 0),
-				created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
-				completed_at_ms INTEGER
-			) STRICT;
-		`);
 		const empty = encodeMetadataRow(emptyDesktopLibraryMetadata(), this.#timestamp());
-		this.#database.prepare(`
-			INSERT OR IGNORE INTO library_metadata
-			(singleton, revision, json, digest, published_at_ms) VALUES (1, ?, ?, ?, ?)
-		`).run(empty.revision, empty.json, empty.digest, empty.publishedAtMs);
-		this.#database.prepare(`
-			INSERT OR IGNORE INTO library_lease
-			(singleton, active, fencing_token, took_over) VALUES (1, 0, 0, 0)
-		`).run();
-		this.#database.exec(`PRAGMA application_id = ${APPLICATION_ID}; PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};`);
+		initializeDesktopProjectLibraryDatabase(this.#database, empty);
 		const journalCount = numericField(
 			this.#database.prepare('SELECT COUNT(*) AS journal_count FROM metadata_journal').get(),
 			'journal_count',
@@ -293,6 +285,7 @@ export class SharedDesktopProjectLibrary {
 		if (pendingJournals.length > 1) throw new Error('Desktop project library has conflicting recovery journals');
 		if (pendingJournals.length === 0) this.#validatedMetadataRow();
 		this.#leaseRow();
+		validateDesktopLibraryProjectFileInventory(this.#database);
 	}
 
 	#tryAcquireLease(owner: DesktopLibraryOwner, ttlMs: number): { lease: DesktopLibraryLease } | { holder: DesktopLibraryLease } {
@@ -332,7 +325,12 @@ export class SharedDesktopProjectLibrary {
 		return { lease };
 	}
 
-	#preparePublication(transactionId: string, lease: DesktopLibraryLease, next: MetadataRow): void {
+	#preparePublication(
+		transactionId: string,
+		lease: DesktopLibraryLease,
+		next: MetadataRow,
+		projectFiles: readonly string[],
+	): void {
 		this.#assertLeaseOwned(lease);
 		const pending = this.#database.prepare(`
 			SELECT transaction_id FROM metadata_journal
@@ -343,6 +341,7 @@ export class SharedDesktopProjectLibrary {
 		if (next.revision !== previous.revision + 1) {
 			throw new RangeError('Desktop library metadata revision must advance by exactly one');
 		}
+		assertDesktopLibraryProjectFilesMaterialized(this.#database, projectFiles);
 		this.#database.prepare(`
 			INSERT INTO metadata_journal (
 				transaction_id, state,
