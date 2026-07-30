@@ -165,8 +165,10 @@ export interface ProjectSwitchServiceRuntime<
 	readonly revokeVideoVisuals: () => void;
 	readonly clearWaveformPcmWindows: () => void;
 	readonly loadProjectSources: (project: Project, options?: Readonly<{
+		readonly onlyRequiredAudioSources?: boolean;
 		readonly requiredAudioSourceIds?: readonly string[];
-	}>) => PromiseLike<unknown> | unknown;
+		readonly signal?: AbortSignal;
+	}>) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
 	readonly retainLiveClipIds: () => void;
 	readonly evictUnreferencedSourceCaches: () => void;
 	readonly loadEngineProject: (project: Project, transientSourceBuffers?: unknown) => void;
@@ -283,6 +285,14 @@ export function createProjectSwitchService<
 		}));
 		fallbackAdmission.assertCurrent(activationProject);
 		const playbackProjection = playbackProjects.projectForPlayback(activationProject);
+		const preparedFallbackBuffers = playbackProjection.requiredAudioSourceIds.length
+			? await guard(runtime.loadProjectSources(activationProject, {
+				onlyRequiredAudioSources: true,
+				requiredAudioSourceIds: playbackProjection.requiredAudioSourceIds,
+				signal: runtime.lifetime.signal,
+			}))
+			: new Map<unknown, unknown>();
+		fallbackAdmission.assertCurrent(activationProject);
 		const featureRequirementsReport = playbackProjection.featureRequirementsReport;
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
 		const activation = runtime.session.beginProjectActivation(projectId, existingCapture
@@ -404,9 +414,10 @@ export function createProjectSwitchService<
 			runtime.state.missingSourceIds.clear();
 			runtime.revokeVideoVisuals();
 			runtime.clearWaveformPcmWindows();
-			const transientSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
-				requiredAudioSourceIds: playbackProjection.requiredAudioSourceIds,
-			}));
+			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject));
+			const transientSourceBuffers = preparedFallbackBuffers.size
+				? new Map([...loadedSourceBuffers, ...preparedFallbackBuffers])
+				: loadedSourceBuffers;
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
 			runtime.loadEngineProject(playbackProjection.project, transientSourceBuffers);

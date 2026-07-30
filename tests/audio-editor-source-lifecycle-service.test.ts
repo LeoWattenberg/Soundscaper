@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { setImmediate as nextTurn, setTimeout as delay } from 'node:timers/promises';
 
 import {
 	createSourceLifecycleService,
@@ -112,6 +113,13 @@ interface RequiredSourceFixtureOptions {
 	readonly buffer?: Readonly<Record<string, unknown>> | null;
 	readonly cacheFits?: boolean;
 	readonly metadata?: Readonly<Record<string, unknown>> | null;
+	readonly stall?: 'metadata' | 'context' | 'buffer';
+}
+
+function deferred<T>() {
+	let resolvePromise: (value: T) => void = () => undefined;
+	const promise = new Promise<T>((resolve) => { resolvePromise = resolve; });
+	return Object.freeze({ promise, resolve: resolvePromise });
 }
 
 function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {}) {
@@ -140,6 +148,11 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		chunkFrames: source.chunkFrames,
 		chunkCount: 1,
 	}) : options.metadata;
+	const metadataStall = deferred<typeof metadata>();
+	const audioContext = Object.freeze({ createBuffer() {} });
+	const contextStall = deferred<typeof audioContext>();
+	const bufferStall = deferred<typeof loadedBuffer>();
+	const stallStarted = deferred<void>();
 	const cachedBuffers = new Map<string, unknown>([['fallback-source', Object.freeze({ stale: true })]]);
 	const sourceBuffers = {
 		has: (id: string) => cachedBuffers.has(id),
@@ -154,6 +167,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	const sourceChunkProviders = new Map<string, unknown>([[source.id, Object.freeze({ stale: true })]]);
 	const publishedProviders: Array<ReadonlyMap<string, unknown>> = [];
 	const statuses: string[] = [];
+	const missingSourceIds = new Set<string>();
 	let bufferReads = 0;
 	const runtime: SourceLifecycleServiceRuntime = {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
@@ -168,7 +182,13 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		copy: {},
 		createStoredChunkProvider: () => Object.freeze({ marker: 'fresh-provider' }),
 		engine: {
-			getAudioContext: async () => Object.freeze({ createBuffer() {} }),
+			getAudioContext: async () => {
+				if (options.stall === 'context') {
+					stallStarted.resolve();
+					return contextStall.promise;
+				}
+				return audioContext;
+			},
 			setChunkSources(providers: ReadonlyMap<string, unknown>) {
 				publishedProviders.push(new Map(providers));
 			},
@@ -184,6 +204,10 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		publishDocumentSnapshot: () => undefined,
 		readStoredAudioBuffer: async () => {
 			bufferReads += 1;
+			if (options.stall === 'buffer') {
+				stallStarted.resolve();
+				return bufferStall.promise;
+			}
 			return loadedBuffer;
 		},
 		readWaveformPcmWindow: async () => [],
@@ -193,9 +217,15 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		sourceChunkProviders,
 		sourcePcmBytes: () => options.long ? 32 : 8,
 		sourcePeaks: new Map(),
-		state: { missingSourceIds: new Set<string>() },
+		state: { missingSourceIds },
 		store: {
-			getSourceMetadata: async () => metadata,
+			getSourceMetadata: async () => {
+				if (options.stall === 'metadata') {
+					stallStarted.resolve();
+					return metadataStall.promise;
+				}
+				return metadata;
+			},
 			readSourceChunk: async () => ({ channels: [] }),
 			loadAnalysis: async () => null,
 			saveAnalysis: async () => undefined,
@@ -207,11 +237,18 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	return {
 		bufferReads: () => bufferReads,
 		cachedBuffers,
+		missingSourceIds,
 		project,
 		publishedProviders,
+		resolveStall() {
+			if (options.stall === 'metadata') metadataStall.resolve(metadata);
+			if (options.stall === 'context') contextStall.resolve(audioContext);
+			if (options.stall === 'buffer') bufferStall.resolve(loadedBuffer);
+		},
 		service: createSourceLifecycleService(runtime),
 		source,
 		sourceChunkProviders,
+		stallStarted: stallStarted.promise,
 		statuses,
 	};
 }
@@ -295,4 +332,58 @@ test('playback reapply source preparation enforces required fallback readiness',
 		}),
 		/rendered fallback|required.*source|unavailable/iu,
 	);
+});
+
+test('abort promptly and atomically cancels signal-ignoring required source readiness', async () => {
+	const timeout = Symbol('timeout');
+	const outcomes = [];
+	for (const stall of ['metadata', 'context', 'buffer'] as const) {
+		const fixture = createRequiredSourceFixture({ stall });
+		fixture.cachedBuffers.clear();
+		fixture.sourceChunkProviders.clear();
+		const controller = new AbortController();
+		const reason = new DOMException(`cancel stalled ${stall} readiness`, 'AbortError');
+		const loadOptions = {
+			requiredAudioSourceIds: [fixture.source.id],
+			signal: controller.signal,
+		};
+		const operation = fixture.service.loadProjectSources(fixture.project, loadOptions);
+		const terminal = operation.then(
+			(value) => ({ kind: 'fulfilled' as const, value }),
+			(error: unknown) => ({ kind: 'rejected' as const, error }),
+		);
+		await fixture.stallStarted;
+		controller.abort(reason);
+		const prompt = await Promise.race([
+			terminal,
+			delay(250, timeout, { ref: false }),
+		]);
+		fixture.resolveStall();
+		await terminal;
+		await nextTurn();
+		outcomes.push({
+			stall,
+			reason,
+			prompt,
+			cachedBuffers: fixture.cachedBuffers.size,
+			providers: fixture.sourceChunkProviders.size,
+			enginePublications: fixture.publishedProviders.length,
+			missingSources: fixture.missingSourceIds.size,
+			statuses: fixture.statuses.length,
+		});
+	}
+
+	for (const outcome of outcomes) {
+		assert.notEqual(outcome.prompt, timeout, `${outcome.stall} abort must not await the storage provider`);
+		assert.equal(typeof outcome.prompt, 'object');
+		if (typeof outcome.prompt !== 'object') continue;
+		assert.equal(outcome.prompt.kind, 'rejected');
+		if (outcome.prompt.kind !== 'rejected') continue;
+		assert.equal(outcome.prompt.error, outcome.reason, `${outcome.stall} must preserve the exact abort reason`);
+		assert.equal(outcome.cachedBuffers, 0, `${outcome.stall} late completion must not publish a buffer`);
+		assert.equal(outcome.providers, 0, `${outcome.stall} late completion must not publish a provider`);
+		assert.equal(outcome.enginePublications, 0, `${outcome.stall} late completion must not publish engine sources`);
+		assert.equal(outcome.missingSources, 0, `${outcome.stall} cancellation must not mark the source missing`);
+		assert.equal(outcome.statuses, 0, `${outcome.stall} cancellation must not publish an error status`);
+	}
 });

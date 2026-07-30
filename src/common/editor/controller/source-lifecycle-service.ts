@@ -41,7 +41,47 @@ export interface SourceLifecycleServiceRuntime {
 }
 
 export interface SourceLifecycleLoadOptions {
+	readonly onlyRequiredAudioSources?: boolean;
 	readonly requiredAudioSourceIds?: readonly string[];
+	readonly signal?: AbortSignal;
+}
+
+function throwIfSourceLoadAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) throw signal.reason;
+}
+
+function awaitSourceLoadOperation<Value>(
+	operation: () => PromiseLike<Value> | Value,
+	signal?: AbortSignal,
+): Promise<Value> {
+	if (!signal) return Promise.resolve().then(operation);
+	if (signal.aborted) return Promise.reject(signal.reason);
+	return new Promise<Value>((resolve, reject) => {
+		let settled = false;
+		const finish = (complete: () => void): void => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			complete();
+		};
+		const onAbort = (): void => finish(() => reject(signal.reason));
+		signal.addEventListener('abort', onAbort, { once: true });
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		let result: PromiseLike<Value> | Value;
+		try {
+			result = operation();
+		} catch (error) {
+			finish(() => reject(error));
+			return;
+		}
+		void Promise.resolve(result).then(
+			(value) => finish(() => resolve(value)),
+			(error: unknown) => finish(() => reject(error)),
+		);
+	});
 }
 
 export function createSourceLifecycleService(runtime: SourceLifecycleServiceRuntime) {
@@ -139,11 +179,14 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 
 	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
-		const usedSourceIds = new Set(allProjectClips(project).map((clip: any) => clip.sourceId));
+		const usedSourceIds = options.onlyRequiredAudioSources
+			? new Set<string>()
+			: new Set<string>(allProjectClips(project).map((clip: any) => clip.sourceId));
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
 		if (!usedSourceIds.size) return transientBuffers;
-		const context = await engine.getAudioContext?.({ resume: false });
+		throwIfSourceLoadAborted(options.signal);
+		let context: any = null;
 		for (const source of project.sources.filter((candidate: any) => usedSourceIds.has(candidate.id))) {
 			const required = requiredSourceIds.has(source.id);
 			try {
@@ -152,28 +195,43 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					await activateVideoSource(source);
 					continue;
 				}
-				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
+				const metadata = await awaitSourceLoadOperation(
+					() => store.getSourceMetadata(source.storageKey || source.id),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
 				if (required) assertRequiredSourceMetadata(source, metadata);
-				const chunkProvider = registerStoredChunkProvider(source, metadata);
 				const requiresChunkStream = sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
-				const useChunkStream = Boolean(chunkProvider) && requiresChunkStream;
 				if (required) {
-					if (requiresChunkStream && !chunkProvider) {
-						forgetChunkProvider(source.id);
-						sourceBuffers.delete(source.id);
-						throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
-					}
-					if (useChunkStream) {
+					if (requiresChunkStream) {
+						if (!registerStoredChunkProvider(source, metadata)) {
+							if (!options.onlyRequiredAudioSources) {
+								forgetChunkProvider(source.id);
+								sourceBuffers.delete(source.id);
+							}
+							throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
+						}
 						sourceBuffers.delete(source.id);
 						continue;
 					}
+					context ??= await awaitSourceLoadOperation(
+						() => engine.getAudioContext?.({ resume: false }),
+						options.signal,
+					);
+					throwIfSourceLoadAborted(options.signal);
+					const buffer = await awaitSourceLoadOperation(
+						() => readStoredAudioBuffer(store, source, context),
+						options.signal,
+					);
+					throwIfSourceLoadAborted(options.signal);
+					assertRequiredSourceBuffer(source, buffer);
 					forgetChunkProvider(source.id);
 					sourceBuffers.delete(source.id);
-					const buffer = await readStoredAudioBuffer(store, source, context);
-					assertRequiredSourceBuffer(source, buffer);
 					if (!cacheSourceBuffer(source.id, buffer)) transientBuffers.set(source.id, buffer);
 					continue;
 				}
+				const chunkProvider = registerStoredChunkProvider(source, metadata);
+				const useChunkStream = Boolean(chunkProvider) && requiresChunkStream;
 				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
@@ -182,7 +240,16 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
 				} else {
-					const buffer = sourceBuffers.get(source.id) || await readStoredAudioBuffer(store, source, context);
+					context ??= await awaitSourceLoadOperation(
+						() => engine.getAudioContext?.({ resume: false }),
+						options.signal,
+					);
+					throwIfSourceLoadAborted(options.signal);
+					const buffer = sourceBuffers.get(source.id) || await awaitSourceLoadOperation(
+						() => readStoredAudioBuffer(store, source, context),
+						options.signal,
+					);
+					throwIfSourceLoadAborted(options.signal);
 					if (!buffer) continue;
 					cacheSourceBuffer(source.id, buffer);
 					if (!waveformPeaksHaveRms(peaks, source)) {
@@ -193,6 +260,8 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 				await Promise.resolve(store.deleteAnalysis?.(legacyPeakCacheKey(source.id))).catch(() => undefined);
 				if (peaks?.levels) sourcePeaks.set(source.id, peaks);
 			} catch (error) {
+				throwIfSourceLoadAborted(options.signal);
+				if (options.onlyRequiredAudioSources) throw error;
 				state.missingSourceIds.add(source.id);
 				const message = (error as Readonly<{ message?: string }> | null)?.message || String(error);
 				setStatus(`${source.name}: ${message}`, 'error');
@@ -288,6 +357,9 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		}
 		const values = options.requiredAudioSourceIds ?? [];
 		if (!Array.isArray(values)) throw new TypeError('Required audio source IDs must be an array.');
+		if (options.onlyRequiredAudioSources != null && typeof options.onlyRequiredAudioSources !== 'boolean') {
+			throw new TypeError('Only-required-audio-sources must be a boolean.');
+		}
 		const ids = new Set<string>();
 		for (const value of values) {
 			if (typeof value !== 'string' || !value || value !== value.trim()) {

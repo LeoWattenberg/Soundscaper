@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import type { SourceLifecycleLoadOptions } from '../src/common/editor/controller/source-lifecycle-service.ts';
 import type {
 	ProjectLifecycleHistory,
 	ProjectLifecycleLock,
@@ -58,7 +59,7 @@ interface FixtureOptions {
 	readonly onStopRecording?: (replaceTabProject: (candidate: TestProject) => void) => void;
 	readonly onLoadProjectSources?: (
 		candidate: TestProject,
-		options: Readonly<{ requiredAudioSourceIds?: readonly string[] }>,
+		options: SourceLifecycleLoadOptions,
 	) => void;
 }
 
@@ -242,7 +243,56 @@ test('controller disposal aborts in-flight verification with the exact lifetime 
 	assert.deepEqual(fixture.effects, ['verify:dispose']);
 });
 
+test('exact-schema-9 rendered fallback readiness rejects before activation side effects', async () => {
+	const readinessFailure = new Error('Required rendered fallback source fallback-source has no stored metadata.');
+	const incoming = renderedFallbackProject('unready-rendered-project', 'unready-rendered');
+	const fixture = createFixture({
+		productCapabilities: { audioEffects: false, videoEffects: true },
+		verify: (candidate) => admission(candidate),
+		onLoadProjectSources: () => { throw readinessFailure; },
+	});
+	const activeProject = fixture.currentProject()!;
+	const activeTab = fixture.tabProject(activeProject.id);
+	const activeLock = fixture.projectLock();
+
+	const failure = await captureFailure(fixture.service.switchProject(incoming));
+
+	assert.equal(failure, readinessFailure);
+	assert.deepEqual(fixture.effects, ['verify:unready-rendered', 'sources:unready-rendered-project']);
+	assert.strictEqual(fixture.currentProject(), activeProject);
+	assert.strictEqual(fixture.tabProject(activeProject.id), activeTab);
+	assert.equal(fixture.tabProject(incoming.id), null);
+	assert.strictEqual(fixture.projectLock(), activeLock);
+});
+
 test('activation loads a required rendered source and sends only the transient whole-mix projection to the engine', async () => {
+	const canonical = renderedFallbackProject('rendered-project', 'rendered');
+	const readinessOptions: SourceLifecycleLoadOptions[] = [];
+	const fixture = createFixture({
+		productCapabilities: { audioEffects: false, videoEffects: true },
+		verify: (candidate) => admission(candidate),
+		onLoadProjectSources: (_candidate, options) => { if (options.onlyRequiredAudioSources) readinessOptions.push(options); },
+	});
+
+	await fixture.service.switchProject(canonical);
+
+	assert.strictEqual(fixture.currentProject()?.tracks[0]?.id, 'original-track');
+	assert.deepEqual(fixture.requiredAudioSourceIds(), ['fallback-source']);
+	assert.equal(readinessOptions[0]?.onlyRequiredAudioSources, true);
+	assert.strictEqual(readinessOptions[0]?.signal, fixture.lifetime.signal);
+	assert.equal(fixture.loadedEngineProject()?.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
+	assert.equal(fixture.loadedEngineProject()?.clips?.[0]?.sourceId, 'fallback-source');
+	assert.equal(fixture.loadedTransientBuffers()?.get('fallback-source'), 'prepared-buffer');
+	assert.equal(fixture.loadedTransientBuffers()?.get('ordinary-source'), 'ordinary-buffer');
+	assert.ok(fixture.effects.indexOf('verify:rendered') < fixture.effects.indexOf('sources:rendered-project'));
+	assert.ok(fixture.effects.indexOf('sources:rendered-project') < fixture.effects.indexOf('engine:load:rendered-project'));
+});
+
+function project(id: string, marker: string): TestProject {
+	return Object.freeze({ id, marker, tracks: [] });
+}
+
+function renderedFallbackProject(id: string, marker: string): TestProject {
 	const source = createAudioSourceV9({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
 		channelCount: 2, sampleRate: 48_000,
@@ -256,37 +306,18 @@ test('activation loads a required rendered source and sends only the transient w
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
-	const canonical = Object.freeze({
+	return Object.freeze({
 		...createAudioEditorProjectV9({
-			id: 'rendered-project', now: '2026-07-30T12:00:00.000Z',
+			id, now: '2026-07-30T12:00:00.000Z',
 			sources: [source, fallback], clips: [clip], tracks: [track],
 			featureRequirements: { schemaVersion: 1, requirements: [{
-				id: 'publisher-render',
-				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				id: 'publisher-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 				displayName: 'Publisher render', disposition: 'rendered-fallback',
 				fallback: { kind: 'audio', sourceId: fallback.id, sha256: 'ef'.repeat(32) },
 			}] },
 		}),
-		marker: 'rendered',
+		marker,
 	}) as unknown as TestProject;
-	const fixture = createFixture({
-		productCapabilities: { audioEffects: false, videoEffects: true },
-		verify: (candidate) => admission(candidate),
-	});
-
-	await fixture.service.switchProject(canonical);
-
-	assert.strictEqual(fixture.currentProject()?.tracks[0]?.id, 'original-track');
-	assert.deepEqual(fixture.requiredAudioSourceIds(), ['fallback-source']);
-	assert.equal(fixture.loadedEngineProject()?.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
-	assert.equal(fixture.loadedEngineProject()?.clips?.[0]?.sourceId, 'fallback-source');
-	assert.equal(fixture.loadedTransientBuffers()?.get('fallback-source'), 'prepared-buffer');
-	assert.ok(fixture.effects.indexOf('verify:rendered') < fixture.effects.indexOf('sources:rendered-project'));
-	assert.ok(fixture.effects.indexOf('sources:rendered-project') < fixture.effects.indexOf('engine:load:rendered-project'));
-});
-
-function project(id: string, marker: string): TestProject {
-	return Object.freeze({ id, marker, tracks: [] });
 }
 
 function admission(projectAtVerification: TestProject): FallbackIntegrityAdmission {
@@ -471,7 +502,10 @@ function createFixture(options: FixtureOptions) {
 			track: 'Track',
 		},
 		getProject: () => currentProject,
-		setProject: (candidate: TestProject | null) => { currentProject = candidate; },
+		setProject: (candidate: TestProject | null) => {
+			effects.push(`set-project:${candidate?.id ?? 'none'}`);
+			currentProject = candidate;
+		},
 		createHistory: (candidate: TestProject) => ({ present: structuredClone(candidate) }),
 		cancelTimedRecording: () => { effects.push('recording:cancel-timed'); },
 		cancelRecordingStart: () => { effects.push('recording:cancel-start'); },
@@ -508,13 +542,15 @@ function createFixture(options: FixtureOptions) {
 		revokeOutputUrl: () => undefined,
 		revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
-		loadProjectSources: async (candidate: TestProject, loadOptions: Readonly<{
-			requiredAudioSourceIds?: readonly string[];
-		}> = {}) => {
+		loadProjectSources: async (candidate: TestProject, loadOptions: SourceLifecycleLoadOptions = {}) => {
 			effects.push(`sources:${candidate.id}`);
-			requiredAudioSourceIds = loadOptions.requiredAudioSourceIds ?? [];
+			if (loadOptions.requiredAudioSourceIds?.length) {
+				requiredAudioSourceIds = loadOptions.requiredAudioSourceIds;
+			}
 			options.onLoadProjectSources?.(candidate, loadOptions);
-			return new Map([['fallback-source', 'prepared-buffer']]);
+			return loadOptions.onlyRequiredAudioSources
+				? new Map([['fallback-source', 'prepared-buffer']])
+				: new Map([['ordinary-source', 'ordinary-buffer']]);
 		},
 		retainLiveClipIds: () => undefined,
 		evictUnreferencedSourceCaches: () => undefined,
@@ -537,6 +573,8 @@ function createFixture(options: FixtureOptions) {
 		effects,
 		lifetime,
 		currentProject: () => currentProject,
+		projectLock: () => state.projectLock,
+		tabProject: (projectId: string) => tabs.get(projectId)?.history.present ?? null,
 		loadedEngineProject: () => loadedEngineProject,
 		loadedTransientBuffers: () => loadedTransientBuffers,
 		requiredAudioSourceIds: () => requiredAudioSourceIds,

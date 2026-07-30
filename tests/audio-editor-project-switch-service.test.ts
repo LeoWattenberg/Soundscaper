@@ -211,7 +211,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		clearWaveformPcmWindows: () => { events.push('clear-waveform'); },
 		loadProjectSources: async (value: TestProject) => {
 			events.push(`load-sources:${value.id}`);
-			await loadSources(value);
+			return loadSources(value).then(() => new Map());
 		},
 		retainLiveClipIds: () => { events.push('retain-clips'); },
 		evictUnreferencedSourceCaches: () => { events.push('evict-sources'); },
