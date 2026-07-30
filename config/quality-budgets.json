@@ -204,14 +204,33 @@
 		{
 			"id": "m2-streaming-project-8gib-v1",
 			"milestones": ["2"],
-			"status": "planned",
-			"kind": "virtual-deterministic-stream",
+			"status": "provisional",
+			"kind": "sparse-zip64-desktop-inspection-witness",
 			"specification": {
 				"logicalBytes": 8589934592,
-				"webCoreFinalAssemblyLimitBytes": 536870912,
-				"oversizeProbeBytes": 536870913
+				"archiveFormat": "zip64",
+				"projectSchemaVersion": 9,
+				"sparseFilesystemRequired": true,
+				"rangeRequestShape": "single-exact-closed",
+				"rangeResponseStatus": 206,
+				"maxRangeBytes": 16777216,
+				"maxInspectionTransferBytesExclusive": 8388608,
+				"wholeBlobMaterialization": false,
+				"inspectionStopsAt": "collision-cancel",
+				"hugeAssetDigest": "placeholder",
+				"hugeAssetCrc32": "placeholder",
+				"payloadIntegrityQualified": false,
+				"fullImportQualified": false,
+				"processRssQualified": false,
+				"browserHeapQualified": false,
+				"storageQuotaQualified": false
 			},
-			"evidence": ["roadmap.md#2-shared-platform-storage-and-media-foundation"]
+			"limitation": "The witness requires a sparse filesystem and stops after metadata inspection and collision cancellation. Its huge asset digest and CRC are placeholders, so it does not qualify payload integrity, full import, process RSS, browser heap, or storage quota behavior.",
+			"evidence": [
+				"tests/desktop-scape-sparse-range-integration.test.ts",
+				"tests/helpers/sparse-scape-zip64-fixture.ts",
+				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			]
 		},
 		{
 			"id": "m3-longform-editorial-2h-v1",

@@ -35,7 +35,9 @@ interface BudgetFixture {
 	readonly evidence: readonly string[];
 	readonly id: string;
 	readonly kind: string;
+	readonly limitation?: string;
 	readonly milestones: readonly string[];
+	readonly specification: Readonly<Record<string, unknown>>;
 	readonly status: BudgetStatus;
 }
 
@@ -153,6 +155,45 @@ test('quality budget contract names numeric gates for every later milestone with
 	const blockedMidi = config.workloads.find(({ milestone }) => milestone === '8B');
 	assert.equal(blockedMidi?.status, 'blocked');
 	assert.match(blockedMidi?.activationGate ?? '', /Audacity.*design/iu);
+
+	const milestone2Fixture = fixtures.get('m2-streaming-project-8gib-v1');
+	assert.equal(milestone2Fixture?.status, 'provisional');
+	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-inspection-witness');
+	assert.deepEqual(milestone2Fixture?.specification, {
+		logicalBytes: 8_589_934_592,
+		archiveFormat: 'zip64',
+		projectSchemaVersion: 9,
+		sparseFilesystemRequired: true,
+		rangeRequestShape: 'single-exact-closed',
+		rangeResponseStatus: 206,
+		maxRangeBytes: 16_777_216,
+		maxInspectionTransferBytesExclusive: 8_388_608,
+		wholeBlobMaterialization: false,
+		inspectionStopsAt: 'collision-cancel',
+		hugeAssetDigest: 'placeholder',
+		hugeAssetCrc32: 'placeholder',
+		payloadIntegrityQualified: false,
+		fullImportQualified: false,
+		processRssQualified: false,
+		browserHeapQualified: false,
+		storageQuotaQualified: false,
+	});
+	assert.match(milestone2Fixture?.limitation ?? '', /sparse filesystem/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /payload integrity/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /full import/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /RSS/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /browser heap/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /quota/iu);
+	assert.deepEqual(milestone2Fixture?.evidence, [
+		'tests/desktop-scape-sparse-range-integration.test.ts',
+		'tests/helpers/sparse-scape-zip64-fixture.ts',
+		'docs/quality-budgets.md#fixtures-and-project-sizes',
+	]);
+	assert.equal(
+		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
+		'planned',
+		'the inspection witness does not qualify the bounded-memory workload',
+	);
 
 	const gpuEnvironment = environments.get('reference-linux-gpu-01');
 	assert.equal(gpuEnvironment?.status, 'unprovisioned');

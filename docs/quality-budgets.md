@@ -122,10 +122,21 @@ or sparse fixtures so the test does not commit multi-gigabyte generated files.
 The generator revision, seed, logical byte length, stream metadata, and expected
 digest must still be stable.
 
-The initial future fixture specifications are deliberately concrete:
+The milestone 2 fixture now has a provisional desktop inspection witness. It
+creates an exact 8 GiB logical sparse Zip64 archive with current-schema project
+metadata, then inspects it through single exact closed ranges of at most 16 MiB.
+Every response is `206`, total transferred bytes stay below 8 MiB, collision
+cancellation happens before import, and the path never assembles a whole
+`Blob`. The test requires observable sparse-file support and skips when the
+filesystem cannot provide it. The huge asset digest and CRC are placeholders,
+so this is not payload-integrity, full-import, process-RSS, browser-heap, or
+storage-quota qualification. The milestone 2 bounded-memory workload therefore
+remains planned.
 
-- milestone 2: an 8 GiB logical streaming project and the 512 MiB Web Core
-  final-assembly boundary;
+The fixture specifications are deliberately concrete:
+
+- milestone 2: the provisional exact 8 GiB sparse Zip64 desktop
+  inspection/collision-cancel witness described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
@@ -138,9 +149,10 @@ The initial future fixture specifications are deliberately concrete:
   Audacity design and compatibility entry gate; and
 - milestone 9: an eight-hour complete-system soak.
 
-These are specifications, not generated evidence. A future fixture becomes
-active only when its implementation and provenance are checked in and its
-contract test is tightened accordingly.
+Except for the explicitly provisional milestone 2 witness, these are
+specifications rather than generated evidence. A future fixture becomes active
+only when its implementation and provenance are checked in and its contract
+test is tightened accordingly.
 
 ## Result evaluation
 
