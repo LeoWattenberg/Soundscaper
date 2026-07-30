@@ -2,6 +2,32 @@ import { resolve } from 'node:path';
 
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
+export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
+	'abortWrite',
+	'beginWrite',
+	'checkForUpdates',
+	'chooseFiles',
+	'chooseSaveTarget',
+	'commitSharedProject',
+	'deleteSharedProject',
+	'editText',
+	'finishWrite',
+	'getEnvironment',
+	'listSharedProjects',
+	'onCloseRequested',
+	'onFullscreenChanged',
+	'onMenuCommand',
+	'onOpenProject',
+	'openExternal',
+	'readSharedProject',
+	'releaseRead',
+	'respondToClose',
+	'setFullscreen',
+	'setLocale',
+	'signalReady',
+	'writeChunk',
+]);
+
 export function resolveSmokeArchitecture(configuredArchitecture, hostArchitecture) {
 	const architecture = configuredArchitecture === undefined
 		? hostArchitecture

@@ -5,13 +5,43 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+	DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	assertDesktopSmokePayload,
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
 } from '../scripts/lib/desktop-smoke.mjs';
 
-const EXPECTED_BRIDGE = Object.freeze(['chooseFiles', 'getEnvironment']);
+const EXPECTED_BRIDGE = DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+test('desktop smoke pins the complete sorted preload v1 bridge contract', () => {
+	assert.equal(Object.isFrozen(DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
+	assert.deepEqual(DESKTOP_SMOKE_EXPECTED_BRIDGE, [
+		'abortWrite',
+		'beginWrite',
+		'checkForUpdates',
+		'chooseFiles',
+		'chooseSaveTarget',
+		'commitSharedProject',
+		'deleteSharedProject',
+		'editText',
+		'finishWrite',
+		'getEnvironment',
+		'listSharedProjects',
+		'onCloseRequested',
+		'onFullscreenChanged',
+		'onMenuCommand',
+		'onOpenProject',
+		'openExternal',
+		'readSharedProject',
+		'releaseRead',
+		'respondToClose',
+		'setFullscreen',
+		'setLocale',
+		'signalReady',
+		'writeChunk',
+	]);
+});
 
 test('desktop smoke resolves an explicit package architecture independently of the Node host', () => {
 	assert.equal(resolveSmokeArchitecture('arm64', 'x64'), 'arm64');
@@ -91,6 +121,8 @@ test('desktop smoke validates the application-reported platform and target archi
 
 test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
 	const source = await readFile(resolve(ROOT, 'scripts/desktop-smoke.mjs'), 'utf8');
+	assert.match(source, /bridge: DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
+	assert.doesNotMatch(source, /const EXPECTED_BRIDGE/u);
 	assert.match(source, /--user-data-dir=\$\{profile\}/u);
 	assert.match(source, /--soundscaper-smoke-app-data=\$\{[^}]+\}/u);
 });
