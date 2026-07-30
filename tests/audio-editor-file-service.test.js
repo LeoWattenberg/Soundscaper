@@ -151,6 +151,48 @@ test('desktop file service exposes a bounded direct-save stream with acknowledge
 	]);
 });
 
+test('desktop direct-save streams can declare one exact output size', async () => {
+	const calls = [];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseSaveTarget(request) {
+				calls.push(['choose', request]);
+				return { id: 'target-exact', name: 'mix.wav' };
+			},
+			async beginWrite(request) {
+				calls.push(['begin', request]);
+				return { writeId: 'write-exact', chunkSize: 2 };
+			},
+			async writeChunk(request) {
+				calls.push(['chunk', request.offset, [...request.bytes]]);
+				return { nextOffset: request.offset + request.bytes.byteLength };
+			},
+			async finishWrite(writeId) {
+				calls.push(['finish', writeId]);
+				return { byteLength: 3 };
+			},
+			async abortWrite(writeId) { calls.push(['abort', writeId]); },
+		},
+	});
+	const prepared = await service.prepareSave({
+		purpose: 'audio-pcm-mix',
+		suggestedName: 'mix.wav',
+		mimeType: 'audio/wav',
+	});
+	const writer = (await prepared.createWritable(3, 'exact')).getWriter();
+	await writer.write(Uint8Array.of(1, 2, 3));
+	await writer.close();
+	await prepared.commit();
+
+	assert.deepEqual(calls, [
+		['choose', { purpose: 'audio-pcm-mix', suggestedName: 'mix.wav', mimeType: 'audio/wav' }],
+		['begin', { targetId: 'target-exact', size: 3 }],
+		['chunk', 0, [1, 2]],
+		['chunk', 2, [3]],
+		['finish', 'write-exact'],
+	]);
+});
+
 test('browser file service streams to File System Access and retains Blob download fallback', async () => {
 	const calls = [];
 	const handle = {
@@ -191,6 +233,63 @@ test('browser file service streams to File System Access and retains Blob downlo
 	});
 	assert.equal(fallback.mode, 'blob');
 	assert.deepEqual(fallback.target, { browserDownload: true, name: 'fallback.scape' });
+});
+
+test('exact File System Access saves abort instead of committing a short output', async () => {
+	const cleanup = new Error('FSA abort failed');
+	const calls = [];
+	const service = createAudioEditorFileService({
+		bridge: null,
+		scope: { showSaveFilePicker: async () => ({
+			name: 'mix.wav',
+			async createWritable() {
+				return {
+					async write(bytes) { calls.push(['write', [...bytes]]); },
+					async close() { calls.push(['close']); },
+					async abort(reason) {
+						calls.push(['abort', reason]);
+						throw cleanup;
+					},
+				};
+			},
+		}) },
+	});
+	const prepared = await service.prepareSave({
+		purpose: 'audio', suggestedName: 'mix.wav', useFileSystemAccess: true,
+	});
+	const writer = (await prepared.createWritable(3, 'exact')).getWriter();
+	await writer.write(Uint8Array.of(1, 2));
+	await writer.close();
+
+	await assert.rejects(prepared.commit(), (error) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.message, /direct save and destination cleanup both failed/iu);
+		assert.match(error.errors[0].message, /does not match the declared size/iu);
+		assert.equal(error.errors[1], cleanup);
+		return true;
+	});
+	assert.deepEqual(calls[0], ['write', [1, 2]]);
+	assert.equal(calls[1][0], 'abort');
+	assert.match(calls[1][1].message, /does not match the declared size/iu);
+	assert.equal(calls.length, 2);
+});
+
+test('direct-save size mode is closed and rejects before opening a destination', async () => {
+	let beginCalls = 0;
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseSaveTarget() { return { id: 'target-mode', name: 'mix.wav' }; },
+			async beginWrite() { beginCalls += 1; return { writeId: 'write-mode' }; },
+			async writeChunk() { return { nextOffset: 0 }; },
+			async finishWrite() { return { byteLength: 0 }; },
+		},
+	});
+	const prepared = await service.prepareSave({ purpose: 'audio', suggestedName: 'mix.wav' });
+	await assert.rejects(
+		prepared.createWritable(0, 'bounded'),
+		/Direct-save size mode must be "maximum" or "exact"/u,
+	);
+	assert.equal(beginCalls, 0);
 });
 
 test('direct-save streams abort without publishing when their admitted maximum is exceeded', async () => {

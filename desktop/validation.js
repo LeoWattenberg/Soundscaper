@@ -33,6 +33,10 @@ const FILE_PURPOSES = Object.freeze({
 const SAVE_PURPOSES = Object.freeze({
 	project: Object.freeze({ defaultExtension: 'scape', filters: [{ name: 'Scape project', extensions: ['scape'] }] }),
 	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
+	'audio-pcm-mix': Object.freeze({
+		defaultExtension: 'wav',
+		filters: [{ name: 'WAV audio mix', extensions: ['wav'] }],
+	}),
 	audio: Object.freeze({
 		defaultExtension: 'wav',
 		filters: [

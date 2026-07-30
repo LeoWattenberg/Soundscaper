@@ -5,11 +5,15 @@ const MAXIMUM_WRITE_CHUNK_BYTES = 4 * 1024 * 1024;
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
+export type DirectSaveSizeMode = 'maximum' | 'exact';
+
+type DesktopSaveDeclaration = Readonly<{ readonly targetId: string } & (
+	| { readonly maximumSize: number; readonly size?: never }
+	| { readonly maximumSize?: never; readonly size: number }
+)>;
+
 interface DesktopSaveBridge {
-	beginWrite(request: Readonly<{
-		targetId: string;
-		maximumSize: number;
-	}>): PromiseLike<Readonly<{ writeId?: unknown; chunkSize?: unknown }>>;
+	beginWrite(request: DesktopSaveDeclaration): PromiseLike<Readonly<{ writeId?: unknown; chunkSize?: unknown }>>;
 	writeChunk(request: Readonly<{
 		writeId: string;
 		offset: number;
@@ -50,7 +54,7 @@ export interface DirectSavedFile extends Readonly<Record<string, unknown>> {
 
 export interface PreparedDirectSave {
 	readonly mode: 'stream';
-	createWritable(maximumBytes: number): Promise<WritableStream<Uint8Array>>;
+	createWritable(byteLength: number, sizeMode?: DirectSaveSizeMode): Promise<WritableStream<Uint8Array>>;
 	bytesWritten(): number;
 	commit(): Promise<DirectSavedFile>;
 	abort(reason?: unknown): Promise<void>;
@@ -75,8 +79,11 @@ export function createDesktopPreparedSave(options: Readonly<{
 		fileName: String(options.target.name || options.fileName),
 		method: 'desktop',
 		signal: options.signal,
-		open: async (maximumBytes) => {
-			const session = await bridge.beginWrite({ targetId, maximumSize: maximumBytes });
+		open: async (byteLength, sizeMode) => {
+			const declaration: DesktopSaveDeclaration = sizeMode === 'exact'
+				? { targetId, size: byteLength }
+				: { targetId, maximumSize: byteLength };
+			const session = await bridge.beginWrite(declaration);
 			const writeId = String(session?.writeId || '');
 			if (!writeId) throw new Error('The desktop save session could not be started.');
 			const maximumChunkBytes = Math.max(1, Math.min(
@@ -135,11 +142,12 @@ export function createFileSystemPreparedSave(options: Readonly<{
 function createPreparedDirectSave(options: Readonly<{
 	fileName: string;
 	method: DirectSavedFile['method'];
-	open(maximumBytes: number): Promise<DirectSaveBackend>;
+	open(byteLength: number, sizeMode: DirectSaveSizeMode): Promise<DirectSaveBackend>;
 	signal?: AbortSignal;
 }>): PreparedDirectSave {
 	let backend: DirectSaveBackend | null = null;
 	let maximumBytes = 0;
+	let sizeMode: DirectSaveSizeMode = 'maximum';
 	let byteLength = 0;
 	let opened = false;
 	let sealed = false;
@@ -153,12 +161,19 @@ function createPreparedDirectSave(options: Readonly<{
 		void requestAbort(abortReason).catch(() => undefined);
 	};
 
-	async function createWritable(value: number): Promise<WritableStream<Uint8Array>> {
+	async function createWritable(
+		value: number,
+		requestedSizeMode?: DirectSaveSizeMode,
+	): Promise<WritableStream<Uint8Array>> {
 		if (opened) throw new Error('The direct-save destination was already opened.');
-		maximumBytes = safeNonNegativeInteger(value, 'Direct-save admitted maximum');
+		sizeMode = normalizeSizeMode(requestedSizeMode);
+		maximumBytes = safeNonNegativeInteger(
+			value,
+			sizeMode === 'exact' ? 'Direct-save declared size' : 'Direct-save admitted maximum',
+		);
 		opened = true;
 		throwIfAborted(options.signal);
-		backend = await options.open(maximumBytes);
+		backend = await options.open(maximumBytes, sizeMode);
 		try {
 			throwIfAborted(options.signal);
 		} catch (error) {
@@ -198,6 +213,11 @@ function createPreparedDirectSave(options: Readonly<{
 		if (committed) return committed;
 		if (!backend || !sealed || abortPromise) throw new Error('The direct-save destination is not ready to commit.');
 		throwIfAborted(options.signal);
+		if (sizeMode === 'exact' && byteLength !== maximumBytes) {
+			await abortAfterFailure(new RangeError(
+				'Exact direct-save output size does not match the declared size.',
+			));
+		}
 		detachAbort();
 		await backend.commit(byteLength);
 		committed = Object.freeze({
@@ -257,6 +277,12 @@ function safeNonNegativeInteger(value: unknown, field: string): number {
 		throw new RangeError(`${field} must be a non-negative safe integer.`);
 	}
 	return Number(value);
+}
+
+function normalizeSizeMode(value: unknown): DirectSaveSizeMode {
+	if (value === undefined || value === 'maximum') return 'maximum';
+	if (value === 'exact') return 'exact';
+	throw new RangeError('Direct-save size mode must be "maximum" or "exact".');
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
