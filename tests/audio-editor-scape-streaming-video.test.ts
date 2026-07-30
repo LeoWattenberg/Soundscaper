@@ -267,6 +267,22 @@ test('the default ZIP reader emits stored video in pinned 4 MiB chunks', async (
 	assert.deepEqual(chunkSizes, [SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES, 17]);
 });
 
+test('the default ZIP reader verifies a stored asset CRC before publication', async () => {
+	const sourceStore = memoryStore('scape-crc-source');
+	const targetStore = memoryStore('scape-crc-target');
+	const project = videoProject('stored-asset-crc');
+	const body = TEXT_ENCODER.encode('authentic video body');
+	await sourceStore.writeMediaAsset('video-source', new Blob([body]), {
+		mimeType: 'video/mp4',
+	});
+	const archive = (await exportScapeProject(project, sourceStore)).blob as Blob;
+	const corrupted = await corruptEntryCrc(archive, 'media/video-source/original', body.byteLength);
+	const before = await inventory(targetStore);
+
+	await assert.rejects(importScapeProject(corrupted, targetStore), /invalid signature/iu);
+	assert.deepEqual(await inventory(targetStore), before);
+});
+
 function videoWriter(overrides: Partial<ScapeVideoWriter> = {}): ScapeVideoWriter {
 	return {
 		maximumChunkBytes: SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
@@ -429,6 +445,49 @@ function videoProject(id: string) {
 		}],
 		tracks: [{ type: 'video', id: 'video-track', name: 'Video', clipIds: ['video-clip'] }],
 	});
+}
+
+async function corruptEntryCrc(archive: Blob, filename: string, payloadBytes: number): Promise<Blob> {
+	const bytes = new Uint8Array(await archive.arrayBuffer());
+	const filenameBytes = TEXT_ENCODER.encode(filename);
+	const fields = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let localOffset = -1;
+	let centralOffset = -1;
+	for (let offset = 0; offset <= bytes.byteLength - 30; offset += 1) {
+		const signature = fields.getUint32(offset, true);
+		const isLocal = signature === 0x0403_4b50;
+		const isCentral = signature === 0x0201_4b50;
+		if (!isLocal && !isCentral) continue;
+		const fixedBytes = isLocal ? 30 : 46;
+		if (offset > bytes.byteLength - fixedBytes) continue;
+		const nameLength = fields.getUint16(offset + (isLocal ? 26 : 28), true);
+		if (nameLength !== filenameBytes.byteLength
+			|| !bytesMatch(bytes, offset + fixedBytes, filenameBytes)) continue;
+		if (isLocal) {
+			assert.equal(localOffset, -1, 'the fixture has only one matching local entry');
+			localOffset = offset;
+		} else {
+			assert.equal(centralOffset, -1, 'the fixture has only one matching central entry');
+			centralOffset = offset;
+		}
+	}
+	assert.ok(localOffset >= 0, 'the fixture has the requested local entry');
+	assert.ok(centralOffset >= 0, 'the fixture has the requested central entry');
+	const original = fields.getUint32(centralOffset + 16, true);
+	const localNameLength = fields.getUint16(localOffset + 26, true);
+	const localExtraLength = fields.getUint16(localOffset + 28, true);
+	const descriptorOffset = localOffset + 30 + localNameLength + localExtraLength + payloadBytes;
+	assert.equal(fields.getUint32(descriptorOffset, true), 0x0807_4b50);
+	assert.equal(fields.getUint32(descriptorOffset + 4, true), original);
+	const corrupted = original ^ 1;
+	fields.setUint32(centralOffset + 16, corrupted, true);
+	fields.setUint32(descriptorOffset + 4, corrupted, true);
+	return new Blob([bytes], { type: archive.type });
+}
+
+function bytesMatch(bytes: Uint8Array, offset: number, expected: Uint8Array): boolean {
+	if (offset < 0 || offset > bytes.byteLength - expected.byteLength) return false;
+	return expected.every((byte, index) => bytes[offset + index] === byte);
 }
 
 function uniqueDatabaseName(prefix: string): string {

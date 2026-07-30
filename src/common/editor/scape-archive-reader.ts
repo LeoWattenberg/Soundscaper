@@ -113,6 +113,7 @@ async function createZipArchiveByteSourceReader(
 	const layoutBoundInput = await bindScapeArchiveByteSourceLayout(input, signal);
 	throwIfScapeAborted(signal);
 	return new ZipReader(new ScapeZipByteSourceReader(layoutBoundInput, signal), {
+		checkSignature: true,
 		useWebWorkers: false,
 		strictness: 'strict',
 		signal,

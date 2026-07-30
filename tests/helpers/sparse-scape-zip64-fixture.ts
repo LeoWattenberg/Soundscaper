@@ -25,10 +25,11 @@ const DOS_DATE_1980_01_01 = 0x0021;
 const PROJECT_ID = 'sparse-eight-gib-project';
 const VIDEO_SOURCE_ID = 'video-source';
 const VIDEO_ENTRY = 'media/video-source/original';
-// Inspection validates ownership metadata but intentionally never hashes this
-// sparse body; a full import would reject this placeholder rather than claim
-// payload-integrity evidence that the collision-cancel witness does not supply.
-const PLACEHOLDER_ASSET_SHA256 = '0'.repeat(64);
+// The sparse hole reads as this exact number of zero bytes. These pinned values
+// are the SHA-256 and ZIP CRC-32 of that logical body, not fixture placeholders.
+const ZERO_ASSET_BYTES = 8_589_932_094;
+const ZERO_ASSET_SHA256 = '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be';
+const ZERO_ASSET_CRC32 = 2_909_126_900;
 
 interface ArchiveEntryPlan {
 	readonly name: string;
@@ -68,7 +69,8 @@ export interface SparseEightGiBScapeFixture {
 	readonly logicalSize: number;
 	readonly allocatedBytes: number;
 	readonly projectId: string;
-	readonly placeholderAssetSha256: string;
+	readonly assetSha256: string;
+	readonly assetCrc32: number;
 	readonly entries: readonly SparseScapeEntryBoundary[];
 	readonly hugePayload: Readonly<{
 		startOffset: number;
@@ -211,7 +213,8 @@ export async function createSparseEightGiBScapeFixture(
 		logicalSize: LOGICAL_ARCHIVE_BYTES,
 		allocatedBytes,
 		projectId: PROJECT_ID,
-		placeholderAssetSha256: PLACEHOLDER_ASSET_SHA256,
+		assetSha256: ZERO_ASSET_SHA256,
+		assetCrc32: ZERO_ASSET_CRC32,
 		entries: Object.freeze(plan.entries.map((entry) => Object.freeze({
 			name: entry.name,
 			localOffset: entry.localOffset,
@@ -254,7 +257,7 @@ function manifestDocument(
 			encoding: 'original',
 			entry: VIDEO_ENTRY,
 			size: hugePayloadBytes,
-			sha256: PLACEHOLDER_ASSET_SHA256,
+			sha256: ZERO_ASSET_SHA256,
 			mimeType: 'video/mp4',
 		}],
 	}));
@@ -281,11 +284,14 @@ function planArchive(projectBytes: Uint8Array, manifestBytes: Uint8Array): Archi
 	if (!Number.isSafeInteger(hugeSize) || hugeSize <= UINT32_SENTINEL) {
 		throw new Error('The sparse Scape video size is outside the required Zip64 range.');
 	}
+	if (hugeSize !== ZERO_ASSET_BYTES) {
+		throw new Error('The sparse Scape video size no longer matches its pinned integrity metadata.');
+	}
 	const huge: ArchiveEntryPlan = Object.freeze({
 		name: names[1],
 		bytes: null,
 		size: hugeSize,
-		crc32: 0,
+		crc32: ZERO_ASSET_CRC32,
 		zip64Size: true,
 		zip64Offset: false,
 		localOffset: hugeLocalOffset,

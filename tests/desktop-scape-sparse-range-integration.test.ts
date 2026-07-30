@@ -55,6 +55,8 @@ test('an 8 GiB sparse desktop Scape is inspected through bounded ranges and canc
 		return;
 	}
 	assert.equal(fixture.logicalSize, 8 * 1024 ** 3);
+	assert.equal(fixture.assetSha256, '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be');
+	assert.equal(fixture.assetCrc32, 2_909_126_900);
 	assert.ok(fixture.allocatedBytes < MAX_INSPECTION_TRANSFER_BYTES);
 	assert.deepEqual(fixture.entries.map(({ name }) => name), [
 		'project.json',
@@ -157,7 +159,7 @@ test('an 8 GiB sparse desktop Scape is inspected through bounded ranges and canc
 			assert.equal(request.kind, 'collision');
 			assert.equal(request.inspected.id, fixture.projectId);
 			assert.equal(request.inspected.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-			assert.equal(request.inspected.manifest.assets[0]?.sha256, fixture.placeholderAssetSha256);
+			assert.equal(request.inspected.manifest.assets[0]?.sha256, fixture.assetSha256);
 			return 'cancel';
 		}),
 	});
