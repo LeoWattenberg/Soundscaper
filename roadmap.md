@@ -135,9 +135,10 @@ Material constraints in the current foundation are also roadmap inputs:
   write-time capacity under concurrent imports, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
   authentication. Browser `.scape` files retain their Blob source. Several
-  compressed imports, browser-download fallback, and final render outputs also
-  retain bounded or reference-scale paths that materialize a whole `Blob` or
-  byte array;
+  compressed imports and browser-download fallback retain bounded or
+  reference-scale paths that materialize a whole `Blob` or byte array. Final
+  render formats and routes outside the narrow exact-size, realtime plain-WAV
+  direct-save slice described below retain that limitation as well;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products retain separate Chromium partitions for their
   product-local revision, source, and media shadows, while exact-schema-9 latest
@@ -646,9 +647,25 @@ models or native implementations.
   project saves directly to a user-selected File System Access or atomic native
   target without a final renderer-sized `Blob`. A size-limited browser download
   remains the Web Core fallback when no streaming destination exists.
-- **Web Enhanced / Electron Enhanced — Planned:** stream reference-scale render
-  outputs directly to a user-selected file or native target without a final
-  renderer-sized `Blob`.
+- **Web Enhanced / Electron Enhanced — In progress:** the first bounded direct
+  render slice is exactly one mix with format `wav`, a `realtime-stream` render
+  plan, one output, the exact WAV MIME type and `.wav` extension, and an exact
+  positive safe-integer planned file byte count at or below 65 GiB. A dedicated
+  `audio-pcm-mix` target opens only through File System Access or Electron
+  exact-size writing. The adapter has bounded encoder-emission retention and
+  serially awaits one destination write at a time; the realtime producer still
+  has the existing fail-closed 64-packet PCM queue. Planned, encoder-finalized,
+  destination-written, and committed-result byte counts must form a four-way
+  agreement. Explicit publication is a non-cancellable commit boundary:
+  ownership lost during commit returns the committed result without stale
+  success UI, and committed-result disagreement is a post-publication integrity
+  failure, not rollback. This direct route completes without a final
+  renderer-sized `Blob`. Other PCM formats, compressed or custom audio, video,
+  stems, and non-realtime renders retain their existing staging or in-memory
+  paths. The Web Core browser-download fallback also retains its existing final
+  `Blob`. Focused Node evidence covers the closed direct-WAV contract and
+  rollback; a browser workflow and packaged Electron reference-scale acceptance
+  are not yet qualified.
 - **Web Core — In progress:** the strict-TS
   [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
   publishes usage, quota, free space, pressure, eviction protection, fallback

@@ -216,6 +216,8 @@
 			"data": "Task generations, AbortSignals, project bytes, storage writes, and late results",
 			"entryPoints": [
 				"src/common/editor/controller/lifecycle.ts",
+				"src/common/editor/controller/export-service.ts",
+				"src/common/editor/controller/direct-wav-export.ts",
 				"src/common/editor/controller/native-project-service.ts",
 				"src/common/editor/controller/native-scape-save.ts",
 				"src/common/editor/scape-project.js",
@@ -225,6 +227,8 @@
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "src/common/editor/controller/lifecycle.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-scape-save.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
@@ -238,6 +242,7 @@
 				{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-scape-export-destination.test.ts" },
 				{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+				{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
 				{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" },
 				{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
 			]
@@ -990,6 +995,24 @@
 					]
 				},
 				{
+					"id": "exact-direct-wav-mix-save",
+					"summary": "A dedicated `audio-pcm-mix` purpose selects only a WAV target without granting generic audio targets maximum-bounded streaming authority. The maintained direct route admits one plain-WAV mix only when its plan has one output, `realtime-stream`, the exact WAV MIME type and extension, and one positive safe-integer planned file byte count at or below 65 GiB. An exact-size, not maximum-bounded File System Access or Electron session receives that count; desktop receives `size` rather than `maximumSize` and rejects an underwrite before publication. The adapter has bounded encoder-emission retention and serially awaits one destination write at a time, while the realtime producer retains its existing fail-closed 64-packet PCM queue. Planned, encoder-finalized, destination-written, and committed-result byte counts must form a four-way agreement, and explicit commit occurs with no final renderer `Blob`. BWF, BW64, AIFF, compressed or custom audio, video, stems, non-realtime plans, and browser-download Blob fallback remain outside this route. Focused Node tests cover this slice; browser workflow acceptance is not qualified.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/validation.js" },
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
+						{ "kind": "implementation", "path": "src/common/editor/pcm-sink.js" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-pcm-sink.test.js" },
+						{ "kind": "test", "path": "tests/desktop-pcm-mix-save-purpose.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					]
+				},
+				{
 					"id": "terminal-save-shutdown-quiescence",
 					"summary": "Shutdown synchronously rejects new target and save-session admission, drains operations admitted before the fence through any sync-and-rename commit, aborts remaining or late-opened staging, and exposes one idempotent disposal barrier that rejects on unacknowledged handle close or staging removal.",
 					"evidence": [
@@ -1500,6 +1523,19 @@
 						{ "kind": "test", "path": "tests/audio-editor-project-switch-service.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 						{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" }
+					]
+				},
+				{
+					"id": "direct-wav-mix-save-rollback",
+					"summary": "The maintained direct-WAV route selects its target before rendering, propagates the owned export task signal through destination preparation and realtime rendering, and serially awaits each destination write while the existing fail-closed 64-packet PCM queue bounds the realtime producer. Failure or cancellation before commit aborts and awaits staging cleanup, preserving a primary failure together with a cleanup failure. Planned, encoder-finalized, and destination-written counts agree before one explicit non-cancellable commit. If ownership is lost during commit, the controller returns the committed result without stale success UI publication. A committed-result size disagreement is reported as a post-publication integrity failure, not as rollback. Nonqualifying export paths remain unchanged. Focused Node tests cover this cancellation and rollback slice; browser workflow acceptance is not qualified.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/pcm-sink.js" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-pcm-sink.test.js" }
 					]
 				}
 			],
