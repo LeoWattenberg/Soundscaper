@@ -206,17 +206,29 @@ test('quality budget contract names numeric gates for every later milestone with
 		fullImportWholeBlobMaterialization: false,
 		packagedElectronUiQualified: false,
 		opfsIndexedDbDurableStorageQualified: false,
-		quotaPreflightQualified: false,
+		quotaPreflightQualified: true,
+		quotaPreflightPolicy: 'point-in-time-validated-asset-bytes-plus-ceil-10-percent',
+		quotaPreflightRequiredFreeBytes: 9_448_925_304,
+		realBrowserQuotaAvailabilityQualified: false,
 		rendererBrowserHeapQualified: false,
 		mainRendererRssQualified: false,
 		wholeArchiveStorageAtomicityQualified: false,
 		publisherAuthenticationQualified: false,
 	});
+	assert.equal(
+		milestone2Fixture?.specification.quotaPreflightRequiredFreeBytes,
+		8_589_932_094 + Math.ceil(8_589_932_094 / 10),
+	);
 	assert.match(milestone2Fixture?.limitation ?? '', /sparse filesystem/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /counting.*sink/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /packaged Electron UI/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /OPFS.*IndexedDB/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /preflight/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /point-in-time capacity admission.*injected estimate/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /8,589,932,094.*9,448,925,304/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /not a storage reservation/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /does not guarantee.*capacity UI snapshot.*write-time success/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /actual browser quota.*estimate freshness.*concurrent writers/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /browser-record.*filesystem-allocation.*policy headroom/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /RSS/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /browser heap/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /quota/iu);
@@ -232,6 +244,9 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.match(referenceScaleTest, /npm run test:reference:scape-8gib/u);
 	assert.deepEqual(milestone2Fixture?.evidence, [
 		'package.json',
+		'src/common/editor/scape-import-capacity.ts',
+		'tests/audio-editor-scape-import-capacity.test.ts',
+		'tests/audio-editor-scape-import-capacity-admission.test.ts',
 		'tests/desktop-scape-sparse-range-integration.test.ts',
 		'tests/desktop-scape-sparse-full-import-integration.test.ts',
 		'tests/audio-editor-scape-streaming-video.test.ts',

@@ -150,6 +150,16 @@ requires exact at-most-16-MiB `206` ranges, at-most-4-MiB media emissions,
 project publication after media commit, exact-once capability release and
 pinned-handle close, and no whole-archive `Blob` path.
 
+The maintained importer's point-in-time capacity admission is covered by the
+[arithmetic tests](../tests/audio-editor-scape-import-capacity.test.ts) and
+[archive admission tests](../tests/audio-editor-scape-import-capacity-admission.test.ts).
+It checked-sums validated manifest asset sizes and adds `ceil(10%)` headroom
+before transaction capture, source remapping, writer creation, or asset
+extraction. For this fixture, 8,589,932,094 asset bytes require exactly
+9,448,925,304 free bytes; exact free space is admitted and one byte less is
+refused. The full-import counting store supplies that exact injected estimate
+before its media writer opens.
+
 This full-import witness is an explicit portable reference-scale gate. Run it
 with `npm run test:reference:scape-8gib`; a direct Node-test invocation may opt
 in by setting `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1`. It passed when included
@@ -159,11 +169,15 @@ reports a fast skip that names the dedicated command. The scheduling change
 does not remove or weaken any full-import assertion, and the observed duration
 is execution evidence rather than a performance qualification threshold.
 
-That counting sink is not real durable application storage. These witnesses do
-not qualify a packaged Electron UI, real OPFS or IndexedDB durable storage,
-quota or preflight behavior, renderer/browser heap, main/renderer RSS,
-whole-archive storage atomicity, or publisher authentication. The milestone 2
-bounded-memory workload therefore remains planned.
+That counting sink is not real durable application storage. The qualified
+capacity check is a point-in-time admission against an injected estimate, not a
+storage reservation; it does not guarantee actual browser quota availability,
+estimate accuracy or freshness under concurrent writers, a capacity UI
+snapshot, browser-record or filesystem-allocation overhead beyond the policy
+headroom, or write-time success. These witnesses do not qualify a packaged
+Electron UI, real OPFS or IndexedDB durable storage, renderer/browser heap,
+main/renderer RSS, whole-archive storage atomicity, or publisher authentication.
+The milestone 2 bounded-memory workload therefore remains planned.
 
 The fixture specifications are deliberately concrete:
 
