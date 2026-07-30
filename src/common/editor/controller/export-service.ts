@@ -1,16 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
-import {
-	commitDirectWavDestination, createDirectWavEncoder, prepareDirectWavDestination, type DirectWavDestination,
-} from './direct-wav-export.ts';
+import { commitDirectWavDestination, createDirectWavEncoder, directWavRenderQueueOptions, prepareDirectWavDestination, type DirectWavDestination } from './direct-wav-export.ts';
+import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
 }
-
 type RuntimeValue = ExportServiceRuntime[string];
 
 const NO_TASK_PROGRESS = Object.freeze({
@@ -26,8 +24,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
-		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
-		productName,
+		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches, productName,
 		getProject, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
@@ -540,34 +537,37 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
 			}));
 		const renderEngine = createCacheAwareRenderEngine();
-		let outputResampler = null;
+		const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
 		let renderedSampleRate = renderSampleRate;
 		try {
 			renderEngine.loadProject(snapshot, sourceMap);
-			const renderResult = await renderEngine.renderMixRealtime({
+			await renderEngine.renderMixRealtime({
 				startFrame: plan.range.startFrame,
 				endFrame: plan.range.endFrame,
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 				sampleRate: renderSampleRate,
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
+				...(directDestination ? directWavRenderQueueOptions(Number(snapshot.masterChannels || 2)) : {}),
 				signal,
 				onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
 					renderedSampleRate = metadata.sampleRate || renderedSampleRate;
-					const mappedChannels = applyMediaChannelMapping(channels, plan.channelMapping);
-					outputResampler ||= createStreamingWindowedSincResampler(renderedSampleRate, plan.sampleRate, plan.channelCount);
-					const outputChannels = outputResampler.push(mappedChannels);
+					outputTransform.current ||= createRealtimeExportPcmTransform({
+						inputChannelCount: channels.length, inputSampleRate: renderedSampleRate,
+						outputChannelCount: plan.channelCount, outputSampleRate: plan.sampleRate,
+						channelMapping: plan.channelMapping, applyChannelMapping: applyMediaChannelMapping,
+						createResampler: createStreamingWindowedSincResampler, optimizeSelectionUpmix: Boolean(directEncoder),
+					});
+					const outputChannels = outputTransform.current.push(channels);
 					if (!outputChannels[0]?.length) return undefined;
 					if (directEncoder) return directEncoder.write(outputChannels);
 					encoder.write(outputChannels);
 					return undefined;
 				},
 			});
-			outputResampler ||= createStreamingWindowedSincResampler(renderResult.sampleRate || renderedSampleRate, plan.sampleRate, plan.channelCount);
-			const finalChannels = outputResampler.finish(plan.outputFrames);
-			if (finalChannels[0]?.length) {
-				if (directEncoder) await directEncoder.write(finalChannels);
-				else encoder.write(finalChannels);
-			}
+			if (!outputTransform.current) throw new Error('Realtime export produced no PCM chunks.');
+			const finalChannels = outputTransform.current.finish(plan.outputFrames);
+			if (finalChannels[0]?.length && directEncoder) await directEncoder.write(finalChannels);
+			else if (finalChannels[0]?.length) encoder.write(finalChannels);
 			if (directEncoder) {
 				const byteLength = await directEncoder.finalize();
 				return { blob: null, bytes: null, byteLength, mimeType: plan.mimeType, directDestination };

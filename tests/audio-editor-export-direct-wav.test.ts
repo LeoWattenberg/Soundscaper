@@ -9,7 +9,12 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import {
+	DIRECT_WAV_DESTINATION_WRITE_BYTES,
+	DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES,
 	DIRECT_WAV_MAXIMUM_FILE_BYTES,
+	DIRECT_WAV_RENDER_CHUNK_FRAMES,
+	createDirectWavEncoder,
+	directWavMaximumPendingChunks,
 	prepareDirectWavDestination,
 } from '../src/common/editor/controller/direct-wav-export.ts';
 
@@ -135,6 +140,8 @@ function createFixture(
 	const errors: unknown[] = [];
 	const preflights: number[] = [];
 	const prepareRequests: Array<Record<string, unknown>> = [];
+	const renderRequests: Array<Readonly<Record<string, unknown>>> = [];
+	const resamplerChannelCounts: number[] = [];
 	const statuses: string[] = [];
 	let snapshots = 0;
 	let prepared: unknown = Object.freeze({ mode: 'blob', target: null, fileName: 'mix.wav' });
@@ -187,8 +194,11 @@ function createFixture(
 		createCacheAwareRenderEngine: () => ({
 			loadProject() {},
 			async renderMixRealtime(range: Readonly<{
+				chunkFrames?: number;
+				maximumPendingChunks?: number;
 				onChunk: (channels: readonly Float32Array[], metadata: Readonly<{ sampleRate: number }>) => Promise<void> | void;
-			}>) {
+			}> & Readonly<Record<string, unknown>>) {
+				renderRequests.push(range);
 				calls.push('render:chunk:1');
 				await range.onChunk([Float32Array.of(0.1), Float32Array.of(0.2)], { sampleRate: 48_000 });
 				calls.push('render:chunk:2');
@@ -200,10 +210,13 @@ function createFixture(
 		}),
 		createExportPlan: () => plan,
 		createStableId: () => 'temporary',
-		createStreamingWindowedSincResampler: () => ({
+		createStreamingWindowedSincResampler: (_inputRate: number, _outputRate: number, channelCount: number) => {
+			resamplerChannelCounts.push(channelCount);
+			return ({
 			push: (channels: readonly Float32Array[]) => channels,
 			finish: () => [new Float32Array(0), new Float32Array(0)],
-		}),
+			});
+		},
 		createTemporaryFileSink: async () => {
 			calls.push('temporary:create');
 			const pieces: ArrayBuffer[] = [];
@@ -272,6 +285,8 @@ function createFixture(
 		errors,
 		preflights,
 		prepareRequests,
+		renderRequests,
+		resamplerChannelCounts,
 		runtime,
 		state,
 		statuses,
@@ -280,7 +295,54 @@ function createFixture(
 	};
 }
 
-test('exact realtime WAV mixes await every direct destination write and publish no Blob', async () => {
+test('direct WAV encoder coalesces bounded PCM writes and awaits each destination flush', async () => {
+	assert.equal(DIRECT_WAV_DESTINATION_WRITE_BYTES, 4 * 1024 * 1024);
+	const half = DIRECT_WAV_DESTINATION_WRITE_BYTES / 2;
+	const releaseWrite = deferred();
+	const writeStarted = deferred();
+	const writes: Uint8Array[] = [];
+	let closed = false;
+	let encoderOnChunk: ((chunk: Uint8Array) => void) | null = null;
+	let block = 0;
+	const encoder = await createDirectWavEncoder({
+		async write(chunk) {
+			writes.push(chunk.slice());
+			if (chunk.byteLength === DIRECT_WAV_DESTINATION_WRITE_BYTES) {
+				writeStarted.resolve();
+				await releaseWrite.promise;
+			}
+		},
+		async close() { closed = true; },
+		async abort() {},
+		bytesWritten: () => writes.reduce((total, chunk) => total + chunk.byteLength, 0),
+		async commit() { return {}; },
+	}, (options) => {
+		encoderOnChunk = options.onChunk as (chunk: Uint8Array) => void;
+		encoderOnChunk(Uint8Array.of(0));
+		return {
+			write() {
+				block += 1;
+				encoderOnChunk?.(new Uint8Array(half).fill(block));
+			},
+			finalize() { return { byteLength: 1 + 2 * half }; },
+		};
+	}, {});
+
+	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1]);
+	await encoder.write([Float32Array.of(0)]);
+	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1]);
+	let secondSettled = false;
+	const second = encoder.write([Float32Array.of(0)]).then(() => { secondSettled = true; });
+	await writeStarted.promise;
+	assert.equal(secondSettled, false);
+	assert.deepEqual(writes.map((chunk) => chunk.byteLength), [1, DIRECT_WAV_DESTINATION_WRITE_BYTES]);
+	releaseWrite.resolve();
+	await second;
+	assert.equal(await encoder.finalize(), 1 + 2 * half);
+	assert.equal(closed, true);
+});
+
+test('exact realtime WAV mixes await coalesced destination writes and publish no Blob', async () => {
 	const fixture = createFixture();
 	const writeStarted = deferred();
 	const releaseWrite = deferred();
@@ -298,19 +360,24 @@ test('exact realtime WAV mixes await every direct destination write and publish 
 	});
 
 	await writeStarted.promise;
-	assert.deepEqual(fixture.calls, ['render:chunk:1', 'encoder:write:1']);
-	assert.equal(fixture.calls.includes('encoder:write:2'), false);
+	assert.deepEqual(fixture.calls, [
+		'render:chunk:1', 'encoder:write:1',
+		'render:chunk:2', 'encoder:write:2',
+		'render:done',
+	]);
 	assert.equal(destination.commitCalls(), 0);
 	releaseWrite.resolve();
 	const result = await saving;
 
 	assert.deepEqual(destination.admissions, [[4, 'exact']]);
-	assert.deepEqual(destination.chunks.map((chunk) => [...chunk]), [[0], [1], [2], [3]]);
+	assert.deepEqual(destination.chunks.map((chunk) => [...chunk]), [[0], [1, 2, 3]]);
 	assert.equal(destination.commitCalls(), 1);
 	assert.equal(destination.abortCalls(), 0);
 	assert.equal(fixture.downloads.length, 0);
 	assert.deepEqual(fixture.preflights, []);
 	assert.equal(fixture.calls.includes('temporary:create'), false);
+	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_WAV_RENDER_CHUNK_FRAMES);
+	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directWavMaximumPendingChunks(2));
 	assert.deepEqual(fixture.prepareRequests.map((request) => ({
 		purpose: request.purpose,
 		suggestedName: request.suggestedName,
@@ -332,6 +399,36 @@ test('exact realtime WAV mixes await every direct destination write and publish 
 		method: 'file-system-access',
 	});
 	assert.equal(fixture.state.outputUrl, null);
+});
+
+test('direct WAV resamples before a selection-only channel expansion', async () => {
+	const mapping = {
+		inputChannelCount: 2,
+		outputChannelCount: 16,
+		mode: 'custom',
+		channels: Array.from({ length: 16 }, () => ({ inputs: [{ channel: 0, gain: 1 }] })),
+	};
+	const fixture = createFixture({ ...directPlan(), channelCount: 16, channelMapping: mapping });
+	const destination = createPreparedStream();
+	fixture.setPrepared(destination.prepared);
+	await createEditorExportService(fixture.runtime).handleExportAction('export');
+	assert.deepEqual(fixture.resamplerChannelCounts, [2]);
+});
+test('direct WAV pending PCM capacity is byte-bounded across render channel counts', () => {
+	assert.equal(DIRECT_WAV_RENDER_CHUNK_FRAMES, 16_384);
+	assert.equal(DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES, 32 * 1024 ** 2);
+	assert.equal(directWavMaximumPendingChunks(1), 512);
+	assert.equal(directWavMaximumPendingChunks(2), 256);
+	assert.equal(directWavMaximumPendingChunks(16), 32);
+	assert.equal(directWavMaximumPendingChunks(32), 16);
+	for (let channels = 1; channels <= 32; channels += 1) {
+		const retainedBytes = directWavMaximumPendingChunks(channels)
+			* DIRECT_WAV_RENDER_CHUNK_FRAMES * channels * Float32Array.BYTES_PER_ELEMENT;
+		assert.ok(retainedBytes <= DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES);
+	}
+	for (const invalid of [0, 1.5, 33, Number.NaN]) {
+		assert.throws(() => directWavMaximumPendingChunks(invalid), /channel count/iu);
+	}
 });
 
 test('direct WAV admission is exact and keeps other PCM plans on their existing path', async () => {

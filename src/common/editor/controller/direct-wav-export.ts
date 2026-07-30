@@ -3,6 +3,28 @@
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export const DIRECT_WAV_MAXIMUM_FILE_BYTES = 65 * 1024 ** 3;
+export const DIRECT_WAV_DESTINATION_WRITE_BYTES = 4 * 1024 * 1024;
+export const DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES = 32 * 1024 ** 2;
+export const DIRECT_WAV_RENDER_CHUNK_FRAMES = 16_384;
+
+export function directWavMaximumPendingChunks(channelCount: number): number {
+	if (!Number.isSafeInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+		throw new RangeError('Direct WAV render channel count must be an integer from 1 to 32.');
+	}
+	return Math.floor(DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES / (
+		DIRECT_WAV_RENDER_CHUNK_FRAMES * channelCount * Float32Array.BYTES_PER_ELEMENT
+	));
+}
+
+export function directWavRenderQueueOptions(channelCount: number): Readonly<{
+	chunkFrames: number;
+	maximumPendingChunks: number;
+}> {
+	return Object.freeze({
+		chunkFrames: DIRECT_WAV_RENDER_CHUNK_FRAMES,
+		maximumPendingChunks: directWavMaximumPendingChunks(channelCount),
+	});
+}
 
 const WAV_FILE_TYPES = Object.freeze([Object.freeze({
 	description: 'WAV audio',
@@ -101,9 +123,9 @@ export async function prepareDirectWavDestination(
 }
 
 /**
- * Adapt the synchronous WAV encoder to one destination write at a time.
- * `onChunk` stays synchronous, so the encoder retains no Promise list; each
- * bounded emission is drained before the next PCM block is accepted.
+ * Adapt the synchronous WAV encoder to bounded destination writes.
+ * `onChunk` stays synchronous and emissions enter one fixed coalescing buffer;
+ * every full destination write settles before another PCM block is accepted.
  */
 export async function createDirectWavEncoder(
 	destination: DirectWavDestination,
@@ -111,6 +133,8 @@ export async function createDirectWavEncoder(
 	options: Readonly<Record<string, unknown>>,
 ): Promise<DirectWavEncoder> {
 	let emitted: Uint8Array[] = [];
+	const pending = new Uint8Array(DIRECT_WAV_DESTINATION_WRITE_BYTES);
+	let pendingBytes = 0;
 	let active = false;
 	let finalized = false;
 	const encoder = createEncoder({
@@ -123,7 +147,7 @@ export async function createDirectWavEncoder(
 		},
 	});
 	if (emitted.length !== 1) throw new Error('The WAV encoder must emit exactly one initial header.');
-	await drain();
+	await drain(true);
 
 	return Object.freeze({
 		async write(channels: readonly Float32Array[]): Promise<void> {
@@ -144,16 +168,40 @@ export async function createDirectWavEncoder(
 			if (!Number.isSafeInteger(result?.byteLength) || Number(result?.byteLength) <= 0) {
 				throw new Error('The WAV encoder did not report a valid final byte length.');
 			}
-			await drain();
+			await drain(true);
 			await destination.close();
 			return result!.byteLength as number;
 		},
 	});
 
-	async function drain(): Promise<void> {
+	async function drain(flush = false): Promise<void> {
 		const chunks = emitted;
 		emitted = [];
-		for (const chunk of chunks) await destination.write(chunk);
+		for (const chunk of chunks) await append(chunk);
+		if (flush) await flushPending();
+	}
+
+	async function append(chunk: Uint8Array): Promise<void> {
+		let offset = 0;
+		while (offset < chunk.byteLength) {
+			if (pendingBytes === 0 && chunk.byteLength - offset >= DIRECT_WAV_DESTINATION_WRITE_BYTES) {
+				await destination.write(chunk.subarray(offset, offset + DIRECT_WAV_DESTINATION_WRITE_BYTES));
+				offset += DIRECT_WAV_DESTINATION_WRITE_BYTES;
+				continue;
+			}
+			const copied = Math.min(DIRECT_WAV_DESTINATION_WRITE_BYTES - pendingBytes, chunk.byteLength - offset);
+			pending.set(chunk.subarray(offset, offset + copied), pendingBytes);
+			pendingBytes += copied;
+			offset += copied;
+			if (pendingBytes === DIRECT_WAV_DESTINATION_WRITE_BYTES) await flushPending();
+		}
+	}
+
+	async function flushPending(): Promise<void> {
+		if (!pendingBytes) return;
+		const chunk = pending.slice(0, pendingBytes);
+		pendingBytes = 0;
+		await destination.write(chunk);
 	}
 }
 
