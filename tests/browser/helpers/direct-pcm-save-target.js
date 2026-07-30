@@ -1,11 +1,13 @@
 export async function installDirectPcmTarget(page, options) {
 	await page.evaluate((configuration) => {
 		const createObjectUrl = URL.createObjectURL.bind(URL);
-		globalThis.__directPcmSave = {
+		const state = {
 			objectUrls: [],
 			pickerOptions: null,
 			sessions: [],
 		};
+		Object.defineProperty(state, 'commitReleases', { value: [] });
+		globalThis.__directPcmSave = state;
 		Object.defineProperty(URL, 'createObjectURL', {
 			configurable: true,
 			value(blob) {
@@ -20,10 +22,12 @@ export async function installDirectPcmTarget(page, options) {
 				return {
 					name: configuration.fileName,
 					async createWritable() {
+						const sessionIndex = state.sessions.length;
 						const session = {
 							aborts: 0,
 							activeWrites: 0,
 							closes: 0,
+							commitStarted: 0,
 							commits: 0,
 							maxConcurrentWrites: 0,
 							maximumWriteBytes: 0,
@@ -59,6 +63,15 @@ export async function installDirectPcmTarget(page, options) {
 								session.activeWrites -= 1;
 							},
 							async close() {
+								session.commitStarted += 1;
+								if (sessionIndex === configuration.stallCommitSession) {
+									await new Promise((resolve) => {
+										state.commitReleases[sessionIndex] = () => {
+											state.commitReleases[sessionIndex] = null;
+											resolve();
+										};
+									});
+								}
 								session.closes += 1;
 								session.commits += 1;
 								session.publications += 1;

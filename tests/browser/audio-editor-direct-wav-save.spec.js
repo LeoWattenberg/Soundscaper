@@ -21,8 +21,8 @@ const RETAINED_SUFFIX_BYTES = 8 * 1024;
 test.describe('direct native PCM File System Access publication', () => {
 	registerAudioEditorHooks();
 
-	test('streams and validates WAV bytes without Blob fallback, then rolls back cancellation', async ({ page }) => {
-		test.setTimeout(90_000);
+	test('streams WAV bytes, rolls back before commit, and preserves an admitted commit', async ({ page }) => {
+		test.setTimeout(120_000);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
@@ -35,7 +35,11 @@ test.describe('direct native PCM File System Access publication', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		expect(await page.evaluate(() => navigator.userAgentData?.mobile)).toBe(true);
 		await importFiles(editor, [createThresholdTone()]);
-		await installDirectPcmTarget(page, { fileName: 'direct-browser-mix.wav', pcmOffset: 44 });
+		await installDirectPcmTarget(page, {
+			fileName: 'direct-browser-mix.wav',
+			pcmOffset: 44,
+			stallCommitSession: 2,
+		});
 
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
@@ -101,6 +105,60 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(cancelled.totalBytes).toBeGreaterThan(44);
 		expect(cancelled.totalBytes).toBeLessThan(saved.totalBytes);
 		expect(cancelled.objectUrls).toEqual([]);
+		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
+		expect(downloads).toBe(0);
+
+		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[2]?.commitStarted || 0), {
+			timeout: 45_000,
+		}).toBe(1);
+		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
+		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		const cancelledStatus = await inspectEditorStatus(editor);
+		const cancelledOutput = await inspectExportOutput(exportDialog);
+		expect(cancelledStatus.state).not.toBe('success');
+		expect(cancelledOutput).toMatchObject({ download: '', href: '#' });
+		expect(cancelledOutput.text).not.toBe('direct-browser-mix.wav');
+		const beforeRelease = await inspectDirectWavTarget(page, 2);
+		expect(beforeRelease).toMatchObject({ aborts: 0, closes: 0, commitStarted: 1, commits: 0, publications: 0 });
+		await page.evaluate(() => {
+			const state = globalThis.__directPcmSave;
+			state.publicationMutations = [];
+			const observer = new MutationObserver((mutations) => {
+				state.publicationMutations.push(...mutations.map((mutation) => mutation.attributeName || mutation.type));
+			});
+			observer.observe(document.querySelector('[data-audio-editor] [data-status]'), { attributes: true, childList: true, characterData: true, subtree: true });
+			observer.observe(document.querySelector('[data-export-download]'), { attributes: true, childList: true, characterData: true, subtree: true });
+			Object.defineProperty(state, 'publicationObserver', { configurable: true, value: observer });
+		});
+		await page.evaluate((sessionIndex) => {
+			const release = globalThis.__directPcmSave.commitReleases?.[sessionIndex];
+			if (typeof release !== 'function') throw new Error('The selected direct PCM commit is not stalled.');
+			release();
+		}, 2);
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[2]?.closes || 0), {
+			timeout: 15_000,
+		}).toBe(1);
+		const admitted = await inspectDirectWavTarget(page, 2);
+		expect(admitted).toMatchObject({
+			aborts: 0,
+			closes: 1,
+			commits: 1,
+			publications: 1,
+			totalBytes: saved.totalBytes,
+		});
+		expect(admitted.header).toEqual(saved.header);
+		expect(admitted.nonzeroPcmBytes).toBe(saved.nonzeroPcmBytes);
+		expect(admitted.riffBytes).toBe(admitted.totalBytes);
+		expect(await page.evaluate(() => globalThis.__directPcmSave.sessions.length)).toBe(3);
+		const publicationMutations = await page.evaluate(async () => {
+			await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+			globalThis.__directPcmSave.publicationObserver.disconnect();
+			return globalThis.__directPcmSave.publicationMutations;
+		});
+		expect(publicationMutations).toEqual([]);
+		expect(await inspectEditorStatus(editor)).toEqual(cancelledStatus);
+		expect(await inspectExportOutput(exportDialog)).toEqual(cancelledOutput);
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 		expect(downloads).toBe(0);
 		expect(errors).toEqual([]);
@@ -436,6 +494,21 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+async function inspectEditorStatus(editor) {
+	return editor.locator('[data-status]').evaluate((status) => ({
+		state: status.getAttribute('data-state'),
+		text: status.textContent,
+	}));
+}
+
+async function inspectExportOutput(exportDialog) {
+	return exportDialog.locator('[data-export-download]').evaluate((output) => ({
+		download: output.getAttribute('download'),
+		href: output.getAttribute('href'),
+		text: output.textContent,
+	}));
+}
 
 async function authorBextMetadata(page, exportDialog) {
 	await exportDialog.getByRole('button', { name: 'Metadata', exact: true }).click();
