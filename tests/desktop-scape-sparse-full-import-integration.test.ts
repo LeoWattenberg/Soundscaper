@@ -42,6 +42,8 @@ const RUN_REFERENCE_SCALE_GATE = process.env.npm_lifecycle_event === REFERENCE_S
 	|| process.env[REFERENCE_SCALE_ENVIRONMENT] === '1';
 const ZERO_ASSET_SHA256 = '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be';
 const ZERO_ASSET_CRC32 = 2_909_126_900;
+const EXACT_ASSET_BYTES = 8_589_932_094;
+const EXACT_REQUIRED_FREE_BYTES = 9_448_925_304;
 
 interface ImportedProjectDocument {
 	readonly id: string;
@@ -145,6 +147,7 @@ class CountingSha256MediaWriter implements ScapeVideoWriter {
 class CountingSha256ImportStore implements ScapeImportStore {
 	readonly retainedMediaPayloadBytes = 0;
 	readonly events: string[] = [];
+	estimateStorageCalls = 0;
 	loadProjectCalls = 0;
 	listProjectRevisionsCalls = 0;
 	beginMediaAssetWriteCalls = 0;
@@ -154,6 +157,12 @@ class CountingSha256ImportStore implements ScapeImportStore {
 	mediaWriter: CountingSha256MediaWriter | null = null;
 	publishedProject: ImportedProjectDocument | null = null;
 	mediaMetadata: PersistedMediaMetadata | null = null;
+
+	async estimateStorage(): Promise<Readonly<{ usage: number; quota: number }>> {
+		this.estimateStorageCalls += 1;
+		this.events.push('capacity-estimated');
+		return Object.freeze({ usage: 0, quota: EXACT_REQUIRED_FREE_BYTES });
+	}
 
 	async loadProject(
 		projectId: string,
@@ -263,6 +272,11 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 		return;
 	}
 	assert.equal(fixture.logicalSize, EXACT_ARCHIVE_BYTES);
+	assert.equal(fixture.hugePayload.size, EXACT_ASSET_BYTES);
+	assert.equal(
+		EXACT_REQUIRED_FREE_BYTES,
+		EXACT_ASSET_BYTES + Math.ceil(EXACT_ASSET_BYTES / 10),
+	);
 	assert.equal(fixture.assetSha256, ZERO_ASSET_SHA256);
 	assert.equal(fixture.assetCrc32, ZERO_ASSET_CRC32);
 
@@ -362,6 +376,7 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 	assert.equal(result.collision, null);
 	assert.equal(importStore.publishedProject?.id, fixture.projectId);
 	assert.deepEqual(importStore.events, [
+		'capacity-estimated',
 		'media-write-began',
 		'media-committed',
 		'media-writer-cleaned',
@@ -388,6 +403,7 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 	assert.equal(importStore.retainedMediaPayloadBytes, 0);
 	assert.equal(importStore.loadProjectCalls, 3);
 	assert.equal(importStore.listProjectRevisionsCalls, 1);
+	assert.equal(importStore.estimateStorageCalls, 1);
 	assert.equal(importStore.beginMediaAssetWriteCalls, 1);
 	assert.equal(importStore.saveProjectCalls, 1);
 	assert.equal(importStore.deleteProjectCalls, 0);
@@ -411,6 +427,7 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 		archiveLogicalBytes: fixture.logicalSize,
 		archivePhysicalAllocationBytes: fixture.allocatedBytes,
 		assetBytes: mediaWriter.bytesWritten,
+		requiredFreeBytes: EXACT_REQUIRED_FREE_BYTES,
 		assetSha256: mediaWriter.independentSha256,
 		protocolRangeRequests: ranges.length,
 		protocolTransferredBytes,

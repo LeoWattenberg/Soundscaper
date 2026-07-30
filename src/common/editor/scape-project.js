@@ -42,6 +42,7 @@ import {
 	assertScapeImportStore,
 	ScapeImportTransaction,
 } from './scape-import-transaction.ts';
+import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
@@ -176,10 +177,16 @@ export async function importScapeProject(input, store, options = {}) {
 			let project = structuredClone(loaded.project);
 			const assetBySourceId = indexScapeProjectAssets(project, manifest);
 			assertScapeImportStore(store);
-			transaction = new ScapeImportTransaction(store, signal);
 			const existingProject = await awaitScapeOperation(store.loadProject(project.id), signal);
 			const collision = options.collision || 'copy';
 			if (existingProject && collision === 'cancel') throw new Error('A project with this ID already exists.');
+			await preflightScapeImportCapacity(manifest, {
+				estimateStorage: typeof store.estimateStorage === 'function'
+					? () => store.estimateStorage()
+					: undefined,
+				signal,
+			});
+			throwIfScapeAborted(signal);
 			if (existingProject && collision === 'copy') {
 				project.id = createStableId('project');
 				project.title = `${project.title || 'Untitled'} copy`;
@@ -187,6 +194,7 @@ export async function importScapeProject(input, store, options = {}) {
 				project.createdAt = new Date().toISOString();
 				project.updatedAt = project.createdAt;
 			}
+			transaction = new ScapeImportTransaction(store, signal);
 			await transaction.captureProject(project.id);
 
 			const sourceIdMap = new Map();
