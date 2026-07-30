@@ -12,6 +12,8 @@ import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import type { DesktopLibraryLoadedProject } from './project-library-projects.ts';
 import {
 	parseScapeProjectDocument,
+	resolveScapeProjectBinaryLimits,
+	type ScapeProjectBinaryLimits,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
 import { validateAudioEditorProjectV9 } from '../src/common/editor/project-v9-validation.ts';
@@ -27,6 +29,7 @@ export interface DesktopSharedProjectDescriptor {
 
 export interface DesktopSharedProjectLibraryServiceOptions {
 	readonly createEntryId?: () => string;
+	readonly documentLimits?: Partial<ScapeProjectBinaryLimits>;
 	readonly now?: () => number;
 }
 
@@ -52,6 +55,7 @@ type DesktopSharedProjectLibraryHost = Pick<DesktopProjectLibraryHost,
  */
 export class DesktopSharedProjectLibraryService {
 	#createEntryId: () => string;
+	#documentLimits: Readonly<ScapeProjectBinaryLimits>;
 	#host: DesktopSharedProjectLibraryHost;
 	#now: () => number;
 
@@ -62,6 +66,7 @@ export class DesktopSharedProjectLibraryService {
 		assertHost(host);
 		this.#host = host;
 		this.#createEntryId = options.createEntryId ?? (() => randomBytes(18).toString('base64url'));
+		this.#documentLimits = resolveScapeProjectBinaryLimits(options.documentLimits ?? {});
 		this.#now = options.now ?? Date.now;
 	}
 
@@ -72,11 +77,11 @@ export class DesktopSharedProjectLibraryService {
 	async readSharedProject(projectId: string, signal?: AbortSignal): Promise<string | null> {
 		const loaded = await this.#host.readProjectById(projectId, signal);
 		if (!loaded) return null;
-		return canonicalLoadedProject(loaded);
+		return canonicalLoadedProject(loaded, this.#documentLimits);
 	}
 
 	async commitSharedProject(canonicalDocument: string, signal?: AbortSignal): Promise<string> {
-		const project = parseCurrentProject(canonicalDocument);
+		const project = parseCurrentProject(canonicalDocument, this.#documentLimits);
 		const updatedAtMs = validTimestamp(this.#now());
 		const preferredProduct = this.#host.snapshot().owner.product;
 		const loaded = await this.#host.commitProjectById({
@@ -87,7 +92,7 @@ export class DesktopSharedProjectLibraryService {
 			signal,
 			updatedAtMs,
 		});
-		return canonicalLoadedProject(loaded);
+		return canonicalLoadedProject(loaded, this.#documentLimits);
 	}
 
 	deleteSharedProject(projectId: string, signal?: AbortSignal): Promise<boolean> {
@@ -95,7 +100,10 @@ export class DesktopSharedProjectLibraryService {
 	}
 }
 
-function parseCurrentProject(canonicalDocument: string): CurrentDesktopProjectRoot {
+function parseCurrentProject(
+	canonicalDocument: string,
+	limits: Readonly<ScapeProjectBinaryLimits>,
+): CurrentDesktopProjectRoot {
 	if (typeof canonicalDocument !== 'string') {
 		throw new TypeError('A canonical Scape project document is required');
 	}
@@ -103,18 +111,30 @@ function parseCurrentProject(canonicalDocument: string): CurrentDesktopProjectRo
 	if (byteLength < 1 || byteLength > MAX_LIBRARY_PROJECT_DOCUMENT_BYTES) {
 		throw new RangeError('Canonical Scape project document exceeds its byte limit');
 	}
-	return currentProjectRoot(parseScapeProjectDocument(canonicalDocument));
+	return currentProjectRoot(parseScapeProjectDocument(canonicalDocument, { limits }), limits);
 }
 
-function canonicalLoadedProject(loaded: DesktopLibraryLoadedProject): string {
-	return serializeScapeProjectDocument(currentProjectRoot(loaded.project));
+function canonicalLoadedProject(
+	loaded: DesktopLibraryLoadedProject,
+	limits: Readonly<ScapeProjectBinaryLimits>,
+): string {
+	return serializeScapeProjectDocument(currentProjectRoot(loaded.project, limits), { limits });
 }
 
-function currentProjectRoot(value: unknown): CurrentDesktopProjectRoot {
+function currentProjectRoot(
+	value: unknown,
+	limits: Readonly<ScapeProjectBinaryLimits>,
+): CurrentDesktopProjectRoot {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) {
 		throw new TypeError('Desktop shared project document must contain an object');
 	}
 	const project = value as Record<string, unknown>;
+	validateAudioEditorProjectV9(project, {
+		limits: {
+			maximumTraversalNodes: limits.maximumTraversalNodes,
+			maximumTraversalDepth: limits.maximumTraversalDepth,
+		},
+	});
 	if (project.schemaVersion !== DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION) {
 		throw new RangeError('Desktop shared project service accepts only the current project schema');
 	}
@@ -123,7 +143,6 @@ function currentProjectRoot(value: unknown): CurrentDesktopProjectRoot {
 	if (!Number.isSafeInteger(project.revision) || Number(project.revision) < 0) {
 		throw new RangeError('Desktop shared project revision must be a non-negative safe integer');
 	}
-	validateAudioEditorProjectV9(project);
 	return project as CurrentDesktopProjectRoot;
 }
 

@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	preflightScapeProjectJsonStructure,
+	type ScapeProjectJsonStructureLimits,
+} from './scape-project-json-preflight.ts';
 
 const MIB = 1024 * 1024;
 const BINARY_TAG = '$soundscaperOpaqueBinary';
 const BINARY_DESCRIPTOR_SCHEMA_VERSION = 1;
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const BINARY_TAG_JSON_NODE_OVERHEAD = 6;
+const BINARY_TAG_JSON_DEPTH_OVERHEAD = 2;
 const OMIT = Symbol('omit');
 const ARRAY_BUFFER_BYTE_LENGTH_GETTER = requiredGetter(ArrayBuffer.prototype, 'byteLength');
 const TYPED_ARRAY_BYTE_LENGTH_GETTER = requiredGetter(
@@ -32,6 +38,10 @@ export const SCAPE_PROJECT_BINARY_HARD_LIMITS: Readonly<ScapeProjectBinaryLimits
 	maximumTraversalNodes: 100_000,
 	maximumTraversalDepth: 128,
 });
+
+export const SCAPE_PROJECT_JSON_STRUCTURE_HARD_LIMITS: Readonly<
+	ScapeProjectJsonStructureLimits
+> = Object.freeze(jsonStructureLimits(SCAPE_PROJECT_BINARY_HARD_LIMITS));
 
 interface BinaryDescriptor {
 	readonly schemaVersion: 1;
@@ -122,10 +132,21 @@ export function parseScapeProjectDocument(
 ): unknown {
 	if (typeof text !== 'string') throw new TypeError('The Scape project document must be JSON text.');
 	const limits = resolveOptions(options);
+	preflightScapeProjectJsonStructure(text, jsonStructureLimits(limits));
 	const parsed: unknown = JSON.parse(text);
 	if (!hasCurrentSchemaVersion(parsed)) return parsed;
 	decodeCurrentProject(parsed, limits);
 	return parsed;
+}
+
+function jsonStructureLimits(
+	limits: Readonly<ScapeProjectBinaryLimits>,
+): Readonly<ScapeProjectJsonStructureLimits> {
+	return {
+		maximumTraversalNodes: limits.maximumTraversalNodes
+			+ limits.maximumPayloadCount * BINARY_TAG_JSON_NODE_OVERHEAD,
+		maximumTraversalDepth: limits.maximumTraversalDepth + BINARY_TAG_JSON_DEPTH_OVERHEAD,
+	};
 }
 
 function resolveOptions(options: ScapeProjectDocumentOptions): Readonly<ScapeProjectBinaryLimits> {

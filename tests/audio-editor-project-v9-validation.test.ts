@@ -17,7 +17,11 @@ import {
 	type AudioEditorProjectV9,
 	validateAudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
-import { validateAudioEditorProjectV9 as validateAudioEditorProjectV9Direct } from '../src/common/editor/project-v9-validation.ts';
+import {
+	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+	resolveAudioEditorProjectV9ValidationLimits,
+	validateAudioEditorProjectV9 as validateAudioEditorProjectV9Direct,
+} from '../src/common/editor/project-v9-validation.ts';
 
 const NOW = '2026-07-30T12:00:00.000Z';
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '..');
@@ -192,6 +196,106 @@ test('strict current-schema validation rejects deterministic deep domain mutatio
 			`${name} mutation must fail strict validation`,
 		);
 	}
+});
+
+test('strict current-schema validation exposes lower-only structural work limits', () => {
+	assert.deepEqual(AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS, {
+		maximumTraversalNodes: 100_000,
+		maximumTraversalDepth: 128,
+	});
+	assert.equal(Object.isFrozen(AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS), true);
+	const lowered = resolveAudioEditorProjectV9ValidationLimits({
+		maximumTraversalNodes: 80,
+		maximumTraversalDepth: 4,
+	});
+	assert.deepEqual(lowered, {
+		maximumTraversalNodes: 80,
+		maximumTraversalDepth: 4,
+	});
+	assert.equal(Object.isFrozen(lowered), true);
+	for (const limits of [
+		null,
+		[],
+		'maximumTraversalNodes',
+		{ maximumTraversalNodes: 0 },
+		{ maximumTraversalDepth: 1.5 },
+		{ maximumTraversalNodes: 100_001 },
+		{ maximumTraversalDepth: 129 },
+		{ unsupportedLimit: 1 },
+	]) {
+		assert.throws(
+			() => resolveAudioEditorProjectV9ValidationLimits(limits),
+			(error: unknown) => error instanceof TypeError || error instanceof RangeError,
+		);
+	}
+});
+
+test('strict current-schema validation admits project shape before semantic traversal', () => {
+	const wide = mutableClone(createAudioEditorProjectV9({ id: 'wide-project', now: NOW }));
+	record(record(wide.view, 'view').panelState, 'view.panelState').items = Array.from(
+		{ length: 16 },
+		(_, index) => index,
+	);
+	record(wide.tempo, 'tempo').bpm = 0;
+	assert.throws(
+		() => validateAudioEditorProjectV9(wide, {
+			limits: { maximumTraversalNodes: 80 },
+		}),
+		/validation.*structural.*node limit/iu,
+	);
+
+	const deep = mutableClone(createAudioEditorProjectV9({ id: 'deep-project', now: NOW }));
+	let nested: MutableProject = {};
+	for (let depth = 0; depth < 6; depth += 1) nested = { nested };
+	record(deep.view, 'view').panelState = nested;
+	assert.throws(
+		() => validateAudioEditorProjectV9(deep, {
+			limits: { maximumTraversalDepth: 4 },
+		}),
+		/validation.*structural.*depth limit/iu,
+	);
+
+	const cyclic = mutableClone(createAudioEditorProjectV9({ id: 'cyclic-project', now: NOW }));
+	const panelState = record(record(cyclic.view, 'view').panelState, 'view.panelState');
+	panelState.self = panelState;
+	assert.throws(() => validateAudioEditorProjectV9(cyclic), /cyclic.*project/iu);
+
+	const hidden = mutableClone(createAudioEditorProjectV9({ id: 'hidden-project', now: NOW }));
+	Object.defineProperty(record(hidden.metadata, 'metadata'), 'tags', {
+		configurable: true,
+		enumerable: false,
+		value: Object.fromEntries(Array.from({ length: 16 }, (_, index) => [`tag-${String(index)}`, 'value'])),
+	});
+	assert.throws(
+		() => validateAudioEditorProjectV9(hidden),
+		/enumerable.*data propert/iu,
+	);
+
+	const accessor = mutableClone(createAudioEditorProjectV9({ id: 'accessor-project', now: NOW }));
+	let activations = 0;
+	Object.defineProperty(accessor, 'title', {
+		configurable: true,
+		get() {
+			activations += 1;
+			return 'Accessor project';
+		},
+	});
+	assert.throws(() => validateAudioEditorProjectV9(accessor), /enumerable.*data propert/iu);
+	assert.equal(activations, 0, 'structural admission must not invoke project accessors');
+
+	const arrayShadow = mutableClone(createAudioEditorProjectV9({ id: 'array-shadow-project', now: NOW }));
+	let arrayActivations = 0;
+	const selectedTrackIds = array(record(arrayShadow.selection, 'selection').trackIds, 'selection.trackIds');
+	selectedTrackIds.map = () => {
+		arrayActivations += 1;
+		return [];
+	};
+	assert.throws(() => validateAudioEditorProjectV9(arrayShadow), /arrays cannot carry named/iu);
+	assert.equal(arrayActivations, 0, 'structural admission must not invoke shadowed array methods');
+
+	const executable = mutableClone(createAudioEditorProjectV9({ id: 'executable-project', now: NOW }));
+	record(record(executable.view, 'view').panelState, 'view.panelState').callback = () => undefined;
+	assert.throws(() => validateAudioEditorProjectV9(executable), /JSON-serializable scalar/iu);
 });
 
 test('the production V9 validator closure excludes legacy, executable, and worker runtimes', () => {

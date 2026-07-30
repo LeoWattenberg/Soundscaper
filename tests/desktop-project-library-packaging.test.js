@@ -45,9 +45,11 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v9-document-validation.js',
 		'src/common/editor/project-v9-media-validation.js',
+		'src/common/editor/project-v9-validation-budget.js',
 		'src/common/editor/project-v9-validation-primitives.js',
 		'src/common/editor/project-v9-validation.js',
 		'src/common/editor/scape-project-document.js',
+		'src/common/editor/scape-project-json-preflight.js',
 		'src/common/editor/stable-id.js',
 		'src/common/editor/terminal-channel-widths.js',
 		'src/common/editor/video-effects.js',
@@ -86,6 +88,32 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const invalidDocument = serializeScapeProjectDocument({ ...project, tempo: { ...project.tempo, bpm: 0 } });
 	await assert.rejects(() => service.commitSharedProject(invalidDocument), /tempo\.bpm/u);
 	assert.equal(commitCalls, 1);
+	const boundedService = new editorService.DesktopSharedProjectLibraryService({
+		commitProjectById: async ({ project: committedProject }) => {
+			commitCalls += 1;
+			return { catalog: {}, project: committedProject };
+		},
+		deleteProjectById: async () => false,
+		readCatalog: () => ({ projects: [] }),
+		readProjectById: async () => null,
+		snapshot: () => ({ owner: { product: 'soundscaper' } }),
+	}, {
+		createEntryId: () => 'packaging-entry-0002',
+		documentLimits: {
+			maximumPayloadCount: 1,
+			maximumTraversalNodes: 80,
+		},
+		now: () => 10_000,
+	});
+	const overBudgetDocument = serializeScapeProjectDocument({
+		...project,
+		opaqueExtensions: { items: Array.from({ length: 16 }, (_, index) => index) },
+	});
+	await assert.rejects(
+		() => boundedService.commitSharedProject(overBudgetDocument),
+		/JSON.*structural traversal node limit/iu,
+	);
+	assert.equal(commitCalls, 1, 'compiled structural admission must run before the host commit');
 });
 
 test('desktop staging excludes raw TypeScript and includes the compiled runtime', async (context) => {
@@ -108,7 +136,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-json-preflight.js'));
 	const stagedMain = await readFile(join(applicationDesktopRoot, 'main.mjs'), 'utf8');
 	const runtimeImports = [...stagedMain.matchAll(/from ['"]\.\/project-library-runtime\/([^'"]+)['"]/gu)];
 	assert.ok(runtimeImports.length > 0, 'desktop main must import its compiled runtime');

@@ -15,6 +15,21 @@ import {
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { validateProjectV9Document } from './project-v9-document-validation.ts';
 import { projectRecord } from './project-v9-validation-primitives.ts';
+import {
+	admitAudioEditorProjectV9ValidationStructure,
+	resolveAudioEditorProjectV9ValidationLimits,
+	type AudioEditorProjectV9ValidationLimits,
+} from './project-v9-validation-budget.ts';
+
+export {
+	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+	resolveAudioEditorProjectV9ValidationLimits,
+	type AudioEditorProjectV9ValidationLimits,
+} from './project-v9-validation-budget.ts';
+
+export interface AudioEditorProjectV9ValidationOptions {
+	readonly limits?: Partial<AudioEditorProjectV9ValidationLimits>;
+}
 
 export interface AudioEditorProjectMetadataV9 {
 	readonly title: string;
@@ -53,7 +68,12 @@ export interface AudioEditorProjectV9 extends Record<string, unknown> {
  * Validate the exact current persistence domain without loading migration or
  * editor-runtime factories. This entry is shared by renderer and desktop main.
  */
-export function validateAudioEditorProjectV9(project: unknown): project is AudioEditorProjectV9 {
+export function validateAudioEditorProjectV9(
+	project: unknown,
+	options: AudioEditorProjectV9ValidationOptions = {},
+): project is AudioEditorProjectV9 {
+	const limits = validationLimits(options);
+	admitAudioEditorProjectV9ValidationStructure(project, limits);
 	const candidate = projectRecord(project, 'project');
 	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
@@ -68,4 +88,18 @@ export function validateAudioEditorProjectV9(project: unknown): project is Audio
 		sources: candidate.sources as readonly Readonly<Record<string, unknown>>[],
 	});
 	return true;
+}
+
+function validationLimits(
+	options: AudioEditorProjectV9ValidationOptions,
+): Readonly<AudioEditorProjectV9ValidationLimits> {
+	if (!options || typeof options !== 'object' || Array.isArray(options)) {
+		throw new TypeError('Audio editor project V9 validation options must be an object.');
+	}
+	for (const name of Object.keys(options)) {
+		if (name !== 'limits') {
+			throw new TypeError(`Unsupported audio editor project V9 validation option: ${name}.`);
+		}
+	}
+	return resolveAudioEditorProjectV9ValidationLimits(options.limits ?? {});
 }

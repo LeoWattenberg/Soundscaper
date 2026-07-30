@@ -22,6 +22,7 @@ import {
 } from '../src/common/editor/project-v9.ts';
 import {
 	parseScapeProjectDocument,
+	SCAPE_PROJECT_BINARY_HARD_LIMITS,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
 
@@ -202,6 +203,122 @@ test('editor service rejects a domain-invalid stored project before returning it
 		() => reader.readSharedProject('editor-project-1'),
 		/sources.*array/iu,
 	);
+});
+
+test('editor service applies lower-only structural budgets before host mutation and responses', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+	const baseDocument = currentDocument(1);
+	const baseProject = parseScapeProjectDocument(baseDocument) as Record<string, unknown>;
+	const wideProject = {
+		...baseProject,
+		opaqueExtensions: { items: Array.from({ length: 16 }, (_, index) => index) },
+	};
+	let deepExtension: Record<string, unknown> = {};
+	for (let depth = 0; depth < 6; depth += 1) deepExtension = { nested: deepExtension };
+	const deepProject = { ...baseProject, opaqueExtensions: deepExtension };
+	let commitCalls = 0;
+	const boundedHost = {
+		commitProjectById: async (options: Parameters<typeof host.commitProjectById>[0]) => {
+			commitCalls += 1;
+			const loaded = await host.commitProjectById(options);
+			return { ...loaded, project: wideProject };
+		},
+		deleteProjectById: (options: Parameters<typeof host.deleteProjectById>[0]) => host.deleteProjectById(options),
+		readCatalog: () => host.readCatalog(),
+		readProjectById: async (projectId: string, signal?: AbortSignal) => {
+			const loaded = await host.readProjectById(projectId, signal);
+			return loaded ? { ...loaded, project: deepProject } : null;
+		},
+		snapshot: () => host.snapshot(),
+	};
+	const service = new DesktopSharedProjectLibraryService(boundedHost, {
+		now: () => 10_000,
+		createEntryId: () => 'opaque-entry-0009',
+		documentLimits: {
+			maximumPayloadCount: 1,
+			maximumTraversalNodes: 80,
+			maximumTraversalDepth: 4,
+		},
+	});
+
+	await assert.rejects(
+		() => service.commitSharedProject(serializeScapeProjectDocument(wideProject)),
+		/JSON.*structural traversal node limit/iu,
+	);
+	assert.equal(commitCalls, 0, 'over-budget renderer input must not reach the host');
+	assert.equal(host.readCatalog().revision, 0);
+	assert.deepEqual(await readdir(fixture.paths.projectsRoot), []);
+	await assert.rejects(
+		() => service.commitSharedProject(baseDocument),
+		/validation.*structural traversal node limit/iu,
+	);
+	assert.equal(commitCalls, 1, 'a bounded input may commit before an over-budget host result is rejected');
+	assert.equal(host.readCatalog().revision, 1);
+	await assert.rejects(
+		() => service.readSharedProject('editor-project-1'),
+		/validation.*structural traversal depth limit/iu,
+	);
+
+	assert.throws(
+		() => new DesktopSharedProjectLibraryService(host, {
+			documentLimits: {
+				maximumTraversalNodes: SCAPE_PROJECT_BINARY_HARD_LIMITS.maximumTraversalNodes + 1,
+			},
+		}),
+		/cannot exceed.*hard limit/iu,
+	);
+	assert.throws(
+		() => new DesktopSharedProjectLibraryService(host, {
+			documentLimits: {
+				maximumTraversalDepth: SCAPE_PROJECT_BINARY_HARD_LIMITS.maximumTraversalDepth + 1,
+			},
+		}),
+		/cannot exceed.*hard limit/iu,
+	);
+});
+
+test('editor service rejects loaded accessors without activating them', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+	const baseProject = parseScapeProjectDocument(currentDocument(1)) as Record<string, unknown>;
+	let activations = 0;
+	const accessorProject = () => {
+		const project = { ...baseProject };
+		Object.defineProperty(project, 'title', {
+			enumerable: true,
+			get() {
+				activations += 1;
+				return 'Accessor project';
+			},
+		});
+		return project;
+	};
+	const guardedHost = {
+		commitProjectById: async (options: Parameters<typeof host.commitProjectById>[0]) => {
+			const loaded = await host.commitProjectById(options);
+			return { ...loaded, project: accessorProject() };
+		},
+		deleteProjectById: (options: Parameters<typeof host.deleteProjectById>[0]) => host.deleteProjectById(options),
+		readCatalog: () => host.readCatalog(),
+		readProjectById: async (projectId: string, signal?: AbortSignal) => {
+			const loaded = await host.readProjectById(projectId, signal);
+			return loaded ? { ...loaded, project: accessorProject() } : null;
+		},
+		snapshot: () => host.snapshot(),
+	};
+	const service = new DesktopSharedProjectLibraryService(guardedHost, {
+		now: () => 10_000,
+		createEntryId: () => 'opaque-entry-0010',
+	});
+
+	await assert.rejects(() => service.commitSharedProject(currentDocument(1)), /enumerable.*data propert/iu);
+	assert.equal(host.readCatalog().revision, 1, 'loaded-result refusal happens after the admitted host commit');
+	assert.equal(activations, 0);
+	await assert.rejects(() => service.readSharedProject('editor-project-1'), /enumerable.*data propert/iu);
+	assert.equal(activations, 0);
 });
 
 test('canonical source references remain metadata-only and do not claim managed media', async (context) => {

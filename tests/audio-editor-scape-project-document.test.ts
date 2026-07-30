@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { preflightScapeProjectJsonStructure } from '../src/common/editor/scape-project-json-preflight.ts';
+
 interface ScapeProjectBinaryLimits {
 	readonly maximumPayloadCount: number;
 	readonly maximumPayloadBytes: number;
@@ -27,6 +29,10 @@ type ParseScapeProjectDocument = (
 
 interface ScapeProjectDocumentModule {
 	readonly SCAPE_PROJECT_BINARY_HARD_LIMITS?: Readonly<ScapeProjectBinaryLimits>;
+	readonly SCAPE_PROJECT_JSON_STRUCTURE_HARD_LIMITS?: Readonly<{
+		readonly maximumTraversalNodes: number;
+		readonly maximumTraversalDepth: number;
+	}>;
 	readonly resolveScapeProjectBinaryLimits?: (
 		overrides?: unknown,
 	) => Readonly<ScapeProjectBinaryLimits>;
@@ -58,6 +64,11 @@ const codecModule = await loadCodecModule();
 test('the Scape project binary codec exposes frozen lower-only production limits', () => {
 	assert.deepEqual(codecModule.SCAPE_PROJECT_BINARY_HARD_LIMITS, EXPECTED_HARD_LIMITS);
 	assert.equal(Object.isFrozen(codecModule.SCAPE_PROJECT_BINARY_HARD_LIMITS), true);
+	assert.deepEqual(codecModule.SCAPE_PROJECT_JSON_STRUCTURE_HARD_LIMITS, {
+		maximumTraversalNodes: 101_536,
+		maximumTraversalDepth: 130,
+	});
+	assert.equal(Object.isFrozen(codecModule.SCAPE_PROJECT_JSON_STRUCTURE_HARD_LIMITS), true);
 	assert.equal(typeof codecModule.serializeScapeProjectDocument, 'function');
 	assert.equal(typeof codecModule.parseScapeProjectDocument, 'function');
 
@@ -171,6 +182,24 @@ test('only exact schema 9 receives binary tag traversal', () => {
 		assert.equal(serialize(value), ordinaryText);
 		assert.deepEqual(parse(ordinaryText), JSON.parse(ordinaryText));
 	}
+});
+
+test('non-current schemas retain ordinary values but receive structural JSON admission', () => {
+	const { parse } = codecFunctions();
+	if (!parse) return;
+	const future = {
+		schemaVersion: 10,
+		opaqueExtensions: { candidate: binaryTag() },
+	};
+	assert.deepEqual(parse(JSON.stringify(future)), future);
+	const overBudget = JSON.stringify({
+		schemaVersion: 10,
+		items: Array.from({ length: 12 }, (_, index) => index),
+	});
+	assert.throws(() => parse(overBudget, { limits: {
+		maximumPayloadCount: 1,
+		maximumTraversalNodes: 4,
+	} }), /JSON.*structural traversal node limit/iu);
 });
 
 test('serialization enforces payload count, per-payload, and aggregate byte limits', () => {
@@ -381,6 +410,74 @@ test('both codec directions enforce traversal node and depth limits', () => {
 	assert.throws(() => parse(deepText, {
 		limits: { maximumTraversalDepth: 4 },
 	}), RangeError);
+});
+
+test('lowered traversal limits remain round-trip closed for encoded binary descriptors', () => {
+	const { parse, serialize } = codecFunctions();
+	if (!parse || !serialize) return;
+	const limits = {
+		maximumPayloadCount: 1,
+		maximumTraversalNodes: 3,
+		maximumTraversalDepth: 1,
+	};
+	const document = serialize({
+		schemaVersion: 9,
+		bytes: new Uint8Array([1]),
+	}, { limits });
+	assert.deepEqual(parse(document, { limits }), {
+		schemaVersion: 9,
+		bytes: new Uint8Array([1]),
+	});
+});
+
+test('parsing rejects over-budget JSON structure before incomplete input reaches JSON.parse', () => {
+	const { parse } = codecFunctions();
+	if (!parse) return;
+	const overNodeLimit = `{"schemaVersion":9,"items":[${'0,'.repeat(12)}`;
+	assert.throws(
+		() => parse(overNodeLimit, { limits: {
+			maximumPayloadCount: 1,
+			maximumTraversalNodes: 4,
+		} }),
+		/JSON.*structural traversal node limit/iu,
+	);
+	const overDepthLimit = `{"schemaVersion":9,"nested":${'['.repeat(8)}`;
+	assert.throws(
+		() => parse(overDepthLimit, { limits: { maximumTraversalDepth: 4 } }),
+		/JSON.*structural traversal depth limit/iu,
+	);
+	assert.throws(() => parse('{"schemaVersion":9'), SyntaxError);
+});
+
+test('production JSON admission rejects beyond the binary-expanded node and depth ceilings', () => {
+	const { parse } = codecFunctions();
+	if (!parse) return;
+	const overNodeLimit = `{"schemaVersion":9,"items":[${'0,'.repeat(101_534)}`;
+	assert.throws(() => parse(overNodeLimit), /JSON.*structural traversal node limit/iu);
+	const overDepthLimit = `{"schemaVersion":9,"nested":${'['.repeat(132)}`;
+	assert.throws(() => parse(overDepthLimit), /JSON.*structural traversal depth limit/iu);
+});
+
+test('JSON structural preflight counts valid lexical forms and duplicate members conservatively', () => {
+	const text = JSON.stringify({
+		schemaVersion: 8,
+		escaped: 'brackets [,] braces {} quote " slash \\',
+		number: -1_250,
+		items: [true, false, null],
+	}).replace('-1250', '-1.25e+3');
+	assert.doesNotThrow(() => preflightScapeProjectJsonStructure(text, {
+		maximumTraversalNodes: 8,
+		maximumTraversalDepth: 2,
+	}));
+	assert.throws(() => preflightScapeProjectJsonStructure(text, {
+		maximumTraversalNodes: 7,
+		maximumTraversalDepth: 2,
+	}), /node limit/iu);
+	const duplicateMembers = '{"schemaVersion":8,"value":0,"value":1}';
+	assert.throws(() => preflightScapeProjectJsonStructure(duplicateMembers, {
+		maximumTraversalNodes: 3,
+		maximumTraversalDepth: 1,
+	}), /node limit/iu);
 });
 
 test('schema 9 serialization rejects cycles before JSON serialization', () => {
