@@ -18,7 +18,10 @@ export interface ScapeImportStore {
 	estimateStorage?(): PromiseLike<Readonly<{
 		readonly usage: number | null;
 		readonly quota: number | null;
-	}>>;
+	}>> | Readonly<{
+		readonly usage: number | null;
+		readonly quota: number | null;
+	}>;
 	loadProject(projectId: string): Promise<ScapeProjectDocument | null>;
 	listProjectRevisions(projectId: string): Promise<ScapeProjectRevision[]>;
 	getSourceMetadata(sourceId: string): PromiseLike<unknown>;
