@@ -95,7 +95,11 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*rejects.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness/isu,
+		/BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*rejects.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*rich standard BWF metadata.*markers.*iXML.*CART.*exact geometry.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
+		/BWF.*Admission requires.*explicit valid sample rate.*1–32 channels.*nonnegative safe-integer frame count.*object metadata.*marker array.*null-or-object iXML and CART.*automatic RIFF\/RF64 layout.*`inspectWavLayout`.*same encoder options used by streaming.*sample rate.*channel count.*frame count.*integer precision.*BEXT.*metadata.*markers.*iXML.*CART.*rejects malformed fields.*planned-byte mismatch.*before target selection.*layout-only witness.*allocates no PCM or output bytes.*exact constructible 69,793,218,560-byte.*65 GiB.*RF64 boundary.*rejecting the next frame.*admission ceiling.*not BWF scale, package, heap, or RSS qualification/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -200,7 +204,11 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		documentation,
-		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*Authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way agreement.*without a final renderer `Blob`.*BW64 passthrough outside the exact current-import contract.*legacy opaque-only metadata.*other PCM.*compressed audio.*video.*stems.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
+		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*rich standard BWF metadata.*markers.*iXML.*CART.*exact geometry.*Authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way agreement.*without a final renderer `Blob`.*BW64 passthrough outside the exact current-import contract.*legacy opaque-only metadata.*other PCM.*compressed audio.*video.*stems.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
+	);
+	assert.match(
+		documentation,
+		/BWF.*Admission requires.*explicit valid sample rate.*1–32 channels.*nonnegative safe-integer frame count.*object metadata.*marker array.*null-or-object iXML and CART.*automatic RIFF\/RF64 layout.*`inspectWavLayout`.*same encoder options used by streaming.*sample rate.*channel count.*frame count.*integer precision.*BEXT.*metadata.*markers.*iXML.*CART.*rejects malformed fields.*planned-byte mismatch.*before target selection.*layout-only witness.*allocates no PCM or output bytes.*exact constructible 69,793,218,560-byte.*65 GiB.*RF64 boundary.*rejecting the next frame.*admission ceiling.*not BWF scale, package, heap, or RSS qualification/isu,
 	);
 	assert.match(
 		documentation,
@@ -254,7 +262,11 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		roadmap,
-		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized\s+version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve\s+mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before\s+target,\s+preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*shared PCM.*16,384-frame chunks.*pending-chunk count.*32 MiB.*Realtime\s+render\s+progress.*progress UI.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB writes.*serially awaits.*Exact `audio-pcm-mix` Electron sessions.*4 MiB.*generic exact-size.*project saves.*one MiB/isu,
+		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical\s+normalized\s+version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*rich standard BWF metadata.*markers.*iXML.*CART.*exact\s+geometry.*authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve\s+mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before\s+target,\s+preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*shared PCM.*16,384-frame chunks.*pending-chunk count.*32 MiB.*Realtime\s+render\s+progress.*progress UI.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB writes.*serially awaits.*Exact `audio-pcm-mix` Electron sessions.*4 MiB.*generic exact-size.*project saves.*one MiB/isu,
+	);
+	assert.match(
+		roadmap,
+		/BWF.*Admission requires.*explicit valid sample rate.*1–32 channels.*nonnegative safe-integer frame count.*object metadata.*marker array.*null-or-object iXML and CART.*automatic RIFF\/RF64 layout.*`inspectWavLayout`.*same encoder options used by streaming.*sample\s+rate.*channel count.*frame count.*integer precision.*BEXT.*metadata.*markers.*iXML.*CART.*rejects malformed fields.*planned-byte mismatch.*before\s+target selection.*layout-only witness.*allocates no PCM or output bytes.*exact\s+constructible 69,793,218,560-byte.*65 GiB.*RF64\s+boundary.*rejecting the next frame.*admission ceiling.*not\s+BWF scale, package, heap, or RSS qualification/isu,
 	);
 	assert.match(
 		roadmap,

@@ -674,11 +674,21 @@ models or native implementations.
   AIFF-C float, odd PCM padding, and trailing ID3 metadata are planned from the
   same encoder geometry. BWF requires `audio/wav` and the canonical `.wav`
   extension plus an exact positive safe-integer planned file byte count at or
-  below 65 GiB. Its plan and encoding must contain the same canonical normalized
-  version-2 BEXT, and direct admission permits only integer int16, int20, or
-  int24 PCM. It rejects a plan `container`, ADM, `preDataChunks`, and
+  below 65 GiB. Admission requires an explicit valid sample rate, 1–32 channels,
+  a nonnegative safe-integer frame count, object metadata, a marker array, and
+  null-or-object iXML and CART. It recomputes the automatic RIFF/RF64 layout with
+  `inspectWavLayout` from the same encoder options used by streaming: sample
+  rate, channel count, frame count, integer precision, BEXT, metadata, markers,
+  iXML, and CART. It rejects malformed fields or a planned-byte mismatch before
+  target selection. Its plan and encoding must contain the same canonical
+  normalized version-2 BEXT, and direct admission permits only integer int16,
+  int20, or int24 PCM. It rejects a plan `container`, ADM, `preDataChunks`, and
   `trailingChunks`, keeping BW64 and opaque chunks outside the direct BWF variant;
-  standard BWF metadata, markers, iXML, and CART may remain. A direct-eligible
+  rich standard BWF metadata, markers, iXML, and CART remain eligible when their
+  exact geometry agrees. A layout-only witness allocates no PCM or output bytes
+  while admitting the exact constructible 69,793,218,560-byte (65 GiB) RF64
+  boundary and rejecting the next frame; this remains an admission ceiling, not
+  BWF scale, package, heap, or RSS qualification. A direct-eligible
   authored BW64 plan requires both format and container `bw64`, `audio/wav`,
   the canonical `.wav` extension, and an exact positive safe-integer layout
   recomputed by `inspectWavLayout` at or below 69,793,218,560 bytes (65 GiB).
