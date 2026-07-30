@@ -46,6 +46,7 @@ function createFixture(importScapeProject: NativeProjectServiceRuntime['importSc
 	const switched: string[] = [];
 	const statuses: string[] = [];
 	const state = { importing: false, saveState: 'saved', readOnly: false, mobile: false };
+	const publishedImporting: boolean[] = [];
 	const runtime: Partial<NativeProjectServiceRuntime> = {
 		lifetime,
 		projectGeneration,
@@ -77,15 +78,36 @@ function createFixture(importScapeProject: NativeProjectServiceRuntime['importSc
 		editingBlocked: () => false,
 		importScapeProject,
 		setStatus: (message) => { statuses.push(message); },
-		publishDocumentSnapshot: () => undefined,
+		publishDocumentSnapshot: () => { publishedImporting.push(state.importing); },
 	};
 	return {
+		activateProject(id: string) {
+			activeProject = project(id);
+			projectGeneration.activate(id);
+			runtime.publishDocumentSnapshot?.();
+		},
+		publishedImporting,
 		service: createNativeProjectService(runtime as NativeProjectServiceRuntime),
 		state,
 		statuses,
 		switched,
 	};
 }
+
+test('a stale Scape open republishes cleared import state after external activation', async () => {
+	const imported = deferred<ScapeImportResult>();
+	const fixture = createFixture(() => imported.promise);
+	const opening = fixture.service.openScape(nativeFile('stale.scape'));
+	fixture.activateProject('new-active-project');
+	imported.resolve({ project: project('stale-import'), readOnly: false, manifest: {} });
+
+	await assert.rejects(opening, (error: unknown) => (
+		error instanceof Error && error.name === 'AbortError'
+	));
+	assert.deepEqual(fixture.switched, []);
+	assert.equal(fixture.state.importing, false);
+	assert.deepEqual(fixture.publishedImporting, [true, true, false]);
+});
 
 test('Scape open composes caller cancellation with task ownership and suppresses a late import result', async () => {
 	const imported = deferred<ScapeImportResult>();

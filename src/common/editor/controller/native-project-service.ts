@@ -93,7 +93,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		if (runtime.editingBlocked()) return null;
 		const operation = beginProjectTask('native-project-open');
 		const signal = options.signal ? AbortSignal.any([operation.task.signal, options.signal]) : operation.task.signal;
-		let publicationToken = operation.projectToken;
 		try {
 			signal.throwIfAborted();
 			beginImport(operation.task);
@@ -107,11 +106,11 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			signal.throwIfAborted();
 			operation.task.assertCurrent();
-			publicationToken = runtime.projectGeneration.capture(imported.project.id);
+			runtime.projectGeneration.capture(imported.project.id);
 			runtime.setStatus(runtime.state.readOnly ? runtime.copy.projectReadOnly : runtime.copy.projectSaved, runtime.state.readOnly ? 'error' : 'success');
 			return imported;
 		} finally {
-			finishImport(operation.task, publicationToken);
+			finishImport(operation.task);
 			operation.task.finish();
 		}
 	}
@@ -157,7 +156,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		}
 		if (runtime.editingBlocked()) return undefined;
 		const operation = beginProjectTask('native-project-open');
-		let publicationToken = operation.projectToken;
 		const sourceGeneration = /\.aup3$/i.test(file.name) ? 'aup3' : 'aup4';
 		const nativeId = sanitizeNativeId(runtime.createStableId('audacity-project'));
 		const persistedSourceIds: string[] = [];
@@ -198,7 +196,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				save: !opened.readOnly,
 			});
 			operation.task.assertCurrent();
-			publicationToken = runtime.projectGeneration.capture(importedProject.id);
+			runtime.projectGeneration.capture(importedProject.id);
 			activated = true;
 			const rawCompatibilityValue = decoded.compatibilityReport
 				|| decoded.validation?.compatibilityReport
@@ -230,7 +228,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			throw error;
 		} finally {
 			await closeNativeProject(client, nativeId);
-			finishImport(operation.task, publicationToken);
+			finishImport(operation.task);
 			operation.task.finish();
 		}
 	}
@@ -489,11 +487,11 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		runtime.publishDocumentSnapshot();
 	}
 
-	function finishImport(task: EditorTaskScope, token: EditorProjectToken): void {
+	function finishImport(task: EditorTaskScope): void {
 		if (importOwner !== task) return;
 		importOwner = null;
 		runtime.state.importing = false;
-		if (ownershipIsCurrent(task, token)) runtime.publishDocumentSnapshot();
+		runtime.publishDocumentSnapshot();
 	}
 
 	function beginSave(task: EditorTaskScope, token: EditorProjectToken): void {
