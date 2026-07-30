@@ -64,6 +64,10 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
+		/after recovery.*before host exposure.*immutable-document collector.*100,000 direct project-tree entries.*bounded pass completed.*immediate SQLite writer transaction.*exact unexpired lease.*before and after filesystem work.*portable case-folded reachability.*current catalog.*previous and next snapshots.*pending prepared or committed journals.*canonical unreachable regular immutable files.*noncatalogable quarantine files.*catalog writers remain excluded.*crash-left quarantines.*retryable.*yield.*renewal and cancellation.*stale takeover.*tested reclamation failure during startup.*releases its still-owned lease.*cleanup failure.*reported.*static symlinked project root.*stage files.*managed media.*untouched.*without adding renderer IPC/isu,
+	);
+	assert.match(
+		documentation,
 		/main-owned editor service.*bounded document.*strict exact-schema-9 maintained-persistence-domain validator.*before.*host commit.*before project staging.*loaded commit result.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*invalid loaded commit result.*input-side failures.*do not reach a host commit or project file.*packaged-runtime fixture.*validator.*emitted and active/isu,
 	);
 	assert.match(
@@ -76,7 +80,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/privileged service.*compromised renderer.*maintained-domain-invalid exact-schema-9 publication.*before.*host.*stage a project.*maintained-domain-invalid loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats.*same validation.*closes.*privileged-domain-validation residual.*maintained persistence domain.*shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*main-process RSS.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*orphan-file reclamation.*packaged lifecycle.*power-loss.*Windows directory-sync.*junction.*time-of-check\/time-of-use.*migration from pre-shared, product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/privileged service.*compromised renderer.*maintained-domain-invalid exact-schema-9 publication.*before.*host.*stage a project.*maintained-domain-invalid loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats.*same validation.*closes.*privileged-domain-validation residual.*maintained persistence domain.*shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*main-process RSS.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*guaranteed progress.*incomplete 100,000-entry reclamation inventory.*abandoned stage-file cleanup.*packaged lifecycle.*power-loss.*parent- and database-path identity.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*migration from pre-shared, product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 });
 

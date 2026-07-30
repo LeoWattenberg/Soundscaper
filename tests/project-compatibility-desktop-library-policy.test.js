@@ -15,6 +15,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.deepEqual(rule.evidence, [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-projects.ts',
+		'desktop/project-library-reclamation.ts',
 		'desktop/project-library-host.ts',
 		'desktop/project-library-editor-service.ts',
 		'desktop/project-library-ipc.js',
@@ -32,6 +33,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-project-v9-validation.test.ts',
 		'tests/persisted-audio-effect-validation.test.ts',
 		'tests/desktop-project-library-projects.test.ts',
+		'tests/desktop-project-library-reclamation.test.ts',
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
 		'tests/desktop-project-library-ipc.test.js',
@@ -42,6 +44,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		rule.requiredOutcome,
 		/bounded pathless main-owned service.*validates.*maintained exact-current-schema project domain.*before host staging.*catalog publication.*before returning.*shared read document.*renderer repeats validation.*defense in depth.*without receiving filesystem paths.*catalog entry IDs.*lease capabilities/iu,
+	);
+	assert.match(
+		rule.requiredOutcome,
+		/main-owned startup reclamation.*preserves every current or recoverable catalog reference.*before removing an immutable project file/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -61,6 +67,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
+		/after journal recovery.*before host exposure.*100,000 direct project-tree entries.*reports completeness.*immediate SQLite writer fence.*portable case-folded reachability.*current catalog.*both sides.*pending recovery journal.*quarantining canonical unreachable regular immutable files.*unlinking only those files or collector-owned quarantine files.*yields between bounded batches.*crash-left quarantine.*symlinked project root.*corrupt metadata.*stage.*malformed.*foreign.*managed-media.*untouched/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
 		/renderer repository.*repeats.*maintained-persistence-domain exact-V9 validation.*defense in depth.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
 	);
 	assert.match(
@@ -69,7 +79,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*orphan reclamation.*packaged preload\/IPC\/executable handoff.*per-platform parent-directory or power-loss durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*guaranteed continuation.*incomplete 100,000-entry inventory.*abandoned stage-file cleanup.*packaged preload\/IPC\/executable handoff.*per-platform parent- and database-path identity or power-loss durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
 	);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
@@ -81,6 +91,22 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		documentation,
 		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V9 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document.*strictly checks core project,\s+document, media, and graph structures.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility\s+metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*writes and syncs.*stage file.*atomic\s+rename.*verifies.*exact \+1\s+catalog revision.*fenced\s+journal/isu,
+	);
+	assert.match(
+		documentation,
+		/after journal recovery.*before the host is exposed.*100,000 direct project-tree entries.*bounded pass was complete/isu,
+	);
+	assert.match(
+		documentation,
+		/immediate SQLite writer transaction.*exact live lease.*portable case-folded reachability.*current\s+catalog.*previous and next snapshots.*pending prepared or\s+committed journal/isu,
+	);
+	assert.match(
+		documentation,
+		/canonical unreachable regular immutable project files.*random noncatalogable.*quarantine.*higher fencing\s+token.*yields between batches/isu,
+	);
+	assert.match(
+		documentation,
+		/static\s+symlinked project root.*corrupt catalog or\s+journal metadata.*stage files.*malformed or foreign names.*managed media\s+remain untouched.*host\s+snapshot.*tested\s+reclamation failure during startup.*releases its still-owned\s+lease.*cleanup failure.*reported/isu,
 	);
 	assert.match(
 		documentation,
@@ -96,6 +122,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*orphan reclamation.*packaged cross-product lifecycle.*per-platform parent-directory and power-loss durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*guaranteed continuation.*incomplete\s+100,000-entry inventory.*abandoned stage-file cleanup.*packaged cross-product\s+lifecycle.*per-platform parent- and database-path identity and power-loss\s+durability.*outside.*migration from pre-shared, product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 });

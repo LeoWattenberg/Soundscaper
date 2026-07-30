@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-29",
+	"groundedAt": "2026-07-30",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -139,11 +139,12 @@
 			"id": "electron-main-to-shared-project-library",
 			"from": "Soundscaper or Framescaper Electron main-process host",
 			"to": "Product-neutral appData SQLite catalog and project-document tree",
-			"data": "Fenced lease records, metadata journals, maintained-domain-validated exact schemaVersion-9 project documents, and immutable digest-bound relative paths",
+			"data": "Fenced lease records, metadata journals, maintained-domain-validated exact schemaVersion-9 project documents, immutable digest-bound relative paths, bounded reclamation inventory, and collector-owned quarantine files",
 			"entryPoints": [
 				"desktop/project-library-contract.ts",
 				"desktop/project-library.ts",
 				"desktop/project-library-projects.ts",
+				"desktop/project-library-reclamation.ts",
 				"desktop/project-library-host.ts",
 				"desktop/project-library-editor-service.ts"
 			],
@@ -151,10 +152,12 @@
 				{ "kind": "implementation", "path": "desktop/project-library-contract.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-projects.ts" },
+				{ "kind": "implementation", "path": "desktop/project-library-reclamation.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-host.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-editor-service.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library-reclamation.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-handoff.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-editor-service.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
@@ -951,6 +954,19 @@
 						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
 						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
 					]
+				},
+				{
+					"id": "lease-fenced-immutable-project-reclamation",
+					"summary": "After metadata-journal recovery and before the host is exposed, main-only startup maintenance inventories at most 100,000 direct project-tree entries and surfaces scanned, protected, reclaimed, and complete state. Every destructive batch holds a SQLite immediate writer transaction, revalidates the exact live lease before and after filesystem work, and rebuilds portable case-folded reachability from the integrity-checked current catalog plus both previous and next snapshots of any pending prepared or committed journal. Canonical immutable regular project files and collector-owned quarantine files are the only eligible objects: an unreachable canonical path is synchronously renamed to a noncatalogable random quarantine and unlinked while catalog writers are excluded; a crash-left quarantine is safely retried. Batches contain at most 64 files and yield for lease renewal and cancellation. Static root symlinks fail closed; symlinked entries, stage files, malformed names, foreign files, directories, and managed media remain untouched. Focused tests cover prepared and committed recovery, completed update and delete cleanup, higher-token path reuse, corruption, portable case aliases, bounded incomplete passes and retries, quarantine recovery, root and entry symlinks, idempotence, and reclamation-failure lease release. The compiled runtime and desktop staging inventory include the collector without adding IPC.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/project-library-reclamation.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-host.ts" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-project-library-runtime.mjs" },
+						{ "kind": "test", "path": "tests/desktop-project-library-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-host.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
@@ -963,17 +979,17 @@
 				},
 				{
 					"id": "shared-library-orphan-reclamation",
-					"exposure": "An interruption or lease loss after immutable-file publication but before catalog publication can leave a safe unreferenced project document; no fenced garbage collector reclaims it yet.",
-					"requiredControl": "Implement lease-fenced orphan discovery and reclamation that cannot remove a document visible to a current or recoverable catalog revision.",
+					"exposure": "Lease-fenced startup maintenance safely reclaims canonical unreachable immutable project files and collector-owned quarantine files inside a bounded inventory, but a pass reports complete=false after 100,000 direct project-tree entries and does not persist a fair continuation cursor. A stable retained prefix can therefore defer later immutable or collector-owned quarantine files indefinitely, and commit stage-file debris is intentionally not eligible for this collector.",
+					"requiredControl": "Guarantee progress across incomplete inventories with a persisted or equivalently fair bounded continuation, and define a separately fenced lifecycle for abandoned commit stage files.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Crash and lease-loss tests prove that garbage collection removes only unreachable immutable files while preserving current, previous, and prepared catalog references."]
+					"acceptanceCriteria": ["Over-cap retained-prefix tests prove successive bounded passes eventually visit and safely reclaim every unreachable canonical immutable file and collector-owned quarantine file, while stage-file crash tests prove an explicit bounded policy cannot remove live writer state."]
 				},
 				{
 					"id": "shared-library-packaged-platform-durability",
-					"exposure": "The composed editor-layer handoff and focused preload/IPC tests do not form a packaged multi-process or executable lifecycle test. Parent-directory power-loss durability, Windows directory-sync behavior, and junction or time-of-check/time-of-use handling are not qualified on every supported OS and architecture.",
+					"exposure": "The composed editor-layer handoff and focused preload/IPC tests do not form a packaged multi-process or executable lifecycle test. Parent- or database-path replacement, parent-directory power-loss durability, Windows directory-sync and deny-delete behavior, and junction or time-of-check/time-of-use handling are not qualified on every supported OS and architecture.",
 					"requiredControl": "Qualify packaged cross-product ownership and interruption recovery with platform-specific path-identity and durability controls.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Packaged OS/architecture smoke and fault-injection tests cover process handoff, power loss at every publication phase, parent-directory persistence, and Windows junction behavior."]
+					"acceptanceCriteria": ["Packaged OS/architecture smoke and fault-injection tests cover process handoff, power loss at every publication and reclamation phase, parent-directory persistence, database and project-root identity, Windows sharing behavior, and junction handling."]
 				}
 			]
 		},

@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Engineering roadmap, last grounded against the repository on 2026-07-29.
+> Engineering roadmap, last grounded against the repository on 2026-07-30.
 > Milestones are ordered by dependency and close only when their exit gates pass;
 > they are not release-date promises.
 
@@ -773,8 +773,25 @@ models or native implementations.
   fenced recovery journal. Reads recheck length, digest, exact schema, project
   identity, and revision, so interruption or lease loss leaves the previous
   complete project/catalog pair authoritative or the new complete pair
-  readable; a safe unreachable immutable file may remain for future
-  reclamation. The main-owned editor service now applies the shared
+  readable. After recovery and before host exposure, the strict-TS
+  [immutable-document collector](desktop/project-library-reclamation.ts)
+  inventories at most 100,000 direct project-tree entries and surfaces whether
+  that pass completed. Each destructive batch holds the SQLite writer fence,
+  rechecks the exact live lease, and rebuilds portable case-folded reachability
+  from the current catalog plus the previous and next snapshots of pending
+  prepared or committed journals. Only canonical unreachable regular immutable
+  files and collector-owned quarantine files are removed; canonical files first
+  move to a random noncatalogable quarantine so crash cleanup is retryable and a
+  higher fencing token can safely reuse the original path. Sixty-four-file
+  batches yield for renewal and cancellation. Static root symlinks and corrupt
+  reference metadata fail closed, while stage files, malformed or foreign
+  names, directories, symlinked entries, and managed media remain untouched.
+  Focused [reclamation regressions](tests/desktop-project-library-reclamation.test.ts)
+  cover prepared and committed recovery, completed updates and deletes,
+  higher-token path reuse, portable case aliases, bounded incomplete passes,
+  quarantine retry, symlinks, corruption, idempotence, and reclamation-failure
+  lease release; the compiled desktop-runtime inventory includes the collector
+  without adding IPC. The main-owned editor service now applies the shared
   [strict exact-V9 maintained-persistence-domain validator](src/common/editor/project-v9-validation.ts)
   to a decoded renderer commit before host staging or catalog publication, then
   to the loaded commit result and stored project before returning either
@@ -827,8 +844,10 @@ models or native implementations.
   empty shared media catalog. This is editor-layer composition, not one packaged
   preload/IPC/multi-process or executable qualification. Managed-media copy,
   consolidation, relink, playback, and cross-product source bytes;
-  unreachable-file collection; packaged handoff; and per-OS/architecture
-  power-loss durability remain open. Activation-specific feature-capability
+  guaranteed continuation beyond an incomplete 100,000-entry reclamation pass;
+  abandoned stage-file cleanup; packaged handoff; parent- and database-path
+  identity; and per-OS/architecture power-loss durability remain open.
+  Activation-specific feature-capability
   evaluation and rendered-fallback byte verification remain editor-owned.
   Migration from pre-shared, product-private Soundscaper libraries is
   intentionally not a current priority and remains deferred and unsupported by

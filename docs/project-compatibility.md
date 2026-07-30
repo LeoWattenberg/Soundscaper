@@ -74,6 +74,24 @@ existing fenced journal, so a reader observes the old or new complete project-an
 The main-only host serializes commits and renews its lease while it drains
 admitted work during close.
 
+After journal recovery and before the host is exposed, main-only startup
+maintenance inventories at most 100,000 direct project-tree entries and reports
+whether that bounded pass was complete. Every destructive batch holds an
+immediate SQLite writer transaction, revalidates the exact live lease, and
+rebuilds portable case-folded reachability from the integrity-checked current
+catalog plus both previous and next snapshots of any pending prepared or
+committed journal. Only canonical unreachable regular immutable project files
+and collector-owned quarantine files are eligible. The collector renames each
+canonical file to a random noncatalogable quarantine before unlinking it, so a
+crash is retryable and a higher fencing token can safely reuse the canonical
+path. It yields between batches for lease renewal and cancellation. A static
+symlinked project root and corrupt catalog or journal metadata fail closed;
+stage files, malformed or foreign names, directories, symlinked entries, and
+managed media remain untouched. Collector state is visible in the host
+snapshot. A tested
+reclamation failure during startup stops renewal and releases its still-owned
+lease; any cleanup failure is reported.
+
 The main identity service and owner-scoped IPC expose only bounded project
 summaries, canonical documents, project identities, and delete results. The
 main process strips catalog implementation fields; navigation, renderer loss,
@@ -105,8 +123,10 @@ packaged preload/IPC/multi-process or executable handoff qualification.
 This rule is current-only. Activation-specific feature-capability evaluation
 and rendered-fallback byte verification remain editor-owned. Managed-media
 publication, copy, consolidation, relink, playback, and cross-product
-source-byte availability; orphan reclamation; packaged cross-product lifecycle;
-and per-platform parent-directory and power-loss durability remain outside it.
+source-byte availability; guaranteed continuation after an incomplete
+100,000-entry inventory; abandoned stage-file cleanup; packaged cross-product
+lifecycle; and per-platform parent- and database-path identity and power-loss
+durability remain outside it.
 Migration from pre-shared, product-private Soundscaper libraries is
 intentionally not a current priority and remains deferred and unsupported by
 this contract; Audacity project import compatibility is a separate boundary.

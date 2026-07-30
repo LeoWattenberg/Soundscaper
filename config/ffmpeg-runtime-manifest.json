@@ -78,13 +78,13 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 115586,
-			"sha256": "cec100eaa984943c7fafe83f76a20edab89eaaf62b9617b666ae6afe73a17561"
+			"byteLength": 118574,
+			"sha256": "62141c123b66ab81732fd931603c814c47c654899e389994371c1ae351595568"
 		},
 		"threatModel": {
 			"path": "docs/production-threat-model.md",
-			"byteLength": 47649,
-			"sha256": "b69bf84af39e1dc912834e77db173dafe17fbb1bd121c5fb7b44d0848dc6e8a9"
+			"byteLength": 49132,
+			"sha256": "1cf9dfd713d88e82d98ea9c5b9d881ce806da0dc873aa94dde1cfd851924ef34"
 		}
 	},
 	"security": {
@@ -115,13 +115,13 @@
 	},
 	"review": {
 		"status": "approved",
-		"reviewedAt": "2026-07-29",
+		"reviewedAt": "2026-07-30",
 		"reviewer": "Soundscaper release maintainers",
 		"scopes": [
 			"desktop-assembly",
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "8ca84191a0936951cad51273f963c12fb864643c6bd9a9d52d6433961c59bc2e"
+		"payloadSha256": "2986d9e1333bce6ab70d42fed55af4d254b464bad243f05e37bbdb2ae65d48bb"
 	}
 }

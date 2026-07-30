@@ -15,6 +15,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const control = risk?.currentControls.find(
 		({ id }) => id === 'fenced-current-schema-project-catalog-publication',
 	);
+	const reclamationControl = risk?.currentControls.find(
+		({ id }) => id === 'lease-fenced-immutable-project-reclamation',
+	);
 	const preloadControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'sandboxed-versioned-preload-bridge',
 	);
@@ -51,9 +54,14 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-contract.ts',
 		'desktop/project-library.ts',
 		'desktop/project-library-projects.ts',
+		'desktop/project-library-reclamation.ts',
 		'desktop/project-library-host.ts',
 		'desktop/project-library-editor-service.ts',
 	]);
+	for (const path of [
+		'desktop/project-library-reclamation.ts',
+		'tests/desktop-project-library-reclamation.test.ts',
+	]) assert.ok(libraryBoundary.evidence.some((item) => item.path === path));
 	assert.ok(risk);
 	assert.ok(matrix.roadmapThreatCoverage['malformed-projects-media'].includes(risk.id));
 	assert.ok(matrix.roadmapThreatCoverage['path-capabilities'].includes(risk.id));
@@ -64,6 +72,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'electron-main-to-shared-project-library',
 	]);
 	assert.ok(control);
+	assert.ok(reclamationControl);
 	for (const path of [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-persistence.ts',
@@ -99,6 +108,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-packaging.test.js',
 		'tests/production-security-shared-project-library.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path));
+	for (const path of [
+		'desktop/project-library-reclamation.ts',
+		'desktop/project-library-host.ts',
+		'scripts/lib/desktop-project-library-runtime.mjs',
+		'tests/desktop-project-library-reclamation.test.ts',
+		'tests/desktop-project-library-host.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
+		'tests/production-security-shared-project-library.test.js',
+	]) assert.ok(reclamationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		control.summary,
 		/metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*non-raiseable 256 MiB.*lower-only test seam.*persistence root identity.*private file.*syncs it.*atomically renames it.*reverifies.*before an exact plus-one catalog journal publication.*before staging.*before publication.*transactionally at catalog commit.*serializes commits.*renews its lease while close drains admitted work/isu,
@@ -119,6 +137,10 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		control.summary,
 		/composed source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
 	);
+	assert.match(
+		reclamationControl.summary,
+		/recovery.*before the host is exposed.*100,000 direct project-tree entries.*surfaces.*complete state.*SQLite immediate writer transaction.*exact live lease.*before and after filesystem work.*portable case-folded reachability.*current catalog.*previous and next.*pending prepared or committed journal.*canonical immutable regular project files.*noncatalogable random quarantine.*catalog writers are excluded.*64 files.*yield.*renewal and cancellation.*root symlinks fail closed.*symlinked entries.*stage files.*malformed names.*foreign files.*managed media.*untouched.*higher-token path reuse.*bounded incomplete passes.*reclamation-failure lease release.*without adding IPC/isu,
+	);
 	assert.deepEqual(
 		risk.residualRisks.map(({ id }) => id).sort(),
 		[
@@ -130,6 +152,28 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.equal(
 		risk.residualRisks.some(({ id }) => id === 'shared-library-privileged-domain-validation'),
 		false,
+	);
+	const orphanReclamation = risk.residualRisks.find(
+		({ id }) => id === 'shared-library-orphan-reclamation',
+	);
+	assert.match(
+		orphanReclamation?.exposure ?? '',
+		/lease-fenced startup maintenance.*bounded inventory.*complete=false after 100,000.*does not persist a fair continuation cursor.*stable retained prefix.*defer later immutable or collector-owned quarantine files indefinitely.*stage-file debris.*not eligible/isu,
+	);
+	assert.doesNotMatch(
+		orphanReclamation?.exposure ?? '',
+		/no fenced garbage collector reclaims it yet/iu,
+	);
+	const platformDurability = risk.residualRisks.find(
+		({ id }) => id === 'shared-library-packaged-platform-durability',
+	);
+	assert.match(
+		platformDurability?.exposure ?? '',
+		/parent- or database-path replacement.*power-loss durability.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use/isu,
+	);
+	assert.match(
+		platformDurability?.acceptanceCriteria.join(' ') ?? '',
+		/publication and reclamation phase.*database and project-root identity.*Windows sharing behavior.*junction handling/isu,
 	);
 	const managedMedia = risk.residualRisks.find(
 		({ id }) => id === 'shared-library-cross-product-media-availability',
