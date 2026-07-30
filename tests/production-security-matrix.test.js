@@ -34,14 +34,20 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 		'tests/audio-editor-scape-expansion.test.ts',
 	],
 	'point-in-time-import-capacity-admission': [
+		'src/common/editor/app.js',
+		'src/common/editor/controller/native-project-service.ts',
+		'src/common/editor/controller/storage-capacity-service.ts',
 		'src/common/editor/scape-import-capacity.ts',
 		'src/common/editor/scape-import-transaction.ts',
 		'src/common/editor/scape-project.js',
 		'src/common/editor/storage.js',
+		'tests/audio-editor-native-scape-open-cancellation.test.ts',
 		'tests/audio-editor-scape-import-capacity.test.ts',
 		'tests/audio-editor-scape-import-capacity-admission.test.ts',
+		'tests/audio-editor-storage-capacity-service.test.ts',
 		'tests/audio-editor-storage-persistence.test.ts',
 		'tests/desktop-scape-sparse-full-import-integration.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	],
 	'safe-pcm-frame-arithmetic': [
 		'src/common/editor/scape-archive-media.ts',
@@ -263,11 +269,14 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	const capacitySummary = implementedControls.get('point-in-time-import-capacity-admission').summary;
 	for (const claim of [
 		/validated manifest assets.*collision-cancel decision.*before copy remapping.*transaction construction.*writer creation/iu,
-		/checked safe-integer sum.*ceil\(10%\).*optional storage estimator once/iu,
-		/cancel performs no estimate.*copy and replace.*full incoming asset total.*absent or unknown estimate permits.*known insufficient.*stable quota error/iu,
-		/cancellation.*signal-ignoring estimate.*no writer or extraction/iu,
+		/checked safe-integer sum.*ceil\(10%\).*obtains exactly one storage estimate/iu,
+		/cancel performs no estimate.*copy and replace.*full incoming asset total.*absent or unknown estimate permits.*known insufficient.*stable frozen.*QUOTA_EXCEEDED/iu,
+		/maintained native-controller route.*exclusively.*decorated preflight callback.*raw asset-byte total.*composed import task signal/iu,
+		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/iu,
+		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/iu,
+		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/iu,
 		/8,589,932,094.*9,448,925,304.*before its media writer/iu,
-		/does not update.*lastPreflight.*reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
+		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
 	]) assert.match(capacitySummary, claim);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));
 	assert.equal(residuals.has('compression-amplification-policy'), false);

@@ -68,9 +68,13 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	for (const claim of [
 		/point-in-time-import-capacity-admission.*validated manifest asset size.*checked safe-integer arithmetic.*ceil\(10%\)/isu,
-		/collision-cancel decision.*before copy remapping.*transaction construction.*source metadata reads.*writer creation.*optional storage estimator once/isu,
-		/cancel performs no estimate.*copy and replace.*full incoming asset total.*missing estimator or unknown.*permits import.*known insufficient.*quota error/isu,
-		/cancellation.*signal-ignoring estimate.*no writer or extraction.*8,589,932,094.*9,448,925,304.*lastPreflight/isu,
+		/collision-cancel decision.*before copy remapping.*transaction construction.*source metadata reads.*writer creation.*obtains exactly one storage estimate/isu,
+		/cancel performs no estimate.*copy and replace.*full incoming asset total.*missing or unknown estimate permits.*known insufficient.*QUOTA_EXCEEDED/isu,
+		/maintained native-controller route.*exclusively.*decorated preflight callback.*raw asset-byte total.*composed import task signal/isu,
+		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/isu,
+		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/isu,
+		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/isu,
+		/8,589,932,094.*9,448,925,304-byte.*before its media writer/isu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/isu,
 	]) assert.match(documentation, claim);
 	for (const claim of [

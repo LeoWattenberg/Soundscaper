@@ -474,13 +474,28 @@ models or native implementations.
   estimate, while copy and replace each charge the full incoming asset sum.
   An absent estimator or a null, partial, negative, or non-finite estimate lets
   import proceed; a known insufficient estimate refuses with stable frozen
-  `QUOTA_EXCEEDED` details. Estimator rejection propagates unchanged, while
-  cancellation promptly wins a signal-ignoring estimate. This is a point-in-time
-  check with no byte reservation, so a later write or concurrent import can
-  invalidate the estimate. The core importer calls the store estimate directly
-  and does not update the controller
-  [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
-  `lastPreflight` snapshot shown by the workspace UI. The portable
+  `QUOTA_EXCEEDED` details. Estimator rejection propagates unchanged. Maintained
+  native-controller opens now supply one exclusive decorated preflight with the
+  raw asset-byte total and the composed import-task signal. The
+  [controller handoff](tests/audio-editor-native-scape-open-cancellation.test.ts)
+  proves that exact signal and one raw-byte request reach the
+  [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts).
+  Its focused
+  [state regressions](tests/audio-editor-storage-capacity-service.test.ts) prove
+  the same exact `ceil(10%)` requirement publishes `checking` followed by
+  `ready`, `unknown`, or `insufficient` in the workspace `lastPreflight`
+  snapshot. The maintained
+  [browser workflow](tests/browser/audio-editor-scape-open-compatibility.spec.js)
+  pins the activated app composition and visible ready import status. The
+  service returns that one normalized estimate to the importer, so the stable
+  Scape quota decision and visible status agree. Cancellation
+  promptly wins a signal-ignoring estimate, restores the prior settled
+  preflight snapshot, consumes late provider resolution or rejection, and
+  generation-fences older work from replacing newer state. Standalone
+  undecorated imports retain the optional direct store estimator and do not
+  update controller state. This remains a point-in-time check with no byte
+  reservation, so a later write or concurrent import can invalidate the
+  estimate. The portable
   reference-scale gate runs explicitly with
   `npm run test:reference:scape-8gib`, or with
   `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1` for a direct Node-test invocation. It

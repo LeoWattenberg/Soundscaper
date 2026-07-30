@@ -32,11 +32,14 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.ok(capacityControl);
 	for (const claim of [
 		/validated manifest assets.*collision-cancel.*before copy remapping.*transaction construction.*writer creation/iu,
-		/checked safe-integer sum.*ceil\(10%\).*optional storage estimator once/iu,
-		/cancel performs no estimate.*copy and replace.*full incoming asset total.*absent or unknown estimate permits.*known insufficient.*stable quota error/iu,
-		/cancellation.*signal-ignoring estimate.*no writer or extraction/iu,
+		/checked safe-integer sum.*ceil\(10%\).*obtains exactly one storage estimate/iu,
+		/cancel performs no estimate.*copy and replace.*full incoming asset total.*absent or unknown estimate permits.*known insufficient.*stable frozen.*QUOTA_EXCEEDED/iu,
+		/maintained native-controller route.*exclusively.*decorated preflight callback.*raw asset-byte total.*composed import task signal/iu,
+		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/iu,
+		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/iu,
+		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/iu,
 		/8,589,932,094.*9,448,925,304.*before its media writer/iu,
-		/lastPreflight.*reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
+		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
 	]) assert.match(capacityControl.summary, claim);
 	for (const path of [
 		'desktop/constants.js',
@@ -105,9 +108,13 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.match(threatModel, /scape-archive-structure-integrity/iu);
 	for (const claim of [
 		/point-in-time-import-capacity-admission.*validated manifest asset size.*checked safe-integer arithmetic.*ceil\(10%\)/isu,
-		/collision-cancel decision.*before copy remapping.*transaction construction.*source metadata reads.*writer creation.*optional storage estimator once/isu,
-		/cancel performs no estimate.*copy and replace.*full incoming asset total.*missing estimator or unknown.*permits import.*known insufficient.*quota error/isu,
-		/cancellation.*signal-ignoring estimate.*no writer or extraction.*8,589,932,094.*9,448,925,304-byte.*lastPreflight/isu,
+		/collision-cancel decision.*before copy remapping.*transaction construction.*source metadata reads.*writer creation.*obtains exactly one storage estimate/isu,
+		/cancel performs no estimate.*copy and replace.*full incoming asset total.*missing or unknown estimate permits.*known insufficient.*QUOTA_EXCEEDED/isu,
+		/maintained native-controller route.*exclusively.*decorated preflight callback.*raw asset-byte total.*composed import task signal/isu,
+		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/isu,
+		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/isu,
+		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/isu,
+		/8,589,932,094.*9,448,925,304-byte.*before its media writer/isu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [

@@ -643,16 +643,22 @@
 				},
 				{
 					"id": "point-in-time-import-capacity-admission",
-					"summary": "After validated manifest assets and the existing-project collision-cancel decision, but before copy remapping, transaction construction or capture, source metadata reads, writer creation, or asset extraction, import computes a checked safe-integer sum of every incoming asset size plus exact ceil(10%) headroom and invokes the store's optional storage estimator once. An existing-ID cancel performs no estimate; copy and replace each charge the full incoming asset total without credit for replaced content. An absent or unknown estimate permits import, while known insufficient free bytes throw a stable quota error. Cancellation promptly abandons a signal-ignoring estimate, closes the archive reader, and starts no writer or extraction. The authentic 8 GiB sparse witness pins 8,589,932,094 asset bytes, exactly 9,448,925,304 required free bytes, and capacity estimation before its media writer. This is point-in-time admission only: it does not update the controller storage UI's lastPreflight snapshot, reserve capacity, establish real browser or filesystem quota accuracy, qualify durable OPFS or IndexedDB 8 GiB persistence, account for browser-record or filesystem-allocation overhead beyond the policy headroom, guarantee write-time success, or serialize concurrent writers.",
+					"summary": "After validated manifest assets and the existing-project collision-cancel decision, but before copy remapping, transaction construction or capture, source metadata reads, writer creation, or asset extraction, import computes a checked safe-integer sum of every incoming asset size plus exact ceil(10%) headroom and obtains exactly one storage estimate. An existing-ID cancel performs no estimate; copy and replace each charge the full incoming asset total without credit for replaced content. An absent or unknown estimate permits import, while known insufficient free bytes throw stable frozen `QUOTA_EXCEEDED` details. The maintained native-controller route exclusively supplies a decorated preflight callback with the raw asset-byte total and captures the composed import task signal. Its storage-capacity service derives the same exact headroom requirement, publishes `checking` followed by `ready`, `unknown`, or `insufficient` in the workspace `lastPreflight` snapshot, and returns the one normalized estimate that drives the Scape quota decision. Cancellation promptly abandons a signal-ignoring estimate, closes the archive reader, starts no writer or extraction, restores the prior settled preflight snapshot, consumes late provider resolution or rejection, and generation-fences older work from replacing newer state. Standalone undecorated imports retain the optional direct store estimator and do not update controller state. The authentic 8 GiB sparse witness pins 8,589,932,094 asset bytes, exactly 9,448,925,304 required free bytes, and capacity estimation before its media writer. This is point-in-time admission only: it does not reserve capacity, establish real browser or filesystem quota accuracy, qualify durable OPFS or IndexedDB 8 GiB persistence, account for browser-record or filesystem-allocation overhead beyond the policy headroom, guarantee write-time success, or serialize concurrent writers.",
 					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/app.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/storage-capacity-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-import-capacity.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-import-transaction.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-open-cancellation.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-import-capacity-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-capacity-service.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-storage-persistence.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-scape-sparse-full-import-integration.test.ts" }
+						{ "kind": "test", "path": "tests/desktop-scape-sparse-full-import-integration.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" }
 					]
 				},
 				{
