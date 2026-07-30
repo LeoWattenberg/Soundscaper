@@ -201,3 +201,92 @@ jobs:
             release/desktop/*.json
           if-no-files-found: error
           retention-days: 14
+
+  project-library-handoff:
+    name: Packaged project-library handoff / linux / x64
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: x64
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+
+      - name: Stage Soundscaper
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SCAPE_PRODUCT: soundscaper
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: linux
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: x64
+
+      - name: Package unpacked Soundscaper
+        run: >-
+          npx electron-builder --config electron-builder.config.cjs
+          --config.directories.output=release/desktop-handoff/soundscaper
+          --linux --x64 --dir
+        env:
+          SCAPE_PRODUCT: soundscaper
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Stage Framescaper
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SCAPE_PRODUCT: framescaper
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: linux
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: x64
+
+      - name: Package unpacked Framescaper
+        run: >-
+          npx electron-builder --config electron-builder.config.cjs
+          --config.directories.output=release/desktop-handoff/framescaper
+          --linux --x64 --dir
+        env:
+          SCAPE_PRODUCT: framescaper
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Install virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb
+
+      - name: Configure both Chromium sandboxes
+        shell: bash
+        run: |
+          for sandbox_path in \
+            release/desktop-handoff/soundscaper/linux-unpacked/chrome-sandbox \
+            release/desktop-handoff/framescaper/linux-unpacked/chrome-sandbox
+          do
+            if [[ ! -f "$sandbox_path" || -L "$sandbox_path" ]]; then
+              echo "Expected a regular, non-symlink Chromium sandbox at $sandbox_path" >&2
+              exit 1
+            fi
+            sandbox_path="$(realpath --canonicalize-existing "$sandbox_path")"
+            sudo chown root:root -- "$sandbox_path"
+            sudo chmod 4755 -- "$sandbox_path"
+            if [[ "$(stat --format='%U:%G %a' "$sandbox_path")" != 'root:root 4755' ]]; then
+              echo "Chromium sandbox permissions were not applied to $sandbox_path" >&2
+              exit 1
+            fi
+          done
+
+      - name: Run packaged cross-product project-library handoff
+        run: npm run desktop:smoke:project-library-handoff
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_XVFB: 'true'
