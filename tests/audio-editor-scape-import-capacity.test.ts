@@ -19,6 +19,11 @@ test('Scape import capacity sums manifest assets and adds exact ten-percent head
 		requiredFreeBytes: 9_448_925_304,
 	});
 	assert.equal(Object.isFrozen(exact), true);
+	assert.deepEqual(scapeImportCapacityRequirement(manifest()), {
+		assetBytes: 0,
+		headroomBytes: 0,
+		requiredFreeBytes: 0,
+	});
 
 	assert.deepEqual(scapeImportCapacityRequirement(manifest(0, 1, 9, 10)), {
 		assetBytes: 20,
@@ -29,6 +34,32 @@ test('Scape import capacity sums manifest assets and adds exact ten-percent head
 		assetBytes: 3,
 		headroomBytes: 1,
 		requiredFreeBytes: 4,
+	});
+});
+
+test('the exact sparse 8 GiB asset admits its boundary and refuses one byte less', async () => {
+	const requiredFreeBytes = 9_448_925_304;
+	assert.deepEqual(await preflightScapeImportCapacity(manifest(EXACT_EIGHT_GIB_ASSET_BYTES), {
+		estimateStorage: () => ({ usage: 0, quota: requiredFreeBytes }),
+	}), {
+		assetBytes: EXACT_EIGHT_GIB_ASSET_BYTES,
+		headroomBytes: 858_993_210,
+		requiredFreeBytes,
+	});
+
+	await assert.rejects(preflightScapeImportCapacity(manifest(EXACT_EIGHT_GIB_ASSET_BYTES), {
+		estimateStorage: () => ({ usage: 0, quota: requiredFreeBytes - 1 }),
+	}), (error: unknown) => {
+		assert.ok(error instanceof ScapeImportQuotaError);
+		assert.deepEqual(error.details, {
+			assetBytes: EXACT_EIGHT_GIB_ASSET_BYTES,
+			headroomBytes: 858_993_210,
+			requiredFreeBytes,
+			usage: 0,
+			quota: requiredFreeBytes - 1,
+			availableBytes: requiredFreeBytes - 1,
+		});
+		return true;
 	});
 });
 
