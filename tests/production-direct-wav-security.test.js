@@ -20,6 +20,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 		'desktop/preload.mjs',
 		'desktop/direct-wav-smoke.js',
 		'src/common/editor/aiff.js',
+		'src/common/editor/wav.js',
 		'src/common/editor/export.js',
 		'src/common/editor/adm-riff-passthrough.ts',
 		'src/common/editor/controller/direct-aiff-export.ts',
@@ -37,12 +38,14 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 		'scripts/lib/desktop-direct-wav-smoke-evidence.mjs',
 		'scripts/lib/desktop-direct-wav-pcm-signal.mjs',
 		'tests/audio-editor-aiff-layout.test.ts',
+		'tests/audio-editor-bwf-wav.test.js',
 		'tests/audio-editor-export-direct-aiff.test.ts',
 		'tests/audio-editor-export-direct-bw64.test.ts',
 		'tests/audio-editor-export-direct-bw64-passthrough.test.ts',
 		'tests/audio-editor-export-direct-bwf.test.ts',
 		'tests/audio-editor-export-direct-wav.test.ts',
 		'tests/audio-editor-export-direct-wav-reference.test.ts',
+		'tests/audio-editor-rf64-wav.test.ts',
 		'tests/helpers/direct-pcm-export-fixture.ts',
 		'tests/audio-editor-realtime-export-pcm-transform.test.ts',
 		'tests/audio-editor-file-service.test.js',
@@ -91,6 +94,10 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		exactDirectPcm.summary,
+		/Classic WAV admission requires.*explicit valid sample rate.*1–32 channels.*nonnegative safe-integer frame count.*non-array object metadata.*marker array.*null-or-object iXML.*CART exactly null.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int20`.*20.*false.*`int24`.*24.*false.*`float32`.*32.*true.*automatic RIFF\/RF64 geometry.*`inspectWavLayout`.*same sample rate.*channel count.*frame count.*integer precision or float flag.*metadata.*markers.*iXML.*exact planned byte count.*Malformed or stale fields and layouts reject before target selection.*explicit container.*BEXT.*ADM.*`preDataChunks`.*`trailingChunks`.*non-null CART.*Classic RIFF.*word-aligns odd PCM.*largest constructible RIFF.*4,294,967,302 bytes.*next mono int16 frame.*RF64.*4,294,967,340 bytes.*Layout-only witnesses allocate no PCM or output bytes.*69,793,218,560-byte.*65 GiB.*rejecting the next frame.*not.*WAV scale, package, heap, or RSS qualification/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
 		/AIFF.*Direct admission requires.*explicit valid sample rate.*1–32 channels.*zero through 4,294,967,295 output frames.*non-array object metadata.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int24`.*24.*false.*`int32`.*32.*false.*`float32`.*32.*true.*`inspectAiffLayout`.*same layout-affecting encoder options.*AIFF for integer PCM.*AIFF-C for float32.*exact byte count.*plan.*Malformed or stale fields and layouts reject before target selection.*layout-only witness.*allocates no PCM or output bytes.*largest current constructible 4,294,967,302-byte layout.*next mono int16 frame/isu,
 	);
 	assert.match(
@@ -132,6 +139,10 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	assert.match(
 		exactDirectPcm.summary,
 		/Focused\s+Node AIFF evidence.*four cases.*exact FORM and metadata geometry.*all four canonical encoding tuples.*malformed and stale layout refusal.*before target selection.*4,294,967,302-byte constructible boundary.*next-frame refusal.*without PCM or output allocation.*realtime direct publication.*picker cancellation.*mid-stream rollback.*Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*Seven focused pristine-passthrough BW64.*real current-import-to-planner.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*closed admission.*modeled-metadata collision refusal.*stale or edited planning refusal.*loudness fail-closed.*383 test files/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
+		/Focused Node WAV evidence has twelve cases.*exact RIFF\/RF64 and rich-metadata geometry.*all four canonical encoding tuples.*malformed and stale layout refusal before target selection.*required odd-PCM RIFF padding.*4,294,967,302-byte constructible RIFF boundary.*4,294,967,340-byte RF64 transition.*exact 65 GiB boundary.*next-frame refusal without PCM or output allocation.*realtime publication and Blob fallback.*shared write bounds.*cancellation.*four-way byte agreement.*cleanup.*commit ownership/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -208,6 +219,10 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		documentation,
+		/Classic WAV admission requires.*positive safe-integer sample rate.*4,294,967,295.*1–32 channels.*nonnegative safe-integer frame count.*non-array object metadata.*marker array.*null-or-object iXML.*CART exactly null.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int20`.*20.*false.*`int24`.*24.*false.*`float32`.*32.*true.*explicit container.*BEXT.*ADM.*`preDataChunks`.*`trailingChunks`.*before target selection.*`inspectWavLayout`.*automatic container selection.*same sample rate.*channel count.*frame count.*encoding.*metadata.*markers.*iXML.*Only RIFF or RF64.*exact agreement.*Odd PCM RIFF data.*word-padded.*largest constructible RIFF.*4,294,967,302 bytes.*next mono int16 frame.*RF64.*4,294,967,340 bytes.*69,793,218,560-byte.*65 GiB.*rejecting the next frame.*not WAV scale, package, heap, or RSS qualification/isu,
+	);
+	assert.match(
+		documentation,
 		/AIFF.*Direct admission requires.*explicit valid sample rate.*1–32 channels.*zero through 4,294,967,295 output frames.*non-array object metadata.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int24`.*24.*false.*`int32`.*32.*false.*`float32`.*32.*true.*`inspectAiffLayout`.*same layout-affecting encoder options.*AIFF for integer PCM.*AIFF-C for float32.*exact byte count.*plan.*Malformed or stale fields and layouts reject before target selection.*4,294,967,303-byte theoretical maximum.*odd and unconstructible.*layout-only witness.*allocates no PCM or output bytes.*4,294,967,302-byte layout.*next mono int16 frame/isu,
 	);
 	assert.match(
@@ -229,6 +244,10 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	assert.match(
 		documentation,
 		/Focused\s+Node AIFF evidence.*four cases.*exact FORM and metadata geometry.*all four canonical encoding tuples.*malformed and stale layout refusal.*before target selection.*4,294,967,302-byte constructible boundary.*next-frame refusal.*without PCM or output allocation.*realtime direct publication.*picker cancellation.*mid-stream rollback.*Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*Seven focused pristine-passthrough BW64.*real current-import-to-planner.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*closed admission.*modeled-metadata collision refusal.*stale or edited planning refusal.*loudness fail-closed.*383 test files/isu,
+	);
+	assert.match(
+		documentation,
+		/Focused 12-case Node WAV evidence covers exact classic RIFF\/RF64 admission and encoder geometry.*all four canonical encoding tuples.*rich metadata.*markers.*iXML.*correct odd PCM RIFF padding.*malformed or stale route refusal before target selection.*exact RIFF-to-RF64 and 65 GiB boundaries.*without PCM or output allocation.*realtime publication.*bounded writes and queueing.*Blob fallback.*cancellation.*four-way byte accounting.*cleanup.*commit ownership/isu,
 	);
 	assert.match(
 		documentation,
@@ -270,6 +289,10 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		roadmap,
+		/Classic WAV admission requires.*positive safe-integer sample rate.*4,294,967,295.*1–32\s+channels.*nonnegative safe-integer frame count.*non-array object metadata.*marker array.*null-or-object iXML.*CART exactly null.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int20`.*20.*false.*`int24`.*24.*false.*`float32`.*32.*true.*explicit container.*BEXT.*ADM.*`preDataChunks`.*`trailingChunks`.*before target selection.*`inspectWavLayout`.*automatic container selection.*same sample.*channel count.*frame count.*encoding.*metadata.*markers.*iXML.*Only RIFF or RF64.*exact agreement.*Odd PCM RIFF data.*word-padded.*largest\s+constructible RIFF.*4,294,967,302 bytes.*next mono int16.*RF64.*4,294,967,340 bytes.*69,793,218,560-byte.*65 GiB.*rejecting the next frame.*not WAV scale, package, heap, or RSS\s+qualification/isu,
+	);
+	assert.match(
+		roadmap,
 		/AIFF.*Direct admission requires.*explicit valid\s+sample rate.*1–32 channels.*zero through 4,294,967,295 output frames.*non-array object metadata.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int24`.*24.*false.*`int32`.*32.*false.*`float32`.*32.*true.*`inspectAiffLayout`.*same\s+layout-affecting encoder options.*AIFF for integer PCM.*AIFF-C for\s+float32.*recomputed and\s+planned byte counts.*agree.*Malformed or stale fields and layouts reject before target selection.*4,294,967,303-byte theoretical maximum.*odd and unconstructible.*layout-only witness.*allocates no PCM or output\s+bytes.*4,294,967,302-byte.*next mono int16 frame/isu,
 	);
 	assert.match(
@@ -299,6 +322,10 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	assert.match(
 		roadmap,
 		/Focused\s+Node AIFF evidence.*four cases.*exact FORM and metadata geometry.*all four canonical encoding tuples.*malformed and\s+stale layout refusal.*before target selection.*4,294,967,302-byte\s+constructible boundary.*next-frame refusal.*without PCM or output\s+allocation.*realtime direct publication.*picker cancellation.*mid-stream\s+rollback.*Focused\s+Node BWF.*five cases.*Focused Node authored BW64.*six cases.*seven focused pristine-passthrough BW64 cases.*real\s+current-import-to-planner route.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*modeled-metadata collision refusal.*stale or edited planning refusal.*383 test files.*Chromium and Firefox.*WAV, AIFF, BWF, and\s+BW64.*ten format\/engine cases.*injected File\s+System Access target.*pristine-passthrough case.*5\.1.*48 kHz.*16-bit BW64.*4,210,688 frames.*101,056,512-byte.*2 KiB prefix.*4 KiB suffix.*JUNK padding.*BEXT v2.*CHNA.*before PCM.*PEAK padding.*AXML.*after PCM.*Visible realtime progress.*close, commit, and publication.*no Object URL.*second export cancels.*one abort without close, commit, or publication.*1\.7 and 1\.8 minutes.*WebKit.*unqualified.*host.*arbitrary third-party.*legacy opaque-only BW64.*edited\s+projects.*whole-file bit identity/isu,
+	);
+	assert.match(
+		roadmap,
+		/Focused\s+12-case Node WAV evidence covers exact classic RIFF\/RF64 admission.*all four canonical encoding tuples.*rich metadata.*markers.*iXML.*correct odd PCM RIFF padding.*malformed or stale route\s+refusal before target selection.*exact RIFF-to-RF64 and 65 GiB.*without PCM or output allocation.*realtime publication.*bounded\s+writes and queueing.*Blob fallback.*cancellation.*four-way byte accounting.*cleanup.*commit ownership/isu,
 	);
 	assert.match(
 		roadmap,

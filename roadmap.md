@@ -667,7 +667,24 @@ models or native implementations.
   render slice is exactly one mix with format `wav`, `aiff`, `bwf`, or `bw64`,
   a `realtime-stream` render plan, and one output. WAV requires the exact MIME
   type and `.wav` extension plus an exact positive safe-integer planned file
-  byte count at or below 65 GiB. AIFF requires `audio/aiff` and the canonical
+  byte count at or below 65 GiB. Classic WAV admission requires an explicit
+  positive safe-integer sample rate no greater than 4,294,967,295, 1–32
+  channels, a nonnegative safe-integer frame count, non-array object metadata,
+  a marker array, null-or-object iXML, and CART exactly null. Its canonical
+  (`sampleFormat`, `bitDepth`, `floatingPoint`) tuples are (`int16`, 16, false),
+  (`int20`, 20, false), (`int24`, 24, false), and (`float32`, 32, true). It
+  rejects an explicit container, BEXT, ADM, `preDataChunks`, or
+  `trailingChunks` before target selection. Admission recomputes
+  `inspectWavLayout` with automatic container selection from the same sample
+  rate, channel count, frame count, encoding, metadata, markers, and iXML used
+  by streaming. Only RIFF or RF64 and exact agreement between the recomputed
+  and planned bytes pass. Odd PCM RIFF data is word-padded. Layout-only
+  witnesses allocate no PCM or output bytes while admitting the largest
+  constructible RIFF at 4,294,967,302 bytes, observing the next mono int16
+  frame select RF64 at 4,294,967,340 bytes, and admitting the exact
+  69,793,218,560-byte (65 GiB) RF64 ceiling while rejecting the next frame.
+  This is an admission ceiling, not WAV scale, package, heap, or RSS
+  qualification. AIFF requires `audio/aiff` and the canonical
   `.aiff` extension plus an exact count at or below 4,294,967,303 bytes, its
   theoretical 32-bit FORM limit. Direct admission requires an explicit valid
   sample rate, 1–32 channels, from zero through 4,294,967,295 output frames,
@@ -777,9 +794,14 @@ models or native implementations.
   nonstructural chunk bytes/order/placement and publication, closed admission,
   modeled-metadata collision refusal, stale or edited planning refusal, and
   loudness fail-closed behavior. It remained green at 383 test files. Focused
-  WAV evidence retains completion, cancellation, cleanup, and shared commit
-  accounting; the wider WAV suite additionally covers cleanup failures,
-  ownership races, and the commit boundary. A separate opt-in
+  12-case Node WAV evidence covers exact classic RIFF/RF64 admission
+  and encoder geometry, all four canonical encoding tuples, rich metadata,
+  markers, and iXML with correct odd PCM RIFF padding, malformed or stale route
+  refusal before target selection, the exact RIFF-to-RF64 and 65 GiB
+  boundaries without PCM or output allocation, realtime publication, bounded
+  writes and queueing, Blob fallback, cancellation, four-way byte accounting,
+  cleanup, and commit ownership. The wider WAV suite additionally covers
+  cleanup failures, ownership races, and the commit boundary. A separate opt-in
   [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
   streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
   with pinned SHA-256 through the production planner, controller, real
