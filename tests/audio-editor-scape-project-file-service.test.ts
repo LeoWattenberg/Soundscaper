@@ -21,8 +21,9 @@ test('Scape project file composition shares owned inspection with collision-gate
 			inspectionCalls.push([file, receivedStore, options]);
 			return inspected;
 		},
-		openScape: (...args) => {
-			openCalls.push(args);
+		openScape: (file, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			openCalls.push([file, { collision: options.collision }]);
 			return Object.freeze({ opened: true });
 		},
 	});
@@ -68,7 +69,11 @@ test('Scape project file composition blocks incompatible archives before native 
 		store: null,
 		productCapabilities: {},
 		inspectScapeProject: () => inspected,
-		openScape: (...args) => { openCalls.push(args); return 'opened'; },
+		openScape: (input, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			openCalls.push([input, { collision: options.collision }]);
+			return 'opened';
+		},
 	});
 	const file = new Blob(['incompatible']);
 

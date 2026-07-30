@@ -529,9 +529,11 @@ models or native implementations.
   deadline failure. Public
   file opens add a higher-level
   [request service](src/common/editor/controller/scape-open-request-service.ts)
-  whose replaceable task spans inspection through the required open decision, is
-  cancelled synchronously before awaited project-switch work, and releases its
-  ownership before native open begins. A React-independent
+  whose replaceable task now spans inspection, the required open decision, and
+  native open settlement. The same caller/task-composed signal reaches all three
+  phases; replacement, caller cancellation, and disposal promptly reject even an
+  abort-ignoring open with their exact reason, while native import rechecks that
+  signal before switching projects or publishing status. A React-independent
   [continuation owner](src/common/editor/ui/workspace/scape-open-decision-continuation.ts)
   publishes one opaque kind/file/inspection prompt, accepts only the closed
   choices for that kind, settles its exact identity once, rejects and clears

@@ -15,34 +15,62 @@ function deferred<Value>() {
 	return { promise, resolve };
 }
 
-test('a non-colliding request releases continuation ownership before native open', async () => {
+async function assertRejectsPromptly(
+	promise: Promise<unknown>,
+	validate: (error: unknown) => boolean,
+): Promise<void> {
+	let timeout: ReturnType<typeof setTimeout> | null = null;
+	const deadline = new Promise<never>((_resolve, reject) => {
+		timeout = setTimeout(() => reject(new Error('Expected prompt cancellation rejection.')), 1_000);
+	});
+	try {
+		await Promise.race([assert.rejects(promise, validate), deadline]);
+	} finally {
+		if (timeout !== null) clearTimeout(timeout);
+	}
+}
+
+test('a non-colliding request carries its owned signal through native open', async () => {
 	const lifetime = new EditorControllerLifetime();
 	const file = new Blob(['project']);
 	const expected = Object.freeze({ opened: true });
-	const capture: { signal: AbortSignal | null } = { signal: null };
+	const opened = deferred<typeof expected>();
+	const openStarted = deferred<void>();
+	const capture: { inspectionSignal: AbortSignal | null; openSignal: AbortSignal | null } = {
+		inspectionSignal: null,
+		openSignal: null,
+	};
 	let chooserCalls = 0;
 	const service = createScapeOpenRequestService({
 		lifetime,
 		inspectScape: async (input, options) => {
 			assert.equal(input, file);
-			capture.signal = options.signal;
+			capture.inspectionSignal = options.signal;
 			return { exists: false, title: 'New project' };
 		},
 		openScape: (input, options) => {
 			assert.equal(input, file);
-			assert.deepEqual(options, { collision: 'copy' });
-			lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK);
-			assert.equal(capture.signal?.aborted, false, 'native open begins after request ownership is released');
-			return expected;
+			assert.equal(options.collision, 'copy');
+			capture.openSignal = options.signal;
+			openStarted.resolve();
+			return opened.promise;
 		},
 	});
 
-	const result = await service.openScapeFile(file, () => {
+	const opening = service.openScapeFile(file, () => {
 		chooserCalls += 1;
 		return 'cancel';
 	});
+	await openStarted.promise;
+	assert.ok(capture.openSignal instanceof AbortSignal);
+	assert.equal(capture.openSignal, capture.inspectionSignal);
+	assert.equal(capture.openSignal.aborted, false);
+	opened.resolve(expected);
+	const result = await opening;
+	lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK);
 
 	assert.equal(result, expected);
+	assert.equal(capture.openSignal.aborted, false, 'settled open releases its request ownership');
 	assert.equal(chooserCalls, 0);
 });
 
@@ -59,7 +87,11 @@ test('an incompatible non-colliding request requires an explicit decision before
 	const service = createScapeOpenRequestService({
 		lifetime,
 		inspectScape: () => inspected,
-		openScape: (...args) => { opens.push(args); return 'opened'; },
+		openScape: (input, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			opens.push([input, { collision: options.collision }]);
+			return 'opened';
+		},
 	});
 
 	assert.deepEqual(await service.openScapeFile(file, (request) => {
@@ -95,7 +127,11 @@ test('an incompatible collision asks once and only permits a read-only copy', as
 	const service = createScapeOpenRequestService({
 		lifetime: new EditorControllerLifetime(),
 		inspectScape: () => inspected,
-		openScape: (...args) => { opens.push(args); return 'opened'; },
+		openScape: (input, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			opens.push([input, { collision: options.collision }]);
+			return 'opened';
+		},
 	});
 
 	assert.equal(await service.openScapeFile(file, (request) => {
@@ -129,7 +165,11 @@ test('compatible and future-schema null reports do not create a feature decision
 			exists: false,
 			featureRequirementsCompatibility: file === compatible ? { compatible: true } : null,
 		}),
-		openScape: (...args) => { opens.push(args); return 'opened'; },
+		openScape: (input, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			opens.push([input, { collision: options.collision }]);
+			return 'opened';
+		},
 	});
 	const choose = () => { chooserCalls += 1; return 'cancel' as const; };
 
@@ -150,7 +190,11 @@ test('a collision choice uses its owned file once and explicit cancel opens noth
 	const service = createScapeOpenRequestService({
 		lifetime,
 		inspectScape: () => inspected,
-		openScape: (...args) => { opens.push(args); return 'opened'; },
+		openScape: (input, options) => {
+			assert.ok(options.signal instanceof AbortSignal);
+			opens.push([input, { collision: options.collision }]);
+			return 'opened';
+		},
 	});
 	const requests: unknown[] = [];
 
@@ -239,47 +283,90 @@ test('a replacement promptly rejects an abort-ignoring stale inspection', async 
 	assert.equal(openCalls, 0);
 });
 
-test('caller cancellation and terminal disposal preserve their exact reasons', async () => {
+test('a replacement promptly rejects an abort-ignoring stale native open', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const firstFile = new Blob(['first']);
+	const lateOpen = deferred<'opened'>();
+	const openStarted = deferred<void>();
+	const capture: { signal: AbortSignal | null } = { signal: null };
+	let openCalls = 0;
+	const service = createScapeOpenRequestService({
+		lifetime,
+		inspectScape: (file) => ({ exists: file !== firstFile }),
+		openScape: (_file, options) => {
+			openCalls += 1;
+			capture.signal = options.signal;
+			openStarted.resolve();
+			return lateOpen.promise;
+		},
+	});
+	const first = service.openScapeFile(firstFile, () => 'cancel');
+	let fulfilledResults = 0;
+	void first.then(
+		() => { fulfilledResults += 1; },
+		() => undefined,
+	);
+	await openStarted.promise;
+	assert.ok(capture.signal instanceof AbortSignal);
+
+	assert.deepEqual(
+		await service.openScapeFile(new Blob(['second']), () => 'cancel'),
+		{ cancelled: true },
+	);
+	await assertRejectsPromptly(first, (error) => error === capture.signal?.reason);
+	assert.equal(capture.signal.aborted, true);
+	assert.equal(openCalls, 1);
+	lateOpen.resolve('opened');
+	await Promise.resolve();
+	assert.equal(openCalls, 1);
+	assert.equal(fulfilledResults, 0);
+});
+
+test('caller cancellation and terminal disposal reject abort-ignoring opens with their exact reasons', async () => {
 	const callerLifetime = new EditorControllerLifetime();
 	const caller = new AbortController();
 	const callerStarted = deferred<void>();
 	const callerCapture: { signal: AbortSignal | null } = { signal: null };
-	const callerLate = deferred<'copy'>();
+	const callerLate = deferred<'opened'>();
 	const callerService = createScapeOpenRequestService({
 		lifetime: callerLifetime,
-		inspectScape: () => ({ exists: true }),
-		openScape: () => 'unreachable',
+		inspectScape: () => ({ exists: false }),
+		openScape: (_file, options) => {
+			callerCapture.signal = options.signal;
+			callerStarted.resolve();
+			return callerLate.promise;
+		},
 	});
-	const callerPending = callerService.openScapeFile(new Blob(['caller']), (request) => {
-		callerCapture.signal = request.signal;
-		callerStarted.resolve();
-		return callerLate.promise;
-	}, { signal: caller.signal });
+	const callerPending = callerService.openScapeFile(
+		new Blob(['caller']),
+		() => 'cancel',
+		{ signal: caller.signal },
+	);
 	await callerStarted.promise;
-	const callerReason = new DOMException('Caller cancelled.', 'AbortError');
+	const callerReason = 'primitive caller cancellation';
 	caller.abort(callerReason);
-	await assert.rejects(callerPending, (error) => error === callerReason);
+	await assertRejectsPromptly(callerPending, (error) => error === callerReason);
 	assert.equal(callerCapture.signal?.reason, callerReason);
-	callerLate.resolve('copy');
+	callerLate.resolve('opened');
 
 	const disposalLifetime = new EditorControllerLifetime();
 	const disposalStarted = deferred<void>();
 	const disposalCapture: { signal: AbortSignal | null } = { signal: null };
-	const disposalLate = deferred<'replace'>();
+	const disposalLate = deferred<'opened'>();
 	const disposalService = createScapeOpenRequestService({
 		lifetime: disposalLifetime,
-		inspectScape: () => ({ exists: true }),
-		openScape: () => 'unreachable',
+		inspectScape: () => ({ exists: false }),
+		openScape: (_file, options) => {
+			disposalCapture.signal = options.signal;
+			disposalStarted.resolve();
+			return disposalLate.promise;
+		},
 	});
-	const disposalPending = disposalService.openScapeFile(new Blob(['dispose']), (request) => {
-		disposalCapture.signal = request.signal;
-		disposalStarted.resolve();
-		return disposalLate.promise;
-	});
+	const disposalPending = disposalService.openScapeFile(new Blob(['dispose']), () => 'cancel');
 	await disposalStarted.promise;
 	disposalLifetime.beginDisposal();
 	const disposalReason = disposalCapture.signal?.reason;
-	await assert.rejects(disposalPending, (error) => error === disposalReason);
+	await assertRejectsPromptly(disposalPending, (error) => error === disposalReason);
 	assert.equal((disposalReason as Readonly<{ code?: string }>)?.code, 'DISPOSED');
-	disposalLate.resolve('replace');
+	disposalLate.resolve('opened');
 });

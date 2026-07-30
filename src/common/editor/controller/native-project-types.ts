@@ -335,6 +335,7 @@ export interface NativeProjectServiceRuntime {
 
 export interface OpenScapeOptions {
 	readonly collision?: string;
+	readonly signal?: AbortSignal;
 }
 
 export interface SaveScapeOptions {

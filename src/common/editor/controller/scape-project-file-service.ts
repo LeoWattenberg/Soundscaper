@@ -43,7 +43,10 @@ export interface ScapeProjectFileServiceRuntime<
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
 	readonly openScape: (
 		file: ScapeProjectInput,
-		options: Readonly<{ collision: 'copy' | 'replace' }>,
+		options: Readonly<{
+			collision: 'copy' | 'replace';
+			signal: AbortSignal;
+		}>,
 	) => PromiseLike<Result> | Result;
 }
 

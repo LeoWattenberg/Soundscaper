@@ -38,7 +38,10 @@ export interface ScapeOpenRequestRuntime<Inspection extends ScapeOpenInspection,
 	) => PromiseLike<Inspection> | Inspection;
 	readonly openScape: (
 		file: ScapeProjectInput,
-		options: Readonly<{ collision: Exclude<ScapeCollisionChoice, 'cancel'> }>,
+		options: Readonly<{
+			collision: Exclude<ScapeCollisionChoice, 'cancel'>;
+			signal: AbortSignal;
+		}>,
 	) => PromiseLike<Result> | Result;
 }
 
@@ -80,10 +83,16 @@ export function createScapeOpenRequestService<
 				if (choice === 'cancel') return CANCELLED;
 				collision = resolveOpenDecision(kind, choice);
 			}
+			const result = await awaitWithSignal(runtime.openScape(file, Object.freeze({
+				collision,
+				signal,
+			})), signal);
+			throwIfAborted(signal);
+			task.assertCurrent();
+			return result;
 		} finally {
 			task.finish();
 		}
-		return runtime.openScape(file, { collision });
 	}
 }
 

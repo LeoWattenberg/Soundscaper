@@ -12,8 +12,7 @@ import type {
 	NativeCompatibilityReport,
 	NativeProgress,
 	NativeProjectAudioSource,
-	NativeProjectDocument,
-	NativeProjectFile, NativeScapeProjectFile,
+	NativeProjectDocument, NativeProjectFile, NativeScapeProjectFile,
 	NativeProjectServiceRuntime,
 	NativeSavedFile,
 	OpenScapeOptions,
@@ -93,19 +92,20 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		}
 		if (runtime.editingBlocked()) return null;
 		const operation = beginProjectTask('native-project-open');
+		const signal = options.signal ? AbortSignal.any([operation.task.signal, options.signal]) : operation.task.signal;
 		let publicationToken = operation.projectToken;
-		beginImport(operation.task);
 		try {
-			const imported = await runtime.importScapeProject(file, runtime.store, {
-				collision: options.collision || 'copy',
-				signal: operation.task.signal,
-			});
+			signal.throwIfAborted();
+			beginImport(operation.task);
+			const imported = await runtime.importScapeProject(file, runtime.store, { collision: options.collision || 'copy', signal });
+			signal.throwIfAborted();
 			assertOwnership(operation.task, operation.projectToken);
 			await runtime.switchProject(imported.project, {
 				readOnly: imported.readOnly,
 				readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
 				skipFlush: false,
 			});
+			signal.throwIfAborted();
 			operation.task.assertCurrent();
 			publicationToken = runtime.projectGeneration.capture(imported.project.id);
 			runtime.setStatus(runtime.state.readOnly ? runtime.copy.projectReadOnly : runtime.copy.projectSaved, runtime.state.readOnly ? 'error' : 'success');
