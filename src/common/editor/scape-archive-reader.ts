@@ -130,6 +130,44 @@ class ScapeZipByteSourceReader extends Reader<ScapeArchiveByteSource> {
 		this.size = source.size;
 	}
 
+	createReadable(options: Readonly<{
+		offset?: number;
+		size?: number;
+		chunkSize?: number;
+	}> = {}): ReadableStream<Uint8Array> {
+		const offset = options.offset ?? 0;
+		const size = options.size ?? this.size - offset;
+		const chunkSize = options.chunkSize ?? SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES;
+		if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(size)
+			|| !Number.isSafeInteger(chunkSize) || offset < 0 || size < 0
+			|| chunkSize < 1 || offset > this.size - size) {
+			throw new RangeError('The .scape ZIP reader requested an invalid payload stream.');
+		}
+		let chunkOffset = 0;
+		// zip.js constructs this stream even for overlap-only checks. A zero
+		// high-water mark keeps those checks metadata-only while real consumers
+		// still pull the same bounded chunks on demand.
+		return new ReadableStream<Uint8Array>({
+			pull: async (controller) => {
+				const remaining = size - chunkOffset;
+				if (remaining === 0) {
+					controller.close();
+					return;
+				}
+				const bytes = await this.readUint8Array(
+					offset + chunkOffset,
+					Math.min(chunkSize, remaining),
+				);
+				if (!bytes.byteLength) {
+					throw new Error('The .scape ZIP payload stream ended before its declared size.');
+				}
+				chunkOffset += bytes.byteLength;
+				controller.enqueue(bytes);
+				if (chunkOffset === size) controller.close();
+			},
+		}, { highWaterMark: 0 });
+	}
+
 	override async readUint8Array(offset: number, length: number): Promise<Uint8Array> {
 		if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length)
 			|| offset < 0 || length < 0 || offset > this.size) {

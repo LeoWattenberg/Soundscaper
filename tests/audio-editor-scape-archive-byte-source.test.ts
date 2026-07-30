@@ -26,6 +26,7 @@ import {
 } from '../src/common/editor/scape-archive-reader.ts';
 
 const END_SIGNATURE = 0x06054b50;
+const END_MAXIMUM_BYTES = 22 + 0xffff;
 
 test('structural witnesses retain only the canonical writer profile', () => {
 	assert.equal(SCAPE_MAXIMUM_STRUCTURAL_WITNESS_BYTES, 69_271_649);
@@ -58,6 +59,54 @@ test('bounded byte-source archive reads preserve Blob entry metadata and bodies'
 	assert.ok(providerReadLengths.length > 10);
 	assert.ok(providerReadLengths.every((length) => length <= 7));
 	assert.ok(providerReadLengths.every((length) => length < archive.size));
+});
+
+test('overlap-only checks do not prefetch from the start of a large leading entry', async () => {
+	const firstBody = new Uint8Array(4 * 1024 ** 2 + 1);
+	const trailingName = 'tail.bin';
+	const writer = new ZipWriter(new BlobWriter('application/zip'), {
+		dataDescriptor: true,
+		extendedTimestamp: false,
+		level: 0,
+		useWebWorkers: false,
+	});
+	await writer.add('large.bin', new Uint8ArrayReader(firstBody), { level: 0 });
+	await writer.add(trailingName, new Uint8ArrayReader(Uint8Array.of(1)), { level: 0 });
+	const archive = await writer.close() as Blob;
+	const archiveBytes = new Uint8Array(await archive.arrayBuffer());
+	const local = new DataView(archiveBytes.buffer, archiveBytes.byteOffset, archiveBytes.byteLength);
+	assert.equal(local.getUint32(0, true), 0x0403_4b50);
+	const firstPayloadStart = 30 + local.getUint16(26, true) + local.getUint16(28, true);
+	const firstPayloadEnd = firstPayloadStart + firstBody.byteLength;
+	const ranges: Array<Readonly<{ offset: number; length: number }>> = [];
+	const source = createScapeArchiveByteSource({
+		size: archiveBytes.byteLength,
+		read: ({ offset, length }) => {
+			ranges.push(Object.freeze({ offset, length }));
+			return archiveBytes.slice(offset, offset + length);
+		},
+	});
+
+	await withScapeArchiveByteSource(source, undefined, async (entries) => {
+		assert.equal(entries.length, 2);
+		assert.equal(entries[0]?.filename, 'large.bin');
+		assert.equal(entries[1]?.filename, trailingName);
+		assert.equal(entries[1]?.uncompressedSize, 1);
+		for (const entry of entries) {
+			if (typeof entry.getData !== 'function') throw new TypeError('The ZIP entry body reader is missing.');
+			await entry.getData(new WritableStream<Uint8Array>(), {
+				strictness: 'strict',
+				checkOverlappingEntryOnly: true,
+			});
+		}
+	});
+
+	assert.ok(firstBody.byteLength > 4 * 1024 ** 2);
+	assert.ok(ranges.length > 0);
+	const firstPayloadUnavoidableSuffix = firstPayloadEnd - END_MAXIMUM_BYTES;
+	assert.equal(ranges.some(({ offset, length }) => (
+		offset < firstPayloadUnavoidableSuffix && offset + length > firstPayloadStart
+	)), false, `overlap-only checks never prefetch before the unavoidable EOCD-search suffix: ${JSON.stringify(ranges)}`);
 });
 
 test('byte sources reject invalid ranges and inexact provider results before publication', async () => {
@@ -203,7 +252,7 @@ test('archive parsing cannot replace the structurally admitted byte-source view'
 	assert.deepEqual(entries.map((entry) => entry.filename), ['first.bin', 'second.bin']);
 	assert.equal(entries[0]?.body.length, firstBody.byteLength);
 	assert.ok(replacementReads.length > 0);
-	const witnessedTailOffset = admitted.byteLength - 65_557;
+	const witnessedTailOffset = admitted.byteLength - END_MAXIMUM_BYTES;
 	assert.ok(replacementReads.every(({ offset, length }) => offset + length <= witnessedTailOffset));
 });
 
