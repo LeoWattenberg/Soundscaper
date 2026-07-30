@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { prepareDirectAiffDestination } from './direct-aiff-export.ts';
+import { prepareDirectBw64Destination } from './direct-bw64-export.ts';
 import { prepareDirectBwfDestination } from './direct-bwf-export.ts';
 import type { DirectPcmPreparation } from './direct-pcm-export.ts';
 import { prepareDirectWavDestination } from './direct-wav-export.ts';
@@ -26,9 +27,12 @@ export function prepareDirectPcmExportDestination(
 	if (plan.format === 'bwf') {
 		return prepareDirectBwfDestination(fileService, plan, requestedSettings, signal);
 	}
+	if (plan.format === 'bw64') {
+		return prepareDirectBw64Destination(fileService, plan, requestedSettings, signal);
+	}
 	return prepareDirectWavDestination(fileService, plan, requestedSettings, signal);
 }
 
-export function directPcmContainerLabel(format: unknown): 'AIFF' | 'BWF' | 'WAV' {
-	return format === 'aiff' ? 'AIFF' : format === 'bwf' ? 'BWF' : 'WAV';
+export function directPcmContainerLabel(format: unknown): 'AIFF' | 'BWF' | 'BW64' | 'WAV' {
+	return format === 'aiff' ? 'AIFF' : format === 'bwf' ? 'BWF' : format === 'bw64' ? 'BW64' : 'WAV';
 }
