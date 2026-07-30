@@ -46,11 +46,14 @@ and both product profiles must agree on the same migration boundary.
 ## Shared desktop current-schema persistence
 
 The desktop editor has one implemented current-schema shared persistence
-envelope. Metadata schema 2 binds a separate opaque library entry ID to the
-project identity, exact schema 9, project revision, byte length, SHA-256 digest,
-and a derived immutable revision-and-digest path. No filesystem path, catalog
-entry ID, digest, product preference, timestamp source, or lease capability is
-exposed to a renderer.
+envelope. A fresh filesystem library scope `v2`
+(`kw.media/scape-project-library/v2`) ignores rather than migrates the prior
+shared `v1` scope. At the `v2` path, SQLite database schema 2 rejects schema 1
+instead of implicitly migrating it. Metadata schema 2 binds a separate opaque
+library entry ID to the project identity, exact schema 9, project revision,
+byte length, SHA-256 digest, and a derived immutable revision-and-digest path.
+No filesystem path, catalog entry ID, digest, product preference, timestamp
+source, or lease capability is exposed to a renderer.
 
 Before publication, the main process canonicalizes the document with the
 bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
@@ -65,32 +68,40 @@ executable effect and worker runtimes. All audio effects must be cloneable and
 carry the generic effect identity, enabled, and parameter structure.
 Type-specific semantic checks currently cover missing-effect compatibility
 metadata and parametric EQ; other first- and third-party effect payload semantics
-are intentionally not gated yet. The store
-writes and syncs a private stage file, performs an atomic rename, syncs the
-project directory where the platform supports it, and verifies the resulting
-immutable file against its byte-length, digest, schema, identity, and revision
-descriptor. Only then does it publish an exact +1 catalog revision through the
-existing fenced journal, so a reader observes the old or new complete project-and-catalog pair.
+are intentionally not gated yet. The store reserves each canonical path in a
+lease- and fencing-token-bound authoritative project-file inventory before it
+creates a private stage file. It writes and syncs the stage file, performs an
+atomic rename, syncs the project directory where the platform supports it,
+marks the inventory row materialized, and verifies the resulting immutable file
+against its byte-length, digest, schema, identity, and revision descriptor.
+Every catalog reference must have a materialized inventory row. Only then does it
+publish an exact +1 catalog revision through the existing fenced journal, so a
+reader observes the old or new complete project-and-catalog pair.
 The main-only host serializes commits and renews its lease while it drains
 admitted work during close.
 
 After journal recovery and before the host is exposed, main-only startup
-maintenance inventories at most 100,000 direct project-tree entries and reports
-whether that bounded pass was complete. Every destructive batch holds an
-immediate SQLite writer transaction, revalidates the exact live lease, and
+maintenance walks the authoritative project-file inventory by monotonic row
+IDs, captures a cycle high-water, persists its cursor, and scans at most 100,000
+rows per invocation in 64-row batches. It reports whether the bounded cycle was
+complete. Every destructive batch holds an immediate SQLite writer transaction,
+revalidates the exact live lease, and
 rebuilds portable case-folded reachability from the integrity-checked current
 catalog plus both previous and next snapshots of any pending prepared or
-committed journal. Only canonical unreachable regular immutable project files
-and collector-owned quarantine files are eligible. The collector renames each
-canonical file to a random noncatalogable quarantine before unlinking it, so a
-crash is retryable and a higher fencing token can safely reuse the canonical
-path. It yields between batches for lease renewal and cancellation. A static
-symlinked project root and corrupt catalog or journal metadata fail closed;
-stage files, malformed or foreign names, directories, symlinked entries, and
-managed media remain untouched. Collector state is visible in the host
-snapshot. A tested
-reclamation failure during startup stops renewal and releases its still-owned
-lease; any cleanup failure is reported.
+committed journal. Only registered canonical unreachable regular immutable
+project files and their deterministic noncatalogable quarantine paths are
+eligible. Unregistered stage, canonical, forged quarantine, and foreign files
+do not consume inventory budget and remain untouched. A real 100,001-row
+fixture proves successive bounded passes reach the suffix; later inserts above
+the captured high-water wait for the next high-water cycle. The collector
+renames an eligible canonical file to its deterministic quarantine before
+unlinking it, so a crash is retryable and a higher fencing token can safely
+reuse the canonical path. It yields between batches for lease renewal and
+cancellation. A static symlinked project root and corrupt catalog or journal
+metadata fail closed; stage files, malformed names, directories, symlinked
+entries, and managed media remain untouched. Collector state is visible in the
+host snapshot. A tested reclamation failure during startup stops renewal and
+releases its still-owned lease; any cleanup failure is reported.
 
 The main identity service and owner-scoped IPC expose only bounded project
 summaries, canonical documents, project identities, and delete results. The
@@ -123,13 +134,13 @@ packaged preload/IPC/multi-process or executable handoff qualification.
 This rule is current-only. Activation-specific feature-capability evaluation
 and rendered-fallback byte verification remain editor-owned. Managed-media
 publication, copy, consolidation, relink, playback, and cross-product
-source-byte availability; guaranteed continuation after an incomplete
-100,000-entry inventory; abandoned stage-file cleanup; packaged cross-product
+source-byte availability; abandoned stage-file cleanup; packaged cross-product
 lifecycle; and per-platform parent- and database-path identity and power-loss
 durability remain outside it.
-Migration from pre-shared, product-private Soundscaper libraries is
-intentionally not a current priority and remains deferred and unsupported by
-this contract; Audacity project import compatibility is a separate boundary.
+Migration from the prior shared `v1` scope or product-private Soundscaper
+libraries is intentionally not a current priority and remains deferred and
+unsupported by this contract; Audacity project import compatibility is a
+separate boundary.
 
 ## Project feature requirements
 

@@ -764,34 +764,56 @@ models or native implementations.
   data, and importable staged output. Metadata schema 2 now binds each
   product-neutral library entry to a separate bounded project identity, exact
   current project schema, project revision, byte length, SHA-256 digest, and
-  derived immutable revision/digest path. The strict-TS
+  derived immutable revision/digest path. A fresh product-neutral `v2` library
+  scope ignores rather than migrates the prior shared `v1` scope, and a schema
+  1 database found at the `v2` path is rejected. Database schema 2 adds an
+  authoritative monotonic
+  [project-file inventory](desktop/project-library-file-inventory.ts). The strict-TS
   [project document store](desktop/project-library-projects.ts) reuses the
   canonical tagged-binary `.scape` codec, preserves opaque binary values,
   enforces the 256 MiB document ceiling with a lower-only test seam, validates
-  persistence-root identity, and publishes a synced private temporary file by
-  atomic rename before advancing the catalog exactly one revision through the
-  fenced recovery journal. Reads recheck length, digest, exact schema, project
-  identity, and revision, so interruption or lease loss leaves the previous
-  complete project/catalog pair authoritative or the new complete pair
-  readable. After recovery and before host exposure, the strict-TS
+  persistence-root identity, reserves every canonical path under the exact
+  lease before opening a private stage, and materializes its synced bytes by
+  atomic rename inside a SQLite writer transaction that checks the lease before
+  and after filesystem work. Catalog preparation rejects any next project whose
+  validated inventory row is not materialized. Reads then recheck length,
+  digest, exact schema, project identity, and revision, so interruption or lease
+  loss leaves the previous complete project/catalog pair authoritative or the
+  new complete pair readable. After recovery and before host exposure, the
+  strict-TS
   [immutable-document collector](desktop/project-library-reclamation.ts)
-  inventories at most 100,000 direct project-tree entries and surfaces whether
-  that pass completed. Each destructive batch holds the SQLite writer fence,
-  rechecks the exact live lease, and rebuilds portable case-folded reachability
-  from the current catalog plus the previous and next snapshots of pending
-  prepared or committed journals. Only canonical unreachable regular immutable
-  files and collector-owned quarantine files are removed; canonical files first
-  move to a random noncatalogable quarantine so crash cleanup is retryable and a
-  higher fencing token can safely reuse the original path. Sixty-four-file
-  batches yield for renewal and cancellation. Static root symlinks and corrupt
-  reference metadata fail closed, while stage files, malformed or foreign
-  names, directories, symlinked entries, and managed media remain untouched.
+  captures a cycle high-water ID and visits at most 100,000 registered rows per
+  startup through bounded keyset queries. It persists the monotonic cursor in
+  the same fenced transaction that reconciles each batch, advances past
+  protected rows, and resets only after reaching the frozen high water; later
+  registrations wait for the next cycle instead of extending it. This gives a
+  finite stable cooperative inventory fair progress across restarts even when a
+  retained prefix exceeds one pass. Each at-most-64-row batch rechecks the exact
+  live lease and rebuilds portable case-folded reachability from the current
+  catalog plus the previous and next snapshots of pending prepared or committed
+  journals. Unreachable regular immutable files first move to a deterministic
+  noncatalogable quarantine derived from their registered path; crash-left
+  quarantines retry idempotently, missing planned rows retire, and the inventory
+  row is removed only after both objects are absent. A protected row keeps its
+  only quarantine copy. Unregistered canonical-looking files and forged
+  quarantine names are foreign v2 content and neither consume the budget nor
+  become eligible. Batches yield for renewal and cancellation. Static root
+  symlinks and corrupt reference metadata fail closed, while stage files,
+  malformed or foreign names, directories, symlinked entries, and managed media
+  remain untouched.
   Focused [reclamation regressions](tests/desktop-project-library-reclamation.test.ts)
   cover prepared and committed recovery, completed updates and deletes,
-  higher-token path reuse, portable case aliases, bounded incomplete passes,
-  quarantine retry, symlinks, corruption, idempotence, and reclamation-failure
-  lease release; the compiled desktop-runtime inventory includes the collector
-  without adding IPC. The main-owned editor service now applies the shared
+  higher-token path reuse, portable case aliases, quarantine retry, symlinks,
+  corruption, idempotence, and reclamation-failure lease release. Focused
+  [inventory](tests/desktop-project-library-file-inventory.test.ts) and
+  [continuation](tests/desktop-project-library-reclamation-progress.test.ts)
+  regressions pin reserve/materialize fencing, publication admission, rejection
+  of a schema-1 database placed at the fresh `v2` path, low-cap retained-prefix
+  progress, frozen high-water inserts, exclusion of unregistered files,
+  protected-quarantine preservation, and a real 100,001-row production-cap
+  traversal. The compiled
+  desktop-runtime inventory includes the collector without adding IPC. The
+  main-owned editor service now applies the shared
   [strict exact-V9 maintained-persistence-domain validator](src/common/editor/project-v9-validation.ts)
   to a decoded renderer commit before host staging or catalog publication, then
   to the loaded commit result and stored project before returning either
@@ -843,16 +865,15 @@ models or native implementations.
   Framescaper-local store, then publishes the next Framescaper revision with an
   empty shared media catalog. This is editor-layer composition, not one packaged
   preload/IPC/multi-process or executable qualification. Managed-media copy,
-  consolidation, relink, playback, and cross-product source bytes;
-  guaranteed continuation beyond an incomplete 100,000-entry reclamation pass;
-  abandoned stage-file cleanup; packaged handoff; parent- and database-path
-  identity; and per-OS/architecture power-loss durability remain open.
+  consolidation, relink, playback, and cross-product source bytes; abandoned
+  stage-file cleanup; packaged handoff; parent- and database-path identity; and
+  per-OS/architecture power-loss durability remain open.
   Activation-specific feature-capability
   evaluation and rendered-fallback byte verification remain editor-owned.
-  Migration from pre-shared, product-private Soundscaper libraries is
-  intentionally not a current priority and remains deferred and unsupported by
-  this current-only contract; Audacity project import compatibility remains a
-  separate boundary.
+  Migration from the prior shared `v1` scope or product-private Soundscaper
+  libraries is intentionally not a current priority and remains deferred and
+  unsupported by this current-only contract; Audacity project import
+  compatibility remains a separate boundary.
 - **Electron Enhanced — Planned:** bind selected-file capabilities to the
   existing bounded
   [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
@@ -861,9 +882,10 @@ models or native implementations.
   Until then, inputs above the qualified 512 MiB materialization tier fail
   admission explicitly.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
-  installations emerge, define an explicit migration from product-private app
-  libraries into the shared store. Current builds intentionally support only the
-  exact-schema-9 shared contract; Audacity project import remains independent.
+  installations emerge, define an explicit migration from the prior shared `v1`
+  scope or product-private app libraries into the shared store. Current builds
+  intentionally support only the exact-schema-9 shared contract; Audacity
+  project import remains independent.
 - **Electron Enhanced — Planned:** support durable linked media through scoped
   path capabilities/bookmarks, relink, watch detection, copy/consolidate, and
   opt-in managed media. Portable `.scape` export still embeds everything needed.
@@ -1032,8 +1054,9 @@ models or native implementations.
   it does not qualify managed-media portability or close this gate.
 - Simultaneous opens across the two Electron apps serialize through the shared
   lease. A packaged two-executable lifecycle fixture remains open; migration
-  from pre-shared Soundscaper libraries is deliberately outside the current
-  compatibility target rather than a milestone prerequisite.
+  from the prior shared `v1` scope or product-private Soundscaper libraries is
+  deliberately outside the current compatibility target rather than a
+  milestone prerequisite.
 - Clearing a cache removes only reproducible derivatives, not originals,
   canonical PCM, or the last recoverable project revision.
 - Opening a project with unavailable native features now produces the actionable
