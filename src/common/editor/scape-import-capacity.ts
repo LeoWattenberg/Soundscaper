@@ -22,6 +22,10 @@ export interface ScapeImportQuotaErrorDetails extends ScapeImportCapacityRequire
 
 export interface ScapeImportCapacityOptions {
 	readonly estimateStorage?: (() => PromiseLike<unknown> | unknown) | null;
+	readonly estimateStorageForPreflight?: ((
+		assetBytes: number,
+		operation: 'import',
+	) => PromiseLike<unknown> | unknown) | null;
 	readonly signal?: AbortSignal;
 }
 
@@ -72,11 +76,17 @@ export async function preflightScapeImportCapacity(
 ): Promise<Readonly<ScapeImportCapacityRequirement>> {
 	const requirement = scapeImportCapacityRequirement(manifest);
 	const estimateStorage = options.estimateStorage;
+	const estimateStorageForPreflight = options.estimateStorageForPreflight;
 	if (estimateStorage != null && typeof estimateStorage !== 'function') {
 		throw new TypeError('The .scape import storage estimator must be a function.');
 	}
+	if (estimateStorageForPreflight != null && typeof estimateStorageForPreflight !== 'function') {
+		throw new TypeError('The .scape import preflight storage estimator must be a function.');
+	}
 	const estimate = await awaitScapeReadOperation(
-		() => estimateStorage ? estimateStorage() : null,
+		() => estimateStorageForPreflight
+			? estimateStorageForPreflight(requirement.assetBytes, 'import')
+			: estimateStorage ? estimateStorage() : null,
 		options.signal,
 	);
 	throwIfScapeAborted(options.signal);

@@ -122,7 +122,7 @@ function createFixture(overrides: Partial<NativeProjectServiceRuntime> = {}) {
 		editingBlocked: () => false,
 		flushProject: async () => undefined,
 		hasMissingTimelineSources: () => false,
-		preflightStorage: async () => undefined,
+		estimateStorageForPreflight: async () => ({ usage: 0, quota: 1_000_000 }), preflightStorage: async () => undefined,
 		createStableId: (prefix) => `${prefix}-native`,
 		ensureAup4FileName: (value) => `${String(value)}.aup4`,
 		ensureScapeFileName: (value) => `${String(value)}.scape`,

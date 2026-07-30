@@ -11,6 +11,11 @@ export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
 export type NativeStatusState = 'error' | 'info' | 'success';
 
+export interface NativeStorageEstimate {
+	readonly usage: number | null;
+	readonly quota: number | null;
+}
+
 export interface NativeProjectAudioSource {
 	/** V2 audio sources predate the explicit `kind` discriminator. */
 	readonly kind?: 'audio';
@@ -286,6 +291,11 @@ export interface NativeProjectServiceRuntime {
 		project: NativeProjectDocument,
 		options?: Readonly<{ audioOnly?: boolean }>,
 	) => boolean;
+	readonly estimateStorageForPreflight: (
+		requiredBytes: number,
+		operation: 'export' | 'import',
+		signal?: AbortSignal,
+	) => NativeAwaitable<Readonly<NativeStorageEstimate>>;
 	readonly preflightStorage: (requiredBytes: number, operation: 'export' | 'import') => PromiseLike<unknown> | unknown;
 	readonly createStableId: (prefix: string) => string;
 	readonly ensureAup4FileName: (value: unknown) => string;
@@ -309,7 +319,14 @@ export interface NativeProjectServiceRuntime {
 	readonly importScapeProject: (
 		file: NativeScapeProjectFile,
 		store: NativeProjectStore,
-		options: Readonly<{ collision: string; signal: AbortSignal }>,
+		options: Readonly<{
+			collision: string;
+			estimateStorageForPreflight: (
+				requiredBytes: number,
+				operation: 'import',
+			) => NativeAwaitable<Readonly<NativeStorageEstimate>>;
+			signal: AbortSignal;
+		}>,
 	) => Promise<ScapeImportResult>;
 	readonly exportScapeProject: (
 		project: NativeProjectDocument,

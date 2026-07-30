@@ -37,7 +37,10 @@ function nativeFile(name: string): Blob & Readonly<{ name: string }> {
 	return file as Blob & Readonly<{ name: string }>;
 }
 
-function createFixture(importScapeProject: NativeProjectServiceRuntime['importScapeProject']) {
+function createFixture(
+	importScapeProject: NativeProjectServiceRuntime['importScapeProject'],
+	overrides: Partial<NativeProjectServiceRuntime> = {},
+) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const projectGeneration = new EditorProjectGeneration();
@@ -79,6 +82,7 @@ function createFixture(importScapeProject: NativeProjectServiceRuntime['importSc
 		importScapeProject,
 		setStatus: (message) => { statuses.push(message); },
 		publishDocumentSnapshot: () => { publishedImporting.push(state.importing); },
+		...overrides,
 	};
 	return {
 		activateProject(id: string) {
@@ -93,6 +97,40 @@ function createFixture(importScapeProject: NativeProjectServiceRuntime['importSc
 		switched,
 	};
 }
+
+test('Scape open decorates capacity estimates with import task ownership', async () => {
+	let importSignal: AbortSignal | undefined;
+	const estimates: Array<Readonly<{
+		requiredBytes: number;
+		operation: 'export' | 'import';
+		signal?: AbortSignal;
+	}>> = [];
+	const fixture = createFixture(async (_file, _store, options) => {
+		importSignal = options.signal;
+		const estimateStorageForPreflight = options.estimateStorageForPreflight;
+		assert.equal(typeof estimateStorageForPreflight, 'function');
+		assert.deepEqual(await estimateStorageForPreflight(100, 'import'), {
+			usage: 25,
+			quota: 1_000,
+		});
+		return { project: project('imported-project'), readOnly: false, manifest: {} };
+	}, {
+		estimateStorageForPreflight: async (requiredBytes, operation, signal) => {
+			estimates.push({ requiredBytes, operation, signal });
+			return { usage: 25, quota: 1_000 };
+		},
+	});
+
+	const imported = await fixture.service.openScape(nativeFile('capacity.scape'));
+
+	assert.equal(imported?.project.id, 'imported-project');
+	assert.deepEqual(fixture.switched, ['imported-project']);
+	assert.deepEqual(estimates.map(({ requiredBytes, operation }) => ({ requiredBytes, operation })), [{
+		requiredBytes: 100,
+		operation: 'import',
+	}]);
+	assert.equal(estimates[0]?.signal, importSignal);
+});
 
 test('a stale Scape open republishes cleared import state after external activation', async () => {
 	const imported = deferred<ScapeImportResult>();

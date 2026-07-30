@@ -96,7 +96,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		try {
 			signal.throwIfAborted();
 			beginImport(operation.task);
-			const imported = await runtime.importScapeProject(file, runtime.store, { collision: options.collision || 'copy', signal });
+			const imported = await runtime.importScapeProject(file, runtime.store, {
+				collision: options.collision || 'copy', estimateStorageForPreflight: (bytes, operation) => runtime.estimateStorageForPreflight(bytes, operation, signal), signal,
+			});
 			signal.throwIfAborted();
 			assertOwnership(operation.task, operation.projectToken);
 			await runtime.switchProject(imported.project, {

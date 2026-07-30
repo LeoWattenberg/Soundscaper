@@ -28,6 +28,12 @@ test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();
 
 	test('cancels or opens a unique incompatible project read-only', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator.storage, 'estimate', {
+				configurable: true,
+				value: () => Promise.resolve({ usage: 1024 ** 2, quota: 2 * 1024 ** 3 }),
+			});
+		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
@@ -68,6 +74,9 @@ test.describe('Scape open feature decisions', () => {
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
+		const capacity = editor.locator('[data-storage-capacity]');
+		await capacity.locator('summary').click();
+		await expect(capacity).toContainText(/Import: .+ requested · .+ required free · Ready/u);
 
 		const notice = editor.locator('[data-project-feature-compatibility]');
 		await expect(notice).toBeVisible();

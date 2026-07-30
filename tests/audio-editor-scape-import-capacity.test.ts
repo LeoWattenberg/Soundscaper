@@ -115,6 +115,50 @@ test('optional or unknown storage estimates do not block Scape import admission'
 	}), expected, 'exactly enough known free bytes are admitted');
 });
 
+test('controller preflight estimation is exclusive and receives raw Scape asset bytes', async () => {
+	const calls: Array<readonly [number, 'import']> = [];
+	let fallbackEstimatorCalls = 0;
+	const admitted = await preflightScapeImportCapacity(manifest(100), {
+		estimateStorageForPreflight(assetBytes: number, operation: 'import') {
+			calls.push([assetBytes, operation]);
+			return { usage: 890, quota: 1_000 };
+		},
+		estimateStorage() {
+			fallbackEstimatorCalls += 1;
+			throw new Error('The fallback estimator must not run.');
+		},
+	});
+
+	assert.deepEqual(admitted, { assetBytes: 100, headroomBytes: 10, requiredFreeBytes: 110 });
+	assert.deepEqual(calls, [[100, 'import']]);
+	assert.equal(fallbackEstimatorCalls, 0);
+
+	await assert.rejects(preflightScapeImportCapacity(manifest(100), {
+		estimateStorageForPreflight(assetBytes: number, operation: 'import') {
+			calls.push([assetBytes, operation]);
+			return { usage: 891, quota: 1_000 };
+		},
+		estimateStorage() {
+			fallbackEstimatorCalls += 1;
+			throw new Error('The fallback estimator must not run.');
+		},
+	}), (error: unknown) => {
+		assert.ok(error instanceof ScapeImportQuotaError);
+		assert.deepEqual(error.details, {
+			assetBytes: 100,
+			headroomBytes: 10,
+			requiredFreeBytes: 110,
+			usage: 891,
+			quota: 1_000,
+			availableBytes: 109,
+		});
+		assert.equal(Object.isFrozen(error.details), true);
+		return true;
+	});
+	assert.deepEqual(calls, [[100, 'import'], [100, 'import']]);
+	assert.equal(fallbackEstimatorCalls, 0);
+});
+
 test('insufficient known capacity throws a stable quota error with frozen exact details', async () => {
 	await assert.rejects(
 		preflightScapeImportCapacity(manifest(1_000), {
@@ -165,6 +209,42 @@ test('storage estimator rejection propagates without quota-error rewriting', asy
 		}),
 		(error: unknown) => error === failure,
 	);
+});
+
+test('controller preflight estimator rejection and cancellation propagate unchanged', async () => {
+	const failure = new Error('controller estimate failed');
+	await assert.rejects(preflightScapeImportCapacity(manifest(100), {
+		estimateStorageForPreflight: async (_assetBytes: number, _operation: 'import') => { throw failure; },
+	}), (error: unknown) => error === failure);
+
+	const controller = new AbortController();
+	const estimate = deferred<unknown>();
+	let estimatorCalls = 0;
+	const admission = preflightScapeImportCapacity(manifest(100), {
+		signal: controller.signal,
+		estimateStorageForPreflight(assetBytes: number, operation: 'import') {
+			estimatorCalls += 1;
+			assert.equal(assetBytes, 100);
+			assert.equal(operation, 'import');
+			return estimate.promise;
+		},
+	});
+	assert.equal(estimatorCalls, 1);
+	const reason = new DOMException('cancel controller capacity estimate', 'AbortError');
+	controller.abort(reason);
+	await assert.rejects(admission, (error: unknown) => error === reason);
+	estimate.resolve({ usage: 0, quota: 1_000 });
+
+	const alreadyAborted = new AbortController();
+	alreadyAborted.abort(reason);
+	await assert.rejects(preflightScapeImportCapacity(manifest(100), {
+		signal: alreadyAborted.signal,
+		estimateStorageForPreflight() {
+			estimatorCalls += 1;
+			return { usage: 0, quota: 1_000 };
+		},
+	}), (error: unknown) => error === reason);
+	assert.equal(estimatorCalls, 1);
 });
 
 test('cancellation promptly wins a race with a signal-ignoring estimator', async () => {

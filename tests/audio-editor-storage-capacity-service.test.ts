@@ -84,6 +84,235 @@ test('storage preflight records ready and unknown quota outcomes', async () => {
 	);
 });
 
+test('preflight estimation publishes the raw requirement and returns one normalized ready estimate', async () => {
+	const estimate = deferred<unknown>();
+	const updates: unknown[] = [];
+	let estimateCalls = 0;
+	const service = createStorageCapacityService({
+		estimateStorage: () => {
+			estimateCalls += 1;
+			return estimate.promise;
+		},
+		isInactive: () => false,
+		setSnapshot: (value) => { updates.push(value); },
+		publish: () => { updates.push('publish'); },
+		now: sequenceClock(),
+		copy: copyFixture(),
+	});
+
+	const preflight = service.estimateStorageForPreflight(100, 'import');
+	assert.equal(estimateCalls, 1);
+	assert.deepEqual(updates, [
+		{
+			...createInitialStorageCapacitySnapshot(),
+			lastPreflight: {
+				operation: 'import',
+				requiredBytes: 100,
+				requiredFreeBytes: 110,
+				status: 'checking',
+			},
+		},
+		'publish',
+	]);
+	estimate.resolve({ usage: 100, quota: 1_000 });
+
+	assert.deepEqual(await preflight, { usage: 100, quota: 1_000 });
+	assert.equal(estimateCalls, 1, 'one visible preflight owns one storage estimate');
+	const final = updates.at(-2) as ReturnType<typeof createInitialStorageCapacitySnapshot>;
+	assert.equal(final.usage, 100);
+	assert.equal(final.quota, 1_000);
+	assert.equal(final.free, 900);
+	assert.equal(final.lastPreflight?.status, 'ready');
+});
+
+test('preflight estimation returns known insufficiency without throwing and normalizes unknown estimates', async (context) => {
+	await context.test('known insufficient', async () => {
+		let snapshot = createInitialStorageCapacitySnapshot();
+		let estimateCalls = 0;
+		const service = createStorageCapacityService({
+			estimateStorage: async () => {
+				estimateCalls += 1;
+				return { usage: 900, quota: 1_000 };
+			},
+			isInactive: () => false,
+			setSnapshot: (value) => { snapshot = value; },
+			publish: () => undefined,
+			copy: copyFixture(),
+		});
+
+		assert.deepEqual(
+			await service.estimateStorageForPreflight(100, 'import'),
+			{ usage: 900, quota: 1_000 },
+		);
+		assert.equal(estimateCalls, 1);
+		assert.equal(snapshot.free, 100);
+		assert.deepEqual(snapshot.lastPreflight, {
+			operation: 'import', requiredBytes: 100, requiredFreeBytes: 110, status: 'insufficient',
+		});
+	});
+
+	for (const scenario of [
+		{ name: 'null', estimate: null, normalized: { usage: null, quota: null } },
+		{ name: 'partial', estimate: { usage: 25 }, normalized: { usage: 25, quota: null } },
+	] as const) {
+		await context.test(scenario.name, async () => {
+			let snapshot = createInitialStorageCapacitySnapshot();
+			let estimateCalls = 0;
+			const service = createStorageCapacityService({
+				estimateStorage: async () => {
+					estimateCalls += 1;
+					return scenario.estimate;
+				},
+				isInactive: () => false,
+				setSnapshot: (value) => { snapshot = value; },
+				publish: () => undefined,
+				copy: copyFixture(),
+			});
+
+			assert.deepEqual(
+				await service.estimateStorageForPreflight(100, 'import'),
+				scenario.normalized,
+			);
+			assert.equal(estimateCalls, 1);
+			assert.equal(snapshot.free, null);
+			assert.equal(snapshot.lastPreflight?.status, 'unknown');
+		});
+	}
+});
+
+test('an already-aborted preflight estimate has no estimator or snapshot side effects', async () => {
+	const controller = new AbortController();
+	const reason = new Error('capacity estimate was already cancelled');
+	controller.abort(reason);
+	let estimateCalls = 0;
+	const updates: unknown[] = [];
+	const service = createStorageCapacityService({
+		estimateStorage: async () => {
+			estimateCalls += 1;
+			return { usage: 0, quota: 1_000 };
+		},
+		isInactive: () => false,
+		setSnapshot: (value) => { updates.push(value); },
+		publish: () => { updates.push('publish'); },
+		copy: copyFixture(),
+	});
+
+	await assert.rejects(
+		service.estimateStorageForPreflight(100, 'import', controller.signal),
+		(error: unknown) => error === reason,
+	);
+	assert.equal(estimateCalls, 0);
+	assert.deepEqual(updates, []);
+});
+
+test('cancelling a pending estimate restores settled state and consumes a late provider settlement', async (context) => {
+	for (const lateSettlement of ['resolve', 'reject'] as const) {
+		await context.test(lateSettlement, async () => {
+			const pending = deferred<unknown>();
+			let estimateCalls = 0;
+			let snapshot = createInitialStorageCapacitySnapshot();
+			let publishes = 0;
+			const service = createStorageCapacityService({
+				estimateStorage: () => {
+					estimateCalls += 1;
+					if (estimateCalls === 1) return { usage: 100, quota: 1_000 };
+					return pending.promise;
+				},
+				isInactive: () => false,
+				setSnapshot: (value) => { snapshot = value; },
+				publish: () => { publishes += 1; },
+				copy: copyFixture(),
+			});
+			await service.estimateStorageForPreflight(10, 'export');
+			const settled = snapshot.lastPreflight;
+			assert.equal(settled?.status, 'ready');
+
+			const controller = new AbortController();
+			const estimating = service.estimateStorageForPreflight(100, 'import', controller.signal);
+			assert.equal(estimateCalls, 2);
+			assert.equal(snapshot.lastPreflight?.status, 'checking');
+			const reason = new Error(`cancel pending estimate before late ${lateSettlement}`);
+			controller.abort(reason);
+			await assertRejectsPromptly(estimating, (error) => error === reason);
+			assert.deepEqual(snapshot.lastPreflight, settled);
+			assert.notEqual(snapshot.lastPreflight?.status, 'checking');
+			const snapshotAfterAbort = snapshot;
+			const publishesAfterAbort = publishes;
+
+			if (lateSettlement === 'resolve') pending.resolve({ usage: 900, quota: 1_000 });
+			else pending.reject(new Error('late estimator rejection'));
+			await flushMicrotasks();
+			assert.equal(snapshot, snapshotAfterAbort);
+			assert.equal(publishes, publishesAfterAbort);
+		});
+	}
+});
+
+test('abort wins after provider resolution but before the preflight continuation', async () => {
+	const reason = new Error('abort after provider resolution');
+	const fixture = await settlementRaceFixture();
+	const updateCount = fixture.updates.length;
+	fixture.provider.resolve({ usage: 0, quota: 1_000 });
+	queueMicrotask(() => { fixture.controller.abort(reason); });
+
+	await assert.rejects(fixture.preflight, (error: unknown) => error === reason);
+	assert.deepEqual(
+		fixture.updates.slice(updateCount).map(({ lastPreflight }) => lastPreflight),
+		[fixture.settled.lastPreflight],
+	);
+	const restored = fixture.snapshot();
+	await flushMicrotasks();
+	assert.equal(fixture.snapshot(), restored);
+});
+
+test('abort wins after provider rejection but before the preflight catch continuation', async () => {
+	const reason = new Error('abort after provider rejection');
+	const fixture = await settlementRaceFixture();
+	const updateCount = fixture.updates.length;
+	fixture.provider.reject(new Error('provider rejection must lose to cancellation'));
+	queueMicrotask(() => { fixture.controller.abort(reason); });
+
+	await assert.rejects(fixture.preflight, (error: unknown) => error === reason);
+	assert.deepEqual(
+		fixture.updates.slice(updateCount).map(({ lastPreflight }) => lastPreflight),
+		[fixture.settled.lastPreflight],
+	);
+	const restored = fixture.snapshot();
+	await flushMicrotasks();
+	assert.equal(fixture.snapshot(), restored);
+});
+
+test('a cancelled older estimate cannot restore over a newer settled preflight', async () => {
+	const olderEstimate = deferred<unknown>();
+	const newerEstimate = deferred<unknown>();
+	let estimateCalls = 0;
+	let snapshot = createInitialStorageCapacitySnapshot();
+	const service = createStorageCapacityService({
+		estimateStorage: () => (estimateCalls++ === 0 ? olderEstimate.promise : newerEstimate.promise),
+		isInactive: () => false,
+		setSnapshot: (value) => { snapshot = value; },
+		publish: () => undefined,
+		now: sequenceClock(),
+		copy: copyFixture(),
+	});
+	const olderController = new AbortController();
+	const older = service.estimateStorageForPreflight(100, 'import', olderController.signal);
+	const newer = service.estimateStorageForPreflight(20, 'export');
+	newerEstimate.resolve({ usage: 100, quota: 1_000 });
+	assert.deepEqual(await newer, { usage: 100, quota: 1_000 });
+	const newerSnapshot = snapshot;
+	assert.deepEqual(snapshot.lastPreflight, {
+		operation: 'export', requiredBytes: 20, requiredFreeBytes: 22, status: 'ready',
+	});
+
+	const reason = new Error('cancel superseded import estimate');
+	olderController.abort(reason);
+	await assertRejectsPromptly(older, (error) => error === reason);
+	olderEstimate.resolve({ usage: 950, quota: 1_000 });
+	await flushMicrotasks();
+	assert.equal(snapshot, newerSnapshot);
+});
+
 test('an older preflight completion cannot replace the latest visible requirement', async () => {
 	const firstEstimate = deferred<Readonly<{ usage: number; quota: number }>>();
 	const secondEstimate = deferred<Readonly<{ usage: number; quota: number }>>();
@@ -238,6 +467,40 @@ test('reproducible derivative cleanup has separate state and remains available f
 	assert.equal(updates.some((snapshot) => snapshot.cleanupStatus === 'running'), false);
 });
 
+async function settlementRaceFixture() {
+	const provider = deferred<unknown>();
+	const updates: ReturnType<typeof createInitialStorageCapacitySnapshot>[] = [];
+	let estimateCalls = 0;
+	let snapshot = createInitialStorageCapacitySnapshot();
+	const service = createStorageCapacityService({
+		estimateStorage: () => {
+			estimateCalls += 1;
+			return estimateCalls === 1 ? { usage: 100, quota: 1_000 } : provider.promise;
+		},
+		isInactive: () => false,
+		setSnapshot: (value) => {
+			snapshot = value;
+			updates.push(value);
+		},
+		publish: () => undefined,
+		copy: copyFixture(),
+	});
+	await service.estimateStorageForPreflight(10, 'export');
+	const settled = snapshot;
+	const controller = new AbortController();
+	const preflight = service.estimateStorageForPreflight(100, 'import', controller.signal);
+	assert.equal(estimateCalls, 2);
+	assert.equal(snapshot.lastPreflight?.status, 'checking');
+	return {
+		controller,
+		preflight,
+		provider,
+		settled,
+		snapshot: () => snapshot,
+		updates,
+	};
+}
+
 function copyFixture() {
 	return {
 		storageOperationRecording: 'Recording',
@@ -251,11 +514,35 @@ function copyFixture() {
 
 function deferred<Value>() {
 	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((fulfill) => { resolve = fulfill; });
-	return { promise, resolve };
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<Value>((fulfill, fail) => {
+		resolve = fulfill;
+		reject = fail;
+	});
+	return { promise, reject, resolve };
 }
 
 function sequenceClock() {
 	let value = 0;
 	return () => { value += 1; return value; };
+}
+
+async function assertRejectsPromptly(
+	promise: Promise<unknown>,
+	validate: (error: unknown) => boolean,
+): Promise<void> {
+	let timeout: ReturnType<typeof setTimeout> | null = null;
+	const deadline = new Promise<never>((_resolve, reject) => {
+		timeout = setTimeout(() => reject(new Error('Expected prompt storage-preflight cancellation.')), 1_000);
+	});
+	try {
+		await Promise.race([assert.rejects(promise, validate), deadline]);
+	} finally {
+		if (timeout !== null) clearTimeout(timeout);
+	}
+}
+
+async function flushMicrotasks(): Promise<void> {
+	await Promise.resolve();
+	await Promise.resolve();
 }

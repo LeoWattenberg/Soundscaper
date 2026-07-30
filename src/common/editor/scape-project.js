@@ -181,9 +181,10 @@ export async function importScapeProject(input, store, options = {}) {
 			const collision = options.collision || 'copy';
 			if (existingProject && collision === 'cancel') throw new Error('A project with this ID already exists.');
 			await preflightScapeImportCapacity(manifest, {
-				estimateStorage: typeof store.estimateStorage === 'function'
+				estimateStorage: options.estimateStorageForPreflight == null && typeof store.estimateStorage === 'function'
 					? () => store.estimateStorage()
 					: undefined,
+				estimateStorageForPreflight: options.estimateStorageForPreflight,
 				signal,
 			});
 			throwIfScapeAborted(signal);

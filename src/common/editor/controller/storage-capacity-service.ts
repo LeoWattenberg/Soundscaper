@@ -53,7 +53,7 @@ export interface StorageCapacityCopy {
 }
 
 export interface StorageCapacityServiceDependencies {
-	estimateStorage(): Promise<Readonly<StorageEstimate>>;
+	estimateStorage(): PromiseLike<unknown> | unknown;
 	queryPersistentStorage?(): Promise<boolean | null>;
 	requestPersistentStorage?(): Promise<boolean>;
 	persistenceRequestAvailable?(): boolean;
@@ -70,6 +70,11 @@ export interface StorageCapacityServiceDependencies {
 
 export interface StorageCapacityService {
 	refreshStorageUsage(): Promise<Readonly<StorageCapacitySnapshot> | null>;
+	estimateStorageForPreflight(
+		requiredBytes: unknown,
+		operation: StorageOperation,
+		signal?: AbortSignal,
+	): Promise<Readonly<StorageEstimate>>;
 	preflightStorage(requiredBytes: unknown, operation: StorageOperation): Promise<void>;
 	requestStoragePersistence(): Promise<Readonly<StorageCapacitySnapshot> | null>;
 	cleanupDisposableStorage(): Promise<Readonly<StorageCapacitySnapshot> | null>;
@@ -101,8 +106,10 @@ export function createStorageCapacityService(
 ): Readonly<StorageCapacityService> {
 	let snapshot = createInitialStorageCapacitySnapshot();
 	let preflightGeneration = 0;
+	let lastSettledPreflight: Readonly<StoragePreflightSnapshot> | null = null;
 	return Object.freeze({
 		refreshStorageUsage,
+		estimateStorageForPreflight,
 		preflightStorage,
 		requestStoragePersistence,
 		cleanupDisposableStorage,
@@ -126,44 +133,56 @@ export function createStorageCapacityService(
 		});
 	}
 
-	async function preflightStorage(requiredBytes: unknown, operation: StorageOperation): Promise<void> {
-		const required = nonNegativeBytes(requiredBytes);
-		const headroom = Math.ceil(required / 10);
-		if (required > Number.MAX_SAFE_INTEGER - headroom) {
-			throw new RangeError('Storage preflight bytes exceed the supported safe integer range.');
-		}
-		const requirement = Object.freeze({
-			operation,
-			requiredBytes: required,
-			requiredFreeBytes: required + headroom,
-			status: 'checking' as const,
-		});
+	async function estimateStorageForPreflight(
+		requiredBytes: unknown,
+		operation: StorageOperation,
+		signal?: AbortSignal,
+	): Promise<Readonly<StorageEstimate>> {
+		const requirement = storagePreflightRequirement(requiredBytes, operation);
+		signal?.throwIfAborted();
 		const generation = preflightGeneration + 1;
 		preflightGeneration = generation;
 		update({ lastPreflight: requirement });
-		let estimate: Readonly<StorageEstimate>;
+		let estimate: unknown;
 		try {
-			estimate = await dependencies.estimateStorage();
+			estimate = await awaitStorageEstimate(() => dependencies.estimateStorage(), signal);
+			signal?.throwIfAborted();
 		} catch (error) {
+			const aborted = signal?.aborted === true;
 			if (!dependencies.isInactive() && generation === preflightGeneration) {
-				updatePreflight(requirement, 'unknown');
+				if (aborted) {
+					update({ lastPreflight: lastSettledPreflight });
+				} else {
+					updatePreflight(requirement, 'unknown', generation);
+				}
 			}
+			if (aborted) throw signal.reason;
 			throw error;
 		}
-		if (dependencies.isInactive()) return;
 		const capacity = capacityFromEstimate(estimate);
-		if (capacity.free === null) {
-			updateCapacityAfterPreflight(capacity, requirement, 'unknown', generation);
-			return;
+		const normalized = Object.freeze({ usage: capacity.usage, quota: capacity.quota });
+		if (!dependencies.isInactive()) {
+			const status = capacity.free === null
+				? 'unknown'
+				: capacity.free >= requirement.requiredFreeBytes ? 'ready' : 'insufficient';
+			updateCapacityAfterPreflight(capacity, requirement, status, generation);
 		}
-		if (capacity.free >= requirement.requiredFreeBytes) {
-			updateCapacityAfterPreflight(capacity, requirement, 'ready', generation);
-			return;
-		}
-		updateCapacityAfterPreflight(capacity, requirement, 'insufficient', generation);
+		return normalized;
+	}
+
+	async function preflightStorage(
+		requiredBytes: unknown,
+		operation: StorageOperation,
+	): Promise<void> {
+		const requirement = storagePreflightRequirement(requiredBytes, operation);
+		const estimate = await estimateStorageForPreflight(requirement.requiredBytes, operation);
+		const capacity = capacityFromEstimate(estimate);
+		if (dependencies.isInactive()
+			|| capacity.free === null
+			|| capacity.free >= requirement.requiredFreeBytes) return;
 		throw new Error(dependencies.copy.insufficientStorage
 			.replace('{operation}', operationLabel(operation))
-			.replace('{required}', dependencies.copy.formatBytes(required)));
+			.replace('{required}', dependencies.copy.formatBytes(requirement.requiredBytes)));
 	}
 
 	async function requestStoragePersistence(): Promise<Readonly<StorageCapacitySnapshot> | null> {
@@ -225,8 +244,11 @@ export function createStorageCapacityService(
 	function updatePreflight(
 		requirement: StoragePreflightSnapshot,
 		status: StoragePreflightStatus,
+		generation: number,
 	): Readonly<StorageCapacitySnapshot> {
-		return update({ lastPreflight: withStatus(requirement, status) });
+		if (generation !== preflightGeneration) return snapshot;
+		lastSettledPreflight = withStatus(requirement, status);
+		return update({ lastPreflight: lastSettledPreflight });
 	}
 
 	function updateCapacityAfterPreflight(
@@ -236,9 +258,10 @@ export function createStorageCapacityService(
 		generation: number,
 	): Readonly<StorageCapacitySnapshot> {
 		if (generation !== preflightGeneration) return snapshot;
+		lastSettledPreflight = withStatus(requirement, status);
 		return update({
 			...capacity,
-			lastPreflight: withStatus(requirement, status),
+			lastPreflight: lastSettledPreflight,
 			updatedAt: now(),
 		});
 	}
@@ -267,10 +290,13 @@ export function createStorageCapacityService(
 	}
 }
 
-function capacityFromEstimate(estimate: Readonly<StorageEstimate>): Pick<StorageCapacitySnapshot,
+function capacityFromEstimate(estimate: unknown): Pick<StorageCapacitySnapshot,
 	'usage' | 'quota' | 'free' | 'pressure'> {
-	const usage = finiteOrNull(estimate.usage);
-	const quota = finiteOrNull(estimate.quota);
+	const candidate = estimate && typeof estimate === 'object'
+		? estimate as Readonly<{ usage?: unknown; quota?: unknown }>
+		: {};
+	const usage = finiteOrNull(candidate.usage);
+	const quota = finiteOrNull(candidate.quota);
 	const free = usage === null || quota === null ? null : Math.max(0, quota - usage);
 	return { usage, quota, free, pressure: storagePressure(usage, quota) };
 }
@@ -299,8 +325,65 @@ function withStatus(
 	return Object.freeze({ ...requirement, status });
 }
 
-function finiteOrNull(value: number | null): number | null {
+function finiteOrNull(value: unknown): number | null {
 	return Number.isFinite(value) && Number(value) >= 0 ? Number(value) : null;
+}
+
+function storagePreflightRequirement(
+	requiredBytes: unknown,
+	operation: StorageOperation,
+): Readonly<StoragePreflightSnapshot> {
+	const required = nonNegativeBytes(requiredBytes);
+	const headroom = Math.ceil(required / 10);
+	if (required > Number.MAX_SAFE_INTEGER - headroom) {
+		throw new RangeError('Storage preflight bytes exceed the supported safe integer range.');
+	}
+	return Object.freeze({
+		operation,
+		requiredBytes: required,
+		requiredFreeBytes: required + headroom,
+		status: 'checking',
+	});
+}
+
+function awaitStorageEstimate(
+	estimate: () => PromiseLike<unknown> | unknown,
+	signal?: AbortSignal,
+): Promise<unknown> {
+	if (!signal) {
+		try {
+			return Promise.resolve(estimate());
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+	if (signal.aborted) return Promise.reject(signal.reason);
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const finish = (complete: () => void): void => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			complete();
+		};
+		const onAbort = (): void => finish(() => reject(signal.reason));
+		signal.addEventListener('abort', onAbort, { once: true });
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		let operation: PromiseLike<unknown> | unknown;
+		try {
+			operation = estimate();
+		} catch (error) {
+			finish(() => reject(error));
+			return;
+		}
+		void Promise.resolve(operation).then(
+			(value) => finish(() => resolve(value)),
+			(error: unknown) => finish(() => reject(error)),
+		);
+	});
 }
 
 function nonNegativeBytes(value: unknown): number {

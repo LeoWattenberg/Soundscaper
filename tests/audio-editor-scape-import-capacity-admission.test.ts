@@ -166,8 +166,46 @@ test('Scape import admits exact free capacity before opening its media writer', 
 	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('project-published'));
 });
 
+test('Scape import uses one controller estimate before transaction capture, remapping, and extraction', async () => {
+	const bytes = Uint8Array.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+	const archive = syntheticVideoArchive({
+		projectId: 'scape-controller-capacity',
+		assetSize: bytes.byteLength,
+		sha256: digestScapeBytes(bytes),
+		async emit(output) {
+			store.events.push('asset-extracted');
+			await output.write(bytes);
+		},
+	});
+	const store = new CapacityProbeStore({
+		estimate: () => { throw new Error('The store estimator must not run.'); },
+	});
+	const preflights: Array<readonly [number, 'import']> = [];
+
+	const imported = await importScapeProject(new Blob(['synthetic']), store, {
+		archiveReaderFactory: archive.readerFactory,
+		estimateStorageForPreflight(assetBytes: number, operation: 'import') {
+			preflights.push([assetBytes, operation]);
+			store.events.push('controller-capacity-estimated');
+			return { usage: 989, quota: 1_000 };
+		},
+	});
+
+	assert.equal(imported.project.id, 'scape-controller-capacity');
+	assert.deepEqual(preflights, [[10, 'import']]);
+	assert.equal(store.events.includes('capacity-estimated'), false);
+	const capacityIndex = store.events.indexOf('controller-capacity-estimated');
+	assert.ok(store.events.indexOf('project-loaded') < capacityIndex);
+	assert.ok(capacityIndex < store.events.indexOf('project-revisions-loaded'));
+	assert.ok(capacityIndex < store.events.indexOf('media-metadata-read'));
+	assert.ok(capacityIndex < store.events.indexOf('media-write-began'));
+	assert.ok(capacityIndex < store.events.indexOf('asset-extracted'));
+	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('project-published'));
+});
+
 test('collision cancellation takes precedence and does not request a storage estimate', async () => {
 	let assetExtractions = 0;
+	let controllerEstimatorCalls = 0;
 	const projectId = 'scape-capacity-collision-cancel';
 	const archive = syntheticVideoArchive({
 		projectId,
@@ -183,9 +221,14 @@ test('collision cancellation takes precedence and does not request a storage est
 	await assert.rejects(importScapeProject(new Blob(['synthetic']), store, {
 		collision: 'cancel',
 		archiveReaderFactory: archive.readerFactory,
+		estimateStorageForPreflight() {
+			controllerEstimatorCalls += 1;
+			throw new Error('Controller capacity must not be estimated.');
+		},
 	}), /project with this ID already exists/iu);
 
 	assert.equal(assetExtractions, 0);
+	assert.equal(controllerEstimatorCalls, 0);
 	assert.deepEqual(store.events, ['project-loaded']);
 });
 

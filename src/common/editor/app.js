@@ -855,7 +855,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editingBlocked,
 		flushProject,
 		hasMissingTimelineSources,
-		preflightStorage,
+		estimateStorageForPreflight, preflightStorage,
 		createStableId,
 		ensureAup4FileName,
 		ensureScapeFileName,
@@ -2962,13 +2962,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			.replace('{stereoMinutes}', String(envelope.limits.stereoMinutes)));
 	}
 
-	async function refreshStorageUsage() {
-		return storageCapacityService.refreshStorageUsage();
+	function refreshStorageUsage() { return storageCapacityService.refreshStorageUsage(); }
+
+	function estimateStorageForPreflight(requiredBytes, operation, signal) {
+		return storageCapacityService.estimateStorageForPreflight(requiredBytes, operation, signal);
 	}
 
-	async function preflightStorage(requiredBytes, operation) {
-		return storageCapacityService.preflightStorage(requiredBytes, operation);
-	}
+	function preflightStorage(requiredBytes, operation) { return storageCapacityService.preflightStorage(requiredBytes, operation); }
 
 	function activeSelection() {
 		const selection = project?.selection;
