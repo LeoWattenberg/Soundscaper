@@ -1,6 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { throwIfScapeAborted } from './scape-abort.ts';
+import {
+	assertScapeArchiveByteSource,
+	createBlobScapeArchiveByteSource,
+	readScapeArchiveByteRange,
+	type ScapeArchiveByteSource,
+} from './scape-archive-byte-source.ts';
+import {
+	createScapeArchiveLayoutWitness,
+	type ScapeArchiveLayoutWitness,
+} from './scape-archive-layout-witness.ts';
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
 import { SCAPE_MAXIMUM_CENTRAL_DIRECTORY_BYTES } from './scape-archive-zip-profile.ts';
 
@@ -25,16 +35,15 @@ const CENTRAL_FIXED_BYTES = 46;
 const ZIP64_END_BYTES = 56;
 const ZIP64_LOCATOR_BYTES = 20;
 const MAXIMUM_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
-const BLOB_SIZE_GETTER = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')?.get;
-const BLOB_SLICE = Blob.prototype.slice;
 
 /** No validator read retains more than one maximum ZIP name plus extra field. */
 export const SCAPE_MAXIMUM_LAYOUT_READ_BYTES = 2 * UINT16_SENTINEL;
 
 interface LayoutContext {
-	readonly blob: Blob;
+	readonly source: ScapeArchiveByteSource;
 	readonly signal?: AbortSignal;
 	readonly size: number;
+	readonly witness?: ScapeArchiveLayoutWitness;
 }
 
 interface CentralDirectoryLocation {
@@ -67,15 +76,37 @@ export interface ScapeDataDescriptorExpectation {
 }
 
 export async function validateScapeArchiveLayout(input: Blob, signal?: AbortSignal): Promise<void> {
-	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
+	return validateScapeArchiveByteSourceLayout(createBlobScapeArchiveByteSource(input), signal);
+}
+
+export async function validateScapeArchiveByteSourceLayout(
+	source: ScapeArchiveByteSource,
+	signal?: AbortSignal,
+): Promise<void> {
+	await bindScapeArchiveByteSourceLayout(source, signal);
+}
+
+export async function bindScapeArchiveByteSourceLayout(
+	source: ScapeArchiveByteSource,
+	signal?: AbortSignal,
+): Promise<ScapeArchiveByteSource> {
+	const witness = createScapeArchiveLayoutWitness(source);
+	await validateByteSourceLayout(source, signal, witness);
+	return witness.bind();
+}
+
+async function validateByteSourceLayout(
+	source: ScapeArchiveByteSource,
+	signal?: AbortSignal,
+	witness?: ScapeArchiveLayoutWitness,
+): Promise<void> {
+	assertScapeArchiveByteSource(source);
 	throwIfScapeAborted(signal);
-	if (!BLOB_SIZE_GETTER) throw new Error('The platform Blob size getter is unavailable.');
-	const size = Reflect.apply(BLOB_SIZE_GETTER, input, []) as number;
+	const size = source.size;
 	if (!Number.isSafeInteger(size) || size < END_FIXED_BYTES) {
 		throw new RangeError('The .scape ZIP size is invalid.');
 	}
-	const blob = Reflect.apply(BLOB_SLICE, input, [0, size]) as Blob;
-	const context: LayoutContext = { blob, signal, size };
+	const context: LayoutContext = { source, signal, size, witness };
 	const central = await locateCentralDirectory(context);
 	const entries = await readCentralEntries(context, central);
 	const ranges: EntryRange[] = [];
@@ -215,6 +246,9 @@ async function readCentralEntries(
 		const recordBytes = CENTRAL_FIXED_BYTES + variableBytes + commentBytes;
 		if (!nameBytes || recordBytes > centralEnd - cursor) throw new Error('The .scape central record is not exact.');
 		const variable = await readRange(context, cursor + CENTRAL_FIXED_BYTES, variableBytes);
+		if (commentBytes) {
+			await readRange(context, cursor + CENTRAL_FIXED_BYTES + variableBytes, commentBytes);
+		}
 		const fields = parseExtraFields(variable.subarray(nameBytes), `central record ${String(index + 1)}`);
 		const resolved = resolveCentralZip64(fields, rawUncompressed, rawCompressed, rawLocalOffset, rawDisk);
 		if (method !== ZIP_STORE_METHOD || resolved.compressedSize !== resolved.uncompressedSize) {
@@ -417,13 +451,17 @@ async function readRange(context: LayoutContext, offset: number, length: number)
 	throwIfScapeAborted(context.signal);
 	if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0
 		|| length > SCAPE_MAXIMUM_LAYOUT_READ_BYTES || offset > context.size - length) {
-		throw new RangeError('The .scape layout requested an invalid or unbounded Blob range.');
+		throw new RangeError('The .scape layout requested an invalid or unbounded byte range.');
 	}
 	if (!length) return new Uint8Array();
-	const range = Reflect.apply(BLOB_SLICE, context.blob, [offset, offset + length]) as Blob;
-	const bytes = new Uint8Array(await range.arrayBuffer());
+	const bytes = await readScapeArchiveByteRange(context.source, {
+		offset,
+		length,
+		...(context.signal ? { signal: context.signal } : {}),
+	});
 	throwIfScapeAborted(context.signal);
-	if (bytes.byteLength !== length) throw new Error('The .scape Blob range read was incomplete.');
+	if (bytes.byteLength !== length) throw new Error('The .scape byte-range read was incomplete.');
+	context.witness?.record(offset, bytes);
 	return bytes;
 }
 
