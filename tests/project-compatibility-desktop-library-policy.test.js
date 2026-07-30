@@ -13,9 +13,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 
 	assert.ok(rule);
 	assert.deepEqual(rule.evidence, [
+		'desktop/project-library-api.ts',
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
 		'desktop/project-library-file-inventory.ts',
+		'desktop/project-library-stage-inventory.ts',
 		'desktop/project-library.ts',
 		'desktop/project-library-projects.ts',
 		'desktop/project-library-reclamation.ts',
@@ -39,6 +41,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-projects.test.ts',
 		'tests/desktop-project-library-reclamation.test.ts',
 		'tests/desktop-project-library-reclamation-progress.test.ts',
+		'tests/desktop-project-library-stage-reclamation.test.ts',
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
 		'tests/desktop-project-library-ipc.test.js',
@@ -52,7 +55,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.requiredOutcome,
-		/main-owned startup reclamation.*preserves every current or recoverable catalog reference.*before removing an immutable project file/iu,
+		/main-owned startup reclamation.*preserves every current or recoverable catalog reference.*retires abandoned registered stage attempts.*without removing live writer state.*fair progress.*shared bounded budget/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -60,7 +63,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/main-only.*canonicalizes.*bounded tagged-binary Scape codec.*non-raiseable 256 MiB.*root schema, identity, title, and revision.*reserves.*lease.*fencing-token.*authoritative project-file inventory.*before creating.*stage file.*writes and syncs.*atomically renames.*materialized.*verifies.*catalog descriptor.*every catalog reference.*exact \+1 catalog revision.*fenced metadata journal/iu,
+		/main-only.*canonicalizes.*bounded tagged-binary Scape codec.*non-raiseable 256 MiB.*root schema, identity, title, and revision.*reserves.*unique random attempt.*lease.*fencing-token.*authoritative project and stage inventories.*same immediate transaction.*before exclusive stage creation.*exact-lease cleanup.*acknowledged.*exclusive-open failure.*registration.*without unlinking.*error after exclusive creation.*registered random stage.*lost-lease or failed cleanup.*registration.*takeover.*successful materialization.*exact metadata and stage paths.*lease ID.*fencing token.*atomically renames.*marks the canonical row materialized.*removes the stage row.*verifies.*catalog descriptor.*every catalog reference.*exact \+1 catalog revision.*fenced metadata journal/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -72,7 +75,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/after journal recovery.*before host exposure.*authoritative project-file inventory.*monotonic row IDs.*captur(?:es|ed).*high-water.*persist(?:s|ed).*cursor.*100,000 rows.*64-row batches.*immediate SQLite writer fence.*portable case-folded reachability.*current catalog.*both sides.*pending recovery journal.*deterministic.*quarantine.*unregistered.*stage.*canonical.*forged quarantine.*foreign.*do not consume.*budget.*untouched.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*crash-left quarantine.*symlinked project root.*corrupt metadata.*managed-media.*untouched/iu,
+		/after journal recovery.*before host exposure.*authoritative project and stage inventories.*monotonic row IDs.*independent cycle high-waters.*both cursors.*alternating schedule.*100,000 total rows.*64-row batches.*immediate SQLite writer fences.*exact lease checks.*current exact-lease stage.*live.*stale registered regular stage.*removed.*missing attempt retires.*non-regular target.*non-direct parent.*untouched and inventoried.*canonical rows.*outstanding stage.*ineligible.*rescan flag.*already-scanned parents.*portable case-folded reachability.*current catalog.*both sides.*pending recovery journal.*deterministic.*quarantine.*unregistered stage-looking.*canonical.*forged quarantine.*foreign.*do not consume.*budget.*untouched.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*low- and mixed-cap.*canonical rescanning.*crash-left quarantine.*symlinked project root.*corrupt metadata.*managed-media.*untouched/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -84,7 +87,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*abandoned stage-file cleanup.*packaged preload\/IPC\/executable handoff.*per-platform parent- and database-path identity or power-loss durability.*outside.*migration from the prior shared v1 scope or product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media publication.*cross-product source-byte availability.*packaged preload\/IPC\/executable handoff.*per-platform parent- and database-path identity.*power-loss durability.*interrupted foreign collisions.*registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*migration from the prior shared v1 scope or product-private Soundscaper libraries.*not a current priority.*deferred and unsupported.*Audacity.*separate boundary/iu,
 	);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
@@ -103,23 +106,23 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V9 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document.*strictly checks core project,\s+document, media, and graph structures.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility\s+metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*reserves.*authoritative project-file inventory.*before.*stage.*writes and syncs.*atomic\s+rename.*materialized.*every catalog reference.*exact \+1\s+catalog revision.*fenced\s+journal/isu,
+		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V9 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document.*strictly checks core project,\s+document, media, and graph structures.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility\s+metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*reserves.*unique random attempt.*authoritative project\s+and stage inventories.*one transaction.*exclusively creates.*exact-lease cleanup.*acknowledged.*exclusive-open\s+failure.*registration.*without unlinking.*error\s+after exclusive creation.*registered random stage.*lost-lease or failed cleanup.*registration.*takeover.*successful\s+materialization.*exact metadata and stage paths.*lease ID.*fencing token.*atomic rename.*materialized.*removes the stage row.*every catalog reference.*exact \+1\s+catalog revision.*fenced\s+journal/isu,
 	);
 	assert.match(
 		documentation,
-		/after journal recovery.*before the host is exposed.*authoritative project-file inventory.*monotonic row\s+IDs.*captur(?:es|ed).*high-water.*persist(?:s|ed).*cursor.*100,000\s+rows.*complete/isu,
+		/after journal recovery.*before the host is exposed.*authoritative project and stage inventories.*monotonic\s+row IDs.*independent cycle high-waters.*both cursors.*alternating schedule.*100,000 total rows.*complete/isu,
 	);
 	assert.match(
 		documentation,
-		/immediate SQLite writer transaction.*exact live lease.*portable case-folded reachability.*current\s+catalog.*previous and next snapshots.*pending prepared or\s+committed journal/isu,
+		/immediate SQLite writer transaction.*exact\s+live lease.*before and after filesystem work.*current exact-lease stage.*live.*stale registered regular stage.*removed.*missing attempt retires.*non-regular target.*non-direct parent.*untouched and inventoried.*canonical rows.*current lease.*outstanding\s+stage.*ineligible.*rescan flag.*restarts the\s+canonical high-water.*portable case-folded reachability.*current catalog.*previous and next snapshots.*pending prepared or\s+committed journal/isu,
 	);
 	assert.match(
 		documentation,
-		/deterministic noncatalogable quarantine.*unregistered.*canonical.*forged quarantine.*do not consume.*budget.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*higher fencing\s+token.*yields between batches/isu,
+		/deterministic noncatalogable.*quarantine.*unregistered stage-looking.*canonical.*forged\s+quarantine.*do not consume.*budget.*100,001-row.*successive bounded passes.*later inserts.*next cycle.*higher fencing\s+token.*yields between batches/isu,
 	);
 	assert.match(
 		documentation,
-		/static\s+symlinked\s+project\s+root.*corrupt\s+catalog\s+or\s+journal\s+metadata.*stage\s+files.*malformed\s+names.*managed\s+media\s+remain\s+untouched.*host\s+snapshot.*tested\s+reclamation\s+failure\s+during\s+startup.*releases\s+its\s+still-owned\s+lease.*cleanup\s+failure.*reported/isu,
+		/static\s+symlinked\s+project\s+root.*corrupt\s+catalog\s+or\s+journal\s+metadata.*malformed\s+names.*non-regular or symlinked entries.*managed media.*untouched.*host snapshot.*tested\s+reclamation\s+failure\s+during\s+startup.*releases\s+its\s+still-owned\s+lease.*cleanup\s+failure.*reported/isu,
 	);
 	assert.match(
 		documentation,
@@ -135,11 +138,12 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*abandoned stage-file cleanup.*packaged cross-product\s+lifecycle.*per-platform parent- and database-path identity and power-loss\s+durability.*outside/isu,
+		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*packaged cross-product lifecycle.*per-platform\s+parent- and database-path identity, power-loss durability, and interrupted\s+foreign collisions at registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted/isu,
 	);
 	assert.match(
 		documentation,
 		/migration from the prior shared\s+`?v1`?\s+scope or product-private Soundscaper\s+libraries.*not a current priority.*deferred and\s+unsupported.*Audacity.*separate boundary/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
+	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
 });

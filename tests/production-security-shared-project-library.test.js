@@ -18,6 +18,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const reclamationControl = risk?.currentControls.find(
 		({ id }) => id === 'lease-fenced-immutable-project-reclamation',
 	);
+	const stageReclamationControl = risk?.currentControls.find(
+		({ id }) => id === 'lease-fenced-registered-project-stage-reclamation',
+	);
 	const preloadControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'sandboxed-versioned-preload-bridge',
 	);
@@ -51,9 +54,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.ok(libraryBoundary);
 	assert.match(libraryBoundary.data, /maintained-domain-validated exact schemaVersion-9 project documents/iu);
 	assert.deepEqual(libraryBoundary.entryPoints, [
+		'desktop/project-library-api.ts',
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
 		'desktop/project-library-file-inventory.ts',
+		'desktop/project-library-stage-inventory.ts',
 		'desktop/project-library.ts',
 		'desktop/project-library-projects.ts',
 		'desktop/project-library-reclamation.ts',
@@ -61,12 +66,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-editor-service.ts',
 	]);
 	for (const path of [
+		'desktop/project-library-api.ts',
 		'desktop/project-library-database.ts',
 		'desktop/project-library-file-inventory.ts',
+		'desktop/project-library-stage-inventory.ts',
 		'desktop/project-library-reclamation.ts',
 		'tests/desktop-project-library-file-inventory.test.ts',
 		'tests/desktop-project-library-reclamation.test.ts',
 		'tests/desktop-project-library-reclamation-progress.test.ts',
+		'tests/desktop-project-library-stage-reclamation.test.ts',
 	]) assert.ok(libraryBoundary.evidence.some((item) => item.path === path));
 	assert.ok(risk);
 	assert.ok(matrix.roadmapThreatCoverage['malformed-projects-media'].includes(risk.id));
@@ -79,6 +87,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	]);
 	assert.ok(control);
 	assert.ok(reclamationControl);
+	assert.ok(stageReclamationControl);
 	for (const path of [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
@@ -129,6 +138,25 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-packaging.test.js',
 		'tests/production-security-shared-project-library.test.js',
 	]) assert.ok(reclamationControl.evidence.some((item) => item.path === path));
+	for (const path of [
+		'desktop/project-library-api.ts',
+		'desktop/project-library-database.ts',
+		'desktop/project-library-file-inventory.ts',
+		'desktop/project-library-stage-inventory.ts',
+		'desktop/project-library.ts',
+		'desktop/project-library-projects.ts',
+		'desktop/project-library-reclamation.ts',
+		'desktop/project-library-host.ts',
+		'scripts/lib/desktop-project-library-runtime.mjs',
+		'tests/desktop-project-library-file-inventory.test.ts',
+		'tests/desktop-project-library-projects.test.ts',
+		'tests/desktop-project-library-reclamation.test.ts',
+		'tests/desktop-project-library-reclamation-progress.test.ts',
+		'tests/desktop-project-library-stage-reclamation.test.ts',
+		'tests/desktop-project-library-host.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
+		'tests/production-security-shared-project-library.test.js',
+	]) assert.ok(stageReclamationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		control.summary,
 		/fresh filesystem library scope v2.*ignores rather than migrates.*prior shared v1 scope.*schema 1 database.*v2 path.*rejected instead of implicitly migrated.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*non-raiseable 256 MiB.*lower-only test seam.*persistence root identity.*reserves.*lease.*fencing-token.*authoritative project-file inventory.*before stage creation.*private file.*syncs it.*atomically renames it.*materialized.*every catalog reference.*before an exact plus-one catalog journal publication.*before staging.*before publication.*transactionally at catalog commit.*serializes commits.*renews its lease while close drains admitted work/isu,
@@ -153,11 +181,14 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		reclamationControl.summary,
 		/recovery.*before the host is exposed.*authoritative project-file inventory.*monotonic row IDs.*captur(?:es|ed).*high-water.*persist(?:s|ed).*cursor.*100,000 rows.*64-row.*SQLite immediate writer transaction.*exact live lease.*before and after filesystem work.*portable case-folded reachability.*current catalog.*previous and next.*pending prepared or committed journal.*deterministic noncatalogable quarantine.*unregistered.*stage.*canonical.*forged quarantine.*foreign.*do not consume.*budget.*untouched.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*yield.*renewal and cancellation.*root symlinks fail closed.*managed media.*untouched.*reclamation-failure lease release.*without adding IPC/isu,
 	);
+	assert.match(
+		stageReclamationControl.summary,
+		/registers.*unique random canonical stage path.*planned project row.*one immediate SQLite transaction.*exact lease.*fencing token.*before exclusive open.*exact-lease cleanup.*acknowledged.*exclusive-open failure.*registration.*without unlinking.*error after exclusive creation.*registered random stage.*lost-lease or failed cleanup.*registration.*takeover.*materialization.*exact metadata path.*stage path.*lease ID.*fencing token.*renames the file.*syncs its containing directory.*marks the project materialized.*removes the stage row.*before-and-after fenced transaction.*separate monotonic stage inventory.*persisted high-water.*cursor.*persisted project\/stage schedule.*64-row batches.*shared 100,000-row invocation cap.*current exact-lease.*remain live.*prior-lease regular files.*removed.*missing rows retire.*non-regular targets.*non-direct parents.*untouched and inventoried.*canonical rows with outstanding stages.*ineligible.*rescan flag.*restarting the canonical high-water.*unregistered and legacy pre-inventory stage-looking files.*foreign.*do not consume.*budget.*untouched.*without adding renderer IPC/isu,
+	);
 	assert.deepEqual(
 		risk.residualRisks.map(({ id }) => id).sort(),
 		[
 			'shared-library-cross-product-media-availability',
-			'shared-library-orphan-reclamation',
 			'shared-library-packaged-platform-durability',
 		],
 	);
@@ -165,23 +196,16 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		risk.residualRisks.some(({ id }) => id === 'shared-library-privileged-domain-validation'),
 		false,
 	);
-	const orphanReclamation = risk.residualRisks.find(
-		({ id }) => id === 'shared-library-orphan-reclamation',
-	);
-	assert.match(
-		orphanReclamation?.exposure ?? '',
-		/lease-fenced startup maintenance.*authoritative inventory.*persisted fair cursor.*successive bounded passes.*stage-file debris.*not eligible.*separate bounded lifecycle/isu,
-	);
-	assert.doesNotMatch(
-		orphanReclamation?.exposure ?? '',
-		/does not persist a fair continuation cursor|stable retained prefix|incomplete 100,000-entry inventory|no fenced garbage collector reclaims it yet/iu,
+	assert.equal(
+		risk.residualRisks.some(({ id }) => id === 'shared-library-orphan-reclamation'),
+		false,
 	);
 	const platformDurability = risk.residualRisks.find(
 		({ id }) => id === 'shared-library-packaged-platform-durability',
 	);
 	assert.match(
 		platformDurability?.exposure ?? '',
-		/parent- or database-path replacement.*power-loss durability.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use/isu,
+		/parent- or database-path replacement.*power-loss durability.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted reservation.*foreign regular collision.*registered random stage path.*eligible.*stale-stage cleanup.*registered non-regular or symlink stage replacements.*untouched and inventoried/isu,
 	);
 	assert.match(
 		platformDurability?.acceptanceCriteria.join(' ') ?? '',

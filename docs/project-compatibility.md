@@ -68,11 +68,17 @@ executable effect and worker runtimes. All audio effects must be cloneable and
 carry the generic effect identity, enabled, and parameter structure.
 Type-specific semantic checks currently cover missing-effect compatibility
 metadata and parametric EQ; other first- and third-party effect payload semantics
-are intentionally not gated yet. The store reserves each canonical path in a
-lease- and fencing-token-bound authoritative project-file inventory before it
-creates a private stage file. It writes and syncs the stage file, performs an
-atomic rename, syncs the project directory where the platform supports it,
-marks the inventory row materialized, and verifies the resulting immutable file
+are intentionally not gated yet. The store reserves each canonical path and a
+unique random attempt in lease- and fencing-token-bound authoritative project
+and stage inventories in one transaction before it exclusively creates the
+private stage file. When exact-lease cleanup is acknowledged, an exclusive-open
+failure retires only the registration without unlinking the path, while an error
+after exclusive creation targets that registered random stage for removal.
+Lost-lease or failed cleanup leaves the registration for takeover. Successful
+materialization requires the exact metadata and stage paths, lease ID, and
+fencing token, then performs an atomic rename, syncs
+the project directory where the platform supports it, marks the canonical row
+materialized, removes the stage row, and verifies the resulting immutable file
 against its byte-length, digest, schema, identity, and revision descriptor.
 Every catalog reference must have a materialized inventory row. Only then does it
 publish an exact +1 catalog revision through the existing fenced journal, so a
@@ -81,27 +87,36 @@ The main-only host serializes commits and renews its lease while it drains
 admitted work during close.
 
 After journal recovery and before the host is exposed, main-only startup
-maintenance walks the authoritative project-file inventory by monotonic row
-IDs, captures a cycle high-water, persists its cursor, and scans at most 100,000
-rows per invocation in 64-row batches. It reports whether the bounded cycle was
-complete. Every destructive batch holds an immediate SQLite writer transaction,
-revalidates the exact live lease, and
-rebuilds portable case-folded reachability from the integrity-checked current
-catalog plus both previous and next snapshots of any pending prepared or
-committed journal. Only registered canonical unreachable regular immutable
-project files and their deterministic noncatalogable quarantine paths are
-eligible. Unregistered stage, canonical, forged quarantine, and foreign files
-do not consume inventory budget and remain untouched. A real 100,001-row
-fixture proves successive bounded passes reach the suffix; later inserts above
-the captured high-water wait for the next high-water cycle. The collector
-renames an eligible canonical file to its deterministic quarantine before
-unlinking it, so a crash is retryable and a higher fencing token can safely
-reuse the canonical path. It yields between batches for lease renewal and
+maintenance walks the authoritative project and stage inventories by monotonic
+row IDs. It captures independent cycle high-waters, persists both cursors and an
+alternating schedule, and scans at most 100,000 total rows per invocation in
+at-most-64-row batches. It reports canonical, stage, live-stage, protected, and
+reclaimed counts plus whether both bounded cycles completed. Every destructive
+batch holds an immediate SQLite writer transaction and revalidates the exact
+live lease before and after filesystem work. A current exact-lease stage remains
+live. A stale registered regular stage is removed, a missing attempt retires,
+and a non-regular target or non-direct parent remains untouched and inventoried.
+Canonical rows owned by the current lease or referenced by any outstanding
+stage remain ineligible. When stage retirement could unblock a canonical row
+already passed by its cursor, a persisted rescan flag atomically restarts the
+canonical high-water cycle before completion is reported.
+
+Canonical batches rebuild portable case-folded reachability from the
+integrity-checked current catalog plus both previous and next snapshots of any
+pending prepared or committed journal. Only registered canonical unreachable
+regular immutable project files and their deterministic noncatalogable
+quarantine paths are eligible. Unregistered stage-looking, canonical, forged
+quarantine, and foreign files do not consume inventory budget and remain
+untouched. A real 100,001-row fixture proves successive bounded passes reach the
+suffix; later inserts above a captured high-water wait for the next cycle. The
+collector renames an eligible canonical file to its deterministic quarantine
+before unlinking it, so a crash is retryable and a higher fencing token can
+safely reuse the canonical path. It yields between batches for lease renewal and
 cancellation. A static symlinked project root and corrupt catalog or journal
-metadata fail closed; stage files, malformed names, directories, symlinked
-entries, and managed media remain untouched. Collector state is visible in the
-host snapshot. A tested reclamation failure during startup stops renewal and
-releases its still-owned lease; any cleanup failure is reported.
+metadata fail closed; malformed names, non-regular or symlinked entries, and
+managed media remain untouched. Collector state is visible in the host snapshot.
+A tested reclamation failure during startup stops renewal and releases its
+still-owned lease; any cleanup failure is reported.
 
 The main identity service and owner-scoped IPC expose only bounded project
 summaries, canonical documents, project identities, and delete results. The
@@ -134,9 +149,11 @@ packaged preload/IPC/multi-process or executable handoff qualification.
 This rule is current-only. Activation-specific feature-capability evaluation
 and rendered-fallback byte verification remain editor-owned. Managed-media
 publication, copy, consolidation, relink, playback, and cross-product
-source-byte availability; abandoned stage-file cleanup; packaged cross-product
-lifecycle; and per-platform parent- and database-path identity and power-loss
-durability remain outside it.
+source-byte availability; packaged cross-product lifecycle; and per-platform
+parent- and database-path identity, power-loss durability, and interrupted
+foreign collisions at registered random stage paths remain outside it.
+Unregistered or legacy pre-inventory stage-looking files are deliberately
+foreign content and are not adopted or deleted.
 Migration from the prior shared `v1` scope or product-private Soundscaper
 libraries is intentionally not a current priority and remains deferred and
 unsupported by this contract; Audacity project import compatibility is a

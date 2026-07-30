@@ -766,41 +766,54 @@ models or native implementations.
   current project schema, project revision, byte length, SHA-256 digest, and
   derived immutable revision/digest path. A fresh product-neutral `v2` library
   scope ignores rather than migrates the prior shared `v1` scope, and a schema
-  1 database found at the `v2` path is rejected. Database schema 2 adds an
+  1 database found at the `v2` path is rejected. Database schema 2 adds
   authoritative monotonic
-  [project-file inventory](desktop/project-library-file-inventory.ts). The strict-TS
+  [project-file](desktop/project-library-file-inventory.ts) and
+  [project-stage](desktop/project-library-stage-inventory.ts) inventories. The strict-TS
   [project document store](desktop/project-library-projects.ts) reuses the
   canonical tagged-binary `.scape` codec, preserves opaque binary values,
   enforces the 256 MiB document ceiling with a lower-only test seam, validates
-  persistence-root identity, reserves every canonical path under the exact
-  lease before opening a private stage, and materializes its synced bytes by
-  atomic rename inside a SQLite writer transaction that checks the lease before
-  and after filesystem work. Catalog preparation rejects any next project whose
-  validated inventory row is not materialized. Reads then recheck length,
-  digest, exact schema, project identity, and revision, so interruption or lease
-  loss leaves the previous complete project/catalog pair authoritative or the
-  new complete pair readable. After recovery and before host exposure, the
+  persistence-root identity, and reserves every canonical path together with a
+  unique random stage attempt under the exact lease in one SQLite transaction
+  before exclusive stage creation. When exact-lease cleanup is acknowledged, an
+  exclusive-create failure retires only the registration without unlinking the
+  path, while an error after exclusive creation targets that registered random
+  stage for removal. Lost-lease or failed cleanup leaves the registration for
+  takeover. Successful materialization requires
+  the exact metadata path, stage path, lease ID, and fencing token, then renames
+  the synced bytes, syncs the directory, marks the canonical row materialized,
+  and removes the stage row inside a SQLite writer transaction that checks the
+  lease before and after filesystem work. Catalog preparation rejects any next
+  project whose validated inventory row is not materialized. Reads then recheck
+  length, digest, exact schema, project identity, and revision, so interruption
+  or lease loss leaves the previous complete project/catalog pair authoritative
+  or the new complete pair readable. After recovery and before host exposure, the
   strict-TS
   [immutable-document collector](desktop/project-library-reclamation.ts)
-  captures a cycle high-water ID and visits at most 100,000 registered rows per
-  startup through bounded keyset queries. It persists the monotonic cursor in
-  the same fenced transaction that reconciles each batch, advances past
-  protected rows, and resets only after reaching the frozen high water; later
-  registrations wait for the next cycle instead of extending it. This gives a
-  finite stable cooperative inventory fair progress across restarts even when a
-  retained prefix exceeds one pass. Each at-most-64-row batch rechecks the exact
-  live lease and rebuilds portable case-folded reachability from the current
-  catalog plus the previous and next snapshots of pending prepared or committed
-  journals. Unreachable regular immutable files first move to a deterministic
-  noncatalogable quarantine derived from their registered path; crash-left
-  quarantines retry idempotently, missing planned rows retire, and the inventory
-  row is removed only after both objects are absent. A protected row keeps its
-  only quarantine copy. Unregistered canonical-looking files and forged
-  quarantine names are foreign v2 content and neither consume the budget nor
-  become eligible. Batches yield for renewal and cancellation. Static root
-  symlinks and corrupt reference metadata fail closed, while stage files,
-  malformed or foreign names, directories, symlinked entries, and managed media
-  remain untouched.
+  captures independent cycle high-water IDs for both inventories and visits at
+  most 100,000 total registered rows per startup through bounded keyset queries.
+  A persisted schedule alternates at-most-64-row stage and canonical batches so
+  either inventory makes progress under the shared cap. Each cursor advances in
+  the same fenced transaction that reconciles its batch and resets only after
+  reaching the frozen high water; later registrations wait for the next cycle
+  instead of extending it. Each batch rechecks the exact live lease. A current
+  exact-lease stage remains live; a stale registered regular stage is removed,
+  a missing stage row retires, and a non-regular target or non-direct parent
+  remains untouched and inventoried. Canonical rows owned by the current lease
+  or still referenced by a stage attempt remain ineligible. When a completed
+  stage cycle retires attempts that could unblock already-scanned parents, it
+  persists a rescan requirement and atomically restarts the canonical high-water
+  cycle before reporting completion. Canonical batches rebuild portable
+  case-folded reachability from the current catalog plus the previous and next
+  snapshots of pending prepared or committed journals. Unreachable regular
+  immutable files first move to a deterministic noncatalogable quarantine;
+  crash-left quarantines retry idempotently, missing planned rows retire, and a
+  protected row keeps its only quarantine copy. Unregistered stage-looking or
+  canonical-looking files and forged quarantine names are foreign v2 content;
+  they neither consume the budget nor become eligible. Batches yield for renewal
+  and cancellation. Static root symlinks and corrupt reference metadata fail
+  closed, while malformed or foreign names, non-regular entries, symlinked
+  entries, and managed media remain untouched.
   Focused [reclamation regressions](tests/desktop-project-library-reclamation.test.ts)
   cover prepared and committed recovery, completed updates and deletes,
   higher-token path reuse, portable case aliases, quarantine retry, symlinks,
@@ -811,7 +824,15 @@ models or native implementations.
   of a schema-1 database placed at the fresh `v2` path, low-cap retained-prefix
   progress, frozen high-water inserts, exclusion of unregistered files,
   protected-quarantine preservation, and a real 100,001-row production-cap
-  traversal. The compiled
+  traversal. Focused
+  [stage-lifecycle regressions](tests/desktop-project-library-stage-reclamation.test.ts)
+  pin live-lease preservation, stale takeover, missing and regular stage
+  retirement, rename/transaction crash recovery, shared-cap alternation,
+  mixed-cap canonical rescanning, non-regular fail-closed behavior, and
+  unregistered-file exclusion. Additional inventory/store fixtures prove stale
+  discard fencing, atomic duplicate-registration rollback, and preservation of
+  a pre-existing path when exclusive creation fails and same-lease cleanup
+  completes. The compiled
   desktop-runtime inventory includes the collector without adding IPC. The
   main-owned editor service now applies the shared
   [strict exact-V9 maintained-persistence-domain validator](src/common/editor/project-v9-validation.ts)
@@ -865,8 +886,9 @@ models or native implementations.
   Framescaper-local store, then publishes the next Framescaper revision with an
   empty shared media catalog. This is editor-layer composition, not one packaged
   preload/IPC/multi-process or executable qualification. Managed-media copy,
-  consolidation, relink, playback, and cross-product source bytes; abandoned
-  stage-file cleanup; packaged handoff; parent- and database-path identity; and
+  consolidation, relink, playback, and cross-product source bytes; packaged
+  handoff; interrupted foreign collisions at registered random stage paths;
+  parent- and database-path identity; and
   per-OS/architecture power-loss durability remain open.
   Activation-specific feature-capability
   evaluation and rendered-fallback byte verification remain editor-owned.

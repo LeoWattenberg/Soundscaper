@@ -139,11 +139,13 @@
 			"id": "electron-main-to-shared-project-library",
 			"from": "Soundscaper or Framescaper Electron main-process host",
 			"to": "Product-neutral appData SQLite catalog and project-document tree",
-			"data": "Fresh v2 filesystem scope, schema-2 SQLite project-file inventory and reclamation cursor, fenced lease records, metadata journals, maintained-domain-validated exact schemaVersion-9 project documents, immutable digest-bound relative paths, and collector-owned quarantine files",
+			"data": "Fresh v2 filesystem scope, schema-2 SQLite project-file and stage-attempt inventories with persisted bounded reclamation state, fenced lease records, metadata journals, maintained-domain-validated exact schemaVersion-9 project documents, immutable digest-bound relative paths, and collector-owned quarantine files",
 			"entryPoints": [
+				"desktop/project-library-api.ts",
 				"desktop/project-library-contract.ts",
 				"desktop/project-library-database.ts",
 				"desktop/project-library-file-inventory.ts",
+				"desktop/project-library-stage-inventory.ts",
 				"desktop/project-library.ts",
 				"desktop/project-library-projects.ts",
 				"desktop/project-library-reclamation.ts",
@@ -151,9 +153,11 @@
 				"desktop/project-library-editor-service.ts"
 			],
 			"evidence": [
+				{ "kind": "implementation", "path": "desktop/project-library-api.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-contract.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-database.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-file-inventory.ts" },
+				{ "kind": "implementation", "path": "desktop/project-library-stage-inventory.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-projects.ts" },
 				{ "kind": "implementation", "path": "desktop/project-library-reclamation.ts" },
@@ -164,6 +168,7 @@
 				{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-reclamation.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-reclamation-progress.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-project-library-stage-reclamation.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-handoff.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-editor-service.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
@@ -979,6 +984,29 @@
 						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
 						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
 					]
+				},
+				{
+					"id": "lease-fenced-registered-project-stage-reclamation",
+					"summary": "The main project writer registers a unique random canonical stage path with its planned project row in one immediate SQLite transaction under the exact lease and fencing token before exclusive open. When exact-lease cleanup is acknowledged, an exclusive-open failure retires only the registration without unlinking the path, while an error after exclusive creation targets that registered random stage for removal. Lost-lease or failed cleanup leaves the registration for takeover. Materialization requires the exact metadata path, stage path, lease ID, and fencing token, then renames the file, syncs its containing directory, marks the project materialized, and removes the stage row in one before-and-after fenced transaction. Startup maintenance walks the separate monotonic stage inventory with a persisted high-water and cursor. A persisted project/stage schedule alternates at-most-64-row batches under the shared 100,000-row invocation cap. Current exact-lease stage rows remain live; prior-lease regular files are removed, missing rows retire, and non-regular targets or non-direct parents stay untouched and inventoried. Canonical rows with outstanding stages remain ineligible. Stage-cycle completion persists and consumes a rescan flag atomically with restarting the canonical high-water, so cleanup cannot leave an already-scanned parent behind. Unregistered and legacy pre-inventory stage-looking files remain foreign, do not consume the budget, and are untouched. Focused crash, takeover, low- and mixed-cap, rollback, acknowledged-collision, non-regular, and unregistered-file fixtures qualify this cooperative-writer lifecycle without adding renderer IPC.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/project-library-api.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-database.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-file-inventory.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-stage-inventory.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-projects.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-reclamation.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-host.ts" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-project-library-runtime.mjs" },
+						{ "kind": "test", "path": "tests/desktop-project-library-file-inventory.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-reclamation-progress.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-stage-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-host.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
+					]
 				}
 			],
 			"residualRisks": [
@@ -990,15 +1018,8 @@
 					"acceptanceCriteria": ["Source-bearing handoff fixtures prove missing recipient bytes cannot activate silently, while every claimed relink, copy, local-byte, or managed-storage outcome is explicit and tested; the source-free path remains independently qualified."]
 				},
 				{
-					"id": "shared-library-orphan-reclamation",
-					"exposure": "Lease-fenced startup maintenance now walks an authoritative inventory with a persisted fair cursor, so successive bounded passes reach every registered row captured by a cycle. Commit stage-file debris remains intentionally not eligible for this collector and requires a separate bounded lifecycle.",
-					"requiredControl": "Define a separately fenced lifecycle for abandoned commit stage files without removing live writer state.",
-					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Stage-file crash tests prove an explicit bounded cleanup policy cannot remove live writer state and eventually retires abandoned stage debris."]
-				},
-				{
 					"id": "shared-library-packaged-platform-durability",
-					"exposure": "The composed editor-layer handoff and focused preload/IPC tests do not form a packaged multi-process or executable lifecycle test. Parent- or database-path replacement, parent-directory power-loss durability, Windows directory-sync and deny-delete behavior, and junction or time-of-check/time-of-use handling are not qualified on every supported OS and architecture.",
+					"exposure": "The composed editor-layer handoff and focused preload/IPC tests do not form a packaged multi-process or executable lifecycle test. Parent- or database-path replacement, parent-directory power-loss durability, Windows directory-sync and deny-delete behavior, and junction or time-of-check/time-of-use handling are not qualified on every supported OS and architecture. An interrupted reservation can therefore leave a foreign regular collision at its registered random stage path eligible for later stale-stage cleanup, while registered non-regular or symlink stage replacements remain untouched and inventoried rather than being adopted or deleted.",
 					"requiredControl": "Qualify packaged cross-product ownership and interruption recovery with platform-specific path-identity and durability controls.",
 					"ownerMilestone": "2",
 					"acceptanceCriteria": ["Packaged OS/architecture smoke and fault-injection tests cover process handoff, power loss at every publication and reclamation phase, parent-directory persistence, database and project-root identity, Windows sharing behavior, and junction handling."]
