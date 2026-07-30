@@ -155,9 +155,14 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 				const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 				if (required) assertRequiredSourceMetadata(source, metadata);
 				const chunkProvider = registerStoredChunkProvider(source, metadata);
-				const useChunkStream = Boolean(chunkProvider)
-					&& sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
+				const requiresChunkStream = sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES;
+				const useChunkStream = Boolean(chunkProvider) && requiresChunkStream;
 				if (required) {
+					if (requiresChunkStream && !chunkProvider) {
+						forgetChunkProvider(source.id);
+						sourceBuffers.delete(source.id);
+						throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
+					}
 					if (useChunkStream) {
 						sourceBuffers.delete(source.id);
 						continue;

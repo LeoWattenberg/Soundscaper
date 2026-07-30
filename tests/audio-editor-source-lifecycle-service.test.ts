@@ -108,6 +108,7 @@ test('clearing waveform windows also forgets in-flight ownership', () => {
 
 interface RequiredSourceFixtureOptions {
 	readonly long?: boolean;
+	readonly streamable?: boolean;
 	readonly buffer?: Readonly<Record<string, unknown>> | null;
 	readonly cacheFits?: boolean;
 	readonly metadata?: Readonly<Record<string, unknown>> | null;
@@ -177,7 +178,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		generateStoredWaveformPeaks: async () => ({ levels: [] }),
 		generateWaveformPeaks: async () => ({ levels: [] }),
 		getProject: () => project,
-		isStreamableStoredSource: () => options.long === true,
+		isStreamableStoredSource: () => options.streamable ?? options.long === true,
 		legacyPeakCacheKey: (id) => `legacy:${id}`,
 		peakCacheKey: (id) => `peak:${id}`,
 		publishDocumentSnapshot: () => undefined,
@@ -224,6 +225,18 @@ test('fallback-only required long sources replace stale providers before playbac
 	assert.deepEqual(fixture.sourceChunkProviders.get(fixture.source.id), { marker: 'fresh-provider' });
 	assert.equal(fixture.publishedProviders.length, 1);
 	assert.equal(fixture.bufferReads(), 0);
+});
+
+test('required long sources reject before whole-buffer decode when chunk streaming is unavailable', async () => {
+	const fixture = createRequiredSourceFixture({ long: true, streamable: false });
+	await assert.rejects(
+		fixture.service.loadProjectSources(fixture.project, {
+			requiredAudioSourceIds: [fixture.source.id],
+		}),
+		/required rendered fallback source.*playable chunk provider/iu,
+	);
+	assert.equal(fixture.bufferReads(), 0);
+	assert.equal(fixture.sourceChunkProviders.has(fixture.source.id), false);
 });
 
 test('required short sources are reread and returned transiently when the shared cache is full', async () => {
