@@ -137,7 +137,7 @@ Material constraints in the current foundation are also roadmap inputs:
   authentication. Browser `.scape` files retain their Blob source. Several
   compressed imports and browser-download fallback retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array. Final
-  render formats and routes outside the narrow exact-size, realtime WAV/AIFF
+  render formats and routes outside the narrow exact-size, realtime WAV/AIFF/BWF
   direct-save slice described below retain that limitation as well;
 - browser storage remains quota- and eviction-bound;
 - the two Electron products retain separate Chromium partitions for their
@@ -648,7 +648,7 @@ models or native implementations.
   target without a final renderer-sized `Blob`. A size-limited browser download
   remains the Web Core fallback when no streaming destination exists.
 - **Web Enhanced / Electron Enhanced — In progress:** the first bounded direct
-  render slice is exactly one mix with format `wav` or `aiff`, a
+  render slice is exactly one mix with format `wav`, `aiff`, or `bwf`, a
   `realtime-stream` render plan, and one output. WAV requires the exact MIME
   type and `.wav` extension plus an exact positive safe-integer planned file
   byte count at or below 65 GiB. AIFF requires `audio/aiff` and the canonical
@@ -656,17 +656,26 @@ models or native implementations.
   theoretical 32-bit FORM limit. Every current layout is even, so the largest
   constructible current layout is 4,294,967,302 bytes. Exact integer AIFF,
   AIFF-C float, odd PCM padding, and trailing ID3 metadata are planned from the
-  same encoder geometry. The desktop `audio-pcm-mix` policy permits `.wav`,
-  `.aif`, and `.aiff` names, while controller admission remains canonical
-  `.wav` or `.aiff`. A dedicated `audio-pcm-mix` target opens only through File
-  System Access or Electron exact-size writing. The shared PCM route requests
-  16,384-frame chunks and derives the pending-chunk count from the render
-  channel count. This bounds queued planar Float32 PCM to 32 MiB; it is a
-  queue-payload bound, not a browser or process memory bound. Realtime render
-  progress now feeds the owned export task and its progress UI. For the
-  qualified selection-only upmix, the
-  streaming transform resamples the smaller input channel set before duplicating
-  selected channels; matrix mixes and downmixes keep the general mapping order.
+  same encoder geometry. BWF requires `audio/wav` and the canonical `.wav`
+  extension plus an exact positive safe-integer planned file byte count at or
+  below 65 GiB. Its plan and encoding must contain the same canonical normalized
+  version-2 BEXT, and direct admission permits only integer int16, int20, or
+  int24 PCM. It rejects a plan `container`, ADM, `preDataChunks`, and
+  `trailingChunks`, keeping BW64 and opaque chunks outside the direct slice;
+  standard BWF metadata, markers, iXML, and CART may remain. A direct-eligible
+  realtime BWF request with `measureLoudness: true` fails closed before target,
+  preflight, or render because bounded two-pass measurement is unimplemented;
+  this makes no measured-loudness claim. The desktop `audio-pcm-mix` policy
+  permits `.wav`, `.aif`, and `.aiff` names, while controller admission remains
+  canonical `.wav` or `.aiff`. A dedicated `audio-pcm-mix` target opens only
+  through File System Access or Electron exact-size writing. The shared PCM
+  route requests 16,384-frame chunks and derives the pending-chunk count from
+  the render channel count. This bounds queued planar Float32 PCM to 32 MiB; it
+  is a queue-payload bound, not a browser or process memory bound. Realtime
+  render progress now feeds the owned export task and its progress UI. For the
+  qualified selection-only upmix, the streaming transform resamples the smaller
+  input channel set before duplicating selected channels; matrix mixes and
+  downmixes keep the general mapping order.
   The shared PCM adapter has bounded encoder-emission retention, coalesces PCM
   into at-most-4-MiB writes, and serially awaits one destination write at a time.
   Exact `audio-pcm-mix` Electron sessions negotiate the same 4 MiB maximum,
@@ -676,14 +685,17 @@ models or native implementations.
   boundary: ownership lost during commit returns the committed result without
   stale success UI, and committed-result disagreement is a post-publication
   integrity failure, not rollback. This direct route completes without a final
-  renderer-sized `Blob`. BWF, BW64, other PCM containers, compressed or custom
-  audio, video, stems, and non-realtime renders retain their existing staging
-  or in-memory paths. The Web Core browser-download fallback also retains its
-  existing final `Blob`. Focused Node evidence covers WAV and AIFF completion
-  and cancellation on the closed direct route, including AIFF admission,
-  geometry, padding, metadata, cleanup, and shared commit accounting; the wider
-  WAV suite additionally covers cleanup failures, ownership races, and the
-  commit boundary. A separate opt-in
+  renderer-sized `Blob`. BW64, opaque pre-data or trailing chunks, ADM, other
+  PCM containers, compressed or custom audio, video, stems, and non-realtime
+  renders retain their existing staging or in-memory paths. The Web Core
+  browser-download fallback also retains its existing final `Blob`. Focused
+  Node BWF evidence has five cases covering admission, exact layout and
+  publication, loudness fail-closed behavior, four-way diagnostics, and
+  mid-stream cancellation; the full maintained Node suite remained green at
+  381 tests. Focused WAV and AIFF evidence retains completion, cancellation,
+  exact AIFF geometry, padding, metadata, cleanup, and shared commit accounting;
+  the wider WAV suite additionally covers cleanup failures, ownership races,
+  and the commit boundary. A separate opt-in
   [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
   streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
   with pinned SHA-256 through the production planner, controller, real
@@ -698,16 +710,18 @@ models or native implementations.
   remain unqualified because this deterministic Node witness is an ownership-
   bound correctness gate, not a browser/process memory measurement.
   Run it with `npm run test:reference:wav-385mib`; routine Node and coverage
-  discovery fast-skips it. A compact Chromium and Firefox WAV and AIFF workflow
-  uses an injected File System Access target and simulated mobile planner
-  profile to drive the maintained export UI through the production
-  realtime route. It retains only a bounded header prefix plus counters. The
-  WAV case validates structurally valid RIFF bytes and exact written-byte
-  accounting. The AIFF case validates exact FORM, COMM, and SSND geometry plus
-  sequential bounded writes. Both observe no Object URL or browser download,
-  then cancel a second export after PCM reaches the target and observe one abort
-  without close or publication. These cases qualify application-path
-  browser plumbing and pre-commit rollback, not native picker availability.
+  discovery fast-skips it. A compact Chromium and Firefox WAV, AIFF, and BWF
+  workflow runs six combined cases with an injected File System Access target
+  and simulated mobile planner profile to drive the maintained export UI
+  through the production realtime route. The WAV and AIFF cases retain only a
+  bounded header prefix plus counters and validate RIFF or FORM, COMM, and SSND
+  geometry. The BWF case retains a 2 KiB prefix and validates RIFF, bext, fmt,
+  and data geometry, the authored description, a 64-bit TimeReference, and a
+  two-row CodingHistory. All use at-most-4-MiB serial writes, observe no Object
+  URL or browser download, then cancel a second export after PCM reaches the
+  target and observe one abort without close or publication. These cases
+  qualify application-path browser plumbing and pre-commit rollback, not native
+  picker availability.
   WebKit remains unqualified because its pinned runtime cannot launch on this
   host without the missing system libraries.
   Packaged Soundscaper Linux x64 acceptance is WAV only and drives the
@@ -717,7 +731,8 @@ models or native implementations.
   384 kHz, 16 channels, and signed 16-bit PCM. The planner's corresponding
   405,503,488-byte float geometry exceeds the 384 MiB threshold, while the final
   classic RIFF/WAV is 202,751,788 bytes. An independent completed-file verifier
-  streams through EOF in at-most-1-MiB reads, reports SHA-256 only as a diagnostic,
+  streams through EOF in at-most-1-MiB reads, reports SHA-256 only as a
+  diagnostic,
   retains at most the 31-byte partial-frame carry, compares all 95,039,880
   duplicated-channel samples with zero mismatches, and enforces tolerant
   non-silence, polarity, crossing, peak, mean, and RMS bounds. The cancellation
@@ -729,12 +744,13 @@ models or native implementations.
 
   The packaged harness validates the application's save choice and purpose but
   then supplies its isolated native target without exercising the OS picker.
-  Packaged evidence is WAV only; there is no packaged, native-picker, heap, RSS,
-  or platform AIFF qualification. The WAV harness is not a 65 GiB run and does
+  The 385 MiB witness and packaged evidence are WAV only, with no BWF scale
+  qualification. Neither AIFF nor BWF has packaged, native-picker, heap, RSS,
+  or platform qualification. The WAV harness is not a 65 GiB run and does
   not qualify heap or RSS, quota, filesystem or parent-directory durability,
-  crash or power-loss behavior, Windows, macOS,
-  ARM, installers, Framescaper, or other formats. The exact decode and frame
-  geometry is specific to the pinned Electron runtime and must be revisited on
+  crash or power-loss behavior, Windows, macOS, ARM, installers, Framescaper,
+  or other formats. The exact decode and frame geometry is specific to the
+  pinned Electron runtime and must be revisited on
   Electron upgrades; the completed-file hash is deliberately not pinned.
   Reference-scale browser/device behavior remains unqualified, and commit-race
   acceptance remains Node-only.
