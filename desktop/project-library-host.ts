@@ -14,9 +14,9 @@ import {
 	DesktopLibraryProjectStore,
 } from './project-library-projects.ts';
 import {
-	type DesktopLibraryRecoveryResult,
 	SharedDesktopProjectLibrary,
 } from './project-library.ts';
+import type { DesktopLibraryRecoveryResult } from './project-library-api.ts';
 import {
 	type DesktopLibraryProjectReclamationResult,
 	DesktopLibraryProjectReclaimer,

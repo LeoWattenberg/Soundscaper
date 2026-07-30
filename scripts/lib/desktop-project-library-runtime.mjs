@@ -7,6 +7,7 @@ import { extname, join, resolve } from 'node:path';
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
 	'desktop/project-library-abort.js',
+	'desktop/project-library-api.js',
 	'desktop/project-library-contract.js',
 	'desktop/project-library-database.js',
 	'desktop/project-library-editor-service.js',
@@ -15,6 +16,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-persistence.js',
 	'desktop/project-library-projects.js',
 	'desktop/project-library-reclamation.js',
+	'desktop/project-library-stage-inventory.js',
 	'desktop/project-library.js',
 	'src/common/editor/adm-project-metadata.js',
 	'src/common/editor/broadcast-wave.js',

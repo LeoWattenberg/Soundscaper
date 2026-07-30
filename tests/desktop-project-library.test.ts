@@ -19,10 +19,11 @@ import {
 	type DesktopProjectLibraryPaths,
 	validateDesktopLibraryMetadata,
 } from '../desktop/project-library-contract.ts';
+import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
 import {
-	DesktopLibraryLeaseBusyError,
 	SharedDesktopProjectLibrary,
 } from '../desktop/project-library.ts';
+import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
 
 const OWNER_A = Object.freeze({
 	product: 'soundscaper' as const,
@@ -417,9 +418,9 @@ async function materializePopulatedProject(
 ): Promise<void> {
 	const project = populatedMetadata(1).projects[0];
 	if (!project) throw new Error('Expected populated project metadata');
-	const stageFile = `${project.id}/.${'b'.repeat(32)}.stage`;
+	const stageFile = createDesktopLibraryProjectStageFile(project.metadataFile, 'b'.repeat(32));
 	await mkdir(join(paths.projectsRoot, project.id), { recursive: true });
-	library.reserveProjectFile({ lease, metadataFile: project.metadataFile });
+	library.reserveProjectFile({ lease, metadataFile: project.metadataFile, stageFile });
 	await writeFile(join(paths.projectsRoot, ...stageFile.split('/')), 'metadata publication fixture');
 	library.materializeProjectFile({ lease, metadataFile: project.metadataFile, stageFile });
 }

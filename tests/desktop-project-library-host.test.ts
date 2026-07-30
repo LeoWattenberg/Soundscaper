@@ -9,7 +9,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { createDesktopProjectLibraryPaths } from '../desktop/project-library-contract.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
-import { DesktopLibraryLeaseBusyError, SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
+import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
+import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 
 const SOUNDSCAPER_OWNER = Object.freeze({
 	product: 'soundscaper' as const,
@@ -46,9 +47,12 @@ test('desktop host opens the product-neutral appData library and releases it on 
 		reclamation: {
 			canonicalFiles: 0,
 			complete: true,
+			liveStageFiles: 0,
 			protectedFiles: 0,
 			reclaimedFiles: 0,
+			reclaimedStageFiles: 0,
 			scannedEntries: 0,
+			stageFiles: 0,
 		},
 	});
 

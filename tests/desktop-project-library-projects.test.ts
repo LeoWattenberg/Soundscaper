@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import test, { type TestContext } from 'node:test';
 
 import {
@@ -13,6 +14,7 @@ import {
 } from '../desktop/project-library-contract.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
+import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
 import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
@@ -136,6 +138,37 @@ test('project commits reject a symlinked entry directory', {
 	);
 	assert.deepEqual(await readdir(redirected), []);
 	assert.equal(library.readMetadata().revision, 0);
+});
+
+test('a pre-existing stage collision is preserved when exclusive creation fails', async (context) => {
+	const fixture = await createFixture(context);
+	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
+	context.after(() => library.close());
+	const stageId = 'f'.repeat(32);
+	const projects = new DesktopLibraryProjectStore(library, { randomId: () => stageId });
+	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
+	const project = currentProject(1);
+	const documentJson = serializeScapeProjectDocument(project);
+	const sha256 = createHash('sha256').update(documentJson, 'utf8').digest('hex');
+	const metadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, sha256);
+	const stageFile = createDesktopLibraryProjectStageFile(metadataFile, stageId);
+	const stagePath = join(fixture.paths.projectsRoot, ...stageFile.split('/'));
+	await mkdir(join(fixture.paths.projectsRoot, ENTRY_ID), { recursive: true });
+	await writeFile(stagePath, 'foreign stage bytes');
+
+	await assert.rejects(
+		() => projects.commitProject({
+			lease,
+			entryId: ENTRY_ID,
+			name: 'Shared project',
+			project,
+			preferredProduct: 'soundscaper',
+			updatedAtMs: 10_001,
+		}),
+		(error: unknown) => (error as NodeJS.ErrnoException).code === 'EEXIST',
+	);
+	assert.equal(await readFile(stagePath, 'utf8'), 'foreign stage bytes');
+	assert.equal(stageInventoryRows(fixture.paths.databasePath), 0);
 });
 
 test('catalog publication preserves other entries and media and rejects divergent project revisions', async (context) => {
@@ -300,4 +333,14 @@ function currentProject(revision: number) {
 		...project,
 		desktopState: new Uint8Array([1, 3, 5, revision]),
 	};
+}
+
+function stageInventoryRows(databasePath: string): number {
+	const database = new DatabaseSync(databasePath, { readOnly: true });
+	try {
+		const row = database.prepare('SELECT COUNT(*) AS count FROM project_stage_inventory').get();
+		return Number(row?.count);
+	} finally {
+		database.close();
+	}
 }

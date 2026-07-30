@@ -24,11 +24,14 @@ import {
 	type DesktopLibraryLease,
 	type DesktopProjectLibraryPaths,
 } from '../desktop/project-library-contract.ts';
-import { createDesktopLibraryProjectQuarantineFile } from '../desktop/project-library-file-inventory.ts';
+import {
+	createDesktopLibraryProjectQuarantineFile,
+} from '../desktop/project-library-file-inventory.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { DesktopLibraryProjectReclaimer } from '../desktop/project-library-reclamation.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
+import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
 import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
@@ -81,9 +84,11 @@ test('reclamation protects current and pending journal documents before recovery
 	});
 	const stagePath = join(fixture.paths.projectsRoot, 'orphan-entry-01', `.${'c'.repeat(32)}.stage`);
 	await writeFile(stagePath, 'unrecognized stage remains conservative');
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 	const reclaimer = new DesktopLibraryProjectReclaimer(fixture.paths, { now: fixture.now });
 
-	const beforeRecovery = await reclaimer.reclaim({ lease });
+	const beforeRecovery = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(beforeRecovery.canonicalFiles, 3);
 	assert.equal(beforeRecovery.protectedFiles, 2);
 	assert.equal(beforeRecovery.reclaimedFiles, 1);
@@ -92,18 +97,18 @@ test('reclamation protects current and pending journal documents before recovery
 	assert.equal(await exists(orphan.path), false);
 	assert.equal(await exists(stagePath), true);
 
-	assert.deepEqual(await library.recoverMetadata({ lease }), {
+	assert.deepEqual(await library.recoverMetadata({ lease: maintenanceLease }), {
 		outcome: 'interrupted',
 		previousRevision: 1,
 		publishedRevision: null,
 		restoredPrevious: false,
 	});
-	const afterRecovery = await reclaimer.reclaim({ lease });
+	const afterRecovery = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(afterRecovery.protectedFiles, 1);
 	assert.equal(afterRecovery.reclaimedFiles, 1);
 	assert.equal(await exists(secondPath), false);
 	assert.deepEqual(await projects.readProject(ENTRY_A), first);
-	assert.equal((await reclaimer.reclaim({ lease })).reclaimedFiles, 0, 'reclamation is idempotent');
+	assert.equal((await reclaimer.reclaim({ lease: maintenanceLease })).reclaimedFiles, 0, 'reclamation is idempotent');
 });
 
 test('committed recovery keeps the published revision and reclaims its predecessor', async (context) => {
@@ -130,20 +135,22 @@ test('committed recovery keeps the published revision and reclaims its predecess
 		() => projects.commitProject({ ...commitOptions(ENTRY_A, publishedProject), lease }),
 		/committed project catalog/u,
 	);
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 	const reclaimer = new DesktopLibraryProjectReclaimer(fixture.paths, { now: fixture.now });
-	const beforeRecovery = await reclaimer.reclaim({ lease });
+	const beforeRecovery = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(beforeRecovery.protectedFiles, 2);
 	assert.equal(beforeRecovery.reclaimedFiles, 0);
 	assert.equal(await exists(join(fixture.paths.projectsRoot, first.catalog.metadataFile)), true);
 	assert.equal(await exists(publishedPath), true);
 
-	assert.deepEqual(await library.recoverMetadata({ lease }), {
+	assert.deepEqual(await library.recoverMetadata({ lease: maintenanceLease }), {
 		outcome: 'committed',
 		previousRevision: 1,
 		publishedRevision: 2,
 		restoredPrevious: false,
 	});
-	const afterRecovery = await reclaimer.reclaim({ lease });
+	const afterRecovery = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(afterRecovery.protectedFiles, 1);
 	assert.equal(afterRecovery.reclaimedFiles, 1);
 	assert.equal(await exists(join(fixture.paths.projectsRoot, first.catalog.metadataFile)), false);
@@ -287,16 +294,19 @@ test('batch boundaries permit lease renewal during a bounded reclamation pass', 
 		});
 		candidates.push(candidate.path);
 	}
+	fixture.clock.value = lease.expiresAtMs + 1;
+	let maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 1_000 });
 	let completedBatches = 0;
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
 		checkpoint: async (phase) => {
 			if (phase !== 'batch' || ++completedBatches !== 1) return;
-			fixture.clock.value = lease.expiresAtMs - 1;
-			await library.renewLease(lease, 1_000);
-			fixture.clock.value = lease.expiresAtMs + 1;
+			const previousExpiry = maintenanceLease.expiresAtMs;
+			fixture.clock.value = previousExpiry - 1;
+			maintenanceLease = await library.renewLease(maintenanceLease, 1_000);
+			fixture.clock.value = previousExpiry + 1;
 		},
-	}).reclaim({ lease });
+	}).reclaim({ lease: maintenanceLease });
 	assert.equal(completedBatches, 2);
 	assert.equal(result.reclaimedFiles, candidates.length);
 	assert.equal(await exists(candidates[0]), false);
@@ -323,11 +333,13 @@ test('a bounded authoritative inventory reports incomplete work without blocking
 		digest: '6'.repeat(64),
 		stageId: '7'.repeat(32),
 	});
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 
 	const bounded = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 1,
 		now: fixture.now,
-	}).reclaim({ lease });
+	}).reclaim({ lease: maintenanceLease });
 	assert.equal(bounded.complete, false);
 	assert.equal(bounded.scannedEntries, 1);
 	assert.equal(bounded.reclaimedFiles, 0);
@@ -336,7 +348,7 @@ test('a bounded authoritative inventory reports incomplete work without blocking
 	const retry = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 2,
 		now: fixture.now,
-	}).reclaim({ lease });
+	}).reclaim({ lease: maintenanceLease });
 	assert.equal(retry.complete, true);
 	assert.equal(retry.reclaimedFiles, 1);
 	assert.equal(await exists(protectedPath), true);
@@ -425,10 +437,12 @@ test('reclamation ignores foreign entries and symlinked project directories', {
 		lease,
 		metadataFile: createDesktopLibraryProjectMetadataFile('symlink-entry-1', 1, 'c'.repeat(64)),
 	});
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		now: fixture.now,
-	}).reclaim({ lease });
+	}).reclaim({ lease: maintenanceLease });
 	assert.equal(result.canonicalFiles, 2);
 	assert.equal(result.reclaimedFiles, 1, 'only the collector-owned quarantine is reclaimed');
 	assert.equal(await exists(stagePath), true);
@@ -553,11 +567,11 @@ async function materializeUnreachableFile(options: Readonly<{
 	contents?: string;
 }>): Promise<Readonly<{ metadataFile: string; path: string }>> {
 	const metadataFile = createDesktopLibraryProjectMetadataFile(options.entryId, options.revision, options.digest);
-	const stageFile = `${options.entryId}/.${options.stageId}.stage`;
+	const stageFile = createDesktopLibraryProjectStageFile(metadataFile, options.stageId);
 	const stagePath = join(options.paths.projectsRoot, ...stageFile.split('/'));
 	await mkdir(join(options.paths.projectsRoot, options.entryId), { recursive: true });
-	options.library.reserveProjectFile({ lease: options.lease, metadataFile });
-	await writeFile(stagePath, options.contents ?? `unreachable project ${options.revision}`);
+	options.library.reserveProjectFile({ lease: options.lease, metadataFile, stageFile });
+	await writeFile(stagePath, options.contents ?? `unreachable project ${options.revision} ${options.stageId}`);
 	options.library.materializeProjectFile({ lease: options.lease, metadataFile, stageFile });
 	return Object.freeze({
 		metadataFile,

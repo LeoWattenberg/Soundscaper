@@ -24,6 +24,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.deepEqual(result.files, [
 		'desktop/application-lifecycle.js',
 		'desktop/project-library-abort.js',
+		'desktop/project-library-api.js',
 		'desktop/project-library-contract.js',
 		'desktop/project-library-database.js',
 		'desktop/project-library-editor-service.js',
@@ -32,6 +33,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-persistence.js',
 		'desktop/project-library-projects.js',
 		'desktop/project-library-reclamation.js',
+		'desktop/project-library-stage-inventory.js',
 		'desktop/project-library.js',
 		'src/common/editor/adm-project-metadata.js',
 		'src/common/editor/broadcast-wave.js',
@@ -104,6 +106,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-reclamation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
 	const stagedMain = await readFile(join(applicationDesktopRoot, 'main.mjs'), 'utf8');

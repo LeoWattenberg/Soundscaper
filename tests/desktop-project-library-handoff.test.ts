@@ -66,9 +66,12 @@ test('desktop hosts hand a current project across products through orderly lease
 		reclamation: {
 			canonicalFiles: 1,
 			complete: true,
+			liveStageFiles: 0,
 			protectedFiles: 1,
 			reclaimedFiles: 0,
+			reclaimedStageFiles: 0,
 			scannedEntries: 1,
+			stageFiles: 0,
 		},
 	});
 	assert.deepEqual(await framescaper.readProject(ENTRY_ID), first);

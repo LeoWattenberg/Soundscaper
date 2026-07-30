@@ -3,6 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import { initializeDesktopLibraryProjectFileInventory } from './project-library-file-inventory.ts';
+import { initializeDesktopLibraryProjectStageInventory } from './project-library-stage-inventory.ts';
 import type { MetadataRow } from './project-library-persistence.ts';
 
 export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID = 0x53434150;
@@ -59,6 +60,7 @@ export function initializeDesktopProjectLibraryDatabase(
 		) STRICT;
 	`);
 	initializeDesktopLibraryProjectFileInventory(database);
+	initializeDesktopLibraryProjectStageInventory(database);
 	database.prepare(`
 		INSERT OR IGNORE INTO library_metadata
 		(singleton, revision, json, digest, published_at_ms) VALUES (1, ?, ?, ?, ?)

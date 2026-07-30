@@ -25,6 +25,7 @@ import {
 	ensureDesktopLibraryProjectFileReclamationCycle,
 	readDesktopLibraryProjectFileInventoryBatch,
 	removeDesktopLibraryProjectFileInventoryRow,
+	restartDesktopLibraryProjectFileReclamationCycle,
 	type DesktopLibraryProjectFileInventoryRow,
 } from './project-library-file-inventory.ts';
 import {
@@ -35,6 +36,18 @@ import {
 	validateMetadataRow,
 	validatePersistedLease,
 } from './project-library-persistence.ts';
+import {
+	advanceDesktopLibraryProjectStageReclamation,
+	consumeDesktopLibraryProjectRescanRequired,
+	ensureDesktopLibraryProjectStageReclamationCycle,
+	hasDesktopLibraryProjectStageInventoryRows,
+	markDesktopLibraryProjectRescanRequired,
+	readDesktopLibraryProjectReclamationKind,
+	readDesktopLibraryProjectStageInventoryBatch,
+	removeDesktopLibraryProjectStageInventoryRow,
+	setDesktopLibraryProjectReclamationKind,
+	type DesktopLibraryProjectStageInventoryRow,
+} from './project-library-stage-inventory.ts';
 
 const MAX_RECLAMATION_ENTRIES = 100_000;
 const RECLAMATION_BATCH_SIZE = 64;
@@ -58,8 +71,15 @@ export interface DesktopLibraryProjectReclamationResult {
 	readonly scannedEntries: number;
 	readonly canonicalFiles: number;
 	readonly complete: boolean;
+	readonly liveStageFiles: number;
 	readonly protectedFiles: number;
 	readonly reclaimedFiles: number;
+	readonly reclaimedStageFiles: number;
+	readonly stageFiles: number;
+}
+
+interface ReclamationBatchResult extends DesktopLibraryProjectReclamationResult {
+	readonly projectCycleRestarted: boolean;
 }
 
 /** Main-process startup maintenance. No path or lease value crosses IPC. */
@@ -86,6 +106,7 @@ export class DesktopLibraryProjectReclaimer {
 				protectedProjectFiles(database);
 				assertRealDirectory(this.#paths.projectsRoot, 'Desktop project reclamation root');
 				ensureDesktopLibraryProjectFileReclamationCycle(database);
+				ensureDesktopLibraryProjectStageReclamationCycle(database);
 			});
 			await this.#checkpoint('planned');
 			throwIfAborted(options.signal);
@@ -93,47 +114,61 @@ export class DesktopLibraryProjectReclaimer {
 			let canonicalFiles = 0;
 			let protectedFiles = 0;
 			let reclaimedFiles = 0;
-			let complete = false;
-			while (scannedEntries < this.#maximumEntries && !complete) {
+			let stageFiles = 0;
+			let liveStageFiles = 0;
+			let reclaimedStageFiles = 0;
+			let projectComplete = false;
+			let stageComplete = false;
+			while (scannedEntries < this.#maximumEntries && (!projectComplete || !stageComplete)) {
 				throwIfAborted(options.signal);
 				const capacity = Math.min(RECLAMATION_BATCH_SIZE, this.#maximumEntries - scannedEntries);
-				const result = withImmediateTransaction(database, () => this.#reclaimInventoryBatch(
-					database,
-					lease,
-					capacity,
-					options.signal,
-				));
+				let kind: 'project' | 'stage' = stageComplete
+					? 'project'
+					: projectComplete
+						? 'stage'
+						: 'stage';
+				const scheduled = !stageComplete && !projectComplete;
+				const result = withImmediateTransaction(database, () => {
+					if (scheduled) kind = readDesktopLibraryProjectReclamationKind(database);
+					return kind === 'stage'
+						? this.#reclaimStageBatch(database, lease, capacity, options.signal)
+						: this.#reclaimProjectBatch(database, lease, capacity, options.signal);
+				});
 				scannedEntries += result.scannedEntries;
 				canonicalFiles += result.canonicalFiles;
 				protectedFiles += result.protectedFiles;
 				reclaimedFiles += result.reclaimedFiles;
-				complete = result.complete;
+				stageFiles += result.stageFiles;
+				liveStageFiles += result.liveStageFiles;
+				reclaimedStageFiles += result.reclaimedStageFiles;
+				if (kind === 'stage') {
+					stageComplete = result.complete;
+					if (result.projectCycleRestarted) projectComplete = false;
+				} else projectComplete = result.complete;
 				if (result.scannedEntries > 0) await this.#yieldAfterBatch(options.signal);
 			}
+			const complete = projectComplete && stageComplete;
 			return Object.freeze({
 				scannedEntries,
 				canonicalFiles,
 				complete,
+				liveStageFiles,
 				protectedFiles,
 				reclaimedFiles,
+				reclaimedStageFiles,
+				stageFiles,
 			});
 		} finally {
 			database.close();
 		}
 	}
 
-	#reclaimInventoryBatch(
+	#reclaimProjectBatch(
 		database: DatabaseSync,
 		lease: DesktopLibraryLease,
 		maximum: number,
 		signal?: AbortSignal,
-	): Readonly<{
-		canonicalFiles: number;
-		complete: boolean;
-		protectedFiles: number;
-		reclaimedFiles: number;
-		scannedEntries: number;
-	}> {
+	): ReclamationBatchResult {
 		assertLeaseOwned(database, lease, this.#now);
 		const protectedFiles = protectedProjectFiles(database);
 		assertRealDirectory(this.#paths.projectsRoot, 'Desktop project reclamation root');
@@ -146,7 +181,11 @@ export class DesktopLibraryProjectReclaimer {
 			throwIfAborted(signal);
 			const paths = inventoryPaths(this.#paths.projectsRoot, candidate);
 			const protectedFile = protectedFiles.has(candidate.portableKey);
+			const currentReservation = candidate.leaseId === lease.leaseId
+				&& candidate.fencingToken === lease.fencingToken;
 			if (protectedFile) protectedCount += 1;
+			if (currentReservation
+				|| hasDesktopLibraryProjectStageInventoryRows(database, candidate.metadataFile)) continue;
 			const directoryKind = directDirectoryKind(paths.directory);
 			if (directoryKind === 'missing') {
 				if (!protectedFile) completedRows.push(candidate.id);
@@ -184,12 +223,76 @@ export class DesktopLibraryProjectReclaimer {
 		for (const id of completedRows) removeDesktopLibraryProjectFileInventoryRow(database, id);
 		const lastId = batch.rows.at(-1)?.id ?? 0;
 		advanceDesktopLibraryProjectFileReclamation(database, lastId, batch.complete);
+		setDesktopLibraryProjectReclamationKind(database, 'stage');
 		return Object.freeze({
 			canonicalFiles: batch.rows.length,
 			complete: batch.complete,
+			liveStageFiles: 0,
 			protectedFiles: protectedCount,
 			reclaimedFiles: reclaimedCount,
+			reclaimedStageFiles: 0,
 			scannedEntries: batch.rows.length,
+			stageFiles: 0,
+			projectCycleRestarted: false,
+		});
+	}
+
+	#reclaimStageBatch(
+		database: DatabaseSync,
+		lease: DesktopLibraryLease,
+		maximum: number,
+		signal?: AbortSignal,
+	): ReclamationBatchResult {
+		assertLeaseOwned(database, lease, this.#now);
+		assertRealDirectory(this.#paths.projectsRoot, 'Desktop project stage reclamation root');
+		const batch = readDesktopLibraryProjectStageInventoryBatch(database, maximum);
+		const affectedDirectories = new Set<string>();
+		const completedRows: number[] = [];
+		let liveStageFiles = 0;
+		let reclaimedStageFiles = 0;
+		for (const candidate of batch.rows) {
+			throwIfAborted(signal);
+			const path = stageInventoryPath(this.#paths.projectsRoot, candidate);
+			const live = candidate.leaseId === lease.leaseId
+				&& candidate.fencingToken === lease.fencingToken;
+			if (live) {
+				liveStageFiles += 1;
+				continue;
+			}
+			const directoryKind = directDirectoryKind(dirname(path));
+			if (directoryKind === 'missing') {
+				completedRows.push(candidate.id);
+				continue;
+			}
+			if (directoryKind !== 'directory') continue;
+			const kind = fileKind(path);
+			if (kind === 'other') continue;
+			if (kind === 'regular' && removeRegularFile(path)) {
+				reclaimedStageFiles += 1;
+				affectedDirectories.add(dirname(path));
+			}
+			completedRows.push(candidate.id);
+		}
+		for (const directory of affectedDirectories) syncDirectory(directory);
+		assertLeaseOwned(database, lease, this.#now);
+		for (const id of completedRows) removeDesktopLibraryProjectStageInventoryRow(database, id);
+		const lastId = batch.rows.at(-1)?.id ?? 0;
+		advanceDesktopLibraryProjectStageReclamation(database, lastId, batch.complete);
+		if (completedRows.length > 0) markDesktopLibraryProjectRescanRequired(database);
+		const projectCycleRestarted = batch.complete
+			&& consumeDesktopLibraryProjectRescanRequired(database);
+		if (projectCycleRestarted) restartDesktopLibraryProjectFileReclamationCycle(database);
+		setDesktopLibraryProjectReclamationKind(database, 'project');
+		return Object.freeze({
+			canonicalFiles: 0,
+			complete: batch.complete,
+			liveStageFiles,
+			protectedFiles: 0,
+			reclaimedFiles: reclaimedStageFiles,
+			reclaimedStageFiles,
+			scannedEntries: batch.rows.length,
+			stageFiles: batch.rows.length,
+			projectCycleRestarted,
 		});
 	}
 
@@ -211,6 +314,10 @@ function inventoryPaths(
 		directory: dirname(canonicalPath),
 		quarantinePath: join(projectsRoot, ...quarantineFile.split('/')),
 	});
+}
+
+function stageInventoryPath(projectsRoot: string, row: DesktopLibraryProjectStageInventoryRow): string {
+	return join(projectsRoot, ...row.stageFile.split('/'));
 }
 
 function protectedProjectFiles(database: DatabaseSync): ReadonlySet<string> {

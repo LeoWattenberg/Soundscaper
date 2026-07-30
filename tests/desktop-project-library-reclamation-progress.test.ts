@@ -21,10 +21,13 @@ import {
 	type DesktopLibraryLease,
 	type DesktopProjectLibraryPaths,
 } from '../desktop/project-library-contract.ts';
-import { createDesktopLibraryProjectQuarantineFile } from '../desktop/project-library-file-inventory.ts';
+import {
+	createDesktopLibraryProjectQuarantineFile,
+} from '../desktop/project-library-file-inventory.ts';
 import { DesktopLibraryProjectReclaimer } from '../desktop/project-library-reclamation.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
+import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
 import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const PRODUCTION_RECLAMATION_CAP = 100_000;
@@ -81,8 +84,11 @@ test('a fixed low cap advances past a protected prefix across close and reopen',
 		scannedEntries: 1,
 		canonicalFiles: 1,
 		complete: false,
+		liveStageFiles: 0,
 		protectedFiles: 1,
 		reclaimedFiles: 0,
+		reclaimedStageFiles: 0,
+		stageFiles: 0,
 	});
 	assert.deepEqual(readCursor(fixture.paths.databasePath), {
 		lastInventoryId: protectedInventoryId,
@@ -138,8 +144,11 @@ test('a protected row preserves its only crash-left quarantine copy', async (con
 		scannedEntries: 1,
 		canonicalFiles: 1,
 		complete: true,
+		liveStageFiles: 0,
 		protectedFiles: 1,
 		reclaimedFiles: 0,
+		reclaimedStageFiles: 0,
+		stageFiles: 0,
 	});
 	assert.equal(await exists(canonicalPath), false);
 	assert.equal(await exists(quarantinePath), true);
@@ -170,12 +179,14 @@ test('deleted processed rows remain resumable and later inserts wait for the nex
 	});
 	const firstId = inventoryId(fixture.paths.databasePath, firstOrphan.metadataFile);
 	const secondId = inventoryId(fixture.paths.databasePath, secondOrphan.metadataFile);
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 	const reclaimer = new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 1,
 		now: fixture.now,
 	});
 
-	const first = await reclaimer.reclaim({ lease });
+	const first = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(first.complete, false);
 	assert.equal(first.reclaimedFiles, 1);
 	assert.equal(await exists(firstOrphan.path), false);
@@ -187,7 +198,7 @@ test('deleted processed rows remain resumable and later inserts wait for the nex
 
 	const laterOrphan = await materializeUnreachableFile({
 		library,
-		lease,
+		lease: maintenanceLease,
 		paths: fixture.paths,
 		entryId: 'progress-cursor-entry-c',
 		revision: 3,
@@ -197,14 +208,16 @@ test('deleted processed rows remain resumable and later inserts wait for the nex
 	const laterId = inventoryId(fixture.paths.databasePath, laterOrphan.metadataFile);
 	assert.ok(laterId > secondId);
 
-	const second = await reclaimer.reclaim({ lease });
+	const second = await reclaimer.reclaim({ lease: maintenanceLease });
 	assert.equal(second.scannedEntries, 1);
 	assert.equal(second.complete, true);
 	assert.equal(second.reclaimedFiles, 1);
 	assert.equal(await exists(secondOrphan.path), false);
 	assert.equal(await exists(laterOrphan.path), true, 'an insert above the captured high-water waits for the next cycle');
 
-	const third = await reclaimer.reclaim({ lease });
+	fixture.clock.value = maintenanceLease.expiresAtMs + 1;
+	const finalLease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
+	const third = await reclaimer.reclaim({ lease: finalLease });
 	assert.equal(third.scannedEntries, 1);
 	assert.equal(third.complete, true);
 	assert.equal(third.reclaimedFiles, 1);
@@ -239,11 +252,13 @@ test('unregistered foreign, stage, canonical, and quarantine files do not consum
 		digest: 'c'.repeat(64),
 		stageId: 'd'.repeat(32),
 	});
+	fixture.clock.value = lease.expiresAtMs + 1;
+	const maintenanceLease = await library.acquireLease({ owner: OWNER_B, ttlMs: 5_000 });
 
 	const result = await new DesktopLibraryProjectReclaimer(fixture.paths, {
 		maximumEntries: 1,
 		now: fixture.now,
-	}).reclaim({ lease });
+	}).reclaim({ lease: maintenanceLease });
 	assert.equal(result.scannedEntries, 1);
 	assert.equal(result.complete, true);
 	assert.equal(result.reclaimedFiles, 1);
@@ -261,7 +276,7 @@ test('the real 100000-row cap persists progress to row 100001', {
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
-	const suffixMetadataFile = seedProductionCapInventory(fixture.paths.databasePath, lease, fixture.clock.value);
+	const suffixMetadataFile = seedProductionCapInventory(fixture.paths.databasePath, fixture.clock.value);
 	const suffixPath = join(fixture.paths.projectsRoot, ...suffixMetadataFile.split('/'));
 	await mkdir(join(fixture.paths.projectsRoot, 'progress-cap-suffix-entry'), { recursive: true });
 	await writeFile(suffixPath, 'the inventory suffix must make progress');
@@ -310,12 +325,12 @@ async function materializeUnreachableFile(options: Readonly<{
 	stageId: string;
 }>): Promise<Readonly<{ metadataFile: string; path: string }>> {
 	const metadataFile = createDesktopLibraryProjectMetadataFile(options.entryId, options.revision, options.digest);
-	const stageFile = `${options.entryId}/.${options.stageId}.stage`;
+	const stageFile = createDesktopLibraryProjectStageFile(metadataFile, options.stageId);
 	const directory = join(options.paths.projectsRoot, options.entryId);
 	const stagePath = join(options.paths.projectsRoot, ...stageFile.split('/'));
 	await mkdir(directory, { recursive: true });
-	options.library.reserveProjectFile({ lease: options.lease, metadataFile });
-	await writeFile(stagePath, `unreachable project ${options.revision}`);
+	options.library.reserveProjectFile({ lease: options.lease, metadataFile, stageFile });
+	await writeFile(stagePath, `unreachable project ${options.revision} ${options.stageId}`);
 	options.library.materializeProjectFile({
 		lease: options.lease,
 		metadataFile,
@@ -385,7 +400,6 @@ function readCursor(databasePath: string): Readonly<{
 
 function seedProductionCapInventory(
 	databasePath: string,
-	lease: DesktopLibraryLease,
 	registeredAtMs: number,
 ): string {
 	const suffixValue = PRODUCTION_RECLAMATION_CAP + 1;
@@ -421,8 +435,8 @@ function seedProductionCapInventory(
 			suffixValue,
 			suffixValue,
 			suffixValue,
-			lease.leaseId,
-			lease.fencingToken,
+			'f'.repeat(48),
+			1,
 			registeredAtMs,
 		);
 		const bounds = database.prepare(`

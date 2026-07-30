@@ -6,6 +6,19 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { abortableDelay, throwIfAborted } from './project-library-abort.ts';
 import {
+	type DesktopLibraryAcquireLeaseOptions,
+	type DesktopLibraryCheckpoint,
+	type DesktopLibraryDiscardProjectStageFileOptions,
+	DesktopLibraryLeaseBusyError,
+	type DesktopLibraryMaterializeProjectFileOptions,
+	type DesktopLibraryOpenOptions,
+	type DesktopLibraryPublishMetadataOptions,
+	type DesktopLibraryRecoverMetadataOptions,
+	type DesktopLibraryRecoveryResult,
+	type DesktopLibraryReserveProjectFileOptions,
+	freezeDesktopLibraryRecovery,
+} from './project-library-api.ts';
+import {
 	emptyDesktopLibraryMetadata,
 	type DesktopLibraryLease,
 	type DesktopLibraryMetadata,
@@ -18,7 +31,6 @@ import {
 import { initializeDesktopProjectLibraryDatabase } from './project-library-database.ts';
 import {
 	assertDesktopLibraryProjectFilesMaterialized,
-	materializeDesktopLibraryProjectFile,
 	reserveDesktopLibraryProjectFile,
 	validateDesktopLibraryProjectFileInventory,
 } from './project-library-file-inventory.ts';
@@ -37,66 +49,18 @@ import {
 	validateMetadataRow,
 	validatePersistedLease,
 } from './project-library-persistence.ts';
+import {
+	discardDesktopLibraryProjectStageFile,
+	materializeDesktopLibraryProjectStageFile,
+	registerDesktopLibraryProjectStageFile,
+	validateDesktopLibraryProjectStageInventory,
+} from './project-library-stage-inventory.ts';
 
 const MIN_LEASE_TTL_MS = 1_000;
 const MAX_LEASE_TTL_MS = 5 * 60 * 1_000;
 const MAX_LEASE_WAIT_MS = 60_000;
 const MAX_RETAINED_JOURNALS = 32;
 const MAX_STORED_JOURNALS = MAX_RETAINED_JOURNALS + 1;
-
-export type DesktopLibraryCheckpoint = 'prepared' | 'committed';
-
-export interface DesktopLibraryOpenOptions {
-	readonly now?: () => number;
-	readonly randomId?: () => string;
-	readonly checkpoint?: (phase: DesktopLibraryCheckpoint) => void | Promise<void>;
-}
-
-export interface DesktopLibraryAcquireLeaseOptions {
-	readonly owner: DesktopLibraryOwner;
-	readonly ttlMs: number;
-	readonly waitMs?: number;
-	readonly pollIntervalMs?: number;
-	readonly signal?: AbortSignal;
-}
-
-export interface DesktopLibraryPublishMetadataOptions {
-	readonly lease: DesktopLibraryLease;
-	readonly metadata: DesktopLibraryMetadata;
-	readonly signal?: AbortSignal;
-}
-
-export interface DesktopLibraryRecoverMetadataOptions {
-	readonly lease: DesktopLibraryLease;
-	readonly signal?: AbortSignal;
-}
-
-export interface DesktopLibraryReserveProjectFileOptions {
-	readonly lease: DesktopLibraryLease;
-	readonly metadataFile: string;
-}
-
-export interface DesktopLibraryMaterializeProjectFileOptions extends DesktopLibraryReserveProjectFileOptions {
-	readonly stageFile: string | null;
-}
-
-export interface DesktopLibraryRecoveryResult {
-	readonly outcome: 'clean' | 'committed' | 'interrupted';
-	readonly previousRevision: number | null;
-	readonly publishedRevision: number | null;
-	readonly restoredPrevious: boolean;
-}
-
-
-export class DesktopLibraryLeaseBusyError extends Error {
-	readonly holder: DesktopLibraryLease;
-
-	constructor(holder: DesktopLibraryLease) {
-		super(`Desktop project library is leased by ${holder.owner.product} process ${holder.owner.processId}`);
-		this.name = 'DesktopLibraryLeaseBusyError';
-		this.holder = holder;
-	}
-}
 
 /** Main-process-only service. Do not expose this instance or its paths over IPC. */
 export class SharedDesktopProjectLibrary {
@@ -175,6 +139,11 @@ export class SharedDesktopProjectLibrary {
 				metadataFile: options.metadataFile,
 				registeredAtMs: this.#timestamp(),
 			});
+			if (options.stageFile !== undefined) registerDesktopLibraryProjectStageFile(this.#database, {
+				lease, metadataFile: options.metadataFile, stageFile: options.stageFile,
+				registeredAtMs: this.#timestamp(),
+			});
+			this.#assertLeaseOwned(lease);
 		});
 	}
 
@@ -183,8 +152,20 @@ export class SharedDesktopProjectLibrary {
 		const lease = validateLeaseToken(options.lease);
 		this.#transaction(() => {
 			this.#assertLeaseOwned(lease);
-			materializeDesktopLibraryProjectFile(this.#database, this.paths, { ...options, lease });
+			materializeDesktopLibraryProjectStageFile(this.#database, this.paths, { ...options, lease });
 			this.#assertLeaseOwned(lease);
+		});
+	}
+
+	discardProjectStageFile(options: DesktopLibraryDiscardProjectStageFileOptions): boolean {
+		this.#assertOpen();
+		const lease = validateLeaseToken(options.lease);
+		return this.#transaction(() => {
+			const row = this.#leaseRow();
+			if (!row?.active || !sameLease(row.lease, lease) || row.lease.expiresAtMs <= this.#timestamp()) return false;
+			const discarded = discardDesktopLibraryProjectStageFile(this.#database, this.paths, { ...options, lease });
+			this.#assertLeaseOwned(lease);
+			return discarded;
 		});
 	}
 
@@ -286,6 +267,7 @@ export class SharedDesktopProjectLibrary {
 		if (pendingJournals.length === 0) this.#validatedMetadataRow();
 		this.#leaseRow();
 		validateDesktopLibraryProjectFileInventory(this.#database);
+		validateDesktopLibraryProjectStageInventory(this.#database);
 	}
 
 	#tryAcquireLease(owner: DesktopLibraryOwner, ttlMs: number): { lease: DesktopLibraryLease } | { holder: DesktopLibraryLease } {
@@ -388,7 +370,7 @@ export class SharedDesktopProjectLibrary {
 			WHERE state IN ('prepared', 'committed')
 			ORDER BY created_at_ms, transaction_id LIMIT 1
 		`).get();
-		if (!raw) return freezeRecovery({
+		if (!raw) return freezeDesktopLibraryRecovery({
 			outcome: 'clean',
 			previousRevision: null,
 			publishedRevision: null,
@@ -398,7 +380,7 @@ export class SharedDesktopProjectLibrary {
 		const current = this.#recoverableMetadataRow();
 		if (current && sameMetadataRow(current, journal.next)) {
 			this.#completeRecoveryJournal(journal.transactionId, 'complete');
-			return freezeRecovery({
+			return freezeDesktopLibraryRecovery({
 				outcome: 'committed',
 				previousRevision: journal.previous.revision,
 				publishedRevision: journal.next.revision,
@@ -408,7 +390,7 @@ export class SharedDesktopProjectLibrary {
 		const restoredPrevious = !current || !sameMetadataRow(current, journal.previous);
 		if (restoredPrevious) this.#replaceMetadata(journal.previous);
 		this.#completeRecoveryJournal(journal.transactionId, 'recovered');
-		return freezeRecovery({
+		return freezeDesktopLibraryRecovery({
 			outcome: 'interrupted',
 			previousRevision: journal.previous.revision,
 			publishedRevision: null,
@@ -553,10 +535,6 @@ export class SharedDesktopProjectLibrary {
 	#assertOpen(): void {
 		if (this.#closed) throw new Error('Desktop project library is closed');
 	}
-}
-
-function freezeRecovery(value: DesktopLibraryRecoveryResult): DesktopLibraryRecoveryResult {
-	return Object.freeze({ ...value });
 }
 
 function leaseTtl(value: unknown): number {

@@ -7,7 +7,6 @@ import {
 	mkdir,
 	open,
 	readFile,
-	unlink,
 	type FileHandle,
 } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -26,8 +25,8 @@ import {
 	validateDesktopLibraryMetadata,
 } from './project-library-contract.ts';
 import { SharedDesktopProjectLibrary } from './project-library.ts';
+import { createDesktopLibraryProjectStageFile } from './project-library-stage-inventory.ts';
 
-const STAGE_ID = /^[a-f0-9]{32}$/u;
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 
 export interface DesktopLibraryProjectStoreOptions {
@@ -203,9 +202,9 @@ export class DesktopLibraryProjectStore {
 		lease: DesktopLibraryLease,
 		signal?: AbortSignal,
 	): Promise<void> {
-		this.#library.reserveProjectFile({ lease, metadataFile: catalog.metadataFile });
 		try {
 			await this.#readDocument(catalog, signal);
+			this.#library.reserveProjectFile({ lease, metadataFile: catalog.metadataFile });
 			this.#library.materializeProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile: null });
 			return;
 		} catch (error) {
@@ -219,12 +218,11 @@ export class DesktopLibraryProjectStore {
 		}
 		await chmod(directory, 0o700);
 		throwIfAborted(signal);
-		const stageId = this.#randomId();
-		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop project stage id generator returned an invalid value');
-		const stageFile = `${catalog.id}/.${stageId}.stage`;
+		const stageFile = createDesktopLibraryProjectStageFile(catalog.metadataFile, this.#randomId());
 		const stagePath = join(this.#library.paths.projectsRoot, ...stageFile.split('/'));
 		let handle: FileHandle | null = null;
 		let stageExists = false;
+		this.#library.reserveProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile });
 		try {
 			handle = await open(stagePath, 'wx', 0o600);
 			stageExists = true;
@@ -237,7 +235,12 @@ export class DesktopLibraryProjectStore {
 			this.#library.materializeProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile });
 			stageExists = false;
 		} catch (error) {
-			await throwAfterStageCleanup(error, handle, stageExists ? stagePath : null);
+			await throwAfterStageCleanup(error, handle, () => this.#library.discardProjectStageFile({
+				lease,
+				metadataFile: catalog.metadataFile,
+				removeFile: stageExists,
+				stageFile,
+			}));
 		}
 		await this.#readDocument(catalog, signal);
 	}
@@ -374,7 +377,7 @@ function isMissingFile(error: unknown): boolean {
 async function throwAfterStageCleanup(
 	primary: unknown,
 	handle: FileHandle | null,
-	stagePath: string | null,
+	cleanup: () => boolean,
 ): Promise<never> {
 	const cleanupErrors: unknown[] = [];
 	if (handle) {
@@ -384,12 +387,10 @@ async function throwAfterStageCleanup(
 			cleanupErrors.push(error);
 		}
 	}
-	if (stagePath) {
-		try {
-			await unlink(stagePath);
-		} catch (error) {
-			if (!isMissingFile(error)) cleanupErrors.push(error);
-		}
+	try {
+		cleanup();
+	} catch (error) {
+		cleanupErrors.push(error);
 	}
 	if (cleanupErrors.length > 0) {
 		throw new AggregateError([primary, ...cleanupErrors], 'Desktop project write and staging cleanup failed');

@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
 	mkdir,
 	mkdtemp,
+	readFile,
 	rm,
 	stat,
 	writeFile,
@@ -18,6 +19,7 @@ import {
 	createDesktopProjectLibraryPaths,
 } from '../desktop/project-library-contract.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
+import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
 
 const APPLICATION_ID = 0x53434150;
 const OWNER_A = Object.freeze({
@@ -39,12 +41,12 @@ test('schema 2 reserves and lease-fences immutable project materialization', asy
 	context.after(() => library.close());
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
 	const metadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, DIGEST);
-	const stageFile = `${ENTRY_ID}/.${'b'.repeat(32)}.stage`;
+	const stageFile = createDesktopLibraryProjectStageFile(metadataFile, 'b'.repeat(32));
 	const stagePath = join(fixture.paths.projectsRoot, ...stageFile.split('/'));
 	const finalPath = join(fixture.paths.projectsRoot, ...metadataFile.split('/'));
 	await mkdir(join(fixture.paths.projectsRoot, ENTRY_ID), { recursive: true });
 
-	library.reserveProjectFile({ lease, metadataFile });
+	library.reserveProjectFile({ lease, metadataFile, stageFile });
 	assert.deepEqual({ ...readInventoryRow(fixture.paths.databasePath, metadataFile) }, {
 		metadataFile,
 		portableKey: metadataFile.toLowerCase(),
@@ -70,26 +72,69 @@ test('a stale reservation cannot rename its stage after lease takeover', async (
 	});
 	const original = await first.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
 	const metadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 2, DIGEST);
-	const stageFile = `${ENTRY_ID}/.${'c'.repeat(32)}.stage`;
-	const stagePath = join(fixture.paths.projectsRoot, ...stageFile.split('/'));
+	const staleStageFile = createDesktopLibraryProjectStageFile(metadataFile, 'c'.repeat(32));
+	const staleStagePath = join(fixture.paths.projectsRoot, ...staleStageFile.split('/'));
 	const finalPath = join(fixture.paths.projectsRoot, ...metadataFile.split('/'));
 	await mkdir(join(fixture.paths.projectsRoot, ENTRY_ID), { recursive: true });
-	first.reserveProjectFile({ lease: original, metadataFile });
-	await writeFile(stagePath, 'stale immutable project bytes');
+	first.reserveProjectFile({ lease: original, metadataFile, stageFile: staleStageFile });
+	await writeFile(staleStagePath, 'stale immutable project bytes');
 
 	fixture.clock.value = original.expiresAtMs + 1;
 	const replacement = await second.acquireLease({ owner: OWNER_B, ttlMs: 1_000 });
 	assert.throws(
-		() => first.materializeProjectFile({ lease: original, metadataFile, stageFile }),
+		() => first.materializeProjectFile({ lease: original, metadataFile, stageFile: staleStageFile }),
 		/no longer owns the lease/u,
 	);
-	assert.equal((await stat(stagePath)).isFile(), true);
+	assert.equal((await stat(staleStagePath)).isFile(), true);
 	await assert.rejects(() => stat(finalPath), /ENOENT/u);
 
-	second.reserveProjectFile({ lease: replacement, metadataFile });
-	second.materializeProjectFile({ lease: replacement, metadataFile, stageFile });
+	const replacementStageFile = createDesktopLibraryProjectStageFile(metadataFile, 'd'.repeat(32));
+	const replacementStagePath = join(fixture.paths.projectsRoot, ...replacementStageFile.split('/'));
+	second.reserveProjectFile({ lease: replacement, metadataFile, stageFile: replacementStageFile });
+	await writeFile(replacementStagePath, 'replacement immutable project bytes');
+	assert.equal(first.discardProjectStageFile({
+		lease: original,
+		metadataFile,
+		removeFile: true,
+		stageFile: staleStageFile,
+	}), false);
+	assert.equal(await readFile(replacementStagePath, 'utf8'), 'replacement immutable project bytes');
+	second.materializeProjectFile({ lease: replacement, metadataFile, stageFile: replacementStageFile });
 	assert.equal((await stat(finalPath)).isFile(), true);
+	assert.equal((await stat(staleStagePath)).isFile(), true);
 	assert.equal(readInventoryRow(fixture.paths.databasePath, metadataFile)?.fencingToken, replacement.fencingToken);
+});
+
+test('duplicate stage registration rolls back its canonical reservation', async (context) => {
+	const fixture = await createFixture(context);
+	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
+	context.after(() => library.close());
+	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
+	const firstMetadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 4, 'b'.repeat(64));
+	const secondMetadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 5, 'c'.repeat(64));
+	const stageFile = createDesktopLibraryProjectStageFile(firstMetadataFile, 'f'.repeat(32));
+
+	library.reserveProjectFile({ lease, metadataFile: firstMetadataFile, stageFile });
+	assert.throws(
+		() => library.reserveProjectFile({ lease, metadataFile: secondMetadataFile, stageFile }),
+		/UNIQUE constraint failed/u,
+	);
+	assert.equal(readInventoryRow(fixture.paths.databasePath, secondMetadataFile), undefined);
+	assert.equal(readStageInventoryCount(fixture.paths.databasePath), 1);
+});
+
+test('an invalid stage path rolls back its canonical reservation', async (context) => {
+	const fixture = await createFixture(context);
+	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
+	context.after(() => library.close());
+	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
+	const metadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 6, 'd'.repeat(64));
+
+	assert.throws(
+		() => library.reserveProjectFile({ lease, metadataFile, stageFile: '' }),
+		/project stage (?:file|id) is invalid/u,
+	);
+	assert.equal(readInventoryRow(fixture.paths.databasePath, metadataFile), undefined);
 });
 
 test('catalog publication requires a materialized project inventory row', async (context) => {
@@ -124,8 +169,9 @@ test('catalog publication requires a materialized project inventory row', async 
 		() => library.publishMetadata({ lease, metadata }),
 		/materialized project file inventory/iu,
 	);
-	const stageFile = `${ENTRY_ID}/.${'d'.repeat(32)}.stage`;
+	const stageFile = createDesktopLibraryProjectStageFile(metadataFile, 'e'.repeat(32));
 	await mkdir(join(fixture.paths.projectsRoot, ENTRY_ID), { recursive: true });
+	library.reserveProjectFile({ lease, metadataFile, stageFile });
 	await writeFile(join(fixture.paths.projectsRoot, ...stageFile.split('/')), 'materialized project row');
 	library.materializeProjectFile({ lease, metadataFile, stageFile });
 	assert.deepEqual(await library.publishMetadata({ lease, metadata }), metadata);
@@ -164,6 +210,16 @@ function readInventoryRow(databasePath: string, metadataFile: string) {
 				state, lease_id AS leaseId, fencing_token AS fencingToken
 			FROM project_file_inventory WHERE metadata_file = ?
 		`).get(metadataFile);
+	} finally {
+		database.close();
+	}
+}
+
+function readStageInventoryCount(databasePath: string): number {
+	const database = new DatabaseSync(databasePath, { readOnly: true });
+	try {
+		const row = database.prepare('SELECT COUNT(*) AS count FROM project_stage_inventory').get();
+		return Number(row?.count);
 	} finally {
 		database.close();
 	}
