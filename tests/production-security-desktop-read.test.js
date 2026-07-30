@@ -40,12 +40,16 @@ test('desktop read capability evidence remains qualified for its current surface
 	for (const path of [
 		'desktop/file-capabilities.js',
 		'desktop/protocol.js',
+		'src/common/editor/desktop-scape-archive-byte-source.ts',
+		'src/common/editor/scape-abort.ts',
+		'src/common/editor/scape-archive-byte-source.ts',
+		'tests/audio-editor-desktop-scape-archive-byte-source.test.ts',
 		'tests/desktop-read-capability-leases.test.js',
 		'tests/desktop-protocol.test.js',
 	]) assert.ok(leasedRangeRead.evidence.some((item) => item.path === path));
 	assert.match(
 		leasedRangeRead.summary,
-		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*not yet.*archive byte source/iu,
+		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*strict renderer archive adapter.*client contract in isolation.*16-MiB.*exact partial-response.*stream done.*descriptor URL\/declared size.*fetch implementation.*first admitted failure.*stable reason.*no raw handle or release operation.*canonical desktop.*\.scape.*not yet routed.*awaited file-service release scope.*no separate large-project admission.*512 MiB/iu,
 	);
 
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);

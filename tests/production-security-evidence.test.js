@@ -60,7 +60,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*not yet connected.*archive byte source/isu,
+		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*strict renderer archive adapter.*client contract.*in isolation.*16-MiB.*partial-response.*through `done`.*descriptor URL\/declared size.*fetch implementation.*first admitted terminal error.*active, queued, and future reads.*no release operation.*canonical desktop `?\.scape`?.*not yet routed.*awaited file-service release scope.*no separate large-project admission.*512 MiB/isu,
 	);
 	assert.match(
 		documentation,

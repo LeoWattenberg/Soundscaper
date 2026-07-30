@@ -117,9 +117,11 @@ Material constraints in the current foundation are also roadmap inputs:
 - `.scape` now streams to selected File System Access and desktop targets. The
   current desktop-read tier admits at most 512 MiB of active declared input per
   committed-document owner before materializing a whole `Blob`; reference-scale
-  reads above that bound fail rather than stream. Its main-process protocol now
-  has a serialized exact-range lease lifecycle, but the archive reader is not
-  yet connected to it. Several compressed imports,
+  reads above that bound fail rather than stream. Its main-process protocol
+  provides serialized exact-range leases, and an isolated strict renderer
+  adapter implements the matching byte-source client contract, but the
+  selected-file open/inspection path is not yet routed through it. Several
+  compressed imports,
   browser-download fallback, and final render outputs also retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
@@ -359,17 +361,28 @@ models or native implementations.
   field so a canonical save remains importable. Archive consumption now also
   shares a strict-TS bounded
   [random-access byte source](src/common/editor/scape-archive-byte-source.ts)
-  across Blob and future range transports. Providers may declare a lower read
-  maximum beneath the 33 MiB logical ceiling; native typed-array slots enforce
-  exact result length and defensive ownership. A
+  across Blob and range transports. Providers may declare a lower read maximum
+  beneath the 33 MiB logical ceiling; native typed-array slots enforce exact
+  result length and defensive ownership. The strict-TS
+  [desktop adapter](src/common/editor/desktop-scape-archive-byte-source.ts)
+  snapshots the descriptor URL/declared size and fetch implementation, limits
+  each provider request to the 16 MiB platform media-chunk ceiling, requires
+  exact `206`, `Content-Range`, `Content-Length`, and emitted-body agreement, and
+  serializes requests through response-body `done`. The first admitted abort or
+  transport failure cancels best-effort and permanently fences queued/future
+  reads with one stable restorable reason; a queued-only abort neither fetches
+  nor poisons the source.
+  The adapter exposes no descriptor ID or release authority because the future
+  file-service scope must await the main-process release/retirement barrier. A
   [structural witness](src/common/editor/scape-archive-layout-witness.ts)
   retains at most 69,271,649 bytes for the canonical writer profile, including
   central comments, rejects inconsistent overlapping observations, and serves
   the admitted end/central/local/descriptor bytes unchanged while fetching only
   payload gaps. This deliberately qualifies canonical `.scape` structure, not
-  arbitrary third-party ZIP local-extra expansion, and is not yet wired to
-  the leased desktop range transport; the 512 MiB desktop materialization
-  ceiling therefore remains unchanged. Its
+  arbitrary third-party ZIP local-extra expansion. Canonical selected-file
+  inspection/import is not yet routed through the desktop adapter and no
+  separate large-project admission exists, so the 512 MiB desktop
+  materialization ceiling remains unchanged. Its
   [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
   offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
   zeroed no-descriptor fields, and boundary crossing with bounded cancellable
@@ -377,7 +390,12 @@ models or native implementations.
   [byte-source regression](tests/audio-editor-scape-archive-byte-source.test.ts)
   adds Blob parity, lower provider limits, exact cancellation, hostile typed
   arrays and Blob overrides, structural swaps, comment retention, and body-gap
-  range isolation. The
+  range isolation. The focused
+  [desktop range regression](tests/audio-editor-desktop-scape-archive-byte-source.test.ts)
+  adds exact 16 MiB HTTP splitting, descriptor/fetch snapshots, response and
+  stream refusal, exact-EOF serialization, first-admitted-error preservation,
+  prompt terminal cancellation, queued-abort non-poisoning, and primitive-reason
+  restoration. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without
@@ -991,15 +1009,17 @@ models or native implementations.
   prior shared `v1` scope or product-private libraries—is not a current priority
   or milestone prerequisite and remains unsupported by this current-only
   contract. Audacity project interchange remains a separate roadmap boundary.
-- **Electron Enhanced — Planned:** connect canonical `.scape` selected-file
-  descriptors to the strict
-  [archive byte-source contract](src/common/editor/scape-archive-byte-source.ts)
-  through a strict-TS adapter over the leased exact-range transport. Keep other
-  project and media families on their existing bounded materialization paths,
-  add separate main-assigned large-project admission, and pass the planned
-  8 GiB logical `.scape` fixture through range-backed reads without a final
-  renderer `Blob`. Until then, inputs above the qualified 512 MiB
-  materialization tier fail admission explicitly.
+- **Electron Enhanced — In progress:** the strict
+  [desktop `.scape` adapter](src/common/editor/desktop-scape-archive-byte-source.ts)
+  now binds the shared archive byte-source contract to serialized, exact,
+  16 MiB range fetches over a descriptor without exposing release authority.
+  Still connect only canonical `.scape` selected-file inspection/import to that
+  source inside an awaited file-service capability scope, keep Audacity and
+  other project/media families on bounded materialization, add separate
+  main-assigned large-project admission, and pass the planned 8 GiB logical
+  `.scape` fixture without a final renderer `Blob`. Until those routing and
+  admission gates land, inputs above the qualified 512 MiB materialization tier
+  fail explicitly.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
   installations emerge, define compatibility beyond the retained V1–V8
   raw-document migration paths, especially an explicit migration from the prior
