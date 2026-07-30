@@ -7,7 +7,7 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
-test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored BW64 routes', async () => {
+test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted BW64 routes', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const exactDirectPcm = findControl(matrix, 'desktop-write-path-capabilities', 'exact-direct-pcm-mix-save');
 	const directPcmRollback = findControl(matrix, 'long-job-cancellation', 'direct-pcm-mix-save-rollback');
@@ -21,6 +21,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 		'desktop/direct-wav-smoke.js',
 		'src/common/editor/aiff.js',
 		'src/common/editor/export.js',
+		'src/common/editor/adm-riff-passthrough.ts',
 		'src/common/editor/controller/direct-aiff-export.ts',
 		'src/common/editor/controller/direct-bw64-export.ts',
 		'src/common/editor/controller/direct-bwf-export.ts',
@@ -38,6 +39,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 		'tests/audio-editor-aiff-layout.test.ts',
 		'tests/audio-editor-export-direct-aiff.test.ts',
 		'tests/audio-editor-export-direct-bw64.test.ts',
+		'tests/audio-editor-export-direct-bw64-passthrough.test.ts',
 		'tests/audio-editor-export-direct-bwf.test.ts',
 		'tests/audio-editor-export-direct-wav.test.ts',
 		'tests/audio-editor-export-direct-wav-reference.test.ts',
@@ -47,6 +49,8 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 		'tests/audio-editor-pcm-sink.test.js',
 		'tests/desktop-pcm-mix-save-purpose.test.js',
 		'tests/browser/audio-editor-direct-wav-save.spec.js',
+		'tests/browser/audio-editor-direct-bw64-passthrough.spec.js',
+		'tests/browser/helpers/direct-pcm-save-target.js',
 		'tests/desktop-direct-wav-smoke-probe.test.js',
 		'tests/desktop-direct-wav-smoke.test.js',
 		'tests/desktop-direct-wav-pcm-signal.test.js',
@@ -68,8 +72,11 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 		'src/common/editor/controller/direct-pcm-export.ts',
 		'tests/audio-editor-export-direct-aiff.test.ts',
 		'tests/audio-editor-export-direct-bw64.test.ts',
+		'tests/audio-editor-export-direct-bw64-passthrough.test.ts',
 		'tests/audio-editor-export-direct-bwf.test.ts',
 		'tests/browser/audio-editor-direct-wav-save.spec.js',
+		'tests/browser/audio-editor-direct-bw64-passthrough.spec.js',
+		'tests/browser/helpers/direct-pcm-save-target.js',
 		'tests/audio-editor-export-direct-wav-reference.test.ts',
 		'desktop/direct-wav-smoke.js',
 		'scripts/lib/desktop-direct-wav-smoke.mjs',
@@ -80,7 +87,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	]) assert.ok(controllerIoBoundary.evidence.some((item) => item.path === path), path);
 	assert.match(
 		exactDirectPcm.summary,
-		/dedicated `audio-pcm-mix` purpose.*WAV, AIFF, BWF, and authored BW64 target names.*one mix.*`realtime-stream`.*WAV.*`audio\/wav`.*`\.wav`.*65 GiB.*AIFF.*`audio\/aiff`.*`\.aiff`.*4,294,967,303.*32-bit FORM.*even.*4,294,967,302.*exact-size.*not maximum-bounded.*File System Access or Electron/isu,
+		/dedicated `audio-pcm-mix` purpose.*WAV, AIFF, BWF, and BW64 target names.*one mix.*`realtime-stream`.*WAV.*`audio\/wav`.*`\.wav`.*65 GiB.*AIFF.*`audio\/aiff`.*`\.aiff`.*4,294,967,303.*32-bit FORM.*even.*4,294,967,302.*exact-size.*not maximum-bounded.*File System Access or Electron/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -92,7 +99,15 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/authored BW64.*format and container.*`bw64`.*`audio\/wav`.*`\.wav`.*exact positive safe-integer.*65 GiB.*admission ceiling.*not.*scale.*int16.*int20.*int24.*canonical.*version-2 BEXT.*authored normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*standard RIFF metadata.*markers.*iXML.*CART.*exact geometry.*ADM passthrough.*opaque source chunks.*deferred/isu,
+		/authored BW64.*format and container.*`bw64`.*`audio\/wav`.*`\.wav`.*exact positive safe-integer.*65 GiB.*admission ceiling.*not.*scale.*int16.*int20.*int24.*canonical.*version-2 BEXT.*authored normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*standard RIFF metadata.*markers.*iXML.*CART.*exact geometry/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
+		/pristine-passthrough BW64.*current BW64 importer.*pristine planner.*valid warning-free ADM.*unchanged neutral full-range source path.*import revision.*nonempty complete `riffChunkSequence`.*aggregate complete nonstructural RIFF bytes.*headers and alignment bytes.*16 MiB.*1–32 channels.*int16.*int20.*int24.*non-float PCM.*exact rate, channel, frame, and precision geometry.*zero tail and dither.*full range.*identity preserve mappings.*CHNA-derived channel order.*exact compacted pre\/post bytes, order, and placement.*`plan\.adm`.*top-level plan.*`inspectWavLayout`.*65 GiB/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
+		/preserved BEXT.*only from the sequence.*without one.*same canonical normalized version-2 BEXT.*Preserved cue\/adtl.*iXML.*CART.*ID3.*LIST\/INFO.*suppress.*collisions reject.*Legacy `opaqueRiffChunks`-only.*incomplete capture.*invalid or warning-bearing.*stale or edited projects.*sequence drift.*mapping or geometry drift.*loudness measurement.*before target selection.*byte-exact claim.*preserved nonstructural chunks only.*structural BW64 and PCM bytes are rebuilt.*not whole-file bit identity.*broad third-party BW64 qualification/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -100,7 +115,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*no final renderer `Blob`.*ADM passthrough.*opaque source chunks.*other PCM.*compressed.*video.*stems.*outside/isu,
+		/planned.*encoder-finalized.*destination-written.*committed-result.*four-way.*no final renderer `Blob`.*BW64 passthrough outside the exact current-import contract.*legacy opaque-only metadata.*other PCM.*compressed.*video.*stems.*outside/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -108,7 +123,11 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*full maintained Node suite.*382.*Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*eight.*injected File System Access target.*mobile planner profile.*BW64.*33\.1-second.*384 kHz.*16-bit.*101,683,200-byte.*96 MiB.*2 KiB prefix.*8 KiB suffix.*ds64.*BEXT.*CHNA.*data.*AXML.*at-most-4-MiB.*serial.*no Object URL.*browser download.*pre-commit.*WebKit.*unqualified.*host/isu,
+		/Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*Seven focused pristine-passthrough BW64.*real current-import-to-planner.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*closed admission.*modeled-metadata collision refusal.*stale or edited planning refusal.*loudness fail-closed.*383 test files/isu,
+	);
+	assert.match(
+		exactDirectPcm.summary,
+		/Chromium and Firefox.*ten aggregate format\/engine cases.*injected File System Access target.*mobile planner profile.*pristine-passthrough case.*5\.1.*48 kHz.*16-bit BW64.*4,210,688 frames.*101,056,512-byte.*2 KiB prefix.*4 KiB suffix.*JUNK padding.*BEXT v2.*CHNA.*before PCM.*PEAK padding.*AXML.*after PCM.*Visible realtime progress.*close, commit, and publication.*without Object URL or browser-download fallback.*second export cancels.*one abort without close, commit, or publication.*at most 4 MiB.*serial.*1\.7 and 1\.8 minutes.*not arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file bit identity.*WebKit.*unqualified/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -147,6 +166,8 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 		'tests/audio-editor-file-service.test.js',
 		'tests/audio-editor-pcm-sink.test.js',
 		'tests/browser/audio-editor-direct-wav-save.spec.js',
+		'tests/browser/audio-editor-direct-bw64-passthrough.spec.js',
+		'tests/browser/helpers/direct-pcm-save-target.js',
 		'tests/desktop-direct-wav-smoke-probe.test.js',
 		'tests/desktop-direct-wav-smoke.test.js',
 		'tests/desktop-direct-wav-workflow.test.js',
@@ -154,11 +175,11 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	]) assert.ok(directPcmRollback.evidence.some((item) => item.path === path), path);
 	assert.match(
 		directPcmRollback.summary,
-		/direct WAV, AIFF, BWF, and authored BW64 PCM route.*target before rendering.*owned export task signal.*realtime progress.*at-most-four-MiB.*channel-aware 16,384-frame queue.*32 MiB.*Exact desktop `audio-pcm-mix`.*four-MiB.*generic.*project.*one MiB.*failure or cancellation before commit.*abort.*staging cleanup.*planned.*encoder-finalized.*destination-written.*before.*non-cancellable commit.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/iu,
+		/direct WAV, AIFF, BWF, and admitted BW64 PCM route.*target before rendering.*owned export task signal.*realtime progress.*at-most-four-MiB.*channel-aware 16,384-frame queue.*32 MiB.*Exact desktop `audio-pcm-mix`.*four-MiB.*generic.*project.*one MiB.*failure or cancellation before commit.*abort.*staging cleanup.*planned.*encoder-finalized.*destination-written.*before.*non-cancellable commit.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/iu,
 	);
 	assert.match(
 		directPcmRollback.summary,
-		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close.*publication.*same pre-commit rollback.*WebKit.*unqualified.*host.*commit-race.*Node-only/isu,
+		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*ten Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close, commit, or publication.*same pre-commit rollback.*current-import pristine-passthrough BW64.*visible progress.*completed publication.*without Blob fallback.*cancellation run aborts without publication.*not qualify arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file identity.*WebKit.*unqualified.*host.*commit-race.*Node-only/isu,
 	);
 	assert.match(
 		directPcmRollback.summary,
@@ -170,20 +191,32 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and authored 
 	);
 });
 
-test('direct PCM documentation records authored BW64 byte, buffering, rollback, and acceptance limits', async () => {
+test('direct PCM documentation records admitted BW64 byte, buffering, rollback, and acceptance limits', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(
 		documentation,
-		/one exact WAV, AIFF, BWF, or authored BW64 mix.*`realtime-stream`.*WAV.*65 GiB.*AIFF.*4,294,967,303.*32-bit FORM.*4,294,967,302.*BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*authored BW64.*format and container.*`bw64`.*65 GiB.*admission ceiling.*not.*scale.*direct File System Access or Electron.*shared PCM route.*16,384-frame chunks.*pending count.*32 MiB.*Realtime progress.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB.*serially awaits.*Exact desktop `audio-pcm-mix`.*4 MiB.*generic exact-size.*project.*one MiB/isu,
+		/one exact WAV, AIFF, BWF, or BW64 mix.*`realtime-stream`.*WAV.*65 GiB.*AIFF.*4,294,967,303.*32-bit FORM.*4,294,967,302.*BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*Authored BW64.*format and container.*`bw64`.*65 GiB.*admission ceiling.*not.*scale.*direct File System Access or Electron.*shared PCM route.*16,384-frame chunks.*pending count.*32 MiB.*Realtime progress.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB.*serially awaits.*Exact desktop `audio-pcm-mix`.*4 MiB.*generic exact-size.*project.*one MiB/isu,
 	);
 	assert.match(
 		documentation,
-		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*ADM passthrough.*opaque source chunks.*deferred.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way agreement.*without a final renderer `Blob`.*other PCM.*compressed audio.*video.*stems.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
+		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*Authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way agreement.*without a final renderer `Blob`.*BW64 passthrough outside the exact current-import contract.*legacy opaque-only metadata.*other PCM.*compressed audio.*video.*stems.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
 	);
 	assert.match(
 		documentation,
-		/Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*full maintained Node suite.*382.*Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*eight.*injected File System Access.*33\.1-second.*384 kHz.*16-bit.*101,683,200-byte.*96 MiB.*2 KiB prefix.*8 KiB suffix.*ds64.*BEXT.*CHNA.*data.*AXML.*at-most-4-MiB.*serial.*no Object URL.*browser download.*pre-commit.*WebKit.*unqualified.*host/isu,
+		/pristine-passthrough BW64 route.*current BW64 importer.*pristine planner.*valid warning-free ADM.*unchanged neutral full-range source path.*import revision.*nonempty complete `riffChunkSequence`.*aggregate complete nonstructural RIFF bytes.*headers and alignment bytes.*16 MiB.*1–32 channels.*int16.*int20.*int24.*non-float PCM.*exact rate, channel, frame, and precision geometry.*zero tail and dither.*full range.*identity preserve mappings.*CHNA-derived channel order.*exact compacted pre\/post bytes, order, and placement.*`plan\.adm`.*top-level plan.*`inspectWavLayout`.*65 GiB/isu,
+	);
+	assert.match(
+		documentation,
+		/preserved BEXT.*only from the sequence.*without one.*same canonical normalized version-2 BEXT.*Preserved cue\/adtl.*iXML.*CART.*ID3.*LIST\/INFO.*suppress.*collisions reject.*Legacy `opaqueRiffChunks`-only.*incomplete capture.*invalid or warning-bearing.*stale or edited projects.*sequence drift.*mapping or geometry drift.*loudness measurement.*before target selection.*byte-exact claim.*preserved nonstructural chunks only.*structural BW64 and PCM bytes are rebuilt.*not whole-file bit identity.*broad third-party BW64 qualification/isu,
+	);
+	assert.match(
+		documentation,
+		/Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*Seven focused pristine-passthrough BW64.*real current-import-to-planner.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*closed admission.*modeled-metadata collision refusal.*stale or edited planning refusal.*loudness fail-closed.*383 test files/isu,
+	);
+	assert.match(
+		documentation,
+		/Chromium and Firefox WAV, AIFF, BWF, and BW64.*ten aggregate format\/engine cases.*injected File System Access.*pristine-passthrough case.*5\.1.*48 kHz.*16-bit BW64.*4,210,688 frames.*101,056,512-byte.*2 KiB prefix.*4 KiB suffix.*JUNK padding.*BEXT v2.*CHNA.*before PCM.*PEAK padding.*AXML.*after PCM.*Visible realtime progress.*close, commit, and publication.*without Object URL or browser-download fallback.*second export cancels.*one abort without close, commit, or publication.*at most 4 MiB.*serial.*1\.7 and 1\.8 minutes.*not arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file bit identity.*WebKit.*unqualified/isu,
 	);
 	assert.match(
 		documentation,
@@ -217,11 +250,19 @@ test('direct PCM documentation records authored BW64 byte, buffering, rollback, 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
-		/Web Enhanced \/ Electron Enhanced — In progress:.*one mix.*format `wav`, `aiff`, `bwf`, or authored\s+`bw64`.*`realtime-stream`.*WAV.*65 GiB.*AIFF.*4,294,967,303.*32-bit FORM.*4,294,967,302.*BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*authored BW64.*format and container.*`bw64`.*65 GiB.*admission ceiling.*not.*scale.*File\s+System Access or Electron.*exact-size writing/isu,
+		/Web Enhanced \/ Electron Enhanced — In progress:.*one mix.*format `wav`, `aiff`, `bwf`, or `bw64`.*`realtime-stream`.*WAV.*65 GiB.*AIFF.*4,294,967,303.*32-bit FORM.*4,294,967,302.*BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*authored BW64.*format and container `bw64`.*65 GiB.*admission ceiling.*not.*scale.*File\s+System Access or Electron.*exact-size writing/isu,
 	);
 	assert.match(
 		roadmap,
-		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized\s+version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve\s+mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*ADM passthrough.*opaque source chunks.*deferred.*`measureLoudness: true`.*fails closed.*before\s+target,\s+preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*shared PCM.*16,384-frame chunks.*pending-chunk count.*32 MiB.*Realtime\s+render\s+progress.*progress UI.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB writes.*serially awaits.*Exact `audio-pcm-mix` Electron sessions.*4 MiB.*generic exact-size.*project saves.*one MiB/isu,
+		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized\s+version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*standard BWF metadata.*markers.*iXML.*CART.*authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*bed channel order.*identity preserve\s+mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before\s+target,\s+preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*shared PCM.*16,384-frame chunks.*pending-chunk count.*32 MiB.*Realtime\s+render\s+progress.*progress UI.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB writes.*serially awaits.*Exact `audio-pcm-mix` Electron sessions.*4 MiB.*generic exact-size.*project saves.*one MiB/isu,
+	);
+	assert.match(
+		roadmap,
+		/pristine-passthrough BW64 route.*current BW64 importer.*pristine\s+planner.*valid warning-free ADM.*unchanged neutral full-range source path.*import revision.*nonempty complete `riffChunkSequence`.*aggregate complete nonstructural RIFF chunk bytes.*headers and\s+alignment bytes.*16 MiB.*1–32\s+channels.*int16.*int20.*int24.*non-float PCM.*sample-rate, channel,\s+frame, and precision geometry.*zero tail and dither.*full range.*identity\s+preserve mappings.*CHNA-derived channel order.*exact\s+compacted pre\/post chunk bytes, order, and placement.*`plan\.adm`.*top-level plan.*`inspectWavLayout`.*65 GiB/isu,
+	);
+	assert.match(
+		roadmap,
+		/preserved BEXT.*only from the sequence.*without one.*same canonical normalized\s+version-2 BEXT.*Preserved cue\/adtl.*iXML.*CART.*ID3.*LIST\/INFO.*suppress.*collisions reject.*Legacy\s+`opaqueRiffChunks`-only.*incomplete capture.*invalid or warning-bearing.*stale or edited projects.*sequence drift.*mapping or geometry drift.*loudness measurement.*before target selection.*Byte exactness.*preserved nonstructural chunks only.*BW64 structure and PCM are rebuilt.*not whole-file bit identity.*broad third-party BW64 qualification/isu,
 	);
 	assert.match(
 		roadmap,
@@ -229,11 +270,11 @@ test('direct PCM documentation records authored BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		roadmap,
-		/direct route.*without a final\s+renderer-sized `Blob`.*ADM passthrough.*opaque source chunks.*other\s+PCM.*compressed.*audio.*video.*stems.*browser-download.*existing final.*`Blob`/isu,
+		/direct route.*without a final\s+renderer-sized `Blob`.*BW64 passthrough outside the exact current-import\s+contract.*legacy opaque-only metadata.*other\s+PCM.*compressed.*audio.*video.*stems.*browser-download.*existing final.*`Blob`/isu,
 	);
 	assert.match(
 		roadmap,
-		/Focused\s+Node BWF.*five cases.*Focused Node authored BW64.*six cases.*full maintained Node suite.*382.*Chromium and Firefox.*WAV, AIFF, BWF, and\s+BW64.*eight.*injected File\s+System Access target.*mobile\s+planner\s+profile.*33\.1-second.*384 kHz.*16-bit.*101,683,200-byte.*96 MiB.*2 KiB\s+prefix.*8 KiB\s+suffix.*BW64.*ds64.*BEXT.*CHNA.*data.*AXML.*at-most-4-MiB.*serial.*no Object\s+URL.*after\s+PCM.*abort.*without close.*WebKit.*unqualified.*host.*Packaged Soundscaper Linux x64.*WAV only.*Electron 43/isu,
+		/Focused\s+Node BWF.*five cases.*Focused Node authored BW64.*six cases.*seven focused pristine-passthrough BW64 cases.*real\s+current-import-to-planner route.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*modeled-metadata collision refusal.*stale or edited planning refusal.*383 test files.*Chromium and Firefox.*WAV, AIFF, BWF, and\s+BW64.*ten format\/engine cases.*injected File\s+System Access target.*pristine-passthrough case.*5\.1.*48 kHz.*16-bit BW64.*4,210,688 frames.*101,056,512-byte.*2 KiB prefix.*4 KiB suffix.*JUNK padding.*BEXT v2.*CHNA.*before PCM.*PEAK padding.*AXML.*after PCM.*Visible realtime progress.*close, commit, and publication.*no Object URL.*second export cancels.*one abort without close, commit, or publication.*1\.7 and 1\.8 minutes.*WebKit.*unqualified.*host.*arbitrary third-party.*legacy opaque-only BW64.*edited\s+projects.*whole-file bit identity/isu,
 	);
 	assert.match(
 		roadmap,
