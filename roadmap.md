@@ -128,8 +128,11 @@ Material constraints in the current foundation are also roadmap inputs:
   less than 8 MiB transferred. A separate witness imports the authentic pinned
   asset through that real range pipeline into a counting independent-SHA
   transactional sink with zero retained payload, bounded emissions, project
-  publication, and exact release/close. This does not qualify packaged Electron
-  UI, durable OPFS/IndexedDB storage, quota/preflight, renderer/browser heap,
+  publication, and exact release/close. Import now also checks the validated
+  manifest asset-byte sum plus ten-percent rounded-up headroom against any known
+  store estimate before extraction. This does not qualify packaged Electron UI,
+  real browser quota behavior, durable OPFS/IndexedDB storage, reserved or
+  write-time capacity under concurrent imports, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
   authentication. Browser `.scape` files retain their Blob source. Several
   compressed imports, browser-download fallback, and final render outputs also
@@ -457,14 +460,35 @@ models or native implementations.
   payload. Every protocol response is an exact at-most-16-MiB `206`, every media
   emission is at most 4 MiB, project publication follows media commit, capability
   release and pinned-handle close are exact-once, and no whole-archive `Blob` is
-  created. The portable reference-scale gate runs explicitly with
+  created. The strict-TS
+  [import capacity admission](src/common/editor/scape-import-capacity.ts)
+  checked-sums the validated manifest asset sizes and adds
+  `ceil(assetBytes / 10)` before a transaction, asset writer, or extraction can
+  begin. For this fixture, 8,589,932,094 asset bytes require exactly
+  9,448,925,304 free bytes. The focused
+  [helper](tests/audio-editor-scape-import-capacity.test.ts) and
+  [import-order](tests/audio-editor-scape-import-capacity-admission.test.ts)
+  regressions prove that an existing-ID collision cancellation performs no
+  estimate, while copy and replace each charge the full incoming asset sum.
+  An absent estimator or a null, partial, negative, or non-finite estimate lets
+  import proceed; a known insufficient estimate refuses with stable frozen
+  `QUOTA_EXCEEDED` details. Estimator rejection propagates unchanged, while
+  cancellation promptly wins a signal-ignoring estimate. This is a point-in-time
+  check with no byte reservation, so a later write or concurrent import can
+  invalidate the estimate. The core importer calls the store estimate directly
+  and does not update the controller
+  [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
+  `lastPreflight` snapshot shown by the workspace UI. The portable
+  reference-scale gate runs explicitly with
   `npm run test:reference:scape-8gib`, or with
   `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1` for a direct Node-test invocation. It
   passed in an all-files coverage run, where the instrumented test took an
   observed 525 seconds; routine Node and coverage runs now report a fast skip
   naming the dedicated command without weakening the gate's assertions. This
   Node counting-sink evidence does not qualify packaged Electron UI, real
-  OPFS/IndexedDB durable storage, quota/preflight, renderer/browser heap,
+  browser quota availability or estimate accuracy, durable OPFS/IndexedDB
+  persistence, allocation overhead beyond the policy headroom, write-time quota
+  failure or concurrent capacity reservation, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
   authentication. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
@@ -857,10 +881,10 @@ models or native implementations.
   the independent branded range scope described above. The exact 8 GiB sparse
   witnesses cover payload-lazy collision inspection and a full authentic-asset
   import into a non-retaining counting sink, but not packaged Electron UI, real
-  durable application storage, quota/preflight, or renderer/main-process memory
-  budgets. Atomic save
-  disposal now
-  closes target and session admission synchronously, drains every `begin`, chunk,
+  browser quota behavior, durable application storage, reserved/write-time
+  capacity under concurrency, or renderer/main-process memory budgets. Atomic
+  save disposal now closes target and session admission synchronously, drains
+  every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
   `finish` settle through its sync-and-rename commit boundary, and then aborts
   any remaining or late-opened staging. Unacknowledged handle close or staging
@@ -1119,9 +1143,11 @@ models or native implementations.
   inspection remains payload-lazy, while a standalone full import validates the
   authentic pinned CRC and manifest SHA through the real range/service/import
   path into a non-retaining counting independent-SHA transactional sink. Still
-  qualify the packaged Electron UI, real OPFS/IndexedDB durable storage,
-  quota/preflight, renderer/browser heap, main/renderer RSS, whole-archive
-  storage atomicity, and publisher authentication. The materialized profile
+  qualify the packaged Electron UI and real OPFS/IndexedDB durable storage.
+  Real browser quota availability and estimate accuracy, capacity reservation,
+  allocation overhead beyond the policy headroom, write-time failure under
+  concurrency, renderer/browser heap, main/renderer RSS, whole-archive storage
+  atomicity, and publisher authentication remain open. The materialized profile
   continues to fail above its independent 512 MiB ceiling rather than falling
   through to the Scape route.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
