@@ -188,53 +188,174 @@ async function serveCapability(request, url, store) {
 	const remainder = url.pathname.slice(READ_CAPABILITY_PREFIX.length);
 	const id = remainder.split('/')[0];
 	if (!/^[a-f0-9]{64}$/u.test(id)) throw new ProtocolError(404, 'Capability not found');
-	const entry = store.get(id);
-	if (!entry) throw new ProtocolError(404, 'Capability not found');
-	const range = parseSingleRange(request.headers.get('range'), entry.size);
-	const status = range ? 206 : 200;
-	const start = range?.start ?? 0;
-	const end = range?.end ?? Math.max(entry.size - 1, 0);
-	const length = range?.length ?? entry.size;
-	const headers = {
-		...securityHeaders(),
-		'Cache-Control': 'no-store',
-		'Content-Type': entry.mimeType,
-		'Content-Length': String(length),
-		'Accept-Ranges': 'bytes',
-	};
-	if (range) headers['Content-Range'] = `bytes ${start}-${end}/${entry.size}`;
-	if (request.method === 'HEAD' || entry.size === 0) return new Response(null, { status, headers });
-	const stream = entry.handle.createReadStream({ start, end, autoClose: false });
-	const body = Readable.toWeb(stream);
-	bindRequestAbortToStream(request.signal, stream);
-	return new Response(body, { status, headers });
+	const lease = store.acquireRequest(id);
+	if (!lease) throw new ProtocolError(404, 'Capability not found');
+	let bodyOwnsLease = false;
+	let streamCreated = false;
+	try {
+		const range = parseSingleRange(request.headers.get('range'), lease.size);
+		const status = range ? 206 : 200;
+		const start = range?.start ?? 0;
+		const end = range?.end ?? Math.max(lease.size - 1, 0);
+		const length = range?.length ?? lease.size;
+		const headers = {
+			...securityHeaders(),
+			'Cache-Control': 'no-store',
+			'Content-Type': lease.mimeType,
+			'Content-Length': String(length),
+			'Accept-Ranges': 'bytes',
+		};
+		if (range) headers['Content-Range'] = `bytes ${start}-${end}/${lease.size}`;
+		if (request.method === 'HEAD' || lease.size === 0) {
+			return new Response(null, { status, headers });
+		}
+		const stream = lease.createReadStream({ start, end, autoClose: false });
+		streamCreated = true;
+		const body = leasedResponseBody(stream, lease, request.signal);
+		const response = new Response(body, { status, headers });
+		bodyOwnsLease = true;
+		return response;
+	} finally {
+		if (!bodyOwnsLease) {
+			if (streamCreated) await lease.retire();
+			else await lease.close();
+		}
+	}
 }
 
-function bindRequestAbortToStream(signal, stream) {
-	if (!signal?.addEventListener || !signal?.removeEventListener || !stream?.once || !stream?.destroy) return;
-	let attached = false;
-	const detach = () => {
-		stream.removeListener?.('end', detach);
-		stream.removeListener?.('error', detach);
-		stream.removeListener?.('close', detach);
-		if (!attached) return;
-		attached = false;
+function leasedResponseBody(stream, lease, signal) {
+	const reader = Readable.toWeb(stream).getReader();
+	let abortReason = null;
+	let abortAttached = false;
+	let aborted = false;
+	let cancelled = false;
+	let failed = false;
+	let failurePromise = null;
+	let outerController = null;
+	let outerSettled = false;
+	let retirementPromise = null;
+	const detachAbort = () => {
+		if (!abortAttached) return;
+		abortAttached = false;
 		signal.removeEventListener('abort', onAbort);
 	};
-	const onAbort = () => {
-		detach();
-		if (!stream.destroyed) stream.destroy(streamAbortError(signal.reason));
+	const cancelInner = (reason) => {
+		try {
+			void Promise.resolve(reader.cancel(reason)).catch(() => undefined);
+		} catch {
+			// Capability retirement remains the authoritative cleanup barrier.
+		}
 	};
-	stream.once('end', detach);
-	stream.once('error', detach);
-	stream.once('close', detach);
-	if (signal.aborted) {
-		onAbort();
-		return;
+	const retire = () => {
+		if (!retirementPromise) retirementPromise = Promise.resolve().then(() => lease.retire());
+		return retirementPromise;
+	};
+	const fail = (failure, retirement = null) => {
+		if (failurePromise) return failurePromise;
+		failed = true;
+		detachAbort();
+		failurePromise = (async () => {
+			const terminalFailure = await failureAfterRetirement(failure, lease, retirement ?? retire());
+			if (!cancelled && !outerSettled) {
+				outerSettled = true;
+				outerController.error(terminalFailure);
+			}
+			return terminalFailure;
+		})();
+		void failurePromise.catch(() => undefined);
+		return failurePromise;
+	};
+	const onAbort = () => {
+		if (aborted || cancelled || outerSettled) return;
+		aborted = true;
+		abortReason = streamAbortError(signal.reason);
+		detachAbort();
+		cancelInner(abortReason);
+		if (!stream.destroyed) {
+			try {
+				stream.destroy(abortReason);
+			} catch {
+				// Capability retirement retries and reports stream cleanup.
+			}
+		}
+		void fail(abortReason, retire());
+	};
+	const body = new ReadableStream({
+		start(controller) {
+			outerController = controller;
+			if (!signal?.addEventListener || !signal?.removeEventListener) return;
+			if (signal.aborted) {
+				onAbort();
+				return;
+			}
+			abortAttached = true;
+			signal.addEventListener('abort', onAbort, { once: true });
+			if (signal.aborted) onAbort();
+		},
+		async pull(controller) {
+			if (failed) {
+				await failurePromise;
+				return;
+			}
+			let result;
+			try {
+				result = await reader.read();
+			} catch (error) {
+				if (cancelled) return;
+				await fail(aborted ? abortReason : error);
+				return;
+			}
+			if (failed) {
+				await failurePromise;
+				return;
+			}
+			if (result.done) {
+				detachAbort();
+				try {
+					await lease.close();
+				} catch (error) {
+					if (!cancelled) await fail(error);
+					return;
+				}
+				if (!cancelled && !failed && !outerSettled) {
+					outerSettled = true;
+					controller.close();
+				}
+				return;
+			}
+			if (!cancelled) controller.enqueue(result.value);
+		},
+		async cancel(reason) {
+			cancelled = true;
+			detachAbort();
+			cancelInner(reason);
+			if (!stream.destroyed) {
+				try {
+					stream.destroy(streamAbortError(reason));
+				} catch {
+					// Capability retirement retries and reports stream cleanup.
+				}
+			}
+			await retire();
+		},
+	}, { highWaterMark: 0 });
+	void reader.closed.catch((error) => {
+		if (!cancelled) void fail(aborted ? abortReason : error);
+	});
+	return body;
+}
+
+async function failureAfterRetirement(failure, lease, retirement = null) {
+	try {
+		await (retirement ?? lease.retire());
+		return failure;
+	} catch (cleanupError) {
+		return new AggregateError(
+			[failure, cleanupError],
+			'Desktop capability response and request cleanup both failed',
+			{ cause: failure },
+		);
 	}
-	attached = true;
-	signal.addEventListener('abort', onAbort, { once: true });
-	if (signal.aborted) onAbort();
 }
 
 function streamAbortError(reason) {

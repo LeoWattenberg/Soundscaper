@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { getEventListeners } from 'node:events';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, open, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -17,6 +17,7 @@ import {
 	resolveStaticFile,
 	securityHeaders,
 } from '../desktop/protocol.js';
+import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
 import {
 	assertEditorDocumentUrl,
 	acceptsFile,
@@ -101,11 +102,13 @@ test('capability protocol abort destroys the active read stream and detaches its
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
-			get: (candidate) => candidate === id ? {
+			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 5,
 				mimeType: 'application/octet-stream',
-				handle: { createReadStream: () => stream },
+				createReadStream: () => stream,
+				close: async () => {},
+				retire: async () => {},
 			} : null,
 		},
 	});
@@ -130,6 +133,95 @@ test('capability protocol abort destroys the active read stream and detaches its
 	assert.equal(await readerClosed, reason);
 });
 
+test('capability protocol abort discards bytes buffered before the first response read', async () => {
+	const id = 'e'.repeat(64);
+	const produced = Promise.withResolvers();
+	const retired = Promise.withResolvers();
+	let retireCalls = 0;
+	const stream = new Readable({
+		read() {
+			if (this.sent) return;
+			this.sent = true;
+			this.push(Buffer.from('buffered'));
+			produced.resolve();
+		},
+	});
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: {
+			acquireRequest: (candidate) => candidate === id ? {
+				id,
+				size: 8,
+				mimeType: 'application/octet-stream',
+				createReadStream: () => stream,
+				close: async () => {},
+				retire: () => {
+					retireCalls += 1;
+					return retired.promise;
+				},
+			} : null,
+		},
+	});
+	const controller = new AbortController();
+	const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`, {
+		signal: controller.signal,
+	});
+	const response = await handler(request);
+	const reader = response.body.getReader();
+	await produced.promise;
+	const reason = new DOMException('abort before reading buffered bytes', 'AbortError');
+
+	controller.abort(reason);
+	const firstRead = reader.read();
+	assert.equal(await remainsPending(firstRead), true, 'body failure waits for capability retirement');
+	retired.resolve(true);
+	await assert.rejects(firstRead, (error) => error === reason);
+	assert.equal(retireCalls, 1);
+	assert.equal(getEventListeners(request.signal, 'abort').length, 0);
+});
+
+test('capability protocol retires an errored inner stream without another body read', async () => {
+	const id = 'f'.repeat(64);
+	const retired = Promise.withResolvers();
+	let retireCalls = 0;
+	const stream = new Readable({
+		read() {
+			if (this.sent) return;
+			this.sent = true;
+			this.push(Buffer.from('first'));
+		},
+	});
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: {
+			acquireRequest: (candidate) => candidate === id ? {
+				id,
+				size: 10,
+				mimeType: 'application/octet-stream',
+				createReadStream: () => stream,
+				close: async () => {},
+				retire: () => {
+					retireCalls += 1;
+					return retired.promise;
+				},
+			} : null,
+		},
+	});
+	const response = await handler(new Request(`soundscaper-app://bundle/_desktop/read/${id}/input.bin`));
+	const reader = response.body.getReader();
+	assert.equal(new TextDecoder().decode((await reader.read()).value), 'first');
+	const readerClosed = reader.closed.catch((error) => error);
+	const failure = new Error('injected inner stream failure');
+
+	stream.destroy(failure);
+	assert.equal(await remainsPending(readerClosed), true, 'body failure waits for capability retirement');
+	retired.resolve(true);
+	assert.equal(await readerClosed, failure);
+	assert.equal(retireCalls, 1);
+});
+
 test('capability protocol removes its abort listener after a normal stream end without close', async () => {
 	const id = 'b'.repeat(64);
 	const stream = Readable.from([Buffer.from('done')], { emitClose: false });
@@ -137,11 +229,13 @@ test('capability protocol removes its abort listener after a normal stream end w
 		rendererRoot: '/unused-renderer',
 		runtimeRoot: '/unused-runtime',
 		readCapabilities: {
-			get: (candidate) => candidate === id ? {
+			acquireRequest: (candidate) => candidate === id ? {
 				id,
 				size: 4,
 				mimeType: 'application/octet-stream',
-				handle: { createReadStream: () => stream },
+				createReadStream: () => stream,
+				close: async () => {},
+				retire: async () => {},
 			} : null,
 		},
 	});
@@ -156,6 +250,150 @@ test('capability protocol removes its abort listener after a normal stream end w
 	assert.equal(await response.text(), 'done');
 	await streamEnded;
 	assert.equal(getEventListeners(request.signal, 'abort').length, 0);
+});
+
+test('capability protocol closes bodyless and failed request leases exactly once', async () => {
+	const id = 'c'.repeat(64);
+	for (const scenario of [
+		{ name: 'invalid range', size: 4, method: 'GET', range: 'bytes=9-10', status: 416 },
+		{ name: 'head', size: 4, method: 'HEAD', status: 200 },
+		{ name: 'empty file', size: 0, method: 'GET', status: 200 },
+		{ name: 'stream construction failure', size: 4, method: 'GET', status: 500, streamFailure: true },
+	]) {
+		let closeCalls = 0;
+		let streamCalls = 0;
+		const handler = createProtocolHandler({
+			rendererRoot: '/unused-renderer',
+			runtimeRoot: '/unused-runtime',
+			readCapabilities: {
+				acquireRequest: (candidate) => candidate === id ? {
+					id,
+					size: scenario.size,
+					mimeType: 'application/octet-stream',
+					createReadStream: () => {
+						streamCalls += 1;
+						if (scenario.streamFailure) throw new Error('injected stream construction failure');
+						return Readable.from([Buffer.alloc(scenario.size)]);
+					},
+					close: async () => { closeCalls += 1; },
+					retire: async () => {},
+				} : null,
+			},
+		});
+		const request = new Request(`soundscaper-app://bundle/_desktop/read/${id}/${scenario.name}`, {
+			method: scenario.method,
+			headers: scenario.range ? { Range: scenario.range } : undefined,
+		});
+		const response = await handler(request);
+		assert.equal(response.status, scenario.status, scenario.name);
+		assert.equal(closeCalls, 1, `${scenario.name} closes its admitted request lease`);
+		assert.equal(streamCalls, scenario.streamFailure ? 1 : 0, scenario.name);
+	}
+});
+
+test('capability protocol serves one exact leased byte range', async () => {
+	const id = 'd'.repeat(64);
+	let streamOptions = null;
+	let leaseCloseCalls = 0;
+	let streamEndCalls = 0;
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: {
+			acquireRequest: (candidate) => candidate === id ? {
+				id,
+				size: 10,
+				mimeType: 'application/octet-stream',
+				createReadStream: (options) => {
+					streamOptions = options;
+					const stream = Readable.from([Buffer.from('2345')]);
+					stream.once('end', () => { streamEndCalls += 1; });
+					return stream;
+				},
+				close: async () => { leaseCloseCalls += 1; },
+				retire: async () => {},
+			} : null,
+		},
+	});
+	const response = await handler(new Request(
+		`soundscaper-app://bundle/_desktop/read/${id}/range.bin`,
+		{ headers: { Range: 'bytes=2-5' } },
+	));
+
+	assert.equal(response.status, 206);
+	assert.equal(response.headers.get('Content-Range'), 'bytes 2-5/10');
+	assert.equal(response.headers.get('Content-Length'), '4');
+	assert.deepEqual(streamOptions, { start: 2, end: 5, autoClose: false });
+	assert.equal(await response.text(), '2345');
+	assert.equal(streamEndCalls, 1);
+	assert.equal(leaseCloseCalls, 1);
+});
+
+test('real capability leases keep unread bodies exclusive and retire their handle on cancellation', async (context) => {
+	const owner = Object.freeze({ name: 'protocol-renderer-owner' });
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-capability-protocol-'));
+	const filePath = join(root, 'lease.scape');
+	await writeFile(filePath, Buffer.from('done'));
+	const handles = [];
+	const streams = [];
+	const closeCalls = [];
+	const store = new ReadCapabilityStore({
+		maximumCount: 1,
+		openImpl: async (...args) => {
+			const handle = await open(...args);
+			const index = handles.push(handle) - 1;
+			closeCalls[index] = 0;
+			return {
+				stat: () => handle.stat(),
+				createReadStream: (options) => {
+					const stream = handle.createReadStream(options);
+					streams.push(stream);
+					return stream;
+				},
+				close: async () => {
+					closeCalls[index] += 1;
+					await handle.close();
+				},
+			};
+		},
+	});
+	context.after(async () => {
+		await store.dispose().catch(() => undefined);
+		await rm(root, { recursive: true, force: true });
+	});
+	const descriptor = await store.registerPath(filePath, { owner });
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: store,
+	});
+	const requestUrl = `${descriptor.url}`;
+
+	const completeResponse = await handler(new Request(requestUrl));
+	assert.equal(await completeResponse.text(), 'done');
+	assert.ok(store.get(descriptor.id), 'normal body completion preserves the capability');
+	assert.equal(handles[0].fd >= 0, true, 'normal stream completion preserves the pinned handle');
+
+	const unreadResponse = await handler(new Request(requestUrl));
+	assert.equal(unreadResponse.status, 200, 'normal body completion releases the request slot');
+	await streamEnd(streams[1]);
+	assert.equal(unreadResponse.bodyUsed, false);
+	assert.equal(store.acquireRequest(descriptor.id), null, 'an unread body retains request exclusivity after native end');
+	assert.equal((await handler(new Request(requestUrl))).status, 404);
+	const cancelReason = new DOMException('cancel protocol body', 'AbortError');
+	await unreadResponse.body.cancel(cancelReason);
+
+	assert.equal(store.get(descriptor.id), null);
+	assert.equal(store.acquireRequest(descriptor.id), null);
+	assert.equal((await handler(new Request(requestUrl))).status, 404);
+	assert.equal(closeCalls[0], 1, 'cancellation resolves after the pinned handle close');
+	await assert.rejects(handles[0].stat(), (error) => error?.code === 'EBADF');
+	assert.equal(await store.release(descriptor.id, { owner }), false);
+
+	const replacement = await store.registerPath(filePath, { owner });
+	assert.equal(handles.length, 2, 'retirement releases the per-owner admission count');
+	assert.equal(await store.release(replacement.id, { owner }), true);
+	assert.equal(closeCalls[1], 1);
 });
 
 test('file association arguments accept only unique Scape and Audacity project paths', () => {
@@ -312,3 +550,19 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	);
 	assert.equal(calls.length, 5, 'oversized declarations do not cross IPC');
 });
+
+async function remainsPending(promise) {
+	const marker = Symbol('pending');
+	return Promise.race([
+		Promise.resolve(promise).then(() => false, () => false),
+		new Promise((resolve) => setImmediate(resolve, marker)),
+	]).then((result) => result === marker);
+}
+
+function streamEnd(stream) {
+	if (stream.readableEnded) return Promise.resolve();
+	return new Promise((resolve, reject) => {
+		stream.once('end', resolve);
+		stream.once('error', reject);
+	});
+}

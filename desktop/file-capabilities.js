@@ -25,6 +25,7 @@ export class ReadCapabilityStore {
 	#ownerStates = new WeakMap();
 	#randomBytes;
 	#revocations = new Set();
+	#retirements = new Map();
 	#ttlMs;
 
 	constructor({
@@ -73,20 +74,26 @@ export class ReadCapabilityStore {
 	}
 
 	get(id) {
-		const entry = this.#entries.get(String(id || ''));
-		if (!entry) return null;
-		if (entry.expiresAt <= this.#now()) {
-			void this.#releaseEntry(entry).catch(() => undefined);
-			return null;
-		}
-		return entry;
+		const entry = this.#liveEntry(id);
+		return entry ? descriptorFor(entry) : null;
+	}
+
+	acquireRequest(id) {
+		const entry = this.#liveEntry(id);
+		if (!entry || entry.request) return null;
+		this.#renewExpiry(entry);
+		return this.#createRequestLease(entry);
 	}
 
 	release(id, { owner } = {}) {
 		try {
 			requireOwner(owner);
-			const entry = this.#entries.get(String(id || ''));
-			if (!entry) return Promise.resolve(false);
+			const key = String(id || '');
+			const entry = this.#entries.get(key);
+			if (!entry) {
+				const retirement = this.#retirements.get(key);
+				return retirement?.owner === owner ? retirement.promise : Promise.resolve(false);
+			}
 			if (entry.owner !== owner) return Promise.resolve(false);
 			return this.#releaseEntry(entry);
 		} catch (error) {
@@ -148,13 +155,12 @@ export class ReadCapabilityStore {
 				mimeType: mimeType || mimeTypeForPath(filePath),
 				lastModified: Math.trunc(details.mtimeMs),
 				expiresAt: this.#now() + this.#ttlMs,
+				request: null,
+				retirement: null,
 				timer: null,
 			};
 			const descriptor = descriptorFor(entry);
-			entry.timer = setTimeout(() => {
-				void this.#releaseEntry(entry).catch(() => undefined);
-			}, this.#ttlMs);
-			entry.timer.unref?.();
+			this.#renewExpiry(entry);
 			state.bytes += size;
 			accountedBytes = size;
 			this.#entries.set(id, entry);
@@ -182,42 +188,224 @@ export class ReadCapabilityStore {
 	}
 
 	async #revokeOwner(state, releases) {
-		await Promise.allSettled(releases);
-		await Promise.all([...state.operations]);
-		if (state.cleanupErrors.length) {
-			throw new AggregateError([...state.cleanupErrors], 'Renderer read capability cleanup failed');
+		try {
+			await Promise.allSettled(releases);
+			await Promise.all([...state.operations]);
+			if (state.cleanupErrors.length) {
+				throw new AggregateError([...state.cleanupErrors], 'Renderer read capability cleanup failed');
+			}
+		} finally {
+			this.#clearRetirementsForOwner(state.owner);
 		}
 	}
 
 	async #dispose(releases) {
-		await Promise.allSettled(releases);
-		await Promise.all([...this.#operations, ...this.#revocations]);
-		if (this.#cleanupErrors.length) {
-			throw new AggregateError([...this.#cleanupErrors], 'Desktop read capability cleanup failed');
+		try {
+			await Promise.allSettled(releases);
+			await Promise.all([...this.#operations, ...this.#revocations]);
+			if (this.#cleanupErrors.length) {
+				throw new AggregateError([...this.#cleanupErrors], 'Desktop read capability cleanup failed');
+			}
+		} finally {
+			this.#retirements.clear();
 		}
 	}
 
 	#releaseEntry(entry) {
-		if (this.#entries.get(entry.id) !== entry) return Promise.resolve(false);
+		if (entry.retirement) return entry.retirement.promise;
+		if (this.#entries.get(entry.id) !== entry) {
+			return this.#retirements.get(entry.id)?.promise ?? Promise.resolve(false);
+		}
 		this.#entries.delete(entry.id);
 		clearTimeout(entry.timer);
-		return this.#trackOperation(async () => {
-			await this.#closeHandle(entry.handle, entry.state);
-			entry.state.count -= 1;
-			entry.state.bytes -= entry.size;
+		const retirementBarrier = Promise.withResolvers();
+		entry.retirement = Object.freeze({
+			owner: entry.owner,
+			promise: retirementBarrier.promise,
+		});
+		this.#retirements.set(entry.id, entry.retirement);
+		const request = entry.request;
+		const operation = this.#trackOperation(async () => {
+			const cleanupErrors = [];
+			if (request) {
+				try {
+					await request.close();
+				} catch (error) {
+					cleanupErrors.push(this.#recordCleanupError(
+						'Could not close the active desktop read request',
+						error,
+						entry.state,
+					));
+				}
+			}
+			let handleClosed = false;
+			try {
+				await this.#closeHandle(entry.handle, entry.state);
+				handleClosed = true;
+			} catch (error) {
+				cleanupErrors.push(error);
+			}
+			if (handleClosed) {
+				entry.state.count -= 1;
+				entry.state.bytes -= entry.size;
+			}
+			if (cleanupErrors.length === 1) throw cleanupErrors[0];
+			if (cleanupErrors.length > 1) {
+				throw new AggregateError(cleanupErrors, 'Desktop read capability retirement failed');
+			}
 			return true;
 		}, entry.state);
+		void operation.then(
+			(value) => {
+				retirementBarrier.resolve(value);
+				if (this.#retirements.get(entry.id) === entry.retirement) this.#retirements.delete(entry.id);
+			},
+			retirementBarrier.reject,
+		);
+		return retirementBarrier.promise;
 	}
 
 	async #closeHandle(handle, state) {
 		try {
 			await handle.close();
 		} catch (error) {
-			const cleanupError = new Error('Could not close the desktop read capability', { cause: error });
-			this.#cleanupErrors.push(cleanupError);
-			state.cleanupErrors.push(cleanupError);
-			throw cleanupError;
+			throw this.#recordCleanupError('Could not close the desktop read capability', error, state);
 		}
+	}
+
+	#recordCleanupError(message, cause, state) {
+		const cleanupError = new Error(message, { cause });
+		this.#cleanupErrors.push(cleanupError);
+		state.cleanupErrors.push(cleanupError);
+		return cleanupError;
+	}
+
+	#createRequestLease(entry) {
+		const requestBarrier = Promise.withResolvers();
+		let completePromise = null;
+		let forceClosePromise = null;
+		let settled = false;
+		let stream = null;
+		let streamBarrier = null;
+		let streamSettled = false;
+		const observeError = () => {
+			// Native FileHandle streams emit close after an error; keep the handle leased until then.
+			if (!settled) stream.once('error', observeError);
+		};
+		const settleStream = () => {
+			if (streamSettled) return;
+			streamSettled = true;
+			stream.removeListener?.('end', settleStream);
+			stream.removeListener?.('error', observeError);
+			stream.removeListener?.('close', settleStream);
+			streamBarrier?.resolve();
+		};
+		const finishRequest = () => {
+			if (settled) return;
+			settled = true;
+			if (entry.request === request) entry.request = null;
+			requestBarrier.resolve();
+		};
+		const createReadStream = (options) => {
+			if (settled) throw new Error('Desktop read request lease is closed');
+			if (stream) throw new Error('Desktop read request lease already has a stream');
+			let candidate;
+			try {
+				candidate = entry.handle.createReadStream(options);
+			} catch (error) {
+				finishRequest();
+				throw error;
+			}
+			if (!candidate || typeof candidate.once !== 'function'
+				|| typeof candidate.removeListener !== 'function'
+				|| typeof candidate.destroy !== 'function') {
+				finishRequest();
+				throw new TypeError('Desktop read capability returned an invalid stream');
+			}
+			stream = candidate;
+			streamBarrier = Promise.withResolvers();
+			stream.once('end', settleStream);
+			stream.once('error', observeError);
+			stream.once('close', settleStream);
+			if (stream.readableEnded === true || stream.closed === true) settleStream();
+			return stream;
+		};
+		const complete = () => {
+			if (completePromise) return completePromise;
+			completePromise = (async () => {
+				if (stream && !streamSettled) {
+					throw new Error('Desktop read request cannot complete before its stream settles');
+				}
+				finishRequest();
+				await requestBarrier.promise;
+			})();
+			return completePromise;
+		};
+		const forceClose = () => {
+			if (forceClosePromise) return forceClosePromise;
+			forceClosePromise = (async () => {
+				if (stream && !streamSettled) {
+					if (!stream.destroyed) {
+						try {
+							stream.destroy(readRequestRetiredError());
+						} catch (error) {
+							settleStream();
+							finishRequest();
+							throw error;
+						}
+					}
+					await streamBarrier.promise;
+				}
+				finishRequest();
+				await requestBarrier.promise;
+			})();
+			return forceClosePromise;
+		};
+		const request = { close: forceClose, completion: requestBarrier.promise };
+		entry.request = request;
+		this.#operations.add(request.completion);
+		entry.state.operations.add(request.completion);
+		void request.completion.then(() => {
+			this.#operations.delete(request.completion);
+			entry.state.operations.delete(request.completion);
+		});
+		return Object.freeze({
+			id: entry.id,
+			name: entry.name,
+			size: entry.size,
+			mimeType: entry.mimeType,
+			lastModified: entry.lastModified,
+			createReadStream,
+			close: complete,
+			retire: () => this.#releaseEntry(entry),
+		});
+	}
+
+	#clearRetirementsForOwner(owner) {
+		for (const [id, retirement] of this.#retirements) {
+			if (retirement.owner === owner) this.#retirements.delete(id);
+		}
+	}
+
+	#liveEntry(id) {
+		const entry = this.#entries.get(String(id || ''));
+		if (!entry) return null;
+		if (entry.expiresAt <= this.#now()) {
+			void this.#releaseEntry(entry).catch(() => undefined);
+			return null;
+		}
+		return entry;
+	}
+
+	#renewExpiry(entry) {
+		clearTimeout(entry.timer);
+		const expiresAt = this.#now() + this.#ttlMs;
+		entry.expiresAt = expiresAt;
+		entry.timer = setTimeout(() => {
+			if (this.#entries.get(entry.id) !== entry || entry.expiresAt !== expiresAt) return;
+			void this.#releaseEntry(entry).catch(() => undefined);
+		}, this.#ttlMs);
+		entry.timer.unref?.();
 	}
 
 	#sweepExpired(state) {
@@ -275,7 +463,7 @@ export class ReadCapabilityStore {
 
 	#newId() {
 		let id;
-		do id = this.#randomBytes(32).toString('hex'); while (this.#entries.has(id));
+		do id = this.#randomBytes(32).toString('hex'); while (this.#entries.has(id) || this.#retirements.has(id));
 		return id;
 	}
 }
@@ -328,4 +516,10 @@ function descriptorFor(entry) {
 function cleanDisplayName(value) {
 	const name = String(value || 'file').replace(/[\u0000-\u001f/\\]/gu, '-').slice(0, 255);
 	return name || 'file';
+}
+
+function readRequestRetiredError() {
+	const error = new Error('Desktop read capability request was retired');
+	error.name = 'AbortError';
+	return error;
 }
