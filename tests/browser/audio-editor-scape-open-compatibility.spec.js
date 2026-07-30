@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
 	BlobReader,
@@ -23,6 +26,13 @@ import {
 	openEffectsForTrack,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+
+const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
+const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
+	/ (2 * Float32Array.BYTES_PER_ELEMENT) + 1;
+const FALLBACK_SAMPLE_RATE = 48_000;
+const SCAPE_AUDIO_CHUNK_FRAMES = 65_536;
+const CHUNK_STREAM_PACKET_FRAMES = 1_024;
 
 test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();
@@ -236,6 +246,107 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('streams an oversized admitted Soundscaper audio-effects render in Framescaper', async ({ page }) => {
+		test.setTimeout(120_000);
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator.storage, 'estimate', {
+				configurable: true,
+				value: () => Promise.resolve({ usage: 1024 ** 2, quota: 2 * 1024 ** 3 }),
+			});
+		});
+		const errors = collectClientErrors(page);
+		const soundscaper = await bootEditor(page, '/embed/en/');
+		const originalId = await soundscaper.getAttribute('data-project-id');
+		expect(originalId).toBeTruthy();
+		await importFiles(soundscaper, [toneA, asymmetricStereoTone]);
+		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Invert');
+		await closeEffectsPanel(effectsPanel);
+
+		const exported = await captureScapeArchive(page, soundscaper);
+		const incomingId = `${originalId}-framescaper-streamed-audio-render`;
+		const archive = await audioEffectsRenderedFallbackArchive(exported, {
+			id: incomingId,
+			title: 'Soundscaper streamed fallback handoff',
+			fallbackSourceName: asymmetricStereoTone.name,
+			fallbackFrameCount: OVERSIZED_FALLBACK_FRAME_COUNT,
+		});
+		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
+		const dialog = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+		const temporaryArchive = await createTemporaryScapeArchive(archive);
+		try {
+			await framescaper.locator('[data-aup4-input]').setInputFiles(temporaryArchive.path);
+			await expect(dialog).toHaveAttribute('data-scape-open-decision', 'compatibility');
+			await installChunkStreamProtocolProbe(page);
+			await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
+			await expect(framescaper).toHaveAttribute('data-project-id', incomingId, { timeout: 60_000 });
+		} finally {
+			await temporaryArchive.cleanup();
+		}
+		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+		const requirement = framescaper.locator(
+			'[data-project-feature-requirement="org.soundscaper.capability.audio-effects"]',
+		);
+		await expect(requirement.locator('[data-project-feature-audio-rendered-fallback]'))
+			.toHaveText('Rendered fallback active during editor playback');
+
+		// Direct provider no-prefetch behavior remains covered at the source-lifecycle boundary.
+		await page.waitForTimeout(250);
+		const ready = await chunkStreamProtocolProbe(page);
+		expect(ready.opened).toEqual([]);
+		expect(ready.storageChunks).toEqual([]);
+		expect(ready.oversizedAudioBuffers).toEqual([]);
+
+		await framescaper.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(framescaper.getByRole('button', { name: 'Pause', exact: true }))
+			.toBeVisible({ timeout: 30_000 });
+		await expect.poll(
+			async () => (await chunkStreamProtocolProbe(page)).playStreamIds.length,
+			{ timeout: 30_000 },
+		).toBeGreaterThan(0);
+		await framescaper.getByRole('button', { name: 'Stop', exact: true }).click();
+
+		const playback = await chunkStreamProtocolProbe(page);
+		expect(playback.opened).toHaveLength(1);
+		expect(playback.contextSampleRates).toHaveLength(1);
+		const contextSampleRate = playback.contextSampleRates[0];
+		const outputFrameCount = Math.round(OVERSIZED_FALLBACK_FRAME_COUNT / FALLBACK_SAMPLE_RATE * contextSampleRate);
+		const resampling = contextSampleRate !== FALLBACK_SAMPLE_RATE;
+		const streamId = playback.opened[0].streamId;
+		expect(playback.opened[0]).toMatchObject({
+			channelCount: 2,
+			frameCount: OVERSIZED_FALLBACK_FRAME_COUNT,
+			chunkFrames: SCAPE_AUDIO_CHUNK_FRAMES,
+			startFrame: 0,
+			endFrame: outputFrameCount,
+			sourceStartFrame: 0,
+			sourceEndFrame: OVERSIZED_FALLBACK_FRAME_COUNT,
+			resample: resampling,
+			resampleInputFrames: resampling ? OVERSIZED_FALLBACK_FRAME_COUNT : null,
+			resampleInputOffset: resampling ? 0 : null,
+			packetFrames: CHUNK_STREAM_PACKET_FRAMES,
+		});
+		expect(playback.storageChunks.length).toBeGreaterThan(0);
+		expect(playback.storageChunks[0]).toMatchObject({
+			streamId,
+			chunkIndex: 0,
+			channelFrames: [SCAPE_AUDIO_CHUNK_FRAMES, SCAPE_AUDIO_CHUNK_FRAMES],
+		});
+		expect(playback.storageChunks[0].channelPeaks[0]).toBeCloseTo(0.125, 5);
+		expect(playback.storageChunks[0].channelPeaks[1]).toBeCloseTo(0.75, 5);
+		expect(playback.audioPackets.length).toBeGreaterThan(0);
+		expect(playback.audioPackets[0]).toMatchObject({
+			streamId,
+			frames: CHUNK_STREAM_PACKET_FRAMES,
+			channelFrames: [CHUNK_STREAM_PACKET_FRAMES, CHUNK_STREAM_PACKET_FRAMES],
+		});
+		expect(playback.audioPackets[0].channelPeaks[0]).toBeCloseTo(0.125, 5);
+		expect(playback.audioPackets[0].channelPeaks[1]).toBeCloseTo(0.75, 5);
+		expect(playback.playStreamIds).toContain(streamId);
+		expect(playback.oversizedAudioBuffers).toEqual([]);
+		expect(errors).toEqual([]);
+	});
+
 	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }) => {
 		test.setTimeout(90_000);
 		const fixture = await createGeneratedVideoFixture(page, {
@@ -354,8 +465,13 @@ async function incompatibleArchive(input, { id, title }) {
 	});
 }
 
-async function audioEffectsRenderedFallbackArchive(input, { id, title, fallbackSourceName }) {
-	return rewriteArchive(input, ({ project, manifest }) => {
+async function audioEffectsRenderedFallbackArchive(input, {
+	id,
+	title,
+	fallbackSourceName,
+	fallbackFrameCount = null,
+}) {
+	return rewriteArchive(input, ({ project, manifest, payloads }) => {
 		if (project.schemaVersion !== 9) throw new Error('Rendered fallback fixture requires schema 9.');
 		project.id = id;
 		project.title = title;
@@ -369,6 +485,15 @@ async function audioEffectsRenderedFallbackArchive(input, { id, title, fallbackS
 		// The archive asset is raw PCM. Author it at the project rate even when the
 		// host AudioContext decoded the WAV fixture at a different device rate.
 		source.sampleRate = project.sampleRate;
+		if (fallbackFrameCount != null) {
+			if (source.channelCount !== 2) throw new Error('Oversized fallback fixture requires stereo PCM.');
+			source.frameCount = fallbackFrameCount;
+			source.chunkFrames = SCAPE_AUDIO_CHUNK_FRAMES;
+			const payload = createScapePcmPayload(source);
+			payloads.set(asset.entry, payload);
+			asset.size = payload.byteLength;
+			asset.sha256 = createHash('sha256').update(payload).digest('hex');
+		}
 		const clipIds = new Set(project.clips
 			.filter((clip) => clip.kind === 'audio' && clip.sourceId === source.id)
 			.map((clip) => clip.id));
@@ -401,7 +526,7 @@ async function rewriteArchive(input, mutate) {
 	const encoder = new TextEncoder();
 	const project = JSON.parse(decoder.decode(payloads.get('project.json')));
 	const manifest = JSON.parse(decoder.decode(payloads.get('manifest.json')));
-	mutate({ project, manifest });
+	mutate({ project, manifest, payloads });
 	const projectBytes = encoder.encode(JSON.stringify(project));
 	payloads.set('project.json', projectBytes);
 	manifest.project.schemaVersion = project.schemaVersion;
@@ -427,6 +552,19 @@ async function setScapeInput(input, buffer) {
 		mimeType: 'application/vnd.soundscaper.scape+zip',
 		buffer,
 	});
+}
+
+async function createTemporaryScapeArchive(buffer) {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-browser-scape-'));
+	const path = join(directory, 'oversized-render.scape');
+	await writeFile(path, buffer).catch(async (error) => {
+		await rm(directory, { recursive: true, force: true });
+		throw error;
+	});
+	return {
+		path,
+		cleanup: () => rm(directory, { recursive: true, force: true }),
+	};
 }
 
 async function installAudioBufferScheduleProbe(page) {
@@ -459,6 +597,108 @@ async function scheduledAudioBufferCount(page) {
 
 async function scheduledAudioBuffers(page) {
 	return page.evaluate(() => globalThis.__scapeCompatibilityScheduledAudio);
+}
+
+function createScapePcmPayload(source) {
+	const chunkCount = Math.ceil(source.frameCount / source.chunkFrames);
+	const output = Buffer.alloc(
+		source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT + chunkCount * 4,
+	);
+	let frameOffset = 0;
+	let byteOffset = 0;
+	while (frameOffset < source.frameCount) {
+		const frames = Math.min(source.chunkFrames, source.frameCount - frameOffset);
+		output.writeUInt32LE(frames, byteOffset);
+		byteOffset += 4;
+		for (let channel = 0; channel < source.channelCount; channel += 1) {
+			if (frameOffset === 0) {
+				const value = channel === 0 ? 0.125 : 0.75;
+				for (let frame = 0; frame < Math.min(frames, 2_048); frame += 1) {
+					output.writeFloatLE(value, byteOffset + frame * Float32Array.BYTES_PER_ELEMENT);
+				}
+			}
+			byteOffset += frames * Float32Array.BYTES_PER_ELEMENT;
+		}
+		frameOffset += frames;
+	}
+	return output;
+}
+
+async function installChunkStreamProtocolProbe(page) {
+	await page.evaluate((maximumAudioBufferBytes) => {
+		const state = globalThis.__scapeCompatibilityChunkStream = {
+			audioPackets: [],
+			contextSampleRates: [],
+			opened: [],
+			oversizedAudioBuffers: [],
+			playStreamIds: [],
+			storageChunks: [],
+		};
+		const workerPostMessage = Worker.prototype.postMessage;
+		Worker.prototype.postMessage = function observeChunkWorker(message, ...rest) {
+			if (message?.type === 'open-stream') {
+				state.opened.push({
+					streamId: message.streamId,
+					channelCount: message.source?.channelCount,
+					frameCount: message.source?.frameCount,
+					chunkFrames: message.source?.chunkFrames,
+					startFrame: message.startFrame,
+					endFrame: message.endFrame,
+					sourceStartFrame: message.sourceStartFrame,
+					sourceEndFrame: message.sourceEndFrame,
+					resample: message.resample,
+					resampleInputFrames: message.resampleInputFrames,
+					resampleInputOffset: message.resampleInputOffset,
+					packetFrames: message.packetFrames,
+				});
+			} else if (message?.type === 'storage-chunk') {
+				if (state.storageChunks.length < 4) {
+					state.storageChunks.push({ streamId: message.streamId, chunkIndex: message.chunkIndex,
+						...channelSummary(message.channels) });
+				}
+			}
+			return workerPostMessage.call(this, message, ...rest);
+		};
+		const portPostMessage = MessagePort.prototype.postMessage;
+		MessagePort.prototype.postMessage = function observeChunkPort(message, ...rest) {
+			if (message?.type === 'audio-packet') {
+				if (state.audioPackets.length < 16) {
+					state.audioPackets.push({ streamId: message.streamId, frames: message.frames,
+						...channelSummary(message.channels) });
+				}
+			} else if (message?.type === 'play-stream') {
+				state.playStreamIds.push(message.streamId);
+			}
+			return portPostMessage.call(this, message, ...rest);
+		};
+		const createGain = BaseAudioContext.prototype.createGain;
+		BaseAudioContext.prototype.createGain = function observeAudioContext(...args) {
+			if (!state.contextSampleRates.includes(this.sampleRate)) state.contextSampleRates.push(this.sampleRate);
+			return createGain.apply(this, args);
+		};
+		const createBuffer = BaseAudioContext.prototype.createBuffer;
+		BaseAudioContext.prototype.createBuffer = function observeAudioBuffer(channelCount, frameCount, ...rest) {
+			const byteLength = channelCount * frameCount * Float32Array.BYTES_PER_ELEMENT;
+			if (byteLength > maximumAudioBufferBytes) {
+				state.oversizedAudioBuffers.push({ channelCount, frameCount, byteLength });
+			}
+			return createBuffer.call(this, channelCount, frameCount, ...rest);
+		};
+		function channelSummary(channels) {
+			return {
+				channelFrames: channels.map((channel) => channel.length),
+				channelPeaks: channels.map((channel) => {
+					let peak = 0;
+					for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
+					return peak;
+				}),
+			};
+		}
+	}, SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES);
+}
+
+async function chunkStreamProtocolProbe(page) {
+	return page.evaluate(() => structuredClone(globalThis.__scapeCompatibilityChunkStream));
 }
 
 async function assertAffectedInvertPlaceholder(editor) {
