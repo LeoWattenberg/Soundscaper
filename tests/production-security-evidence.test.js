@@ -52,7 +52,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	assert.match(documentation, /local operating-system compromise is out of scope/iu);
 	assert.match(
 		documentation,
-		/desktop-read-path-capabilities.*enforced for the current bounded materialization surface.*512 MiB.*preload.*renderer materializer.*exact declared `Content-Length`.*emitted-byte.*final `Blob`-size.*response body stream.*16 MiB.*platform media-chunk limit.*caller-supplied `AbortSignal`.*stalled body read.*exact reason.*never calls `response\.blob\(\)`.*scoped descriptor.*protocol request abort.*whole `Blob`.*not decoder amplification or whole-process RSS.*larger range-backed reads.*fail admission/isu,
+		/desktop-read-path-capabilities.*enforced for the current bounded 512 MiB selected-file surface.*preload.*renderer materializer.*exact declared `Content-Length`.*emitted-byte.*final `Blob`-size.*response body stream.*16 MiB.*platform media-chunk limit.*caller-supplied `AbortSignal`.*stalled body read.*exact reason.*never calls `response\.blob\(\)`.*scoped descriptor.*protocol request abort.*materialization tier.*whole `Blob`.*canonical desktop `?\.scape`?.*sole range-backed project route.*same declared-size admission.*not decoder amplification or whole-process RSS.*larger range-backed reads.*fail admission/isu,
 	);
 	assert.match(
 		documentation,
@@ -60,7 +60,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*strict renderer archive adapter.*client contract.*in isolation.*16-MiB.*partial-response.*through `done`.*descriptor URL\/declared size.*fetch implementation.*first admitted terminal error.*active, queued, and future reads.*no release operation.*canonical desktop `?\.scape`?.*not yet routed.*awaited file-service release scope.*no separate large-project admission.*512 MiB/isu,
+		/one active protocol request.*exact single byte ranges.*successful Web response body.*done.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*failed retirement.*correct owner.*owner or store teardown.*raw handle.*not exposed.*strict renderer archive adapter.*16-MiB.*ranges.*through `done`.*descriptor URL\/declared size.*fetch implementation.*first admitted terminal error.*active, queued, and future reads.*no release operation.*queued-only abort.*does not poison.*Project-dialog.*OS-association.*same explicit router.*terminal `?\.scape`?.*exact canonical Scape MIME.*awaited file-service scope.*inspection.*collision decision.*import.*exactly once.*success.*failure.*user cancellation.*abort.*authoritative cleanup barrier.*Browser Blob.*Audacity.*No separate large-project admission.*512 MiB/isu,
 	);
 	assert.match(
 		documentation,

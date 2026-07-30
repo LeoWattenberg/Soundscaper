@@ -115,13 +115,15 @@ Material constraints in the current foundation are also roadmap inputs:
 - FFmpeg WebAssembly is single-threaded, serialized through one worker, and
   returns complete in-memory outputs;
 - `.scape` now streams to selected File System Access and desktop targets. The
-  current desktop-read tier admits at most 512 MiB of active declared input per
-  committed-document owner before materializing a whole `Blob`; reference-scale
-  reads above that bound fail rather than stream. Its main-process protocol
-  provides serialized exact-range leases, and an isolated strict renderer
-  adapter implements the matching byte-source client contract, but the
-  selected-file open/inspection path is not yet routed through it. Several
-  compressed imports,
+  current desktop-read tier still admits at most 512 MiB of active declared
+  input per committed-document owner. Canonical `.scape` descriptors selected
+  through either the native dialog or an OS file association now use one shared
+  router and a branded range byte source instead of a whole renderer `Blob`.
+  One awaited file-service capability scope spans inspection, any open decision,
+  and import before releasing that descriptor exactly once. The browser `Blob`
+  path and Audacity or other desktop inputs retain their existing
+  materialization, while reference-scale reads above 512 MiB still fail because
+  separate large-project admission has not landed. Several compressed imports,
   browser-download fallback, and final render outputs also retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array;
 - browser storage remains quota- and eviction-bound;
@@ -372,17 +374,27 @@ models or native implementations.
   transport failure cancels best-effort and permanently fences queued/future
   reads with one stable restorable reason; a queued-only abort neither fetches
   nor poisons the source.
-  The adapter exposes no descriptor ID or release authority because the future
-  file-service scope must await the main-process release/retirement barrier. A
+  The adapter exposes no descriptor ID or release authority. The
+  [file service](src/common/editor/file-service.js) now constructs it inside one
+  awaited capability scope that spans inspection, any open decision, and import,
+  then releases the descriptor exactly once after success, failure, cancellation,
+  or abort. One strict-TS
+  [desktop project router](src/common/editor/ui/workspace/desktop-project-file-routing.ts)
+  sends canonical `.scape` descriptors from both the native dialog and OS file
+  associations through that scope, while browser-selected `.scape` files retain
+  the Blob transport and Audacity or other project/media families retain bounded
+  materialization. The scope's awaited main-process release/retirement remains
+  the authoritative native drain. A
   [structural witness](src/common/editor/scape-archive-layout-witness.ts)
   retains at most 69,271,649 bytes for the canonical writer profile, including
   central comments, rejects inconsistent overlapping observations, and serves
   the admitted end/central/local/descriptor bytes unchanged while fetching only
   payload gaps. This deliberately qualifies canonical `.scape` structure, not
-  arbitrary third-party ZIP local-extra expansion. Canonical selected-file
-  inspection/import is not yet routed through the desktop adapter and no
-  separate large-project admission exists, so the 512 MiB desktop
-  materialization ceiling remains unchanged. Its
+  arbitrary third-party ZIP local-extra expansion. This routing removes final
+  renderer-Blob materialization for admitted canonical desktop `.scape` opens,
+  but no separate large-project admission exists: the qualified selected-file
+  size remains 512 MiB, and the planned 8 GiB logical fixture is still pending.
+  Its
   [layout regression](tests/audio-editor-scape-archive-layout.test.ts) covers
   offset repair attempts, unsafe Zip64 values, malformed extras/descriptors,
   zeroed no-descriptor fields, and boundary crossing with bounded cancellable
@@ -395,7 +407,14 @@ models or native implementations.
   adds exact 16 MiB HTTP splitting, descriptor/fetch snapshots, response and
   stream refusal, exact-EOF serialization, first-admitted-error preservation,
   prompt terminal cancellation, queued-abort non-poisoning, and primitive-reason
-  restoration. The
+  restoration. The focused
+  [file-service scope regression](tests/audio-editor-file-service-scape-ranges.test.ts)
+  proves that one capability spans inspection, decision, and import; release is
+  exact-once across success, cancellation, failure, and prompt abort; and visible
+  abort does not bypass the authoritative release barrier. The
+  [desktop routing regression](tests/audio-editor-desktop-project-file-routing.test.ts)
+  proves `.scape` descriptors avoid whole-file materialization while Audacity
+  descriptors retain it. The
   [malicious-expansion regression](tests/audio-editor-scape-expansion.test.ts)
   proves cumulative overrun, a high-ratio DEFLATE package, unsafe PCM headers,
   local-method disagreement, and pairwise entry overlap fail without
@@ -753,7 +772,8 @@ models or native implementations.
   replacement-renderer queue retry plus real-`FileHandle` reuse, unread-body
   exclusivity, cancellation retirement, abort-before-read, and paused-stream
   failure.
-  The bounded materialization tier is also landed: preload sanitation and the
+  The bounded materialization tier is also landed for Audacity and other
+  selected inputs: preload sanitation and the
   strict-TS [renderer admission](src/common/editor/desktop-read-materialization.ts)
   repeat the 512 MiB ceiling before fetch, require exact `Content-Length`,
   emitted-byte, and final `Blob`-size agreement, and copy retained response
@@ -762,8 +782,10 @@ models or native implementations.
   scoped descriptor use releases every capability after success, failure, or
   cancellation. Protocol request abort destroys its file stream. This closes
   `whole-file-renderer-read` for the qualified bounded surface, but it does not
-  bound decoder amplification or whole-process RSS and does not qualify a
-  reference-scale desktop read. Atomic save disposal now
+  bound decoder amplification or whole-process RSS. Canonical desktop `.scape`
+  descriptors instead use the branded range scope described above, but remain
+  subject to the same qualified 512 MiB selected-file admission and therefore
+  do not yet qualify a reference-scale desktop read. Atomic save disposal now
   closes target and session admission synchronously, drains every `begin`, chunk,
   `finish`, or abort operation admitted before shutdown, lets an admitted
   `finish` settle through its sync-and-rename commit boundary, and then aborts
@@ -1013,13 +1035,14 @@ models or native implementations.
   [desktop `.scape` adapter](src/common/editor/desktop-scape-archive-byte-source.ts)
   now binds the shared archive byte-source contract to serialized, exact,
   16 MiB range fetches over a descriptor without exposing release authority.
-  Still connect only canonical `.scape` selected-file inspection/import to that
-  source inside an awaited file-service capability scope, keep Audacity and
-  other project/media families on bounded materialization, add separate
-  main-assigned large-project admission, and pass the planned 8 GiB logical
-  `.scape` fixture without a final renderer `Blob`. Until those routing and
-  admission gates land, inputs above the qualified 512 MiB materialization tier
-  fail explicitly.
+  Canonical `.scape` descriptors from the native dialog and OS associations now
+  share one strict router into that source. One awaited file-service capability
+  scope spans inspection, any open decision, and import before exact-once
+  release; browser `.scape` files retain their Blob path, and Audacity plus
+  other project/media families retain bounded materialization. Still add
+  separate main-assigned large-project admission and pass the planned 8 GiB
+  logical `.scape` fixture without a final renderer `Blob`. Until those
+  admission gates land, inputs above the qualified 512 MiB tier fail explicitly.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
   installations emerge, define compatibility beyond the retained V1–V8
   raw-document migration paths, especially an explicit migration from the prior

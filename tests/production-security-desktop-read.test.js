@@ -41,15 +41,22 @@ test('desktop read capability evidence remains qualified for its current surface
 		'desktop/file-capabilities.js',
 		'desktop/protocol.js',
 		'src/common/editor/desktop-scape-archive-byte-source.ts',
+		'src/common/editor/file-service.js',
 		'src/common/editor/scape-abort.ts',
 		'src/common/editor/scape-archive-byte-source.ts',
+		'src/common/editor/ui/workspace/AudioEditorWorkspace.jsx',
+		'src/common/editor/ui/workspace/desktop-project-file-routing.ts',
+		'src/common/editor/ui/workspace/useDesktopEditorBridge.js',
+		'tests/audio-editor-app-modules.test.js',
+		'tests/audio-editor-desktop-project-file-routing.test.ts',
 		'tests/audio-editor-desktop-scape-archive-byte-source.test.ts',
+		'tests/audio-editor-file-service-scape-ranges.test.ts',
 		'tests/desktop-read-capability-leases.test.js',
 		'tests/desktop-protocol.test.js',
 	]) assert.ok(leasedRangeRead.evidence.some((item) => item.path === path));
 	assert.match(
 		leasedRangeRead.summary,
-		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*strict renderer archive adapter.*client contract in isolation.*16-MiB.*exact partial-response.*stream done.*descriptor URL\/declared size.*fetch implementation.*first admitted failure.*stable reason.*no raw handle or release operation.*canonical desktop.*\.scape.*not yet routed.*awaited file-service release scope.*no separate large-project admission.*512 MiB/iu,
+		/one active protocol request.*exact single byte ranges.*successful.*Web response body.*done.*preserv.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*entire capability.*native stream close.*pinned handle close.*cleanup barrier.*release.*expiry.*owner revocation.*shutdown.*same retirement.*failed cleanup tombstone.*correct owner.*owner or store teardown.*does not expose.*raw handle.*strict renderer archive adapter.*16-MiB.*exact partial-response.*stream done.*descriptor URL\/declared size.*fetch implementation.*first admitted failure.*stable reason.*no raw handle or release operation.*queued-only abort.*does not poison.*project-dialog.*OS-association.*\.scape.*one router.*awaited file-service scope.*terminal.*exact canonical MIME.*inspection.*open decision.*import.*exactly once.*success.*failure.*cancellation.*abort.*Browser Blob.*Audacity.*no separate large-project admission.*512 MiB/iu,
 	);
 
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
