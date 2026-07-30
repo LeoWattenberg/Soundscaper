@@ -878,8 +878,14 @@ models or native implementations.
   or other formats. The exact decode and frame geometry is specific to the
   pinned Electron runtime and must be revisited on
   Electron upgrades; the completed-file hash is deliberately not pinned.
-  Reference-scale browser/device behavior remains unqualified, and commit-race
-  acceptance remains Node-only.
+  Reference-scale browser/device behavior remains unqualified. Maintained
+  Chromium and Firefox qualify only the injected-File-System-Access direct-WAV
+  commit race: cancellation while the selected writer's non-cancellable
+  `close()` is stalled after commit admission leaves the destination
+  unabortable; release completes exactly one full publication, while the
+  cancelled task publishes no stale success status or output link.
+  Native-picker, actual-device, packaged, AIFF, BWF, BW64, WebKit, durability,
+  crash, and power-loss commit races remain unqualified.
 - **Web Core — In progress:** the strict-TS
   [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
   publishes usage, quota, free space, pressure, eviction protection, fallback

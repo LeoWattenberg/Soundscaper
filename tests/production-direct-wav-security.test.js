@@ -158,7 +158,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/33,554,476-byte staging file.*at-most-65,536-byte.*valid-RIFF.*nonzero payload.*cleanup.*no browser download.*CI.*Soundscaper Linux x64.*bypasses the native picker.*385 MiB witness and packaged claims apply to WAV only.*no BWF or BW64 scale.*AIFF, BWF, and BW64.*no packaged, native-picker, heap, RSS, or platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash or power loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron-runtime-specific.*revisited.*hash is not pinned.*commit-race.*Node-only/iu,
+		/33,554,476-byte staging file.*at-most-65,536-byte.*valid-RIFF.*nonzero payload.*cleanup.*no browser download.*CI.*Soundscaper Linux x64.*bypasses the native picker.*385 MiB witness and packaged claims apply to WAV only.*no BWF or BW64 scale.*AIFF, BWF, and BW64.*no packaged, native-picker, heap, RSS, or platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash or power loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron-runtime-specific.*revisited.*hash is not pinned.*injected-File-System-Access direct-WAV.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start export.*exactly one complete committed publication.*zero aborts.*no stale status or output-link mutation.*Object URL.*browser download.*classic-WAV commit race.*AIFF.*BWF.*BW64.*WebKit.*native-picker.*actual-device.*reference-scale.*packaged.*crash.*power-loss.*durability.*unqualified/iu,
 	);
 
 	for (const path of [
@@ -198,7 +198,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		directPcmRollback.summary,
-		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*ten Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close, commit, or publication.*same pre-commit rollback.*current-import pristine-passthrough BW64.*visible progress.*completed publication.*without Blob fallback.*cancellation run aborts without publication.*not qualify arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file identity.*WebKit.*unqualified.*host.*commit-race.*Node-only/isu,
+		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*ten Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close, commit, or publication.*same pre-commit rollback.*current-import pristine-passthrough BW64.*visible progress.*completed publication.*without Blob fallback.*cancellation run aborts without publication.*not qualify arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file identity.*WebKit.*unqualified.*host.*injected-File-System-Access direct-WAV race.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start export.*exactly one complete committed publication.*zero aborts.*no stale status or output-link mutation.*Object URL.*browser download/isu,
 	);
 	assert.match(
 		directPcmRollback.summary,
@@ -206,7 +206,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		directPcmRollback.summary,
-		/Packaged Soundscaper Linux x64.*WAV only.*Electron 43.*33,554,476-byte staging file.*no more than 65,536 bytes.*RIFF.*nonzero payload.*destination is absent.*staging is removed.*no browser download.*bypasses the native picker.*AIFF, BWF, and BW64.*no packaged.*native-picker.*heap.*RSS.*platform qualification.*no BWF or BW64 scale.*commit-race.*Node-only.*crash.*power-loss.*durability.*other platforms.*architectures.*products.*installers.*formats.*unqualified/isu,
+		/Packaged Soundscaper Linux x64.*WAV only.*Electron 43.*33,554,476-byte staging file.*no more than 65,536 bytes.*RIFF.*nonzero payload.*destination is absent.*staging is removed.*no browser download.*bypasses the native picker.*AIFF, BWF, and BW64.*no packaged.*native-picker.*heap.*RSS.*platform qualification.*no BWF or BW64 scale.*Browser commit-race acceptance.*application-path classic-WAV.*AIFF.*BWF.*BW64.*WebKit.*native-picker.*actual-device.*reference-scale.*packaged.*unqualified.*crash.*power-loss.*durability.*other platforms.*architectures.*products.*installers.*formats.*unqualified/isu,
 	);
 });
 
@@ -275,7 +275,7 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		documentation,
-		/385 MiB witness and packaged evidence.*WAV only.*no BWF or BW64 scale.*AIFF, BWF, and BW64.*no packaged, native-picker, heap, RSS, or platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash.*power-loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron upgrades.*hash is not pinned.*commit-race.*Node-only/isu,
+		/385 MiB witness and packaged evidence.*WAV only.*no BWF or BW64 scale.*AIFF, BWF, and BW64.*no packaged, native-picker, heap, RSS, or platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash.*power-loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron upgrades.*hash is not pinned.*injected-File-System-Access direct-WAV.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start-export state.*exactly one complete destination publication.*zero aborts.*no stale success status.*output link.*Object URL.*browser download.*classic-WAV commit race.*AIFF.*BWF.*BW64.*WebKit.*native-picker.*actual-device.*reference-scale.*packaged.*crash.*power-loss.*durability.*unqualified/isu,
 	);
 	assert.match(
 		documentation,
@@ -341,7 +341,7 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		roadmap,
-		/without exercising the OS picker.*385 MiB witness and packaged evidence.*WAV only.*no BWF or BW64\s+scale.*AIFF, BWF, and BW64.*no packaged.*native-picker.*heap.*RSS.*platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash.*power-loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron upgrades.*hash.*not pinned.*commit-race.*Node-only/isu,
+		/without exercising the OS picker.*385 MiB witness and packaged evidence.*WAV only.*no BWF or BW64\s+scale.*AIFF, BWF, and BW64.*no packaged.*native-picker.*heap.*RSS.*platform qualification.*65 GiB.*admission.*not.*scale.*quota.*durability.*crash.*power-loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron upgrades.*hash.*not pinned.*Reference-scale browser\/device.*unqualified.*Chromium and Firefox.*injected-File-System-Access direct-WAV\s+commit race.*non-cancellable.*`close\(\)`.*commit admission.*exactly one full publication.*cancelled task.*no stale success status or output link.*Native-picker.*actual-device.*packaged.*AIFF.*BWF.*BW64.*WebKit.*durability.*crash.*power-loss.*unqualified/isu,
 	);
 });
 
