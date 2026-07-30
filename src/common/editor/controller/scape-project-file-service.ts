@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
+import type { ScapeProjectInput } from '../scape-project-input.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import {
@@ -41,7 +42,7 @@ export interface ScapeProjectFileServiceRuntime<
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
 	readonly openScape: (
-		file: Blob,
+		file: ScapeProjectInput,
 		options: Readonly<{ collision: 'copy' | 'replace' }>,
 	) => PromiseLike<Result> | Result;
 }

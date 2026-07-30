@@ -13,7 +13,7 @@ import type {
 	NativeProgress,
 	NativeProjectAudioSource,
 	NativeProjectDocument,
-	NativeProjectFile,
+	NativeProjectFile, NativeScapeProjectFile,
 	NativeProjectServiceRuntime,
 	NativeSavedFile,
 	OpenScapeOptions,
@@ -85,10 +85,10 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	}
 
 	async function openScape(
-		file: NativeProjectFile,
+		file: NativeScapeProjectFile,
 		options: OpenScapeOptions = {},
 	): Promise<ScapeImportResult | null> {
-		if (!file || !/\.scape$/i.test(String(file.name || ''))) {
+		if (!file || (file instanceof Blob && !/\.scape$/i.test(String(file.name || '')))) {
 			throw new TypeError('Choose a .scape project file.');
 		}
 		if (runtime.editingBlocked()) return null;

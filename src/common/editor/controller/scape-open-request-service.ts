@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorControllerLifetime } from './lifecycle.ts';
+import type { ScapeProjectInput } from '../scape-project-input.ts';
 
 export const SCAPE_OPEN_REQUEST_TASK = 'scape-open-request';
 
@@ -20,7 +21,7 @@ export type ScapeOpenRequestOptions = Readonly<Record<string, unknown>> & Readon
 
 export interface ScapeOpenDecisionRequest<Inspection extends ScapeOpenInspection> {
 	readonly kind: ScapeOpenDecisionKind;
-	readonly file: Blob;
+	readonly file: ScapeProjectInput;
 	readonly inspected: Inspection;
 	readonly signal: AbortSignal;
 }
@@ -32,11 +33,11 @@ export type ScapeOpenDecisionRequester<Inspection extends ScapeOpenInspection> =
 export interface ScapeOpenRequestRuntime<Inspection extends ScapeOpenInspection, Result> {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	readonly inspectScape: (
-		file: Blob,
+		file: ScapeProjectInput,
 		options: ScapeOpenRequestOptions & Readonly<{ signal: AbortSignal }>,
 	) => PromiseLike<Inspection> | Inspection;
 	readonly openScape: (
-		file: Blob,
+		file: ScapeProjectInput,
 		options: Readonly<{ collision: Exclude<ScapeCollisionChoice, 'cancel'> }>,
 	) => PromiseLike<Result> | Result;
 }
@@ -50,7 +51,7 @@ export function createScapeOpenRequestService<
 	return Object.freeze({ openScapeFile });
 
 	async function openScapeFile(
-		file: Blob,
+		file: ScapeProjectInput,
 		requestOpenDecision: ScapeOpenDecisionRequester<Inspection>,
 		options: ScapeOpenRequestOptions = {},
 	): Promise<Result | typeof CANCELLED> {

@@ -31,7 +31,6 @@ import {
 	verifyScapeExtractedAsset,
 } from './scape-archive-media.ts';
 import { extractScapeVideo } from './scape-archive-video.ts';
-import { withScapeArchiveReader } from './scape-archive-reader.ts';
 import { createScapeExportDestination } from './scape-export-destination.ts';
 import {
 	assertScapeExportBlob,
@@ -45,6 +44,7 @@ import {
 } from './scape-import-transaction.ts';
 import { indexScapeProjectAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
+import { withScapeProjectInput } from './scape-project-input.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
@@ -158,11 +158,10 @@ export async function exportScapeProject(project, store, options = {}) {
 }
 
 export async function importScapeProject(input, store, options = {}) {
-	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
 	const signal = options.signal;
 	let transaction = null;
 	try {
-		const result = await withScapeArchiveReader(input, signal, async (entries) => {
+		const result = await withScapeProjectInput(input, signal, async (entries) => {
 			const {
 				entryByName,
 				expandedByteBudget,
@@ -311,7 +310,10 @@ export async function importScapeProject(input, store, options = {}) {
 				reason: loaded.reason,
 				collision: existingProject ? collision : null,
 			};
-		}, options.archiveReaderFactory);
+		}, {
+			blob: options.archiveReaderFactory,
+			byteSource: options.archiveByteSourceReaderFactory,
+		});
 		transaction.complete();
 		return result;
 	} catch (error) {
@@ -327,7 +329,7 @@ function remapScapeProjectSourceReferences(project, sourceIdMap) {
 }
 
 /**
- * @param {Blob} input
+ * @param {import('./scape-project-input.ts').ScapeProjectInput} input
  * @param {{ loadProject?: (
  *   projectId: string,
  *   options?: Readonly<{ signal?: AbortSignal }>,
@@ -338,9 +340,8 @@ function remapScapeProjectSourceReferences(project, sourceIdMap) {
  * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
  */
 export async function inspectScapeProject(input, store = null, options = {}, retention = {}) {
-	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
 	const signal = options.signal;
-	return withScapeArchiveReader(input, signal, async (entries) => {
+	return withScapeProjectInput(input, signal, async (entries) => {
 		const { manifest, projectText } = await readScapeArchiveEnvelope(
 			entries,
 			options.archiveLimits || {},
@@ -372,5 +373,8 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 			manifest,
 			featureRequirementsCompatibility,
 		});
-	}, options.archiveReaderFactory);
+	}, {
+		blob: options.archiveReaderFactory,
+		byteSource: options.archiveByteSourceReaderFactory,
+	});
 }

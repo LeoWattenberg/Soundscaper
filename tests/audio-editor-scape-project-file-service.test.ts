@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 
 test('Scape project file composition shares owned inspection with collision-gated opens', async () => {
 	const lifetime = new EditorControllerLifetime();
@@ -26,7 +27,10 @@ test('Scape project file composition shares owned inspection with collision-gate
 		},
 	});
 	const inspectedFile = new Blob(['inspect']);
-	const openedFile = new Blob(['open']);
+	const openedFile = createScapeArchiveByteSource({
+		size: 4,
+		read: () => new Uint8Array(4),
+	});
 
 	assert.equal(Object.isFrozen(service), true);
 	assert.equal(await service.inspectScape(inspectedFile, { marker: 'direct' }), inspected);

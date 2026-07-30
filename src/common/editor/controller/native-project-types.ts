@@ -5,6 +5,7 @@ import type {
 	EditorProjectGeneration,
 } from './lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
+import type { ScapeArchiveByteSource } from '../scape-archive-byte-source.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -75,6 +76,7 @@ export interface NativeProjectCopy {
 }
 
 export type NativeProjectFile = Blob & Readonly<{ name: string }>;
+export type NativeScapeProjectFile = NativeProjectFile | ScapeArchiveByteSource;
 
 export interface NativeSourceWriter {
 	write(channels: readonly Float32Array[]): NativeAwaitable<unknown>;
@@ -305,7 +307,7 @@ export interface NativeProjectServiceRuntime {
 	readonly aup4Options?: Readonly<Record<string, unknown>>;
 	readonly migrateProject: (value: unknown) => Readonly<{ project: NativeProjectDocument }>;
 	readonly importScapeProject: (
-		file: NativeProjectFile,
+		file: NativeScapeProjectFile,
 		store: NativeProjectStore,
 		options: Readonly<{ collision: string; signal: AbortSignal }>,
 	) => Promise<ScapeImportResult>;

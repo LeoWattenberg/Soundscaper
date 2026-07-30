@@ -10,7 +10,7 @@ import type {
 export interface ScapeOpenDecisionPrompt<Inspection extends ScapeOpenInspection> {
 	readonly requestId: number;
 	readonly kind: ScapeOpenDecisionKind;
-	readonly file: Blob;
+	readonly file: ScapeOpenDecisionRequest<Inspection>['file'];
 	readonly inspected: Inspection;
 }
 

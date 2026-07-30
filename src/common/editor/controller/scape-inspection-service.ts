@@ -2,6 +2,7 @@
 
 import { inspectScapeProject as inspectScapeArchive } from '../scape-project.js';
 import { restoreNormalizedScapeAbortReason } from '../scape-abort.ts';
+import type { ScapeProjectInput } from '../scape-project-input.ts';
 import type { EditorControllerLifetime, EditorTaskScope } from './lifecycle.ts';
 import {
 	createScapeInspectionQuiescence,
@@ -27,14 +28,14 @@ export interface ScapeInspectionRetention {
 }
 
 export type ScapeProjectInspector<Result> = (
-	file: Blob,
+	file: ScapeProjectInput,
 	store: ScapeInspectionStore | null,
 	options: Readonly<Record<string, unknown>> & Readonly<{ signal: AbortSignal }>,
 	retention: ScapeInspectionRetention,
 ) => PromiseLike<Result> | Result;
 
 export interface ScapeInspectionService<Result> {
-	inspect(file: Blob, options?: ScapeInspectionOptions): Promise<Result>;
+	inspect(file: ScapeProjectInput, options?: ScapeInspectionOptions): Promise<Result>;
 }
 
 export interface ScapeInspectionServiceRuntime<Result> {
@@ -54,7 +55,7 @@ export function createScapeInspectionService<Result = unknown>(
 	const providerOptions = Object.freeze({ ...runtime.providerOptions });
 	return Object.freeze({ inspect });
 
-	async function inspect(file: Blob, options: ScapeInspectionOptions = {}): Promise<Result> {
+	async function inspect(file: ScapeProjectInput, options: ScapeInspectionOptions = {}): Promise<Result> {
 		const admission = quiescence.admit();
 		const retention = Object.freeze({
 			retain: (settlement: PromiseLike<unknown>) => { admission.retain(settlement); },
