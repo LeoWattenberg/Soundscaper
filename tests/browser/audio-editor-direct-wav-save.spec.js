@@ -10,10 +10,12 @@ import {
 } from './audio-editor-test-helpers.js';
 
 const CHANNEL_COUNT = 32;
-const DURATION_SECONDS = 16.5;
+const BW64_FRAME_COUNT = 1_588_800;
+const BW64_SAMPLE_RATE = 384_000;
 const FRAME_COUNT = 792_000;
 const SAMPLE_RATE = 48_000;
 const RETAINED_PREFIX_BYTES = 2 * 1024;
+const RETAINED_SUFFIX_BYTES = 8 * 1024;
 
 test.describe('direct native PCM File System Access publication', () => {
 	registerAudioEditorHooks();
@@ -305,6 +307,133 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(downloads).toBe(0);
 		expect(errors).toEqual([]);
 	});
+
+	test('streams authored BW64 bytes without Blob fallback, then rolls back cancellation after PCM', async ({ page }) => {
+		test.setTimeout(120_000);
+		const errors = collectClientErrors(page);
+		let downloads = 0;
+		page.on('download', () => { downloads += 1; });
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'userAgentData', {
+				configurable: true,
+				value: Object.freeze({ mobile: true }),
+			});
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		expect(await page.evaluate(() => navigator.userAgentData?.mobile)).toBe(true);
+		await importFiles(editor, [createThresholdTone(BW64_FRAME_COUNT)]);
+		await installDirectPcmTarget(page, {
+			fileName: 'direct-browser-adm-master.wav',
+			pcmOffset: RETAINED_PREFIX_BYTES,
+			prefixBytes: RETAINED_PREFIX_BYTES,
+			suffixBytes: RETAINED_SUFFIX_BYTES,
+		});
+
+		const exportDialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
+		await commitInput(exportDialog.locator('[data-export-field="sampleRate"] input'), String(BW64_SAMPLE_RATE));
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
+		await authorBw64Metadata(page, exportDialog);
+		const outputFrames = BW64_FRAME_COUNT * BW64_SAMPLE_RATE / SAMPLE_RATE;
+		expect(outputFrames * 2 * 4).toBeGreaterThan(96 * 1024 ** 2);
+
+		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
+			timeout: 60_000,
+		}).toBe(1);
+		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
+
+		const saved = await inspectDirectBw64Target(page, 0);
+		expect(saved).toMatchObject({
+			aborts: 0,
+			closes: 1,
+			commits: 1,
+			maxConcurrentWrites: 1,
+			opens: 1,
+			publications: 1,
+			prefixCapacityBytes: RETAINED_PREFIX_BYTES,
+			prefixBytes: RETAINED_PREFIX_BYTES,
+			suffixCapacityBytes: RETAINED_SUFFIX_BYTES,
+			suffixBytes: RETAINED_SUFFIX_BYTES,
+		});
+		expect(saved.writeCalls).toBeGreaterThan(1);
+		expect(saved.maximumWriteBytes).toBeLessThanOrEqual(4 * 1024 * 1024);
+		expect(saved.header).toEqual({
+			bitsPerSample: 16,
+			blockAlign: 4,
+			byteRate: 1_536_000,
+			channelCount: 2,
+			dataBytes32: 0xffff_ffff,
+			formatBytes: 16,
+			formatTag: 1,
+			riffBytes32: 0xffff_ffff,
+			riffId: 'BW64',
+			sampleRate: BW64_SAMPLE_RATE,
+			waveId: 'WAVE',
+		});
+		expect(saved.chunkOrder).toEqual(['bext', 'fmt ', 'chna', 'data']);
+		expect(saved.ds64).toMatchObject({
+			chunkId: 'ds64',
+			chunkBytes: 28,
+			riffBytes: saved.totalBytes - 8,
+			sampleCount: 0,
+			tableLength: 0,
+		});
+		const renderedFrames = saved.ds64.dataBytes / saved.header.blockAlign;
+		expect(Number.isInteger(renderedFrames)).toBe(true);
+		expect(renderedFrames).toBeGreaterThanOrEqual(outputFrames - BW64_SAMPLE_RATE / SAMPLE_RATE);
+		expect(renderedFrames).toBeLessThanOrEqual(outputFrames);
+		expect(renderedFrames * 2 * 4).toBeGreaterThan(96 * 1024 ** 2);
+		expect(saved.bext).toMatchObject({
+			description: 'Direct browser ADM master',
+			timeReference: '72057594037927944',
+			version: 2,
+		});
+		expect(saved.chna).toEqual({
+			entries: [
+				{ packRef: 'AP_00010002', trackIndex: 1, trackRef: 'AC_00010001_00', uid: 'ATU_00000001' },
+				{ packRef: 'AP_00010002', trackIndex: 2, trackRef: 'AC_00010002_00', uid: 'ATU_00000002' },
+			],
+			numTracks: 2,
+			numUids: 2,
+		});
+		expect(saved.axml.xml).toContain('audioProgrammeName="Direct browser programme"');
+		expect(saved.axml.xml).toContain('audioContentName="Direct browser content"');
+		expect(saved.axml.xml).toContain('audioObjectName="Direct browser stereo bed"');
+		expect(saved.axml.xml).toContain('audioPackFormatIDRef>AP_00010002</audioPackFormatIDRef>');
+		expect(saved.axml.offset).toBe(saved.dataOffset + 8 + saved.ds64.dataBytes);
+		expect(saved.axml.offset + saved.axml.chunkBytes).toBeLessThan(saved.totalBytes);
+		expect(saved.pickerOptions.types[0]).toEqual({
+			description: 'BW64 / ADM audio',
+			accept: { 'audio/wav': ['.wav'] },
+		});
+		expect(saved.pickerOptions.suggestedName).toMatch(/\.wav$/iu);
+		expect(saved.objectUrls).toEqual([]);
+		expect(downloads).toBe(0);
+
+		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
+			timeout: 15_000,
+		}).toBeGreaterThan(0);
+		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
+		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		const cancelled = await inspectDirectBw64Target(page, 1);
+		expect(cancelled.opens).toBe(1);
+		expect(cancelled.closes).toBe(0);
+		expect(cancelled.commits).toBe(0);
+		expect(cancelled.publications).toBe(0);
+		expect(cancelled.aborts).toBe(1);
+		expect(cancelled.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(cancelled.totalBytes).toBeGreaterThan(RETAINED_PREFIX_BYTES);
+		expect(cancelled.totalBytes).toBeLessThan(saved.totalBytes);
+		expect(cancelled.objectUrls).toEqual([]);
+		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
+		expect(downloads).toBe(0);
+		expect(errors).toEqual([]);
+	});
 });
 
 async function authorBextMetadata(page, exportDialog) {
@@ -320,10 +449,24 @@ async function authorBextMetadata(page, exportDialog) {
 	await metadataDialog.getByRole('button', { name: /^Done\.?$/u }).click();
 }
 
-function createThresholdTone() {
+async function authorBw64Metadata(page, exportDialog) {
+	await exportDialog.getByRole('button', { name: 'Metadata', exact: true }).click();
+	const metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
+	await metadataDialog.getByRole('tab', { name: 'BEXT', exact: true }).click();
+	await commitInput(metadataDialog.locator('input[name="description"]'), 'Direct browser ADM master');
+	await commitInput(metadataDialog.locator('input[name="timeReference"]'), '9007199254740993');
+	await metadataDialog.getByRole('tab', { name: 'ADM', exact: true }).click();
+	await metadataDialog.getByRole('button', { name: 'Enable ADM', exact: true }).click();
+	await commitInput(metadataDialog.locator('input[name="adm-programme-name"]'), 'Direct browser programme');
+	await commitInput(metadataDialog.locator('input[name="adm-content-name"]'), 'Direct browser content');
+	await commitInput(metadataDialog.locator('input[name="adm-bed-name"]'), 'Direct browser stereo bed');
+	await metadataDialog.getByRole('button', { name: /^Done\.?$/u }).click();
+}
+
+function createThresholdTone(frameCount = FRAME_COUNT) {
 	const channelCount = 2;
 	const bytesPerSample = 2;
-	const dataBytes = FRAME_COUNT * channelCount * bytesPerSample;
+	const dataBytes = frameCount * channelCount * bytesPerSample;
 	const buffer = Buffer.alloc(44 + dataBytes);
 	buffer.write('RIFF', 0);
 	buffer.writeUInt32LE(36 + dataBytes, 4);
@@ -338,13 +481,13 @@ function createThresholdTone() {
 	buffer.writeUInt16LE(16, 34);
 	buffer.write('data', 36);
 	buffer.writeUInt32LE(dataBytes, 40);
-	for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
+	for (let frame = 0; frame < frameCount; frame += 1) {
 		for (let channel = 0; channel < channelCount; channel += 1) {
 			const sample = Math.sin(2 * Math.PI * 220 * frame / SAMPLE_RATE + channel * Math.PI / 3) * 0.3;
 			buffer.writeInt16LE(Math.round(sample * 32767), 44 + (frame * channelCount + channel) * bytesPerSample);
 		}
 	}
-	return { name: `direct-threshold-${DURATION_SECONDS}.wav`, mimeType: 'audio/wav', buffer };
+	return { name: `direct-threshold-${frameCount / SAMPLE_RATE}.wav`, mimeType: 'audio/wav', buffer };
 }
 
 async function installDirectPcmTarget(page, options) {
@@ -381,6 +524,8 @@ async function installDirectPcmTarget(page, options) {
 							prefix: new Uint8Array(configuration.prefixBytes || 2 * 1024),
 							prefixBytes: 0,
 							publications: 0,
+							suffix: new Uint8Array(configuration.suffixBytes || 0),
+							suffixBytes: 0,
 							totalBytes: 0,
 							writeCalls: 0,
 						};
@@ -397,6 +542,7 @@ async function installDirectPcmTarget(page, options) {
 									session.prefix.set(chunk.subarray(0, prefixBytes), session.prefixBytes);
 									session.prefixBytes += prefixBytes;
 								}
+								if (session.suffix.length > 0) retainSuffix(session, chunk);
 								for (let index = Math.max(0, configuration.pcmOffset - session.totalBytes); index < chunk.byteLength; index += 1) {
 									if (chunk[index] !== 0) session.nonzeroPcmBytes += 1;
 								}
@@ -415,6 +561,18 @@ async function installDirectPcmTarget(page, options) {
 				};
 			},
 		});
+		function retainSuffix(session, chunk) {
+			if (chunk.byteLength >= session.suffix.length) {
+				session.suffix.set(chunk.subarray(chunk.byteLength - session.suffix.length));
+				session.suffixBytes = session.suffix.length;
+				return;
+			}
+			const overflow = Math.max(0, session.suffixBytes + chunk.byteLength - session.suffix.length);
+			if (overflow > 0) session.suffix.copyWithin(0, overflow, session.suffixBytes);
+			const retainedBytes = session.suffixBytes - overflow;
+			session.suffix.set(chunk, retainedBytes);
+			session.suffixBytes = retainedBytes + chunk.byteLength;
+		}
 	}, options);
 }
 
@@ -534,6 +692,106 @@ async function inspectDirectBwfTarget(page, sessionIndex) {
 			prefixCapacityBytes: session.prefix.byteLength,
 			riffBytes: view.getUint32(4, true) + 8,
 			trailingBytes: session.totalBytes - dataEnd,
+		};
+	}, sessionIndex);
+}
+
+async function inspectDirectBw64Target(page, sessionIndex) {
+	return page.evaluate((index) => {
+		const state = globalThis.__directPcmSave;
+		const session = state.sessions[index];
+		const prefix = session.prefix.subarray(0, session.prefixBytes);
+		const suffix = session.suffix.subarray(0, session.suffixBytes);
+		const view = new DataView(prefix.buffer, prefix.byteOffset, prefix.byteLength);
+		const suffixView = new DataView(suffix.buffer, suffix.byteOffset, suffix.byteLength);
+		const ascii = (bytes, offset, length = 4) => new TextDecoder('ascii')
+			.decode(bytes.subarray(offset, offset + length));
+		const fixedAscii = (bytes, offset, length) => ascii(bytes, offset, length).replace(/\0.*$/u, '');
+		const chunks = [];
+		let chunkOffset = 48;
+		while (chunkOffset + 8 <= prefix.byteLength) {
+			const id = ascii(prefix, chunkOffset);
+			const payloadBytes = view.getUint32(chunkOffset + 4, true);
+			chunks.push({ id, offset: chunkOffset, payloadBytes });
+			if (id === 'data') break;
+			chunkOffset += 8 + payloadBytes + (payloadBytes & 1);
+		}
+		const chunk = (id) => chunks.find((candidate) => candidate.id === id);
+		const bext = chunk('bext');
+		const format = chunk('fmt ');
+		const chna = chunk('chna');
+		const data = chunk('data');
+		const bextPayloadOffset = bext.offset + 8;
+		const low = BigInt(view.getUint32(bextPayloadOffset + 338, true));
+		const high = BigInt(view.getUint32(bextPayloadOffset + 342, true));
+		const chnaPayloadOffset = chna.offset + 8;
+		const numUids = view.getUint16(chnaPayloadOffset + 2, true);
+		const entries = Array.from({ length: numUids }, (_, entryIndex) => {
+			const offset = chnaPayloadOffset + 4 + entryIndex * 40;
+			return {
+				trackIndex: view.getUint16(offset, true),
+				uid: fixedAscii(prefix, offset + 2, 12),
+				trackRef: fixedAscii(prefix, offset + 14, 14),
+				packRef: fixedAscii(prefix, offset + 28, 11),
+			};
+		});
+		const dataBytes = Number(view.getBigUint64(28, true));
+		const expectedAxmlOffset = data.offset + 8 + dataBytes + (dataBytes & 1);
+		const axmlOffsetInSuffix = expectedAxmlOffset - (session.totalBytes - session.suffixBytes);
+		const hasAxml = axmlOffsetInSuffix >= 0
+			&& axmlOffsetInSuffix + 8 <= suffix.byteLength
+			&& ascii(suffix, axmlOffsetInSuffix) === 'axml';
+		const axmlPayloadBytes = hasAxml ? suffixView.getUint32(axmlOffsetInSuffix + 4, true) : 0;
+		const axml = !hasAxml ? null : {
+			chunkBytes: 8 + axmlPayloadBytes + (axmlPayloadBytes & 1),
+			offset: expectedAxmlOffset,
+			xml: new TextDecoder().decode(suffix.subarray(
+				axmlOffsetInSuffix + 8,
+				axmlOffsetInSuffix + 8 + axmlPayloadBytes,
+			)),
+		};
+		return {
+			...session,
+			axml,
+			bext: {
+				description: fixedAscii(prefix, bextPayloadOffset, 256),
+				timeReference: (low + (high << 32n)).toString(),
+				version: view.getUint16(bextPayloadOffset + 346, true),
+			},
+			chna: {
+				entries,
+				numTracks: view.getUint16(chnaPayloadOffset, true),
+				numUids,
+			},
+			chunkOrder: chunks.map(({ id }) => id),
+			dataOffset: data.offset,
+			ds64: {
+				chunkId: ascii(prefix, 12),
+				chunkBytes: view.getUint32(16, true),
+				riffBytes: Number(view.getBigUint64(20, true)),
+				dataBytes,
+				sampleCount: Number(view.getBigUint64(36, true)),
+				tableLength: view.getUint32(44, true),
+			},
+			header: {
+				riffId: ascii(prefix, 0),
+				riffBytes32: view.getUint32(4, true),
+				waveId: ascii(prefix, 8),
+				formatBytes: format.payloadBytes,
+				formatTag: view.getUint16(format.offset + 8, true),
+				channelCount: view.getUint16(format.offset + 10, true),
+				sampleRate: view.getUint32(format.offset + 12, true),
+				byteRate: view.getUint32(format.offset + 16, true),
+				blockAlign: view.getUint16(format.offset + 20, true),
+				bitsPerSample: view.getUint16(format.offset + 22, true),
+				dataBytes32: view.getUint32(data.offset + 4, true),
+			},
+			objectUrls: state.objectUrls,
+			pickerOptions: state.pickerOptions,
+			prefix: undefined,
+			prefixCapacityBytes: session.prefix.byteLength,
+			suffix: undefined,
+			suffixCapacityBytes: session.suffix.byteLength,
 		};
 	}, sessionIndex);
 }
