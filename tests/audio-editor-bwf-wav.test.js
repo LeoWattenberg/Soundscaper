@@ -118,14 +118,14 @@ test('Broadcast WAV switches to RF64 when its padded classic RIFF layout overflo
 	assert.equal(new DataView(header.buffer).getUint32(4, true), 0xffff_ffff);
 });
 
-test('plain WAV preserves its unpadded 44-byte-layout output for odd PCM byte counts', () => {
+test('plain WAV word-aligns odd PCM byte counts with a RIFF pad byte', () => {
 	assert.deepEqual(
 		encodeWav([Float32Array.of(0)], { sampleRate: 48_000, bitDepth: 24, dither: false }),
 		Uint8Array.of(
-			82, 73, 70, 70, 39, 0, 0, 0, 87, 65, 86, 69,
+			82, 73, 70, 70, 40, 0, 0, 0, 87, 65, 86, 69,
 			102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0,
 			128, 187, 0, 0, 128, 50, 2, 0, 3, 0, 24, 0,
-			100, 97, 116, 97, 3, 0, 0, 0, 0, 0, 0,
+			100, 97, 116, 97, 3, 0, 0, 0, 0, 0, 0, 0,
 		),
 	);
 });

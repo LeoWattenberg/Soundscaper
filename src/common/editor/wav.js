@@ -265,7 +265,7 @@ function prepareWavLayout({
 		? callerTrailingChunk.byteLength + createRiffMarkerChunks(markers).byteLength + createRiffIxmlChunk(ixml).byteLength + createRiffCartChunk(cart).byteLength + createRiffId3Chunk(metadata).byteLength + createRiffInfoChunk(metadata).byteLength
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
-	const classicDataPadSize = broadcast || requested === 'bw64' ? dataSize & 1 : 0;
+	const classicDataPadSize = dataSize & 1;
 	const classicRiffSize = 36n
 		+ BigInt(bextChunk.byteLength)
 		+ BigInt(preDataChunk.byteLength)
@@ -275,7 +275,7 @@ function prepareWavLayout({
 	const container = requested === 'bw64'
 		? 'bw64'
 		: classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
-	const dataPadSize = container === 'riff' ? classicDataPadSize : dataSize & 1;
+	const dataPadSize = classicDataPadSize;
 	const extensible = broadcast && normalizedChannels > 2 && container !== 'bw64';
 	const formatChunkByteLength = extensible ? 48 : 24;
 	const headerByteLength = 12 + (container === 'riff' ? 0 : 36)

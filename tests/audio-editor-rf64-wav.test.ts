@@ -10,20 +10,20 @@ import {
 const UINT32_MAX = 0xffff_ffff;
 
 test('WAV layout switches from RIFF to RF64 immediately after the exact RIFF size boundary', () => {
-	const exactFrames = (UINT32_MAX - 36) / 3;
+	const exactFrames = Math.floor((UINT32_MAX - 36) / 2);
 	assert.equal(Number.isInteger(exactFrames), true);
 
 	const riff = inspectWavLayout({
 		channelCount: 1,
 		totalFrames: exactFrames,
-		bitDepth: 24,
+		bitDepth: 16,
 	});
 	assert.deepEqual(riff, {
 		container: 'riff',
-		byteLength: UINT32_MAX + 8,
+		byteLength: UINT32_MAX + 7,
 		headerByteLength: 44,
-		riffSize: UINT32_MAX,
-		dataByteLength: UINT32_MAX - 36,
+		riffSize: UINT32_MAX - 1,
+		dataByteLength: UINT32_MAX - 37,
 		dataPadByteLength: 0,
 		trailingByteLength: 0,
 		bextByteLength: 0,
@@ -32,27 +32,27 @@ test('WAV layout switches from RIFF to RF64 immediately after the exact RIFF siz
 	const riffHeader = createWavHeader({
 		channelCount: 1,
 		totalFrames: exactFrames,
-		bitDepth: 24,
+		bitDepth: 16,
 	});
 	assert.equal(ascii(riffHeader, 0, 4), 'RIFF');
-	assert.equal(viewOf(riffHeader).getUint32(4, true), UINT32_MAX);
-	assert.equal(viewOf(riffHeader).getUint32(40, true), UINT32_MAX - 36);
+	assert.equal(viewOf(riffHeader).getUint32(4, true), UINT32_MAX - 1);
+	assert.equal(viewOf(riffHeader).getUint32(40, true), UINT32_MAX - 37);
 
 	const rf64 = inspectWavLayout({
 		channelCount: 1,
 		totalFrames: exactFrames + 1,
-		bitDepth: 24,
+		bitDepth: 16,
 	});
 	assert.equal(rf64.container, 'rf64');
 	assert.equal(rf64.headerByteLength, 80);
-	assert.equal(rf64.dataByteLength, UINT32_MAX - 33);
+	assert.equal(rf64.dataByteLength, UINT32_MAX - 35);
 	assert.equal(rf64.dataPadByteLength, 0);
 	assert.equal(rf64.riffSize, 72 + rf64.dataByteLength);
 	assert.equal(rf64.byteLength, rf64.riffSize + 8);
 
 	const oddRf64 = inspectWavLayout({
 		channelCount: 1,
-		totalFrames: exactFrames + 2,
+		totalFrames: 1_431_655_755,
 		bitDepth: 24,
 	});
 	assert.equal(oddRf64.container, 'rf64');

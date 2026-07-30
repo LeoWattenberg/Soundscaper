@@ -10,10 +10,72 @@ import {
 	createDirectPcmEncoder, directPcmMaximumPendingChunks,
 } from '../src/common/editor/controller/direct-pcm-export.ts';
 import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
+import type { IxmlMetadataInput } from '../src/common/editor/ixml.ts';
+import type { RiffMarkerInput } from '../src/common/editor/riff-markers.ts';
+import { inspectWavLayout } from '../src/common/editor/wav.js';
 import {
-	createDirectPcmExportFixture as createFixture, createPreparedStream, deferred, directPlan,
-	type TestPlan,
+	createDirectPcmExportFixture, createPreparedStream, deferred, directPlan,
+	type DirectExportFixtureOptions, type TestPlan,
 } from './helpers/direct-pcm-export-fixture.ts';
+
+interface WavEncoding extends Readonly<Record<string, unknown>> {
+	bitDepth: 16 | 20 | 24 | 32;
+	floatingPoint: boolean;
+	sampleFormat: 'int16' | 'int20' | 'int24' | 'int32' | 'float32';
+}
+
+interface WavPlan extends TestPlan {
+	cart: null;
+	encoding: WavEncoding;
+	ixml: IxmlMetadataInput | null;
+	markers: readonly RiffMarkerInput[];
+	metadata: Readonly<Record<string, unknown>>;
+	outputFileBytesPerRender: number;
+}
+
+function directWavPlan(overrides: Readonly<Record<string, unknown>> = {}): WavPlan {
+	const plan = {
+		...directPlan(),
+		cart: null,
+		encoding: Object.freeze({ bitDepth: 24, floatingPoint: false, sampleFormat: 'int24' }),
+		ixml: null,
+		markers: Object.freeze([]),
+		metadata: Object.freeze({}),
+		...overrides,
+	} as WavPlan;
+	if (Object.hasOwn(overrides, 'outputFileBytesPerRender')) return plan;
+	return { ...plan, outputFileBytesPerRender: wavLayout(plan).byteLength };
+}
+
+function exactDirectWavPlan(overrides: Readonly<Record<string, unknown>> = {}): WavPlan {
+	const plan = directWavPlan(overrides);
+	return { ...plan, outputFileBytesPerRender: wavLayout(plan).byteLength };
+}
+
+function wavLayout(plan: WavPlan): ReturnType<typeof inspectWavLayout> {
+	return inspectWavLayout({
+		container: 'auto',
+		sampleRate: plan.sampleRate,
+		channelCount: plan.channelCount,
+		totalFrames: plan.outputFrames,
+		bitDepth: plan.encoding.bitDepth,
+		float: plan.encoding.floatingPoint,
+		metadata: plan.metadata,
+		markers: plan.markers,
+		ixml: plan.ixml,
+	});
+}
+
+function createFixture(
+	plan: WavPlan = directWavPlan(),
+	options: DirectExportFixtureOptions = {},
+) {
+	return createDirectPcmExportFixture(plan, {
+		encoderFinalByteLength: plan.outputFileBytesPerRender,
+		encoderInitialChunks: [new Uint8Array(plan.outputFileBytesPerRender - 3)],
+		...options,
+	});
+}
 
 test('direct PCM encoder coalesces bounded container writes and awaits each destination flush', async () => {
 	assert.equal(DIRECT_PCM_DESTINATION_WRITE_BYTES, 4 * 1024 * 1024);
@@ -63,7 +125,8 @@ test('direct PCM encoder coalesces bounded container writes and awaits each dest
 });
 
 test('exact realtime WAV mixes await coalesced destination writes and publish no Blob', async () => {
-	const fixture = createFixture();
+	const plan = directWavPlan();
+	const fixture = createFixture(plan);
 	const writeStarted = deferred();
 	const releaseWrite = deferred();
 	const destination = createPreparedStream({
@@ -89,8 +152,9 @@ test('exact realtime WAV mixes await coalesced destination writes and publish no
 	releaseWrite.resolve();
 	const result = await saving;
 
-	assert.deepEqual(destination.admissions, [[4, 'exact']]);
-	assert.deepEqual(destination.chunks.map((chunk) => [...chunk]), [[0], [1, 2, 3]]);
+	assert.deepEqual(destination.admissions, [[plan.outputFileBytesPerRender, 'exact']]);
+	assert.deepEqual(destination.chunks.map((chunk) => chunk.byteLength), [plan.outputFileBytesPerRender - 3, 3]);
+	assert.deepEqual([...destination.chunks[1]], [1, 2, 3]);
 	assert.equal(destination.commitCalls(), 1);
 	assert.equal(destination.abortCalls(), 0);
 	assert.equal(fixture.downloads.length, 0);
@@ -115,7 +179,7 @@ test('exact realtime WAV mixes await coalesced destination writes and publish no
 		url: null,
 		fileName: 'direct.wav',
 		mimeType: 'audio/wav',
-		size: 4,
+		size: plan.outputFileBytesPerRender,
 		method: 'file-system-access',
 	});
 	assert.equal(fixture.state.outputUrl, null);
@@ -128,7 +192,7 @@ test('direct WAV resamples before a selection-only channel expansion', async () 
 		mode: 'custom',
 		channels: Array.from({ length: 16 }, () => ({ inputs: [{ channel: 0, gain: 1 }] })),
 	};
-	const fixture = createFixture({ ...directPlan(), channelCount: 16, channelMapping: mapping });
+	const fixture = createFixture(directWavPlan({ channelCount: 16, channelMapping: mapping }));
 	const destination = createPreparedStream();
 	fixture.setPrepared(destination.prepared);
 	await createEditorExportService(fixture.runtime).handleExportAction('export');
@@ -151,39 +215,216 @@ test('direct WAV pending PCM capacity is byte-bounded across render channel coun
 	}
 });
 
-test('direct WAV admission is exact and keeps other PCM plans on their existing path', async () => {
+test('direct WAV admission rejects malformed or stale classic layout geometry before target selection', async () => {
 	assert.equal(DIRECT_WAV_MAXIMUM_FILE_BYTES, MAX_DESKTOP_SAVE_BYTES);
-	for (const candidate of [
-		{ ...directPlan(), format: 'bwf' },
-		{ ...directPlan(), format: 'bw64' },
-		{ ...directPlan(), format: 'aiff' },
-		{ ...directPlan(), mimeType: 'audio/x-wav' },
-		{ ...directPlan(), mode: 'stems' },
-		{ ...directPlan(), outputs: [...directPlan().outputs, { fileName: 'other.wav', trackId: 'other' }] },
-		{ ...directPlan(), outputs: [{ fileName: 'mix.wave', trackId: 'track' }] },
-		{ ...directPlan(), outputFileBytesPerRender: null },
-		{ ...directPlan(), outputFileBytesPerRender: 0 },
-		{ ...directPlan(), outputFileBytesPerRender: DIRECT_WAV_MAXIMUM_FILE_BYTES + 1 },
-		{ ...directPlan(), render: { strategy: 'offline' } },
-	] satisfies TestPlan[]) {
+	const valid = directWavPlan();
+	const incorrectlyAdmitted: string[] = [];
+	for (const [label, candidate] of [
+		['wrong format', { ...valid, format: 'bwf' }],
+		['BW64 format', { ...valid, format: 'bw64' }],
+		['AIFF format', { ...valid, format: 'aiff' }],
+		['wrong MIME type', { ...valid, mimeType: 'audio/x-wav' }],
+		['stems', { ...valid, mode: 'stems' }],
+		['multiple outputs', { ...valid, outputs: [
+			...valid.outputs, { fileName: 'other.wav', trackId: 'other' },
+		] }],
+		['wrong extension', { ...valid, outputs: [{ fileName: 'mix.wave', trackId: 'track' }] }],
+		['missing byte count', { ...valid, outputFileBytesPerRender: null }],
+		['zero byte count', { ...valid, outputFileBytesPerRender: 0 }],
+		['fractional byte count', { ...valid, outputFileBytesPerRender: 1.5 }],
+		['unsafe byte count', { ...valid, outputFileBytesPerRender: Number.MAX_SAFE_INTEGER + 1 }],
+		['over-limit byte count', { ...valid, outputFileBytesPerRender: DIRECT_WAV_MAXIMUM_FILE_BYTES + 1 }],
+		['layout byte-count mismatch', { ...valid, outputFileBytesPerRender: valid.outputFileBytesPerRender + 2 }],
+		['offline render', { ...valid, render: { strategy: 'offline' } }],
+		['explicit auto container', { ...valid, container: 'auto' }],
+		['explicit BW64 container', { ...valid, container: 'bw64' }],
+		['explicit BEXT', { ...valid, bext: { description: 'forged' } }],
+		['explicit null BEXT', { ...valid, bext: null }],
+		['ADM', { ...valid, adm: { mode: 'authored' } }],
+		['pre-data chunks', { ...valid, preDataChunks: new Uint8Array([1]) }],
+		['trailing chunks', { ...valid, trailingChunks: new Uint8Array([2]) }],
+		['missing CART', { ...valid, cart: undefined }],
+		['classic CART metadata', { ...valid, cart: { title: 'Ignored by the classic writer' } }],
+		['missing sample rate', { ...valid, sampleRate: undefined }],
+		['zero sample rate', { ...valid, sampleRate: 0 }],
+		['string sample rate', { ...valid, sampleRate: '48000' }],
+		['fractional sample rate', { ...valid, sampleRate: 48_000.5 }],
+		['unsafe sample rate', { ...valid, sampleRate: Number.MAX_SAFE_INTEGER + 1 }],
+		['over-field sample rate', { ...valid, sampleRate: 0x1_0000_0000 }],
+		['missing channel count', { ...valid, channelCount: undefined }],
+		['zero channel count', { ...valid, channelCount: 0 }],
+		['string channel count', { ...valid, channelCount: '2' }],
+		['fractional channel count', { ...valid, channelCount: 1.5 }],
+		['over-limit channel count', { ...valid, channelCount: 33 }],
+		['stale channel geometry', { ...valid, channelCount: 1 }],
+		['missing output frames', { ...valid, outputFrames: undefined }],
+		['string output frames', { ...valid, outputFrames: '2' }],
+		['fractional output frames', { ...valid, outputFrames: 1.5 }],
+		['negative output frames', { ...valid, outputFrames: -1 }],
+		['unsafe output frames', { ...valid, outputFrames: Number.MAX_SAFE_INTEGER + 1 }],
+		['stale frame geometry', { ...valid, outputFrames: valid.outputFrames + 1 }],
+		['missing encoding', { ...valid, encoding: undefined }],
+		['null encoding', { ...valid, encoding: null }],
+		['string encoding', { ...valid, encoding: 'int24' }],
+		['array encoding', { ...valid, encoding: [] }],
+		['decorated array encoding', { ...valid, encoding: Object.assign([], {
+			bitDepth: 24, floatingPoint: false, sampleFormat: 'int24',
+		}) }],
+		['missing bit depth', { ...valid, encoding: {
+			floatingPoint: false, sampleFormat: 'int24',
+		} }],
+		['missing floating-point flag', { ...valid, encoding: {
+			bitDepth: 24, sampleFormat: 'int24',
+		} }],
+		['missing sample format', { ...valid, encoding: {
+			bitDepth: 24, floatingPoint: false,
+		} }],
+		['unsupported integer-32', { ...valid, encoding: {
+			bitDepth: 32, floatingPoint: false, sampleFormat: 'int32',
+		} }],
+		['bit-depth mismatch', { ...valid, encoding: {
+			bitDepth: 16, floatingPoint: false, sampleFormat: 'int24',
+		} }],
+		['floating-point mismatch', { ...valid, encoding: {
+			bitDepth: 24, floatingPoint: true, sampleFormat: 'int24',
+		} }],
+		['float-32 integer mismatch', { ...valid, encoding: {
+			bitDepth: 32, floatingPoint: false, sampleFormat: 'float32',
+		} }],
+		['stale sample format', { ...valid, encoding: {
+			bitDepth: 16, floatingPoint: false, sampleFormat: 'int16',
+		} }],
+		['missing metadata', { ...valid, metadata: undefined }],
+		['null metadata', { ...valid, metadata: null }],
+		['string metadata', { ...valid, metadata: 'forged' }],
+		['array metadata', { ...valid, metadata: [] }],
+		['decorated array metadata', { ...valid, metadata: Object.assign([], { title: 'forged' }) }],
+		['malformed metadata', { ...valid, metadata: { title: '\u0001' } }],
+		['stale metadata geometry', { ...valid, metadata: { title: 'Changed' } }],
+		['missing markers', { ...valid, markers: undefined }],
+		['object markers', { ...valid, markers: {} }],
+		['invalid marker geometry', { ...valid, markers: [{ sampleOffset: -1 }] }],
+		['stale marker geometry', { ...valid, markers: [{ id: 1, sampleOffset: 0, label: 'Start' }] }],
+		['missing iXML', { ...valid, ixml: undefined }],
+		['string iXML', { ...valid, ixml: 'forged' }],
+		['array iXML', { ...valid, ixml: [] }],
+		['decorated array iXML', { ...valid, ixml: Object.assign([], { project: 'forged' }) }],
+		['invalid iXML geometry', { ...valid, ixml: { tracks: [{ channelIndex: 0 }] } }],
+		['stale iXML geometry', { ...valid, ixml: { project: 'Changed' } }],
+	] satisfies Array<readonly [string, Readonly<Record<string, unknown>>]>) {
 		let prepareCalls = 0;
 		const preparation = await prepareDirectWavDestination({
-			prepareSave() { prepareCalls += 1; return Object.freeze({ mode: 'blob' }); },
-		}, candidate, {}, new AbortController().signal);
-		assert.equal(prepareCalls, 0, `${candidate.format}:${candidate.mode}`);
-		assert.equal(preparation.cancelled, null);
-		assert.equal(preparation.destination, null);
+			prepareSave() {
+				prepareCalls += 1;
+				return Object.freeze({ mode: 'blob' });
+			},
+		}, candidate as Parameters<typeof prepareDirectWavDestination>[1], {}, new AbortController().signal);
+		if (prepareCalls !== 0) incorrectlyAdmitted.push(label);
+		assert.deepEqual(preparation, { cancelled: null, destination: null });
 	}
-	let boundaryCalls = 0;
-	await prepareDirectWavDestination({
-		prepareSave() { boundaryCalls += 1; return Object.freeze({ mode: 'blob' }); },
-	}, {
-		...directPlan(),
-		outputs: [{ fileName: 'MIX.WAV', trackId: 'track' }],
-		outputFileBytesPerRender: DIRECT_WAV_MAXIMUM_FILE_BYTES,
-	}, {}, new AbortController().signal);
-	assert.equal(boundaryCalls, 1);
+	assert.deepEqual(incorrectlyAdmitted, []);
+});
 
+test('direct WAV admission accepts exact canonical, metadata-rich, RIFF, RF64, and 65 GiB layouts', async () => {
+	for (const encoding of [
+		Object.freeze({ bitDepth: 16, floatingPoint: false, sampleFormat: 'int16' }),
+		Object.freeze({ bitDepth: 20, floatingPoint: false, sampleFormat: 'int20' }),
+		Object.freeze({ bitDepth: 24, floatingPoint: false, sampleFormat: 'int24' }),
+		Object.freeze({ bitDepth: 32, floatingPoint: true, sampleFormat: 'float32' }),
+	] as const) {
+		const plan = directWavPlan({ encoding });
+		let prepareCalls = 0;
+		await prepareDirectWavDestination({
+			prepareSave() {
+				prepareCalls += 1;
+				return Object.freeze({ mode: 'blob' });
+			},
+		}, plan, {}, new AbortController().signal);
+		assert.equal(prepareCalls, 1, encoding.sampleFormat);
+	}
+
+	const richPlan = directWavPlan({
+		channelCount: 1,
+		encoding: Object.freeze({ bitDepth: 24, floatingPoint: false, sampleFormat: 'int24' }),
+		ixml: Object.freeze({ project: 'Exact classic WAV' }),
+		markers: Object.freeze([{ id: 1, sampleOffset: 0, label: 'Start' }]),
+		metadata: Object.freeze({ title: 'Exact classic WAV' }),
+		outputFrames: 1,
+	});
+	const richLayout = wavLayout(richPlan);
+	assert.equal(richLayout.container, 'riff');
+	assert.equal(richLayout.dataByteLength, 3);
+	assert.equal(richLayout.dataPadByteLength, 1);
+	assert.ok(richLayout.trailingByteLength > 0);
+	let richPrepareCalls = 0;
+	await prepareDirectWavDestination({
+		prepareSave() {
+			richPrepareCalls += 1;
+			return Object.freeze({ mode: 'blob' });
+		},
+	}, richPlan, {}, new AbortController().signal);
+	assert.equal(richPrepareCalls, 1);
+
+	const riffMaximum = directWavPlan({
+		channelCount: 1,
+		encoding: Object.freeze({ bitDepth: 16, floatingPoint: false, sampleFormat: 'int16' }),
+		outputFrames: 2_147_483_629,
+	});
+	const riffLayout = wavLayout(riffMaximum);
+	assert.equal(riffLayout.container, 'riff');
+	assert.equal(riffLayout.riffSize, 0xffff_fffe);
+	assert.equal(riffLayout.byteLength, 4_294_967_302);
+	assert.equal(riffLayout.dataPadByteLength, 0);
+	const firstRf64 = exactDirectWavPlan({ ...riffMaximum, outputFrames: riffMaximum.outputFrames + 1 });
+	const rf64Layout = wavLayout(firstRf64);
+	assert.equal(rf64Layout.container, 'rf64');
+	assert.equal(rf64Layout.headerByteLength, 80);
+	assert.equal(rf64Layout.byteLength, 4_294_967_340);
+	for (const plan of [riffMaximum, firstRf64]) {
+		let prepareCalls = 0;
+		await prepareDirectWavDestination({
+			prepareSave() {
+				prepareCalls += 1;
+				return Object.freeze({ mode: 'blob' });
+			},
+		}, plan, {}, new AbortController().signal);
+		assert.equal(prepareCalls, 1, wavLayout(plan).container);
+	}
+
+	const maximumPlan = directWavPlan({
+		channelCount: 1,
+		encoding: Object.freeze({ bitDepth: 16, floatingPoint: false, sampleFormat: 'int16' }),
+		outputFrames: 34_896_609_240,
+		outputs: [{ fileName: 'MIX.WAV', trackId: 'track' }],
+	});
+	const maximumLayout = wavLayout(maximumPlan);
+	assert.equal(maximumLayout.container, 'rf64');
+	assert.equal(maximumLayout.headerByteLength, 80);
+	assert.equal(maximumLayout.byteLength, DIRECT_WAV_MAXIMUM_FILE_BYTES);
+	const nextPlan = exactDirectWavPlan({ ...maximumPlan, outputFrames: maximumPlan.outputFrames + 1 });
+	const nextLayout = wavLayout(nextPlan);
+	assert.equal(nextLayout.byteLength, DIRECT_WAV_MAXIMUM_FILE_BYTES + 2);
+
+	const destination = createPreparedStream();
+	const preparation = await prepareDirectWavDestination({
+		prepareSave() { return destination.prepared; },
+	}, maximumPlan, {}, new AbortController().signal);
+	assert.deepEqual(destination.admissions, [[maximumLayout.byteLength, 'exact']]);
+	assert.ok(preparation.destination);
+	await preparation.destination.abort();
+	assert.equal(destination.abortCalls(), 1);
+	let nextPrepareCalls = 0;
+	const nextPreparation = await prepareDirectWavDestination({
+		prepareSave() {
+			nextPrepareCalls += 1;
+			return Object.freeze({ mode: 'blob' });
+		},
+	}, nextPlan, {}, new AbortController().signal);
+	assert.equal(nextPrepareCalls, 0);
+	assert.deepEqual(nextPreparation, { cancelled: null, destination: null });
+});
+
+test('classic WAV keeps the existing Blob fallback when no exact stream destination opens', async () => {
 	const fallback = createFixture();
 	const result = await createEditorExportService(fallback.runtime).handleExportAction('export');
 	assert.equal(fallback.prepareRequests.length, 1);
@@ -218,7 +459,7 @@ test('direct WAV cancellation avoids rendering and write or commit failures abor
 test('direct WAV publication requires plan, encoder, destination, and committed sizes to agree', async () => {
 	for (const [label, fixture, destination, expectedCommitCalls, expectedAbortCalls] of [
 		[
-			'encoder', createFixture(directPlan(), { encoderFinalByteLength: 3 }),
+			'encoder', createFixture(directWavPlan(), { encoderFinalByteLength: 3 }),
 			createPreparedStream(), 0, 1,
 		],
 		[
@@ -275,7 +516,8 @@ test('cancellation during direct commit returns the saved file without stale suc
 			await releaseCommit.promise;
 		},
 	});
-	const fixture = createFixture();
+	const plan = directWavPlan();
+	const fixture = createFixture(plan);
 	const previousOutput = Object.freeze({ url: 'blob:previous', fileName: 'previous.wav' });
 	fixture.state.outputUrl = 'blob:previous';
 	fixture.state.exportOutput = previousOutput;
@@ -293,7 +535,7 @@ test('cancellation during direct commit returns the saved file without stale suc
 		url: null,
 		fileName: 'direct.wav',
 		mimeType: 'audio/wav',
-		size: 4,
+		size: plan.outputFileBytesPerRender,
 		method: 'file-system-access',
 	});
 	assert.equal(destination.commitCalls(), 1);
