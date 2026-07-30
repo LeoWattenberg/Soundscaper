@@ -563,7 +563,10 @@ models or native implementations.
   native open settlement. The same caller/task-composed signal reaches all three
   phases; replacement, caller cancellation, and disposal promptly reject even an
   abort-ignoring open with their exact reason, while native import rechecks that
-  signal before switching projects or publishing status. A React-independent
+  signal before switching projects or publishing status. Matching native-import
+  cleanup clears and republishes the global busy flag even when project
+  activation changed the original generation; an older owner cannot clear newer
+  work. A React-independent
   [continuation owner](src/common/editor/ui/workspace/scape-open-decision-continuation.ts)
   publishes one opaque kind/file/inspection prompt, accepts only the closed
   choices for that kind, settles its exact identity once, rejects and clears
@@ -1219,7 +1222,7 @@ models or native implementations.
   declared dispositions while the owning tab is active. Effective disposition
   remains structured metadata. The bounded scrolling region is keyboard
   focusable; it never reads evaluator messages or fallback descriptors, offers
-  no activation controls, and makes no rendered-fallback-substitution or
+  no activation controls, and makes no generic rendered-fallback-substitution or
   third-party-loading claim. Compatible and future-schema `null` reports render
   no notice, and tab switching follows the per-tab report without traversing
   future `featureRequirements` state.
@@ -1241,6 +1244,27 @@ models or native implementations.
   before rack traversal. This does not cover unknown or third-party effects,
   rendered-fallback substitution, offline render or export behavior, or
   per-feature activation controls.
+  A separate maintained exact-schema-V9 first-party audio-effects rendered
+  fallback slice activates only one registered unavailable `audioEffects` item
+  with declared and effective rendered-fallback dispositions whose descriptor
+  exactly matches the canonical manifest. Its source must be mono or stereo,
+  use a safe positive frame range, and match project sample rate and master
+  channel count; ADM, surround, ambiguity, descriptor drift, missing media,
+  unsafe geometry, and reserved synthetic ID collisions reject. For editor
+  playback the full source becomes one neutral whole-mix clip from frame zero.
+  The transient projection removes canonical audio clips and tracks and
+  neutralizes mixer and master processing, while retaining video and label
+  timing. Initial activation and later engine reapplies share the same playback
+  projection. Required stored metadata is rechecked; short decoded-buffer
+  geometry must match exactly, while oversized sources must expose a streamable chunk
+  provider. Stream chunks are not prefetched or revalidated at readiness, so a
+  later provider failure remains possible; readiness failure prevents engine
+  load. Canonical project, history, persistence, save, export, and offline
+  render remain unchanged. Frozen per-tab metadata drives a localized
+  active-playback indicator without exposing the source ID or digest. This does
+  not cover generic or video fallback, freeze/proxy authoring, ADM or surround
+  playback, unknown or third-party activation, future schemas, or earlier
+  Soundscaper project schemas.
   The maintained first-party video-effect slice similarly projects only an
   exact-schema-V9 authoritative activation project whose registered
   `videoEffects` report item is unavailable with declared bypass and effective
@@ -1329,12 +1353,17 @@ models or native implementations.
   before storage reads, and performs no asset reads or feature-manifest
   traversal for future schemas. This is an admission-time controller guarantee,
   not a guarantee for arbitrary direct `store.loadProject()` calls, continuous
-  binding against
-  later low-level source replacement, publisher authenticity, or runtime
-  fallback substitution. Generic affected-object unavailable-feature
+  binding against later low-level source replacement, publisher authenticity,
+  or substitution by the admission step itself. It is point-in-time, not a
+  durable byte lease. The separate exact-V9 first-party audio whole-mix slice
+  performs the narrow editor-playback substitution described above. Its source
+  preparation is not transactional or abortable: the canonical identity fence
+  suppresses stale engine apply, but a stale read may publish cache or provider
+  state, and activation source failure after tab, lock, and session publication
+  does not roll those effects back. Generic affected-object unavailable-feature
   placeholders and per-feature bypass controls beyond the bounded maintained
-  first-party audio- and video-effect slices, rendered-fallback runtime use, and
-  arbitrary future-schema archive preservation remain planned. Complete
+  first-party audio- and video-effect slices, generic or video rendered-fallback
+  runtime use, and arbitrary future-schema archive preservation remain planned. Complete
   third-party discovery, loading, and isolation remain separate later surfaces
   rather than blockers for this first-party contract.
 
@@ -1369,8 +1398,13 @@ models or native implementations.
   report. A maintained Soundscaper-to-Framescaper `.scape` handoff now proves the
   bounded first-party audio-effect engine bypass, and a maintained
   Framescaper-to-Soundscaper handoff proves first-party video-effect preservation
-  and persistent control-free affected-effect placeholders. This exit remains
-  open for rendered-fallback runtime behavior,
+  and persistent control-free affected-effect placeholders. Exact-schema-V9
+  first-party audio whole-mix editor playback through the short decoded-source
+  path, including its persistent active-fallback indicator, is browser-qualified.
+  Oversized stream-provider readiness has unit coverage only; readiness does not
+  prefetch or revalidate its chunks after point-in-time admission. This exit
+  remains open for rendered-fallback runtime behavior
+  beyond the maintained first-party audio whole-mix slice,
   generic unavailable-feature placeholder and bypass controls, and arbitrary
   future-schema archive preservation. Complete third-party activation is a
   deliberately separate later surface, not a milestone-2 prerequisite.

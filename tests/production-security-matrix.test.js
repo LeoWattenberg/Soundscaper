@@ -283,6 +283,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/audio-editor-native-project-service.test.ts',
+		'tests/audio-editor-native-scape-open-cancellation.test.ts',
 		'tests/audio-editor-file-service.test.js',
 	]) {
 		assert.ok(
@@ -357,7 +358,9 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js',
 		'src/common/editor/ui/AudioEditorDialogShell.tsx',
 		'src/common/editor/app.js',
+		'src/common/editor/controller/native-project-service.ts',
 		'tests/audio-editor-scape-open-request-service.test.ts',
+		'tests/audio-editor-native-scape-open-cancellation.test.ts',
 		'tests/audio-editor-scape-project-file-service.test.ts',
 		'tests/audio-editor-scape-open-decision-continuation.test.ts',
 		'tests/audio-editor-scape-open-decision-dialog.test.ts',
@@ -369,8 +372,16 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 	]) assert.ok(scapeOpenDecisionContinuation.evidence.some((item) => item.path === path));
 	assert.match(
 		scapeOpenDecisionContinuation.summary,
-		/replaceable request task.*before inspection.*signal.*closed.*open decision.*opaque prompt.*exact identity.*replacement.*project switching.*terminal disposal.*exact cancellation reasons.*explicit user cancel.*finishes.*before native open.*default.*Cancel.*Escape.*focus/iu,
+		/replaceable request task.*before inspection.*signal.*closed.*open decision.*native-open settlement.*opaque prompt.*exact identity.*replacement.*project switching.*terminal disposal.*exact cancellation reasons.*explicit user cancel.*native-import cleanup.*cleared busy flag.*project activation.*generation.*default.*Cancel.*Escape.*focus/iu,
 	);
+	const generationGuards = cancellation.currentControls.find(
+		({ id }) => id === 'controller-generation-and-abort-guards',
+	);
+	assert.ok(generationGuards);
+	assert.ok(generationGuards.evidence.some(
+		({ path }) => path === 'tests/audio-editor-native-scape-open-cancellation.test.ts',
+	));
+	assert.match(generationGuards.summary, /importing flag.*external project generation change.*older owner.*newer work/iu);
 	const projectIoResidual = cancellation.residualRisks.find(
 		({ id }) => id === 'project-io-signal-propagation',
 	);

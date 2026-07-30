@@ -44,6 +44,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-controller-feature-report': 'implemented',
 		'current-post-open-feature-report': 'implemented',
 		'current-first-party-audio-effect-playback-bypass': 'implemented',
+		'current-first-party-audio-rendered-fallback-playback': 'implemented',
 		'current-first-party-video-effect-playback-bypass': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
@@ -439,7 +440,13 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/generic per-object placeholders.*beyond.*first-party audio- and video-effect slices.*rendered-fallback runtime use.*future-schema archive preservation.*not implemented/iu,
+		/first-party audio.*whole-mix.*rendered-fallback.*editor playback.*generic per-object placeholders.*beyond.*first-party audio- and video-effect slices.*rendered-fallback runtime use beyond.*audio.*whole-mix.*future-schema archive preservation.*not implemented/iu,
+	);
+
+	const audioFreezeFallback = rules.get('audio-freeze-fallback');
+	assert.match(
+		audioFreezeFallback.currentBehavior,
+		/narrow exact-schema-9 playback fallback exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
 	);
 });
 
@@ -554,7 +561,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party\s+activation gate/isu);
 	assert.match(
 		documentation,
-		/first-party audio- and video-effect slices.*first two\s+steps.*editor playback only.*do\s+not generalize.*unknown or third-party.*do\s+not implement rendered-fallback or proxy use.*Video export.*offline render.*outside/isu,
+		/first-party audio- and video-effect bypass slices.*first two\s+steps.*editor playback only.*exact-schema-9 mono\/stereo.*audio whole-mix.*step 3.*does not create.*freeze.*unknown or third-party.*Generic and video fallback.*planned.*video export.*offline render.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

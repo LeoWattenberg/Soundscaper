@@ -322,6 +322,35 @@ document snapshot identify each affected scope, owner ID, effect ID, and effect
 type without reading or retaining effect params, context, state, or other
 payloads.
 
+The maintained exact schema 9 first-party audio-effects rendered fallback is a
+separate, narrower playback projection. It activates only when exactly one
+registered `audioEffects` report item is unavailable with declared and effective
+`rendered-fallback` dispositions and its audio descriptor exactly matches the
+canonical manifest. The referenced source must be mono or stereo, cover a safe
+positive frame range, and match the project sample rate and master channel
+count. ADM and surround projects, ambiguous candidates, descriptor drift,
+missing sources, unsafe geometry, and collisions with the reserved synthetic
+track or clip IDs reject rather than guessing.
+
+For editor playback, that source becomes one neutral whole-mix clip using its
+full frame range from frame zero. The transient projection removes every
+canonical audio clip and track and neutralizes mixer and master processing to
+prevent double playback, while retaining video and label timing. Initial
+activation and later engine reapplies use the same playback-project service.
+Fallback-only sources are required explicitly and their stored metadata is
+rechecked. Short sources are decoded and their buffer geometry must match
+exactly; oversized sources must expose a streamable chunk provider. Readiness
+does not prefetch or revalidate streamed chunks, so a later provider failure
+remains possible. A readiness failure prevents the projected engine load. The
+canonical project, history, persistence, save, export, and offline-render paths
+never receive this projection.
+
+Deeply frozen per-tab and document-snapshot metadata drives one localized
+active-during-editor-playback indicator bound to the exact report requirement;
+the UI does not read or expose the source ID or digest. This narrow slice is not
+generic fallback selection and does not activate video, unknown, or third-party
+requirements.
+
 For the maintained first-party video-effect slice, the controller likewise
 derives a transient activation projection only for exact schema 9 when the
 registered video-effects item is unavailable, declares bypass, and has the
@@ -352,9 +381,11 @@ declared disposition while that active tab is selected; the effective
 disposition remains structured metadata rather than being mislabeled as the
 declaration. The region is keyboard-focusable when its bounded list scrolls.
 It does not render the evaluator's message, read fallback internals, expose an
-activation control, or claim rendered-fallback substitution or third-party
-loading. For qualifying audio- or video-effects items, the same notice matches
-the corresponding frozen projection metadata to one requirement and nests
+activation control, or claim generic rendered-fallback substitution or
+third-party loading. For the exact first-party audio rendered-fallback slice it
+shows only the metadata-bound active-playback indicator described above. For
+qualifying audio- or video-effects items with bypass metadata, the same notice
+matches the corresponding frozen projection metadata to one requirement and nests
 persistent localized, control-free affected-effect placeholders. Audio rows use
 the maintained effect label and canonical track, group, send, or master owner;
 video rows use the maintained effect label and canonical Timeline or Project
@@ -397,15 +428,20 @@ schemas perform no asset reads, and future `featureRequirements` state is not
 traversed.
 
 This is a point-in-time guarantee at the maintained controller admission
-boundary. Calling `store.loadProject()` directly does not verify fallback
-bytes, and the admission does not continuously bind bytes against a later
-low-level source replacement, establish publisher authenticity, or substitute
-fallback media at runtime. The separate maintained first-party audio- and
-video-effect projections provide only the bounded editor-playback bypasses and
-visible affected-effect placeholders described above. They do not provide
-generic per-feature bypass controls, rendered-fallback substitution, video
-export or offline-render bypass, future-schema preservation, earlier
-Soundscaper-schema compatibility, or a complete third-party activation gate.
+boundary, not a durable byte lease. Calling `store.loadProject()` directly does
+not verify fallback bytes, and admission does not continuously bind them against
+a later low-level source replacement or establish publisher authenticity.
+Admission itself does not substitute fallback media at runtime; the separate exact-schema-9
+first-party audio whole-mix projection described above performs the narrow
+editor-playback substitution. Required-source preparation has no transaction or
+AbortSignal: the canonical identity fence suppresses a stale engine apply, but
+a stale read may still publish cache or chunk-provider state. An activation
+source failure occurs after tab, lock, and session publication and does not roll
+those effects back. The maintained projections do not provide generic
+per-feature bypass controls, generic or video rendered-fallback substitution,
+ADM or surround fallback playback, export or offline-render substitution,
+future-schema preservation, earlier Soundscaper-schema compatibility, or a
+complete third-party activation gate.
 
 The same selected product service now powers a programmatic current-format `.scape`
 inspection report. The composition root snapshots the selected product
@@ -485,10 +521,11 @@ controls beyond the maintained first-party audio- and video-effect slices, or
 third-party feature activation. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
-does not make metadata-only inspection a body-verification route, does not
-cover direct store loads, and does not implement runtime fallback use. The
-remaining outcomes stay governed by the planned compatibility rows and roadmap
-exit gate.
+does not make metadata-only inspection a body-verification route and does not
+cover direct store loads. Runtime use belongs only to the separate first-party
+audio whole-mix editor-playback slice; generic and video fallback remain
+planned. The remaining outcomes stay governed by the planned compatibility
+rows and roadmap exit gate.
 
 ## Opaque state
 
@@ -536,15 +573,20 @@ Unavailable capabilities follow this order once their owning milestones land:
 4. keep relink/unfreeze information with the project; and
 5. report every omission or fallback during interchange and delivery.
 
-The maintained first-party audio- and video-effect slices now implement the
-first two steps for active known effects during editor playback only. They do
-not generalize those placeholders or bypass semantics to unknown or third-party
-effects and do not implement rendered-fallback or proxy use. Video export and
-offline render remain outside the video preview bypass.
+The maintained first-party audio- and video-effect bypass slices now implement
+the first two steps for active known effects during editor playback only. The
+exact-schema-9 mono/stereo first-party audio whole-mix slice implements a narrow
+form of step 3 during editor playback. It does not create, freeze, unfreeze,
+relink, export, or offline-render that fallback, and neither behavior
+generalizes to unknown or third-party effects. Generic and video fallback or
+proxy use remains planned; video export and offline render remain outside the
+video preview bypass.
 
-Video proxy relationships are owned by milestone 3. Audio freeze, unfreeze,
-commit, and rendered fallback state are owned by milestone 4. The absence of
-those document models today must not be hidden behind a compatibility claim.
+Video proxy relationships are owned by milestone 3. Canonical audio freeze,
+unfreeze, commit, relink, and authored rendered-fallback document state are
+owned by milestone 4. The narrow playback-only projection above does not supply
+those document models, and their absence must not be hidden behind a broader
+compatibility claim.
 
 ## Schema retirement
 

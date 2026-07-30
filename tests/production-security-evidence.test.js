@@ -142,6 +142,9 @@ test('project feature requirements are bounded and fail closed at activation and
 	const fallbackAdmission = projectDocuments?.currentControls.find(
 		({ id }) => id === 'controller-rendered-fallback-admission',
 	);
+	const fallbackPlayback = projectDocuments?.currentControls.find(
+		({ id }) => id === 'first-party-audio-rendered-fallback-playback',
+	);
 
 	assert.ok(boundary);
 	assert.ok(projectDocuments);
@@ -149,6 +152,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.equal(projectDocuments.releaseDisposition, 'conditional');
 	assert.ok(control);
 	assert.ok(fallbackAdmission);
+	assert.ok(fallbackPlayback);
 	for (const path of [
 		'src/common/editor/migration.js',
 		'src/common/editor/project-feature-requirements.ts',
@@ -265,6 +269,32 @@ test('project feature requirements are bounded and fail closed at activation and
 		fallbackAdmission.summary,
 		/no asset read.*future schemas.*point-in-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*future schemas.*placeholder.*bypass.*third-party/iu,
 	);
+	for (const path of [
+		'src/common/editor/project-feature-audio-rendered-fallback.ts',
+		'src/common/editor/controller/playback-project-service.ts',
+		'src/common/editor/controller/source-lifecycle-service.ts',
+		'src/common/editor/controller/source-audio.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/app.js',
+		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
+		'tests/audio-editor-playback-project-service.test.ts',
+		'tests/audio-editor-source-lifecycle-service.test.ts',
+		'tests/audio-editor-source-audio.test.ts',
+		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
+		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+	]) assert.ok(fallbackPlayback.evidence.some((item) => item.path === path), path);
+	assert.match(
+		fallbackPlayback.summary,
+		/exact schema 9.*registered audioEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest.*mono or stereo.*whole-mix.*frame zero.*removes canonical audio.*neutral.*mixer and master.*retains video and label/iu,
+	);
+	assert.match(
+		fallbackPlayback.summary,
+		/initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure.*readiness failure.*prevents.*engine load.*canonical project.*history.*save.*export.*offline render.*unchanged.*active during editor playback/iu,
+	);
+	assert.match(
+		fallbackPlayback.summary,
+		/point-in-time.*not a durable byte lease.*stale.*cache or provider state.*does not roll.*back.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /feature-requirements manifest.*deep-frozen/iu);
@@ -295,6 +325,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
 	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*continuous integrity.*runtime fallback use.*future-schema.*outside/iu);
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
+	assert.match(documentation, /first-party audio rendered-fallback playback.*exact schema 9.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
+	assert.match(documentation, /stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/isu);
+	assert.match(documentation, /not a durable byte lease.*stale.*cache or chunk-provider state.*does not roll.*back.*generic and video fallback/isu);
+	const roadmap = await readFile(roadmapUrl, 'utf8');
+	assert.match(roadmap, /first-party audio whole-mix editor playback through the short decoded-source.*persistent active-fallback indicator.*browser-qualified.*stream-provider readiness.*unit coverage only.*does not.*prefetch or revalidate.*chunks after point-in-time admission.*exit.*remains open/isu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {
