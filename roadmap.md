@@ -652,14 +652,22 @@ models or native implementations.
   plan, one output, the exact WAV MIME type and `.wav` extension, and an exact
   positive safe-integer planned file byte count at or below 65 GiB. A dedicated
   `audio-pcm-mix` target opens only through File System Access or Electron
-  exact-size writing. The adapter has bounded encoder-emission retention and
-  serially awaits one destination write at a time; the realtime producer still
-  has the existing fail-closed 64-packet PCM queue. Planned, encoder-finalized,
-  destination-written, and committed-result byte counts must form a four-way
-  agreement. Explicit publication is a non-cancellable commit boundary:
-  ownership lost during commit returns the committed result without stale
-  success UI, and committed-result disagreement is a post-publication integrity
-  failure, not rollback. This direct route completes without a final
+  exact-size writing. Production direct rendering requests 16,384-frame chunks
+  and derives the pending-chunk count from the render channel count, bounding
+  queued planar Float32 PCM to 32 MiB; this is a queue-payload bound, not a
+  browser or process memory bound. Realtime render progress now feeds the owned
+  export task and its progress UI. For the qualified selection-only upmix, the
+  streaming transform resamples the smaller input channel set before duplicating
+  selected channels; matrix mixes and downmixes keep the general mapping order.
+  The WAV adapter has bounded encoder-emission retention, coalesces PCM into
+  at-most-4-MiB writes, and serially awaits one destination write at a time.
+  Exact `audio-pcm-mix` Electron sessions negotiate the same 4 MiB maximum,
+  while generic exact-size and project saves remain at one MiB. Planned,
+  encoder-finalized, destination-written, and committed-result byte counts must
+  form a four-way agreement. Explicit publication is a non-cancellable commit
+  boundary: ownership lost during commit returns the committed result without
+  stale success UI, and committed-result disagreement is a post-publication
+  integrity failure, not rollback. This direct route completes without a final
   renderer-sized `Blob`. Other PCM formats, compressed or custom audio, video,
   stems, and non-realtime renders retain their existing staging or in-memory
   paths. The Web Core browser-download fallback also retains its existing final
@@ -668,13 +676,16 @@ models or native implementations.
   [desktop-threshold witness](tests/audio-editor-export-direct-wav-reference.test.ts)
   streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF
   with pinned SHA-256 through the production planner, controller, real
-  64-packet PCM queue at its cap, passthrough resampler, WAV encoder, and
-  counting direct target. Its conservative 34,603,352-byte path-owned binary
-  maximum remains below the planned 64 MiB budget, with zero PCM payload
-  retention at the target. It then cancels a second run after the first PCM
-  packet without close, commit, or partial publication. Renderer heap and
-  process RSS remain unqualified because this deterministic Node witness is an
-  ownership-bound correctness gate, not a browser/process memory measurement.
+  16-packet PCM queue at its 32-channel, 32 MiB cap, passthrough resampler, WAV
+  encoder, and counting direct target. It requests 193 16,384-frame packets
+  (the last half-sized), observes at most 16 pending packets, and makes 98
+  destination writes including the header, with no write above 4,194,304 bytes.
+  Its conservative 41,943,384-byte path-owned binary maximum remains below the
+  planned 64 MiB budget, with zero PCM payload retention at the target. It then
+  cancels a second run after the first coalesced 4 MiB PCM destination write
+  without close, commit, or partial publication. Renderer heap and process RSS
+  remain unqualified because this deterministic Node witness is an ownership-
+  bound correctness gate, not a browser/process memory measurement.
   Run it with `npm run test:reference:wav-385mib`; routine Node and coverage
   discovery fast-skips it. A compact Chromium and Firefox
   workflow uses an injected File System Access target and simulated mobile
@@ -684,11 +695,32 @@ models or native implementations.
   observes no Object URL or browser download, then cancels a second export after
   PCM reaches the target and observes one abort without close or publication.
   This qualifies application-path browser plumbing and pre-commit rollback, not
-  native picker availability. The 65 GiB value remains an admission ceiling,
-  not a tested browser or Node file size; reference-scale heap, process RSS,
-  quota, filesystem durability, and actual-device mobile behavior remain unqualified.
-  Commit-race acceptance remains Node-only, and packaged Electron reference-scale
-  acceptance is not qualified.
+  native picker availability. Packaged Soundscaper Linux x64 acceptance now
+  drives the maintained UI and controller through Electron 43, preload IPC, and
+  `AtomicSaveManager`. Its encoded input is 792,000 stereo frames at 48 kHz;
+  import/decode observed 791,999 project frames, producing 6,335,992 frames at
+  384 kHz, 16 channels, and signed 16-bit PCM. The planner's corresponding
+  405,503,488-byte float geometry exceeds the 384 MiB threshold, while the final
+  classic RIFF/WAV is 202,751,788 bytes. An independent completed-file verifier
+  streams through EOF in at-most-1-MiB reads, reports SHA-256 only as a diagnostic,
+  retains at most the 31-byte partial-frame carry, compares all 95,039,880
+  duplicated-channel samples with zero mismatches, and enforces tolerant
+  non-silence, polarity, crossing, peak, mean, and RMS bounds. The cancellation
+  run independently observed a 33,554,476-byte staging file through an
+  at-most-65,536-byte prefix, validated RIFF geometry plus nonzero payload, and
+  then verified that the unpublished destination and every staging file were
+  removed. Neither run exposed a browser download. The desktop preview/nightly
+  workflow runs this packaged acceptance only for Soundscaper Linux x64.
+
+  The packaged harness validates the application's save choice and purpose but
+  then supplies its isolated native target without exercising the OS picker.
+  It is not a 65 GiB run and does not qualify heap or RSS, quota, filesystem or
+  parent-directory durability, crash or power-loss behavior, Windows, macOS,
+  ARM, installers, Framescaper, or other formats. The exact decode and frame
+  geometry is specific to the pinned Electron runtime and must be revisited on
+  Electron upgrades; the completed-file hash is deliberately not pinned.
+  Reference-scale browser/device behavior remains unqualified, and commit-race
+  acceptance remains Node-only.
 - **Web Core — In progress:** the strict-TS
   [storage-capacity service](src/common/editor/controller/storage-capacity-service.ts)
   publishes usage, quota, free space, pressure, eviction protection, fallback

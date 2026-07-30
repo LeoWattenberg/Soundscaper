@@ -246,6 +246,12 @@
 				{ "kind": "test", "path": "tests/audio-editor-export-direct-wav-reference.test.ts" },
 				{ "kind": "test", "path": "tests/browser/audio-editor-scape-direct-save.spec.js" },
 				{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" },
+				{ "kind": "implementation", "path": "desktop/direct-wav-smoke.js" },
+				{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-smoke.mjs" },
+				{ "kind": "test", "path": "tests/desktop-direct-wav-smoke-probe.test.js" },
+				{ "kind": "test", "path": "tests/desktop-direct-wav-smoke.test.js" },
+				{ "kind": "test", "path": "tests/desktop-direct-wav-workflow.test.js" },
+				{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" },
 				{ "kind": "test", "path": "tests/audio-editor-worker-client-lifecycle.test.js" }
 			]
 		},
@@ -998,22 +1004,35 @@
 				},
 				{
 					"id": "exact-direct-wav-mix-save",
-					"summary": "A dedicated `audio-pcm-mix` purpose selects only a WAV target without granting generic audio targets maximum-bounded streaming authority. The maintained direct route admits one plain-WAV mix only when its plan has one output, `realtime-stream`, the exact WAV MIME type and extension, and one positive safe-integer planned file byte count at or below 65 GiB. An exact-size, not maximum-bounded File System Access or Electron session receives that count; desktop receives `size` rather than `maximumSize` and rejects an underwrite before publication. The adapter has bounded encoder-emission retention and serially awaits one destination write at a time, while the realtime producer retains its existing fail-closed 64-packet PCM queue. Planned, encoder-finalized, destination-written, and committed-result byte counts must form a four-way agreement, and explicit commit occurs with no final renderer `Blob`. BWF, BW64, AIFF, compressed or custom audio, video, stems, non-realtime plans, and browser-download Blob fallback remain outside this route. Focused Node tests cover the closed contract. An opt-in Node desktop-threshold witness streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF with pinned SHA-256 through the production planner, controller, real 64-packet queue at its cap, passthrough resampler, WAV encoder, and counting target. Its conservative 34,603,352-byte path-owned binary maximum is below the planned 64 MiB buffered-binary budget with zero PCM payload retention; a second run cancels after the first PCM packet without close, commit, or partial publication. Renderer heap and process RSS are not qualified by this structural Node witness. A compact Chromium and Firefox workflow uses an injected File System Access target and simulated mobile planner profile to drive the maintained export UI through the production realtime route, validates a structurally valid RIFF file from a bounded header prefix plus independent byte counters, and observes no Object URL or browser download. It qualifies application-path browser plumbing; native picker availability, the 65 GiB admission ceiling at scale, reference-scale heap, process RSS, quota, and durability, and packaged Electron remain not qualified.",
+					"summary": "A dedicated `audio-pcm-mix` purpose selects only a WAV target without granting generic audio targets maximum-bounded streaming authority. The maintained direct route admits one plain-WAV mix only when its plan has one output, `realtime-stream`, the exact WAV MIME type and extension, and one positive safe-integer planned file byte count at or below 65 GiB. An exact-size, not maximum-bounded File System Access or Electron session receives that count; desktop receives `size` rather than `maximumSize` and rejects an underwrite before publication. Production direct rendering uses 16,384-frame chunks and a channel-aware pending count that bounds queued planar Float32 PCM to 32 MiB, propagates realtime progress into the owned task UI, and resamples a selection-only upmix before duplicating its selected channels. The adapter has bounded encoder-emission retention, coalesces PCM into at-most-4-MiB destination writes, and serially awaits each write. Exact desktop `audio-pcm-mix` sessions negotiate four-MiB chunks while generic exact-size and project sessions remain at one MiB. Planned, encoder-finalized, destination-written, and committed-result byte counts must form a four-way agreement, and explicit commit occurs with no final renderer `Blob`. BWF, BW64, AIFF, compressed or custom audio, video, stems, non-realtime plans, and browser-download Blob fallback remain outside this route. Focused Node tests cover the closed contract. An opt-in Node desktop-threshold witness streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF with pinned SHA-256 through the production planner, controller, real 16-packet queue at its 32-channel, 32 MiB cap, passthrough resampler, WAV encoder, and counting target. It requests 193 16,384-frame packets with a half-sized final packet, observes at most 16 pending packets, and makes 98 destination writes including the header with a 4,194,304-byte maximum. Its conservative 41,943,384-byte path-owned binary maximum is below the planned 64 MiB buffered-binary budget with zero PCM payload retention; a second run cancels after the first coalesced 4 MiB PCM destination write without close, commit, or partial publication. A compact Chromium and Firefox workflow uses an injected File System Access target and simulated mobile planner profile, validates a structurally valid RIFF file from a bounded prefix plus counters, and observes no Object URL or browser download. Packaged Soundscaper Linux x64 acceptance drives Electron 43 UI, controller, preload IPC, and `AtomicSaveManager`: a 48-kHz two-channel 792,000-frame encoded input was observed as a 791,999-frame project range and produced 6,335,992 signed-16-bit frames at 384 kHz and 16 channels. The 405,503,488-byte float plan exceeds 384 MiB and the final RIFF is 202,751,788 bytes. EOF and diagnostic SHA-256 verification uses at-most-one-MiB reads and at-most-31-byte carry, compares 95,039,880 channel samples with zero mismatches, and applies tolerant signal bounds. Cancellation independently observed a 33,554,476-byte staging file through an at-most-65,536-byte valid-RIFF prefix with nonzero payload, then verified destination and staging cleanup; no browser download appeared. CI is scoped to Soundscaper Linux x64. The smoke validates save choice then bypasses the native picker. It is not a 65 GiB run and does not qualify heap or RSS, quota, durability, crash or power loss, Windows, macOS, ARM, installers, Framescaper, or other formats. Exact frame geometry is Electron-runtime-specific and must be revisited on upgrade; the hash is not pinned and commit-race acceptance remains Node-only.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/validation.js" },
 						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "desktop/direct-wav-smoke.js" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/realtime-export-pcm-transform.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/engine/rendering.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
 						{ "kind": "implementation", "path": "src/common/editor/pcm-sink.js" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-smoke.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-smoke-evidence.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-pcm-signal.mjs" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav-reference.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-realtime-export-pcm-transform.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-pcm-sink.test.js" },
 						{ "kind": "test", "path": "tests/desktop-pcm-mix-save-purpose.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" }
+						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke-probe.test.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-pcm-signal.test.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-workflow.test.js" },
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				},
 				{
@@ -1531,17 +1550,26 @@
 				},
 				{
 					"id": "direct-wav-mix-save-rollback",
-					"summary": "The maintained direct-WAV route selects its target before rendering, propagates the owned export task signal through destination preparation and realtime rendering, and serially awaits each destination write while the existing fail-closed 64-packet PCM queue bounds the realtime producer. Failure or cancellation before commit aborts and awaits staging cleanup, preserving a primary failure together with a cleanup failure. Planned, encoder-finalized, and destination-written counts agree before one explicit non-cancellable commit. If ownership is lost during commit, the controller returns the committed result without stale success UI publication. A committed-result size disagreement is reported as a post-publication integrity failure, not as rollback. Nonqualifying export paths remain unchanged. Focused Node tests cover the full cancellation, cleanup-failure, ownership, and commit-boundary contract. The opt-in 385 MiB witness cancels its second run after the first PCM packet and observes one abort without close or commit and no partial publication. The Chromium and Firefox workflow cancels after PCM bytes reach the injected target and observes one abort with no close or publication. Commit-race acceptance remains Node-only.",
+					"summary": "The maintained direct-WAV route selects its target before rendering, propagates the owned export task signal and realtime progress through destination preparation and rendering, and serially awaits at-most-four-MiB coalesced destination writes while a channel-aware 16,384-frame queue bounds pending planar Float32 PCM to 32 MiB. Exact desktop `audio-pcm-mix` sessions negotiate four-MiB chunks; generic and project sessions remain at one MiB. Failure or cancellation before commit aborts and awaits staging cleanup, preserving a primary failure together with a cleanup failure. Planned, encoder-finalized, and destination-written counts agree before one explicit non-cancellable commit. If ownership is lost during commit, the controller returns the committed result without stale success UI publication. A committed-result size disagreement is reported as a post-publication integrity failure, not as rollback. Nonqualifying export paths remain unchanged. Focused Node tests cover the full cancellation, cleanup-failure, ownership, and commit-boundary contract. The opt-in 385 MiB witness cancels its second run after the first coalesced 4 MiB PCM destination write and observes one abort without close or commit and no partial publication. The Chromium and Firefox workflow cancels after PCM bytes reach the injected target and observes one abort with no close or publication. Packaged Soundscaper Linux x64 Electron 43 acceptance independently observes cancellation at a 33,554,476-byte staging file, inspects no more than 65,536 bytes to validate RIFF geometry and nonzero payload, then verifies the destination is absent and all staging is removed. The completed run observes no browser download. The smoke bypasses the native picker after save-choice validation; commit-race acceptance remains Node-only, and crash, power-loss, durability, other platforms, architectures, products, installers, and formats remain unqualified.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/engine/rendering.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/pcm-sink.js" },
+						{ "kind": "implementation", "path": "desktop/save-targets.js" },
+						{ "kind": "implementation", "path": "desktop/direct-wav-smoke.js" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-smoke.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-direct-wav-smoke-evidence.mjs" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav-reference.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-pcm-sink.test.js" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" }
+						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke-probe.test.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-direct-wav-workflow.test.js" },
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				}
 			],
