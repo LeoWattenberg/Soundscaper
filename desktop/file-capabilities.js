@@ -12,6 +12,7 @@ import {
 	SCAPE_PROJECT_MIME_TYPE,
 } from './constants.js';
 import {
+	ReadCapabilityAdmissionError,
 	boundedReadLimit,
 	safeReadFileSize,
 	ScapeRangeReadAdmission,
@@ -102,7 +103,7 @@ export class ReadCapabilityStore {
 			if (state.revoked) throw new Error('Read capability owner was revoked');
 			this.#sweepExpired(state);
 			if (state.count >= this.#maximumCount) {
-				throw new RangeError(`Read capability count exceeds the per-owner limit of ${this.#maximumCount}`);
+				throw new ReadCapabilityAdmissionError(`Read capability count exceeds the per-owner limit of ${this.#maximumCount}`, { retryable: true });
 			}
 			state.count += 1;
 			try {
@@ -201,8 +202,11 @@ export class ReadCapabilityStore {
 			if (rangeTicket) {
 				this.#scapeRangeAdmission.charge(rangeTicket, size);
 			} else {
+				if (size > this.#maximumBytes) {
+					throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
+				}
 				if (size > this.#maximumBytes - state.bytes) {
-					throw new RangeError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
+					throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`, { retryable: true });
 				}
 				state.bytes += size;
 				accountedBytes = size;

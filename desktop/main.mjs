@@ -32,7 +32,10 @@ import {
 	resolveDesktopProjectLibraryAppData,
 } from './project-library-runtime/desktop/application-lifecycle.js';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
-import { PendingProjectQueue, extractProjectPaths } from './file-associations.js';
+import {
+	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
+	redispatchPendingProjectsAfterReadRelease,
+} from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
@@ -54,7 +57,6 @@ import {
 } from './validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pendingOpenProjects = new PendingProjectQueue(deliverPendingProject);
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
@@ -70,6 +72,16 @@ let projectLibraryStartup = null;
 let projectLibraryIpc = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
+
+const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery({
+	isReady: () => rendererReady && mainWindow && !mainWindow.isDestroyed(),
+	currentOwner: () => rendererSaveOwnership.currentOwnerFor(mainWindow.webContents),
+	isOwnerCurrent: isRendererSaveOwnerCurrent,
+	register: (filePath, owner) => registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project' }),
+	release: (id, owner) => readCapabilities.release(id, { owner }),
+	send: (descriptor) => sendToRenderer(IPC.openProject, descriptor),
+	reportError: reportPendingProjectError,
+}));
 
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
@@ -274,7 +286,10 @@ function registerIpcHandlers(projectLibraryService) {
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
 	handle(IPC.chooseFiles, (event, value) => chooseFiles(event, value));
-	handle(IPC.releaseRead, (event, id) => readCapabilities.release(opaqueId(id, 64), { owner: rendererSaveOwnerFor(event) }));
+	handle(IPC.releaseRead, (event, id) => redispatchPendingProjectsAfterReadRelease(
+		pendingOpenProjects,
+		readCapabilities.release(opaqueId(id, 64), { owner: rendererSaveOwnerFor(event) }),
+	));
 	handle(IPC.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
 	handle(IPC.beginWrite, (event, value) => saves.begin({
 		owner: rendererSaveOwnerFor(event),
@@ -384,28 +399,13 @@ function respondToClose(value) {
 	else mainWindow?.close();
 }
 
-async function deliverPendingProject(filePath) {
-	if (!rendererReady || !mainWindow || mainWindow.isDestroyed()) return false;
-	let owner = null;
-	try {
-		owner = rendererSaveOwnership.currentOwnerFor(mainWindow.webContents);
-		const descriptor = await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project' });
-		if (!isRendererSaveOwnerCurrent(owner)) {
-			await readCapabilities.release(descriptor.id, { owner });
-			return false;
-		}
-		sendToRenderer(IPC.openProject, descriptor);
-		return true;
-	} catch (error) {
-		if (!isRendererSaveOwnerCurrent(owner)) return false;
-		void dialog.showMessageBox(mainWindow, {
-			type: 'error',
-			title: 'Could not open project',
-			message: `${APP_NAME} could not read the selected project.`,
-			detail: cleanError(error),
-		});
-		return true;
-	}
+function reportPendingProjectError(error) {
+	void dialog.showMessageBox(mainWindow, {
+		type: 'error',
+		title: 'Could not open project',
+		message: `${APP_NAME} could not read the selected project.`,
+		detail: cleanError(error),
+	});
 }
 
 function enqueueProjectPath(filePath) {
@@ -564,7 +564,9 @@ async function checkForUpdates(manual) {
 }
 
 function sendToRenderer(channel, value) {
-	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, value);
+	if (!mainWindow || mainWindow.isDestroyed()) return false;
+	mainWindow.webContents.send(channel, value);
+	return true;
 }
 
 function resourceRoots() {

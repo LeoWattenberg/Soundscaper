@@ -253,18 +253,21 @@ test('desktop main owns file capabilities by committed renderer document', async
 		mainSource.indexOf('\n\thandle(', mainSource.indexOf('handle(IPC.releaseRead') + 1),
 	);
 	assert.match(releaseReadHandler, /rendererSaveOwnerFor\(event\)/u);
+	assert.match(releaseReadHandler, /redispatchPendingProjectsAfterReadRelease/u);
 
-	assert.match(mainSource, /new PendingProjectQueue\(deliverPendingProject\)/u);
-	const dispatchStart = mainSource.indexOf('async function deliverPendingProject');
-	const dispatchEnd = mainSource.indexOf('\nfunction ', dispatchStart);
+	assert.match(mainSource, /new PendingProjectQueue\(createPendingProjectDelivery\(\{/u);
+	const dispatchStart = mainSource.indexOf('createPendingProjectDelivery({');
+	const dispatchEnd = mainSource.indexOf('}));', dispatchStart);
 	const dispatchSource = mainSource.slice(dispatchStart, dispatchEnd);
 	assert.match(dispatchSource, /currentOwnerFor\(mainWindow\.webContents\)/u);
 	assert.match(
 		dispatchSource,
 		/registerSelectedReadCapability\(readCapabilities, filePath, \{ owner, purpose: 'project' \}\)/u,
 	);
-	assert.match(dispatchSource, /isRendererSaveOwnerCurrent\(owner\).*return false/su,
-		'owner replacement leaves the serialized queue head for the next ready document');
+	assert.match(dispatchSource, /isOwnerCurrent: isRendererSaveOwnerCurrent/u,
+		'owner replacement is checked by the serialized delivery service');
+	assert.match(dispatchSource, /release: \(id, owner\) => readCapabilities\.release\(id, \{ owner \}\)/u);
+	assert.match(dispatchSource, /send: \(descriptor\) => sendToRenderer\(IPC\.openProject, descriptor\)/u);
 
 	const ownerForStart = mainSource.indexOf('function rendererSaveOwnerFor');
 	const ownerForEnd = mainSource.indexOf('\nfunction ', ownerForStart + 1);

@@ -1,6 +1,8 @@
 import { extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isRetryableReadCapabilityAdmissionError } from './read-capability-admission.js';
+
 export class PendingProjectQueue {
 	#deliver;
 	#dispatchPromise = null;
@@ -39,6 +41,57 @@ export class PendingProjectQueue {
 	}
 }
 
+export function createPendingProjectDelivery({
+	isReady,
+	currentOwner,
+	isOwnerCurrent,
+	register,
+	release,
+	send,
+	reportError,
+}) {
+	return async (filePath) => {
+		if (!isReady()) return false;
+		let descriptor = null;
+		let owner = null;
+		try {
+			owner = currentOwner();
+			descriptor = await register(filePath, owner);
+			if (!isOwnerCurrent(owner)) {
+				const staleDescriptor = descriptor;
+				descriptor = null;
+				await releaseDescriptor(release, staleDescriptor, owner);
+				return false;
+			}
+			if (send(descriptor) !== true) throw new Error('Renderer did not accept pending project delivery');
+			return true;
+		} catch (error) {
+			let reportedError = error;
+			if (descriptor) {
+				try {
+					await releaseDescriptor(release, descriptor, owner);
+				} catch (cleanupError) {
+					reportedError = new AggregateError(
+						[error, cleanupError],
+						'Pending project delivery and read capability cleanup both failed',
+						{ cause: cleanupError },
+					);
+				}
+			}
+			if (!isOwnerCurrent(owner)) return false;
+			if (isRetryableReadCapabilityAdmissionError(error)) return false;
+			reportError(reportedError);
+			return true;
+		}
+	};
+}
+
+export async function redispatchPendingProjectsAfterReadRelease(queue, releasePromise) {
+	const released = await releasePromise;
+	if (released) void queue.dispatch();
+	return released;
+}
+
 export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 	const paths = [];
 	for (const argument of Array.isArray(argv) ? argv : []) {
@@ -60,3 +113,9 @@ export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 
 export const extractAup4Paths = extractProjectPaths;
 export const extractAudacityProjectPaths = extractProjectPaths;
+
+async function releaseDescriptor(release, descriptor, owner) {
+	if (!await release(descriptor.id, owner)) {
+		throw new Error('Pending project read capability was not released');
+	}
+}

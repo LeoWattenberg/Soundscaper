@@ -5,6 +5,18 @@ import {
 	MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
 } from './constants.js';
 
+export class ReadCapabilityAdmissionError extends RangeError {
+	constructor(message, { retryable = false } = {}) {
+		super(message);
+		this.name = 'ReadCapabilityAdmissionError';
+		this.retryable = retryable === true;
+	}
+}
+
+export function isRetryableReadCapabilityAdmissionError(error) {
+	return error instanceof ReadCapabilityAdmissionError && error.retryable;
+}
+
 export class ScapeRangeReadAdmission {
 	#activeRequest = null;
 	#bytes = 0;
@@ -39,7 +51,10 @@ export class ScapeRangeReadAdmission {
 			this.#ownerStates.set(owner, state);
 		}
 		if (this.#count >= this.#maximumCount || state.count >= this.#maximumCount) {
-			throw new RangeError(`Scape range capability count exceeds the limit of ${this.#maximumCount}`);
+			throw new ReadCapabilityAdmissionError(
+				`Scape range capability count exceeds the limit of ${this.#maximumCount}`,
+				{ retryable: true },
+			);
 		}
 		this.#count += 1;
 		state.count += 1;
@@ -49,10 +64,17 @@ export class ScapeRangeReadAdmission {
 	charge(ticket, size) {
 		assertLiveTicket(ticket);
 		if (ticket.charged) throw new Error('Scape range capability was already charged');
-		if (size > this.#maximumBytes
-			|| size > this.#maximumBytes - this.#bytes
+		if (size > this.#maximumBytes) {
+			throw new ReadCapabilityAdmissionError(
+				`Scape range capability bytes exceed the limit of ${this.#maximumBytes}`,
+			);
+		}
+		if (size > this.#maximumBytes - this.#bytes
 			|| size > this.#maximumBytes - ticket.state.bytes) {
-			throw new RangeError(`Scape range capability bytes exceed the limit of ${this.#maximumBytes}`);
+			throw new ReadCapabilityAdmissionError(
+				`Scape range capability bytes exceed the limit of ${this.#maximumBytes}`,
+				{ retryable: true },
+			);
 		}
 		ticket.bytes = size;
 		ticket.charged = true;
