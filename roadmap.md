@@ -891,31 +891,74 @@ models or native implementations.
   in depth and canonically reserializes it before local mutation, treats shared
   latest documents and summary lists as authoritative, and retains revision
   history plus source/media data in a product-local shadow.
-  It admits source metadata without claiming that source bytes are available to
-  the other product. Remote failure leaves an identical canonical retry in the
-  shadow; same-revision identical commit is a catalog no-op. Delete commits
+  Before shadowing an authoritative latest exact-V9 source-bearing document, the
+  strict-TS
+  [recipient-local admission](src/common/editor/storage/desktop-shared-project-source-availability.ts)
+  collects at most 4,094 unique logical sources reachable from timeline clips,
+  Project Bin clips, and rendered-fallback references. Every source must match
+  the pre-existing latest recipient-local exact-V9 snapshot of the same project
+  by logical ID, kind, physical storage key, MIME type, frame/sample geometry,
+  and kind-specific descriptor; names and opaque extensions are not provenance.
+  Compatible same-kind aliases of one physical storage key are body-verified
+  once, while conflicting bindings reject and audio/video storage domains remain
+  separate. Declared bodies are
+  preflighted to 65,536 PCM chunks; one cumulative 64 GiB budget charges
+  canonical PCM bytes, four framing bytes per audio chunk, and recipient-local
+  video metadata sizes together. For a successfully qualified body, admission
+  snapshots metadata before and after it, consumes the exact sequential
+  PCM chunk count and `Float32Array` channel/frame geometry, requires any supplied
+  index/frame fields to match, fully SHA-256-hashes a genuine exact-size video
+  `Blob` through bounded 4 MiB windows, and compares a trusted local video digest
+  when one exists. Legacy PCM-on-read migration and media-digest backfill are
+  disabled. Every failure raised by this recipient-local repository admission,
+  including mismatch of a pre-existing retained-video digest, precedes local
+  shadow save and controller activation; source-free latest loads perform zero
+  source/media I/O.
+  Bootstrap passes its lifetime signal through this work and preserves exact
+  cancellation while admission reads are active. One repository instance
+  serializes latest load, save, and delete per project, and publication plus
+  retention resolve logical references to physical storage keys. Remote save
+  failure still leaves an identical canonical retry in the shadow;
+  same-revision identical commit remains a catalog no-op. Delete commits
   remotely first, with bounded reporting if local cleanup then fails.
   The real editor store selects this repository for a complete desktop bridge,
   fails closed on an incomplete bridge instead of reopening a private catalog,
   leaves web storage unchanged, and refreshes shared summaries after clearing a
-  product-local shadow. A composed
+  product-local shadow. A real-store
+  [mixed-media regression](tests/audio-editor-desktop-shared-project-source-availability-integration.test.ts)
+  qualifies a recipient whose pre-existing latest local snapshot binds audio and
+  video bytes already present under nontrivial physical storage keys. The composed
   [editor handoff regression](tests/desktop-project-library-editor-handoff.test.ts)
-  creates and autosaves a source-free exact-V9 project through Soundscaper's
-  default desktop-store selection, closes the fenced host, discovers and
-  bootstrap-reopens the same identity and revision from a fresh
-  Framescaper-local store, then publishes the next Framescaper revision with an
-  empty shared media catalog. This is editor-layer composition, not one packaged
-  preload/IPC/multi-process or executable qualification. Managed-media copy,
-  consolidation, relink, playback, and cross-product source bytes; packaged
-  handoff; interrupted foreign collisions at registered random stage paths;
-  parent- and database-path identity; and
-  per-OS/architecture power-loss durability remain open.
+  retains the source-free Soundscaper-to-Framescaper success path and now adds a
+  source-bearing case with the same prior local descriptor but missing recipient
+  PCM: bootstrap fails, the pre-existing revision/history remains unchanged, and no
+  project activates. There is no positive source-bearing two-product byte
+  transfer in that fixture.
+  This is a bounded sequential admission-time readability check over already-
+  present recipient-local bytes, not an atomic snapshot, media transfer,
+  publisher authentication, or a durable byte lease. Audio and digestless video
+  are availability/geometry-or-size qualified but are not authenticated against
+  a prior content digest. Selected metadata is reread around each body, but the
+  check does not bind body reads to metadata, cannot detect every same-metadata
+  replacement during its sequential observations, and does not fence replacement
+  or deletion afterward. A cancellation racing non-abortable shadow save is not
+  abort-atomic; injected non-cooperative providers may continue after rejection;
+  and separate repository instances or processes are not serialized.
+  Source-bearing saves and explicit local revision loads bypass this admission.
+  A fresh recipient lacks both the prerequisite local descriptor snapshot and an
+  automatic acquisition outcome. Managed-media copy/consolidation, relink,
+  playback, packaged two-product source-bearing handoff, interrupted foreign
+  collisions at registered random stage paths, parent- and database-path
+  identity, and per-OS/architecture power-loss durability remain open.
   Activation-specific feature-capability
-  evaluation and rendered-fallback byte verification remain editor-owned.
-  Migration from the prior shared `v1` scope or product-private Soundscaper
-  libraries is intentionally not a current priority and remains deferred and
-  unsupported by this current-only contract; Audacity project import
-  compatibility remains a separate boundary.
+  evaluation and rendered-fallback digest verification remain controller-owned
+  after repository shadowing but before activation side effects. Other first-
+  and third-party effect semantics remain intentionally ungated at this stage.
+  Existing V1–V8 raw-project migrations remain maintained. Compatibility beyond
+  those retained raw-document migration paths—especially migration from the
+  prior shared `v1` scope or product-private libraries—is not a current priority
+  or milestone prerequisite and remains unsupported by this current-only
+  contract. Audacity project interchange remains a separate roadmap boundary.
 - **Electron Enhanced — Planned:** bind selected-file capabilities to the
   existing bounded
   [`StreamingMediaReadPort`](src/common/editor/platform/media-stream-port.ts)
@@ -924,10 +967,12 @@ models or native implementations.
   Until then, inputs above the qualified 512 MiB materialization tier fail
   admission explicitly.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
-  installations emerge, define an explicit migration from the prior shared `v1`
-  scope or product-private app libraries into the shared store. Current builds
-  intentionally support only the exact-schema-9 shared contract; Audacity
-  project import remains independent.
+  installations emerge, define compatibility beyond the retained V1–V8
+  raw-document migration paths, especially an explicit migration from the prior
+  shared `v1` scope or product-private app libraries into the shared store.
+  Broader legacy expansion is not a milestone prerequisite. The shared store
+  intentionally supports only the exact-schema-9 contract; Audacity project
+  interchange remains independent.
 - **Electron Enhanced — Planned:** support durable linked media through scoped
   path capabilities/bookmarks, relink, watch detection, copy/consolidate, and
   opt-in managed media. Portable `.scape` export still embeds everything needed.
@@ -1100,8 +1145,12 @@ models or native implementations.
 - A mixed-media project hands off between both web products and both Electron
   products without copying managed media or losing history-visible state.
   The composed Electron editor-layer source-free autosave, discovery, reopen,
-  and next-revision handoff is now proven, but there is no media in that fixture;
-  it does not qualify managed-media portability or close this gate.
+  and next-revision handoff is proven. Sequential admission of already-present,
+  pre-bound recipient audio/video plus a composed missing-recipient-PCM refusal
+  are also proven: bytes observed missing during that admission do not activate.
+  There is still no atomic byte snapshot, fresh-recipient descriptor binding,
+  positive source-bearing transfer, explicit acquisition, packaged two-product
+  playback, or managed-media portability, so this gate remains open.
 - Simultaneous opens across the two Electron apps serialize through the shared
   lease. A packaged two-executable lifecycle fixture remains open; migration
   from the prior shared `v1` scope or product-private Soundscaper libraries is

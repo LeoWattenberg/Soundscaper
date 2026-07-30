@@ -43,6 +43,12 @@ Every new schema version must add fixtures for its immediate predecessor and
 the oldest retained schema. Project state, history, clipboard state, `.scape`,
 and both product profiles must agree on the same migration boundary.
 
+Those existing V1–V8 raw-project migrations remain maintained. Compatibility
+beyond those retained raw-document migration paths—especially migration from
+the prior shared `v1` scope or product-private Soundscaper libraries—is not a
+current priority or a milestone prerequisite. Audacity project interchange
+remains a separate compatibility boundary.
+
 ## Shared desktop current-schema persistence
 
 The desktop editor has one implemented current-schema shared persistence
@@ -154,6 +160,59 @@ remotely first and reports, rather than reverses, failed local cleanup. A
 detected desktop with an incomplete shared-project bridge fails closed instead
 of falling back to its former product-private project catalog.
 
+Before local shadow save or activation, a latest exact-schema-9 source-bearing
+shared load performs bounded sequential recipient-local admission. It collects
+at most 4,094 unique logical sources reachable from timeline clips, Project Bin
+clips, and rendered-fallback references. The pre-existing latest recipient-local
+exact-schema-9 snapshot of the same project must bind each logical ID, kind,
+physical storage key, MIME type, frame/sample geometry, and kind-specific
+descriptor; names and opaque extensions are not provenance. Compatible
+same-kind aliases of one physical key are read once, while conflicting bindings
+reject and audio/video storage domains remain separate. Declared payload
+geometry is capped at 65,536 PCM chunks, while one cumulative 64 GiB budget
+charges canonical audio archive bytes—including four framing bytes per
+chunk—and recipient-local video metadata sizes together.
+
+For a successfully qualified body, admission snapshots metadata before and
+after it, consumes the exact sequential PCM chunk count and ordered
+`Float32Array` channel/frame geometry, requires any supplied chunk index or
+frame count to match, and fully reads and SHA-256-hashes each genuine exact-size
+video `Blob` through 4 MiB windows. A trusted local video digest is compared when
+present. Legacy PCM-on-read migration and media-digest backfill are disabled.
+Every binding, budget, metadata, geometry, body,
+or pre-existing retained-video-digest failure raised by this repository
+admission leaves the recipient's latest local shadow and revision history
+unchanged and prevents bootstrap activation. This does not describe the later
+controller-owned rendered-fallback-declaration digest check. Source-free latest
+loads perform zero source or media I/O. Bootstrap propagates its lifetime
+signal; one repository instance keeps latest load, save, and delete serialized
+per project; and publication and retention resolve logical references to
+physical storage keys.
+
+A real-store fixture qualifies recipient audio and video bytes already present
+under nontrivial storage keys and bound by the pre-existing latest local
+snapshot. Composed cross-product evidence separately proves the source-free
+Soundscaper-to-Framescaper success path and a source-bearing
+missing-recipient-PCM refusal that preserves the pre-existing revision without
+activation. It does not prove positive source-bearing two-product media
+transfer.
+
+This control is a bounded sequential admission-time readability check, not an
+atomic snapshot, media transfer, publisher authentication, or a durable byte
+lease. Audio and digestless retained video are availability and geometry-or-size
+qualified, not authenticated against a prior content digest. Selected metadata
+is reread around each body, but body reads are not transactionally bound to that
+metadata; same-metadata replacement during the sequential observations can go
+undetected, and replacement or deletion afterward is not fenced. Injected
+non-cooperative providers may continue work after cancellation rejects; shadow
+save is not abort-atomic once begun; and separate repository instances and
+processes are not serialized. Source-bearing saves and explicit local revision
+loads bypass this admission. A fresh recipient lacks both the prerequisite
+local descriptor snapshot and automatic acquisition. Copy, consolidation,
+relink, managed storage, codec playback, and packaged two-product source-bearing
+handoff remain unqualified. Rendered-fallback digest verification remains
+controller-owned after repository shadowing and before activation side effects.
+
 A composed source-free editor fixture creates and autosaves in Soundscaper,
 closes its fenced host, discovers and bootstrap-reopens the same identity and
 revision from a fresh Framescaper-local store, and commits the next revision in
@@ -163,18 +222,20 @@ Soundscaper desktop-store selection, renderer repository, main service, and
 host; focused tests separately pin preload and IPC behavior. It is not one
 packaged preload/IPC/multi-process or executable handoff qualification.
 
-This rule is current-only. Activation-specific feature-capability evaluation
-and rendered-fallback byte verification remain editor-owned. Managed-media
-publication, copy, consolidation, relink, playback, and cross-product
-source-byte availability; packaged cross-product lifecycle; and per-platform
+This catalog rule is current-only; the separate recipient-local admission above
+does not acquire or transfer bytes. Activation-specific feature-capability
+evaluation remains editor-owned. Managed-media publication, automatic
+acquisition, copy, consolidation, relink, playback, and portable source-byte
+transfer; packaged cross-product lifecycle; and per-platform
 parent- and database-path identity, power-loss durability, and interrupted
 foreign collisions at registered random stage paths remain outside it.
 Unregistered or legacy pre-inventory stage-looking files are deliberately
 foreign content and are not adopted or deleted.
-Migration from the prior shared `v1` scope or product-private Soundscaper
-libraries is intentionally not a current priority and remains deferred and
-unsupported by this contract; Audacity project import compatibility is a
-separate boundary.
+Existing V1–V8 raw-project migrations remain maintained. Compatibility beyond
+those retained raw-document migration paths—especially migration from the prior
+shared `v1` scope or product-private Soundscaper libraries—is not a current
+priority and remains deferred and unsupported by this contract. Audacity
+project interchange is a separate boundary.
 
 ## Project feature requirements
 

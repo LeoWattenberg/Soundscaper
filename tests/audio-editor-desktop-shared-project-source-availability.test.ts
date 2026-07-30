@@ -161,7 +161,7 @@ test('recipient binding covers persisted identity and kind-specific media geomet
 	}
 });
 
-test('compatible duplicate recipient storage-key bindings verify one immutable payload', async () => {
+test('compatible duplicate recipient storage-key bindings verify one shared payload', async () => {
 	const first = audioSource({ id: 'duplicate-a', storageKey: 'shared-storage-key' });
 	const second = audioSource({ id: 'duplicate-b', storageKey: 'shared-storage-key' });
 	const project = projectWithSources('duplicate-storage-binding', [first, second]);

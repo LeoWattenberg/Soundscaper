@@ -974,6 +974,34 @@
 					]
 				},
 				{
+					"id": "recipient-local-shared-project-media-admission",
+					"summary": "On a latest authoritative exact-schema-9 shared load, the renderer admits at most 4,094 reachable timeline, Project Bin, and fallback sources against the pre-existing latest recipient-local exact-schema-9 snapshot of the same project, which binds logical identity, kind, storage key, MIME type, and media geometry. Compatible same-kind descriptors sharing one physical storage key are verified once; a conflicting binding rejects. Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative 64 GiB budget charges canonical audio archive bytes, including four framing bytes per chunk, and recipient-local video metadata sizes together. A successful body qualification reads selected metadata before and after that body, fully consumes ordered Float32Array PCM with exact chunk, channel, and frame geometry and matching supplied index or frame fields, and hashes each genuine Blob with SHA-256 through bounded 4 MiB windows. Legacy PCM-on-read migration and media-digest backfill are disabled. A pre-existing retained-video digest must match when present; audio and digestless retained video are availability- and geometry- or size-qualified but are not authenticated against a prior content digest. Every failure raised by this repository admission, including mismatch of that video digest, occurs before local shadow save or activation, while the later controller-owned rendered-fallback-declaration digest check follows repository shadowing. A source-free latest load performs zero source or media I/O. The bootstrap lifetime signal preserves exact cancellation during admission; one repository instance keeps latest load, save, and delete serialized per project; project publication and retention protect durable storage keys. A real-store mixed audio and video fixture qualifies bytes already present and bound by the latest local snapshot, while composed cross-product evidence covers source-free success and missing recipient PCM refusal that preserves the pre-existing revision and does not activate. This is a bounded sequential admission-time readability check, not an atomic snapshot, media transfer, publisher authentication, or a durable byte lease.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-bootstrap-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/retention.js" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-abort.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-envelope.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-archive-media.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-expanded-byte-budget.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/desktop-shared-project-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/desktop-shared-project-source-availability.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-digest-backfill.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-content-digest.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/project-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/retention-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/source-read-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "implementation", "path": "src/common/editor/app.js" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-repository.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-source-availability-integration.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-source-availability.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-bootstrap-service.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-editor-handoff.test.ts" },
+						{ "kind": "test", "path": "tests/production-security-shared-project-library.test.js" }
+					]
+				},
+				{
 					"id": "lease-fenced-immutable-project-reclamation",
 					"summary": "After metadata-journal recovery and before the host is exposed, main-only startup maintenance walks the authoritative project-file inventory by monotonic row IDs. It captures a cycle high-water and persists a cursor, scans at most 100,000 rows per invocation in at most 64-row batches, and surfaces scanned, protected, reclaimed, and complete state. Every destructive batch holds a SQLite immediate writer transaction, revalidates the exact live lease before and after filesystem work, and rebuilds portable case-folded reachability from the integrity-checked current catalog plus both previous and next snapshots of any pending prepared or committed journal. An unreachable registered canonical regular project file is synchronously renamed to a deterministic noncatalogable quarantine derived from its portable metadata path and unlinked while catalog writers are excluded; a crash-left quarantine is safely retried. Unregistered stage, canonical, forged quarantine, and foreign files do not consume inventory budget and remain untouched. A real 100,001-row fixture proves successive bounded passes reach the suffix, while later inserts wait for the next high-water cycle. Batches yield for lease renewal and cancellation. Static root symlinks fail closed; symlinked entries, malformed names, directories, and managed media remain untouched. Focused tests also cover prepared and committed recovery, update and delete cleanup, higher-token path reuse, corruption, portable case aliases, idempotence, and reclamation-failure lease release. The compiled runtime and desktop staging inventory include the collector without adding IPC.",
 					"evidence": [
@@ -1016,10 +1044,10 @@
 			"residualRisks": [
 				{
 					"id": "shared-library-cross-product-media-availability",
-					"exposure": "Source metadata can travel in the shared document, but source and media bytes remain in product-local shadows; managed-media copy, consolidation, relink, and playback are not cross-product qualified. Migration from the prior shared v1 scope or product-private Soundscaper libraries is deliberately deferred and unsupported, not a current required control; Audacity project import is a separate boundary.",
-					"requiredControl": "Before claiming source-bearing cross-product handoff, verify recipient-side byte availability and require one explicit qualified outcome: existing local bytes, user-directed relink or copy, deliberately added managed storage, or fail closed before activation.",
+					"exposure": "Bounded sequential recipient-local admission now qualifies already-present bytes bound by the latest local snapshot for a latest exact schema 9 shared load and refuses bytes observed missing during admission, but source and media bytes remain in product-local shadows. This is not an atomic snapshot: selected metadata is reread around each body, but body reads are not transactionally bound to it; same-metadata replacement during sequential observations can go undetected, and replacement or deletion afterward is not fenced. Separate repository instances or processes are not serialized. Injected non-cooperative provider work may continue after rejection; audio and digestless retained video are not authenticated against prior content digests; and the prerequisite local descriptor binding is not publisher authentication. Managed-media copy, consolidation, relink, and managed storage are absent, so a fresh recipient has neither that descriptor snapshot nor a byte-acquisition outcome; codec playback is not cross-product qualified. Compatibility beyond retained V1-V8 raw-document migrations, especially migration from the prior shared v1 scope or product-private Soundscaper libraries, is deliberately deferred and unsupported, not a current required control; Audacity project import is a separate boundary.",
+					"requiredControl": "Before claiming portable source-bearing handoff, establish an explicit recipient-local descriptor binding and fresh-recipient relink, copy, consolidation, or managed-storage acquisition outcome; hold or revalidate the selected byte identity through activation and playback with a durable snapshot, lease, or compare-and-swap binding; and qualify the packaged two-product source-bearing lifecycle.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Source-bearing handoff fixtures prove missing recipient bytes cannot activate silently, while every claimed relink, copy, local-byte, or managed-storage outcome is explicit and tested; the source-free path remains independently qualified."]
+					"acceptanceCriteria": ["Packaged two-product source-bearing fixtures establish the recipient-local descriptor binding, acquire bytes through an explicit relink, copy, consolidation, or managed-storage outcome, and hold or revalidate a stable recipient byte identity through activation and playback, while retaining the tested missing-at-admission refusal."]
 				},
 				{
 					"id": "shared-library-packaged-platform-durability",

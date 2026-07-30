@@ -15,6 +15,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const control = risk?.currentControls.find(
 		({ id }) => id === 'fenced-current-schema-project-catalog-publication',
 	);
+	const mediaAdmissionControl = risk?.currentControls.find(
+		({ id }) => id === 'recipient-local-shared-project-media-admission',
+	);
 	const reclamationControl = risk?.currentControls.find(
 		({ id }) => id === 'lease-fenced-immutable-project-reclamation',
 	);
@@ -86,6 +89,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'electron-main-to-shared-project-library',
 	]);
 	assert.ok(control);
+	assert.ok(mediaAdmissionControl);
 	assert.ok(reclamationControl);
 	assert.ok(stageReclamationControl);
 	for (const path of [
@@ -204,6 +208,42 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		control.summary,
 		/composed source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty.*not a packaged preload, IPC, multi-process, or executable qualification/isu,
 	);
+	for (const path of [
+		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/retention.js',
+		'src/common/editor/scape-abort.ts',
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/scape-expanded-byte-budget.ts',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-content-digest.ts',
+		'src/common/editor/storage/project-repository.ts',
+		'src/common/editor/storage/retention-repository.ts',
+		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage.js',
+		'src/common/editor/app.js',
+		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
+		'tests/audio-editor-desktop-shared-project-repository.test.ts',
+		'tests/audio-editor-desktop-shared-project-source-availability-integration.test.ts',
+		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
+		'tests/audio-editor-project-bootstrap-service.test.ts',
+		'tests/desktop-project-library-editor-handoff.test.ts',
+		'tests/production-security-shared-project-library.test.js',
+	]) assert.ok(mediaAdmissionControl.evidence.some((item) => item.path === path), path);
+	assert.match(
+		mediaAdmissionControl.summary,
+		/latest authoritative exact-schema-9 shared load.*4,094 reachable timeline, Project Bin, and fallback sources.*pre-existing latest recipient-local exact-schema-9 snapshot.*same project.*logical identity, kind, storage key, MIME type.*media geometry.*compatible same-kind.*one physical storage key.*verified once.*conflicting binding.*reject/iu,
+	);
+	assert.match(
+		mediaAdmissionControl.summary,
+		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected metadata before and after.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*genuine Blob.*SHA-256.*4 MiB.*legacy PCM-on-read migration.*media-digest backfill.*disabled.*pre-existing retained-video digest.*match.*audio and digestless retained video.*not.*authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*zero source or media I\/O/iu,
+	);
+	assert.match(
+		mediaAdmissionControl.summary,
+		/bootstrap lifetime signal.*exact cancellation.*latest load, save, and delete.*serialized per project.*durable storage keys.*mixed audio and video.*bound by the latest local snapshot.*missing recipient PCM.*pre-existing revision.*bounded sequential admission-time readability check.*not an atomic snapshot.*media transfer.*durable byte lease/iu,
+	);
 	assert.match(
 		reclamationControl.summary,
 		/recovery.*before the host is exposed.*authoritative project-file inventory.*monotonic row IDs.*captur(?:es|ed).*high-water.*persist(?:s|ed).*cursor.*100,000 rows.*64-row.*SQLite immediate writer transaction.*exact live lease.*before and after filesystem work.*portable case-folded reachability.*current catalog.*previous and next.*pending prepared or committed journal.*deterministic noncatalogable quarantine.*unregistered.*stage.*canonical.*forged quarantine.*foreign.*do not consume.*budget.*untouched.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*yield.*renewal and cancellation.*root symlinks fail closed.*managed media.*untouched.*reclamation-failure lease release.*without adding IPC/isu,
@@ -243,10 +283,14 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/source metadata.*shared document.*source and media bytes.*product-local shadows.*copy.*consolidation.*relink.*playback.*migration from the prior shared v1 scope or product-private Soundscaper libraries.*deliberately deferred and unsupported.*not a current required control/isu,
+		/bounded sequential recipient-local admission.*already-present bytes bound by the latest local snapshot.*latest exact schema 9.*refuses bytes observed missing during admission.*source and media bytes.*product-local shadows.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative provider work.*continue after rejection.*audio and digestless retained video.*not authenticated against prior content digests.*prerequisite local descriptor binding.*not publisher authentication.*fresh recipient.*neither.*descriptor snapshot nor a byte-acquisition outcome.*compatibility beyond retained V1-V8 raw-document migrations.*prior shared v1 scope or product-private Soundscaper libraries.*deferred and unsupported.*not a current required control/isu,
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/source-bearing cross-product handoff.*recipient-side byte availability.*existing local bytes.*user-directed relink or copy.*managed storage.*fail closed before activation/isu,
+		/portable source-bearing handoff.*establish.*recipient-local descriptor binding.*fresh-recipient relink, copy, consolidation, or managed-storage acquisition.*hold or revalidate.*byte identity.*through activation and playback.*durable snapshot, lease, or compare-and-swap.*and qualify.*packaged two-product source-bearing/isu,
+	);
+	assert.match(
+		managedMedia?.acceptanceCriteria.join(' ') ?? '',
+		/packaged two-product source-bearing.*establish.*recipient-local descriptor binding.*acquire bytes.*explicit relink, copy, consolidation, or managed-storage outcome.*hold or revalidate.*stable recipient byte identity.*through activation and playback.*missing-at-admission refusal/isu,
 	);
 });

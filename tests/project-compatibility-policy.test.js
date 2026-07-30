@@ -37,6 +37,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented',
+		'current-desktop-recipient-media-admission': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
 		'current-scape-rendered-fallback-integrity': 'implemented',

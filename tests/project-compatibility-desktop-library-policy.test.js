@@ -10,6 +10,9 @@ const documentationUrl = new URL('../docs/project-compatibility.md', import.meta
 test('shared desktop project policy pins the current editor handoff boundary', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-desktop-project-catalog-commit');
+	const mediaAdmission = policy.rules.find(
+		({ id }) => id === 'current-desktop-recipient-media-admission',
+	);
 
 	assert.ok(rule);
 	assert.deepEqual(rule.evidence, [
@@ -190,12 +193,78 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/activation-specific feature-capability evaluation.*rendered-fallback byte verification.*editor-owned.*managed-media\s+publication.*cross-product\s+source-byte availability.*packaged cross-product lifecycle.*per-platform\s+parent- and database-path identity, power-loss durability, and interrupted\s+foreign collisions at registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted/isu,
+		/separate recipient-local admission.*does not acquire or transfer bytes.*activation-specific feature-capability\s+evaluation.*editor-owned.*managed-media\s+publication.*automatic\s+acquisition.*copy.*consolidation.*relink.*playback.*portable source-byte\s+transfer.*packaged cross-product lifecycle.*per-platform\s+parent- and database-path identity, power-loss durability, and interrupted\s+foreign collisions at registered random stage paths.*outside.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted/isu,
 	);
 	assert.match(
 		documentation,
-		/migration from the prior shared\s+`?v1`?\s+scope or product-private Soundscaper\s+libraries.*not a current priority.*deferred and\s+unsupported.*Audacity.*separate boundary/isu,
+		/existing V1–V8 raw-project migrations remain maintained.*compatibility\s+beyond those retained raw-document migration paths.*prior shared\s+`?v1`?\s+scope.*product-private Soundscaper libraries.*not a\s+current priority.*milestone prerequisite.*Audacity.*separate compatibility\s+boundary/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
+
+	assert.ok(mediaAdmission);
+	assert.equal(mediaAdmission.status, 'implemented');
+	assert.deepEqual(mediaAdmission.evidence, [
+		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/retention.js',
+		'src/common/editor/scape-abort.ts',
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/scape-expanded-byte-budget.ts',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
+		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-content-digest.ts',
+		'src/common/editor/storage/project-repository.ts',
+		'src/common/editor/storage/retention-repository.ts',
+		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage.js',
+		'src/common/editor/app.js',
+		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
+		'tests/audio-editor-desktop-shared-project-repository.test.ts',
+		'tests/audio-editor-desktop-shared-project-source-availability-integration.test.ts',
+		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
+		'tests/audio-editor-project-bootstrap-service.test.ts',
+		'tests/desktop-project-library-editor-handoff.test.ts',
+	]);
+	assert.match(
+		mediaAdmission.requiredOutcome,
+		/authoritative latest exact-schema-9 desktop shared-project load.*reachable source references.*bounded sequential recipient-local readability admission.*before local shadow mutation and activation.*fail closed.*without replacing.*latest local shadow.*adding the remote revision.*recipient-local history/iu,
+	);
+	assert.match(
+		mediaAdmission.currentBehavior,
+		/4,094 reachable timeline, Project Bin, and fallback source references.*pre-existing latest recipient-local exact-schema-9 snapshot.*same project.*logical source identity, kind, storage key, MIME type.*frame and sample geometry.*compatible same-kind.*one physical storage key.*verified once.*conflicting bindings reject/iu,
+	);
+	assert.match(
+		mediaAdmission.currentBehavior,
+		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected source or media metadata before and after.*fully consumes.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*SHA-256.*genuine Blob.*4 MiB.*legacy PCM-on-read migration and media-digest backfill disabled.*pre-existing retained-video digest.*match.*audio and digestless retained video.*not.*authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*no source or media I\/O/iu,
+	);
+	assert.match(
+		mediaAdmission.currentBehavior,
+		/bootstrap lifetime signal.*exact cancellation reason.*non-cooperative provider work.*continue after rejection.*shadow save.*not abort-atomic.*serializes latest load, save, and delete.*per project.*storage keys.*mixed audio and video.*bound by the latest local snapshot.*source-free success.*missing PCM.*pre-existing revision/iu,
+	);
+	assert.match(
+		mediaAdmission.currentBehavior,
+		/bounded sequential admission-time readability check.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*fresh recipient lacks both.*prerequisite local descriptor snapshot.*automatic acquisition.*copy, relink, managed storage.*codec playback.*packaged handoff/iu,
+	);
+	assert.match(
+		mediaAdmission.currentBehavior,
+		/existing V1-V8 raw-project migrations remain maintained.*compatibility beyond those retained raw-document migration paths.*prior shared v1 scope.*product-private Soundscaper libraries.*unsupported.*not a current priority.*Audacity.*separate.*third-party effect semantics.*not gated/iu,
+	);
+	assert.match(
+		documentation,
+		/latest exact-schema-9 source-bearing\s+shared load.*4,094.*pre-existing latest recipient-local\s+exact-schema-9 snapshot.*same project.*65,536.*cumulative 64 GiB budget.*recipient-local video metadata sizes.*metadata before and\s+after.*ordered\s+`?Float32Array`? channel\/frame geometry.*chunk index or\s+frame count.*SHA-256.*genuine exact-size\s+video `?Blob`?.*legacy PCM-on-read\s+migration.*media-digest backfill.*disabled.*pre-existing retained-video-digest failure raised by this repository.*local shadow.*revision history.*activation.*later.*rendered-fallback-declaration digest check.*repository shadowing/isu,
+	);
+	assert.match(
+		documentation,
+		/source-free latest\s+loads.*zero source or media I\/O.*bootstrap.*lifetime\s+signal.*latest load, save, and delete serialized.*per project.*storage\s+keys.*audio and video bytes already present.*pre-existing latest local\s+snapshot.*missing-recipient-PCM.*pre-existing revision/isu,
+	);
+	assert.match(
+		documentation,
+		/bounded sequential admission-time readability check.*not an\s+atomic snapshot.*media transfer.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
+	);
+	assert.match(
+		documentation,
+		/fresh recipient lacks both the prerequisite\s+local descriptor snapshot and automatic acquisition.*copy, consolidation,\s+relink, managed storage, codec playback.*packaged.*source-bearing\s+handoff/isu,
+	);
 });
