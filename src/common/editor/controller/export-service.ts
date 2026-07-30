@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
-import { prepareDirectAiffDestination } from './direct-aiff-export.ts';
+import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
-import { prepareDirectWavDestination } from './direct-wav-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -79,7 +78,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
 				};
 			}
-			const directPreparation = await (plan.format === 'aiff' ? prepareDirectAiffDestination : prepareDirectWavDestination)(
+			const directPreparation = await prepareDirectPcmExportDestination(
 				fileService, plan,
 				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
 				abort.signal,
@@ -146,7 +145,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					pendingDirectDestination!,
 					plan.outputFileBytesPerRender,
 					directOutput.byteLength,
-					assertExportCurrent, plan.format === 'aiff' ? 'AIFF' : 'WAV',
+					assertExportCurrent, directPcmContainerLabel(plan.format),
 				);
 				pendingDirectDestination = null;
 				const result = Object.freeze({
@@ -494,6 +493,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const nativeAiff = plan.format === 'aiff';
 		const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
 		const nativePcm = nativeWav || nativeAiff;
+		const containerLabel = directPcmContainerLabel(plan.format);
 		const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
 		const sink = directDestination
 			? null
@@ -523,7 +523,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			trailingChunks: nativeWav ? plan.trailingChunks : undefined,
 		};
 		const directEncoder = directDestination
-			? await createDirectPcmEncoder(directDestination, nativeAiff ? createAiffStreamEncoder : createWavStreamEncoder, encoderOptions, nativeAiff ? 'AIFF' : 'WAV')
+			? await createDirectPcmEncoder(directDestination, nativeAiff ? createAiffStreamEncoder : createWavStreamEncoder, encoderOptions, containerLabel)
 			: null;
 		const encoder = directEncoder ? null : (nativeAiff
 			? createAiffStreamEncoder({
@@ -547,7 +547,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 				sampleRate: renderSampleRate,
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-				...(directDestination ? directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), nativeAiff ? 'AIFF' : 'WAV') : {}),
+				...(directDestination ? directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel) : {}),
 				...withRenderProgress({}),
 				signal,
 				onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
