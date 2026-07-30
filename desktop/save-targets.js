@@ -3,6 +3,7 @@ import { open, rename, statfs, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
 import {
+	MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
 	MAX_DESKTOP_SAVE_BYTES,
 	MAX_SAVE_ADMITTED_BYTES,
 	MAX_SAVE_CHUNK_BYTES,
@@ -193,6 +194,9 @@ export class AtomicSaveManager {
 			if (!exactSize && target.purpose !== 'project') {
 				throw new Error('Bounded streaming is restricted to project save targets');
 			}
+			const chunkSize = exactSize && target.purpose === 'audio-pcm-mix'
+				? MAX_AUDIO_PCM_SAVE_CHUNK_BYTES
+				: MAX_SAVE_CHUNK_BYTES;
 			const writeId = this.#newId();
 			const targetDirectory = dirname(target.path);
 			const temporaryPath = join(targetDirectory, `.${basename(target.path)}.${writeId}.soundscaper-part`);
@@ -211,12 +215,13 @@ export class AtomicSaveManager {
 				handle,
 				exactSize,
 				admittedSize,
+				chunkSize,
 				reservation,
 				written: 0,
 				busy: false,
 				idle: Promise.resolve(),
 			});
-			return Object.freeze({ writeId, chunkSize: MAX_SAVE_CHUNK_BYTES });
+			return Object.freeze({ writeId, chunkSize });
 		} catch (error) {
 			this.#releaseReservation(reservation);
 			throw error;
@@ -231,7 +236,7 @@ export class AtomicSaveManager {
 		const session = this.#session(writeId, owner);
 		if (session.busy) throw new Error('Concurrent save writes are not allowed');
 		const buffer = toBuffer(bytes);
-		if (buffer.byteLength > MAX_SAVE_CHUNK_BYTES) throw new RangeError('Save chunk is too large');
+		if (buffer.byteLength > session.chunkSize) throw new RangeError('Save chunk is too large');
 		if (!Number.isSafeInteger(offset) || offset !== session.written) throw new RangeError('Save chunk offset is out of sequence');
 		if (buffer.byteLength > session.admittedSize - session.written) {
 			throw new RangeError(session.exactSize
@@ -518,6 +523,7 @@ function availableStorageBytes(details) {
 
 export const SAVE_LIMITS = Object.freeze({
 	chunkBytes: MAX_SAVE_CHUNK_BYTES,
+	audioPcmChunkBytes: MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
 	totalBytes: MAX_DESKTOP_SAVE_BYTES,
 	targets: MAX_SAVE_TARGETS,
 	sessions: MAX_SAVE_SESSIONS,

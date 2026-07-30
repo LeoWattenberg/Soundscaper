@@ -28,6 +28,7 @@ test('production save-capacity limits are fixed and constructor seams can only l
 	});
 	assert.deepEqual(SAVE_LIMITS, {
 		chunkBytes: 1024 * 1024,
+		audioPcmChunkBytes: 4 * 1024 * 1024,
 		totalBytes: MAX_DESKTOP_SAVE_BYTES,
 		targets: MAX_SAVE_TARGETS,
 		sessions: MAX_SAVE_SESSIONS,

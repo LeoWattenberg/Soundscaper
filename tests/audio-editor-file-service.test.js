@@ -151,6 +151,33 @@ test('desktop file service exposes a bounded direct-save stream with acknowledge
 	]);
 });
 
+test('desktop direct-save streams fall back to one MiB when chunk negotiation is invalid', async () => {
+	const fallbackBytes = 1024 * 1024;
+	for (const chunkSize of [undefined, 0, -1, 'invalid']) {
+		const chunks = [];
+		const bridge = {
+			async chooseSaveTarget() { return { id: 'fallback-target', name: 'fallback.scape' }; },
+			async beginWrite() { return { writeId: 'fallback-write', chunkSize }; },
+			async writeChunk(request) {
+				chunks.push(request.bytes.byteLength);
+				return { nextOffset: request.offset + request.bytes.byteLength };
+			},
+			async finishWrite() { return { byteLength: fallbackBytes + 1 }; },
+		};
+		const service = createAudioEditorFileService({ bridge });
+		const prepared = await service.prepareSave({
+			purpose: 'project',
+			suggestedName: 'fallback.scape',
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+		});
+		const writer = (await prepared.createWritable(fallbackBytes + 1, 'exact')).getWriter();
+		await writer.write(new Uint8Array(fallbackBytes + 1));
+		await writer.close();
+		await prepared.commit();
+		assert.deepEqual(chunks, [fallbackBytes, 1]);
+	}
+});
+
 test('desktop direct-save streams can declare one exact output size', async () => {
 	const calls = [];
 	const service = createAudioEditorFileService({

@@ -31,7 +31,7 @@ const CHANNELS = Object.freeze({
 	fullscreenChanged: 'soundscaper:v1:event:fullscreen-changed',
 });
 
-const MAX_CHUNK_BYTES = 1024 * 1024;
+const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
 const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
 const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';

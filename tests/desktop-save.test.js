@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
-import { MAX_SAVE_CHUNK_BYTES, READ_PROFILE_MATERIALIZED_V1 } from '../desktop/constants.js';
+import {
+	MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
+	MAX_SAVE_CHUNK_BYTES,
+	READ_PROFILE_MATERIALIZED_V1,
+} from '../desktop/constants.js';
 import { AtomicSaveManager, SaveTargetStore } from '../desktop/save-targets.js';
 
 const TEST_OWNER = Object.freeze({ name: 'renderer-test-owner' });
@@ -117,12 +121,48 @@ test('save chunks enforce the one MiB boundary', async (context) => {
 	const targets = new SaveTargetStore();
 	const manager = new AtomicSaveManager({ targets });
 	context.after(() => manager.dispose());
-	const target = targets.registerPath(join(root, 'large.wav'), { owner: TEST_OWNER });
+	const target = targets.registerPath(join(root, 'large.scape'), { owner: TEST_OWNER, purpose: 'project' });
 	const session = await manager.begin({ owner: TEST_OWNER, targetId: target.id, size: MAX_SAVE_CHUNK_BYTES + 1 });
 	await assert.rejects(
 		() => manager.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new Uint8Array(MAX_SAVE_CHUNK_BYTES + 1) }),
 		/chunk is too large/u,
 	);
+});
+
+test('exact audio PCM saves negotiate a four MiB sequential chunk boundary', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-audio-chunk-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const target = targets.registerPath(join(root, 'large.wav'), {
+		owner: TEST_OWNER,
+		purpose: 'audio-pcm-mix',
+	});
+	const session = await manager.begin({
+		owner: TEST_OWNER,
+		targetId: target.id,
+		size: MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
+	});
+	assert.equal(session.chunkSize, MAX_AUDIO_PCM_SAVE_CHUNK_BYTES);
+	await manager.writeChunk({
+		owner: TEST_OWNER,
+		writeId: session.writeId,
+		offset: 0,
+		bytes: new Uint8Array(MAX_AUDIO_PCM_SAVE_CHUNK_BYTES),
+	});
+	await assert.rejects(
+		() => manager.writeChunk({
+			owner: TEST_OWNER,
+			writeId: session.writeId,
+			offset: MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
+			bytes: Uint8Array.of(1),
+		}),
+		/exceeds its declared size/iu,
+	);
+	assert.deepEqual(await manager.finish(session.writeId, { owner: TEST_OWNER }), {
+		byteLength: MAX_AUDIO_PCM_SAVE_CHUNK_BYTES,
+	});
 });
 
 test('save chunks cannot exceed their declared byte length', async (context) => {

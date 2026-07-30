@@ -86,10 +86,10 @@ export function createDesktopPreparedSave(options: Readonly<{
 			const session = await bridge.beginWrite(declaration);
 			const writeId = String(session?.writeId || '');
 			if (!writeId) throw new Error('The desktop save session could not be started.');
-			const maximumChunkBytes = Math.max(1, Math.min(
-				DEFAULT_WRITE_CHUNK_BYTES,
-				Number(session.chunkSize) || DEFAULT_WRITE_CHUNK_BYTES,
-			));
+			const negotiatedChunkBytes = Number(session.chunkSize);
+			const maximumChunkBytes = Number.isSafeInteger(negotiatedChunkBytes) && negotiatedChunkBytes > 0
+				? Math.min(MAXIMUM_WRITE_CHUNK_BYTES, negotiatedChunkBytes)
+				: DEFAULT_WRITE_CHUNK_BYTES;
 			return {
 				maximumChunkBytes,
 				async write(bytes, offset) {
