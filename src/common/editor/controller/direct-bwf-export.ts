@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	normalizeBextMetadata,
-	type BextMetadata,
-	type BextMetadataInput,
-} from '../broadcast-wave.ts';
+import { isCanonicalBextV2, sameCanonicalBext } from './direct-broadcast-wave-export.ts';
 import {
 	DIRECT_PCM_MAXIMUM_FILE_BYTES,
 	openDirectPcmDestination,
@@ -18,23 +14,6 @@ const BWF_FILE_TYPES = Object.freeze([Object.freeze({
 	description: 'Broadcast WAV (BWF) audio',
 	accept: Object.freeze({ 'audio/wav': Object.freeze(['.wav']) }),
 })]);
-const BEXT_FIELDS = Object.freeze([
-	'description',
-	'originator',
-	'originatorReference',
-	'originationDate',
-	'originationTime',
-	'timeReference',
-	'version',
-	'umid',
-	'loudnessValue',
-	'loudnessRange',
-	'maxTruePeakLevel',
-	'maxMomentaryLoudness',
-	'maxShortTermLoudness',
-	'codingHistory',
-] as const satisfies readonly (keyof BextMetadata)[]);
-
 interface DirectBwfEncoding {
 	readonly bext?: unknown;
 	readonly bitDepth?: unknown;
@@ -118,29 +97,9 @@ function directBwfPlan(plan: DirectBwfPlan): plan is DirectBwfPlan & {
 		&& (bitDepth === 16 || bitDepth === 20 || bitDepth === 24)
 		&& encoding?.floatingPoint === false
 		&& encoding.sampleFormat === `int${String(bitDepth)}`
-		&& isNormalizedBext(plan.bext)
-		&& isNormalizedBext(encoding.bext)
-		&& sameBext(plan.bext, encoding.bext);
-}
-
-function isNormalizedBext(value: unknown): value is BextMetadata {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const candidate = value as Readonly<Record<string, unknown>>;
-	if (Object.keys(candidate).length !== BEXT_FIELDS.length) return false;
-	let normalized: BextMetadata;
-	try {
-		normalized = normalizeBextMetadata(candidate as BextMetadataInput, { version: 2 });
-	} catch {
-		return false;
-	}
-	return BEXT_FIELDS.every((field) => (
-		Object.hasOwn(candidate, field)
-		&& Object.is(candidate[field], normalized[field])
-	));
-}
-
-function sameBext(left: BextMetadata, right: BextMetadata): boolean {
-	return BEXT_FIELDS.every((field) => Object.is(left[field], right[field]));
+		&& isCanonicalBextV2(plan.bext)
+		&& isCanonicalBextV2(encoding.bext)
+		&& sameCanonicalBext(plan.bext, encoding.bext);
 }
 
 function emptyPreparation(): DirectPcmPreparation {
