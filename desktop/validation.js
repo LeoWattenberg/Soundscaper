@@ -35,7 +35,7 @@ const SAVE_PURPOSES = Object.freeze({
 	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	'audio-pcm-mix': Object.freeze({
 		defaultExtension: 'wav',
-		filters: [{ name: 'WAV audio mix', extensions: ['wav'] }],
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
 	}),
 	audio: Object.freeze({
 		defaultExtension: 'wav',

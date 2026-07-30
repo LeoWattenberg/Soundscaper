@@ -3,15 +3,19 @@ import test from 'node:test';
 
 import { validateSaveChoice } from '../desktop/validation.js';
 
-test('native PCM mix save selection is a dedicated WAV-only purpose', () => {
+test('native PCM mix save selection is a dedicated WAV and AIFF purpose', () => {
 	assert.deepEqual(validateSaveChoice({
 		purpose: 'audio-pcm-mix',
 		suggestedName: 'final-mix',
 	}), {
 		purpose: 'audio-pcm-mix',
 		suggestedName: 'final-mix.wav',
-		filters: [{ name: 'WAV audio mix', extensions: ['wav'] }],
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
 	});
+	assert.equal(
+		validateSaveChoice({ purpose: 'audio-pcm-mix', suggestedName: 'final-mix.aiff' }).suggestedName,
+		'final-mix.aiff',
+	);
 	assert.equal(
 		validateSaveChoice({ purpose: 'audio-pcm-mix', suggestedName: '' }).suggestedName,
 		'untitled.wav',
