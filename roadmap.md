@@ -1679,8 +1679,13 @@ models or native implementations.
   bounded first-party audio-effect engine bypass, and a maintained
   Framescaper-to-Soundscaper handoff proves first-party video-effect preservation
   and persistent control-free affected-effect placeholders. Exact-schema-V9
-  first-party audio whole-mix editor playback through the short decoded-source
-  path, including its persistent active-fallback indicator, is browser-qualified.
+  first-party audio whole-mix editor playback through both the short decoded-source
+  and oversized stream-provider paths, including its persistent active-fallback
+  indicator, is browser-qualified. The oversized path keeps activation quiescent
+  at the playback-protocol stream boundary, then uses one correlated stream from
+  its full source descriptor through a demand-loaded source chunk and bounded
+  packet to playback, with exact direct or device-rate-resampled geometry and no
+  oversized `AudioBuffer` allocation.
   Unit evidence additionally qualifies private required-source staging before
   activation reservation, prompt lifetime cancellation of signal-ignoring
   metadata, audio-context, and decoded-body stalls with exact reason preservation
@@ -1693,8 +1698,8 @@ models or native implementations.
   canonical playback reapply owns one replaceable
   controller-lifetime task; a newer reapply or a successful project switch
   aborts stalled source preparation, and only the newest source-ready projection
-  enters the engine in the tested race. Oversized stream-provider readiness has
-  unit coverage only and does not prefetch or revalidate chunks after
+  enters the engine in the tested race. The direct stream-provider readiness
+  boundary remains unit-qualified and does not prefetch or revalidate chunks after
   point-in-time admission. An entered engine call remains non-abortable and
   non-transactional; later activation failure does not undo a successful commit,
   ordinary-source loading is outside the required-source transaction, and
