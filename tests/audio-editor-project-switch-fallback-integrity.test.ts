@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import type { SourceLifecycleLoadOptions } from '../src/common/editor/controller/source-lifecycle-service.ts';
+import type { PreparedProjectSourceInputs, PreparedRequiredProjectSources, SourceLifecycleLoadOptions } from '../src/common/editor/controller/source-lifecycle-service.ts';
 import type {
 	ProjectLifecycleHistory,
 	ProjectLifecycleLock,
@@ -43,6 +43,10 @@ interface FallbackIntegrityOptions {
 
 interface FallbackIntegrityAdmission {
 	assertCurrent(project: TestProject): void;
+}
+
+function preparedSourceLoad(): PreparedRequiredProjectSources {
+	return Object.freeze({ async commit<Result>(apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result, options: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }> = {}) { return await apply(Object.freeze({ sourceBuffers: new Map([...(options.transientBuffers ?? []), ['fallback-source', 'prepared-buffer'] as const]), chunkSources: new Map() })); }, discard() {} });
 }
 
 type FallbackIntegrityRuntime = ProjectSwitchServiceRuntime<TestProject, TestHistory> & Readonly<{
@@ -271,14 +275,14 @@ test('activation loads a required rendered source and sends only the transient w
 	const fixture = createFixture({
 		productCapabilities: { audioEffects: false, videoEffects: true },
 		verify: (candidate) => admission(candidate),
-		onLoadProjectSources: (_candidate, options) => { if (options.onlyRequiredAudioSources) readinessOptions.push(options); },
+		onLoadProjectSources: (_candidate, options) => { if (options.requiredAudioSourceIds?.length) readinessOptions.push(options); },
 	});
 
 	await fixture.service.switchProject(canonical);
 
 	assert.strictEqual(fixture.currentProject()?.tracks[0]?.id, 'original-track');
 	assert.deepEqual(fixture.requiredAudioSourceIds(), ['fallback-source']);
-	assert.equal(readinessOptions[0]?.onlyRequiredAudioSources, true);
+	assert.deepEqual(readinessOptions[0]?.requiredAudioSourceIds, ['fallback-source']);
 	assert.strictEqual(readinessOptions[0]?.signal, fixture.lifetime.signal);
 	assert.equal(fixture.loadedEngineProject()?.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
 	assert.equal(fixture.loadedEngineProject()?.clips?.[0]?.sourceId, 'fallback-source');
@@ -543,20 +547,18 @@ function createFixture(options: FixtureOptions) {
 		revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
 		loadProjectSources: async (candidate: TestProject, loadOptions: SourceLifecycleLoadOptions = {}) => {
-			effects.push(`sources:${candidate.id}`);
-			if (loadOptions.requiredAudioSourceIds?.length) {
-				requiredAudioSourceIds = loadOptions.requiredAudioSourceIds;
-			}
+			effects.push(`sources:${candidate.id}`); options.onLoadProjectSources?.(candidate, loadOptions);
+			return new Map([['ordinary-source', 'ordinary-buffer']]);
+		},
+		prepareRequiredProjectSources: async (candidate: TestProject, loadOptions: SourceLifecycleLoadOptions) => {
+			effects.push(`sources:${candidate.id}`); requiredAudioSourceIds = loadOptions.requiredAudioSourceIds ?? [];
 			options.onLoadProjectSources?.(candidate, loadOptions);
-			return loadOptions.onlyRequiredAudioSources
-				? new Map([['fallback-source', 'prepared-buffer']])
-				: new Map([['ordinary-source', 'ordinary-buffer']]);
+			return preparedSourceLoad();
 		},
 		retainLiveClipIds: () => undefined,
 		evictUnreferencedSourceCaches: () => undefined,
-		loadEngineProject: (candidate: TestProject, transientBuffers: ReadonlyMap<unknown, unknown>) => {
-			loadedEngineProject = candidate;
-			loadedTransientBuffers = transientBuffers;
+		loadEngineProject: (candidate: TestProject, transientBuffers?: unknown, preparedSources?: PreparedProjectSourceInputs) => {
+			loadedEngineProject = candidate; loadedTransientBuffers = preparedSources?.sourceBuffers ?? transientBuffers as ReadonlyMap<unknown, unknown>;
 			effects.push(`engine:load:${candidate.id}`);
 		},
 		recordOpenedProject: async (projectId: string) => { effects.push(`session:record:${projectId}`); },

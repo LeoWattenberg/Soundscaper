@@ -17,6 +17,10 @@ import type {
 	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts';
+import type {
+	PreparedProjectSourceInputs,
+	PreparedRequiredProjectSources,
+} from './source-lifecycle-service.ts';
 
 export type ProjectSwitchGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
 
@@ -165,13 +169,22 @@ export interface ProjectSwitchServiceRuntime<
 	readonly revokeVideoVisuals: () => void;
 	readonly clearWaveformPcmWindows: () => void;
 	readonly loadProjectSources: (project: Project, options?: Readonly<{
+		readonly excludedAudioSourceIds?: readonly string[];
 		readonly onlyRequiredAudioSources?: boolean;
 		readonly requiredAudioSourceIds?: readonly string[];
 		readonly signal?: AbortSignal;
-	}>) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
+	}>) => PromiseLike<ReadonlyMap<string, unknown>> | ReadonlyMap<string, unknown>;
+	readonly prepareRequiredProjectSources: (project: Project, options: Readonly<{
+		readonly requiredAudioSourceIds: readonly string[];
+		readonly signal?: AbortSignal;
+	}>) => PromiseLike<PreparedRequiredProjectSources> | PreparedRequiredProjectSources;
 	readonly retainLiveClipIds: () => void;
 	readonly evictUnreferencedSourceCaches: () => void;
-	readonly loadEngineProject: (project: Project, transientSourceBuffers?: unknown) => void;
+	readonly loadEngineProject: (
+		project: Project,
+		transientSourceBuffers?: unknown,
+		preparedSources?: PreparedProjectSourceInputs,
+	) => PromiseLike<unknown> | unknown;
 	readonly recordOpenedProject: (projectId: string, guard: ProjectSwitchGuard) => Promise<unknown>;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
@@ -285,19 +298,24 @@ export function createProjectSwitchService<
 		}));
 		fallbackAdmission.assertCurrent(activationProject);
 		const playbackProjection = playbackProjects.projectForPlayback(activationProject);
-		const preparedFallbackBuffers = playbackProjection.requiredAudioSourceIds.length
-			? await guard(runtime.loadProjectSources(activationProject, {
-				onlyRequiredAudioSources: true,
+		const preparedFallbackSources = playbackProjection.requiredAudioSourceIds.length
+			? await guard(runtime.prepareRequiredProjectSources(activationProject, {
 				requiredAudioSourceIds: playbackProjection.requiredAudioSourceIds,
 				signal: runtime.lifetime.signal,
 			}))
-			: new Map<unknown, unknown>();
-		fallbackAdmission.assertCurrent(activationProject);
+			: null;
+		let activation: ReturnType<typeof runtime.session.beginProjectActivation>;
+		try {
+			fallbackAdmission.assertCurrent(activationProject);
+			activation = runtime.session.beginProjectActivation(projectId, existingCapture
+				? { expectedHistoryToken: existingCapture.token }
+				: { requireAbsent: true });
+		} catch (error) {
+			preparedFallbackSources?.discard();
+			throw error;
+		}
 		const featureRequirementsReport = playbackProjection.featureRequirementsReport;
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
-		const activation = runtime.session.beginProjectActivation(projectId, existingCapture
-			? { expectedHistoryToken: existingCapture.token }
-			: { requireAbsent: true });
 		try {
 			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
 			runtime.projectGeneration.invalidate();
@@ -415,13 +433,24 @@ export function createProjectSwitchService<
 			runtime.state.missingSourceIds.clear();
 			runtime.revokeVideoVisuals();
 			runtime.clearWaveformPcmWindows();
-			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject));
-			const transientSourceBuffers = preparedFallbackBuffers.size
-				? new Map([...loadedSourceBuffers, ...preparedFallbackBuffers])
-				: loadedSourceBuffers;
+			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
+				excludedAudioSourceIds: playbackProjection.requiredAudioSourceIds,
+			}));
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
-			runtime.loadEngineProject(playbackProjection.project, transientSourceBuffers);
+			fallbackAdmission.assertCurrent(activeProject);
+			if (preparedFallbackSources) {
+				await guard(preparedFallbackSources.commit(
+					async (preparedSources) => {
+						const result = await runtime.loadEngineProject(
+							playbackProjection.project, undefined, preparedSources,
+						);
+						fallbackAdmission.assertCurrent(activeProject);
+						return result;
+					},
+					{ transientBuffers: loadedSourceBuffers },
+				));
+			} else await guard(runtime.loadEngineProject(playbackProjection.project, loadedSourceBuffers));
 			await runtime.recordOpenedProject(projectId, guard);
 			if (options.save && !runtime.state.readOnly) {
 				await guard(runtime.saveProject(activeProject));
@@ -446,6 +475,7 @@ export function createProjectSwitchService<
 			}
 			throw error;
 		} finally {
+			preparedFallbackSources?.discard();
 			activation.release();
 		}
 	}

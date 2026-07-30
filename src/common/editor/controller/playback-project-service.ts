@@ -14,6 +14,7 @@ import {
 	type ProjectFeatureVideoEffectBypassMetadata,
 } from '../project-feature-video-effect-bypass.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
+import type { PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 
 export interface PlaybackProjectProjection<Project extends object> {
 	readonly project: Project;
@@ -29,6 +30,7 @@ export interface PlaybackProjectService {
 }
 
 export const PLAYBACK_PROJECT_APPLY_TASK = 'playback-project-apply';
+const STALE_PLAYBACK_PROJECT_APPLY = Symbol('stale-playback-project-apply');
 
 interface PlaybackEngineState {
 	readonly state?: unknown;
@@ -54,6 +56,13 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 			readonly signal?: AbortSignal;
 		}>,
 	) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
+	readonly prepareRequiredProjectSources: (
+		project: Project,
+		options: Readonly<{
+			readonly requiredAudioSourceIds: readonly string[];
+			readonly signal?: AbortSignal;
+		}>,
+	) => PromiseLike<PreparedRequiredProjectSources> | PreparedRequiredProjectSources;
 	readonly sourceBuffers: ReadonlyMap<unknown, unknown>;
 	readonly sourceChunkProviders: ReadonlyMap<unknown, unknown>;
 	readonly engine: PlaybackProjectEngine<Project>;
@@ -134,25 +143,53 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 	throwIfPlaybackProjectApplyAborted(options.signal);
 	const previousPlayback = runtime.engine.getState();
 	const projection = runtime.projectForPlayback(canonicalProject);
-	const transientBuffers = await runtime.ensureProjectSourcesAvailable(projection.project, {
-		requiredAudioSourceIds: projection.requiredAudioSourceIds,
-		signal: options.signal,
-	});
-	throwIfPlaybackProjectApplyAborted(options.signal);
-	if (runtime.getCurrentProject() !== canonicalProject) return false;
-	const playbackBuffers = transientBuffers.size
-		? new Map([...runtime.sourceBuffers, ...transientBuffers])
-		: runtime.sourceBuffers;
-	await runtime.engine.applyProject(projection.project, playbackBuffers, {
-		chunkSources: runtime.sourceChunkProviders,
-	});
-	throwIfPlaybackProjectApplyAborted(options.signal);
-	if (
-		previousPlayback.state === 'playing'
-		&& previousPlayback.playbackMode === 'staffpad'
-		&& runtime.engine.getState().state !== 'playing'
-	) runtime.setReadyStatus();
-	return true;
+	const preparedSources = projection.requiredAudioSourceIds.length
+		? await runtime.prepareRequiredProjectSources(projection.project, {
+			requiredAudioSourceIds: projection.requiredAudioSourceIds,
+			signal: options.signal,
+		})
+		: null;
+	try {
+		const transientBuffers = preparedSources
+			? new Map<unknown, unknown>()
+			: await runtime.ensureProjectSourcesAvailable(projection.project, {
+				requiredAudioSourceIds: projection.requiredAudioSourceIds,
+				signal: options.signal,
+			});
+		throwIfPlaybackProjectApplyAborted(options.signal);
+		if (runtime.getCurrentProject() !== canonicalProject) return false;
+		if (preparedSources) {
+			await preparedSources.commit(async (inputs) => {
+				await runtime.engine.applyProject(
+					projection.project,
+					inputs.sourceBuffers,
+					{ chunkSources: inputs.chunkSources },
+				);
+				throwIfPlaybackProjectApplyAborted(options.signal);
+				if (runtime.getCurrentProject() !== canonicalProject) throw STALE_PLAYBACK_PROJECT_APPLY;
+			});
+		} else {
+			const playbackBuffers = transientBuffers.size
+				? new Map([...runtime.sourceBuffers, ...transientBuffers])
+				: runtime.sourceBuffers;
+			await runtime.engine.applyProject(projection.project, playbackBuffers, {
+				chunkSources: runtime.sourceChunkProviders,
+			});
+		}
+		throwIfPlaybackProjectApplyAborted(options.signal);
+		if (runtime.getCurrentProject() !== canonicalProject) return false;
+		if (
+			previousPlayback.state === 'playing'
+			&& previousPlayback.playbackMode === 'staffpad'
+			&& runtime.engine.getState().state !== 'playing'
+		) runtime.setReadyStatus();
+		return true;
+	} catch (error) {
+		if (error === STALE_PLAYBACK_PROJECT_APPLY) return false;
+		throw error;
+	} finally {
+		preparedSources?.discard();
+	}
 }
 
 function throwIfPlaybackProjectApplyAborted(signal?: AbortSignal): void {

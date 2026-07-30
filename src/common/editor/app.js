@@ -569,7 +569,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const playbackProjectService = createPlaybackProjectService(product.capabilities);
 	const playbackProjectApplyService = createPlaybackProjectApplyService({
 		lifetime, projectForPlayback: playbackProjectService.projectForPlayback, getCurrentProject: () => project,
-		ensureProjectSourcesAvailable, sourceBuffers, sourceChunkProviders, engine,
+		ensureProjectSourcesAvailable, prepareRequiredProjectSources: sourceLifecycleService.prepareRequiredProjectSources, sourceBuffers, sourceChunkProviders, engine,
 		setReadyStatus: () => setStatus(copy.ready),
 	});
 	const preferencesService = createEditorPreferencesService({
@@ -807,13 +807,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		revokeOutputUrl: (url) => URL.revokeObjectURL(url),
 		revokeVideoVisuals,
 		clearWaveformPcmWindows,
-		loadProjectSources,
+		loadProjectSources, prepareRequiredProjectSources: sourceLifecycleService.prepareRequiredProjectSources,
 		retainLiveClipIds: projectRetentionService.retainLiveClipIds,
 		evictUnreferencedSourceCaches: () => evictUnreferencedSourceCaches(
 			sourceBuffers, sourcePeaks, projectRetentionService.liveSessionSourceIds(),
 		),
-		loadEngineProject: (activeProject, transientBuffers) => engine.loadProject(activeProject,
-			transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers, { chunkSources: sourceChunkProviders }),
+		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
+				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),
 		saveProject: (activeProject) => store.saveProject(activeProject),
 		listProjects: () => store.listProjects(),

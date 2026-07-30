@@ -29,6 +29,24 @@ function deferred<Value>() {
 	return { promise, resolve };
 }
 
+function preparedSources(
+	sourceBuffers: ReadonlyMap<string, unknown> = new Map(),
+	chunkSources: ReadonlyMap<string, unknown> = new Map(),
+	onCommit: () => void = () => undefined,
+) {
+	return Object.freeze({
+		async commit<Result>(apply: (inputs: Readonly<{
+			readonly sourceBuffers: ReadonlyMap<string, unknown>;
+			readonly chunkSources: ReadonlyMap<string, unknown>;
+		}>) => PromiseLike<Result> | Result): Promise<Result> {
+			const result = await apply(Object.freeze({ sourceBuffers, chunkSources }));
+			onCommit();
+			return result;
+		},
+		discard() {},
+	});
+}
+
 function fallbackProject() {
 	const source = createAudioSourceV9({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
@@ -117,11 +135,12 @@ test('playback reapplies only the projected document after required sources are 
 	const result = await applyCanonicalProjectToPlaybackEngine(canonical, {
 		projectForPlayback: (project) => service.projectForPlayback(project),
 		getCurrentProject: () => canonical,
-		ensureProjectSourcesAvailable: async (project, options) => {
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async (project, options) => {
 			events.push('sources');
 			assert.equal(project.clips[0]?.sourceId, 'fallback-source');
 			assert.deepEqual(options.requiredAudioSourceIds, ['fallback-source']);
-			return transient;
+			return preparedSources(new Map([...sourceBuffers, ...transient]), sourceChunkProviders);
 		},
 		sourceBuffers,
 		sourceChunkProviders,
@@ -148,13 +167,15 @@ test('a canonical identity change during source preparation suppresses the stale
 	const canonical = fallbackProject();
 	let current: typeof canonical | null = canonical;
 	let engineCalls = 0;
+	let sourceCommits = 0;
 	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: true });
 	const applied = await applyCanonicalProjectToPlaybackEngine(canonical, {
 		projectForPlayback: (project) => service.projectForPlayback(project),
 		getCurrentProject: () => current,
-		ensureProjectSourcesAvailable: async () => {
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async () => {
 			current = null;
-			return new Map();
+			return preparedSources(new Map(), new Map(), () => { sourceCommits += 1; });
 		},
 		sourceBuffers: new Map(),
 		sourceChunkProviders: new Map(),
@@ -166,6 +187,35 @@ test('a canonical identity change during source preparation suppresses the stale
 	});
 	assert.equal(applied, false);
 	assert.equal(engineCalls, 0);
+	assert.equal(sourceCommits, 0);
+});
+
+test('a canonical identity change during engine apply suppresses staged source publication', async () => {
+	const canonical = fallbackProject();
+	let current: typeof canonical | null = canonical;
+	let sourceCommits = 0;
+	const started = deferred<void>();
+	const release = deferred<void>();
+	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: true });
+	const applying = applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: (project) => service.projectForPlayback(project),
+		getCurrentProject: () => current,
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async () => preparedSources(
+			new Map(), new Map(), () => { sourceCommits += 1; },
+		),
+		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			async applyProject() { started.resolve(); await release.promise; },
+		},
+		setReadyStatus() {},
+	});
+	await started.promise;
+	current = null;
+	release.resolve();
+	assert.equal(await applying, false);
+	assert.equal(sourceCommits, 0);
 });
 
 test('a newer playback reapply aborts stalled source readiness and alone reaches the engine', async () => {
@@ -189,7 +239,8 @@ test('a newer playback reapply aborts stalled source readiness and alone reaches
 			audioEffects: false, videoEffects: true,
 		}).projectForPlayback,
 		getCurrentProject: () => current,
-		ensureProjectSourcesAvailable: async (
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async (
 			_project: typeof first,
 			options: Readonly<{ requiredAudioSourceIds: readonly string[]; signal?: AbortSignal }>,
 		) => {
@@ -197,7 +248,7 @@ test('a newer playback reapply aborts stalled source readiness and alone reaches
 			assert.ok(signal);
 			sourceCalls += 1;
 			sourceSignals.push(signal);
-			if (sourceCalls !== 1) return new Map();
+			if (sourceCalls !== 1) return preparedSources();
 			started.resolve();
 			return new Promise<never>((_resolve, reject) => {
 				signal.addEventListener('abort', () => { reject(signal.reason); }, { once: true });

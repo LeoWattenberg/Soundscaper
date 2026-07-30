@@ -41,9 +41,23 @@ export interface SourceLifecycleServiceRuntime {
 }
 
 export interface SourceLifecycleLoadOptions {
+	readonly excludedAudioSourceIds?: readonly string[];
 	readonly onlyRequiredAudioSources?: boolean;
 	readonly requiredAudioSourceIds?: readonly string[];
 	readonly signal?: AbortSignal;
+}
+
+export interface PreparedProjectSourceInputs {
+	readonly sourceBuffers: ReadonlyMap<string, unknown>;
+	readonly chunkSources: ReadonlyMap<string, unknown>;
+}
+
+export interface PreparedRequiredProjectSources {
+	commit<Result>(
+		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
+		options?: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }>,
+	): Promise<Result>;
+	discard(): void;
 }
 
 function throwIfSourceLoadAborted(signal?: AbortSignal): void {
@@ -179,9 +193,11 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 
 	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
+		const excludedSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = options.onlyRequiredAudioSources
 			? new Set<string>()
 			: new Set<string>(allProjectClips(project).map((clip: any) => clip.sourceId));
+		for (const sourceId of excludedSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
 		if (!usedSourceIds.size) return transientBuffers;
@@ -271,9 +287,111 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		return transientBuffers;
 	}
 
-	function registerStoredChunkProvider(source: any, metadata: any) {
+	async function prepareRequiredProjectSources(
+		project: any,
+		options: SourceLifecycleLoadOptions,
+	): Promise<PreparedRequiredProjectSources> {
+		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
+		const prepared = new Map<string, Readonly<{ kind: 'buffer' | 'provider'; value: any }>>();
+		throwIfSourceLoadAborted(options.signal);
+		let context: any = null;
+		for (const source of project.sources.filter((candidate: any) => requiredSourceIds.has(candidate.id))) {
+			const metadata = await awaitSourceLoadOperation(
+				() => store.getSourceMetadata(source.storageKey || source.id),
+				options.signal,
+			);
+			throwIfSourceLoadAborted(options.signal);
+			assertRequiredSourceMetadata(source, metadata);
+			if (sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
+				const provider = createStoredChunkProviderCandidate(source, metadata);
+				if (!provider) {
+					throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
+				}
+				prepared.set(source.id, Object.freeze({ kind: 'provider', value: provider }));
+				continue;
+			}
+			context ??= await awaitSourceLoadOperation(
+				() => engine.getAudioContext?.({ resume: false }),
+				options.signal,
+			);
+			throwIfSourceLoadAborted(options.signal);
+			const buffer = await awaitSourceLoadOperation(
+				() => readStoredAudioBuffer(store, source, context),
+				options.signal,
+			);
+			throwIfSourceLoadAborted(options.signal);
+			assertRequiredSourceBuffer(source, buffer);
+			prepared.set(source.id, Object.freeze({ kind: 'buffer', value: buffer }));
+		}
+		return createPreparedRequiredProjectSources(prepared, options.signal);
+	}
+
+	function createPreparedRequiredProjectSources(
+		prepared: Map<string, Readonly<{ kind: 'buffer' | 'provider'; value: any }>>,
+		signal?: AbortSignal,
+	): PreparedRequiredProjectSources {
+		let state: 'prepared' | 'committing' | 'committed' | 'discarded' = 'prepared';
+		return Object.freeze({ commit, discard });
+
+		async function commit<Result>(
+			apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
+			options: Readonly<{ transientBuffers?: ReadonlyMap<string, unknown> }> = {},
+		): Promise<Result> {
+			if (state !== 'prepared') throw new Error(`The required source preparation is already ${state}.`);
+			if (typeof apply !== 'function') throw new TypeError('Required source preparation commit needs an apply callback.');
+			state = 'committing';
+			try {
+				throwIfSourceLoadAborted(signal);
+				const preparedBuffers = new Map<string, unknown>(sourceBuffers);
+				for (const [sourceId, buffer] of options.transientBuffers ?? []) {
+					preparedBuffers.set(sourceId, buffer);
+				}
+				const preparedProviders = new Map<string, unknown>(sourceChunkProviders);
+				for (const [sourceId, entry] of prepared) {
+					preparedBuffers.delete(sourceId);
+					preparedProviders.delete(sourceId);
+					if (entry.kind === 'buffer') preparedBuffers.set(sourceId, entry.value);
+					else preparedProviders.set(sourceId, entry.value);
+				}
+				const result = await apply(Object.freeze({
+					sourceBuffers: preparedBuffers,
+					chunkSources: preparedProviders,
+				}));
+				throwIfSourceLoadAborted(signal);
+				for (const [sourceId, entry] of prepared) {
+					if (entry.kind === 'provider') {
+						sourceChunkProviders.set(sourceId, entry.value);
+						sourceBuffers.delete(sourceId);
+						continue;
+					}
+					cacheSourceBuffer(sourceId, entry.value);
+					sourceChunkProviders.delete(sourceId);
+				}
+				state = 'committed';
+				prepared.clear();
+				return result;
+			} catch (error) {
+				state = 'discarded';
+				prepared.clear();
+				throw error;
+			}
+		}
+
+		function discard(): void {
+			if (state !== 'prepared') return;
+			state = 'discarded';
+			prepared.clear();
+		}
+	}
+
+	function createStoredChunkProviderCandidate(source: any, metadata: any) {
 		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
-		const provider = createStoredChunkProvider(store, source, metadata);
+		return createStoredChunkProvider(store, source, metadata);
+	}
+
+	function registerStoredChunkProvider(source: any, metadata: any) {
+		const provider = createStoredChunkProviderCandidate(source, metadata);
+		if (!provider) return null;
 		sourceChunkProviders.set(source.id, provider);
 		// Project application is intentionally asynchronous. Publish the provider
 		// immediately so cache eviction cannot create a transient unplayable source.
@@ -380,18 +498,10 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		if (!options || typeof options !== 'object' || Array.isArray(options)) {
 			throw new TypeError('Source lifecycle load options must be an object.');
 		}
-		const values = options.requiredAudioSourceIds ?? [];
-		if (!Array.isArray(values)) throw new TypeError('Required audio source IDs must be an array.');
 		if (options.onlyRequiredAudioSources != null && typeof options.onlyRequiredAudioSources !== 'boolean') {
 			throw new TypeError('Only-required-audio-sources must be a boolean.');
 		}
-		const ids = new Set<string>();
-		for (const value of values) {
-			if (typeof value !== 'string' || !value || value !== value.trim()) {
-				throw new TypeError('A required audio source ID must be a non-empty canonical string.');
-			}
-			ids.add(value);
-		}
+		const ids = sourceIdSet(options.requiredAudioSourceIds ?? [], 'required audio source');
 		if (!ids.size) return ids;
 		const sources = Array.isArray(project?.sources) ? project.sources : [];
 		for (const sourceId of ids) {
@@ -402,6 +512,18 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			if (matches[0]?.kind !== 'audio') {
 				throw new TypeError(`Required rendered fallback source ${sourceId} must be audio.`);
 			}
+		}
+		return ids;
+	}
+
+	function sourceIdSet(values: readonly string[], label: string): Set<string> {
+		if (!Array.isArray(values)) throw new TypeError(`${label} IDs must be an array.`);
+		const ids = new Set<string>();
+		for (const value of values) {
+			if (typeof value !== 'string' || !value || value !== value.trim()) {
+				throw new TypeError(`A ${label} ID must be a non-empty canonical string.`);
+			}
+			ids.add(value);
 		}
 		return ids;
 	}
@@ -432,6 +554,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		clearWaveformPcmWindows,
 		ensureProjectSourcesAvailable,
 		loadProjectSources,
+		prepareRequiredProjectSources,
 		registerStoredChunkProvider,
 		requestWaveformPcmWindow,
 	});

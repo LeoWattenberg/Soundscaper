@@ -211,7 +211,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 			events.push(`load-sources:${value.id}`);
 			return loadSources(value).then(() => new Map());
 		},
-		retainLiveClipIds: () => { events.push('retain-clips'); },
+		prepareRequiredProjectSources: async () => assert.fail('fixture has no required fallback'), retainLiveClipIds: () => { events.push('retain-clips'); },
 		evictUnreferencedSourceCaches: () => { events.push('evict-sources'); },
 		loadEngineProject: (value: TestProject) => {
 			loadedEngineProject = value;

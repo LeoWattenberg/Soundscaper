@@ -155,6 +155,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	const stallStarted = deferred<void>();
 	const cachedBuffers = new Map<string, unknown>([['fallback-source', Object.freeze({ stale: true })]]);
 	const sourceBuffers = {
+		[Symbol.iterator]: () => cachedBuffers[Symbol.iterator](),
 		has: (id: string) => cachedBuffers.has(id),
 		get: (id: string) => cachedBuffers.get(id),
 		delete: (id: string) => cachedBuffers.delete(id),
@@ -320,14 +321,16 @@ test('playback reapply source preparation enforces required fallback readiness',
 		...fixture.project,
 		clips: [{ id: 'fallback-clip', kind: 'audio', sourceId: fixture.source.id }],
 	};
-	const transients = await fixture.service.ensureProjectSourcesAvailable(playback, {
+	const prepared = await fixture.service.prepareRequiredProjectSources(playback, {
 		requiredAudioSourceIds: [fixture.source.id],
 	});
-	assert.equal(transients.get(fixture.source.id)?.length, 4);
+	await prepared.commit((inputs) => {
+		assert.equal((inputs.sourceBuffers.get(fixture.source.id) as { length?: number } | undefined)?.length, 4);
+	});
 
 	const missing = createRequiredSourceFixture({ buffer: null });
 	await assert.rejects(
-		missing.service.ensureProjectSourcesAvailable(playback, {
+		missing.service.prepareRequiredProjectSources(playback, {
 			requiredAudioSourceIds: [missing.source.id],
 		}),
 		/rendered fallback|required.*source|unavailable/iu,
@@ -359,7 +362,7 @@ test('abort promptly and atomically cancels signal-ignoring required source read
 			};
 			const operation = operationName === 'initial load'
 				? fixture.service.loadProjectSources(fixture.project, loadOptions)
-				: fixture.service.ensureProjectSourcesAvailable(fixture.project, loadOptions);
+				: fixture.service.prepareRequiredProjectSources(fixture.project, loadOptions);
 			const terminal = operation.then(
 				(value) => ({ kind: 'fulfilled' as const, value }),
 				(error: unknown) => ({ kind: 'rejected' as const, error }),

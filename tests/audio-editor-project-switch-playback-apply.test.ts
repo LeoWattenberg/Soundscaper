@@ -183,10 +183,11 @@ test('project switching cancels signal-ignoring playback source readiness before
 			requiredAudioSourceIds: Object.freeze(['playback-source']),
 		}),
 		getCurrentProject: () => currentProject,
-		ensureProjectSourcesAvailable: (candidate, options) => {
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: (candidate, options) => {
 			playbackSignal = options.signal;
 			playbackSignal?.addEventListener('abort', () => { events.push('playback:abort'); }, { once: true });
-			return sourceLifecycle.ensureProjectSourcesAvailable(candidate, options);
+			return sourceLifecycle.prepareRequiredProjectSources(candidate, options);
 		},
 		sourceBuffers,
 		sourceChunkProviders,
@@ -300,6 +301,9 @@ test('project switching cancels signal-ignoring playback source readiness before
 		revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
 		loadProjectSources: (candidate, options) => sourceLifecycle.loadProjectSources(candidate, options),
+		prepareRequiredProjectSources: (candidate, options) => (
+			sourceLifecycle.prepareRequiredProjectSources(candidate, options)
+		),
 		retainLiveClipIds: () => undefined,
 		evictUnreferencedSourceCaches: () => undefined,
 		loadEngineProject: (candidate) => { loadedSwitchProjects.push(candidate.id); },
