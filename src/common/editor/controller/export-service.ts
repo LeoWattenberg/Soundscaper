@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import {
+	commitDirectWavDestination, createDirectWavEncoder, prepareDirectWavDestination, type DirectWavDestination,
+} from './direct-wav-export.ts';
 
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -48,16 +51,20 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(getProject().id);
 		const exportTask = lifetime.startTask('export');
-		const abort = Object.freeze({
-			signal: exportTask.signal,
-			abort: () => lifetime.cancelTask('export'),
-		});
+		const abort = Object.freeze({ signal: exportTask.signal, abort: () => lifetime.cancelTask('export') });
+		const assertExportCurrent = () => {
+			throwIfAborted(abort.signal);
+			exportTask.assertCurrent();
+			projectGeneration.assertCurrent(projectToken);
+			if (generation !== state.exportGeneration || state.disposed) throw abortError();
+		};
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		let exportProject = cloneProject(getProject());
 		const exportSources = new Map(sourceBuffers);
 		let pendingCleanup = null;
+		let pendingDirectDestination: DirectWavDestination | null = null;
 		try {
 			const settings = normalizeExportSettings(requestedSettings || {});
 			const plan = createExportPlan(exportProject, {
@@ -74,19 +81,36 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
 				};
 			}
-			await preflightStorage(
-				plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
-				'export',
+			const directPreparation = await prepareDirectWavDestination(
+				fileService, plan,
+				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+				abort.signal,
 			);
+			if (directPreparation.cancelled) return directPreparation.cancelled;
+			pendingDirectDestination = directPreparation.destination;
+			if (!pendingDirectDestination) {
+				await preflightStorage(
+					plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
+					'export',
+				);
+			}
 			setStatus(copy.rendering);
 			let blob;
 			let fileName;
 			let outputCleanup = null;
+			let directOutput = null;
 			if (plan.mode === 'mix') {
-				const encoded = await renderAndEncode(exportProject, plan, settings, abort.signal, exportSources);
-				blob = encoded.blob || new Blob([encoded.bytes], { type: encoded.mimeType });
-				outputCleanup = encoded.cleanup || null;
-				pendingCleanup = outputCleanup;
+				const encoded = await renderAndEncode(
+					exportProject, plan, settings, abort.signal, exportSources,
+					{ start: 0, end: 1 },
+					pendingDirectDestination,
+				);
+				if (encoded.directDestination) directOutput = encoded;
+				else {
+					blob = encoded.blob || new Blob([encoded.bytes], { type: encoded.mimeType });
+					outputCleanup = encoded.cleanup || null;
+					pendingCleanup = outputCleanup;
+				}
 				fileName = plan.outputs[0].fileName;
 			} else {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
@@ -117,15 +141,30 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					throw error;
 				}
 			}
-			throwIfAborted(abort.signal);
-			exportTask.assertCurrent();
-			projectGeneration.assertCurrent(projectToken);
-			if (generation !== state.exportGeneration) throw abortError();
-			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
-			await state.outputCleanup?.();
-			state.outputUrl = null;
-			state.outputCleanup = null;
-			state.exportOutput = null;
+			assertExportCurrent();
+			if (directOutput) {
+				await clearPreviousExportOutput();
+				const published = await commitDirectWavDestination(
+					pendingDirectDestination!,
+					plan.outputFileBytesPerRender,
+					directOutput.byteLength,
+					assertExportCurrent,
+				);
+				pendingDirectDestination = null;
+				const result = Object.freeze({
+					url: null,
+					fileName: published.fileName || fileName,
+					mimeType: directOutput.mimeType,
+					size: published.size,
+					method: published.method,
+				});
+				try { assertExportCurrent(); } catch { return result; }
+				state.exportOutput = result;
+				setStatus(copy.done, 'success');
+				publishDocumentSnapshot();
+				return result;
+			}
+			await clearPreviousExportOutput();
 			const published = await fileService.createDownload({
 				purpose: 'audio',
 				suggestedName: fileName,
@@ -159,7 +198,18 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			setStatus(copy.done, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
-		} catch (error) {
+		} catch (caughtError) {
+			let error = caughtError;
+			if (pendingDirectDestination) {
+				try {
+					await pendingDirectDestination.abort(error);
+				} catch (cleanupError) {
+					error = new AggregateError(
+						[error, cleanupError],
+						'The streamed WAV export and destination cleanup both failed.',
+					);
+				}
+			}
 			await pendingCleanup?.().catch(() => undefined);
 			if ((error as Readonly<{ name?: string }>)?.name !== 'AbortError') handleError(error);
 		} finally {
@@ -170,6 +220,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			progressTask.finish();
 			exportTask.finish();
 		}
+	}
+
+	async function clearPreviousExportOutput() {
+		if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
+		await state.outputCleanup?.();
+		state.outputUrl = null;
+		state.outputCleanup = null;
+		state.exportOutput = null;
 	}
 
 	async function exportVideo(requestedSettings: RuntimeValue = {}) {
@@ -302,7 +360,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			.slice(0, 96) || 'video-project';
 	}
 
-	async function renderAndEncode(snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue, sourceMap: RuntimeValue = sourceBuffers, progressRange: RuntimeValue = { start: 0, end: 1 }) {
+	async function renderAndEncode(
+		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
+		sourceMap: RuntimeValue = sourceBuffers,
+		progressRange: RuntimeValue = { start: 0, end: 1 },
+		directDestination: DirectWavDestination | null = null,
+	) {
 		throwIfAborted(signal);
 		const progressSpan = progressRange.end - progressRange.start;
 		taskProgress?.setActivePhase?.(copy.rendering, {
@@ -313,7 +376,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		if (plan.render.strategy === 'realtime-stream') {
 			setStatus(copy.largeProjectRealtimeExport);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, sourceMap);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, sourceMap, directDestination);
 		}
 		try {
 			const rendered = await renderSnapshot(snapshot, {
@@ -423,15 +486,22 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		});
 	}
 
-	async function renderRealtimeEncoded(snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue, sourceMap: RuntimeValue = sourceBuffers) {
+	async function renderRealtimeEncoded(
+		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
+		sourceMap: RuntimeValue = sourceBuffers,
+		directDestination: DirectWavDestination | null = null,
+	) {
 		await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		const nativeAiff = plan.format === 'aiff';
 		const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
 		const nativePcm = nativeWav || nativeAiff;
 		const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
-		const sink = await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
-		if (!sink.persistent
+		if (directDestination && plan.format !== 'wav') throw new Error('Direct PCM export currently supports WAV only.');
+		const sink = directDestination
+			? null
+			: await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
+		if (sink && !sink.persistent
 			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
 			await sink.abort();
 			throw new Error(copy.realtimeStorageRequired);
@@ -454,10 +524,21 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			bext: broadcast ? plan.bext : undefined,
 			preDataChunks: nativeWav ? plan.preDataChunks : undefined,
 			trailingChunks: nativeWav ? plan.trailingChunks : undefined,
-			collect: false,
-			onChunk: (chunk: RuntimeValue) => sink.write(chunk),
 		};
-		const encoder = nativeAiff ? createAiffStreamEncoder(encoderOptions) : createWavStreamEncoder(encoderOptions);
+		const directEncoder = directDestination
+			? await createDirectWavEncoder(directDestination, createWavStreamEncoder, encoderOptions)
+			: null;
+		const encoder = directEncoder ? null : (nativeAiff
+			? createAiffStreamEncoder({
+				...encoderOptions,
+				collect: false,
+				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+			})
+			: createWavStreamEncoder({
+				...encoderOptions,
+				collect: false,
+				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+			}));
 		const renderEngine = createCacheAwareRenderEngine();
 		let outputResampler = null;
 		let renderedSampleRate = renderSampleRate;
@@ -475,12 +556,22 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					const mappedChannels = applyMediaChannelMapping(channels, plan.channelMapping);
 					outputResampler ||= createStreamingWindowedSincResampler(renderedSampleRate, plan.sampleRate, plan.channelCount);
 					const outputChannels = outputResampler.push(mappedChannels);
-					if (outputChannels[0]?.length) encoder.write(outputChannels);
+					if (!outputChannels[0]?.length) return undefined;
+					if (directEncoder) return directEncoder.write(outputChannels);
+					encoder.write(outputChannels);
+					return undefined;
 				},
 			});
 			outputResampler ||= createStreamingWindowedSincResampler(renderResult.sampleRate || renderedSampleRate, plan.sampleRate, plan.channelCount);
 			const finalChannels = outputResampler.finish(plan.outputFrames);
-			if (finalChannels[0]?.length) encoder.write(finalChannels);
+			if (finalChannels[0]?.length) {
+				if (directEncoder) await directEncoder.write(finalChannels);
+				else encoder.write(finalChannels);
+			}
+			if (directEncoder) {
+				const byteLength = await directEncoder.finalize();
+				return { blob: null, bytes: null, byteLength, mimeType: plan.mimeType, directDestination };
+			}
 			encoder.finalize();
 			await encoder.settled();
 			const stagingFile = await sink.close(nativeAiff ? 'audio/aiff' : 'audio/wav');
@@ -498,7 +589,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			await sink.remove();
 			return encoded;
 		} catch (error) {
-			await sink.abort();
+			if (sink) await sink.abort();
 			throw error;
 		} finally {
 			await renderEngine.dispose();
