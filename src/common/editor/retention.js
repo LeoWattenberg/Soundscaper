@@ -24,6 +24,17 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	return target;
 }
 
+/** Resolve durable logical references to the keys used by source/media stores. */
+export function collectProjectStorageKeys(project, target = new Set()) {
+	const sources = Array.isArray(project?.sources) ? project.sources : [];
+	const sourceById = new Map(sources.map((source) => [source?.id, source]));
+	for (const sourceId of collectProjectSourceIds(project)) {
+		const storageKey = sourceById.get(sourceId)?.storageKey;
+		target.add(typeof storageKey === 'string' && storageKey ? storageKey : sourceId);
+	}
+	return target;
+}
+
 export function editorHistoryProjects(history) {
 	if (!history) return [];
 	return [

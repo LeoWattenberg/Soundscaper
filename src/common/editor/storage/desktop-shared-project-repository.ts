@@ -11,6 +11,11 @@ import type {
 	ProjectRepositoryPort,
 	ProjectRevision,
 } from './project-repository.ts';
+import {
+	desktopSharedProjectHasSourceReferences,
+	verifyDesktopSharedProjectSourceAvailability,
+	type DesktopSharedProjectSourceAvailability,
+} from './desktop-shared-project-source-availability.ts';
 
 type CurrentProjectDocument = AudioEditorProjectV9 & ProjectDocument & Readonly<{
 	id: string;
@@ -44,6 +49,7 @@ export interface DesktopSharedProjectBridge {
 export interface DesktopSharedProjectRepositoryOptions {
 	readonly bridge: DesktopSharedProjectBridge;
 	readonly shadow: ProjectRepositoryPort;
+	readonly sourceAvailability: DesktopSharedProjectSourceAvailability;
 	readonly onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
 	readonly maximumDocumentBytes?: number;
 }
@@ -56,12 +62,15 @@ export interface DesktopSharedProjectRepositoryOptions {
 export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #bridge: DesktopSharedProjectBridge;
 	readonly #maximumDocumentBytes: number;
+	readonly #latestMutations = new Map<string, Promise<void>>();
 	readonly #onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
 	readonly #shadow: ProjectRepositoryPort;
+	readonly #sourceAvailability: DesktopSharedProjectSourceAvailability;
 
 	constructor(options: DesktopSharedProjectRepositoryOptions) {
 		this.#bridge = validateBridge(options.bridge);
 		this.#shadow = validateShadow(options.shadow);
+		this.#sourceAvailability = validateSourceAvailability(options.sourceAvailability);
 		if (typeof options.onLocalCleanupError !== 'function') {
 			throw new TypeError('Desktop shared project cleanup reporting is required.');
 		}
@@ -71,44 +80,81 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 
 	async save(project: ProjectDocument): Promise<ProjectDocument> {
 		const admitted = admitCurrentProject(project, this.#maximumDocumentBytes);
-		const snapshot = await this.#shadow.save(admitted);
-		assertCurrentProject(snapshot);
-		if (snapshot.id !== admitted.id || snapshot.revision !== admitted.revision) {
-			throw new Error('Desktop shared project shadow changed the project identity or revision.');
-		}
-		const document = serializeBoundedProject(snapshot, this.#maximumDocumentBytes);
-		const acknowledgement = await this.#bridge.commitSharedProject(document);
-		parseCanonicalProject(acknowledgement, this.#maximumDocumentBytes, 'commit acknowledgement');
-		if (acknowledgement !== document) {
-			throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
-		}
-		return snapshot;
+		return this.#serializeLatestMutation(admitted.id, undefined, async () => {
+			const snapshot = await this.#shadow.save(admitted);
+			assertCurrentProject(snapshot);
+			if (snapshot.id !== admitted.id || snapshot.revision !== admitted.revision) {
+				throw new Error('Desktop shared project shadow changed the project identity or revision.');
+			}
+			const document = serializeBoundedProject(snapshot, this.#maximumDocumentBytes);
+			const acknowledgement = await this.#bridge.commitSharedProject(document);
+			parseCanonicalProject(acknowledgement, this.#maximumDocumentBytes, 'commit acknowledgement');
+			if (acknowledgement !== document) {
+				throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
+			}
+			return snapshot;
+		});
 	}
 
 	async load(projectId: string, options: ProjectLoadOptions = {}): Promise<ProjectDocument | null> {
 		if (options.revision !== undefined) return this.#shadow.load(projectId, options);
 		assertProjectId(projectId);
-		throwIfAborted(options.signal);
-		const document = await raceAbort(
-			() => this.#bridge.readSharedProject(projectId),
-			options.signal,
-		);
-		throwIfAborted(options.signal);
-		if (document === null) return null;
-		const project = parseCanonicalProject(document, this.#maximumDocumentBytes, 'loaded document');
-		if (project.id !== projectId) {
-			throw new Error('Desktop shared project document identity does not match the requested project.');
+		return this.#serializeLatestMutation(projectId, options.signal, async () => {
+			throwIfAborted(options.signal);
+			const document = await raceAbort(
+				() => this.#bridge.readSharedProject(projectId),
+				options.signal,
+			);
+			throwIfAborted(options.signal);
+			if (document === null) return null;
+			const project = parseCanonicalProject(document, this.#maximumDocumentBytes, 'loaded document');
+			if (project.id !== projectId) {
+				throw new Error('Desktop shared project document identity does not match the requested project.');
+			}
+			if (desktopSharedProjectHasSourceReferences(project)) {
+				const priorLocalProject = await this.#shadow.load(projectId, { signal: options.signal });
+				throwIfAborted(options.signal);
+				await verifyDesktopSharedProjectSourceAvailability(
+					project,
+					priorLocalProject,
+					this.#sourceAvailability,
+					{ signal: options.signal },
+				);
+				throwIfAborted(options.signal);
+			}
+			const snapshot = await this.#shadow.save(project);
+			throwIfAborted(options.signal);
+			assertCurrentProject(snapshot);
+			if (snapshot.id !== project.id || snapshot.revision !== project.revision) {
+				throw new Error('Desktop shared project shadow changed the loaded identity or revision.');
+			}
+			if (serializeBoundedProject(snapshot, this.#maximumDocumentBytes) !== document) {
+				throw new Error('Desktop shared project shadow changed the authoritative loaded document.');
+			}
+			return snapshot;
+		});
+	}
+
+	async #serializeLatestMutation<Value>(
+		projectId: string,
+		signal: AbortSignal | undefined,
+		operation: () => Promise<Value>,
+	): Promise<Value> {
+		const predecessor = this.#latestMutations.get(projectId) ?? Promise.resolve();
+		let release = (): void => undefined;
+		const completion = new Promise<void>((resolve) => { release = resolve; });
+		const queued = predecessor.catch(() => undefined).then(() => completion);
+		this.#latestMutations.set(projectId, queued);
+		try {
+			await raceAbort(() => predecessor.catch(() => undefined), signal);
+			throwIfAborted(signal);
+			return await operation();
+		} finally {
+			release();
+			void queued.then(() => {
+				if (this.#latestMutations.get(projectId) === queued) this.#latestMutations.delete(projectId);
+			});
 		}
-		const snapshot = await this.#shadow.save(project);
-		throwIfAborted(options.signal);
-		assertCurrentProject(snapshot);
-		if (snapshot.id !== project.id || snapshot.revision !== project.revision) {
-			throw new Error('Desktop shared project shadow changed the loaded identity or revision.');
-		}
-		if (serializeBoundedProject(snapshot, this.#maximumDocumentBytes) !== document) {
-			throw new Error('Desktop shared project shadow changed the authoritative loaded document.');
-		}
-		return snapshot;
 	}
 
 	async list(): Promise<ProjectDocument[]> {
@@ -129,17 +175,19 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 
 	async delete(projectId: string): Promise<void> {
 		assertProjectId(projectId);
-		await this.#bridge.deleteSharedProject(projectId);
-		try {
-			await this.#shadow.delete(projectId);
-		} catch (cause) {
-			const error = new DesktopSharedProjectLocalCleanupError(projectId, cause);
+		await this.#serializeLatestMutation(projectId, undefined, async () => {
+			await this.#bridge.deleteSharedProject(projectId);
 			try {
-				this.#onLocalCleanupError(error);
-			} catch {
-				// Reporting cannot restore the already-cleared authoritative entry.
+				await this.#shadow.delete(projectId);
+			} catch (cause) {
+				const error = new DesktopSharedProjectLocalCleanupError(projectId, cause);
+				try {
+					this.#onLocalCleanupError(error);
+				} catch {
+					// Reporting cannot restore the already-cleared authoritative entry.
+				}
 			}
-		}
+		});
 	}
 }
 
@@ -280,6 +328,25 @@ function validateShadow(value: ProjectRepositoryPort): ProjectRepositoryPort {
 	if (!value || typeof value !== 'object') throw new TypeError('Desktop shared project shadow is required.');
 	for (const method of ['save', 'load', 'list', 'listRevisions', 'delete'] as const) {
 		if (typeof value[method] !== 'function') throw new TypeError(`Desktop shared project shadow.${method} is required.`);
+	}
+	return value;
+}
+
+function validateSourceAvailability(
+	value: DesktopSharedProjectSourceAvailability,
+): DesktopSharedProjectSourceAvailability {
+	if (!value || typeof value !== 'object') {
+		throw new TypeError('Desktop shared project source availability is required.');
+	}
+	for (const method of [
+		'getSourceMetadata',
+		'readSourceChunks',
+		'getMediaAssetMetadata',
+		'loadMediaAsset',
+	] as const) {
+		if (typeof value[method] !== 'function') {
+			throw new TypeError(`Desktop shared project source availability.${method} is required.`);
+		}
 	}
 	return value;
 }

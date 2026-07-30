@@ -14,6 +14,10 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import {
+	createAudioClipV9,
+	createAudioEditorProjectV9,
+	createAudioSourceV9,
+	createAudioTrackV9,
 	validateAudioEditorProjectV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
@@ -53,6 +57,130 @@ const FRAME_OWNER = Object.freeze({
 	product: 'framescaper' as const,
 	processId: 302,
 	instanceId: 'editor-handoff-framescaper',
+});
+
+test('source-bearing exact-V9 handoff refuses activation without recipient-local PCM', async (context) => {
+	const fixture = await createFixture();
+	const resources = trackResources(context, fixture);
+	const soundHost = await resources.startHost(SOUND_OWNER);
+	const soundService = new DesktopSharedProjectLibraryService(soundHost, {
+		now: () => 30_000,
+		createEntryId: () => 'handoff-entry-0002',
+	});
+	const sourceId = 'handoff-audio-source';
+	const source = createAudioSourceV9({
+		id: sourceId,
+		name: 'Soundscaper-only.wav',
+		mimeType: 'audio/wav',
+		storageKey: sourceId,
+		frameCount: 4,
+		channelCount: 1,
+		sampleRate: 48_000,
+		originalSampleRate: 48_000,
+		sampleFormat: 'float32',
+		chunkFrames: 4,
+	});
+	const clip = createAudioClipV9({
+		id: 'handoff-audio-clip',
+		sourceId,
+		title: 'Soundscaper-only clip',
+		durationFrames: 4,
+		sourceDurationFrames: 4,
+	});
+	const track = createAudioTrackV9({
+		id: 'handoff-audio-track',
+		name: 'Soundscaper audio',
+		clipIds: [clip.id],
+	});
+	const project = exactV9(createAudioEditorProjectV9({
+		id: 'handoff-project-with-audio',
+		title: 'Source-bearing handoff',
+		revision: 3,
+		now: '2026-07-30T12:00:00.000Z',
+		sampleRate: 48_000,
+		sources: [source],
+		clips: [clip],
+		tracks: [track],
+	}));
+
+	const soundLocalStore = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `editor-handoff-sound-local-${Date.now()}-${Math.random()}`,
+	});
+	context.after(async () => { await soundLocalStore.close(); });
+	const writer = await soundLocalStore.beginSourceWrite(sourceId, {
+		name: source.name,
+		mimeType: source.mimeType,
+		sampleRate: 48_000,
+		channelCount: 1,
+		chunkFrames: 4,
+	});
+	await writer.write([Float32Array.of(0.125, -0.25, 0.5, -1)]);
+	await writer.commit({ sampleRate: 48_000, channelCount: 1, chunkFrames: 4 });
+	assert.ok(await soundLocalStore.getSourceMetadata(sourceId));
+
+	const sharedDocument = await soundService.commitSharedProject(serializeScapeProjectDocument(project));
+	assert.deepEqual(exactV9(sharedDocument), project);
+	const sharedCatalog = soundHost.readCatalog();
+	const soundToken = soundHost.snapshot().fencingToken;
+	await soundLocalStore.close();
+	await resources.closeHost(soundHost);
+
+	const frameHost = await resources.startHost(FRAME_OWNER);
+	assert.ok(frameHost.snapshot().fencingToken > soundToken);
+	const frameService = new DesktopSharedProjectLibraryService(frameHost, {
+		now: () => 40_000,
+		createEntryId: () => { throw new Error('failed handoff must not create a shared entry'); },
+	});
+	const frameCommits: string[] = [];
+	const frameDatabaseName = `editor-handoff-framescaper-bound-${Date.now()}-${Math.random()}`;
+	const frameSeed = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: frameDatabaseName,
+	});
+	context.after(async () => { await frameSeed.close(); });
+	const priorFrameProject = structuredClone({
+		...project,
+		revision: project.revision - 1,
+		updatedAt: '2026-07-30T11:00:00.000Z',
+	});
+	await frameSeed.saveProject(priorFrameProject);
+	await frameSeed.close();
+	const frameStore = sharedStore(
+		'framescaper-missing-audio',
+		serviceBridge(frameService, frameCommits),
+		frameDatabaseName,
+	);
+	assert.equal(await frameStore.store.getSourceMetadata(sourceId), null);
+	assert.deepEqual(
+		(await frameStore.store.listProjectRevisions(project.id)).map(({ revision }) => revision),
+		[priorFrameProject.revision],
+	);
+	await frameStore.store.saveSetting('framescaper:last-project-id', project.id);
+	const framescaper = resources.trackController(createEditorController(null, {
+		headless: true,
+		productId: 'framescaper',
+		store: frameStore.store,
+	}));
+
+	const failed = await framescaper.ready;
+	assert.equal(failed.phase, 'error');
+	assert.equal(failed.project, null);
+	assert.equal(framescaper.project, null);
+	assert.deepEqual(
+		(await frameStore.store.listProjectRevisions(project.id)).map(({ revision }) => revision),
+		[priorFrameProject.revision],
+	);
+	assert.deepEqual(frameCommits, []);
+	assert.deepEqual(frameHost.readCatalog(), sharedCatalog);
+	assert.equal(await frameService.readSharedProject(project.id), sharedDocument);
+	assert.equal(failed.status.state, 'error');
+	assert.match(failed.status.message, /recipient-local/iu);
+	assert.match(failed.status.message, /audio source/iu);
+	assert.match(failed.status.message, /(?:unavailable|not available|missing)/iu);
+	assert.ok(failed.status.message.includes(sourceId));
 });
 
 test('source-free exact-V9 composed editor autosave hands off from Soundscaper to Framescaper', async (context) => {
@@ -154,7 +282,11 @@ test('source-free exact-V9 composed editor autosave hands off from Soundscaper t
 	assert.deepEqual(frameStore.cleanupErrors, []);
 });
 
-function sharedStore(product: string, bridge: DesktopSharedProjectBridge): Readonly<{
+function sharedStore(
+	product: string,
+	bridge: DesktopSharedProjectBridge,
+	databaseName = `editor-handoff-${product}-${Date.now()}-${Math.random()}`,
+): Readonly<{
 	store: AudioEditorProjectStore;
 	cleanupErrors: Error[];
 }> {
@@ -164,7 +296,7 @@ function sharedStore(product: string, bridge: DesktopSharedProjectBridge): Reado
 		store: createProjectStore({
 			indexedDB: null,
 			preferOpfs: false,
-			databaseName: `editor-handoff-${product}-${Date.now()}-${Math.random()}`,
+			databaseName,
 			desktopProjectBridge: bridge,
 			onDesktopSharedProjectLocalCleanupError: (error: Error) => { cleanupErrors.push(error); },
 		}),

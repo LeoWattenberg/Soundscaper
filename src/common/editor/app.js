@@ -818,7 +818,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	const projectBootstrapService = createProjectBootstrapService({
-		state, store, engine, mediaDevices, productSettingKey,
+		state, lifetimeSignal: lifetime.signal, store, engine, mediaDevices, productSettingKey,
 		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 		recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
 		loadPreferences,

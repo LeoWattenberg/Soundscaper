@@ -29,7 +29,10 @@ export interface ProjectBootstrapStore<Project extends ProjectLifecycleProject> 
 	cleanupTemporaryAssets?(): PromiseLike<unknown> | unknown;
 	requestPersistentStorage(): PromiseLike<unknown> | unknown;
 	loadSetting(key: string, fallback: unknown): Promise<unknown>;
-	loadProject(projectId: string): Promise<Project | null>;
+	loadProject(
+		projectId: string,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): Promise<Project | null>;
 }
 
 export interface ProjectBootstrapMediaDevices {
@@ -43,6 +46,7 @@ export interface ProjectBootstrapServiceRuntime<
 	EffectPresets,
 > {
 	readonly state: ProjectBootstrapState<Preferences, EffectPresets>;
+	readonly lifetimeSignal: AbortSignal;
 	readonly store: ProjectBootstrapStore<Project>;
 	readonly engine: Readonly<{
 		loadProject?: unknown;
@@ -176,7 +180,9 @@ export function createProjectBootstrapService<
 		await guard(runtime.refreshAudioDevices({ probe: false, publish: false }));
 		registerDeviceChangeListener();
 		const lastProjectId = await runtime.loadRecentProjectState(guard);
-		const saved = lastProjectId ? await guard(runtime.store.loadProject(lastProjectId)) : null;
+		const saved = lastProjectId
+			? await guard(runtime.store.loadProject(lastProjectId, { signal: runtime.lifetimeSignal }))
+			: null;
 		if (saved) await guard(runtime.openProject(saved));
 		else await guard(runtime.newProject());
 		runtime.publishProjectState();

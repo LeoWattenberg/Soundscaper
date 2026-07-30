@@ -8,6 +8,7 @@ import {
 	DesktopSharedProjectRepository,
 	type DesktopSharedProjectBridge,
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
+import type { DesktopSharedProjectSourceAvailability } from '../src/common/editor/storage/desktop-shared-project-source-availability.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import {
 	ProjectRepository,
@@ -76,6 +77,7 @@ test('desktop shared saves publish the local compacted snapshot before canonical
 	let committedDocument = '';
 	const repository = new DesktopSharedProjectRepository({
 		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async (document) => {
@@ -106,6 +108,7 @@ test('desktop shared save retains its local revision and retries an identical re
 	const attempts: string[] = [];
 	const repository = new DesktopSharedProjectRepository({
 		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async (document) => {
@@ -130,6 +133,7 @@ test('desktop shared save fully validates before touching either repository boun
 	const shadow = recordingShadow(calls);
 	const repository = new DesktopSharedProjectRepository({
 		shadow,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async (document) => {
@@ -156,6 +160,7 @@ test('desktop shared save fully validates before touching either repository boun
 	const compactionCalls: string[] = [];
 	const invalidCompaction = new DesktopSharedProjectRepository({
 		shadow: recordingShadow(compactionCalls, { saveResult: invalidSnapshot as ProjectDocument }),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async (document) => {
@@ -176,6 +181,7 @@ test('desktop shared latest load is remote-authoritative, validated, and shadowe
 	let reads = 0;
 	const repository = new DesktopSharedProjectRepository({
 		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			readSharedProject: async (projectId) => {
@@ -197,6 +203,7 @@ test('desktop shared latest load is remote-authoritative, validated, and shadowe
 
 	const remotelyAbsent = new DesktopSharedProjectRepository({
 		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({ readSharedProject: async () => null }),
 	});
@@ -215,6 +222,7 @@ test('desktop shared latest load rejects noncanonical, invalid, mismatched, and 
 	const shadowCalls: string[] = [];
 	const repository = new DesktopSharedProjectRepository({
 		shadow: recordingShadow(shadowCalls),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({ readSharedProject: async () => responses.shift() ?? null }),
 	});
@@ -231,12 +239,152 @@ test('desktop shared latest load rejects noncanonical, invalid, mismatched, and 
 	assert.deepEqual(shadowCalls, []);
 });
 
+test('desktop shared latest load leaves prior local history untouched when recipient PCM is missing', async () => {
+	const local = memoryRepository('shared-missing-pcm');
+	const source = createAudioSourceV9({
+		id: 'remote-audio',
+		storageKey: 'recipient-pcm-key',
+		name: 'Remote audio',
+		frameCount: 48,
+		channelCount: 1,
+		chunkFrames: 48,
+	});
+	const clip = createAudioClipV9({
+		id: 'remote-clip',
+		sourceId: source.id,
+		durationFrames: 48,
+	});
+	const track = createAudioTrackV9({ id: 'remote-track', clipIds: [clip.id] });
+	const stale = createAudioEditorProjectV9({
+		id: 'missing-pcm-project',
+		title: 'Prior local revision',
+		revision: 1,
+		now: NOW,
+		sources: [source],
+		clips: [clip],
+		tracks: [track],
+	}) as unknown as CurrentProject;
+	const latest = createAudioEditorProjectV9({
+		id: stale.id,
+		title: 'Remote latest',
+		revision: 2,
+		now: NOW,
+		sources: [source],
+		clips: [clip],
+		tracks: [track],
+	}) as unknown as CurrentProject;
+	await local.save(stale);
+	let readOptions: Readonly<{ signal?: AbortSignal; migrateLegacyPcmOnAccess?: boolean }> | undefined;
+	const sourceAvailability: DesktopSharedProjectSourceAvailability = {
+		async getSourceMetadata(sourceId: string) {
+			assert.equal(sourceId, source.storageKey);
+			return {
+				id: source.storageKey,
+				storage: 'indexeddb',
+				sourceToken: 'missing-source-token',
+				chunkCount: 1,
+				frameCount: source.frameCount,
+				channelCount: source.channelCount,
+				sampleRate: source.sampleRate,
+				chunkFrames: source.chunkFrames,
+				committedAt: NOW,
+			};
+		},
+		readSourceChunks(sourceId: string, options: Readonly<{
+			signal?: AbortSignal;
+			migrateLegacyPcmOnAccess?: boolean;
+		}> = {}) {
+			assert.equal(sourceId, source.storageKey);
+			readOptions = options;
+			return emptyAsyncIterable();
+		},
+		async getMediaAssetMetadata() {
+			throw new Error('Audio admission must not inspect video media metadata.');
+		},
+		async loadMediaAsset() {
+			throw new Error('Audio admission must not load video media.');
+		},
+	};
+	const repository = new DesktopSharedProjectRepository({
+		shadow: local,
+		sourceAvailability,
+		onLocalCleanupError: () => {},
+		bridge: bridge({ readSharedProject: async () => serializeScapeProjectDocument(latest) }),
+	});
+
+	await assert.rejects(repository.load(latest.id), /audio|frame|PCM|source/iu);
+	assert.equal(readOptions?.migrateLegacyPcmOnAccess, false);
+	assert.deepEqual(await local.load(stale.id), stale);
+	assert.deepEqual(
+		(await local.listRevisions(stale.id)).map(({ revision }) => revision),
+		[1],
+	);
+});
+
+test('concurrent shared latest loads cannot let a slow older admission replace a newer revision', async () => {
+	const local = memoryRepository('shared-concurrent-load');
+	const source = createAudioSourceV9({
+		id: 'ordered-audio', storageKey: 'ordered-pcm', frameCount: 1, channelCount: 1, chunkFrames: 1,
+	});
+	const clip = createAudioClipV9({ id: 'ordered-clip', sourceId: source.id, durationFrames: 1 });
+	const track = createAudioTrackV9({ id: 'ordered-track', clipIds: [clip.id] });
+	const revision = (value: number): CurrentProject => createAudioEditorProjectV9({
+		id: 'ordered-project', title: `Revision ${value}`, revision: value, now: NOW,
+		sources: [source], clips: [clip], tracks: [track],
+	}) as unknown as CurrentProject;
+	await local.save(revision(0));
+	const documents = [revision(1), revision(2)].map((project) => serializeScapeProjectDocument(project));
+	const firstBodyStarted = deferred<void>();
+	const releaseFirstBody = deferred<void>();
+	let bodyReads = 0;
+	let remoteReads = 0;
+	const repository = new DesktopSharedProjectRepository({
+		shadow: local,
+		sourceAvailability: {
+			async getSourceMetadata() {
+				return {
+					id: source.storageKey, storage: 'indexeddb-chunks', sourceToken: 'ordered-token',
+					frameCount: 1, channelCount: 1, sampleRate: source.sampleRate,
+					chunkFrames: 1, chunkCount: 1, committedAt: NOW,
+				};
+			},
+			async *readSourceChunks(_sourceId, options) {
+				assert.equal(options?.migrateLegacyPcmOnAccess, false);
+				bodyReads += 1;
+				if (bodyReads === 1) {
+					firstBodyStarted.resolve();
+					await releaseFirstBody.promise;
+				}
+				yield { index: 0, frames: 1, channels: [Float32Array.of(0.5)] };
+			},
+			async getMediaAssetMetadata() { throw new Error('unexpected video metadata read'); },
+			async loadMediaAsset() { throw new Error('unexpected video body read'); },
+		},
+		onLocalCleanupError: () => {},
+		bridge: bridge({
+			readSharedProject: async () => documents[remoteReads++] ?? documents[1] as string,
+		}),
+	});
+
+	const older = repository.load(sourceProjectId(documents[0] as string));
+	await firstBodyStarted.promise;
+	const newer = repository.load(sourceProjectId(documents[1] as string));
+	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	const readsWhileBlocked = remoteReads;
+	releaseFirstBody.resolve();
+	await Promise.all([older, newer]);
+
+	assert.equal(readsWhileBlocked, 1, 'the second authoritative read waits for the first load');
+	assert.equal((await local.load('ordered-project'))?.revision, 2);
+});
+
 test('desktop shared list returns only authoritative pathless summaries without document reads', async () => {
 	const local = memoryRepository('shared-list');
 	await local.save(sourceFreeProject('local-only', 9));
 	let reads = 0;
 	const repository = new DesktopSharedProjectRepository({
 		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			listSharedProjects: async () => [
@@ -263,6 +411,7 @@ test('desktop shared transport is bounded and requires an exact commit acknowled
 	let commits = 0;
 	const tooSmall = new DesktopSharedProjectRepository({
 		shadow: memoryRepository('shared-bound-save'),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async (document) => {
@@ -278,6 +427,7 @@ test('desktop shared transport is bounded and requires an exact commit acknowled
 
 	const mismatchedAck = new DesktopSharedProjectRepository({
 		shadow: memoryRepository('shared-ack'),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			commitSharedProject: async () => serializeScapeProjectDocument({ ...project, title: 'Changed' }),
@@ -287,6 +437,7 @@ test('desktop shared transport is bounded and requires an exact commit acknowled
 
 	const boundedRead = new DesktopSharedProjectRepository({
 		shadow: recordingShadow([]),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({ readSharedProject: async () => canonical }),
 		maximumDocumentBytes: canonical.length - 1,
@@ -299,6 +450,7 @@ test('desktop shared delete completes remotely before local cleanup and never re
 	const remoteFailure = new Error('remote delete failed');
 	const remoteBlocked = new DesktopSharedProjectRepository({
 		shadow: recordingShadow(calls),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
 			deleteSharedProject: async () => {
@@ -315,6 +467,7 @@ test('desktop shared delete completes remotely before local cleanup and never re
 	const reported: DesktopSharedProjectLocalCleanupError[] = [];
 	const failedCleanup = new DesktopSharedProjectRepository({
 		shadow: recordingShadow(calls, { deleteFailure: cleanupFailure }),
+		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: (error) => { reported.push(error); },
 		bridge: bridge({
 			deleteSharedProject: async () => {
@@ -355,6 +508,38 @@ function bridge(overrides: Partial<DesktopSharedProjectBridge> = {}): DesktopSha
 		deleteSharedProject: async () => true,
 		...overrides,
 	};
+}
+
+function throwingSourceAvailability(): DesktopSharedProjectSourceAvailability {
+	const unexpected = (operation: string): never => {
+		throw new Error(`Repository path unexpectedly called ${operation}.`);
+	};
+	return {
+		getSourceMetadata: async () => unexpected('getSourceMetadata'),
+		readSourceChunks: () => unexpected('readSourceChunks'),
+		getMediaAssetMetadata: async () => unexpected('getMediaAssetMetadata'),
+		loadMediaAsset: async () => unexpected('loadMediaAsset'),
+	};
+}
+
+function emptyAsyncIterable(): AsyncIterable<never> {
+	return {
+		[Symbol.asyncIterator]() {
+			return {
+				next: async () => ({ done: true, value: undefined }),
+			};
+		},
+	};
+}
+
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
+function sourceProjectId(document: string): string {
+	return String((parseScapeProjectDocument(document) as ProjectDocument).id);
 }
 
 function recordingShadow(

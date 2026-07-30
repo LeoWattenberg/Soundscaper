@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { collectProjectSourceIds, compactProjectSourceMetadata } from '../retention.js';
+import {
+	collectProjectStorageKeys,
+	compactProjectSourceMetadata,
+} from '../retention.js';
 import {
 	deleteByIndex,
 	request,
@@ -69,7 +72,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		if (!database) {
 			this.#port.memory.projects.set(snapshot.id, snapshot);
 			this.#port.memory.revisions.set(revisionRecord.key, revisionRecord);
-			for (const sourceId of collectProjectSourceIds(snapshot)) {
+			for (const sourceId of collectProjectStorageKeys(snapshot)) {
 				const source = asRecord(this.#port.memory.sources.get(sourceId));
 				if (source?.pendingProjectUntil) this.#port.memory.sources.set(sourceId, publishSource(source));
 				const mediaAsset = asRecord(this.#port.memory.mediaAssets.get(sourceId));
@@ -87,7 +90,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		}) => {
 			projects.put(snapshot);
 			revisions.put(revisionRecord);
-			for (const sourceId of collectProjectSourceIds(snapshot)) {
+			for (const sourceId of collectProjectStorageKeys(snapshot)) {
 				const source = asRecord(await request(sources.get(sourceId)));
 				if (source?.pendingProjectUntil) sources.put(publishSource(source));
 				const mediaAsset = asRecord(await request(mediaAssets.get(sourceId)));

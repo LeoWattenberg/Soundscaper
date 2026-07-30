@@ -37,6 +37,10 @@ function createFixture() {
 	let ready: () => PromiseLike<unknown> | unknown = () => Promise.resolve();
 	let lastProjectId: string | null = null;
 	let savedProject: TestProject | null = null;
+	let loadProject: (
+		projectId: string,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	) => Promise<TestProject | null> = async () => savedProject;
 	let openProject: (value: TestProject) => Promise<unknown> = async () => undefined;
 	let missingSources = false;
 	let removeDeviceListener: () => void = () => undefined;
@@ -67,6 +71,7 @@ function createFixture() {
 	};
 	const runtime: ProjectBootstrapServiceRuntime<TestProject, TestPreferences, TestPresets> = {
 		state,
+		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => ready(),
 			cleanupTemporaryAssets: () => { events.push('cleanup-assets'); },
@@ -75,9 +80,12 @@ function createFixture() {
 				events.push(`load:${key}`);
 				return settings.has(key) ? settings.get(key) : fallback;
 			},
-			async loadProject(projectId) {
+			async loadProject(
+				projectId: string,
+				options: Readonly<{ signal?: AbortSignal }> = {},
+			) {
 				events.push(`load-project:${projectId}`);
-				return savedProject;
+				return loadProject(projectId, options);
 			},
 		},
 		engine: {
@@ -146,6 +154,7 @@ function createFixture() {
 			savedProject = loaded;
 		},
 		setMissingSources(value: boolean) { missingSources = value; },
+		setLoadProject(value: typeof loadProject) { loadProject = value; },
 		setOpenProject(value: typeof openProject) { openProject = value; },
 		setReady(value: typeof ready) { ready = value; },
 	};
@@ -203,6 +212,41 @@ test('terminal disposal during store readiness prevents later resource acquisiti
 	assert.equal(fixture.events.includes('listen-devices'), false);
 	assert.equal(fixture.events.includes('new-project'), false);
 	assert.equal(fixture.events.includes('publish'), false);
+});
+
+test('terminal disposal aborts the saved-project load before project activation', async () => {
+	const fixture = createFixture();
+	const saved = { id: 'saved-project', tracks: [] };
+	const loadStarted = deferred<void>();
+	const loadGate = deferred<TestProject | null>();
+	let loadSignal: AbortSignal | undefined;
+	fixture.setLastProject(saved.id, saved);
+	fixture.setOpenProject(async (value) => { fixture.events.push(`open-project:${value.id}`); });
+	fixture.setLoadProject(async (projectId, options) => {
+		assert.equal(projectId, saved.id);
+		loadSignal = options?.signal;
+		loadStarted.resolve();
+		const signal = loadSignal;
+		if (!signal) return loadGate.promise;
+		return new Promise<TestProject | null>((resolve, reject) => {
+			signal.addEventListener('abort', () => { reject(signal.reason); }, { once: true });
+			void loadGate.promise.then(resolve, reject);
+		});
+	});
+	const bootstrap = fixture.service.bootstrap(fixture.lifetime.capture());
+	await loadStarted.promise;
+
+	fixture.lifetime.beginDisposal();
+	fixture.setDisposed(true);
+	loadGate.resolve(saved);
+
+	await assert.rejects(() => bootstrap, { code: 'DISPOSED' });
+	assert.equal(loadSignal, fixture.lifetime.signal);
+	assert.equal(loadSignal?.aborted, true);
+	assert.equal(fixture.events.includes('open-project:saved-project'), false);
+	assert.equal(fixture.events.includes('new-project'), false);
+	assert.equal(fixture.events.includes('publish'), false);
+	assert.equal(fixture.events.includes('save-now'), false);
 });
 
 test('a late project-open completion cannot publish bootstrap readiness', async () => {

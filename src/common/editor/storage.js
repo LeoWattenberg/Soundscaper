@@ -75,6 +75,12 @@ export class AudioEditorProjectStore {
 			? new DesktopSharedProjectRepository({
 				bridge: desktopProjectBridge,
 				shadow: repositories.projects,
+				sourceAvailability: {
+					getSourceMetadata: (sourceId) => repositories.sources.getMetadata(sourceId),
+					readSourceChunks: (sourceId, readOptions) => repositories.sources.chunks(sourceId, readOptions),
+					getMediaAssetMetadata: (sourceId) => repositories.media.getAssetMetadata(sourceId),
+					loadMediaAsset: (sourceId, loadOptions) => repositories.media.loadAsset(sourceId, loadOptions),
+				},
 				onLocalCleanupError: onDesktopSharedProjectLocalCleanupError,
 			})
 			: repositories.projects;

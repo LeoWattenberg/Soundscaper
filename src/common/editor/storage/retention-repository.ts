@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { collectProjectSourceIds, compactProjectSourceMetadata } from '../retention.js';
+import {
+	collectProjectStorageKeys,
+	compactProjectSourceMetadata,
+} from '../retention.js';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 	VIDEO_DERIVATIVE_STORE_NAME,
@@ -157,7 +160,7 @@ export class RetentionRepository {
 		const migrationsToResume = this.#options.sources.pendingMigrationSourceIds();
 		await this.#options.sources.stopBackgroundWork({ clearFailures: false });
 		const protectedIds = new Set(protectedSourceIds || []);
-		for (const project of protectedProjects || []) collectProjectSourceIds(project, protectedIds);
+		for (const project of protectedProjects || []) collectProjectStorageKeys(project, protectedIds);
 		const maximumAge = Math.max(0, Number(minimumAgeMs) || 0);
 		const currentTime = Number.isFinite(Number(now)) ? Number(now) : Date.now();
 		const deletedSources: StorageRecord[] = [];
@@ -227,14 +230,14 @@ export class RetentionRepository {
 		for (const [id, project] of this.#options.port.memory.projects) {
 			const compacted = compactProjectSourceMetadata(project);
 			if (compacted !== project) this.#options.port.memory.projects.set(id, compacted);
-			collectProjectSourceIds(compacted, protectedIds);
+			collectProjectStorageKeys(compacted, protectedIds);
 		}
 		for (const [key, value] of this.#options.port.memory.revisions) {
 			const record = asRecord(value);
 			if (!record) continue;
 			const compacted = compactProjectSourceMetadata(record.project);
 			if (compacted !== record.project) this.#options.port.memory.revisions.set(key, { ...record, project: compacted });
-			collectProjectSourceIds(compacted, protectedIds);
+			collectProjectStorageKeys(compacted, protectedIds);
 		}
 	}
 
@@ -281,14 +284,14 @@ export class RetentionRepository {
 			for (const saved of await request(projects.getAll())) {
 				const compacted = compactProjectSourceMetadata(saved);
 				if (compacted !== saved) projectUpdates.push(compacted);
-				collectProjectSourceIds(compacted, state.protectedIds);
+				collectProjectStorageKeys(compacted, state.protectedIds);
 			}
 			for (const value of await request(revisions.getAll())) {
 				const record = asRecord(value);
 				if (!record) continue;
 				const compacted = compactProjectSourceMetadata(record.project);
 				if (compacted !== record.project) revisionUpdates.push({ ...record, project: compacted });
-				collectProjectSourceIds(compacted, state.protectedIds);
+				collectProjectStorageKeys(compacted, state.protectedIds);
 			}
 			const storedSources = (await request(sources.getAll())) as StorageRecord[];
 			const storedMediaAssets = (await request(mediaAssets.getAll())) as StorageRecord[];
