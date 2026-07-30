@@ -5,6 +5,8 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
+const packageUrl = new URL('../package.json', import.meta.url);
+const referenceScaleTestUrl = new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
@@ -19,7 +21,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.ok(control);
 	assert.match(
 		control.summary,
-		/lower-only.*33 MiB.*native `Uint8Array`.*69,271,649-byte.*comments.*conflicting overlaps.*payload gaps.*Blob.*zero-high-water-mark.*overlap-only.*lazy.*immutable `scape-range-v1`.*Audacity.*`materialized-v1`.*strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16-MiB.*`206`.*stream done.*without exposing release authority.*project-dialog.*OS-association.*awaited scope.*inspection.*open decision.*import.*exact-once release.*inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900.*real read-capability store.*protocol shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once.*sparse-file.*Node protocol shim.*not packaged UI.*OPFS.*IndexedDB.*durable.*quota.*preflight.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/iu,
+		/lower-only.*33 MiB.*native `Uint8Array`.*69,271,649-byte.*comments.*conflicting overlaps.*payload gaps.*Blob.*zero-high-water-mark.*overlap-only.*lazy.*immutable `scape-range-v1`.*Audacity.*`materialized-v1`.*strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16-MiB.*`206`.*stream done.*without exposing release authority.*project-dialog.*OS-association.*awaited scope.*inspection.*open decision.*import.*exact-once release.*inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900.*real read-capability store.*protocol shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once.*verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*collision-cancel.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*not packaged UI.*OPFS.*IndexedDB.*durable.*quota.*preflight.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/iu,
 	);
 	for (const path of [
 		'desktop/constants.js',
@@ -49,6 +51,23 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		assert.ok(control.evidence.some((item) => item.path === path), `Missing evidence from ${path}`);
 		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)));
 	}
+	const packageMetadata = JSON.parse(await readFile(packageUrl, 'utf8'));
+	assert.equal(
+		packageMetadata.scripts?.['test:reference:scape-8gib'],
+		'node --import tsx --test tests/desktop-scape-sparse-full-import-integration.test.ts',
+	);
+	const referenceScaleTest = await readFile(referenceScaleTestUrl, 'utf8');
+	assert.match(referenceScaleTest, /REFERENCE_SCALE_NPM_LIFECYCLE = 'test:reference:scape-8gib'/u);
+	assert.match(referenceScaleTest, /process\.env\.npm_lifecycle_event === REFERENCE_SCALE_NPM_LIFECYCLE/u);
+	assert.match(referenceScaleTest, /process\.env\[REFERENCE_SCALE_ENVIRONMENT\] === '1'/u);
+	assert.match(referenceScaleTest, /skip: RUN_REFERENCE_SCALE_GATE \? false : REFERENCE_SCALE_SKIP_MESSAGE/u);
+	for (const path of [
+		'tests/audio-editor-scape-streaming-video.test.ts',
+		'tests/desktop-scape-sparse-range-integration.test.ts',
+	]) {
+		const routineTest = await readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+		assert.doesNotMatch(routineTest, /SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB/u);
+	}
 	const integrityRisk = matrix.risks.find(({ id }) => id === 'scape-archive-structure-integrity');
 	const integrityControl = integrityRisk?.currentControls
 		.find(({ id }) => id === 'canonical-entry-and-content-integrity');
@@ -68,7 +87,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	assert.match(
 		threatModel,
-		/scape-archive-structure-integrity.*branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*zero-high-water-mark.*overlap-only.*lazily.*strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16 MiB.*`206`.*`Content-Range`.*`Content-Length`.*stream `done`.*project-dialog.*OS-association.*terminal.*\.scape.*exact canonical Scape MIME.*awaited capability scope.*inspection.*collision decision.*import.*exactly once.*main-process release.*authoritative.*inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900.*zip\.js.*`checkSignature: true`.*CRC.*negative rollback.*real read-capability store.*protocol handler.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once.*sparse-file.*Node protocol shim.*not packaged UI.*OPFS.*IndexedDB.*durable.*quota.*preflight.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/isu,
+		/scape-archive-structure-integrity.*branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*zero-high-water-mark.*overlap-only.*lazily.*strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16 MiB.*`206`.*`Content-Range`.*`Content-Length`.*stream `done`.*project-dialog.*OS-association.*terminal.*\.scape.*exact canonical Scape MIME.*awaited capability scope.*inspection.*collision decision.*import.*exactly once.*main-process release.*authoritative.*inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900.*zip\.js.*`checkSignature: true`.*CRC.*negative rollback.*real read-capability store.*protocol handler.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once.*verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*collision-cancel.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*not packaged UI.*OPFS.*IndexedDB.*durable.*quota.*preflight.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/isu,
 	);
 	assert.doesNotMatch(control.summary, /placeholder huge[- ]asset/iu);
 	assert.doesNotMatch(threatModel, /huge asset(?:'s)? manifest digest and ZIP CRC are placeholders/iu);
