@@ -349,6 +349,13 @@ reason, and late settlement cannot publish buffers, chunk providers, engine
 chunk sources, missing-source state, or status. A readiness failure leaves the
 active project, tab, and lock unchanged. Ordinary-source transient buffers are
 later merged with the prepared fallback buffers before projected engine load.
+Each canonical playback reapply owns one replaceable controller-lifetime task.
+A newer reapply or a successful project switch aborts stalled metadata,
+audio-context, or decoded-body source preparation with the exact signal reason;
+the switch does so before teardown. Late settlement is fenced from
+buffer, provider, engine-source, missing-source, and status publication. In the
+tested stalled-preparation race, only the newest source-ready projection enters
+the engine.
 The canonical project, history, persistence, save, export, and offline-render
 paths never receive this projection.
 
@@ -446,9 +453,9 @@ A signal-ignoring metadata, context, or decoded-body operation may continue
 internally after cancellation, but its late settlement is fenced from buffer,
 provider, engine-source, missing-source, and status publication. Successful
 prepared cache or stream-provider state remains reusable and is not rolled back
-if reservation or later activation fails. Canonical playback reapply through
-`ensureProjectSourcesAvailable` retains the canonical identity fence but is not
-abortable. Readiness does not prefetch or revalidate streamed chunks. The
+if reservation or later activation fails. An `engine.applyProject` call already
+entered is not abortable or transactional; cancellation is observed only after
+that call settles. Readiness does not prefetch or revalidate streamed chunks. The
 maintained projections do not provide generic
 per-feature bypass controls, generic or video rendered-fallback substitution,
 ADM or surround fallback playback, export or offline-render substitution,

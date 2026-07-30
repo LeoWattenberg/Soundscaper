@@ -1500,10 +1500,16 @@ models or native implementations.
   prepared fallback buffers before engine load. Canonical project, history,
   persistence, save, export, and offline render remain unchanged. Frozen per-tab
   metadata drives a localized active-playback indicator without exposing the
-  source ID or digest. Successful prepared cache or stream-provider state is
-  reusable and is not rolled back if reservation or later activation fails.
-  Canonical playback reapply remains identity-fenced but its separate
-  `ensureProjectSourcesAvailable` call is not abortable. This does not cover
+  source ID or digest. Each canonical playback reapply owns one replaceable
+  controller-lifetime task. A newer reapply or a successful project switch
+  aborts stalled metadata, audio-context, and decoded-body preparation with the
+  exact reason, and late settlement cannot publish a buffer, provider, engine
+  source, missing-source state, or status. In the tested stalled-preparation
+  race, only the newest source-ready projection enters the engine. Successful
+  prepared cache or stream-provider state is reusable and is not rolled back if
+  reservation or later activation fails. An `engine.applyProject` call already
+  entered is not abortable or transactional. Streamed chunks are not prefetched
+  or revalidated after readiness. This does not cover
   generic or video fallback, freeze/proxy authoring, ADM or surround playback,
   unknown or third-party activation, future schemas, or earlier Soundscaper
   project schemas.
@@ -1604,9 +1610,15 @@ models or native implementations.
   body work may continue internally, but late settlement is fenced from source
   and status publication. This is not a complete source transaction: successful
   reusable cache or stream-provider state is not rolled back if reservation or
-  later activation fails, and canonical playback reapply source preparation is
-  identity-fenced but non-abortable. Stream chunks are not prefetched or
-  revalidated. Generic affected-object unavailable-feature placeholders and
+  later activation fails. Each canonical playback reapply owns one replaceable
+  controller-lifetime task; a newer reapply or a successful project switch
+  aborts stalled metadata, audio-context, and decoded-body preparation with the
+  exact reason and fences late buffer, provider, engine-source, missing-source,
+  and status publication. Only the newest source-ready projection enters the
+  engine in the tested stalled-preparation race. An `engine.applyProject` call
+  already entered is not abortable or transactional. Stream chunks are not
+  prefetched or revalidated. Generic affected-object unavailable-feature
+  placeholders and
   per-feature bypass controls beyond the bounded maintained first-party audio-
   and video-effect slices, generic or video rendered-fallback runtime use, and
   arbitrary future-schema archive preservation remain planned. Complete
@@ -1651,11 +1663,16 @@ models or native implementations.
   activation reservation and side effects, prompt lifetime cancellation of
   signal-ignoring metadata, audio-context, and decoded-body stalls with exact
   reason preservation and no late source or status publication, plus the merge
-  of prepared and ordinary transient buffers. Oversized stream-provider
-  readiness has unit coverage only; readiness does not prefetch or revalidate
-  its chunks after point-in-time admission. Successful reusable cache or
-  provider state is not rolled back after a later activation failure, and
-  canonical playback reapply preparation remains non-abortable. This exit
+  of prepared and ordinary transient buffers. Each canonical playback reapply
+  now owns one replaceable controller-lifetime task; a newer reapply or a
+  successful project switch aborts stalled source preparation, and only the
+  newest source-ready projection enters the engine in the tested race. Oversized
+  stream-provider readiness has unit coverage only and does not prefetch or revalidate
+  chunks after point-in-time admission. Successful reusable
+  cache or provider state is not rolled back after a later activation failure,
+  and an `engine.applyProject` call already entered is not abortable or
+  transactional.
+  This exit
   remains open for rendered-fallback runtime behavior
   beyond the maintained first-party audio whole-mix slice,
   generic unavailable-feature placeholder and bypass controls, and arbitrary
