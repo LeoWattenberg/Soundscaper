@@ -122,13 +122,35 @@ or sparse fixtures so the test does not commit multi-gigabyte generated files.
 The generator revision, seed, logical byte length, stream metadata, and expected
 digest must still be stable.
 
-The milestone 2 fixture remains provisional and requires observable sparse-file
+The milestone 2 sparse fixture remains provisional and requires observable sparse-file
 support. Its generator creates an exact 8,589,934,592-byte logical Zip64 archive
 with current-schema project metadata and an 8,589,932,094-byte sparse-zero video
 asset. That asset is pinned to SHA-256
 `7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be` and
 ZIP CRC-32 `2909126900`; these values are authentic fixture identity, not
 placeholders.
+
+A second provisional milestone 2 fixture drives direct WAV export with an exact
+3,153,920-frame, 48 kHz, 32-channel silent-float plan. Its 403,701,760-byte PCM
+payload is exactly 385 MiB, one MiB above the desktop 384 MiB output-memory threshold;
+the complete 403,701,804-byte RIFF has pinned SHA-256
+`f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe`.
+The opt-in Node witness uses the production planner, export controller,
+64-packet PCM sink queue, passthrough streaming resampler, WAV stream encoder,
+and exact-size direct-destination adapter. A counting SHA-256 target retains
+only the 44-byte header prefix, counters, and digest state. It verifies 770
+4,096-frame render packets, 771 serial destination writes, four-way exact byte
+agreement, no temporary-storage preflight or final `Blob`, and cancellation
+after the first PCM packet without close or commit.
+
+The witness records a conservative 34,603,352-byte structural maximum for
+path-owned binary backing stores: 64 queued 524,288-byte PCM packets, one mapped
+packet, one encoder emission, two 44-byte header copies, and the 32-channel
+Float64 dither state. That is below the planned 64 MiB buffered-binary budget.
+It is an ownership-derived correctness bound, not a renderer-heap or process-RSS
+measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
+may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
+coverage discovery fast-skips it with that command.
 
 The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
 remains payload-lazy. It follows the real capability store, protocol, desktop
@@ -169,7 +191,7 @@ reports a fast skip that names the dedicated command. The scheduling change
 does not remove or weaken any full-import assertion, and the observed duration
 is execution evidence rather than a performance qualification threshold.
 
-That counting sink is not real durable application storage. The qualified
+Neither counting sink is real durable application storage. The qualified
 capacity check is a point-in-time admission against an injected estimate, not a
 storage reservation; it does not guarantee actual browser quota availability,
 estimate accuracy or freshness under concurrent writers, a capacity UI
@@ -177,12 +199,16 @@ snapshot, browser-record or filesystem-allocation overhead beyond the policy
 headroom, or write-time success. These witnesses do not qualify a packaged
 Electron UI, real OPFS or IndexedDB durable storage, renderer/browser heap,
 main/renderer RSS, whole-archive storage atomicity, or publisher authentication.
+The direct-WAV witness additionally does not qualify File System Access,
+Electron filesystem publication, native picker behavior, packaged application
+UI, or filesystem durability.
 The milestone 2 bounded-memory workload therefore remains planned.
 
 The fixture specifications are deliberately concrete:
 
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
-  inspection and counting-sink full-import witnesses described above;
+  inspection and counting-sink full-import witnesses, plus the exact 385 MiB
+  direct-WAV counting-SHA witness described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video

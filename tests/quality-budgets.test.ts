@@ -109,6 +109,10 @@ test('quality budget contract names numeric gates for every later milestone with
 		new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url),
 		'utf8',
 	);
+	const directWavReferenceTest = await readFile(
+		new URL('./audio-editor-export-direct-wav-reference.test.ts', import.meta.url),
+		'utf8',
+	);
 
 	assert.equal(config.schemaVersion, 1);
 	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
@@ -253,6 +257,79 @@ test('quality budget contract names numeric gates for every later milestone with
 		'tests/helpers/sparse-scape-zip64-fixture.ts',
 		'docs/quality-budgets.md#fixtures-and-project-sizes',
 	]);
+
+	const directWavFixture = fixtures.get('m2-direct-wav-385mib-v1');
+	assert.equal(directWavFixture?.status, 'provisional');
+	assert.equal(directWavFixture?.kind, 'deterministic-direct-wav-counting-sha256-node-witness');
+	assert.deepEqual(directWavFixture?.specification, {
+		referenceScaleExecutionCommand: 'npm run test:reference:wav-385mib',
+		referenceScaleEnvironmentOverride: 'SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1',
+		routineNodeTestBehavior: 'skip-with-reference-command',
+		routineCoverageBehavior: 'skip-with-reference-command',
+		generatorRevision: 1,
+		sampleRate: 48_000,
+		channelCount: 32,
+		sampleFormat: 'float32',
+		signal: 'silence',
+		packetFrames: 4_096,
+		outputFrames: 3_153_920,
+		outputPcmBytes: 403_701_760,
+		outputFileBytes: 403_701_804,
+		outputSha256: 'f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe',
+		desktopOutputThresholdBytes: 402_653_184,
+		renderStrategy: 'realtime-stream',
+		renderReason: 'output-memory',
+		renderPackets: 770,
+		maximumPendingPackets: 64,
+		maximumEncoderEmissionBytes: 524_288,
+		maximumPathOwnedBinaryBytes: 34_603_352,
+		maximumBudgetBufferedBinaryBytes: 67_108_864,
+		retainedOutputPayloadBytes: 0,
+		oversizePreflightBytesRead: 0,
+		partialPublishedOutputs: 0,
+		productionPipeline: [
+			'export-planner',
+			'export-controller',
+			'64-packet-pcm-sink-queue',
+			'passthrough-streaming-resampler',
+			'wav-stream-encoder',
+			'direct-exact-size-destination',
+		],
+		cancellationAfterPcmVerified: true,
+		rendererHeapQualified: false,
+		processRssQualified: false,
+		filesystemDurabilityQualified: false,
+		packagedElectronQualified: false,
+	});
+	assert.match(directWavFixture?.limitation ?? '', /Node.*counting SHA-256 target/iu);
+	assert.match(directWavFixture?.limitation ?? '', /typed-array backing bytes.*ownership/iu);
+	assert.match(directWavFixture?.limitation ?? '', /not.*renderer heap.*process RSS/iu);
+	assert.match(directWavFixture?.limitation ?? '', /File System Access.*Electron filesystem/iu);
+	assert.match(directWavFixture?.limitation ?? '', /quota.*durability/iu);
+	assert.match(directWavFixture?.limitation ?? '', /packaged.*UI/iu);
+	assert.match(directWavFixture?.limitation ?? '', /routine.*coverage.*skip/iu);
+	assert.equal(
+		packageMetadata.scripts['test:reference:wav-385mib'],
+		'node --import tsx --test tests/audio-editor-export-direct-wav-reference.test.ts',
+	);
+	assert.match(directWavReferenceTest, /process\.env\.npm_lifecycle_event/u);
+	assert.match(directWavReferenceTest, /SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB/u);
+	assert.match(directWavReferenceTest, /npm run test:reference:wav-385mib/u);
+	assert.deepEqual(directWavFixture?.evidence, [
+		'package.json',
+		'src/common/editor/export.js',
+		'src/common/editor/pcm-sink.js',
+		'src/common/editor/resample.js',
+		'src/common/editor/wav.js',
+		'src/common/editor/controller/direct-wav-export.ts',
+		'src/common/editor/controller/export-service.ts',
+		'tests/audio-editor-export-direct-wav-reference.test.ts',
+		'docs/quality-budgets.md#fixtures-and-project-sizes',
+	]);
+	assert.deepEqual(
+		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.fixtureIds,
+		['m2-streaming-project-8gib-v1', 'm2-direct-wav-385mib-v1'],
+	);
 	assert.equal(
 		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
 		'planned',
