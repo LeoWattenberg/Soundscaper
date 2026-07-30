@@ -62,10 +62,27 @@ title, and revision. The main-owned identity service applies the shared strict
 exact-V9 maintained-persistence-domain validator to the decoded document before
 permitting host staging or catalog publication of a renderer commit. The same
 service validates the loaded commit result and a stored project again before
-returning either canonical document. The validator strictly checks core project,
-document, media, and graph structures without loading legacy migrations or
-executable effect and worker runtimes. All audio effects must be cloneable and
-carry the generic effect identity, enabled, and parameter structure.
+returning either canonical document. Every serialized project first receives a
+raw-JSON structural preflight capped at 101,536 JSON values and depth 130 before
+`JSON.parse`; each exact-V9 decoded codec traversal and maintained-domain
+validation phase is independently capped at 100,000 nodes and depth 128. The
+service threads these lower-only caps through renderer input, loaded commit
+results, stored reads, and response serialization. Renderer input refusal
+precedes host mutation or staging. An over-budget loaded commit result is
+refused before the renderer response, although host publication may already
+have completed. Future-schema tag-shaped data is structurally counted but is
+neither decoded nor interpreted. Canonical JSON-derived graphs and ordinary
+direct objects reject accessors, `toJSON` hooks, method-shadowed arrays, hidden
+or symbol data, cycles, exotic containers, and non-JSON scalars without
+invoking application accessors; hostile proxies and prototype-polluted or
+exotic injected graphs remain outside that code-safety claim. Counters reset
+between the lexical, codec, validator, and serialization phases, so these
+per-phase shape ceilings are not an aggregate work, CPU or elapsed-time,
+allocation-amplification, cancellation, or resident-memory budget. The
+validator strictly checks core project, document, media, and graph structures
+without loading legacy migrations or executable effect and worker runtimes. All
+audio effects must be cloneable and carry the generic effect identity, enabled,
+and parameter structure.
 Type-specific semantic checks currently cover missing-effect compatibility
 metadata and parametric EQ; other first- and third-party effect payload semantics
 are intentionally not gated yet. The store reserves each canonical path and a
@@ -393,22 +410,27 @@ Binary opaque state and JSON-compatible opaque preservation are type-specific.
   semantically unchanged.
 - A newer raw core document is structured-cloned, so typed arrays can remain
   typed arrays inside that in-memory read-only result.
+- Before `JSON.parse`, every project schema receives an iterative raw-JSON
+  structural preflight bounded to 101,536 values and depth 130 in production.
+  The extra 1,536 values and two levels are the maximum tagged-descriptor
+  allowance needed to keep the bounded exact-schema-9 binary representation
+  round-trip closed; tests may only lower the underlying limits.
 - Exact schema 9, format 1 `.scape` export preserves `Uint8Array` values,
   including only the addressed bytes of an offset view, and `ArrayBuffer`
   values through the reserved `$soundscaperOpaqueBinary` tag. Its descriptor is
   closed and versioned, identifies the restored type, declares an exact byte
-  length, and carries canonical base64. Non-raiseable production limits admit
-  at most 256 payloads, 4 MiB per payload, 8 MiB in aggregate, 100,000 traversed
-  nodes, and depth 128; tests may only lower those limits. Import and inspection
-  validate every descriptor, unique positive payload ID, base64 form, declared
-  length, collision, and aggregate budget before allocating decoded bytes or
-  starting collision and persistence work. Serialization copies the bytes and
-  rejects reserved-tag collisions, project-container accessors, cycles, and
-  callable container `toJSON` hooks rather than activating project code. Other
-  `ArrayBuffer` views are unsupported and reject instead of being converted
-  silently.
-- Other schema versions keep ordinary JSON semantics. In particular, the codec
-  does not traverse or decode tag-shaped state in a future-schema document;
+  length, and carries canonical base64. Encoding and post-parse decoding each
+  independently enforce the logical limits of 100,000 traversed nodes and
+  depth 128, plus at most 256 payloads, 4 MiB per payload, and 8 MiB in
+  aggregate. Import and inspection validate every descriptor, unique positive
+  payload ID, base64 form, declared length, collision, and aggregate budget
+  before allocating decoded bytes or starting collision and persistence work.
+  Serialization copies the bytes and rejects reserved-tag collisions,
+  project-container accessors, cycles, and callable container `toJSON` hooks
+  rather than activating project code. Other `ArrayBuffer` views are
+  unsupported and reject instead of being converted silently.
+- Future-schema tag-shaped data is structurally counted by the all-schema raw
+  preflight but is neither decoded nor interpreted as a binary descriptor;
   unchanged future `.scape` re-export remains a separate planned guarantee.
 
 Unknown fields and unavailable features must never be interpreted as executable

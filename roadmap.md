@@ -838,7 +838,27 @@ models or native implementations.
   [strict exact-V9 maintained-persistence-domain validator](src/common/editor/project-v9-validation.ts)
   to a decoded renderer commit before host staging or catalog publication, then
   to the loaded commit result and stored project before returning either
-  canonical document. Focused
+  canonical document. The service threads one lower-only structural policy
+  through those input, load, read, and response boundaries: every serialized
+  project first receives a lexical preflight capped at 101,536 JSON values and
+  depth 130 before `JSON.parse`, while each exact-V9 decoded codec traversal and
+  maintained-domain validation phase is independently capped at 100,000 nodes
+  and depth 128. The raw allowance includes the six-additional-value
+  tagged-descriptor overhead for each of the 256 admitted opaque binary
+  payloads, so lowering the policy preserves binary serialize/parse closure.
+  Future-schema JSON receives the same structural preflight, but tag-shaped
+  data is neither decoded nor interpreted. Renderer input refusal still
+  precedes host mutation or staging;
+  an over-budget loaded commit result is refused before the renderer response,
+  although host publication may already have completed. Canonical JSON-derived
+  graphs and ordinary direct objects also reject accessors, `toJSON` hooks,
+  method-shadowed arrays, hidden or symbol data, cycles, exotic containers, and
+  non-JSON scalars without invoking application accessors. Hostile proxies and
+  prototype-polluted or exotic injected graphs remain outside that code-safety
+  claim. These counters reset between the lexical, codec, validator, and
+  serialization phases: they qualify per-phase shape, not aggregate work,
+  CPU/elapsed time, scalar or string cost, transient allocation amplification,
+  cancellation latency, garbage-collection lag, or resident memory. Focused
   [validator regressions](tests/audio-editor-project-v9-validation.test.ts)
   cover the maintained persistence-domain module closure, representative deep
   invalid document mutations, and exclusion of legacy migrations and executable
@@ -1025,8 +1045,16 @@ models or native implementations.
   base64, length drift, duplicate IDs, and unknown descriptor fields, and
   applies lower-only ceilings of 256 payloads, 4 MiB per payload, 8 MiB
   aggregate bytes, 100,000 traversal nodes, and depth 128 before decoded-byte
-  allocation or project work. Other buffer views reject; other project schemas
-  retain ordinary JSON behavior and tag-shaped future state is not traversed.
+  allocation or exact-V9 project work. Before native parsing, every project
+  schema also receives a lexical structural preflight capped at 101,536 JSON
+  values and depth 130; the extra allowance covers the descriptor representation
+  of all admitted binary payloads so a document serialized under the logical
+  limits remains parseable under the same lowered policy. Other buffer views
+  reject. Future-schema tag-shaped state is structurally counted but is not
+  decoded or interpreted, and this does not claim future-archive re-export
+  compatibility. The lexical, binary-codec, validation, and serialization
+  counters remain separate per-phase shape limits rather than one consumable
+  end-to-end execution budget.
   Maintained raw- and stored-project controller activation now verifies every
   exact-schema-V9 rendered-fallback claim against its referenced local bytes
   before activation side effects. The authoritative activation project wins,

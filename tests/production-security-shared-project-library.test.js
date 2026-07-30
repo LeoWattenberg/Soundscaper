@@ -102,9 +102,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
 		'src/common/editor/scape-project-document.ts',
+		'src/common/editor/scape-project-json-preflight.ts',
 		'src/common/editor/persisted-audio-effect-validation.ts',
 		'src/common/editor/project-v9-document-validation.ts',
 		'src/common/editor/project-v9-media-validation.ts',
+		'src/common/editor/project-v9-validation-budget.ts',
 		'src/common/editor/project-v9-validation-primitives.ts',
 		'src/common/editor/project-v9-validation.ts',
 		'src/common/editor/project-v9.ts',
@@ -118,6 +120,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
 		'tests/desktop-project-library-ipc.test.js',
+		'tests/audio-editor-scape-project-document.test.ts',
 		'tests/audio-editor-project-v9-validation.test.ts',
 		'tests/persisted-audio-effect-validation.test.ts',
 		'tests/audio-editor-desktop-shared-project-repository.test.ts',
@@ -125,7 +128,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 		'tests/production-security-shared-project-library.test.js',
-	]) assert.ok(control.evidence.some((item) => item.path === path));
+	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 	for (const path of [
 		'desktop/project-library-database.ts',
 		'desktop/project-library-file-inventory.ts',
@@ -163,7 +166,31 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		control.summary,
-		/main-owned editor service.*bounded document.*strict exact-schema-9 maintained-persistence-domain validator.*before calling host commit.*before project staging.*loaded commit result.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*invalid loaded commit result.*input-side failures.*do not reach a host commit or project file.*packaged runtime.*validator.*emitted and active/isu,
+		/main-owned editor service.*strict exact-schema-9 maintained-persistence-domain validator.*before calling host commit.*before project staging.*loaded commit results.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated/isu,
+	);
+	assert.match(
+		control.summary,
+		/adversarial fixtures reject.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*over-node.*deeply nested.*accessor-backed ordinary properties.*array method shadows.*non-JSON scalar values.*invalid loaded commit results.*input-side failures.*do not reach a host commit or project file.*packaged runtime fixture.*validation and structural admission.*emitted and active/isu,
+	);
+	assert.match(
+		control.summary,
+		/before `?JSON\.parse`?.*every schema.*structural scan.*101,536 JSON values.*depth 130.*exact schema 9.*independent decoded-codec.*semantic-validator.*100,000 logical nodes.*depth 128 per phase/iu,
+	);
+	assert.match(
+		control.summary,
+		/over-budget renderer input.*rejects before host commit or project staging.*loaded commit result.*may be rejected after the host has already published.*neither.*reaches the renderer response/iu,
+	);
+	assert.match(
+		control.summary,
+		/structural admission.*canonical JSON-derived production graphs.*ordinary direct objects.*not arbitrary in-realm proxies.*malicious injected hosts or providers/iu,
+	);
+	assert.match(
+		control.summary,
+		/within that scope.*accessors.*toJSON hooks.*method-shadowed arrays.*hidden or symbol data.*cycles.*exotic containers.*non-JSON scalars.*reject without invoking application accessors/iu,
+	);
+	assert.match(
+		control.summary,
+		/lexical preflight.*decoded-codec traversal.*validator admission.*response serialization.*reset their counters.*do not constitute one aggregate CPU.*elapsed-time.*cancellation.*allocation.*RSS budget/iu,
 	);
 	assert.match(
 		control.summary,

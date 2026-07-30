@@ -401,6 +401,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.deepEqual(binaryOpaqueState.evidence, [
 		'src/common/editor/aup4-effects.js',
 		'src/common/editor/scape-project-document.ts',
+		'src/common/editor/scape-project-json-preflight.ts',
 		'src/common/editor/scape-export-plan.ts',
 		'src/common/editor/scape-project.js',
 		'tests/aup4-effects.test.js',
@@ -410,11 +411,19 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(binaryOpaqueState.requiredOutcome, /Uint8Array.*ArrayBuffer.*exact-current-schema.*current-format.*tagged.*bounded.*byte-exactly.*without activation/iu);
 	assert.match(
 		binaryOpaqueState.currentBehavior,
-		/schema 9.*Uint8Array.*offset-view.*ArrayBuffer.*reserved tagged descriptor.*256 payloads.*4 MiB.*8 MiB.*100,000.*depth 128.*other ArrayBuffer views reject/iu,
+		/before JSON\.parse.*every schema.*iterative raw-JSON structural preflight.*101,536 values.*depth 130.*descriptor allowance.*round-trip closure/iu,
 	);
 	assert.match(
 		binaryOpaqueState.currentBehavior,
-		/import and inspection.*closed descriptor.*unique positive IDs.*canonical base64.*exact byte lengths.*before allocating.*declared binary type.*without interpreting.*reserved-tag collisions.*accessor.*toJSON.*other project schemas.*not traversed/iu,
+		/exact schema 9.*export.*Uint8Array.*offset-view.*ArrayBuffer.*reserved tagged descriptor.*export and post-parse decode.*independently.*100,000 traversal nodes.*depth 128.*other ArrayBuffer views reject/iu,
+	);
+	assert.match(
+		binaryOpaqueState.currentBehavior,
+		/binary budget.*256 payloads.*4 MiB.*8 MiB/iu,
+	);
+	assert.match(
+		binaryOpaqueState.currentBehavior,
+		/import and inspection.*closed descriptor.*unique positive IDs.*canonical base64.*exact byte lengths.*before allocating.*declared binary type.*without interpreting.*reserved-tag collisions.*accessor.*toJSON.*future-schema tag-shaped data.*structurally counted.*raw preflight.*neither decoded nor interpreted/iu,
 	);
 
 	const unavailable = rules.get('unavailable-native-feature');
@@ -454,11 +463,19 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /binary opaque/iu);
 	assert.match(
 		documentation,
-		/exact schema 9.*format 1.*Uint8Array.*offset view.*ArrayBuffer.*\$soundscaperOpaqueBinary.*256 payloads.*4 MiB.*8 MiB.*100,000.*depth 128/isu,
+		/before `JSON\.parse`.*every project schema.*iterative raw-JSON\s+structural preflight.*101,536 values.*depth 130.*1,536 values.*two levels.*tagged-descriptor\s+allowance.*round-trip closed/isu,
 	);
 	assert.match(
 		documentation,
-		/validate every descriptor.*unique positive payload ID.*base64.*declared\s+length.*before allocating decoded bytes.*does not traverse or decode.*future-schema/isu,
+		/exact schema 9.*format 1.*Uint8Array.*offset view.*ArrayBuffer.*\$soundscaperOpaqueBinary.*encoding and post-parse decoding.*independently.*100,000 traversed nodes.*depth 128.*256 payloads.*4 MiB.*8 MiB/isu,
+	);
+	assert.match(
+		documentation,
+		/validate every descriptor.*unique positive\s+payload ID.*base64.*declared\s+length.*before allocating decoded bytes/isu,
+	);
+	assert.match(
+		documentation,
+		/future-schema tag-shaped data.*structurally counted.*raw\s+preflight.*neither decoded nor interpreted/isu,
 	);
 	assert.match(documentation, /Project feature requirements/u);
 	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);

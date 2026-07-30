@@ -72,6 +72,18 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
+		/before `JSON\.parse`.*structurally scans every schema.*101,536 JSON values.*depth 130.*exact schema 9.*independent decoded-codec.*structural-validator.*100,000 logical nodes.*depth 128 per phase/isu,
+	);
+	assert.match(
+		documentation,
+		/over-budget renderer input.*rejects before host commit.*before project staging.*loaded commit result.*rejected after the host has already published.*neither.*reaches a renderer response/isu,
+	);
+	assert.match(
+		documentation,
+		/canonical JSON-derived production graphs.*ordinary direct objects.*not arbitrary in-realm proxies.*malicious injected hosts or providers.*within that scope.*accessors.*`?toJSON`? hooks.*method-shadowed arrays.*hidden or symbol data.*cycles.*exotic containers.*non-JSON scalars.*reject without invoking application accessors/isu,
+	);
+	assert.match(
+		documentation,
 		/identity service.*frozen preload.*owner-scoped IPC.*bounded, pathless list, read, commit, and delete.*256 MiB.*4 KiB.*10,000-summary.*catalog summaries.*entry IDs.*main-owned catalog\/filesystem paths.*digests.*product preferences.*raw `updatedAtMs` fields.*leases.*fencing tokens.*owner revocation.*fences new work.*drains admitted operations/isu,
 	);
 	assert.match(
@@ -80,7 +92,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/privileged service.*compromised renderer.*maintained-domain-invalid exact-schema-9 publication.*before.*host.*stage a project.*maintained-domain-invalid loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats.*same validation.*closes.*privileged-domain-validation residual.*maintained persistence domain.*shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*main-process RSS.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*packaged lifecycle.*power-loss.*parent- and database-path identity.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted foreign collisions.*registered random stage paths.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*migration from the prior shared `v1` scope or product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/privileged service.*compromised renderer.*over-budget or maintained-domain-invalid exact-schema-9 input.*before.*host.*stage a project.*maintained-domain-invalid or structurally over-budget loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats validation.*loaded-result refusal.*host commit may already be published.*closes.*privileged-domain-validation residual.*qualifies per-phase project-shape node and depth ceilings.*shared-project-parse-budget.*remains open.*256 MiB.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*main-process RSS.*source and media bytes remain product-local.*source-bearing cross-product handoff.*recipient-side byte-availability verification.*fail-closed outcome.*managed-media.*packaged lifecycle.*power-loss.*parent- and database-path identity.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted foreign collisions.*registered random stage paths.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*migration from the prior shared `v1` scope or product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed progress after an incomplete|incomplete 100,000-entry reclamation inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? open/iu);
@@ -297,11 +309,27 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	assert.ok(sharedBudget);
 	assert.match(
 		sharedBudget.exposure,
-		/legacy `?\.aup`? XML.*canonical, default-sized simple\/silent `?_data`?.*structural.*referenced-input.*block-geometry.*retained-PCM.*indexed-lookup.*parser-owned pending-window.*main-process shared-project service.*strict exact-schema-9 maintained-persistence-domain validator.*before host commit and staging.*before returning a stored read.*256 MiB.*input-byte bound.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*total main-process RSS.*other supported project.*elapsed-time.*clon.*aliases.*customized Audacity block sizes.*provider-internal.*downstream.*garbage-collection lag.*total renderer RSS.*cancellation.*streaming-scale/iu,
+		/legacy `?\.aup`? XML.*canonical, default-sized simple\/silent `?_data`?.*structural.*referenced-input.*block-geometry.*retained-PCM.*indexed-lookup.*parser-owned pending-window/iu,
+	);
+	assert.match(
+		sharedBudget.exposure,
+		/raw-JSON structural preflight.*every schema.*before `JSON\.parse`.*101,536 JSON values.*depth 130.*exact schema 9.*decoded.*semantic validator.*independent ceilings.*100,000 logical nodes.*depth 128/iu,
+	);
+	assert.match(
+		sharedBudget.exposure,
+		/over-budget renderer input.*before host commit or staging.*loaded commit result.*before the renderer response.*may follow host publication/iu,
+	);
+	assert.match(
+		sharedBudget.exposure,
+		/lexical preflight.*decoded-codec traversal.*validation admission.*response serialization.*reset their counters.*per-phase shape bounds.*aggregate execution budget.*CPU or elapsed time.*cancellation.*allocation.*provider-internal allocation.*garbage-collection lag.*total main-process RSS/iu,
+	);
+	assert.match(
+		sharedBudget.exposure,
+		/other supported project parsers.*elapsed-time budgets.*opaque-extension cloning.*aliases.*customized Audacity block sizes.*downstream.*total renderer RSS.*cancellation.*streaming-scale legacy import/iu,
 	);
 	assert.match(
 		sharedBudget.requiredControl,
-		/aggregate byte.*node.*depth.*CPU or elapsed-time.*cancellation.*end-to-end working-set.*main shared-project validator.*remaining project families.*downstream legacy-import/iu,
+		/structural budgets.*remaining project families.*aggregate CPU or elapsed-time.*cancellation.*scalar-byte work.*end-to-end working-set.*repeated main shared-project phases.*downstream legacy-import/iu,
 	);
 	assert.ok(malformedCorpus);
 	assert.match(
@@ -316,7 +344,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 	assert.match(
 		documentation,
-		/shared-project-parse-budget.*256 MiB.*input-byte ceiling.*not a validation-work bound.*node count.*object depth.*CPU or elapsed time.*allocation amplification.*cancellation.*total main-process RSS.*main shared validator/iu,
+		/shared-project-parse-budget.*remains open.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128 exact-V9 decode and validator admissions.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*total main-process RSS/isu,
 	);
 
 	const roadmap = await readFile(roadmapUrl, 'utf8');
@@ -331,6 +359,14 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	assert.match(
 		roadmap,
 		/before allocation\s+or block reads.*decoded-block allocation.*exact\/basename.*native-endian.*unique block.*preallocated clip outputs.*parser-owned/isu,
+	);
+	assert.match(
+		roadmap,
+		/every serialized\s+project.*lexical preflight.*101,536 JSON values.*depth 130.*before `JSON\.parse`.*each exact-V9 decoded codec traversal.*maintained-domain\s+validation phase.*independently.*100,000 nodes.*depth 128.*future-schema JSON.*structural preflight.*neither decoded nor\s+interpreted/isu,
+	);
+	assert.match(
+		roadmap,
+		/renderer input refusal.*precedes host mutation.*staging.*loaded commit result.*before the renderer response.*host publication may already have completed.*counters reset between.*lexical.*codec.*validator.*serialization phases.*per-phase shape.*not aggregate work.*CPU\/elapsed time.*allocation amplification.*cancellation latency.*resident memory/isu,
 	);
 	assert.match(
 		roadmap,
