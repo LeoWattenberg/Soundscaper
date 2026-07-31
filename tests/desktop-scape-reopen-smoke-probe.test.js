@@ -71,14 +71,14 @@ test('persisted-reopen plans use one closed canonical descriptor-free contract',
 });
 
 test('renderer rereads the canonical source-bearing project and proves its exact PCM waveform UI', async () => {
-	const fixture = rendererFixture(PLAN);
+	const fixture = rendererFixture(PLAN, { ready: true });
 	const serialized = Function(`"use strict"; return (${runScapeReopenRendererSmoke.toString()});`)();
 	const result = await serialized(fixture.scope, PLAN);
 
 	assert.deepEqual(fixture.readIds, [PLAN.project.id]);
 	assert.deepEqual(result, rendererResult());
-	assert.equal(fixture.zoomClicks, 8, 'the probe deliberately reaches sample-level PCM rendering');
-	assert.equal(fixture.polls, 8, 'the routine waits until the restored PCM waveform is rendered');
+	assert.equal(fixture.zoomClicks, 0, 'already-ready PCM does not trigger unnecessary zoom');
+	assert.equal(fixture.polls, 0);
 	assert.deepEqual(validateScapeReopenRendererResult(result, PLAN), result);
 	for (const invalid of [
 		{ ...result, sharedProject: { ...result.sharedProject, sourceCount: 2 } },
@@ -93,6 +93,15 @@ test('renderer rereads the canonical source-bearing project and proves its exact
 			/renderer|shared project|project|source|waveform|field/iu,
 		);
 	}
+});
+
+test('renderer uses the exact bounded Zoom In control if summary peaks precede PCM', async () => {
+	const fixture = rendererFixture(PLAN, { initialWaveformSource: 'peaks' });
+	const result = await runScapeReopenRendererSmoke(fixture.scope, PLAN);
+
+	assert.deepEqual(result, rendererResult());
+	assert.equal(fixture.zoomClicks, 8);
+	assert.equal(fixture.polls, 8);
 });
 
 test('renderer rejects missing, noncanonical, drifted, and relationally invalid shared projects', async () => {
@@ -135,6 +144,7 @@ test('renderer polling is bounded and refuses alert, dialog, and waveform-error 
 
 test('renderer bounds exact Zoom In actions when summary peaks never advance to PCM', async () => {
 	const fixture = rendererFixture(PLAN, {
+		initialWaveformSource: 'peaks',
 		ready: true,
 		zoomClicksUntilPcm: Number.POSITIVE_INFINITY,
 	});
@@ -234,12 +244,13 @@ function rendererFixture(plan, {
 	waveformError = null,
 	sharedDocument = sharedProjectDocument(plan),
 	now: suppliedNow = null,
+	initialWaveformSource = 'pcm',
 	zoomClicksUntilPcm = 8,
 } = {}) {
 	let currentReady = ready;
 	let polls = 0;
 	let zoomClicks = 0;
-	let waveformSource = 'peaks';
+	let waveformSource = initialWaveformSource;
 	const readIds = [];
 	const attribute = (values, textContent = '') => ({
 		textContent,
