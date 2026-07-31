@@ -286,7 +286,10 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 		token: DIRECT_WAV_TOKEN,
 	};
 	const selections = [];
-	const targetPaths = ['/private/smoke/completed.wav', '/private/smoke/cancelled.wav', '/private/smoke/completed.aiff'];
+	const targetPaths = [
+		'/private/smoke/completed.wav', '/private/smoke/cancelled.wav',
+		'/private/smoke/completed.aiff', '/private/smoke/completed-bwf.wav',
+	];
 	const fixture = probeFixture({
 		argv: [
 			'/opt/Soundscaper',
@@ -300,7 +303,8 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 			completed: true,
 			cancelled: true,
 			aiffCompleted: true,
-			realtimeCount: 3,
+			bwfCompleted: true,
+			realtimeCount: 4,
 			downloadVisible: false,
 		},
 		directWavTargetHarness: {
@@ -313,7 +317,9 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 					selectionPurposes: [...selections],
 					completedBytes: 202_751_788,
 					completedAiffBytes: 202_751_798,
+					completedBwfBytes: 50_688_702,
 					aiffChoiceValidated: true,
+					bwfChoiceValidated: true,
 					cancelledAbsent: true,
 					stagingFilesRemaining: 0,
 				};
@@ -326,6 +332,7 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[0]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[2]);
+	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[3]);
 	await fixture.probe.rendererReady();
 
 	assert.deepEqual(fixture.exits, [0]);
@@ -343,14 +350,17 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 			completed: true,
 			cancelled: true,
 			aiffCompleted: true,
-			realtimeCount: 3,
+			bwfCompleted: true,
+			realtimeCount: 4,
 			downloadVisible: false,
 		},
 		native: {
-			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
+			selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
 			completedBytes: 202_751_788,
 			completedAiffBytes: 202_751_798,
+			completedBwfBytes: 50_688_702,
 			aiffChoiceValidated: true,
+			bwfChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -379,6 +389,7 @@ test('direct-WAV lifecycle reports validation failures under its own bounded pre
 			completed: true,
 			cancelled: true,
 			aiffCompleted: true,
+			bwfCompleted: true,
 			realtimeCount: 1,
 			downloadVisible: false,
 		},
@@ -387,10 +398,12 @@ test('direct-WAV lifecycle reports validation failures under its own bounded pre
 			evidence: async () => {
 				evidenceCalls += 1;
 				return {
-					selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
+					selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
 					completedBytes: 202_751_788,
 					completedAiffBytes: 202_751_798,
+					completedBwfBytes: 50_688_702,
 					aiffChoiceValidated: true,
+					bwfChoiceValidated: true,
 					cancelledAbsent: true,
 					stagingFilesRemaining: 0,
 				};

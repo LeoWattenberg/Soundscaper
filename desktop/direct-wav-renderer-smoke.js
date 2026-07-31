@@ -38,6 +38,16 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		control.dispatchEvent(new scope.Event('input', { bubbles: true }));
 		control.dispatchEvent(new scope.Event('change', { bubbles: true }));
 	};
+	const commitValue = async (control, value, label) => {
+		if (typeof control?.focus !== 'function' || typeof control?.blur !== 'function') {
+			throw new Error(`Packaged direct WAV ${label} cannot be committed`);
+		}
+		control.focus();
+		setValue(control, value);
+		await delay(25);
+		control.blur();
+		await delay(25);
+	};
 	const choose = async (dialog, field, index, expectedText) => {
 		const button = await waitFor(() => dialog.querySelector(`${field} button`), `${field} button`);
 		button.click();
@@ -164,6 +174,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	let completed;
 	let cancelled;
 	let aiffCompleted;
+	let bwfCompleted;
 	try {
 		const firstStart = await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'first export action');
 		firstStart.click();
@@ -212,11 +223,77 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			throw new Error(`Packaged direct AIFF export failed${detail ? `: ${detail}` : ''}`);
 		}
 		aiffCompleted = true;
+
+		await choose(dialog, '[data-export-field="format"]', 1, 'Broadcast WAV (BWF)');
+		await choose(dialog, '[data-export-field="bitDepth"]', 0, '16-bit PCM');
+		const bwfSampleRate = await waitFor(
+			() => dialog.querySelector('[data-export-field="sampleRate"] input'),
+			'BWF sample rate',
+		);
+		if (bwfSampleRate.value !== '384000') throw new Error('Packaged direct BWF sample rate did not persist');
+		await choose(dialog, '[data-export-field="channelMapping"]', 3, 'Custom channel mapping');
+		const bwfMatrix = await waitFor(() => dialog.querySelector('textarea'), 'BWF custom channel matrix');
+		setValue(bwfMatrix, JSON.stringify(Array.from({ length: 4 }, () => 0)));
+		await delay(25);
+		const bwfFooter = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')];
+		if (bwfFooter.length < 2) throw new Error('Packaged direct BWF export footer is incomplete');
+		bwfFooter[0].click();
+		const bwfMetadata = await waitFor(
+			() => document.querySelector('[data-export-metadata-dialog]'),
+			'BWF metadata dialog',
+		);
+		const bextTabs = [...bwfMetadata.querySelectorAll('[role="tab"]')]
+			.filter((tab) => String(tab.textContent || '').trim() === 'BEXT');
+		if (bextTabs.length !== 1) throw new Error('Packaged direct BWF BEXT metadata tab is unavailable or ambiguous');
+		bextTabs[0].click();
+		await waitFor(() => bwfMetadata.querySelector('[data-bext-metadata-editor]'), 'BWF metadata editor');
+		const bextVersion = bwfMetadata.querySelector('[name="version"]');
+		if (bextVersion?.value !== '2') throw new Error('Packaged direct BWF metadata version is not 2');
+		const authoredBext = {
+			description: 'Soundscaper packaged BWF smoke',
+			originator: 'Soundscaper',
+			originatorReference: 'PACKAGED-BWF-0001',
+			originationDate: '2026-07-30',
+			originationTime: '12:34:56',
+			timeReference: '6000',
+			umid: '',
+			loudnessValue: '',
+			loudnessRange: '',
+			maxTruePeakLevel: '',
+			maxMomentaryLoudness: '',
+			maxShortTermLoudness: '',
+			codingHistory: 'A=PCM,F=48000,W=16,M=stereo,T=SmokeFixture\n',
+		};
+		for (const [name, value] of Object.entries(authoredBext)) {
+			const field = await waitFor(
+				() => bwfMetadata.querySelector(`[name="${name}"]`),
+				`BWF metadata ${name}`,
+			);
+			await commitValue(field, value, `BWF metadata ${name}`);
+		}
+		const bwfMetadataButtons = [...bwfMetadata.querySelectorAll('.audio-editor-dialog-footer button')];
+		if (bwfMetadataButtons.length !== 1) throw new Error('Packaged direct BWF metadata footer is incomplete');
+		bwfMetadataButtons[0].click();
+		dialog = await waitFor(() => document.querySelector('[data-export-dialog]'), 'restored BWF export dialog');
+		const bwfStart = dialog.querySelector('[data-export-action="start"] button');
+		if (!bwfStart) throw new Error('Packaged direct BWF export action is unavailable');
+		bwfStart.click();
+		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'BWF export start');
+		await waitFor(() => realtimeCount === 4, 'BWF realtime render');
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BWF export', 150_000);
+		const bwfStatus = document.querySelector('[data-status]');
+		if (bwfStatus?.getAttribute('data-state') !== 'success') {
+			const detail = String(bwfStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			throw new Error(`Packaged direct BWF export failed${detail ? `: ${detail}` : ''}`);
+		}
+		bwfCompleted = true;
 	} finally {
 		if (originalDescriptor) Object.defineProperty(scope, 'AudioContext', originalDescriptor);
 		else delete scope.AudioContext;
 	}
 	const download = dialog.querySelector('[data-export-download]');
 	const downloadVisible = Boolean(download && !download.hidden);
-	return Object.freeze({ imported: true, completed, cancelled, aiffCompleted, realtimeCount, downloadVisible });
+	return Object.freeze({
+		imported: true, completed, cancelled, aiffCompleted, bwfCompleted, realtimeCount, downloadVisible,
+	});
 }
