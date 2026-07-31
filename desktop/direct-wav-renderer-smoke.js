@@ -387,21 +387,36 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		const layout = await waitFor(() => bw64Metadata.querySelector('[name="adm-bed-layout"]'), 'BW64 ADM layout');
 		setValue(layout, '5.1');
 		const expectedRoutes = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'];
+		const expectedRouteLabels = expectedRoutes.map((_, index) => (
+			`direct-bw64-smoke-${plan.token} — channel ${String(index + 1)}`
+		));
+		const readImportedRoutes = () => {
+			const rows = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route')];
+			const controls = [];
+			for (const label of expectedRouteLabels) {
+				const matches = rows.filter((row) => String(row.querySelector('span')?.textContent || '').trim() === label);
+				if (matches.length > 1) throw new Error(`Packaged direct BW64 ADM route ${label} is ambiguous`);
+				const control = matches[0]?.querySelector('select');
+				if (!control) return null;
+				controls.push(control);
+			}
+			return controls;
+		};
 		await waitFor(() => {
-			const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
-			if (routes.length !== expectedRoutes.length) return null;
+			const routes = readImportedRoutes();
+			if (!routes) return null;
 			return routes.every((route, index) => (
 				[...route.options].some((option) => option.value === expectedRoutes[index])
 			)) ? routes : null;
 		}, 'BW64 ADM 5.1 route controls');
 		for (const [index, channel] of expectedRoutes.entries()) {
 			const route = await waitFor(
-				() => [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')][index],
+				() => readImportedRoutes()?.[index],
 				`BW64 ADM route ${String(index + 1)}`,
 			);
 			setValue(route, channel);
 			await waitFor(
-				() => [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')][index]?.value === channel,
+				() => readImportedRoutes()?.[index]?.value === channel,
 				`BW64 ADM route ${String(index + 1)} assignment`,
 			);
 		}
@@ -419,8 +434,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			);
 			await commitValue(field, value, `BW64 ADM metadata ${name}`);
 		}
-		const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
-		const routeValues = routes.map((route) => route.value);
+		const routeValues = readImportedRoutes()?.map((route) => route.value);
 		if (JSON.stringify(routeValues) !== JSON.stringify(expectedRoutes)) {
 			throw new Error('Packaged direct BW64 ADM routing is not canonical 5.1');
 		}

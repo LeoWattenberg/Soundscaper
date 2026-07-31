@@ -357,7 +357,8 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		'adm-bed-name': 'Soundscaper packaged BW64 5.1 bed',
 	});
 	assert.equal(scope.document.fixture.admLayout, '5.1');
-	assert.deepEqual(scope.document.fixture.admRoutes, ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
+	assert.deepEqual(scope.document.fixture.admRoutes, ['L', 'R', 'L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
+	assert.deepEqual(scope.document.fixture.admRoutesAtStart[4], ['L', 'R', 'L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
 	assert.deepEqual(scope.document.fixture.metadataFields, Array.from({ length: 8 }, () => ''));
 	assert.equal(scope.document.fixture.customMetadata, '{}');
 	assert.equal(scope.document.fixture.completedRuns, 4);
@@ -376,13 +377,19 @@ test('renderer smoke accepts authoritative completion without transient first-ex
 	assert.equal(scope.document.fixture.progressQueries, 0);
 });
 
-test('renderer smoke waits for the authored BW64 layout to commit before editing its metadata', async () => {
-	const scope = createRendererScope({ admLayoutDelayMs: 100, incompleteAdmRouteDefaults: true });
+test('renderer smoke targets the imported six-channel ADM routes after the authored layout commits', async () => {
+	const scope = createRendererScope({
+		admLayoutDelayMs: 100,
+		failOnAdmRouteWait: true,
+		incompleteAdmRouteDefaults: true,
+	});
 	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
 	const result = await serializedRoutine(scope, PLAN);
 	assert.equal(result.bw64Completed, true);
 	assert.equal(scope.document.fixture.admLayout, '5.1');
-	assert.deepEqual(scope.document.fixture.admRoutes, ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
+	assert.deepEqual(scope.document.fixture.admRoutes.slice(0, 2), ['L', 'R']);
+	assert.deepEqual(scope.document.fixture.admRoutes.slice(2), ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
+	assert.deepEqual(scope.document.fixture.admRoutesAtStart[4], ['L', 'R', 'L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
 });
 
 test('renderer smoke reports the editor import failure without waiting for a timeout', async () => {

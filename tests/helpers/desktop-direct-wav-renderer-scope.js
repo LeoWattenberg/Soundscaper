@@ -2,13 +2,16 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
 		admEnabled: false,
 		admLayout: 'stereo',
+		admRouteLabels: [],
+		admRouteQueries: 0,
 		admRoutes: [],
+		admRoutesAtStart: [],
 		bext: {},
 		bextAtStart: [],
 		cancelledRuns: 0,
@@ -60,6 +63,10 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (waitFailure && fixture.routedToProjectBin) throw new Error(waitFailure);
 			if (hideFirstExportProgress && fixture.progressQueries > 0) {
 				throw new Error('The smoke waited for transient first-export telemetry.');
+			}
+			if (failOnAdmRouteWait && fixture.admLayout === '5.1' && fixture.admRouteQueries > 0
+				&& JSON.stringify(fixture.admRoutes.slice(2)) !== JSON.stringify(['L', 'R', 'C', 'LFE', 'Ls', 'Rs'])) {
+				throw new Error('The smoke waited on the wrong authored ADM route controls.');
 			}
 			return setTimeout(callback, Math.min(milliseconds, 5));
 		},
@@ -179,9 +186,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			const value = this.value;
 			const commit = () => {
 				fixture.admLayout = value;
-				fixture.admRoutes = value === '5.1'
-					? incompleteAdmRouteDefaults ? ['L', 'R', '', '', '', ''] : ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']
-					: ['L', 'R'];
+				setAdmRouteState(value);
 			};
 			if (admLayoutDelayMs > 0) setTimeout(commit, admLayoutDelayMs);
 			else commit();
@@ -189,8 +194,33 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	});
 	const admEnable = element({ textContent: 'Enable ADM', click: () => {
 		fixture.admEnabled = true;
-		fixture.admRoutes = ['L', 'R'];
+		setAdmRouteState('stereo');
 	} });
+	const setAdmRouteState = (layout) => {
+		const importedName = String(fixture.importedFiles.at(-1)?.name || '').replace(/\.[^.]+$/u, '');
+		fixture.admRouteLabels = [
+			'Track 1 — channel 1', 'Track 1 — channel 2',
+			...Array.from({ length: 6 }, (_, index) => `${importedName} — channel ${String(index + 1)}`),
+		];
+		fixture.admRoutes = layout === '5.1'
+			? ['L', 'R', ...(incompleteAdmRouteDefaults ? ['L', 'R', '', '', '', ''] : ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'])]
+			: ['L', 'R', 'L', 'R', '', '', '', ''];
+	};
+	const admRouteSelect = (index) => element({
+		value: fixture.admRoutes[index],
+		options: ['', ...(fixture.admLayout === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'])]
+			.map((value) => ({ value })),
+		dispatch(event) {
+			if (['input', 'change'].includes(event.type)) fixture.admRoutes[index] = this.value;
+		},
+	});
+	const admRouteRows = () => fixture.admRouteLabels.map((label, index) => element({
+		query(selector) {
+			if (selector === 'span') return element({ textContent: label });
+			if (selector === 'select') return admRouteSelect(index);
+			return null;
+		},
+	}));
 	const metadataTabs = [
 		element({ textContent: 'General', click: () => { fixture.metadataTab = 'general'; } }),
 		element({ textContent: 'BEXT', click: () => { fixture.metadataTab = 'bext'; } }),
@@ -213,16 +243,11 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (selector === '.audio-editor-dialog-footer button') return [metadataDone];
 			if (selector === '[role="tab"]') return metadataTabs;
 			if (selector === 'button') return fixture.metadataTab === 'adm' && !fixture.admEnabled ? [admEnable] : [];
-			if (selector === '.audio-editor-adm-route select') {
-				const options = (fixture.admLayout === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'])
-					.map((value) => ({ value }));
-				return fixture.admRoutes.map((value, index) => element({
-					value,
-					options,
-					dispatch(event) {
-						if (['input', 'change'].includes(event.type)) fixture.admRoutes[index] = this.value;
-					},
-				}));
+			if (selector === '.audio-editor-adm-route' || selector === '.audio-editor-adm-route select') {
+				fixture.admRouteQueries += 1;
+				return selector.endsWith('select')
+					? fixture.admRoutes.map((_, index) => admRouteSelect(index))
+					: admRouteRows();
 			}
 			return [];
 		},
@@ -262,6 +287,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		click: () => {
 			fixture.startedRuns += 1;
 			fixture.bextAtStart.push({ ...fixture.bext });
+			fixture.admRoutesAtStart.push([...fixture.admRoutes]);
 			fixture.settingsAtStart.push({ ...fixture.settings });
 			fixture.exporting = true;
 			fixture.progress = 0;
