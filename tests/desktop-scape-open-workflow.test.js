@@ -17,7 +17,7 @@ test('desktop package metadata exposes the packaged Soundscaper project-open smo
 	);
 });
 
-test('desktop CI runs the project-open smoke only for packaged Soundscaper Linux x64', async () => {
+test('desktop CI runs the project-open and persisted-reopen smoke only for packaged Soundscaper Linux x64', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
 	const nextJobStart = workflow.indexOf('\n  project-library-handoff:', packageJobStart);
@@ -26,7 +26,7 @@ test('desktop CI runs the project-open smoke only for packaged Soundscaper Linux
 
 	const packageJob = workflow.slice(packageJobStart, nextJobStart);
 	const hardenedSmokeIndex = packageJob.indexOf('- name: Smoke the hardened packaged application');
-	const scapeOpenSmokeIndex = packageJob.indexOf('- name: Smoke packaged Soundscaper project open');
+	const scapeOpenSmokeIndex = packageJob.indexOf('- name: Smoke packaged Soundscaper project open and reopen');
 	const retainManifestIndex = packageJob.indexOf('- name: Retain the verified runtime manifest');
 	assert.ok(hardenedSmokeIndex >= 0, 'missing hardened packaged-application smoke');
 	assert.ok(scapeOpenSmokeIndex > hardenedSmokeIndex, 'project-open smoke must follow the hardened package smoke');
@@ -35,11 +35,11 @@ test('desktop CI runs the project-open smoke only for packaged Soundscaper Linux
 	const scapeOpenStep = packageJob.slice(scapeOpenSmokeIndex, retainManifestIndex);
 	assert.match(
 		scapeOpenStep,
-		/^- name: Smoke packaged Soundscaper project open\s+if: matrix\.product == 'soundscaper' && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'\s+run: npm run desktop:smoke:scape-open\s+env:\s+SOUNDSCAPER_SMOKE_ARCH: x64\s+SOUNDSCAPER_SMOKE_XVFB: 'true'\s*$/u,
+		/^- name: Smoke packaged Soundscaper project open and reopen\s+if: matrix\.product == 'soundscaper' && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'\s+run: npm run desktop:smoke:scape-open\s+env:\s+SOUNDSCAPER_SMOKE_ARCH: x64\s+SOUNDSCAPER_SMOKE_XVFB: 'true'\s*$/u,
 	);
 	assert.equal(
 		workflow.match(/npm run desktop:smoke:scape-open/gu)?.length,
 		1,
-		'project-open smoke must not run from another job or an unscoped step',
+		'project-open and persisted-reopen smoke must not run from another job or an unscoped step',
 	);
 });
