@@ -274,10 +274,10 @@ test('Scape-open runner preserves fake child and cleanup failures together', asy
 	await assert.rejects(access(profile), /ENOENT/iu);
 });
 
-test('Scape-open CLI remains a thin result-printing wrapper', async () => {
+test('Scape-open CLI remains a thin persistence-result wrapper', async () => {
 	const source = await readFile(resolve('scripts/desktop-scape-open-smoke.mjs'), 'utf8');
-	assert.match(source, /runDesktopScapeOpenSmoke/u);
-	assert.match(source, /formatDesktopScapeOpenSmokeResult/u);
+	assert.match(source, /runDesktopScapePersistenceSmoke/u);
+	assert.match(source, /formatDesktopScapePersistenceSmokeResult/u);
 	assert.doesNotMatch(source, /spawn\(|exportScapeProject|createAudioEditorProject/u);
 });
 

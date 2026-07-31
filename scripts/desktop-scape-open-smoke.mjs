@@ -5,10 +5,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-	formatDesktopScapeOpenSmokeResult,
-	runDesktopScapeOpenSmoke,
-} from './lib/desktop-scape-open-smoke.mjs';
+	formatDesktopScapePersistenceSmokeResult,
+	runDesktopScapePersistenceSmoke,
+} from './lib/desktop-scape-reopen-smoke.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const result = await runDesktopScapeOpenSmoke({ repositoryRoot });
-console.log(formatDesktopScapeOpenSmokeResult(result));
+const result = await runDesktopScapePersistenceSmoke({ repositoryRoot });
+console.log(formatDesktopScapePersistenceSmokeResult(result));

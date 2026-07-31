@@ -20,6 +20,14 @@ import {
 	validateScapeOpenRendererResult,
 	validateScapeOpenSmokeResult,
 } from './scape-open-smoke.js';
+import {
+	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
+	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
+	decodeScapeReopenSmokePlan,
+	runScapeReopenRendererSmoke,
+	validateScapeReopenRendererResult,
+	validateScapeReopenSmokeResult,
+} from './scape-reopen-smoke.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -64,7 +72,7 @@ export function parseDesktopSmokeConfiguration(argv) {
 		return Object.freeze({ mode: 'artifact', plan: null });
 	}
 	if (modes.length === 0 && plans.length > 0) {
-		throw new TypeError('Desktop smoke plan requires project-library, direct-WAV, or Scape-open smoke mode');
+		throw new TypeError('Desktop smoke plan requires project-library, direct-WAV, Scape-open, or persisted-reopen smoke mode');
 	}
 	if (modes.length !== 1) throw new TypeError('Desktop smoke requires exactly one smoke mode');
 	if (modes[0] === PROJECT_LIBRARY_MODE) {
@@ -78,6 +86,10 @@ export function parseDesktopSmokeConfiguration(argv) {
 	if (modes[0] === DESKTOP_SCAPE_OPEN_SMOKE_MODE) {
 		if (plans.length !== 1) throw new TypeError('Scape-open smoke mode requires exactly one smoke plan');
 		return deepFreeze({ mode: DESKTOP_SCAPE_OPEN_SMOKE_MODE, plan: decodeScapeOpenSmokePlan(plans[0]) });
+	}
+	if (modes[0] === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) {
+		if (plans.length !== 1) throw new TypeError('Scape persisted-reopen smoke mode requires exactly one smoke plan');
+		return deepFreeze({ mode: DESKTOP_SCAPE_REOPEN_SMOKE_MODE, plan: decodeScapeReopenSmokePlan(plans[0]) });
 	}
 	throw new TypeError('Unsupported desktop smoke mode');
 }
@@ -183,7 +195,8 @@ export function createDesktopSmokeProbe(options) {
 	};
 
 	const rendererReady = async () => {
-		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE].includes(configuration.mode)
+		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
+			DESKTOP_SCAPE_REOPEN_SMOKE_MODE].includes(configuration.mode)
 			|| started || finished) return;
 		started = true;
 		try {
@@ -231,6 +244,18 @@ export function createDesktopSmokeProbe(options) {
 					renderer,
 				}, plan);
 				log(`${DESKTOP_SCAPE_OPEN_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
+			if (configuration.mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) {
+				const execution = validateScapeReopenRendererResult(
+					await attachedWindow.webContents.executeJavaScript(
+						`(${runScapeReopenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
+					),
+					plan,
+				);
+				const payload = validateScapeReopenSmokeResult({ ...plan, ...execution }, plan);
+				log(`${DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
 				await finish(0);
 				return;
 			}
@@ -507,7 +532,7 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 
 function timeoutFor(mode) {
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return 180_000;
-	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return 90_000;
+	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	return 15_000;
 }
 
@@ -515,6 +540,7 @@ function prefixFor(mode) {
 	if (mode === PROJECT_LIBRARY_MODE) return DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX;
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
+	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX;
 	return 'SOUNDSCAPER_DESKTOP_SMOKE';
 }
 
