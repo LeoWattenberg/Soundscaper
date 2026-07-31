@@ -189,6 +189,13 @@ jobs:
           SOUNDSCAPER_SMOKE_ARCH: x64
           SOUNDSCAPER_SMOKE_XVFB: 'true'
 
+      - name: Smoke packaged Soundscaper project open
+        if: matrix.product == 'soundscaper' && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        run: npm run desktop:smoke:scape-open
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_XVFB: 'true'
+
       - name: Retain the verified runtime manifest
         shell: bash
         run: |
