@@ -16,6 +16,7 @@ export const DESKTOP_DIRECT_WAV_SIGNAL_LIMITS = Object.freeze({
 	minimumRmsSample: 6_554,
 	maximumRmsSample: 7_373,
 });
+export const DESKTOP_DIRECT_PCM_SIGNAL_LIMITS = DESKTOP_DIRECT_WAV_SIGNAL_LIMITS;
 
 const SIGNAL_KEYS = Object.freeze([
 	'channelComparisons',
@@ -34,7 +35,12 @@ const SIGNAL_KEYS = Object.freeze([
 ]);
 
 export function createDesktopDirectWavPcmSignalAnalyzer(geometry) {
+	return createDesktopDirectPcmSignalAnalyzer(geometry);
+}
+
+export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 	const expected = normalizeGeometry(geometry);
+	const littleEndian = normalizeByteOrder(options.byteOrder) === 'little-endian';
 	let carry = new Uint8Array(0);
 	let maximumCarryBytes = 0;
 	let frameCount = 0;
@@ -94,10 +100,10 @@ export function createDesktopDirectWavPcmSignalAnalyzer(geometry) {
 	function analyzeFrames(bytes) {
 		const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 		for (let offset = 0; offset < bytes.byteLength; offset += expected.blockAlign) {
-			const sample = view.getInt16(offset, true);
+			const sample = view.getInt16(offset, littleEndian);
 			for (let channel = 1; channel < expected.channelCount; channel += 1) {
 				channelComparisons += 1;
-				if (view.getInt16(offset + channel * 2, true) !== sample) channelMismatchSamples += 1;
+				if (view.getInt16(offset + channel * 2, littleEndian) !== sample) channelMismatchSamples += 1;
 			}
 			frameCount += 1;
 			const absolute = Math.abs(sample);
@@ -180,6 +186,16 @@ export function validateDesktopDirectWavPcmSignalEvidence(
 		throw new Error('Direct-WAV PCM signal RMS is outside its reference bounds');
 	}
 	return Object.freeze({ ...value });
+}
+
+export const validateDesktopDirectPcmSignalEvidence = validateDesktopDirectWavPcmSignalEvidence;
+
+function normalizeByteOrder(value) {
+	const byteOrder = value ?? 'little-endian';
+	if (byteOrder !== 'little-endian' && byteOrder !== 'big-endian') {
+		throw new TypeError('Desktop direct-PCM byte order must be little-endian or big-endian');
+	}
+	return byteOrder;
 }
 
 function normalizeGeometry(value) {
