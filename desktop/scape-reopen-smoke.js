@@ -7,13 +7,16 @@ const MAXIMUM_PLAN_BYTES = 16 * 1024;
 const TOKEN = /^[a-f\d]{32}$/u;
 const PLAN_FIELDS = Object.freeze(['mode', 'productId', 'project', 'schemaVersion', 'token']);
 const PROJECT_FIELDS = Object.freeze(['clipId', 'id', 'revision', 'sourceId', 'title', 'trackId']);
-const EXECUTION_FIELDS = Object.freeze(['renderer', 'sharedProject']);
+const EXECUTION_FIELDS = Object.freeze(['playback', 'renderer', 'sharedProject']);
 const SHARED_PROJECT_FIELDS = Object.freeze([
 	'clipCount', 'revision', 'schemaVersion', 'sourceCount', 'trackCount',
 ]);
 const RENDERER_FIELDS = Object.freeze([
 	'activeTabTitle', 'alertCount', 'clipCount', 'clipId', 'dialogCount', 'projectId',
 	'statusState', 'trackCount', 'trackId', 'waveformError', 'waveformRenderer', 'waveformSource',
+]);
+const PLAYBACK_FIELDS = Object.freeze([
+	'meterAboveFloor', 'playheadAdvanced', 'transportEntered', 'transportStopped',
 ]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, ...EXECUTION_FIELDS]);
 
@@ -124,6 +127,12 @@ export function validateScapeReopenRendererResult(value, expectedPlan) {
 	if (renderer.alertCount !== 0 || renderer.dialogCount !== 0) {
 		throw new TypeError('Scape persisted-reopen renderer exposed an alert or dialog');
 	}
+	assertClosedRecord(value.playback, PLAYBACK_FIELDS, 'Scape persisted-reopen playback result');
+	for (const field of PLAYBACK_FIELDS) {
+		if (value.playback[field] !== true) {
+			throw new TypeError(`Scape persisted-reopen playback ${field} evidence is invalid`);
+		}
+	}
 	return deepFreeze({
 		sharedProject: {
 			schemaVersion: 9,
@@ -146,6 +155,12 @@ export function validateScapeReopenRendererResult(value, expectedPlan) {
 			alertCount: 0,
 			dialogCount: 0,
 		},
+		playback: {
+			transportEntered: true,
+			playheadAdvanced: true,
+			meterAboveFloor: true,
+			transportStopped: true,
+		},
 	});
 }
 
@@ -166,6 +181,7 @@ export function validateScapeReopenSmokeResult(value, expectedPlan = null) {
 		...validateScapeReopenRendererResult({
 			sharedProject: value.sharedProject,
 			renderer: value.renderer,
+			playback: value.playback,
 		}, plan),
 	});
 }
@@ -175,6 +191,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 	const api = scope?.scapeDesktop?.v1;
 	if (!document || typeof document.querySelectorAll !== 'function'
 		|| typeof scope?.setTimeout !== 'function'
+		|| typeof scope?.requestAnimationFrame !== 'function'
 		|| !api || typeof api.readSharedProject !== 'function') {
 		throw new Error('Packaged Scape persisted-reopen renderer environment is incomplete');
 	}
@@ -231,17 +248,93 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		|| clip.sourceId !== plan.project.sourceId) {
 		throw new Error('Persisted shared project clip does not reference the expected source');
 	}
+	const assertCleanUi = () => {
+		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
+		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+		if (alerts.length || dialogs.length) {
+			throw new Error('Packaged Scape persisted-reopen UI exposed an alert or dialog');
+		}
+	};
+	const nextAnimationFrame = () => new Promise((resolve) => scope.requestAnimationFrame(resolve));
+	const provePlayback = async (root) => {
+		const playSelector = '.kw-audio-editor__transport-play .kw-audio-editor__split-button-main button[aria-label="Play"]';
+		const pauseSelector = '.kw-audio-editor__transport-play .kw-audio-editor__split-button-main button[aria-label="Pause"]';
+		const stopSelector = '.kw-audio-editor__transport button[aria-label="Stop"]';
+		const playheadSelector = '[data-playhead][role="slider"]';
+		const meterSelector = '[data-side-playback-meter] [data-playback-meter][data-meter-kind="playback"]'
+			+ '[data-meter-type="db-log"][data-meter-db-range="60"] [role="meter"]';
+		const plays = root.querySelectorAll(playSelector);
+		const stops = root.querySelectorAll(stopSelector);
+		const playheads = root.querySelectorAll(playheadSelector);
+		const meters = root.querySelectorAll(meterSelector);
+		if (plays.length !== 1 || plays[0].disabled !== false
+			|| plays[0].getAttribute('aria-pressed') !== 'false'
+			|| stops.length !== 1 || stops[0].disabled !== false
+			|| playheads.length !== 1 || meters.length !== 1) {
+			throw new Error('Packaged Scape persisted-reopen playback controls or evidence are incomplete');
+		}
+		const playhead = playheads[0];
+		const meter = meters[0];
+		const initialPlayheadX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
+		const meterFloor = Number(meter.getAttribute('aria-valuemin'));
+		if (!Number.isFinite(initialPlayheadX) || !Number.isFinite(meterFloor)) {
+			throw new Error('Packaged Scape persisted-reopen playback evidence is not numeric');
+		}
+		plays[0].click();
+		let transportEntered = false;
+		let playheadAdvanced = false;
+		let meterAboveFloor = false;
+		let stopping = false;
+		for (let frame = 0; frame < 512; frame += 1) {
+			await nextAnimationFrame();
+			assertCleanUi();
+			if (stopping) {
+				const restored = root.querySelectorAll(playSelector);
+				const paused = root.querySelectorAll(pauseSelector);
+				if (restored.length === 1 && restored[0].disabled === false
+					&& restored[0].getAttribute('aria-pressed') === 'false'
+					&& paused.length === 0 && playhead.getAttribute('aria-valuenow') === '0') {
+					return {
+						transportEntered: true,
+						playheadAdvanced: true,
+						meterAboveFloor: true,
+						transportStopped: true,
+					};
+				}
+				continue;
+			}
+			const pauses = root.querySelectorAll(pauseSelector);
+			const active = pauses.length === 1 && pauses[0].disabled === false
+				&& pauses[0].getAttribute('aria-pressed') === 'true';
+			if (active) {
+				transportEntered = true;
+				const currentX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
+				if (Number.isFinite(currentX) && currentX > initialPlayheadX) playheadAdvanced = true;
+				const meterValue = Number(meter.getAttribute('aria-valuenow'));
+				if (Number.isFinite(meterValue) && meterValue > meterFloor) meterAboveFloor = true;
+				if (playheadAdvanced && meterAboveFloor) {
+					const activeStops = root.querySelectorAll(stopSelector);
+					if (activeStops.length !== 1 || activeStops[0].disabled !== false) {
+						throw new Error('Packaged Scape persisted-reopen Stop control became unavailable');
+					}
+					activeStops[0].click();
+					stopping = true;
+				}
+				continue;
+			}
+			if (transportEntered && root.querySelectorAll(playSelector).length === 1) {
+				throw new Error('Packaged Scape persisted-reopen playback ended before evidence completed');
+			}
+		}
+		throw new Error('Packaged Scape persisted-reopen playback evidence timed out');
+	};
 
 	const now = () => scope.Date?.now?.() ?? Date.now();
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
 	const deadline = now() + 45_000;
 	let zoomInClicks = 0;
 	while (true) {
-		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
-		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
-		if (alerts.length || dialogs.length) {
-			throw new Error('Packaged Scape persisted-reopen UI exposed an alert or dialog');
-		}
+		assertCleanUi();
 		const roots = document.querySelectorAll('[data-audio-editor][data-audio-editor-bound="true"]');
 		if (roots.length === 1) {
 			const root = roots[0];
@@ -285,6 +378,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 			if (identityReady
 				&& waveform.getAttribute('data-waveform-renderer') === 'audacity'
 				&& waveform.getAttribute('data-waveform-source') === 'pcm') {
+				const playback = await provePlayback(root);
 				return {
 					sharedProject: {
 						schemaVersion: 9,
@@ -307,6 +401,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 						alertCount: 0,
 						dialogCount: 0,
 					},
+					playback,
 				};
 			}
 		}

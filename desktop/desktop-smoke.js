@@ -250,7 +250,7 @@ export function createDesktopSmokeProbe(options) {
 			if (configuration.mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) {
 				const execution = validateScapeReopenRendererResult(
 					await attachedWindow.webContents.executeJavaScript(
-						`(${runScapeReopenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
+						`(${runScapeReopenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`, true,
 					),
 					plan,
 				);

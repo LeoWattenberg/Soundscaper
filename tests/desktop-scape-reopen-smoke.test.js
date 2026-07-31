@@ -75,7 +75,40 @@ test('Scape-reopen output parser accepts exactly one sanitized plan-bound result
 		() => formatDesktopScapeReopenSmokeResult({ ...payload, path: '/private/project.scape' }),
 		/field|closed|unsupported/iu,
 	);
+	assert.throws(
+		() => formatDesktopScapeReopenSmokeResult({
+			...payload,
+			playback: { ...payload.playback, audioDeviceId: 'private-device' },
+		}),
+		/field|closed|playback|unsupported/iu,
+	);
+	const missingPlayback = { ...payload };
+	delete missingPlayback.playback;
+	assert.throws(
+		() => formatDesktopScapeReopenSmokeResult(missingPlayback),
+		/field|closed|playback|unsupported/iu,
+	);
+	for (const field of ['transportEntered', 'playheadAdvanced', 'meterAboveFloor', 'transportStopped']) {
+		assert.throws(
+			() => formatDesktopScapeReopenSmokeResult({
+				...payload,
+				playback: { ...payload.playback, [field]: false },
+			}),
+			/playback|transport|playhead|meter|renderer/iu,
+		);
+	}
+	assert.throws(
+		() => parseDesktopScapeReopenSmokeOutput(
+			`${DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX} ${JSON.stringify({
+				...payload,
+				token: 'f'.repeat(32),
+			})}`,
+			invocation,
+		),
+		/does not match its plan/iu,
+	);
 	assert.doesNotMatch(line, /(?:\/tmp|soundscaper-app:|_[Dd]esktop\/read|application-data|\.scape)/u);
+	assert.doesNotMatch(line, /audioDevice|deviceId|currentTime|duration|sample|path/iu);
 });
 
 test('persistence runner opens, removes the archive, then reopens from the same profile', async () => {
@@ -278,6 +311,12 @@ function validReopenResult(plan) {
 			statusState: 'success',
 			alertCount: 0,
 			dialogCount: 0,
+		},
+		playback: {
+			transportEntered: true,
+			playheadAdvanced: true,
+			meterAboveFloor: true,
+			transportStopped: true,
 		},
 	};
 }

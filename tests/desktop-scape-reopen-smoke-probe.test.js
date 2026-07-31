@@ -79,6 +79,9 @@ test('renderer rereads the canonical source-bearing project and proves its exact
 	assert.deepEqual(result, rendererResult());
 	assert.equal(fixture.zoomClicks, 0, 'already-ready PCM does not trigger unnecessary zoom');
 	assert.equal(fixture.polls, 0);
+	assert.equal(fixture.playClicks, 1);
+	assert.equal(fixture.stopClicks, 1);
+	assert.equal(fixture.animationFrames, 2);
 	assert.deepEqual(validateScapeReopenRendererResult(result, PLAN), result);
 	for (const invalid of [
 		{ ...result, sharedProject: { ...result.sharedProject, sourceCount: 2 } },
@@ -86,11 +89,13 @@ test('renderer rereads the canonical source-bearing project and proves its exact
 		{ ...result, renderer: { ...result.renderer, waveformRenderer: 'canvas' } },
 		{ ...result, renderer: { ...result.renderer, waveformSource: 'peaks' } },
 		{ ...result, renderer: { ...result.renderer, waveformError: true } },
+		{ ...result, playback: { ...result.playback, meterAboveFloor: false } },
+		{ ...result, playback: { ...result.playback, deviceId: 1 } },
 		{ ...result, unexpected: true },
 	]) {
 		assert.throws(
 			() => validateScapeReopenRendererResult(invalid, PLAN),
-			/renderer|shared project|project|source|waveform|field/iu,
+			/renderer|shared project|project|source|waveform|playback|field/iu,
 		);
 	}
 });
@@ -155,6 +160,29 @@ test('renderer bounds exact Zoom In actions when summary peaks never advance to 
 	assert.equal(fixture.zoomClicks, 12);
 });
 
+test('renderer playback proof fails closed for missing controls and incomplete active evidence', async () => {
+	await assert.rejects(
+		() => runScapeReopenRendererSmoke(rendererFixture(PLAN, {
+			missingPlaybackControl: 'stop',
+			ready: true,
+		}).scope, PLAN),
+		/playback controls or evidence.*incomplete/iu,
+	);
+	for (const option of ['meterStaysSilent', 'playheadStaysStill']) {
+		const fixture = rendererFixture(PLAN, {
+			[option]: true,
+			naturalEndFrame: 2,
+			ready: true,
+		});
+		await assert.rejects(
+			() => runScapeReopenRendererSmoke(fixture.scope, PLAN),
+			/playback ended before evidence completed/iu,
+		);
+		assert.equal(fixture.playClicks, 1);
+		assert.equal(fixture.stopClicks, 0);
+	}
+});
+
 test('desktop descriptor-free reopen lifecycle emits only bounded persistence evidence', async () => {
 	const fixture = probeFixture({ execution: Promise.resolve(rendererResult()) });
 	fixture.probe.attach(fixture.window);
@@ -165,6 +193,7 @@ test('desktop descriptor-free reopen lifecycle emits only bounded persistence ev
 
 	assert.deepEqual(fixture.exits, [0]);
 	assert.deepEqual(fixture.scheduledDelays, [90_000]);
+	assert.deepEqual(fixture.userGestures, [true]);
 	assert.equal(fixture.errors.length, 0);
 	assert.equal(fixture.logs.length, 1);
 	assert.match(fixture.logs[0], new RegExp(`^${DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX} `, 'u'));
@@ -216,6 +245,12 @@ function rendererResult() {
 			alertCount: 0,
 			dialogCount: 0,
 		},
+		playback: {
+			transportEntered: true,
+			playheadAdvanced: true,
+			meterAboveFloor: true,
+			transportStopped: true,
+		},
 	};
 }
 
@@ -246,11 +281,22 @@ function rendererFixture(plan, {
 	now: suppliedNow = null,
 	initialWaveformSource = 'pcm',
 	zoomClicksUntilPcm = 8,
+	missingPlaybackControl = null,
+	meterStaysSilent = false,
+	playheadStaysStill = false,
+	naturalEndFrame = null,
 } = {}) {
 	let currentReady = ready;
 	let polls = 0;
 	let zoomClicks = 0;
 	let waveformSource = initialWaveformSource;
+	let transportState = 'stopped';
+	let playheadFrame = 0;
+	let playheadX = 16;
+	let meterValue = -60;
+	let playClicks = 0;
+	let stopClicks = 0;
+	let animationFrames = 0;
 	const readIds = [];
 	const attribute = (values, textContent = '') => ({
 		textContent,
@@ -268,6 +314,34 @@ function rendererFixture(plan, {
 		click() {
 			zoomClicks += 1;
 			if (zoomClicks >= zoomClicksUntilPcm) waveformSource = 'pcm';
+		},
+	};
+	const play = {
+		disabled: false,
+		click() { playClicks += 1; transportState = 'playing'; },
+		getAttribute: (name) => name === 'aria-pressed' ? 'false' : name === 'aria-label' ? 'Play' : null,
+	};
+	const pause = {
+		disabled: false,
+		getAttribute: (name) => name === 'aria-pressed' ? 'true' : name === 'aria-label' ? 'Pause' : null,
+	};
+	const stop = {
+		disabled: false,
+		click() {
+			stopClicks += 1;
+			transportState = 'stopped';
+			playheadFrame = 0;
+		},
+	};
+	const playhead = {
+		style: { getPropertyValue: (name) => name === '--playhead-x' ? `${playheadX}px` : '' },
+		getAttribute: (name) => name === 'aria-valuenow' ? String(playheadFrame) : null,
+	};
+	const meter = {
+		getAttribute(name) {
+			if (name === 'aria-valuemin') return '-60';
+			if (name === 'aria-valuenow') return String(meterValue);
+			return null;
 		},
 	};
 	const clip = {
@@ -292,6 +366,15 @@ function rendererFixture(plan, {
 			if (selector === '.kw-audio-editor__zoom-actions button[aria-label="Zoom in"]') return [zoomIn];
 			if (selector === `[data-track-row][data-track-id="${plan.project.trackId}"]`) return [track];
 			if (selector === '[data-editor-status][data-state="success"]') return [status];
+			if (selector.includes('button[aria-label="Play"]')) {
+				return transportState === 'stopped' && missingPlaybackControl !== 'play' ? [play] : [];
+			}
+			if (selector.includes('button[aria-label="Pause"]')) return transportState === 'playing' ? [pause] : [];
+			if (selector === '.kw-audio-editor__transport button[aria-label="Stop"]') {
+				return missingPlaybackControl === 'stop' ? [] : [stop];
+			}
+			if (selector === '[data-playhead][role="slider"]') return [playhead];
+			if (selector.includes('[data-side-playback-meter]')) return [meter];
 			return [];
 		},
 	};
@@ -322,12 +405,30 @@ function rendererFixture(plan, {
 			if (becomeReady) currentReady = true;
 			callback();
 		},
+		requestAnimationFrame(callback) {
+			animationFrames += 1;
+			if (transportState === 'playing') {
+				if (!playheadStaysStill) {
+					playheadFrame = 1_024;
+					playheadX = 32;
+				}
+				if (!meterStaysSilent) meterValue = -12;
+				if (naturalEndFrame !== null && animationFrames >= naturalEndFrame) {
+					transportState = 'stopped';
+					playheadFrame = 0;
+				}
+			}
+			callback(animationFrames * 16);
+		},
 	};
 	return {
 		readIds,
 		scope,
 		get polls() { return polls; },
 		get zoomClicks() { return zoomClicks; },
+		get playClicks() { return playClicks; },
+		get stopClicks() { return stopClicks; },
+		get animationFrames() { return animationFrames; },
 	};
 }
 
@@ -336,7 +437,8 @@ function probeFixture({ execution }) {
 	const errors = [];
 	const exits = [];
 	const scheduledDelays = [];
-	const window = fakeWindow(execution);
+	const userGestures = [];
+	const window = fakeWindow(execution, userGestures);
 	const probe = createDesktopSmokeProbe({
 		argv: smokeArgv(),
 		appName: 'Soundscaper',
@@ -351,14 +453,17 @@ function probeFixture({ execution }) {
 		},
 		clearTimeout: () => undefined,
 	});
-	return { errors, exits, logs, probe, scheduledDelays, window };
+	return { errors, exits, logs, probe, scheduledDelays, userGestures, window };
 }
 
-function fakeWindow(execution) {
+function fakeWindow(execution, userGestures) {
 	return {
 		webContents: {
 			once() {},
-			executeJavaScript() { return execution; },
+			executeJavaScript(_script, userGesture) {
+				userGestures.push(userGesture);
+				return execution;
+			},
 		},
 	};
 }
