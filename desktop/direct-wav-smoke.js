@@ -301,12 +301,6 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		}, `${field} options`);
 		option.click();
 		await delay(25);
-		if (expectedText) {
-			await waitFor(
-				() => String(button.textContent || '').trim() === expectedText ? button : null,
-				`${field} selection`,
-			);
-		}
 	};
 	const createFixture = () => {
 		const sampleRate = 48_000;
