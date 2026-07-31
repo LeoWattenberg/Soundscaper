@@ -10,6 +10,7 @@ export { runDirectWavRendererSmoke };
 export const DESKTOP_DIRECT_WAV_SMOKE_MODE = 'direct-wav-export-v1';
 export const DESKTOP_DIRECT_WAV_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE';
 export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
+export const DIRECT_BW64_SMOKE_FILE_BYTES = 202_755_508;
 export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_510;
 export const DIRECT_WAV_SMOKE_FILE_BYTES = 202_751_788;
 
@@ -22,11 +23,12 @@ const TOKEN = /^[a-f\d]{32}$/u;
 const PRODUCT_IDS = new Set(['soundscaper', 'framescaper']);
 const PLAN_FIELDS = Object.freeze(['schemaVersion', 'mode', 'productId', 'token']);
 const RENDERER_FIELDS = Object.freeze([
-	'imported', 'completed', 'cancelled', 'aiffCompleted', 'bwfCompleted', 'realtimeCount', 'downloadVisible',
+	'imported', 'completed', 'cancelled', 'aiffCompleted', 'bwfCompleted', 'bw64Completed',
+	'realtimeCount', 'downloadVisible',
 ]);
 const NATIVE_FIELDS = Object.freeze([
-	'selectionPurposes', 'completedBytes', 'completedAiffBytes', 'completedBwfBytes',
-	'aiffChoiceValidated', 'bwfChoiceValidated', 'cancelledAbsent', 'stagingFilesRemaining',
+	'selectionPurposes', 'completedBytes', 'completedAiffBytes', 'completedBwfBytes', 'completedBw64Bytes',
+	'aiffChoiceValidated', 'bwfChoiceValidated', 'bw64ChoiceValidated', 'cancelledAbsent', 'stagingFilesRemaining',
 ]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, 'renderer', 'native']);
 
@@ -133,11 +135,14 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 			throw new TypeError('Direct WAV smoke accepts only audio-pcm-mix save choices');
 		}
 		const current = operation.then(async () => {
-			if (selectionPurposes.length >= 4) throw new Error('Direct WAV smoke requires exactly four save choices');
+			if (selectionPurposes.length >= 5) throw new Error('Direct WAV smoke requires exactly five save choices');
 			await ensureRoot();
-			const fileNames = ['completed.wav', 'cancelled.wav', 'completed.aiff', 'completed-bwf.wav'];
+			const fileNames = [
+				'completed.wav', 'cancelled.wav', 'completed.aiff', 'completed-bwf.wav', 'completed-bw64.wav',
+			];
 			if (selectionPurposes.length === 2) validateAiffSaveChoice(choice);
 			if (selectionPurposes.length === 3) validateBwfSaveChoice(choice);
+			if (selectionPurposes.length === 4) validateBw64SaveChoice(choice);
 			const fileName = fileNames[selectionPurposes.length];
 			selectionPurposes.push(choice.purpose);
 			return join(smokeRoot, fileName);
@@ -148,13 +153,14 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 
 	const evidence = async () => {
 		await operation;
-		if (selectionPurposes.length !== 4) throw new Error('Direct WAV smoke requires exactly four save choices');
+		if (selectionPurposes.length !== 5) throw new Error('Direct WAV smoke requires exactly five save choices');
 		await ensureRoot();
 		const deadline = now() + 15_000;
 		while (true) {
 			const completed = await optionalStat(statImpl, join(smokeRoot, 'completed.wav'));
 			const completedAiff = await optionalStat(statImpl, join(smokeRoot, 'completed.aiff'));
 			const completedBwf = await optionalStat(statImpl, join(smokeRoot, 'completed-bwf.wav'));
+			const completedBw64 = await optionalStat(statImpl, join(smokeRoot, 'completed-bw64.wav'));
 			const cancelled = await optionalStat(statImpl, join(smokeRoot, 'cancelled.wav'));
 			const names = await readdirImpl(smokeRoot);
 			if (!Array.isArray(names) || names.some((name) => typeof name !== 'string')) {
@@ -162,6 +168,7 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 			}
 			const stagingFilesRemaining = names.filter((name) => name.endsWith('.soundscaper-part')).length;
 			if (completed?.isFile?.() && completedAiff?.isFile?.() && completedBwf?.isFile?.()
+				&& completedBw64?.isFile?.()
 				&& !cancelled && stagingFilesRemaining === 0) {
 				if (!Number.isSafeInteger(completed.size) || completed.size < 0) {
 					throw new TypeError('Direct WAV completed file size is invalid');
@@ -172,13 +179,18 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 				if (!Number.isSafeInteger(completedBwf.size) || completedBwf.size < 0) {
 					throw new TypeError('Direct BWF completed file size is invalid');
 				}
+				if (!Number.isSafeInteger(completedBw64.size) || completedBw64.size < 0) {
+					throw new TypeError('Direct BW64 completed file size is invalid');
+				}
 				return deepFreeze({
 					selectionPurposes: [...selectionPurposes],
 					completedBytes: completed.size,
 					completedAiffBytes: completedAiff.size,
 					completedBwfBytes: completedBwf.size,
+					completedBw64Bytes: completedBw64.size,
 					aiffChoiceValidated: true,
 					bwfChoiceValidated: true,
+					bw64ChoiceValidated: true,
 					cancelledAbsent: true,
 					stagingFilesRemaining,
 				});
@@ -211,7 +223,8 @@ export function validateDirectWavRendererResult(value) {
 	if (value.cancelled !== true) throw new TypeError('Direct WAV renderer did not cancel its second export');
 	if (value.aiffCompleted !== true) throw new TypeError('Direct WAV renderer did not complete its AIFF export');
 	if (value.bwfCompleted !== true) throw new TypeError('Direct WAV renderer did not complete its BWF export');
-	if (value.realtimeCount !== 4) throw new TypeError('Direct WAV renderer must enter realtime export exactly four times');
+	if (value.bw64Completed !== true) throw new TypeError('Direct WAV renderer did not complete its BW64 export');
+	if (value.realtimeCount !== 5) throw new TypeError('Direct WAV renderer must enter realtime export exactly five times');
 	if (value.downloadVisible !== false) throw new TypeError('Direct WAV renderer exposed a browser download');
 	return Object.freeze({
 		imported: true,
@@ -219,7 +232,8 @@ export function validateDirectWavRendererResult(value) {
 		cancelled: true,
 		aiffCompleted: true,
 		bwfCompleted: true,
-		realtimeCount: 4,
+		bw64Completed: true,
+		realtimeCount: 5,
 		downloadVisible: false,
 	});
 }
@@ -238,7 +252,7 @@ export function validateDirectWavSmokeResult(value, expectedPlan = null) {
 	const renderer = validateDirectWavRendererResult(value.renderer);
 	assertClosedRecord(value.native, NATIVE_FIELDS, 'Direct WAV native result');
 	if (!Array.isArray(value.native.selectionPurposes)
-		|| value.native.selectionPurposes.length !== 4
+		|| value.native.selectionPurposes.length !== 5
 		|| value.native.selectionPurposes.some((purpose) => purpose !== 'audio-pcm-mix')) {
 		throw new TypeError('Direct WAV native result has invalid save selections');
 	}
@@ -251,8 +265,12 @@ export function validateDirectWavSmokeResult(value, expectedPlan = null) {
 	if (value.native.completedBwfBytes !== DIRECT_BWF_SMOKE_FILE_BYTES) {
 		throw new TypeError('Direct BWF native result has an unexpected completed byte count');
 	}
+	if (value.native.completedBw64Bytes !== DIRECT_BW64_SMOKE_FILE_BYTES) {
+		throw new TypeError('Direct BW64 native result has an unexpected completed byte count');
+	}
 	if (value.native.aiffChoiceValidated !== true) throw new TypeError('Direct AIFF native result has an invalid save choice');
 	if (value.native.bwfChoiceValidated !== true) throw new TypeError('Direct BWF native result has an invalid save choice');
+	if (value.native.bw64ChoiceValidated !== true) throw new TypeError('Direct BW64 native result has an invalid save choice');
 	if (value.native.cancelledAbsent !== true) throw new TypeError('Direct WAV native result published its cancelled target');
 	if (value.native.stagingFilesRemaining !== 0) throw new TypeError('Direct WAV native result retained staging files');
 	return deepFreeze({
@@ -263,8 +281,10 @@ export function validateDirectWavSmokeResult(value, expectedPlan = null) {
 			completedBytes: value.native.completedBytes,
 			completedAiffBytes: value.native.completedAiffBytes,
 			completedBwfBytes: value.native.completedBwfBytes,
+			completedBw64Bytes: value.native.completedBw64Bytes,
 			aiffChoiceValidated: true,
 			bwfChoiceValidated: true,
+			bw64ChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -294,6 +314,14 @@ function validateBwfSaveChoice(choice) {
 		throw new TypeError('Direct BWF smoke requires a canonical .wav save choice');
 	}
 	validatePcmMixFilters(choice.filters, 'BWF');
+}
+
+function validateBw64SaveChoice(choice) {
+	assertClosedRecord(choice, ['filters', 'purpose', 'suggestedName'], 'Direct BW64 save choice');
+	if (typeof choice.suggestedName !== 'string' || !choice.suggestedName.endsWith('.wav')) {
+		throw new TypeError('Direct BW64 smoke requires a canonical .wav save choice');
+	}
+	validatePcmMixFilters(choice.filters, 'BW64');
 }
 
 function validatePcmMixFilters(filters, format) {

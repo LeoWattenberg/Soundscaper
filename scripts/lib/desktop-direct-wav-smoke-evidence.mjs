@@ -11,6 +11,10 @@ import {
 	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
 	validateDesktopDirectBwfFileEvidence,
 } from './desktop-direct-bwf-smoke-file.mjs';
+import {
+	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
+	validateDesktopDirectBw64FileEvidence,
+} from './desktop-direct-bw64-smoke-file.mjs';
 import { createDesktopDirectWavPcmSignalAnalyzer, validateDesktopDirectWavPcmSignalEvidence } from './desktop-direct-wav-pcm-signal.mjs';
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
@@ -26,6 +30,7 @@ import { resolveSmokeArchitecture } from './desktop-smoke.mjs';
 export {
 	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
+	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	absoluteDesktopDirectWavPath,
 	createDesktopDirectWavStagingObserver,
@@ -63,19 +68,20 @@ export function validateDesktopDirectWavPayload(value, invocation) {
 	if (value.productId !== invocation.productId) throw new Error('Packaged direct-WAV result product is invalid');
 	if (value.token !== invocation.plan.token) throw new Error('Packaged direct-WAV result token is invalid');
 	assertPlainRecord(value.renderer, 'direct-WAV result renderer');
-	assertExactKeys(value.renderer, ['aiffCompleted', 'bwfCompleted', 'cancelled', 'completed', 'downloadVisible', 'imported', 'realtimeCount'], 'direct-WAV result renderer');
-	for (const field of ['imported', 'completed', 'cancelled', 'aiffCompleted', 'bwfCompleted']) {
+	assertExactKeys(value.renderer, ['aiffCompleted', 'bw64Completed', 'bwfCompleted', 'cancelled', 'completed', 'downloadVisible', 'imported', 'realtimeCount'], 'direct-WAV result renderer');
+	for (const field of ['imported', 'completed', 'cancelled', 'aiffCompleted', 'bwfCompleted', 'bw64Completed']) {
 		if (value.renderer[field] !== true) throw new Error(`Packaged direct-WAV renderer ${field} evidence is invalid`);
 	}
-	if (value.renderer.realtimeCount !== 4) throw new Error('Packaged direct-WAV renderer realtime count is invalid');
+	if (value.renderer.realtimeCount !== 5) throw new Error('Packaged direct-WAV renderer realtime count is invalid');
 	if (value.renderer.downloadVisible !== false) throw new Error('Packaged direct-WAV renderer download evidence is invalid');
 	assertPlainRecord(value.native, 'direct-WAV result native');
 	assertExactKeys(value.native, [
-		'aiffChoiceValidated', 'bwfChoiceValidated', 'cancelledAbsent', 'completedAiffBytes',
-		'completedBwfBytes', 'completedBytes', 'selectionPurposes', 'stagingFilesRemaining',
+		'aiffChoiceValidated', 'bw64ChoiceValidated', 'bwfChoiceValidated', 'cancelledAbsent',
+		'completedAiffBytes', 'completedBw64Bytes', 'completedBwfBytes', 'completedBytes',
+		'selectionPurposes', 'stagingFilesRemaining',
 	], 'direct-WAV result native');
 	if (canonicalDesktopDirectWavJson(value.native.selectionPurposes) !== canonicalDesktopDirectWavJson([
-		'audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix',
+		'audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix',
 	])) {
 		throw new Error('Packaged direct-WAV native save purpose evidence is invalid');
 	}
@@ -88,8 +94,12 @@ export function validateDesktopDirectWavPayload(value, invocation) {
 	if (value.native.completedBwfBytes !== DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength) {
 		throw new Error('Packaged direct-BWF native completed bytes evidence is invalid');
 	}
+	if (value.native.completedBw64Bytes !== DESKTOP_DIRECT_BW64_SMOKE_FIXTURE.output.byteLength) {
+		throw new Error('Packaged direct-BW64 native completed bytes evidence is invalid');
+	}
 	if (value.native.aiffChoiceValidated !== true) throw new Error('Packaged direct-AIFF native save choice evidence is invalid');
 	if (value.native.bwfChoiceValidated !== true) throw new Error('Packaged direct-BWF native save choice evidence is invalid');
+	if (value.native.bw64ChoiceValidated !== true) throw new Error('Packaged direct-BW64 native save choice evidence is invalid');
 	if (value.native.cancelledAbsent !== true) throw new Error('Packaged direct-WAV native cancellation evidence is invalid');
 	if (value.native.stagingFilesRemaining !== 0) throw new Error('Packaged direct-WAV native staging evidence is invalid');
 }
@@ -158,6 +168,7 @@ export function createDesktopDirectWavSmokeAggregate({
 	file,
 	aiffFile,
 	bwfFile,
+	bw64File,
 	cancellation,
 } = {}) {
 	const plan = validateAggregateInvocation(invocation);
@@ -165,6 +176,7 @@ export function createDesktopDirectWavSmokeAggregate({
 	const validatedFile = validateFileEvidence(file);
 	const validatedAiffFile = validateDesktopDirectAiffFileEvidence(aiffFile);
 	const validatedBwfFile = validateDesktopDirectBwfFileEvidence(bwfFile);
+	const validatedBw64File = validateDesktopDirectBw64FileEvidence(bw64File);
 	const validatedCancellation = validateCancellationEvidence(cancellation);
 	return freezeDesktopDirectWavValue({
 		schemaVersion: 1,
@@ -178,6 +190,7 @@ export function createDesktopDirectWavSmokeAggregate({
 		file: validatedFile,
 		aiffFile: validatedAiffFile,
 		bwfFile: validatedBwfFile,
+		bw64File: validatedBw64File,
 		cancellation: {
 			stagingRiffGeometryValidated: true,
 			nonzeroStagingPayloadByteObserved: true,
@@ -213,7 +226,7 @@ export async function assertDesktopDirectWavOutputCleanup(paths) {
 	}
 	const names = (await readdir(paths.root)).sort();
 	if (canonicalDesktopDirectWavJson(names) !== canonicalDesktopDirectWavJson([
-		'completed-bwf.wav', 'completed.aiff', 'completed.wav',
+		'completed-bw64.wav', 'completed-bwf.wav', 'completed.aiff', 'completed.wav',
 	])) {
 		throw new Error('Packaged direct-WAV smoke output inventory is not clean');
 	}

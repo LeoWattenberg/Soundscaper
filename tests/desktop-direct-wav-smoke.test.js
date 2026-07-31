@@ -15,6 +15,7 @@ import test from 'node:test';
 
 import {
 	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
+	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
@@ -33,7 +34,13 @@ import {
 	runBoundedDesktopDirectWavChild,
 	runDesktopDirectWavSmoke,
 } from '../scripts/lib/desktop-direct-wav-smoke.mjs';
+import { validDesktopDirectBw64FileEvidence } from './helpers/desktop-direct-bw64-file-evidence.js';
 import { validDesktopDirectBwfFileEvidence } from './helpers/desktop-direct-bwf-file-evidence.js';
+import {
+	validDesktopDirectAiffFileEvidence,
+	validDesktopDirectWavPayload,
+	validDesktopDirectWavSignalEvidence,
+} from './helpers/desktop-direct-wav-smoke-evidence.js';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 
@@ -61,6 +68,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output), true);
 	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_751_798);
 	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 202_752_510);
+	assert.equal(DESKTOP_DIRECT_BW64_SMOKE_FIXTURE.output.byteLength, 202_755_508);
 
 	const encoded = encodeDesktopDirectWavSmokePlan(plan);
 	assert.match(encoded, /^[A-Za-z0-9_-]+$/u);
@@ -89,7 +97,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	);
 });
 
-test('direct-WAV smoke invocation derives WAV, AIFF, and BWF targets under isolated app data', () => {
+test('direct-WAV smoke invocation derives WAV, AIFF, BWF, and BW64 targets under isolated app data', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -105,6 +113,7 @@ test('direct-WAV smoke invocation derives WAV, AIFF, and BWF targets under isola
 		completed: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.wav`,
 		completedAiff: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
 		completedBwf: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed-bwf.wav`,
+		completedBw64: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed-bw64.wav`,
 		cancelled: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 	});
 	assert.ok(invocation.executableCandidates.includes('/release/desktop/linux-unpacked/soundscaper'));
@@ -128,6 +137,7 @@ test('direct-WAV smoke invocation derives WAV, AIFF, and BWF targets under isola
 			completed: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.wav`,
 			completedAiff: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
 			completedBwf: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed-bwf.wav`,
+			completedBw64: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed-bw64.wav`,
 			cancelled: `/tmp/app-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 		},
 	);
@@ -148,7 +158,7 @@ test('direct-WAV child output parser requires one exact plan-bound result', () =
 		profileRoot: '/tmp/direct-wav-profile',
 		token: TOKEN,
 	});
-	const payload = validPayload(invocation);
+	const payload = validDesktopDirectWavPayload(invocation);
 	const line = `${DESKTOP_DIRECT_WAV_SMOKE_OUTPUT_PREFIX}${JSON.stringify(payload)}`;
 	assert.deepEqual(
 		parseDesktopDirectWavSmokeOutput(`diagnostic\n${line}\n`, invocation),
@@ -163,12 +173,15 @@ test('direct-WAV child output parser requires one exact plan-bound result', () =
 		['renderer', (value) => ({ ...value, renderer: { ...value.renderer, realtimeCount: 1 } })],
 		['AIFF', (value) => ({ ...value, renderer: { ...value.renderer, aiffCompleted: false } })],
 		['BWF', (value) => ({ ...value, renderer: { ...value.renderer, bwfCompleted: false } })],
+		['BW64', (value) => ({ ...value, renderer: { ...value.renderer, bw64Completed: false } })],
 		['download', (value) => ({ ...value, renderer: { ...value.renderer, downloadVisible: true } })],
 		['purpose', (value) => ({ ...value, native: { ...value.native, selectionPurposes: ['audio'] } })],
 		['bytes', (value) => ({ ...value, native: { ...value.native, completedBytes: 44 } })],
 		['AIFF.*bytes', (value) => ({ ...value, native: { ...value.native, completedAiffBytes: 54 } })],
 		['BWF.*bytes', (value) => ({ ...value, native: { ...value.native, completedBwfBytes: 766 } })],
+		['BW64.*bytes', (value) => ({ ...value, native: { ...value.native, completedBw64Bytes: 1_028 } })],
 		['save choice', (value) => ({ ...value, native: { ...value.native, aiffChoiceValidated: false } })],
+		['BW64.*choice', (value) => ({ ...value, native: { ...value.native, bw64ChoiceValidated: false } })],
 		['cancel', (value) => ({ ...value, native: { ...value.native, cancelledAbsent: false } })],
 		['staging', (value) => ({ ...value, native: { ...value.native, stagingFilesRemaining: 1 } })],
 		['extra', (value) => ({ ...value, extra: true })],
@@ -358,7 +371,7 @@ test('direct-WAV runner preserves its primary failure when profile cleanup also 
 	);
 });
 
-test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evidence without paths', () => {
+test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, BW64, and cancellation evidence without paths', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -366,12 +379,12 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evi
 		profileRoot: '/tmp/direct-wav-profile',
 		token: TOKEN,
 	});
-	const payload = validPayload(invocation);
+	const payload = validDesktopDirectWavPayload(invocation);
 	const file = {
 		byteLength: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
 		sha256: 'a'.repeat(64),
 		maximumReadChunkBytes: 1024 * 1024,
-		signal: validSignalEvidence(),
+		signal: validDesktopDirectWavSignalEvidence(),
 		riff: {
 			riffId: 'RIFF', riffBytes: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
 			waveId: 'WAVE', formatId: 'fmt ', formatBytes: 16, formatTag: 1,
@@ -386,8 +399,9 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evi
 		platform: 'linux',
 		arch: 'x64',
 		file,
-		aiffFile: validAiffFileEvidence(),
+		aiffFile: validDesktopDirectAiffFileEvidence(),
 		bwfFile: validDesktopDirectBwfFileEvidence(),
+		bw64File: validDesktopDirectBw64FileEvidence(),
 		cancellation: {
 			observed: true,
 			riffHeaderValidated: true,
@@ -406,11 +420,16 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evi
 	assert.equal(aggregate.bwfFile.riff.bextPayloadBytes, 689);
 	assert.equal(aggregate.bwfFile.bext.timeReference, '48000');
 	assert.equal(aggregate.bwfFile.signal.channelComparisons, 95_039_880);
+	assert.equal(aggregate.bw64File.riff.riffId, 'BW64');
+	assert.equal(aggregate.bw64File.bext.timeReference, '48000');
+	assert.equal(aggregate.bw64File.axml.layout, '5.1');
+	assert.equal(aggregate.bw64File.signal.channelComparisons, 84_480_000);
 	assert.throws(() => createDesktopDirectWavSmokeAggregate({
 		invocation, payload, platform: 'linux', arch: 'x64',
 		file: { ...file, signal: { ...file.signal, channelMismatchSamples: 1 } },
-		aiffFile: validAiffFileEvidence(),
+		aiffFile: validDesktopDirectAiffFileEvidence(),
 		bwfFile: validDesktopDirectBwfFileEvidence(),
+		bw64File: validDesktopDirectBw64FileEvidence(),
 		cancellation: {
 			observed: true, riffHeaderValidated: true, nonzeroPayloadByteObserved: true,
 			maximumStagedBytes: 8192, maximumInspectedPrefixBytes: 4096,
@@ -438,61 +457,6 @@ test('direct-WAV script is a thin runner wrapper', async () => {
 	assert.match(source, /formatDesktopDirectWavSmokeAggregate/u);
 	assert.doesNotMatch(source, /spawn\(|createReadStream|showSaveFilePicker/u);
 });
-
-function validPayload(invocation) {
-	return {
-		schemaVersion: 1,
-		mode: DESKTOP_DIRECT_WAV_SMOKE_MODE,
-		productId: invocation.productId,
-		token: invocation.plan.token,
-		renderer: {
-			imported: true,
-			completed: true,
-			cancelled: true,
-			aiffCompleted: true,
-			bwfCompleted: true,
-			realtimeCount: 4,
-			downloadVisible: false,
-		},
-		native: {
-			selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
-			completedBytes: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
-			completedAiffBytes: DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength,
-			completedBwfBytes: DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength,
-			aiffChoiceValidated: true,
-			bwfChoiceValidated: true,
-			cancelledAbsent: true,
-			stagingFilesRemaining: 0,
-		},
-	};
-}
-
-function validSignalEvidence() {
-	return {
-		frameCount: 6_335_992, channelComparisons: 95_039_880,
-		channelMismatchSamples: 0, maximumCarryBytes: 20,
-		nonzeroFrames: 6_335_333, positiveFrames: 3_167_671,
-		negativeFrames: 3_167_662, zeroCrossings: 7_259,
-		peakAbsoluteSample: 9_830, sampleSum: 2_612,
-		sampleSquareSum: 306_120_561_101_570, meanSample: 0.000_412_247_995_262_620_3,
-		rmsSample: 6_950.866_384_869_063,
-	};
-}
-
-function validAiffFileEvidence() {
-	const output = DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output;
-	return {
-		byteLength: output.byteLength, sha256: 'b'.repeat(64), maximumReadChunkBytes: 1024 * 1024,
-		aiff: {
-			formId: 'FORM', formBytes: output.byteLength, typeId: 'AIFF', commId: 'COMM', commBytes: 18,
-			channelCount: output.channelCount, frameCount: output.frameCount, bitsPerSample: output.bitDepth,
-			sampleRateHex: output.sampleRateHex, soundId: 'SSND', soundBytes: output.dataBytes + 8,
-			offset: 0, blockSize: 0, pcmOffset: output.headerBytes, pcmBytes: output.dataBytes,
-			dataPadBytes: 0, trailingBytes: 0,
-		},
-		signal: validSignalEvidence(),
-	};
-}
 
 function directWavStagingPrefix(payloadBytes) {
 	const output = DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output;

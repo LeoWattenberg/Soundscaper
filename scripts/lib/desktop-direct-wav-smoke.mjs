@@ -19,6 +19,10 @@ import {
 	verifyDesktopDirectBwfFile,
 } from './desktop-direct-bwf-smoke-file.mjs';
 import {
+	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
+	verifyDesktopDirectBw64File,
+} from './desktop-direct-bw64-smoke-file.mjs';
+import {
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -41,6 +45,7 @@ import {
 export {
 	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
+	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -50,6 +55,7 @@ export {
 	formatDesktopDirectWavSmokeAggregate,
 	verifyDesktopDirectAiffFile,
 	verifyDesktopDirectBwfFile,
+	verifyDesktopDirectBw64File,
 	verifyDesktopDirectWavFile,
 };
 
@@ -114,6 +120,7 @@ export function deriveDesktopDirectWavSmokePaths(appDataPath, token) {
 		completed: resolve(root, 'completed.wav'),
 		completedAiff: resolve(root, 'completed.aiff'),
 		completedBwf: resolve(root, 'completed-bwf.wav'),
+		completedBw64: resolve(root, 'completed-bw64.wav'),
 		cancelled: resolve(root, 'cancelled.wav'),
 	});
 }
@@ -364,6 +371,7 @@ export async function runDesktopDirectWavSmoke({
 		const file = await verifyDesktopDirectWavFile(invocation.outputPaths.completed);
 		const aiffFile = await verifyDesktopDirectAiffFile(invocation.outputPaths.completedAiff);
 		const bwfFile = await verifyDesktopDirectBwfFile(invocation.outputPaths.completedBwf);
+		const bw64File = await verifyDesktopDirectBw64File(invocation.outputPaths.completedBw64);
 		aggregate = createDesktopDirectWavSmokeAggregate({
 			invocation,
 			payload,
@@ -372,6 +380,7 @@ export async function runDesktopDirectWavSmoke({
 			file,
 			aiffFile,
 			bwfFile,
+			bw64File,
 			cancellation: { ...cancellation, cancelledFileAbsent: true },
 		});
 	} catch (error) {

@@ -8,6 +8,7 @@ import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
 	DIRECT_AIFF_SMOKE_FILE_BYTES,
+	DIRECT_BW64_SMOKE_FILE_BYTES,
 	DIRECT_BWF_SMOKE_FILE_BYTES,
 	DIRECT_WAV_SMOKE_FILE_BYTES,
 	createDirectWavSmokeTargetHarness,
@@ -41,6 +42,7 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, PLAN.mode);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_PREFIX, 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE');
 	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, 202_751_798);
+	assert.equal(DIRECT_BW64_SMOKE_FILE_BYTES, 202_755_508);
 	assert.equal(DIRECT_BWF_SMOKE_FILE_BYTES, 202_752_510);
 	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, 202_751_788);
 
@@ -112,19 +114,27 @@ test('direct WAV target harness pins argv, creates one exclusive private root, a
 		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
 	}), join(smokeRoot, 'completed-bwf.wav'));
 	files.set(join(smokeRoot, 'completed-bwf.wav'), DIRECT_BWF_SMOKE_FILE_BYTES);
+	assert.equal(await harness.resolveSavePath({
+		purpose: 'audio-pcm-mix',
+		suggestedName: 'Soundscaper Export.wav',
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
+	}), join(smokeRoot, 'completed-bw64.wav'));
+	files.set(join(smokeRoot, 'completed-bw64.wav'), DIRECT_BW64_SMOKE_FILE_BYTES);
 	assert.deepEqual(await harness.evidence(), {
-		selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
+		selectionPurposes: Array.from({ length: 5 }, () => 'audio-pcm-mix'),
 		completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES,
 		completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES,
 		completedBwfBytes: DIRECT_BWF_SMOKE_FILE_BYTES,
+		completedBw64Bytes: DIRECT_BW64_SMOKE_FILE_BYTES,
 		aiffChoiceValidated: true,
 		bwfChoiceValidated: true,
+		bw64ChoiceValidated: true,
 		cancelledAbsent: true,
 		stagingFilesRemaining: 0,
 	});
 	await assert.rejects(
-		harness.resolveSavePath({ purpose: 'audio-pcm-mix', suggestedName: 'fifth.wav' }),
-		/exactly four/iu,
+		harness.resolveSavePath({ purpose: 'audio-pcm-mix', suggestedName: 'sixth.wav' }),
+		/exactly five/iu,
 	);
 });
 
@@ -205,6 +215,11 @@ test('direct WAV target harness reports bounded directory state when native evid
 		suggestedName: 'Soundscaper Export.wav',
 		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
 	});
+	await harness.resolveSavePath({
+		purpose: 'audio-pcm-mix',
+		suggestedName: 'Soundscaper Export.wav',
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
+	});
 	await assert.rejects(
 		harness.evidence(),
 		(error) => /native evidence timed out/iu.test(error.message)
@@ -221,7 +236,8 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		cancelled: true,
 		aiffCompleted: true,
 		bwfCompleted: true,
-		realtimeCount: 4,
+		bw64Completed: true,
+		realtimeCount: 5,
 		downloadVisible: false,
 	};
 	assert.deepEqual(validateDirectWavRendererResult(renderer), renderer);
@@ -229,12 +245,14 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		...PLAN,
 		renderer,
 		native: {
-			selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
+			selectionPurposes: Array.from({ length: 5 }, () => 'audio-pcm-mix'),
 			completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES,
 			completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES,
 			completedBwfBytes: DIRECT_BWF_SMOKE_FILE_BYTES,
+			completedBw64Bytes: DIRECT_BW64_SMOKE_FILE_BYTES,
 			aiffChoiceValidated: true,
 			bwfChoiceValidated: true,
+			bw64ChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -251,14 +269,17 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		{ ...payload, renderer: { ...renderer, realtimeCount: 1 } },
 		{ ...payload, renderer: { ...renderer, aiffCompleted: false } },
 		{ ...payload, renderer: { ...renderer, bwfCompleted: false } },
+		{ ...payload, renderer: { ...renderer, bw64Completed: false } },
 		{ ...payload, renderer: { ...renderer, downloadVisible: true } },
 		{ ...payload, native: { ...payload.native, completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES - 1 } },
 		{ ...payload, native: { ...payload.native, completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES - 1 } },
 		{ ...payload, native: { ...payload.native, completedBwfBytes: DIRECT_BWF_SMOKE_FILE_BYTES - 1 } },
+		{ ...payload, native: { ...payload.native, completedBw64Bytes: DIRECT_BW64_SMOKE_FILE_BYTES - 1 } },
+		{ ...payload, native: { ...payload.native, bw64ChoiceValidated: false } },
 		{ ...payload, native: { ...payload.native, cancelledAbsent: false } },
 		{ ...payload, native: { ...payload.native, selectionPurposes: ['audio-pcm-mix'] } },
 	]) {
-		assert.throws(() => validateDirectWavSmokeResult(invalid, PLAN), /result|field|token|realtime|download|byte|cancel|selection|AIFF export|BWF export/iu);
+		assert.throws(() => validateDirectWavSmokeResult(invalid, PLAN), /result|field|token|realtime|download|byte|cancel|selection|AIFF export|BWF export|BW64 export/iu);
 	}
 });
 

@@ -11,6 +11,11 @@ import {
 	runProjectLibraryRendererSmoke,
 } from '../desktop/desktop-smoke.js';
 import { DESKTOP_DIRECT_WAV_SMOKE_PREFIX } from '../desktop/direct-wav-smoke.js';
+import {
+	DIRECT_WAV_TARGET_PATHS,
+	validDesktopDirectWavNativeEvidence,
+	validDesktopDirectWavRendererResult,
+} from './helpers/desktop-direct-wav-smoke-probe.js';
 
 const HANDOFF_MODE = '--soundscaper-smoke-mode=project-library-handoff-v1';
 const PROJECT_ID = 'packaged-handoff-project';
@@ -286,10 +291,7 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 		token: DIRECT_WAV_TOKEN,
 	};
 	const selections = [];
-	const targetPaths = [
-		'/private/smoke/completed.wav', '/private/smoke/cancelled.wav',
-		'/private/smoke/completed.aiff', '/private/smoke/completed-bwf.wav',
-	];
+	const targetPaths = DIRECT_WAV_TARGET_PATHS;
 	const fixture = probeFixture({
 		argv: [
 			'/opt/Soundscaper',
@@ -298,31 +300,14 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 			`--soundscaper-smoke-plan=${encodePlan(plan)}`,
 			'--soundscaper-smoke-app-data=/private/smoke-root',
 		],
-		executionResult: {
-			imported: true,
-			completed: true,
-			cancelled: true,
-			aiffCompleted: true,
-			bwfCompleted: true,
-			realtimeCount: 4,
-			downloadVisible: false,
-		},
+		executionResult: validDesktopDirectWavRendererResult(),
 		directWavTargetHarness: {
 			async resolveSavePath(choice) {
 				selections.push(choice.purpose);
 				return targetPaths[selections.length - 1] ?? null;
 			},
 			async evidence() {
-				return {
-					selectionPurposes: [...selections],
-					completedBytes: 202_751_788,
-					completedAiffBytes: 202_751_798,
-					completedBwfBytes: 202_752_510,
-					aiffChoiceValidated: true,
-					bwfChoiceValidated: true,
-					cancelledAbsent: true,
-					stagingFilesRemaining: 0,
-				};
+				return validDesktopDirectWavNativeEvidence({ selectionPurposes: selections });
 			},
 		},
 	});
@@ -333,6 +318,7 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[2]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[3]);
+	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[4]);
 	await fixture.probe.rendererReady();
 
 	assert.deepEqual(fixture.exits, [0]);
@@ -345,25 +331,8 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 		mode: DIRECT_WAV_MODE,
 		productId: 'soundscaper',
 		token: DIRECT_WAV_TOKEN,
-		renderer: {
-			imported: true,
-			completed: true,
-			cancelled: true,
-			aiffCompleted: true,
-			bwfCompleted: true,
-			realtimeCount: 4,
-			downloadVisible: false,
-		},
-		native: {
-			selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
-			completedBytes: 202_751_788,
-			completedAiffBytes: 202_751_798,
-			completedBwfBytes: 202_752_510,
-			aiffChoiceValidated: true,
-			bwfChoiceValidated: true,
-			cancelledAbsent: true,
-			stagingFilesRemaining: 0,
-		},
+		renderer: validDesktopDirectWavRendererResult(),
+		native: validDesktopDirectWavNativeEvidence(),
 	});
 	assert.doesNotMatch(fixture.logs[0], /private\/smoke/u);
 });
@@ -384,29 +353,12 @@ test('direct-WAV lifecycle reports validation failures under its own bounded pre
 			`--soundscaper-smoke-plan=${encodePlan(plan)}`,
 			'--soundscaper-smoke-app-data=/private/smoke-root',
 		],
-		executionResult: {
-			imported: true,
-			completed: true,
-			cancelled: true,
-			aiffCompleted: true,
-			bwfCompleted: true,
-			realtimeCount: 1,
-			downloadVisible: false,
-		},
+		executionResult: validDesktopDirectWavRendererResult({ realtimeCount: 1 }),
 		directWavTargetHarness: {
 			resolveSavePath: async () => null,
 			evidence: async () => {
 				evidenceCalls += 1;
-				return {
-					selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
-					completedBytes: 202_751_788,
-					completedAiffBytes: 202_751_798,
-					completedBwfBytes: 202_752_510,
-					aiffChoiceValidated: true,
-					bwfChoiceValidated: true,
-					cancelledAbsent: true,
-					stagingFilesRemaining: 0,
-				};
+				return validDesktopDirectWavNativeEvidence();
 			},
 		},
 	});

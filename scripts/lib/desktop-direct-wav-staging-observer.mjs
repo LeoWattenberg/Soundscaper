@@ -21,16 +21,19 @@ export const DESKTOP_DIRECT_WAV_SMOKE_FIXTURE = Object.freeze({
 
 export function validateDesktopDirectWavOutputPaths(value) {
 	assertPlainRecord(value, 'direct-WAV output paths');
-	assertExactKeys(value, ['cancelled', 'completed', 'completedAiff', 'completedBwf', 'root'], 'direct-WAV output paths');
+	assertExactKeys(value, ['cancelled', 'completed', 'completedAiff', 'completedBw64', 'completedBwf', 'root'], 'direct-WAV output paths');
 	const root = absoluteDesktopDirectWavPath(value.root, 'output root');
 	const completed = absoluteDesktopDirectWavPath(value.completed, 'completed output');
 	const completedAiff = absoluteDesktopDirectWavPath(value.completedAiff, 'completed AIFF output');
 	const completedBwf = absoluteDesktopDirectWavPath(value.completedBwf, 'completed BWF output');
+	const completedBw64 = absoluteDesktopDirectWavPath(value.completedBw64, 'completed BW64 output');
 	const cancelled = absoluteDesktopDirectWavPath(value.cancelled, 'cancelled output');
 	if (dirname(completed) !== root || dirname(completedAiff) !== root || dirname(completedBwf) !== root
+		|| dirname(completedBw64) !== root
 		|| dirname(cancelled) !== root
 		|| basename(completed) !== 'completed.wav' || basename(completedAiff) !== 'completed.aiff'
 		|| basename(completedBwf) !== 'completed-bwf.wav'
+		|| basename(completedBw64) !== 'completed-bw64.wav'
 		|| basename(cancelled) !== 'cancelled.wav') {
 		throw new Error('Desktop direct-WAV output paths leave their isolated root');
 	}
