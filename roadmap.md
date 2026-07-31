@@ -130,11 +130,29 @@ Material constraints in the current foundation are also roadmap inputs:
   transactional sink with zero retained payload, bounded emissions, project
   publication, and exact release/close. Import now also checks the validated
   manifest asset-byte sum plus ten-percent rounded-up headroom against any known
-  store estimate before extraction. This does not qualify packaged Electron UI,
-  real browser quota behavior, durable OPFS/IndexedDB storage, reserved or
+  store estimate before extraction. Those reference-scale Node witnesses do not
+  qualify their 8 GiB path in packaged Electron UI, real browser quota behavior,
+  durable OPFS/IndexedDB storage, reserved or
   write-time capacity under concurrent imports, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
-  authentication. Browser `.scape` files retain their Blob source. Several
+  authentication. A separate maintained packaged Soundscaper Linux x64 smoke
+  production-exports an exact-schema-9 project with one mono source, track, and
+  clip: 16,384 Float32 frames at 48 kHz and a 65,540-byte framed PCM asset in an
+  archive larger than the 65,557-byte ZIP end-search suffix and no larger than
+  96 KiB. Passing that `.scape` positionally to the packaged executable now
+  qualifies native open-argument extraction and pending dispatch, the main-owned
+  `scape-range-v1` descriptor, preload delivery, renderer routing and range
+  protocol, inspection/import into real packaged application storage, activation,
+  exact visible identities and success, plus a capability observed live before
+  delivery and retired after open. Its sanitized result exposes no capability ID,
+  URL, or path. This is not installer/file-association registration or a shell
+  launch, reference-scale packaged import, proof of payload laziness beyond the
+  known range route, playback, persistent reopen or durability, crash/power-loss,
+  heap/RSS, quota or concurrency qualification, another OS/architecture/product,
+  arbitrary third-party ZIP/effect coverage, or legacy Soundscaper compatibility.
+  Third-party gating and legacy compatibility are not current priorities;
+  Audacity project interchange remains separate. Browser `.scape` files retain
+  their Blob source. Several
   compressed imports and browser-download fallback retain bounded or
   reference-scale paths that materialize a whole `Blob` or byte array. Final
   render formats and routes outside the narrow exact-size, realtime
@@ -502,8 +520,9 @@ models or native implementations.
   passed in an all-files coverage run, where the instrumented test took an
   observed 525 seconds; routine Node and coverage runs now report a fast skip
   naming the dedicated command without weakening the gate's assertions. This
-  Node counting-sink evidence does not qualify packaged Electron UI, real
-  browser quota availability or estimate accuracy, durable OPFS/IndexedDB
+  Node counting-sink evidence does not qualify the reference-scale path in
+  packaged Electron UI, real browser quota availability or estimate accuracy,
+  durable OPFS/IndexedDB
   persistence, allocation overhead beyond the policy headroom, write-time quota
   failure or concurrent capacity reservation, renderer/browser heap,
   main/renderer RSS, whole-archive storage atomicity, or publisher
@@ -1402,9 +1421,23 @@ models or native implementations.
   witnesses are now landed without a final renderer `Blob`: collision-cancel
   inspection remains payload-lazy, while a standalone full import validates the
   authentic pinned CRC and manifest SHA through the real range/service/import
-  path into a non-retaining counting independent-SHA transactional sink. Still
-  qualify the packaged Electron UI and real OPFS/IndexedDB durable storage.
-  Real browser quota availability and estimate accuracy, capacity reservation,
+  path into a non-retaining counting independent-SHA transactional sink.
+  Separately, a maintained packaged Soundscaper Linux x64 smoke now
+  production-exports a
+  current-schema source-bearing fixture with one mono source, track, and clip,
+  passes it as a positional `.scape` argument, and observes the native pending
+  queue, main-owned range descriptor, preload event, renderer router/range
+  protocol, inspection/import into real packaged application storage, activation,
+  exact visible project/track/clip identities and success, and exact capability
+  retirement. This narrows the packaged-UI and application-storage gap for that
+  small fixture; it does not qualify persistent reopen or storage durability.
+  Installer/file-association registration and shell launch, the packaged 8 GiB
+  reference path, payload laziness beyond the known range route, playback,
+  crash/power-loss behavior, Windows/macOS/ARM or Framescaper, arbitrary
+  third-party packages/effects, and legacy Soundscaper compatibility remain
+  outside this slice. Third-party gating and legacy compatibility are not current
+  priorities, while Audacity interchange remains separate. Real browser quota
+  availability and estimate accuracy, capacity reservation,
   allocation overhead beyond the policy headroom, write-time failure under
   concurrency, renderer/browser heap, main/renderer RSS, whole-archive storage
   atomicity, and publisher authentication remain open. The materialized profile

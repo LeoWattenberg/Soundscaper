@@ -730,6 +730,23 @@
 					]
 				},
 				{
+					"id": "packaged-linux-x64-current-schema-scape-open",
+					"summary": "A maintained Soundscaper-only Linux x64 packaged smoke production-exports an exact-schema-9 archive containing one mono source, one track, and one clip: 16,384 Float32 frames at 48 kHz, 65,536 PCM bytes plus one four-byte chunk header for a 65,540-byte asset, in an archive larger than the 65,557-byte ZIP end-search suffix and no larger than 96 KiB. It launches the unpacked packaged executable with that `.scape` as a positional argument and isolated user and application-data roots, exercising native OS-open argument extraction and pending dispatch, a main-owned `scape-range-v1` descriptor, preload event delivery, the renderer router, range adapter and protocol, inspection and import into the real packaged application store, workspace activation, exact project, track, and clip identities, and visible success without an alert or dialog. The smoke observes that the capability is live before delivery and retired after open; its closed sanitized result exposes no capability ID, URL, or filesystem path. This qualifies only that small current-schema packaged application path. It does not qualify installer file-association registration or a shell-generated launch; packaged 8 GiB or other reference-scale import; payload laziness or absence of whole materialization beyond the known range route; playback; persistent reopen, filesystem or storage durability, crash, or power loss; memory, heap, or RSS; quota accuracy, reservation, or concurrency; Windows, macOS, ARM, or Framescaper; arbitrary third-party ZIP or effect semantics; or legacy Soundscaper schemas or libraries. Third-party activation gating and legacy Soundscaper compatibility are not current priorities; Audacity project interchange remains separate.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/scape-open-smoke.js" },
+						{ "kind": "implementation", "path": "desktop/desktop-smoke.js" },
+						{ "kind": "implementation", "path": "desktop/main.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-scape-open-smoke.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-scape-open-smoke.mjs" },
+						{ "kind": "test", "path": "tests/desktop-scape-open-smoke-probe.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-open-smoke-wiring.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-open-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-scape-open-workflow.test.js" },
+						{ "kind": "implementation", "path": "package.json" },
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
+					]
+				},
+				{
 					"id": "bounded-archive-operation-counts",
 					"summary": "Archive enumeration is hard-capped at 4,096 entries, bounding zip.js pairwise layout comparisons, and one archive-wide budget is capped at 65,536 canonical PCM chunks before another source-writer call or chunk allocation.",
 					"evidence": [
