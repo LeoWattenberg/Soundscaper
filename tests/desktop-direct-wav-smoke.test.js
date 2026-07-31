@@ -15,6 +15,7 @@ import test from 'node:test';
 
 import {
 	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
+	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -32,6 +33,7 @@ import {
 	runBoundedDesktopDirectWavChild,
 	runDesktopDirectWavSmoke,
 } from '../scripts/lib/desktop-direct-wav-smoke.mjs';
+import { validDesktopDirectBwfFileEvidence } from './helpers/desktop-direct-bwf-file-evidence.js';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 
@@ -58,6 +60,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	});
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output), true);
 	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_751_798);
+	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 50_688_702);
 
 	const encoded = encodeDesktopDirectWavSmokePlan(plan);
 	assert.match(encoded, /^[A-Za-z0-9_-]+$/u);
@@ -86,7 +89,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	);
 });
 
-test('direct-WAV smoke invocation derives WAV and AIFF targets under isolated app data', () => {
+test('direct-WAV smoke invocation derives WAV, AIFF, and BWF targets under isolated app data', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -101,6 +104,7 @@ test('direct-WAV smoke invocation derives WAV and AIFF targets under isolated ap
 		root: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}`,
 		completed: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.wav`,
 		completedAiff: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
+		completedBwf: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed-bwf.wav`,
 		cancelled: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 	});
 	assert.ok(invocation.executableCandidates.includes('/release/desktop/linux-unpacked/soundscaper'));
@@ -123,6 +127,7 @@ test('direct-WAV smoke invocation derives WAV and AIFF targets under isolated ap
 			root: `/tmp/app-data/direct-wav-smoke-${TOKEN}`,
 			completed: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.wav`,
 			completedAiff: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
+			completedBwf: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed-bwf.wav`,
 			cancelled: `/tmp/app-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 		},
 	);
@@ -157,10 +162,12 @@ test('direct-WAV child output parser requires one exact plan-bound result', () =
 		['product', (value) => ({ ...value, productId: 'framescaper' })],
 		['renderer', (value) => ({ ...value, renderer: { ...value.renderer, realtimeCount: 1 } })],
 		['AIFF', (value) => ({ ...value, renderer: { ...value.renderer, aiffCompleted: false } })],
+		['BWF', (value) => ({ ...value, renderer: { ...value.renderer, bwfCompleted: false } })],
 		['download', (value) => ({ ...value, renderer: { ...value.renderer, downloadVisible: true } })],
-		['purpose', (value) => ({ ...value, native: { ...value.native, selectionPurposes: ['audio', 'audio-pcm-mix', 'audio-pcm-mix'] } })],
+		['purpose', (value) => ({ ...value, native: { ...value.native, selectionPurposes: ['audio'] } })],
 		['bytes', (value) => ({ ...value, native: { ...value.native, completedBytes: 44 } })],
 		['AIFF.*bytes', (value) => ({ ...value, native: { ...value.native, completedAiffBytes: 54 } })],
+		['BWF.*bytes', (value) => ({ ...value, native: { ...value.native, completedBwfBytes: 766 } })],
 		['save choice', (value) => ({ ...value, native: { ...value.native, aiffChoiceValidated: false } })],
 		['cancel', (value) => ({ ...value, native: { ...value.native, cancelledAbsent: false } })],
 		['staging', (value) => ({ ...value, native: { ...value.native, stagingFilesRemaining: 1 } })],
@@ -351,7 +358,7 @@ test('direct-WAV runner preserves its primary failure when profile cleanup also 
 	);
 });
 
-test('direct-WAV aggregate surfaces bounded WAV, AIFF, and cancellation evidence without paths', () => {
+test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evidence without paths', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -380,6 +387,7 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, and cancellation evidence
 		arch: 'x64',
 		file,
 		aiffFile: validAiffFileEvidence(),
+		bwfFile: validDesktopDirectBwfFileEvidence(),
 		cancellation: {
 			observed: true,
 			riffHeaderValidated: true,
@@ -395,10 +403,14 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, and cancellation evidence
 	assert.equal(aggregate.file.signal.channelMismatchSamples, 0);
 	assert.equal(aggregate.aiffFile.aiff.typeId, 'AIFF');
 	assert.equal(aggregate.aiffFile.signal.channelMismatchSamples, 0);
+	assert.equal(aggregate.bwfFile.riff.bextPayloadBytes, 689);
+	assert.equal(aggregate.bwfFile.bext.timeReference, '48000');
+	assert.equal(aggregate.bwfFile.signal.channelComparisons, 19_007_976);
 	assert.throws(() => createDesktopDirectWavSmokeAggregate({
 		invocation, payload, platform: 'linux', arch: 'x64',
 		file: { ...file, signal: { ...file.signal, channelMismatchSamples: 1 } },
 		aiffFile: validAiffFileEvidence(),
+		bwfFile: validDesktopDirectBwfFileEvidence(),
 		cancellation: {
 			observed: true, riffHeaderValidated: true, nonzeroPayloadByteObserved: true,
 			maximumStagedBytes: 8192, maximumInspectedPrefixBytes: 4096,
@@ -438,14 +450,17 @@ function validPayload(invocation) {
 			completed: true,
 			cancelled: true,
 			aiffCompleted: true,
-			realtimeCount: 3,
+			bwfCompleted: true,
+			realtimeCount: 4,
 			downloadVisible: false,
 		},
 		native: {
-			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
+			selectionPurposes: Array.from({ length: 4 }, () => 'audio-pcm-mix'),
 			completedBytes: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
 			completedAiffBytes: DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength,
+			completedBwfBytes: DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength,
 			aiffChoiceValidated: true,
+			bwfChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
