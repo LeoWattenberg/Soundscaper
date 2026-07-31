@@ -394,9 +394,22 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		const expectedRoutes = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'];
 		await waitFor(() => {
 			const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
-			const values = routes.map((route) => route.value);
-			return JSON.stringify(values) === JSON.stringify(expectedRoutes) ? values : null;
-		}, 'BW64 ADM 5.1 routing');
+			if (routes.length !== expectedRoutes.length) return null;
+			return routes.every((route, index) => (
+				[...route.options].some((option) => option.value === expectedRoutes[index])
+			)) ? routes : null;
+		}, 'BW64 ADM 5.1 route controls');
+		for (const [index, channel] of expectedRoutes.entries()) {
+			const route = await waitFor(
+				() => [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')][index],
+				`BW64 ADM route ${String(index + 1)}`,
+			);
+			setValue(route, channel);
+			await waitFor(
+				() => [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')][index]?.value === channel,
+				`BW64 ADM route ${String(index + 1)} assignment`,
+			);
+		}
 		const authoredAdm = {
 			'adm-programme-name': 'Soundscaper packaged BW64 programme',
 			'adm-programme-language': '',

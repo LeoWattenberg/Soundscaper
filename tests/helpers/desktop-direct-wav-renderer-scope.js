@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -176,7 +176,9 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			const value = this.value;
 			const commit = () => {
 				fixture.admLayout = value;
-				fixture.admRoutes = value === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'];
+				fixture.admRoutes = value === '5.1'
+					? incompleteAdmRouteDefaults ? ['L', 'R', '', '', '', ''] : ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']
+					: ['L', 'R'];
 			};
 			if (admLayoutDelayMs > 0) setTimeout(commit, admLayoutDelayMs);
 			else commit();
@@ -209,7 +211,15 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (selector === '[role="tab"]') return metadataTabs;
 			if (selector === 'button') return fixture.metadataTab === 'adm' && !fixture.admEnabled ? [admEnable] : [];
 			if (selector === '.audio-editor-adm-route select') {
-				return fixture.admRoutes.map((value) => element({ value }));
+				const options = (fixture.admLayout === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'])
+					.map((value) => ({ value }));
+				return fixture.admRoutes.map((value, index) => element({
+					value,
+					options,
+					dispatch(event) {
+						if (['input', 'change'].includes(event.type)) fixture.admRoutes[index] = this.value;
+					},
+				}));
 			}
 			return [];
 		},
@@ -328,7 +338,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	return scope;
 }
 
-function element({ attributes = {}, blur = () => {}, click = () => {}, dispatch = () => {}, hidden = false, query = () => null, queryAll = () => [], textContent = '', value = '' } = {}) {
+function element({ attributes = {}, blur = () => {}, click = () => {}, dispatch = () => {}, hidden = false, options = [], query = () => null, queryAll = () => [], textContent = '', value = '' } = {}) {
 	return {
 		attributes,
 		blur,
@@ -337,6 +347,7 @@ function element({ attributes = {}, blur = () => {}, click = () => {}, dispatch 
 		focus() {},
 		getAttribute(name) { return attributes[name] ?? null; },
 		hidden,
+		options,
 		querySelector: query,
 		querySelectorAll: queryAll,
 		textContent,

@@ -368,7 +368,7 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 });
 
 test('renderer smoke waits for the authored BW64 layout to commit before editing its metadata', async () => {
-	const scope = createRendererScope({ admLayoutDelayMs: 100 });
+	const scope = createRendererScope({ admLayoutDelayMs: 100, incompleteAdmRouteDefaults: true });
 	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
 	const result = await serializedRoutine(scope, PLAN);
 	assert.equal(result.bw64Completed, true);
