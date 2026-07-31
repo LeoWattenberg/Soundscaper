@@ -752,7 +752,7 @@ models or native implementations.
   exact geometry agrees. A layout-only witness allocates no PCM or output bytes
   while admitting the exact constructible 69,793,218,560-byte (65 GiB) RF64
   boundary and rejecting the next frame; this remains an admission ceiling, not
-  BWF scale, package, heap, or RSS qualification. A direct-eligible
+  BWF scale, heap, or RSS qualification. A direct-eligible
   authored BW64 plan requires both format and container `bw64`, `audio/wav`,
   the canonical `.wav` extension, and an exact positive safe-integer layout
   recomputed by `inspectWavLayout` at or below 69,793,218,560 bytes (65 GiB).
@@ -829,7 +829,7 @@ models or native implementations.
   current-import-to-planner route, preserved and generated BEXT branches, exact
   nonstructural chunk bytes/order/placement and publication, closed admission,
   modeled-metadata collision refusal, stale or edited planning refusal, and
-  loudness fail-closed behavior. It remained green at 393 test files. Focused
+  loudness fail-closed behavior. It remained green at 395 test files. Focused
   12-case Node WAV evidence covers exact classic RIFF/RF64 admission
   and encoder geometry, all four canonical encoding tuples, rich metadata,
   markers, and iXML with correct odd PCM RIFF padding, malformed or stale route
@@ -885,8 +885,8 @@ models or native implementations.
   projects, whole-file bit identity, the 65 GiB ceiling at scale, packaged or
   native-picker behavior, browser heap, process RSS, crash, power loss, or
   durability.
-  Packaged Soundscaper Linux x64 completion acceptance now covers WAV and
-  integer AIFF, while packaged cancellation acceptance remains WAV only. It
+  Packaged Soundscaper Linux x64 completion acceptance now covers WAV, integer
+  AIFF, and BWF, while packaged cancellation acceptance remains WAV only. It
   drives the maintained UI and controller through Electron 43, preload IPC,
   and `AtomicSaveManager`. Its encoded input is 792,000 stereo frames at 48 kHz;
   import/decode observed 791,999 project frames, producing 6,335,992 frames at
@@ -911,7 +911,29 @@ models or native implementations.
   with no pad or trailing bytes. The verifier retains at most the observed
   10-byte partial-frame carry, compares all 95,039,880 duplicated-channel
   samples with zero mismatches, and applies the same tolerant signal bounds.
-  Both completed-file hashes are diagnostic rather than pinned.
+
+  The sequence then selects the exact BWF option, reselects exact 16-bit PCM,
+  restores the custom 16-channel mapping after BWF applies its stereo default,
+  and retains 384 kHz. It validates the canonical `.wav` suggestion and the
+  same combined `WAV and AIFF audio mix` save filter with `wav`, `aif`, and
+  `aiff` extensions. Electron receives that filter rather than BWF-specific
+  File System Access `types`. It completes a 202,752,510-byte RIFF/WAVE BWF. A
+  separate verifier requires a regular, non-symbolic file with stable identity
+  and size, then streams it through EOF in at-most-1-MiB reads. It validates a
+  689-byte bext payload at byte 12 with one pad byte and a 698-byte total chunk;
+  a 40-byte WAVE_FORMAT_EXTENSIBLE fmt at byte 710 with 16 channels, 384 kHz,
+  signed 16-bit PCM, and the PCM GUID; and a 202,751,744-byte data payload whose
+  PCM starts at byte 766 with no data pad or trailing bytes. The verifier retains
+  at most the 31-byte partial-frame carry, compares all 95,039,880
+  duplicated-channel samples with zero mismatches, and applies the same tolerant
+  signal bounds.
+
+  Its deterministic BEXT carries description `Soundscaper packaged BWF smoke`,
+  originator `Soundscaper`, reference `PACKAGED-BWF-0001`, date 2026-07-30,
+  time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2, an empty
+  UMID, loudness sentinels, and two-row CodingHistory naming 48,000-Hz input and
+  384,000-Hz output. All three completed-file hashes are diagnostic rather than
+  pinned.
 
   The WAV cancellation run independently observed a 33,554,476-byte staging
   file through an at-most-65,536-byte prefix, validated RIFF geometry plus
@@ -923,20 +945,24 @@ models or native implementations.
   The packaged harness validates the application's save choices and
   `audio-pcm-mix` purpose but then supplies isolated native targets before
   `dialog.showSaveDialog`, without exercising the OS picker. The 385 MiB Node
-  witness remains WAV-only. Packaged completion evidence covers WAV and integer
-  AIFF only at this fixture scale; BWF and BW64 have no packaged qualification
-  or scale evidence. Packaged AIFF does not qualify visible progress,
+  witness remains WAV-only. Packaged completion evidence covers WAV, integer
+  AIFF, and BWF at this fixture scale; BW64 has no packaged qualification or
+  scale evidence. Packaged BWF does not qualify visible progress, cancellation,
+  rollback, staging cleanup, commit races, loudness, a nonempty UMID, int20 or
+  int24 PCM, rich metadata variants, RF64 or the 65 GiB boundary at scale, or
+  third-party interoperability. Packaged AIFF does not qualify visible progress,
   cancellation, rollback, staging cleanup, commit races, AIFF-C float, int24 or
   int32 PCM, metadata or padding variants, or the 4,294,967,302-byte
   constructible boundary at scale. The package harness also does not directly
   observe exact-size session negotiation or the four-MiB destination-write
-  limit; separate shared-route controls cover those contracts. The 65 GiB BW64
-  ceiling is admission, not scale qualification. Neither completed format
-  qualifies native-picker behavior, heap or RSS, quota, filesystem or
-  parent-directory durability, crash or power-loss behavior, Windows, macOS,
-  ARM, installers, Framescaper, or other formats. The exact decode and frame
-  geometry is specific to the pinned Electron runtime and must be revisited on
-  Electron upgrades; the completed-file hashes are deliberately not pinned.
+  limit; separate shared-route controls cover those contracts. The 65 GiB BWF
+  and BW64 ceilings are admission, not scale qualification. None of the three
+  completed formats qualifies native-picker behavior, heap or RSS, quota,
+  filesystem or parent-directory durability, crash or power-loss behavior,
+  Windows, macOS, ARM, installers, Framescaper, or other formats. The exact
+  decode and frame geometry is specific to the pinned Electron runtime and must
+  be revisited on Electron upgrades; the completed-file hashes are deliberately
+  not pinned.
   Reference-scale browser/device behavior remains unqualified. Maintained
   Chromium and Firefox qualify only the injected-File-System-Access direct-WAV
   commit race: cancellation while the selected writer's non-cancellable
