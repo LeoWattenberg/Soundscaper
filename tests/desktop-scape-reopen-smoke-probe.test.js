@@ -181,6 +181,17 @@ test('renderer playback proof fails closed for missing controls and incomplete a
 		assert.equal(fixture.playClicks, 1);
 		assert.equal(fixture.stopClicks, 0);
 	}
+	for (const options of [
+		{ initialMeterValue: -12 },
+		{ initialPlayheadFrame: 1_024 },
+	]) {
+		const fixture = rendererFixture(PLAN, { ...options, ready: true });
+		await assert.rejects(
+			() => runScapeReopenRendererSmoke(fixture.scope, PLAN),
+			/playback evidence did not begin at its floor and origin/iu,
+		);
+		assert.equal(fixture.playClicks, 0);
+	}
 });
 
 test('desktop descriptor-free reopen lifecycle emits only bounded persistence evidence', async () => {
@@ -285,15 +296,17 @@ function rendererFixture(plan, {
 	meterStaysSilent = false,
 	playheadStaysStill = false,
 	naturalEndFrame = null,
+	initialMeterValue = -60,
+	initialPlayheadFrame = 0,
 } = {}) {
 	let currentReady = ready;
 	let polls = 0;
 	let zoomClicks = 0;
 	let waveformSource = initialWaveformSource;
 	let transportState = 'stopped';
-	let playheadFrame = 0;
+	let playheadFrame = initialPlayheadFrame;
 	let playheadX = 16;
-	let meterValue = -60;
+	let meterValue = initialMeterValue;
 	let playClicks = 0;
 	let stopClicks = 0;
 	let animationFrames = 0;
@@ -366,15 +379,18 @@ function rendererFixture(plan, {
 			if (selector === '.kw-audio-editor__zoom-actions button[aria-label="Zoom in"]') return [zoomIn];
 			if (selector === `[data-track-row][data-track-id="${plan.project.trackId}"]`) return [track];
 			if (selector === '[data-editor-status][data-state="success"]') return [status];
-			if (selector.includes('button[aria-label="Play"]')) {
+			if (selector === '.kw-audio-editor__transport-play .kw-audio-editor__split-button-main button[aria-label="Play"]') {
 				return transportState === 'stopped' && missingPlaybackControl !== 'play' ? [play] : [];
 			}
-			if (selector.includes('button[aria-label="Pause"]')) return transportState === 'playing' ? [pause] : [];
+			if (selector === '.kw-audio-editor__transport-play .kw-audio-editor__split-button-main button[aria-label="Pause"]') {
+				return transportState === 'playing' ? [pause] : [];
+			}
 			if (selector === '.kw-audio-editor__transport button[aria-label="Stop"]') {
 				return missingPlaybackControl === 'stop' ? [] : [stop];
 			}
 			if (selector === '[data-playhead][role="slider"]') return [playhead];
-			if (selector.includes('[data-side-playback-meter]')) return [meter];
+			if (selector === '[data-side-playback-meter] [data-playback-meter][data-meter-kind="playback"]'
+				+ '[data-meter-type="db-log"][data-meter-db-range="60"] [role="meter"]') return [meter];
 			return [];
 		},
 	};

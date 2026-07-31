@@ -276,9 +276,12 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		const playhead = playheads[0];
 		const meter = meters[0];
 		const initialPlayheadX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
+		const initialPlayheadFrame = Number(playhead.getAttribute('aria-valuenow'));
 		const meterFloor = Number(meter.getAttribute('aria-valuemin'));
-		if (!Number.isFinite(initialPlayheadX) || !Number.isFinite(meterFloor)) {
-			throw new Error('Packaged Scape persisted-reopen playback evidence is not numeric');
+		const initialMeterValue = Number(meter.getAttribute('aria-valuenow'));
+		if (!Number.isFinite(initialPlayheadX) || initialPlayheadFrame !== 0
+			|| !Number.isFinite(meterFloor) || initialMeterValue !== meterFloor) {
+			throw new Error('Packaged Scape persisted-reopen playback evidence did not begin at its floor and origin');
 		}
 		plays[0].click();
 		let transportEntered = false;
@@ -311,7 +314,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 				const currentX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
 				if (Number.isFinite(currentX) && currentX > initialPlayheadX) playheadAdvanced = true;
 				const meterValue = Number(meter.getAttribute('aria-valuenow'));
-				if (Number.isFinite(meterValue) && meterValue > meterFloor) meterAboveFloor = true;
+				if (Number.isFinite(meterValue) && meterValue > initialMeterValue) meterAboveFloor = true;
 				if (playheadAdvanced && meterAboveFloor) {
 					const activeStops = root.querySelectorAll(stopSelector);
 					if (activeStops.length !== 1 || activeStops[0].disabled !== false) {
