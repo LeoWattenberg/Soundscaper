@@ -62,7 +62,9 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/first packaged process.*isolated user and application-data roots.*verifies.*archive unchanged.*exits cleanly.*removes.*archive.*ENOENT/iu,
 		/second packaged process.*same user-data and application-data roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/iu,
 		/canonical schema-9.*revision-7.*shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/iu,
-		/only orderly process-restart automatic source-bearing persistence and reopen.*does not qualify storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*playback.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party ZIP or effect.*legacy Soundscaper/iu,
+		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/iu,
+		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/iu,
+		/does not qualify audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party ZIP or effect.*legacy Soundscaper/iu,
 		/Third-party activation gating.*legacy Soundscaper compatibility.*not current priorities.*Audacity project interchange.*separate/iu,
 	]) assert.match(packagedReopenControl.summary, claim);
 	assert.doesNotMatch(packagedReopenControl.summary, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
@@ -192,7 +194,9 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,349-byte.*schema 9.*revision 7.*source-bearing/isu,
 		/first process.*isolated user and application-data roots.*archive unchanged.*clean exit.*removes.*archive.*ENOENT.*second process.*same roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/isu,
 		/canonical schema-9 revision-7 shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/isu,
-		/qualifies only orderly process-restart automatic source-bearing persistence and reopen.*does not establish storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*playback.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
+		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,
+		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/isu,
+		/does not establish audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
 	]) assert.match(threatModel, claim);
 	assert.doesNotMatch(threatModel, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 	assert.doesNotMatch(control.summary, /placeholder huge[- ]asset/iu);
@@ -222,9 +226,16 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		roadmap,
 		/second packaged Soundscaper Linux x64 process.*orderly process-restart persistence witness.*exact 69,349-byte.*schema-9 revision-7.*source-bearing.*archive unchanged.*cleanly exits.*removes.*ENOENT.*same isolated user and\s+application-data roots.*no positional `.scape`.*no read descriptor or\s+capability.*bootstrap.*automatically reopens/isu,
 	);
-	assert.match(
-		roadmap,
-		/canonical shared project.*exact one-source\/one-track\/one-clip\s+relations.*exact active project\/track\/clip identities.*Audacity PCM waveform.*no waveform error, alert, or dialog.*qualifies\s+only orderly process-restart automatic source-bearing persistence and reopen.*storage durability.*crash\/power-loss\/fsync.*eviction.*quota\/reservation\/concurrency.*playback.*Windows\/macOS\/ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
+	const compactRoadmap = roadmap.replace(/\s+/gu, ' ');
+	for (const claim of [
+		/canonical shared project.*exact one-source\/one-track\/one-clip\s+relations.*exact active project\/track\/clip identities.*Audacity PCM waveform.*no waveform error, alert, or dialog/isu,
+		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,
+		/qualifies\s+only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/isu,
+		/does not qualify audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash\/power-loss\/fsync.*eviction.*quota\/reservation\/concurrency.*Windows\/macOS\/ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
+	]) assert.match(compactRoadmap, claim);
+	assert.equal(
+		[...compactRoadmap.matchAll(/known reopened fixture's stored PCM enters the editor playback graph/giu)].length,
+		2,
 	);
 	assert.doesNotMatch(roadmap, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 });

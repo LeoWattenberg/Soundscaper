@@ -150,11 +150,23 @@ Material constraints in the current foundation are also roadmap inputs:
   the same isolated roots but no positional `.scape`, read descriptor, or
   capability. Normal bootstrap automatically reopens the source-bearing project,
   including its exact source/track/clip relations and a PCM-backed waveform. This
-  is not installer/file-association registration or a shell launch, reference-scale
-  packaged import, proof of payload laziness beyond the known range route,
-  playback, storage durability or crash/power-loss behavior, heap/RSS, quota or
-  concurrency qualification, another OS/architecture/product, arbitrary
-  third-party ZIP/effect coverage, or legacy Soundscaper compatibility.
+  same second process proves that the known reopened fixture's stored PCM enters
+  the editor playback graph. It requires exact enabled `Play` and `Stop` controls;
+  `Play` exposes an active, pressed `Pause`, and during that same active interval
+  the playhead advances and the master playback meter rises above its declared
+  floor. Explicit `Stop` restores enabled, unpressed `Play` and resets the playhead
+  to zero. This qualifies only orderly process-restart automatic source-bearing
+  persistence and reopen plus transport entry, playback-clock advancement,
+  master-meter activity, and explicit stop and reset for that known current-schema
+  fixture. This is not installer/file-association registration or a shell launch,
+  reference-scale packaged import, or proof of payload laziness beyond the known
+  range route. It does not qualify audible or device output because the harness
+  passes `--mute-audio`, playback fidelity, dropout- or glitch-free playback,
+  full-duration playback, mixer, routing, or effect correctness, storage
+  durability or crash/power-loss/fsync behavior, eviction, quota/reservation/
+  concurrency, heap/RSS, another OS/architecture/product, Windows/macOS/ARM,
+  Framescaper, cross-product transfer, arbitrary third-party ZIP/effect coverage,
+  or legacy Soundscaper compatibility.
   Third-party gating and legacy compatibility are not current priorities;
   Audacity project interchange remains separate. Browser `.scape` files retain
   their Blob source. Several
@@ -1455,14 +1467,23 @@ models or native implementations.
   capability; normal bootstrap automatically reopens the project. It rereads
   the canonical shared project, verifies the exact one-source/one-track/one-clip
   relations and exact active project/track/clip identities, and reaches an
-  Audacity PCM waveform with no waveform error, alert, or dialog. This qualifies
-  only orderly process-restart automatic source-bearing persistence and reopen
-  for current Soundscaper Linux x64. Storage durability,
-  crash/power-loss/fsync behavior, eviction, quota/reservation/concurrency,
-  playback, Windows/macOS/ARM, Framescaper, cross-product transfer, arbitrary
-  third-party ZIP/effect breadth, and legacy Soundscaper compatibility remain
-  outside it; those latter two areas are not current priorities, while Audacity
-  project interchange remains separate. The materialized profile
+  Audacity PCM waveform with no waveform error, alert, or dialog. The same second
+  process proves that the known reopened fixture's stored PCM enters the editor
+  playback graph. It requires exact enabled `Play` and `Stop` controls; `Play`
+  exposes an active, pressed `Pause`, and during that same active interval the
+  playhead advances and the master playback meter rises above its declared floor.
+  Explicit `Stop` restores enabled, unpressed `Play` and resets the playhead to
+  zero. This qualifies only orderly process-restart automatic source-bearing
+  persistence and reopen plus transport entry, playback-clock advancement,
+  master-meter activity, and explicit stop and reset for that known current-schema
+  fixture. It does not qualify audible or device output because the harness passes
+  `--mute-audio`, playback fidelity, dropout- or glitch-free playback,
+  full-duration playback, mixer, routing, or effect correctness, storage
+  durability or crash/power-loss/fsync behavior, eviction,
+  quota/reservation/concurrency, Windows/macOS/ARM, Framescaper, cross-product
+  transfer, arbitrary third-party ZIP/effect breadth, or legacy Soundscaper
+  compatibility; those latter two areas are not current priorities, while
+  Audacity project interchange remains separate. The materialized profile
   continues to fail above its independent 512 MiB ceiling rather than falling
   through to the Scape route.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy
