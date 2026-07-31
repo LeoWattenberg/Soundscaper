@@ -238,6 +238,43 @@ test('realtime engine aborts immediately when its async sink fails', async () =>
 	});
 });
 
+test('realtime engine preserves a sink failure when AudioContext cleanup also fails', async () => {
+	const sinkFailure = new Error('OPFS write failed');
+	const closeFailure = new Error('AudioContext close failed');
+	await withMockRealtimeRenderer((context) => {
+		context.emit({
+			type: 'audio-chunk', frameOffset: 0,
+			channels: [Float32Array.of(1), Float32Array.of(1)],
+		});
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		await assert.rejects(engine.renderMixToSink({
+			sink: async () => { throw sinkFailure; },
+			outputFrames: 1,
+			maximumPendingChunks: 1,
+		}), sinkFailure);
+		assert.equal(contexts[0].closeCalls, 1);
+	}, { closeFailure });
+});
+
+test('realtime engine reports AudioContext cleanup failure after a successful sink', async () => {
+	const closeFailure = new Error('AudioContext close failed');
+	await withMockRealtimeRenderer((context) => {
+		context.emit({
+			type: 'audio-chunk', frameOffset: 0,
+			channels: [Float32Array.of(1), Float32Array.of(1)],
+		});
+		context.emit({ type: 'done', frames: 1 });
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		await assert.rejects(engine.renderMixToSink({
+			sink: async () => {},
+			outputFrames: 1,
+		}), closeFailure);
+		assert.equal(contexts[0].closeCalls, 1);
+	}, { closeFailure });
+});
+
 test('realtime engine treats progress callback failures as render failures', async () => {
 	const failure = new Error('progress observer failed');
 	await withMockRealtimeRenderer((context) => {
@@ -312,6 +349,56 @@ test('realtime engine pauses production while a bounded slow sink drains', async
 		assert.equal(contexts[0].suspendCalls > 0, true);
 		assert.equal(contexts[0].resumeCalls > 1, true);
 		assert.equal(contexts[0].closed, true);
+	});
+});
+
+test('realtime engine reserves hard-bound capacity while suspension is pending', async () => {
+	let releaseSuspend;
+	const suspendBlocked = new Promise((resolve) => { releaseSuspend = resolve; });
+	let markSuspendStarted;
+	const suspendStarted = new Promise((resolve) => { markSuspendStarted = resolve; });
+	let resumePhase = 0;
+	const writes = [];
+	await withMockRealtimeRenderer((context) => {
+		if (resumePhase === 0) {
+			resumePhase += 1;
+			for (let frameOffset = 0; frameOffset < 2; frameOffset += 1) {
+				context.emit({
+					type: 'audio-chunk', frameOffset,
+					channels: [Float32Array.of(frameOffset), Float32Array.of(-frameOffset)],
+				});
+			}
+			return;
+		}
+		context.emit({ type: 'done', frames: 3 });
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		const pending = engine.renderMixToSink({
+			sink: async (_channels, metadata) => { writes.push(metadata.frameOffset); },
+			outputFrames: 3,
+			maximumPendingChunks: 4,
+		});
+		await suspendStarted;
+		assert.equal(contexts[0].state, 'running');
+		contexts[0].emit({
+			type: 'audio-chunk', frameOffset: 2,
+			channels: [Float32Array.of(2), Float32Array.of(-2)],
+		});
+		releaseSuspend();
+		assert.deepEqual(await pending, {
+			sampleRate: 48_000,
+			channelCount: 2,
+			frameCount: 3,
+			chunkCount: 3,
+		});
+		assert.deepEqual(writes, [0, 1, 2]);
+		assert.equal(contexts[0].suspendCalls, 1);
+		assert.equal(contexts[0].resumeCalls, 2);
+	}, {
+		onSuspend: async () => {
+			markSuspendStarted();
+			await suspendBlocked;
+		},
 	});
 });
 
@@ -402,7 +489,7 @@ function createRealtimeFixtureEngine() {
 	return engine;
 }
 
-async function withMockRealtimeRenderer(onResume, run) {
+async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, onSuspend = null } = {}) {
 	const previousAudioContext = globalThis.AudioContext;
 	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
 	const contexts = [];
@@ -424,6 +511,7 @@ async function withMockRealtimeRenderer(onResume, run) {
 			this.modules = [];
 			this.audioWorklet = { addModule: async (url) => { this.modules.push(url); } };
 			this.closed = false;
+			this.closeCalls = 0;
 			this.suspendCalls = 0;
 			this.resumeCalls = 0;
 			contexts.push(this);
@@ -440,10 +528,16 @@ async function withMockRealtimeRenderer(onResume, run) {
 		}
 		async suspend() {
 			this.suspendCalls += 1;
-			this.state = 'suspended';
+			if (onSuspend) await onSuspend(this);
+			if (this.state !== 'closed') this.state = 'suspended';
 		}
 		emit(data) { this.capture?.port.onmessage?.({ data }); }
-		async close() { this.state = 'closed'; this.closed = true; }
+		async close() {
+			this.closeCalls += 1;
+			this.state = 'closed';
+			this.closed = true;
+			if (closeFailure) throw closeFailure;
+		}
 	}
 	class MockCaptureNode extends MockNode {
 		constructor(context) {

@@ -416,6 +416,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		};
 		capture.port.start?.();
 
+		let renderFailed = false;
+		let renderFailure: unknown;
 		try {
 			await context.resume();
 			await done;
@@ -425,6 +427,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				frameCount: queue.writtenFrames,
 				chunkCount: queue.writtenChunks,
 			};
+		} catch (error) {
+			renderFailed = true;
+			renderFailure = error;
+			throw error;
 		} finally {
 			terminating = true;
 			const pendingFlowControl = flowControl;
@@ -435,10 +441,20 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			disposeGraph(graph, true);
 			try { capture.disconnect(); } catch { /* Already disconnected. */ }
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
-			if (context.state !== 'closed') await context.close?.();
-			if (queue.state !== 'finished') queue.abort(createAbortError());
+			let closeFailed = false;
+			let closeFailure: unknown;
+			try {
+				if (context.state !== 'closed') await context.close?.();
+			} catch (error) {
+				closeFailed = true;
+				closeFailure = error;
+			}
+			if (queue.state !== 'finished') {
+				queue.abort(renderFailed ? renderFailure : closeFailed ? closeFailure : createAbortError());
+			}
 			try { await queue.settled(); } catch { /* The primary render error is reported above. */ }
 			try { await pendingFlowControl; } catch { /* Flow control never replaces the primary render result. */ }
+			if (!renderFailed && closeFailed) throw closeFailure;
 		}
 	},
 
