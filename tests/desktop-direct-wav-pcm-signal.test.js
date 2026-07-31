@@ -138,6 +138,42 @@ test('reference signal limits admit the observed 6,335,992-frame tone evidence',
 	assert.deepEqual(validateDesktopDirectWavPcmSignalEvidence(signal, geometry), signal);
 });
 
+test('PCM signal evidence retains exact statistics for the long authored-BW64 geometry', () => {
+	const geometry = { channelCount: 6, bitDepth: 16, frameCount: 16_896_000 };
+	const limits = {
+		minimumNonzeroFrames: 16_800_000,
+		minimumPositiveFrames: 8_300_000,
+		minimumNegativeFrames: 8_300_000,
+		minimumZeroCrossings: 19_340,
+		maximumZeroCrossings: 19_380,
+		minimumPeakAbsoluteSample: 9_175,
+		maximumPeakAbsoluteSample: 10_486,
+		maximumAbsoluteMeanSample: 16,
+		minimumRmsSample: 6_554,
+		maximumRmsSample: 7_373,
+	};
+	const signal = {
+		frameCount: geometry.frameCount,
+		channelComparisons: geometry.frameCount * 5,
+		channelMismatchSamples: 0,
+		maximumCarryBytes: 11,
+		nonzeroFrames: 16_894_240,
+		positiveFrames: 8_447_120,
+		negativeFrames: 8_447_120,
+		zeroCrossings: 19_359,
+		peakAbsoluteSample: 9_830,
+		sampleSum: 0,
+		sampleSquareSum: 816_000_000_000_000,
+		meanSample: 0,
+		rmsSample: Math.sqrt(816_000_000_000_000 / geometry.frameCount),
+	};
+	assert.deepEqual(
+		validateDesktopDirectWavPcmSignalEvidence(signal, geometry, limits),
+		signal,
+	);
+	assert.doesNotThrow(() => createDesktopDirectWavPcmSignalAnalyzer(geometry));
+});
+
 test('renderer and verifier share one derived completed-file byte contract', () => {
 	const output = DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output;
 	assert.equal(output.dataBytes, output.frameCount * output.channelCount * output.bitDepth / 8);

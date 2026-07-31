@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-const MAXIMUM_EXACT_SQUARE_SUM_FRAMES = Math.floor(
-	Number.MAX_SAFE_INTEGER / (32_768 ** 2),
-);
+const SQUARE_SUM_BATCH_FRAMES = 4_096;
+const MAXIMUM_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 
 export const DESKTOP_DIRECT_WAV_SIGNAL_LIMITS = Object.freeze({
 	minimumNonzeroFrames: 6_300_000,
@@ -52,7 +51,9 @@ export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 	let zeroCrossings = 0;
 	let peakAbsoluteSample = 0;
 	let sampleSum = 0;
-	let sampleSquareSum = 0;
+	let sampleSquareSum = 0n;
+	let squareSumBatch = 0;
+	let squareSumBatchFrames = 0;
 	let previousNonzeroSign = 0;
 	let finished = false;
 
@@ -80,6 +81,11 @@ export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 		if (frameCount !== expected.frameCount) {
 			throw new Error(`Completed direct-WAV signal frame count is ${String(frameCount)}, expected ${String(expected.frameCount)}`);
 		}
+		flushSquareSumBatch();
+		if (sampleSquareSum > MAXIMUM_SAFE_INTEGER_BIGINT) {
+			throw new RangeError('Completed direct-WAV signal square sum exceeds exact JSON evidence precision');
+		}
+		const exactSampleSquareSum = Number(sampleSquareSum);
 		return Object.freeze({
 			frameCount,
 			channelComparisons,
@@ -91,9 +97,9 @@ export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 			zeroCrossings,
 			peakAbsoluteSample,
 			sampleSum,
-			sampleSquareSum,
+			sampleSquareSum: exactSampleSquareSum,
 			meanSample: sampleSum / frameCount,
-			rmsSample: Math.sqrt(sampleSquareSum / frameCount),
+			rmsSample: Math.sqrt(exactSampleSquareSum / frameCount),
 		});
 	}
 
@@ -109,7 +115,9 @@ export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 			const absolute = Math.abs(sample);
 			peakAbsoluteSample = Math.max(peakAbsoluteSample, absolute);
 			sampleSum += sample;
-			sampleSquareSum += sample * sample;
+			squareSumBatch += sample * sample;
+			squareSumBatchFrames += 1;
+			if (squareSumBatchFrames === SQUARE_SUM_BATCH_FRAMES) flushSquareSumBatch();
 			if (sample === 0) continue;
 			nonzeroFrames += 1;
 			const sign = sample > 0 ? 1 : -1;
@@ -118,6 +126,13 @@ export function createDesktopDirectPcmSignalAnalyzer(geometry, options = {}) {
 			if (previousNonzeroSign && sign !== previousNonzeroSign) zeroCrossings += 1;
 			previousNonzeroSign = sign;
 		}
+	}
+
+	function flushSquareSumBatch() {
+		if (!squareSumBatchFrames) return;
+		sampleSquareSum += BigInt(squareSumBatch);
+		squareSumBatch = 0;
+		squareSumBatchFrames = 0;
 	}
 }
 
@@ -204,8 +219,9 @@ function normalizeGeometry(value) {
 	const frameCount = positiveInteger(value.frameCount, 'PCM frame count');
 	if (channelCount > 32) throw new RangeError('Desktop direct-WAV PCM supports at most 32 channels');
 	if (value.bitDepth !== 16) throw new RangeError('Desktop direct-WAV PCM signal analysis requires 16-bit samples');
-	if (frameCount > MAXIMUM_EXACT_SQUARE_SUM_FRAMES) {
-		throw new RangeError('Desktop direct-WAV PCM frame count exceeds exact signal accumulation');
+	if (!Number.isSafeInteger(frameCount * (channelCount - 1))
+		|| !Number.isSafeInteger(frameCount * 32_768)) {
+		throw new RangeError('Desktop direct-WAV PCM frame count exceeds exact signal statistic geometry');
 	}
 	return { channelCount, frameCount, blockAlign: channelCount * 2 };
 }
