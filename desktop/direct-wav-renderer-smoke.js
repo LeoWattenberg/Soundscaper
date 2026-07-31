@@ -193,11 +193,6 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		firstStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'first export start');
 		await waitFor(() => realtimeCount === 1, 'first realtime render');
-		await waitFor(() => {
-			const output = dialog.querySelector('[data-export-progress] output');
-			const value = Number.parseFloat(String(output?.textContent || ''));
-			return Number.isFinite(value) && value > 0 ? value : null;
-		}, 'first export progress', 60_000);
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed export', 150_000);
 		const completedStatus = document.querySelector('[data-status]');
 		if (completedStatus?.getAttribute('data-state') !== 'success') {

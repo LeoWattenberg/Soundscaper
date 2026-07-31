@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -58,6 +58,9 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		File: FakeFile,
 		setTimeout: (callback, milliseconds) => {
 			if (waitFailure && fixture.routedToProjectBin) throw new Error(waitFailure);
+			if (hideFirstExportProgress && fixture.progressQueries > 0) {
+				throw new Error('The smoke waited for transient first-export telemetry.');
+			}
 			return setTimeout(callback, Math.min(milliseconds, 5));
 		},
 		clearTimeout,
@@ -266,8 +269,10 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			new scope.AudioContext({ sampleRate: 384000 });
 			if ([1, 3, 4, 5].includes(fixture.startedRuns)) {
 				setTimeout(() => {
-					fixture.progress = 25;
-					progressOutput.textContent = '25%';
+					if (!hideFirstExportProgress || fixture.startedRuns !== 1) {
+						fixture.progress = 25;
+						progressOutput.textContent = '25%';
+					}
 				}, 1);
 				setTimeout(() => {
 					fixture.completedRuns += 1;
