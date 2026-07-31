@@ -367,6 +367,15 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 	assert.ok(scope.document.fixture.progressQueries > 0);
 });
 
+test('renderer smoke waits for the authored BW64 layout to commit before editing its metadata', async () => {
+	const scope = createRendererScope({ admLayoutDelayMs: 100 });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	const result = await serializedRoutine(scope, PLAN);
+	assert.equal(result.bw64Completed, true);
+	assert.equal(scope.document.fixture.admLayout, '5.1');
+	assert.deepEqual(scope.document.fixture.admRoutes, ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
+});
+
 test('renderer smoke reports the editor import failure without waiting for a timeout', async () => {
 	const scope = createRendererScope({
 		importFailure: 'The WAV fixture could not be decoded.',

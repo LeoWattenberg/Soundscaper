@@ -391,7 +391,12 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => bw64Metadata.querySelector('[data-adm-metadata-editor]'), 'BW64 ADM metadata editor');
 		const layout = await waitFor(() => bw64Metadata.querySelector('[name="adm-bed-layout"]'), 'BW64 ADM layout');
 		setValue(layout, '5.1');
-		await delay(25);
+		const expectedRoutes = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'];
+		await waitFor(() => {
+			const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
+			const values = routes.map((route) => route.value);
+			return JSON.stringify(values) === JSON.stringify(expectedRoutes) ? values : null;
+		}, 'BW64 ADM 5.1 routing');
 		const authoredAdm = {
 			'adm-programme-name': 'Soundscaper packaged BW64 programme',
 			'adm-programme-language': '',
@@ -408,7 +413,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		}
 		const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
 		const routeValues = routes.map((route) => route.value);
-		if (JSON.stringify(routeValues) !== JSON.stringify(['L', 'R', 'C', 'LFE', 'Ls', 'Rs'])) {
+		if (JSON.stringify(routeValues) !== JSON.stringify(expectedRoutes)) {
 			throw new Error('Packaged direct BW64 ADM routing is not canonical 5.1');
 		}
 		const bw64MetadataButtons = [...bw64Metadata.querySelectorAll('.audio-editor-dialog-footer button')];

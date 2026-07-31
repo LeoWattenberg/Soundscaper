@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -173,8 +173,13 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		value: 'stereo',
 		dispatch(event) {
 			if (!['input', 'change'].includes(event.type)) return;
-			fixture.admLayout = this.value;
-			fixture.admRoutes = this.value === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'];
+			const value = this.value;
+			const commit = () => {
+				fixture.admLayout = value;
+				fixture.admRoutes = value === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'];
+			};
+			if (admLayoutDelayMs > 0) setTimeout(commit, admLayoutDelayMs);
+			else commit();
 		},
 	});
 	const admEnable = element({ textContent: 'Enable ADM', click: () => {
