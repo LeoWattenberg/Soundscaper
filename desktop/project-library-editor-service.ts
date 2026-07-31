@@ -18,7 +18,7 @@ import {
 } from '../src/common/editor/scape-project-document.ts';
 import { validateAudioEditorProjectV9 } from '../src/common/editor/project-v9-validation.ts';
 
-const ENTRY_ID = /^[A-Za-z0-9_-]{8,128}$/u;
+const ENTRY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/u;
 
 export interface DesktopSharedProjectDescriptor {
 	readonly id: string;
@@ -65,7 +65,7 @@ export class DesktopSharedProjectLibraryService {
 	) {
 		assertHost(host);
 		this.#host = host;
-		this.#createEntryId = options.createEntryId ?? (() => randomBytes(18).toString('base64url'));
+		this.#createEntryId = options.createEntryId ?? (() => `p${randomBytes(18).toString('base64url')}`);
 		this.#documentLimits = resolveScapeProjectBinaryLimits(options.documentLimits ?? {});
 		this.#now = options.now ?? Date.now;
 	}

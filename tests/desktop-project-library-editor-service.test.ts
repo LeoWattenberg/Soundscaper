@@ -85,6 +85,21 @@ test('editor service exposes canonical CRUD by project identity and retains dele
 	assert.equal(host.readCatalog().revision, 2);
 });
 
+test('editor service rejects generated entry ids that cannot form portable project paths', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+
+	for (const entryId of ['_opaque-entry-01', '-opaque-entry-01']) {
+		const service = new DesktopSharedProjectLibraryService(host, {
+			now: () => 10_000,
+			createEntryId: () => entryId,
+		});
+		await assert.rejects(() => service.commitSharedProject(currentDocument(1)), /entry id generator/iu);
+	}
+	assert.deepEqual(host.readCatalog().projects, []);
+});
+
 test('editor service requires a bounded exact-V9 root envelope without publishing rejected input', async (context) => {
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
