@@ -829,7 +829,7 @@ models or native implementations.
   current-import-to-planner route, preserved and generated BEXT branches, exact
   nonstructural chunk bytes/order/placement and publication, closed admission,
   modeled-metadata collision refusal, stale or edited planning refusal, and
-  loudness fail-closed behavior. It remained green at 383 test files. Focused
+  loudness fail-closed behavior. It remained green at 393 test files. Focused
   12-case Node WAV evidence covers exact classic RIFF/RF64 admission
   and encoder geometry, all four canonical encoding tuples, rich metadata,
   markers, and iXML with correct odd PCM RIFF padding, malformed or stale route
@@ -885,35 +885,58 @@ models or native implementations.
   projects, whole-file bit identity, the 65 GiB ceiling at scale, packaged or
   native-picker behavior, browser heap, process RSS, crash, power loss, or
   durability.
-  Packaged Soundscaper Linux x64 acceptance is WAV only and drives the
-  maintained UI and controller through Electron 43, preload IPC, and
-  `AtomicSaveManager`. Its encoded input is 792,000 stereo frames at 48 kHz;
+  Packaged Soundscaper Linux x64 completion acceptance now covers WAV and
+  integer AIFF, while packaged cancellation acceptance remains WAV only. It
+  drives the maintained UI and controller through Electron 43, preload IPC,
+  and `AtomicSaveManager`. Its encoded input is 792,000 stereo frames at 48 kHz;
   import/decode observed 791,999 project frames, producing 6,335,992 frames at
   384 kHz, 16 channels, and signed 16-bit PCM. The planner's corresponding
-  405,503,488-byte float geometry exceeds the 384 MiB threshold, while the final
-  classic RIFF/WAV is 202,751,788 bytes. An independent completed-file verifier
-  streams through EOF in at-most-1-MiB reads, reports SHA-256 only as a
-  diagnostic,
-  retains at most the 31-byte partial-frame carry, compares all 95,039,880
-  duplicated-channel samples with zero mismatches, and enforces tolerant
-  non-silence, polarity, crossing, peak, mean, and RMS bounds. The cancellation
-  run independently observed a 33,554,476-byte staging file through an
-  at-most-65,536-byte prefix, validated RIFF geometry plus nonzero payload, and
-  then verified that the unpublished destination and every staging file were
-  removed. Neither run exposed a browser download. The desktop preview/nightly
-  workflow runs this packaged acceptance only for Soundscaper Linux x64.
+  405,503,488-byte float geometry exceeds the 384 MiB threshold. The completed
+  classic RIFF/WAV is 202,751,788 bytes. Its independent verifier streams
+  through EOF in at-most-1-MiB reads, retains at most the 31-byte partial-frame
+  carry, compares all 95,039,880 duplicated-channel samples with zero
+  mismatches, and enforces tolerant non-silence, polarity, crossing, peak,
+  mean, and RMS bounds.
 
-  The packaged harness validates the application's save choice and purpose but
-  then supplies its isolated native target without exercising the OS picker.
-  The 385 MiB witness and packaged evidence are WAV only, with no BWF or BW64
-  scale qualification. AIFF, BWF, and BW64 have no packaged, native-picker,
-  heap, RSS, or platform qualification. The 65 GiB BW64 ceiling is admission,
-  not scale qualification. The WAV harness is not a 65 GiB run and does
-  not qualify heap or RSS, quota, filesystem or parent-directory durability,
-  crash or power-loss behavior, Windows, macOS, ARM, installers, Framescaper,
-  or other formats. The exact decode and frame geometry is specific to the
-  pinned Electron runtime and must be revisited on
-  Electron upgrades; the completed-file hash is deliberately not pinned.
+  The same packaged sequence selects the exact AIFF option, reselects exact
+  16-bit PCM after the format change applies its default, and validates the
+  application's canonical `.aiff` suggestion and the combined `WAV and AIFF
+  audio mix` save filter with `wav`, `aif`, and `aiff` extensions. It completes
+  a 202,751,798-byte classic AIFF. A separate verifier requires a regular,
+  non-symbolic file with stable identity and size, then streams it through EOF
+  in at-most-1-MiB reads. It validates an exact 202,751,798-byte FORM/AIFF,
+  18-byte COMM with 16 channels, 6,335,992 frames, 16-bit PCM and the 384 kHz
+  80-bit sample rate, plus a 202,751,752-byte SSND with zero offset and block
+  size. Big-endian PCM starts at byte 54 and occupies exactly 202,751,744 bytes
+  with no pad or trailing bytes. The verifier retains at most the observed
+  10-byte partial-frame carry, compares all 95,039,880 duplicated-channel
+  samples with zero mismatches, and applies the same tolerant signal bounds.
+  Both completed-file hashes are diagnostic rather than pinned.
+
+  The WAV cancellation run independently observed a 33,554,476-byte staging
+  file through an at-most-65,536-byte prefix, validated RIFF geometry plus
+  nonzero payload, and then verified that the unpublished destination and every
+  staging file were removed. No browser download was visible after the packaged
+  sequence. The desktop preview/nightly workflow runs this packaged sequence
+  only for Soundscaper Linux x64.
+
+  The packaged harness validates the application's save choices and
+  `audio-pcm-mix` purpose but then supplies isolated native targets before
+  `dialog.showSaveDialog`, without exercising the OS picker. The 385 MiB Node
+  witness remains WAV-only. Packaged completion evidence covers WAV and integer
+  AIFF only at this fixture scale; BWF and BW64 have no packaged qualification
+  or scale evidence. Packaged AIFF does not qualify visible progress,
+  cancellation, rollback, staging cleanup, commit races, AIFF-C float, int24 or
+  int32 PCM, metadata or padding variants, or the 4,294,967,302-byte
+  constructible boundary at scale. The package harness also does not directly
+  observe exact-size session negotiation or the four-MiB destination-write
+  limit; separate shared-route controls cover those contracts. The 65 GiB BW64
+  ceiling is admission, not scale qualification. Neither completed format
+  qualifies native-picker behavior, heap or RSS, quota, filesystem or
+  parent-directory durability, crash or power-loss behavior, Windows, macOS,
+  ARM, installers, Framescaper, or other formats. The exact decode and frame
+  geometry is specific to the pinned Electron runtime and must be revisited on
+  Electron upgrades; the completed-file hashes are deliberately not pinned.
   Reference-scale browser/device behavior remains unqualified. Maintained
   Chromium and Firefox qualify only the injected-File-System-Access direct-WAV
   commit race: cancellation while the selected writer's non-cancellable
