@@ -233,7 +233,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		if (bwfSampleRate.value !== '384000') throw new Error('Packaged direct BWF sample rate did not persist');
 		await choose(dialog, '[data-export-field="channelMapping"]', 3, 'Custom channel mapping');
 		const bwfMatrix = await waitFor(() => dialog.querySelector('textarea'), 'BWF custom channel matrix');
-		setValue(bwfMatrix, JSON.stringify(Array.from({ length: 4 }, () => 0)));
+		setValue(bwfMatrix, JSON.stringify(Array.from({ length: 16 }, () => 0)));
 		await delay(25);
 		const bwfFooter = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')];
 		if (bwfFooter.length < 2) throw new Error('Packaged direct BWF export footer is incomplete');

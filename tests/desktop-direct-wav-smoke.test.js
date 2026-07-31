@@ -60,7 +60,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	});
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output), true);
 	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_751_798);
-	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 50_688_702);
+	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 202_752_510);
 
 	const encoded = encodeDesktopDirectWavSmokePlan(plan);
 	assert.match(encoded, /^[A-Za-z0-9_-]+$/u);
@@ -405,7 +405,7 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, and cancellation evi
 	assert.equal(aggregate.aiffFile.signal.channelMismatchSamples, 0);
 	assert.equal(aggregate.bwfFile.riff.bextPayloadBytes, 689);
 	assert.equal(aggregate.bwfFile.bext.timeReference, '48000');
-	assert.equal(aggregate.bwfFile.signal.channelComparisons, 19_007_976);
+	assert.equal(aggregate.bwfFile.signal.channelComparisons, 95_039_880);
 	assert.throws(() => createDesktopDirectWavSmokeAggregate({
 		invocation, payload, platform: 'linux', arch: 'x64',
 		file: { ...file, signal: { ...file.signal, channelMismatchSamples: 1 } },

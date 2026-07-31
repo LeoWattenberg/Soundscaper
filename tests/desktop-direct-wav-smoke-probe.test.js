@@ -41,7 +41,7 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, PLAN.mode);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_PREFIX, 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE');
 	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, 202_751_798);
-	assert.equal(DIRECT_BWF_SMOKE_FILE_BYTES, 50_688_702);
+	assert.equal(DIRECT_BWF_SMOKE_FILE_BYTES, 202_752_510);
 	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, 202_751_788);
 
 	for (const invalid of [
@@ -290,7 +290,7 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		bitDepth: 0,
 		sampleRate: '384000',
 		channelMapping: 3,
-		channelMatrix: JSON.stringify(Array.from({ length: 4 }, () => 0)),
+		channelMatrix: JSON.stringify(Array.from({ length: 16 }, () => 0)),
 		dither: 0,
 	});
 	assert.deepEqual(scope.document.fixture.selectionHistory, [

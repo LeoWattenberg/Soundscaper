@@ -46,17 +46,17 @@ test('direct-BWF completed geometry and authored BEXT form one exact fixture con
 		input: { sampleRate: 48_000, timeReference: '6000' },
 		output: {
 			sampleRate: 384_000,
-			channelCount: 4,
+			channelCount: 16,
 			bitDepth: 16,
 			frameCount: 6_335_992,
 			bextPayloadBytes: 689,
 			bextChunkBytes: 698,
 			formatBytes: 40,
 			headerByteLength: 766,
-			dataBytes: 50_687_936,
+			dataBytes: 202_751_744,
 			dataPadBytes: 0,
 			trailingBytes: 0,
-			byteLength: 50_688_702,
+			byteLength: 202_752_510,
 		},
 		bext: {
 			description: 'Soundscaper packaged BWF smoke',
@@ -254,7 +254,7 @@ function pcmBwf(expected, samples) {
 		totalFrames: expected.frameCount,
 		bitDepth: expected.bitDepth,
 		bext: DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.bext,
-		channelMask: 0x0f,
+		channelMask: expected.channelCount === 32 ? 0xffff_ffff : (2 ** expected.channelCount - 1) >>> 0,
 	});
 	assert.equal(header.byteLength, expected.headerByteLength);
 	const pcm = Buffer.alloc(samples.length * expected.channelCount * 2);
@@ -286,7 +286,7 @@ function expectedRiff(expected) {
 		bitsPerSample: expected.bitDepth,
 		extensionBytes: 22,
 		validBitsPerSample: expected.bitDepth,
-		channelMask: 0x0f,
+		channelMask: expected.channelCount === 32 ? 0xffff_ffff : (2 ** expected.channelCount - 1) >>> 0,
 		subformatGuid: '0100000000001000800000aa00389b71',
 		dataId: 'data',
 		dataOffset: 758,
@@ -308,9 +308,9 @@ function productionFileEvidence() {
 		bext: { ...DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.bext },
 		signal: {
 			frameCount: output.frameCount,
-			channelComparisons: output.frameCount * 3,
+			channelComparisons: output.frameCount * 15,
 			channelMismatchSamples: 0,
-			maximumCarryBytes: 7,
+			maximumCarryBytes: 31,
 			nonzeroFrames: 6_300_000,
 			positiveFrames: 3_150_000,
 			negativeFrames: 3_150_000,

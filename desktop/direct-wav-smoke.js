@@ -10,7 +10,7 @@ export { runDirectWavRendererSmoke };
 export const DESKTOP_DIRECT_WAV_SMOKE_MODE = 'direct-wav-export-v1';
 export const DESKTOP_DIRECT_WAV_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE';
 export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
-export const DIRECT_BWF_SMOKE_FILE_BYTES = 50_688_702;
+export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_510;
 export const DIRECT_WAV_SMOKE_FILE_BYTES = 202_751_788;
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
