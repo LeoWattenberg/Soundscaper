@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Engineering roadmap, last grounded against the repository on 2026-07-30.
+> Engineering roadmap, last grounded against the repository on 2026-07-31.
 > Milestones are ordered by dependency and close only when their exit gates pass;
 > they are not release-date promises.
 
@@ -145,11 +145,16 @@ Material constraints in the current foundation are also roadmap inputs:
   protocol, inspection/import into real packaged application storage, activation,
   exact visible identities and success, plus a capability observed live before
   delivery and retired after open. Its sanitized result exposes no capability ID,
-  URL, or path. This is not installer/file-association registration or a shell
-  launch, reference-scale packaged import, proof of payload laziness beyond the
-  known range route, playback, persistent reopen or durability, crash/power-loss,
-  heap/RSS, quota or concurrency qualification, another OS/architecture/product,
-  arbitrary third-party ZIP/effect coverage, or legacy Soundscaper compatibility.
+  URL, or path. The aggregate gate now verifies the archive unchanged, cleanly
+  exits that first process, removes the archive, and starts the same package with
+  the same isolated roots but no positional `.scape`, read descriptor, or
+  capability. Normal bootstrap automatically reopens the source-bearing project,
+  including its exact source/track/clip relations and a PCM-backed waveform. This
+  is not installer/file-association registration or a shell launch, reference-scale
+  packaged import, proof of payload laziness beyond the known range route,
+  playback, storage durability or crash/power-loss behavior, heap/RSS, quota or
+  concurrency qualification, another OS/architecture/product, arbitrary
+  third-party ZIP/effect coverage, or legacy Soundscaper compatibility.
   Third-party gating and legacy compatibility are not current priorities;
   Audacity project interchange remains separate. Browser `.scape` files retain
   their Blob source. Several
@@ -1430,7 +1435,7 @@ models or native implementations.
   protocol, inspection/import into real packaged application storage, activation,
   exact visible project/track/clip identities and success, and exact capability
   retirement. This narrows the packaged-UI and application-storage gap for that
-  small fixture; it does not qualify persistent reopen or storage durability.
+  small fixture. That first packaged-process result does not qualify persistent reopen or storage durability by itself.
   Installer/file-association registration and shell launch, the packaged 8 GiB
   reference path, payload laziness beyond the known range route, playback,
   crash/power-loss behavior, Windows/macOS/ARM or Framescaper, arbitrary
@@ -1440,7 +1445,24 @@ models or native implementations.
   availability and estimate accuracy, capacity reservation,
   allocation overhead beyond the policy headroom, write-time failure under
   concurrency, renderer/browser heap, main/renderer RSS, whole-archive storage
-  atomicity, and publisher authentication remain open. The materialized profile
+  atomicity, and publisher authentication remain open.
+  A second packaged Soundscaper Linux x64 process now extends the small-fixture path into an
+  orderly process-restart persistence witness. Its first process imports the
+  exact 69,349-byte current-schema-9 revision-7 source-bearing archive, verifies
+  the archive unchanged, cleanly exits, removes it, and proves `ENOENT`. The
+  second process starts the same executable with the same isolated user and
+  application-data roots but no positional `.scape` and no read descriptor or
+  capability; normal bootstrap automatically reopens the project. It rereads
+  the canonical shared project, verifies the exact one-source/one-track/one-clip
+  relations and exact active project/track/clip identities, and reaches an
+  Audacity PCM waveform with no waveform error, alert, or dialog. This qualifies
+  only orderly process-restart automatic source-bearing persistence and reopen
+  for current Soundscaper Linux x64. Storage durability,
+  crash/power-loss/fsync behavior, eviction, quota/reservation/concurrency,
+  playback, Windows/macOS/ARM, Framescaper, cross-product transfer, arbitrary
+  third-party ZIP/effect breadth, and legacy Soundscaper compatibility remain
+  outside it; those latter two areas are not current priorities, while Audacity
+  project interchange remains separate. The materialized profile
   continues to fail above its independent 512 MiB ceiling rather than falling
   through to the Scape route.
 - **Electron Enhanced — Deferred, not a current priority:** if meaningful legacy

@@ -54,6 +54,36 @@ test('production evidence pins bounded random-access .scape admission', async ()
 			`Missing packaged Scape-open evidence from ${path}`);
 		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)));
 	}
+	const packagedReopenControl = matrix.risks.find(({ id }) => id === 'scape-archive-expansion')?.currentControls
+		.find(({ id }) => id === 'packaged-linux-x64-current-schema-scape-reopen');
+	assert.ok(packagedReopenControl);
+	for (const claim of [
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*exact 69,349-byte.*current-schema-9.*revision 7.*source-bearing/iu,
+		/first packaged process.*isolated user and application-data roots.*verifies.*archive unchanged.*exits cleanly.*removes.*archive.*ENOENT/iu,
+		/second packaged process.*same user-data and application-data roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/iu,
+		/canonical schema-9.*revision-7.*shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/iu,
+		/only orderly process-restart automatic source-bearing persistence and reopen.*does not qualify storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*playback.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party ZIP or effect.*legacy Soundscaper/iu,
+		/Third-party activation gating.*legacy Soundscaper compatibility.*not current priorities.*Audacity project interchange.*separate/iu,
+	]) assert.match(packagedReopenControl.summary, claim);
+	assert.doesNotMatch(packagedReopenControl.summary, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
+	for (const path of [
+		'desktop/scape-reopen-smoke.js',
+		'desktop/desktop-smoke.js',
+		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/controller/project-session-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'scripts/lib/desktop-scape-reopen-smoke.mjs',
+		'scripts/desktop-scape-open-smoke.mjs',
+		'tests/desktop-scape-reopen-smoke-probe.test.js',
+		'tests/desktop-scape-reopen-smoke.test.js',
+		'tests/desktop-scape-open-workflow.test.js',
+		'package.json',
+		'.github/workflows/desktop-preview.yml',
+	]) {
+		assert.ok(packagedReopenControl.evidence.some((item) => item.path === path),
+			`Missing packaged Scape-reopen evidence from ${path}`);
+		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)));
+	}
 	const capacityControl = matrix.risks.find(({ id }) => id === 'scape-archive-expansion')?.currentControls
 		.find(({ id }) => id === 'point-in-time-import-capacity-admission');
 	assert.ok(capacityControl);
@@ -158,6 +188,13 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/capability.*live before delivery.*retired after open.*sanitized result.*no capability ID, URL, or filesystem path/isu,
 		/does not qualify.*installer.*file-association registration.*shell launch.*8 GiB.*reference scale.*payload laziness.*whole materialization.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*RSS.*quota.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*third-party ZIP or effect.*legacy Soundscaper.*Audacity.*separate/isu,
 	]) assert.match(threatModel, claim);
+	for (const claim of [
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,349-byte.*schema 9.*revision 7.*source-bearing/isu,
+		/first process.*isolated user and application-data roots.*archive unchanged.*clean exit.*removes.*archive.*ENOENT.*second process.*same roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/isu,
+		/canonical schema-9 revision-7 shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/isu,
+		/qualifies only orderly process-restart automatic source-bearing persistence and reopen.*does not establish storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*playback.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
+	]) assert.match(threatModel, claim);
+	assert.doesNotMatch(threatModel, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 	assert.doesNotMatch(control.summary, /placeholder huge[- ]asset/iu);
 	assert.doesNotMatch(threatModel, /huge asset(?:'s)? manifest digest and ZIP CRC are placeholders/iu);
 	const roadmap = await readFile(roadmapUrl, 'utf8');
@@ -181,4 +218,13 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		roadmap,
 		/does not qualify persistent reopen or storage durability.*Installer\/file-association registration.*shell launch.*packaged 8 GiB\s+reference path.*payload laziness beyond the known range route.*playback.*crash\/power-loss.*Windows\/macOS\/ARM.*Framescaper.*third-party.*legacy Soundscaper.*Audacity interchange.*separate.*browser quota.*heap.*RSS.*whole-archive storage\s+atomicity.*publisher authentication/isu,
 	);
+	assert.match(
+		roadmap,
+		/second packaged Soundscaper Linux x64 process.*orderly process-restart persistence witness.*exact 69,349-byte.*schema-9 revision-7.*source-bearing.*archive unchanged.*cleanly exits.*removes.*ENOENT.*same isolated user and\s+application-data roots.*no positional `.scape`.*no read descriptor or\s+capability.*bootstrap.*automatically reopens/isu,
+	);
+	assert.match(
+		roadmap,
+		/canonical shared project.*exact one-source\/one-track\/one-clip\s+relations.*exact active project\/track\/clip identities.*Audacity PCM waveform.*no waveform error, alert, or dialog.*qualifies\s+only orderly process-restart automatic source-bearing persistence and reopen.*storage durability.*crash\/power-loss\/fsync.*eviction.*quota\/reservation\/concurrency.*playback.*Windows\/macOS\/ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
+	);
+	assert.doesNotMatch(roadmap, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 });
