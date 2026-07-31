@@ -272,32 +272,47 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		cancelled: true,
 		aiffCompleted: true,
 		bwfCompleted: true,
-		realtimeCount: 4,
+		bw64Completed: true,
+		realtimeCount: 5,
 		downloadVisible: false,
 	});
-	assert.equal(scope.document.fixture.importedFile.name, `direct-wav-smoke-${PLAN.token}.wav`);
-	assert.equal(scope.document.fixture.importedFile.size, 3_168_044);
+	assert.equal(scope.document.fixture.importedFiles[0].name, `direct-wav-smoke-${PLAN.token}.wav`);
+	assert.equal(scope.document.fixture.importedFiles[0].size, 3_168_044);
 	const input = new DataView(
-		scope.document.fixture.importedFile.bytes.buffer,
-		scope.document.fixture.importedFile.bytes.byteOffset,
-		scope.document.fixture.importedFile.bytes.byteLength,
+		scope.document.fixture.importedFiles[0].bytes.buffer,
+		scope.document.fixture.importedFiles[0].bytes.byteOffset,
+		scope.document.fixture.importedFiles[0].bytes.byteLength,
 	);
 	assert.equal(input.getUint16(22, true), 2);
 	assert.equal(input.getUint32(24, true), 48_000);
 	assert.equal(input.getUint32(40, true) / 4, 792_000);
-	assert.deepEqual(scope.document.fixture.settings, {
-		format: 1,
-		bitDepth: 0,
-		sampleRate: '384000',
-		channelMapping: 3,
-		channelMatrix: JSON.stringify(Array.from({ length: 16 }, () => 0)),
-		dither: 0,
-	});
+	assert.equal(scope.document.fixture.importedFiles[1].name, `direct-bw64-smoke-${PLAN.token}.wav`);
+	assert.equal(scope.document.fixture.importedFiles[1].size, 25_344_044);
+	const bw64Input = new DataView(
+		scope.document.fixture.importedFiles[1].bytes.buffer,
+		scope.document.fixture.importedFiles[1].bytes.byteOffset,
+		scope.document.fixture.importedFiles[1].bytes.byteLength,
+	);
+	assert.equal(bw64Input.getUint16(22, true), 6);
+	assert.equal(bw64Input.getUint32(24, true), 48_000);
+	assert.equal(bw64Input.getUint32(40, true) / 12, 2_112_000);
+	assert.ok((bw64Input.getUint32(40, true) / 2) * 4 > 32 * 1024 ** 2);
+	for (const frame of [0, 1, 48_000, 2_111_999]) {
+		const sample = bw64Input.getInt16(44 + frame * 12, true);
+		for (let channel = 1; channel < 6; channel += 1) {
+			assert.equal(bw64Input.getInt16(44 + (frame * 6 + channel) * 2, true), sample);
+		}
+	}
+	assert.equal(scope.document.fixture.settings.format, 2);
+	assert.equal(scope.document.fixture.settings.bitDepth, 0);
+	assert.equal(scope.document.fixture.settings.sampleRate, '384000');
+	assert.equal(scope.document.fixture.settings.channelMapping, 2);
+	assert.equal(scope.document.fixture.settings.dither, 0);
 	assert.deepEqual(scope.document.fixture.selectionHistory, [
 		['bitDepth', 0], ['channelMapping', 3], ['dither', 0], ['format', 3], ['bitDepth', 0],
-		['format', 1], ['bitDepth', 0], ['channelMapping', 3],
+		['format', 1], ['bitDepth', 0], ['channelMapping', 3], ['format', 2], ['bitDepth', 0], ['dither', 0],
 	]);
-	assert.deepEqual(scope.document.fixture.bext, {
+	assert.deepEqual(scope.document.fixture.bextAtStart[3], {
 		description: 'Soundscaper packaged BWF smoke', originator: 'Soundscaper',
 		originatorReference: 'PACKAGED-BWF-0001', originationDate: '2026-07-30',
 		originationTime: '12:34:56', timeReference: '6000', umid: '',
@@ -305,10 +320,29 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		maxMomentaryLoudness: '', maxShortTermLoudness: '',
 		codingHistory: 'A=PCM,F=48000,W=16,M=stereo,T=SmokeFixture\n',
 	});
+	assert.deepEqual(scope.document.fixture.bextAtStart[4], {
+		description: 'Soundscaper packaged BW64 smoke', originator: 'Soundscaper',
+		originatorReference: 'PACKAGED-BW64-0001', originationDate: '2026-07-30',
+		originationTime: '12:34:56', timeReference: '6000', umid: '',
+		loudnessValue: '', loudnessRange: '', maxTruePeakLevel: '',
+		maxMomentaryLoudness: '', maxShortTermLoudness: '',
+		codingHistory: 'A=PCM,F=48000,W=16,M=multi,T=SmokeFixture\n',
+	});
+	assert.deepEqual(scope.document.fixture.adm, {
+		'adm-programme-name': 'Soundscaper packaged BW64 programme',
+		'adm-programme-language': '',
+		'adm-content-name': 'Soundscaper packaged BW64 content',
+		'adm-content-language': '',
+		'adm-bed-name': 'Soundscaper packaged BW64 5.1 bed',
+	});
+	assert.equal(scope.document.fixture.admLayout, '5.1');
+	assert.deepEqual(scope.document.fixture.admRoutes, ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
 	assert.deepEqual(scope.document.fixture.metadataFields, Array.from({ length: 8 }, () => ''));
 	assert.equal(scope.document.fixture.customMetadata, '{}');
-	assert.equal(scope.document.fixture.completedRuns, 3);
+	assert.equal(scope.document.fixture.completedRuns, 4);
 	assert.equal(scope.document.fixture.cancelledRuns, 1);
+	assert.equal(scope.document.fixture.newProjectCount, 1);
+	assert.equal(scope.document.fixture.dialogCloseCount, 1);
 	assert.ok(scope.document.fixture.progressQueries > 0);
 });
 
@@ -360,6 +394,14 @@ test('renderer smoke reports a BWF export failure after preserving WAV and AIFF 
 	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
 	await assert.rejects(serializedRoutine(scope, PLAN), /direct BWF write failed/iu);
 	assert.equal(scope.document.fixture.completedRuns, 3);
+	assert.equal(scope.document.fixture.cancelledRuns, 1);
+});
+
+test('renderer smoke reports a BW64 export failure after preserving earlier container evidence', async () => {
+	const scope = createRendererScope({ bw64ExportFailure: 'The direct BW64 write failed.' });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	await assert.rejects(serializedRoutine(scope, PLAN), /direct BW64 write failed/iu);
+	assert.equal(scope.document.fixture.completedRuns, 4);
 	assert.equal(scope.document.fixture.cancelledRuns, 1);
 });
 

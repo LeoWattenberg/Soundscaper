@@ -2,19 +2,27 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ aiffExportFailure = '', bwfExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
+		adm: {},
+		admEnabled: false,
+		admLayout: 'stereo',
+		admRoutes: [],
 		bext: {},
+		bextAtStart: [],
 		cancelledRuns: 0,
 		completedRuns: 0,
 		dialogOpen: false,
+		dialogCloseCount: 0,
 		exporting: false,
 		importedFile: null,
+		importedFiles: [],
 		metadataFields: Array.from({ length: 8 }, (_, index) => `metadata-${index}`),
 		customMetadata: '{"fixture":"must be cleared"}',
 		metadataOpen: false,
 		metadataTab: 'general',
+		newProjectCount: 0,
 		projectBinCloseCount: 0,
 		projectBinVisible,
 		progress: 0,
@@ -22,6 +30,7 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		routedToProjectBin: false,
 		selectionHistory: [],
 		settings: {},
+		settingsAtStart: [],
 		startedRuns: 0,
 	};
 	class FakeEvent {
@@ -72,6 +81,7 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		dispatch(event) {
 			if (event.type !== 'change') return;
 			fixture.importedFile = this.files[0];
+			fixture.importedFiles.push(this.files[0]);
 			if (importFailure) {
 				status.attributes['data-state'] = 'error';
 				status.textContent = importFailure;
@@ -94,6 +104,10 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		},
 	});
 	const exportButton = element({ click: () => { fixture.dialogOpen = true; } });
+	const newProject = element({ click: () => {
+		fixture.newProjectCount += 1;
+		root.attributes['data-clip-count'] = '0';
+	} });
 	const sampleRateInput = element({
 		value: '48000',
 		dispatch(event) {
@@ -139,16 +153,48 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		})];
 	}));
 	const bextVersion = element({ value: '2' });
+	const admControls = Object.fromEntries([
+		['adm-programme-name', 'Programme'],
+		['adm-programme-language', ''],
+		['adm-content-name', 'Main'],
+		['adm-content-language', ''],
+		['adm-bed-name', 'Main Bed'],
+	].map(([name, initialValue]) => {
+		let draft = initialValue;
+		return [name, element({
+			value: initialValue,
+			dispatch(event) {
+				if (['input', 'change'].includes(event.type)) draft = this.value;
+			},
+			blur() { fixture.adm[name] = draft; },
+		})];
+	}));
+	const admLayout = element({
+		value: 'stereo',
+		dispatch(event) {
+			if (!['input', 'change'].includes(event.type)) return;
+			fixture.admLayout = this.value;
+			fixture.admRoutes = this.value === '5.1' ? ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] : ['L', 'R'];
+		},
+	});
+	const admEnable = element({ textContent: 'Enable ADM', click: () => {
+		fixture.admEnabled = true;
+		fixture.admRoutes = ['L', 'R'];
+	} });
 	const metadataTabs = [
 		element({ textContent: 'General', click: () => { fixture.metadataTab = 'general'; } }),
 		element({ textContent: 'BEXT', click: () => { fixture.metadataTab = 'bext'; } }),
+		element({ textContent: 'ADM', click: () => { fixture.metadataTab = 'adm'; } }),
 	];
 	const metadata = element({
 		query(selector) {
 			if (selector === '.audio-editor-export-details textarea') return customMetadata;
 			if (selector === '[data-bext-metadata-editor]') return fixture.metadataTab === 'bext' ? metadata : null;
-			const name = /^\[name="([A-Za-z]+)"\]$/u.exec(selector)?.[1];
+			if (selector === '[data-adm-metadata-editor]') return fixture.metadataTab === 'adm' && fixture.admEnabled ? metadata : null;
+			const name = /^\[name="([^"]+)"\]$/u.exec(selector)?.[1];
 			if (name === 'version') return bextVersion;
+			if (name === 'adm-bed-layout' && fixture.metadataTab === 'adm') return admLayout;
+			if (name && fixture.metadataTab === 'adm') return admControls[name] ?? null;
 			if (name && fixture.metadataTab === 'bext') return bextControls[name] ?? null;
 			return null;
 		},
@@ -156,6 +202,10 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 			if (selector === '.audio-editor-metadata-table input, .audio-editor-metadata-table textarea') return metadataControls;
 			if (selector === '.audio-editor-dialog-footer button') return [metadataDone];
 			if (selector === '[role="tab"]') return metadataTabs;
+			if (selector === 'button') return fixture.metadataTab === 'adm' && !fixture.admEnabled ? [admEnable] : [];
+			if (selector === '.audio-editor-adm-route select') {
+				return fixture.admRoutes.map((value) => element({ value }));
+			}
 			return [];
 		},
 	});
@@ -170,6 +220,10 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 					if (name === 'format' && label === 'Broadcast WAV (BWF)') {
 						fixture.settings.bitDepth = 1;
 						fixture.settings.channelMapping = 1;
+					}
+					if (name === 'format' && label === 'BW64 / ADM') {
+						fixture.settings.bitDepth = 1;
+						fixture.settings.channelMapping = 2;
 					}
 					fixture.selectionHistory.push([name, index]);
 					trigger.textContent = label;
@@ -189,11 +243,13 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 	const start = element({
 		click: () => {
 			fixture.startedRuns += 1;
+			fixture.bextAtStart.push({ ...fixture.bext });
+			fixture.settingsAtStart.push({ ...fixture.settings });
 			fixture.exporting = true;
 			fixture.progress = 0;
 			progressOutput.textContent = '0%';
 			new scope.AudioContext({ sampleRate: 384000 });
-			if ([1, 3, 4].includes(fixture.startedRuns)) {
+			if ([1, 3, 4, 5].includes(fixture.startedRuns)) {
 				setTimeout(() => {
 					fixture.progress = 25;
 					progressOutput.textContent = '25%';
@@ -203,7 +259,9 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 					fixture.exporting = false;
 					const failure = fixture.startedRuns === 3
 						? aiffExportFailure
-						: fixture.startedRuns === 4 ? bwfExportFailure : exportFailure;
+						: fixture.startedRuns === 4
+							? bwfExportFailure
+							: fixture.startedRuns === 5 ? bw64ExportFailure : exportFailure;
 					status.attributes['data-state'] = failure ? 'error' : 'success';
 					status.textContent = failure;
 				}, 5);
@@ -216,6 +274,10 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 			fixture.exporting = false;
 		},
 	});
+	const closeDialog = element({ textContent: 'Cancel', click: () => {
+		fixture.dialogCloseCount += 1;
+		fixture.dialogOpen = false;
+	} });
 	const dialog = element({
 		query(selector) {
 			if (selector in fields) return fields[selector];
@@ -232,7 +294,7 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 		},
 		queryAll(selector) {
 			if (selector === '.audio-editor-dialog-footer button') {
-				return [metadataButton, fixture.exporting ? cancel : start];
+				return [metadataButton, ...(fixture.exporting ? [cancel] : [closeDialog, start])];
 			}
 			return [];
 		},
@@ -245,6 +307,7 @@ export function createRendererScope({ aiffExportFailure = '', bwfExportFailure =
 			if (selector === '[data-import-input]') return input;
 			if (selector === '[data-status]') return status;
 			if (selector === '[data-action-bar] .kw-audio-editor__action-bar-center > button:last-of-type') return exportButton;
+			if (selector === '.kw-audio-editor__project-tab-new') return newProject;
 			if (selector === '[data-export-dialog]') return fixture.dialogOpen && !fixture.metadataOpen ? dialog : null;
 			if (selector === '[data-export-metadata-dialog]') return fixture.metadataOpen ? metadata : null;
 			return null;

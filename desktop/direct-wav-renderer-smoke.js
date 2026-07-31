@@ -64,10 +64,13 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		option.click();
 		await delay(25);
 	};
-	const createFixture = () => {
+	const createFixture = ({
+		channelCount = 2,
+		frameCount = 792_000,
+		identicalChannels = false,
+		name = `direct-wav-smoke-${plan.token}.wav`,
+	} = {}) => {
 		const sampleRate = 48_000;
-		const channelCount = 2;
-		const frameCount = 792_000;
 		const bytes = new Uint8Array(44 + frameCount * channelCount * 2);
 		const view = new DataView(bytes.buffer);
 		const text = (offset, value) => {
@@ -89,10 +92,16 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		view.setUint32(40, dataBytes, true);
 		for (let frame = 0; frame < frameCount; frame += 1) {
 			const phase = 2 * Math.PI * 220 * frame / sampleRate;
-			view.setInt16(44 + frame * 4, Math.round(Math.sin(phase) * 9_830), true);
-			view.setInt16(46 + frame * 4, Math.round(Math.sin(phase + Math.PI / 3) * 9_830), true);
+			for (let channel = 0; channel < channelCount; channel += 1) {
+				const channelPhase = identicalChannels ? phase : phase + channel * Math.PI / 3;
+				view.setInt16(
+					44 + (frame * channelCount + channel) * 2,
+					Math.round(Math.sin(channelPhase) * 9_830),
+					true,
+				);
+			}
 		}
-		return new scope.File([bytes], `direct-wav-smoke-${plan.token}.wav`, { type: 'audio/wav' });
+		return new scope.File([bytes], name, { type: 'audio/wav' });
 	};
 
 	const editor = await waitFor(() => {
@@ -108,20 +117,23 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => !document.querySelector('[data-workspace-panel="project-bin"]'), 'project bin close');
 	}
 	const input = await waitFor(() => document.querySelector('[data-import-input]'), 'import input');
-	const initialClips = Number(editor.getAttribute('data-clip-count') || 0);
-	const transfer = new scope.DataTransfer();
-	transfer.items.add(createFixture());
-	input.files = transfer.files;
-	input.dispatchEvent(new scope.Event('change', { bubbles: true }));
-	await waitFor(() => {
-		const status = document.querySelector('[data-status]');
-		if (status?.getAttribute('data-state') === 'error') {
-			const detail = String(status.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
-			throw new Error(`Packaged direct WAV fixture import failed${detail ? `: ${detail}` : ''}`);
-		}
-		return Number(editor.getAttribute('data-clip-count') || 0) > initialClips
-			&& status?.getAttribute('data-state') === 'success';
-	}, 'fixture import', 30_000);
+	const importFixture = async (file, label, timeout = 30_000) => {
+		const initialClips = Number(editor.getAttribute('data-clip-count') || 0);
+		const transfer = new scope.DataTransfer();
+		transfer.items.add(file);
+		input.files = transfer.files;
+		input.dispatchEvent(new scope.Event('change', { bubbles: true }));
+		await waitFor(() => {
+			const status = document.querySelector('[data-status]');
+			if (status?.getAttribute('data-state') === 'error') {
+				const detail = String(status.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+				throw new Error(`Packaged direct ${label} import failed${detail ? `: ${detail}` : ''}`);
+			}
+			return Number(editor.getAttribute('data-clip-count') || 0) > initialClips
+				&& status?.getAttribute('data-state') === 'success';
+		}, `${label} import`, timeout);
+	};
+	await importFixture(createFixture(), 'WAV fixture');
 
 	const exportButton = await waitFor(() => document.querySelector(
 		'[data-action-bar] .kw-audio-editor__action-bar-center > button:last-of-type',
@@ -175,6 +187,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	let cancelled;
 	let aiffCompleted;
 	let bwfCompleted;
+	let bw64Completed;
 	try {
 		const firstStart = await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'first export action');
 		firstStart.click();
@@ -287,6 +300,133 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			throw new Error(`Packaged direct BWF export failed${detail ? `: ${detail}` : ''}`);
 		}
 		bwfCompleted = true;
+
+		const closeButtons = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')]
+			.filter((button) => String(button.textContent || '').trim() === 'Cancel');
+		if (closeButtons.length !== 1) throw new Error('Packaged direct BW64 project switch cannot close the export dialog');
+		closeButtons[0].click();
+		await waitFor(() => document.querySelector('[data-export-dialog]') ? null : true, 'export dialog close');
+		const newProject = await waitFor(
+			() => document.querySelector('.kw-audio-editor__project-tab-new'),
+			'new project action',
+		);
+		newProject.click();
+		await waitFor(() => editor.getAttribute('data-clip-count') === '0' ? true : null, 'new project activation');
+		await importFixture(createFixture({
+			channelCount: 6,
+			frameCount: 2_112_000,
+			identicalChannels: true,
+			name: `direct-bw64-smoke-${plan.token}.wav`,
+		}), 'BW64 fixture', 60_000);
+
+		exportButton.click();
+		dialog = await waitFor(() => document.querySelector('[data-export-dialog]'), 'BW64 export dialog');
+		await choose(dialog, '[data-export-field="format"]', 2, 'BW64 / ADM');
+		await choose(dialog, '[data-export-field="bitDepth"]', 0, '16-bit PCM');
+		const bw64SampleRate = await waitFor(
+			() => dialog.querySelector('[data-export-field="sampleRate"] input'),
+			'BW64 sample rate',
+		);
+		setValue(bw64SampleRate, '384000');
+		await delay(25);
+		if (bw64SampleRate.value !== '384000') throw new Error('Packaged direct BW64 sample rate did not update');
+		await choose(dialog, '[data-export-field="dither"]', 0, 'None');
+		const bw64Footer = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')];
+		if (bw64Footer.length < 2) throw new Error('Packaged direct BW64 export footer is incomplete');
+		bw64Footer[0].click();
+		const bw64Metadata = await waitFor(
+			() => document.querySelector('[data-export-metadata-dialog]'),
+			'BW64 metadata dialog',
+		);
+		const metadataTab = (name) => {
+			const tabs = [...bw64Metadata.querySelectorAll('[role="tab"]')]
+				.filter((tab) => String(tab.textContent || '').trim() === name);
+			if (tabs.length !== 1) throw new Error(`Packaged direct BW64 ${name} metadata tab is unavailable or ambiguous`);
+			tabs[0].click();
+		};
+		metadataTab('General');
+		const bw64MetadataFields = [...bw64Metadata.querySelectorAll(
+			'.audio-editor-metadata-table input, .audio-editor-metadata-table textarea',
+		)];
+		if (bw64MetadataFields.length !== 8) throw new Error('Packaged direct BW64 general metadata fields are incomplete');
+		for (const field of bw64MetadataFields) setValue(field, '');
+		const bw64CustomMetadata = bw64Metadata.querySelector('.audio-editor-export-details textarea');
+		if (!bw64CustomMetadata) throw new Error('Packaged direct BW64 custom metadata field is missing');
+		setValue(bw64CustomMetadata, '{}');
+		metadataTab('BEXT');
+		await waitFor(() => bw64Metadata.querySelector('[data-bext-metadata-editor]'), 'BW64 BEXT metadata editor');
+		if (bw64Metadata.querySelector('[name="version"]')?.value !== '2') {
+			throw new Error('Packaged direct BW64 metadata version is not 2');
+		}
+		const bw64Bext = {
+			description: 'Soundscaper packaged BW64 smoke',
+			originator: 'Soundscaper',
+			originatorReference: 'PACKAGED-BW64-0001',
+			originationDate: '2026-07-30',
+			originationTime: '12:34:56',
+			timeReference: '6000',
+			umid: '',
+			loudnessValue: '',
+			loudnessRange: '',
+			maxTruePeakLevel: '',
+			maxMomentaryLoudness: '',
+			maxShortTermLoudness: '',
+			codingHistory: 'A=PCM,F=48000,W=16,M=multi,T=SmokeFixture\n',
+		};
+		for (const [name, value] of Object.entries(bw64Bext)) {
+			const field = await waitFor(
+				() => bw64Metadata.querySelector(`[name="${name}"]`),
+				`BW64 BEXT metadata ${name}`,
+			);
+			await commitValue(field, value, `BW64 BEXT metadata ${name}`);
+		}
+		metadataTab('ADM');
+		const enableAdm = await waitFor(() => {
+			const buttons = [...bw64Metadata.querySelectorAll('button')]
+				.filter((button) => String(button.textContent || '').trim() === 'Enable ADM');
+			if (buttons.length > 1) throw new Error('Packaged direct BW64 Enable ADM action is ambiguous');
+			return buttons[0] ?? null;
+		}, 'Enable ADM action');
+		enableAdm.click();
+		await waitFor(() => bw64Metadata.querySelector('[data-adm-metadata-editor]'), 'BW64 ADM metadata editor');
+		const layout = await waitFor(() => bw64Metadata.querySelector('[name="adm-bed-layout"]'), 'BW64 ADM layout');
+		setValue(layout, '5.1');
+		await delay(25);
+		const authoredAdm = {
+			'adm-programme-name': 'Soundscaper packaged BW64 programme',
+			'adm-programme-language': '',
+			'adm-content-name': 'Soundscaper packaged BW64 content',
+			'adm-content-language': '',
+			'adm-bed-name': 'Soundscaper packaged BW64 5.1 bed',
+		};
+		for (const [name, value] of Object.entries(authoredAdm)) {
+			const field = await waitFor(
+				() => bw64Metadata.querySelector(`[name="${name}"]`),
+				`BW64 ADM metadata ${name}`,
+			);
+			await commitValue(field, value, `BW64 ADM metadata ${name}`);
+		}
+		const routes = [...bw64Metadata.querySelectorAll('.audio-editor-adm-route select')];
+		const routeValues = routes.map((route) => route.value);
+		if (JSON.stringify(routeValues) !== JSON.stringify(['L', 'R', 'C', 'LFE', 'Ls', 'Rs'])) {
+			throw new Error('Packaged direct BW64 ADM routing is not canonical 5.1');
+		}
+		const bw64MetadataButtons = [...bw64Metadata.querySelectorAll('.audio-editor-dialog-footer button')];
+		if (bw64MetadataButtons.length !== 1) throw new Error('Packaged direct BW64 metadata footer is incomplete');
+		bw64MetadataButtons[0].click();
+		dialog = await waitFor(() => document.querySelector('[data-export-dialog]'), 'restored BW64 export dialog');
+		const bw64Start = dialog.querySelector('[data-export-action="start"] button');
+		if (!bw64Start) throw new Error('Packaged direct BW64 export action is unavailable');
+		bw64Start.click();
+		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'BW64 export start');
+		await waitFor(() => realtimeCount === 5, 'BW64 realtime render');
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BW64 export', 150_000);
+		const bw64Status = document.querySelector('[data-status]');
+		if (bw64Status?.getAttribute('data-state') !== 'success') {
+			const detail = String(bw64Status?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			throw new Error(`Packaged direct BW64 export failed${detail ? `: ${detail}` : ''}`);
+		}
+		bw64Completed = true;
 	} finally {
 		if (originalDescriptor) Object.defineProperty(scope, 'AudioContext', originalDescriptor);
 		else delete scope.AudioContext;
@@ -294,6 +434,6 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	const download = dialog.querySelector('[data-export-download]');
 	const downloadVisible = Boolean(download && !download.hidden);
 	return Object.freeze({
-		imported: true, completed, cancelled, aiffCompleted, bwfCompleted, realtimeCount, downloadVisible,
+		imported: true, completed, cancelled, aiffCompleted, bwfCompleted, bw64Completed, realtimeCount, downloadVisible,
 	});
 }
