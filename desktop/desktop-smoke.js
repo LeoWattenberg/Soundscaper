@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
+	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
 	createDirectWavSmokeTargetHarness,
 	decodeDirectWavSmokePlan,
 	runDirectWavRendererSmoke,
@@ -531,7 +532,7 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 }
 
 function timeoutFor(mode) {
-	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return 270_000;
+	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	return 15_000;
 }

@@ -18,6 +18,7 @@ import {
 	DESKTOP_DIRECT_BW64_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_BWF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
+	DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_OUTPUT_PREFIX,
@@ -54,6 +55,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	});
 	assert.equal(Object.isFrozen(plan), true);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, 'direct-wav-export-v1');
+	assert.equal(DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS, 480_000);
 	assert.deepEqual(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE, {
 		input: { sampleRate: 48_000, channelCount: 2, frameCount: 792_000 },
 		output: {

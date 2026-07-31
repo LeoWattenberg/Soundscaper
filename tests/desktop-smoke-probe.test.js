@@ -10,7 +10,10 @@ import {
 	parseDesktopSmokeConfiguration,
 	runProjectLibraryRendererSmoke,
 } from '../desktop/desktop-smoke.js';
-import { DESKTOP_DIRECT_WAV_SMOKE_PREFIX } from '../desktop/direct-wav-smoke.js';
+import {
+	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
+	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
+} from '../desktop/direct-wav-smoke.js';
 import {
 	DIRECT_WAV_TARGET_PATHS,
 	validDesktopDirectWavNativeEvidence,
@@ -313,7 +316,8 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 	});
 
 	fixture.probe.attach(fixture.window);
-	assert.deepEqual(fixture.scheduledDelays, [270_000]);
+	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS, 420_000);
+	assert.deepEqual(fixture.scheduledDelays, [DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[0]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[2]);
