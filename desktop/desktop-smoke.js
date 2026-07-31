@@ -531,7 +531,7 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 }
 
 function timeoutFor(mode) {
-	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return 180_000;
+	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return 270_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	return 15_000;
 }

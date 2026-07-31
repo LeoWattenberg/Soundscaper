@@ -21,12 +21,14 @@ export const DESKTOP_DIRECT_WAV_SMOKE_FIXTURE = Object.freeze({
 
 export function validateDesktopDirectWavOutputPaths(value) {
 	assertPlainRecord(value, 'direct-WAV output paths');
-	assertExactKeys(value, ['cancelled', 'completed', 'root'], 'direct-WAV output paths');
+	assertExactKeys(value, ['cancelled', 'completed', 'completedAiff', 'root'], 'direct-WAV output paths');
 	const root = absoluteDesktopDirectWavPath(value.root, 'output root');
 	const completed = absoluteDesktopDirectWavPath(value.completed, 'completed output');
+	const completedAiff = absoluteDesktopDirectWavPath(value.completedAiff, 'completed AIFF output');
 	const cancelled = absoluteDesktopDirectWavPath(value.cancelled, 'cancelled output');
-	if (dirname(completed) !== root || dirname(cancelled) !== root
-		|| basename(completed) !== 'completed.wav' || basename(cancelled) !== 'cancelled.wav') {
+	if (dirname(completed) !== root || dirname(completedAiff) !== root || dirname(cancelled) !== root
+		|| basename(completed) !== 'completed.wav' || basename(completedAiff) !== 'completed.aiff'
+		|| basename(cancelled) !== 'cancelled.wav') {
 		throw new Error('Desktop direct-WAV output paths leave their isolated root');
 	}
 }

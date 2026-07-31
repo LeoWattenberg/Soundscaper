@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { DIRECT_WAV_SMOKE_FILE_BYTES } from '../desktop/direct-wav-smoke.js';
+import { DIRECT_AIFF_SMOKE_FILE_BYTES, DIRECT_WAV_SMOKE_FILE_BYTES } from '../desktop/direct-wav-smoke.js';
+import { DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE } from '../scripts/lib/desktop-direct-aiff-smoke-file.mjs';
 import {
 	DESKTOP_DIRECT_WAV_SIGNAL_LIMITS,
 	createDesktopDirectWavPcmSignalAnalyzer,
@@ -142,6 +143,7 @@ test('renderer and verifier share one derived completed-file byte contract', () 
 	assert.equal(output.dataBytes, output.frameCount * output.channelCount * output.bitDepth / 8);
 	assert.equal(output.byteLength, 44 + output.dataBytes);
 	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, output.byteLength);
+	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength);
 });
 
 test('completed-file verification produces identical signal evidence across one-byte and odd reads', async (t) => {

@@ -14,6 +14,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -56,6 +57,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 		},
 	});
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output), true);
+	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_751_798);
 
 	const encoded = encodeDesktopDirectWavSmokePlan(plan);
 	assert.match(encoded, /^[A-Za-z0-9_-]+$/u);
@@ -84,7 +86,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	);
 });
 
-test('direct-WAV smoke invocation derives both targets under isolated app data', () => {
+test('direct-WAV smoke invocation derives WAV and AIFF targets under isolated app data', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -98,6 +100,7 @@ test('direct-WAV smoke invocation derives both targets under isolated app data',
 	assert.deepEqual(invocation.outputPaths, {
 		root: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}`,
 		completed: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.wav`,
+		completedAiff: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
 		cancelled: `/tmp/direct-wav-profile/application-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 	});
 	assert.ok(invocation.executableCandidates.includes('/release/desktop/linux-unpacked/soundscaper'));
@@ -119,6 +122,7 @@ test('direct-WAV smoke invocation derives both targets under isolated app data',
 		{
 			root: `/tmp/app-data/direct-wav-smoke-${TOKEN}`,
 			completed: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.wav`,
+			completedAiff: `/tmp/app-data/direct-wav-smoke-${TOKEN}/completed.aiff`,
 			cancelled: `/tmp/app-data/direct-wav-smoke-${TOKEN}/cancelled.wav`,
 		},
 	);
@@ -152,9 +156,12 @@ test('direct-WAV child output parser requires one exact plan-bound result', () =
 		['token', (value) => ({ ...value, token: 'f'.repeat(32) })],
 		['product', (value) => ({ ...value, productId: 'framescaper' })],
 		['renderer', (value) => ({ ...value, renderer: { ...value.renderer, realtimeCount: 1 } })],
+		['AIFF', (value) => ({ ...value, renderer: { ...value.renderer, aiffCompleted: false } })],
 		['download', (value) => ({ ...value, renderer: { ...value.renderer, downloadVisible: true } })],
-		['purpose', (value) => ({ ...value, native: { ...value.native, selectionPurposes: ['audio', 'audio-pcm-mix'] } })],
+		['purpose', (value) => ({ ...value, native: { ...value.native, selectionPurposes: ['audio', 'audio-pcm-mix', 'audio-pcm-mix'] } })],
 		['bytes', (value) => ({ ...value, native: { ...value.native, completedBytes: 44 } })],
+		['AIFF.*bytes', (value) => ({ ...value, native: { ...value.native, completedAiffBytes: 54 } })],
+		['save choice', (value) => ({ ...value, native: { ...value.native, aiffChoiceValidated: false } })],
 		['cancel', (value) => ({ ...value, native: { ...value.native, cancelledAbsent: false } })],
 		['staging', (value) => ({ ...value, native: { ...value.native, stagingFilesRemaining: 1 } })],
 		['extra', (value) => ({ ...value, extra: true })],
@@ -344,7 +351,7 @@ test('direct-WAV runner preserves its primary failure when profile cleanup also 
 	);
 });
 
-test('direct-WAV aggregate surfaces bounded EOF and cancellation evidence without paths', () => {
+test('direct-WAV aggregate surfaces bounded WAV, AIFF, and cancellation evidence without paths', () => {
 	const invocation = createDesktopDirectWavSmokeInvocation({
 		arch: 'x64',
 		outputRoot: '/release/desktop',
@@ -372,6 +379,7 @@ test('direct-WAV aggregate surfaces bounded EOF and cancellation evidence withou
 		platform: 'linux',
 		arch: 'x64',
 		file,
+		aiffFile: validAiffFileEvidence(),
 		cancellation: {
 			observed: true,
 			riffHeaderValidated: true,
@@ -385,9 +393,12 @@ test('direct-WAV aggregate surfaces bounded EOF and cancellation evidence withou
 	assert.equal(aggregate.file.sha256, 'a'.repeat(64));
 	assert.equal(aggregate.file.riff.dataBytes, 202_751_744);
 	assert.equal(aggregate.file.signal.channelMismatchSamples, 0);
+	assert.equal(aggregate.aiffFile.aiff.typeId, 'AIFF');
+	assert.equal(aggregate.aiffFile.signal.channelMismatchSamples, 0);
 	assert.throws(() => createDesktopDirectWavSmokeAggregate({
 		invocation, payload, platform: 'linux', arch: 'x64',
 		file: { ...file, signal: { ...file.signal, channelMismatchSamples: 1 } },
+		aiffFile: validAiffFileEvidence(),
 		cancellation: {
 			observed: true, riffHeaderValidated: true, nonzeroPayloadByteObserved: true,
 			maximumStagedBytes: 8192, maximumInspectedPrefixBytes: 4096,
@@ -426,12 +437,15 @@ function validPayload(invocation) {
 			imported: true,
 			completed: true,
 			cancelled: true,
-			realtimeCount: 2,
+			aiffCompleted: true,
+			realtimeCount: 3,
 			downloadVisible: false,
 		},
 		native: {
-			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix'],
+			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
 			completedBytes: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
+			completedAiffBytes: DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength,
+			aiffChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -447,6 +461,21 @@ function validSignalEvidence() {
 		peakAbsoluteSample: 9_830, sampleSum: 2_612,
 		sampleSquareSum: 306_120_561_101_570, meanSample: 0.000_412_247_995_262_620_3,
 		rmsSample: 6_950.866_384_869_063,
+	};
+}
+
+function validAiffFileEvidence() {
+	const output = DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output;
+	return {
+		byteLength: output.byteLength, sha256: 'b'.repeat(64), maximumReadChunkBytes: 1024 * 1024,
+		aiff: {
+			formId: 'FORM', formBytes: output.byteLength, typeId: 'AIFF', commId: 'COMM', commBytes: 18,
+			channelCount: output.channelCount, frameCount: output.frameCount, bitsPerSample: output.bitDepth,
+			sampleRateHex: output.sampleRateHex, soundId: 'SSND', soundBytes: output.dataBytes + 8,
+			offset: 0, blockSize: 0, pcmOffset: output.headerBytes, pcmBytes: output.dataBytes,
+			dataPadBytes: 0, trailingBytes: 0,
+		},
+		signal: validSignalEvidence(),
 	};
 }
 

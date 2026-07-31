@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
+	DIRECT_AIFF_SMOKE_FILE_BYTES,
 	DIRECT_WAV_SMOKE_FILE_BYTES,
 	createDirectWavSmokeTargetHarness,
 	decodeDirectWavSmokePlan,
@@ -37,6 +38,7 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.equal(Object.isFrozen(decodeDirectWavSmokePlan(encoded)), true);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, PLAN.mode);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_PREFIX, 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE');
+	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, 202_751_798);
 	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, 202_751_788);
 
 	for (const invalid of [
@@ -95,15 +97,23 @@ test('direct WAV target harness pins argv, creates one exclusive private root, a
 	files.set(join(smokeRoot, '.cancelled.wav.aabb.soundscaper-part'), 44);
 	assert.equal(await harness.resolveSavePath({ purpose: 'audio-pcm-mix', suggestedName: 'ignored.wav' }), join(smokeRoot, 'cancelled.wav'));
 	files.delete(join(smokeRoot, '.cancelled.wav.aabb.soundscaper-part'));
+	assert.equal(await harness.resolveSavePath({
+		purpose: 'audio-pcm-mix',
+		suggestedName: 'Soundscaper Export.aiff',
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
+	}), join(smokeRoot, 'completed.aiff'));
+	files.set(join(smokeRoot, 'completed.aiff'), DIRECT_AIFF_SMOKE_FILE_BYTES);
 	assert.deepEqual(await harness.evidence(), {
-		selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix'],
+		selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
 		completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES,
+		completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES,
+		aiffChoiceValidated: true,
 		cancelledAbsent: true,
 		stagingFilesRemaining: 0,
 	});
 	await assert.rejects(
-		harness.resolveSavePath({ purpose: 'audio-pcm-mix', suggestedName: 'third.wav' }),
-		/exactly two/iu,
+		harness.resolveSavePath({ purpose: 'audio-pcm-mix', suggestedName: 'fourth.wav' }),
+		/exactly three/iu,
 	);
 });
 
@@ -130,6 +140,22 @@ test('direct WAV target harness rejects mismatched authority and unsafe choices 
 	});
 	await assert.rejects(harness.resolveSavePath({ purpose: 'audio', suggestedName: 'wrong.wav' }), /audio-pcm-mix/iu);
 	assert.equal(mkdirCalls, 0);
+
+	for (const invalidChoice of [
+		{ purpose: 'audio-pcm-mix', suggestedName: 'wrong.wav', filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }] },
+		{ purpose: 'audio-pcm-mix', suggestedName: 'mix.AIFF', filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }] },
+		{ purpose: 'audio-pcm-mix', suggestedName: 'mix.aiff', filters: [{ name: 'All files', extensions: ['*'] }] },
+	]) {
+		const guarded = createDirectWavSmokeTargetHarness({
+			argv: directArgv(encoded, appDataPath),
+			mkdirImpl: async () => {},
+			statImpl: async () => fakeDirectoryStat(0o700),
+			readdirImpl: async () => [],
+		});
+		await guarded.resolveSavePath({ purpose: 'audio-pcm-mix' });
+		await guarded.resolveSavePath({ purpose: 'audio-pcm-mix' });
+		await assert.rejects(guarded.resolveSavePath(invalidChoice), /AIFF|filter/iu);
+	}
 });
 
 test('direct WAV target harness reports bounded directory state when native evidence times out', async () => {
@@ -158,6 +184,11 @@ test('direct WAV target harness reports bounded directory state when native evid
 	});
 	await harness.resolveSavePath({ purpose: 'audio-pcm-mix' });
 	await harness.resolveSavePath({ purpose: 'audio-pcm-mix' });
+	await harness.resolveSavePath({
+		purpose: 'audio-pcm-mix',
+		suggestedName: 'Soundscaper Export.aiff',
+		filters: [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }],
+	});
 	await assert.rejects(
 		harness.evidence(),
 		(error) => /native evidence timed out/iu.test(error.message)
@@ -172,7 +203,8 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		imported: true,
 		completed: true,
 		cancelled: true,
-		realtimeCount: 2,
+		aiffCompleted: true,
+		realtimeCount: 3,
 		downloadVisible: false,
 	};
 	assert.deepEqual(validateDirectWavRendererResult(renderer), renderer);
@@ -180,8 +212,10 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		...PLAN,
 		renderer,
 		native: {
-			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix'],
+			selectionPurposes: ['audio-pcm-mix', 'audio-pcm-mix', 'audio-pcm-mix'],
 			completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES,
+			completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES,
+			aiffChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -196,12 +230,14 @@ test('direct WAV result validation closes renderer and native evidence schemas',
 		{ ...payload, path: '/tmp/completed.wav' },
 		{ ...payload, token: 'f'.repeat(32) },
 		{ ...payload, renderer: { ...renderer, realtimeCount: 1 } },
+		{ ...payload, renderer: { ...renderer, aiffCompleted: false } },
 		{ ...payload, renderer: { ...renderer, downloadVisible: true } },
 		{ ...payload, native: { ...payload.native, completedBytes: DIRECT_WAV_SMOKE_FILE_BYTES - 1 } },
+		{ ...payload, native: { ...payload.native, completedAiffBytes: DIRECT_AIFF_SMOKE_FILE_BYTES - 1 } },
 		{ ...payload, native: { ...payload.native, cancelledAbsent: false } },
 		{ ...payload, native: { ...payload.native, selectionPurposes: ['audio-pcm-mix'] } },
 	]) {
-		assert.throws(() => validateDirectWavSmokeResult(invalid, PLAN), /result|field|token|realtime|download|byte|cancel|selection/iu);
+		assert.throws(() => validateDirectWavSmokeResult(invalid, PLAN), /result|field|token|realtime|download|byte|cancel|selection|AIFF export/iu);
 	}
 });
 
@@ -213,7 +249,8 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		imported: true,
 		completed: true,
 		cancelled: true,
-		realtimeCount: 2,
+		aiffCompleted: true,
+		realtimeCount: 3,
 		downloadVisible: false,
 	});
 	assert.equal(scope.document.fixture.importedFile.name, `direct-wav-smoke-${PLAN.token}.wav`);
@@ -227,15 +264,19 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 	assert.equal(input.getUint32(24, true), 48_000);
 	assert.equal(input.getUint32(40, true) / 4, 792_000);
 	assert.deepEqual(scope.document.fixture.settings, {
+		format: 3,
 		bitDepth: 0,
 		sampleRate: '384000',
 		channelMapping: 3,
 		channelMatrix: JSON.stringify(Array.from({ length: 16 }, () => 0)),
 		dither: 0,
 	});
+	assert.deepEqual(scope.document.fixture.selectionHistory, [
+		['bitDepth', 0], ['channelMapping', 3], ['dither', 0], ['format', 3], ['bitDepth', 0],
+	]);
 	assert.deepEqual(scope.document.fixture.metadataFields, Array.from({ length: 8 }, () => ''));
 	assert.equal(scope.document.fixture.customMetadata, '{}');
-	assert.equal(scope.document.fixture.completedRuns, 1);
+	assert.equal(scope.document.fixture.completedRuns, 2);
 	assert.equal(scope.document.fixture.cancelledRuns, 1);
 	assert.ok(scope.document.fixture.progressQueries > 0);
 });
@@ -275,6 +316,14 @@ test('renderer smoke reports the editor export failure before starting cancellat
 	assert.equal(scope.document.fixture.cancelledRuns, 0);
 });
 
+test('renderer smoke reports an AIFF export failure after preserving the WAV sequence', async () => {
+	const scope = createRendererScope({ aiffExportFailure: 'The direct AIFF write failed.' });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	await assert.rejects(serializedRoutine(scope, PLAN), /direct AIFF write failed/iu);
+	assert.equal(scope.document.fixture.completedRuns, 2);
+	assert.equal(scope.document.fixture.cancelledRuns, 1);
+});
+
 function directArgv(encodedPlan, appDataPath) {
 	return [
 		'/packaged/soundscaper',
@@ -293,7 +342,7 @@ function fakeFileStat(size) {
 	return { size, isDirectory: () => false, isFile: () => true };
 }
 
-function createRendererScope({ exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
+function createRendererScope({ aiffExportFailure = '', exportFailure = '', importFailure = '', projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		cancelledRuns: 0,
@@ -309,7 +358,9 @@ function createRendererScope({ exportFailure = '', importFailure = '', projectBi
 		progress: 0,
 		progressQueries: 0,
 		routedToProjectBin: false,
+		selectionHistory: [],
 		settings: {},
+		startedRuns: 0,
 	};
 	class FakeEvent {
 		constructor(type) { this.type = type; }
@@ -420,32 +471,37 @@ function createRendererScope({ exportFailure = '', importFailure = '', projectBi
 			return [];
 		},
 	});
-	const dropdown = (name, count) => element({
-		query(selector) {
-			if (selector !== 'button') return null;
-			return element({ click: () => {
-				fixture.activeOptions = Array.from({ length: count }, (_, index) => element({
-					click: () => {
-						fixture.settings[name] = index;
-						fixture.activeOptions = [];
-					},
-				}));
-			} });
-		},
-	});
+	const dropdown = (name, labels) => {
+		let trigger;
+		trigger = element({ click: () => {
+			fixture.activeOptions = labels.map((label, index) => element({
+				textContent: label,
+				click: () => {
+					fixture.settings[name] = index;
+					if (name === 'format' && label === 'AIFF') fixture.settings.bitDepth = 1;
+					fixture.selectionHistory.push([name, index]);
+					trigger.textContent = label;
+					fixture.activeOptions = [];
+				},
+			}));
+		} });
+		return element({ query: (selector) => selector === 'button' ? trigger : null });
+	};
 	const fields = {
-		'[data-export-field="bitDepth"]': dropdown('bitDepth', 3),
+		'[data-export-field="format"]': dropdown('format', ['WAV', 'Broadcast WAV (BWF)', 'BW64 / ADM', 'AIFF']),
+		'[data-export-field="bitDepth"]': dropdown('bitDepth', ['16-bit PCM', '24-bit PCM', '32-bit PCM', '32-bit float']),
 		'[data-export-field="sampleRate"] input': sampleRateInput,
-		'[data-export-field="channelMapping"]': dropdown('channelMapping', 4),
-		'[data-export-field="dither"]': dropdown('dither', 3),
+		'[data-export-field="channelMapping"]': dropdown('channelMapping', ['Mono', 'Stereo', 'Preserve input channels', 'Custom channel mapping']),
+		'[data-export-field="dither"]': dropdown('dither', ['None', 'Triangular', 'High-pass triangular']),
 	};
 	const start = element({
 		click: () => {
+			fixture.startedRuns += 1;
 			fixture.exporting = true;
 			fixture.progress = 0;
 			progressOutput.textContent = '0%';
 			new scope.AudioContext({ sampleRate: 384000 });
-			if (fixture.completedRuns === 0) {
+			if (fixture.startedRuns === 1 || fixture.startedRuns === 3) {
 				setTimeout(() => {
 					fixture.progress = 25;
 					progressOutput.textContent = '25%';
@@ -453,8 +509,9 @@ function createRendererScope({ exportFailure = '', importFailure = '', projectBi
 				setTimeout(() => {
 					fixture.completedRuns += 1;
 					fixture.exporting = false;
-					status.attributes['data-state'] = exportFailure ? 'error' : 'success';
-					status.textContent = exportFailure;
+					const failure = fixture.startedRuns === 3 ? aiffExportFailure : exportFailure;
+					status.attributes['data-state'] = failure ? 'error' : 'success';
+					status.textContent = failure;
 				}, 5);
 			}
 		},

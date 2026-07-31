@@ -5,6 +5,7 @@ import { isAbsolute, join, normalize } from 'node:path';
 
 export const DESKTOP_DIRECT_WAV_SMOKE_MODE = 'direct-wav-export-v1';
 export const DESKTOP_DIRECT_WAV_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE';
+export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
 export const DIRECT_WAV_SMOKE_FILE_BYTES = 202_751_788;
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
@@ -15,8 +16,11 @@ const MAXIMUM_PLAN_BYTES = 512;
 const TOKEN = /^[a-f\d]{32}$/u;
 const PRODUCT_IDS = new Set(['soundscaper', 'framescaper']);
 const PLAN_FIELDS = Object.freeze(['schemaVersion', 'mode', 'productId', 'token']);
-const RENDERER_FIELDS = Object.freeze(['imported', 'completed', 'cancelled', 'realtimeCount', 'downloadVisible']);
-const NATIVE_FIELDS = Object.freeze(['selectionPurposes', 'completedBytes', 'cancelledAbsent', 'stagingFilesRemaining']);
+const RENDERER_FIELDS = Object.freeze(['imported', 'completed', 'cancelled', 'aiffCompleted', 'realtimeCount', 'downloadVisible']);
+const NATIVE_FIELDS = Object.freeze([
+	'selectionPurposes', 'completedBytes', 'completedAiffBytes', 'aiffChoiceValidated',
+	'cancelledAbsent', 'stagingFilesRemaining',
+]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, 'renderer', 'native']);
 
 export function validateDirectWavSmokePlan(value) {
@@ -122,9 +126,11 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 			throw new TypeError('Direct WAV smoke accepts only audio-pcm-mix save choices');
 		}
 		const current = operation.then(async () => {
-			if (selectionPurposes.length >= 2) throw new Error('Direct WAV smoke requires exactly two save choices');
+			if (selectionPurposes.length >= 3) throw new Error('Direct WAV smoke requires exactly three save choices');
 			await ensureRoot();
-			const fileName = selectionPurposes.length === 0 ? 'completed.wav' : 'cancelled.wav';
+			const fileNames = ['completed.wav', 'cancelled.wav', 'completed.aiff'];
+			if (selectionPurposes.length === 2) validateAiffSaveChoice(choice);
+			const fileName = fileNames[selectionPurposes.length];
 			selectionPurposes.push(choice.purpose);
 			return join(smokeRoot, fileName);
 		});
@@ -134,24 +140,30 @@ export function createDirectWavSmokeTargetHarness(options = {}) {
 
 	const evidence = async () => {
 		await operation;
-		if (selectionPurposes.length !== 2) throw new Error('Direct WAV smoke requires exactly two save choices');
+		if (selectionPurposes.length !== 3) throw new Error('Direct WAV smoke requires exactly three save choices');
 		await ensureRoot();
 		const deadline = now() + 15_000;
 		while (true) {
 			const completed = await optionalStat(statImpl, join(smokeRoot, 'completed.wav'));
+			const completedAiff = await optionalStat(statImpl, join(smokeRoot, 'completed.aiff'));
 			const cancelled = await optionalStat(statImpl, join(smokeRoot, 'cancelled.wav'));
 			const names = await readdirImpl(smokeRoot);
 			if (!Array.isArray(names) || names.some((name) => typeof name !== 'string')) {
 				throw new TypeError('Direct WAV smoke root listing is invalid');
 			}
 			const stagingFilesRemaining = names.filter((name) => name.endsWith('.soundscaper-part')).length;
-			if (completed?.isFile?.() && !cancelled && stagingFilesRemaining === 0) {
+			if (completed?.isFile?.() && completedAiff?.isFile?.() && !cancelled && stagingFilesRemaining === 0) {
 				if (!Number.isSafeInteger(completed.size) || completed.size < 0) {
 					throw new TypeError('Direct WAV completed file size is invalid');
+				}
+				if (!Number.isSafeInteger(completedAiff.size) || completedAiff.size < 0) {
+					throw new TypeError('Direct AIFF completed file size is invalid');
 				}
 				return deepFreeze({
 					selectionPurposes: [...selectionPurposes],
 					completedBytes: completed.size,
+					completedAiffBytes: completedAiff.size,
+					aiffChoiceValidated: true,
 					cancelledAbsent: true,
 					stagingFilesRemaining,
 				});
@@ -182,13 +194,15 @@ export function validateDirectWavRendererResult(value) {
 	if (value.imported !== true) throw new TypeError('Direct WAV renderer did not import its fixture');
 	if (value.completed !== true) throw new TypeError('Direct WAV renderer did not complete its first export');
 	if (value.cancelled !== true) throw new TypeError('Direct WAV renderer did not cancel its second export');
-	if (value.realtimeCount !== 2) throw new TypeError('Direct WAV renderer must enter realtime export exactly twice');
+	if (value.aiffCompleted !== true) throw new TypeError('Direct WAV renderer did not complete its AIFF export');
+	if (value.realtimeCount !== 3) throw new TypeError('Direct WAV renderer must enter realtime export exactly three times');
 	if (value.downloadVisible !== false) throw new TypeError('Direct WAV renderer exposed a browser download');
 	return Object.freeze({
 		imported: true,
 		completed: true,
 		cancelled: true,
-		realtimeCount: 2,
+		aiffCompleted: true,
+		realtimeCount: 3,
 		downloadVisible: false,
 	});
 }
@@ -207,13 +221,17 @@ export function validateDirectWavSmokeResult(value, expectedPlan = null) {
 	const renderer = validateDirectWavRendererResult(value.renderer);
 	assertClosedRecord(value.native, NATIVE_FIELDS, 'Direct WAV native result');
 	if (!Array.isArray(value.native.selectionPurposes)
-		|| value.native.selectionPurposes.length !== 2
+		|| value.native.selectionPurposes.length !== 3
 		|| value.native.selectionPurposes.some((purpose) => purpose !== 'audio-pcm-mix')) {
 		throw new TypeError('Direct WAV native result has invalid save selections');
 	}
 	if (value.native.completedBytes !== DIRECT_WAV_SMOKE_FILE_BYTES) {
 		throw new TypeError('Direct WAV native result has an unexpected completed byte count');
 	}
+	if (value.native.completedAiffBytes !== DIRECT_AIFF_SMOKE_FILE_BYTES) {
+		throw new TypeError('Direct AIFF native result has an unexpected completed byte count');
+	}
+	if (value.native.aiffChoiceValidated !== true) throw new TypeError('Direct AIFF native result has an invalid save choice');
 	if (value.native.cancelledAbsent !== true) throw new TypeError('Direct WAV native result published its cancelled target');
 	if (value.native.stagingFilesRemaining !== 0) throw new TypeError('Direct WAV native result retained staging files');
 	return deepFreeze({
@@ -222,6 +240,8 @@ export function validateDirectWavSmokeResult(value, expectedPlan = null) {
 		native: {
 			selectionPurposes: [...value.native.selectionPurposes],
 			completedBytes: value.native.completedBytes,
+			completedAiffBytes: value.native.completedAiffBytes,
+			aiffChoiceValidated: true,
 			cancelledAbsent: true,
 			stagingFilesRemaining: 0,
 		},
@@ -266,16 +286,27 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		control.dispatchEvent(new scope.Event('input', { bubbles: true }));
 		control.dispatchEvent(new scope.Event('change', { bubbles: true }));
 	};
-	const choose = async (dialog, field, index) => {
+	const choose = async (dialog, field, index, expectedText) => {
 		const button = await waitFor(() => dialog.querySelector(`${field} button`), `${field} button`);
 		button.click();
-		const options = await waitFor(() => {
+		const option = await waitFor(() => {
 			const values = [...document.querySelectorAll('[role="option"]')]
 				.filter((option) => option.getAttribute?.('aria-disabled') !== 'true');
-			return values.length > index ? values : null;
+			if (expectedText) {
+				const matches = values.filter((candidate) => String(candidate.textContent || '').trim() === expectedText);
+				if (matches.length > 1) throw new Error(`Packaged direct WAV ${field} option is ambiguous`);
+				return matches[0] ?? null;
+			}
+			return values[index] ?? null;
 		}, `${field} options`);
-		options[index].click();
+		option.click();
 		await delay(25);
+		if (expectedText) {
+			await waitFor(
+				() => String(button.textContent || '').trim() === expectedText ? button : null,
+				`${field} selection`,
+			);
+		}
 	};
 	const createFixture = () => {
 		const sampleRate = 48_000;
@@ -357,16 +388,16 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	metadataButtons[0].click();
 	dialog = await waitFor(() => document.querySelector('[data-export-dialog]'), 'restored export dialog');
 
-	await choose(dialog, '[data-export-field="bitDepth"]', 0);
+	await choose(dialog, '[data-export-field="bitDepth"]', 0, '16-bit PCM');
 	const sampleRate = await waitFor(() => dialog.querySelector('[data-export-field="sampleRate"] input'), 'sample rate');
 	setValue(sampleRate, '384000');
 	await delay(25);
 	if (sampleRate.value !== '384000') throw new Error('Packaged direct WAV sample rate did not update');
-	await choose(dialog, '[data-export-field="channelMapping"]', 3);
+	await choose(dialog, '[data-export-field="channelMapping"]', 3, 'Custom channel mapping');
 	const matrix = await waitFor(() => dialog.querySelector('textarea'), 'custom channel matrix');
 	setValue(matrix, JSON.stringify(Array.from({ length: 16 }, () => 0)));
 	await delay(25);
-	await choose(dialog, '[data-export-field="dither"]', 0);
+	await choose(dialog, '[data-export-field="dither"]', 0, 'None');
 	await delay(25);
 
 	const OriginalAudioContext = scope.AudioContext || scope.webkitAudioContext;
@@ -386,6 +417,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	Object.defineProperty(scope, 'AudioContext', { configurable: true, writable: true, value: TrackingAudioContext });
 	let completed;
 	let cancelled;
+	let aiffCompleted;
 	try {
 		const firstStart = await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'first export action');
 		firstStart.click();
@@ -414,13 +446,33 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		cancel.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'cancelled export');
 		cancelled = true;
+
+		await choose(dialog, '[data-export-field="format"]', 3, 'AIFF');
+		await choose(dialog, '[data-export-field="bitDepth"]', 0, '16-bit PCM');
+		const aiffSampleRate = await waitFor(
+			() => dialog.querySelector('[data-export-field="sampleRate"] input'),
+			'AIFF sample rate',
+		);
+		if (aiffSampleRate.value !== '384000') throw new Error('Packaged direct AIFF sample rate did not persist');
+		const aiffStart = dialog.querySelector('[data-export-action="start"] button');
+		if (!aiffStart) throw new Error('Packaged direct AIFF export action is unavailable');
+		aiffStart.click();
+		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'AIFF export start');
+		await waitFor(() => realtimeCount === 3, 'AIFF realtime render');
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed AIFF export', 150_000);
+		const aiffStatus = document.querySelector('[data-status]');
+		if (aiffStatus?.getAttribute('data-state') !== 'success') {
+			const detail = String(aiffStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			throw new Error(`Packaged direct AIFF export failed${detail ? `: ${detail}` : ''}`);
+		}
+		aiffCompleted = true;
 	} finally {
 		if (originalDescriptor) Object.defineProperty(scope, 'AudioContext', originalDescriptor);
 		else delete scope.AudioContext;
 	}
 	const download = dialog.querySelector('[data-export-download]');
 	const downloadVisible = Boolean(download && !download.hidden);
-	return Object.freeze({ imported: true, completed, cancelled, realtimeCount, downloadVisible });
+	return Object.freeze({ imported: true, completed, cancelled, aiffCompleted, realtimeCount, downloadVisible });
 }
 
 async function optionalStat(statImpl, path) {
@@ -429,6 +481,17 @@ async function optionalStat(statImpl, path) {
 	} catch (error) {
 		if (error?.code === 'ENOENT') return null;
 		throw error;
+	}
+}
+
+function validateAiffSaveChoice(choice) {
+	assertClosedRecord(choice, ['filters', 'purpose', 'suggestedName'], 'Direct AIFF save choice');
+	if (typeof choice.suggestedName !== 'string' || !choice.suggestedName.endsWith('.aiff')) {
+		throw new TypeError('Direct AIFF smoke requires a canonical .aiff save choice');
+	}
+	const expectedFilters = [{ name: 'WAV and AIFF audio mix', extensions: ['wav', 'aif', 'aiff'] }];
+	if (canonicalJson(choice.filters) !== canonicalJson(expectedFilters)) {
+		throw new TypeError('Direct AIFF smoke requires the native PCM mix save filter');
 	}
 }
 

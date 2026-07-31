@@ -11,6 +11,10 @@ import {
 	resolveSmokeArchitecture,
 } from './desktop-smoke.mjs';
 import {
+	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
+	verifyDesktopDirectAiffFile,
+} from './desktop-direct-aiff-smoke-file.mjs';
+import {
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -31,6 +35,7 @@ import {
 } from './desktop-direct-wav-smoke-evidence.mjs';
 
 export {
+	DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_ACCEPTANCE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_FIXTURE,
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
@@ -38,6 +43,7 @@ export {
 	createDesktopDirectWavSmokeAggregate,
 	createDesktopDirectWavStagingObserver,
 	formatDesktopDirectWavSmokeAggregate,
+	verifyDesktopDirectAiffFile,
 	verifyDesktopDirectWavFile,
 };
 
@@ -46,7 +52,7 @@ export const MAX_DESKTOP_DIRECT_WAV_PLAN_BYTES = 4 * 1024;
 const MIB = 1024 * 1024;
 const MAXIMUM_CHILD_OUTPUT_BYTES = MIB;
 const MAXIMUM_CHILD_TIMEOUT_MS = 5 * 60 * 1000;
-const DEFAULT_CHILD_TIMEOUT_MS = 4 * 60 * 1000;
+const DEFAULT_CHILD_TIMEOUT_MS = 5 * 60 * 1000;
 const CHILD_TERMINATION_GRACE_MS = 250;
 const CHILD_SETTLEMENT_TIMEOUT_MS = 1_000;
 
@@ -100,6 +106,7 @@ export function deriveDesktopDirectWavSmokePaths(appDataPath, token) {
 	return freezeDesktopDirectWavValue({
 		root,
 		completed: resolve(root, 'completed.wav'),
+		completedAiff: resolve(root, 'completed.aiff'),
 		cancelled: resolve(root, 'cancelled.wav'),
 	});
 }
@@ -348,12 +355,14 @@ export async function runDesktopDirectWavSmoke({
 		const payload = parseDesktopDirectWavSmokeOutput(child.stdout, invocation);
 		await assertDesktopDirectWavOutputCleanup(invocation.outputPaths);
 		const file = await verifyDesktopDirectWavFile(invocation.outputPaths.completed);
+		const aiffFile = await verifyDesktopDirectAiffFile(invocation.outputPaths.completedAiff);
 		aggregate = createDesktopDirectWavSmokeAggregate({
 			invocation,
 			payload,
 			platform,
 			arch,
 			file,
+			aiffFile,
 			cancellation: { ...cancellation, cancelledFileAbsent: true },
 		});
 	} catch (error) {
