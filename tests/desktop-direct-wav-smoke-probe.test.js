@@ -70,6 +70,12 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.throws(() => decodeDirectWavSmokePlan(nonCanonicalJson), /canonical/iu);
 });
 
+test('serialized renderer grants authored BW64 a five-minute bounded export window', () => {
+	const source = runDirectWavRendererSmoke.toString();
+	assert.match(source, /const bw64ExportTimeout = 300_000;/u);
+	assert.match(source, /'completed BW64 export', bw64ExportTimeout\)/u);
+});
+
 test('direct WAV target harness pins argv, creates one exclusive private root, and reports bounded evidence', async () => {
 	const appDataPath = '/tmp/soundscaper-smoke-app-data';
 	const encoded = encodeDirectWavSmokePlan(PLAN);

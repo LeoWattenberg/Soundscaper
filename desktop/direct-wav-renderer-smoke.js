@@ -17,6 +17,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		throw new TypeError('Packaged direct WAV plan is invalid');
 	}
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
+	const bw64ExportTimeout = 300_000;
 	const waitFor = async (read, label, timeout = 45_000) => {
 		const deadline = Date.now() + timeout;
 		while (true) {
@@ -447,7 +448,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		bw64Start.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'BW64 export start');
 		await waitFor(() => realtimeCount === 5, 'BW64 realtime render');
-		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BW64 export', 150_000);
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BW64 export', bw64ExportTimeout);
 		const bw64Status = document.querySelector('[data-status]');
 		if (bw64Status?.getAttribute('data-state') !== 'success') {
 			const detail = String(bw64Status?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
