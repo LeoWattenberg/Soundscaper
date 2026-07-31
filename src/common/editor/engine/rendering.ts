@@ -313,8 +313,11 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let rejectDone!: (reason?: unknown) => void;
 		const done = new Promise<void>((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
 		let doneReceived = false;
+		let terminating = false;
 		interface SinkQueue {
 			readonly failure: unknown;
+			readonly maximumPendingChunks: number;
+			readonly pendingChunks: number;
 			readonly state: string;
 			readonly writtenFrames: number;
 			readonly writtenChunks: number;
@@ -334,6 +337,46 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (parametricEqFailure) failRender(parametricEqFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { maximumPendingChunks, onError: failRender }) as SinkQueue;
 		const queue = sinkQueue;
+		// Leave half the hard queue bound available for MessagePort packets that
+		// were already posted while suspension crosses the audio-thread boundary.
+		const backpressureHighWaterChunks = Math.max(1, Math.floor(queue.maximumPendingChunks / 2));
+		let flowControl: Promise<void> | null = null;
+		const requestSinkDrain = () => {
+			if (
+				terminating
+				|| flowControl
+				|| doneReceived
+				|| queue.failure
+				|| graph.abortController.signal.aborted
+				|| queue.pendingChunks < backpressureHighWaterChunks
+			) return;
+			const cycle = (async () => {
+				let suspendedForBackpressure = false;
+				if (context.state === 'running') {
+					await context.suspend();
+					suspendedForBackpressure = true;
+				}
+				await queue.settled();
+				if (
+					terminating
+					|| doneReceived
+					|| queue.failure
+					|| graph.abortController.signal.aborted
+				) return;
+				if (suspendedForBackpressure && context.state === 'suspended') await context.resume();
+			})();
+			flowControl = cycle.catch((error: unknown) => {
+				if (
+					!terminating
+					&& !doneReceived
+					&& !queue.failure
+					&& !graph.abortController.signal.aborted
+				) failRender(error);
+			}).finally(() => {
+				flowControl = null;
+				requestSinkDrain();
+			});
+		};
 		const abort = () => failRender(createAbortError());
 		signal?.addEventListener('abort', abort, { once: true });
 		capture.onprocessorerror = () => failRender(new Error('The realtime render worklet failed.'));
@@ -356,6 +399,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				});
 				if (!accepted) return;
 				renderedFrames += frames;
+				requestSinkDrain();
 				try {
 					onProgress?.({
 						frames: renderedFrames,
@@ -382,6 +426,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				chunkCount: queue.writtenChunks,
 			};
 		} finally {
+			terminating = true;
+			const pendingFlowControl = flowControl;
 			signal?.removeEventListener('abort', abort);
 			signal?.removeEventListener('abort', abortGraph);
 			capture.port.onmessage = null;
@@ -392,6 +438,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			if (context.state !== 'closed') await context.close?.();
 			if (queue.state !== 'finished') queue.abort(createAbortError());
 			try { await queue.settled(); } catch { /* The primary render error is reported above. */ }
+			try { await pendingFlowControl; } catch { /* Flow control never replaces the primary render result. */ }
 		}
 	},
 

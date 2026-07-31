@@ -57,6 +57,7 @@ export interface DirectExportFixtureOptions {
 	readonly encoderFinalChunks?: readonly Uint8Array[];
 	readonly encoderInitialChunks?: readonly Uint8Array[];
 	readonly encoderWriteChunks?: (block: number) => readonly Uint8Array[];
+	readonly inputChannelCount?: number;
 	readonly publishedFileName?: string;
 	readonly publishedMimeType?: string;
 }
@@ -175,6 +176,7 @@ export function createDirectPcmExportFixture(
 	const renderRequests: Array<Readonly<Record<string, unknown>>> = [];
 	const resamplerChannelCounts: number[] = [];
 	const statuses: string[] = [];
+	const inputChannelCount = options.inputChannelCount ?? 2;
 	const publishedFileName = options.publishedFileName ?? plan.outputs[0]?.fileName ?? 'mix.wav';
 	const publishedMimeType = options.publishedMimeType ?? plan.mimeType;
 	let snapshots = 0;
@@ -185,7 +187,7 @@ export function createDirectPcmExportFixture(
 		outputCleanup: null, exportOutput: null, disposed: false,
 	};
 	const project = {
-		id: 'project', title: 'Project', sampleRate: 48_000, masterChannels: 2,
+		id: 'project', title: 'Project', sampleRate: 48_000, masterChannels: inputChannelCount,
 		clips: [{ id: 'clip', kind: 'audio', sourceId: 'source' }],
 		tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
 		sources: [{ id: 'source' }],
@@ -215,7 +217,7 @@ export function createDirectPcmExportFixture(
 	const runtime: ExportServiceRuntime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
-		audioBufferChannels: () => [Float32Array.of(0), Float32Array.of(0)],
+		audioBufferChannels: () => Array.from({ length: inputChannelCount }, () => Float32Array.of(0)),
 		cloneProject: () => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'Missing sources', rendering: 'Rendering', encoding: 'Encoding', done: 'Done',
@@ -236,10 +238,16 @@ export function createDirectPcmExportFixture(
 			}> & Readonly<Record<string, unknown>>) {
 				renderRequests.push(range);
 				calls.push('render:chunk:1');
-				await range.onChunk([Float32Array.of(0.1), Float32Array.of(0.2)], { sampleRate: 48_000 });
+				await range.onChunk(
+					Array.from({ length: inputChannelCount }, (_, channel) => Float32Array.of(0.1 + channel / 100)),
+					{ sampleRate: 48_000 },
+				);
 				throwIfAborted(range.signal);
 				calls.push('render:chunk:2');
-				await range.onChunk([Float32Array.of(0.3), Float32Array.of(0.4)], { sampleRate: 48_000 });
+				await range.onChunk(
+					Array.from({ length: inputChannelCount }, (_, channel) => Float32Array.of(0.3 + channel / 100)),
+					{ sampleRate: 48_000 },
+				);
 				throwIfAborted(range.signal);
 				calls.push('render:done');
 				return { sampleRate: 48_000 };
@@ -250,7 +258,10 @@ export function createDirectPcmExportFixture(
 		createStableId: () => 'temporary',
 		createStreamingWindowedSincResampler: (_inputRate: number, _outputRate: number, channelCount: number) => {
 			resamplerChannelCounts.push(channelCount);
-			return { push: (channels: readonly Float32Array[]) => channels, finish: () => [new Float32Array(0), new Float32Array(0)] };
+			return {
+				push: (channels: readonly Float32Array[]) => channels,
+				finish: () => Array.from({ length: channelCount }, () => new Float32Array(0)),
+			};
 		},
 		createTemporaryFileSink: async () => {
 			calls.push('temporary:create');

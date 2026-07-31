@@ -173,9 +173,9 @@ test('direct BW64 exact preparation covers standard RIFF metadata geometry and p
 });
 
 test('exact authored BW64 streams ds64, BEXT, CHNA, PCM, and AXML in canonical order', async () => {
-	const plan = directBw64Plan();
+	const plan = directBw64Plan({ layout: '5.1' });
 	const layout = wavLayout(plan);
-	const fixture = createDirectPcmExportFixture(plan);
+	const fixture = createDirectPcmExportFixture(plan, { inputChannelCount: 6 });
 	const destination = createPreparedStream({ publishedSize: layout.byteLength });
 	fixture.setPrepared(destination.prepared);
 	const encoderOptions: Array<Readonly<Record<string, unknown>>> = [];
@@ -228,7 +228,7 @@ test('exact authored BW64 streams ds64, BEXT, CHNA, PCM, and AXML in canonical o
 	assert.equal(fixture.calls.includes('temporary:create'), false);
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.renderRequests[0]?.chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
-	assert.equal(fixture.renderRequests[0]?.maximumPendingChunks, directPcmMaximumPendingChunks(2, 'BW64'));
+	assert.equal(fixture.renderRequests[0]?.maximumPendingChunks, directPcmMaximumPendingChunks(6, 'BW64'));
 	assert.deepEqual(result, {
 		url: null, fileName: 'direct.wav', mimeType: 'audio/wav',
 		size: layout.byteLength, method: 'file-system-access',

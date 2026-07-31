@@ -106,7 +106,8 @@ export async function openDirectPcmDestination(
 /**
  * Adapt a synchronous PCM container encoder to bounded destination writes.
  * `onChunk` stays synchronous and emissions enter one fixed coalescing buffer;
- * every full destination write settles before another PCM block is accepted.
+ * each consumer write awaits a full destination write before accepting its next
+ * PCM block. The realtime renderer separately throttles its upstream producer.
  */
 export async function createDirectPcmEncoder(
 	destination: DirectPcmDestination,

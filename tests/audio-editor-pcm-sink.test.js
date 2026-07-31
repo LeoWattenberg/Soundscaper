@@ -230,7 +230,10 @@ test('realtime engine aborts immediately when its async sink fails', async () =>
 		await assert.rejects(engine.renderMixToSink({
 			sink: async () => { throw failure; },
 			outputFrames: 1,
+			maximumPendingChunks: 1,
 		}), failure);
+		assert.equal(contexts[0].suspendCalls, 1);
+		assert.equal(contexts[0].resumeCalls, 1, 'a failed suspended render is never resumed');
 		assert.equal(contexts[0].closed, true);
 	});
 });
@@ -269,6 +272,98 @@ test('realtime engine rejects producer overrun without retaining an unbounded qu
 			outputFrames: AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS + 1,
 		}), (error) => error?.code === 'PCM_SINK_BACKPRESSURE');
 		assert.equal(writes, 0, 'queued writes are discarded when the render can no longer be atomic');
+		assert.equal(contexts[0].closed, true);
+	});
+});
+
+test('realtime engine pauses production while a bounded slow sink drains', async () => {
+	const chunkCount = 8;
+	let emittedChunks = 0;
+	const writes = [];
+	await withMockRealtimeRenderer((context) => {
+		queueMicrotask(function pump() {
+			if (context.state !== 'running') return;
+			if (emittedChunks === chunkCount) {
+				context.emit({ type: 'done', frames: chunkCount });
+				return;
+			}
+			const frameOffset = emittedChunks;
+			emittedChunks += 1;
+			context.emit({
+				type: 'audio-chunk',
+				frameOffset,
+				channels: [Float32Array.of(frameOffset), Float32Array.of(-frameOffset)],
+			});
+			queueMicrotask(pump);
+		});
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		const result = await engine.renderMixToSink({
+			sink: async (channels, metadata) => {
+				writes.push({ channels, metadata });
+				await new Promise((resolve) => setImmediate(resolve));
+			},
+			outputFrames: chunkCount,
+			maximumPendingChunks: 4,
+		});
+		assert.deepEqual(writes.map(({ metadata }) => metadata.frameOffset), [0, 1, 2, 3, 4, 5, 6, 7]);
+		assert.deepEqual(writes.map(({ channels }) => channels[0][0]), [0, 1, 2, 3, 4, 5, 6, 7]);
+		assert.equal(result.chunkCount, chunkCount);
+		assert.equal(contexts[0].suspendCalls > 0, true);
+		assert.equal(contexts[0].resumeCalls > 1, true);
+		assert.equal(contexts[0].closed, true);
+	});
+});
+
+test('realtime engine never resumes a backpressure cycle after its worklet finishes', async () => {
+	await withMockRealtimeRenderer((context) => {
+		context.emit({
+			type: 'audio-chunk', frameOffset: 0,
+			channels: [Float32Array.of(1), Float32Array.of(-1)],
+		});
+		context.emit({ type: 'done', frames: 1 });
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		const result = await engine.renderMixToSink({
+			sink: async () => { await new Promise((resolve) => setImmediate(resolve)); },
+			outputFrames: 1,
+			maximumPendingChunks: 1,
+		});
+		assert.equal(result.chunkCount, 1);
+		assert.equal(contexts[0].suspendCalls, 1);
+		assert.equal(contexts[0].resumeCalls, 1, 'worklet completion owns the final transition to close');
+		assert.equal(contexts[0].closed, true);
+	});
+});
+
+test('realtime engine never resumes a backpressure cycle after cancellation', async () => {
+	const cancellation = new AbortController();
+	let releaseWrite;
+	const writeBlocked = new Promise((resolve) => { releaseWrite = resolve; });
+	let markWriteStarted;
+	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
+	await withMockRealtimeRenderer((context) => {
+		context.emit({
+			type: 'audio-chunk', frameOffset: 0,
+			channels: [Float32Array.of(1), Float32Array.of(-1)],
+		});
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		const pending = engine.renderMixToSink({
+			sink: async () => {
+				markWriteStarted();
+				await writeBlocked;
+			},
+			outputFrames: 1,
+			maximumPendingChunks: 1,
+			signal: cancellation.signal,
+		});
+		await writeStarted;
+		cancellation.abort();
+		releaseWrite();
+		await assert.rejects(pending, { name: 'AbortError' });
+		assert.equal(contexts[0].suspendCalls, 1);
+		assert.equal(contexts[0].resumeCalls, 1, 'a cancelled suspended render is never resumed');
 		assert.equal(contexts[0].closed, true);
 	});
 });
@@ -329,6 +424,8 @@ async function withMockRealtimeRenderer(onResume, run) {
 			this.modules = [];
 			this.audioWorklet = { addModule: async (url) => { this.modules.push(url); } };
 			this.closed = false;
+			this.suspendCalls = 0;
+			this.resumeCalls = 0;
 			contexts.push(this);
 		}
 		createGain() {
@@ -337,8 +434,13 @@ async function withMockRealtimeRenderer(onResume, run) {
 			return node;
 		}
 		async resume() {
+			this.resumeCalls += 1;
 			this.state = 'running';
 			await onResume(this);
+		}
+		async suspend() {
+			this.suspendCalls += 1;
+			this.state = 'suspended';
 		}
 		emit(data) { this.capture?.port.onmessage?.({ data }); }
 		async close() { this.state = 'closed'; this.closed = true; }
