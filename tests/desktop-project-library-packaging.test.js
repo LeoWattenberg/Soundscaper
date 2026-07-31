@@ -282,7 +282,11 @@ test('desktop main owns file capabilities by committed renderer document', async
 	assert.match(dispatchSource, /isOwnerCurrent: isRendererSaveOwnerCurrent/u,
 		'owner replacement is checked by the serialized delivery service');
 	assert.match(dispatchSource, /release: \(id, owner\) => readCapabilities\.release\(id, \{ owner \}\)/u);
-	assert.match(dispatchSource, /send: \(descriptor\) => sendToRenderer\(IPC\.openProject, descriptor\)/u);
+	assert.match(
+		dispatchSource,
+		/desktopSmokeProbe\.observeProjectDescriptor\(descriptor, \(id\) => readCapabilities\.get\(id\)\)/u,
+	);
+	assert.match(dispatchSource, /return sendToRenderer\(IPC\.openProject, descriptor\)/u);
 
 	const ownerForStart = mainSource.indexOf('function rendererSaveOwnerFor');
 	const ownerForEnd = mainSource.indexOf('\nfunction ', ownerForStart + 1);

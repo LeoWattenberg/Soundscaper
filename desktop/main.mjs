@@ -80,7 +80,10 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 	isOwnerCurrent: isRendererSaveOwnerCurrent,
 	register: (filePath, owner) => registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project' }),
 	release: (id, owner) => readCapabilities.release(id, { owner }),
-	send: (descriptor) => sendToRenderer(IPC.openProject, descriptor),
+	send: (descriptor) => {
+		desktopSmokeProbe.observeProjectDescriptor(descriptor, (id) => readCapabilities.get(id));
+		return sendToRenderer(IPC.openProject, descriptor);
+	},
 	reportError: reportPendingProjectError,
 }));
 

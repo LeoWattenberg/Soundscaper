@@ -11,6 +11,15 @@ import {
 	validateDirectWavRendererResult,
 	validateDirectWavSmokeResult,
 } from './direct-wav-smoke.js';
+import {
+	DESKTOP_SCAPE_OPEN_SMOKE_MODE,
+	DESKTOP_SCAPE_OPEN_SMOKE_PREFIX,
+	decodeScapeOpenSmokePlan,
+	runScapeOpenRendererSmoke,
+	validateScapeOpenProjectDescriptor,
+	validateScapeOpenRendererResult,
+	validateScapeOpenSmokeResult,
+} from './scape-open-smoke.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -55,7 +64,7 @@ export function parseDesktopSmokeConfiguration(argv) {
 		return Object.freeze({ mode: 'artifact', plan: null });
 	}
 	if (modes.length === 0 && plans.length > 0) {
-		throw new TypeError('Desktop smoke plan requires project-library or direct-WAV smoke mode');
+		throw new TypeError('Desktop smoke plan requires project-library, direct-WAV, or Scape-open smoke mode');
 	}
 	if (modes.length !== 1) throw new TypeError('Desktop smoke requires exactly one smoke mode');
 	if (modes[0] === PROJECT_LIBRARY_MODE) {
@@ -65,6 +74,10 @@ export function parseDesktopSmokeConfiguration(argv) {
 	if (modes[0] === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
 		if (plans.length !== 1) throw new TypeError('Direct-WAV smoke mode requires exactly one smoke plan');
 		return deepFreeze({ mode: DESKTOP_DIRECT_WAV_SMOKE_MODE, plan: decodeDirectWavSmokePlan(plans[0]) });
+	}
+	if (modes[0] === DESKTOP_SCAPE_OPEN_SMOKE_MODE) {
+		if (plans.length !== 1) throw new TypeError('Scape-open smoke mode requires exactly one smoke plan');
+		return deepFreeze({ mode: DESKTOP_SCAPE_OPEN_SMOKE_MODE, plan: decodeScapeOpenSmokePlan(plans[0]) });
 	}
 	throw new TypeError('Unsupported desktop smoke mode');
 }
@@ -76,6 +89,10 @@ export function createDesktopSmokeProbe(options) {
 	const reportError = options?.reportError ?? console.error;
 	const schedule = options?.setTimeout ?? setTimeout;
 	const cancel = options?.clearTimeout ?? clearTimeout;
+	const wait = options?.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+	const now = options?.now ?? Date.now;
+	requiredFunction(wait, 'wait');
+	requiredFunction(now, 'clock');
 	const appName = requiredText(options?.appName, 'application name');
 	const appOrigin = requiredText(options?.appOrigin, 'application origin');
 	const productId = requiredProduct(options?.productId);
@@ -95,6 +112,7 @@ export function createDesktopSmokeProbe(options) {
 	let timeout = null;
 	let started = false;
 	let finished = false;
+	let scapeDescriptorObservation = null;
 
 	const finish = async (code) => {
 		if (finished) return;
@@ -116,13 +134,31 @@ export function createDesktopSmokeProbe(options) {
 		attachedWindow = window;
 		timeout = schedule(() => {
 			void fail(`${prefixFor(configuration.mode)} timed out`);
-		}, configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE ? 180_000 : 15_000);
+		}, timeoutFor(configuration.mode));
 		window.webContents.once('did-fail-load', (_event, code, description) => {
 			void fail(`${prefixFor(configuration.mode)} load failed: ${String(code)} ${String(description)}`);
 		});
 		if (configuration.mode === 'artifact') {
 			window.webContents.once('did-finish-load', () => { void runArtifact(window); });
 		}
+	};
+	const observeProjectDescriptor = (descriptor, evidence) => {
+		if (configuration.mode !== DESKTOP_SCAPE_OPEN_SMOKE_MODE) return false;
+		if (scapeDescriptorObservation) throw new Error('Scape-open smoke descriptor was already observed');
+		const readEvidence = requiredFunction(evidence, 'Scape-open descriptor evidence');
+		const summary = validateScapeOpenProjectDescriptor(descriptor, configuration.plan);
+		const live = readEvidence(descriptor.id);
+		if (live && typeof live.then === 'function') {
+			throw new TypeError('Scape-open descriptor evidence must be synchronous, not a Promise');
+		}
+		assertMatchingScapeDescriptor(live, descriptor, configuration.plan);
+		scapeDescriptorObservation = Object.freeze({
+			id: descriptor.id,
+			descriptor,
+			evidence: readEvidence,
+			summary,
+		});
+		return true;
 	};
 
 	const runArtifact = async (window) => {
@@ -147,7 +183,7 @@ export function createDesktopSmokeProbe(options) {
 	};
 
 	const rendererReady = async () => {
-		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE].includes(configuration.mode)
+		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE].includes(configuration.mode)
 			|| started || finished) return;
 		started = true;
 		try {
@@ -174,6 +210,30 @@ export function createDesktopSmokeProbe(options) {
 				await finish(0);
 				return;
 			}
+			if (configuration.mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) {
+				const renderer = validateScapeOpenRendererResult(
+					await attachedWindow.webContents.executeJavaScript(
+						`(${runScapeOpenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
+					),
+					plan,
+				);
+				if (!scapeDescriptorObservation) {
+					throw new Error('Scape-open smoke did not observe its delivered project descriptor');
+				}
+				await waitForScapeDescriptorRetirement(scapeDescriptorObservation, { now, wait, plan });
+				const payload = validateScapeOpenSmokeResult({
+					...plan,
+					descriptor: {
+						...scapeDescriptorObservation.summary,
+						liveBeforeDelivery: true,
+						retiredAfterOpen: true,
+					},
+					renderer,
+				}, plan);
+				log(`${DESKTOP_SCAPE_OPEN_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			const rendererResult = await attachedWindow.webContents.executeJavaScript(
 				`(${runProjectLibraryRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
 			);
@@ -190,7 +250,7 @@ export function createDesktopSmokeProbe(options) {
 		? directWavTargetHarness.resolveSavePath(choice)
 		: null;
 
-	return Object.freeze({ attach, rendererReady, resolveSavePath });
+	return Object.freeze({ attach, observeProjectDescriptor, rendererReady, resolveSavePath });
 }
 
 export async function runProjectLibraryRendererSmoke(scope, plan) {
@@ -422,9 +482,39 @@ function requiredProduct(value) {
 	return value;
 }
 
+async function waitForScapeDescriptorRetirement(observation, { now, wait, plan }) {
+	const deadline = now() + 15_000;
+	while (true) {
+		const candidate = observation.evidence(observation.id);
+		if (candidate && typeof candidate.then === 'function') {
+			throw new TypeError('Scape-open descriptor evidence must remain synchronous, not a Promise');
+		}
+		if (candidate === null) return;
+		assertMatchingScapeDescriptor(candidate, observation.descriptor, plan);
+		if (now() >= deadline) throw new Error('Scape-open descriptor retirement evidence timed out');
+		await wait(25);
+	}
+}
+
+function assertMatchingScapeDescriptor(candidate, observed, plan) {
+	validateScapeOpenProjectDescriptor(candidate, plan);
+	for (const key of ['id', 'url', 'name', 'size', 'mimeType', 'readProfile', 'lastModified']) {
+		if (candidate[key] !== observed[key]) {
+			throw new Error('Scape-open descriptor evidence does not match its delivered capability');
+		}
+	}
+}
+
+function timeoutFor(mode) {
+	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return 180_000;
+	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return 90_000;
+	return 15_000;
+}
+
 function prefixFor(mode) {
 	if (mode === PROJECT_LIBRARY_MODE) return DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX;
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
+	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
 	return 'SOUNDSCAPER_DESKTOP_SMOKE';
 }
 
