@@ -198,7 +198,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/BEXT.*Soundscaper packaged BWF smoke.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*48,000.*version 2.*empty UMID.*loudness.*sentinels.*CodingHistory.*48,000.*384,000/isu,
+		/BEXT.*Soundscaper packaged BWF smoke.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*48,000.*version 2.*deterministic nonempty 64-byte UMID.*128 lowercase hexadecimal digits.*64 payload bytes.*exactly.*loudness.*sentinels.*CodingHistory.*48,000.*384,000/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -342,7 +342,7 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		documentation,
-		/BEXT.*Soundscaper packaged BWF smoke.*Soundscaper.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*6,000.*48,000.*version 2.*empty UMID.*loudness sentinels.*CodingHistory.*48,000.*384,000.*SHA-256.*diagnostic.*not pinned/isu,
+		/BEXT.*Soundscaper packaged BWF smoke.*Soundscaper.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*6,000.*48,000.*version 2.*deterministic nonempty 64-byte UMID.*128 lowercase hexadecimal digits.*64 payload bytes.*exactly.*loudness sentinels.*CodingHistory.*48,000.*384,000.*SHA-256.*diagnostic.*not pinned/isu,
 	);
 	assert.match(
 		documentation,
@@ -436,7 +436,7 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assert.match(
 		roadmap,
-		/BEXT.*Soundscaper packaged BWF smoke.*Soundscaper.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*6,000.*48,000.*version 2.*empty\s+UMID.*loudness sentinels.*CodingHistory.*48,000.*384,000.*hashes.*diagnostic.*pinned/isu,
+		/BEXT.*Soundscaper packaged BWF smoke.*Soundscaper.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*6,000.*48,000.*version 2.*deterministic nonempty 64-byte UMID.*128 lowercase\s+hexadecimal digits.*payload bytes.*exactly.*Loudness sentinels.*CodingHistory.*48,000.*384,000.*hashes.*diagnostic.*pinned/isu,
 	);
 	assert.match(
 		roadmap,

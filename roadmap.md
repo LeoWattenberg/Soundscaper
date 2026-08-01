@@ -938,8 +938,10 @@ models or native implementations.
 
   Its deterministic BEXT carries description `Soundscaper packaged BWF smoke`,
   originator `Soundscaper`, reference `PACKAGED-BWF-0001`, date 2026-07-30,
-  time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2, an empty
-  UMID, loudness sentinels, and two-row CodingHistory naming 48,000-Hz input and
+  time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2 and a
+  deterministic nonempty 64-byte UMID whose normalized 128 lowercase
+  hexadecimal digits are pinned and whose payload bytes are compared exactly.
+  Loudness sentinels and two-row CodingHistory name 48,000-Hz input and
   384,000-Hz output.
 
   A separate first-party authored BW64 fixture uses a 44-second, six-channel,
@@ -969,7 +971,7 @@ models or native implementations.
   witness remains WAV-only. Packaged completion evidence covers WAV, integer
   AIFF, BWF, and first-party authored BW64 at these fixture scales. Packaged BWF
   does not qualify visible progress, cancellation,
-  rollback, staging cleanup, commit races, loudness, a nonempty UMID, int20 or
+  rollback, staging cleanup, commit races, loudness, int20 or
   int24 PCM, rich metadata variants, RF64 or the 65 GiB boundary at scale, or
   third-party interoperability. Packaged authored BW64 does not qualify visible
   progress, cancellation, rollback, staging cleanup, commit races, loudness,
