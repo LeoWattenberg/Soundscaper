@@ -17,6 +17,8 @@ import {
 import {
 	type DesktopLibraryManagedMediaReadOptions,
 	type DesktopLibraryPublishAudioOptions,
+	type DesktopLibraryPublishMediaOptions,
+	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 	DesktopLibraryManagedMediaStore,
 } from './project-library-media.ts';
 import {
@@ -54,6 +56,11 @@ export type DesktopProjectLibraryHostCommitByIdOptions = Omit<DesktopLibraryComm
 export type DesktopProjectLibraryHostDeleteByIdOptions = Omit<DesktopLibraryDeleteProjectByIdOptions, 'lease'>;
 export interface DesktopProjectLibraryHostPublishAudioOptions
 	extends Omit<DesktopLibraryPublishAudioOptions, 'projectRevision' | 'projectSha256'> {
+	readonly expectedProjectRevision: number;
+	readonly expectedProjectSha256: string;
+}
+export interface DesktopProjectLibraryHostPublishMediaOptions
+	extends Omit<DesktopLibraryPublishMediaOptions, 'projectRevision' | 'projectSha256'> {
 	readonly expectedProjectRevision: number;
 	readonly expectedProjectSha256: string;
 }
@@ -189,6 +196,10 @@ export class DesktopProjectLibraryHost {
 	}
 
 	publishManagedAudio(options: DesktopProjectLibraryHostPublishAudioOptions) {
+		return this.publishManagedMedia({ ...options, encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING });
+	}
+
+	publishManagedMedia(options: DesktopProjectLibraryHostPublishMediaOptions) {
 		return this.#mutateProject(async () => {
 			this.#library.assertLease(this.#lease);
 			const loaded = await this.#projects.readProjectById(options.projectId, options.signal);
@@ -202,7 +213,7 @@ export class DesktopProjectLibraryHost {
 				expectedProjectSha256: _expectedProjectSha256,
 				...publication
 			} = options;
-			return this.#media.publishAudio({
+			return this.#media.publish({
 				...publication,
 				projectRevision: options.expectedProjectRevision,
 				projectSha256: options.expectedProjectSha256,

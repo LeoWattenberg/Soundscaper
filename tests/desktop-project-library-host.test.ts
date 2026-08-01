@@ -15,6 +15,7 @@ import {
 	type DesktopLibraryLoadedProject,
 } from '../desktop/project-library-projects.ts';
 import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
+import { DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING } from '../desktop/project-library-media.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 
 const SOUNDSCAPER_OWNER = Object.freeze({
@@ -206,6 +207,38 @@ test('managed-media publication rejects a recreated same-revision project digest
 		expectedProjectRevision: 4,
 		expectedProjectSha256: 'a'.repeat(64),
 		chunks: (async function* () { chunksRead += 1; yield bytes; })(),
+	}), /changed during managed-media preparation/iu);
+	assert.equal(chunksRead, 0);
+});
+
+test('managed original-video publication uses the same revision and document-digest fence', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-host-video-digest-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const host = await DesktopProjectLibraryHost.start({
+		appDataPath,
+		owner: SOUNDSCAPER_OWNER,
+		leaseTtlMs: 5_000,
+		renewIntervalMs: 1_000,
+	});
+	context.after(() => host.close());
+	const prototype = DesktopLibraryProjectStore.prototype;
+	const originalRead = prototype.readProjectById;
+	prototype.readProjectById = async () => ({
+		catalog: { projectRevision: 5, sha256: 'c'.repeat(64) },
+		project: {},
+	}) as DesktopLibraryLoadedProject;
+	context.after(() => { prototype.readProjectById = originalRead; });
+	let chunksRead = 0;
+
+	await assert.rejects(host.publishManagedMedia({
+		encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+		projectId: 'recreated-video-project',
+		storageKey: 'managed-video-source',
+		byteLength: 4,
+		sha256: 'd'.repeat(64),
+		expectedProjectRevision: 5,
+		expectedProjectSha256: 'b'.repeat(64),
+		chunks: (async function* () { chunksRead += 1; yield Uint8Array.of(1, 2, 3, 4); })(),
 	}), /changed during managed-media preparation/iu);
 	assert.equal(chunksRead, 0);
 });
