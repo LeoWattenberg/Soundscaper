@@ -731,8 +731,9 @@ nullable schema fields remain readable for old and opaque future documents.
 Archive export includes only its canonical source assets, not derivative cache
 entries. By contrast, rendered fallbacks and their referenced sources remain
 durable project, retention, and portable-archive state under the fallback rules
-below. A fallback-only source is included by the current managed sender; this
-does not yet qualify fresh-recipient fallback acquisition or activation.
+below. The maintained exact-schema first-party audio whole-mix fallback is
+separately qualified for fresh-recipient managed acquisition and activation;
+generic and video fallbacks remain unqualified.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;

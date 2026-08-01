@@ -56,7 +56,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 	);
 	assert.match(
 		relationship.currentBehavior,
-		/fallback-only source.*managed sender.*fresh-recipient fallback acquisition.*activation.*unqualified/iu,
+		/maintained exact-schema first-party audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*generic and video fallbacks.*unqualified/iu,
 	);
 	for (const evidence of [
 		'src/common/editor/storage/video-derivative-relationship.ts',
@@ -85,7 +85,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 		documentation,
 		/reproducible.*not.*project history.*\.scape.*managed handoff.*rendered fallbacks.*durable/isu,
 	);
-	assert.match(documentation, /fallback-only source.*managed sender.*does not.*fresh-recipient.*activation/isu);
+	assert.match(documentation, /maintained exact-schema first-party audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*generic and video fallbacks remain unqualified/isu);
 	assert.match(
 		documentation,
 		/not editorial proxies.*decoder.*RSS/isu,
