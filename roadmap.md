@@ -154,8 +154,8 @@ Known architectural constraints that drive later work:
 - browser video decode and automatic export remain limited in resolution,
   frame rate, codec coverage, and long-form scale;
 - browser storage remains quota- and eviction-bound;
-- Electron has explicit managed canonical-PCM handoff, but not a complete
-  cross-product managed-media library;
+- Electron has explicit managed handoff for canonical PCM and retained original
+  video, but not a complete cross-product managed-media library;
 - no native codec worker, audio backend, plug-in host, or background job service
   exists; and
 - Safari, fixed-GPU, whole-process memory, and broad OS/architecture evidence
@@ -261,17 +261,19 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 
 #### 2.1 Cross-product media ownership and handoff — highest priority
 
-- **Electron Enhanced — Implemented for explicit managed canonical PCM:** an
-  explicit handoff publishes digest-bound canonical audio for fresh-recipient
-  acquisition; ordinary project saves remain document-only.
-- **Electron Enhanced — In progress:** extend opt-in managed storage beyond
-  canonical PCM and complete linked/mixed-media ownership, lifecycle, playback,
-  return-handoff, and packaged qualification outcomes.
+- **Electron Enhanced — Implemented for explicit managed canonical PCM and
+  retained original video:** ordinary saves remain document-only; explicit
+  handoff supports fresh-recipient acquisition and exact same-content rebinding
+  on return.
+- **Electron Enhanced — In progress:** complete linked and unmanaged originals,
+  proxy/rendered-fallback relationships, cleanup and capacity behavior, durable
+  playback identity, and packaged qualification.
 - **Shared — In progress:** define stable original/proxy/rendered-fallback
   relationships without placing reproducible derivatives in project history.
-- Prove a positive mixed-media Soundscaper ↔ Framescaper handoff in which a fresh
-  recipient can activate, play, edit, save, and return the project without
-  copying by accident or losing history-visible state.
+- **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
+  Framescaper round trip proves fresh activation, playback, edits, save, return,
+  exact media, and retained histories. Packaged UI and browser-codec
+  qualification remain open.
 
 This is the main architectural blocker for closing milestone 2. Do not spend the
 next work cycle deepening already-qualified source-free handoff unless it fixes a
@@ -328,7 +330,7 @@ release-blocking defect in its owning policy.
 | --- | --- | --- |
 | Bounded import, autosave, proxy, render, and save pipelines | **Partial** | Named Web Core fallbacks complete below their limits or refuse before unsafe work; enhanced/native direct-file fixtures meet their memory budgets. |
 | Crash-safe publication | **Partial** | Killing a renderer/helper during every write path leaves the previous commit or a recoverable journal, never a half-published project. |
-| Mixed-media cross-product handoff | **Open** | Both web and Electron products use the same project and media without losing history or requiring accidental copies. |
+| Mixed-media cross-product handoff | **Partial** | Both web and packaged Electron UI products use the same project and media without losing history or accidental copies; remaining media relationships are stable. |
 | Shared Electron concurrency | **Partial** | Packaged simultaneous opens, lease transfer, recovery, conflict, and supported-platform fixtures pass. |
 | Cache cleanup safety | **Implemented** | Cleanup removes only reproducible derivatives, never originals, canonical PCM, or the last recoverable revision. |
 | Unavailable-feature compatibility | **Partial** | Actionable report, usable fallback/bypass behavior, and faithful subsequent `.scape` round trip work for the required generic surface. |
