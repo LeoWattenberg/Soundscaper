@@ -1178,6 +1178,14 @@ models or native implementations.
   pin both exact ceiling shapes, refusal before factory and graph work, strict
   result validation, and the unchanged oversized software-renderer fallback.
 
+  The maintained `createExportPlan` path preserves its mobile, output-size, and
+  live-PCM heuristics as an initial screen, then aligns each offline candidate
+  with the central admission using project-rate requested frames, effective
+  pre-roll, maximum mix or per-stem graph latency, and the actual render width.
+  Known central-limit refusals are demoted to realtime streaming before offline
+  render or context work, while the exact boundary is admitted. Direct engine
+  callers retain the central no-context software-renderer fallback.
+
   This bound covers only one context output and the maintained crop copy. It
   does not account for source buffers, reverse-cache copies, streamed-source
   chunks, graph nodes, worklets, WASM or codec state, browser heap,
@@ -1189,11 +1197,9 @@ models or native implementations.
   maintained worklet-to-sink stream described next, generic selection effects
   and spectral replacement, software or injected renderers, FFmpeg/WASM
   encoding, and native hosts—remain outside this central offline control. The
-  non-mobile fast-render strategy can still optimistically select an offline
-  output between 256 MiB and its 384 MiB threshold; central admission then
-  refuses before context creation and the maintained export path falls back to
-  realtime streaming. Aligning that strategy hint with latency-aware peak
-  accounting remains open rather than weakening the central ceiling.
+  export strategy alignment is a per-plan decision, not a heap, RSS, GC, or
+  product-wide reservation; other engines and renderers can still overlap, and
+  direct engine callers retain the separate software-renderer fallback.
 
   Maintained realtime worklet-to-sink rendering now has a separate strict-TS
   [admission owner](src/common/editor/pcm-sink-admission.ts). Before an

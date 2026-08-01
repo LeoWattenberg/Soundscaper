@@ -268,6 +268,14 @@ length, sample rate, and per-channel Float32 geometry before return or crop;
 mismatches fail closed. Oversized geometry can still use the no-context
 software-renderer fallback.
 
+The maintained `createExportPlan` path preserves its mobile, output-size, and
+live-PCM heuristics as an initial screen, then aligns each offline candidate
+with the central admission using project-rate requested frames, effective
+pre-roll, maximum mix or per-stem graph latency, and the actual render width.
+Known central-limit refusals are demoted to realtime streaming before offline
+render or context work, while the exact boundary is admitted. Direct engine
+callers retain the central no-context software-renderer fallback.
+
 This is not a source-buffer, reverse-cache, streamed-chunk, graph, worklet,
 WASM, codec, browser-heap, process-RSS, or GC-headroom bound. The factory can
 allocate before returned context geometry is checked, a caller-side abort does
@@ -276,11 +284,10 @@ same or separate engines and renderers can overlap without a product-wide
 reservation. Other render paths—including realtime capture beyond the
 maintained worklet-to-sink stream described next, generic selection effects and
 spectral replacement, software or injected renderers, FFmpeg/WASM encoding, and
-native hosts—remain outside this central offline control. The non-mobile
-fast-render strategy can still select output between this 256 MiB ceiling and
-its 384 MiB hint; central admission refuses before context creation and the
-maintained export path falls back to realtime streaming, while latency-aware
-strategy alignment remains open.
+native hosts—remain outside this central offline control. The export strategy
+alignment is a per-plan decision, not a heap, RSS, GC, or product-wide
+reservation; other engines and renderers can still overlap, and direct engine
+callers retain the separate software-renderer fallback.
 
 Maintained realtime worklet-to-sink rendering has a separate strict admission.
 Before constructing an `AudioContext`, it accepts 1–32 channels and
