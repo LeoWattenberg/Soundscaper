@@ -13,6 +13,7 @@ export const STAFFPAD_MAXIMUM_RATIO = 2;
 export const STAFFPAD_MINIMUM_PITCH_CENTS = -1200;
 export const STAFFPAD_MAXIMUM_PITCH_CENTS = 1200;
 export const STAFFPAD_MAXIMUM_RENDER_BYTES = 512 * 1024 ** 2;
+export const STAFFPAD_MAXIMUM_BLOCK_FRAMES = 65_536;
 
 const MAXIMUM_KEYFRAMES = 1024;
 
@@ -165,7 +166,7 @@ export function normalizeStaffPadRenderRequest(request) {
 	}
 	const chunkFrames = request.chunkFrames == null
 		? 16_384
-		: integerRange(request.chunkFrames, 1024, 65_536, 'chunkFrames');
+		: integerRange(request.chunkFrames, 1024, STAFFPAD_MAXIMUM_BLOCK_FRAMES, 'chunkFrames');
 	return {
 		channels,
 		sampleRate,

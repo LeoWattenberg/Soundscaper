@@ -188,6 +188,88 @@ test('StaffPad transfers coordinator-owned stage input but preserves borrowed lo
 	);
 	assert.equal(borrowedChannels[0].byteLength, 32 * Float32Array.BYTES_PER_ELEMENT);
 	borrowed.dispose();
+
+	const paddedClient = new FakeStaffPadClient();
+	const padded = new ClipTimePitchRenderCacheCoordinator({
+		store: await sourceStore('transfer-padded'),
+		client: paddedClient,
+		loadSourceChannels: async () => [new Float32Array(new ArrayBuffer(256), 64, 32)],
+	});
+	await assert.rejects(
+		padded.prepareCommittedOutput({ ...clip, renderCacheRevision: 2 }, source),
+		(error) => error.code === 'SOURCE_FRAME_MISMATCH',
+	);
+	assert.equal(paddedClient.calls.length, 0, 'oversized backing buffers never reach structured clone or transfer');
+	padded.dispose();
+});
+
+test('StaffPad working-set admission rejects a huge source before loading, rendering, or writing', async () => {
+	const store = await sourceStore('working-set-refusal');
+	const originalBeginSourceWrite = store.beginSourceWrite.bind(store);
+	let writerCount = 0;
+	store.beginSourceWrite = async (...args) => {
+		writerCount += 1;
+		return originalBeginSourceWrite(...args);
+	};
+	let loaderCount = 0;
+	const client = new FakeStaffPadClient();
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({
+		store,
+		client,
+		loadSourceChannels: async () => {
+			loaderCount += 1;
+			return [new Float32Array(1)];
+		},
+	});
+	const source = sourceFixture({ frameCount: 50_331_648 });
+	const clip = clipFixture({ sourceDurationFrames: 1, durationFrames: 1 });
+
+	await assert.rejects(
+		coordinator.prepareCommittedOutput(clip, source),
+		(error) => error.code === 'RENDER_MEMORY_LIMIT_EXCEEDED'
+			&& error.details.limitBytes === 256 * 1024 ** 2
+			&& error.details.peakWorkingBytes > error.details.limitBytes,
+	);
+	assert.equal(loaderCount, 0);
+	assert.equal(client.calls.length, 0);
+	assert.equal(writerCount, 0);
+	coordinator.dispose();
+});
+
+test('distinct StaffPad cache jobs serialize before source loading and queued cancellation skips work', async () => {
+	const store = await sourceStore('serialized-working-set');
+	const client = new FakeStaffPadClient();
+	const firstGate = client.blockNext();
+	const loadedKeys = [];
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({
+		store,
+		client,
+		loadSourceChannels: async (source, { plan }) => {
+			loadedKeys.push(plan.finalKey);
+			return Array.from({ length: source.channelCount }, () => new Float32Array(source.frameCount));
+		},
+	});
+	const source = sourceFixture();
+	const first = await coordinator.requestClipRender(clipFixture({ id: 'first' }), source);
+	await client.waitForCalls(1);
+	const second = await coordinator.requestClipRender(clipFixture({
+		id: 'second', pitchCents: 100, renderCacheRevision: 1,
+	}), source);
+	const cancelledController = new AbortController();
+	const cancelled = await coordinator.requestClipRender(clipFixture({
+		id: 'cancelled', pitchCents: 200, renderCacheRevision: 2,
+	}), source, { signal: cancelledController.signal });
+	cancelledController.abort();
+
+	await assert.rejects(cancelled.pending, (error) => error.code === 'ABORTED');
+	assert.equal(loadedKeys.length, 1, 'queued jobs retain only their plans while the active render owns PCM');
+	assert.equal(client.calls.length, 1);
+	firstGate.resolve();
+	await first.pending;
+	await second.pending;
+	assert.equal(loadedKeys.length, 2);
+	assert.equal(client.calls.length, 2, 'the cancelled queued job never reaches StaffPad');
+	coordinator.dispose();
 });
 
 test('playback retains the last valid cache while a new revision renders and export waits for it', async () => {
@@ -341,6 +423,7 @@ test('cache APIs fail closed on invalid models, buffers, store chunks, and Staff
 
 	const store = await sourceStore('invalid');
 	const client = new FakeStaffPadClient();
+	assert.throws(() => new ClipTimePitchRenderCacheCoordinator({ store, client, maximumRenderWorkingBytes: 256 * 1024 ** 2 + 1 }), /render maximum/);
 	const coordinator = new ClipTimePitchRenderCacheCoordinator({ store, client });
 	assert.equal(coordinator.describe(clip, source).clipId, clip.id);
 	assert.equal(coordinator.getCommitted('missing'), null);

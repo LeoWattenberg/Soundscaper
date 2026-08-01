@@ -5,6 +5,7 @@
 
 import {
 	STAFFPAD_WASM_ABI_VERSION,
+	STAFFPAD_MAXIMUM_BLOCK_FRAMES,
 	evaluateStaffPadTransform,
 	isStaffPadPassThrough,
 	normalizeStaffPadRenderRequest,
@@ -52,7 +53,7 @@ export class StaffPadWasmRuntime {
 			throw new Error(`Unsupported StaffPad WASM ABI ${abiVersion}; expected ${STAFFPAD_WASM_ABI_VERSION}.`);
 		}
 		this.maximumBlockSize = this.exports.sp_maximum_block_size();
-		if (!Number.isInteger(this.maximumBlockSize) || this.maximumBlockSize < 1 || this.maximumBlockSize > 65_536) {
+		if (!Number.isInteger(this.maximumBlockSize) || this.maximumBlockSize < 1 || this.maximumBlockSize > STAFFPAD_MAXIMUM_BLOCK_FRAMES) {
 			throw new Error('StaffPad WASM reported an invalid maximum block size.');
 		}
 	}

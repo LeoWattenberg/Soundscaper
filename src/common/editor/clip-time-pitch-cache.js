@@ -15,13 +15,12 @@ import {
 } from './staffpad/index.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-v2.js';
 import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
-
+import { estimateClipTimePitchRenderAdmission, normalizeClipTimePitchRenderMaximumBytes } from './clip-time-pitch-render-admission.ts';
 export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;
 export const CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION = STAFFPAD_ALGORITHM_VERSION;
 export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
 export const CLIP_TIME_PITCH_DEFAULT_RESIDENT_CHANNEL_BYTES = 32 * 1024 ** 2;
 const MAXIMUM_SEQUENTIAL_STAGES = 32;
-
 export function clipNeedsTimePitchRender(clip) {
 	if (!clip || typeof clip !== 'object') return false;
 	return Number(clip.pitchCents ?? 0) !== 0 || Number(clip.speedRatio ?? 1) !== 1;
@@ -238,6 +237,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			options.maximumOutputBytes ?? STAFFPAD_MAXIMUM_RENDER_BYTES,
 			'maximumOutputBytes',
 		);
+		this.maximumRenderWorkingBytes = normalizeClipTimePitchRenderMaximumBytes(options.maximumRenderWorkingBytes);
 		this.requiredQuotaHeadroomBytes = nonNegativeInteger(
 			options.requiredQuotaHeadroomBytes ?? 0,
 			'requiredQuotaHeadroomBytes',
@@ -261,6 +261,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 		this.desiredByClip = new Map();
 		this.requestSequence = 0;
 		this.inFlight = new Map();
+		this.renderTail = Promise.resolve();
 		this.disposed = false;
 	}
 
@@ -488,10 +489,12 @@ export class ClipTimePitchRenderCacheCoordinator {
 			error: null,
 		};
 		this.inFlight.set(plan.finalKey, job);
-		job.promise = this.#renderAndCommit(plan, clip, source, {
+		const render = this.renderTail.then(() => this.#renderAndCommit(plan, clip, source, {
 			...options,
 			signal: controller.signal,
-		}).then((entry) => {
+		}));
+		this.renderTail = render.then(() => undefined, () => undefined);
+		job.promise = render.then((entry) => {
 			job.result = entry;
 			this.committedByKey.set(plan.finalKey, entry);
 			for (const [clipId, sequence] of job.interests) this.#publishForClip(clipId, sequence, entry);
@@ -501,7 +504,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			throw job.error;
 		}).finally(() => {
 			job.settled = true;
-			this.inFlight.delete(plan.finalKey);
+			if (this.inFlight.get(plan.finalKey) === job) this.inFlight.delete(plan.finalKey);
 		});
 		job.promise.catch(() => undefined);
 		return job;
@@ -582,6 +585,14 @@ export class ClipTimePitchRenderCacheCoordinator {
 
 	async #renderAndCommit(plan, clip, source, options) {
 		throwIfAborted(options.signal);
+		const { bytes: peakWorkingBytes, scope } = estimateClipTimePitchRenderAdmission(plan, {
+			chunkFrames: this.chunkFrames, transferLoadedSourceChannels: this.transferLoadedSourceChannels,
+		}).usefulBinaryWorkingSet;
+		if (peakWorkingBytes > this.maximumRenderWorkingBytes) throw cacheError(
+			'RENDER_MEMORY_LIMIT_EXCEEDED',
+			`The StaffPad clip render would exceed the ${this.maximumRenderWorkingBytes} byte working-set limit.`,
+			{ limitBytes: this.maximumRenderWorkingBytes, peakWorkingBytes, scope },
+		);
 		await assertQuota(this.store, plan, this.chunkFrames, this.requiredQuotaHeadroomBytes);
 		let channels = normalizeLoadedChannels(
 			await this.loadSourceChannels(source, { signal: options.signal, clip, plan }),
@@ -728,8 +739,9 @@ function normalizeLoadedChannels(value, plan) {
 		throw cacheError('SOURCE_CHANNEL_MISMATCH', 'Loaded source PCM does not match the V2 source channel count.');
 	}
 	return channels.map((channel, index) => {
-		if (!(channel instanceof Float32Array) || channel.length !== plan.sourceFrameCount) {
-			throw cacheError('SOURCE_FRAME_MISMATCH', `Loaded source channel ${index} does not match the V2 source frame count.`);
+		if (!(channel instanceof Float32Array) || channel.length !== plan.sourceFrameCount
+			|| channel.byteOffset !== 0 || channel.byteLength !== channel.buffer.byteLength) {
+			throw cacheError('SOURCE_FRAME_MISMATCH', `Loaded source channel ${index} does not have the exact V2 source allocation.`);
 		}
 		return channel;
 	});
@@ -740,7 +752,8 @@ function validateRenderedChannels(channels, channelCount, frameCount) {
 		throw cacheError('INVALID_RENDER_OUTPUT', 'StaffPad returned an invalid channel count.');
 	}
 	return channels.map((channel, index) => {
-		if (!(channel instanceof Float32Array) || channel.length !== frameCount) {
+		if (!(channel instanceof Float32Array) || channel.length !== frameCount
+			|| channel.byteOffset !== 0 || channel.byteLength !== channel.buffer.byteLength) {
 			throw cacheError('INVALID_RENDER_OUTPUT', `StaffPad returned an invalid channel ${index}.`);
 		}
 		return channel;
@@ -802,32 +815,26 @@ function normalizeCacheError(error) {
 	}
 	return cacheError('RENDER_FAILED', error?.message || 'The StaffPad clip render failed.', null, error);
 }
-
 function cacheError(code, message, details = null, cause = null) {
 	return new ClipTimePitchCacheError(code, message, { details, cause });
 }
-
 function abortError() {
 	const error = new ClipTimePitchCacheError('ABORTED', 'The clip time-and-pitch render was cancelled.');
 	error.name = 'AbortError';
 	return error;
 }
-
 function throwIfAborted(signal) {
 	if (signal?.aborted) throw abortError();
 }
-
 function reverseFloat32(input) {
 	const output = new Float32Array(input.length);
 	for (let index = 0; index < input.length; index += 1) output[index] = input[input.length - index - 1];
 	return output;
 }
-
 function sourceRevision(source) {
 	const value = source.revision ?? source.opaqueExtensions?.revision ?? source.opaqueExtensions?.sourceRevision ?? 0;
 	return nonNegativeInteger(value, 'source revision');
 }
-
 function freezeTransform(transform) {
 	return Object.freeze({
 		preserveFormants: transform.preserveFormants,
@@ -835,37 +842,31 @@ function freezeTransform(transform) {
 		keyframes: Object.freeze(transform.keyframes.map((keyframe) => Object.freeze({ ...keyframe }))),
 	});
 }
-
 function isAudioBufferLike(value) {
 	return Boolean(value && Number.isSafeInteger(value.numberOfChannels) && value.numberOfChannels > 0
 		&& Number.isSafeInteger(value.length) && value.length > 0
 		&& typeof value.getChannelData === 'function');
 }
-
 function stableSerialize(value) {
 	if (value === null || typeof value !== 'object') return JSON.stringify(Object.is(value, -0) ? 0 : value);
 	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
 	return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
 }
-
 function cloneJson(value) {
 	if (value == null) return value;
 	if (typeof structuredClone === 'function') return structuredClone(value);
 	return JSON.parse(JSON.stringify(value));
 }
-
 function nonEmptyString(value, name) {
 	const result = String(value ?? '').trim();
 	if (!result) throw new TypeError(`${name} must be a non-empty string.`);
 	return result;
 }
-
 function positiveFinite(value, name) {
 	const number = Number(value);
 	if (!Number.isFinite(number) || number <= 0) throw new RangeError(`${name} must be finite and positive.`);
 	return number;
 }
-
 function finiteRange(value, minimum, maximum, name) {
 	const number = Number(value);
 	if (!Number.isFinite(number) || number < minimum || number > maximum) {
@@ -873,7 +874,6 @@ function finiteRange(value, minimum, maximum, name) {
 	}
 	return number;
 }
-
 function positiveInteger(value, name) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
