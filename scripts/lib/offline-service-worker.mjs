@@ -83,12 +83,12 @@ export async function activateOfflineShell({ configuration, cacheStorage, client
 	const active = await cacheStorage.open(activeName);
 	const readiness = await active.match(shellReadinessUrl(configuration.releaseId));
 	if (!readiness?.ok) throw new Error('Offline shell cache is not complete.');
+	await clients.claim();
 	for (const cacheName of await cacheStorage.keys()) {
 		if (cacheName.startsWith('soundscaper-application-shell-v1-') && cacheName !== activeName) {
-			await cacheStorage.delete(cacheName);
+			await cacheStorage.delete(cacheName).catch(() => false);
 		}
 	}
-	await clients.claim();
 }
 
 export async function handleOfflineShellFetch({

@@ -32,6 +32,12 @@ test('static web routes receive product-specific install manifests and Apple tou
 	assert.doesNotMatch(framescaper, /manifest-soundscaper|soundscaper-180/u);
 });
 
+test('stable install metadata and icon URLs require revalidation', async () => {
+	const headers = await readFile('public/_headers', 'utf8');
+	assert.match(headers, /\/offline-icons\/\*\n\tCache-Control: no-cache/u);
+	assert.match(headers, /\/manifest-\*\.webmanifest\n\tCache-Control: no-cache/u);
+});
+
 function assertInstallLinks(html, productId) {
 	assert.match(html, new RegExp(`<link rel="manifest" href="/manifest-${productId}\\.webmanifest" data-product-manifest \\/>`, 'u'));
 	assert.match(html, new RegExp(`<link rel="apple-touch-icon" sizes="180x180" href="/offline-icons/${productId}-180\\.png" data-product-install-icon \\/>`, 'u'));
