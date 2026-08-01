@@ -35,6 +35,14 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	const targetStore = memoryStore('scape-roundtrip-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
+	await sourceStore.saveVideoDerivative('video-source', {
+		timestamp: 0,
+		type: 'poster',
+		blob: new Blob(['disposable poster'], { type: 'image/webp' }),
+		width: 320,
+		height: 180,
+	});
+	assert.equal((await sourceStore.listVideoDerivatives('video-source')).length, 1);
 	await sourceStore.saveProject(project);
 
 	const exported = await exportScapeProject(project, sourceStore);
@@ -59,6 +67,7 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 		project.sources.find((source) => source.id === 'audio-source').opaqueExtensions);
 	assert.deepEqual(imported.project.opaqueExtensions, project.opaqueExtensions);
 	assert.equal((await targetStore.loadMediaAsset('video-source')).size, 11);
+	assert.deepEqual(await targetStore.listVideoDerivatives('video-source'), []);
 	const retainedMedia = await targetStore.getMediaAssetMetadata('video-source');
 	const videoDescriptor = exported.manifest.assets.find(({ sourceId }) => sourceId === 'video-source');
 	assert.equal(retainedMedia.sha256, videoDescriptor.sha256);
