@@ -421,6 +421,10 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, BW64, and cancellati
 	assert.equal(aggregate.aiffFile.signal.channelMismatchSamples, 0);
 	assert.equal(aggregate.bwfFile.riff.bextPayloadBytes, 689);
 	assert.equal(aggregate.bwfFile.bext.timeReference, '48000');
+	assert.equal(
+		aggregate.bwfFile.bext.umid,
+		'060a2b340101010501010d00130000000123456789abcdef0123456789abcdef112233445566778899aabbccddeeff00ffeeddccbbaa99887766554433221100',
+	);
 	assert.equal(aggregate.bwfFile.signal.channelComparisons, 95_039_880);
 	assert.equal(aggregate.bw64File.riff.riffId, 'BW64');
 	assert.equal(aggregate.bw64File.bext.timeReference, '48000');

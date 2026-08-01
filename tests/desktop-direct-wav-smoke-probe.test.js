@@ -342,7 +342,8 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 	assert.deepEqual(scope.document.fixture.bextAtStart[3], {
 		description: 'Soundscaper packaged BWF smoke', originator: 'Soundscaper',
 		originatorReference: 'PACKAGED-BWF-0001', originationDate: '2026-07-30',
-		originationTime: '12:34:56', timeReference: '6000', umid: '',
+		originationTime: '12:34:56', timeReference: '6000',
+		umid: '060a2b340101010501010d00130000000123456789abcdef0123456789abcdef112233445566778899aabbccddeeff00ffeeddccbbaa99887766554433221100',
 		loudnessValue: '', loudnessRange: '', maxTruePeakLevel: '',
 		maxMomentaryLoudness: '', maxShortTermLoudness: '',
 		codingHistory: 'A=PCM,F=48000,W=16,M=stereo,T=SmokeFixture\n',

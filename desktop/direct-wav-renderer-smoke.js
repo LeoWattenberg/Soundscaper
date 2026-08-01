@@ -292,7 +292,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			originationDate: '2026-07-30',
 			originationTime: '12:34:56',
 			timeReference: '6000',
-			umid: '',
+			umid: '060a2b340101010501010d00130000000123456789abcdef0123456789abcdef112233445566778899aabbccddeeff00ffeeddccbbaa99887766554433221100',
 			loudnessValue: '',
 			loudnessRange: '',
 			maxTruePeakLevel: '',

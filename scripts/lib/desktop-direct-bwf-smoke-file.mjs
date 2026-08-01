@@ -29,7 +29,7 @@ const BEXT_METADATA = {
 	originationTime: '12:34:56',
 	timeReference: '48000',
 	version: 2,
-	umid: '',
+	umid: '060a2b340101010501010d00130000000123456789abcdef0123456789abcdef112233445566778899aabbccddeeff00ffeeddccbbaa99887766554433221100',
 	loudnessValue: null,
 	loudnessRange: null,
 	maxTruePeakLevel: null,
@@ -236,7 +236,8 @@ function parseAndValidateBext(header) {
 	if (header.readUInt16LE(payload + 346) !== 2) {
 		throw new Error('Completed direct-BWF BEXT version is invalid');
 	}
-	if (header.subarray(payload + 348, payload + 412).some((byte) => byte !== 0)) {
+	const umid = Buffer.from(BEXT_METADATA.umid, 'hex');
+	if (umid.byteLength !== 64 || !header.subarray(payload + 348, payload + 412).equals(umid)) {
 		throw new Error('Completed direct-BWF BEXT UMID is invalid');
 	}
 	for (let offset = payload + 412; offset < payload + 422; offset += 2) {

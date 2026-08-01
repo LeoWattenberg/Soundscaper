@@ -14,6 +14,12 @@ import {
 	verifyDesktopDirectBwfFile,
 } from '../scripts/lib/desktop-direct-bwf-smoke-file.mjs';
 
+const PACKAGED_BWF_UMID = [
+	'060a2b340101010501010d0013000000',
+	'0123456789abcdef0123456789abcdef',
+	'112233445566778899aabbccddeeff00',
+	'ffeeddccbbaa99887766554433221100',
+].join('');
 const SMALL_GEOMETRY = Object.freeze({
 	sampleRate: 384_000,
 	channelCount: 4,
@@ -66,7 +72,7 @@ test('direct-BWF completed geometry and authored BEXT form one exact fixture con
 			originationTime: '12:34:56',
 			timeReference: '48000',
 			version: 2,
-			umid: '',
+			umid: PACKAGED_BWF_UMID,
 			loudnessValue: null,
 			loudnessRange: null,
 			maxTruePeakLevel: null,
@@ -78,6 +84,8 @@ test('direct-BWF completed geometry and authored BEXT form one exact fixture con
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE), true);
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output), true);
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.bext), true);
+	assert.match(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.bext.umid, /^[a-f\d]{128}$/u);
+	assert.equal(Buffer.from(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.bext.umid, 'hex').byteLength, 64);
 	assert.equal(
 		Number(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.input.timeReference)
 			* DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.sampleRate
@@ -106,6 +114,7 @@ test('completed BWF evidence validation admits only the exact production verifie
 		(value) => { value.riff.trailingBytes = 1; },
 		(value) => { value.riff.unexpected = 0; },
 		(value) => { value.bext.description = 'Different'; },
+		(value) => { value.bext.umid = value.bext.umid.toUpperCase(); },
 		(value) => { value.bext.unexpected = 0; },
 		(value) => { value.signal.frameCount -= 1; },
 	]) {
@@ -120,6 +129,7 @@ test('completed BWF verification streams exact RIFF, BEXT, extensible fmt, and s
 	t.after(() => rm(root, { recursive: true, force: true }));
 	const samples = [-100, -1, 0, 1, 100];
 	const bwf = pcmBwf(SMALL_GEOMETRY, samples);
+	assert.equal(bwf.subarray(368, 432).toString('hex'), PACKAGED_BWF_UMID);
 	const path = join(root, 'completed-bwf.wav');
 	await writeFile(path, bwf);
 
@@ -178,7 +188,7 @@ test('completed BWF verification rejects chunk, geometry, and BEXT metadata corr
 		['BEXT time', (bytes) => { bytes[350] ^= 1; }],
 		['BEXT time reference', (bytes) => { bytes[358] ^= 1; }],
 		['BEXT version', (bytes) => bytes.writeUInt16LE(1, 366)],
-		['BEXT UMID', (bytes) => { bytes[368] = 1; }],
+		['BEXT UMID', (bytes) => { bytes[368] ^= 0xff; }],
 		['BEXT loudness', (bytes) => bytes.writeUInt16LE(0, 432)],
 		['BEXT reserved', (bytes) => { bytes[442] = 1; }],
 		['BEXT coding history', (bytes) => { bytes[622] ^= 1; }],
