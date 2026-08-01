@@ -26,6 +26,26 @@ test('storage capacity refresh ignores a late completion after controller shutdo
 	assert.deepEqual(updates, []);
 });
 
+test('project preflight preserves a known shortage after the controller becomes inactive', async () => {
+	const estimate = deferred<Readonly<{ usage: number; quota: number }>>();
+	let inactive = false;
+	const updates: unknown[] = [];
+	const service = createStorageCapacityService({
+		estimateStorage: () => estimate.promise,
+		isInactive: () => inactive,
+		setSnapshot: (value) => { updates.push(value); },
+		publish: () => { updates.push('publish'); },
+		copy: copyFixture(),
+	});
+
+	const preflight = service.preflightStorage(100, 'project');
+	inactive = true;
+	estimate.resolve({ usage: 900, quota: 1_000 });
+
+	await assert.rejects(preflight, /Project saving needs 100 B/u);
+	assert.equal(updates.length, 2);
+});
+
 test('storage preflight publishes its requirement before estimating and records its outcome', async () => {
 	const estimate = deferred<Readonly<{ usage: number; quota: number }>>();
 	const updates: unknown[] = [];

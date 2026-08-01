@@ -178,8 +178,8 @@ export function createStorageCapacityService(
 		const requirement = storagePreflightRequirement(requiredBytes, operation);
 		const estimate = await estimateStorageForPreflight(requirement.requiredBytes, operation);
 		const capacity = capacityFromEstimate(estimate);
-		if (dependencies.isInactive()
-			|| capacity.free === null
+		if (capacity.free === null
+			|| (dependencies.isInactive() && operation !== 'project')
 			|| capacity.free >= requirement.requiredFreeBytes) return;
 		throw new Error(dependencies.copy.insufficientStorage
 			.replace('{operation}', operationLabel(operation))

@@ -84,6 +84,32 @@ test('disposal flushes the latest writable project before closing storage', asyn
 	assert.equal(store.closeCalls, 1);
 });
 
+test('disposal refuses a terminal project save when IndexedDB capacity is known insufficient', async () => {
+	const store = createStore();
+	store.getStatus = () => ({ backend: 'indexeddb' });
+	store.estimateStorage = async () => ({ usage: 1_000_000, quota: 1_000_000 });
+	const saveProject = store.saveProject.bind(store);
+	let saveCalls = 0;
+	store.saveProject = async (project) => { saveCalls += 1; await saveProject(project); };
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store,
+		engine: createEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createCache(),
+	});
+	await controller.ready;
+	const saveCallsBeforeDisposal = saveCalls;
+	const trackId = controller.getSnapshot().project.tracks[0].id;
+	controller.actions.track.update(trackId, { name: 'Must remain unsaved' });
+
+	await assert.rejects(controller.dispose(), /Not enough local storage for project saving/u);
+	assert.equal(saveCalls, saveCallsBeforeDisposal);
+	assert.equal(store.closeCalls, 1);
+	assert.equal(controller.getSnapshot().phase, 'disposed');
+});
+
 test('analysis finishing after a project switch cannot publish or persist stale results', async () => {
 	const renderGate = deferred();
 	const renderStarted = deferred();
