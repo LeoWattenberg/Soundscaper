@@ -24,6 +24,7 @@ import type { StorageRecord } from './media-records.ts';
 import type { AudioSourceWriter } from './source-write-repository.ts';
 
 export const DESKTOP_SHARED_AUDIO_ENCODING = 'audio-f32le-chunks-v1' as const;
+export const DESKTOP_SHARED_VIDEO_ENCODING = 'video-original-v1' as const;
 export const MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
 
 const DIGEST = /^[a-f0-9]{64}$/u;
@@ -39,20 +40,32 @@ interface ManagedAudioSource extends ScapeAudioSource, Readonly<Record<string, u
 	readonly sampleRate: number;
 }
 
-export interface DesktopSharedManagedSourceDescriptor {
+interface DesktopSharedManagedSourceDescriptorBase {
 	readonly bindingId: string;
 	readonly byteLength: number;
-	readonly encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING;
-	readonly kind: 'audio';
 	readonly sha256: string;
 	readonly sourceId: string;
 	readonly storageKey: string;
 }
 
+export type DesktopSharedManagedAudioSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & Readonly<{
+	readonly encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING;
+	readonly kind: 'audio';
+}>;
+
+export type DesktopSharedManagedVideoSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & Readonly<{
+	readonly encoding: typeof DESKTOP_SHARED_VIDEO_ENCODING;
+	readonly kind: 'video';
+}>;
+
+export type DesktopSharedManagedSourceDescriptor =
+	| DesktopSharedManagedAudioSourceDescriptor
+	| DesktopSharedManagedVideoSourceDescriptor;
+
 export interface DesktopSharedSourceTransferBridge {
 	beginSharedSourceWrite(declaration: Readonly<{
 		byteLength: number;
-		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING;
+		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING | typeof DESKTOP_SHARED_VIDEO_ENCODING;
 		projectId: string;
 		projectRevision: number;
 		sha256: string;
@@ -267,7 +280,7 @@ async function digestAudioSource(
 
 async function acquireAudioSource(
 	source: ManagedAudioSource,
-	descriptor: DesktopSharedManagedSourceDescriptor,
+	descriptor: DesktopSharedManagedAudioSourceDescriptor,
 	bridge: Pick<DesktopSharedSourceTransferBridge, 'readSharedSourceChunk'>,
 	store: Pick<DesktopSharedSourceTransferStore, 'beginSourceWrite'>,
 	signal?: AbortSignal,
@@ -306,7 +319,7 @@ async function acquireAudioSource(
 }
 
 function managedAudioEntry(
-	descriptor: DesktopSharedManagedSourceDescriptor,
+	descriptor: DesktopSharedManagedAudioSourceDescriptor,
 	bridge: Pick<DesktopSharedSourceTransferBridge, 'readSharedSourceChunk'>,
 ): ScapeArchiveEntry {
 	return {
@@ -401,12 +414,12 @@ function indexManagedDescriptors(
 	values: readonly unknown[],
 	project: AudioEditorProjectV9,
 	sources: readonly ManagedAudioSource[],
-): ReadonlyMap<string, DesktopSharedManagedSourceDescriptor> {
+): ReadonlyMap<string, DesktopSharedManagedAudioSourceDescriptor> {
 	if (!Array.isArray(values)) throw new TypeError('Desktop shared-source descriptors must be an array.');
 	const reachable = new Set(sources.map(({ id }) => id));
-	const byId = new Map<string, DesktopSharedManagedSourceDescriptor>();
+	const byId = new Map<string, DesktopSharedManagedAudioSourceDescriptor>();
 	for (const value of values) {
-		const descriptor = managedDescriptor(value);
+		const descriptor = managedAudioDescriptor(value);
 		if (!reachable.has(descriptor.sourceId)) {
 			throw new Error(`Managed source ${descriptor.sourceId} is not reachable from project ${project.id}.`);
 		}
@@ -418,7 +431,7 @@ function indexManagedDescriptors(
 	return byId;
 }
 
-function managedDescriptor(value: unknown): DesktopSharedManagedSourceDescriptor {
+function managedAudioDescriptor(value: unknown): DesktopSharedManagedAudioSourceDescriptor {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source descriptor must be an object.');
 	}
@@ -448,7 +461,7 @@ function matchingDescriptor(
 	byteLength: number,
 	sha256: string,
 ): DesktopSharedManagedSourceDescriptor {
-	const descriptor = managedDescriptor(value);
+	const descriptor = managedAudioDescriptor(value);
 	if (descriptor.sourceId !== source.id || descriptor.storageKey !== source.storageKey
 		|| descriptor.byteLength !== byteLength || descriptor.sha256 !== sha256) {
 		throw new Error(`Managed source descriptor does not match audio source ${source.id}.`);

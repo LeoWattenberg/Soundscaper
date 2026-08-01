@@ -53,7 +53,7 @@ interface CurrentDesktopProjectRoot extends Record<string, unknown> {
 type DesktopSharedProjectLibraryHost = Pick<DesktopProjectLibraryHost,
 	'commitProjectById'
 	| 'deleteProjectById'
-	| 'publishManagedAudio'
+	| 'publishManagedMedia'
 	| 'readCatalog'
 	| 'readManagedMedia'
 	| 'readProjectById'
@@ -251,7 +251,7 @@ function assertHost(value: DesktopSharedProjectLibraryHost): void {
 	for (const method of [
 		'commitProjectById',
 		'deleteProjectById',
-		'publishManagedAudio',
+		'publishManagedMedia',
 		'readCatalog',
 		'readManagedMedia',
 		'readProjectById',

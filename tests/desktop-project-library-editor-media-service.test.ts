@@ -16,7 +16,7 @@ import {
 	type DesktopSharedSourceWriteDeclaration,
 } from '../desktop/project-library-editor-media-service.ts';
 import type {
-	DesktopProjectLibraryHostPublishAudioOptions,
+	DesktopProjectLibraryHostPublishMediaOptions,
 } from '../desktop/project-library-host.ts';
 import {
 	createDesktopLibraryAudioMediaBinding,
@@ -73,7 +73,7 @@ interface Deferred<Value> {
 }
 
 type PublishHandler = (
-	options: DesktopProjectLibraryHostPublishAudioOptions,
+	options: DesktopProjectLibraryHostPublishMediaOptions,
 ) => Promise<DesktopLibraryMedia>;
 
 type ReadHandler = (
@@ -88,7 +88,7 @@ type BundleReadHandler = (
 
 class FakeManagedMediaHost {
 	readonly bundleReads: Array<Readonly<{ projectId: string; signal?: AbortSignal }>> = [];
-	readonly publications: DesktopProjectLibraryHostPublishAudioOptions[] = [];
+	readonly publications: DesktopProjectLibraryHostPublishMediaOptions[] = [];
 	readonly mediaReads: MediaReadCall[] = [];
 	readonly #bundle: DesktopLibraryLoadedProjectBundle;
 	readonly #bundleRead: BundleReadHandler;
@@ -118,7 +118,7 @@ class FakeManagedMediaHost {
 		return this.#bundleRead(projectId, signal);
 	}
 
-	publishManagedAudio(options: DesktopProjectLibraryHostPublishAudioOptions): Promise<DesktopLibraryMedia> {
+	publishManagedMedia(options: DesktopProjectLibraryHostPublishMediaOptions): Promise<DesktopLibraryMedia> {
 		this.publications.push(options);
 		return this.#publish(options);
 	}
@@ -163,7 +163,7 @@ test('project bundles expose only reachable catalog-backed audio mappings', asyn
 	assert.equal(host.publications.length, 0);
 });
 
-test('source-write admission rejects incorrect geometry and non-audio sources', async () => {
+test('source-write admission rejects incorrect geometry and encoding-kind mismatches', async () => {
 	const fixture = projectFixture();
 	const host = new FakeManagedMediaHost(bundle(fixture.project));
 	const service = new DesktopSharedProjectMediaService(host, { randomId: () => WRITE_ID });
@@ -175,7 +175,7 @@ test('source-write admission rejects incorrect geometry and non-audio sources', 
 	);
 	await assert.rejects(
 		service.beginSourceWrite({ ...declaration, sourceId: fixture.videoSourceId }),
-		/accepts only audio/u,
+		/encoding.*source kind/u,
 	);
 	assert.equal(host.publications.length, 0);
 });
@@ -521,7 +521,7 @@ function mediaForSource(
 	return Object.freeze({ ...binding, byteLength: canonicalByteLength(source), sha256 });
 }
 
-function mediaForPublication(options: DesktopProjectLibraryHostPublishAudioOptions): DesktopLibraryMedia {
+function mediaForPublication(options: DesktopProjectLibraryHostPublishMediaOptions): DesktopLibraryMedia {
 	const binding = createDesktopLibraryAudioMediaBinding(
 		options.projectId,
 		options.storageKey,

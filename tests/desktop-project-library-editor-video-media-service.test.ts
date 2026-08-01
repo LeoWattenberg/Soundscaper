@@ -1,0 +1,269 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import test from 'node:test';
+
+import type {
+	DesktopLibraryMedia,
+	DesktopLibraryProject,
+} from '../desktop/project-library-contract.ts';
+import {
+	DesktopSharedProjectMediaService,
+	type DesktopSharedSourceWriteDeclaration,
+} from '../desktop/project-library-editor-media-service.ts';
+import type {
+	DesktopProjectLibraryHostPublishMediaOptions,
+} from '../desktop/project-library-host.ts';
+import {
+	createDesktopLibraryVideoMediaBinding,
+	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	type DesktopLibraryManagedMediaReadOptions,
+} from '../desktop/project-library-media.ts';
+import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
+import {
+	createAudioEditorProjectV9,
+	createVideoClipV9,
+	createVideoSourceV9,
+	type AudioEditorProjectV9,
+} from '../src/common/editor/project-v9.ts';
+
+const PROJECT_DIGEST = '0'.repeat(64);
+const WRITE_ID = '2'.repeat(32);
+
+test('project bundles expose exact reachable managed original-video descriptors', async () => {
+	const fixture = videoFixture();
+	const media = mediaForVideo(fixture.project, fixture.source, 11, 'a'.repeat(64));
+	const host = new FakeManagedMediaHost(bundle(fixture.project, [media]));
+	const service = new DesktopSharedProjectMediaService(host);
+
+	const result = await service.readProjectBundle(fixture.project.id);
+
+	assert.ok(result);
+	assert.deepEqual(result.sources, [{
+		bindingId: media.id,
+		byteLength: media.byteLength,
+		encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+		kind: 'video',
+		sha256: media.sha256,
+		sourceId: fixture.source.id,
+		storageKey: fixture.source.storageKey,
+	}]);
+});
+
+test('video source writes use the existing bounded upload session and exact project fence', async () => {
+	const fixture = videoFixture();
+	const bytes = Uint8Array.of(1, 3, 5, 7, 9);
+	const sha256 = digest(bytes);
+	const received: Uint8Array[] = [];
+	const host = new FakeManagedMediaHost(bundle(fixture.project), {
+		publish: async (options) => {
+			for await (const chunk of options.chunks) received.push(chunk.slice());
+			return mediaForPublication(options);
+		},
+	});
+	const service = new DesktopSharedProjectMediaService(host, { randomId: () => WRITE_ID });
+
+	const admission = await service.beginSourceWrite(videoDeclaration(fixture, bytes.byteLength, sha256));
+	assert.equal(admission.status, 'ready');
+	if (admission.status !== 'ready') throw new Error('Expected a ready video write');
+	assert.deepEqual(await service.writeSourceChunk({
+		writeId: admission.writeId,
+		offset: 0,
+		bytes: bytes.subarray(0, 2),
+	}), { nextOffset: 2 });
+	assert.deepEqual(await service.writeSourceChunk({
+		writeId: admission.writeId,
+		offset: 2,
+		bytes: bytes.subarray(2),
+	}), { nextOffset: bytes.byteLength });
+	const descriptor = await service.finishSourceWrite({ writeId: admission.writeId, sha256 });
+
+	assert.deepEqual(received, [bytes.subarray(0, 2), bytes.subarray(2)]);
+	assert.equal(descriptor.kind, 'video');
+	assert.equal(descriptor.encoding, DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING);
+	assert.equal(descriptor.byteLength, bytes.byteLength);
+	assert.equal(host.publications[0]?.expectedProjectRevision, fixture.project.revision);
+	assert.equal(host.publications[0]?.expectedProjectSha256, PROJECT_DIGEST);
+	assert.equal(host.publications[0]?.encoding, DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING);
+});
+
+test('video admission rejects empty bodies and encoding-kind mismatches before publication', async () => {
+	const fixture = videoFixture();
+	const host = new FakeManagedMediaHost(bundle(fixture.project));
+	const service = new DesktopSharedProjectMediaService(host, { randomId: () => WRITE_ID });
+
+	await assert.rejects(
+		service.beginSourceWrite(videoDeclaration(fixture, 0, digest(new Uint8Array()))),
+		/original video.*positive|byte length.*positive/iu,
+	);
+	await assert.rejects(service.beginSourceWrite({
+		...videoDeclaration(fixture, 1, 'b'.repeat(64)),
+		encoding: 'audio-f32le-chunks-v1',
+	}), /encoding.*kind|accepts only audio/iu);
+	assert.equal(host.publications.length, 0);
+});
+
+interface TestVideoSource extends Readonly<Record<string, unknown>> {
+	readonly id: string;
+	readonly kind: 'video';
+	readonly storageKey: string;
+	readonly mimeType: string;
+	readonly frameCount: number;
+	readonly sampleRate: number;
+	readonly width: number;
+	readonly height: number;
+	readonly frameRate: number;
+	readonly videoCodec: string;
+	readonly audioCodec: string;
+	readonly hasAudio: boolean;
+}
+
+interface VideoFixture {
+	readonly project: AudioEditorProjectV9;
+	readonly source: TestVideoSource;
+}
+
+class FakeManagedMediaHost {
+	readonly publications: DesktopProjectLibraryHostPublishMediaOptions[] = [];
+	readonly #bundle: DesktopLibraryLoadedProjectBundle;
+	readonly #publish: (
+		options: DesktopProjectLibraryHostPublishMediaOptions,
+	) => Promise<DesktopLibraryMedia>;
+
+	constructor(
+		bundleValue: DesktopLibraryLoadedProjectBundle,
+		options: Readonly<{
+			publish?: (
+				publication: DesktopProjectLibraryHostPublishMediaOptions,
+			) => Promise<DesktopLibraryMedia>;
+		}> = {},
+	) {
+		this.#bundle = bundleValue;
+		this.#publish = options.publish ?? ((publication) => Promise.resolve(mediaForPublication(publication)));
+	}
+
+	readProjectBundleById(projectId: string): Promise<DesktopLibraryLoadedProjectBundle | null> {
+		return Promise.resolve(projectId === this.#bundle.project.id ? this.#bundle : null);
+	}
+
+	publishManagedMedia(options: DesktopProjectLibraryHostPublishMediaOptions): Promise<DesktopLibraryMedia> {
+		this.publications.push(options);
+		return this.#publish(options);
+	}
+
+	readManagedMedia(_bindingId: string, _options: DesktopLibraryManagedMediaReadOptions): Promise<Uint8Array> {
+		return Promise.reject(new Error('Unexpected managed-media read'));
+	}
+}
+
+function videoFixture(): VideoFixture {
+	const source = createVideoSourceV9({
+		id: 'managed-video',
+		name: 'Managed video',
+		mimeType: 'video/mp4',
+		storageKey: 'managed-video-storage',
+		frameCount: 120,
+		sampleRate: 48_000,
+		width: 1_920,
+		height: 1_080,
+		frameRate: 30,
+		videoCodec: 'h264',
+		audioCodec: 'aac',
+		hasAudio: true,
+	}) as TestVideoSource;
+	const clip = createVideoClipV9({
+		id: 'managed-video-bin-clip',
+		sourceId: source.id,
+		durationFrames: source.frameCount,
+		binItemId: 'managed-video-bin-item',
+	});
+	const project = createAudioEditorProjectV9({
+		id: 'managed-video-project',
+		title: 'Managed video project',
+		revision: 8,
+		now: '2026-08-01T12:00:00.000Z',
+		sampleRate: 48_000,
+		sources: [source],
+		projectBin: { clips: [clip] },
+	});
+	return Object.freeze({ project, source });
+}
+
+function videoDeclaration(
+	fixture: VideoFixture,
+	byteLength: number,
+	sha256: string,
+): DesktopSharedSourceWriteDeclaration {
+	return Object.freeze({
+		byteLength,
+		encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+		projectId: fixture.project.id,
+		projectRevision: fixture.project.revision,
+		sha256,
+		sourceId: fixture.source.id,
+	});
+}
+
+function bundle(
+	project: AudioEditorProjectV9,
+	media: readonly DesktopLibraryMedia[] = [],
+): DesktopLibraryLoadedProjectBundle {
+	return Object.freeze({ catalog: catalogProject(project), project, media: Object.freeze([...media]) });
+}
+
+function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
+	return Object.freeze({
+		id: 'managed-video-entry',
+		projectId: project.id,
+		name: project.title,
+		metadataFile: 'projects/managed-video-entry/project.scape',
+		preferredProduct: 'soundscaper',
+		updatedAtMs: 1,
+		projectSchemaVersion: 9,
+		projectRevision: project.revision,
+		byteLength: 1,
+		sha256: PROJECT_DIGEST,
+	});
+}
+
+function mediaForVideo(
+	project: AudioEditorProjectV9,
+	source: TestVideoSource,
+	byteLength: number,
+	sha256: string,
+): DesktopLibraryMedia {
+	const binding = createDesktopLibraryVideoMediaBinding(
+		project.id, videoBindingKey(source), project.revision, PROJECT_DIGEST,
+	);
+	return Object.freeze({ ...binding, byteLength, sha256 });
+}
+
+function mediaForPublication(options: DesktopProjectLibraryHostPublishMediaOptions): DesktopLibraryMedia {
+	const binding = createDesktopLibraryVideoMediaBinding(
+		options.projectId,
+		options.storageKey,
+		options.expectedProjectRevision,
+		options.expectedProjectSha256,
+	);
+	return Object.freeze({ ...binding, byteLength: options.byteLength, sha256: options.sha256 });
+}
+
+function videoBindingKey(source: TestVideoSource): string {
+	return JSON.stringify([
+		source.storageKey,
+		source.mimeType,
+		source.frameCount,
+		source.sampleRate,
+		source.width,
+		source.height,
+		source.frameRate,
+		source.videoCodec,
+		source.audioCodec,
+		source.hasAudio,
+	]);
+}
+
+function digest(bytes: Uint8Array): string {
+	return createHash('sha256').update(bytes).digest('hex');
+}

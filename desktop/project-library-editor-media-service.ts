@@ -7,9 +7,11 @@ import type {
 	DesktopLibraryLoadedProjectBundle,
 } from './project-library-projects.ts';
 import {
-	createDesktopLibraryAudioMediaBinding,
+	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
-} from './project-library-media.ts';
+	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	type DesktopLibraryManagedMediaEncoding,
+} from './project-library-media-binding.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import {
 	validateAudioEditorProjectV9,
@@ -17,6 +19,7 @@ import {
 } from '../src/common/editor/project-v9-validation.ts';
 import { collectProjectSourceIds } from '../src/common/editor/retention.js';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
+import { SequentialUploadInput } from './project-library-sequential-upload.ts';
 
 export const MAXIMUM_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MAXIMUM_SHARED_SOURCE_BYTES = 64 * 1024 * 1024 * 1024;
@@ -38,15 +41,35 @@ interface ManagedAudioSource extends Record<string, unknown> {
 	readonly chunkFrames: number;
 }
 
-export interface DesktopSharedManagedSourceDescriptor {
+interface ManagedVideoSource extends Record<string, unknown> {
+	readonly id: string;
+	readonly kind: 'video';
+	readonly storageKey: string;
+	readonly mimeType: string;
+	readonly frameCount: number;
+	readonly sampleRate: number;
+	readonly width: number;
+	readonly height: number;
+	readonly frameRate: number;
+	readonly videoCodec: string;
+	readonly audioCodec?: string;
+	readonly hasAudio: boolean;
+}
+
+type ManagedSource = ManagedAudioSource | ManagedVideoSource;
+
+interface DesktopSharedManagedSourceDescriptorBase {
 	readonly bindingId: string;
 	readonly byteLength: number;
-	readonly encoding: typeof DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING;
-	readonly kind: 'audio';
 	readonly sha256: string;
 	readonly sourceId: string;
 	readonly storageKey: string;
 }
+
+export type DesktopSharedManagedSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & (
+	| Readonly<{ readonly encoding: typeof DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING; readonly kind: 'audio' }>
+	| Readonly<{ readonly encoding: typeof DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING; readonly kind: 'video' }>
+);
 
 export interface DesktopSharedProjectBundle {
 	readonly document: string;
@@ -55,7 +78,7 @@ export interface DesktopSharedProjectBundle {
 
 export interface DesktopSharedSourceWriteDeclaration {
 	readonly byteLength: number;
-	readonly encoding: typeof DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING;
+	readonly encoding: DesktopLibraryManagedMediaEncoding;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sha256: string;
@@ -83,7 +106,7 @@ export interface DesktopSharedSourceWriteCompletion {
 }
 
 type ManagedMediaHost = Pick<DesktopProjectLibraryHost,
-	'publishManagedAudio'
+	'publishManagedMedia'
 	| 'readManagedMedia'
 	| 'readProjectBundleById'>;
 
@@ -91,16 +114,9 @@ interface UploadSession {
 	readonly id: string;
 	readonly input: SequentialUploadInput;
 	readonly operation: Promise<DesktopSharedManagedSourceDescriptor>;
-	readonly source: ManagedAudioSource;
 	readonly sha256: string;
 	state: 'aborting' | 'finishing' | 'open';
 	written: number;
-}
-
-interface Deferred<Value> {
-	readonly promise: Promise<Value>;
-	readonly reject: (reason?: unknown) => void;
-	readonly resolve: (value: Value | PromiseLike<Value>) => void;
 }
 
 /** Main-owned source transfer facade; no filesystem path crosses this seam. */
@@ -151,13 +167,11 @@ export class DesktopSharedProjectMediaService {
 			if (request.projectRevision !== project.revision) {
 				throw new Error('Desktop shared project revision changed during managed-media preparation');
 			}
-			const source = requiredReachableAudioSource(project, request.sourceId);
-			const canonicalBytes = canonicalAudioBytes(source);
-			if (canonicalBytes !== request.byteLength) {
-				throw new RangeError('Desktop shared-source declaration does not match canonical PCM geometry');
-			}
-			const bindingKey = managedAudioBindingKey(source);
-			const binding = createDesktopLibraryAudioMediaBinding(
+			const source = requiredReachableSource(project, request.sourceId, request.encoding);
+			const expectedBytes = declaredSourceBytes(source, request.byteLength);
+			const bindingKey = managedSourceBindingKey(source);
+			const binding = createDesktopLibraryMediaBinding(
+				request.encoding,
 				project.id,
 				bindingKey,
 				project.revision,
@@ -165,14 +179,17 @@ export class DesktopSharedProjectMediaService {
 			);
 			const existing = loaded.media.find(({ id }) => id === binding.id);
 			if (existing) {
-				if (existing.byteLength !== canonicalBytes) {
-					throw new Error('Desktop library managed audio does not match its canonical PCM geometry');
+				if (existing.byteLength !== expectedBytes) {
+					throw new Error(source.kind === 'audio'
+						? 'Desktop library managed audio does not match its canonical PCM geometry'
+						: 'Desktop library managed original video does not match its declared byte geometry');
 				}
 				if (existing.sha256 !== request.sha256) {
-					throw new Error('Desktop library managed audio does not match the source-write declaration');
+					throw new Error(`Desktop library managed ${source.kind === 'audio' ? 'audio' : 'original video'} does not match the source-write declaration`);
 				}
-				const sourceDescriptor = managedSourceDescriptor(source, existing, canonicalBytes);
-				await this.#host.publishManagedAudio({
+				const sourceDescriptor = managedSourceDescriptor(source, existing, expectedBytes);
+				await this.#host.publishManagedMedia({
+					encoding: request.encoding,
 					projectId: project.id,
 					storageKey: bindingKey,
 					byteLength: existing.byteLength,
@@ -188,7 +205,8 @@ export class DesktopSharedProjectMediaService {
 
 			const id = this.#newWriteId();
 			const input = new SequentialUploadInput();
-			const operation = this.#host.publishManagedAudio({
+			const operation = this.#host.publishManagedMedia({
+				encoding: request.encoding,
 				projectId: project.id,
 				storageKey: bindingKey,
 				byteLength: request.byteLength,
@@ -197,9 +215,9 @@ export class DesktopSharedProjectMediaService {
 				expectedProjectRevision: project.revision,
 				expectedProjectSha256: loaded.catalog.sha256,
 				signal,
-			}).then((media) => managedSourceDescriptor(source, media, canonicalBytes));
+			}).then((media) => managedSourceDescriptor(source, media, expectedBytes));
 			const session: UploadSession = {
-				id, input, operation, source, sha256: request.sha256, state: 'open', written: 0,
+				id, input, operation, sha256: request.sha256, state: 'open', written: 0,
 			};
 			this.#sessions.set(id, session);
 			retainedSlot = true;
@@ -334,74 +352,6 @@ export class DesktopSharedProjectMediaService {
 	}
 }
 
-class SequentialUploadInput implements AsyncIterable<Uint8Array> {
-	#failed: unknown = null;
-	#finished = false;
-	#inFlight: Deferred<void> | null = null;
-	#pending: Readonly<{ bytes: Uint8Array; consumed: Deferred<void> }> | null = null;
-	#waiting: Deferred<IteratorResult<Uint8Array>> | null = null;
-
-	write(bytes: Uint8Array): Promise<void> {
-		if (this.#failed) return Promise.reject(this.#failed);
-		if (this.#finished) return Promise.reject(new Error('Desktop shared-source write is closed'));
-		if (this.#pending) return Promise.reject(new Error('Concurrent desktop shared-source writes are not allowed'));
-		const consumed = deferred<void>();
-		const pending = Object.freeze({ bytes, consumed });
-		this.#pending = pending;
-		if (this.#waiting) {
-			const waiting = this.#waiting;
-			this.#waiting = null;
-			this.#pending = null;
-			this.#inFlight = consumed;
-			waiting.resolve({ done: false, value: bytes });
-		}
-		return consumed.promise;
-	}
-
-	finish(): void {
-		if (this.#failed || this.#finished) throw new Error('Desktop shared-source write is closed');
-		if (this.#pending) throw new Error('Desktop shared-source chunk is still being consumed');
-		this.#finished = true;
-		if (this.#waiting) {
-			this.#waiting.resolve({ done: true, value: undefined });
-			this.#waiting = null;
-		}
-	}
-
-	fail(error: unknown): void {
-		if (this.#failed || this.#finished) return;
-		this.#failed = error;
-		this.#inFlight?.reject(error);
-		this.#inFlight = null;
-		this.#pending?.consumed.reject(error);
-		this.#pending = null;
-		this.#waiting?.reject(error);
-		this.#waiting = null;
-	}
-
-	[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
-		return { next: () => this.#next() };
-	}
-
-	#next(): Promise<IteratorResult<Uint8Array>> {
-		if (this.#inFlight) {
-			this.#inFlight.resolve(undefined);
-			this.#inFlight = null;
-		}
-		if (this.#pending) {
-			const pending = this.#pending;
-			this.#pending = null;
-			this.#inFlight = pending.consumed;
-			return Promise.resolve({ done: false, value: pending.bytes });
-		}
-		if (this.#failed) return Promise.reject(this.#failed);
-		if (this.#finished) return Promise.resolve({ done: true, value: undefined });
-		if (this.#waiting) return Promise.reject(new Error('Desktop shared-source consumer requested concurrent chunks'));
-		this.#waiting = deferred<IteratorResult<Uint8Array>>();
-		return this.#waiting.promise;
-	}
-}
-
 function currentProject(loaded: DesktopLibraryLoadedProjectBundle): AudioEditorProjectV9 {
 	validateAudioEditorProjectV9(loaded.project);
 	return loaded.project as AudioEditorProjectV9;
@@ -413,63 +363,61 @@ function managedSources(
 ): readonly DesktopSharedManagedSourceDescriptor[] {
 	const descriptors: DesktopSharedManagedSourceDescriptor[] = [];
 	for (const sourceId of collectProjectSourceIds(project)) {
-		const source = requiredReachableAudioSource(project, sourceId, { allowVideo: true });
-		if (source.kind !== 'audio') continue;
-		const binding = createDesktopLibraryAudioMediaBinding(
+		const source = requiredReachableSource(project, sourceId);
+		const encoding = sourceEncoding(source);
+		const binding = createDesktopLibraryMediaBinding(
+			encoding,
 			project.id,
-			managedAudioBindingKey(source),
+			managedSourceBindingKey(source),
 			project.revision,
 			loaded.catalog.sha256,
 		);
 		const media = loaded.media.find(({ id }) => id === binding.id);
 		if (!media) continue;
-		descriptors.push(managedSourceDescriptor(source, media, canonicalAudioBytes(source)));
+		const expectedBytes = source.kind === 'audio' ? canonicalAudioBytes(source) : positiveVideoBytes(media.byteLength);
+		descriptors.push(managedSourceDescriptor(source, media, expectedBytes));
 	}
 	return Object.freeze(descriptors);
 }
 
 function managedSourceDescriptor(
-	source: ManagedAudioSource,
+	source: ManagedSource,
 	media: DesktopLibraryMedia,
 	expectedBytes: number,
 ): DesktopSharedManagedSourceDescriptor {
 	if (media.byteLength !== expectedBytes) {
-		throw new Error('Desktop library managed audio does not match its canonical PCM geometry');
+		throw new Error(source.kind === 'audio'
+			? 'Desktop library managed audio does not match its canonical PCM geometry'
+			: 'Desktop library managed original video byte geometry is invalid');
 	}
-	return Object.freeze({
+	const common = {
 		bindingId: media.id,
 		byteLength: media.byteLength,
-		encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
-		kind: 'audio',
 		sha256: media.sha256,
 		sourceId: source.id,
 		storageKey: source.storageKey,
-	});
+	};
+	return source.kind === 'audio'
+		? Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING, kind: 'audio' as const })
+		: Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING, kind: 'video' as const });
 }
 
-function requiredReachableAudioSource(
+function requiredReachableSource(
 	project: AudioEditorProjectV9,
 	sourceId: string,
-): ManagedAudioSource;
-function requiredReachableAudioSource(
-	project: AudioEditorProjectV9,
-	sourceId: string,
-	options: Readonly<{ allowVideo: true }>,
-): ManagedAudioSource | (Record<string, unknown> & { readonly id: string; readonly kind: 'video' });
-function requiredReachableAudioSource(
-	project: AudioEditorProjectV9,
-	sourceId: string,
-	options: Readonly<{ allowVideo?: boolean }> = {},
-): ManagedAudioSource | (Record<string, unknown> & { readonly id: string; readonly kind: 'video' }) {
+	encoding?: DesktopLibraryManagedMediaEncoding,
+): ManagedSource {
 	if (!collectProjectSourceIds(project).has(sourceId)) {
 		throw new ReferenceError('Desktop shared-source declaration does not identify a reachable source');
 	}
 	const matches = project.sources.filter((candidate) => candidate.id === sourceId);
 	if (matches.length !== 1) throw new ReferenceError('Desktop shared-source declaration has no unique project source');
-	const source = matches[0] as Record<string, unknown> & { readonly id: string; readonly kind: 'audio' | 'video' };
-	if (source.kind === 'video' && options.allowVideo) return source as Record<string, unknown> & { readonly id: string; readonly kind: 'video' };
-	if (source.kind !== 'audio') throw new TypeError('Desktop managed-source publication currently accepts only audio');
-	return source as ManagedAudioSource;
+	const source = matches[0] as ManagedSource;
+	if (source.kind !== 'audio' && source.kind !== 'video') throw new TypeError('Desktop managed-source kind is unsupported');
+	if (encoding && sourceEncoding(source) !== encoding) {
+		throw new TypeError('Desktop shared-source encoding does not match its reachable source kind');
+	}
+	return source;
 }
 
 function sourceWriteDeclaration(value: unknown): DesktopSharedSourceWriteDeclaration {
@@ -477,12 +425,14 @@ function sourceWriteDeclaration(value: unknown): DesktopSharedSourceWriteDeclara
 		throw new TypeError('Desktop shared-source write declaration must be an object');
 	}
 	const record = value as Record<string, unknown>;
-	if (record.encoding !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING) {
-		throw new TypeError('Desktop shared-source write declaration has an unsupported encoding');
+	const encoding = sourceEncodingFromValue(record.encoding);
+	const byteLength = boundedBytes(record.byteLength);
+	if (encoding === DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING && byteLength === 0) {
+		throw new RangeError('Desktop shared-source original video byte length must be positive');
 	}
 	return Object.freeze({
-		byteLength: boundedBytes(record.byteLength),
-		encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+		byteLength,
+		encoding,
 		projectId: nonEmptyString(record.projectId, 'project identity'),
 		projectRevision: nonNegativeInteger(record.projectRevision, 'Desktop shared-source project revision'),
 		sha256: digest(record.sha256),
@@ -503,16 +453,45 @@ function canonicalAudioBytes(source: ManagedAudioSource): number {
 	return Number(bytes);
 }
 
-function managedAudioBindingKey(source: ManagedAudioSource): string {
-	return JSON.stringify([
-		source.storageKey,
-		source.frameCount,
-		source.channelCount,
-		source.sampleRate,
-		source.originalSampleRate,
-		source.sampleFormat,
-		source.chunkFrames,
-	]);
+function declaredSourceBytes(source: ManagedSource, declaredBytes: number): number {
+	if (source.kind === 'video') return positiveVideoBytes(declaredBytes);
+	const canonicalBytes = canonicalAudioBytes(source);
+	if (canonicalBytes !== declaredBytes) {
+		throw new RangeError('Desktop shared-source declaration does not match canonical PCM geometry');
+	}
+	return canonicalBytes;
+}
+
+function managedSourceBindingKey(source: ManagedSource): string {
+	return source.kind === 'audio'
+		? JSON.stringify([
+			source.storageKey, source.frameCount, source.channelCount, source.sampleRate,
+			source.originalSampleRate, source.sampleFormat, source.chunkFrames,
+		])
+		: JSON.stringify([
+			source.storageKey, source.mimeType, source.frameCount, source.sampleRate,
+			source.width, source.height, source.frameRate, source.videoCodec,
+			source.audioCodec, source.hasAudio,
+		]);
+}
+
+function sourceEncoding(source: ManagedSource): DesktopLibraryManagedMediaEncoding {
+	return source.kind === 'audio'
+		? DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING
+		: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING;
+}
+
+function sourceEncodingFromValue(value: unknown): DesktopLibraryManagedMediaEncoding {
+	if (value !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING && value !== DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING) {
+		throw new TypeError('Desktop shared-source write declaration has an unsupported encoding');
+	}
+	return value;
+}
+
+function positiveVideoBytes(value: unknown): number {
+	const bytes = boundedBytes(value);
+	if (bytes === 0) throw new RangeError('Desktop shared-source original video byte length must be positive');
+	return bytes;
 }
 
 function boundedBytes(value: unknown): number {
@@ -566,17 +545,7 @@ async function* emptyChunks(): AsyncGenerator<Uint8Array> {
 
 function assertHost(value: ManagedMediaHost): void {
 	if (!value || typeof value !== 'object') throw new TypeError('Desktop shared-source service requires a host');
-	for (const method of ['publishManagedAudio', 'readManagedMedia', 'readProjectBundleById'] as const) {
+	for (const method of ['publishManagedMedia', 'readManagedMedia', 'readProjectBundleById'] as const) {
 		if (typeof value[method] !== 'function') throw new TypeError('Desktop shared-source service requires a host');
 	}
-}
-
-function deferred<Value>(): Deferred<Value> {
-	let resolve: Deferred<Value>['resolve'] = () => undefined;
-	let reject: Deferred<Value>['reject'] = () => undefined;
-	const promise = new Promise<Value>((complete, fail) => {
-		resolve = complete;
-		reject = fail;
-	});
-	return Object.freeze({ promise, reject, resolve });
 }

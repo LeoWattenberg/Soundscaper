@@ -8,7 +8,7 @@ import {
 	DesktopSharedProjectMediaService,
 	type DesktopSharedSourceWriteDeclaration,
 } from '../desktop/project-library-editor-media-service.ts';
-import type { DesktopProjectLibraryHostPublishAudioOptions } from '../desktop/project-library-host.ts';
+import type { DesktopProjectLibraryHostPublishMediaOptions } from '../desktop/project-library-host.ts';
 import {
 	createDesktopLibraryAudioMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
@@ -91,14 +91,14 @@ test('present admission rejects stale renderer revisions and mismatched catalog 
 });
 
 function fakeHost(projectValue: AudioEditorProjectV9, mediaValues: readonly DesktopLibraryMedia[]) {
-	const publications: DesktopProjectLibraryHostPublishAudioOptions[] = [];
+	const publications: DesktopProjectLibraryHostPublishMediaOptions[] = [];
 	const loaded = bundle(projectValue, mediaValues);
 	return {
 		publications,
 		async readProjectBundleById(projectId: string) {
 			return projectId === projectValue.id ? loaded : null;
 		},
-		async publishManagedAudio(options: DesktopProjectLibraryHostPublishAudioOptions) {
+		async publishManagedMedia(options: DesktopProjectLibraryHostPublishMediaOptions) {
 			publications.push(options);
 			const binding = createDesktopLibraryAudioMediaBinding(
 				options.projectId,

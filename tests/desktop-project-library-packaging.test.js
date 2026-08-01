@@ -36,6 +36,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-persistence.js',
 		'desktop/project-library-projects.js',
 		'desktop/project-library-reclamation.js',
+		'desktop/project-library-sequential-upload.js',
 		'desktop/project-library-stage-inventory.js',
 		'desktop/project-library.js',
 		'src/common/editor/adm-project-metadata.js',
@@ -74,7 +75,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.equal(typeof managedMedia.DesktopLibraryManagedMediaStore, 'function');
 	let commitCalls = 0;
 	const unusedManagedMediaHost = {
-		publishManagedAudio: async () => { throw new Error('Unexpected managed-media publication'); },
+		publishManagedMedia: async () => { throw new Error('Unexpected managed-media publication'); },
 		readManagedMedia: async () => new Uint8Array(),
 		readProjectBundleById: async () => null,
 	};
@@ -156,6 +157,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-reclamation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-sequential-upload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));

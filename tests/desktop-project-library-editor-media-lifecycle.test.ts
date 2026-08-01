@@ -14,7 +14,7 @@ import {
 	type DesktopSharedSourceWriteDeclaration,
 } from '../desktop/project-library-editor-media-service.ts';
 import type {
-	DesktopProjectLibraryHostPublishAudioOptions,
+	DesktopProjectLibraryHostPublishMediaOptions,
 } from '../desktop/project-library-host.ts';
 import {
 	createDesktopLibraryAudioMediaBinding,
@@ -56,8 +56,8 @@ class StalledPublicationHost {
 		return Promise.resolve(projectId === this.#bundle.project.id ? this.#bundle : null);
 	}
 
-	async publishManagedAudio(
-		options: DesktopProjectLibraryHostPublishAudioOptions,
+	async publishManagedMedia(
+		options: DesktopProjectLibraryHostPublishMediaOptions,
 	): Promise<DesktopLibraryMedia> {
 		const gate = deferred<void>();
 		this.gates.push(gate);

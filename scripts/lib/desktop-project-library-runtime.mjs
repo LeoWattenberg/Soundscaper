@@ -19,6 +19,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-persistence.js',
 	'desktop/project-library-projects.js',
 	'desktop/project-library-reclamation.js',
+	'desktop/project-library-sequential-upload.js',
 	'desktop/project-library-stage-inventory.js',
 	'desktop/project-library.js',
 	'src/common/editor/adm-project-metadata.js',
