@@ -19,6 +19,7 @@ import {
 
 const PROJECT_ID = 'managed-audio-project';
 const PROJECT_REVISION = 3;
+const PROJECT_SHA256 = 'a'.repeat(64);
 const STORAGE_KEY = 'managed-audio-storage';
 
 test('managed audio is fully materialized before its catalog row is published and supports bounded reads', async (context) => {
@@ -26,7 +27,9 @@ test('managed audio is fully materialized before its catalog row is published an
 	const bytes = Uint8Array.of(1, 2, 3, 4, 5, 6);
 	const firstChunkWritten = deferred<void>();
 	const continueBody = deferred<void>();
-	const binding = createDesktopLibraryAudioMediaBinding(PROJECT_ID, STORAGE_KEY, PROJECT_REVISION);
+	const binding = createDesktopLibraryAudioMediaBinding(
+		PROJECT_ID, STORAGE_KEY, PROJECT_REVISION, PROJECT_SHA256,
+	);
 	fixture.onPublish = async (metadata) => {
 		assert.deepEqual(new Uint8Array(await readFile(join(fixture.root, ...binding.relativeFile.split('/')))), bytes);
 		return metadata;
@@ -35,6 +38,7 @@ test('managed audio is fully materialized before its catalog row is published an
 	const publication = fixture.store.publishAudio({
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
 		storageKey: STORAGE_KEY,
 		byteLength: bytes.byteLength,
 		sha256: digest(bytes),
@@ -76,6 +80,7 @@ test('managed audio rejects short, overlong, and over-limit chunk streams withou
 		short.store.publishAudio({
 			projectId: PROJECT_ID,
 			projectRevision: PROJECT_REVISION,
+			projectSha256: PROJECT_SHA256,
 			storageKey: STORAGE_KEY,
 			byteLength: 4,
 			sha256: digest(Uint8Array.of(1, 2, 3, 4)),
@@ -90,6 +95,7 @@ test('managed audio rejects short, overlong, and over-limit chunk streams withou
 		overlong.store.publishAudio({
 			projectId: PROJECT_ID,
 			projectRevision: PROJECT_REVISION,
+			projectSha256: PROJECT_SHA256,
 			storageKey: STORAGE_KEY,
 			byteLength: 3,
 			sha256: digest(Uint8Array.of(1, 2, 3)),
@@ -104,6 +110,7 @@ test('managed audio rejects short, overlong, and over-limit chunk streams withou
 		oversizedChunk.store.publishAudio({
 			projectId: PROJECT_ID,
 			projectRevision: PROJECT_REVISION,
+			projectSha256: PROJECT_SHA256,
 			storageKey: STORAGE_KEY,
 			byteLength: 4,
 			sha256: digest(Uint8Array.of(1, 2, 3, 4)),
@@ -121,6 +128,7 @@ test('managed audio rejects a digest mismatch and removes its staged body', asyn
 		fixture.store.publishAudio({
 			projectId: PROJECT_ID,
 			projectRevision: PROJECT_REVISION,
+			projectSha256: PROJECT_SHA256,
 			storageKey: STORAGE_KEY,
 			byteLength: bytes.byteLength,
 			sha256: '0'.repeat(64),
@@ -137,6 +145,7 @@ test('identical managed audio publication is idempotent and an immutable binding
 	const declaration = {
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
 		storageKey: STORAGE_KEY,
 		byteLength: original.byteLength,
 		sha256: digest(original),
@@ -167,13 +176,15 @@ test('identical managed audio publication is idempotent and an immutable binding
 	assert.deepEqual(new Uint8Array(await readFile(join(fixture.root, ...first.relativeFile.split('/')))), original);
 });
 
-test('the same managed-audio storage key has an immutable binding per project revision', async (context) => {
+test('the same managed-audio storage key is bound to its exact project revision and document digest', async (context) => {
 	const fixture = await createFixture(context);
 	const original = Uint8Array.of(1, 2, 3, 4);
 	const revised = Uint8Array.of(4, 3, 2, 1);
+	const recreated = Uint8Array.of(5, 6, 7, 8);
 	const first = await fixture.store.publishAudio({
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
 		storageKey: STORAGE_KEY,
 		byteLength: original.byteLength,
 		sha256: digest(original),
@@ -182,16 +193,28 @@ test('the same managed-audio storage key has an immutable binding per project re
 	const second = await fixture.store.publishAudio({
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'b'.repeat(64),
 		storageKey: STORAGE_KEY,
 		byteLength: revised.byteLength,
 		sha256: digest(revised),
 		chunks: chunks(revised),
 	});
+	const third = await fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'c'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: recreated.byteLength,
+		sha256: digest(recreated),
+		chunks: chunks(recreated),
+	});
 
 	assert.notEqual(first.id, second.id);
-	assert.deepEqual(fixture.metadata.media, [first, second]);
+	assert.notEqual(second.id, third.id);
+	assert.deepEqual(fixture.metadata.media, [first, second, third]);
 	assert.deepEqual(await fixture.store.read(first.id, { offset: 0, length: 4 }), original);
 	assert.deepEqual(await fixture.store.read(second.id, { offset: 0, length: 4 }), revised);
+	assert.deepEqual(await fixture.store.read(third.id, { offset: 0, length: 4 }), recreated);
 });
 
 test('a complete body survives catalog failure and is reused without consuming the retry stream', async (context) => {
@@ -200,6 +223,7 @@ test('a complete body survives catalog failure and is reused without consuming t
 	const declaration = {
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
 		storageKey: STORAGE_KEY,
 		byteLength: bytes.byteLength,
 		sha256: digest(bytes),
@@ -233,6 +257,7 @@ test('managed audio rejects symlinked storage boundaries before consuming or pub
 	const declaration = {
 		projectId: PROJECT_ID,
 		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
 		storageKey: STORAGE_KEY,
 		byteLength: bytes.byteLength,
 		sha256: digest(bytes),
@@ -249,7 +274,9 @@ test('managed audio rejects symlinked storage boundaries before consuming or pub
 	assert.deepEqual(directoryFixture.publications, []);
 
 	const bodyFixture = await createFixture(context);
-	const binding = createDesktopLibraryAudioMediaBinding(PROJECT_ID, STORAGE_KEY, PROJECT_REVISION);
+	const binding = createDesktopLibraryAudioMediaBinding(
+		PROJECT_ID, STORAGE_KEY, PROJECT_REVISION, PROJECT_SHA256,
+	);
 	const finalPath = join(bodyFixture.root, ...binding.relativeFile.split('/'));
 	await mkdir(dirname(finalPath), { recursive: true });
 	const escapedBody = join(escapedDirectory, 'escaped-body.f32c');

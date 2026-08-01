@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +10,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { createDesktopProjectLibraryPaths } from '../desktop/project-library-contract.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
+import {
+	DesktopLibraryProjectStore,
+	type DesktopLibraryLoadedProject,
+} from '../desktop/project-library-projects.ts';
 import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 
@@ -171,6 +176,38 @@ test('desktop host suppresses a queued renewal failure after intentional close',
 	await closing;
 	await delay(0);
 	assert.deepEqual(leaseLosses, []);
+});
+
+test('managed-media publication rejects a recreated same-revision project digest before body I/O', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-host-media-digest-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const host = await DesktopProjectLibraryHost.start({
+		appDataPath,
+		owner: SOUNDSCAPER_OWNER,
+		leaseTtlMs: 5_000,
+		renewIntervalMs: 1_000,
+	});
+	context.after(() => host.close());
+	const prototype = DesktopLibraryProjectStore.prototype;
+	const originalRead = prototype.readProjectById;
+	prototype.readProjectById = async () => ({
+		catalog: { projectRevision: 4, sha256: 'b'.repeat(64) },
+		project: {},
+	}) as DesktopLibraryLoadedProject;
+	context.after(() => { prototype.readProjectById = originalRead; });
+	const bytes = Uint8Array.of(1, 2, 3, 4);
+	let chunksRead = 0;
+
+	await assert.rejects(host.publishManagedAudio({
+		projectId: 'recreated-project',
+		storageKey: 'managed-source',
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+		expectedProjectRevision: 4,
+		expectedProjectSha256: 'a'.repeat(64),
+		chunks: (async function* () { chunksRead += 1; yield bytes; })(),
+	}), /changed during managed-media preparation/iu);
+	assert.equal(chunksRead, 0);
 });
 
 function metadata(revision: number) {

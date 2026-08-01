@@ -49,7 +49,18 @@ test('a prior-revision managed row is neither advertised nor treated as present'
 	const admission = await service.beginSourceWrite(declaration(current, source, 'b'.repeat(64)));
 	assert.equal(admission.status, 'ready');
 	assert.equal(host.publications[0]?.expectedProjectRevision, current.revision);
+	assert.equal(host.publications[0]?.expectedProjectSha256, '0'.repeat(64));
 	if (admission.status === 'ready') await service.abortSourceWrite(admission.writeId);
+
+	const recreated = media(current, source, 'c'.repeat(64), 'f'.repeat(64));
+	const recreatedHost = fakeHost(current, [recreated]);
+	const recreatedService = new DesktopSharedProjectMediaService(recreatedHost, { randomId: () => WRITE_ID });
+	assert.deepEqual((await recreatedService.readProjectBundle(current.id))?.sources, []);
+	const recreatedAdmission = await recreatedService.beginSourceWrite(
+		declaration(current, source, 'c'.repeat(64)),
+	);
+	assert.equal(recreatedAdmission.status, 'ready', 'a recreated same-revision row must not be reused');
+	if (recreatedAdmission.status === 'ready') await recreatedService.abortSourceWrite(recreatedAdmission.writeId);
 });
 
 test('present admission rejects stale renderer revisions and mismatched catalog bytes before body I/O', async () => {
@@ -93,6 +104,7 @@ function fakeHost(projectValue: AudioEditorProjectV9, mediaValues: readonly Desk
 				options.projectId,
 				options.storageKey,
 				options.expectedProjectRevision,
+				options.expectedProjectSha256,
 			);
 			return Object.freeze({ ...binding, byteLength: options.byteLength, sha256: options.sha256 });
 		},
@@ -130,11 +142,13 @@ function media(
 	projectValue: AudioEditorProjectV9,
 	source: AudioSource,
 	sha256: string,
+	projectSha256 = '0'.repeat(64),
 ): DesktopLibraryMedia {
 	const binding = createDesktopLibraryAudioMediaBinding(
 		projectValue.id,
 		sourceBindingKey(source),
 		projectValue.revision,
+		projectSha256,
 	);
 	return Object.freeze({ ...binding, byteLength: canonicalBytes(source), sha256 });
 }

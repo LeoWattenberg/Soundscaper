@@ -47,6 +47,7 @@ export interface DesktopLibraryAudioMediaBinding {
 export interface DesktopLibraryPublishAudioOptions {
 	readonly projectId: string;
 	readonly projectRevision: number;
+	readonly projectSha256: string;
 	readonly storageKey: string;
 	readonly byteLength: number;
 	readonly sha256: string;
@@ -64,6 +65,7 @@ export function createDesktopLibraryAudioMediaBinding(
 	projectId: string,
 	storageKey: string,
 	projectRevision: number,
+	projectSha256: string,
 ): DesktopLibraryAudioMediaBinding {
 	const projectIdentity = boundedIdentity(
 		projectId,
@@ -79,11 +81,15 @@ export function createDesktopLibraryAudioMediaBinding(
 		projectRevision,
 		'Desktop library managed-media project revision',
 	);
+	if (typeof projectSha256 !== 'string' || !DIGEST.test(projectSha256)) {
+		throw new TypeError('Desktop library managed-media project digest is invalid');
+	}
 	const digest = createHash('sha256')
 		.update(JSON.stringify([
 			DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 			projectIdentity,
 			revision,
+			projectSha256,
 			sourceStorageKey,
 		]), 'utf8')
 		.digest('hex');
@@ -131,6 +137,7 @@ export class DesktopLibraryManagedMediaStore {
 			options.projectId,
 			options.storageKey,
 			options.projectRevision,
+			options.projectSha256,
 		);
 		return this.#serializeBinding(binding.id, async () => {
 			throwIfAborted(options.signal);

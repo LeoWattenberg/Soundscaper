@@ -137,6 +137,7 @@ test('project bundles expose only reachable catalog-backed audio mappings', asyn
 		fixture.project.id,
 		'catalogued-video-body',
 		fixture.project.revision,
+		'0'.repeat(64),
 	);
 	const video = Object.freeze({
 		...unrelatedVideoBinding,
@@ -273,6 +274,7 @@ test('source writes are sequential, chunk-bounded, and complete with the declare
 	assert.deepEqual(received, [payload.subarray(0, 7), payload.subarray(7)]);
 	assert.equal(host.publications.length, 1);
 	assert.equal(host.publications[0]?.expectedProjectRevision, fixture.project.revision);
+	assert.equal(host.publications[0]?.expectedProjectSha256, '0'.repeat(64));
 });
 
 test('a digest change aborts an active source write', async () => {
@@ -513,7 +515,9 @@ function mediaForSource(
 	source: TestAudioSource,
 	sha256: string,
 ): DesktopLibraryMedia {
-	const binding = createDesktopLibraryAudioMediaBinding(project.id, sourceBindingKey(source), project.revision);
+	const binding = createDesktopLibraryAudioMediaBinding(
+		project.id, sourceBindingKey(source), project.revision, '0'.repeat(64),
+	);
 	return Object.freeze({ ...binding, byteLength: canonicalByteLength(source), sha256 });
 }
 
@@ -522,6 +526,7 @@ function mediaForPublication(options: DesktopProjectLibraryHostPublishAudioOptio
 		options.projectId,
 		options.storageKey,
 		options.expectedProjectRevision,
+		options.expectedProjectSha256,
 	);
 	return Object.freeze({ ...binding, byteLength: options.byteLength, sha256: options.sha256 });
 }

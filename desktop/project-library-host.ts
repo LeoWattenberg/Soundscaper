@@ -53,8 +53,9 @@ export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitPr
 export type DesktopProjectLibraryHostCommitByIdOptions = Omit<DesktopLibraryCommitProjectByIdOptions, 'lease'>;
 export type DesktopProjectLibraryHostDeleteByIdOptions = Omit<DesktopLibraryDeleteProjectByIdOptions, 'lease'>;
 export interface DesktopProjectLibraryHostPublishAudioOptions
-	extends Omit<DesktopLibraryPublishAudioOptions, 'projectRevision'> {
+	extends Omit<DesktopLibraryPublishAudioOptions, 'projectRevision' | 'projectSha256'> {
 	readonly expectedProjectRevision: number;
+	readonly expectedProjectSha256: string;
 }
 
 /** Owns the shared library only inside the Electron main process. */
@@ -192,13 +193,19 @@ export class DesktopProjectLibraryHost {
 			this.#library.assertLease(this.#lease);
 			const loaded = await this.#projects.readProjectById(options.projectId, options.signal);
 			if (!loaded) throw new Error('Desktop shared project is unavailable for managed-media publication');
-			if (loaded.catalog.projectRevision !== options.expectedProjectRevision) {
+			if (loaded.catalog.projectRevision !== options.expectedProjectRevision
+				|| loaded.catalog.sha256 !== options.expectedProjectSha256) {
 				throw new Error('Desktop shared project changed during managed-media preparation');
 			}
-			const { expectedProjectRevision: _expectedProjectRevision, ...publication } = options;
+			const {
+				expectedProjectRevision: _expectedProjectRevision,
+				expectedProjectSha256: _expectedProjectSha256,
+				...publication
+			} = options;
 			return this.#media.publishAudio({
 				...publication,
 				projectRevision: options.expectedProjectRevision,
+				projectSha256: options.expectedProjectSha256,
 			});
 		});
 	}

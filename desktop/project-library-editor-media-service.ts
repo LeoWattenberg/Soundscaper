@@ -156,7 +156,12 @@ export class DesktopSharedProjectMediaService {
 				throw new RangeError('Desktop shared-source declaration does not match canonical PCM geometry');
 			}
 			const bindingKey = managedAudioBindingKey(source);
-			const binding = createDesktopLibraryAudioMediaBinding(project.id, bindingKey, project.revision);
+			const binding = createDesktopLibraryAudioMediaBinding(
+				project.id,
+				bindingKey,
+				project.revision,
+				loaded.catalog.sha256,
+			);
 			const existing = loaded.media.find(({ id }) => id === binding.id);
 			if (existing) {
 				if (existing.byteLength !== canonicalBytes) {
@@ -173,6 +178,7 @@ export class DesktopSharedProjectMediaService {
 					sha256: existing.sha256,
 					chunks: emptyChunks(),
 					expectedProjectRevision: project.revision,
+					expectedProjectSha256: loaded.catalog.sha256,
 					signal,
 				});
 				this.#assertOpen();
@@ -188,6 +194,7 @@ export class DesktopSharedProjectMediaService {
 				sha256: request.sha256,
 				chunks: input,
 				expectedProjectRevision: project.revision,
+				expectedProjectSha256: loaded.catalog.sha256,
 				signal,
 			}).then((media) => managedSourceDescriptor(source, media, canonicalBytes));
 			const session: UploadSession = {
@@ -396,6 +403,7 @@ function managedSources(
 			project.id,
 			managedAudioBindingKey(source),
 			project.revision,
+			loaded.catalog.sha256,
 		);
 		const media = loaded.media.find(({ id }) => id === binding.id);
 		if (!media) continue;
