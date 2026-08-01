@@ -836,7 +836,7 @@ models or native implementations.
   current-import-to-planner route, preserved and generated BEXT branches, exact
   nonstructural chunk bytes/order/placement and publication, closed admission,
   modeled-metadata collision refusal, stale or edited planning refusal, and
-  loudness fail-closed behavior. It remained green at 395 test files. Focused
+  loudness fail-closed behavior. It remained green at 398 test files. Focused
   12-case Node WAV evidence covers exact classic RIFF/RF64 admission
   and encoder geometry, all four canonical encoding tuples, rich metadata,
   markers, and iXML with correct odd PCM RIFF padding, malformed or stale route
@@ -893,7 +893,8 @@ models or native implementations.
   native-picker behavior, browser heap, process RSS, crash, power loss, or
   durability.
   Packaged Soundscaper Linux x64 completion acceptance now covers WAV, integer
-  AIFF, and BWF, while packaged cancellation acceptance remains WAV only. It
+  AIFF, BWF, and first-party authored BW64, while packaged cancellation
+  acceptance remains WAV only. It
   drives the maintained UI and controller through Electron 43, preload IPC,
   and `AtomicSaveManager`. Its encoded input is 792,000 stereo frames at 48 kHz;
   import/decode observed 791,999 project frames, producing 6,335,992 frames at
@@ -939,8 +940,21 @@ models or native implementations.
   originator `Soundscaper`, reference `PACKAGED-BWF-0001`, date 2026-07-30,
   time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2, an empty
   UMID, loudness sentinels, and two-row CodingHistory naming 48,000-Hz input and
-  384,000-Hz output. All three completed-file hashes are diagnostic rather than
-  pinned.
+  384,000-Hz output.
+
+  A separate first-party authored BW64 fixture uses a 44-second, six-channel,
+  2,112,000-frame source at 48 kHz and produces 16,896,000 frames at 384 kHz,
+  six channels, and signed 16-bit PCM. Its 405,504,000-byte Float32 render
+  geometry exceeds the 402,653,184-byte direct threshold, and the completed
+  BW64 is exactly 202,755,508 bytes. The bounded verifier uses reads no larger
+  than one MiB and validates exact BW64/ds64/BEXT/fmt/CHNA/data/AXML structure
+  and placement, a 202,752,000-byte PCM payload, and canonical 5.1 CHNA and ADM
+  metadata. It performs 84,480,000 channel comparisons with zero mismatches
+  and observes a full-duration signal: at most 8 carry bytes,
+  16,894,241 nonzero frames, 8,447,121 positive frames, 8,447,120 negative
+  frames, 19,359 crossings, peak 9,830, and RMS 6,950.862. All four whole-file
+  SHA-256 values are diagnostic rather than pinned; the exact BW64 BEXT, CHNA,
+  and AXML payload hashes are pinned by the verifier.
 
   The WAV cancellation run independently observed a 33,554,476-byte staging
   file through an at-most-65,536-byte prefix, validated RIFF geometry plus
@@ -953,17 +967,21 @@ models or native implementations.
   `audio-pcm-mix` purpose but then supplies isolated native targets before
   `dialog.showSaveDialog`, without exercising the OS picker. The 385 MiB Node
   witness remains WAV-only. Packaged completion evidence covers WAV, integer
-  AIFF, and BWF at this fixture scale; BW64 has no packaged qualification or
-  scale evidence. Packaged BWF does not qualify visible progress, cancellation,
+  AIFF, BWF, and first-party authored BW64 at these fixture scales. Packaged BWF
+  does not qualify visible progress, cancellation,
   rollback, staging cleanup, commit races, loudness, a nonempty UMID, int20 or
   int24 PCM, rich metadata variants, RF64 or the 65 GiB boundary at scale, or
-  third-party interoperability. Packaged AIFF does not qualify visible progress,
+  third-party interoperability. Packaged authored BW64 does not qualify visible
+  progress, cancellation, rollback, staging cleanup, commit races, loudness,
+  int20 or int24 PCM, other ADM layouts or metadata variants, passthrough or
+  third-party interoperability, or the 65 GiB boundary at scale. Packaged AIFF
+  does not qualify visible progress,
   cancellation, rollback, staging cleanup, commit races, AIFF-C float, int24 or
   int32 PCM, metadata or padding variants, or the 4,294,967,302-byte
   constructible boundary at scale. The package harness also does not directly
   observe exact-size session negotiation or the four-MiB destination-write
   limit; separate shared-route controls cover those contracts. The 65 GiB BWF
-  and BW64 ceilings are admission, not scale qualification. None of the three
+  and BW64 ceilings are admission, not scale qualification. None of the four
   completed formats qualifies native-picker behavior, heap or RSS, quota,
   filesystem or parent-directory durability, crash or power-loss behavior,
   Windows, macOS, ARM, installers, Framescaper, or other formats. The exact
