@@ -1,17 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	AUDIO_EDITOR_PCM_SINK_MAX_CHANNELS,
+	AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES,
+	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_BYTES,
+} from '../pcm-sink-admission.ts';
+
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export const DIRECT_PCM_DESTINATION_WRITE_BYTES = 4 * 1024 * 1024;
 export const DIRECT_PCM_MAXIMUM_FILE_BYTES = 65 * 1024 ** 3;
-export const DIRECT_PCM_MAXIMUM_PENDING_BYTES = 32 * 1024 ** 2;
-export const DIRECT_PCM_RENDER_CHUNK_FRAMES = 16_384;
+export const DIRECT_PCM_MAXIMUM_PENDING_BYTES = AUDIO_EDITOR_PCM_SINK_MAX_PENDING_BYTES;
+export const DIRECT_PCM_RENDER_CHUNK_FRAMES = AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES;
 
 export function directPcmMaximumPendingChunks(
 	channelCount: number,
 	containerLabel = 'PCM',
 ): number {
-	if (!Number.isSafeInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+	if (!Number.isSafeInteger(channelCount) || channelCount < 1 || channelCount > AUDIO_EDITOR_PCM_SINK_MAX_CHANNELS) {
 		throw new RangeError(`Direct ${containerLabel} render channel count must be an integer from 1 to 32.`);
 	}
 	return Math.floor(DIRECT_PCM_MAXIMUM_PENDING_BYTES / (

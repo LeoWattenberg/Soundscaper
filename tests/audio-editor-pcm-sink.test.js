@@ -172,11 +172,11 @@ test('realtime engine drains serialized sink writes before completing', async ()
 	const progress = [];
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 2,
 			channels: [Float32Array.of(1, 2), Float32Array.of(-1, -2)],
 		});
 		context.emit({
-			type: 'audio-chunk', frameOffset: 2,
+			type: 'audio-chunk', frameOffset: 2, frames: 2,
 			channels: [Float32Array.of(3, 4), Float32Array.of(-3, -4)],
 		});
 		context.emit({ type: 'done', frames: 4 });
@@ -199,6 +199,7 @@ test('realtime engine drains serialized sink writes before completing', async ()
 		});
 		await firstStarted;
 		assert.equal(writes.length, 1);
+		assert.deepEqual(contexts[0].capture.messages, [], 'credit remains owned while the sink is pending');
 		releaseFirst();
 		assert.deepEqual(await pending, {
 			sampleRate: 48_000,
@@ -215,6 +216,10 @@ test('realtime engine drains serialized sink writes before completing', async ()
 		assert.equal(contexts.length, 1);
 		assert.equal(contexts[0].closed, true);
 		assert.equal(contexts[0].modules.length, 1);
+		assert.deepEqual(contexts[0].capture.messages, [
+			{ type: 'release-chunk' },
+			{ type: 'release-chunk' },
+		]);
 	});
 });
 
@@ -222,7 +227,7 @@ test('realtime engine aborts immediately when its async sink fails', async () =>
 	const failure = new Error('OPFS write failed');
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(1)],
 		});
 	}, async (contexts) => {
@@ -243,7 +248,7 @@ test('realtime engine preserves a sink failure when AudioContext cleanup also fa
 	const closeFailure = new Error('AudioContext close failed');
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(1)],
 		});
 	}, async (contexts) => {
@@ -261,7 +266,7 @@ test('realtime engine reports AudioContext cleanup failure after a successful si
 	const closeFailure = new Error('AudioContext close failed');
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(1)],
 		});
 		context.emit({ type: 'done', frames: 1 });
@@ -279,7 +284,7 @@ test('realtime engine treats progress callback failures as render failures', asy
 	const failure = new Error('progress observer failed');
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(1)],
 		});
 	}, async (contexts) => {
@@ -293,21 +298,22 @@ test('realtime engine treats progress callback failures as render failures', asy
 	});
 });
 
-test('realtime engine rejects producer overrun without retaining an unbounded queue', async () => {
+test('realtime engine rejects worklet credit exhaustion without retaining queued PCM', async () => {
 	let writes = 0;
 	await withMockRealtimeRenderer((context) => {
-		for (let index = 0; index <= AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS; index += 1) {
+		for (let index = 0; index < AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS; index += 1) {
 			context.emit({
-				type: 'audio-chunk', frameOffset: index,
+				type: 'audio-chunk', frameOffset: index, frames: 1,
 				channels: [Float32Array.of(index), Float32Array.of(-index)],
 			});
 		}
+		context.emit({ type: 'capture-error', code: 'REALTIME_CAPTURE_BACKPRESSURE' });
 	}, async (contexts) => {
 		const engine = createRealtimeFixtureEngine();
 		await assert.rejects(engine.renderMixToSink({
 			sink: async () => { writes += 1; },
 			outputFrames: AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS + 1,
-		}), (error) => error?.code === 'PCM_SINK_BACKPRESSURE');
+		}), (error) => error?.code === 'REALTIME_CAPTURE_BACKPRESSURE');
 		assert.equal(writes, 0, 'queued writes are discarded when the render can no longer be atomic');
 		assert.equal(contexts[0].closed, true);
 	});
@@ -328,7 +334,7 @@ test('realtime engine pauses production while a bounded slow sink drains', async
 			emittedChunks += 1;
 			context.emit({
 				type: 'audio-chunk',
-				frameOffset,
+				frameOffset, frames: 1,
 				channels: [Float32Array.of(frameOffset), Float32Array.of(-frameOffset)],
 			});
 			queueMicrotask(pump);
@@ -359,7 +365,7 @@ test('realtime engine can suspend production for every accepted sink chunk', asy
 	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(-1)],
 		});
 	}, async (contexts) => {
@@ -395,7 +401,7 @@ test('realtime engine reserves hard-bound capacity while suspension is pending',
 			resumePhase += 1;
 			for (let frameOffset = 0; frameOffset < 2; frameOffset += 1) {
 				context.emit({
-					type: 'audio-chunk', frameOffset,
+					type: 'audio-chunk', frameOffset, frames: 1,
 					channels: [Float32Array.of(frameOffset), Float32Array.of(-frameOffset)],
 				});
 			}
@@ -412,7 +418,7 @@ test('realtime engine reserves hard-bound capacity while suspension is pending',
 		await suspendStarted;
 		assert.equal(contexts[0].state, 'running');
 		contexts[0].emit({
-			type: 'audio-chunk', frameOffset: 2,
+			type: 'audio-chunk', frameOffset: 2, frames: 1,
 			channels: [Float32Array.of(2), Float32Array.of(-2)],
 		});
 		releaseSuspend();
@@ -436,7 +442,7 @@ test('realtime engine reserves hard-bound capacity while suspension is pending',
 test('realtime engine never resumes a backpressure cycle after its worklet finishes', async () => {
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(-1)],
 		});
 		context.emit({ type: 'done', frames: 1 });
@@ -462,7 +468,7 @@ test('realtime engine never resumes a backpressure cycle after cancellation', as
 	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
 	await withMockRealtimeRenderer((context) => {
 		context.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(1), Float32Array.of(-1)],
 		});
 	}, async (contexts) => {
@@ -492,7 +498,7 @@ test('realtime engine honors an explicitly bounded pending-chunk window', async 
 	await withMockRealtimeRenderer((context) => {
 		for (let index = 0; index < chunkCount; index += 1) {
 			context.emit({
-				type: 'audio-chunk', frameOffset: index,
+				type: 'audio-chunk', frameOffset: index, frames: 1,
 				channels: [Float32Array.of(index), Float32Array.of(-index)],
 			});
 		}
@@ -573,7 +579,8 @@ async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, on
 	class MockCaptureNode extends MockNode {
 		constructor(context) {
 			super();
-			this.port = { onmessage: null, start() {} };
+			this.messages = [];
+			this.port = { onmessage: null, start() {}, postMessage: (message) => { this.messages.push(message); } };
 			this.onprocessorerror = null;
 			context.capture = this;
 		}

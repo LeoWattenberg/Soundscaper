@@ -2,6 +2,9 @@ const WorkletProcessor = globalThis.AudioWorkletProcessor || class {
 	constructor() { this.port = { postMessage() {}, onmessage: null }; }
 };
 
+const DEFAULT_MAXIMUM_IN_FLIGHT_CHUNKS = 64;
+const HARD_MAXIMUM_IN_FLIGHT_CHUNKS = 512;
+
 class RenderCaptureProcessor extends WorkletProcessor {
 	constructor(options = {}) {
 		super();
@@ -10,10 +13,21 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		this.totalFrames = Math.max(1, Math.floor(settings.totalFrames || 1));
 		this.chunkFrames = Math.max(128, Math.min(16_384, Math.floor(settings.chunkFrames || 4096)));
 		this.channelCount = Math.max(1, Math.min(32, Math.floor(settings.channelCount || 2)));
+		this.maximumInFlightChunks = Number.isSafeInteger(settings.maximumInFlightChunks)
+			&& settings.maximumInFlightChunks >= 1
+			&& settings.maximumInFlightChunks <= HARD_MAXIMUM_IN_FLIGHT_CHUNKS
+			? settings.maximumInFlightChunks
+			: DEFAULT_MAXIMUM_IN_FLIGHT_CHUNKS;
+		this.inFlightChunks = 0;
 		this.capturedFrames = 0;
 		this.writeOffset = 0;
 		this.finished = false;
 		this.buffers = Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
+		this.port.onmessage = ({ data = {} } = {}) => {
+			if (data?.type === 'release-chunk' && this.inFlightChunks > 0) {
+				this.inFlightChunks -= 1;
+			}
+		};
 	}
 
 	process(inputs, outputs) {
@@ -33,26 +47,43 @@ class RenderCaptureProcessor extends WorkletProcessor {
 			}
 			this.writeOffset += 1;
 			this.capturedFrames += 1;
-			if (this.writeOffset === this.chunkFrames) this.#flush();
+			if (
+				this.writeOffset === this.chunkFrames
+				&& !this.#flush(this.capturedFrames >= this.totalFrames)
+			) return false;
 		}
 		if (this.capturedFrames >= this.totalFrames) return this.#finish();
 		return true;
 	}
 
-	#flush() {
-		if (!this.writeOffset) return;
-		const channels = this.buffers.map((buffer) => buffer.slice(0, this.writeOffset));
+	#flush(final = false) {
+		if (!this.writeOffset) return true;
+		if (this.inFlightChunks >= this.maximumInFlightChunks) {
+			this.finished = true;
+			this.port.postMessage({
+				type: 'capture-error',
+				code: 'REALTIME_CAPTURE_BACKPRESSURE',
+			});
+			return false;
+		}
 		const frames = this.writeOffset;
 		const frameOffset = this.capturedFrames - frames;
-		this.buffers = Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
+		const channels = frames === this.chunkFrames
+			? this.buffers
+			: this.buffers.map((buffer) => buffer.slice(0, frames));
+		this.buffers = final
+			? []
+			: Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
 		this.writeOffset = 0;
+		this.inFlightChunks += 1;
 		this.port.postMessage({ type: 'audio-chunk', channels, frames, frameOffset }, channels.map((channel) => channel.buffer));
+		return true;
 	}
 
 	#finish() {
 		if (this.finished) return false;
+		if (!this.#flush(true)) return false;
 		this.finished = true;
-		this.#flush();
 		this.port.postMessage({ type: 'done', frames: this.capturedFrames });
 		return false;
 	}

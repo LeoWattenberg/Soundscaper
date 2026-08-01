@@ -1,4 +1,27 @@
-export const AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS = 64;
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import {
+	AUDIO_EDITOR_PCM_SINK_DEFAULT_MAX_PENDING_CHUNKS,
+	AUDIO_EDITOR_PCM_SINK_HARD_MAX_PENDING_CHUNKS,
+	AUDIO_EDITOR_PCM_SINK_MAX_CHANNELS,
+	AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES,
+	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_BYTES,
+	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_FRAMES,
+	inspectPlanarPcmSinkPacket,
+	normalizePcmSinkMaximumPendingBytes,
+	normalizePcmSinkMaximumPendingChunks,
+	normalizePcmSinkMaximumPendingFrames,
+} from './pcm-sink-admission.ts';
+
+export {
+	AUDIO_EDITOR_PCM_SINK_HARD_MAX_PENDING_CHUNKS,
+	AUDIO_EDITOR_PCM_SINK_MAX_CHANNELS,
+	AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES,
+	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_BYTES,
+	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_FRAMES,
+};
+
+export const AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS = AUDIO_EDITOR_PCM_SINK_DEFAULT_MAX_PENDING_CHUNKS;
 
 /**
  * Serialize planar PCM writes while retaining a fixed maximum number of
@@ -7,18 +30,22 @@ export const AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS = 64;
  */
 export function createAsyncPlanarPcmSinkQueue(sink, options = {}) {
 	const write = normalizeSink(sink);
-	const maximumPendingChunks = positiveInteger(
-		options.maximumPendingChunks ?? AUDIO_EDITOR_PCM_SINK_MAX_PENDING_CHUNKS,
-		'maximumPendingChunks',
-	);
+	const maximumPendingChunks = normalizePcmSinkMaximumPendingChunks(options.maximumPendingChunks);
+	const maximumPendingFrames = normalizePcmSinkMaximumPendingFrames(options.maximumPendingFrames);
+	const maximumPendingBytes = normalizePcmSinkMaximumPendingBytes(options.maximumPendingBytes);
 	const onError = typeof options.onError === 'function' ? options.onError : null;
+	const onWriteSettled = typeof options.onWriteSettled === 'function' ? options.onWriteSettled : null;
 	let state = 'open';
 	let failure = null;
 	let pendingChunks = 0;
+	let pendingFrames = 0;
+	let pendingBytes = 0;
 	let acceptedChunks = 0;
 	let acceptedFrames = 0;
+	let acceptedBytes = 0;
 	let writtenChunks = 0;
 	let writtenFrames = 0;
+	let writtenBytes = 0;
 	let tail = Promise.resolve();
 	let result = null;
 
@@ -39,16 +66,24 @@ export function createAsyncPlanarPcmSinkQueue(sink, options = {}) {
 		get state() { return state; },
 		get failure() { return failure; },
 		get maximumPendingChunks() { return maximumPendingChunks; },
+		get maximumPendingFrames() { return maximumPendingFrames; },
+		get maximumPendingBytes() { return maximumPendingBytes; },
 		get pendingChunks() { return pendingChunks; },
+		get pendingFrames() { return pendingFrames; },
+		get pendingBytes() { return pendingBytes; },
 		get acceptedChunks() { return acceptedChunks; },
 		get acceptedFrames() { return acceptedFrames; },
+		get acceptedBytes() { return acceptedBytes; },
 		get writtenChunks() { return writtenChunks; },
 		get writtenFrames() { return writtenFrames; },
+		get writtenBytes() { return writtenBytes; },
 		enqueue(inputChannels, metadata = {}) {
 			if (state !== 'open') throw closedError();
-			let channels;
+			let packet;
+			let details;
 			try {
-				channels = validatePlanarPcmPacket(inputChannels);
+				packet = inspectPlanarPcmSinkPacket(inputChannels);
+				details = Object.freeze({ ...metadata, frames: packet.frames });
 			} catch (error) {
 				return fail(error);
 			}
@@ -57,21 +92,45 @@ export function createAsyncPlanarPcmSinkQueue(sink, options = {}) {
 				error.code = 'PCM_SINK_BACKPRESSURE';
 				return fail(error);
 			}
-			const frames = channels[0].length;
-			const details = Object.freeze({ ...metadata, frames });
+			if (
+				packet.frames > maximumPendingFrames - pendingFrames
+				|| packet.byteLength > maximumPendingBytes - pendingBytes
+			) {
+				const error = new RangeError(
+					`The PCM sink exceeded its ${maximumPendingFrames}-frame or ${maximumPendingBytes}-byte pending-write limit.`,
+				);
+				error.code = 'PCM_SINK_MEMORY_LIMIT';
+				return fail(error);
+			}
 			pendingChunks += 1;
+			pendingFrames += packet.frames;
+			pendingBytes += packet.byteLength;
 			acceptedChunks += 1;
-			acceptedFrames += frames;
+			acceptedFrames += packet.frames;
+			acceptedBytes += packet.byteLength;
+			const frames = packet.frames;
+			const byteLength = packet.byteLength;
+			let channels = packet.channels;
 			tail = tail.then(async () => {
+				let committed = false;
 				try {
 					if (failure) return;
 					await write(channels, details);
+					if (failure) return;
 					writtenChunks += 1;
 					writtenFrames += frames;
+					writtenBytes += byteLength;
+					committed = true;
 				} catch (error) {
 					fail(error);
 				} finally {
 					pendingChunks -= 1;
+					pendingFrames -= frames;
+					pendingBytes -= byteLength;
+					channels = null;
+				}
+				if (committed && !failure && onWriteSettled) {
+					try { await onWriteSettled(details); } catch (error) { fail(error); }
 				}
 			});
 			return true;
@@ -105,23 +164,6 @@ function normalizeSink(sink) {
 	if (typeof sink === 'function') return sink;
 	if (sink && typeof sink.write === 'function') return sink.write.bind(sink);
 	throw new TypeError('A planar PCM sink function or object with write() is required.');
-}
-
-function validatePlanarPcmPacket(channels) {
-	if (!Array.isArray(channels) || !channels.length || channels.length > 64) {
-		throw new TypeError('A planar PCM packet with 1 to 64 channels is required.');
-	}
-	const frames = channels[0] instanceof Float32Array ? channels[0].length : -1;
-	if (frames <= 0 || channels.some((channel) => !(channel instanceof Float32Array) || channel.length !== frames)) {
-		throw new TypeError('Planar PCM sink channels must be non-empty, equally sized Float32Array values.');
-	}
-	return channels;
-}
-
-function positiveInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 1) throw new RangeError(`${name} must be a positive safe integer.`);
-	return number;
 }
 
 function normalizeError(reason, fallbackMessage) {

@@ -232,7 +232,7 @@ class MockRealtimeAudioContext {
 			return;
 		}
 		this.capture?.emit({
-			type: 'audio-chunk', frameOffset: 0,
+			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(0.5)],
 		});
 		this.capture?.emit({ type: 'done', frames: 1 });
@@ -253,13 +253,14 @@ class MockRealtimeAudioContext {
 class MockCaptureNode extends MockNode {
 	readonly port: {
 		onmessage: ((event: { data: Readonly<Record<string, unknown>> }) => void) | null;
+		postMessage(message: Readonly<Record<string, unknown>>): void;
 		start(): void;
 	};
 	onprocessorerror: (() => void) | null = null;
 
 	constructor(context: MockRealtimeAudioContext) {
 		super();
-		this.port = { onmessage: null, start() {} };
+		this.port = { onmessage: null, postMessage() {}, start() {} };
 		context.capture = this;
 	}
 

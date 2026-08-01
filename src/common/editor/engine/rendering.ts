@@ -46,6 +46,8 @@ import {
 	assertOfflineRenderOutputContextGeometry,
 	planOfflineRenderOutputAdmission,
 } from './offline-render-admission.ts';
+import { planRealtimePcmSinkQueueAdmission } from '../pcm-sink-admission.ts';
+import { validateRealtimeCaptureMessage } from './realtime-render-capture.ts';
 import {
 	ENGINE_EMIT_PARAMETRIC_EQ_ERROR,
 	ENGINE_GET_CHUNK_STREAM_CLIENT,
@@ -239,16 +241,22 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
 		if (typeof onChunk !== 'function') throw new TypeError('Realtime rendering requires an onChunk callback.');
 		if (signal?.aborted) throw createAbortError();
-		const Context = getAudioContextConstructor();
-		if (!Context || typeof globalThis.AudioWorkletNode !== 'function') {
-			throw new Error('Realtime AudioWorklet rendering is not supported in this browser.');
-		}
 		const fromFrame = clampFrame(startFrame, 0, this.durationFrames);
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
 		const warmupProjectFrames = fromFrame - renderFromFrame;
 		const tailFrames = Math.round(resolveTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
 		const outputChannelCount = clamp(positiveInteger(this.project.masterChannels, 2), 1, 32);
+		const sinkAdmission = planRealtimePcmSinkQueueAdmission({
+			channelCount: outputChannelCount,
+			chunkFrames,
+			maximumPendingChunks,
+			backpressureHighWaterChunks,
+		});
+		const Context = getAudioContextConstructor();
+		if (!Context || typeof globalThis.AudioWorkletNode !== 'function') {
+			throw new Error('Realtime AudioWorklet rendering is not supported in this browser.');
+		}
 		const context = createRealtimeContext(Context, positiveInteger(sampleRate, this.sampleRate));
 		if (!context.audioWorklet?.addModule) {
 			await context.close?.();
@@ -285,8 +293,9 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				processorOptions: {
 					startFrame: Math.ceil(startTime * context.sampleRate) + warmupContextFrames + processingLatencyFrames,
 					totalFrames: outputFrames,
-					chunkFrames: Math.max(128, Math.min(16_384, Math.floor(chunkFrames))),
+					chunkFrames: sinkAdmission.chunkFrames,
 					channelCount: outputChannelCount,
+					maximumInFlightChunks: sinkAdmission.maximumPendingChunks,
 				},
 			});
 			silent = context.createGain();
@@ -384,19 +393,19 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		failStreamedRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
 		if (streamUnderrunFailure) failRender(streamUnderrunFailure);
-		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { maximumPendingChunks, onError: failRender }) as SinkQueue;
+		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, {
+			maximumPendingChunks: sinkAdmission.maximumPendingChunks,
+			maximumPendingFrames: sinkAdmission.maximumPendingFrames,
+			maximumPendingBytes: sinkAdmission.maximumPendingBytes,
+			onWriteSettled: () => {
+				if (!terminating && !graph.abortController.signal.aborted) {
+					capture.port.postMessage({ type: 'release-chunk' });
+				}
+			},
+			onError: failRender,
+		}) as SinkQueue;
 		const queue = sinkQueue;
-		// The default leaves half the hard queue bound for packets already posted
-		// while suspension crosses threads. Direct encoders request an earlier
-		// soft threshold without shrinking that hard crossover reserve.
-		const sinkBackpressureHighWaterChunks = clamp(
-			positiveInteger(
-				backpressureHighWaterChunks,
-				Math.max(1, Math.floor(queue.maximumPendingChunks / 2)),
-			),
-			1,
-			queue.maximumPendingChunks,
-		);
+		const sinkBackpressureHighWaterChunks = sinkAdmission.backpressureHighWaterChunks;
 		let flowControl: Promise<void> | null = null;
 		const requestSinkDrain = () => {
 			if (
@@ -450,44 +459,41 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (signal?.aborted) abort();
 		capture.onprocessorerror = () => failRender(new Error('The realtime render worklet failed.'));
 		capture.port.onmessage = ({ data = {} }) => {
-			const message = data && typeof data === 'object'
-				? data as Readonly<Record<string, unknown>>
-				: {};
 			if (doneReceived || queue.failure) return;
-			if (message.type === 'audio-chunk') {
-				const channelValues = Array.isArray(message.channels) ? message.channels : [];
-				const channels = channelValues.map((channel: unknown) => (
-					channel instanceof Float32Array
-						? channel
-						: new Float32Array(channel as ArrayLike<number>)
-				));
-				const frames = channels[0]?.length || 0;
-				const accepted = queue.enqueue(channels, {
+			try {
+				const message = validateRealtimeCaptureMessage(data, {
+					channelCount: outputChannelCount,
+					chunkFrames: sinkAdmission.chunkFrames,
+					outputFrames,
+					renderedFrames,
+				});
+				if (!message) return;
+				if (message.type === 'done') {
+					doneReceived = true;
+					void finishCapture().then(() => resolveDone(), rejectDone);
+					return;
+				}
+				const accepted = queue.enqueue(message.channels, {
 					frameOffset: message.frameOffset,
 					sampleRate: context.sampleRate,
 				});
 				if (!accepted) return;
-				renderedFrames += frames;
+				renderedFrames += message.frames;
 				requestSinkDrain();
-				try {
-					onProgress?.({
-						frames: renderedFrames,
-						totalFrames: outputFrames,
-						progress: Math.min(1, renderedFrames / outputFrames),
-					});
-				} catch (error) {
-					failRender(error);
-				}
-			} else if (message.type === 'done') {
-				doneReceived = true;
-				void finishCapture().then(() => resolveDone(), rejectDone);
+				onProgress?.({
+					frames: renderedFrames,
+					totalFrames: outputFrames,
+					progress: Math.min(1, renderedFrames / outputFrames),
+				});
+			} catch (error) {
+				failRender(error);
 			}
 		};
-		capture.port.start?.();
 
 		let renderFailed = false;
 		let renderFailure: unknown;
 		try {
+			capture.port.start?.();
 			if (!graph.abortController.signal.aborted) await context.resume();
 			await done;
 			return {
