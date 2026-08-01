@@ -8,3 +8,16 @@
 
 /assets/*
 	Cache-Control: public, max-age=31536000, immutable
+
+/offline-icons/*
+	Cache-Control: no-cache
+
+/manifest-*.webmanifest
+	Cache-Control: no-cache
+
+/offline-shell.json
+	Cache-Control: no-store
+
+/service-worker.js
+	Cache-Control: no-store
+	Service-Worker-Allowed: /

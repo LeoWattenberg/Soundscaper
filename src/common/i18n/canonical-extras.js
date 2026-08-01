@@ -339,6 +339,19 @@ const COPY_ENTRIES = Object.freeze([
 	["scapeCompatibilityRenderedFallback","Rendered fallback declared","Gerenderte Ersatzquelle deklariert"],
 	["scapeOpenReadOnly","Open read-only","Schreibgeschützt öffnen"],
 	["scapeOpenReadOnlyCopy","Open as read-only copy","Als schreibgeschützte Kopie öffnen"],
+	["offlineRuntime","Offline","Offline"],
+	["offlineRuntimeTitle","Offline media runtime","Offline-Medienlaufzeit"],
+	["offlineRuntimeDescription","Download the verified FFmpeg runtime once to import and export compressed media without a network connection. This stores up to 65 MiB in this browser profile.","Lade die verifizierte FFmpeg-Laufzeit einmal herunter, um komprimierte Medien ohne Netzwerkverbindung zu importieren und zu exportieren. Dafür werden bis zu 65 MiB in diesem Browserprofil gespeichert."],
+	["offlineRuntimeChecking","Checking this browser profile","Browserprofil wird geprüft"],
+	["offlineRuntimeNotInstalled","Not downloaded","Nicht heruntergeladen"],
+	["offlineRuntimeReady","Ready for offline use","Für die Offline-Nutzung bereit"],
+	["offlineRuntimeUnsupported","Persistent runtime caching is unavailable in this browser.","Dauerhaftes Zwischenspeichern der Laufzeit ist in diesem Browser nicht verfügbar."],
+	["offlineRuntimeDownloading","Downloading and verifying {percent}%","Herunterladen und überprüfen {percent} %"],
+	["offlineRuntimeDownload","Download for offline use","Für Offline-Nutzung herunterladen"],
+	["offlineRuntimeCheckUpdate","Check for updates","Nach Aktualisierungen suchen"],
+	["offlineRuntimeRetry","Retry download","Download erneut versuchen"],
+	["offlineRuntimeFailed","The update failed; the previous verified runtime remains available if one was installed.","Die Aktualisierung ist fehlgeschlagen; eine zuvor installierte verifizierte Laufzeit bleibt verfügbar."],
+	["offlineRuntimeRelease","Verified release {release}","Verifizierte Version {release}"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

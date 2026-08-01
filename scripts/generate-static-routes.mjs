@@ -21,6 +21,10 @@ for (const productId of PRODUCT_IDS) {
 		routeCount += 1;
 	}
 }
+await writeFile(resolve(outputRoot, 'index.html'), template.replace(
+	'<!-- route-head -->',
+	productInstallHead('soundscaper'),
+), 'utf8');
 
 console.log(`Generated ${routeCount} localized product routes.`);
 
@@ -40,6 +44,7 @@ function routeDocument(html, { descriptor, productId, route }) {
 			'<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" data-product-icon />',
 		].join('\n\t\t');
 	const head = [
+		productInstallHead(productId),
 		`<meta name="description" content="${escapeHtml(description)}" />`,
 		icons,
 		`<link rel="canonical" href="${escapeHtml(new URL(route, site).href)}" />`,
@@ -49,6 +54,13 @@ function routeDocument(html, { descriptor, productId, route }) {
 		.replace(/<html\b[^>]*>/iu, `<html lang="${escapeHtml(descriptor.locale)}" dir="${descriptor.direction}" data-product="${productId}">`)
 		.replace('<!-- route-head -->', head)
 		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(profile.name)}</title>`);
+}
+
+function productInstallHead(productId) {
+	return [
+		`<link rel="manifest" href="/manifest-${productId}.webmanifest" data-product-manifest />`,
+		`<link rel="apple-touch-icon" sizes="180x180" href="/offline-icons/${productId}-180.png" data-product-install-icon />`,
+	].join('\n\t\t');
 }
 
 function escapeHtml(value) {

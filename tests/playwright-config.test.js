@@ -22,6 +22,7 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 		assert.equal(project.use.viewport.width, 1280);
 		assert.equal(project.use.viewport.height, 720);
 	}
+	assert.equal(config.use.serviceWorkers, 'block', 'ordinary browser tests must not install the offline shell');
 });
 
 test('desktop verification installs every configured browser engine', async () => {

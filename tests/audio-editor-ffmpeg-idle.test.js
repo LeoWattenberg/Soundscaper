@@ -227,6 +227,55 @@ test('invalid idle timeout configuration fails early', () => {
 	assert.throws(() => createEditorFfmpeg({ idleTimeoutMs: '1000' }), /non-negative finite number/);
 });
 
+test('FFmpeg loads an installed content-addressed browser runtime', async () => {
+	const releaseId = 'b'.repeat(64);
+	const baseUrl = `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/releases/${releaseId}`;
+	let resolverCalls = 0;
+	const ffmpeg = createEditorFfmpeg({
+		idleTimeoutMs: false,
+		resolveCoreBaseURL: async () => {
+			resolverCalls += 1;
+			return baseUrl;
+		},
+	});
+
+	await ffmpeg.load();
+
+	assert.equal(resolverCalls, 1);
+	assert.deepEqual(MockFfmpegRuntime.instances[0].loadOptions, {
+		coreURL: `${baseUrl}/ffmpeg-core.js`,
+		wasmURL: `${baseUrl}/ffmpeg-core.wasm`,
+	});
+	ffmpeg.dispose();
+});
+
+test('configured FFmpeg URLs win and resolver failures retain the pinned network fallback', async () => {
+	let configuredResolverCalls = 0;
+	const configured = createEditorFfmpeg({
+		idleTimeoutMs: false,
+		coreBaseURL: 'soundscaper-app://runtime/ffmpeg/',
+		resolveCoreBaseURL: async () => {
+			configuredResolverCalls += 1;
+			return 'https://unexpected.invalid';
+		},
+	});
+	await configured.load();
+	assert.equal(configuredResolverCalls, 0);
+	assert.equal(MockFfmpegRuntime.instances[0].loadOptions.coreURL, 'soundscaper-app://runtime/ffmpeg/ffmpeg-core.js');
+	configured.dispose();
+
+	const fallback = createEditorFfmpeg({
+		idleTimeoutMs: false,
+		resolveCoreBaseURL: async () => { throw new Error('CacheStorage failed'); },
+	});
+	await fallback.load();
+	assert.deepEqual(MockFfmpegRuntime.instances[1].loadOptions, {
+		coreURL: 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/ffmpeg-core.js',
+		wasmURL: 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/ffmpeg-core.wasm',
+	});
+	fallback.dispose();
+});
+
 class MockFfmpegRuntime {
 	static instances = [];
 	static pauseExecByDefault = false;
@@ -252,7 +301,8 @@ class MockFfmpegRuntime {
 
 	off() {}
 
-	load() {
+	load(options) {
+		this.loadOptions = options;
 		if (!this.pauseLoad) {
 			this.loaded = true;
 			return Promise.resolve();
