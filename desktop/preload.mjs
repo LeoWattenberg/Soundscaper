@@ -16,8 +16,14 @@ const CHANNELS = Object.freeze({
 	abortWrite: 'soundscaper:v1:save:abort',
 	listSharedProjects: 'soundscaper:v1:projects:list',
 	readSharedProject: 'soundscaper:v1:projects:read',
+	readSharedProjectBundle: 'soundscaper:v1:projects:bundle',
 	commitSharedProject: 'soundscaper:v1:projects:commit',
 	deleteSharedProject: 'soundscaper:v1:projects:delete',
+	beginSharedSourceWrite: 'soundscaper:v1:projects:sources:begin',
+	writeSharedSourceChunk: 'soundscaper:v1:projects:sources:chunk',
+	finishSharedSourceWrite: 'soundscaper:v1:projects:sources:finish',
+	abortSharedSourceWrite: 'soundscaper:v1:projects:sources:abort',
+	readSharedSourceChunk: 'soundscaper:v1:projects:sources:read',
 	setLocale: 'soundscaper:v1:locale:set',
 	setFullscreen: 'soundscaper:v1:fullscreen:set',
 	checkForUpdates: 'soundscaper:v1:updates:check',
@@ -41,6 +47,12 @@ const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
 const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
 const MAX_SHARED_PROJECTS = 10_000;
+const MAX_SHARED_SOURCE_BYTES = 64 * 1024 ** 3;
+const MAX_SHARED_SOURCES = 4_094;
+const MANAGED_AUDIO_ENCODING = 'audio-f32le-chunks-v1';
+const MANAGED_BINDING_ID = /^m[a-f0-9]{64}$/u;
+const SOURCE_WRITE_ID = /^[a-f0-9]{32}$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
 const SHARED_PROJECT_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 
 const api = Object.freeze({
@@ -71,6 +83,10 @@ const api = Object.freeze({
 		CHANNELS.readSharedProject,
 		sharedProjectId(projectId),
 	).then(nullableProjectDocument),
+	readSharedProjectBundle: (projectId) => ipcRenderer.invoke(
+		CHANNELS.readSharedProjectBundle,
+		sharedProjectId(projectId),
+	).then(nullableProjectBundle),
 	commitSharedProject: (document) => ipcRenderer.invoke(
 		CHANNELS.commitSharedProject,
 		projectDocument(document),
@@ -79,6 +95,27 @@ const api = Object.freeze({
 		CHANNELS.deleteSharedProject,
 		sharedProjectId(projectId),
 	).then(strictBoolean),
+	beginSharedSourceWrite: (declaration) => ipcRenderer.invoke(
+		CHANNELS.beginSharedSourceWrite,
+		sharedSourceWriteDeclaration(declaration),
+	).then(sharedSourceWriteAdmission),
+	writeSharedSourceChunk: (value) => ipcRenderer.invoke(
+		CHANNELS.writeSharedSourceChunk,
+		sharedSourceChunkWrite(value),
+	).then(sharedSourceChunkAcknowledgement),
+	finishSharedSourceWrite: (value) => ipcRenderer.invoke(
+		CHANNELS.finishSharedSourceWrite,
+		sharedSourceWriteCompletion(value),
+	).then(sharedManagedSourceDescriptor),
+	abortSharedSourceWrite: (writeId) => ipcRenderer.invoke(
+		CHANNELS.abortSharedSourceWrite,
+		sharedSourceWriteId(writeId),
+	).then(strictBoolean),
+	readSharedSourceChunk: (value) => {
+		const request = sharedSourceChunkRead(value);
+		return ipcRenderer.invoke(CHANNELS.readSharedSourceChunk, request)
+			.then((bytes) => sharedSourceChunkResult(bytes, request.length));
+	},
 	setLocale: (locale) => ipcRenderer.invoke(CHANNELS.setLocale, text(locale, 32)),
 	setFullscreen: (enabled) => ipcRenderer.invoke(CHANNELS.setFullscreen, enabled === true),
 	checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
@@ -297,6 +334,159 @@ function projectDocument(value, maximumBytes = MAX_SHARED_PROJECT_DOCUMENT_BYTES
 
 function nullableProjectDocument(value) {
 	return value === null ? null : projectDocument(value);
+}
+
+function nullableProjectBundle(value) {
+	if (value === null) return null;
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| !Array.isArray(value.sources) || value.sources.length > MAX_SHARED_SOURCES) {
+		throw new TypeError('Desktop shared-project bundle is invalid');
+	}
+	const sources = Object.freeze(value.sources.map(sharedManagedSourceDescriptor));
+	if (new Set(sources.map(({ sourceId }) => sourceId)).size !== sources.length) {
+		throw new TypeError('Desktop shared-project bundle contains duplicate source identities');
+	}
+	return Object.freeze({ document: projectDocument(value.document), sources });
+}
+
+function sharedManagedSourceDescriptor(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| value.kind !== 'audio' || value.encoding !== MANAGED_AUDIO_ENCODING) {
+		throw new TypeError('Desktop shared-source descriptor is invalid');
+	}
+	return Object.freeze({
+		bindingId: sharedManagedBindingId(value.bindingId),
+		byteLength: sharedSourceBytes(value.byteLength),
+		encoding: MANAGED_AUDIO_ENCODING,
+		kind: 'audio',
+		sha256: sharedSourceSha256(value.sha256),
+		sourceId: sharedSourceIdentity(value.sourceId),
+		storageKey: sharedSourceIdentity(value.storageKey),
+	});
+}
+
+function sharedSourceWriteDeclaration(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| value.encoding !== MANAGED_AUDIO_ENCODING) {
+		throw new TypeError('Desktop shared-source write declaration is invalid');
+	}
+	return Object.freeze({
+		byteLength: sharedSourceBytes(value.byteLength),
+		encoding: MANAGED_AUDIO_ENCODING,
+		projectId: sharedProjectId(value.projectId),
+		projectRevision: safeInteger(value.projectRevision),
+		sha256: sharedSourceSha256(value.sha256),
+		sourceId: sharedSourceIdentity(value.sourceId),
+	});
+}
+
+function sharedSourceWriteAdmission(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-source write admission is invalid');
+	}
+	if (value.status === 'present') {
+		return Object.freeze({ status: 'present', source: sharedManagedSourceDescriptor(value.source) });
+	}
+	if (value.status !== 'ready') throw new TypeError('Desktop shared-source write admission is invalid');
+	const chunkSize = positiveSafeInteger(value.chunkSize);
+	if (chunkSize > MAX_CHUNK_BYTES) throw new RangeError('Desktop shared-source chunk size is too large');
+	return Object.freeze({ status: 'ready', chunkSize, writeId: sharedSourceWriteId(value.writeId) });
+}
+
+function sharedSourceChunkWrite(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-source chunk write is invalid');
+	}
+	const bytes = binary(value.bytes);
+	if (bytes.byteLength < 1 || bytes.byteLength > MAX_CHUNK_BYTES) {
+		throw new RangeError('Desktop shared-source chunk is too large');
+	}
+	return Object.freeze({
+		bytes,
+		offset: safeInteger(value.offset),
+		writeId: sharedSourceWriteId(value.writeId),
+	});
+}
+
+function sharedSourceChunkAcknowledgement(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-source chunk acknowledgement is invalid');
+	}
+	return Object.freeze({ nextOffset: safeInteger(value.nextOffset) });
+}
+
+function sharedSourceWriteCompletion(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-source write completion is invalid');
+	}
+	return Object.freeze({
+		sha256: sharedSourceSha256(value.sha256),
+		writeId: sharedSourceWriteId(value.writeId),
+	});
+}
+
+function sharedSourceChunkRead(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-source chunk read is invalid');
+	}
+	const length = positiveSafeInteger(value.length);
+	if (length > MAX_CHUNK_BYTES) throw new RangeError('Desktop shared-source read is too large');
+	return Object.freeze({
+		bindingId: sharedManagedBindingId(value.bindingId),
+		length,
+		offset: safeInteger(value.offset),
+	});
+}
+
+function sharedSourceChunkResult(value, expectedLength) {
+	const bytes = binary(value);
+	if (bytes.byteLength !== expectedLength) {
+		throw new Error('Desktop shared-source read returned an unexpected byte length');
+	}
+	return bytes;
+}
+
+function sharedSourceIdentity(value) {
+	if (typeof value !== 'string' || !value.trim()) {
+		throw new TypeError('Desktop shared-source identity is invalid');
+	}
+	if (utf8Bytes(value, MAX_SHARED_PROJECT_ID_BYTES) > MAX_SHARED_PROJECT_ID_BYTES) {
+		throw new RangeError('Desktop shared-source identity exceeds its byte limit');
+	}
+	return value;
+}
+
+function sharedSourceBytes(value) {
+	const bytes = safeInteger(value);
+	if (bytes > MAX_SHARED_SOURCE_BYTES) throw new RangeError('Desktop shared-source byte length is too large');
+	return bytes;
+}
+
+function sharedSourceWriteId(value) {
+	if (typeof value !== 'string' || !SOURCE_WRITE_ID.test(value)) {
+		throw new TypeError('Desktop shared-source write id is invalid');
+	}
+	return value;
+}
+
+function sharedManagedBindingId(value) {
+	if (typeof value !== 'string' || !MANAGED_BINDING_ID.test(value)) {
+		throw new TypeError('Desktop shared-source binding id is invalid');
+	}
+	return value;
+}
+
+function sharedSourceSha256(value) {
+	if (typeof value !== 'string' || !SHA256.test(value)) {
+		throw new TypeError('Desktop shared-source SHA-256 digest is invalid');
+	}
+	return value;
+}
+
+function positiveSafeInteger(value) {
+	const number = safeInteger(value);
+	if (number === 0) throw new RangeError('Expected a positive safe integer');
+	return number;
 }
 
 function strictBoolean(value) {

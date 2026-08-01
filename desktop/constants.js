@@ -49,6 +49,10 @@ export const MAX_SAVE_ADMITTED_BYTES = MAX_DESKTOP_SAVE_BYTES;
 export const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
 export const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
 export const MAX_SHARED_PROJECTS = 10_000;
+export const MAX_SHARED_SOURCE_BYTES = 64 * 1024 ** 3;
+export const MAX_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
+export const MAX_SHARED_SOURCE_READS = 4;
+export const MAX_SHARED_SOURCES = 4_094;
 
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',
@@ -61,8 +65,14 @@ export const IPC = Object.freeze({
 	abortWrite: 'soundscaper:v1:save:abort',
 	listSharedProjects: 'soundscaper:v1:projects:list',
 	readSharedProject: 'soundscaper:v1:projects:read',
+	readSharedProjectBundle: 'soundscaper:v1:projects:bundle',
 	commitSharedProject: 'soundscaper:v1:projects:commit',
 	deleteSharedProject: 'soundscaper:v1:projects:delete',
+	beginSharedSourceWrite: 'soundscaper:v1:projects:sources:begin',
+	writeSharedSourceChunk: 'soundscaper:v1:projects:sources:chunk',
+	finishSharedSourceWrite: 'soundscaper:v1:projects:sources:finish',
+	abortSharedSourceWrite: 'soundscaper:v1:projects:sources:abort',
+	readSharedSourceChunk: 'soundscaper:v1:projects:sources:read',
 	setLocale: 'soundscaper:v1:locale:set',
 	setFullscreen: 'soundscaper:v1:fullscreen:set',
 	checkForUpdates: 'soundscaper:v1:updates:check',

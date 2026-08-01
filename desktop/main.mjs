@@ -571,6 +571,9 @@ function projectLibrarySmokeEvidence(projectId) {
 async function closeProjectLibraryHost() {
 	const startup = projectLibraryStartup;
 	if (startup) await startup.catch(() => undefined);
+	const registration = projectLibraryIpc;
+	await registration?.dispose();
+	if (projectLibraryIpc === registration) projectLibraryIpc = null;
 	const host = projectLibraryHost;
 	await host?.close();
 	if (projectLibraryHost === host) projectLibraryHost = null;
