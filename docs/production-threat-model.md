@@ -292,7 +292,47 @@ The required cancellation contract is end-to-end: one signal flows from the user
 
 `runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and WavPack modules retain their source/binary audits. Controlled FFmpeg publication, desktop staging, pre-pack verification, and the current Soundscaper public desktop-release assembler now validate one checked-in policy manifest that ties exact runtime bytes and base publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under fixed tested code, while the assembler requires exact Soundscaper product/target manifests and version-matched packages before network access. Invalid preflight never enters desktop assembly or invokes Wrangler, and staging/publication consume private verified byte snapshots. Electron Builder rejects staged runtime, summary, manifest, and notice drift present at its beforePack check, then reopens the copied extra-resource directory and revalidates the exact runtime inventory, manifest, assets, and notice in afterPack before fuse or signing work. The post-copy tamper regression proves that a mismatch cannot reach fuse application. The checked-in authorizations mirror the licensing matrix and currently block public runtime upload and desktop-release assembly.
 
-This qualifies only repository-owned admission. The manifest's review marker and payload digest are self-declared and detect inconsistent edits, but do not authenticate independent approval; a protected or signed attestation remains required. The publisher layout and pointer contract are not yet manifest fields, content-addressed object writes are neither conditional nor read back, and the browser and release workflows still hard-code the runtime version instead of resolving or authenticating the pointer, comparing their path with the manifest, or retaining a last-known-good runtime. Web notice delivery, complete corresponding source for every enabled FFmpeg library, and distribution-specific codec patent review remain blocked in the licensing matrix. Desktop previews remain unsigned and do not qualify signing, notarization, rollback, or key rotation.
+The Web application shell now has a separate verified availability boundary.
+The build inventories at most 4,096 regular assets, 25 MiB each and 256 MiB in
+aggregate, and binds exact lengths and SHA-256 digests into one release identity
+covering the service-worker template. Installation verifies that identity and
+each complete allowlisted response before CacheStorage publication, writes a
+release readiness marker last, and removes only the failed candidate.
+Activation refuses an incomplete cache, claims clients before retiring prior
+complete shell caches, and a failed takeover leaves the previous release
+available. Registration is production-web-only and cannot reject application
+startup. Generated product manifests and stable revalidated icons make both
+Soundscaper and Framescaper installable; the tested Chromium workflow reloads
+both editors offline.
+
+The explicit Web FFmpeg download follows the no-store production pointer only
+after a user action. It bounds the pointer to 64 KiB, manifest to 512 KiB, each
+runtime file to 64 MiB, aggregate files to 65 MiB, and each streaming chunk to
+4 MiB; restricts origin and content-addressed release paths; and verifies
+pointer-bound manifest and runtime byte lengths and SHA-256 digests. Candidate
+caches are isolated, complete final caches precede the active-state commit, and
+one previous complete release is retained. Partial, altered, cancelled, or
+failed updates do not replace the active state. The editor uses a ready
+installed release without network access and otherwise retains its pinned
+network fallback; it does not implicitly download a runtime.
+
+These controls qualify repository-owned admission and consumer-side detection
+of incomplete or pointer-inconsistent releases, not an independent authenticity
+root. The checked-in manifest's review marker and payload digest are
+self-declared, and a compromised asset host can replace the final pointer with
+a new internally self-consistent release. The publisher layout and pointer
+contract are not manifest fields, content-addressed writes are neither
+conditional nor read back, and browser and release configuration still
+hard-code the runtime version instead of proving agreement with reviewed
+policy. Runtime installation is not serialized across tabs, CacheStorage quota
+and eviction can remove availability, and there is no product-wide cache
+reservation. Shell installation materializes one admitted asset body before
+caching it. Safari and Firefox service-worker workflows, storage-pressure
+recovery, multi-tab updates, downgrade drills, and actual-device offline
+behavior remain unqualified. Web notice delivery, complete corresponding
+source for every enabled FFmpeg library, and distribution-specific codec patent
+review remain blocked in the licensing matrix. Desktop previews remain
+unsigned and do not qualify signing, notarization, rollback, or key rotation.
 
 The licensing/provenance matrix is a separate release control. Passing a security audit does not establish license or patent clearance, and provenance documentation alone does not establish runtime isolation.
 

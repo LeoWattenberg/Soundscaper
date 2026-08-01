@@ -1855,15 +1855,38 @@
 						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
 						{ "kind": "test", "path": "tests/ffmpeg-runtime-manifest.test.js" }
 					]
+				},
+				{
+					"id": "verified-web-offline-shell-and-runtime-cache",
+					"summary": "The production Web build generates separate install metadata for Soundscaper and Framescaper and one content-addressed application-shell inventory. Generation permits only regular nonsymbolic output, at most 4,096 assets, 25 MiB per asset, and 256 MiB aggregate, and binds exact byte lengths and SHA-256 digests with the service-worker template into the release identity. The stable no-store root worker recomputes that identity, sequentially fetches only the allowlist, verifies every complete body before caching it, and writes readiness last. Failed installation removes only the candidate; activation requires readiness and claims clients before retiring older complete shell caches. Production HTTP(S) registration is nonblocking, while Electron, non-HTTP documents, and unsupported browsers are unchanged. The Web preferences expose an explicit FFmpeg runtime download; no runtime download occurs implicitly. Its strict boundary permits only the pinned production origin and content-addressed versioned release layout, bounds pointer bytes to 64 KiB, manifest bytes to 512 KiB, each file to 64 MiB, aggregate files to 65 MiB, and streamed chunks to 4 MiB, and verifies pointer-bound manifest and asset lengths and SHA-256 digests. CacheStorage transactions isolate candidates, copy both complete files before active-state publication, retain one prior complete release, and roll back partial, altered, cancelled, or failed updates without replacing the active state. The editor prefers a ready installed release and otherwise keeps its pinned network fallback. Focused Node and Chromium workflows cover shell identity, failed install and activation retention, two-product offline reload, explicit download, altered and partial runtime refusal, previous-version recovery, and offline use of only an explicitly installed content-addressed release.",
+					"evidence": [
+						{ "kind": "implementation", "path": "scripts/lib/offline-application-shell.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/offline-service-worker.mjs" },
+						{ "kind": "implementation", "path": "src/common/offline/application-shell.ts" },
+						{ "kind": "implementation", "path": "src/common/offline/ffmpeg-runtime-cache.ts" },
+						{ "kind": "implementation", "path": "src/common/offline/browser-runtime-store.ts" },
+						{ "kind": "implementation", "path": "src/common/offline/browser-ffmpeg-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.tsx" },
+						{ "kind": "test", "path": "tests/offline-application-shell-build.test.js" },
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" },
+						{ "kind": "test", "path": "tests/offline-application-shell-registration.test.ts" },
+						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" },
+						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" },
+						{ "kind": "test", "path": "tests/offline-browser-ffmpeg-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/browser/offline-application-shell.spec.js" },
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" },
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-service-worker.spec.js" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "served-external-runtime-authentication",
-					"exposure": "The publisher's content-addressed layout and pointer contract are code-defined rather than bound as manifest fields, and remote writes have no conditional-create or read-back proof. The browser and release workflows still hard-code the 0.12.10 path instead of checking the manifest prefix or resolving and authenticating the pointer, and they retain no verified rollback version; asset-host mutation or a partial update can therefore deny or substitute the runtime.",
-					"requiredControl": "Bind the release-path and pointer schema/cache contract in reviewed policy, resolve the final pointer at the consumer boundary, authenticate the full manifest and asset digests, make publication conditional and verify remote reads before pointer promotion, compare workflow and consumer configuration with the policy manifest, and retain the last complete verified version for rollback.",
+					"exposure": "The Web consumer now resolves the no-store final pointer at the pinned production origin, verifies pointer-bound manifest and runtime lengths and SHA-256 digests under bounded streaming, commits complete CacheStorage state last, and retains one prior complete release, so altered, partial, or cancelled updates cannot replace the active runtime. This is consumer-side consistency and rollback, not an independent authenticity root: a compromised asset host can replace the pointer with a new internally self-consistent release. The publisher's content-addressed layout and pointer contract remain code-defined rather than bound as reviewed manifest fields, remote writes have no conditional-create or read-back proof, and browser, release-workflow, and policy configuration still hard-code or duplicate the 0.12.10 path without proving agreement. Separate tabs are not globally serialized and can race candidate/state cleanup; CacheStorage eviction or quota pressure can remove availability.",
+					"requiredControl": "Bind the release-path and pointer schema/cache contract in reviewed policy, independently authenticate the pointer and full manifest, make publication conditional and verify exact remote reads before pointer promotion, prove workflow and consumer configuration agree with the policy manifest, and serialize or safely reconcile multi-tab consumer state without weakening the bounded two-version rollback.",
 					"ownerMilestone": "2",
-					"acceptanceCriteria": ["Cross-browser offline/runtime-cache tests reject altered or incomplete remote releases and recover through the last complete digest-verified version."]
+					"acceptanceCriteria": ["Publication tests prove conditional immutable creation, exact remote read-back, and authenticated pointer promotion bound to reviewed policy; cross-browser consumers reject a self-consistent unauthorized release as well as altered or partial bodies and retain the last complete verified version."]
 				},
 				{
 					"id": "runtime-manifest-review-attestation",

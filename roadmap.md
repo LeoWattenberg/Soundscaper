@@ -306,9 +306,10 @@ reviewable gates before expanding the schema or native boundary.
   [offline invalid-preflight/post-stage-tamper](tests/ffmpeg-runtime-manifest.test.js)
   and [post-copy package-tamper](tests/desktop-packaged-ffmpeg-runtime.test.js)
   regressions. This closes repository-owned publication admission and the
-  Electron extra-resource copy boundary; independently authenticated approval,
-  browser-side runtime authentication, remote pointer qualification, and
-  rollback caching remain planned.
+  Electron extra-resource copy boundary. The milestone-2 control below now adds
+  bounded browser pointer/manifest/asset verification and two-version rollback;
+  independently authenticated approval, publisher-to-pointer authenticity,
+  conditional remote creation, and read-back qualification remain planned.
 - **Shared — Implemented:** the
   [licensing and provenance matrix](config/production-licensing-matrix.json)
   derives the exact production lockfile closure and separates every web,
@@ -1242,9 +1243,58 @@ models or native implementations.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.
-- **Web Core — Planned:** provide an installable, versioned offline application
-  shell and an explicit runtime-download/cache flow. Failed or partial runtime
-  updates leave the previous verified version usable.
+- **Web Core — Implemented (provisional):** the production build now generates
+  separate Soundscaper and Framescaper install manifests and icons plus one
+  content-addressed [application-shell inventory](scripts/lib/offline-application-shell.mjs).
+  Generation rejects symbolic entries, more than 4,096 assets, any asset above
+  25 MiB, or an aggregate above 256 MiB, and records exact byte lengths and
+  SHA-256 digests. A stable, no-store root
+  [service worker](scripts/lib/offline-service-worker.mjs) recomputes the release
+  identity, fetches only that allowlist, verifies every complete body before
+  caching, and writes readiness last. Failed installation deletes only the new
+  release; activation requires readiness and claims clients before retiring an
+  older complete shell. Production HTTP(S) pages register without blocking app
+  startup, while Electron, unsupported browsers, and non-HTTP documents remain
+  unchanged. Focused [generation](tests/offline-application-shell-build.test.js),
+  [worker](tests/offline-service-worker.test.js),
+  [registration](tests/offline-application-shell-registration.test.ts), and
+  [Chromium offline reload](tests/browser/offline-application-shell.spec.js)
+  regressions cover exact identity, partial and altered installs, activation
+  failure, product routes, and offline reload of both editors.
+
+  Web preferences also expose an explicit verified FFmpeg runtime download.
+  The strict-TS [download boundary](src/common/offline/ffmpeg-runtime-cache.ts)
+  accepts only the pinned production origin and versioned release layout,
+  bounds the pointer to 64 KiB, manifest to 512 KiB, each runtime file to
+  64 MiB, the aggregate to 65 MiB, and each streamed chunk to 4 MiB, and checks
+  exact pointer-bound manifest and asset byte lengths and SHA-256 digests. The
+  CacheStorage [transaction](src/common/offline/browser-runtime-store.ts)
+  publishes active metadata only after both runtime files reach a complete
+  final cache and retains one previous complete release. Cancellation, partial
+  responses, altered bytes, and final-cache failure roll back only the isolated
+  candidate. The editor loads an installed content-addressed release when one
+  is ready and otherwise keeps the pinned network fallback. Focused
+  [download](tests/offline-ffmpeg-runtime-cache.test.ts),
+  [store](tests/offline-browser-runtime-store.test.ts),
+  [manager](tests/offline-browser-ffmpeg-runtime.test.ts), and Chromium
+  [update](tests/browser/offline-ffmpeg-runtime-download.spec.js) and
+  [offline-use](tests/browser/offline-ffmpeg-runtime-service-worker.spec.js)
+  regressions prove complete promotion, previous-version recovery, explicit
+  offline use, and no implicit runtime download.
+
+  This is a verified availability cache, not an authenticity root for a fully
+  compromised asset host. The pointer path and release schema remain
+  code-defined rather than bound to independently approved policy, and remote
+  publication still lacks conditional creation, read-back verification, and
+  authenticated pointer promotion. A malicious host able to replace the
+  pointer can therefore nominate a new internally self-consistent release.
+  CacheStorage quota or eviction can remove offline availability; separate tabs
+  are not globally serialized and can race runtime candidate/state cleanup.
+  Runtime caching has no product-wide quota reservation, and the shell install
+  still materializes one admitted asset body before caching it. Safari and
+  Firefox service-worker workflows, storage-pressure recovery, multi-tab
+  updates, upgrade/downgrade drills, and actual-device offline behavior remain
+  unqualified. This control does not discover or authorize third-party code.
 - **Shared — In progress:** retained binary media originals now receive a
   lowercase SHA-256 computed from a canonical native Blob view shared with
   durable storage, so subclass reader overrides and caller metadata cannot
