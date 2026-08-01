@@ -197,6 +197,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		preRollFrames = 0,
 		chunkFrames = 4096,
 		maximumPendingChunks = undefined,
+		backpressureHighWaterChunks = undefined,
 		onChunk,
 		onProgress = null,
 		signal,
@@ -337,9 +338,17 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (parametricEqFailure) failRender(parametricEqFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { maximumPendingChunks, onError: failRender }) as SinkQueue;
 		const queue = sinkQueue;
-		// Leave half the hard queue bound available for MessagePort packets that
-		// were already posted while suspension crosses the audio-thread boundary.
-		const backpressureHighWaterChunks = Math.max(1, Math.floor(queue.maximumPendingChunks / 2));
+		// The default leaves half the hard queue bound for packets already posted
+		// while suspension crosses threads. Direct encoders request an earlier
+		// soft threshold without shrinking that hard crossover reserve.
+		const sinkBackpressureHighWaterChunks = clamp(
+			positiveInteger(
+				backpressureHighWaterChunks,
+				Math.max(1, Math.floor(queue.maximumPendingChunks / 2)),
+			),
+			1,
+			queue.maximumPendingChunks,
+		);
 		let flowControl: Promise<void> | null = null;
 		const requestSinkDrain = () => {
 			if (
@@ -348,7 +357,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				|| doneReceived
 				|| queue.failure
 				|| graph.abortController.signal.aborted
-				|| queue.pendingChunks < backpressureHighWaterChunks
+				|| queue.pendingChunks < sinkBackpressureHighWaterChunks
 			) return;
 			const cycle = (async () => {
 				let suspendedForBackpressure = false;

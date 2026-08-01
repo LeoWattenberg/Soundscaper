@@ -22,10 +22,16 @@ export function directPcmMaximumPendingChunks(
 export function directPcmRenderQueueOptions(
 	channelCount: number,
 	containerLabel = 'PCM',
-): Readonly<{ chunkFrames: number; maximumPendingChunks: number }> {
+): Readonly<{
+	chunkFrames: number;
+	maximumPendingChunks: number;
+	backpressureHighWaterChunks: number;
+}> {
 	return Object.freeze({
 		chunkFrames: DIRECT_PCM_RENDER_CHUNK_FRAMES,
 		maximumPendingChunks: directPcmMaximumPendingChunks(channelCount, containerLabel),
+		// Suspend before the main-thread encoder/resampler can starve a streamed source.
+		backpressureHighWaterChunks: 1,
 	});
 }
 

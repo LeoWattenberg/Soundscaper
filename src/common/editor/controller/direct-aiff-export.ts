@@ -61,6 +61,7 @@ export function directAiffMaximumPendingChunks(channelCount: number): number {
 export function directAiffRenderQueueOptions(channelCount: number): Readonly<{
 	chunkFrames: number;
 	maximumPendingChunks: number;
+	backpressureHighWaterChunks: number;
 }> {
 	return directPcmRenderQueueOptions(channelCount, AIFF_CONTAINER_LABEL);
 }

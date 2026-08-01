@@ -229,6 +229,7 @@ test('exact authored BW64 streams ds64, BEXT, CHNA, PCM, and AXML in canonical o
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.renderRequests[0]?.chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
 	assert.equal(fixture.renderRequests[0]?.maximumPendingChunks, directPcmMaximumPendingChunks(6, 'BW64'));
+	assert.equal(fixture.renderRequests[0]?.backpressureHighWaterChunks, 1);
 	assert.deepEqual(result, {
 		url: null, fileName: 'direct.wav', mimeType: 'audio/wav',
 		size: layout.byteLength, method: 'file-system-access',

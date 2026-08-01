@@ -72,6 +72,7 @@ export function directWavMaximumPendingChunks(channelCount: number): number {
 export function directWavRenderQueueOptions(channelCount: number): Readonly<{
 	chunkFrames: number;
 	maximumPendingChunks: number;
+	backpressureHighWaterChunks: number;
 }> {
 	return directPcmRenderQueueOptions(channelCount, WAV_CONTAINER_LABEL);
 }

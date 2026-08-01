@@ -137,6 +137,7 @@ export interface EngineRealtimeRenderOptions extends EngineRenderMixOptions {
 	readonly sampleRate?: number;
 	readonly chunkFrames?: number;
 	readonly maximumPendingChunks?: number;
+	readonly backpressureHighWaterChunks?: number;
 	readonly onChunk?: EnginePcmChunkSink;
 }
 

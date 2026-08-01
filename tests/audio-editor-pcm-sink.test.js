@@ -352,6 +352,37 @@ test('realtime engine pauses production while a bounded slow sink drains', async
 	});
 });
 
+test('realtime engine can suspend production for every accepted sink chunk', async () => {
+	let releaseWrite;
+	const writeBlocked = new Promise((resolve) => { releaseWrite = resolve; });
+	let markWriteStarted;
+	const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
+	await withMockRealtimeRenderer((context) => {
+		context.emit({
+			type: 'audio-chunk', frameOffset: 0,
+			channels: [Float32Array.of(1), Float32Array.of(-1)],
+		});
+	}, async (contexts) => {
+		const engine = createRealtimeFixtureEngine();
+		const pending = engine.renderMixToSink({
+			sink: async () => {
+				assert.equal(contexts[0].suspendCalls, 1, 'suspension is requested before sink work starts');
+				markWriteStarted();
+				await writeBlocked;
+			},
+			outputFrames: 1,
+			maximumPendingChunks: 4,
+			backpressureHighWaterChunks: 1,
+		});
+		await writeStarted;
+		contexts[0].emit({ type: 'done', frames: 1 });
+		releaseWrite();
+		assert.equal((await pending).chunkCount, 1);
+		assert.equal(contexts[0].suspendCalls, 1);
+		assert.equal(contexts[0].resumeCalls, 1, 'completion never resumes the suspended context');
+	});
+});
+
 test('realtime engine reserves hard-bound capacity while suspension is pending', async () => {
 	let releaseSuspend;
 	const suspendBlocked = new Promise((resolve) => { releaseSuspend = resolve; });
