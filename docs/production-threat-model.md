@@ -332,7 +332,37 @@ derivative publication. Source import retains the original video, stops later
 captures after source-geometry refusal, and stops the remaining filmstrip after
 an encoded hard-cap refusal.
 
-This control does not bound decoder or codec allocations, browser heap, process
+`original-bound-disposable-video-preview-cache` is implemented for maintained
+poster and thumbnail cache records. Before save, the repository resolves the
+retained original by storage key and derives its repository-trusted current
+SHA-256 and media-content token. The content-addressed key binds the
+original storage key and digest, the closed poster or thumbnail type and
+normalized non-negative source time, and the versioned recipe. Save computes
+the derivative output SHA-256 and revalidates the original digest/token
+immediately before publication; IndexedDB atomically publishes the payload and
+scalar companion, while a failed publication removes any staged OPFS output.
+On IndexedDB load, payload and companion binding scalars must match, and every
+load verifies the stored output size and SHA-256. A well-formed record from an
+older original generation is a cache miss even when the replacement has the
+same digest; malformed pair or binding data and body-integrity failures still
+reject. Legacy or unbound derivative records are also cache misses.
+
+IndexedDB exact derivative deletion and media-asset cascade load every selected
+payload and require full agreement with its scalar companion before deleting
+any row. Only paths re-projected from validated payloads are disposed after the
+transaction commits. A mismatch therefore aborts the transaction without
+disposing any OPFS path, so a corrupt companion path cannot delete an unrelated
+retained original. A deletion selector that names a recipe matches only that
+normalized recipe ID and version; omitting the recipe keeps all revisions
+eligible. New video source imports and maintained read-write `.scape` imports
+persist `posterStorageKey` and `thumbnailStorageKey` as `null`, future read-only
+imports remain opaque, maintained source-update commands cannot author those
+locators, durable desktop recipient binding excludes legacy values, and managed
+source declarations omit them. Those fields are no longer part of maintained
+durable binding identity. This is disposable cache identity, not an editorial
+proxy or relink relationship.
+
+Neither control bounds decoder or codec allocations, browser heap, process
 RSS, or GC headroom. Object-URL creation and `loadedmetadata` precede the source
 gate; a native decode surface need not be the nominal RGBA representation.
 Canvas, encoder, driver, and browser overhead are unknown. The encoded Blob

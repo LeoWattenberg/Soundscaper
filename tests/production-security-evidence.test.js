@@ -151,6 +151,51 @@ test('threat-model documentation defines the limits of enforced controls', async
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? open/iu);
 });
 
+test('disposable video preview cache evidence binds current originals without claiming editorial proxies', async () => {
+	const matrix = await readMatrix();
+	const mediaRisk = matrix.risks.find(({ id }) => id === 'external-media-parser-bounds');
+	const control = mediaRisk?.currentControls.find(
+		({ id }) => id === 'original-bound-disposable-video-preview-cache',
+	);
+	assert.ok(control);
+	for (const path of [
+		'src/common/editor/storage/video-derivative-relationship.ts',
+		'src/common/editor/storage/video-derivative-repository.ts',
+		'src/common/editor/storage/media-repository.ts',
+		'src/common/editor/storage/derivative-cache-entry.ts',
+		'src/common/editor/storage/media-records.ts',
+		'src/common/editor/controller/source-import.ts',
+		'src/common/editor/commands/project-source-bin-runtime.js',
+		'src/common/editor/scape-project.js',
+		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
+		'tests/audio-editor-video-derivative-binding.test.ts',
+		'tests/audio-editor-video-derivative-publication-fence.test.ts',
+		'tests/audio-editor-storage-records.test.ts',
+		'tests/audio-editor-derivative-cache-consistency.test.ts',
+		'tests/audio-editor-derivative-cache-paging.test.ts',
+		'tests/audio-editor-source-import.test.ts',
+		'tests/audio-editor-project-bin.test.js',
+		'tests/audio-editor-scape-project.test.js',
+		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
+	]) assert.ok(control.evidence.some((item) => item.path === path), `Missing preview-cache evidence from ${path}`);
+	assert.match(
+		control.summary,
+		/repository-trusted current SHA-256.*media-content token.*content-addressed key.*original storage key and digest.*poster\/thumbnail type.*normalized non-negative source time.*versioned recipe.*revalidates.*original digest\/token.*before publication.*atomically publishes.*payload and scalar companion.*failed publication.*staged OPFS output.*load.*current original.*payload\/companion.*match.*output size and SHA-256.*different original generation.*cache miss.*digest is unchanged.*legacy or unbound.*miss.*malformed pairs.*reject.*exact deletion.*media-asset cascade.*payload.*match.*scalar companion.*before any row.*deleted.*paths re-projected from validated payloads.*after commit.*mismatch aborts.*without OPFS disposal.*corrupt companion path.*cannot delete an unrelated original.*explicit recipe deletion selector.*normalized recipe ID\/version.*omitted recipe.*all revisions.*null.*posterStorageKey.*thumbnailStorageKey.*future read-only.*opaque.*desktop recipient binding.*excludes legacy locator.*no longer part of maintained durable binding identity.*not an editorial video proxy or relink relationship/iu,
+	);
+	const decoderResidual = mediaRisk?.residualRisks.find(({ id }) => id === 'compressed-media-corpus');
+	assert.ok(decoderResidual);
+	assert.match(decoderResidual.exposure, /decoder.*codec.*browser heap.*process RSS.*unbounded/iu);
+
+	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
+	assert.match(
+		normalizedDocumentation,
+		/original-bound-disposable-video-preview-cache.*repository-trusted current SHA-256.*media-content token.*content-addressed key.*original storage key and digest.*poster or thumbnail type.*normalized non-negative source time.*versioned recipe.*revalidates.*immediately before publication.*payload and scalar companion.*failed publication.*staged OPFS output.*output size and SHA-256.*older original generation.*cache miss.*same digest.*malformed pair or binding.*reject.*legacy or unbound.*cache misses.*exact derivative deletion.*media-asset cascade.*full agreement.*scalar companion.*before deleting any row.*paths re-projected from validated payloads.*after the transaction commits.*mismatch.*without disposing any OPFS path.*corrupt companion path.*cannot delete an unrelated.*recipe.*normalized recipe ID and version.*omitting the recipe.*all revisions.*posterStorageKey.*thumbnailStorageKey.*null.*future read-only.*opaque.*durable desktop recipient binding.*no longer part of maintained durable binding identity.*not an editorial proxy or relink relationship/isu,
+	);
+	assert.match(documentation, /Genuine editorial video proxies remain future work/iu);
+});
+
 test('project feature requirements are bounded and fail closed at activation and pre-open inspection', async () => {
 	const matrix = await readMatrix();
 	const boundary = matrix.boundaries.find(({ id }) => id === 'external-input-to-parser');

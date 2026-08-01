@@ -567,6 +567,31 @@
 						{ "kind": "test", "path": "tests/audio-editor-video-media.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-source-import.test.ts" }
 					]
+				},
+				{
+					"id": "original-bound-disposable-video-preview-cache",
+					"summary": "Poster and thumbnail cache publication resolves the retained original by storage key and derives its repository-trusted current SHA-256 plus media-content token. A content-addressed key binds the original storage key and digest, the closed poster/thumbnail type and normalized non-negative source time, and a versioned recipe. Save computes the output digest and revalidates the original digest/token immediately before publication; IndexedDB atomically publishes the payload and scalar companion, and failed publication removes staged OPFS output. Load derives identity from the current original, requires the payload/companion binding scalars to match on IndexedDB, and verifies stored output size and SHA-256. A well-formed row from a different original generation is a cache miss even when its digest is unchanged; legacy or unbound rows also miss, while malformed pairs, bindings, and body integrity reject. IndexedDB exact deletion and media-asset cascade require each selected payload to match its scalar companion before any row is deleted, then dispose only paths re-projected from validated payloads after commit; mismatch aborts without OPFS disposal, so a corrupt companion path cannot delete an unrelated original. An explicit recipe deletion selector matches only its normalized recipe ID/version, while an omitted recipe selects all revisions. New video-source imports and maintained read-write .scape imports persist null posterStorageKey and thumbnailStorageKey values, maintained source-update commands cannot author them, future read-only imports remain opaque, desktop recipient binding excludes legacy locator values, and managed source declarations omit them. Those fields are no longer part of maintained durable binding identity. This is disposable cache identity, not an editorial video proxy or relink relationship.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/storage/video-derivative-relationship.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/video-derivative-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-repository.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/derivative-cache-entry.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/media-records.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/source-import.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/commands/project-source-bin-runtime.js" },
+						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
+						{ "kind": "implementation", "path": "src/common/editor/storage/desktop-shared-project-source-availability.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-derivative-binding.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-derivative-publication-fence.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-records.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-consistency.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-paging.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-source-import.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-bin.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-project.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-source-availability.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-shared-project-media-sender-video.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [

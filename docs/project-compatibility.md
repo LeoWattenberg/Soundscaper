@@ -687,6 +687,34 @@ Binary opaque state and JSON-compatible opaque preservation are type-specific.
 Unknown fields and unavailable features must never be interpreted as executable
 code. Preservation does not imply activation.
 
+## Disposable video preview relationships
+
+Imported-video posters and filmstrip thumbnails are reproducible local cache
+records. Each maintained record is related to a trusted retained original by
+its storage key and SHA-256 digest, the poster or thumbnail type and normalized
+timestamp, and a versioned recipe. Publication revalidates the current original
+before committing the payload and scalar companion; loading requires that pair
+to agree and verifies the exact output size and SHA-256. A different recipe
+revision can coexist, while an unbound legacy record or replacement original is
+a cache miss.
+
+The reproducible preview cache records and bodies are not project history,
+`.scape` media, or managed handoff payloads. New video sources and maintained
+read-write `.scape` imports keep their nullable preview locators clear;
+maintained source-update commands cannot author them, desktop recipient binding
+ignores old locator values, and managed source declarations omit them. The
+nullable schema fields remain readable for old and opaque future documents.
+Archive export includes only its canonical source assets, not derivative cache
+entries. By contrast, rendered fallbacks and their referenced sources remain
+durable project, retention, and portable-archive state under the fallback rules
+below. A fallback-only source is included by the current managed sender; this
+does not yet qualify fresh-recipient fallback acquisition or activation.
+
+Posters and thumbnails are not editorial proxies. They provide no relink,
+watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
+those original/proxy relationships and decoder qualifications remain later
+milestone work.
+
 ## Freeze and proxy fallback
 
 Unavailable capabilities follow this order once their owning milestones land:

@@ -214,6 +214,30 @@
 			]
 		},
 		{
+			"id": "current-disposable-video-preview-relationship",
+			"status": "implemented",
+			"requiredOutcome": "Disposable poster and thumbnail derivatives must bind a trusted retained original and its content digest to the derivative type, time, versioned recipe, and output integrity. They remain reproducible cache state outside project history, .scape media, and managed handoff, while authored rendered fallback state and media remain durable.",
+			"currentBehavior": "The derivative repository derives the current original storage identity, trusted SHA-256, and local generation token instead of accepting provenance from its caller. A content-addressed relationship binds the original storage key and digest, poster or thumbnail type, normalized timestamp, recipe ID, and recipe version. Publication canonicalizes and hashes the output, then revalidates the original immediately before memory publication or in the same IndexedDB transaction as the payload and scalar companion. Loads resolve against the current original, require the payload and companion relationship fields to agree, verify exact output size and SHA-256, and treat unbound legacy rows or a replaced original generation as a cache miss. Maintained recipe revisions coexist under distinct identities; default lookup selects only the maintained revision. New video imports use null preview locators, maintained read-write .scape imports null legacy locator values, maintained source-update commands cannot author them, desktop recipient binding ignores them, and managed source declarations omit them. The project schema continues to accept those nullable fields so old and future documents remain parseable, but maintained playback resolves previews from the trusted original relationship rather than durable locator identity. Derivative cache records and bodies are not project-history roots, portable archive assets, or managed-media transfers; archive export includes only the canonical source assets in its manifest and ZIP inventory. Rendered fallback descriptors and their referenced sources remain durable project and archive state under their separate compatibility rules. A fallback-only source is included by the current managed sender, but fresh-recipient fallback acquisition and activation remain separately unqualified. These disposable previews are not editorial proxies and do not provide relink, watch, freeze, export, decoder-memory, or cross-product proxy behavior.",
+			"evidence": [
+				"src/common/editor/storage/video-derivative-relationship.ts",
+				"src/common/editor/storage/video-derivative-repository.ts",
+				"src/common/editor/controller/source-import.ts",
+				"src/common/editor/commands/project-source-bin-runtime.js",
+				"src/common/editor/scape-project.js",
+				"src/common/editor/storage/desktop-shared-project-source-availability.ts",
+				"src/common/editor/retention.js",
+				"src/common/editor/scape-export-plan.ts",
+				"tests/audio-editor-video-derivative-binding.test.ts",
+				"tests/audio-editor-source-import.test.ts",
+				"tests/audio-editor-project-bin.test.js",
+				"tests/audio-editor-scape-project.test.js",
+				"tests/audio-editor-desktop-shared-project-source-availability.test.ts",
+				"tests/audio-editor-desktop-shared-project-media-sender-video.test.ts",
+				"tests/audio-editor-feature-requirement-retention.test.ts",
+				"tests/audio-editor-scape-feature-requirements.test.ts"
+			]
+		},
+		{
 			"id": "project-feature-requirements-core",
 			"status": "implemented",
 			"requiredOutcome": "Current raw project documents carry a bounded normalized declarative feature-requirements manifest, retained-schema migrations do not invent publisher declarations, maintained exact-current-schema create, load, clone, and commit paths reconcile editor-owned first-party declarations from project state, and pure evaluation classifies caller-declared availability without activating project data.",
