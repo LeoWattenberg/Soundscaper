@@ -81,6 +81,10 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 	assert.match(control.summary, /64 KiB.*512 KiB.*64 MiB.*65 MiB.*4 MiB/isu);
 	assert.match(control.summary, /pinned production origin.*content-addressed.*release/isu);
 	assert.match(control.summary, /complete files.*active-state.*prior complete release/isu);
+	assert.match(control.summary, /Web Locks.*serializ.*commit/isu);
+	assert.match(control.summary, /state-committed.*active.*previous.*eligible/isu);
+	assert.match(control.summary, /cached.*stream.*byte.*SHA-256/isu);
+	assert.match(control.summary, /Content-Encoding.*decoded.*authoritative/isu);
 	assert.match(control.summary, /installed release.*network fallback/isu);
 
 	const residual = supplyChain.residualRisks.find(
@@ -92,7 +96,8 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 	assert.match(residual.exposure, /compromised asset host.*self-consistent release/isu);
 	assert.match(residual.exposure, /conditional-create.*read-back/isu);
 	assert.match(residual.exposure, /0\.12\.10.*without proving agreement/isu);
-	assert.match(residual.exposure, /separate tabs.*race.*CacheStorage.*quota/isu);
+	assert.doesNotMatch(residual.exposure, /separate tabs.*not globally serialized/isu);
+	assert.match(residual.exposure, /Web Locks.*cooperat.*(?:older|noncooperating).*CacheStorage.*quota/isu);
 	assert.match(residual.requiredControl, /reviewed policy.*authenticate.*conditional.*remote reads/isu);
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
@@ -112,9 +117,12 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 		assert.match(scope, /explicit.*FFmpeg.*(?:user action|download)/isu, `${name} must retain explicit runtime installation`);
 		assert.match(scope, /64 KiB.*512 KiB.*64 MiB.*65 MiB.*4 MiB/isu, `${name} must retain runtime bounds`);
 		assert.match(scope, /previous.*complete release/isu, `${name} must retain runtime rollback`);
+		assert.match(scope, /Web Locks.*serializ/isu, `${name} must retain serialized runtime publication`);
+		assert.match(scope, /state-committed.*active.*previous/isu, `${name} must retain committed-only runtime serving`);
+		assert.match(scope, /cached.*(?:body|response).*SHA-256/isu, `${name} must retain cached-body verification`);
 		assert.match(scope, /compromised asset host.*self-consistent release/isu, `${name} must retain the authenticity residual`);
 		assert.match(scope, /conditional.*read[- ]back/isu, `${name} must retain publisher gaps`);
-		assert.match(scope, /not serialized across tabs|separate tabs.*race/isu, `${name} must retain cross-tab races`);
+		assert.match(scope, /multi-tab.*unqualified/isu, `${name} must retain the actual-browser multi-tab gap`);
 		assert.match(scope, /CacheStorage.*(?:quota|eviction)/isu, `${name} must retain storage-pressure scope`);
 	}
 });

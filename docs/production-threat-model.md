@@ -339,12 +339,21 @@ The explicit Web FFmpeg download follows the no-store production pointer only
 after a user action. It bounds the pointer to 64 KiB, manifest to 512 KiB, each
 runtime file to 64 MiB, aggregate files to 65 MiB, and each streaming chunk to
 4 MiB; restricts origin and content-addressed release paths; and verifies
-pointer-bound manifest and runtime byte lengths and SHA-256 digests. Candidate
-caches are isolated, complete final caches precede the active-state commit, and
-one previous complete release is retained. Partial, altered, cancelled, or
-failed updates do not replace the active state. The editor uses a ready
-installed release without network access and otherwise retains its pinned
-network fallback; it does not implicitly download a runtime.
+pointer-bound manifest and runtime byte lengths and SHA-256 digests. For a
+non-identity `Content-Encoding`, the transport `Content-Length` is advisory and
+the bounded decoded body remains authoritative; cached bodies are normalized.
+Candidate caches are isolated. A cooperative same-origin Web Lock serializes a
+fresh state read, complete final-cache copy, active-state commit, and cleanup;
+same-release retries reuse a complete referenced cache, and cleanup after the
+state commit is best effort. The store rechecks cached body lengths and SHA-256
+digests before reporting readiness and retains one previous complete release.
+Only state-committed active and previous descriptors are eligible through the
+service worker, which validates the bounded state and streams each normalized
+cached body through an exact byte-count and SHA-256 verifier. Partial, altered,
+cancelled, failed, or concurrently committed updates do not expose an
+incomplete active state. The editor uses a ready installed release without
+network access and otherwise retains its pinned network fallback; it does not
+implicitly download a runtime.
 
 These controls qualify repository-owned admission and consumer-side detection
 of incomplete or pointer-inconsistent releases, not an independent authenticity
@@ -354,15 +363,21 @@ a new internally self-consistent release. The publisher layout and pointer
 contract are not manifest fields, content-addressed writes are neither
 conditional nor read back, and browser and release configuration still
 hard-code the runtime version instead of proving agreement with reviewed
-policy. Runtime installation is not serialized across tabs, CacheStorage quota
-and eviction can remove availability, and there is no product-wide cache
-reservation. Shell installation materializes one admitted asset body before
-caching it. Safari and Firefox service-worker workflows, storage-pressure
-recovery, multi-tab updates, downgrade drills, and actual-device offline
-behavior remain unqualified. Web notice delivery, complete corresponding
-source for every enabled FFmpeg library, and distribution-specific codec patent
-review remain blocked in the licensing matrix. Desktop previews remain
-unsigned and do not qualify signing, notarization, rollback, or key rotation.
+policy. Web Locks provide cooperative serialization only: browsers without them
+report runtime storage unsupported, and older or noncooperating application
+code remains outside the commit protocol. A killed client can leave an
+unserved candidate or pre-commit final cache until later cleanup. The streamed
+cache verifier prevents a module or WASM load from completing after a terminal
+digest mismatch, but an arbitrary streaming consumer can observe prefix chunks
+before that error. CacheStorage quota and eviction can remove availability, and
+there is no product-wide cache reservation. Shell installation materializes one
+admitted asset body before caching it. Safari and Firefox service-worker
+workflows, storage-pressure recovery, actual-browser multi-tab updates,
+downgrade drills, and actual-device offline behavior remain unqualified. Web
+notice delivery, complete corresponding source for every enabled FFmpeg
+library, and distribution-specific codec patent review remain blocked in the
+licensing matrix. Desktop previews remain unsigned and do not qualify signing,
+notarization, rollback, or key rotation.
 
 The licensing/provenance matrix is a separate release control. Passing a security audit does not establish license or patent clearance, and provenance documentation alone does not establish runtime isolation.
 

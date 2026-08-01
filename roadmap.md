@@ -1307,20 +1307,33 @@ models or native implementations.
   accepts only the pinned production origin and versioned release layout,
   bounds the pointer to 64 KiB, manifest to 512 KiB, each runtime file to
   64 MiB, the aggregate to 65 MiB, and each streamed chunk to 4 MiB, and checks
-  exact pointer-bound manifest and asset byte lengths and SHA-256 digests. The
-  CacheStorage [transaction](src/common/offline/browser-runtime-store.ts)
-  publishes active metadata only after both runtime files reach a complete
-  final cache and retains one previous complete release. Cancellation, partial
-  responses, altered bytes, and final-cache failure roll back only the isolated
-  candidate. The editor loads an installed content-addressed release when one
-  is ready and otherwise keeps the pinned network fallback. Focused
+  exact pointer-bound manifest and asset byte lengths and SHA-256 digests.
+  Non-identity `Content-Encoding` makes the transport `Content-Length`
+  advisory; the bounded decoded stream remains authoritative and cached
+  responses are normalized around those verified bytes. The CacheStorage
+  [transaction](src/common/offline/browser-runtime-store.ts) stages each
+  candidate independently, then uses a cooperative same-origin Web Lock to
+  serialize a fresh state read, complete final-cache copy, active-state commit,
+  and cleanup. Candidate ownership is isolated, an already complete identical
+  release is reused without replacement, and cleanup after the state commit is
+  best effort so it cannot turn a successful publication into a reported
+  failure. The store rechecks exact cached body lengths and SHA-256 digests and
+  falls back to one previous complete release. Only state-committed active and
+  previous descriptors are eligible at the service-worker boundary; their
+  exact normalized cached responses pass through an incremental byte-count and
+  SHA-256 verifier before the response body can complete. Cancellation, partial
+  or encoded responses, altered bytes, final-cache failure, same-release retry,
+  and concurrent cooperative commits retain a complete state. The editor loads
+  an installed content-addressed release when one is ready and otherwise keeps
+  the pinned network fallback. Focused
   [download](tests/offline-ffmpeg-runtime-cache.test.ts),
   [store](tests/offline-browser-runtime-store.test.ts),
   [manager](tests/offline-browser-ffmpeg-runtime.test.ts), and Chromium
   [update](tests/browser/offline-ffmpeg-runtime-download.spec.js) and
   [offline-use](tests/browser/offline-ffmpeg-runtime-service-worker.spec.js)
-  regressions prove complete promotion, previous-version recovery, explicit
-  offline use, and no implicit runtime download.
+  regressions prove complete promotion, previous-version recovery, serialized
+  publication, committed-only offline use, cached-body revalidation, orphan
+  denial, and no implicit runtime download.
 
   This is a verified availability cache, not an authenticity root for a fully
   compromised asset host. The pointer path and release schema remain
@@ -1328,12 +1341,17 @@ models or native implementations.
   publication still lacks conditional creation, read-back verification, and
   authenticated pointer promotion. A malicious host able to replace the
   pointer can therefore nominate a new internally self-consistent release.
-  CacheStorage quota or eviction can remove offline availability; separate tabs
-  are not globally serialized and can race runtime candidate/state cleanup.
-  Runtime caching has no product-wide quota reservation, and the shell install
-  still materializes one admitted asset body before caching it. Safari and
-  Firefox service-worker workflows, storage-pressure recovery, multi-tab
-  updates, upgrade/downgrade drills, and actual-device offline behavior remain
+  CacheStorage quota or eviction can remove offline availability. Web Locks are
+  cooperative: a browser without them reports runtime storage unsupported, and
+  older or noncooperating application code is outside the serialized commit
+  contract. A killed client can leave an unserved candidate or pre-commit final
+  cache until later cleanup, and an arbitrary streaming consumer can observe a
+  verified response prefix before a terminal digest error even though module or
+  WASM loading cannot complete from that errored body. Runtime caching has no
+  product-wide quota reservation, and the shell install still materializes one
+  admitted asset body before caching it. Safari and Firefox service-worker
+  workflows, storage-pressure recovery, actual-browser multi-tab updates,
+  upgrade/downgrade drills, and actual-device offline behavior remain
   unqualified. This control does not discover or authorize third-party code.
 - **Shared — In progress:** retained binary media originals now receive a
   lowercase SHA-256 computed from a canonical native Blob view shared with
