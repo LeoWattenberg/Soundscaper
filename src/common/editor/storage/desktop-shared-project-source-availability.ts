@@ -98,7 +98,7 @@ interface VideoStorageSnapshot {
 	readonly committedAt: string;
 	readonly mimeType: string;
 	readonly size: number;
-	readonly sha256: string | null;
+	readonly sha256: string;
 }
 
 type AvailabilityPlan = AudioAvailabilityPlan | VideoAvailabilityPlan;
@@ -361,8 +361,8 @@ function captureAudioStorage(source: CapturedAudioSource, value: unknown): Audio
 
 function captureVideoStorage(source: CapturedVideoSource, value: unknown): VideoStorageSnapshot {
 	const metadata = sourceMetadata(value, source, 'video');
-	const sha256 = optionalString(metadata, 'sha256');
-	if (sha256 !== null && !SHA256_PATTERN.test(sha256)) {
+	const sha256 = requiredString(metadata, 'sha256');
+	if (!SHA256_PATTERN.test(sha256)) {
 		throw new TypeError(`Recipient-local video source ${source.id} has an invalid SHA-256.`);
 	}
 	const snapshot = Object.freeze({
@@ -516,7 +516,7 @@ async function verifyVideo(
 			throw new Error(`Recipient-local video source ${plan.source.id} has an unexpected body size.`);
 		}
 		const digest = await digestMediaContent(blob, { signal });
-		if (plan.storage.sha256 !== null && digest !== plan.storage.sha256) {
+		if (digest !== plan.storage.sha256) {
 			throw new Error(`Recipient-local video source ${plan.source.id} failed SHA-256 verification.`);
 		}
 		const current = await awaitScapeReadOperation(

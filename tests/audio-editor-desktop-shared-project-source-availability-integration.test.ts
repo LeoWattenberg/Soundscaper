@@ -126,7 +126,79 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 	assert.ok(prune.retainedSourceIds.includes(audio.storageKey));
 	assert.ok(prune.retainedSourceIds.includes(video.storageKey));
 	assert.ok(await shared.getSourceMetadata(audio.storageKey));
-	assert.ok(await shared.getMediaAssetMetadata(video.storageKey));
+	const videoMetadata = await shared.getMediaAssetMetadata(video.storageKey);
+	assert.match(String(videoMetadata?.sha256), /^[0-9a-f]{64}$/u);
+});
+
+test('digestless recipient video rejects before body read without changing the prior revision', async () => {
+	const source = createVideoSourceV9({
+		id: 'digestless-logical-video',
+		storageKey: 'digestless-physical-video',
+		name: 'Digestless video.mp4',
+		mimeType: 'video/mp4',
+		frameCount: 1,
+		sampleRate: 48_000,
+		width: 1,
+		height: 1,
+		frameRate: 30,
+		videoCodec: 'h264',
+		hasAudio: false,
+	});
+	const clip = createVideoClipV9({
+		id: 'digestless-video-clip',
+		sourceId: source.id,
+		durationFrames: 1,
+		binItemId: 'digestless-video-bin-item',
+	});
+	const project = (revision: number) => createAudioEditorProjectV9({
+		id: 'digestless-shared-project',
+		title: 'Digestless shared project',
+		revision,
+		now: revision === 1 ? PRIOR_NOW : LATEST_NOW,
+		sources: [source],
+		projectBin: { clips: [clip] },
+	});
+	const local = new ProjectRepository({
+		memory: getMemoryDatabase(`digestless-shared-load-${Date.now()}-${Math.random()}`),
+		database: async () => null,
+	}, 5);
+	const prior = project(1);
+	const latest = project(2);
+	await local.save(prior);
+	let bodyReads = 0;
+	const repository = new DesktopSharedProjectRepository({
+		shadow: local,
+		sourceAvailability: {
+			async getSourceMetadata() { throw new Error('unexpected audio metadata read'); },
+			readSourceChunks() { throw new Error('unexpected audio body read'); },
+			async getMediaAssetMetadata(sourceId) {
+				assert.equal(sourceId, source.storageKey);
+				return {
+					sourceId: source.storageKey,
+					storage: 'indexeddb-blob',
+					committedAt: PRIOR_NOW,
+					mimeType: source.mimeType,
+					size: 12,
+				};
+			},
+			async loadMediaAsset() {
+				bodyReads += 1;
+				return new Blob(['video bytes'], { type: source.mimeType });
+			},
+		},
+		onLocalCleanupError: () => {},
+		bridge: {
+			listSharedProjects: async () => [],
+			readSharedProject: async () => serializeScapeProjectDocument(latest),
+			commitSharedProject: async (document) => document,
+			deleteSharedProject: async () => true,
+		},
+	});
+
+	await assert.rejects(repository.load(latest.id), /recipient-local video source/iu);
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(await local.load(prior.id), prior);
+	assert.deepEqual((await local.listRevisions(prior.id)).map(({ revision }) => revision), [1]);
 });
 
 test('repository cancellation abandons stalled PCM cleanup without changing the prior revision', async () => {

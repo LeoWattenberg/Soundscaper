@@ -17,6 +17,7 @@ import {
 	verifyDesktopSharedProjectSourceAvailability,
 	type DesktopSharedProjectSourceAvailabilityStore,
 } from '../src/common/editor/storage/desktop-shared-project-source-availability.ts';
+import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 
 const NOW = '2026-07-30T12:00:00.000Z';
 const PRIOR_NOW = '2026-07-29T12:00:00.000Z';
@@ -55,6 +56,7 @@ test('mixed recipient availability uses bound storage keys and disables read mai
 		opaqueExtensions: { recipientOnly: true },
 	})));
 	const videoBody = new Blob(['recipient video'], { type: String(video.mimeType) });
+	const videoSha256 = await digestMediaContent(videoBody);
 	const sourceMetadataReads: string[] = [];
 	const mediaMetadataReads: string[] = [];
 	const audioBodyReads: string[] = [];
@@ -69,7 +71,7 @@ test('mixed recipient availability uses bound storage keys and disables read mai
 		getMediaAssetMetadata(sourceId) {
 			mediaMetadataReads.push(sourceId);
 			return sourceId === video.storageKey
-				? storedVideoMetadata(video, videoBody.size)
+				? storedVideoMetadata(video, videoBody.size, videoSha256)
 				: null;
 		},
 		async *readSourceChunks(sourceId, options) {
@@ -242,7 +244,7 @@ test('missing recipient video body fails as source-unavailable', async () => {
 	const store = availabilityStore({
 		getMediaAssetMetadata(sourceId) {
 			assert.equal(sourceId, source.storageKey);
-			return storedVideoMetadata(source, 12);
+			return storedVideoMetadata(source, 12, '0'.repeat(64));
 		},
 		loadMediaAsset(sourceId, options) {
 			assert.equal(sourceId, source.storageKey);
@@ -257,13 +259,34 @@ test('missing recipient video body fails as source-unavailable', async () => {
 	);
 });
 
+test('recipient video requires a trusted content digest before its body is read', async () => {
+	const source = videoSource({ id: 'digestless-video', storageKey: 'digestless-video-body' });
+	const project = projectWithSources('digestless-video-project', [source]);
+	let bodyReads = 0;
+	const store = availabilityStore({
+		getMediaAssetMetadata() {
+			return storedVideoMetadata(source, 12);
+		},
+		loadMediaAsset() {
+			bodyReads += 1;
+			return new Blob(['untrusted']);
+		},
+	});
+
+	await assert.rejects(
+		verifyDesktopSharedProjectSourceAvailability(project, priorProject(project), store),
+		isUnavailable,
+	);
+	assert.equal(bodyReads, 0);
+});
+
 test('recipient video bytes must match a trusted local content digest', async () => {
 	const source = videoSource({ id: 'changed-video', storageKey: 'changed-video-body' });
 	const project = projectWithSources('changed-video-project', [source]);
 	const body = new Blob(['changed recipient video'], { type: String(source.mimeType) });
 	const store = availabilityStore({
 		getMediaAssetMetadata() {
-			return { ...storedVideoMetadata(source, body.size), sha256: '0'.repeat(64) };
+			return storedVideoMetadata(source, body.size, '0'.repeat(64));
 		},
 		loadMediaAsset() { return body; },
 	});
@@ -415,6 +438,7 @@ function storedAudioMetadata(source: Readonly<Record<string, unknown>>): Readonl
 function storedVideoMetadata(
 	source: Readonly<Record<string, unknown>>,
 	size: number,
+	sha256?: string,
 ): Readonly<Record<string, unknown>> {
 	return {
 		sourceId: source.storageKey,
@@ -422,6 +446,7 @@ function storedVideoMetadata(
 		mimeType: source.mimeType,
 		storage: 'indexeddb-blob',
 		committedAt: PRIOR_NOW,
+		...(sha256 === undefined ? {} : { sha256 }),
 	};
 }
 
