@@ -6,6 +6,11 @@ import type {
 	EffectSelectionFrequencyRange,
 	EffectTarget,
 } from './effect-selection-service.ts';
+import {
+	inspectSpectralEditChannels,
+	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
+	planSpectralEditWorkflowAdmission,
+} from '../spectral-edit-admission.ts';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -394,32 +399,52 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		if (gainDb !== -Infinity && (!Number.isFinite(gainDb) || gainDb > 120 || gainDb < -120)) {
 			throw new RangeError(runtime.copy.spectralGainInvalid);
 		}
-		const outputBytes = targets.reduce((sum, target) => (
-			sum + target.durationFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT
-		), 0);
+		const admission = planSpectralEditWorkflowAdmission({
+			targets: targets.map((target) => ({
+				channelCount: target.channelCount,
+				frameCount: target.durationFrames,
+				selectionFrameCount: target.durationFrames,
+				windowSize: Number(target.track.spectrogram?.windowSize) || 2_048,
+			})),
+			maximumUsefulBinaryBytes: Math.min(
+				runtime.memoryLimitBytes,
+				MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
+			),
+		});
 		const ownership = beginOwnership(runtime, SPECTRAL_EFFECT_TASK);
 		let processing = false;
 		try {
-			await runtime.preflightStorage(outputBytes, 'effect');
+			await runtime.preflightStorage(admission.finalRetainedCompletedOutputBytes, 'effect');
 			assertOwnership(runtime, ownership);
 			processing = true;
 			beginProcessing(runtime, runtime.copy.spectralProcessing || runtime.copy.audacityProcessing);
 			const results: Array<{ target: EffectTarget; channels: Float32Array[] }> = [];
-			for (const target of targets) {
+			for (const [targetIndex, target] of targets.entries()) {
+				const phase = admission.phases[targetIndex]!;
 				const channels = await renderDryTrackRange(
 					target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds ?? null,
 				);
 				assertOwnership(runtime, ownership);
+				inspectSpectralEditChannels(channels, {
+					label: 'Spectral edit dry-render input',
+					expectedChannelCount: phase.channelCount,
+					expectedFrameCount: phase.frameCount,
+				});
 				const processed = await runtime.runSpectralEditWorker(channels, {
 					sampleRate: runtime.projectSampleRate(),
 					startFrame: 0,
 					endFrame: target.durationFrames,
 					minimumFrequency: frequencyRange.minimumFrequency,
 					maximumFrequency: frequencyRange.maximumFrequency,
-					windowSize: Number(target.track.spectrogram?.windowSize) || 2_048,
+					windowSize: phase.windowSize,
 					gainDb,
 				});
 				assertOwnership(runtime, ownership);
+				inspectSpectralEditChannels(processed, {
+					label: 'Spectral edit result',
+					expectedChannelCount: phase.channelCount,
+					expectedFrameCount: phase.frameCount,
+				});
 				results.push({ target, channels: processed });
 			}
 			await runtime.persistAudacityEffectResults(results, null, {

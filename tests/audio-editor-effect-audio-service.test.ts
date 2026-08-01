@@ -21,6 +21,10 @@ function createHarness(options: Readonly<{
 	deferRender?: boolean;
 	deferWorker?: boolean;
 	loadFailure?: boolean;
+	memoryLimitBytes?: number;
+	spectralRenderFrameDelta?: number;
+	spectralTargetCount?: 1 | 2;
+	spectralWorkerFrameDelta?: number;
 }> = {}) {
 	let project: EffectAudioProject = {
 		id: 'project-a', schemaVersion: 5, sampleRate: 48_000,
@@ -56,6 +60,13 @@ function createHarness(options: Readonly<{
 		track: project.tracks[0]!, clipId: 'clip-a', clipIds: ['clip-a'],
 		startFrame: 100, endFrame: 4_100, durationFrames: 4_000, channelCount: 1, hasAudio: true,
 	};
+	const spectralTargets: EffectTarget[] = [target];
+	if (options.spectralTargetCount === 2) {
+		spectralTargets.push({
+			track: project.tracks[1]!, startFrame: 100, endFrame: 4_100,
+			durationFrames: 4_000, channelCount: 1, hasAudio: true,
+		});
+	}
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const projectGeneration = new EditorProjectGeneration();
@@ -65,9 +76,11 @@ function createHarness(options: Readonly<{
 	const snapshots: EffectAudioProject[] = [];
 	const commands: unknown[] = [];
 	const persisted: unknown[] = [];
+	const preflightBytes: number[] = [];
 	const statuses: string[] = [];
 	let publications = 0;
 	let prefixDisposals = 0;
+	let spectralWorkerCalls = 0;
 	const service = createEffectAudioService({
 		lifetime,
 		captureProject: () => projectGeneration.capture(project.id),
@@ -81,11 +94,11 @@ function createHarness(options: Readonly<{
 			spectralGainInvalid: 'Bad spectral gain', spectralProcessing: 'Spectral processing',
 			spectralSelectionRequired: 'Select spectrum', v2Required: 'Version 2 required',
 		},
-		memoryLimitBytes: 1_000_000_000,
+		memoryLimitBytes: options.memoryLimitBytes ?? 1_000_000_000,
 		getProject: () => project,
 		activeSelection: () => project.selection ?? null,
 		audacityEffectTarget: () => target,
-		audacityEffectTargets: () => [target],
+		audacityEffectTargets: () => spectralTargets,
 		audacityEffectSelectionDetails: (selection, targets) => ({
 			trackIds: selection?.trackIds ?? targets.map((entry) => entry.track.id),
 			clipIds: targets.flatMap((entry) => entry.clipId ? [entry.clipId] : []),
@@ -96,12 +109,13 @@ function createHarness(options: Readonly<{
 		currentAudacityEffectParams: () => ({}),
 		estimateAudacityEffectPeakBytes: () => 1,
 		audacityEffectMemoryError: () => new Error('Too large'),
-		preflightStorage: async () => undefined,
+		preflightStorage: async (bytes) => { preflightBytes.push(bytes); },
 		cloneProject: (value) => structuredClone(value),
 		audacitySelectionChannelCount: () => 1,
-		renderSnapshot: async (snapshot) => {
+		renderSnapshot: async (snapshot, renderOptions) => {
 			snapshots.push(structuredClone(snapshot));
-			return options.deferRender ? render.promise : { channels: [new Float32Array([0.2, 0.4])] };
+			const outputFrames = Number(renderOptions.outputFrames) + (options.spectralRenderFrameDelta ?? 0);
+			return options.deferRender ? render.promise : { channels: [new Float32Array(outputFrames)] };
 		},
 		prepareCommittedTimePitchCaches: async () => undefined,
 		createRenderEngine: () => ({
@@ -119,7 +133,12 @@ function createHarness(options: Readonly<{
 		runSelectionEffectWorker: async () => options.deferWorker
 			? worker.promise
 			: { profile: { bins: [1, 2] } },
-		runSpectralEditWorker: async (channels) => channels.map((channel) => Float32Array.from(channel)),
+		runSpectralEditWorker: async (channels) => {
+			spectralWorkerCalls += 1;
+			return channels.map((channel) => new Float32Array(
+				channel.length + (options.spectralWorkerFrameDelta ?? 0),
+			));
+		},
 		serializeNoiseProfile: (profile) => ({ serialized: profile }),
 		commit: (command) => { commands.push(command); },
 		persistAudacityEffectResults: async (...args) => { persisted.push(args); },
@@ -131,12 +150,14 @@ function createHarness(options: Readonly<{
 		get prefixDisposals() { return prefixDisposals; },
 		get publications() { return publications; },
 		persisted,
+		preflightBytes,
 		render,
 		service,
 		setSelection(selection: EffectAudioProject['selection']) { project = { ...project, selection }; },
 		snapshots,
 		state,
 		statuses,
+		get spectralWorkerCalls() { return spectralWorkerCalls; },
 		switchProject() {
 			project = { ...project, id: 'project-b' };
 			projectGeneration.invalidate();
@@ -198,6 +219,61 @@ test('rack noise profile commits once and spectral processing persists one atomi
 	assert.equal(await harness.service.applySpectralSelection(-6), true);
 	assert.equal(harness.persisted.length, 1);
 	assert.equal(harness.statuses.at(-1), 'Spectral applied');
+});
+
+test('spectral workflow preflights exact aggregate output and processes admitted targets sequentially', async () => {
+	const harness = createHarness({ spectralTargetCount: 2 });
+
+	assert.equal(await harness.service.applySpectralSelection(-6), true);
+
+	assert.deepEqual(harness.preflightBytes, [32_000]);
+	assert.equal(harness.snapshots.length, 2);
+	assert.equal(harness.spectralWorkerCalls, 2);
+	assert.equal(harness.persisted.length, 1);
+	const results = (harness.persisted[0] as unknown[])[0] as Array<{
+		channels: Float32Array[];
+	}>;
+	assert.equal(results.length, 2);
+	assert.equal(results.every(({ channels }) => channels[0]?.length === 4_000), true);
+});
+
+test('aggregate spectral admission refuses before preflight, rendering, workers, persistence, or processing UI', async () => {
+	const harness = createHarness({
+		memoryLimitBytes: 210_304,
+		spectralTargetCount: 2,
+	});
+
+	await assert.rejects(
+		() => harness.service.applySpectralSelection(-6),
+		(error: unknown) => (error as { code?: unknown }).code === 'SPECTRAL_EDIT_MEMORY_LIMIT'
+			&& (error as { targetIndex?: unknown }).targetIndex === 1,
+	);
+
+	assert.deepEqual(harness.preflightBytes, []);
+	assert.deepEqual(harness.snapshots, []);
+	assert.equal(harness.spectralWorkerCalls, 0);
+	assert.deepEqual(harness.persisted, []);
+	assert.equal(harness.state.audacityEffectProcessing, false);
+	assert.deepEqual(harness.statuses, []);
+	assert.equal(harness.publications, 0);
+});
+
+test('spectral workflow rejects unexpected dry-render and worker output geometry before retention', async () => {
+	const malformedRender = createHarness({ spectralRenderFrameDelta: -1 });
+	await assert.rejects(
+		() => malformedRender.service.applySpectralSelection(-6),
+		/dry-render.*frame count/iu,
+	);
+	assert.equal(malformedRender.spectralWorkerCalls, 0);
+	assert.deepEqual(malformedRender.persisted, []);
+
+	const malformedWorker = createHarness({ spectralWorkerFrameDelta: -1 });
+	await assert.rejects(
+		() => malformedWorker.service.applySpectralSelection(-6),
+		/result.*frame count/iu,
+	);
+	assert.equal(malformedWorker.spectralWorkerCalls, 1);
+	assert.deepEqual(malformedWorker.persisted, []);
 });
 
 test('master-prefix rendering uses the mix path and engine setup failures still dispose', async () => {
