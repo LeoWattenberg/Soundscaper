@@ -4,138 +4,34 @@ import {
 	validateAudioEditorProjectV9,
 	type AudioEditorProjectV9,
 } from '../project-v9.ts';
-import { collectProjectSourceIds } from '../retention.js';
-import { SCAPE_ARCHIVE_LIMITS, type ScapeArchiveEntry } from '../scape-archive-envelope.ts';
+import type { ScapeArchiveEntry } from '../scape-archive-envelope.ts';
 import {
-	createScapeDigest,
 	extractScapeAudio,
 	scapeAudioSourceLayout,
-	scapeAudioSourceStream,
-	scapeHex,
 	verifyScapeExtractedAsset,
-	type ScapeAudioSource,
 } from '../scape-archive-media.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
-import {
-	ScapeAudioChunkBudget,
-	ScapeExpandedByteBudget,
-} from '../scape-expanded-byte-budget.ts';
 import type { StorageRecord } from './media-records.ts';
-import type { AudioSourceWriter } from './source-write-repository.ts';
+import {
+	DESKTOP_SHARED_AUDIO_ENCODING,
+	MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES,
+	type DesktopSharedAudioAcquisition,
+	type DesktopSharedManagedAudioSourceDescriptor,
+	type DesktopSharedSourceTransferBridge,
+	type DesktopSharedSourceTransferStore,
+} from './desktop-shared-project-media-contract.ts';
+import {
+	managedSourceBinding,
+	preflightAudioTransfer,
+	reachableAudioSources,
+	type ManagedAudioSource,
+} from './desktop-shared-project-media-sources.ts';
 
-export const DESKTOP_SHARED_AUDIO_ENCODING = 'audio-f32le-chunks-v1' as const;
-export const DESKTOP_SHARED_VIDEO_ENCODING = 'video-original-v1' as const;
-export const MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
+export * from './desktop-shared-project-media-contract.ts';
+export { prepareDesktopSharedProjectAudioHandoff } from './desktop-shared-project-media-sender.ts';
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const BINDING_ID = /^m[a-f0-9]{64}$/u;
-const MAXIMUM_REACHABLE_SOURCE_COUNT = SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2;
-
-interface ManagedAudioSource extends ScapeAudioSource, Readonly<Record<string, unknown>> {
-	readonly id: string;
-	readonly kind: 'audio';
-	readonly storageKey: string;
-	readonly name: string;
-	readonly mimeType: string;
-	readonly sampleRate: number;
-}
-
-interface DesktopSharedManagedSourceDescriptorBase {
-	readonly bindingId: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-	readonly sourceId: string;
-	readonly storageKey: string;
-}
-
-export type DesktopSharedManagedAudioSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & Readonly<{
-	readonly encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING;
-	readonly kind: 'audio';
-}>;
-
-export type DesktopSharedManagedVideoSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & Readonly<{
-	readonly encoding: typeof DESKTOP_SHARED_VIDEO_ENCODING;
-	readonly kind: 'video';
-}>;
-
-export type DesktopSharedManagedSourceDescriptor =
-	| DesktopSharedManagedAudioSourceDescriptor
-	| DesktopSharedManagedVideoSourceDescriptor;
-
-export interface DesktopSharedSourceTransferBridge {
-	beginSharedSourceWrite(declaration: Readonly<{
-		byteLength: number;
-		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING | typeof DESKTOP_SHARED_VIDEO_ENCODING;
-		projectId: string;
-		projectRevision: number;
-		sha256: string;
-		sourceId: string;
-	}>): Promise<Readonly<{
-		status: 'present';
-		source: DesktopSharedManagedSourceDescriptor;
-	}> | Readonly<{
-		status: 'ready';
-		chunkSize: number;
-		writeId: string;
-	}>>;
-	writeSharedSourceChunk(value: Readonly<{
-		bytes: Uint8Array;
-		offset: number;
-		writeId: string;
-	}>): Promise<Readonly<{ nextOffset: number }>>;
-	finishSharedSourceWrite(value: Readonly<{
-		sha256: string;
-		writeId: string;
-	}>): Promise<DesktopSharedManagedSourceDescriptor>;
-	abortSharedSourceWrite(writeId: string): Promise<boolean>;
-	readSharedSourceChunk(value: Readonly<{
-		bindingId: string;
-		length: number;
-		offset: number;
-	}>): Promise<Uint8Array>;
-}
-
-export interface DesktopSharedSourceTransferStore {
-	getSourceMetadata(sourceId: string): PromiseLike<unknown> | unknown;
-	readSourceChunks(
-		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal; migrateLegacyPcmOnAccess?: boolean }>,
-	): AsyncIterable<readonly Float32Array[] | Readonly<{ channels?: readonly Float32Array[] }>>;
-	beginSourceWrite(sourceId: string, metadata?: Record<string, unknown>): Promise<AudioSourceWriter>;
-	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean> | boolean;
-}
-
-export interface DesktopSharedAudioAcquisition {
-	readonly trustedSourceIds: ReadonlySet<string>;
-	commit(): void;
-	rollback(): Promise<void>;
-}
-
-export async function prepareDesktopSharedProjectAudioHandoff(
-	projectValue: unknown,
-	bridgeValue: DesktopSharedSourceTransferBridge,
-	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
-	options: Readonly<{ signal?: AbortSignal }> = {},
-): Promise<readonly DesktopSharedManagedSourceDescriptor[]> {
-	validateAudioEditorProjectV9(projectValue);
-	const project = projectValue as AudioEditorProjectV9;
-	const sources = preflightSenderAudioSources(project);
-	if (!sources.length) return Object.freeze([]);
-	const bridge = transferBridge(bridgeValue);
-	const results: DesktopSharedManagedSourceDescriptor[] = [];
-	for (const source of sources) {
-		throwIfScapeAborted(options.signal);
-		results.push(await publishAudioSource(
-			project.id,
-			project.revision,
-			source,
-			bridge,
-			store,
-			options.signal,
-		));
-	}
-	return Object.freeze(results);
-}
 
 export async function acquireDesktopSharedProjectAudio(
 	projectValue: unknown,
@@ -170,7 +66,7 @@ export async function acquireDesktopSharedProjectAudio(
 		for (const source of sources) {
 			throwIfScapeAborted(options.signal);
 			if (priorSourceMatches(prior, source) && await store.getSourceMetadata(source.storageKey) != null) continue;
-			const sourceBinding = canonicalSourceBinding(source);
+			const sourceBinding = managedSourceBinding(source);
 			const priorStorageKey = acquiredBindings.get(sourceBinding);
 			if (priorStorageKey) {
 				trustedSourceIds.add(source.id);
@@ -199,83 +95,6 @@ export async function acquireDesktopSharedProjectAudio(
 		}
 		throw error;
 	}
-}
-
-async function publishAudioSource(
-	projectId: string,
-	projectRevision: number,
-	source: ManagedAudioSource,
-	bridge: DesktopSharedSourceTransferBridge,
-	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
-	signal?: AbortSignal,
-): Promise<DesktopSharedManagedSourceDescriptor> {
-	const layout = scapeAudioSourceLayout(source);
-	const sha256 = await digestAudioSource(source, store, signal);
-	const admission = await bridge.beginSharedSourceWrite({
-		byteLength: layout.archiveBytes,
-		encoding: DESKTOP_SHARED_AUDIO_ENCODING,
-		projectId,
-		projectRevision,
-		sha256,
-		sourceId: source.id,
-	});
-	if (admission.status === 'present') {
-		const descriptor = matchingDescriptor(admission.source, source, layout.archiveBytes, sha256);
-		if (await digestAudioSource(source, store, signal) !== sha256) {
-			throw new Error(`Audio source ${source.id} changed while preparing its managed handoff.`);
-		}
-		return descriptor;
-	}
-	const chunkSize = positiveChunkSize(admission.chunkSize);
-	let offset = 0;
-	const digest = createScapeDigest();
-	const stream = scapeAudioSourceStream(store, source, digest, () => undefined, signal);
-	try {
-		await readStream(stream, async (chunk) => {
-			for (let start = 0; start < chunk.byteLength; start += chunkSize) {
-				throwIfScapeAborted(signal);
-				const bytes = chunk.slice(start, Math.min(chunk.byteLength, start + chunkSize));
-				const result = await bridge.writeSharedSourceChunk({ bytes, offset, writeId: admission.writeId });
-				if (result?.nextOffset !== offset + bytes.byteLength) {
-					throw new Error('Desktop shared-source write acknowledgement is out of sequence.');
-				}
-				offset = result.nextOffset;
-			}
-		});
-		const transferredDigest = scapeHex(digest.digest());
-		if (offset !== layout.archiveBytes || transferredDigest !== sha256) {
-			throw new Error(`Audio source ${source.id} changed while preparing its managed handoff.`);
-		}
-		const descriptor = await bridge.finishSharedSourceWrite({
-			sha256: transferredDigest,
-			writeId: admission.writeId,
-		});
-		return matchingDescriptor(descriptor, source, layout.archiveBytes, sha256);
-	} catch (error) {
-		try {
-			await bridge.abortSharedSourceWrite(admission.writeId);
-		} catch (cleanupError) {
-			throw new AggregateError([error, cleanupError], 'Managed shared-source upload and cleanup failed.');
-		}
-		throw error;
-	}
-}
-
-async function digestAudioSource(
-	source: ManagedAudioSource,
-	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
-	signal?: AbortSignal,
-): Promise<string> {
-	const digest = createScapeDigest();
-	let bytes = 0;
-	await readStream(
-		scapeAudioSourceStream(store, source, digest, (length) => { bytes += length; }, signal),
-		async () => undefined,
-	);
-	if (bytes !== scapeAudioSourceLayout(source).archiveBytes) {
-		throw new Error(`Audio source ${source.id} emitted an unexpected canonical byte length.`);
-	}
-	return scapeHex(digest.digest());
 }
 
 async function acquireAudioSource(
@@ -359,57 +178,6 @@ function managedAudioEntry(
 	};
 }
 
-function reachableAudioSources(project: AudioEditorProjectV9): readonly ManagedAudioSource[] {
-	const sources: ManagedAudioSource[] = [];
-	for (const source of reachableProjectSources(project)) {
-		if (source.kind === 'audio') sources.push(source as ManagedAudioSource);
-	}
-	return Object.freeze(sources);
-}
-
-function preflightSenderAudioSources(project: AudioEditorProjectV9): readonly ManagedAudioSource[] {
-	const sources: ManagedAudioSource[] = [];
-	for (const source of reachableProjectSources(project)) {
-		if (source.kind !== 'audio') {
-			throw new Error(`PCM-only desktop shared handoff does not support reachable video source ${source.id}.`);
-		}
-		sources.push(source as ManagedAudioSource);
-	}
-	return preflightAudioTransfer(sources);
-}
-
-function reachableProjectSources(
-	project: AudioEditorProjectV9,
-): readonly Readonly<Record<string, unknown>>[] {
-	const sourceIds = collectProjectSourceIds(project);
-	if (sourceIds.size > MAXIMUM_REACHABLE_SOURCE_COUNT) {
-		throw new RangeError('Desktop shared project source references exceed the managed handoff limit.');
-	}
-	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
-	return Object.freeze([...sourceIds].map((sourceId) => {
-		const source = sourceById.get(sourceId);
-		if (!source) throw new ReferenceError(`Desktop shared project source ${sourceId} is missing.`);
-		return source;
-	}));
-}
-
-function preflightAudioTransfer(sources: readonly ManagedAudioSource[]): readonly ManagedAudioSource[] {
-	const byteBudget = new ScapeExpandedByteBudget(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes);
-	const chunkBudget = new ScapeAudioChunkBudget();
-	const admittedBindings = new Set<string>();
-	const admitted: ManagedAudioSource[] = [];
-	for (const source of sources) {
-		const binding = canonicalSourceBinding(source);
-		if (admittedBindings.has(binding)) continue;
-		admittedBindings.add(binding);
-		const layout = scapeAudioSourceLayout(source);
-		byteBudget.consume(layout.archiveBytes, source.id);
-		chunkBudget.consumeMany(layout.chunkCount, source.id);
-		admitted.push(source);
-	}
-	return Object.freeze(admitted);
-}
-
 function indexManagedDescriptors(
 	values: readonly unknown[],
 	project: AudioEditorProjectV9,
@@ -424,7 +192,10 @@ function indexManagedDescriptors(
 			throw new Error(`Managed source ${descriptor.sourceId} is not reachable from project ${project.id}.`);
 		}
 		const source = sources.find(({ id }) => id === descriptor.sourceId) as ManagedAudioSource;
-		matchingDescriptor(descriptor, source, scapeAudioSourceLayout(source).archiveBytes, descriptor.sha256);
+		if (descriptor.storageKey !== source.storageKey
+			|| descriptor.byteLength !== scapeAudioSourceLayout(source).archiveBytes) {
+			throw new Error(`Managed source descriptor does not match audio source ${source.id}.`);
+		}
 		if (byId.has(descriptor.sourceId)) throw new Error(`Duplicate managed source ${descriptor.sourceId}.`);
 		byId.set(descriptor.sourceId, descriptor);
 	}
@@ -455,20 +226,6 @@ function managedAudioDescriptor(value: unknown): DesktopSharedManagedAudioSource
 	});
 }
 
-function matchingDescriptor(
-	value: unknown,
-	source: ManagedAudioSource,
-	byteLength: number,
-	sha256: string,
-): DesktopSharedManagedSourceDescriptor {
-	const descriptor = managedAudioDescriptor(value);
-	if (descriptor.sourceId !== source.id || descriptor.storageKey !== source.storageKey
-		|| descriptor.byteLength !== byteLength || descriptor.sha256 !== sha256) {
-		throw new Error(`Managed source descriptor does not match audio source ${source.id}.`);
-	}
-	return descriptor;
-}
-
 function validPriorProject(value: unknown, projectId: string): AudioEditorProjectV9 | null {
 	if (value == null) return null;
 	try {
@@ -482,58 +239,5 @@ function validPriorProject(value: unknown, projectId: string): AudioEditorProjec
 
 function priorSourceMatches(prior: AudioEditorProjectV9 | null, source: ManagedAudioSource): boolean {
 	const candidate = prior?.sources.find(({ id }) => id === source.id);
-	return Boolean(candidate && canonicalSourceBinding(candidate as ManagedAudioSource) === canonicalSourceBinding(source));
-}
-
-function canonicalSourceBinding(source: ManagedAudioSource): string {
-	return JSON.stringify([
-		source.storageKey,
-		source.frameCount,
-		source.channelCount,
-		source.sampleRate,
-		source.originalSampleRate,
-		source.sampleFormat,
-		source.chunkFrames,
-	]);
-}
-
-function transferBridge(value: DesktopSharedSourceTransferBridge): DesktopSharedSourceTransferBridge {
-	if (!value || typeof value !== 'object') throw new TypeError('Desktop shared-source transfer bridge is required.');
-	for (const method of [
-		'beginSharedSourceWrite',
-		'writeSharedSourceChunk',
-		'finishSharedSourceWrite',
-		'abortSharedSourceWrite',
-		'readSharedSourceChunk',
-	] as const) {
-		if (typeof value[method] !== 'function') throw new TypeError(`Desktop shared-source bridge.${method} is required.`);
-	}
-	return value;
-}
-
-function positiveChunkSize(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1
-		|| Number(value) > MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES) {
-		throw new RangeError('Desktop shared-source chunk size is invalid.');
-	}
-	return Number(value);
-}
-
-async function readStream(
-	stream: ReadableStream<Uint8Array>,
-	onChunk: (chunk: Uint8Array) => Promise<void>,
-): Promise<void> {
-	const reader = stream.getReader();
-	try {
-		while (true) {
-			const result = await reader.read();
-			if (result.done) return;
-			await onChunk(result.value);
-		}
-	} catch (error) {
-		await reader.cancel(error).catch(() => undefined);
-		throw error;
-	} finally {
-		reader.releaseLock();
-	}
+	return Boolean(candidate && managedSourceBinding(candidate as ManagedAudioSource) === managedSourceBinding(source));
 }
