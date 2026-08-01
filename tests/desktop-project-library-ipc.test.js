@@ -35,6 +35,16 @@ const SOURCE_DESCRIPTOR = Object.freeze({
 	sourceId: 'shared-audio-source',
 	storageKey: 'shared-audio-storage',
 });
+const VIDEO_BINDING_ID = `v${'d'.repeat(64)}`;
+const VIDEO_DESCRIPTOR = Object.freeze({
+	bindingId: VIDEO_BINDING_ID,
+	byteLength: 5,
+	encoding: 'video-original-v1',
+	kind: 'video',
+	sha256: 'e'.repeat(64),
+	sourceId: 'shared-video-source',
+	storageKey: 'shared-video-storage',
+});
 
 test('main registers the closed shared-project service contract through the trusted handler seam', async () => {
 	const calls = [];
@@ -184,6 +194,65 @@ test('main and preload reject project bundles above the managed-source descripto
 		channel === IPC.readSharedProjectBundle ? oversizedBundle : null,
 	));
 	await assert.rejects(api.readSharedProjectBundle(PROJECT_ID), /bundle is invalid/u);
+});
+
+test('main and preload preserve the closed managed original-video protocol', async () => {
+	const declaration = {
+		byteLength: VIDEO_DESCRIPTOR.byteLength,
+		encoding: VIDEO_DESCRIPTOR.encoding,
+		projectId: PROJECT_ID,
+		projectRevision: SUMMARY.revision,
+		sha256: VIDEO_DESCRIPTOR.sha256,
+		sourceId: VIDEO_DESCRIPTOR.sourceId,
+	};
+	const declarations = [];
+	let responseDescriptor = VIDEO_DESCRIPTOR;
+	const { handlers } = harness({
+		listSharedProjects: async () => [],
+		readSharedProject: async () => DOCUMENT,
+		readSharedProjectBundle: async () => ({ document: DOCUMENT, sources: [responseDescriptor] }),
+		commitSharedProject: async (document) => document,
+		deleteSharedProject: async () => false,
+		beginSharedSourceWrite: async (value) => {
+			declarations.push(value);
+			return { status: 'present', source: responseDescriptor };
+		},
+		readSharedSourceChunk: async () => Uint8Array.of(7),
+	});
+	const event = { owner: {} };
+	assert.deepEqual(await handlers.get(IPC.readSharedProjectBundle)(event, PROJECT_ID), {
+		document: DOCUMENT, sources: [VIDEO_DESCRIPTOR],
+	});
+	assert.deepEqual(await handlers.get(IPC.beginSharedSourceWrite)(event, declaration), {
+		status: 'present', source: VIDEO_DESCRIPTOR,
+	});
+	assert.deepEqual(declarations, [declaration]);
+	assert.deepEqual(await handlers.get(IPC.readSharedSourceChunk)(event, {
+		bindingId: VIDEO_BINDING_ID, length: 1, offset: 0,
+	}), Uint8Array.of(7));
+	responseDescriptor = { ...VIDEO_DESCRIPTOR, bindingId: SOURCE_BINDING_ID };
+	await assert.rejects(handlers.get(IPC.readSharedProjectBundle)(event, PROJECT_ID), /media binding/iu);
+
+	const calls = [];
+	let preloadDescriptor = VIDEO_DESCRIPTOR;
+	const { api } = await preloadHarness((channel, value) => {
+		calls.push({ channel, value });
+		if (channel === IPC.readSharedProjectBundle) {
+			return Promise.resolve({ document: DOCUMENT, sources: [preloadDescriptor] });
+		}
+		if (channel === IPC.beginSharedSourceWrite) {
+			return Promise.resolve({ status: 'present', source: preloadDescriptor });
+		}
+		return Promise.resolve(Uint8Array.of(7));
+	});
+	assert.deepEqual((await api.readSharedProjectBundle(PROJECT_ID)).sources.map((source) => ({ ...source })), [VIDEO_DESCRIPTOR]);
+	const admission = await api.beginSharedSourceWrite(declaration);
+	assert.deepEqual({ ...admission, source: { ...admission.source } }, { status: 'present', source: VIDEO_DESCRIPTOR });
+	assert.deepEqual(await api.readSharedSourceChunk({ bindingId: VIDEO_BINDING_ID, length: 1, offset: 0 }), Uint8Array.of(7));
+	assert.deepEqual(structuredClone(calls[1]), { channel: IPC.beginSharedSourceWrite, value: declaration });
+	preloadDescriptor = { ...VIDEO_DESCRIPTOR, encoding: 'audio-f32le-chunks-v1' };
+	await assert.rejects(api.readSharedProjectBundle(PROJECT_ID), /kind and encoding|descriptor is invalid/iu);
+	assert.throws(() => api.beginSharedSourceWrite({ ...declaration, byteLength: 0 }), /video byte length.*positive/iu);
 });
 
 test('main caps concurrent managed-source reads and releases capacity after settlement', async () => {
