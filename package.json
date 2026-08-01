@@ -19,7 +19,7 @@
 	},
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs && node scripts/check-build-chunks.mjs",
+		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/generate-offline-application-shell.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs && node scripts/check-build-chunks.mjs",
 		"preview": "vite preview --port 4321",
 		"lint": "eslint --max-warnings 0 .",
 		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tests.json && tsc -p tsconfig.tooling.json && tsc -p tsconfig.desktop-runtime.json --noEmit",
