@@ -50,6 +50,9 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.project.id, project.id);
+	const importedVideoSource = imported.project.sources.find((source) => source.kind === 'video');
+	assert.equal(importedVideoSource.posterStorageKey, null);
+	assert.equal(importedVideoSource.thumbnailStorageKey, null);
 	assert.deepEqual(imported.project.clips.find((clip) => clip.kind === 'video').videoEffects, project.clips.find((clip) => clip.kind === 'video').videoEffects);
 	assert.deepEqual(imported.project.metadata.bext, project.metadata.bext);
 	assert.deepEqual(imported.project.sources.find((source) => source.id === 'audio-source').opaqueExtensions,
@@ -68,9 +71,36 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	assert.notEqual(copied.project.id, project.id);
 	assert.match(copied.project.title, /copy$/u);
 	assert.notEqual(copied.project.sources[0].id, project.sources[0].id);
+	const copiedVideoSource = copied.project.sources.find((source) => source.kind === 'video');
+	assert.equal(copiedVideoSource.posterStorageKey, null);
+	assert.equal(copiedVideoSource.thumbnailStorageKey, null);
 	for (const clip of [...copied.project.clips, ...copied.project.projectBin.clips]) {
 		assert.ok(copied.project.sources.some((source) => source.id === clip.sourceId));
 	}
+});
+
+test('scape imports leave future read-only preview locators opaque', async () => {
+	const sourceStore = memoryStore('scape-future-preview-source');
+	const targetStore = memoryStore('scape-future-preview-target');
+	const project = mixedProject();
+	await persistAssets(sourceStore);
+	const exported = await exportScapeProject(project, sourceStore);
+	const future = await rewriteProjectDocument(exported.blob, (document) => {
+		document.schemaVersion = 10;
+		const videoSource = document.sources.find((source) => source.kind === 'video');
+		videoSource.posterStorageKey = 'future-poster-locator';
+		videoSource.thumbnailStorageKey = 'future-thumbnail-locator';
+	});
+
+	const imported = await importScapeProject(future, targetStore);
+	const importedVideoSource = imported.project.sources.find((source) => source.kind === 'video');
+	assert.equal(imported.readOnly, true);
+	assert.equal(importedVideoSource.posterStorageKey, 'future-poster-locator');
+	assert.equal(importedVideoSource.thumbnailStorageKey, 'future-thumbnail-locator');
+	const reopened = await targetStore.loadProject(imported.project.id);
+	const reopenedVideoSource = reopened.sources.find((source) => source.kind === 'video');
+	assert.equal(reopenedVideoSource.posterStorageKey, 'future-poster-locator');
+	assert.equal(reopenedVideoSource.thumbnailStorageKey, 'future-thumbnail-locator');
 });
 
 test('scape imports reject checksum failures without publishing staged projects or sources', async () => {
@@ -319,6 +349,7 @@ function mixedProject() {
 			kind: 'video', id: 'video-source', storageKey: 'video-source', name: 'picture.mp4', mimeType: 'video/mp4',
 			frameCount: 48_000, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 			videoCodec: 'h264', audioCodec: null, hasAudio: false,
+			posterStorageKey: 'legacy-video-poster', thumbnailStorageKey: 'legacy-video-thumbnail',
 		}],
 		clips: [{
 			kind: 'video', id: 'video-clip', sourceId: 'video-source', title: 'Picture', timelineStartFrame: 0,
@@ -392,6 +423,7 @@ async function rewriteProjectDocument(blob, mutate) {
 	const manifest = JSON.parse(manifestContent.value);
 	manifest.project.size = projectBytes.byteLength;
 	manifest.project.sha256 = digestScapeBytes(projectBytes);
+	manifest.project.schemaVersion = document.schemaVersion;
 	manifestContent.value = JSON.stringify(manifest);
 
 	const output = new BlobWriter('application/vnd.soundscaper.scape+zip');

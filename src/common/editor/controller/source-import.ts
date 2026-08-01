@@ -166,8 +166,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				videoCodec: 'unknown',
 				audioCodec: canonicalAudio ? 'unknown' : null,
 				hasAudio: Boolean(canonicalAudio),
-				posterStorageKey: `${videoSourceId}:poster`,
-				thumbnailStorageKey: `${videoSourceId}:thumbnail`,
+				posterStorageKey: null,
+				thumbnailStorageKey: null,
 				opaqueExtensions: {},
 			};
 			const audioSource = canonicalAudio ? {

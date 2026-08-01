@@ -138,8 +138,6 @@ test('recipient binding covers persisted identity and kind-specific media geomet
 		['videoCodec', 'vp9'],
 		['audioCodec', 'opus'],
 		['hasAudio', false],
-		['posterStorageKey', 'other-poster'],
-		['thumbnailStorageKey', 'other-thumbnail'],
 	];
 
 	for (const [project, source, changes] of [
@@ -161,6 +159,52 @@ test('recipient binding covers persisted identity and kind-specific media geomet
 			assert.deepEqual(calls, [], `${String(source.kind)} binding field ${field}`);
 		}
 	}
+});
+
+test('disposable video preview locators do not change durable recipient bindings', async () => {
+	const first = videoSource({
+		id: 'preview-alias-a',
+		storageKey: 'shared-video-original',
+		posterStorageKey: 'current-poster-a',
+		thumbnailStorageKey: 'current-thumbnail-a',
+	});
+	const second = videoSource({
+		id: 'preview-alias-b',
+		storageKey: 'shared-video-original',
+		posterStorageKey: 'current-poster-b',
+		thumbnailStorageKey: 'current-thumbnail-b',
+	});
+	const project = projectWithSources('preview-locator-binding', [first, second]);
+	const prior = priorProject(project, [{
+		...first,
+		posterStorageKey: 'prior-poster-a',
+		thumbnailStorageKey: 'prior-thumbnail-a',
+	}, {
+		...second,
+		posterStorageKey: 'prior-poster-b',
+		thumbnailStorageKey: 'prior-thumbnail-b',
+	}]);
+	const body = new Blob(['shared video original'], { type: String(first.mimeType) });
+	const sha256 = await digestMediaContent(body);
+	let metadataReads = 0;
+	let bodyReads = 0;
+	const store = availabilityStore({
+		getMediaAssetMetadata(sourceId) {
+			assert.equal(sourceId, 'shared-video-original');
+			metadataReads += 1;
+			return storedVideoMetadata(first, body.size, sha256);
+		},
+		loadMediaAsset(sourceId) {
+			assert.equal(sourceId, 'shared-video-original');
+			bodyReads += 1;
+			return body;
+		},
+	});
+
+	await verifyDesktopSharedProjectSourceAvailability(project, prior, store);
+
+	assert.equal(metadataReads, 2);
+	assert.equal(bodyReads, 1);
 });
 
 test('compatible duplicate recipient storage-key bindings verify one shared payload', async () => {

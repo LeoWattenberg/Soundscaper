@@ -208,6 +208,10 @@ export async function importScapeProject(input, store, options = {}) {
 				sourceIdMap.set(source.id, nextId);
 				source.id = nextId;
 				source.storageKey = nextId;
+				if (!loaded.readOnly && source.kind === 'video') {
+					source.posterStorageKey = null;
+					source.thumbnailStorageKey = null;
+				}
 			}
 			remapScapeProjectSourceReferences(project, sourceIdMap);
 			if (!loaded.readOnly && project.schemaVersion === 9) {

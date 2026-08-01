@@ -30,6 +30,7 @@ function videoFile(name = 'movie.mp4'): VideoFile {
 
 function createFixture() {
 	const calls: string[] = [];
+	const addedSources: Record<string, unknown>[] = [];
 	const derivatives: Array<{ timestamp: number; type: string }> = [];
 	const commits: Array<{ command: { commands: unknown[] }; selection: Record<string, unknown> }> = [];
 	const deletedSources: string[] = [];
@@ -107,7 +108,10 @@ function createFixture() {
 		commit: (command: { commands: unknown[] }, selection: Record<string, unknown>) => { commits.push({ command, selection }); },
 		copy: {},
 		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
-		createAddSourceCommand: (source: unknown) => ({ type: 'source/add', source }),
+		createAddSourceCommand: (source: unknown) => {
+			addedSources.push(source as Record<string, unknown>);
+			return { type: 'source/add', source };
+		},
 		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
 		createAudioEditorVideoFrameExtractor: async () => extractor,
 		createStableId: stableId,
@@ -160,6 +164,7 @@ function createFixture() {
 		writeBuffer: async (target: typeof writer) => { await target.write(); },
 	};
 	return {
+		addedSources,
 		calls,
 		commits,
 		deletedMedia,
@@ -186,6 +191,10 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	assert.match(result.sourceId, /^video-source-/u);
 	assert.match(result.audioSourceId, /^source-/u);
 	assert.match(result.trackId, /^video-track-/u);
+	const videoSource = fixture.addedSources.find(({ kind }) => kind === 'video');
+	assert.ok(videoSource);
+	assert.equal(videoSource.posterStorageKey, null);
+	assert.equal(videoSource.thumbnailStorageKey, null);
 	assert.equal(fixture.commits.length, 1);
 	assert.equal(fixture.commits[0]?.command.commands.length, 6);
 	assert.deepEqual(fixture.derivatives.map(({ timestamp, type }) => [timestamp, type]), [

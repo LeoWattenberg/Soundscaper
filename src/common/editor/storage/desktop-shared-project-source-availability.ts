@@ -77,8 +77,6 @@ interface CapturedVideoSource extends CapturedSourceBase {
 	readonly videoCodec: string;
 	readonly audioCodec: string | null;
 	readonly hasAudio: boolean;
-	readonly posterStorageKey: string | null;
-	readonly thumbnailStorageKey: string | null;
 }
 
 interface AudioStorageSnapshot {
@@ -261,8 +259,6 @@ function captureSource(source: Readonly<Record<string, unknown>>): CapturedSourc
 		videoCodec: source.videoCodec as string,
 		audioCodec: source.audioCodec as string | null,
 		hasAudio: source.hasAudio as boolean,
-		posterStorageKey: source.posterStorageKey as string | null,
-		thumbnailStorageKey: source.thumbnailStorageKey as string | null,
 	});
 }
 
