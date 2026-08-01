@@ -294,6 +294,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-source-record-ownership.test.ts',
 		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
+		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 	]);
 	assert.match(
@@ -322,7 +323,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*proxies.*rendered fallbacks.*relink.*watch.*copy or consolidation.*cleanup.*capacity reservation.*logical catalog-row growth.*durable playback identity.*portable hard-link.*shared cross-product revision journal or undo\/redo history/iu,
+		/narrower composed fixture.*canonical original PCM.*exact-schema-9 first-party audio whole-mix fallback.*only by its feature requirement.*fresh Framescaper.*both absent bodies.*exact canonical shadow.*read-only controller.*transient fallback.*exact samples.*transfer acquisition.*managed descriptor and body SHA-256.*feature-manifest fallback digest.*controller-owned.*after shadow publication.*before activation/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*cleanup.*capacity reservation.*logical catalog-row growth.*durable playback identity.*portable hard-link.*shared cross-product revision journal or undo\/redo history/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -367,6 +372,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
+		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 	]);
 	assert.match(
@@ -387,7 +393,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*proxies.*rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup.*capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup.*capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -415,6 +421,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/explicit managed handoff supplies automatic\s+fresh-recipient acquisition for canonical PCM and retained original video.*linked and unmanaged originals.*proxies and rendered fallbacks.*relink and watch\s+behavior.*general copy\/consolidate.*managed-media cleanup and capacity\s+reservation.*logical catalog-row growth.*stable byte lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link qualification.*shared cross-product revision\s+journal and undo\/redo history remain unqualified/isu,
+		/explicit managed handoff supplies automatic\s+fresh-recipient acquisition for canonical PCM.*maintained exact\s+schema 9 first-party audio whole-mix fallback.*retained original video.*linked and unmanaged originals.*authored proxies.*generic and video rendered\s+fallbacks.*relink and watch behavior.*general copy\/consolidate.*managed-media\s+cleanup and capacity reservation.*logical catalog-row growth.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link qualification.*shared cross-product revision journal and undo\/redo history remain unqualified/isu,
 	);
 });

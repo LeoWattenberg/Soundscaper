@@ -13,6 +13,10 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	assert.equal(rule.status, 'implemented');
 	assert.match(rule.requiredOutcome, /exact-current-schema.*audioEffects.*rendered fallback.*whole-mix.*editor playback.*canonical state/iu);
 	assert.match(
+		rule.requiredOutcome,
+		/explicit managed desktop handoff.*fallback source.*only by that requirement.*fresh-recipient acquisition.*controller digest verification.*activation/iu,
+	);
+	assert.match(
 		rule.currentBehavior,
 		/authoritative.*exact schema 9.*registered audioEffects.*unavailable.*declared and effective rendered-fallback.*descriptor.*canonical manifest/iu,
 	);
@@ -46,6 +50,10 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
+		/explicit desktop handoff.*roots.*fallback-only source.*manifest.*canonical managed PCM.*editable original.*fresh recipient.*both bodies.*canonical shadow.*transfer acquisition.*managed descriptor and body SHA-256.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before.*transient whole-mix projection.*exact fallback samples.*engine/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
 		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
 	);
 
@@ -57,6 +65,10 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 		'src/common/editor/controller/playback-project-service.ts',
 		'src/common/editor/controller/source-lifecycle-service.ts',
 		'src/common/editor/controller/source-audio.ts',
+		'src/common/editor/retention.js',
+		'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
+		'src/common/editor/storage/desktop-shared-project-media-sender.ts',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
 		'tests/audio-editor-playback-project-service.test.ts',
 		'tests/audio-editor-source-lifecycle-service.test.ts',
@@ -65,6 +77,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 		'tests/audio-editor-project-switch-source-preparation.test.ts',
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
@@ -74,5 +87,6 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
+	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*canonical original and fallback PCM.*fresh Framescaper.*both exact managed bodies.*canonical project shadow.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
 	assert.match(documentation, /point-in-time.*not a durable byte lease.*generic and video.*fallback.*remain/isu);
 });

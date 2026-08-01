@@ -279,6 +279,16 @@ product-local revision history with zero bridge body I/O and no duplicate local
 media. This headless evidence does not qualify executable/UI launch coordination
 or browser video-element codec playback.
 
+A narrower composed Soundscaper-to-fresh-Framescaper fixture roots an exact
+schema 9 first-party audio whole-mix fallback solely through its feature
+requirement. Explicit handoff publishes that fallback and the editable original
+as canonical managed PCM; the empty recipient acquires both absent bodies and
+the exact canonical shadow, remains intrinsically read-only, and activates the
+transient fallback with exact engine samples and no missing source. Managed
+acquisition verifies its descriptor and body SHA-256. The separate fallback
+digest declared by the project manifest remains controller-owned after shadow
+publication and before activation.
+
 Recipient-local admission for unmanaged sources remains a bounded sequential
 readability check, not an atomic snapshot, publisher authentication, or a
 durable byte lease. Unmanaged audio is availability and geometry qualified, not
@@ -290,14 +300,16 @@ non-cooperative providers may continue work after cancellation rejects; shadow
 save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
-fresh-recipient acquisition for canonical PCM and retained original video.
-Linked and unmanaged originals, proxies and rendered fallbacks, relink and watch
-behavior, general copy/consolidate, managed-media cleanup and capacity
-reservation, logical catalog-row growth, a stable byte lease through playback,
-browser codec playback, packaged executable and UI two-product source-bearing
-handoff, portable hard-link qualification, and a shared cross-product revision
-journal and undo/redo history remain unqualified. Product-local bounded revision
-history is the only history proven by the composed return fixture.
+fresh-recipient acquisition for canonical PCM—including the maintained exact
+schema 9 first-party audio whole-mix fallback—and retained original video.
+Linked and unmanaged originals, authored proxies, generic and video rendered
+fallbacks, relink and watch behavior, general copy/consolidate, managed-media
+cleanup and capacity reservation, logical catalog-row growth, a stable byte
+lease through playback, browser codec playback, packaged executable and UI
+two-product source-bearing handoff, portable hard-link qualification, and a
+shared cross-product revision journal and undo/redo history remain unqualified.
+Product-local bounded revision history is the only history proven by the
+composed return fixture.
 Rendered-fallback digest verification remains controller-owned after repository
 shadowing and before activation side effects.
 
@@ -333,10 +345,12 @@ separate from this slice.
 This catalog rule is current-only. Activation-specific feature-capability
 evaluation remains editor-owned. Explicit managed canonical PCM and retained
 original video are the fresh-recipient source-byte transfers provided by this
-library; ordinary saves remain document-only. Linked and unmanaged originals,
-proxies and rendered fallbacks, general copy/consolidate, relink and watch
-behavior, managed-media cleanup and capacity reservation, logical catalog-row
-growth, stable playback leasing, executable/UI and browser-codec qualification,
+library; this includes a maintained exact-schema first-party audio whole-mix
+fallback when its manifest is the only reference. Ordinary saves remain
+document-only. Linked and unmanaged originals, authored proxies, generic and
+video rendered fallbacks, general copy/consolidate, relink and watch behavior,
+managed-media cleanup and capacity reservation, logical catalog-row growth,
+stable playback leasing, executable/UI and browser-codec qualification,
 portable hard-link behavior, and shared cross-product revision or undo history
 remain outside it. The remaining platform and fault matrix includes
 per-platform parent- and database-path identity, power-loss durability, and
@@ -423,6 +437,16 @@ positive frame range, and match the project sample rate and master channel
 count. ADM and surround projects, ambiguous candidates, descriptor drift,
 missing sources, unsafe geometry, and collisions with the reserved synthetic
 track or clip IDs reject rather than guessing.
+
+On explicit desktop handoff, manifest reachability retains this fallback even
+when no timeline or Project Bin clip references it. A real Soundscaper sender
+publishes the canonical original and fallback PCM, and a fresh Framescaper
+recipient acquires both exact managed bodies plus the canonical project shadow.
+That transfer authenticates each managed descriptor and body digest; the
+controller then separately verifies the manifest fallback digest before
+read-only activation. The engine alone receives the synthetic whole-mix
+projection and exact fallback samples, while the document snapshot remains the
+publisher's canonical project.
 
 For editor playback, that source becomes one neutral whole-mix clip using its
 full frame range from frame zero. The transient projection removes every

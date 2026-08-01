@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
+const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
 test('shared desktop project publication is fenced and remains narrowly partial', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
@@ -281,6 +282,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/audio-editor-source-record-ownership.test.ts',
 		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
+		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 	]) assert.ok(managedHandoffControl.evidence.some((item) => item.path === path), path);
 	assert.match(
@@ -302,6 +304,10 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.match(
 		managedHandoffControl.summary,
 		/headless Soundscaper-to-Framescaper edit\/save\/return fixture.*fresh acquisition.*exact PCM engine input.*exact Blob video bytes.*play\/stop state.*distinct revision-bound rows.*one inode per exact body.*tested Linux filesystem.*product-local histories.*no bridge or shared-library body read or upload.*original profile.*does not qualify packaged Electron UI or browser video-codec playback/isu,
+	);
+	assert.match(
+		managedHandoffControl.summary,
+		/narrower fixture.*manifest-only exact-schema first-party audio fallback PCM.*empty recipient.*original and exact shadow.*controller independently verifies the manifest digest.*exact fallback samples.*transfer verifies only the managed descriptor and body digest/isu,
 	);
 	for (const [kind, path] of [
 		['implementation', 'desktop/desktop-smoke.js'],
@@ -364,6 +370,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
+		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 		'tests/production-security-shared-project-library.test.js',
 	]) assert.ok(mediaAdmissionControl.evidence.some((item) => item.path === path), path);
@@ -378,6 +385,10 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.match(
 		mediaAdmissionControl.summary,
 		/headless composed fixture.*exact managed mixed-media acquisition.*playback-controller access.*edit\/save\/return.*original-profile reopen.*without bridge or shared-library body transfer.*neither an atomic unmanaged-media snapshot or publisher authentication.*stable byte lease through real playback.*packaged Electron UI.*browser video-codec behavior/iu,
+	);
+	assert.match(
+		mediaAdmissionControl.summary,
+		/separate fresh-recipient fixture.*first-party audio fallback PCM.*only by the manifest.*controller-owned manifest-digest verification.*transient playback activation.*managed acquisition itself verifies the transfer descriptor and body digest/isu,
 	);
 	assert.match(
 		reclamationControl.summary,
@@ -418,7 +429,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked or otherwise unmanaged originals.*proxies.*rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup and capacity reservation.*unqualified.*no stable lease through real playback.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
+		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked or otherwise unmanaged originals.*authored proxies.*generic and video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup and capacity reservation.*unqualified.*no stable lease through real playback.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
 	);
 	assert.doesNotMatch(
 		managedMedia?.exposure ?? '',
@@ -426,10 +437,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*stable original, proxy, and rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*cleanup.*capacity policy.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*stable original and authored-proxy relationships.*generic and video rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*cleanup.*capacity policy.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',
 		/packaged Soundscaper-to-Framescaper-to-Soundscaper source-bearing.*acquire every required mixed-media body.*managed, relink, copy, or consolidation.*stable byte identity through activation and playback.*save and return.*without accidental copies or lost history.*cleanup and capacity refusal.*missing-at-admission/isu,
+	);
+	const threatModel = await readFile(threatModelUrl, 'utf8');
+	assert.match(
+		threatModel,
+		/rendered-fallback limitation.*narrowed.*maintained exception.*exact-schema first-party audio whole-mix PCM.*manifest is the only reference.*explicit\s+managed handoff.*editable original.*fresh recipient.*managed transfer.*descriptor and body digest.*controller separately.*project fallback declaration.*read-only transient\s+playback activation.*exact samples.*authored proxies.*generic and\s+video rendered-fallback relationships remain open.*unknown and\s+third-party activation/isu,
 	);
 });
