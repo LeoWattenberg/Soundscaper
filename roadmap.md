@@ -1094,9 +1094,54 @@ models or native implementations.
   units, quota-estimate lag and concurrent writers remain outside this binary
   payload scope; the capacity service's headroom and transactional quota
   rollback remain necessary. Current render resident/worker memory, a genuine
-  pre-encode proxy maximum, autosave/revision publication bounds, and
-  whole-process resident-set evidence remain open; the direct `.scape`
-  publication maximum and browser-download final-Blob bound are covered above.
+  pre-encode proxy maximum, and whole-process resident-set evidence remain open;
+  the direct `.scape` publication maximum and browser-download final-Blob bound
+  are covered above.
+
+  Canonical project-publication admission now applies at the maintained
+  `AudioEditorProjectStore.saveProject` facade. The strict-TS
+  [admission owner](src/common/editor/project-publication-admission.ts)
+  serializes each submitted snapshot with the canonical tagged-binary `.scape`
+  project-document codec and rejects UTF-8 output above a non-raiseable 256 MiB
+  ceiling, with a lower-only test seam, before repository save. This central
+  ceiling covers queued controller saves and maintained direct caller paths,
+  including inactive-tab close, project switch, import, duplication, and Scape
+  transaction save or rollback. Its focused
+  [store regressions](tests/audio-editor-project-store-publication-admission.test.ts)
+  prove refusal before current or revision mutation and pin the lower-only
+  seam. Controller-owned queued autosave, explicit flush, and terminal flush
+  additionally request capacity immediately before each serialized write. The
+  request is exactly twice the submitted canonical UTF-8 length—a deterministic
+  gross proxy for one current-project payload plus one revision-project
+  payload—and the shared capacity service adds exact `ceil(10%)` policy
+  headroom. A known insufficient IndexedDB estimate rejects even during terminal
+  teardown and before repository or controller success side effects. An unknown
+  normalized estimate, including every non-IndexedDB backend, proceeds. The
+  focused
+  [estimator](tests/audio-editor-project-publication-admission.test.ts),
+  [queue](tests/audio-editor-project-save-publication-admission.test.ts),
+  [capacity](tests/audio-editor-storage-capacity-service.test.ts), and
+  [runtime](tests/audio-editor-storage-capacity-runtime.test.ts) regressions
+  prove exact UTF-8 and checked twice-payload arithmetic, immediate serialized
+  admission, dirty/no-save refusal, unknown memory fallback, and successor
+  progress after a refused predecessor.
+
+  The twice-canonical gross proxy is not an exact IndexedDB byte count. Local
+  persistence clones and compacts unreachable source metadata before publishing
+  structured-clone current and revision records with revision-wrapper fields;
+  browser record, key, property, transaction, journal, replacement, pruning,
+  allocation-unit, and quota-accounting overhead remain unmeasured. The 256 MiB
+  ceiling is evaluated after canonical serialization and does not bound
+  controller snapshot cloning, repeated queued and pre-store serializer
+  allocation, heap, RSS, garbage collection, elapsed time, or backend write
+  work. Quota preflight is point-in-time with no reservation, estimates may lag,
+  concurrent writers and write-time quota failure remain possible, and direct
+  store-facade saves do not receive this project-row capacity check; other
+  route-specific controls remain separate. Memory fallback has no durable
+  capacity claim. For desktop shared projects the estimate covers only
+  the local IndexedDB shadow, not renderer/main IPC or the main-process appData
+  project file and catalog. Directly constructed repository instances and
+  pre-existing over-limit stored documents remain outside this qualification.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.

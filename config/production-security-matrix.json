@@ -307,7 +307,7 @@
 			"id": "external-project-document-validation",
 			"title": "Malformed or oversized project documents",
 			"boundaryIds": ["external-input-to-parser"],
-			"assets": ["project integrity", "persisted source inventory", "renderer availability"],
+			"assets": ["project integrity", "persisted source inventory", "renderer availability", "local storage capacity"],
 			"actor": "A user or collaborator supplies a corrupt or adversarial project document.",
 			"impact": "high",
 			"status": "partial",
@@ -369,6 +369,24 @@
 						{ "kind": "test", "path": "tests/audio-editor-scape-open-decision-dialog.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-feature-compatibility-notice.test.ts" },
 						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" }
+					]
+				},
+				{
+					"id": "maintained-project-publication-admission",
+					"summary": "Every maintained caller save entering `AudioEditorProjectStore.saveProject` serializes the submitted snapshot with the canonical tagged-binary `.scape` project-document codec and rejects UTF-8 output above a non-raiseable 256 MiB ceiling, with a lower-only test seam, before repository save. This facade boundary covers queued controller saves and direct maintained caller paths such as inactive-tab close, project switch, import, duplication, and Scape transaction save or rollback. Controller-owned queued autosave, explicit flush, and terminal flush additionally request capacity immediately before each serialized write. The request is exactly twice the submitted canonical UTF-8 length as a deterministic gross proxy for one current-project payload and one revision-project payload; the shared capacity service adds exact `ceil(10%)` policy headroom. A known insufficient IndexedDB estimate rejects, including during terminal teardown, before repository mutation and controller success side effects, while an unknown normalized estimate, including every non-IndexedDB backend, proceeds. Admission rejection leaves the snapshot dirty without save, active-ID, garbage-collection, or usage-refresh side effects, and the serialized queue admits a successor.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/project-publication-admission.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/storage.js" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/project-save-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/storage-capacity-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/storage-capacity-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/app.js" },
+						{ "kind": "test", "path": "tests/audio-editor-project-publication-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-store-publication-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-save-publication-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-controller-disposal.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-capacity-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-storage-capacity-service.test.ts" }
 					]
 				},
 				{
@@ -460,6 +478,13 @@
 				}
 			],
 			"residualRisks": [
+				{
+					"id": "project-publication-capacity-accounting",
+					"exposure": "The twice-canonical planning amount is deterministic but is not the browser's exact structured-clone or quota charge. Local repository compaction can remove unreachable source metadata, and IndexedDB publishes structured-clone current and revision records with revision-wrapper fields; record, key, property, transaction, journal, replacement, pruning, allocation-unit, and browser quota-accounting overhead remain unmeasured. Estimates may lag, concurrent writers are not reserved, and write-time quota failure remains possible. The 256 MiB ceiling is checked only after canonical serialization and does not bound controller snapshot cloning, repeated queued and pre-store serialization, heap, RSS, garbage collection, elapsed time, or backend write work. Quota preflight is point-in-time, unreserved, and limited to queued controller saves; direct store-facade saves receive the canonical ceiling without this project-row capacity check, while other route-specific controls remain separate. Memory fallback has no durable-capacity claim. For desktop shared projects the capacity estimate covers only the local IndexedDB shadow, not renderer/main IPC or the main-process appData project file and catalog. Directly constructed repository instances and pre-existing over-limit stored documents remain outside the control.",
+					"requiredControl": "Before claiming exact storage or resident-memory admission, measure and bound actual backend publication geometry and the snapshot and serializer resident working set, reserve capacity across concurrent writes or qualify safe write-time failure, and add an independent desktop appData capacity admission.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Backend-specific publication tests account actual current/revision records and transaction overhead, resident-set evidence covers snapshot and serializer work at the supported ceiling, concurrent writes cannot oversubscribe reserved capacity, and desktop appData admission rejects known insufficiency before its file or catalog publication."]
+				},
 				{
 					"id": "shared-project-parse-budget",
 					"exposure": "Legacy `.aup` XML and supported canonical, default-sized simple/silent `_data` materialization have format-specific structural, referenced-input, block-geometry, retained-PCM, indexed-lookup, and parser-owned pending-window budgets. The shared-project codec now applies a raw-JSON structural preflight to every schema before `JSON.parse` under a non-raiseable ceiling of 101,536 JSON values and depth 130, including the worst-case tagged-binary wire expansion; exact schema 9 is then decoded and structurally admitted by the semantic validator under independent ceilings of 100,000 logical nodes and depth 128. The main service exposes lower-only seams for those limits across renderer input, loaded commit results, stored reads, and response serialization. Over-budget renderer input refuses before host commit or staging; an over-budget loaded commit result refuses before the renderer response but may follow host publication. The lexical preflight, decoded-codec traversal, validation admission, and response serialization reset their counters and remain per-phase shape bounds rather than one aggregate execution budget. CPU or elapsed time, cancellation, scalar and string work, IPC and JSON/string allocation, semantic normalization and clone amplification, provider-internal allocation, garbage-collection lag, and total main-process RSS remain unqualified. The hostile-input claim covers canonical JSON-derived production graphs and ordinary direct objects, not arbitrary in-realm proxies or malicious injected hosts or providers. Other supported project parsers still do not share aggregate byte, node, depth, or elapsed-time budgets, while XML-tree and opaque-extension cloning, aliases, customized Audacity block sizes above policy ceilings, downstream conversion/waveform/storage/persistence amplification, total renderer RSS, cancellation, and streaming-scale legacy import remain outside this qualification.",

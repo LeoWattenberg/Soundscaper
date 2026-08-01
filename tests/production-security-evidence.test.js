@@ -483,6 +483,48 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 });
 
+test('project publication evidence keeps canonical admission distinct from backend capacity', async () => {
+	const matrix = await readMatrix();
+	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
+	assert.ok(projectDocuments);
+	const admission = projectDocuments.currentControls.find(
+		({ id }) => id === 'maintained-project-publication-admission',
+	);
+	const accounting = projectDocuments.residualRisks.find(
+		({ id }) => id === 'project-publication-capacity-accounting',
+	);
+	assert.ok(admission);
+	assert.match(
+		admission.summary,
+		/maintained caller save.*`AudioEditorProjectStore\.saveProject`.*canonical.*UTF-8.*non-raiseable 256 MiB.*lower-only.*before repository save.*queued controller.*twice.*gross proxy.*current.*revision.*ceil\(10%\).*known insufficient IndexedDB.*before repository.*success side effects.*unknown.*non-IndexedDB.*proceeds.*successor/isu,
+	);
+	for (const path of [
+		'src/common/editor/project-publication-admission.ts', 'src/common/editor/storage.js',
+		'src/common/editor/controller/project-save-service.ts',
+		'src/common/editor/controller/storage-capacity-runtime.ts',
+		'src/common/editor/controller/storage-capacity-service.ts', 'src/common/editor/app.js',
+		'tests/audio-editor-project-publication-admission.test.ts',
+		'tests/audio-editor-project-store-publication-admission.test.ts',
+		'tests/audio-editor-project-save-publication-admission.test.ts',
+		'tests/audio-editor-controller-disposal.test.js',
+		'tests/audio-editor-storage-capacity-runtime.test.ts',
+		'tests/audio-editor-storage-capacity-service.test.ts',
+	]) assert.ok(admission.evidence.some((item) => item.path === path), path);
+	assert.ok(accounting);
+	assert.match(
+		accounting.exposure,
+		/twice-canonical.*not.*structured-clone.*repository compaction.*revision-wrapper.*record.*key.*property.*transaction.*journal.*replacement.*pruning.*allocation-unit.*estimates may lag.*concurrent writers.*write-time quota.*after canonical serialization.*snapshot.*serializ.*heap.*RSS.*garbage collection.*queued controller saves.*direct store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*no durable-capacity claim.*desktop.*local IndexedDB shadow.*not.*IPC.*appData.*directly constructed repository.*pre-existing over-limit/isu,
+	);
+	assert.match(accounting.requiredControl, /actual backend publication geometry.*resident working set.*reserve.*concurrent writes.*desktop appData/isu);
+
+	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	assert.match(documentation, /maintained-project-publication-admission.*`AudioEditorProjectStore\.saveProject`.*canonical.*256 MiB.*queued autosave.*explicit flush.*terminal flush.*twice.*gross proxy.*ceil\(10%\).*known insufficient IndexedDB.*unknown.*non-IndexedDB.*successor/isu);
+	assert.match(documentation, /project-publication-capacity-accounting.*not an exact IndexedDB byte count.*structured-clone.*point-in-time.*no reservation.*direct store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*desktop.*local IndexedDB shadow.*appData.*heap.*RSS/isu);
+	const roadmap = await readFile(roadmapUrl, 'utf8');
+	assert.match(roadmap, /canonical project-publication admission.*`AudioEditorProjectStore\.saveProject`.*non-raiseable 256 MiB.*queued autosave.*explicit flush.*terminal flush.*twice.*gross proxy.*ceil\(10%\).*known insufficient IndexedDB.*non-IndexedDB.*proceeds.*successor/isu);
+	assert.match(roadmap, /not an exact IndexedDB byte count.*structured-clone.*heap.*RSS.*point-in-time.*no reservation.*direct\s+store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*desktop.*local\s+IndexedDB shadow.*appData/isu);
+});
+
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {
 	const matrix = await readMatrix();
 	const desktopWrite = matrix.risks.find(({ id }) => id === 'desktop-write-path-capabilities');
