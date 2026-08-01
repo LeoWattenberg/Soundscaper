@@ -211,6 +211,47 @@ test('exact and partial derivative deletes remove payload and companion pairs to
 	);
 });
 
+for (const operation of ['exact derivative deletion', 'media asset cascade'] as const) {
+	test(`${operation} rejects a companion path that could delete an unrelated OPFS original`, async () => {
+		const indexedDB = instrumentedIndexedDB();
+		const databaseName = uniqueDatabaseName(`derivative-delete-path-spoof-${operation}`);
+		const files = new Map<string, Blob>();
+		const store = asDerivativeProjectStore(createProjectStore({
+			indexedDB,
+			memoryFallback: false,
+			preferOpfs: true,
+			opfsRoot: createOpfsDirectory(files),
+			databaseName,
+		}));
+		await store.ready();
+		const sourceOriginal = await persistOriginal(store, 'source');
+		const unrelatedOriginal = await persistOriginal(store, 'unrelated');
+		await store.saveVideoDerivative('source', {
+			type: 'poster', blob: new Blob(['poster']),
+		});
+		const payload = onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME);
+		const companion = onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
+		indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, {
+			...companion,
+			path: unrelatedOriginal.path,
+		});
+
+		await assert.rejects(
+			operation === 'exact derivative deletion'
+				? store.deleteVideoDerivative('source', { type: 'poster' })
+				: store.deleteMediaAsset('source'),
+			/derivative cache payload.*does not match.*deletion metadata/iu,
+		);
+
+		assert.equal(files.has(String(unrelatedOriginal.path)), true);
+		assert.equal(files.has(String(sourceOriginal.path)), true);
+		assert.equal(files.has(String(payload.path)), true);
+		assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
+		assert.equal(indexedDB.recordCount(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), 1);
+		assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 2);
+	});
+}
+
 test('media asset cascade inventories scalar entries and never bulk-loads derivative payloads', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-paired-cascade');
@@ -243,7 +284,7 @@ test('media asset cascade inventories scalar entries and never bulk-loads deriva
 	assert.equal(cascadeReads.some(({ store: storeName }) => storeName === VIDEO_DERIVATIVE_STORE_NAME), false);
 	assert.equal(cascadeReads.some(({ store: storeName }) => storeName === DERIVATIVE_CACHE_ENTRY_STORE_NAME), true);
 	assert.equal(cascadeValueCursors.some(({ store: storeName }) => storeName === VIDEO_DERIVATIVE_STORE_NAME), false);
-	assert.equal(cascadeKeyCursors.some(({ store: storeName }) => storeName === VIDEO_DERIVATIVE_STORE_NAME), true);
+	assert.equal(cascadeKeyCursors.some(({ store: storeName }) => storeName === VIDEO_DERIVATIVE_STORE_NAME), false);
 });
 
 test('public derivative listings retain metadata omitted from the disposal companion', async () => {

@@ -19,7 +19,7 @@ import {
 } from './derivative-cache-policy.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
-import { isMediaContentSha256 } from './media-content-provenance.ts';
+import { isMediaContentSha256, isMediaContentToken } from './media-content-provenance.ts';
 import {
 	binaryMetadata,
 	videoDerivativeMetadata,
@@ -32,6 +32,7 @@ import {
 	assertVideoDerivativeOriginalUnchanged,
 	assertVideoDerivativeRecordBinding,
 	matchesVideoDerivativeRecordBinding,
+	normalizeVideoDerivativeRecipe,
 	optionalVerifiedVideoDerivativeOriginal,
 	videoDerivativeIdentity,
 	verifiedVideoDerivativeOriginal,
@@ -272,6 +273,8 @@ export class VideoDerivativeRepository {
 		const identity = videoDerivativeIdentity(id, original.sha256, timestamp, type, recipe);
 		const record = await this.derivativeRecord(identity.key);
 		if (!record) return null;
+		if (isMediaContentToken(record.originalMediaContentToken)
+			&& record.originalMediaContentToken !== original.mediaContentToken) return null;
 		assertVideoDerivativeRecordBinding(record, identity, original);
 		const blob = await this.#opfs.loadBinaryRecord(
 			record,
@@ -318,15 +321,18 @@ export class VideoDerivativeRepository {
 			? nonNegativeFiniteNumber(selector.timestamp, 'A non-negative derivative timestamp is required.')
 			: null;
 		const type = hasType ? nonEmptyString(selector.type, 'A video derivative type is required.') : null;
+		const recipe = selector.recipe === undefined ? null : normalizeVideoDerivativeRecipe(selector.recipe);
+		const matches = (record: StorageRecord): boolean => record.sourceId === id
+			&& (timestamp === null || record.timestamp === timestamp)
+			&& (type === null || record.type === type)
+			&& (recipe === null || record.recipeId === recipe.id && record.recipeVersion === recipe.version);
 		const database = await this.#port.database();
 		let records: StorageRecord[];
 		if (!database) {
 			records = [...this.#port.memory.videoDerivatives.values()]
 				.map(asStorageRecord)
 				.filter(isStorageRecord)
-				.filter((record) => record.sourceId === id
-					&& (timestamp === null || record.timestamp === timestamp)
-					&& (type === null || record.type === type))
+				.filter(matches)
 				.map(clone);
 			for (const record of records) {
 				if (typeof record.key === 'string') this.#port.memory.videoDerivatives.delete(record.key);
@@ -336,22 +342,7 @@ export class VideoDerivativeRepository {
 				database,
 				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
 				'readwrite',
-				async (stores) => {
-					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
-					const candidates = scalarDerivativeRecords(await request(
-						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(id),
-					));
-					const selected = candidates.filter((record) => record.sourceId === id
-						&& (timestamp === null || record.timestamp === timestamp)
-						&& (type === null || record.type === type));
-					for (const record of selected) {
-						const key = record.key as string;
-						videoDerivatives.delete(key);
-						cacheEntries.delete(key);
-					}
-					return selected;
-				},
+				(stores) => deletePairedVideoDerivativeRecords(stores, id, matches),
 			);
 		}
 		if (!records.length) return;
@@ -431,6 +422,33 @@ export class VideoDerivativeRepository {
 			: this.#port.memory.mediaAssets.get(sourceId);
 		return clone(asStorageRecord(value));
 	}
+}
+
+export async function deletePairedVideoDerivativeRecords(
+	stores: Readonly<Record<string, IDBObjectStore>>,
+	sourceId: string,
+	matches: (record: StorageRecord) => boolean = () => true,
+): Promise<StorageRecord[]> {
+	const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
+	const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+	const candidates = scalarDerivativeRecords(await request(
+		cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(sourceId),
+	)).filter((record) => record.sourceId === sourceId && matches(record));
+	const validated: StorageRecord[] = [];
+	for (const expected of candidates) {
+		const key = expected.key as string;
+		const payload = asStorageRecord(await request(videoDerivatives.get(key)));
+		if (!sameDerivativeCacheRecord(payload, expected)) {
+			throw new Error(`Derivative cache payload ${key} does not match its deletion metadata.`);
+		}
+		validated.push(projectDerivativeCacheInventoryRecord(payload, key));
+	}
+	for (const record of validated) {
+		const key = record.key as string;
+		videoDerivatives.delete(key);
+		cacheEntries.delete(key);
+	}
+	return validated;
 }
 
 function asStorageRecord(value: unknown): StorageRecord | null {

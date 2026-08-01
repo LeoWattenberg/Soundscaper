@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
+import { request, transact } from './indexeddb-backend.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
-	DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-	projectDerivativeCacheInventoryRecord,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
 import {
@@ -29,6 +27,7 @@ import {
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
+	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
 	type VideoDerivativeInput,
 	type VideoDerivativeSelector,
@@ -148,17 +147,9 @@ export class MediaRepository {
 				'readwrite',
 				async (stores) => {
 					const mediaAssets = stores.mediaAssets;
-					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
 					const storedRecord = await request(mediaAssets.get(id)) as StorageRecord | undefined;
-					const storedDerivatives = scalarDerivativeRecords(await request(
-						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(id),
-					));
+					const storedDerivatives = await deletePairedVideoDerivativeRecords(stores, id);
 					mediaAssets.delete(id);
-					await Promise.all([
-						deleteByIndex(videoDerivatives.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), id),
-						deleteByIndex(cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), id),
-					]);
 					return { record: storedRecord || null, derivatives: storedDerivatives };
 				},
 			));
@@ -238,13 +229,6 @@ function asStorageRecord(value: unknown): StorageRecord | null {
 
 function isStorageRecord(value: StorageRecord | null): value is StorageRecord {
 	return value !== null;
-}
-
-function scalarDerivativeRecords(values: readonly unknown[]): StorageRecord[] {
-	return values.map(asStorageRecord).filter(isStorageRecord).map((record) => {
-		if (typeof record.key !== 'string') throw new TypeError('A derivative cache record key is required.');
-		return projectDerivativeCacheInventoryRecord(record, record.key);
-	});
 }
 
 function clone<Value>(value: Value): Value {

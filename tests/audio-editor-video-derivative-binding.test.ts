@@ -46,6 +46,11 @@ interface BoundDerivativeStore {
 		type?: string;
 		recipe?: VideoDerivativeRecipe;
 	}>): Promise<Record<string, unknown>[]>;
+	deleteVideoDerivative(sourceId: string, selector?: Readonly<{
+		timestamp?: number;
+		type?: string;
+		recipe?: VideoDerivativeRecipe;
+	}>): Promise<void>;
 }
 
 const RECIPE_V2 = Object.freeze({
@@ -198,6 +203,46 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		}
 		assert.equal(metadata.outputSha256, sha256('poster-body'));
 	});
+
+	test(`${backend} explicit recipe deletion preserves other revisions`, async () => {
+		const fixture = createFixture(backend, `recipe-delete-${backend}`);
+		await fixture.store.ready();
+		await fixture.store.writeMediaAsset('video-source', new Blob(['original-video']));
+		await fixture.store.saveVideoDerivative('video-source', {
+			type: 'poster',
+			recipe: VIDEO_DERIVATIVE_RECIPES.poster,
+			blob: new Blob(['poster-v1']),
+		});
+		await fixture.store.saveVideoDerivative('video-source', {
+			type: 'poster',
+			recipe: RECIPE_V2,
+			blob: new Blob(['poster-v2']),
+		});
+
+		await fixture.store.deleteVideoDerivative('video-source', {
+			timestamp: 0,
+			type: 'poster',
+			recipe: RECIPE_V2,
+		});
+
+		assert.equal(
+			await (await fixture.store.loadVideoDerivative('video-source', {
+				type: 'poster', recipe: VIDEO_DERIVATIVE_RECIPES.poster,
+			}))?.text(),
+			'poster-v1',
+		);
+		assert.equal(
+			await fixture.store.loadVideoDerivative('video-source', { type: 'poster', recipe: RECIPE_V2 }),
+			null,
+		);
+		assert.equal(fixture.records(VIDEO_DERIVATIVE_STORE_NAME).length, 1);
+		if (backend === 'indexeddb') {
+			assert.equal(fixture.records(DERIVATIVE_CACHE_ENTRY_STORE_NAME).length, 1);
+		}
+
+		await fixture.store.deleteVideoDerivative('video-source', { type: 'poster' });
+		assert.deepEqual(fixture.records(VIDEO_DERIVATIVE_STORE_NAME), []);
+	});
 }
 
 test('video derivative relationships reject open or noncanonical identity fields', () => {
@@ -237,6 +282,27 @@ test('same-key original replacement makes prior derivatives cache misses', async
 	assert.equal(await fixture.store.loadVideoDerivative('video-source', { type: 'poster' }), null);
 	assert.deepEqual(await fixture.store.listVideoDerivatives('video-source'), []);
 });
+
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`${backend} same-digest replacement generation is a cache miss`, async () => {
+		const fixture = createFixture(backend, `same-digest-replacement-${backend}`);
+		const replacement = new Blob(['original-video']);
+		await fixture.store.writeMediaAsset('video-source', replacement);
+		await fixture.store.saveVideoDerivative('video-source', {
+			type: 'poster', blob: new Blob(['poster']),
+		});
+		fixture.seedMediaAsset('video-source', {
+			sourceId: 'video-source',
+			...freshVerifiedMediaContentDigest(sha256('original-video')),
+			storage: 'indexeddb-blob',
+			blob: replacement,
+			size: replacement.size,
+		});
+
+		assert.equal(await fixture.store.loadVideoDerivative('video-source', { type: 'poster' }), null);
+		assert.deepEqual(await fixture.store.listVideoDerivatives('video-source'), []);
+	});
+}
 
 test('legacy unbound derivative rows are disposable cache misses', async () => {
 	const fixture = createFixture('memory', 'legacy-unbound');

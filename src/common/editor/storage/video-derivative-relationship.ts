@@ -70,7 +70,7 @@ export function videoDerivativeIdentity(
 	}
 	const derivativeType = videoDerivativeType(type);
 	const sourceTimestamp = nonNegativeFiniteNumber(timestamp);
-	const normalizedRecipe = videoDerivativeRecipe(recipe ?? VIDEO_DERIVATIVE_RECIPES[derivativeType]);
+	const normalizedRecipe = normalizeVideoDerivativeRecipe(recipe ?? VIDEO_DERIVATIVE_RECIPES[derivativeType]);
 	const descriptor = [
 		'video-derivative-binding',
 		VIDEO_DERIVATIVE_BINDING_VERSION,
@@ -162,7 +162,7 @@ function videoDerivativeType(value: unknown): VideoDerivativeType {
 	return value;
 }
 
-function videoDerivativeRecipe(value: unknown): Readonly<VideoDerivativeRecipe> {
+export function normalizeVideoDerivativeRecipe(value: unknown): Readonly<VideoDerivativeRecipe> {
 	if (!value || typeof value !== 'object') {
 		throw new TypeError('A video derivative recipe is required.');
 	}
