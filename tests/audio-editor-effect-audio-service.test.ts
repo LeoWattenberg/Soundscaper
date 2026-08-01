@@ -19,6 +19,7 @@ function deferred<Value>() {
 
 function createHarness(options: Readonly<{
 	deferRender?: boolean;
+	deferPersistence?: boolean;
 	deferWorker?: boolean;
 	loadFailure?: boolean;
 	memoryLimitBytes?: number;
@@ -72,6 +73,8 @@ function createHarness(options: Readonly<{
 	const projectGeneration = new EditorProjectGeneration();
 	projectGeneration.activate(project.id);
 	const render = deferred<Readonly<{ channels: readonly Float32Array[] }>>();
+	const persistence = deferred<void>();
+	const persistenceStarted = deferred<void>();
 	const worker = deferred<Readonly<{ profile: unknown }>>();
 	const snapshots: EffectAudioProject[] = [];
 	const commands: unknown[] = [];
@@ -79,6 +82,7 @@ function createHarness(options: Readonly<{
 	const preflightBytes: number[] = [];
 	const statuses: string[] = [];
 	let publications = 0;
+	let persistenceCommits = 0;
 	let prefixDisposals = 0;
 	let spectralWorkerCalls = 0;
 	const service = createEffectAudioService({
@@ -141,7 +145,16 @@ function createHarness(options: Readonly<{
 		},
 		serializeNoiseProfile: (profile) => ({ serialized: profile }),
 		commit: (command) => { commands.push(command); },
-		persistAudacityEffectResults: async (...args) => { persisted.push(args); },
+		persistAudacityEffectResults: async (...args) => {
+			persisted.push(args);
+			if (options.deferPersistence) {
+				persistenceStarted.resolve(undefined);
+				await persistence.promise;
+			}
+			const persistenceOptions = args[2] as Readonly<{ assertCurrent?: () => void }>;
+			persistenceOptions.assertCurrent?.();
+			persistenceCommits += 1;
+		},
 		setStatus: (message) => { statuses.push(message); },
 		publishDocumentSnapshot: () => { publications += 1; },
 	});
@@ -149,6 +162,9 @@ function createHarness(options: Readonly<{
 		commands,
 		get prefixDisposals() { return prefixDisposals; },
 		get publications() { return publications; },
+		persistence,
+		get persistenceCommits() { return persistenceCommits; },
+		persistenceStarted,
 		persisted,
 		preflightBytes,
 		render,
@@ -235,6 +251,22 @@ test('spectral workflow preflights exact aggregate output and processes admitted
 	}>;
 	assert.equal(results.length, 2);
 	assert.equal(results.every(({ channels }) => channels[0]?.length === 4_000), true);
+});
+
+test('project switching during spectral persistence fences stale commit and publication', async () => {
+	const harness = createHarness({ deferPersistence: true });
+	const pending = harness.service.applySpectralSelection(-6);
+	await harness.persistenceStarted.promise;
+	const publicationsBeforeSwitch = harness.publications;
+
+	harness.switchProject();
+	harness.persistence.resolve(undefined);
+
+	await assert.rejects(pending, { code: 'PROJECT_CHANGED' });
+	assert.equal(harness.persistenceCommits, 0);
+	assert.equal(harness.publications, publicationsBeforeSwitch);
+	assert.equal(harness.state.audacityEffectProcessing, false);
+	assert.notEqual(harness.statuses.at(-1), 'Spectral applied');
 });
 
 test('aggregate spectral admission refuses before preflight, rendering, workers, persistence, or processing UI', async () => {

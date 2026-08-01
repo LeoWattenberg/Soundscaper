@@ -6,6 +6,7 @@ import type {
 	EffectSelectionFrequencyRange,
 	EffectTarget,
 } from './effect-selection-service.ts';
+import type { PersistEffectResultOptions, SelectionEffectResult } from './effect-result-service.ts';
 import {
 	inspectSpectralEditChannels,
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
@@ -199,9 +200,9 @@ export interface EffectAudioServiceRuntime {
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
-		results: readonly Readonly<{ target: EffectTarget; channels: Float32Array[] }>[],
+		results: readonly SelectionEffectResult[],
 		type: null,
-		options: Readonly<Record<string, unknown>>,
+		options: PersistEffectResultOptions,
 	) => Promise<unknown>;
 	readonly setStatus: (message: string, status?: string) => void;
 	readonly publishDocumentSnapshot: () => void;
@@ -448,6 +449,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 				results.push({ target, channels: processed });
 			}
 			await runtime.persistAudacityEffectResults(results, null, {
+				assertCurrent: () => assertOwnership(runtime, ownership),
 				effectName: gainDb === -Infinity ? runtime.copy.spectralDelete : runtime.copy.spectralAmplify,
 				selectionDetails: runtime.audacityEffectSelectionDetails(selection, targets),
 			});
