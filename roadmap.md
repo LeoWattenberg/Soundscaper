@@ -1118,9 +1118,16 @@ models or native implementations.
   The source cache, committed 32 MiB planar LRU, permanent render controller's
   `AudioBuffer` and channel snapshots, browser clone/message objects,
   persistence buffers, and runtime overhead can be additive.
+  Separately, maintained Audacity selection-effect admission now consumes the
+  same shared audited 64 MiB StaffPad WASM maximum instead of its former 16 MiB
+  scratch allowance. The focused
+  [dispatcher regression](tests/audacity-effects-dispatcher.test.js) binds the
+  exact worker-peak formula to the pinned source manifest, so the existing
+  controller and macro 256 MiB preflights no longer undercharge StaffPad by
+  48 MiB. This is an estimator correction, not product-wide worker admission.
   Other render paths—including whole `OfflineAudioContext` renders, realtime
-  capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native
-  hosts—remain outside it.
+  capture, standalone generic effect and spectral worker calls, FFmpeg/WASM
+  encoding, and native hosts—remain outside the clip-cache bound.
   Genuine editorial video proxies remain future work,
   including a pre-encode maximum; current thumbnail derivatives are not
   editorial proxies. End-to-end browser/worker/renderer resident-set evidence
