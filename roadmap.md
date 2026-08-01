@@ -1126,6 +1126,42 @@ models or native implementations.
   exact worker-peak formula to the pinned source manifest, so the existing
   controller and macro 256 MiB preflights no longer undercharge StaffPad by
   48 MiB. This is an estimator correction, not product-wide worker admission.
+  Maintained spectral gain/delete selection now has a separate strict-TS
+  [admission owner](src/common/editor/spectral-edit-admission.ts). Before
+  storage preflight, dry rendering, worker dispatch, result retention, or
+  persistence, the
+  [controller](src/common/editor/controller/effect-audio-service.ts) applies
+  checked arithmetic and a non-raiseable 256 MiB ceiling with a lower-only
+  test seam to the conservative sequential useful-binary upper bound. Each
+  target charges all earlier completed outputs plus its complete dry-render
+  Float32 input, one equal transfer copy, one equal-shape output, two
+  selection-sized Float64 accumulation and normalization arrays, the Hann,
+  real, and imaginary Float64 arrays, and PFFFT input, output, and work
+  interleaved-complex Float32 regions. The
+  [worker boundary](src/common/editor/controller/selection-effect-worker-service.ts)
+  independently validates and admits the actual input before
+  FFT initialization, copying, or worker creation. It accepts 1–32 nonempty,
+  equally sized Float32 channels with tight, distinct, non-shared,
+  non-resizable `ArrayBuffer` backing and requires exact admitted channel and
+  frame geometry for dry-render and worker/fallback results before retention.
+  The controller supplies its task-and-project currentness assertion to
+  persistence, which rechecks it around awaited buffer, source, and analysis
+  work and immediately before the synchronous project commit.
+  Focused [planner](tests/audio-editor-spectral-edit-admission.test.ts),
+  [controller](tests/audio-editor-effect-audio-service.test.ts), and
+  [worker-boundary](tests/audio-editor-selection-effect-worker-service.test.ts)
+  regressions pin the phase formula, exact and one-past ceilings, checked
+  overflow rejection, refusal ordering, and result validation.
+
+  The claimed limit is only an upper bound on that enumerated useful-binary
+  ownership model; cheaper fallback and zero-gain branches can omit charged
+  allocations. It is not a browser-heap, process-RSS, GC-headroom, or
+  product-wide reservation claim. Persistence buffers, `AudioBuffer` and
+  channel copies, generic selection effects and spectral replacement, software
+  or injected renderers, worker and structured-clone message objects, the
+  PFFFT module heap and setup and retained transform plans beyond the charged
+  regions, runtime overhead, and other concurrent spectral, effect, or render
+  jobs remain outside and can overlap.
   Central `OfflineAudioContext` render output now has a separate strict-TS
   [admission owner](src/common/editor/engine/offline-render-admission.ts).
   After the no-context software-renderer fallback but before the context
@@ -1150,9 +1186,9 @@ models or native implementations.
   native `startRendering()` has stopped, and concurrent calls on the same or
   separate engines and renderers can overlap without a product-wide
   reservation. Other render paths—including realtime capture beyond the
-  maintained worklet-to-sink stream described next, standalone generic effect
-  and spectral worker calls, software or injected renderers, FFmpeg/WASM
-  encoding, and native hosts—remain outside this control. The
+  maintained worklet-to-sink stream described next, generic selection effects
+  and spectral replacement, software or injected renderers, FFmpeg/WASM
+  encoding, and native hosts—remain outside this central offline control. The
   non-mobile fast-render strategy can still optimistically select an offline
   output between 256 MiB and its 384 MiB threshold; central admission then
   refuses before context creation and the maintained export path falls back to

@@ -230,6 +230,33 @@ renderer limit. Its queue is coordinator-local rather than a product-wide
 reservation, so another coordinator or renderer can overlap it. Source/cache
 residency, permanent `AudioBuffer` and channel snapshots, message objects,
 persistence buffers, and runtime overhead can be additive.
+Maintained spectral gain/delete selection has a separate strict admission.
+Before storage preflight, dry rendering, worker dispatch, result retention, or
+persistence, the controller applies checked arithmetic. A non-raiseable 256 MiB
+ceiling with a lower-only test seam covers the conservative sequential
+useful-binary upper bound. Each target charges all earlier completed outputs
+plus its complete dry-render Float32 input, one equal transfer copy, one
+equal-shape output, two selection-sized Float64 accumulation and normalization
+arrays, the Hann, real, and imaginary Float64 arrays, and PFFFT input, output,
+and work interleaved-complex Float32 regions. The worker boundary independently
+validates and admits the actual input before FFT initialization, copying, or
+worker creation. It accepts 1–32 nonempty, equally sized Float32 channels with
+tight, distinct, non-shared, non-resizable `ArrayBuffer` backing and requires
+exact admitted channel and frame geometry for dry-render and worker/fallback
+results before retention.
+The controller supplies its task-and-project currentness assertion to
+persistence, which rechecks it around awaited buffer, source, and analysis work
+and immediately before the synchronous project commit.
+
+The claimed limit is only an upper bound on that enumerated useful-binary
+ownership model; cheaper fallback and zero-gain branches can omit charged
+allocations. It is not a browser-heap, process-RSS, or GC-headroom bound. It is
+not a product-wide reservation claim. Persistence buffers, `AudioBuffer` and
+channel copies, generic selection effects and spectral replacement, software or
+injected renderers, worker and structured-clone message objects,
+the PFFFT module heap and setup and retained transform plans beyond the charged
+regions, runtime overhead, and other concurrent spectral, effect, or render
+jobs remain outside and can overlap.
 Central `OfflineAudioContext` render output has a separate narrow admission.
 After the no-context software-renderer fallback and before the context factory,
 checked arithmetic applies a non-raiseable 256 MiB ceiling with a lower-only
@@ -247,9 +274,9 @@ allocate before returned context geometry is checked, a caller-side abort does
 not prove that native `startRendering()` stopped, and concurrent calls on the
 same or separate engines and renderers can overlap without a product-wide
 reservation. Other render paths—including realtime capture beyond the
-maintained worklet-to-sink stream described next, generic effect and spectral
-workers, software or injected renderers, FFmpeg/WASM encoding, and native
-hosts—remain unqualified. The non-mobile
+maintained worklet-to-sink stream described next, generic selection effects and
+spectral replacement, software or injected renderers, FFmpeg/WASM encoding, and
+native hosts—remain outside this central offline control. The non-mobile
 fast-render strategy can still select output between this 256 MiB ceiling and
 its 384 MiB hint; central admission refuses before context creation and the
 maintained export path falls back to realtime streaming, while latency-aware
