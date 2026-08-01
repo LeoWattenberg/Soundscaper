@@ -6,6 +6,7 @@ import { serializeScapeProjectDocument } from './scape-project-document.ts';
 const MIB = 1024 * 1024;
 
 export const MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES = 256 * MIB;
+export const PROJECT_PUBLICATION_QUOTA_ERROR_CODE = 'QUOTA_EXCEEDED' as const;
 
 export type ProjectPublicationByteScope =
 	| 'canonical-project-document-payload'
@@ -25,6 +26,30 @@ export interface ProjectRevisionPublicationEstimate {
 
 export interface ProjectRevisionPublicationOptions {
 	readonly maximumDocumentBytes?: number;
+}
+
+export interface ProjectRevisionPublicationCapacityRequirement {
+	readonly publicationBytes: number;
+	readonly headroomBytes: number;
+	readonly requiredFreeBytes: number;
+}
+
+export interface ProjectPublicationQuotaErrorDetails
+	extends ProjectRevisionPublicationCapacityRequirement {
+	readonly usage: number;
+	readonly quota: number;
+	readonly availableBytes: number;
+}
+
+export class ProjectPublicationQuotaError extends Error {
+	readonly code = PROJECT_PUBLICATION_QUOTA_ERROR_CODE;
+	readonly details: Readonly<ProjectPublicationQuotaErrorDetails>;
+
+	constructor(details: ProjectPublicationQuotaErrorDetails) {
+		super('There is not enough browser storage available to save this project.');
+		this.name = 'ProjectPublicationQuotaError';
+		this.details = Object.freeze({ ...details });
+	}
 }
 
 /**
@@ -51,6 +76,43 @@ export function estimateProjectRevisionPublication(
 	});
 }
 
+/** Checked twice-canonical planning bytes plus the fixed ten-percent headroom. */
+export function projectRevisionPublicationCapacityRequirement(
+	publicationBytes: unknown,
+): Readonly<ProjectRevisionPublicationCapacityRequirement> {
+	if (!Number.isSafeInteger(publicationBytes) || Number(publicationBytes) < 0) {
+		throw new RangeError('Project publication bytes must be a safe non-negative integer.');
+	}
+	const bytes = Number(publicationBytes);
+	const headroomBytes = Math.floor(bytes / 10) + (bytes % 10 === 0 ? 0 : 1);
+	if (bytes > Number.MAX_SAFE_INTEGER - headroomBytes) {
+		throw new RangeError('Project publication required free bytes exceed the supported safe integer range.');
+	}
+	return Object.freeze({
+		publicationBytes: bytes,
+		headroomBytes,
+		requiredFreeBytes: bytes + headroomBytes,
+	});
+}
+
+/** Refuses a known shortage; missing or malformed estimates remain advisory. */
+export function assertProjectRevisionPublicationCapacity(
+	publicationBytes: unknown,
+	estimate: unknown,
+): Readonly<ProjectRevisionPublicationCapacityRequirement> {
+	const requirement = projectRevisionPublicationCapacityRequirement(publicationBytes);
+	const known = knownStorageEstimate(estimate);
+	if (!known) return requirement;
+	const availableBytes = Math.max(0, known.quota - known.usage);
+	if (availableBytes >= requirement.requiredFreeBytes) return requirement;
+	throw new ProjectPublicationQuotaError({
+		...requirement,
+		usage: known.usage,
+		quota: known.quota,
+		availableBytes,
+	});
+}
+
 function maximumDocumentBytes(options: ProjectRevisionPublicationOptions): number {
 	if (!isPlainObject(options)) {
 		throw new TypeError('Project publication options must be a plain object.');
@@ -69,6 +131,17 @@ function maximumDocumentBytes(options: ProjectRevisionPublicationOptions): numbe
 		throw new RangeError('Project publication document byte limit is invalid.');
 	}
 	return maximum;
+}
+
+function knownStorageEstimate(value: unknown): Readonly<{ usage: number; quota: number }> | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const candidate = value as Readonly<{ usage?: unknown; quota?: unknown }>;
+	if (!isKnownByteEstimate(candidate.usage) || !isKnownByteEstimate(candidate.quota)) return null;
+	return { usage: candidate.usage, quota: candidate.quota };
+}
+
+function isKnownByteEstimate(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 function boundedUtf8ByteLength(value: string, maximumBytes: number): number {
