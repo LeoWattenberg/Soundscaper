@@ -40,6 +40,79 @@ test('a complete digest-verified runtime becomes active only after every staged 
 	});
 });
 
+test('encoded pointer, manifest, and runtime wire lengths do not replace decoded verification', async () => {
+	const fixture = runtimeFixture();
+	const store = new MemoryRuntimeStore();
+	const fetchImpl = encodedFetch(fixture.fetch, (url, decodedBytes) => {
+		if (url.endsWith('/latest.json')) return 2 * 1024 * 1024;
+		if (url.endsWith('/manifest.json')) return decodedBytes + 17;
+		return decodedBytes + 23;
+	});
+
+	const result = await installLatestFfmpegRuntime({
+		pointerUrl: `${RUNTIME_ROOT}latest.json`,
+		fetchImpl,
+		store,
+	});
+
+	assert.equal(result.status, 'installed');
+	assert.equal(store.active?.releaseId, fixture.release.releaseId);
+	assert.deepEqual(store.cachedResponseHeaders, new Map([
+		['ffmpeg-core.js', {
+			contentEncoding: null,
+			contentLength: String(fixture.release.files[0]?.byteLength),
+		}],
+		['ffmpeg-core.wasm', {
+			contentEncoding: null,
+			contentLength: String(fixture.release.files[1]?.byteLength),
+		}],
+	]));
+});
+
+test('encoded wire lengths do not weaken decoded manifest and runtime verification', async () => {
+	for (const [fixtureOptions, expectedError] of [
+		[{ alterManifest: true }, /manifest SHA-256 does not match/u],
+		[{ alterFile: 'ffmpeg-core.js' }, /ffmpeg-core\.js SHA-256 does not match/u],
+		[{ truncateFile: 'ffmpeg-core.wasm' }, /ffmpeg-core\.wasm.*byte length/u],
+	] as const) {
+		const fixture = runtimeFixture(fixtureOptions);
+		const previous = previousRelease();
+		const store = new MemoryRuntimeStore(previous);
+		const fetchImpl = encodedFetch(
+			fixture.fetch,
+			(_url, decodedBytes) => decodedBytes + 29,
+		);
+
+		await assert.rejects(
+			() => installLatestFfmpegRuntime({
+				pointerUrl: `${RUNTIME_ROOT}latest.json`,
+				fetchImpl,
+				store,
+			}),
+			expectedError,
+		);
+		assert.equal(store.active, previous);
+	}
+});
+
+test('unencoded manifest and runtime Content-Length mismatches remain rejected', async () => {
+	for (const target of ['manifest.json', 'ffmpeg-core.js']) {
+		const fixture = runtimeFixture();
+		const store = new MemoryRuntimeStore(previousRelease());
+		const fetchImpl = contentLengthReplacingFetch(fixture.fetch, target, (decodedBytes) => decodedBytes + 1);
+
+		await assert.rejects(
+			() => installLatestFfmpegRuntime({
+				pointerUrl: `${RUNTIME_ROOT}latest.json`,
+				fetchImpl,
+				store,
+			}),
+			/Content-Length does not match its verified byte length/u,
+		);
+		assert.equal(store.active?.releaseId, '0'.repeat(64));
+	}
+});
+
 test('an altered release manifest is rejected before a staging transaction starts', async () => {
 	const fixture = runtimeFixture({ alterManifest: true });
 	const previous = previousRelease();
@@ -201,6 +274,10 @@ test('the runtime pointer is pinned to the production asset origin', async () =>
 class MemoryRuntimeStore implements VerifiedRuntimeStore {
 	active: VerifiedRuntimeRelease | null;
 	activeFiles = new Map<string, Uint8Array>();
+	readonly cachedResponseHeaders = new Map<string, Readonly<{
+		contentEncoding: string | null;
+		contentLength: string | null;
+	}>>();
 	readonly events: string[] = [];
 
 	constructor(active: VerifiedRuntimeRelease | null = null) {
@@ -217,6 +294,10 @@ class MemoryRuntimeStore implements VerifiedRuntimeStore {
 		return {
 			put: async (file, response) => {
 				this.events.push(`put:${file.name}`);
+				this.cachedResponseHeaders.set(file.name, Object.freeze({
+					contentEncoding: response.headers.get('content-encoding'),
+					contentLength: response.headers.get('content-length'),
+				}));
 				staged.set(file.name, new Uint8Array(await response.arrayBuffer()));
 			},
 			commit: async () => {
@@ -343,6 +424,37 @@ function byteResponse(bytes: Uint8Array, contentType: string): Response {
 			'content-type': contentType,
 		},
 	});
+}
+
+function encodedFetch(
+	fetchImpl: typeof fetch,
+	wireLength: (url: string, decodedBytes: number) => number,
+): typeof fetch {
+	return async (input, init) => {
+		const response = await fetchImpl(input, init);
+		const url = String(input instanceof Request ? input.url : input);
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		const headers = new Headers(response.headers);
+		headers.set('content-encoding', 'br');
+		headers.set('content-length', String(wireLength(url, bytes.byteLength)));
+		return new Response(bytes, { status: response.status, headers });
+	};
+}
+
+function contentLengthReplacingFetch(
+	fetchImpl: typeof fetch,
+	target: string,
+	replacement: (decodedBytes: number) => number,
+): typeof fetch {
+	return async (input, init) => {
+		const response = await fetchImpl(input, init);
+		const url = String(input instanceof Request ? input.url : input);
+		if (!url.endsWith(`/${target}`)) return response;
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		const headers = new Headers(response.headers);
+		headers.set('content-length', String(replacement(bytes.byteLength)));
+		return new Response(bytes, { status: response.status, headers });
+	};
 }
 
 function digest(bytes: Uint8Array): string {

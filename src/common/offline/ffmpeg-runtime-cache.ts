@@ -266,7 +266,7 @@ async function stageVerifiedRuntimeFile(
 
 function validateRuntimeResponseHeaders(response: Response, file: VerifiedRuntimeFile): void {
 	const declaredLength = response.headers.get('content-length');
-	if (declaredLength !== null) {
+	if (declaredLength !== null && !hasEncodedWireRepresentation(response)) {
 		if (!/^\d+$/u.test(declaredLength) || Number(declaredLength) !== file.byteLength) {
 			throw new Error(`${file.name} Content-Length does not match its verified byte length.`);
 		}
@@ -285,7 +285,7 @@ async function readBoundedResponse(response: Response, options: Readonly<{
 	readonly signal?: AbortSignal;
 }>): Promise<Uint8Array> {
 	const declaredLength = response.headers.get('content-length');
-	if (declaredLength !== null) {
+	if (declaredLength !== null && !hasEncodedWireRepresentation(response)) {
 		if (!/^\d+$/u.test(declaredLength)) throw new Error(`${options.label} has an invalid Content-Length.`);
 		const parsed = Number(declaredLength);
 		if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > options.maximumBytes) {
@@ -336,6 +336,13 @@ async function readBoundedResponse(response: Response, options: Readonly<{
 		offset += chunk.byteLength;
 	}
 	return bytes;
+}
+
+function hasEncodedWireRepresentation(response: Response): boolean {
+	// Fetch exposes decoded body bytes while retaining the encoded wire length.
+	const contentEncoding = response.headers.get('content-encoding');
+	if (contentEncoding === null) return false;
+	return contentEncoding.split(',').some((coding) => coding.trim().toLowerCase() !== 'identity');
 }
 
 function validatePointer(value: unknown, pointerUrl: URL): RuntimePointer {
