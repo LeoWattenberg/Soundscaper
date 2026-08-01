@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
-import { lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
+import { link, lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 import {
@@ -63,6 +63,8 @@ export interface DesktopLibraryPublishMediaOptions {
 	readonly sha256: string;
 	readonly chunks: AsyncIterable<Uint8Array>;
 	readonly encoding: DesktopLibraryManagedMediaEncoding;
+	/** Main-owned admission only; renderer uploads never select reusable catalog bodies. */
+	readonly reuseExistingBody?: boolean;
 	readonly signal?: AbortSignal;
 }
 
@@ -130,6 +132,12 @@ export class DesktopLibraryManagedMediaStore {
 				assertSameDescriptor(existing, descriptor);
 				await this.#verifyBody(existing, options.signal);
 				return existing;
+			}
+			const reusable = options.reuseExistingBody ? reusableMedia(initial, descriptor) : undefined;
+			if (reusable) {
+				await this.#verifyBody(reusable, options.signal);
+				await this.#linkReusableBody(reusable, descriptor, options.signal);
+				return this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
 			}
 			await this.#materializeBody(descriptor, options.chunks, options.signal);
 			return this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
@@ -227,6 +235,14 @@ export class DesktopLibraryManagedMediaStore {
 	async #verifyBody(descriptor: DesktopLibraryMedia, signal: AbortSignal | undefined): Promise<void> {
 		const path = this.#pathFor(descriptor.relativeFile);
 		await this.#assertScope(dirname(path), managedMediaCategoryForBinding(descriptor.id));
+		await this.#verifyBodyPath(path, descriptor, signal);
+	}
+
+	async #verifyBodyPath(
+		path: string,
+		descriptor: DesktopLibraryMedia,
+		signal: AbortSignal | undefined,
+	): Promise<void> {
 		const handle = await openRegularBody(path);
 		try {
 			const stat = await handle.stat();
@@ -248,6 +264,56 @@ export class DesktopLibraryManagedMediaStore {
 			}
 		} finally {
 			await handle.close();
+		}
+	}
+
+	async #linkReusableBody(
+		source: DesktopLibraryMedia,
+		descriptor: DesktopLibraryMedia,
+		signal: AbortSignal | undefined,
+	): Promise<void> {
+		const category = managedMediaCategoryForBinding(descriptor.id);
+		const sourcePath = this.#pathFor(source.relativeFile);
+		const finalPath = this.#pathFor(descriptor.relativeFile);
+		const directory = dirname(finalPath);
+		await this.#assertScope(dirname(sourcePath), category);
+		await this.#prepareDirectory(directory, category);
+		throwIfAborted(signal);
+		if (await pathExists(finalPath)) {
+			await this.#verifyBody(descriptor, signal);
+			return;
+		}
+		const stageId = this.#randomId();
+		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
+		const stagePath = join(directory, `.${descriptor.id}.${stageId}.reuse`);
+		let stageExists = false;
+		try {
+			await link(sourcePath, stagePath);
+			stageExists = true;
+			await this.#verifyBodyPath(stagePath, descriptor, signal);
+			throwIfAborted(signal);
+			if (await pathExists(finalPath)) {
+				await this.#verifyBody(descriptor, signal);
+				await unlink(stagePath);
+				stageExists = false;
+				await syncDirectory(directory);
+				return;
+			}
+			await rename(stagePath, finalPath);
+			stageExists = false;
+			await syncDirectory(directory);
+		} catch (error) {
+			if (stageExists) {
+				try {
+					await unlink(stagePath);
+					await syncDirectory(directory);
+				} catch (cleanupError) {
+					if (!isMissing(cleanupError)) {
+						throw new AggregateError([error, cleanupError], 'Managed-media reuse cleanup failed');
+					}
+				}
+			}
+			throw error;
 		}
 	}
 
@@ -400,6 +466,17 @@ function mediaDescriptor(
 
 function mediaById(metadata: DesktopLibraryMetadata, id: string): DesktopLibraryMedia | undefined {
 	return metadata.media.find((entry) => entry.id === id);
+}
+
+function reusableMedia(
+	metadata: DesktopLibraryMetadata,
+	descriptor: DesktopLibraryMedia,
+): DesktopLibraryMedia | undefined {
+	const category = managedMediaCategoryForBinding(descriptor.id);
+	return metadata.media.find((entry) => entry.id !== descriptor.id
+		&& managedMediaCategoryForBinding(entry.id) === category
+		&& entry.byteLength === descriptor.byteLength
+		&& entry.sha256 === descriptor.sha256);
 }
 
 function assertSameDescriptor(actual: DesktopLibraryMedia, expected: DesktopLibraryMedia): void {

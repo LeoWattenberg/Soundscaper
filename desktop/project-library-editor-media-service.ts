@@ -202,6 +202,28 @@ export class DesktopSharedProjectMediaService {
 				this.#assertOpen();
 				return Object.freeze({ status: 'present', source: sourceDescriptor });
 			}
+			const prefix = request.encoding === DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING ? 'm' : 'v';
+			const reusable = loaded.media.some((media) => media.id.startsWith(prefix)
+				&& media.byteLength === expectedBytes && media.sha256 === request.sha256);
+			if (reusable) {
+				const media = await this.#host.publishManagedMedia({
+					encoding: request.encoding,
+					projectId: project.id,
+					storageKey: bindingKey,
+					byteLength: expectedBytes,
+					sha256: request.sha256,
+					chunks: emptyChunks(),
+					reuseExistingBody: true,
+					expectedProjectRevision: project.revision,
+					expectedProjectSha256: loaded.catalog.sha256,
+					signal,
+				});
+				this.#assertOpen();
+				return Object.freeze({
+					status: 'present',
+					source: managedSourceDescriptor(source, media, expectedBytes),
+				});
+			}
 
 			const id = this.#newWriteId();
 			const input = new SequentialUploadInput();

@@ -38,7 +38,7 @@ interface AudioSource extends Readonly<Record<string, unknown>> {
 	readonly chunkFrames: number;
 }
 
-test('a prior-revision managed row is neither advertised nor treated as present', async () => {
+test('a prior-revision row is hidden but identical content can be rebound without another upload', async () => {
 	const current = project(8);
 	const source = current.sources[0] as AudioSource;
 	const stale = media(project(7), source, 'a'.repeat(64));
@@ -59,8 +59,9 @@ test('a prior-revision managed row is neither advertised nor treated as present'
 	const recreatedAdmission = await recreatedService.beginSourceWrite(
 		declaration(current, source, 'c'.repeat(64)),
 	);
-	assert.equal(recreatedAdmission.status, 'ready', 'a recreated same-revision row must not be reused');
-	if (recreatedAdmission.status === 'ready') await recreatedService.abortSourceWrite(recreatedAdmission.writeId);
+	assert.equal(recreatedAdmission.status, 'present');
+	assert.equal(recreatedHost.publications.length, 1);
+	if (recreatedAdmission.status === 'present') assert.notEqual(recreatedAdmission.source.bindingId, recreated.id);
 });
 
 test('present admission rejects stale renderer revisions and mismatched catalog bytes before body I/O', async () => {

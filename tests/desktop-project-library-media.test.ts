@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -174,6 +174,69 @@ test('identical managed audio publication is idempotent and an immutable binding
 	);
 	assert.equal(fixture.publications.length, 1);
 	assert.deepEqual(new Uint8Array(await readFile(join(fixture.root, ...first.relativeFile.split('/')))), original);
+});
+
+test('revision-fenced same-content bindings reuse one immutable managed-media body', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(2, 3, 5, 7, 11);
+	const first = await fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		chunks: chunks(bytes),
+	});
+	let duplicateBodyReads = 0;
+	const second = await fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		reuseExistingBody: true,
+		chunks: (async function* () {
+			duplicateBodyReads += 1;
+			throw new Error('same content must not be uploaded twice');
+		})(),
+	});
+
+	assert.notEqual(second.id, first.id, 'document fencing still requires a fresh binding');
+	assert.equal(duplicateBodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [first, second]);
+	const firstStat = await stat(join(fixture.root, ...first.relativeFile.split('/')));
+	const secondStat = await stat(join(fixture.root, ...second.relativeFile.split('/')));
+	assert.equal(secondStat.dev, firstStat.dev);
+	assert.equal(secondStat.ino, firstStat.ino, 'same content must share one filesystem body');
+	assert.ok(firstStat.nlink >= 2 && secondStat.nlink >= 2);
+});
+
+test('same-content rebinding refuses a corrupt donor before linking or catalog publication', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(13, 21, 34, 55);
+	const first = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION, projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	await writeFile(join(fixture.root, ...first.relativeFile.split('/')), Uint8Array.of(55, 34, 21, 13));
+	let bodyReads = 0;
+
+	await assert.rejects(fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		reuseExistingBody: true,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	}), /immutable SHA-256 descriptor/iu);
+
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [first]);
+	assert.equal(fixture.publications.length, 1);
 });
 
 test('the same managed-audio storage key is bound to its exact project revision and document digest', async (context) => {
