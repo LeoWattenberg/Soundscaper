@@ -13,6 +13,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	const mediaAdmission = policy.rules.find(
 		({ id }) => id === 'current-desktop-recipient-media-admission',
 	);
+	const managedHandoff = policy.rules.find(
+		({ id }) => id === 'current-desktop-managed-canonical-pcm-handoff',
+	);
 
 	assert.ok(rule);
 	assert.deepEqual(rule.evidence, [
@@ -26,6 +29,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'desktop/project-library-reclamation.ts',
 		'desktop/project-library-host.ts',
 		'desktop/project-library-editor-service.ts',
+		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-ipc.js',
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
@@ -54,6 +58,8 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-stage-reclamation.test.ts',
 		'tests/desktop-project-library-handoff.test.ts',
 		'tests/desktop-project-library-editor-service.test.ts',
+		'tests/desktop-project-library-editor-media-service.test.ts',
+		'tests/desktop-project-library-editor-media-lifecycle.test.ts',
 		'tests/desktop-project-library-ipc.test.js',
 		'tests/audio-editor-desktop-shared-project-repository.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
@@ -105,7 +111,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/host serializes commits.*renews.*draining admitted work.*identity service.*owner-scoped IPC.*bounded project summaries.*canonical documents.*renderer-owner revocation.*fences new work.*drains admitted operations/iu,
+		/host serializes commits.*renews.*draining admitted work.*identity service.*owner-scoped IPC.*bounded project summaries.*canonical documents and bundles.*managed canonical-PCM descriptors and chunks.*four active uploads.*four active reads.*across the bridge service.*owner revocation.*fences new work.*aborts owned uploads.*drains admitted operations/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -192,11 +198,35 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/identity service.*owner-scoped IPC.*bounded project\s+summaries.*canonical documents.*renderer loss.*fence new work.*drain operations/isu,
+		/identity service.*owner-scoped IPC.*bounded project\s+summaries.*canonical documents and bundles.*managed-source descriptors and chunks.*renderer loss.*fence new\s+work.*abort.*managed-source upload sessions.*drain operations.*256 MiB.*4 KiB.*10,000-summary.*64 GiB.*4 MiB.*four.*upload sessions.*four.*managed-source reads.*across the bridge service.*capacity remains charged.*publication or.*abort settles.*disposal waits.*finishing publications.*Neither\s+layer exposes a path/isu,
 	);
 	assert.match(
 		documentation,
 		/renderer repository.*repeats.*maintained-persistence-domain exact-V9\s+validation.*defense in depth.*before\s+local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
+	);
+	assert.match(
+		documentation,
+		/ordinary project\s+saves.*canonical document.*do not copy source bytes.*explicit managed-handoff path.*4,094\s+logical\s+sources.*video or mixed-media.*deduplicates compatible physical\s+audio bindings.*aggregate 64 GiB.*65,536-chunk/isu,
+	);
+	assert.match(
+		documentation,
+		/before the first source read or bridge call.*two full digesting source reads.*binding is absent.*second read.*4-MiB chunks.*pathless bridge/isu,
+	);
+	assert.match(
+		documentation,
+		/four active uploads.*exact current project revision.*derives the\s+catalog document SHA-256 itself rather than accepting it from the renderer.*project identity, revision,\s+document digest, and storage-key\/media geometry/isu,
+	);
+	assert.match(
+		documentation,
+		/exact revision-and-document-digest check.*same-revision document variant.*neither advertised.*nor accepted as already present/isu,
+	);
+	assert.match(
+		documentation,
+		/exact-present reuse.*byte length and SHA-256.*reverifies the body/isu,
+	);
+	assert.match(
+		documentation,
+		/syncs\s+and\s+atomically\s+renames\s+the\s+complete\s+regular\s+body\s+before\s+publishing\s+its\s+catalog\s+descriptor.*stale revisions.*immutable binding conflicts.*changed source bytes.*malformed ranges.*symlinked\s+storage boundaries.*incomplete bodies fail closed/isu,
 	);
 	assert.match(
 		documentation,
@@ -216,6 +246,58 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
+	assert.ok(managedHandoff);
+	assert.equal(managedHandoff.status, 'implemented');
+	assert.deepEqual(managedHandoff.evidence, [
+		'desktop/project-library-editor-media-service.ts',
+		'desktop/project-library-media.ts',
+		'desktop/project-library-host.ts',
+		'desktop/project-library-projects.ts',
+		'desktop/project-library-ipc.js',
+		'desktop/preload.mjs',
+		'desktop/main.mjs',
+		'src/common/editor/controller/project-admin-service.ts',
+		'src/common/editor/storage/desktop-shared-project-media-transfer.ts',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage/source-record-repository.ts',
+		'src/common/editor/storage/source-repository.ts',
+		'src/common/editor/storage/source-write-repository.ts',
+		'src/common/editor/storage.js',
+		'tests/audio-editor-project-admin-service.test.ts',
+		'tests/desktop-project-library-host.test.ts',
+		'tests/desktop-project-library-ipc.test.js',
+		'tests/desktop-project-library-editor-media-service.test.ts',
+		'tests/desktop-project-library-editor-media-lifecycle.test.ts',
+		'tests/desktop-project-library-editor-media-freshness.test.ts',
+		'tests/desktop-project-library-media.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer-budget.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer-ownership.test.ts',
+		'tests/audio-editor-desktop-shared-project-repository-handoff.test.ts',
+		'tests/audio-editor-source-record-ownership.test.ts',
+		'tests/audio-editor-source-write-cancellation.test.ts',
+		'tests/desktop-project-library-managed-audio-handoff.test.ts',
+	]);
+	assert.match(
+		managedHandoff.requiredOutcome,
+		/explicit post-flush handoff.*maintained exact-current-schema desktop project.*bounded canonical PCM.*pathless IPC.*sender and fresh-recipient admission.*logical-source, byte, or chunk budgets.*before media I\/O.*main-derived exact catalog project revision.*canonical document SHA-256.*digest.*atomic if-absent.*records and payload tokens it owns/iu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/ordinary shared-project saves remain document-only.*before any source read or bridge call.*4,094 reachable logical sources.*refuses reachable video or mixed-media sets.*deduplicates compatible physical audio bindings.*aggregate 64 GiB canonical-byte.*65,536-chunk budget.*two full digesting reads.*binding is absent.*second read.*4-MiB pathless chunks/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/four active uploads.*four active reads.*across the bridge service.*owner-bound.*authorization and revocation.*loads the exact catalog project.*reachable audio identity and geometry.*derives rather than accepts from the renderer.*catalog document SHA-256.*project ID.*exact revision.*exact document digest.*storage-key\/media geometry.*serialized host.*exact revision and document-digest checks.*older revision.*same-revision document variant.*neither advertised nor accepted as present.*exact-present reuse.*byte length.*SHA-256.*reverifies.*synced.*atomically renamed.*before catalog publication/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/before recipient-local or shared media I\/O.*4,094-source.*aggregate 64 GiB.*65,536-chunk preflight.*exact bounded reads.*descriptor identity.*source geometry.*canonical byte length.*SHA-256.*atomic if-absent.*losing absence race.*only its own staged token or path.*pre-shadow failure.*exact acquisition-owned record.*source-token or path payload.*preserving a concurrent replacement.*exact shadow is durable.*retains.*acquired PCM/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/does not cover unmanaged or linked audio.*video.*proxies.*rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup.*capacity reservation.*stable byte lease through playback.*return handoff.*packaged source-bearing qualification/isu,
+	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
 	assert.deepEqual(mediaAdmission.evidence, [
@@ -225,6 +307,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/scape-archive-envelope.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/scape-expanded-byte-budget.ts',
+		'src/common/editor/storage/desktop-shared-project-media-transfer.ts',
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
 		'src/common/editor/storage/media-asset-digest-backfill.ts',
@@ -232,42 +315,52 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/retention-repository.ts',
 		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage/source-record-repository.ts',
+		'src/common/editor/storage/source-repository.ts',
+		'src/common/editor/storage/source-write-repository.ts',
 		'src/common/editor/storage.js',
 		'src/common/editor/app.js',
 		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
 		'tests/audio-editor-desktop-shared-project-repository.test.ts',
 		'tests/audio-editor-desktop-shared-project-source-availability-integration.test.ts',
 		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer-budget.test.ts',
+		'tests/audio-editor-desktop-shared-project-media-transfer-ownership.test.ts',
+		'tests/audio-editor-desktop-shared-project-repository-handoff.test.ts',
+		'tests/audio-editor-source-record-ownership.test.ts',
+		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
+		'tests/desktop-project-library-managed-audio-handoff.test.ts',
 	]);
 	assert.match(
 		mediaAdmission.requiredOutcome,
-		/authoritative latest exact-schema-9 desktop shared-project load.*reachable source references.*bounded sequential recipient-local readability admission.*before local shadow mutation and activation.*fail closed.*without replacing.*latest local shadow.*adding the remote revision.*recipient-local history/iu,
+		/authoritative latest exact-schema-9 desktop shared-project load.*reachable source references.*preflight.*complete logical-source, canonical-byte, and PCM-chunk budgets.*before recipient-local or shared media I\/O.*fresh recipient.*digest-verified atomic if-absent publication.*remaining source.*bounded recipient-local admission.*fail before activation.*without deleting a concurrent local replacement/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/4,094 reachable timeline, Project Bin, and fallback source references.*pre-existing latest recipient-local exact-schema-9 snapshot.*same project.*logical source identity, kind, storage key, MIME type.*frame and sample geometry.*compatible same-kind.*one physical storage key.*verified once.*conflicting bindings reject/iu,
+		/4,094 reachable timeline, Project Bin, and fallback source references.*before any recipient-local or shared media I\/O.*compatible physical audio bindings.*deduplicated.*aggregate 64 GiB canonical-byte.*65,536-PCM-chunk budget.*fresh recipient.*managed canonical-PCM descriptor.*4 MiB reads.*logical identity.*storage key.*source geometry.*canonical byte length.*SHA-256.*atomic.*only if.*storage key.*absent/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected source or media metadata before and after.*fully consumes.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*trusted recipient-local SHA-256.*required before.*body read.*SHA-256.*genuine Blob.*4 MiB.*must match.*legacy PCM-on-read migration and media-digest backfill.*disabled.*digestless legacy video.*fails closed.*ordinary local load.*trusted digest backfill.*before retry.*audio.*not authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*no source or media I\/O/iu,
+		/losing absence race.*only.*staging.*preserves the winner.*partial transfer.*pre-shadow failure.*reverse order.*exact acquisition-owned metadata.*source-token or path payload.*concurrent replacement remains current and intact.*exact authoritative shadow is durable.*late cancellation.*retains.*PCM.*not trusted through managed acquisition.*pre-existing latest recipient-local exact-schema-9 snapshot.*logical source identity, kind, storage key, MIME type.*frame and sample geometry.*compatible aliases.*verified once.*conflicting bindings reject/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/bootstrap lifetime signal.*exact cancellation reason.*non-cooperative provider work.*continue after rejection.*shadow save.*not abort-atomic.*serializes latest load, save, and delete.*per project.*storage keys.*mixed audio and video.*bound by the latest local snapshot.*source-free success.*missing PCM.*pre-existing revision/iu,
+		/unmanaged audio.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*video.*trusted recipient-local SHA-256.*full exact-size Blob.*4 MiB windows.*migration and media-digest backfill.*disabled.*pre-shadow source integrity, availability, binding, geometry, budget, body, and digest failures.*preserve.*prior local shadow and history.*prevent activation.*source-free loads.*no media I\/O.*serializes latest load, save, and delete/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/bounded sequential admission-time readability check.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*fresh recipient lacks both.*prerequisite local descriptor snapshot.*automatic acquisition.*copy, relink, managed storage.*codec playback.*packaged handoff/iu,
+		/managed PCM acquisition.*unmanaged admission.*sequential point-in-time check.*rather than an atomic snapshot or publisher-authenticated stable playback lease.*linked originals.*video transfer.*proxies.*rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup.*capacity reservation.*stable playback identity.*return handoff.*packaged source-bearing handoff remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/existing V1-V8 raw-project migrations remain maintained.*compatibility beyond those retained raw-document migration paths.*prior shared v1 scope.*product-private Soundscaper libraries.*unsupported.*not a current priority.*Audacity.*separate.*third-party effect semantics.*not gated/iu,
+		/existing V1-V8 raw-project migrations remain maintained.*prior shared-v1.*product-private-library migration.*deferred and unsupported.*Audacity import.*separate.*first- and third-party effect semantics.*not gated/iu,
 	);
 	assert.match(
 		documentation,
-		/latest exact-schema-9 source-bearing\s+shared load.*4,094.*pre-existing latest recipient-local\s+exact-schema-9 snapshot.*same project.*65,536.*cumulative 64 GiB budget.*recipient-local video metadata sizes.*metadata before and\s+after.*ordered\s+`?Float32Array`? channel\/frame geometry.*chunk index or\s+frame count.*trusted recipient-local\s+SHA-256.*before.*body.*genuine exact-size\s+video `?Blob`?.*SHA-256.*4 MiB.*must match.*legacy PCM-on-read\s+migration.*media-digest backfill.*disabled.*digestless legacy video.*ordinary local.*trusted digest backfill.*before retry.*failure raised by\s+this repository.*local shadow.*revision history.*activation.*later.*rendered-fallback-declaration digest check.*repository shadowing/isu,
+		/latest exact-schema-9 source-bearing\s+shared load.*4,094.*before any recipient-local or shared\s+media I\/O.*deduplicates compatible physical audio bindings.*aggregate 64 GiB.*65,536-chunk.*fresh recipient.*managed canonical-PCM descriptor.*4 MiB reads.*four main-process reads active.*staged\s+product-local source.*identity\s+and\s+geometry.*exact byte length.*SHA-256.*atomic if-absent source\s+record publication.*loses.*absence race.*only\s+its\s+own\s+staging.*preserves the winner.*partial acquisition.*later admission failure.*exact committed records.*storage identity and source token.*concurrent\s+replacement is preserved.*not acquired.*pre-existing latest\s+recipient-local exact-schema-9 snapshot.*same project.*metadata before and\s+after.*ordered\s+`?Float32Array`? channel\/frame geometry.*chunk index or\s+frame count.*trusted recipient-local\s+SHA-256.*before.*body.*genuine exact-size\s+video `?Blob`?.*SHA-256.*4 MiB.*must match.*legacy PCM-on-read\s+migration.*media-digest backfill.*disabled.*source binding, budget, metadata, geometry, body, or digest failure.*before shadow publication.*latest local shadow.*revision history.*prevents.*activation.*cancellation.*after the exact shadow is durable.*retains.*shadow.*acquired PCM/isu,
 	);
 	assert.match(
 		documentation,
@@ -275,10 +368,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/bounded sequential admission-time readability check.*not an\s+atomic snapshot.*media transfer.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or\s+deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
+		/recipient-local admission for unmanaged sources.*bounded sequential\s+readability check.*not an atomic snapshot.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or\s+deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
 	);
 	assert.match(
 		documentation,
-		/fresh recipient lacks both the prerequisite\s+local descriptor snapshot and automatic acquisition.*copy, consolidation,\s+relink, managed storage, codec playback.*packaged.*source-bearing\s+handoff/isu,
+		/explicit managed handoff supplies automatic\s+fresh-recipient acquisition only for canonical PCM.*unmanaged audio.*linked\s+originals.*video.*proxies and rendered fallbacks.*relink and watch behavior.*general copy\/consolidate.*managed-media cleanup and capacity reservation.*stable byte lease through playback.*codec playback.*return handoff.*packaged\s+two-product source-bearing handoff remain unqualified/isu,
 	);
 });

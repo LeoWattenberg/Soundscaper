@@ -58,8 +58,8 @@ shared `v1` scope. At the `v2` path, SQLite database schema 2 rejects schema 1
 instead of implicitly migrating it. Metadata schema 2 binds a separate opaque
 library entry ID to the project identity, exact schema 9, project revision,
 byte length, SHA-256 digest, and a derived immutable revision-and-digest path.
-No filesystem path, catalog entry ID, digest, product preference, timestamp
-source, or lease capability is exposed to a renderer.
+No filesystem path, catalog entry ID, project-document digest, product
+preference, timestamp source, or lease capability is exposed to a renderer.
 
 Before publication, the main process canonicalizes the document with the
 bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
@@ -142,12 +142,17 @@ A tested reclamation failure during startup stops renewal and releases its
 still-owned lease; any cleanup failure is reported.
 
 The main identity service and owner-scoped IPC expose only bounded project
-summaries, canonical documents, project identities, and delete results. The
-main process strips catalog implementation fields; navigation, renderer loss,
-and window close fence new work for that renderer owner and drain operations
-admitted before revocation. The preload repeats the non-raiseable 256 MiB UTF-8
-document, 4 KiB project-ID, and 10,000-summary ceilings without exposing a path
-or fencing value.
+summaries, canonical documents and bundles, project identities, delete results,
+and managed-source descriptors and chunks. The main process strips catalog
+implementation fields; navigation, renderer loss, and window close fence new
+work for that renderer owner, abort its managed-source upload sessions, and
+drain operations admitted before revocation. Main and preload repeat the
+non-raiseable 256 MiB UTF-8 document, 4 KiB project-ID, 10,000-summary, 64 GiB
+managed-source, and 4 MiB chunk ceilings; main additionally admits at most four
+active managed-source upload sessions and four active managed-source reads
+across the bridge service. Upload capacity remains charged until publication or
+abort settles, and service disposal waits for finishing publications. Neither
+layer exposes a path or fencing value.
 
 The renderer repository repeats the same maintained-persistence-domain exact-V9
 validation as defense in depth and canonically reserializes the document before
@@ -158,20 +163,59 @@ bytes. A remote commit failure therefore leaves a retryable local shadow;
 identical same-revision retry is a catalog no-op. A shared delete commits
 remotely first and reports, rather than reverses, failed local cleanup. A
 detected desktop with an incomplete shared-project bridge fails closed instead
-of falling back to its former product-private project catalog.
+of falling back to its former product-private project catalog. Ordinary project
+saves publish only the canonical document; they do not copy source bytes into
+the shared library.
+
+Canonical PCM has a separate explicit managed-handoff path. After flushing the
+current exact-schema-9 project, the sender enumerates at most 4,094 logical
+sources, refuses a reachable video or mixed-media set, deduplicates compatible
+physical audio bindings, and preflights one aggregate 64 GiB canonical-byte and
+65,536-chunk budget before the first source read or bridge call. It then performs
+two full digesting source reads; when the binding is absent, the second read also
+streams at-most-4-MiB chunks through the pathless bridge. Main admits at most
+four active uploads across that service through publication or abort settlement,
+and validates the requested reachable source
+identity and geometry against the exact current project revision, derives the
+catalog document SHA-256 itself rather than accepting it from the renderer, and
+derives the immutable media binding from the project identity, revision,
+document digest, and storage-key/media geometry binding. The host repeats the
+exact revision-and-document-digest check inside serialized publication, so a
+prior-revision row or same-revision document variant is neither advertised by
+the current bundle nor accepted as already present. Exact-present reuse also
+requires the declared byte length and SHA-256 and reverifies the body. A new
+upload must retain the same digest on both sender passes. Main syncs and
+atomically renames the complete
+regular body before publishing its catalog descriptor; stale revisions,
+immutable binding conflicts, changed source bytes, malformed ranges, symlinked
+storage boundaries, and incomplete bodies fail closed.
+If catalog publication fails after the immutable body lands, a matching retry
+still consumes and validates its offered stream before reusing that body.
 
 Before local shadow save or activation, a latest exact-schema-9 source-bearing
 shared load performs bounded sequential recipient-local admission. It collects
 at most 4,094 unique logical sources reachable from timeline clips, Project Bin
-clips, and rendered-fallback references. The pre-existing latest recipient-local
-exact-schema-9 snapshot of the same project must bind each logical ID, kind,
-physical storage key, MIME type, frame/sample geometry, and kind-specific
-descriptor; names and opaque extensions are not provenance. Compatible
-same-kind aliases of one physical key are read once, while conflicting bindings
-reject and audio/video storage domains remain separate. Declared payload
-geometry is capped at 65,536 PCM chunks, while one cumulative 64 GiB budget
-charges canonical audio archive bytes—including four framing bytes per
-chunk—and recipient-local video metadata sizes together.
+clips, and rendered-fallback references. Before any recipient-local or shared
+media I/O, it deduplicates compatible physical audio bindings and preflights the
+same aggregate 64 GiB canonical-byte and 65,536-chunk ceilings. A fresh recipient
+may then acquire an available managed canonical-PCM descriptor through bounded
+4 MiB reads, with at most four main-process reads active, into a staged
+product-local source. The transfer must match the descriptor's source identity
+and geometry, exact byte length, and SHA-256 before an atomic if-absent source
+record publication. A writer that loses that absence race deletes only its own
+staging and preserves the winner. Partial acquisition, later admission failure,
+and conflicting recipient-local bindings roll back only exact committed records
+still carrying the acquisition's storage identity and source token; a concurrent
+replacement is preserved. Each source not acquired this way still requires the
+pre-existing latest
+recipient-local exact-schema-9 snapshot of the same project to bind its logical
+ID, kind, physical storage key, MIME type, frame/sample geometry, and
+kind-specific descriptor; names and opaque extensions are not provenance.
+Compatible same-kind aliases of one physical key are read once, while
+conflicting bindings reject and audio/video storage domains remain separate.
+Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
+64 GiB budget charges canonical audio archive bytes—including four framing
+bytes per chunk—and recipient-local video metadata sizes together.
 
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
@@ -183,10 +227,13 @@ must match. Legacy PCM-on-read migration and media-digest backfill are
 disabled during shared admission. Digestless legacy video therefore fails
 closed before body read, local shadow save, or activation; it must first use
 ordinary local loading to complete trusted digest backfill before retry.
-Every binding, budget, metadata, geometry, body, or digest failure raised by
-this repository admission leaves the recipient's latest local shadow and
-revision history unchanged and prevents bootstrap activation. This does not
-describe the later controller-owned rendered-fallback-declaration digest check.
+Every source binding, budget, metadata, geometry, body, or digest failure
+detected before shadow publication leaves the recipient's latest local shadow
+and revision history unchanged and prevents bootstrap activation. Cancellation
+first observed after the exact shadow is durable still rejects the load before
+activation, but retains that shadow and any acquired PCM it references. This
+does not describe the later controller-owned rendered-fallback-declaration
+digest check, which follows repository shadowing.
 Source-free latest loads perform zero source or media I/O. Bootstrap propagates
 its lifetime signal; one repository instance keeps latest load, save, and
 delete serialized per project; and publication and retention resolve logical
@@ -197,24 +244,30 @@ under nontrivial storage keys and bound by the pre-existing latest local
 snapshot. Composed cross-product evidence separately proves the source-free
 Soundscaper-to-Framescaper success path and a source-bearing
 missing-recipient-PCM refusal that preserves the pre-existing revision without
-activation. It does not prove positive source-bearing two-product media
-transfer.
+activation. A maintained explicit-handoff fixture additionally publishes exact
+managed PCM in Soundscaper, closes that product's host and local store, acquires
+the digest-verified source into a fresh Framescaper-local store, activates the
+same project and history revision, and saves the next document revision without
+republishing the media body.
 
-This control is a bounded sequential admission-time readability check, not an
-atomic snapshot, media transfer, publisher authentication, or a durable byte
-lease. Audio is availability and geometry qualified, not authenticated against
-a prior content digest. Selected metadata is reread around each body, but body
-reads are not transactionally bound to that metadata; same-metadata replacement
-during the sequential observations can go undetected, and replacement or
-deletion afterward is not fenced. Injected
+Recipient-local admission for unmanaged sources remains a bounded sequential
+readability check, not an atomic snapshot, publisher authentication, or a
+durable byte lease. Unmanaged audio is availability and geometry qualified, not
+authenticated against a prior content digest. Selected metadata is reread
+around each body, but body reads are not transactionally bound to that metadata;
+same-metadata replacement during the sequential observations can go undetected,
+and replacement or deletion afterward is not fenced. Injected
 non-cooperative providers may continue work after cancellation rejects; shadow
 save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision
-loads bypass this admission. A fresh recipient lacks both the prerequisite
-local descriptor snapshot and automatic acquisition. Copy, consolidation,
-relink, managed storage, codec playback, and packaged two-product source-bearing
-handoff remain unqualified. Rendered-fallback digest verification remains
-controller-owned after repository shadowing and before activation side effects.
+loads bypass this admission. Explicit managed handoff supplies automatic
+fresh-recipient acquisition only for canonical PCM. Unmanaged audio, linked
+originals, video, proxies and rendered fallbacks, relink and watch behavior,
+general copy/consolidate, managed-media cleanup and capacity reservation, a
+stable byte lease through playback, codec playback, return handoff, and packaged
+two-product source-bearing handoff remain unqualified. Rendered-fallback digest
+verification remains controller-owned after repository shadowing and before
+activation side effects.
 
 A composed source-free editor fixture creates and autosaves in Soundscaper,
 closes its fenced host, discovers and bootstrap-reopens the same identity and
@@ -245,11 +298,14 @@ installers or file associations; or Windows, macOS, or ARM64. Third-party
 activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
-This catalog rule is current-only; the separate recipient-local admission above
-does not acquire or transfer bytes. Activation-specific feature-capability
-evaluation remains editor-owned. Managed-media publication, automatic
-acquisition, copy, consolidation, relink, playback, and portable source-byte
-transfer remain outside it. The remaining platform and fault matrix includes
+This catalog rule is current-only. Activation-specific feature-capability
+evaluation remains editor-owned. Explicit managed canonical PCM is the only
+fresh-recipient source-byte transfer provided by this library; ordinary saves
+remain document-only. Linked and video media, proxies and rendered fallbacks,
+general copy/consolidate, relink and watch behavior, managed-media cleanup and
+capacity reservation, stable playback leasing, return handoff, packaged
+source-bearing qualification, and complete portable mixed-media transfer remain
+outside it. The remaining platform and fault matrix includes
 per-platform parent- and database-path identity, power-loss durability, and
 interrupted foreign collisions at registered random stage paths.
 Unregistered or legacy pre-inventory stage-looking files are deliberately

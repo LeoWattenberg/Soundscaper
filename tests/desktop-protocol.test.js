@@ -531,11 +531,13 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	assert.deepEqual(
 		Object.keys(bridge.v1).sort(),
 		[
-			'abortWrite', 'beginWrite', 'checkForUpdates', 'chooseFiles', 'chooseSaveTarget',
-			'commitSharedProject', 'deleteSharedProject', 'editText', 'finishWrite',
+			'abortSharedSourceWrite', 'abortWrite', 'beginSharedSourceWrite', 'beginWrite',
+			'checkForUpdates', 'chooseFiles', 'chooseSaveTarget', 'commitSharedProject',
+			'deleteSharedProject', 'editText', 'finishSharedSourceWrite', 'finishWrite',
 			'getEnvironment', 'listSharedProjects', 'onCloseRequested', 'onFullscreenChanged',
-			'onMenuCommand', 'onOpenProject', 'openExternal', 'readSharedProject', 'releaseRead',
-			'respondToClose', 'setFullscreen', 'setLocale', 'signalReady', 'writeChunk',
+			'onMenuCommand', 'onOpenProject', 'openExternal', 'readSharedProject',
+			'readSharedProjectBundle', 'readSharedSourceChunk', 'releaseRead', 'respondToClose',
+			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),
 	);
 	assert.equal(Object.isFrozen(bridge.v1), true);

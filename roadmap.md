@@ -154,8 +154,8 @@ Known architectural constraints that drive later work:
 - browser video decode and automatic export remain limited in resolution,
   frame rate, codec coverage, and long-form scale;
 - browser storage remains quota- and eviction-bound;
-- Electron shares current project documents, but not a complete cross-product
-  managed-media library;
+- Electron has explicit managed canonical-PCM handoff, but not a complete
+  cross-product managed-media library;
 - no native codec worker, audio backend, plug-in host, or background job service
   exists; and
 - Safari, fixed-GPU, whole-process memory, and broad OS/architecture evidence
@@ -261,11 +261,12 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 
 #### 2.1 Cross-product media ownership and handoff — highest priority
 
-- **Electron Enhanced — Planned:** store or acquire the actual source/media bytes
-  needed by a fresh recipient product, not only the latest project document.
-- **Electron Enhanced — Planned:** add durable linked-media capabilities,
-  bookmarks where required, missing-media state, relink, watch detection,
-  copy/consolidate, and opt-in managed media.
+- **Electron Enhanced — Implemented for explicit managed canonical PCM:** an
+  explicit handoff publishes digest-bound canonical audio for fresh-recipient
+  acquisition; ordinary project saves remain document-only.
+- **Electron Enhanced — In progress:** extend opt-in managed storage beyond
+  canonical PCM and complete linked/mixed-media ownership, lifecycle, playback,
+  return-handoff, and packaged qualification outcomes.
 - **Shared — In progress:** define stable original/proxy/rendered-fallback
   relationships without placing reproducible derivatives in project history.
 - Prove a positive mixed-media Soundscaper ↔ Framescaper handoff in which a fresh
