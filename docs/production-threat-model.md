@@ -246,13 +246,43 @@ WASM, codec, browser-heap, process-RSS, or GC-headroom bound. The factory can
 allocate before returned context geometry is checked, a caller-side abort does
 not prove that native `startRendering()` stopped, and concurrent calls on the
 same or separate engines and renderers can overlap without a product-wide
-reservation. Other render paths—including realtime capture, generic effect and
-spectral workers, software or injected renderers, FFmpeg/WASM encoding, and
-native hosts—remain unqualified. The non-mobile
+reservation. Other render paths—including realtime capture beyond the
+maintained worklet-to-sink stream described next, generic effect and spectral
+workers, software or injected renderers, FFmpeg/WASM encoding, and native
+hosts—remain unqualified. The non-mobile
 fast-render strategy can still select output between this 256 MiB ceiling and
 its 384 MiB hint; central admission refuses before context creation and the
 maintained export path falls back to realtime streaming, while latency-aware
 strategy alignment remains open.
+
+Maintained realtime worklet-to-sink rendering has a separate strict admission.
+Before constructing an `AudioContext`, it accepts 1–32 channels and
+128–16,384 frames per packet, caps a packet at 2 MiB, and derives a
+non-raiseable window of at most 512 packets, 8,388,608 pending frame positions,
+and 32 MiB of pending planar Float32 PCM. The default is the smaller of 64
+packets and the byte-bound count for the admitted geometry. An explicit packet
+count may replace that default only within all count, frame, and byte ceilings;
+the derived half-window backpressure threshold is lower-only. The worklet
+consumes one admitted
+producer credit before transfer and fails closed when a complete packet has no
+credit. Main returns one credit only after the sink promise settles, pending
+count/frame/byte accounting is released, and queue-owned channel references are
+dropped. Direct transfer of full packets and one copy for the final partial
+packet keep one render's enumerated useful binary at no more than the 32 MiB
+outstanding window plus one maximum 2 MiB staging or replacement packet. The
+main boundary requires exact channel width, tight distinct non-shared fixed
+`ArrayBuffer` backing, declared frames, contiguous offsets, output geometry,
+and completion geometry. Total streamed output is not capped by this
+working-set control.
+
+This is not a bound on browser structured-clone or message objects,
+`AudioContext`, graph, source/cache, resampler, encoder, persistence, WASM,
+browser heap, process RSS, or GC headroom. A sink can retain channel arrays
+after its promise settles outside the queue contract, and concurrent renders
+can overlap without a product-wide reservation. Scheduling can still exhaust
+producer credits; the render fails closed rather than retaining an unbounded
+`MessagePort` backlog.
+
 Disposable video-preview capture for imported-video posters and filmstrip
 thumbnails now has a narrower control. After browser `loadedmetadata` supplies
 geometry but before a seek or canvas allocation, checked arithmetic applies

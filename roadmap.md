@@ -1149,14 +1149,53 @@ models or native implementations.
   returned geometry is checked, caller cancellation does not prove that a
   native `startRendering()` has stopped, and concurrent calls on the same or
   separate engines and renderers can overlap without a product-wide
-  reservation. Other render paths—including realtime capture, standalone
-  generic effect and spectral worker calls, software or injected renderers,
-  FFmpeg/WASM encoding, and native hosts—remain outside this control. The
+  reservation. Other render paths—including realtime capture beyond the
+  maintained worklet-to-sink stream described next, standalone generic effect
+  and spectral worker calls, software or injected renderers, FFmpeg/WASM
+  encoding, and native hosts—remain outside this control. The
   non-mobile fast-render strategy can still optimistically select an offline
   output between 256 MiB and its 384 MiB threshold; central admission then
   refuses before context creation and the maintained export path falls back to
   realtime streaming. Aligning that strategy hint with latency-aware peak
   accounting remains open rather than weakening the central ceiling.
+
+  Maintained realtime worklet-to-sink rendering now has a separate strict-TS
+  [admission owner](src/common/editor/pcm-sink-admission.ts). Before an
+  `AudioContext` is constructed, it accepts only 1–32 channels and 128–16,384
+  frames per packet, caps a packet at 2 MiB, and derives a non-raiseable window
+  of at most 512 packets, 8,388,608 pending frame positions, and 32 MiB of
+  pending planar Float32 PCM. The default is the smaller of 64 packets and the
+  exact byte-bound count for the admitted geometry. An explicit packet count
+  may replace that default only within all count, frame, and byte ceilings;
+  the derived half-window backpressure threshold is lower-only. The
+  [capture worklet](src/common/editor/render-capture-worklet.js) consumes one
+  admitted producer credit before transferring a packet and fails closed if a
+  complete packet has no credit. The main-thread queue returns that credit only
+  after the sink promise settles, pending count/frame/byte accounting is
+  released, and its channel references are dropped. Full packets transfer
+  their filled buffers directly and the final partial packet is copied once,
+  so one render owns at most the admitted 32 MiB outstanding window plus one
+  maximum 2 MiB staging or replacement packet. Strict
+  [message validation](src/common/editor/engine/realtime-render-capture.ts)
+  requires the admitted channel width, tight distinct non-shared fixed
+  `ArrayBuffer` backing, exact declared frames, contiguous offsets, no output
+  overrun, and exact completion geometry. Total streamed output remains
+  uncapped by this working-set limit. Focused
+  [admission and queue](tests/audio-editor-realtime-render-admission.test.ts),
+  [worklet](tests/audio-editor-render-capture-worklet.test.ts), and
+  [engine](tests/audio-editor-pcm-sink.test.js) regressions cover exact and
+  one-past boundaries, pre-context refusal, hidden backing, producer-credit
+  exhaustion and replenishment, sink settlement, malformed messages,
+  cancellation, and the existing backpressure and streamed-underrun contract.
+
+  This is a useful-binary ownership bound for one maintained realtime render,
+  not a browser structured-clone/message-object, `AudioContext`, graph,
+  source/cache, resampler, encoder, persistence, WASM, browser-heap,
+  whole-process RSS, or GC-headroom bound. A sink that retains channel arrays
+  after its promise settles owns those bytes outside the queue contract, and
+  concurrent renders can overlap without a product-wide reservation. Browser
+  scheduling can still exhaust producer credits; that render now fails closed
+  instead of growing the `MessagePort` backlog.
 
   Disposable video-preview capture for imported-video posters and filmstrip
   thumbnails now has a separate strict-TS
