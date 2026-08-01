@@ -111,6 +111,34 @@ test('video preview capture fences cancellation before seek and after encoding',
 	duringEncode.extractor.dispose();
 });
 
+test('disposing the extractor promptly fences a stalled seek', async () => {
+	const fixture = await videoExtractorFixture({ deferSeek: true });
+	const capture = fixture.extractor.capture(0);
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(fixture.seeks.length, 1);
+	fixture.extractor.dispose();
+	await assert.rejects(capture, (error) => error?.name === 'AbortError');
+	assert.equal(fixture.canvasCount(), 0);
+});
+
+test('disposing the extractor fences active encoding and every queued capture', async () => {
+	const fixture = await videoExtractorFixture({ deferEncoding: true });
+	const active = fixture.extractor.capture(0);
+	await fixture.waitForEncodeCount(1);
+	const queued = [
+		fixture.extractor.capture(5),
+		fixture.extractor.capture(6),
+	];
+	fixture.extractor.dispose();
+	await Promise.all(queued.map(async (capture) => {
+		await assert.rejects(capture, (error) => error?.name === 'AbortError');
+	}));
+	assert.equal(fixture.canvasCount(), 1);
+	fixture.releaseNextEncoding();
+	await assert.rejects(active, (error) => error?.name === 'AbortError');
+	assert.equal(fixture.encodeCount(), 1);
+});
+
 async function videoExtractorFixture(options = {}) {
 	const seeks = [];
 	const canvases = [];
@@ -149,7 +177,11 @@ async function videoExtractorFixture(options = {}) {
 	};
 	Object.defineProperty(video, 'currentTime', {
 		get() { return this._currentTime || 0; },
-		set(value) { this._currentTime = value; seeks.push(value); queueMicrotask(() => this.listeners?.get('seeked')?.()); },
+		set(value) {
+			this._currentTime = value;
+			seeks.push(value);
+			if (!options.deferSeek) queueMicrotask(() => this.listeners?.get('seeked')?.());
+		},
 	});
 	const document = {
 		createElement(type) {

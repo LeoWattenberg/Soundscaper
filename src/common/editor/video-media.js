@@ -48,6 +48,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 	const video = document.createElement('video');
 	const objectUrl = urlApi.createObjectURL(file);
 	let disposed = false;
+	const captureLifetime = new AbortController();
 	video.preload = 'metadata';
 	video.muted = true;
 	video.playsInline = true;
@@ -81,7 +82,6 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 
 	async function capture(timestampSeconds, captureOptions = {}) {
 		if (disposed) throw new Error('The video frame extractor is closed.');
-		const signal = captureOptions.signal ?? options.signal;
 		const capturePlan = planVideoPreviewCapture({
 			sourceWidth: width,
 			sourceHeight: height,
@@ -94,11 +94,15 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 			Math.max(0, durationSeconds - 0.001),
 			Number(timestampSeconds) || 0,
 		));
+		const abortScope = createCaptureAbortScope([
+			captureOptions.signal ?? options.signal,
+			captureLifetime.signal,
+		]);
 		const request = Object.freeze({
 			capturePlan,
 			mimeType: String(captureOptions.mimeType || 'image/webp'),
 			quality: Math.max(0, Math.min(1, Number(captureOptions.quality ?? 0.78))),
-			signal,
+			signal: abortScope.signal,
 			timeoutMs: captureOptions.timeoutMs ?? options.timeoutMs ?? DEFAULT_METADATA_TIMEOUT_MS,
 			timestamp,
 		});
@@ -107,16 +111,17 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		const completion = new Promise((resolve) => { release = resolve; });
 		captureTail = predecessor.then(() => completion);
 		try {
-			await waitForCaptureTurn(predecessor, signal);
+			await waitForCaptureTurn(predecessor, abortScope.signal);
 			return await captureFrame(request);
 		} finally {
+			abortScope.dispose();
 			release();
 		}
 	}
 
 	async function captureFrame(request) {
-		if (disposed) throw new Error('The video frame extractor is closed.');
 		throwIfCaptureAborted(request.signal);
+		if (disposed) throw new Error('The video frame extractor is closed.');
 		const { capturePlan, mimeType, quality, signal, timeoutMs, timestamp } = request;
 		// `loadedmetadata` can fire before the decoder has presented the first
 		// frame. Seeking to a nearby time forces the browser to populate the
@@ -157,6 +162,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 	function dispose() {
 		if (disposed) return;
 		disposed = true;
+		captureLifetime.abort();
 		video.pause?.();
 		video.removeAttribute?.('src');
 		video.load?.();
@@ -164,6 +170,32 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 	}
 
 	return Object.freeze({ metadata, capture, dispose });
+}
+
+function createCaptureAbortScope(signals) {
+	const controller = new AbortController();
+	const sources = [...new Set(signals.filter(Boolean))];
+	let cleaned = false;
+	const cleanup = () => {
+		if (cleaned) return;
+		cleaned = true;
+		for (const signal of sources) signal.removeEventListener?.('abort', onAbort);
+	};
+	const onAbort = () => {
+		cleanup();
+		controller.abort();
+	};
+	for (const signal of sources) {
+		if (signal.aborted) {
+			onAbort();
+			break;
+		}
+		signal.addEventListener?.('abort', onAbort, { once: true });
+	}
+	return Object.freeze({
+		signal: controller.signal,
+		dispose: cleanup,
+	});
 }
 
 function waitForCaptureTurn(predecessor, signal) {
