@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import type {
 	VerifiedRuntimeFile,
 	VerifiedRuntimeRelease,
@@ -10,6 +13,8 @@ import type {
 export const BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX = 'soundscaper-ffmpeg-runtime-v1-';
 
 const STATE_CACHE_NAME = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}state`;
+const CANDIDATE_CACHE_PREFIX = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-`;
+const COMMIT_LOCK_NAME = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}commit`;
 const STATE_PATH = '/.soundscaper/offline/ffmpeg-runtime-state-v1.json';
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const CANDIDATE_ID_PATTERN = /^[A-Za-z\d-]{1,128}$/u;
@@ -33,8 +38,17 @@ interface BrowserRuntimeState {
 	readonly previous: VerifiedRuntimeRelease | null;
 }
 
+export interface BrowserRuntimeLockManager {
+	request<T>(
+		name: string,
+		options: Readonly<{ mode: 'exclusive' }>,
+		callback: (lock: object | null) => Promise<T>,
+	): Promise<T>;
+}
+
 export interface BrowserFfmpegRuntimeStoreOptions {
 	readonly cacheStorage?: RuntimeCacheStorage;
+	readonly lockManager?: BrowserRuntimeLockManager;
 	readonly origin?: string;
 	readonly randomUUID?: () => string;
 }
@@ -50,6 +64,11 @@ export function createBrowserFfmpegRuntimeStore(
 		throw new Error('Browser CacheStorage is unavailable.');
 	}
 	const cacheStorage: RuntimeCacheStorage = candidateCacheStorage;
+	const candidateLockManager = options.lockManager ?? globalThis.navigator?.locks;
+	if (!candidateLockManager || typeof candidateLockManager.request !== 'function') {
+		throw new Error('Browser Web Locks are unavailable.');
+	}
+	const lockManager = candidateLockManager as unknown as BrowserRuntimeLockManager;
 	const origin = normalizeOrigin(options.origin ?? globalThis.location?.origin);
 	const stateKey = new URL(STATE_PATH, origin).href;
 	const randomUUID = options.randomUUID ?? globalThis.crypto?.randomUUID?.bind(globalThis.crypto);
@@ -81,9 +100,11 @@ export function createBrowserFfmpegRuntimeStore(
 			const response = await cache.match(file.url);
 			if (!response || !response.ok || response.status !== 200) return false;
 			if (response.headers.get('content-length') !== String(file.byteLength)
-				|| response.headers.get('content-type')?.toLowerCase() !== file.contentType.toLowerCase()) {
+				|| response.headers.get('content-type')?.toLowerCase() !== file.contentType.toLowerCase()
+				|| response.headers.has('content-encoding')) {
 				return false;
 			}
+			if (!(await cachedBodyMatches(response, file))) return false;
 		}
 		return true;
 	}
@@ -101,14 +122,14 @@ export function createBrowserFfmpegRuntimeStore(
 		if (!CANDIDATE_ID_PATTERN.test(candidateId)) {
 			throw new Error('Runtime candidate identifier is invalid.');
 		}
-		const candidateName = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-${candidateId}`;
+		const candidateName = `${CANDIDATE_CACHE_PREFIX}${candidateId}`;
 		await cacheStorage.delete(candidateName);
 		const candidate = await cacheStorage.open(candidateName);
 		const stored = new Set<string>();
-		let settled = false;
+		let status: 'open' | 'committing' | 'settled' = 'open';
 
 		function assertOpen(): void {
-			if (settled) throw new Error('Runtime candidate transaction is already settled.');
+			if (status !== 'open') throw new Error('Runtime candidate transaction is already settled.');
 		}
 
 		const transaction: VerifiedRuntimeTransaction = {
@@ -132,37 +153,77 @@ export function createBrowserFfmpegRuntimeStore(
 				for (const file of release.files) {
 					if (!stored.has(file.name)) throw new Error(`Runtime candidate is missing ${file.name}.`);
 				}
-				const prior = await readActive();
-				const finalName = releaseCacheName(release.releaseId);
-				await cacheStorage.delete(finalName);
-				const finalCache = await cacheStorage.open(finalName);
+				status = 'committing';
+				let published = false;
 				try {
-					for (const file of release.files) {
-						const response = await candidate.match(file.url);
-						if (!response) throw new Error(`Runtime candidate lost ${file.name} before commit.`);
-						await finalCache.put(file.url, response);
-					}
-					const state = Object.freeze({
-						schemaVersion: 1 as const,
-						active: release,
-						previous: prior && prior.releaseId !== release.releaseId ? prior : null,
+					await lockManager.request(COMMIT_LOCK_NAME, { mode: 'exclusive' }, async (lock) => {
+						if (!lock) throw new Error('The runtime commit lock was not acquired.');
+						const currentState = await readState();
+						const active = currentState && await isComplete(currentState.active)
+							? currentState.active
+							: null;
+						const previous = currentState?.previous && await isComplete(currentState.previous)
+							? currentState.previous
+							: null;
+						const reusableActive = active && sameRelease(active, release) ? active : null;
+						const reusablePrevious = previous && sameRelease(previous, release) ? previous : null;
+
+						if (reusableActive || reusablePrevious) {
+							const retainedPrevious = reusableActive ? previous : active;
+							if (!reusableActive) {
+								await writeState(cacheStorage, stateKey, Object.freeze({
+									schemaVersion: 1 as const,
+									active: release,
+									previous: retainedPrevious,
+								}));
+							}
+							published = true;
+							status = 'settled';
+							await cleanupAfterCommit(cacheStorage, candidateName, new Set([
+								STATE_CACHE_NAME,
+								releaseCacheName(release.releaseId),
+								...(retainedPrevious ? [releaseCacheName(retainedPrevious.releaseId)] : []),
+							]));
+							return;
+						}
+
+						const prior = active ?? previous;
+						const finalName = releaseCacheName(release.releaseId);
+						await cacheStorage.delete(finalName);
+						const finalCache = await cacheStorage.open(finalName);
+						try {
+							for (const file of release.files) {
+								const response = await candidate.match(file.url);
+								if (!response) throw new Error(`Runtime candidate lost ${file.name} before commit.`);
+								await finalCache.put(file.url, response);
+							}
+							await writeState(cacheStorage, stateKey, Object.freeze({
+								schemaVersion: 1 as const,
+								active: release,
+								previous: prior,
+							}));
+							published = true;
+							status = 'settled';
+						} catch (error) {
+							await cacheStorage.delete(finalName).catch(() => false);
+							throw error;
+						}
+						await cleanupAfterCommit(cacheStorage, candidateName, new Set([
+							STATE_CACHE_NAME,
+							finalName,
+							...(prior ? [releaseCacheName(prior.releaseId)] : []),
+						]));
 					});
-					await writeState(cacheStorage, stateKey, state);
-					settled = true;
 				} catch (error) {
-					await cacheStorage.delete(finalName).catch(() => false);
+					if (published) return;
+					status = 'open';
 					throw error;
 				}
-				await cleanupRuntimeCaches(cacheStorage, new Set([
-					STATE_CACHE_NAME,
-					finalName,
-					...(prior ? [releaseCacheName(prior.releaseId)] : []),
-				]));
-				await cacheStorage.delete(candidateName).catch(() => false);
 			},
 			rollback: async () => {
-				if (settled) return;
-				settled = true;
+				if (status === 'settled') return;
+				assertOpen();
+				status = 'settled';
 				await cacheStorage.delete(candidateName);
 			},
 		};
@@ -170,6 +231,35 @@ export function createBrowserFfmpegRuntimeStore(
 	}
 
 	return Object.freeze({ readActive, begin });
+}
+
+async function cachedBodyMatches(response: Response, file: VerifiedRuntimeFile): Promise<boolean> {
+	if (!response.body) return false;
+	const reader = response.body.getReader();
+	const hash = sha256.create();
+	let byteLength = 0;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!(value instanceof Uint8Array) || value.byteLength < 1) {
+				await reader.cancel().catch(() => undefined);
+				return false;
+			}
+			byteLength += value.byteLength;
+			if (!Number.isSafeInteger(byteLength) || byteLength > file.byteLength) {
+				await reader.cancel().catch(() => undefined);
+				return false;
+			}
+			hash.update(value);
+		}
+	} catch {
+		await reader.cancel().catch(() => undefined);
+		return false;
+	} finally {
+		reader.releaseLock();
+	}
+	return byteLength === file.byteLength && bytesToHex(hash.digest()) === file.sha256;
 }
 
 async function writeState(
@@ -194,10 +284,20 @@ async function cleanupRuntimeCaches(
 	retained: ReadonlySet<string>,
 ): Promise<void> {
 	for (const cacheName of await cacheStorage.keys()) {
-		if (cacheName.startsWith(BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX) && !retained.has(cacheName)) {
+		if (cacheName.startsWith(BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX)
+			&& !cacheName.startsWith(CANDIDATE_CACHE_PREFIX) && !retained.has(cacheName)) {
 			await cacheStorage.delete(cacheName).catch(() => false);
 		}
 	}
+}
+
+async function cleanupAfterCommit(
+	cacheStorage: RuntimeCacheStorage,
+	candidateName: string,
+	retained: ReadonlySet<string>,
+): Promise<void> {
+	await cleanupRuntimeCaches(cacheStorage, retained).catch(() => undefined);
+	await cacheStorage.delete(candidateName).catch(() => false);
 }
 
 function validateState(value: unknown): BrowserRuntimeState {
@@ -267,6 +367,15 @@ function sameFile(left: VerifiedRuntimeFile, right: VerifiedRuntimeFile): boolea
 	return left.name === right.name && left.url === right.url
 		&& left.byteLength === right.byteLength && left.sha256 === right.sha256
 		&& left.contentType === right.contentType;
+}
+
+function sameRelease(left: VerifiedRuntimeRelease, right: VerifiedRuntimeRelease): boolean {
+	return left.releaseId === right.releaseId && left.manifestSha256 === right.manifestSha256
+		&& left.baseUrl === right.baseUrl && left.files.length === right.files.length
+		&& left.files.every((file, index) => {
+			const candidate = right.files[index];
+			return candidate !== undefined && sameFile(file, candidate);
+		});
 }
 
 function releaseCacheName(releaseId: string): string {
