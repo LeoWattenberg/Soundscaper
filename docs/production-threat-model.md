@@ -230,9 +230,29 @@ renderer limit. Its queue is coordinator-local rather than a product-wide
 reservation, so another coordinator or renderer can overlap it. Source/cache
 residency, permanent `AudioBuffer` and channel snapshots, message objects,
 persistence buffers, and runtime overhead can be additive.
-Other render paths—including whole `OfflineAudioContext` rendering, realtime
-capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native
-hosts—remain unqualified.
+Central `OfflineAudioContext` render output has a separate narrow admission.
+After the no-context software-renderer fallback and before the context factory,
+checked arithmetic applies a non-raiseable 256 MiB ceiling with a lower-only
+test seam to the exact Float32 context output plus the requested-frame crop
+copy when warm-up or processing latency makes both coexist. Created context
+length and sample rate are checked before worklets, graph construction, or
+source scheduling. The rendered buffer must match the admitted channel count,
+length, sample rate, and per-channel Float32 geometry before return or crop;
+mismatches fail closed. Oversized geometry can still use the no-context
+software-renderer fallback.
+
+This is not a source-buffer, reverse-cache, streamed-chunk, graph, worklet,
+WASM, codec, browser-heap, process-RSS, or GC-headroom bound. The factory can
+allocate before returned context geometry is checked, a caller-side abort does
+not prove that native `startRendering()` stopped, and concurrent calls on the
+same or separate engines and renderers can overlap without a product-wide
+reservation. Other render paths—including realtime capture, generic effect and
+spectral workers, software or injected renderers, FFmpeg/WASM encoding, and
+native hosts—remain unqualified. The non-mobile
+fast-render strategy can still select output between this 256 MiB ceiling and
+its 384 MiB hint; central admission refuses before context creation and the
+maintained export path falls back to realtime streaming, while latency-aware
+strategy alignment remains open.
 Disposable video-preview capture for imported-video posters and filmstrip
 thumbnails now has a narrower control. After browser `loadedmetadata` supplies
 geometry but before a seek or canvas allocation, checked arithmetic applies

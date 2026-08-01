@@ -1125,9 +1125,37 @@ models or native implementations.
   exact worker-peak formula to the pinned source manifest, so the existing
   controller and macro 256 MiB preflights no longer undercharge StaffPad by
   48 MiB. This is an estimator correction, not product-wide worker admission.
-  Other render paths—including whole `OfflineAudioContext` renders,
-  realtime capture, standalone generic effect and spectral worker calls,
-  FFmpeg/WASM encoding, and native hosts—remain outside the clip-cache bound.
+  Central `OfflineAudioContext` render output now has a separate strict-TS
+  [admission owner](src/common/editor/engine/offline-render-admission.ts).
+  After the no-context software-renderer fallback but before the context
+  factory, checked arithmetic applies a non-raiseable 256 MiB ceiling with a
+  lower-only test seam to the exact enumerated Float32 payload. It charges the
+  context's complete channel-by-frame output plus the requested-frame crop
+  copy only when warm-up or processing latency makes that copy coexist with
+  the full rendered buffer. The created context's length and sample rate are
+  checked before worklets, graph construction, or source scheduling. The
+  rendered `AudioBuffer` must then match the admitted channel count, length,
+  sample rate, and per-channel Float32 geometry before it can return or be
+  cropped; mismatches fail closed. Focused
+  [admission and engine regressions](tests/audio-editor-offline-render-admission.test.ts)
+  pin both exact ceiling shapes, refusal before factory and graph work, strict
+  result validation, and the unchanged oversized software-renderer fallback.
+
+  This bound covers only one context output and the maintained crop copy. It
+  does not account for source buffers, reverse-cache copies, streamed-source
+  chunks, graph nodes, worklets, WASM or codec state, browser heap,
+  whole-process RSS, or GC headroom. A context factory can allocate before its
+  returned geometry is checked, caller cancellation does not prove that a
+  native `startRendering()` has stopped, and concurrent calls on the same or
+  separate engines and renderers can overlap without a product-wide
+  reservation. Other render paths—including realtime capture, standalone
+  generic effect and spectral worker calls, software or injected renderers,
+  FFmpeg/WASM encoding, and native hosts—remain outside this control. The
+  non-mobile fast-render strategy can still optimistically select an offline
+  output between 256 MiB and its 384 MiB threshold; central admission then
+  refuses before context creation and the maintained export path falls back to
+  realtime streaming. Aligning that strategy hint with latency-aware peak
+  accounting remains open rather than weakening the central ceiling.
 
   Disposable video-preview capture for imported-video posters and filmstrip
   thumbnails now has a separate strict-TS
