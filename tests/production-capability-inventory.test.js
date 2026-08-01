@@ -21,7 +21,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.match(inventory.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
+	assert.equal(inventory.groundedAt, '2026-08-01');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -78,21 +78,46 @@ test('deferred MIDI and Framescaper capture capabilities are absent from maintai
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });
 
-test('Electron Enhanced inventory includes the shared editor project boundary', async () => {
+test('Electron Enhanced inventory includes the shared mixed-media editor project boundary', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 	for (const productId of PRODUCT_IDS) {
-		const evidence = inventory.products[productId].platforms['electron-enhanced'].evidence;
+		const platform = inventory.products[productId].platforms['electron-enhanced'];
+		const evidence = platform.evidence;
+		assert.equal(platform.status, 'partial');
 		for (const path of [
 			'desktop/desktop-smoke.js',
+			'desktop/project-library-editor-media-service.ts',
 			'desktop/project-library-editor-service.ts',
 			'desktop/project-library-ipc.js',
+			'desktop/project-library-media-binding.ts',
+			'desktop/project-library-media-reuse.ts',
+			'desktop/project-library-media.ts',
 			'scripts/lib/desktop-project-library-handoff-smoke.mjs',
 			'scripts/desktop-project-library-handoff-smoke.mjs',
+			'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
+			'src/common/editor/storage/desktop-shared-project-media-contract.ts',
+			'src/common/editor/storage/desktop-shared-project-media-sender.ts',
+			'src/common/editor/storage/desktop-shared-project-media-sources.ts',
+			'src/common/editor/storage/desktop-shared-project-media-transfer.ts',
 			'src/common/editor/storage/desktop-shared-project-repository.ts',
 			'src/common/editor/storage.js',
 			'src/common/editor/app.js',
+			'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
+			'tests/audio-editor-desktop-shared-project-media-transfer-budget.test.ts',
+			'tests/audio-editor-desktop-shared-project-media-transfer-ownership.test.ts',
+			'tests/audio-editor-desktop-shared-project-media-transfer.test.ts',
+			'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
+			'tests/audio-editor-desktop-shared-project-repository-handoff.test.ts',
 			'tests/desktop-project-library-editor-service.test.ts',
+			'tests/desktop-project-library-editor-media-freshness.test.ts',
+			'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
+			'tests/desktop-project-library-editor-media-service.test.ts',
+			'tests/desktop-project-library-editor-video-media-service.test.ts',
 			'tests/desktop-project-library-ipc.test.js',
+			'tests/desktop-project-library-media-reuse.test.ts',
+			'tests/desktop-project-library-media.test.ts',
+			'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
+			'tests/desktop-project-library-video-media.test.ts',
 			'tests/audio-editor-desktop-shared-project-repository.test.ts',
 			'tests/desktop-project-library-editor-handoff.test.ts',
 			'tests/desktop-smoke-probe.test.js',
@@ -119,6 +144,11 @@ test('Linux x64 inventory pins the packaged source-free project-library handoff'
 		'tests/desktop-project-library-handoff-workflow.test.js',
 		'.github/workflows/desktop-preview.yml',
 	]) assert.ok(target.evidence.includes(path), `linux/x64 is missing ${path}`);
+	assert.equal(
+		target.evidence.includes('tests/desktop-project-library-mixed-media-roundtrip.test.ts'),
+		false,
+		'composed Node mixed-media acceptance is not packaged Linux evidence',
+	);
 });
 
 test('every capability claim points at checked-in evidence', async () => {

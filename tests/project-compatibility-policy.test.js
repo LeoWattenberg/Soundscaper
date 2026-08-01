@@ -37,7 +37,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented',
-		'current-desktop-managed-canonical-pcm-handoff': 'implemented',
+		'current-desktop-managed-mixed-media-handoff': 'implemented',
 		'current-desktop-recipient-media-admission': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
