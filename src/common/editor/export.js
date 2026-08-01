@@ -29,6 +29,7 @@ import {
 } from './adm-metadata.ts';
 import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
 import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
+import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 import {
 	isNeutralAdmSignalPath,
 	resolveExactAdmPassthroughTimelineSource,
@@ -73,7 +74,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number} requiredTemporaryBytes
  * @property {ReturnType<typeof normalizeMediaExportSettings>} encoding
  * @property {Readonly<Record<string, string>>} metadata
- * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean }} render
+ * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean, reason: 'output-memory'|'total-memory'|'offline-render-output-memory'|null, offlineRenderAdmission?: import('./export-render-admission.ts').ExportOfflineRenderStrategyAdmission }} render
  * @property {Array<{kind: string, fileName: string, trackId: string | null}>} outputs
  * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
@@ -103,7 +104,10 @@ export function chooseRenderStrategy(options = {}) {
 	const outputBytes = Number(options.outputBytes) || 0;
 	const livePcmBytes = Number(options.livePcmBytes) || 0;
 	const totalBytes = outputBytes + livePcmBytes;
-	const fast = outputBytes <= thresholds.outputBytes && totalBytes <= thresholds.totalBytes;
+	const withinLegacyThresholds = outputBytes <= thresholds.outputBytes && totalBytes <= thresholds.totalBytes;
+	const hasOfflineRenderAdmission = options.offlineRenderAdmission !== undefined;
+	const offlineRenderAdmission = hasOfflineRenderAdmission ? options.offlineRenderAdmission : null;
+	const fast = withinLegacyThresholds && offlineRenderAdmission?.admitted !== false;
 	return {
 		strategy: fast ? 'offline' : 'realtime-stream',
 		fast,
@@ -111,7 +115,12 @@ export function chooseRenderStrategy(options = {}) {
 		livePcmBytes,
 		totalBytes,
 		thresholds,
-		reason: fast ? null : outputBytes > thresholds.outputBytes ? 'output-memory' : 'total-memory',
+		reason: fast
+			? null
+			: !withinLegacyThresholds
+				? outputBytes > thresholds.outputBytes ? 'output-memory' : 'total-memory'
+				: 'offline-render-output-memory',
+		...(hasOfflineRenderAdmission ? { offlineRenderAdmission } : {}),
 	};
 }
 
@@ -222,11 +231,6 @@ export function createExportPlan(project, options = {}) {
 				trailingChunks: adm?.trailingChunks,
 			})
 			: null;
-	const render = chooseRenderStrategy({
-		mobile: Boolean(options.mobile),
-		outputBytes,
-		livePcmBytes: options.livePcmBytes ?? estimateProjectPcmBytes(project),
-	});
 	const outputs = mode === 'mix'
 		? [{
 			kind: 'mix',
@@ -242,6 +246,25 @@ export function createExportPlan(project, options = {}) {
 			includeMaster: false,
 			respectMuteSolo: false,
 		}));
+	const renderStrategyOptions = {
+		mobile: Boolean(options.mobile),
+		outputBytes,
+		livePcmBytes: options.livePcmBytes ?? estimateProjectPcmBytes(project),
+	};
+	const legacyRender = chooseRenderStrategy(renderStrategyOptions);
+	const render = legacyRender.strategy === 'offline'
+		? chooseRenderStrategy({
+			...renderStrategyOptions,
+			offlineRenderAdmission: selectExportOfflineRenderAdmission({
+				project,
+				mode,
+				outputs,
+				range,
+				tailFrames,
+				channelCount: adm?.channelCount,
+			}),
+		})
+		: legacyRender;
 	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode === 'stems'
 		? createStemArchivePlan(
@@ -290,6 +313,26 @@ export function createExportPlan(project, options = {}) {
 		archive,
 		aggregateStereoMinutes: aggregateStereoMinutes(project),
 	};
+}
+
+function selectExportOfflineRenderAdmission({
+	project, mode, outputs, range, tailFrames, channelCount,
+}) {
+	const common = {
+		project,
+		rangeStartFrame: range.startFrame,
+		requestedRenderFrames: Math.max(1, range.durationFrames + tailFrames),
+		...(channelCount == null ? {} : { channelCount }),
+	};
+	const targets = mode === 'mix'
+		? [{ trackId: null, includeMaster: true }]
+		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
+	return targets.reduce((selected, target) => {
+		const candidate = planExportOfflineRenderStrategyAdmission({ ...common, ...target });
+		return selected == null || candidate.peakUsefulBinaryBytes > selected.peakUsefulBinaryBytes
+			? candidate
+			: selected;
+	}, null);
 }
 
 function resolveBw64Adm(project, options) {
