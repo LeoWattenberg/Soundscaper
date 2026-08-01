@@ -99,8 +99,12 @@ export function managedMediaCategoryForBinding(idValue: unknown): 'audio' | 'vid
 	return validatedManagedMediaBindingId(idValue).startsWith('m') ? 'audio' : 'video';
 }
 
+export function isDesktopLibraryManagedMediaBindingId(value: unknown): value is string {
+	return typeof value === 'string' && BINDING_ID.test(value);
+}
+
 export function validatedManagedMediaBindingId(value: unknown): string {
-	if (typeof value !== 'string' || !BINDING_ID.test(value)) {
+	if (!isDesktopLibraryManagedMediaBindingId(value)) {
 		throw new TypeError('Desktop library managed-media binding id is invalid');
 	}
 	return value;

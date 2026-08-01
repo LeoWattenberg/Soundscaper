@@ -10,8 +10,11 @@ import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	isDesktopLibraryManagedMediaBindingId,
+	relativeFileForManagedMediaBinding,
 	type DesktopLibraryManagedMediaEncoding,
 } from './project-library-media-binding.ts';
+import { DesktopLibraryMediaReuseUnavailableError } from './project-library-media-reuse.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import {
 	validateAudioEditorProjectV9,
@@ -203,26 +206,32 @@ export class DesktopSharedProjectMediaService {
 				return Object.freeze({ status: 'present', source: sourceDescriptor });
 			}
 			const prefix = request.encoding === DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING ? 'm' : 'v';
-			const reusable = loaded.media.some((media) => media.id.startsWith(prefix)
+			const reusable = loaded.media.some((media) => isDesktopLibraryManagedMediaBindingId(media.id)
+				&& media.id.startsWith(prefix)
+				&& media.relativeFile === relativeFileForManagedMediaBinding(media.id)
 				&& media.byteLength === expectedBytes && media.sha256 === request.sha256);
 			if (reusable) {
-				const media = await this.#host.publishManagedMedia({
-					encoding: request.encoding,
-					projectId: project.id,
-					storageKey: bindingKey,
-					byteLength: expectedBytes,
-					sha256: request.sha256,
-					chunks: emptyChunks(),
-					reuseExistingBody: true,
-					expectedProjectRevision: project.revision,
-					expectedProjectSha256: loaded.catalog.sha256,
-					signal,
-				});
-				this.#assertOpen();
-				return Object.freeze({
-					status: 'present',
-					source: managedSourceDescriptor(source, media, expectedBytes),
-				});
+				try {
+					const media = await this.#host.publishManagedMedia({
+						encoding: request.encoding,
+						projectId: project.id,
+						storageKey: bindingKey,
+						byteLength: expectedBytes,
+						sha256: request.sha256,
+						chunks: emptyChunks(),
+						reuseExistingBody: true,
+						expectedProjectRevision: project.revision,
+						expectedProjectSha256: loaded.catalog.sha256,
+						signal,
+					});
+					this.#assertOpen();
+					return Object.freeze({
+						status: 'present',
+						source: managedSourceDescriptor(source, media, expectedBytes),
+					});
+				} catch (error) {
+					if (!(error instanceof DesktopLibraryMediaReuseUnavailableError)) throw error;
+				}
 			}
 
 			const id = this.#newWriteId();

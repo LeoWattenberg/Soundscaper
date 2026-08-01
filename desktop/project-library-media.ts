@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
-import { link, lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
+import { lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 import {
@@ -14,12 +14,17 @@ import {
 import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+	isDesktopLibraryManagedMediaBindingId,
 	managedMediaCategoryForBinding,
 	relativeFileForManagedMediaBinding,
 	validatedManagedMediaBindingId,
 	type DesktopLibraryManagedMediaEncoding,
 	type DesktopLibraryMediaBinding,
 } from './project-library-media-binding.ts';
+import {
+	DesktopLibraryMediaReuseUnavailableError,
+	reuseDesktopLibraryMediaBody,
+} from './project-library-media-reuse.ts';
 
 export {
 	createDesktopLibraryAudioMediaBinding,
@@ -37,6 +42,8 @@ const STAGE_ID = /^[a-f0-9]{32}$/u;
 const MAXIMUM_BODY_BYTES = 64 * 1024 * 1024 * 1024;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 
+class DesktopLibraryMediaBodyIntegrityError extends Error {}
+
 export interface DesktopLibraryMediaCatalogPort {
 	readMetadata(): DesktopLibraryMetadata | Promise<DesktopLibraryMetadata>;
 	publishMetadata(
@@ -51,6 +58,7 @@ export interface DesktopLibraryManagedMediaStoreOptions {
 	readonly maximumBodyBytes?: number;
 	readonly maximumChunkBytes?: number;
 	readonly maximumReadBytes?: number;
+	readonly hardLink?: (existingPath: string, newPath: string) => Promise<void>;
 	readonly randomId?: () => string;
 }
 
@@ -82,6 +90,7 @@ export class DesktopLibraryManagedMediaStore {
 	readonly #maximumBodyBytes: number;
 	readonly #maximumChunkBytes: number;
 	readonly #maximumReadBytes: number;
+	readonly #hardLink: ((existingPath: string, newPath: string) => Promise<void>) | undefined;
 	readonly #randomId: () => string;
 	readonly #bindingTails = new Map<string, Promise<void>>();
 	#catalogTail: Promise<void> = Promise.resolve();
@@ -108,6 +117,7 @@ export class DesktopLibraryManagedMediaStore {
 			this.#maximumChunkBytes,
 			'managed-media read byte limit',
 		);
+		this.#hardLink = options.hardLink;
 		this.#randomId = options.randomId ?? (() => randomBytes(16).toString('hex'));
 	}
 
@@ -133,10 +143,9 @@ export class DesktopLibraryManagedMediaStore {
 				await this.#verifyBody(existing, options.signal);
 				return existing;
 			}
-			const reusable = options.reuseExistingBody ? reusableMedia(initial, descriptor) : undefined;
-			if (reusable) {
-				await this.#verifyBody(reusable, options.signal);
-				await this.#linkReusableBody(reusable, descriptor, options.signal);
+			if (options.reuseExistingBody) {
+				const reused = await this.#reuseBody(reusableMedia(initial, descriptor), descriptor, options.signal);
+				if (!reused) throw new DesktopLibraryMediaReuseUnavailableError();
 				return this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
 			}
 			await this.#materializeBody(descriptor, options.chunks, options.signal);
@@ -247,7 +256,7 @@ export class DesktopLibraryManagedMediaStore {
 		try {
 			const stat = await handle.stat();
 			if (!stat.isFile() || stat.size !== descriptor.byteLength) {
-				throw new Error('Desktop library managed-media body does not match its immutable descriptor');
+				throw new DesktopLibraryMediaBodyIntegrityError('Desktop library managed-media body does not match its immutable descriptor');
 			}
 			const hash = createHash('sha256');
 			const buffer = new Uint8Array(Math.min(this.#maximumChunkBytes, Math.max(1, descriptor.byteLength)));
@@ -260,59 +269,48 @@ export class DesktopLibraryManagedMediaStore {
 				offset += view.byteLength;
 			}
 			if (hash.digest('hex') !== descriptor.sha256) {
-				throw new Error('Desktop library managed-media body does not match its immutable SHA-256 descriptor');
+				throw new DesktopLibraryMediaBodyIntegrityError('Desktop library managed-media body does not match its immutable SHA-256 descriptor');
 			}
 		} finally {
 			await handle.close();
 		}
 	}
 
-	async #linkReusableBody(
-		source: DesktopLibraryMedia,
+	async #reuseBody(
+		sources: readonly DesktopLibraryMedia[],
 		descriptor: DesktopLibraryMedia,
 		signal: AbortSignal | undefined,
-	): Promise<void> {
+	): Promise<boolean> {
+		if (sources.length === 0) return false;
 		const category = managedMediaCategoryForBinding(descriptor.id);
-		const sourcePath = this.#pathFor(source.relativeFile);
 		const finalPath = this.#pathFor(descriptor.relativeFile);
 		const directory = dirname(finalPath);
-		await this.#assertScope(dirname(sourcePath), category);
+		const sourcePaths = sources.map(({ relativeFile }) => this.#pathFor(relativeFile));
 		await this.#prepareDirectory(directory, category);
-		throwIfAborted(signal);
-		if (await pathExists(finalPath)) {
-			await this.#verifyBody(descriptor, signal);
-			return;
-		}
-		const stageId = this.#randomId();
-		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
-		const stagePath = join(directory, `.${descriptor.id}.${stageId}.reuse`);
-		let stageExists = false;
+		return reuseDesktopLibraryMediaBody({
+			directory, finalPath, hardLink: this.#hardLink, randomId: this.#randomId, signal, sourcePaths,
+			syncDirectory: () => syncDirectory(directory),
+			verifySourcePath: (path) => this.#verifyReusableSource(path, descriptor, category, signal),
+			verifyTargetPath: async (path) => {
+				await this.#assertScope(dirname(path), category);
+				await this.#verifyBodyPath(path, descriptor, signal);
+			},
+		});
+	}
+
+	async #verifyReusableSource(
+		path: string,
+		descriptor: DesktopLibraryMedia,
+		category: 'audio' | 'video',
+		signal: AbortSignal | undefined,
+	): Promise<boolean> {
 		try {
-			await link(sourcePath, stagePath);
-			stageExists = true;
-			await this.#verifyBodyPath(stagePath, descriptor, signal);
-			throwIfAborted(signal);
-			if (await pathExists(finalPath)) {
-				await this.#verifyBody(descriptor, signal);
-				await unlink(stagePath);
-				stageExists = false;
-				await syncDirectory(directory);
-				return;
-			}
-			await rename(stagePath, finalPath);
-			stageExists = false;
-			await syncDirectory(directory);
+			await this.#assertScope(dirname(path), category);
+			await this.#verifyBodyPath(path, descriptor, signal);
+			return true;
 		} catch (error) {
-			if (stageExists) {
-				try {
-					await unlink(stagePath);
-					await syncDirectory(directory);
-				} catch (cleanupError) {
-					if (!isMissing(cleanupError)) {
-						throw new AggregateError([error, cleanupError], 'Managed-media reuse cleanup failed');
-					}
-				}
-			}
+			throwIfAborted(signal);
+			if (isMissing(error) || error instanceof DesktopLibraryMediaBodyIntegrityError) return false;
 			throw error;
 		}
 	}
@@ -443,7 +441,9 @@ async function readExactly(
 	while (offset < bytes.byteLength) {
 		throwIfAborted(signal);
 		const { bytesRead } = await handle.read(bytes, offset, bytes.byteLength - offset, position + offset);
-		if (bytesRead <= 0) throw new Error('Desktop library managed-media body ended during a bounded read');
+		if (bytesRead <= 0) {
+			throw new DesktopLibraryMediaBodyIntegrityError('Desktop library managed-media body ended during a bounded read');
+		}
 		offset += bytesRead;
 	}
 }
@@ -471,10 +471,11 @@ function mediaById(metadata: DesktopLibraryMetadata, id: string): DesktopLibrary
 function reusableMedia(
 	metadata: DesktopLibraryMetadata,
 	descriptor: DesktopLibraryMedia,
-): DesktopLibraryMedia | undefined {
-	const category = managedMediaCategoryForBinding(descriptor.id);
-	return metadata.media.find((entry) => entry.id !== descriptor.id
-		&& managedMediaCategoryForBinding(entry.id) === category
+): DesktopLibraryMedia[] {
+	return metadata.media.filter((entry) => entry.id !== descriptor.id
+		&& isDesktopLibraryManagedMediaBindingId(entry.id)
+		&& entry.id[0] === descriptor.id[0]
+		&& entry.relativeFile === relativeFileForManagedMediaBinding(entry.id)
 		&& entry.byteLength === descriptor.byteLength
 		&& entry.sha256 === descriptor.sha256);
 }
@@ -549,13 +550,13 @@ async function assertRealDirectory(directory: string): Promise<void> {
 async function openRegularBody(path: string): Promise<FileHandle> {
 	const entry = await lstat(path);
 	if (!entry.isFile() || entry.isSymbolicLink()) {
-		throw new TypeError('Desktop library managed-media body is not a regular file');
+		throw new DesktopLibraryMediaBodyIntegrityError('Desktop library managed-media body is not a regular file');
 	}
 	const flags = constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW);
 	const handle = await open(path, flags);
 	try {
 		if (!(await handle.stat()).isFile()) {
-			throw new TypeError('Desktop library managed-media body is not a regular file');
+			throw new DesktopLibraryMediaBodyIntegrityError('Desktop library managed-media body is not a regular file');
 		}
 		return handle;
 	} catch (error) {

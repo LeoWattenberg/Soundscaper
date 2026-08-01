@@ -12,6 +12,7 @@ import {
 	DesktopLibraryManagedMediaStore,
 	type DesktopLibraryMediaCatalogPort,
 } from '../desktop/project-library-media.ts';
+import { DesktopLibraryMediaReuseUnavailableError } from '../desktop/project-library-media-reuse.ts';
 import {
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
@@ -232,11 +233,151 @@ test('same-content rebinding refuses a corrupt donor before linking or catalog p
 		sha256: digest(bytes),
 		reuseExistingBody: true,
 		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
-	}), /immutable SHA-256 descriptor/iu);
+	}), DesktopLibraryMediaReuseUnavailableError);
 
 	assert.equal(bodyReads, 0);
 	assert.deepEqual(fixture.metadata.media, [first]);
 	assert.equal(fixture.publications.length, 1);
+});
+
+test('unsupported hard-link reuse leaves the donor and catalog unchanged for upload fallback', async (context) => {
+	const fixture = await createFixture(context, { hardLink: async () => { throw linkError('EXDEV'); } });
+	const bytes = Uint8Array.of(2, 7, 1, 8);
+	const donor = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION, projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	let bodyReads = 0;
+
+	await assert.rejects(fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION + 1, projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), reuseExistingBody: true,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	}), DesktopLibraryMediaReuseUnavailableError);
+
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [donor]);
+	assert.deepEqual(await listFiles(fixture.root), [join(fixture.root, ...donor.relativeFile.split('/'))]);
+});
+
+test('same-content rebinding skips opaque catalog media before a valid donor', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(1, 1, 2, 3, 5, 8);
+	const donor = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION, projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	const opaque = Object.freeze({
+		id: 'managed-media-1',
+		relativeFile: 'legacy/managed-media-1.wav',
+		byteLength: 999,
+		sha256: 'f'.repeat(64),
+	});
+	fixture.metadata = validateDesktopLibraryMetadata({
+		schemaVersion: fixture.metadata.schemaVersion,
+		revision: fixture.metadata.revision + 1,
+		projects: fixture.metadata.projects,
+		media: [opaque, ...fixture.metadata.media],
+	});
+	let bodyReads = 0;
+
+	const rebound = await fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		reuseExistingBody: true,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	});
+
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [opaque, donor, rebound]);
+	const donorStat = await stat(join(fixture.root, ...donor.relativeFile.split('/')));
+	const reboundStat = await stat(join(fixture.root, ...rebound.relativeFile.split('/')));
+	assert.equal(reboundStat.ino, donorStat.ino);
+});
+
+test('same-content rebinding tries a healthy donor after a corrupt match', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(3, 1, 4, 1, 5, 9);
+	const corrupt = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION, projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	const healthy = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION + 1, projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	await writeFile(
+		join(fixture.root, ...corrupt.relativeFile.split('/')),
+		Uint8Array.of(9, 5, 1, 4, 1, 3),
+	);
+	let bodyReads = 0;
+
+	const rebound = await fixture.store.publishAudio({
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 2,
+		projectSha256: 'c'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		reuseExistingBody: true,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	});
+
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [corrupt, healthy, rebound]);
+	const healthyStat = await stat(join(fixture.root, ...healthy.relativeFile.split('/')));
+	const reboundStat = await stat(join(fixture.root, ...rebound.relativeFile.split('/')));
+	assert.equal(reboundStat.ino, healthyStat.ino);
+});
+
+test('a linked rebound survives catalog failure and publishes on retry without an upload', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(8, 13, 21, 34, 55);
+	const donor = await fixture.store.publishAudio({
+		projectId: PROJECT_ID, projectRevision: PROJECT_REVISION, projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY, byteLength: bytes.byteLength, sha256: digest(bytes), chunks: chunks(bytes),
+	});
+	const declaration = {
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION + 1,
+		projectSha256: 'b'.repeat(64),
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		reuseExistingBody: true,
+	};
+	const target = createDesktopLibraryAudioMediaBinding(
+		declaration.projectId,
+		declaration.storageKey,
+		declaration.projectRevision,
+		declaration.projectSha256,
+	);
+	let bodyReads = 0;
+	fixture.onPublish = async () => { throw new Error('simulated rebound catalog failure'); };
+
+	await assert.rejects(fixture.store.publishAudio({
+		...declaration,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	}), /simulated rebound catalog failure/iu);
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(fixture.metadata.media, [donor]);
+	const donorStat = await stat(join(fixture.root, ...donor.relativeFile.split('/')));
+	const stagedTargetStat = await stat(join(fixture.root, ...target.relativeFile.split('/')));
+	assert.equal(stagedTargetStat.ino, donorStat.ino);
+	fixture.onPublish = null;
+
+	const rebound = await fixture.store.publishAudio({
+		...declaration,
+		chunks: (async function* () { bodyReads += 1; yield bytes; })(),
+	});
+
+	assert.equal(bodyReads, 0);
+	assert.deepEqual(rebound, { ...target, byteLength: bytes.byteLength, sha256: digest(bytes) });
+	assert.deepEqual(fixture.metadata.media, [donor, rebound]);
 });
 
 test('the same managed-audio storage key is bound to its exact project revision and document digest', async (context) => {
@@ -370,7 +511,11 @@ interface Fixture {
 
 async function createFixture(
 	context: TestContext,
-	limits: Readonly<{ maximumChunkBytes?: number; maximumReadBytes?: number }> = {},
+	limits: Readonly<{
+		hardLink?: (existingPath: string, newPath: string) => Promise<void>;
+		maximumChunkBytes?: number;
+		maximumReadBytes?: number;
+	}> = {},
 ): Promise<Fixture> {
 	const root = await mkdtemp(join(tmpdir(), 'scape-library-media-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -429,6 +574,10 @@ async function* chunks(...values: readonly Uint8Array[]): AsyncGenerator<Uint8Ar
 
 function digest(bytes: Uint8Array): string {
 	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function linkError(code: string): Error & Readonly<{ code: string }> {
+	return Object.assign(new Error(`Injected hard-link ${code}`), { code });
 }
 
 function deferred<Value>() {
