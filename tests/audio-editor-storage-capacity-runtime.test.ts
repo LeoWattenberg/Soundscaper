@@ -26,6 +26,47 @@ test('controller cleanup delegates only to stale temporary/orphan cleanup', asyn
 	assert.equal(state.storageEstimate.cleanupStatus, 'complete');
 });
 
+test('controller capacity runtime exposes project preflights', async () => {
+	const state = { storageEstimate: createInitialStorageCapacitySnapshot() };
+	const service = createControllerStorageCapacityService({
+		store: {
+			estimateStorage: async () => ({ usage: 900, quota: 1_000 }),
+			getStatus: () => ({ backend: 'indexeddb' }),
+		},
+		state,
+		isInactive: () => false,
+		publish: () => undefined,
+		copy: copyFixture(),
+	});
+
+	await assert.rejects(service.preflightStorage(100, 'project'), /Project saving needs 100 B/u);
+	assert.equal(state.storageEstimate.lastPreflight?.operation, 'project');
+});
+
+test('controller project preflight treats memory fallback capacity as unknown', async () => {
+	let estimateCalls = 0;
+	const state = { storageEstimate: createInitialStorageCapacitySnapshot() };
+	const service = createControllerStorageCapacityService({
+		store: {
+			estimateStorage: async () => {
+				estimateCalls += 1;
+				return { usage: 900, quota: 1_000 };
+			},
+			getStatus: () => ({ backend: 'memory' }),
+		},
+		state,
+		isInactive: () => false,
+		publish: () => undefined,
+		copy: copyFixture(),
+	});
+
+	await assert.doesNotReject(service.preflightStorage(100, 'project'));
+	assert.equal(estimateCalls, 0);
+	assert.equal(state.storageEstimate.lastPreflight?.status, 'unknown');
+	await assert.rejects(service.preflightStorage(100, 'recording'), /Recording needs 100 B/u);
+	assert.equal(estimateCalls, 1);
+});
+
 test('controller cleanup is a no-op on the memory fallback', async () => {
 	let cleanupCalls = 0;
 	const state = { storageEstimate: createInitialStorageCapacitySnapshot() };
@@ -104,7 +145,8 @@ test('controller persistence stays unavailable when the project store uses memor
 function copyFixture() {
 	return {
 		storageOperationRecording: 'Recording', storageOperationExport: 'Export',
-		storageOperationEffect: 'Effect', storageOperationImport: 'Import',
+		storageOperationEffect: 'Effect', storageOperationProject: 'Project saving',
+		storageOperationImport: 'Import',
 		insufficientStorage: '{operation} needs {required}.',
 		formatBytes: (bytes: number) => `${bytes} B`,
 	};

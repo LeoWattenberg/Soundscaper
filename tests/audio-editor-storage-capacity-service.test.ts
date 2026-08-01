@@ -59,6 +59,10 @@ test('storage preflight publishes its requirement before estimating and records 
 	assert.equal(final.free, 100);
 	assert.equal(final.pressure, 'critical');
 	assert.equal(final.lastPreflight?.status, 'insufficient');
+	await assert.rejects(
+		service.preflightStorage(100, 'project'),
+		/Project saving needs 100 B/u,
+	);
 });
 
 test('storage preflight records ready and unknown quota outcomes', async () => {
@@ -506,6 +510,7 @@ function copyFixture() {
 		storageOperationRecording: 'Recording',
 		storageOperationExport: 'Export',
 		storageOperationEffect: 'Effect',
+		storageOperationProject: 'Project saving',
 		storageOperationImport: 'Import',
 		insufficientStorage: '{operation} needs {required}.',
 		formatBytes: (bytes: number) => `${bytes} B`,

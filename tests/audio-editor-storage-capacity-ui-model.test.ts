@@ -24,7 +24,7 @@ test('storage capacity UI model exposes all Web Core storage signals', () => {
 		lastDerivativeCleanupAt: null,
 		lastDerivativeCleanup: null,
 		lastPreflight: {
-			operation: 'import',
+			operation: 'project',
 			requiredBytes: 512 * 1024 ** 2,
 			requiredFreeBytes: 564 * 1024 ** 2,
 			status: 'ready',
@@ -40,7 +40,7 @@ test('storage capacity UI model exposes all Web Core storage signals', () => {
 	assert.equal(model.capacity, '8.0 GB used of 10.0 GB · 2.0 GB free');
 	assert.equal(model.backend, 'IndexedDB');
 	assert.equal(model.evictionProtection, 'Best effort; the browser may evict local data');
-	assert.equal(model.preflight, 'Import: 512.0 MB requested · 564.0 MB required free · Ready');
+	assert.equal(model.preflight, 'Project saving: 512.0 MB requested · 564.0 MB required free · Ready');
 	assert.equal(model.requestPersistenceDisabled, false);
 	assert.equal(model.cleanupDisabled, false);
 	assert.equal(model.derivativeCleanupDisabled, false);

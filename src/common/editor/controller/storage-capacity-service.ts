@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export type StorageOperation = 'recording' | 'export' | 'effect' | 'import';
+export type StorageOperation = 'recording' | 'export' | 'effect' | 'project' | 'import';
 export type StoragePressure = 'normal' | 'warning' | 'critical' | 'unknown';
 export type StorageEvictionProtection = 'granted' | 'best-effort' | 'unavailable' | 'unknown';
 export type StoragePreflightStatus = 'checking' | 'ready' | 'insufficient' | 'unknown';
@@ -47,13 +47,14 @@ export interface StorageCapacityCopy {
 	readonly storageOperationRecording: string;
 	readonly storageOperationExport: string;
 	readonly storageOperationEffect: string;
+	readonly storageOperationProject: string;
 	readonly storageOperationImport: string;
 	readonly insufficientStorage: string;
 	formatBytes(bytes: number): string;
 }
 
 export interface StorageCapacityServiceDependencies {
-	estimateStorage(): PromiseLike<unknown> | unknown;
+	estimateStorage(operation?: StorageOperation): PromiseLike<unknown> | unknown;
 	queryPersistentStorage?(): Promise<boolean | null>;
 	requestPersistentStorage?(): Promise<boolean>;
 	persistenceRequestAvailable?(): boolean;
@@ -145,7 +146,7 @@ export function createStorageCapacityService(
 		update({ lastPreflight: requirement });
 		let estimate: unknown;
 		try {
-			estimate = await awaitStorageEstimate(() => dependencies.estimateStorage(), signal);
+			estimate = await awaitStorageEstimate(() => dependencies.estimateStorage(operation), signal);
 			signal?.throwIfAborted();
 		} catch (error) {
 			const aborted = signal?.aborted === true;
@@ -286,6 +287,7 @@ export function createStorageCapacityService(
 		if (operation === 'recording') return dependencies.copy.storageOperationRecording;
 		if (operation === 'export') return dependencies.copy.storageOperationExport;
 		if (operation === 'effect') return dependencies.copy.storageOperationEffect;
+		if (operation === 'project') return dependencies.copy.storageOperationProject;
 		return dependencies.copy.storageOperationImport;
 	}
 }

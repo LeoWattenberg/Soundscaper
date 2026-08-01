@@ -434,7 +434,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy: {
 			storageOperationRecording: copy.storageOperationRecording,
 			storageOperationExport: copy.storageOperationExport,
-			storageOperationEffect: copy.storageOperationEffect,
+			storageOperationEffect: copy.storageOperationEffect, storageOperationProject: copy.storageOperationProject,
 			storageOperationImport: copy.storageOperationImport,
 			insufficientStorage: copy.insufficientStorage,
 			formatBytes,
@@ -616,7 +616,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
 		isReadOnly: () => state.readOnly,
-		cloneProject,
+		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'),
 		saveProject: (snapshot) => store.saveProject(snapshot),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);

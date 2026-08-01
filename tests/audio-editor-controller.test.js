@@ -3055,6 +3055,7 @@ test('a queued project lock promotes the existing read-only controller without p
 
 test('project flush serializes the latest snapshot and rejects persistence failures', async () => {
 	const store = createMemoryStore();
+	store.getStatus = () => ({ state: 'indexeddb', backend: 'indexeddb', persistent: true, ephemeral: false, degradedReason: null });
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,
@@ -3075,7 +3076,6 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 		store.projects.set(project.id, structuredClone(project));
 		return structuredClone(project);
 	};
-
 	controller.actions.track.update(trackId, { name: 'First pending name' });
 	const pendingFlush = controller.actions.project.flush();
 	await Promise.resolve();
@@ -3085,7 +3085,7 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 	await Promise.all([pendingFlush, latestFlush]);
 	assert.deepEqual(persistedNames, ['First pending name', 'Latest name']);
 	assert.equal(store.projects.get(controller.getSnapshot().project.id).tracks[0].name, 'Latest name');
-
+	assert.equal(controller.getSnapshot().storage.lastPreflight.operation, 'project');
 	store.saveProject = async () => { throw new Error('disk full'); };
 	controller.actions.track.update(trackId, { name: 'Cannot persist' });
 	await assert.rejects(() => controller.actions.project.flush(), /disk full/);

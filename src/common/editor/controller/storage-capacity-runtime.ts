@@ -36,7 +36,10 @@ interface StorageCapacityRuntimeOptions {
 export function createControllerStorageCapacityService(options: StorageCapacityRuntimeOptions) {
 	const { store } = options;
 	return createStorageCapacityService({
-		estimateStorage: () => store.estimateStorage(),
+		estimateStorage: (operation) => operation === 'project'
+			&& store.getStatus?.().backend !== 'indexeddb'
+			? { usage: null, quota: null }
+			: store.estimateStorage(),
 		queryPersistentStorage: async () => store.getStatus?.().backend === 'indexeddb'
 			? store.queryPersistentStorage?.() ?? null
 			: null,
