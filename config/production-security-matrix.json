@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-30",
+	"groundedAt": "2026-08-01",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -1731,6 +1731,22 @@
 						{ "kind": "test", "path": "tests/helpers/desktop-direct-bw64-file-evidence.js" },
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
+				},
+				{
+					"id": "serialized-staffpad-clip-render-admission",
+					"summary": "The StaffPad clip-cache coordinator applies a non-raiseable 256 MiB useful-binary ceiling with a lower-only test seam. Checked arithmetic charges the full source in the first phase: one input copy for transferred forward input, but borrowed or reverse input requires two. Each sequential phase also charges complete client output, cumulative transferred output, the audited 64 MiB StaffPad WASM maximum, one bounded chunk accumulator, and one maximum WASM read block. Tight backing validation prevents a small typed-array view from hiding a larger cloned or transferred buffer. The coordinator serializes distinct render jobs before quota inspection, source loading, worker dispatch, or writer creation; a queued job whose last subscriber aborts never loads or renders. Exact render jobs deduplicate without weakening subscriber-scoped cancellation.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/clip-time-pitch-render-admission.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/clip-time-pitch-cache.js" },
+						{ "kind": "implementation", "path": "src/common/editor/staffpad/parameters.js" },
+						{ "kind": "implementation", "path": "src/common/editor/staffpad/client.js" },
+						{ "kind": "implementation", "path": "src/common/editor/staffpad/worker.js" },
+						{ "kind": "implementation", "path": "src/common/editor/staffpad/runtime.js" },
+						{ "kind": "document", "path": "src/common/editor/staffpad/source-manifest.json" },
+						{ "kind": "test", "path": "tests/audio-editor-clip-time-pitch-render-admission.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-clip-time-pitch-cache.test.js" },
+						{ "kind": "audit", "path": "scripts/audit-staffpad-wasm.mjs" }
+					]
 				}
 			],
 			"residualRisks": [
@@ -1747,6 +1763,13 @@
 					"requiredControl": "Expose cancel for long project operations and bind teardown to navigation, renderer destruction, and application shutdown.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["Browser and desktop workflow tests cancel an active import/export and verify prompt, recoverable return to the editor."]
+				},
+				{
+					"id": "render-worker-resident-set-accounting",
+					"exposure": "StaffPad clip-cache useful-binary accounting is not a bound on browser heap, process RSS, or GC headroom. Its queue is coordinator-local rather than a product-wide reservation, so another coordinator or renderer can overlap it. Source/cache residency, permanent AudioBuffer and channel snapshots, message objects, persistence buffers, and runtime overhead can be additive. Other render paths—including whole OfflineAudioContext rendering, realtime capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native hosts—remain outside this control. Genuine editorial video proxies remain future work without a pre-encode admission maximum; thumbnail derivatives are not editorial proxies.",
+					"requiredControl": "Establish end-to-end per-job and aggregate browser, worker, and renderer RSS limits with measured heap and GC headroom across maintained render paths, plus a format-aware pre-encode maximum for genuine editorial video proxies.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": ["Browser and desktop reference workloads prove pre-allocation refusal and bounded browser, worker, and renderer resident sets for every maintained render path and editorial proxy build."]
 				}
 			]
 		},

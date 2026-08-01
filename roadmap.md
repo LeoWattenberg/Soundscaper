@@ -1093,10 +1093,39 @@ models or native implementations.
   StaffPad work. Browser-defined IndexedDB record/key overhead, OPFS allocation
   units, quota-estimate lag and concurrent writers remain outside this binary
   payload scope; the capacity service's headroom and transactional quota
-  rollback remain necessary. Current render resident/worker memory, a genuine
-  pre-encode proxy maximum, and whole-process resident-set evidence remain open;
-  the direct `.scape` publication maximum and browser-download final-Blob bound
-  are covered above.
+  rollback remain necessary. StaffPad clip-cache work now has a separate
+  strict-TS [render admission owner](src/common/editor/clip-time-pitch-render-admission.ts).
+  Before quota inspection, source loading, worker dispatch, or writer creation,
+  it applies checked arithmetic and a non-raiseable 256 MiB ceiling to the peak
+  enumerated useful-binary phase. The first phase charges the complete source,
+  not only the clip range: one input copy for transferred forward input or two
+  for borrowed/reversed input. Every sequential phase also charges its complete
+  client output, up to one output again in transferred chunks, one bounded
+  accumulator chunk, one maximum 65,536-frame WASM read block, and the audited
+  64 MiB StaffPad linear-memory maximum. The coordinator serializes distinct
+  render jobs before source loading, worker dispatch, or writer creation.
+  Exact-key callers still share one job, while a queued job cancelled by its
+  last subscriber never reaches the loader or worker. Tight planar-array backing
+  checks keep clone/transfer bytes equal to the charged geometry. The
+  focused [admission](tests/audio-editor-clip-time-pitch-render-admission.test.ts)
+  and [coordinator](tests/audio-editor-clip-time-pitch-cache.test.js) regressions
+  pin the manifest memory maximum, exact ceiling, overflow rejection, ownership
+  cases, serialized execution, and queued cancellation.
+
+  This narrow useful-binary bound is not a browser heap, whole-process RSS, or
+  GC-headroom claim, and its queue is coordinator-local rather than a
+  product-wide reservation. Another coordinator or renderer can overlap it.
+  The source cache, committed 32 MiB planar LRU, permanent render controller's
+  `AudioBuffer` and channel snapshots, browser clone/message objects,
+  persistence buffers, and runtime overhead can be additive.
+  Other render paths—including whole `OfflineAudioContext` renders, realtime
+  capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native
+  hosts—remain outside it.
+  Genuine editorial video proxies remain future work,
+  including a pre-encode maximum; current thumbnail derivatives are not
+  editorial proxies. End-to-end browser/worker/renderer resident-set evidence
+  also remains open; the direct `.scape` publication maximum and
+  browser-download final-Blob bound are covered above.
 
   Canonical project-publication admission now applies at the maintained
   `AudioEditorProjectStore.saveProject` facade. The strict-TS

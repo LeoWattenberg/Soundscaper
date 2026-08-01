@@ -3,7 +3,7 @@
 This document records the production security baseline for Soundscaper's local-first Web and Electron editor. The machine-readable control register is
 [`config/production-security-matrix.json`](../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
 
-The model is grounded on 2026-07-31. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-08-01. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## Meaning of the statuses
 
@@ -215,6 +215,27 @@ ignores its signal can still consume resources after that timeout and retains
 its capacity charge until settlement. The coordinator does not claim to
 force-terminate or sandbox third-party provider code; stricter provider gating
 remains deferred.
+The StaffPad clip-cache coordinator has a narrower resource control. It
+serializes distinct render jobs before source loading, worker dispatch, or
+writer creation; exact-key callers deduplicate, and a queued job cancelled by
+its last subscriber starts no PCM work. Each admitted render has a non-raiseable 256 MiB
+useful-binary upper bound. Checked arithmetic covers complete source ownership
+or cloning, full client output, cumulative transferred chunks, the accumulator
+and maximum WASM read block, and the audited 64 MiB StaffPad linear-memory
+maximum. Tight planar-array backing validation prevents a small view from
+hiding a larger cloned or transferred buffer.
+
+That admission is not a browser heap, process RSS, GC-headroom, or general
+renderer limit. Its queue is coordinator-local rather than a product-wide
+reservation, so another coordinator or renderer can overlap it. Source/cache
+residency, permanent `AudioBuffer` and channel snapshots, message objects,
+persistence buffers, and runtime overhead can be additive.
+Other render paths—including whole `OfflineAudioContext` rendering, realtime
+capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native
+hosts—remain unqualified.
+Genuine editorial video proxies remain future work,
+including a pre-encode admission maximum; thumbnail derivatives are not
+editorial proxies.
 The bounded desktop materializer now forwards a supplied signal, destroys the
 protocol stream, and releases its capability on abort, but current desktop open
 and import orchestration does not consistently own or provide that signal.
