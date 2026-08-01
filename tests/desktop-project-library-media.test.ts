@@ -217,7 +217,7 @@ test('the same managed-audio storage key is bound to its exact project revision 
 	assert.deepEqual(await fixture.store.read(third.id, { offset: 0, length: 4 }), recreated);
 });
 
-test('a complete body survives catalog failure and is reused without consuming the retry stream', async (context) => {
+test('a complete body survives catalog failure and is reused after validating the retry stream', async (context) => {
 	const fixture = await createFixture(context);
 	const bytes = Uint8Array.of(11, 22, 33, 44);
 	const declaration = {
@@ -242,10 +242,10 @@ test('a complete body survives catalog failure and is reused without consuming t
 		...declaration,
 		chunks: (async function* () {
 			retryReads += 1;
-			throw new Error('a complete orphan retry must not consume its body');
+			yield bytes;
 		})(),
 	});
-	assert.equal(retryReads, 0);
+	assert.equal(retryReads, 1);
 	assert.deepEqual(fixture.metadata.media, [descriptor]);
 	assert.equal(fixture.publications.length, 1);
 });

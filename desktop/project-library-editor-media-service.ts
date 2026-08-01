@@ -93,6 +93,7 @@ interface UploadSession {
 	readonly operation: Promise<DesktopSharedManagedSourceDescriptor>;
 	readonly source: ManagedAudioSource;
 	readonly sha256: string;
+	state: 'aborting' | 'finishing' | 'open';
 	written: number;
 }
 
@@ -198,7 +199,7 @@ export class DesktopSharedProjectMediaService {
 				signal,
 			}).then((media) => managedSourceDescriptor(source, media, canonicalBytes));
 			const session: UploadSession = {
-				id, input, operation, source, sha256: request.sha256, written: 0,
+				id, input, operation, source, sha256: request.sha256, state: 'open', written: 0,
 			};
 			this.#sessions.set(id, session);
 			retainedSlot = true;
@@ -233,24 +234,36 @@ export class DesktopSharedProjectMediaService {
 		const session = this.#session(value.writeId);
 		const sha256 = digest(value.sha256);
 		if (sha256 !== session.sha256) {
+			session.state = 'aborting';
 			session.input.fail(new Error('Desktop shared-source changed while it was being transferred'));
-			this.#deleteSession(session.id);
-			await session.operation.catch(() => undefined);
+			try {
+				await session.operation.catch(() => undefined);
+			} finally {
+				this.#deleteSession(session.id);
+			}
 			throw new Error('Desktop shared-source changed while it was being transferred');
 		}
 		session.input.finish();
-		this.#deleteSession(session.id);
-		return session.operation;
+		session.state = 'finishing';
+		try {
+			return await session.operation;
+		} finally {
+			this.#deleteSession(session.id);
+		}
 	}
 
 	async abortSourceWrite(writeId: string): Promise<boolean> {
 		const id = validWriteId(writeId);
 		const session = this.#sessions.get(id);
-		if (!session) return false;
-		this.#deleteSession(id);
+		if (!session || session.state !== 'open') return false;
+		session.state = 'aborting';
 		session.input.fail(new Error('Desktop shared-source write was aborted'));
-		await session.operation.catch(() => undefined);
-		return true;
+		try {
+			await session.operation.catch(() => undefined);
+			return true;
+		} finally {
+			this.#deleteSession(id);
+		}
 	}
 
 	async readSourceChunk(
@@ -274,10 +287,11 @@ export class DesktopSharedProjectMediaService {
 		this.#disposed = true;
 		const sessions = [...this.#sessions.values()];
 		for (const session of sessions) {
-			this.#deleteSession(session.id);
+			if (session.state === 'open') session.state = 'aborting';
 			session.input.fail(new Error('Desktop shared-source service was disposed'));
 		}
 		await Promise.allSettled(sessions.map(({ operation }) => operation));
+		for (const session of sessions) this.#deleteSession(session.id);
 	}
 
 	#deleteSession(id: string): boolean {
@@ -288,7 +302,9 @@ export class DesktopSharedProjectMediaService {
 
 	#session(value: unknown): UploadSession {
 		const session = this.#sessions.get(validWriteId(value));
-		if (!session) throw new Error('Unknown desktop shared-source write session');
+		if (!session || session.state !== 'open') {
+			throw new Error('Unknown desktop shared-source write session');
+		}
 		return session;
 	}
 

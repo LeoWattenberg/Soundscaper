@@ -198,10 +198,7 @@ export class DesktopLibraryManagedMediaStore {
 		const finalPath = this.#pathFor(descriptor.relativeFile);
 		const directory = dirname(finalPath);
 		await this.#prepareDirectory(directory);
-		if (await pathExists(finalPath)) {
-			await this.#verifyBody(descriptor, signal);
-			return;
-		}
+		if (await pathExists(finalPath)) await this.#verifyBody(descriptor, signal);
 		const stageId = this.#randomId();
 		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
 		const stagePath = join(directory, `.${descriptor.id}.${stageId}.stage`);
