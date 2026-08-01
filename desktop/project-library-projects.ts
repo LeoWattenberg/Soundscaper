@@ -20,6 +20,7 @@ import {
 	MAX_LIBRARY_PROJECT_ID_BYTES,
 	type DesktopLibraryLease,
 	type DesktopLibraryMetadata,
+	type DesktopLibraryMedia,
 	type DesktopLibraryProduct,
 	type DesktopLibraryProject,
 	validateDesktopLibraryMetadata,
@@ -57,6 +58,10 @@ export interface DesktopLibraryDeleteProjectByIdOptions {
 export interface DesktopLibraryLoadedProject {
 	readonly catalog: DesktopLibraryProject;
 	readonly project: Readonly<Record<string, unknown>>;
+}
+
+export interface DesktopLibraryLoadedProjectBundle extends DesktopLibraryLoadedProject {
+	readonly media: readonly DesktopLibraryMedia[];
 }
 
 interface CurrentProjectRoot extends Record<string, unknown> {
@@ -111,6 +116,18 @@ export class DesktopLibraryProjectStore {
 		if (!catalog) return null;
 		const project = await this.#readDocument(catalog, signal);
 		return freezeLoadedProject(catalog, project);
+	}
+
+	async readProjectBundleById(
+		projectId: string,
+		signal?: AbortSignal,
+	): Promise<DesktopLibraryLoadedProjectBundle | null> {
+		throwIfAborted(signal);
+		const metadata = this.#library.readMetadata();
+		const catalog = projectByIdentity(metadata, projectId);
+		if (!catalog) return null;
+		const project = await this.#readDocument(catalog, signal);
+		return Object.freeze({ catalog, project, media: metadata.media });
 	}
 
 	async commitProject(options: DesktopLibraryCommitProjectOptions): Promise<DesktopLibraryLoadedProject> {

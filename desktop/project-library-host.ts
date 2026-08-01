@@ -11,8 +11,14 @@ import {
 	type DesktopLibraryCommitProjectOptions,
 	type DesktopLibraryDeleteProjectByIdOptions,
 	type DesktopLibraryLoadedProject,
+	type DesktopLibraryLoadedProjectBundle,
 	DesktopLibraryProjectStore,
 } from './project-library-projects.ts';
+import {
+	type DesktopLibraryManagedMediaReadOptions,
+	type DesktopLibraryPublishAudioOptions,
+	DesktopLibraryManagedMediaStore,
+} from './project-library-media.ts';
 import {
 	SharedDesktopProjectLibrary,
 } from './project-library.ts';
@@ -46,6 +52,10 @@ export interface DesktopProjectLibraryHostSnapshot {
 export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitProjectOptions, 'lease'>;
 export type DesktopProjectLibraryHostCommitByIdOptions = Omit<DesktopLibraryCommitProjectByIdOptions, 'lease'>;
 export type DesktopProjectLibraryHostDeleteByIdOptions = Omit<DesktopLibraryDeleteProjectByIdOptions, 'lease'>;
+export interface DesktopProjectLibraryHostPublishAudioOptions
+	extends Omit<DesktopLibraryPublishAudioOptions, 'projectRevision'> {
+	readonly expectedProjectRevision: number;
+}
 
 /** Owns the shared library only inside the Electron main process. */
 export class DesktopProjectLibraryHost {
@@ -57,6 +67,7 @@ export class DesktopProjectLibraryHost {
 	#onLeaseLost: (error: unknown) => void;
 	#operations = new Set<Promise<unknown>>();
 	#projectMutationTail: Promise<void> = Promise.resolve();
+	#media: DesktopLibraryManagedMediaStore;
 	#projects: DesktopLibraryProjectStore;
 	#reclamation: DesktopLibraryProjectReclamationResult | null = null;
 	#recovery: DesktopLibraryRecoveryResult;
@@ -71,8 +82,19 @@ export class DesktopProjectLibraryHost {
 		options: DesktopProjectLibraryHostOptions,
 	) {
 		this.#library = library;
-		this.#projects = new DesktopLibraryProjectStore(library);
 		this.#lease = lease;
+		this.#projects = new DesktopLibraryProjectStore(library);
+		this.#media = new DesktopLibraryManagedMediaStore({
+			managedMediaRoot: library.paths.managedMediaRoot,
+			catalog: {
+				readMetadata: () => library.readMetadata(),
+				publishMetadata: (metadata, signal) => library.publishMetadata({
+					lease: this.#lease,
+					metadata,
+					signal,
+				}),
+			},
+		});
 		this.#recovery = recovery;
 		this.#leaseTtlMs = options.leaseTtlMs ?? DEFAULT_LEASE_TTL_MS;
 		this.#onLeaseLost = options.onLeaseLost ?? (() => {});
@@ -142,6 +164,17 @@ export class DesktopProjectLibraryHost {
 		return this.#admit(() => this.#projects.readProjectById(projectId, signal));
 	}
 
+	readProjectBundleById(projectId: string, signal?: AbortSignal): Promise<DesktopLibraryLoadedProjectBundle | null> {
+		return this.#admit(() => this.#projects.readProjectBundleById(projectId, signal));
+	}
+
+	readManagedMedia(
+		bindingId: string,
+		options: DesktopLibraryManagedMediaReadOptions,
+	): Promise<Uint8Array> {
+		return this.#admit(() => this.#media.read(bindingId, options));
+	}
+
 	commitProject(options: DesktopProjectLibraryHostCommitOptions): Promise<DesktopLibraryLoadedProject> {
 		return this.#mutateProject(() => this.#projects.commitProject({ ...options, lease: this.#lease }));
 	}
@@ -152,6 +185,22 @@ export class DesktopProjectLibraryHost {
 
 	deleteProjectById(options: DesktopProjectLibraryHostDeleteByIdOptions): Promise<boolean> {
 		return this.#mutateProject(() => this.#projects.deleteProjectById({ ...options, lease: this.#lease }));
+	}
+
+	publishManagedAudio(options: DesktopProjectLibraryHostPublishAudioOptions) {
+		return this.#mutateProject(async () => {
+			this.#library.assertLease(this.#lease);
+			const loaded = await this.#projects.readProjectById(options.projectId, options.signal);
+			if (!loaded) throw new Error('Desktop shared project is unavailable for managed-media publication');
+			if (loaded.catalog.projectRevision !== options.expectedProjectRevision) {
+				throw new Error('Desktop shared project changed during managed-media preparation');
+			}
+			const { expectedProjectRevision: _expectedProjectRevision, ...publication } = options;
+			return this.#media.publishAudio({
+				...publication,
+				projectRevision: options.expectedProjectRevision,
+			});
+		});
 	}
 
 	close(): Promise<void> {

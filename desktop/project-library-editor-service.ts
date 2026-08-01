@@ -11,6 +11,15 @@ import {
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import type { DesktopLibraryLoadedProject } from './project-library-projects.ts';
 import {
+	DesktopSharedProjectMediaService,
+	type DesktopSharedProjectBundle,
+	type DesktopSharedSourceChunkWrite,
+	type DesktopSharedSourceWriteAdmission,
+	type DesktopSharedSourceWriteCompletion,
+	type DesktopSharedSourceWriteDeclaration,
+	type DesktopSharedManagedSourceDescriptor,
+} from './project-library-editor-media-service.ts';
+import {
 	parseScapeProjectDocument,
 	resolveScapeProjectBinaryLimits,
 	type ScapeProjectBinaryLimits,
@@ -29,6 +38,7 @@ export interface DesktopSharedProjectDescriptor {
 
 export interface DesktopSharedProjectLibraryServiceOptions {
 	readonly createEntryId?: () => string;
+	readonly createWriteId?: () => string;
 	readonly documentLimits?: Partial<ScapeProjectBinaryLimits>;
 	readonly now?: () => number;
 }
@@ -43,8 +53,11 @@ interface CurrentDesktopProjectRoot extends Record<string, unknown> {
 type DesktopSharedProjectLibraryHost = Pick<DesktopProjectLibraryHost,
 	'commitProjectById'
 	| 'deleteProjectById'
+	| 'publishManagedAudio'
 	| 'readCatalog'
+	| 'readManagedMedia'
 	| 'readProjectById'
+	| 'readProjectBundleById'
 	| 'snapshot'>;
 
 /**
@@ -57,6 +70,7 @@ export class DesktopSharedProjectLibraryService {
 	#createEntryId: () => string;
 	#documentLimits: Readonly<ScapeProjectBinaryLimits>;
 	#host: DesktopSharedProjectLibraryHost;
+	#media: DesktopSharedProjectMediaService;
 	#now: () => number;
 
 	constructor(
@@ -65,6 +79,7 @@ export class DesktopSharedProjectLibraryService {
 	) {
 		assertHost(host);
 		this.#host = host;
+		this.#media = new DesktopSharedProjectMediaService(host, { randomId: options.createWriteId });
 		this.#createEntryId = options.createEntryId ?? (() => `p${randomBytes(18).toString('base64url')}`);
 		this.#documentLimits = resolveScapeProjectBinaryLimits(options.documentLimits ?? {});
 		this.#now = options.now ?? Date.now;
@@ -78,6 +93,42 @@ export class DesktopSharedProjectLibraryService {
 		const loaded = await this.#host.readProjectById(projectId, signal);
 		if (!loaded) return null;
 		return canonicalLoadedProject(loaded, this.#documentLimits);
+	}
+
+	readSharedProjectBundle(projectId: string, signal?: AbortSignal): Promise<DesktopSharedProjectBundle | null> {
+		return this.#media.readProjectBundle(projectId, signal);
+	}
+
+	beginSharedSourceWrite(
+		declaration: DesktopSharedSourceWriteDeclaration,
+		signal?: AbortSignal,
+	): Promise<DesktopSharedSourceWriteAdmission> {
+		return this.#media.beginSourceWrite(declaration, signal);
+	}
+
+	writeSharedSourceChunk(value: DesktopSharedSourceChunkWrite) {
+		return this.#media.writeSourceChunk(value);
+	}
+
+	finishSharedSourceWrite(
+		value: DesktopSharedSourceWriteCompletion,
+	): Promise<DesktopSharedManagedSourceDescriptor> {
+		return this.#media.finishSourceWrite(value);
+	}
+
+	abortSharedSourceWrite(writeId: string): Promise<boolean> {
+		return this.#media.abortSourceWrite(writeId);
+	}
+
+	readSharedSourceChunk(
+		bindingId: string,
+		options: Readonly<{ offset: number; length: number; signal?: AbortSignal }>,
+	): Promise<Uint8Array> {
+		return this.#media.readSourceChunk(bindingId, options);
+	}
+
+	dispose(): Promise<void> {
+		return this.#media.dispose();
 	}
 
 	async commitSharedProject(canonicalDocument: string, signal?: AbortSignal): Promise<string> {
@@ -200,8 +251,11 @@ function assertHost(value: DesktopSharedProjectLibraryHost): void {
 	for (const method of [
 		'commitProjectById',
 		'deleteProjectById',
+		'publishManagedAudio',
 		'readCatalog',
+		'readManagedMedia',
 		'readProjectById',
+		'readProjectBundleById',
 		'snapshot',
 	] as const) {
 		if (typeof value[method] !== 'function') {

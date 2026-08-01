@@ -108,8 +108,11 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 	const service = new DesktopSharedProjectLibraryService({
 		commitProjectById: (options) => { commitCalls += 1; return host.commitProjectById(options); },
 		deleteProjectById: (options) => host.deleteProjectById(options),
+		publishManagedAudio: (options) => host.publishManagedAudio(options),
 		readCatalog: () => host.readCatalog(),
+		readManagedMedia: (bindingId, options) => host.readManagedMedia(bindingId, options),
 		readProjectById: (projectId, signal) => host.readProjectById(projectId, signal),
+		readProjectBundleById: (projectId, signal) => host.readProjectBundleById(projectId, signal),
 		snapshot: () => host.snapshot(),
 	}, {
 		now: () => 10_000,
@@ -184,8 +187,11 @@ test('editor service rejects a domain-invalid host commit result before returnin
 			return { ...loaded, project: { ...loaded.project, sources: {} } };
 		},
 		deleteProjectById: (options) => host.deleteProjectById(options),
+		publishManagedAudio: (options) => host.publishManagedAudio(options),
 		readCatalog: () => host.readCatalog(),
+		readManagedMedia: (bindingId, options) => host.readManagedMedia(bindingId, options),
 		readProjectById: (projectId, signal) => host.readProjectById(projectId, signal),
+		readProjectBundleById: (projectId, signal) => host.readProjectBundleById(projectId, signal),
 		snapshot: () => host.snapshot(),
 	}, {
 		now: () => 10_000,
@@ -241,11 +247,14 @@ test('editor service applies lower-only structural budgets before host mutation 
 			return { ...loaded, project: wideProject };
 		},
 		deleteProjectById: (options: Parameters<typeof host.deleteProjectById>[0]) => host.deleteProjectById(options),
+		publishManagedAudio: (options: Parameters<typeof host.publishManagedAudio>[0]) => host.publishManagedAudio(options),
 		readCatalog: () => host.readCatalog(),
+		readManagedMedia: (...args: Parameters<typeof host.readManagedMedia>) => host.readManagedMedia(...args),
 		readProjectById: async (projectId: string, signal?: AbortSignal) => {
 			const loaded = await host.readProjectById(projectId, signal);
 			return loaded ? { ...loaded, project: deepProject } : null;
 		},
+		readProjectBundleById: (projectId: string, signal?: AbortSignal) => host.readProjectBundleById(projectId, signal),
 		snapshot: () => host.snapshot(),
 	};
 	const service = new DesktopSharedProjectLibraryService(boundedHost, {
@@ -317,11 +326,14 @@ test('editor service rejects loaded accessors without activating them', async (c
 			return { ...loaded, project: accessorProject() };
 		},
 		deleteProjectById: (options: Parameters<typeof host.deleteProjectById>[0]) => host.deleteProjectById(options),
+		publishManagedAudio: (options: Parameters<typeof host.publishManagedAudio>[0]) => host.publishManagedAudio(options),
 		readCatalog: () => host.readCatalog(),
+		readManagedMedia: (...args: Parameters<typeof host.readManagedMedia>) => host.readManagedMedia(...args),
 		readProjectById: async (projectId: string, signal?: AbortSignal) => {
 			const loaded = await host.readProjectById(projectId, signal);
 			return loaded ? { ...loaded, project: accessorProject() } : null;
 		},
+		readProjectBundleById: (projectId: string, signal?: AbortSignal) => host.readProjectBundleById(projectId, signal),
 		snapshot: () => host.snapshot(),
 	};
 	const service = new DesktopSharedProjectLibraryService(guardedHost, {
