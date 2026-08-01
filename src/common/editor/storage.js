@@ -87,6 +87,12 @@ export class AudioEditorProjectStore {
 					getMediaAssetMetadata: (sourceId) => repositories.media.getAssetMetadata(sourceId),
 					loadMediaAsset: (sourceId, loadOptions) => repositories.media.loadAsset(sourceId, loadOptions),
 				},
+				sourceTransfer: {
+					getSourceMetadata: (sourceId) => repositories.sources.getMetadata(sourceId),
+					readSourceChunks: (sourceId, readOptions) => repositories.sources.chunks(sourceId, readOptions),
+					beginSourceWrite: (sourceId, metadata) => repositories.sources.beginWrite(sourceId, metadata),
+					discardSourceIfCurrent: (source) => repositories.sources.discardIfCurrent(source),
+				},
 				onLocalCleanupError: onDesktopSharedProjectLocalCleanupError,
 			})
 			: repositories.projects;
@@ -143,6 +149,11 @@ export class AudioEditorProjectStore {
 
 	async deleteProject(projectId) {
 		return this.projectRepository.delete(projectId);
+	}
+
+	async prepareProjectHandoff(project, { signal } = {}) {
+		if (!(this.projectRepository instanceof DesktopSharedProjectRepository)) return Object.freeze([]);
+		return this.projectRepository.prepareHandoff(project, signal);
 	}
 
 	preservesProjectsOnClear() {
@@ -293,6 +304,10 @@ export class AudioEditorProjectStore {
 
 	async deleteSource(sourceId) {
 		return this.sourceRepository.delete(sourceId);
+	}
+
+	async discardSourceIfCurrent(source) {
+		return this.sourceRepository.discardIfCurrent(source);
 	}
 
 	/** Delete source data unreachable from durable and caller-provided roots. */

@@ -86,6 +86,12 @@ export class SourceRepository {
 		}
 	}
 
+	async discardIfCurrent(source: StorageRecord): Promise<boolean> {
+		if (!await this.#options.records.deleteMetadataIfCurrent(source)) return false;
+		await this.deleteStored(source);
+		return true;
+	}
+
 	async deleteStored(source: StorageRecord): Promise<void> {
 		if (isOpfsPcmStorage(source.storage) && source.path) {
 			await this.#options.opfs.deletePath(source.path);

@@ -22,7 +22,9 @@ function createFixture() {
 	let duplicateCalls = 0;
 	let openCalls = 0;
 	let releaseCalls = 0;
+	const handoffCalls: string[] = [];
 	let flush: () => Promise<void> = async () => undefined;
+	let prepareHandoff: () => Promise<void> = async () => undefined;
 	const sourceBuffers = new Map<string, unknown>();
 	const sourceChunkProviders = new Map<string, unknown>();
 	const sourcePeaks = new Map<string, unknown>();
@@ -64,7 +66,10 @@ function createFixture() {
 		projectSessionService: { clearRecentProjects: async () => [] },
 		publishDocumentSnapshot: noop,
 		recordingRoutingSettingKey: (id) => `routing:${id}`,
-		releaseProjectLock: async () => { releaseCalls += 1; },
+		releaseProjectLock: async () => {
+			handoffCalls.push('release');
+			releaseCalls += 1;
+		},
 		revokeVideoVisuals: noop,
 		saveNow: () => save.promise,
 		scheduleTimer: () => 1,
@@ -87,6 +92,10 @@ function createFixture() {
 				return { id: 'copy', title: 'Copy', revision: 1 };
 			},
 			async listProjects() { return []; },
+			async prepareProjectHandoff() {
+				handoffCalls.push('prepare');
+				await prepareHandoff();
+			},
 		},
 		switchProject: async () => undefined,
 	};
@@ -96,8 +105,10 @@ function createFixture() {
 		duplicateCalls: () => duplicateCalls,
 		openCalls: () => openCalls,
 		releaseCalls: () => releaseCalls,
+		handoffCalls,
 		replaceProject() { project = { id: 'project-b', title: 'Project B', revision: 1 }; },
 		setFlush(value: () => Promise<void>) { flush = value; },
+		setPrepareHandoff(value: () => Promise<void>) { prepareHandoff = value; },
 	};
 }
 
@@ -118,10 +129,21 @@ test('handoff checks project ownership again after its flush', async () => {
 	assert.equal(fixture.releaseCalls(), 0);
 });
 
-test('handoff returns a frozen identity only after flush and lock release', async () => {
+test('handoff prepares durable media before lock release and returns a frozen identity', async () => {
 	const fixture = createFixture();
 	const handoff = await fixture.service.prepareProjectHandoff();
 	assert.deepEqual(handoff, { projectId: 'project-a', revision: 3 });
 	assert.equal(Object.isFrozen(handoff), true);
 	assert.equal(fixture.releaseCalls(), 1);
+	assert.deepEqual(fixture.handoffCalls, ['prepare', 'release']);
+});
+
+test('handoff preparation failure retains the shared project lock', async () => {
+	const fixture = createFixture();
+	const failure = new Error('managed media publication failed');
+	fixture.setPrepareHandoff(async () => { throw failure; });
+
+	await assert.rejects(() => fixture.service.prepareProjectHandoff(), (error) => error === failure);
+	assert.equal(fixture.releaseCalls(), 0);
+	assert.deepEqual(fixture.handoffCalls, ['prepare']);
 });

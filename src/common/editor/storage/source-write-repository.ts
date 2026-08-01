@@ -31,7 +31,7 @@ export interface AudioSourceWriter {
 	write(inputChannels: unknown, options?: { readonly signal?: AbortSignal }): Promise<void>;
 	commit(
 		extraMetadata?: Record<string, unknown>,
-		options?: { readonly signal?: AbortSignal },
+		options?: { readonly signal?: AbortSignal; readonly ifAbsent?: boolean },
 	): Promise<StorageRecord>;
 	abort(): Promise<void>;
 }
@@ -159,7 +159,7 @@ export class SourceWriteRepository {
 				if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
 				else rawChunkCount += 1;
 			},
-			async commit(extraMetadata = {}, { signal } = {}) {
+			async commit(extraMetadata = {}, { signal, ifAbsent = false } = {}) {
 				throwIfAborted(signal);
 				if (state !== 'open') throw new Error('The source writer is closed.');
 				if (!chunkIndex || !channelCount || !totalFrames) {
@@ -184,9 +184,9 @@ export class SourceWriteRepository {
 				let previous: StorageRecord | null;
 				let writerStatistics: Record<string, unknown> | null;
 				try {
-					await options.migrations.cancel(sourceId);
+					if (!ifAbsent) await options.migrations.cancel(sourceId);
 					throwIfAborted(signal);
-					previous = await options.records.getMetadata(sourceId);
+					previous = ifAbsent ? null : await options.records.getMetadata(sourceId);
 					throwIfAborted(signal);
 					writerStatistics = opfsWriter ? await opfsWriter.close() : null;
 					throwIfAborted(signal);
@@ -223,21 +223,26 @@ export class SourceWriteRepository {
 					committedAt: new Date().toISOString(),
 					pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 				};
+				let definitelyRefused = false;
 				try {
 					throwIfAborted(signal);
-					await options.records.putMetadata(record);
-				} catch (error) {
-					try {
-						const current = await options.records.getMetadata(sourceId);
-						if (current?.sourceToken === token) {
-							if (previous) await options.records.putMetadata(previous);
-							else await options.records.deleteMetadata(sourceId);
+					if (ifAbsent) {
+						if (!await options.records.putMetadataIfAbsent(record)) {
+							definitelyRefused = true;
+							throw new Error(`Source ${sourceId} already exists; if-absent publication was refused.`);
 						}
-					} catch (reconciliationError) {
-						// Keep the new payload if publication cannot be disproved or restored;
-						// metadata must never be left pointing at storage we delete here.
-						state = 'committed';
-						throw cleanupFailure(error, reconciliationError);
+					} else await options.records.putMetadata(record);
+				} catch (error) {
+					if (!definitelyRefused) {
+						try {
+							if (previous) await options.records.compareAndSwapMetadata(record, previous);
+							else await options.records.deleteMetadataIfCurrent(record);
+						} catch (reconciliationError) {
+							// Keep the new payload if publication cannot be disproved or restored;
+							// metadata must never be left pointing at storage we delete here.
+							state = 'committed';
+							throw cleanupFailure(error, reconciliationError);
+						}
 					}
 					state = 'aborted';
 					try {

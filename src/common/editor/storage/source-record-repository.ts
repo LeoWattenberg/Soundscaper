@@ -52,10 +52,42 @@ export class SourceRecordRepository {
 		else await transact(database, 'sources', 'readwrite', ({ sources }) => { sources.put(record); });
 	}
 
+	async putMetadataIfAbsent(record: StorageRecord): Promise<boolean> {
+		if (!record.id) throw new TypeError('Source metadata requires an id.');
+		const database = await this.#port.database();
+		if (!database) {
+			if (this.#port.memory.sources.has(record.id)) return false;
+			this.#port.memory.sources.set(record.id, clone(record));
+			return true;
+		}
+		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
+			if (await request(sources.get(record.id as string)) !== undefined) return false;
+			sources.put(record);
+			return true;
+		});
+	}
+
 	async deleteMetadata(sourceId: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) this.#port.memory.sources.delete(sourceId);
 		else await transact(database, 'sources', 'readwrite', ({ sources }) => { sources.delete(sourceId); });
+	}
+
+	async deleteMetadataIfCurrent(expected: StorageRecord): Promise<boolean> {
+		if (!expected.id) return false;
+		const database = await this.#port.database();
+		if (!database) {
+			const current = this.#port.memory.sources.get(expected.id) as StorageRecord | undefined;
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			this.#port.memory.sources.delete(expected.id);
+			return true;
+		}
+		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
+			const current = await request(sources.get(expected.id as string)) as StorageRecord | undefined;
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			sources.delete(expected.id as string);
+			return true;
+		});
 	}
 
 	async writeChunk(record: SourceChunkRecord): Promise<void> {

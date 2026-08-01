@@ -44,7 +44,11 @@ export interface DesktopSharedProjectSourceAvailabilityStore {
 
 export type DesktopSharedProjectSourceAvailability = DesktopSharedProjectSourceAvailabilityStore;
 
-export interface DesktopSharedProjectSourceAvailabilityOptions { readonly signal?: AbortSignal; }
+export interface DesktopSharedProjectSourceAvailabilityOptions {
+	readonly signal?: AbortSignal;
+	/** Source identities populated from a digest-verified managed transfer in this load. */
+	readonly trustedSourceIds?: ReadonlySet<string>;
+}
 
 type CapturedSource = CapturedAudioSource | CapturedVideoSource;
 
@@ -166,7 +170,7 @@ export async function verifyDesktopSharedProjectSourceAvailability(
 	if (sources.length > MAXIMUM_SOURCE_TARGETS) {
 		throw new RangeError('Desktop shared project source references exceed the portable source-count limit.');
 	}
-	assertPriorBindings(current.id, sources, priorLocalProject);
+	assertPriorBindings(current.id, sources, priorLocalProject, options.trustedSourceIds);
 	const storageSources = uniqueStorageBindings(sources);
 	assertAvailabilityStore(store, storageSources);
 
@@ -294,20 +298,23 @@ function assertPriorBindings(
 	projectId: string,
 	sources: readonly CapturedSource[],
 	priorLocalProject: unknown,
+	trustedSourceIds: ReadonlySet<string> | undefined,
 ): void {
 	const unavailable = (source: CapturedSource, cause?: unknown): never => {
 		throw new DesktopSharedProjectSourceUnavailableError(projectId, source.id, source.kind, cause);
 	};
-	if (priorLocalProject == null) unavailable(sources[0] as CapturedSource);
+	const untrusted = sources.filter(({ id }) => !trustedSourceIds?.has(id));
+	if (!untrusted.length) return;
+	if (priorLocalProject == null) unavailable(untrusted[0] as CapturedSource);
 	try {
 		validateAudioEditorProjectV9(priorLocalProject);
 	} catch (cause) {
-		unavailable(sources[0] as CapturedSource, cause);
+		unavailable(untrusted[0] as CapturedSource, cause);
 	}
 	const prior = priorLocalProject as AudioEditorProjectV9;
-	if (prior.id !== projectId) unavailable(sources[0] as CapturedSource);
+	if (prior.id !== projectId) unavailable(untrusted[0] as CapturedSource);
 	const priorById = new Map(prior.sources.map((source) => [String(source.id), captureSource(source)]));
-	for (const source of sources) {
+	for (const source of untrusted) {
 		const bound = priorById.get(source.id);
 		if (!bound || !sameRecord(source, bound)) unavailable(source);
 	}

@@ -263,6 +263,9 @@ export interface EditorProjectStore {
 	saveProject(project: EditorProject, options?: Readonly<{
 		admitProjectPublication?: (bytes: number) => Promise<unknown>;
 	}>): Promise<unknown>;
+	prepareProjectHandoff?(project: EditorProject, options?: Readonly<{
+		signal?: AbortSignal;
+	}>): Promise<unknown>;
 	loadSetting<Value>(key: string, fallback: Value): Promise<Value>;
 	saveSetting<Value>(key: string, value: Value): Promise<unknown>;
 	close(): Promise<void> | void;

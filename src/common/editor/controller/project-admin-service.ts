@@ -68,6 +68,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (state.readOnly) throw new Error(copy.projectReadOnly);
 		await flushProject();
 		if (getProject() !== project) throw new Error(copy.projectNotFound);
+		await store.prepareProjectHandoff?.(project);
+		if (getProject() !== project) throw new Error(copy.projectNotFound);
 		await releaseProjectLock();
 		return Object.freeze({ projectId: project.id, revision: project.revision });
 	}

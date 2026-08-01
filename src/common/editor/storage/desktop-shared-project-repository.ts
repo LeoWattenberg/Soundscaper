@@ -16,6 +16,14 @@ import {
 	verifyDesktopSharedProjectSourceAvailability,
 	type DesktopSharedProjectSourceAvailability,
 } from './desktop-shared-project-source-availability.ts';
+import {
+	acquireDesktopSharedProjectAudio,
+	prepareDesktopSharedProjectAudioHandoff,
+	type DesktopSharedAudioAcquisition,
+	type DesktopSharedManagedSourceDescriptor,
+	type DesktopSharedSourceTransferBridge,
+	type DesktopSharedSourceTransferStore,
+} from './desktop-shared-project-media-transfer.ts';
 
 type CurrentProjectDocument = AudioEditorProjectV9 & ProjectDocument & Readonly<{
 	id: string;
@@ -44,12 +52,22 @@ export interface DesktopSharedProjectBridge {
 	readSharedProject(projectId: string): Promise<string | null>;
 	commitSharedProject(canonicalDocument: string): Promise<string>;
 	deleteSharedProject(projectId: string): Promise<boolean>;
+	readSharedProjectBundle?(projectId: string): Promise<Readonly<{
+		document: string;
+		sources: readonly DesktopSharedManagedSourceDescriptor[];
+	}> | null>;
+	beginSharedSourceWrite?: DesktopSharedSourceTransferBridge['beginSharedSourceWrite'];
+	writeSharedSourceChunk?: DesktopSharedSourceTransferBridge['writeSharedSourceChunk'];
+	finishSharedSourceWrite?: DesktopSharedSourceTransferBridge['finishSharedSourceWrite'];
+	abortSharedSourceWrite?: DesktopSharedSourceTransferBridge['abortSharedSourceWrite'];
+	readSharedSourceChunk?: DesktopSharedSourceTransferBridge['readSharedSourceChunk'];
 }
 
 export interface DesktopSharedProjectRepositoryOptions {
 	readonly bridge: DesktopSharedProjectBridge;
 	readonly shadow: ProjectRepositoryPort;
 	readonly sourceAvailability: DesktopSharedProjectSourceAvailability;
+	readonly sourceTransfer?: DesktopSharedSourceTransferStore | null;
 	readonly onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
 	readonly maximumDocumentBytes?: number;
 }
@@ -66,11 +84,13 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
 	readonly #shadow: ProjectRepositoryPort;
 	readonly #sourceAvailability: DesktopSharedProjectSourceAvailability;
+	readonly #sourceTransfer: DesktopSharedSourceTransferStore | null;
 
 	constructor(options: DesktopSharedProjectRepositoryOptions) {
 		this.#bridge = validateBridge(options.bridge);
 		this.#shadow = validateShadow(options.shadow);
 		this.#sourceAvailability = validateSourceAvailability(options.sourceAvailability);
+		this.#sourceTransfer = options.sourceTransfer ?? null;
 		if (typeof options.onLocalCleanupError !== 'function') {
 			throw new TypeError('Desktop shared project cleanup reporting is required.');
 		}
@@ -101,38 +121,100 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		assertProjectId(projectId);
 		return this.#serializeLatestMutation(projectId, options.signal, async () => {
 			throwIfAborted(options.signal);
-			const document = await raceAbort(
-				() => this.#bridge.readSharedProject(projectId),
+			const bundle = await raceAbort(
+				() => this.#readBundle(projectId),
 				options.signal,
 			);
 			throwIfAborted(options.signal);
-			if (document === null) return null;
+			if (bundle === null) return null;
+			const { document } = bundle;
 			const project = parseCanonicalProject(document, this.#maximumDocumentBytes, 'loaded document');
 			if (project.id !== projectId) {
 				throw new Error('Desktop shared project document identity does not match the requested project.');
 			}
+			let acquisition: DesktopSharedAudioAcquisition | null = null;
 			if (desktopSharedProjectHasSourceReferences(project)) {
 				const priorLocalProject = await this.#shadow.load(projectId, { signal: options.signal });
 				throwIfAborted(options.signal);
-				await verifyDesktopSharedProjectSourceAvailability(
-					project,
-					priorLocalProject,
-					this.#sourceAvailability,
-					{ signal: options.signal },
-				);
-				throwIfAborted(options.signal);
+				if (bundle.managed && this.#sourceTransfer) {
+					acquisition = await acquireDesktopSharedProjectAudio(
+						project,
+						priorLocalProject,
+						bundle.sources,
+						managedTransferBridge(this.#bridge),
+						this.#sourceTransfer,
+						{ signal: options.signal },
+					);
+				}
+				try {
+					await verifyDesktopSharedProjectSourceAvailability(
+						project,
+						priorLocalProject,
+						this.#sourceAvailability,
+						{ signal: options.signal, trustedSourceIds: acquisition?.trustedSourceIds },
+					);
+					throwIfAborted(options.signal);
+				} catch (error) {
+					await rollbackAcquisition(acquisition, error);
+				}
 			}
-			const snapshot = await this.#shadow.save(project);
+			const snapshot = await this.#saveExactLoadedProject(project, document)
+				.catch((error: unknown) => rollbackAcquisition(acquisition, error));
+			// Once the exact snapshot is durable, cancellation must not remove PCM it references.
+			acquisition?.commit();
 			throwIfAborted(options.signal);
-			assertCurrentProject(snapshot);
-			if (snapshot.id !== project.id || snapshot.revision !== project.revision) {
-				throw new Error('Desktop shared project shadow changed the loaded identity or revision.');
-			}
-			if (serializeBoundedProject(snapshot, this.#maximumDocumentBytes) !== document) {
-				throw new Error('Desktop shared project shadow changed the authoritative loaded document.');
-			}
 			return snapshot;
 		});
+	}
+
+	async prepareHandoff(project: ProjectDocument, signal?: AbortSignal) {
+		const admitted = admitCurrentProject(project, this.#maximumDocumentBytes);
+		return this.#serializeLatestMutation(admitted.id, signal, async () => {
+			if (!this.#sourceTransfer) {
+				if (desktopSharedProjectHasSourceReferences(admitted)) {
+					throw new Error('Desktop shared-source transfer storage is unavailable.');
+				}
+				return Object.freeze([]);
+			}
+			return prepareDesktopSharedProjectAudioHandoff(
+				admitted,
+				managedTransferBridge(this.#bridge),
+				this.#sourceTransfer,
+				{ signal },
+			);
+		});
+	}
+
+	async #readBundle(projectId: string): Promise<Readonly<{
+		document: string;
+		managed: boolean;
+		sources: readonly DesktopSharedManagedSourceDescriptor[];
+	}> | null> {
+		if (typeof this.#bridge.readSharedProjectBundle !== 'function') {
+			const document = await this.#bridge.readSharedProject(projectId);
+			return document === null ? null : Object.freeze({ document, managed: false, sources: Object.freeze([]) });
+		}
+		const value = await this.#bridge.readSharedProjectBundle(projectId);
+		if (value === null) return null;
+		if (!value || typeof value !== 'object' || typeof value.document !== 'string' || !Array.isArray(value.sources)) {
+			throw new TypeError('Desktop shared project bundle is invalid.');
+		}
+		return Object.freeze({ document: value.document, managed: true, sources: Object.freeze([...value.sources]) });
+	}
+
+	async #saveExactLoadedProject(
+		project: CurrentProjectDocument,
+		document: string,
+	): Promise<CurrentProjectDocument> {
+		const snapshot = await this.#shadow.save(project);
+		assertCurrentProject(snapshot);
+		if (snapshot.id !== project.id || snapshot.revision !== project.revision) {
+			throw new Error('Desktop shared project shadow changed the loaded identity or revision.');
+		}
+		if (serializeBoundedProject(snapshot, this.#maximumDocumentBytes) !== document) {
+			throw new Error('Desktop shared project shadow changed the authoritative loaded document.');
+		}
+		return snapshot;
 	}
 
 	async #serializeLatestMutation<Value>(
@@ -189,6 +271,21 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			}
 		});
 	}
+}
+
+async function rollbackAcquisition(
+	acquisition: DesktopSharedAudioAcquisition | null,
+	primary: unknown,
+): Promise<never> {
+	try {
+		await acquisition?.rollback();
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[primary, cleanupError],
+			'Desktop shared project load and managed-source rollback both failed.',
+		);
+	}
+	throw primary;
 }
 
 /** A shared delete succeeded, but stale local shadow data could not be removed. */
@@ -349,6 +446,21 @@ function validateSourceAvailability(
 		}
 	}
 	return value;
+}
+
+function managedTransferBridge(value: DesktopSharedProjectBridge): DesktopSharedSourceTransferBridge {
+	for (const method of [
+		'beginSharedSourceWrite',
+		'writeSharedSourceChunk',
+		'finishSharedSourceWrite',
+		'abortSharedSourceWrite',
+		'readSharedSourceChunk',
+	] as const) {
+		if (typeof value[method] !== 'function') {
+			throw new TypeError(`Desktop shared project bridge.${method} is required for managed media.`);
+		}
+	}
+	return value as DesktopSharedSourceTransferBridge;
 }
 
 function raceAbort<Value>(read: () => Promise<Value>, signal?: AbortSignal): Promise<Value> {

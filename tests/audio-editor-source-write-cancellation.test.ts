@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
+import {
+	sameStoredSourceIdentity,
+	type StorageRecord,
+} from '../src/common/editor/storage/media-records.ts';
 import { SourceWriteRepository } from '../src/common/editor/storage/source-write-repository.ts';
 
 interface FixtureHooks {
@@ -76,6 +79,26 @@ test('a metadata port that rejects after publication restores prior metadata bef
 	assert.deepEqual(fixture.chunkTokens(), ['old-token']);
 });
 
+test('publication-error reconciliation cannot overwrite a concurrent metadata replacement', async () => {
+	const reason = abortReason('metadata put failed after a concurrent replacement');
+	const hooks: FixtureHooks = {};
+	const fixture = sourceWriterFixture(hooks);
+	fixture.seedPrevious();
+	const replacement = { ...fixture.previous, name: 'concurrent winner' };
+	hooks.onPutMetadata = (record) => {
+		if (record.sourceToken !== 'old-token') {
+			fixture.metadata.set('source-a', structuredClone(replacement));
+			throw reason;
+		}
+	};
+	const writer = await fixture.repository.begin('source-a', sourceMetadata());
+	await writer.write([Float32Array.of(0.6, -0.6)]);
+
+	await assert.rejects(writer.commit(), (error: unknown) => error === reason);
+	assert.deepEqual(fixture.metadata.get('source-a'), replacement);
+	assert.deepEqual(fixture.chunkTokens(), ['old-token']);
+});
+
 test('a rejected first publication removes metadata before deleting its payload', async () => {
 	const reason = abortReason('first metadata put rejected after publication');
 	const hooks: FixtureHooks = {
@@ -91,6 +114,18 @@ test('a rejected first publication removes metadata before deleting its payload'
 	);
 	assert.equal(fixture.metadata.has('source-a'), false);
 	assert.deepEqual(fixture.chunkTokens(), []);
+});
+
+test('if-absent commit preserves a winner, skips its migration, and deletes loser staging', async () => {
+	const fixture = sourceWriterFixture({});
+	fixture.seedPrevious();
+	const writer = await fixture.repository.begin('source-a', sourceMetadata());
+	await writer.write([Float32Array.of(0.4, -0.4)]);
+
+	await assert.rejects(writer.commit({}, { ifAbsent: true }), /already exists|if-absent/iu);
+	assert.deepEqual(fixture.metadata.get('source-a'), fixture.previous);
+	assert.deepEqual(fixture.chunkTokens(), ['old-token']);
+	assert.equal(fixture.migrationCancellations(), 0);
 });
 
 test('abort cannot race a commit owner into publishing metadata for deleted staging', async () => {
@@ -133,6 +168,7 @@ test('failure to collect an overwritten payload does not turn a published source
 function sourceWriterFixture(hooks: FixtureHooks) {
 	const metadata = new Map<string, StorageRecord>();
 	const chunks = new Map<string, Record<string, unknown>>();
+	let migrationCancellations = 0;
 	const previous: StorageRecord = {
 		id: 'source-a',
 		storage: 'indexeddb-chunks',
@@ -154,7 +190,25 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 			metadata.set(String(record.id), structuredClone(record));
 			await hooks.onPutMetadata?.(record);
 		},
+		async putMetadataIfAbsent(record: StorageRecord) {
+			if (metadata.has(String(record.id))) return false;
+			metadata.set(String(record.id), structuredClone(record));
+			await hooks.onPutMetadata?.(record);
+			return true;
+		},
 		async deleteMetadata(sourceId: string) { metadata.delete(sourceId); },
+		async deleteMetadataIfCurrent(expected: StorageRecord) {
+			const current = metadata.get(String(expected.id));
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			metadata.delete(String(expected.id));
+			return true;
+		},
+		async compareAndSwapMetadata(expected: StorageRecord, replacement: StorageRecord) {
+			const current = metadata.get(String(expected.id));
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			metadata.set(String(replacement.id), structuredClone(replacement));
+			return true;
+		},
 		async writeChunk(record: Record<string, unknown>) {
 			chunks.set(String(record.key), structuredClone(record));
 		},
@@ -168,7 +222,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 		records: records as never,
 		pcm: {} as never,
 		opfs: { createPcmWriter: async () => null } as never,
-		migrations: { cancel: async () => undefined } as never,
+		migrations: { cancel: async () => { migrationCancellations += 1; } } as never,
 		database: async () => null,
 		deleteStoredSource: async (source) => {
 			await hooks.onDeleteStored?.(source);
@@ -178,6 +232,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 	return {
 		chunkTokens: () => [...new Set([...chunks.values()].map((record) => String(record.sourceToken)))].sort(),
 		metadata,
+		migrationCancellations: () => migrationCancellations,
 		previous,
 		repository,
 		seedPrevious() {
