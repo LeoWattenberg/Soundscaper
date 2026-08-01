@@ -69,6 +69,47 @@ test('mixed sender preflights trusted video metadata before two-pass bounded pub
 	assert.equal(declarations.get(fixture.video.id)?.sha256, fixture.videoSha256);
 });
 
+test('managed sender excludes disposable preview locators while retaining fallback-only media', async () => {
+	const fixture = mixedFixture({ audioFallbackOnly: true });
+	assert.ok(fixture.audio);
+	const posterLocator = 'disposable-cache:poster:relationship-sentinel';
+	const thumbnailLocator = 'disposable-cache:thumbnail:relationship-sentinel';
+	const project = {
+		...fixture.project,
+		sources: fixture.project.sources.map((source) => source.id === fixture.video.id
+			? { ...source, posterStorageKey: posterLocator, thumbnailStorageKey: thumbnailLocator }
+			: source),
+	} as AudioEditorProjectV9;
+	const declarations: Array<Parameters<DesktopSharedSourceTransferBridge['beginSharedSourceWrite']>[0]> = [];
+	const bridge = senderBridge({
+		async begin(declaration) {
+			declarations.push(declaration);
+			return { status: 'present', source: managedDescriptor(fixture, declaration) };
+		},
+	});
+
+	const published = await prepareDesktopSharedProjectMediaHandoff(
+		project,
+		bridge,
+		senderStore(fixture, []),
+	);
+
+	assert.deepEqual(declarations.map(({ sourceId }) => sourceId), [fixture.video.id, fixture.audio.id]);
+	assert.deepEqual(published.map(({ sourceId }) => sourceId), [fixture.video.id, fixture.audio.id]);
+	assert.equal(
+		[...project.clips, ...project.projectBin.clips].some(({ sourceId }) => sourceId === fixture.audio?.id),
+		false,
+	);
+	assert.equal(project.featureRequirements.requirements[0]?.fallback?.sourceId, fixture.audio.id);
+	for (const value of [...declarations, ...published]) {
+		const managedValue = JSON.stringify(value);
+		assert.equal(managedValue.includes(posterLocator), false);
+		assert.equal(managedValue.includes(thumbnailLocator), false);
+		assert.equal(Object.hasOwn(value, 'posterStorageKey'), false);
+		assert.equal(Object.hasOwn(value, 'thumbnailStorageKey'), false);
+	}
+});
+
 test('present video sender performs two full validations without uploading', async () => {
 	const fixture = mixedFixture({ audio: false });
 	const events: string[] = [];
@@ -175,8 +216,9 @@ interface MixedFixture {
 	readonly videoSha256: string;
 }
 
-function mixedFixture(options: Readonly<{ audio?: boolean }> = {}): MixedFixture {
+function mixedFixture(options: Readonly<{ audio?: boolean; audioFallbackOnly?: boolean }> = {}): MixedFixture {
 	const includeAudio = options.audio !== false;
+	const audioFallbackOnly = includeAudio && options.audioFallbackOnly === true;
 	const audio = includeAudio ? createAudioSourceV9({
 		id: 'mixed-audio', storageKey: 'mixed-audio-storage', name: 'mixed.wav', mimeType: 'audio/wav',
 		frameCount: 2, channelCount: 1, sampleRate: SAMPLE_RATE, originalSampleRate: SAMPLE_RATE,
@@ -187,7 +229,8 @@ function mixedFixture(options: Readonly<{ audio?: boolean }> = {}): MixedFixture
 		frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const audioClip = audio ? createAudioClipV9({
+	const audioBytes = canonicalPcmBytes([0.25, -0.5]);
+	const audioClip = audio && !audioFallbackOnly ? createAudioClipV9({
 		id: 'mixed-audio-clip', sourceId: audio.id, durationFrames: 2, sourceDurationFrames: 2,
 	}) : null;
 	const videoClip = createVideoClipV9({
@@ -200,8 +243,17 @@ function mixedFixture(options: Readonly<{ audio?: boolean }> = {}): MixedFixture
 		clips: audioClip ? [audioClip] : [],
 		tracks: audioClip ? [createAudioTrackV9({ id: 'mixed-track', clipIds: [audioClip.id] })] : [],
 		projectBin: { clips: [videoClip] },
+		featureRequirements: audioFallbackOnly && audio ? {
+			schemaVersion: 1,
+			requirements: [{
+				id: 'fallback-only-audio',
+				featureId: 'org.soundscaper.native.fallback-only-audio',
+				displayName: 'Fallback-only audio',
+				disposition: 'rendered-fallback',
+				fallback: { kind: 'audio', sourceId: audio.id, sha256: digest(audioBytes) },
+			}],
+		} : undefined,
 	});
-	const audioBytes = canonicalPcmBytes([0.25, -0.5]);
 	const videoBytes = Uint8Array.of(1, 3, 5, 7, 9, 11, 13);
 	return Object.freeze({ audio, audioBytes, project, video, videoBytes, videoSha256: digest(videoBytes) });
 }

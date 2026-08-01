@@ -19,6 +19,18 @@ interface VideoFile {
 	arrayBuffer(): Promise<ArrayBuffer>;
 }
 
+function isSourceAddCommand(value: unknown): value is Readonly<{
+	type: 'source/add';
+	source: Record<string, unknown>;
+}> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const command = value as Readonly<Record<string, unknown>>;
+	return command.type === 'source/add'
+		&& Boolean(command.source)
+		&& typeof command.source === 'object'
+		&& !Array.isArray(command.source);
+}
+
 function videoFile(name = 'movie.mp4'): VideoFile {
 	return {
 		name,
@@ -197,6 +209,13 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	assert.equal(videoSource.thumbnailStorageKey, null);
 	assert.equal(fixture.commits.length, 1);
 	assert.equal(fixture.commits[0]?.command.commands.length, 6);
+	const committedVideoSource = fixture.commits[0]?.command.commands
+		.filter(isSourceAddCommand)
+		.map(({ source }) => source)
+		.find(({ kind }) => kind === 'video');
+	assert.ok(committedVideoSource);
+	assert.equal(committedVideoSource.posterStorageKey, null);
+	assert.equal(committedVideoSource.thumbnailStorageKey, null);
 	assert.deepEqual(fixture.derivatives.map(({ timestamp, type }) => [timestamp, type]), [
 		[0, 'poster'], [1, 'thumbnail'], [2, 'thumbnail'],
 	]);

@@ -230,6 +230,17 @@ test('project-bin commands preserve transforms, clear groups, reuse items, and u
 	assert.equal(findProjectBinClip(placed, 'clip-1'), null);
 });
 
+test('source updates cannot author disposable video-preview cache locators', () => {
+	const project = createBinFixture();
+	for (const field of ['posterStorageKey', 'thumbnailStorageKey']) {
+		assert.throws(() => applyEditorCommand(project, {
+			type: 'source/update',
+			sourceId: 'source-1',
+			changes: { [field]: `disposable-${field}` },
+		}, { now: LATER }), new RegExp(`Source field cannot be updated: ${field}`, 'u'));
+	}
+});
+
 test('bin-only sources remain live through metadata compaction and source removal is guarded', () => {
 	const project = createBinFixture();
 	let binned = applyEditorCommand(project, {

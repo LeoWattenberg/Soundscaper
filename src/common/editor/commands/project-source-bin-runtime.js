@@ -124,7 +124,7 @@ function updateSource(project, sourceId, changes = {}) {
 	if (index < 0) throw new ReferenceError(`Unknown source: ${sourceId}.`);
 	const allowed = new Set([
 		'name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions',
-		'videoCodec', 'audioCodec', 'hasAudio', 'posterStorageKey', 'thumbnailStorageKey',
+		'videoCodec', 'audioCodec', 'hasAudio',
 	]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Source field cannot be updated: ${key}.`);
 	project.sources[index] = normalizeSourceForProject(project, { ...project.sources[index], ...changes, id: sourceId });
