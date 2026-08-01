@@ -7,6 +7,10 @@ import {
 	createImportVideoFile,
 	type ImportVideoRuntime,
 } from '../src/common/editor/controller/source-import.ts';
+import {
+	VideoPreviewEncodedPayloadTooLargeError,
+	VideoPreviewSourceGeometryTooLargeError,
+} from '../src/common/editor/video-preview-capture-admission.ts';
 
 interface VideoFile {
 	readonly name: string;
@@ -35,6 +39,8 @@ function createFixture() {
 	const options = {
 		decodeMode: 'native' as 'native' | 'fallback' | 'none',
 		posterFails: false,
+		posterSourceAdmissionFails: false,
+		thumbnailAdmissionFailure: null as number | null,
 		thumbnailFailure: null as number | null,
 		writeMediaFails: false,
 		writerFails: false,
@@ -60,6 +66,12 @@ function createFixture() {
 		metadata: { durationSeconds: 2, width: 1_920, height: 1_080 },
 		async capture(timestamp: number, captureOptions?: unknown) {
 			calls.push(`capture:${timestamp}:${captureOptions ? 'poster' : 'thumbnail'}`);
+			if (timestamp === 0 && options.posterSourceAdmissionFails) {
+				throw new VideoPreviewSourceGeometryTooLargeError(16_385, 1, 'exceeds the maximum width');
+			}
+			if (timestamp === options.thumbnailAdmissionFailure) {
+				throw new VideoPreviewEncodedPayloadTooLargeError(2, 1);
+			}
 			if ((timestamp === 0 && options.posterFails) || timestamp === options.thumbnailFailure) {
 				throw new Error('capture failed');
 			}
@@ -218,6 +230,34 @@ test('project-bin video import tolerates missing audio and disposable preview fa
 	assert.equal(fixture.commits[0]?.command.commands.length, 2);
 	assert.deepEqual(fixture.derivatives.map(({ timestamp }) => timestamp), [2]);
 	assert.equal(fixture.calls.includes('warn-envelope'), true);
+});
+
+test('video import stops disposable filmstrip work after an encoded hard-cap refusal', async () => {
+	const fixture = createFixture();
+	fixture.options.thumbnailAdmissionFailure = 1;
+	await createImportVideoFile(fixture.runtime)(videoFile(), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+	});
+
+	assert.deepEqual(
+		fixture.calls.filter((call) => call.startsWith('capture:')),
+		['capture:0:poster', 'capture:1:thumbnail'],
+	);
+	assert.deepEqual(fixture.derivatives.map(({ timestamp }) => timestamp), [0]);
+});
+
+test('video import skips all disposable captures after source-frame admission refuses the poster', async () => {
+	const fixture = createFixture();
+	fixture.options.posterSourceAdmissionFails = true;
+	await createImportVideoFile(fixture.runtime)(videoFile(), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+	});
+
+	assert.deepEqual(
+		fixture.calls.filter((call) => call.startsWith('capture:')),
+		['capture:0:poster'],
+	);
+	assert.deepEqual(fixture.derivatives, []);
 });
 
 test('a selected ungrouped video lane causes a companion lane pair to be created', async () => {

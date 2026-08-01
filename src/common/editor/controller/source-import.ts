@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	VideoPreviewEncodedPayloadTooLargeError,
+	VideoPreviewSourceGeometryTooLargeError,
+} from '../video-preview-capture-admission.ts';
+
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +51,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			});
 			mediaPersisted = true;
 			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
+			let sourcePreviewUnavailable = false;
 			try {
 				const poster = await extractor.capture(0, { maximumWidth: 640, maximumHeight: 360 });
 				await store.saveVideoDerivative(videoSourceId, {
@@ -58,10 +64,11 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						mimeType: poster.mimeType,
 					},
 				});
-			} catch {
+			} catch (error) {
 				// A preview derivative is disposable; the original media remains importable.
+				sourcePreviewUnavailable = error instanceof VideoPreviewSourceGeometryTooLargeError;
 			}
-			for (const timestamp of thumbnailTimes) {
+			for (const timestamp of sourcePreviewUnavailable ? [] : thumbnailTimes) {
 				try {
 					const thumbnail = await extractor.capture(timestamp);
 					await store.saveVideoDerivative(videoSourceId, {
@@ -74,8 +81,9 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 							mimeType: thumbnail.mimeType,
 						},
 					});
-				} catch {
+				} catch (error) {
 					// Keep the rest of the filmstrip when one seek/capture fails.
+					if (error instanceof VideoPreviewEncodedPayloadTooLargeError) break;
 				}
 			}
 
