@@ -15,6 +15,11 @@ import {
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
 import {
+	MediaPublicationReconciliationError,
+	ownedMediaAssetPublication,
+	sameMediaPayload,
+} from './media-asset-owned-publication.ts';
+import {
 	abortPreparedMediaAssetStaging,
 	prepareMediaAssetStaging,
 	type PreparedMediaAssetStaging,
@@ -39,6 +44,17 @@ import {
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { request, transact } from './indexeddb-backend.ts';
+import type {
+	MediaAssetWriteOptions,
+	OwnedMediaAssetWriter,
+	OwnedMediaAssetPublication,
+} from './media-asset-write-contract.ts';
+export type {
+	MediaAssetWriter,
+	MediaAssetWriteOptions,
+	OwnedMediaAssetWriter,
+	OwnedMediaAssetPublication,
+} from './media-asset-write-contract.ts';
 
 export const MEDIA_ASSET_STREAM_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES = 64 * 1024 * 1024;
@@ -46,22 +62,8 @@ export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
-export interface MediaAssetWriteOptions {
-	readonly expectedBytes: number;
-	readonly expectedSha256: string;
-	readonly signal?: AbortSignal;
-}
-
-export interface MediaAssetWriter {
-	readonly maximumChunkBytes: number;
-	readonly bytesWritten: number;
-	write(bytes: Uint8Array, options?: Readonly<{ signal?: AbortSignal }>): Promise<void>;
-	commit(options?: Readonly<{ signal?: AbortSignal }>): Promise<Readonly<Record<string, unknown>>>;
-	abort(): Promise<void>;
-}
-
 interface ManagedMediaAssetWriter {
-	readonly writer: MediaAssetWriter;
+	readonly writer: OwnedMediaAssetWriter;
 	abortForMaintenance(): Promise<void>;
 }
 
@@ -92,7 +94,7 @@ export class MediaAssetWriteRepository {
 		sourceId: string,
 		metadata: Readonly<Record<string, unknown>>,
 		options: MediaAssetWriteOptions,
-	): Promise<MediaAssetWriter> {
+	): Promise<OwnedMediaAssetWriter> {
 		this.#coordinator.assertAccepting();
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const expectedBytes = nonNegativeSafeInteger(
@@ -261,7 +263,9 @@ export class MediaAssetWriteRepository {
 		let chunkIndex = 0;
 		let state: 'open' | 'committing' | 'committed' | 'aborted' | 'indeterminate' = 'open';
 		let activeWrite: Promise<void> | null = null;
-		let commitPromise: Promise<Readonly<Record<string, unknown>>> | null = null;
+		let commitPromise: Promise<StorageRecord> | null = null;
+		let metadataCommitPromise: Promise<Readonly<Record<string, unknown>>> | null = null;
+		let ownedCommitPromise: Promise<OwnedMediaAssetPublication> | null = null;
 		let cleanupPromise: Promise<void> | null = null;
 		let abortPromise: Promise<void> | null = null;
 		let maintenanceAbortPromise: Promise<void> | null = null;
@@ -298,7 +302,7 @@ export class MediaAssetWriteRepository {
 		};
 		const performCommit = async (
 			options: Readonly<{ signal?: AbortSignal }>,
-		): Promise<Readonly<Record<string, unknown>>> => {
+		): Promise<StorageRecord> => {
 			const signal = options.signal ?? defaultSignal;
 			try {
 				if (activeWrite) await activeWrite;
@@ -336,7 +340,7 @@ export class MediaAssetWriteRepository {
 				await this.#publish(record, signal, database, lease);
 				state = 'committed';
 				onSettled();
-				return mediaAssetMetadata(record);
+				return record;
 			} catch (error) {
 				if (error instanceof MediaPublicationReconciliationError) {
 					state = 'indeterminate';
@@ -346,7 +350,7 @@ export class MediaAssetWriteRepository {
 				return abortWith(error);
 			}
 		};
-		const writer: MediaAssetWriter = {
+		const writer: OwnedMediaAssetWriter = {
 			maximumChunkBytes: MEDIA_ASSET_STREAM_CHUNK_BYTES,
 			get bytesWritten() { return bytesWritten; },
 			write: (input, options = {}) => {
@@ -394,11 +398,28 @@ export class MediaAssetWriteRepository {
 				return operation;
 			},
 			commit: (options = {}) => {
-				if (state === 'committing' && commitPromise) return commitPromise;
-				if (state !== 'open') return Promise.reject(new Error('The streamed media writer is closed.'));
-				state = 'committing';
-				commitPromise = performCommit(options);
-				return commitPromise;
+				if (state === 'open') {
+					state = 'committing';
+					commitPromise = performCommit(options);
+				}
+				if (state !== 'committing' || !commitPromise) {
+					return Promise.reject(new Error('The streamed media writer is closed.'));
+				}
+				metadataCommitPromise ??= commitPromise.then(mediaAssetMetadata);
+				return metadataCommitPromise;
+			},
+			commitOwned: (options = {}) => {
+				if (state === 'open') {
+					state = 'committing';
+					commitPromise = performCommit(options);
+				}
+				if (state !== 'committing' || !commitPromise) {
+					return Promise.reject(new Error('The streamed media writer is closed.'));
+				}
+				ownedCommitPromise ??= commitPromise.then((record) => (
+					ownedMediaAssetPublication(record, this.#port, this.#disposal, this.#opfs)
+				));
+				return ownedCommitPromise;
 			},
 			abort: () => {
 				if (maintenanceAbortPromise) return maintenanceAbortPromise;
@@ -534,16 +555,6 @@ export class MediaAssetWriteRepository {
 	}
 }
 
-class MediaPublicationReconciliationError extends AggregateError {
-	constructor(primary: unknown, reconciliation: unknown) {
-		super(
-			[primary, reconciliation],
-			'Media publication failed and its committed payload could not be reconciled.',
-		);
-		this.name = 'MediaPublicationReconciliationError';
-	}
-}
-
 function nonNegativeSafeInteger(value: unknown, message: string): number {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError(message);
@@ -572,14 +583,6 @@ function clone<Value>(value: Value): Value {
 
 function storageRecord(value: unknown): StorageRecord | null {
 	return value && typeof value === 'object' ? value as StorageRecord : null;
-}
-
-function sameMediaPayload(current: StorageRecord | null, expected: StorageRecord): boolean {
-	if (!current || current.sourceId !== expected.sourceId || current.storage !== expected.storage) return false;
-	if (typeof expected.mediaChunkToken === 'string') {
-		return current.mediaChunkToken === expected.mediaChunkToken;
-	}
-	return typeof expected.path === 'string' && current.path === expected.path;
 }
 
 function isString(value: unknown): value is string {
