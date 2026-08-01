@@ -617,7 +617,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		hasHistory: () => Boolean(state.history),
 		isReadOnly: () => state.readOnly,
 		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'),
-		saveProject: (snapshot) => store.saveProject(snapshot),
+		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);
 			if (productId === 'soundscaper') await persistSetting('last-project-id', projectId);

@@ -41,7 +41,10 @@ test('project saves serialize admission immediately before each queued write', a
 			admissions.push({ bytes, gate });
 			return gate.promise;
 		},
-		saveProject: async (snapshot) => { events.push(`save:${String(snapshot.revision)}`); },
+		saveProject: async (snapshot, options) => {
+			await options.admitProjectPublication(projectPublicationBytes(snapshot));
+			events.push(`save:${String(snapshot.revision)}`);
+		},
 		persistActiveProjectId: async () => undefined,
 		isCurrentProject: (projectId) => project.id === projectId,
 		hasSessionTab: () => true,
@@ -105,7 +108,10 @@ test('a rejected publication admission leaves no save effects and the queued suc
 			admissions.push({ bytes, gate });
 			return gate.promise;
 		},
-		saveProject: async (snapshot) => { saved.push(snapshot.revision); },
+		saveProject: async (snapshot, options) => {
+			await options.admitProjectPublication(projectPublicationBytes(snapshot));
+			saved.push(snapshot.revision);
+		},
 		persistActiveProjectId: async (projectId) => { persisted.push(projectId); },
 		isCurrentProject: (projectId) => project.id === projectId,
 		hasSessionTab: () => true,

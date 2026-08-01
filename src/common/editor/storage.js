@@ -8,7 +8,10 @@ import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
-import { estimateProjectRevisionPublication } from './project-publication-admission.ts';
+import {
+	assertProjectRevisionPublicationCapacity,
+	estimateProjectRevisionPublication,
+} from './project-publication-admission.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -109,10 +112,20 @@ export class AudioEditorProjectStore {
 		});
 	}
 
-	async saveProject(project) {
-		estimateProjectRevisionPublication(project, {
+	async saveProject(project, options = {}) {
+		const admitProjectPublication = projectPublicationAdmission(options);
+		const publication = estimateProjectRevisionPublication(project, {
 			maximumDocumentBytes: this.maximumProjectDocumentBytes,
 		});
+		await this.#database();
+		if (admitProjectPublication) {
+			await admitProjectPublication(publication.currentAndRevision.bytes);
+		} else if (this.backend === 'indexeddb') {
+			assertProjectRevisionPublicationCapacity(
+				publication.currentAndRevision.bytes,
+				await this.estimateStorage(),
+			);
+		}
 		return this.projectRepository.save(project);
 	}
 
@@ -432,6 +445,26 @@ export class AudioEditorProjectStore {
 function createId(prefix) {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function projectPublicationAdmission(options) {
+	if (!options
+		|| typeof options !== 'object'
+		|| Array.isArray(options)
+		|| Object.getPrototypeOf(options) !== Object.prototype) {
+		throw new TypeError('Project save options must be a plain object.');
+	}
+	for (const name of Object.keys(options)) {
+		if (name !== 'admitProjectPublication') {
+			throw new TypeError(`Unsupported project save option: ${name}.`);
+		}
+	}
+	const admission = options.admitProjectPublication;
+	if (admission === undefined) return null;
+	if (typeof admission !== 'function') {
+		throw new TypeError('Project publication admission must be a function.');
+	}
+	return admission;
 }
 
 function reportDesktopSharedProjectLocalCleanupError() {

@@ -1,5 +1,3 @@
-import { estimateProjectRevisionPublication } from '../project-publication-admission.ts';
-
 export interface ProjectSaveSnapshot {
 	readonly id: string;
 }
@@ -19,7 +17,9 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly isReadOnly: () => boolean;
 	readonly cloneProject: (project: Project) => Project;
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
-	readonly saveProject: (snapshot: Project) => Promise<unknown>;
+	readonly saveProject: (snapshot: Project, options: {
+		readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
+	}) => Promise<unknown>;
 	readonly persistActiveProjectId: (projectId: string) => Promise<unknown>;
 	readonly isCurrentProject: (projectId: string) => boolean;
 	readonly hasSessionTab: (projectId: string) => boolean;
@@ -118,9 +118,9 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	async function saveSnapshot(snapshot: Project, generation: number): Promise<void> {
 		state.pendingSaveSnapshots.add(snapshot);
 		try {
-			const estimate = estimateProjectRevisionPublication(snapshot);
-			await dependencies.admitProjectPublication(estimate.currentAndRevision.bytes);
-			await dependencies.saveProject(snapshot);
+			await dependencies.saveProject(snapshot, {
+				admitProjectPublication: dependencies.admitProjectPublication,
+			});
 			state.pendingSaveSnapshots.delete(snapshot);
 			if (dependencies.isCurrentProject(snapshot.id)) {
 				await dependencies.persistActiveProjectId(snapshot.id);

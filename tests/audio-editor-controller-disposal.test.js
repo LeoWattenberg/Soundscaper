@@ -90,7 +90,11 @@ test('disposal refuses a terminal project save when IndexedDB capacity is known 
 	store.estimateStorage = async () => ({ usage: 1_000_000, quota: 1_000_000 });
 	const saveProject = store.saveProject.bind(store);
 	let saveCalls = 0;
-	store.saveProject = async (project) => { saveCalls += 1; await saveProject(project); };
+	store.saveProject = async (project, options) => {
+		await options?.admitProjectPublication(1);
+		saveCalls += 1;
+		await saveProject(project);
+	};
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,

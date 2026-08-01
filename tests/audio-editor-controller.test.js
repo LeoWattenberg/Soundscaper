@@ -3069,8 +3069,8 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 	const firstSave = deferred();
 	const persistedNames = [];
 	let saveCount = 0;
-	store.saveProject = async (project) => {
-		saveCount += 1;
+	store.saveProject = async (project, options) => {
+		await options?.admitProjectPublication(1); saveCount += 1;
 		if (saveCount === 1) await firstSave.promise;
 		persistedNames.push(project.tracks[0].name);
 		store.projects.set(project.id, structuredClone(project));
@@ -3086,7 +3086,7 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 	assert.deepEqual(persistedNames, ['First pending name', 'Latest name']);
 	assert.equal(store.projects.get(controller.getSnapshot().project.id).tracks[0].name, 'Latest name');
 	assert.equal(controller.getSnapshot().storage.lastPreflight.operation, 'project');
-	store.saveProject = async () => { throw new Error('disk full'); };
+	store.saveProject = async (_project, options) => { await options?.admitProjectPublication(1); throw new Error('disk full'); };
 	controller.actions.track.update(trackId, { name: 'Cannot persist' });
 	await assert.rejects(() => controller.actions.project.flush(), /disk full/);
 	assert.equal(controller.getSnapshot().save.state, 'dirty');
