@@ -79,13 +79,8 @@ export function createEditorFfmpeg(options = {}) {
 	const capabilities = options.capabilities?.formats
 		? options.capabilities
 		: createMediaExportCapabilities(options.capabilities || {});
-	const coreBaseURL = String(
-		options.coreBaseURL
-		|| import.meta.env?.PUBLIC_FFMPEG_CORE_BASE_URL
-		|| 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10',
-	).replace(/\/$/, '');
-	const coreURL = `${coreBaseURL}/ffmpeg-core.js`;
-	const wasmURL = `${coreBaseURL}/ffmpeg-core.wasm`;
+	const configuredCoreBaseURL = options.coreBaseURL || import.meta.env?.PUBLIC_FFMPEG_CORE_BASE_URL || null;
+	const fallbackCoreBaseURL = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10';
 
 	const handleProgress = ({ progress = 0, time = 0 }) => {
 		options.onProgress?.(Math.max(0, Math.min(1, progress)), time);
@@ -127,6 +122,19 @@ export function createEditorFfmpeg(options = {}) {
 		scheduled.handle?.unref?.();
 	}
 
+	async function resolveCoreBaseURL() {
+		if (configuredCoreBaseURL) return String(configuredCoreBaseURL).replace(/\/$/, '');
+		try {
+			if (options.resolveCoreBaseURL) {
+				return String(await options.resolveCoreBaseURL(fallbackCoreBaseURL)).replace(/\/$/, '');
+			}
+			const { createBrowserFfmpegRuntimeManager } = await import('../offline/browser-ffmpeg-runtime.ts');
+			return await createBrowserFfmpegRuntimeManager().resolveCoreBaseUrl(fallbackCoreBaseURL);
+		} catch {
+			return fallbackCoreBaseURL;
+		}
+	}
+
 	async function load() {
 		assertActive();
 		cancelIdleTeardown();
@@ -153,7 +161,12 @@ export function createEditorFfmpeg(options = {}) {
 				instance.on('progress', handleProgress);
 				options.onLoading?.();
 				assertGeneration(loadGeneration);
-				await instance.load({ coreURL, wasmURL });
+				const coreBaseURL = await resolveCoreBaseURL();
+				assertGeneration(loadGeneration);
+				await instance.load({
+					coreURL: `${coreBaseURL}/ffmpeg-core.js`,
+					wasmURL: `${coreBaseURL}/ffmpeg-core.wasm`,
+				});
 				assertGeneration(loadGeneration);
 				ffmpeg = instance;
 				loadingInstance = null;
