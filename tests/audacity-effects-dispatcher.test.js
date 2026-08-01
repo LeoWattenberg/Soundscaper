@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -101,6 +102,14 @@ test('peak-memory estimates include pipeline copies, contexts, and effect-specif
 		...options, spectralWindowSize: 2_048,
 	});
 	const autoDuck = estimateAudacityEffectPeakBytes('audacity-auto-duck', frames, {}, options);
+	const staffPad = estimateAudacityEffectPeakBytes(
+		'audacity-change-pitch', frames, { semitones: 1 }, options,
+	);
+	const staffPadManifest = JSON.parse(readFileSync(
+		new URL('../src/common/editor/staffpad/source-manifest.json', import.meta.url),
+		'utf8',
+	));
+	const inputBytes = frames * options.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	const repair = estimateAudacityEffectPeakBytes('audacity-repair', 128, {}, {
 		...options, beforeFrames: 128, afterFrames: 128,
 	});
@@ -118,6 +127,11 @@ test('peak-memory estimates include pipeline copies, contexts, and effect-specif
 	assert.ok(simple > frames * options.channelCount * Float32Array.BYTES_PER_ELEMENT * 2);
 	assert.ok(spectral > simple, 'spectral selection includes overlap-add and FFT composition scratch');
 	assert.ok(autoDuck > simple, 'Auto Duck includes retained and transferred control audio');
+	assert.equal(
+		staffPad,
+		inputBytes * 3 + staffPadManifest.wasm.maximumMemoryBytes + 2 * 1024 ** 2,
+		'StaffPad effect admission charges the audited maximum WASM linear memory',
+	);
 	assert.ok(repair > simpleRepairSize, 'Repair includes before/after context in both realms');
 	assert.ok(equalizer > simple, 'EQ includes convolution scratch');
 	assert.ok(noiseReduction > equalizer, 'Noise Reduction includes spectra, gains, and overlap-add scratch');

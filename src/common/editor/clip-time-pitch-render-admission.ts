@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { STAFFPAD_MAXIMUM_BLOCK_FRAMES } from './staffpad/parameters.js';
+import {
+	STAFFPAD_MAXIMUM_BLOCK_FRAMES,
+	STAFFPAD_MAXIMUM_MEMORY_BYTES,
+} from './staffpad/parameters.js';
 
 const MIB = 1024 * 1024;
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MAXIMUM_SAFE_BYTES = BigInt(Number.MAX_SAFE_INTEGER);
 
 export const MAXIMUM_CLIP_TIME_PITCH_RENDER_USEFUL_BINARY_BYTES = 256 * MIB;
-export const STAFFPAD_CLIP_TIME_PITCH_WASM_BYTES = 64 * MIB;
+export const STAFFPAD_CLIP_TIME_PITCH_WASM_BYTES = STAFFPAD_MAXIMUM_MEMORY_BYTES;
 export const STAFFPAD_CLIP_TIME_PITCH_MAXIMUM_BLOCK_FRAMES = STAFFPAD_MAXIMUM_BLOCK_FRAMES;
 
 export type ClipTimePitchRenderDirection = 'forward' | 'reverse';

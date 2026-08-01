@@ -54,13 +54,13 @@ import {
 	isStaffPadPassThrough,
 	loadStaffPadWasm,
 	renderStaffPad,
+	STAFFPAD_MAXIMUM_MEMORY_BYTES,
 	staffPadTransformOutputFrames,
 } from '../staffpad/index.js';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const FLOAT64_BYTES = Float64Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
-const STAFFPAD_WASM_WORKING_SET_BYTES = 16 * 1024 ** 2;
 export const AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES = 256 * 1024 ** 2;
 export const AUDACITY_STAFFPAD_EFFECT_TYPES = Object.freeze([
 	'audacity-change-pitch',
@@ -274,7 +274,7 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 			contextBytes += (nonNegativeInteger(options.beforeFrames ?? 0, 'beforeFrames')
 				+ nonNegativeInteger(options.afterFrames ?? 0, 'afterFrames'))
 				* channelCount * FLOAT32_BYTES * 2;
-			scratchBytes += STAFFPAD_WASM_WORKING_SET_BYTES;
+			scratchBytes += STAFFPAD_MAXIMUM_MEMORY_BYTES;
 			break;
 		case 'audacity-auto-duck': {
 			// The dry-rendered control track and its transferred worker clone.
