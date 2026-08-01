@@ -28,10 +28,10 @@ export interface ProjectRevisionPublicationOptions {
 }
 
 /**
- * Admits one canonical project document and reports the two logical payloads
- * published by local persistence: the current snapshot and its revision row.
- * Browser-defined record overhead and process-resident serialization memory are
- * deliberately outside this payload estimate.
+ * Admits one canonical project snapshot and reports its exact UTF-8 size plus
+ * the checked twice-the-snapshot planning amount used for current-and-revision
+ * publication. Repository compaction, revision wrappers, structured-clone
+ * storage bytes, and process-resident serialization memory remain outside it.
  */
 export function estimateProjectRevisionPublication(
 	project: unknown,

@@ -8,6 +8,7 @@ import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
+import { estimateProjectRevisionPublication } from './project-publication-admission.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -29,6 +30,7 @@ export class AudioEditorProjectStore {
 		opfsRoot = null,
 		preferOpfs = true,
 		revisionLimit = 20,
+		maximumProjectDocumentBytes = undefined,
 		pcmCodec = null,
 		pcmCodecFactory = null,
 		migrateLegacyPcmOnAccess = true,
@@ -45,6 +47,7 @@ export class AudioEditorProjectStore {
 		this.opfsRoot = opfsRoot;
 		this.preferOpfs = preferOpfs;
 		this.revisionLimit = Math.max(2, Math.floor(revisionLimit));
+		this.maximumProjectDocumentBytes = maximumProjectDocumentBytes;
 		this.backend = indexedDB ? 'indexeddb' : 'memory';
 		this.storeState = indexedDB ? 'opening' : 'memory-ephemeral';
 		this.degradedReason = indexedDB ? null : 'indexeddb-unavailable';
@@ -107,6 +110,9 @@ export class AudioEditorProjectStore {
 	}
 
 	async saveProject(project) {
+		estimateProjectRevisionPublication(project, {
+			maximumDocumentBytes: this.maximumProjectDocumentBytes,
+		});
 		return this.projectRepository.save(project);
 	}
 
