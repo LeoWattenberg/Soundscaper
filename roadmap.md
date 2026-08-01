@@ -1260,7 +1260,8 @@ models or native implementations.
   [registration](tests/offline-application-shell-registration.test.ts), and
   [Chromium offline reload](tests/browser/offline-application-shell.spec.js)
   regressions cover exact identity, partial and altered installs, activation
-  failure, product routes, and offline reload of both editors.
+  failure, product routes, product-aware fallbacks for unknown offline
+  navigations, and offline reload of both editors.
 
   Web preferences also expose an explicit verified FFmpeg runtime download.
   The strict-TS [download boundary](src/common/offline/ffmpeg-runtime-cache.ts)

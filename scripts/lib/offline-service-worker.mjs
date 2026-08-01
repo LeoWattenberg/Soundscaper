@@ -111,7 +111,8 @@ export async function handleOfflineShellFetch({
 				return await fetchImpl(request);
 			} catch (error) {
 				const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
-				const fallback = await cache.match('/', { ignoreSearch: true });
+				const fallbackPath = offlineNavigationFallbackPath(requestUrl.pathname, shellPaths);
+				const fallback = await cache.match(fallbackPath, { ignoreSearch: true });
 				if (fallback) return fallback;
 				throw error;
 			}
@@ -127,6 +128,19 @@ export async function handleOfflineShellFetch({
 		}
 	}
 	return fetchImpl(request);
+}
+
+function offlineNavigationFallbackPath(pathname, shellPaths) {
+	const segments = String(pathname).split('/').filter(Boolean);
+	const framescaper = segments[0] === 'framescaper';
+	if (framescaper) segments.shift();
+	if (segments[0] === 'embed') segments.shift();
+	const locale = /^[A-Za-z\d-]{1,64}$/u.test(segments[0] ?? '') ? segments[0] : 'en';
+	const productDefault = framescaper ? '/framescaper/en/' : '/en/';
+	const localized = framescaper ? `/framescaper/${locale}/` : `/${locale}/`;
+	if (shellPaths.has(localized)) return localized;
+	if (shellPaths.has(productDefault)) return productDefault;
+	return '/';
 }
 
 export function validateOfflineShellConfiguration(value) {
@@ -209,6 +223,7 @@ ${shellCacheName.toString()}
 ${shellReadinessUrl.toString()}
 ${installOfflineShell.toString()}
 ${activateOfflineShell.toString()}
+${offlineNavigationFallbackPath.toString()}
 ${handleOfflineShellFetch.toString()}
 ${attachOfflineServiceWorker.toString()}
 attachOfflineServiceWorker(globalThis, OFFLINE_SHELL);

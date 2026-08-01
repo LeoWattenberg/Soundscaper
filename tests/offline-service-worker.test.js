@@ -163,11 +163,50 @@ test('fetches use only the verified shell allowlist and explicitly installed run
 	assert.equal(networkRequests, 1, 'only the unknown navigation attempts the network before root fallback');
 });
 
-function shellConfiguration(seed) {
+test('unknown offline navigations fall back to the matching product shell', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const configuration = shellConfiguration('7', [
+		asset('/en/', 'soundscaper shell'),
+		asset('/framescaper/en/', 'framescaper shell'),
+	]);
+	const contents = new Map(configuration.assets.map(({ url }) => [
+		url,
+		url === '/framescaper/en/' ? 'framescaper shell'
+			: url === '/en/' ? 'soundscaper shell'
+				: url === '/' ? 'root shell' : 'application code',
+	]));
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => response(contents.get(url)),
+	});
+	const fetchImpl = async () => { throw new TypeError('offline'); };
+
+	const framescaper = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl,
+		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/framescaper/embed/en/project' },
+		origin: 'https://soundscaper.org',
+	});
+	const soundscaper = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl,
+		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/embed/en/project' },
+		origin: 'https://soundscaper.org',
+	});
+
+	assert.equal(await framescaper.text(), 'framescaper shell');
+	assert.equal(await soundscaper.text(), 'soundscaper shell');
+});
+
+function shellConfiguration(seed, extraAssets = []) {
 	const assets = [
 		asset('/', 'root shell'),
 		asset('/assets/application.js', 'application code'),
-	];
+		...extraAssets,
+	].sort(({ url: left }, { url: right }) => left < right ? -1 : left > right ? 1 : 0);
 	const identity = {
 		schemaVersion: 1,
 		workerSha256: seed.repeat(64),
