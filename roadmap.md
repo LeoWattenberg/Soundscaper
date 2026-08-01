@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Engineering roadmap, last grounded against the repository on 2026-07-31.
+> Engineering roadmap, last grounded against the repository on 2026-08-01.
 > Milestones are ordered by dependency and close only when their exit gates pass;
 > they are not release-date promises.
 
@@ -1125,14 +1125,47 @@ models or native implementations.
   exact worker-peak formula to the pinned source manifest, so the existing
   controller and macro 256 MiB preflights no longer undercharge StaffPad by
   48 MiB. This is an estimator correction, not product-wide worker admission.
-  Other render paths—including whole `OfflineAudioContext` renders, realtime
-  capture, standalone generic effect and spectral worker calls, FFmpeg/WASM
-  encoding, and native hosts—remain outside the clip-cache bound.
-  Genuine editorial video proxies remain future work,
-  including a pre-encode maximum; current thumbnail derivatives are not
-  editorial proxies. End-to-end browser/worker/renderer resident-set evidence
-  also remains open; the direct `.scape` publication maximum and
-  browser-download final-Blob bound are covered above.
+  Other render paths—including whole `OfflineAudioContext` renders,
+  realtime capture, standalone generic effect and spectral worker calls,
+  FFmpeg/WASM encoding, and native hosts—remain outside the clip-cache bound.
+
+  Disposable video-preview capture for imported-video posters and filmstrip
+  thumbnails now has a separate strict-TS
+  [capture admission owner](src/common/editor/video-preview-capture-admission.ts).
+  After browser `loadedmetadata` supplies source geometry but before each seek
+  or canvas allocation, checked arithmetic applies non-raiseable source
+  ceilings of 16,384 by 16,384 pixels and 256 MiB of nominal source-RGBA bytes.
+  Lower-only capture seams cannot request more than 640 by 360
+  pixels, so the exact logical output RGBA payload is at most 921,600 bytes.
+  Each extractor serializes its complete seek, canvas, and encoder section;
+  cancellation before a queued turn or seek and after encoding fences the
+  result. The completed `Blob.size` is checked exactly against a non-raiseable
+  4 MiB ceiling before the frame can return to derivative publication. Import
+  keeps the original video usable, skips all later disposable captures after a
+  source-geometry refusal, and stops the remaining filmstrip after an encoded
+  hard-cap refusal. Focused
+  [admission](tests/audio-editor-video-preview-capture-admission.test.ts),
+  [extractor](tests/audio-editor-video-media.test.js), and
+  [import](tests/audio-editor-source-import.test.ts) regressions pin exact
+  boundaries, refusal before seek/canvas work, per-extractor serialization,
+  cancellation fencing, and no rejected derivative publication.
+
+  This disposable-preview control is not a decoder, browser-heap,
+  whole-process RSS, or GC-headroom bound. The object URL and `loadedmetadata`
+  step precede source-geometry admission, browser-native decode surfaces and
+  codec formats need not materialize the nominal RGBA payload, and canvas,
+  encoder, driver, and browser overhead remain unknown. The complete encoded
+  Blob exists before its size check; the fallback `toDataURL` path first
+  materializes a base64 string and decoded bytes, so encode-time allocation is
+  unbounded. An active browser encoder is not force-cancelled, and separate
+  extractors can overlap without a product-wide reservation. Codec-family
+  malformed-input corpora, decode and encode elapsed-time limits, and
+  browser/device resident-set evidence remain open.
+  Genuine editorial video proxies remain future work, including original and
+  relink relationships and a pre-encode end-to-end working-set admission;
+  disposable thumbnail derivatives are not editorial proxies. The direct
+  `.scape` publication maximum and browser-download final-Blob bound are
+  covered above.
 
   Canonical project-publication admission now applies at the maintained
   `AudioEditorProjectStore.saveProject` facade. The strict-TS

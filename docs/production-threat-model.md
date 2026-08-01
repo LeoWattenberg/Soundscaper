@@ -233,9 +233,31 @@ persistence buffers, and runtime overhead can be additive.
 Other render paths—including whole `OfflineAudioContext` rendering, realtime
 capture, generic effect and spectral workers, FFmpeg/WASM encoding, and native
 hosts—remain unqualified.
-Genuine editorial video proxies remain future work,
-including a pre-encode admission maximum; thumbnail derivatives are not
-editorial proxies.
+Disposable video-preview capture for imported-video posters and filmstrip
+thumbnails now has a narrower control. After browser `loadedmetadata` supplies
+geometry but before a seek or canvas allocation, checked arithmetic applies
+non-raiseable source ceilings of 16,384 by 16,384 pixels and 256 MiB of nominal
+source-RGBA bytes. Lower-only request dimensions cap the logical output RGBA
+payload at 640 by 360 pixels, or exactly 921,600 bytes. One extractor serializes
+its seek, canvas, and encoder section, and cancellation is checked before a
+queued turn or seek and again after encoding. A completed encoded Blob is
+checked exactly against a non-raiseable 4 MiB ceiling before it can return for
+derivative publication. Source import retains the original video, stops later
+captures after source-geometry refusal, and stops the remaining filmstrip after
+an encoded hard-cap refusal.
+
+This control does not bound decoder or codec allocations, browser heap, process
+RSS, or GC headroom. Object-URL creation and `loadedmetadata` precede the source
+gate; a native decode surface need not be the nominal RGBA representation.
+Canvas, encoder, driver, and browser overhead are unknown. The encoded Blob
+already exists when its size is checked, while the `toDataURL` fallback first
+materializes base64 and decoded bytes, so encode-time allocation is unbounded.
+Active browser encoding is not force-cancelled, multiple extractors can overlap
+without a product-wide reservation, and codec-family malformed-input corpora
+plus decode/encode elapsed-time evidence remain open.
+Genuine editorial video proxies remain future work, including original/relink
+relationships and pre-encode end-to-end working-set admission; disposable
+thumbnail derivatives are not editorial proxies.
 The bounded desktop materializer now forwards a supplied signal, destroys the
 protocol stream, and releases its capability on abort, but current desktop open
 and import orchestration does not consistently own or provide that signal.
