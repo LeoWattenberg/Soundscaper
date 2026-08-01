@@ -83,22 +83,16 @@ test('realtime render PCM admission remains narrowly evidenced and documented', 
 		new URL(`../${matrix.modelDocument}`, import.meta.url),
 		'utf8',
 	);
-	const roadmap = await readFile(new URL('../roadmap.md', import.meta.url), 'utf8');
-	for (const [name, documentation] of [
-		['production threat model', threatModel],
-		['roadmap', roadmap],
-	] as const) {
-		const scope = realtimeRenderDocumentation(documentation, name);
-		assert.match(scope, /before.*AudioContext.*1–32 channels.*128–16,384.*2 MiB/isu);
-		assert.match(scope, /non-raiseable.*512 packets.*8,388,608.*32 MiB.*Float32/isu);
-		assert.match(scope, /credit before.*transfer.*fails closed/isu);
-		assert.match(scope, /after.*sink promise settles.*count\/frame\/byte.*references.*drop/isu);
-		assert.match(scope, /32 MiB.*plus one.*2 MiB.*staging or replacement/isu);
-		assert.match(scope, /exact.*channel.*tight distinct non-shared fixed.*ArrayBuffer.*frame.*offset.*completion/isu);
-		assert.match(scope, /not.*structured-clone.*AudioContext.*graph.*source.*encoder.*WASM.*heap.*RSS.*GC/isu);
-		assert.match(scope, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
-		assert.match(scope, /concurrent render.*overlap.*product-wide reservation/isu);
-	}
+	const scope = realtimeRenderDocumentation(threatModel, 'production threat model');
+	assert.match(scope, /before.*AudioContext.*1–32 channels.*128–16,384.*2 MiB/isu);
+	assert.match(scope, /non-raiseable.*512 packets.*8,388,608.*32 MiB.*Float32/isu);
+	assert.match(scope, /credit before.*transfer.*fails closed/isu);
+	assert.match(scope, /after.*sink promise settles.*count\/frame\/byte.*references.*drop/isu);
+	assert.match(scope, /32 MiB.*plus one.*2 MiB.*staging or replacement/isu);
+	assert.match(scope, /exact.*channel.*tight distinct non-shared fixed.*ArrayBuffer.*frame.*offset.*completion/isu);
+	assert.match(scope, /not.*structured-clone.*AudioContext.*graph.*source.*encoder.*WASM.*heap.*RSS.*GC/isu);
+	assert.match(scope, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
+	assert.match(scope, /concurrent render.*overlap.*product-wide reservation/isu);
 });
 
 function realtimeRenderDocumentation(documentation: string, name: string): string {

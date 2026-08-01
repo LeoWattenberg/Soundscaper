@@ -36,7 +36,6 @@ interface SecurityMatrix {
 }
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/clip-time-pitch-render-admission.ts' },
@@ -90,35 +89,30 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	for (const [name, documentation] of [
-		['production threat model', threatModel],
-		['roadmap', roadmap],
-	] as const) {
-		assert.match(
-			documentation,
-			/StaffPad.*clip[- ]cache.*non-raiseable 256 MiB.*useful-binary/isu,
-			`${name} must state the narrow StaffPad useful-binary ceiling`,
-		);
-		assert.match(
-			documentation,
-			/serializ(?:e|es|ed|ation).*distinct.*render.*before.*(?:source load|source loader).*worker.*writer/isu,
-			`${name} must state the distinct-render serialization boundary`,
-		);
-		assert.match(
-			documentation,
-			/browser heap.*(?:whole-process|renderer|process).*RSS.*GC/isu,
-			`${name} must retain browser heap, RSS, and GC as residuals`,
-		);
-		assert.match(
-			documentation,
-			/other render paths.*(?:OfflineAudioContext|realtime capture|effect|spectral|FFmpeg)/isu,
-			`${name} must retain other render paths as residuals`,
-		);
-		assert.match(
-			documentation,
-			/genuine editorial (?:video )?prox(?:y|ies).*remain/isu,
-			`${name} must retain genuine editorial proxy admission as a future gap`,
-		);
-	}
+	const name = 'production threat model';
+	assert.match(
+		threatModel,
+		/StaffPad.*clip[- ]cache.*non-raiseable 256 MiB.*useful-binary/isu,
+		`${name} must state the narrow StaffPad useful-binary ceiling`,
+	);
+	assert.match(
+		threatModel,
+		/serializ(?:e|es|ed|ation).*distinct.*render.*before.*(?:source load|source loader).*worker.*writer/isu,
+		`${name} must state the distinct-render serialization boundary`,
+	);
+	assert.match(
+		threatModel,
+		/browser heap.*(?:whole-process|renderer|process).*RSS.*GC/isu,
+		`${name} must retain browser heap, RSS, and GC as residuals`,
+	);
+	assert.match(
+		threatModel,
+		/other render paths.*(?:OfflineAudioContext|realtime capture|effect|spectral|FFmpeg)/isu,
+		`${name} must retain other render paths as residuals`,
+	);
+	assert.match(
+		threatModel,
+		/genuine editorial (?:video )?prox(?:y|ies).*remain/isu,
+		`${name} must retain genuine editorial proxy admission as a future gap`,
+	);
 });

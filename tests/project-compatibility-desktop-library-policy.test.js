@@ -6,7 +6,6 @@ import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 test('shared desktop project policy pins the current editor handoff boundary', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
@@ -129,10 +128,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		/closes only the generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap.*not.*packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/iu,
 	);
 
-	const [documentation, roadmap] = await Promise.all([
-		readFile(documentationUrl, 'utf8'),
-		readFile(roadmapUrl, 'utf8'),
-	]);
+	const documentation = await readFile(documentationUrl, 'utf8');
 	assert.match(documentation, /Shared desktop current-schema persistence/u);
 	assert.match(
 		documentation,
@@ -220,15 +216,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
-	assert.match(
-		roadmap,
-		/dedicated Linux x64.*two separate unpacked.*source-free.*Soundscaper.*Framescaper.*Soundscaper.*packaged executables.*pathless preload IPC.*qualifies.*packaged source-free preload\/IPC\/multi-process\/executable.*Linux x64 only/isu,
-	);
-	assert.match(
-		roadmap,
-		/Simultaneous opens.*serialize through the shared\s+lease.*Linux x64.*source-free.*qualified.*remaining.*platform.*fault.*matrix.*open/isu,
-	);
-
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
 	assert.deepEqual(mediaAdmission.evidence, [

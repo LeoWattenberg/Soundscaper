@@ -27,7 +27,6 @@ interface SecurityMatrix {
 }
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/video-preview-capture-admission.ts' },
@@ -66,68 +65,63 @@ test('disposable video-preview admission remains narrowly evidenced and document
 	assert.match(admission.summary, /cancel/iu);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	for (const [name, documentation] of [
-		['production threat model', threatModel],
-		['roadmap', roadmap],
-	] as const) {
-		const previewScope = videoPreviewDocumentation(documentation, name);
-		assert.match(
-			previewScope,
-			/non-raiseable.*16,?384\s*(?:x|×|by)\s*16,?384.*256 MiB/isu,
-			`${name} must state the source-frame geometry and nominal RGBA ceilings`,
-		);
-		assert.match(
-			previewScope,
-			/640\s*(?:x|×|by)\s*360.*921,?600.*4 MiB/isu,
-			`${name} must state the disposable output and post-encode ceilings`,
-		);
-		assert.match(
-			previewScope,
-			/loadedmetadata/iu,
-			`${name} must retain loadedmetadata discovery as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/decoder/iu,
-			`${name} must retain decoder allocation as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/(?:codec.*heap|heap.*codec)/isu,
-			`${name} must retain codec heap as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/\bRSS\b/iu,
-			`${name} must retain process RSS as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/(?:\bGC\b|garbage[- ]collection)/iu,
-			`${name} must retain garbage-collection headroom as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/encode[- ]time.*allocat/isu,
-			`${name} must retain encode-time allocation as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/toDataURL.*(?:base64|allocat)/isu,
-			`${name} must retain the toDataURL fallback allocation as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/(?:multiple|another|separate)\s+(?:concurrent\s+)?extractors?.*(?:overlap|concurrent|serializ|reservation)/isu,
-			`${name} must retain multiple-extractor overlap as a residual`,
-		);
-		assert.match(
-			previewScope,
-			/genuine editorial (?:video )?prox(?:y|ies).*(?:future|remain.*open)/isu,
-			`${name} must retain genuine editorial proxies as future work`,
-		);
-	}
+	const name = 'production threat model';
+	const previewScope = videoPreviewDocumentation(threatModel, name);
+	assert.match(
+		previewScope,
+		/non-raiseable.*16,?384\s*(?:x|×|by)\s*16,?384.*256 MiB/isu,
+		`${name} must state the source-frame geometry and nominal RGBA ceilings`,
+	);
+	assert.match(
+		previewScope,
+		/640\s*(?:x|×|by)\s*360.*921,?600.*4 MiB/isu,
+		`${name} must state the disposable output and post-encode ceilings`,
+	);
+	assert.match(
+		previewScope,
+		/loadedmetadata/iu,
+		`${name} must retain loadedmetadata discovery as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/decoder/iu,
+		`${name} must retain decoder allocation as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/(?:codec.*heap|heap.*codec)/isu,
+		`${name} must retain codec heap as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/\bRSS\b/iu,
+		`${name} must retain process RSS as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/(?:\bGC\b|garbage[- ]collection)/iu,
+		`${name} must retain garbage-collection headroom as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/encode[- ]time.*allocat/isu,
+		`${name} must retain encode-time allocation as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/toDataURL.*(?:base64|allocat)/isu,
+		`${name} must retain the toDataURL fallback allocation as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/(?:multiple|another|separate)\s+(?:concurrent\s+)?extractors?.*(?:overlap|concurrent|serializ|reservation)/isu,
+		`${name} must retain multiple-extractor overlap as a residual`,
+	);
+	assert.match(
+		previewScope,
+		/genuine editorial (?:video )?prox(?:y|ies).*(?:future|remain.*open)/isu,
+		`${name} must retain genuine editorial proxies as future work`,
+	);
 });
 
 function videoPreviewDocumentation(documentation: string, name: string): string {

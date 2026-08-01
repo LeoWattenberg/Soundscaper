@@ -338,19 +338,19 @@
 			"id": "native-plugins",
 			"status": "disabled",
 			"enableRequires": ["per-format-and-platform-license-review", "redistribution-and-user-installation-policy", "sandbox-and-crash-isolation-review", "notice-and-source-delivery"],
-			"evidence": ["roadmap.md#5-native-acceleration-and-platform-integration", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md"]
 		},
 		{
 			"id": "native-codecs",
 			"status": "disabled",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
-			"evidence": ["roadmap.md#5-native-acceleration-and-platform-integration", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md"]
 		},
 		{
 			"id": "local-models",
 			"status": "disabled",
 			"enableRequires": ["weights-and-code-license-review", "training-data-provenance-record", "model-card-and-use-restrictions", "versioned-download-notices-and-hashes"],
-			"evidence": ["roadmap.md#7-optional-local-intelligence", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md"]
 		}
 	]
 }

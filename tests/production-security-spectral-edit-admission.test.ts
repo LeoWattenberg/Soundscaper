@@ -36,7 +36,6 @@ interface SecurityMatrix {
 }
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/spectral-edit-admission.ts' },
@@ -91,23 +90,17 @@ test('spectral edit admission remains narrowly evidenced and documented', async 
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	for (const [name, documentation] of [
-		['production threat model', threatModel],
-		['roadmap', roadmap],
-	] as const) {
-		const scope = spectralEditDocumentation(documentation, name);
-		assert.match(scope, /non-raiseable 256 MiB.*lower-only.*useful-binary/isu);
-		assert.match(scope, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
-		assert.match(scope, /earlier completed outputs.*dry.*transfer copy.*equal-shape output/isu);
-		assert.match(scope, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
-		assert.match(scope, /worker boundary.*before.*FFT initialization.*copying.*worker creation/isu);
-		assert.match(scope, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
-		assert.match(scope, /task.*project.*current.*persistence.*await.*before.*commit/isu);
-		assert.match(scope, /upper bound.*not.*browser[- ]heap.*RSS.*GC.*product-wide reservation/isu);
-		assert.match(scope, /persistence.*AudioBuffer.*generic selection effects.*injected renderers/isu);
-		assert.match(scope, /worker.*message objects.*PFFFT module heap.*setup.*concurrent/isu);
-	}
+	const scope = spectralEditDocumentation(threatModel, 'production threat model');
+	assert.match(scope, /non-raiseable 256 MiB.*lower-only.*useful-binary/isu);
+	assert.match(scope, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
+	assert.match(scope, /earlier completed outputs.*dry.*transfer copy.*equal-shape output/isu);
+	assert.match(scope, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
+	assert.match(scope, /worker boundary.*before.*FFT initialization.*copying.*worker creation/isu);
+	assert.match(scope, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
+	assert.match(scope, /task.*project.*current.*persistence.*await.*before.*commit/isu);
+	assert.match(scope, /upper bound.*not.*browser[- ]heap.*RSS.*GC.*product-wide reservation/isu);
+	assert.match(scope, /persistence.*AudioBuffer.*generic selection effects.*injected renderers/isu);
+	assert.match(scope, /worker.*message objects.*PFFFT module heap.*setup.*concurrent/isu);
 });
 
 function spectralEditDocumentation(documentation: string, name: string): string {

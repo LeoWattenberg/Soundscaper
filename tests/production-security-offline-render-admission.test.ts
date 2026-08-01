@@ -36,7 +36,6 @@ interface SecurityMatrix {
 }
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/engine/offline-render-admission.ts' },
@@ -101,32 +100,26 @@ test('central offline-render output admission remains narrowly evidenced and doc
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	for (const [name, documentation] of [
-		['production threat model', threatModel],
-		['roadmap', roadmap],
-	] as const) {
-		const scope = offlineRenderDocumentation(documentation, name);
-		assert.match(scope, /non-raiseable 256 MiB.*lower-only/isu);
-		assert.match(scope, /exact.*Float32.*context.*output.*crop\s+copy.*coexist/isu);
-		assert.match(scope, /software-renderer fallback.*(?:before|precedes).*context factory/isu);
-		assert.match(scope, /context.*length.*sample rate.*before.*worklets.*graph.*source/isu);
-		assert.match(scope, /rendered.*channel.*length.*sample rate.*Float32.*before.*(?:return|crop)/isu);
-		assert.match(scope, /source.*reverse.*graph.*worklet.*WASM.*browser[- ]heap.*RSS.*GC/isu);
-		assert.match(scope, /(?:separate|other).*engines?.*overlap.*product-wide reservation/isu);
-		assert.match(scope, /(?:abort|cancellation).*not.*prove.*startRendering\(\).*stop/isu);
-		assert.match(scope, /createExportPlan.*mobile.*output.*live[- ]PCM.*heuristics/isu);
-		assert.match(
-			scope,
-			/project-rate requested frames.*effective\s+pre-roll.*(?:maximum|max).*mix.*per-stem.*graph\s+latency.*actual\s+render\s+width/isu,
-		);
-		assert.match(
-			scope,
-			/known central-limit refusals.*realtime.*before.*offline\s+render.*context\s+work/isu,
-		);
-		assert.match(scope, /exact boundary.*admitted/isu);
-		assert.match(scope, /direct\s+engine\s+callers.*no-context software-renderer fallback/isu);
-	}
+	const scope = offlineRenderDocumentation(threatModel, 'production threat model');
+	assert.match(scope, /non-raiseable 256 MiB.*lower-only/isu);
+	assert.match(scope, /exact.*Float32.*context.*output.*crop\s+copy.*coexist/isu);
+	assert.match(scope, /software-renderer fallback.*(?:before|precedes).*context factory/isu);
+	assert.match(scope, /context.*length.*sample rate.*before.*worklets.*graph.*source/isu);
+	assert.match(scope, /rendered.*channel.*length.*sample rate.*Float32.*before.*(?:return|crop)/isu);
+	assert.match(scope, /source.*reverse.*graph.*worklet.*WASM.*browser[- ]heap.*RSS.*GC/isu);
+	assert.match(scope, /(?:separate|other).*engines?.*overlap.*product-wide reservation/isu);
+	assert.match(scope, /(?:abort|cancellation).*not.*prove.*startRendering\(\).*stop/isu);
+	assert.match(scope, /createExportPlan.*mobile.*output.*live[- ]PCM.*heuristics/isu);
+	assert.match(
+		scope,
+		/project-rate requested frames.*effective\s+pre-roll.*(?:maximum|max).*mix.*per-stem.*graph\s+latency.*actual\s+render\s+width/isu,
+	);
+	assert.match(
+		scope,
+		/known central-limit refusals.*realtime.*before.*offline\s+render.*context\s+work/isu,
+	);
+	assert.match(scope, /exact boundary.*admitted/isu);
+	assert.match(scope, /direct\s+engine\s+callers.*no-context software-renderer fallback/isu);
 });
 
 function offlineRenderDocumentation(documentation: string, name: string): string {

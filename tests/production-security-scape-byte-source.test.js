@@ -8,7 +8,6 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 const packageUrl = new URL('../package.json', import.meta.url);
 const referenceScaleTestUrl = new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 test('production evidence pins bounded random-access .scape admission', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
@@ -201,41 +200,4 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.doesNotMatch(threatModel, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 	assert.doesNotMatch(control.summary, /placeholder huge[- ]asset/iu);
 	assert.doesNotMatch(threatModel, /huge asset(?:'s)? manifest digest and ZIP CRC are placeholders/iu);
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(
-		roadmap,
-		/random-access byte source.*69,271,649 bytes.*canonical writer profile.*payload gaps/isu,
-	);
-	assert.match(
-		roadmap,
-		/desktop adapter.*descriptor URL\/declared size.*fetch implementation.*16 MiB.*`206`.*`Content-Range`.*`Content-Length`.*response-body `done`.*first admitted abort or\s+transport failure.*stable.*reason.*no descriptor ID or release authority.*file service.*awaited capability scope.*inspection.*open decision.*import.*exactly once.*success.*failure.*cancellation.*abort/isu,
-	);
-	assert.match(
-		roadmap,
-		/main-assigned `scape-range-v1`.*exact 8 GiB sparse Zip64.*without a final renderer `Blob`.*collision-cancel.*payload-lazy.*standalone full import.*authentic pinned CRC.*manifest SHA.*real range\/service\/import.*non-retaining counting independent-SHA.*transactional sink/isu,
-	);
-	assert.match(
-		roadmap,
-		/packaged Soundscaper Linux x64.*current-schema.*source-bearing.*positional `.scape` argument.*pending\s+queue.*main-owned range descriptor.*preload event.*renderer router\/range\s+protocol.*real packaged application storage.*activation.*exact visible project\/track\/clip identities.*exact capability\s+retirement/isu,
-	);
-	assert.match(
-		roadmap,
-		/does not qualify persistent reopen or storage durability.*Installer\/file-association registration.*shell launch.*packaged 8 GiB\s+reference path.*payload laziness beyond the known range route.*playback.*crash\/power-loss.*Windows\/macOS\/ARM.*Framescaper.*third-party.*legacy Soundscaper.*Audacity interchange.*separate.*browser quota.*heap.*RSS.*whole-archive storage\s+atomicity.*publisher authentication/isu,
-	);
-	assert.match(
-		roadmap,
-		/second packaged Soundscaper Linux x64 process.*orderly process-restart persistence witness.*exact 69,349-byte.*schema-9 revision-7.*source-bearing.*archive unchanged.*cleanly exits.*removes.*ENOENT.*same isolated user and\s+application-data roots.*no positional `.scape`.*no read descriptor or\s+capability.*bootstrap.*automatically reopens/isu,
-	);
-	const compactRoadmap = roadmap.replace(/\s+/gu, ' ');
-	for (const claim of [
-		/canonical shared project.*exact one-source\/one-track\/one-clip\s+relations.*exact active project\/track\/clip identities.*Audacity PCM waveform.*no waveform error, alert, or dialog/isu,
-		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,
-		/qualifies\s+only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/isu,
-		/does not qualify audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash\/power-loss\/fsync.*eviction.*quota\/reservation\/concurrency.*Windows\/macOS\/ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
-	]) assert.match(compactRoadmap, claim);
-	assert.equal(
-		[...compactRoadmap.matchAll(/known reopened fixture's stored PCM enters the editor playback graph/giu)].length,
-		2,
-	);
-	assert.doesNotMatch(roadmap, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 });

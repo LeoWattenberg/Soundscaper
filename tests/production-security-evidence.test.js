@@ -5,7 +5,6 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 const EVIDENCE_KINDS = ['implementation', 'test', 'workflow', 'audit', 'document'];
 
 test('security claims point to checked-in implementation and verification evidence', async () => {
@@ -361,11 +360,6 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /engine failure.*cancellation.*reservation or currentness failure.*publication-boundary identity failure.*throwing cache publication.*preserve.*prior shared identities.*cache refusal.*removes.*stale required representation.*commit ownership.*single-use.*discard.*idempotent/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact reason.*late settlement.*buffer.*provider.*engine.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /not a durable byte lease.*`engine\.applyProject` or activation engine callback.*not abortable or transactional.*may have taken effect.*post-call publication-boundary assertion.*blocks shared publication.*later activation step.*successful engine and shared source publication.*not rolled back.*ordinary-source loading.*outside.*required-source publication transaction.*short-buffer retention.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic and video fallback.*unknown or third-party activation/isu);
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(roadmap, /first-party audio whole-mix editor playback through both.*short decoded-source.*oversized stream-provider paths.*persistent active-fallback\s+indicator.*browser-qualified.*activation.*playback-protocol stream.*correlated stream.*source chunk.*packet.*direct or.*resampled geometry.*direct stream-provider readiness\s+boundary.*unit-qualified.*does not prefetch or revalidate chunks after\s+point-in-time admission.*exit.*remains open/isu);
-	assert.match(roadmap, /unit evidence.*private required-source staging before.*activation reservation.*prompt lifetime cancellation.*signal-ignoring\s+metadata.*audio-context.*decoded-body stalls.*exact reason preservation.*no late source or status publication.*discard.*failed currentness or\s+reservation.*prior shared identities intact.*private engine-input\s+snapshots.*staged fallback wins.*conflicting transient/isu);
-	assert.match(roadmap, /shared\s+source maps publish only after.*engine callback succeeds.*lifetime\s+remains active.*each\s+canonical playback reapply.*replaceable\s+controller-lifetime task.*newer reapply.*successful project switch.*only the newest source-ready projection.*engine/isu);
-	assert.match(roadmap, /entered engine call.*non-abortable.*non-transactional.*later activation failure.*does not undo.*successful commit.*ordinary-source loading.*outside.*transaction.*cache-fit policy/isu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {
@@ -452,35 +446,6 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 		/shared-project-parse-budget.*remains open.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128 exact-V9 decode and validator admissions.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*total main-process RSS/isu,
 	);
 
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(
-		roadmap,
-		/security control matrix.*legacy.*\.aup.*XML.*16\s+MiB.*100,000.*400,000.*128/isu,
-	);
-	assert.match(
-		roadmap,
-		/block\/PCM budget.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM/isu,
-	);
-	assert.match(
-		roadmap,
-		/before allocation\s+or block reads.*decoded-block allocation.*exact\/basename.*native-endian.*unique block.*preallocated clip outputs.*parser-owned/isu,
-	);
-	assert.match(
-		roadmap,
-		/every serialized\s+project.*lexical preflight.*101,536 JSON values.*depth 130.*before `JSON\.parse`.*each exact-V9 decoded codec traversal.*maintained-domain\s+validation phase.*independently.*100,000 nodes.*depth 128.*future-schema JSON.*structural preflight.*neither decoded nor\s+interpreted/isu,
-	);
-	assert.match(
-		roadmap,
-		/renderer input refusal.*precedes host mutation.*staging.*loaded commit result.*before the renderer response.*host publication may already have completed.*counters reset between.*lexical.*codec.*validator.*serialization phases.*per-phase shape.*not aggregate work.*CPU\/elapsed time.*allocation amplification.*cancellation latency.*resident memory/isu,
-	);
-	assert.match(
-		roadmap,
-		/prove refusal before conversion.*project\/source persistence.*imported-project publication/isu,
-	);
-	assert.match(
-		roadmap,
-		/default-sized blocks.*customized Audacity.*unsupported.*(?:still|also)\s+leaves.*elapsed\s+time.*aliases.*garbage-collection lag.*total renderer\s+RSS.*streaming-scale/isu,
-	);
 });
 
 test('project publication evidence keeps canonical admission distinct from backend capacity', async () => {
@@ -520,9 +485,6 @@ test('project publication evidence keeps canonical admission distinct from backe
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	assert.match(documentation, /maintained-project-publication-admission.*`AudioEditorProjectStore\.saveProject`.*once for admission.*canonical.*256 MiB.*maintained direct.*actual backend.*twice.*gross proxy.*ceil\(10%\).*Direct IndexedDB.*queued autosave.*explicit flush.*terminal flush.*callback.*without a second canonical serialization.*known insufficient.*unknown or malformed.*memory backend.*successor/isu);
 	assert.match(documentation, /project-publication-capacity-accounting.*not an exact IndexedDB byte count.*structured-clone.*snapshot clone.*serializer string.*heap.*RSS.*maintained facade saves.*point-in-time.*unreserved.*memory fallback.*unknown estimates.*desktop.*local IndexedDB shadow.*appData.*shared-project load.*outside the save facade.*Scape rollback restoration.*aggregated rollback failure.*directly constructed repository/isu);
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(roadmap, /canonical project-publication admission.*`AudioEditorProjectStore\.saveProject`.*non-raiseable 256 MiB.*actual backend.*twice.*gross proxy.*ceil\(10%\).*direct IndexedDB.*queued autosave.*explicit flush.*terminal flush.*capacity callback.*without a second\s+canonical serialization.*known insufficient.*direct and\s+queued.*unknown or malformed.*memory backend.*successor/isu);
-	assert.match(roadmap, /not an exact IndexedDB byte count.*structured-clone.*snapshot clone.*serializer string.*heap.*RSS.*maintained facade saves.*point-in-time.*unreserved.*memory fallback.*unknown estimates.*desktop.*local\s+IndexedDB shadow.*appData.*shared-project load.*outside the save facade.*Scape rollback.*aggregated rollback failure.*directly constructed repository/isu);
 });
 
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {
@@ -561,11 +523,6 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide save targets.*4 pending or live save sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously before the first await.*lower-only.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
 	);
 
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(
-		roadmap,
-		/Electron Enhanced — In progress:.*16 outstanding product-wide save targets.*4\s+pending or live save sessions.*65 GiB per-save and aggregate admitted\s+bytes.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup\s+failure.*charged/isu,
-	);
 });
 
 async function readMatrix() {

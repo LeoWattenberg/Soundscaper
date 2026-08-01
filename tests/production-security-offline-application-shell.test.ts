@@ -103,35 +103,26 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.doesNotMatch(
-		offlineRoadmapScope(roadmap),
-		/Web Core — Planned/iu,
-		'the implemented offline shell must not remain marked Planned',
+	assert.match(
+		roadmap,
+		/Web Core — Implemented \(provisional\):.*installable verified application\s+shell/isu,
+		'roadmap must retain the concise offline-shell status',
 	);
-	for (const [name, scope] of [
-		['production threat model', offlineThreatModelScope(threatModel)],
-		['roadmap', offlineRoadmapScope(roadmap)],
-	] as const) {
-		assert.match(scope, /4,?096.*25 MiB.*256 MiB.*SHA-256/isu, `${name} must retain shell bounds`);
-		assert.match(scope, /readiness.*last.*failed.*candidate/isu, `${name} must retain shell commit ordering`);
-		assert.match(scope, /explicit.*FFmpeg.*(?:user action|download)/isu, `${name} must retain explicit runtime installation`);
-		assert.match(scope, /64 KiB.*512 KiB.*64 MiB.*65 MiB.*4 MiB/isu, `${name} must retain runtime bounds`);
-		assert.match(scope, /previous.*complete release/isu, `${name} must retain runtime rollback`);
-		assert.match(scope, /Web Locks.*serializ/isu, `${name} must retain serialized runtime publication`);
-		assert.match(scope, /state-committed.*active.*previous/isu, `${name} must retain committed-only runtime serving`);
-		assert.match(scope, /cached.*(?:body|response).*SHA-256/isu, `${name} must retain cached-body verification`);
-		assert.match(scope, /compromised asset host.*self-consistent release/isu, `${name} must retain the authenticity residual`);
-		assert.match(scope, /conditional.*read[- ]back/isu, `${name} must retain publisher gaps`);
-		assert.match(scope, /multi-tab.*unqualified/isu, `${name} must retain the actual-browser multi-tab gap`);
-		assert.match(scope, /CacheStorage.*(?:quota|eviction)/isu, `${name} must retain storage-pressure scope`);
-	}
+	const name = 'production threat model';
+	const scope = offlineThreatModelScope(threatModel);
+	assert.match(scope, /4,?096.*25 MiB.*256 MiB.*SHA-256/isu, `${name} must retain shell bounds`);
+	assert.match(scope, /readiness.*last.*failed.*candidate/isu, `${name} must retain shell commit ordering`);
+	assert.match(scope, /explicit.*FFmpeg.*(?:user action|download)/isu, `${name} must retain explicit runtime installation`);
+	assert.match(scope, /64 KiB.*512 KiB.*64 MiB.*65 MiB.*4 MiB/isu, `${name} must retain runtime bounds`);
+	assert.match(scope, /previous.*complete release/isu, `${name} must retain runtime rollback`);
+	assert.match(scope, /Web Locks.*serializ/isu, `${name} must retain serialized runtime publication`);
+	assert.match(scope, /state-committed.*active.*previous/isu, `${name} must retain committed-only runtime serving`);
+	assert.match(scope, /cached.*(?:body|response).*SHA-256/isu, `${name} must retain cached-body verification`);
+	assert.match(scope, /compromised asset host.*self-consistent release/isu, `${name} must retain the authenticity residual`);
+	assert.match(scope, /conditional.*read[- ]back/isu, `${name} must retain publisher gaps`);
+	assert.match(scope, /multi-tab.*unqualified/isu, `${name} must retain the actual-browser multi-tab gap`);
+	assert.match(scope, /CacheStorage.*(?:quota|eviction)/isu, `${name} must retain storage-pressure scope`);
 });
-
-function offlineRoadmapScope(documentation: string): string {
-	const marker = /- \*\*Web Core — Implemented \(provisional\):\*\* the production build now generates/iu.exec(documentation);
-	assert.ok(marker, 'roadmap must record the implemented offline application shell');
-	return documentation.slice(marker.index, marker.index + 8_000);
-}
 
 function offlineThreatModelScope(documentation: string): string {
 	const marker = /The Web application shell now has a separate verified availability boundary/iu.exec(documentation);
