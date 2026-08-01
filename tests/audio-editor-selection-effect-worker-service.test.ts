@@ -8,6 +8,7 @@ import {
 	type EffectWorkerLike,
 	type EffectWorkerState,
 } from '../src/common/editor/controller/selection-effect-worker-service.ts';
+import { planSpectralEditJobAdmission } from '../src/common/editor/spectral-edit-admission.ts';
 
 class FakeWorker implements EffectWorkerLike {
 	onmessage: ((event: Readonly<{ data: unknown }>) => void) | null = null;
@@ -30,6 +31,9 @@ class FakeWorker implements EffectWorkerLike {
 function createHarness(options: Readonly<{
 	workers?: boolean;
 	selectionFactory?: () => FakeWorker;
+	spectralFactory?: () => FakeWorker;
+	spectralMaximumUsefulBinaryBytes?: number;
+	applySpectralGain?: (channels: Float32Array[]) => Promise<Float32Array[]> | Float32Array[];
 }> = { workers: true }) {
 	const state: EffectWorkerState = { audacityEffectWorker: null, spectralWorker: null };
 	const selectionWorkers: FakeWorker[] = [];
@@ -38,6 +42,7 @@ function createHarness(options: Readonly<{
 	let wasmLoads = 0;
 	let fftLoads = 0;
 	let fallbackApplications = 0;
+	let spectralApplications = 0;
 	const service = createSelectionEffectWorkerService({
 		state,
 		copy: { effectProcessingFailed: 'Processing failed' },
@@ -48,7 +53,7 @@ function createHarness(options: Readonly<{
 			return worker;
 		},
 		createSpectralWorker: () => {
-			const worker = new FakeWorker();
+			const worker = options.spectralFactory?.() ?? new FakeWorker();
 			spectralWorkers.push(worker);
 			return worker;
 		},
@@ -65,12 +70,18 @@ function createHarness(options: Readonly<{
 			fallbackApplications += 1;
 			return channels.map((channel) => Float32Array.from(channel, (sample) => sample * 2));
 		},
-		applySpectralGain: async (channels) => channels.map((channel) => Float32Array.from(channel)),
+		applySpectralGain: async (channels) => {
+			spectralApplications += 1;
+			return options.applySpectralGain?.(channels)
+				?? channels.map((channel) => Float32Array.from(channel));
+		},
+		spectralMaximumUsefulBinaryBytes: options.spectralMaximumUsefulBinaryBytes,
 		timeoutMs: 1_000,
 	});
 	return {
 		get fallbackApplications() { return fallbackApplications; },
 		get fftLoads() { return fftLoads; },
+		get spectralApplications() { return spectralApplications; },
 		get wasmLoads() { return wasmLoads; },
 		selectionWorkers,
 		service,
@@ -87,6 +98,16 @@ const APPLY_REQUEST = {
 	sampleRate: 48_000,
 	params: { gainDb: 2 },
 	context: {},
+};
+
+const SPECTRAL_OPTIONS = {
+	sampleRate: 48_000,
+	startFrame: 0,
+	endFrame: 2,
+	minimumFrequency: 10,
+	maximumFrequency: 1_000,
+	windowSize: 32,
+	gainDb: -3,
 };
 
 test('selection worker transfers clones and settles exactly once', async () => {
@@ -159,21 +180,73 @@ test('spectral fallback initializes the FFT runtime and preserves channel shape'
 	const harness = createHarness({ workers: false });
 	const channels = await harness.service.runSpectralEditWorker(
 		[new Float32Array([0.1, 0.2])],
-		{ sampleRate: 48_000, startFrame: 0, endFrame: 2, minimumFrequency: 10, maximumFrequency: 1_000, windowSize: 32, gainDb: -3 },
+		SPECTRAL_OPTIONS,
 	);
 	assert.equal(harness.fftLoads, 1);
 	assert.deepEqual(channels[0], new Float32Array([0.1, 0.2]));
 });
 
-test('spectral workers normalize result channels and clean up after reported failures', async () => {
+test('spectral admission refuses one-past before FFT initialization, copying, or worker creation', async () => {
+	let copies = 0;
+	class CopyObservedFloat32Array extends Float32Array {
+		override [Symbol.iterator](): ArrayIterator<number> {
+			copies += 1;
+			return super[Symbol.iterator]();
+		}
+	}
+	const channel = new CopyObservedFloat32Array([0.1]);
+	const admittedBytes = planSpectralEditJobAdmission({
+		channelCount: 1,
+		frameCount: 1,
+		selectionFrameCount: 1,
+		windowSize: 32,
+	}).usefulBinaryWorkingSet.bytes;
+	const workerHarness = createHarness({
+		spectralMaximumUsefulBinaryBytes: admittedBytes - 1,
+	});
+	await assert.rejects(
+		() => workerHarness.service.runSpectralEditWorker(
+			[channel], { ...SPECTRAL_OPTIONS, endFrame: 1 },
+		),
+		{ code: 'SPECTRAL_EDIT_MEMORY_LIMIT' },
+	);
+	assert.equal(copies, 0);
+	assert.equal(workerHarness.spectralWorkers.length, 0);
+
+	const fallbackHarness = createHarness({
+		workers: false,
+		spectralMaximumUsefulBinaryBytes: admittedBytes - 1,
+	});
+	await assert.rejects(
+		() => fallbackHarness.service.runSpectralEditWorker(
+			[channel], { ...SPECTRAL_OPTIONS, endFrame: 1 },
+		),
+		{ code: 'SPECTRAL_EDIT_MEMORY_LIMIT' },
+	);
+	assert.equal(fallbackHarness.fftLoads, 0);
+	assert.equal(fallbackHarness.spectralApplications, 0);
+	assert.equal(copies, 0);
+});
+
+test('spectral workers preserve exact typed results without coercion', async () => {
 	const harness = createHarness();
+	const input = [new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])];
 	const pending = harness.service.runSpectralEditWorker(
-		[new Float32Array([0.1, 0.2])],
-		{ sampleRate: 48_000, startFrame: 0, endFrame: 2, minimumFrequency: 10, maximumFrequency: 1_000, windowSize: 32, gainDb: -3 },
+		input,
+		SPECTRAL_OPTIONS,
 	);
 	const worker = harness.spectralWorkers[0]!;
-	worker.onmessage?.({ data: { type: 'result', channels: [[0.4, 0.5]] } });
-	assert.deepEqual((await pending)[0], new Float32Array([0.4, 0.5]));
+	const posted = worker.posted as { channels: Float32Array[] };
+	assert.notEqual(posted.channels[0], input[0]);
+	assert.notEqual(posted.channels[1], input[1]);
+	assert.deepEqual(worker.transfer, posted.channels.map((channel) => channel.buffer));
+	assert.equal(input[0]?.byteLength, 8);
+	assert.equal(input[1]?.byteLength, 8);
+	const output = [new Float32Array([0.4, 0.5]), new Float32Array([0.6, 0.7])];
+	worker.onmessage?.({ data: { type: 'result', channels: output } });
+	const result = await pending;
+	assert.equal(result[0], output[0]);
+	assert.equal(result[1], output[1]);
 	assert.equal(worker.terminated, 1);
 	assert.equal(harness.state.spectralWorker, null);
 
@@ -182,6 +255,72 @@ test('spectral workers normalize result channels and clean up after reported fai
 		data: { type: 'error', name: 'RangeError', code: 'BAD_EFFECT', message: 'bad effect' },
 	});
 	await assert.rejects(failing, { name: 'RangeError', code: 'BAD_EFFECT' });
+});
+
+test('spectral workers reject malformed result storage immediately and clean up', async () => {
+	const alias = new Float32Array([0.4, 0.5]);
+	const subview = new Float32Array([0.4, 0.5, 0.6]).subarray(0, 2);
+	for (const channels of [
+		[[0.4, 0.5], [0.6, 0.7]],
+		[new Float32Array(3), new Float32Array(3)],
+		[alias, alias],
+		[subview, new Float32Array(2)],
+	]) {
+		const harness = createHarness();
+		const pending = harness.service.runSpectralEditWorker(
+			[new Float32Array(2), new Float32Array(2)],
+			SPECTRAL_OPTIONS,
+		);
+		const worker = harness.spectralWorkers[0]!;
+		worker.onmessage?.({ data: { type: 'result', channels } });
+		await assert.rejects(pending, /Spectral edit worker result/iu);
+		assert.equal(worker.terminated, 1);
+		assert.equal(harness.state.spectralWorker, null);
+	}
+
+	const harness = createHarness();
+	const pending = harness.service.runSpectralEditWorker(
+		[new Float32Array(2)],
+		SPECTRAL_OPTIONS,
+	);
+	const worker = harness.spectralWorkers[0]!;
+	worker.onmessage?.({ data: { type: 'result' } });
+	await assert.rejects(pending, /Spectral edit worker result/iu);
+	assert.equal(worker.terminated, 1);
+	assert.equal(harness.state.spectralWorker, null);
+});
+
+test('spectral fallback applies the same strict result validation', async () => {
+	const validOutput = [new Float32Array([0.4, 0.5])];
+	const validHarness = createHarness({
+		workers: false,
+		applySpectralGain: () => validOutput,
+	});
+	const result = await validHarness.service.runSpectralEditWorker(
+		[new Float32Array(2)],
+		SPECTRAL_OPTIONS,
+	);
+	assert.equal(result[0], validOutput[0]);
+
+	for (const output of [
+		[[0.4, 0.5]] as unknown as Float32Array[],
+		[new Float32Array(3)],
+		[new Float32Array(3).subarray(0, 2)],
+	]) {
+		const harness = createHarness({
+			workers: false,
+			applySpectralGain: () => output,
+		});
+		await assert.rejects(
+			() => harness.service.runSpectralEditWorker(
+				[new Float32Array(2)],
+				SPECTRAL_OPTIONS,
+			),
+			/Spectral edit fallback result/iu,
+		);
+		assert.equal(harness.fftLoads, 1);
+		assert.equal(harness.spectralApplications, 1);
+	}
 });
 
 test('selection workers ignore unrelated messages before accepting a noise profile', async () => {

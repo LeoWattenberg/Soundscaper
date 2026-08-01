@@ -2,6 +2,10 @@
 
 import { cloneAudacityWorkerPayload } from './nyquist-audio.ts';
 import { WorkerRequestCancelledError, WorkerRequestTimeoutError } from '../worker-protocol.ts';
+import {
+	inspectSpectralEditChannels,
+	planSpectralEditJobAdmission,
+} from '../spectral-edit-admission.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
 
 const DEFAULT_EFFECT_WORKER_TIMEOUT_MS = 120_000;
@@ -81,6 +85,7 @@ export interface SelectionEffectWorkerServiceRuntime {
 		channels: Float32Array[],
 		options: SpectralEditOptions,
 	) => Promise<Float32Array[]> | Float32Array[];
+	readonly spectralMaximumUsefulBinaryBytes?: number;
 	readonly timeoutMs?: number;
 	readonly setTimeout?: (callback: () => void, delay: number) => ReturnType<typeof globalThis.setTimeout>;
 	readonly clearTimeout?: (handle: ReturnType<typeof globalThis.setTimeout>) => void;
@@ -173,28 +178,43 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 	): Promise<Float32Array[]> {
 		const projectToken = runtime.captureProject();
 		throwIfAborted(options.signal);
+		const input = inspectSpectralEditChannels(channels, { label: 'Spectral edit input' });
+		const admission = planSpectralEditJobAdmission({
+			channelCount: input.channelCount,
+			frameCount: input.frameCount,
+			selectionFrameCount: spectralOptions.endFrame - spectralOptions.startFrame,
+			windowSize: spectralOptions.windowSize,
+			maximumUsefulBinaryBytes: runtime.spectralMaximumUsefulBinaryBytes,
+		});
+		const geometry = admission.phases[0]!;
 		if (!workerIsAvailable(runtime)) {
 			await runtime.initializePffft();
 			runtime.assertProject(projectToken);
 			throwIfAborted(options.signal);
-			const result = await runtime.applySpectralGain(channels, spectralOptions);
+			const currentInput = inspectSpectralEditChannels(input.channels, {
+				label: 'Spectral edit input',
+				expectedChannelCount: geometry.channelCount,
+				expectedFrameCount: geometry.frameCount,
+			});
+			const result = await runtime.applySpectralGain([...currentInput.channels], spectralOptions);
 			runtime.assertProject(projectToken);
 			throwIfAborted(options.signal);
-			return result;
+			return exactSpectralResultChannels(result, geometry, 'Spectral edit fallback result');
 		}
 
+		const timeoutMs = normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs);
 		spectralOwner?.cancel(new WorkerRequestCancelledError());
+		const workerChannels = input.channels.map((channel) => Float32Array.from(channel));
 		const worker = (runtime.createSpectralWorker ?? createDefaultSpectralWorker)();
 		runtime.state.spectralWorker = worker;
-		const workerChannels = channels.map((channel) => Float32Array.from(channel));
 		const result = await executeWorker<Readonly<{ channels: Float32Array[] }>>({
 			worker,
 			message: { channels: workerChannels, options: spectralOptions },
 			transfer: workerChannels.map((channel) => channel.buffer),
 			signal: options.signal,
-			timeoutMs: normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs),
+			timeoutMs,
 			processingFailedMessage: runtime.copy.effectProcessingFailed,
-			acceptMessage: spectralWorkerMessage,
+			acceptMessage: (data) => spectralWorkerMessage(data, geometry),
 			setOwner: (owner) => { spectralOwner = owner; },
 			clearOwner: (owner) => {
 				if (spectralOwner === owner) spectralOwner = null;
@@ -266,7 +286,13 @@ function executeWorker<Result>(options: ExecuteWorkerOptions<Result>): Promise<R
 				if (Number.isFinite(value)) options.onProgress?.(Math.max(0, Math.min(1, value)));
 				return;
 			}
-			const outcome = options.acceptMessage(data);
+			let outcome: Result | Error | null;
+			try {
+				outcome = options.acceptMessage(data);
+			} catch (error) {
+				settle(null, error instanceof Error ? error : new Error(String(error)));
+				return;
+			}
 			if (outcome instanceof Error) settle(null, outcome);
 			else if (outcome !== null) settle(outcome, null);
 		};
@@ -299,15 +325,27 @@ function selectionWorkerMessage(data: unknown): SelectionEffectWorkerResult | Er
 	return data as SelectionEffectWorkerResult;
 }
 
-function spectralWorkerMessage(data: unknown): Readonly<{ channels: Float32Array[] }> | Error | null {
+function spectralWorkerMessage(
+	data: unknown,
+	geometry: Readonly<{ channelCount: number; frameCount: number }>,
+): Readonly<{ channels: Float32Array[] }> | Error | null {
 	if (!isRecord(data)) return null;
 	if (data.type === 'error') return workerReportedError(data);
-	if (data.type !== 'result' || !Array.isArray(data.channels)) return null;
-	return {
-		channels: data.channels.map((channel) => channel instanceof Float32Array
-			? channel
-			: new Float32Array(channel as ArrayLike<number>)),
-	};
+	if (data.type !== 'result') return null;
+	return { channels: exactSpectralResultChannels(data.channels, geometry, 'Spectral edit worker result') };
+}
+
+function exactSpectralResultChannels(
+	channels: unknown,
+	geometry: Readonly<{ channelCount: number; frameCount: number }>,
+	label: string,
+): Float32Array[] {
+	const result = inspectSpectralEditChannels(channels, {
+		label,
+		expectedChannelCount: geometry.channelCount,
+		expectedFrameCount: geometry.frameCount,
+	});
+	return [...result.channels];
 }
 
 function workerReportedError(data: Readonly<Record<string, unknown>>): Error {
