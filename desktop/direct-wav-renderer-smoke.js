@@ -49,6 +49,37 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		control.blur();
 		await delay(25);
 	};
+	const activateMetadataTab = async (metadata, name, id) => {
+		const tabs = [...metadata.querySelectorAll('[role="tab"]')]
+			.filter((tab) => String(tab.textContent || '').trim() === name);
+		if (tabs.length !== 1) throw new Error(`Packaged direct WAV ${name} metadata tab is unavailable or ambiguous`);
+		tabs[0].click();
+		await waitFor(
+			() => metadata.querySelector(`[data-export-metadata-tab="${id}"]`),
+			`${name} metadata tab activation`,
+		);
+	};
+	const commitBextValues = async (metadata, values, label) => {
+		const pending = new Set(Object.keys(values));
+		for (let attempt = 0; attempt < 2 && pending.size; attempt += 1) {
+			await activateMetadataTab(metadata, 'BEXT', 'bext');
+			for (const name of pending) {
+				const field = await waitFor(
+					() => metadata.querySelector(`[name="${name}"]`),
+					`${label} metadata ${name}`,
+				);
+				await commitValue(field, values[name], `${label} metadata ${name}`);
+			}
+			await activateMetadataTab(metadata, 'General', 'general');
+			await activateMetadataTab(metadata, 'BEXT', 'bext');
+			for (const name of [...pending]) {
+				if (metadata.querySelector(`[name="${name}"]`)?.value === values[name]) pending.delete(name);
+			}
+		}
+		if (pending.size) {
+			throw new Error(`Packaged direct ${label} BEXT metadata did not persist: ${[...pending].join(', ')}`);
+		}
+	};
 	const choose = async (dialog, field, index, expectedText) => {
 		const button = await waitFor(() => dialog.querySelector(`${field} button`), `${field} button`);
 		button.click();
@@ -251,10 +282,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			() => document.querySelector('[data-export-metadata-dialog]'),
 			'BWF metadata dialog',
 		);
-		const bextTabs = [...bwfMetadata.querySelectorAll('[role="tab"]')]
-			.filter((tab) => String(tab.textContent || '').trim() === 'BEXT');
-		if (bextTabs.length !== 1) throw new Error('Packaged direct BWF BEXT metadata tab is unavailable or ambiguous');
-		bextTabs[0].click();
+		await activateMetadataTab(bwfMetadata, 'BEXT', 'bext');
 		await waitFor(() => bwfMetadata.querySelector('[data-bext-metadata-editor]'), 'BWF metadata editor');
 		const bextVersion = bwfMetadata.querySelector('[name="version"]');
 		if (bextVersion?.value !== '2') throw new Error('Packaged direct BWF metadata version is not 2');
@@ -273,13 +301,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			maxShortTermLoudness: '',
 			codingHistory: 'A=PCM,F=48000,W=16,M=stereo,T=SmokeFixture\n',
 		};
-		for (const [name, value] of Object.entries(authoredBext)) {
-			const field = await waitFor(
-				() => bwfMetadata.querySelector(`[name="${name}"]`),
-				`BWF metadata ${name}`,
-			);
-			await commitValue(field, value, `BWF metadata ${name}`);
-		}
+		await commitBextValues(bwfMetadata, authoredBext, 'BWF');
 		const bwfMetadataButtons = [...bwfMetadata.querySelectorAll('.audio-editor-dialog-footer button')];
 		if (bwfMetadataButtons.length !== 1) throw new Error('Packaged direct BWF metadata footer is incomplete');
 		bwfMetadataButtons[0].click();
@@ -334,13 +356,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			() => document.querySelector('[data-export-metadata-dialog]'),
 			'BW64 metadata dialog',
 		);
-		const metadataTab = (name) => {
-			const tabs = [...bw64Metadata.querySelectorAll('[role="tab"]')]
-				.filter((tab) => String(tab.textContent || '').trim() === name);
-			if (tabs.length !== 1) throw new Error(`Packaged direct BW64 ${name} metadata tab is unavailable or ambiguous`);
-			tabs[0].click();
-		};
-		metadataTab('General');
+		await activateMetadataTab(bw64Metadata, 'General', 'general');
 		const bw64MetadataFields = [...bw64Metadata.querySelectorAll(
 			'.audio-editor-metadata-table input, .audio-editor-metadata-table textarea',
 		)];
@@ -349,7 +365,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		const bw64CustomMetadata = bw64Metadata.querySelector('.audio-editor-export-details textarea');
 		if (!bw64CustomMetadata) throw new Error('Packaged direct BW64 custom metadata field is missing');
 		setValue(bw64CustomMetadata, '{}');
-		metadataTab('BEXT');
+		await activateMetadataTab(bw64Metadata, 'BEXT', 'bext');
 		await waitFor(() => bw64Metadata.querySelector('[data-bext-metadata-editor]'), 'BW64 BEXT metadata editor');
 		if (bw64Metadata.querySelector('[name="version"]')?.value !== '2') {
 			throw new Error('Packaged direct BW64 metadata version is not 2');
@@ -369,14 +385,8 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			maxShortTermLoudness: '',
 			codingHistory: 'A=PCM,F=48000,W=16,M=multi,T=SmokeFixture\n',
 		};
-		for (const [name, value] of Object.entries(bw64Bext)) {
-			const field = await waitFor(
-				() => bw64Metadata.querySelector(`[name="${name}"]`),
-				`BW64 BEXT metadata ${name}`,
-			);
-			await commitValue(field, value, `BW64 BEXT metadata ${name}`);
-		}
-		metadataTab('ADM');
+		await commitBextValues(bw64Metadata, bw64Bext, 'BW64');
+		await activateMetadataTab(bw64Metadata, 'ADM', 'adm');
 		const enableAdm = await waitFor(() => {
 			const buttons = [...bw64Metadata.querySelectorAll('button')]
 				.filter((button) => String(button.textContent || '').trim() === 'Enable ADM');

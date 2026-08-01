@@ -383,6 +383,31 @@ test('renderer smoke accepts authoritative completion without transient first-ex
 	assert.equal(scope.document.fixture.progressQueries, 0);
 });
 
+test('renderer smoke remounts and retries a BEXT field that did not persist', async () => {
+	const scope = createRendererScope({ dropFirstBextCommit: 'codingHistory' });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	const result = await serializedRoutine(scope, PLAN);
+
+	assert.equal(result.bwfCompleted, true);
+	assert.equal(
+		scope.document.fixture.bextAtStart[3].codingHistory,
+		'A=PCM,F=48000,W=16,M=stereo,T=SmokeFixture\n',
+	);
+	assert.equal(scope.document.fixture.bextCommitAttempts.codingHistory, 3);
+});
+
+test('renderer smoke refuses a BEXT field that remains unpersisted after its retry', async () => {
+	const scope = createRendererScope({ dropEveryBextCommit: 'codingHistory' });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+
+	await assert.rejects(
+		serializedRoutine(scope, PLAN),
+		/BWF BEXT metadata did not persist: codingHistory/iu,
+	);
+	assert.equal(scope.document.fixture.startedRuns, 3, 'BWF rendering never starts with stale metadata');
+	assert.equal(scope.document.fixture.bextCommitAttempts.codingHistory, 2);
+});
+
 test('renderer smoke targets the imported six-channel ADM routes after the authored layout commits', async () => {
 	const scope = createRendererScope({
 		admLayoutDelayMs: 100,

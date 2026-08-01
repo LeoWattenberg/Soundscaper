@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -14,6 +14,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		admRoutesAtStart: [],
 		bext: {},
 		bextAtStart: [],
+		bextCommitAttempts: {},
 		cancelledRuns: 0,
 		completedRuns: 0,
 		dialogOpen: false,
@@ -152,16 +153,28 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		loudnessValue: '-1', loudnessRange: '1', maxTruePeakLevel: '-1',
 		maxMomentaryLoudness: '-1', maxShortTermLoudness: '-1', codingHistory: 'old\n',
 	};
+	const bextDrafts = { ...bextDefaults };
 	const bextControls = Object.fromEntries(Object.entries(bextDefaults).map(([name, initialValue]) => {
-		let draft = initialValue;
 		return [name, element({
 			value: initialValue,
 			dispatch(event) {
-				if (['input', 'change'].includes(event.type)) draft = this.value;
+				if (['input', 'change'].includes(event.type)) bextDrafts[name] = this.value;
 			},
-			blur() { fixture.bext[name] = draft; },
+			blur() {
+				fixture.bextCommitAttempts[name] = (fixture.bextCommitAttempts[name] || 0) + 1;
+				if (dropEveryBextCommit === name) return;
+				if (dropFirstBextCommit === name && fixture.bextCommitAttempts[name] === 1) return;
+				fixture.bext[name] = bextDrafts[name];
+			},
 		})];
 	}));
+	const remountBextControls = () => {
+		for (const [name, initialValue] of Object.entries(bextDefaults)) {
+			const value = fixture.bext[name] ?? initialValue;
+			bextDrafts[name] = value;
+			bextControls[name].value = value;
+		}
+	};
 	const bextVersion = element({ value: '2' });
 	const admControls = Object.fromEntries([
 		['adm-programme-name', 'Programme'],
@@ -223,12 +236,17 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	}));
 	const metadataTabs = [
 		element({ textContent: 'General', click: () => { fixture.metadataTab = 'general'; } }),
-		element({ textContent: 'BEXT', click: () => { fixture.metadataTab = 'bext'; } }),
+		element({ textContent: 'BEXT', click: () => {
+			fixture.metadataTab = 'bext';
+			remountBextControls();
+		} }),
 		element({ textContent: 'ADM', click: () => { fixture.metadataTab = 'adm'; } }),
 	];
 	const metadata = element({
 		query(selector) {
 			if (selector === '.audio-editor-export-details textarea') return customMetadata;
+			const metadataTab = /^\[data-export-metadata-tab="([^"]+)"\]$/u.exec(selector)?.[1];
+			if (metadataTab) return fixture.metadataTab === metadataTab ? metadata : null;
 			if (selector === '[data-bext-metadata-editor]') return fixture.metadataTab === 'bext' ? metadata : null;
 			if (selector === '[data-adm-metadata-editor]') return fixture.metadataTab === 'adm' && fixture.admEnabled ? metadata : null;
 			const name = /^\[name="([^"]+)"\]$/u.exec(selector)?.[1];
