@@ -67,8 +67,9 @@ export async function acquireDesktopSharedProjectMedia(
 	validateAudioEditorProjectV9(projectValue);
 	const project = projectValue as AudioEditorProjectV9;
 	const groups = preflightGroups(project, descriptorValues);
+	const expandedByteBudget = preflightAudioBudgets(groups);
 	const prior = validPriorProject(priorProjectValue, project.id);
-	const plans = await planMissingGroups(groups, prior, store, options.signal);
+	const plans = await planMissingGroups(groups, prior, store, expandedByteBudget, options.signal);
 	const trustedSourceIds = new Set<string>();
 	const acquired: AcquiredOwnership[] = [];
 	let committed = false;
@@ -212,32 +213,30 @@ function preflightGroups(
 		}
 		group.descriptor ??= descriptor;
 	}
-	preflightBudgets(groups);
 	return Object.freeze(groups.map((group) => Object.freeze({
 		...group,
 		sources: Object.freeze([...group.sources]) as unknown as ManagedSource[],
 	})));
 }
 
-function preflightBudgets(groups: readonly SourceGroup[]): void {
+function preflightAudioBudgets(groups: readonly SourceGroup[]): ScapeExpandedByteBudget {
 	const byteBudget = new ScapeExpandedByteBudget(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes);
 	const chunkBudget = new ScapeAudioChunkBudget();
 	for (const group of groups) {
 		const source = group.sources[0] as ManagedSource;
-		if (group.kind === 'audio') {
-			const layout = scapeAudioSourceLayout(source as ManagedAudioSource);
-			byteBudget.consume(layout.archiveBytes, source.id);
-			chunkBudget.consumeMany(layout.chunkCount, source.id);
-		} else if (group.descriptor) {
-			byteBudget.consume(group.descriptor.byteLength, source.id);
-		}
+		if (group.kind !== 'audio') continue;
+		const layout = scapeAudioSourceLayout(source as ManagedAudioSource);
+		byteBudget.consume(layout.archiveBytes, source.id);
+		chunkBudget.consumeMany(layout.chunkCount, source.id);
 	}
+	return byteBudget;
 }
 
 async function planMissingGroups(
 	groups: readonly SourceGroup[],
 	prior: AudioEditorProjectV9 | null,
 	store: Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'getSourceMetadata'>,
+	expandedByteBudget: ScapeExpandedByteBudget,
 	signal?: AbortSignal,
 ): Promise<readonly SourceGroup[]> {
 	const plans: SourceGroup[] = [];
@@ -252,12 +251,53 @@ async function planMissingGroups(
 			if (!priorGroupMatches(prior, group)) {
 				throw new Error(`Recipient-local ${group.kind} source ${source.id} conflicts with a managed shared source.`);
 			}
+			if (group.kind === 'video') {
+				const local = recipientVideoMetadata(source as ManagedVideoSource, metadata);
+				if (group.descriptor && (local.size !== group.descriptor.byteLength
+					|| local.sha256 !== group.descriptor.sha256)) {
+					throw new Error(`Recipient-local video source ${source.id} does not match its managed descriptor.`);
+				}
+				expandedByteBudget.consume(local.size, source.id);
+			}
 			continue;
 		}
-		requiredGroupDescriptor(group);
+		const descriptor = requiredGroupDescriptor(group);
+		if (group.kind === 'video') expandedByteBudget.consume(descriptor.byteLength, source.id);
 		plans.push(group);
 	}
 	return Object.freeze(plans);
+}
+
+function recipientVideoMetadata(
+	source: ManagedVideoSource,
+	value: unknown,
+): Readonly<{ size: number; sha256: string }> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new Error(`Recipient-local video source ${source.id} metadata is missing.`);
+	}
+	const record = value as Record<PropertyKey, unknown>;
+	const sourceId = ownDataValue(record, 'sourceId');
+	const mimeType = ownDataValue(record, 'mimeType');
+	const size = ownDataValue(record, 'size');
+	const sha256 = ownDataValue(record, 'sha256');
+	if (sourceId !== source.storageKey || mimeType !== source.mimeType) {
+		throw new Error(`Recipient-local video source ${source.id} metadata does not match its project binding.`);
+	}
+	if (!Number.isSafeInteger(size) || Number(size) < 1) {
+		throw new RangeError('Recipient-local video metadata.size is invalid.');
+	}
+	if (typeof sha256 !== 'string' || !DIGEST.test(sha256)) {
+		throw new TypeError(`Recipient-local video source ${source.id} has an invalid SHA-256.`);
+	}
+	return Object.freeze({ size: Number(size), sha256 });
+}
+
+function ownDataValue(record: Record<PropertyKey, unknown>, key: PropertyKey): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(record, key);
+	if (!descriptor || !('value' in descriptor)) {
+		throw new TypeError(`Recipient-local metadata.${String(key)} must be a data property.`);
+	}
+	return descriptor.value;
 }
 
 async function acquireAudioSource(

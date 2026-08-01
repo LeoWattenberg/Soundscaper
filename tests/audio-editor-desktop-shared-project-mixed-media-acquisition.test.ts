@@ -13,6 +13,7 @@ import {
 	createVideoSourceV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -191,6 +192,63 @@ test('recipient-local media collision is found before any managed body is read o
 	assert.equal(reads, 0);
 	assert.equal(await store.getSourceMetadata(fixture.audio.storageKey), null);
 	assert.deepEqual(await readMediaBytes(store, fixture.video.storageKey), Uint8Array.of(9, 9, 9));
+});
+
+test('prior-local video bytes join the aggregate budget before a missing body is acquired', async () => {
+	const first = createVideoSourceV9({
+		id: 'prior-budget-video', storageKey: 'prior-budget-video-storage', name: 'prior.mp4',
+		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920,
+		height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
+	});
+	const second = createVideoSourceV9({
+		id: 'missing-budget-video', storageKey: 'missing-budget-video-storage', name: 'missing.mp4',
+		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920,
+		height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
+	});
+	const clips = [first, second].map((source) => createVideoClipV9({
+		id: `${source.id}-clip`, sourceId: source.id, durationFrames: source.frameCount,
+		binItemId: `${source.id}-item`,
+	}));
+	const project = createAudioEditorProjectV9({
+		id: 'prior-video-aggregate-budget', title: 'Prior video aggregate budget', revision: 2,
+		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
+		sources: [first, second], projectBin: { clips },
+	});
+	const descriptor: DesktopSharedManagedSourceDescriptor = Object.freeze({
+		bindingId: `v${'c'.repeat(64)}`, byteLength: 2,
+		encoding: DESKTOP_SHARED_VIDEO_ENCODING, kind: 'video', sha256: 'd'.repeat(64),
+		sourceId: second.id, storageKey: second.storageKey,
+	});
+	let bodyReads = 0;
+	let writes = 0;
+
+	await assert.rejects(acquireDesktopSharedProjectMedia(
+		project,
+		project,
+		[descriptor],
+		{ async readSharedSourceChunk() { bodyReads += 1; throw new Error('Unexpected body read'); } },
+		{
+			getSourceMetadata() { throw new Error('Unexpected audio metadata read'); },
+			getMediaAssetMetadata(sourceId) {
+				if (sourceId === second.storageKey) return null;
+				assert.equal(sourceId, first.storageKey);
+				return {
+					sourceId, storage: 'indexeddb-blob', path: null,
+					committedAt: '2026-08-01T12:00:00.000Z', mimeType: first.mimeType,
+					size: SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes,
+					sha256: 'e'.repeat(64),
+				};
+			},
+			loadMediaAsset() { throw new Error('Unexpected media body read'); },
+			async beginMediaAssetWrite() { writes += 1; throw new Error('Unexpected media write'); },
+			readSourceChunks() { throw new Error('Unexpected PCM read'); },
+			async beginSourceWrite() { throw new Error('Unexpected PCM write'); },
+			discardSourceIfCurrent() { throw new Error('Unexpected PCM rollback'); },
+		},
+	), /expanded-byte limit/iu);
+
+	assert.equal(bodyReads, 0);
+	assert.equal(writes, 0);
 });
 
 interface MixedFixture {
