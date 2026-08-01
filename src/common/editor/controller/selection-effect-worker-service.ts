@@ -9,6 +9,7 @@ import {
 import type { EditorProjectToken } from './lifecycle.ts';
 
 const DEFAULT_EFFECT_WORKER_TIMEOUT_MS = 120_000;
+const INTRINSIC_TYPED_ARRAY_SET = intrinsicTypedArraySet();
 
 export interface EffectWorkerLike {
 	onmessage: ((event: Readonly<{ data: unknown }>) => void) | null;
@@ -196,7 +197,8 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 				expectedChannelCount: geometry.channelCount,
 				expectedFrameCount: geometry.frameCount,
 			});
-			const result = await runtime.applySpectralGain([...currentInput.channels], spectralOptions);
+			const fallbackChannels = cloneSpectralChannels(currentInput.channels, geometry.frameCount);
+			const result = await runtime.applySpectralGain(fallbackChannels, spectralOptions);
 			runtime.assertProject(projectToken);
 			throwIfAborted(options.signal);
 			return exactSpectralResultChannels(result, geometry, 'Spectral edit fallback result');
@@ -204,7 +206,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 
 		const timeoutMs = normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs);
 		spectralOwner?.cancel(new WorkerRequestCancelledError());
-		const workerChannels = input.channels.map((channel) => Float32Array.from(channel));
+		const workerChannels = cloneSpectralChannels(input.channels, geometry.frameCount);
 		const worker = (runtime.createSpectralWorker ?? createDefaultSpectralWorker)();
 		runtime.state.spectralWorker = worker;
 		const result = await executeWorker<Readonly<{ channels: Float32Array[] }>>({
@@ -346,6 +348,30 @@ function exactSpectralResultChannels(
 		expectedFrameCount: geometry.frameCount,
 	});
 	return [...result.channels];
+}
+
+function cloneSpectralChannels(
+	channels: readonly Float32Array[],
+	frameCount: number,
+): Float32Array[] {
+	const clones = new Array<Float32Array>(channels.length);
+	for (let channelIndex = 0; channelIndex < channels.length; channelIndex += 1) {
+		const clone = new Float32Array(frameCount);
+		INTRINSIC_TYPED_ARRAY_SET.call(clone, channels[channelIndex]!);
+		clones[channelIndex] = clone;
+	}
+	return clones;
+}
+
+function intrinsicTypedArraySet(): (
+	this: Float32Array,
+	source: ArrayLike<number>,
+	offset?: number,
+) => void {
+	const prototype = Object.getPrototypeOf(Float32Array.prototype) as object;
+	const set = Object.getOwnPropertyDescriptor(prototype, 'set')?.value;
+	if (typeof set !== 'function') throw new Error('Typed-array intrinsic methods are unavailable.');
+	return set as (this: Float32Array, source: ArrayLike<number>, offset?: number) => void;
 }
 
 function workerReportedError(data: Readonly<Record<string, unknown>>): Error {

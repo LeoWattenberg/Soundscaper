@@ -268,6 +268,51 @@ test('spectral channel inspection requires exact tight planar Float32 geometry',
 	}
 });
 
+test('spectral channel inspection cannot be desynchronized by overridden accessors or iteration', () => {
+	class LyingFloat32Array extends Float32Array {
+		readonly fakeBuffer = new ArrayBuffer(Float32Array.BYTES_PER_ELEMENT);
+		override get length(): number { return 1; }
+		override get byteLength(): number { return Float32Array.BYTES_PER_ELEMENT; }
+		override get byteOffset(): number { return 0; }
+		override get buffer(): ArrayBuffer { return this.fakeBuffer; }
+	}
+	assert.throws(
+		() => inspectSpectralEditChannels([new LyingFloat32Array(1_000)], {
+			expectedChannelCount: 1,
+			expectedFrameCount: 1,
+		}),
+		/frame count|Float32Array|tight ArrayBuffer/iu,
+	);
+	class LyingArrayBuffer extends ArrayBuffer {
+		override get byteLength(): number { return Float32Array.BYTES_PER_ELEMENT; }
+	}
+	const hiddenBacking = new LyingArrayBuffer(4_000);
+	assert.throws(
+		() => inspectSpectralEditChannels([new Float32Array(hiddenBacking, 0, 1)], {
+			expectedChannelCount: 1,
+			expectedFrameCount: 1,
+		}),
+		/tight ArrayBuffer/iu,
+	);
+
+	let iteratorCalls = 0;
+	class HostileChannelArray extends Array<Float32Array> {
+		override [Symbol.iterator](): ArrayIterator<Float32Array> {
+			iteratorCalls += 1;
+			return [new Float32Array(1_000)][Symbol.iterator]();
+		}
+	}
+	const numericChannel = new Float32Array(1);
+	const hostileChannels = new HostileChannelArray();
+	hostileChannels.push(numericChannel);
+	const inspection = inspectSpectralEditChannels(hostileChannels, {
+		expectedChannelCount: 1,
+		expectedFrameCount: 1,
+	});
+	assert.equal(iteratorCalls, 0);
+	assert.deepEqual(inspection.channels, [numericChannel]);
+});
+
 test('spectral edit maximum is nonraiseable with a zero-capable lower-only seam', () => {
 	assert.equal(MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES, 256 * MIB);
 	assert.equal(normalizeSpectralEditMaximumUsefulBinaryBytes(), 256 * MIB);

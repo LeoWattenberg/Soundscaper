@@ -7,6 +7,14 @@ const MINIMUM_WINDOW_SIZE = 32;
 const MAXIMUM_WINDOW_SIZE = 16_384;
 const MAXIMUM_CHANNEL_COUNT = 32;
 const MAXIMUM_SAFE_BYTES = BigInt(Number.MAX_SAFE_INTEGER);
+const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Float32Array.prototype) as object;
+const TYPED_ARRAY_LENGTH_GETTER = intrinsicGetter(TYPED_ARRAY_PROTOTYPE, 'length');
+const TYPED_ARRAY_BYTE_LENGTH_GETTER = intrinsicGetter(TYPED_ARRAY_PROTOTYPE, 'byteLength');
+const TYPED_ARRAY_BYTE_OFFSET_GETTER = intrinsicGetter(TYPED_ARRAY_PROTOTYPE, 'byteOffset');
+const TYPED_ARRAY_BUFFER_GETTER = intrinsicGetter(TYPED_ARRAY_PROTOTYPE, 'buffer');
+const TYPED_ARRAY_TAG_GETTER = intrinsicGetter(TYPED_ARRAY_PROTOTYPE, Symbol.toStringTag);
+const ARRAY_BUFFER_BYTE_LENGTH_GETTER = intrinsicGetter(ArrayBuffer.prototype, 'byteLength');
+const ARRAY_BUFFER_RESIZABLE_GETTER = optionalIntrinsicGetter(ArrayBuffer.prototype, 'resizable');
 
 export const MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES = 256 * MIB;
 
@@ -240,7 +248,13 @@ export function inspectSpectralEditChannels(
 	options: SpectralEditChannelInspectionOptions = {},
 ): Readonly<InspectedSpectralEditChannels> {
 	const label = inspectionLabel(options.label);
-	if (!Array.isArray(input) || input.length < 1 || input.length > MAXIMUM_CHANNEL_COUNT) {
+	if (!Array.isArray(input)) {
+		throw new TypeError(`${label} must contain 1 to 32 channels.`);
+	}
+	const channelCount = input.length;
+	if (!Number.isSafeInteger(channelCount)
+		|| channelCount < 1
+		|| channelCount > MAXIMUM_CHANNEL_COUNT) {
 		throw new TypeError(`${label} must contain 1 to 32 channels.`);
 	}
 	const expectedChannelCount = optionalSafeIntegerRange(
@@ -249,7 +263,7 @@ export function inspectSpectralEditChannels(
 		MAXIMUM_CHANNEL_COUNT,
 		`${label} expected channel count`,
 	);
-	if (expectedChannelCount !== null && input.length !== expectedChannelCount) {
+	if (expectedChannelCount !== null && channelCount !== expectedChannelCount) {
 		throw new RangeError(`${label} channel count does not match its admitted geometry.`);
 	}
 	const expectedFrameCount = optionalSafeIntegerRange(
@@ -259,37 +273,42 @@ export function inspectSpectralEditChannels(
 		`${label} expected frame count`,
 	);
 	const buffers = new Set<ArrayBuffer>();
+	const channels: Float32Array[] = [];
 	let frameCount: number | null = null;
-	for (const channel of input) {
+	for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+		const channel = input[channelIndex];
 		if (!(channel instanceof Float32Array)) {
 			throw new TypeError(`${label} channels must be non-empty, equally sized Float32Array values.`);
 		}
-		if (frameCount === null) frameCount = channel.length;
-		if (channel.length < 1 || channel.length !== frameCount) {
+		const geometry = intrinsicFloat32Geometry(channel, label);
+		if (frameCount === null) frameCount = geometry.frameCount;
+		if (geometry.frameCount < 1 || geometry.frameCount !== frameCount) {
 			throw new TypeError(`${label} channels must be non-empty, equally sized Float32Array values.`);
 		}
-		const buffer = channel.buffer;
-		if (!(buffer instanceof ArrayBuffer)
-			|| channel.byteOffset !== 0
-			|| channel.byteLength !== buffer.byteLength
-			|| (buffer as ArrayBuffer & { readonly resizable?: boolean }).resizable === true) {
+		const backing = intrinsicArrayBufferGeometry(geometry.buffer);
+		if (!backing
+			|| geometry.byteOffset !== 0
+			|| geometry.byteLength !== geometry.frameCount * FLOAT32_BYTES
+			|| geometry.byteLength !== backing.byteLength
+			|| backing.resizable) {
 			throw new TypeError(`${label} channels require tight ArrayBuffer backing.`);
 		}
-		if (buffers.has(buffer)) {
+		if (buffers.has(backing.buffer)) {
 			throw new TypeError(`${label} channels require distinct ArrayBuffer backing.`);
 		}
-		buffers.add(buffer);
+		buffers.add(backing.buffer);
+		channels.push(channel);
 	}
 	const admittedFrameCount = frameCount as number;
 	if (expectedFrameCount !== null && admittedFrameCount !== expectedFrameCount) {
 		throw new RangeError(`${label} frame count does not match its admitted geometry.`);
 	}
 	return Object.freeze({
-		channels: Object.freeze([...input]) as readonly Float32Array[],
-		channelCount: input.length,
+		channels: Object.freeze(channels) as readonly Float32Array[],
+		channelCount,
 		frameCount: admittedFrameCount,
 		byteLength: safeByteNumber(
-			BigInt(input.length) * BigInt(admittedFrameCount) * BigInt(FLOAT32_BYTES),
+			BigInt(channelCount) * BigInt(admittedFrameCount) * BigInt(FLOAT32_BYTES),
 			`${label} byte length`,
 		),
 	});
@@ -359,6 +378,63 @@ function inspectionLabel(value: unknown): string {
 		throw new TypeError('Spectral edit channel inspection label must be a non-empty string.');
 	}
 	return value;
+}
+
+function intrinsicFloat32Geometry(
+	channel: Float32Array,
+	label: string,
+): Readonly<{
+	frameCount: number;
+	byteLength: number;
+	byteOffset: number;
+	buffer: unknown;
+}> {
+	try {
+		const tag = TYPED_ARRAY_TAG_GETTER.call(channel);
+		const frameCount = TYPED_ARRAY_LENGTH_GETTER.call(channel);
+		const byteLength = TYPED_ARRAY_BYTE_LENGTH_GETTER.call(channel);
+		const byteOffset = TYPED_ARRAY_BYTE_OFFSET_GETTER.call(channel);
+		const buffer = TYPED_ARRAY_BUFFER_GETTER.call(channel);
+		if (tag !== 'Float32Array'
+			|| typeof frameCount !== 'number'
+			|| typeof byteLength !== 'number'
+			|| typeof byteOffset !== 'number') {
+			throw new TypeError();
+		}
+		return { frameCount, byteLength, byteOffset, buffer };
+	} catch {
+		throw new TypeError(`${label} channels must be genuine Float32Array values.`);
+	}
+}
+
+function intrinsicArrayBufferGeometry(input: unknown): Readonly<{
+	buffer: ArrayBuffer;
+	byteLength: number;
+	resizable: boolean;
+}> | null {
+	if (!(input instanceof ArrayBuffer)) return null;
+	try {
+		const byteLength = ARRAY_BUFFER_BYTE_LENGTH_GETTER.call(input);
+		const resizable = ARRAY_BUFFER_RESIZABLE_GETTER?.call(input) ?? false;
+		if (typeof byteLength !== 'number' || typeof resizable !== 'boolean') return null;
+		return { buffer: input, byteLength, resizable };
+	} catch {
+		return null;
+	}
+}
+
+function intrinsicGetter(prototype: object, property: PropertyKey): (this: unknown) => unknown {
+	const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+	if (typeof getter !== 'function') throw new Error('Required binary intrinsic accessors are unavailable.');
+	return getter;
+}
+
+function optionalIntrinsicGetter(
+	prototype: object,
+	property: PropertyKey,
+): ((this: unknown) => unknown) | null {
+	const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+	return typeof getter === 'function' ? getter : null;
 }
 
 function optionalSafeIntegerRange(

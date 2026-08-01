@@ -188,13 +188,13 @@ test('spectral fallback initializes the FFT runtime and preserves channel shape'
 
 test('spectral admission refuses one-past before FFT initialization, copying, or worker creation', async () => {
 	let copies = 0;
-	class CopyObservedFloat32Array extends Float32Array {
-		override [Symbol.iterator](): ArrayIterator<number> {
+	const channel = new Float32Array([0.1]);
+	Object.defineProperty(channel, Symbol.iterator, {
+		value(): ArrayIterator<number> {
 			copies += 1;
-			return super[Symbol.iterator]();
-		}
-	}
-	const channel = new CopyObservedFloat32Array([0.1]);
+			return Float32Array.prototype[Symbol.iterator].call(channel);
+		},
+	});
 	const admittedBytes = planSpectralEditJobAdmission({
 		channelCount: 1,
 		frameCount: 1,
@@ -231,6 +231,13 @@ test('spectral admission refuses one-past before FFT initialization, copying, or
 test('spectral workers preserve exact typed results without coercion', async () => {
 	const harness = createHarness();
 	const input = [new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])];
+	let iteratorCalls = 0;
+	Object.defineProperty(input[0], Symbol.iterator, {
+		value(): ArrayIterator<number> {
+			iteratorCalls += 1;
+			return new Float32Array(1_000)[Symbol.iterator]();
+		},
+	});
 	const pending = harness.service.runSpectralEditWorker(
 		input,
 		SPECTRAL_OPTIONS,
@@ -239,6 +246,8 @@ test('spectral workers preserve exact typed results without coercion', async () 
 	const posted = worker.posted as { channels: Float32Array[] };
 	assert.notEqual(posted.channels[0], input[0]);
 	assert.notEqual(posted.channels[1], input[1]);
+	assert.equal(posted.channels[0]?.length, 2);
+	assert.equal(iteratorCalls, 0);
 	assert.deepEqual(worker.transfer, posted.channels.map((channel) => channel.buffer));
 	assert.equal(input[0]?.byteLength, 8);
 	assert.equal(input[1]?.byteLength, 8);
@@ -292,15 +301,38 @@ test('spectral workers reject malformed result storage immediately and clean up'
 
 test('spectral fallback applies the same strict result validation', async () => {
 	const validOutput = [new Float32Array([0.4, 0.5])];
+	const hostileInput = new Float32Array(2);
+	let iteratorCalls = 0;
+	let sliceCalls = 0;
+	Object.defineProperties(hostileInput, {
+		[Symbol.iterator]: {
+			value(): ArrayIterator<number> {
+				iteratorCalls += 1;
+				return new Float32Array(1_000)[Symbol.iterator]();
+			},
+		},
+		slice: {
+			value(): Float32Array {
+				sliceCalls += 1;
+				return new Float32Array(1_000);
+			},
+		},
+	});
 	const validHarness = createHarness({
 		workers: false,
-		applySpectralGain: () => validOutput,
+		applySpectralGain: (channels) => {
+			assert.notEqual(channels[0], hostileInput);
+			assert.equal(channels[0]?.length, 2);
+			return validOutput;
+		},
 	});
 	const result = await validHarness.service.runSpectralEditWorker(
-		[new Float32Array(2)],
+		[hostileInput],
 		SPECTRAL_OPTIONS,
 	);
 	assert.equal(result[0], validOutput[0]);
+	assert.equal(iteratorCalls, 0);
+	assert.equal(sliceCalls, 0);
 
 	for (const output of [
 		[[0.4, 0.5]] as unknown as Float32Array[],
