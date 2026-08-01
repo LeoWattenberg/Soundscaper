@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-test('desktop package metadata exposes the packaged direct WAV, AIFF, and BWF smoke', async () => {
+test('desktop package metadata exposes the packaged direct WAV, AIFF, BWF, and BW64 smoke', async () => {
 	const metadata = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'));
 
 	assert.equal(
@@ -17,7 +17,7 @@ test('desktop package metadata exposes the packaged direct WAV, AIFF, and BWF sm
 	);
 });
 
-test('desktop CI runs the direct WAV, AIFF, and BWF smoke only for packaged Soundscaper Linux x64', async () => {
+test('desktop CI runs the direct WAV, AIFF, BWF, and BW64 smoke only for packaged Soundscaper Linux x64', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
 	const nextJobStart = workflow.indexOf('\n  project-library-handoff:', packageJobStart);
@@ -26,7 +26,7 @@ test('desktop CI runs the direct WAV, AIFF, and BWF smoke only for packaged Soun
 
 	const packageJob = workflow.slice(packageJobStart, nextJobStart);
 	const hardenedSmokeIndex = packageJob.indexOf('- name: Smoke the hardened packaged application');
-	const directWavSmokeIndex = packageJob.indexOf('- name: Smoke packaged direct WAV, AIFF, and BWF exports');
+	const directWavSmokeIndex = packageJob.indexOf('- name: Smoke packaged direct WAV, AIFF, BWF, and BW64 exports');
 	const scapeOpenSmokeIndex = packageJob.indexOf('- name: Smoke packaged Soundscaper project open');
 	const retainManifestIndex = packageJob.indexOf('- name: Retain the verified runtime manifest');
 	assert.ok(hardenedSmokeIndex >= 0, 'missing hardened packaged-application smoke');
@@ -37,7 +37,7 @@ test('desktop CI runs the direct WAV, AIFF, and BWF smoke only for packaged Soun
 	const directWavStep = packageJob.slice(directWavSmokeIndex, scapeOpenSmokeIndex);
 	assert.match(
 		directWavStep,
-		/^- name: Smoke packaged direct WAV, AIFF, and BWF exports\s+if: matrix\.product == 'soundscaper' && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'\s+run: npm run desktop:smoke:direct-wav\s+env:\s+SOUNDSCAPER_SMOKE_ARCH: x64\s+SOUNDSCAPER_SMOKE_XVFB: 'true'\s*$/u,
+		/^- name: Smoke packaged direct WAV, AIFF, BWF, and BW64 exports\s+if: matrix\.product == 'soundscaper' && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'\s+run: npm run desktop:smoke:direct-wav\s+env:\s+SOUNDSCAPER_SMOKE_ARCH: x64\s+SOUNDSCAPER_SMOKE_XVFB: 'true'\s*$/u,
 	);
 	assert.equal(
 		workflow.match(/npm run desktop:smoke:direct-wav/gu)?.length,
