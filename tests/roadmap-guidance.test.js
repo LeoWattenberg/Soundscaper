@@ -28,6 +28,10 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		roadmap,
 		/Shared.*Implemented for disposable previews.*trusted retained-original digest.*versioned recipe.*outside project history.*not editorial proxies/isu,
 	);
+	assert.match(
+		roadmap,
+		/Implemented for the maintained first-party\s+audio fallback.*exact-schema audio whole-mix source.*only by\s+its feature requirement.*explicit managed handoff.*editable\s+original.*fresh recipient.*controller-owned manifest digest check.*recipient document.*read-only.*canonical state.*unprojected/isu,
+	);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);
 	assert.doesNotMatch(roadmap, /\b\d+ test files\b/iu);

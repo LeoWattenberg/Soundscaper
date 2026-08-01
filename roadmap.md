@@ -265,20 +265,28 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   retained original video:** ordinary saves remain document-only; explicit
   handoff supports fresh-recipient acquisition and exact same-content rebinding
   on return.
+- **Electron Enhanced / Shared — Implemented for the maintained first-party
+  audio fallback:** an exact-schema audio whole-mix source referenced only by
+  its feature requirement crosses explicit managed handoff with the editable
+  original, is acquired into a fresh recipient, and activates there after the
+  separate controller-owned manifest digest check. The recipient document
+  remains read-only and canonical state stays unprojected.
 - **Electron Enhanced — In progress:** complete linked and unmanaged originals,
-  proxy/rendered-fallback relationships, cleanup and capacity behavior, durable
-  playback identity, and packaged qualification.
+  authored proxy plus generic/video rendered-fallback relationships, cleanup
+  and capacity behavior, durable playback identity, and packaged qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest and versioned recipe while
   staying outside project history, portable archive media, and managed media
   transfer. They are not editorial proxies.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
-  fresh-recipient fallback acquisition and activation.
+  generic or video fallback acquisition and activation.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
-  exact media, and retained histories. Packaged UI and browser-codec
-  qualification remain open.
+  exact media, and retained histories; a narrower one-way fixture proves the
+  maintained first-party audio fallback reaches a fresh recipient from a
+  manifest-only reference. Packaged UI and browser-codec qualification remain
+  open.
 
 This is the main architectural blocker for closing milestone 2. Do not spend the
 next work cycle deepening already-qualified source-free handoff unless it fixes a
