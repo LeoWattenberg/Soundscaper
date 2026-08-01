@@ -7,20 +7,35 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 
 import {
 	MAX_LIBRARY_MEDIA,
-	MAX_LIBRARY_PROJECT_ID_BYTES,
 	type DesktopLibraryMedia,
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
 } from './project-library-contract.ts';
+import {
+	createDesktopLibraryMediaBinding,
+	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+	managedMediaCategoryForBinding,
+	relativeFileForManagedMediaBinding,
+	validatedManagedMediaBindingId,
+	type DesktopLibraryManagedMediaEncoding,
+	type DesktopLibraryMediaBinding,
+} from './project-library-media-binding.ts';
 
-export const DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING = 'audio-f32le-chunks-v1' as const;
+export {
+	createDesktopLibraryAudioMediaBinding,
+	createDesktopLibraryVideoMediaBinding,
+	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+} from './project-library-media-binding.ts';
+export type {
+	DesktopLibraryManagedMediaEncoding,
+	DesktopLibraryMediaBinding,
+} from './project-library-media-binding.ts';
 
-const BINDING_ID = /^m[a-f0-9]{64}$/u;
 const DIGEST = /^[a-f0-9]{64}$/u;
 const STAGE_ID = /^[a-f0-9]{32}$/u;
 const MAXIMUM_BODY_BYTES = 64 * 1024 * 1024 * 1024;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_STORAGE_KEY_BYTES = 4 * 1024;
 
 export interface DesktopLibraryMediaCatalogPort {
 	readMetadata(): DesktopLibraryMetadata | Promise<DesktopLibraryMetadata>;
@@ -39,12 +54,7 @@ export interface DesktopLibraryManagedMediaStoreOptions {
 	readonly randomId?: () => string;
 }
 
-export interface DesktopLibraryAudioMediaBinding {
-	readonly id: string;
-	readonly relativeFile: string;
-}
-
-export interface DesktopLibraryPublishAudioOptions {
+export interface DesktopLibraryPublishMediaOptions {
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly projectSha256: string;
@@ -52,49 +62,16 @@ export interface DesktopLibraryPublishAudioOptions {
 	readonly byteLength: number;
 	readonly sha256: string;
 	readonly chunks: AsyncIterable<Uint8Array>;
+	readonly encoding: DesktopLibraryManagedMediaEncoding;
 	readonly signal?: AbortSignal;
 }
+
+export type DesktopLibraryPublishAudioOptions = Omit<DesktopLibraryPublishMediaOptions, 'encoding'>;
 
 export interface DesktopLibraryManagedMediaReadOptions {
 	readonly offset: number;
 	readonly length: number;
 	readonly signal?: AbortSignal;
-}
-
-export function createDesktopLibraryAudioMediaBinding(
-	projectId: string,
-	storageKey: string,
-	projectRevision: number,
-	projectSha256: string,
-): DesktopLibraryAudioMediaBinding {
-	const projectIdentity = boundedIdentity(
-		projectId,
-		'Desktop library managed-media project identity',
-		MAX_LIBRARY_PROJECT_ID_BYTES,
-	);
-	const sourceStorageKey = boundedIdentity(
-		storageKey,
-		'Desktop library managed-media storage key',
-		MAXIMUM_STORAGE_KEY_BYTES,
-	);
-	const revision = nonNegativeSafeInteger(
-		projectRevision,
-		'Desktop library managed-media project revision',
-	);
-	if (typeof projectSha256 !== 'string' || !DIGEST.test(projectSha256)) {
-		throw new TypeError('Desktop library managed-media project digest is invalid');
-	}
-	const digest = createHash('sha256')
-		.update(JSON.stringify([
-			DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
-			projectIdentity,
-			revision,
-			projectSha256,
-			sourceStorageKey,
-		]), 'utf8')
-		.digest('hex');
-	const id = `m${digest}`;
-	return Object.freeze({ id, relativeFile: relativeFileForBinding(id) });
 }
 
 export class DesktopLibraryManagedMediaStore {
@@ -133,7 +110,12 @@ export class DesktopLibraryManagedMediaStore {
 	}
 
 	publishAudio(options: DesktopLibraryPublishAudioOptions): Promise<DesktopLibraryMedia> {
-		const binding = createDesktopLibraryAudioMediaBinding(
+		return this.publish({ ...options, encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING });
+	}
+
+	publish(options: DesktopLibraryPublishMediaOptions): Promise<DesktopLibraryMedia> {
+		const binding = createDesktopLibraryMediaBinding(
+			options.encoding,
 			options.projectId,
 			options.storageKey,
 			options.projectRevision,
@@ -155,7 +137,7 @@ export class DesktopLibraryManagedMediaStore {
 	}
 
 	async read(bindingId: string, options: DesktopLibraryManagedMediaReadOptions): Promise<Uint8Array> {
-		const id = validatedBindingId(bindingId);
+		const id = validatedManagedMediaBindingId(bindingId);
 		const offset = nonNegativeSafeInteger(options.offset, 'managed-media read offset');
 		const length = positiveSafeInteger(options.length, 'managed-media read length');
 		if (length > this.#maximumReadBytes) {
@@ -165,14 +147,14 @@ export class DesktopLibraryManagedMediaStore {
 		const metadata = await this.#readCatalog();
 		const descriptor = mediaById(metadata, id);
 		if (!descriptor) throw new Error('Desktop library managed-media binding is not present in the catalog');
-		if (descriptor.relativeFile !== relativeFileForBinding(id)) {
+		if (descriptor.relativeFile !== relativeFileForManagedMediaBinding(id)) {
 			throw new TypeError('Desktop library managed-media binding has a non-canonical path');
 		}
 		if (offset > descriptor.byteLength || length > descriptor.byteLength - offset) {
 			throw new RangeError('Desktop library managed-media read range exceeds the body');
 		}
 		const path = this.#pathFor(descriptor.relativeFile);
-		await this.#assertScope(dirname(path));
+		await this.#assertScope(dirname(path), managedMediaCategoryForBinding(id));
 		const handle = await openRegularBody(path);
 		try {
 			const stat = await handle.stat();
@@ -197,7 +179,7 @@ export class DesktopLibraryManagedMediaStore {
 		}
 		const finalPath = this.#pathFor(descriptor.relativeFile);
 		const directory = dirname(finalPath);
-		await this.#prepareDirectory(directory);
+		await this.#prepareDirectory(directory, managedMediaCategoryForBinding(descriptor.id));
 		if (await pathExists(finalPath)) await this.#verifyBody(descriptor, signal);
 		const stageId = this.#randomId();
 		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
@@ -244,7 +226,7 @@ export class DesktopLibraryManagedMediaStore {
 
 	async #verifyBody(descriptor: DesktopLibraryMedia, signal: AbortSignal | undefined): Promise<void> {
 		const path = this.#pathFor(descriptor.relativeFile);
-		await this.#assertScope(dirname(path));
+		await this.#assertScope(dirname(path), managedMediaCategoryForBinding(descriptor.id));
 		const handle = await openRegularBody(path);
 		try {
 			const stat = await handle.stat();
@@ -296,15 +278,15 @@ export class DesktopLibraryManagedMediaStore {
 		return published;
 	}
 
-	async #prepareDirectory(directory: string): Promise<void> {
+	async #prepareDirectory(directory: string, category: 'audio' | 'video'): Promise<void> {
 		await mkdir(this.#root, { recursive: true, mode: 0o700 });
 		await assertRealDirectory(this.#root);
-		await createRealChildDirectory(join(this.#root, 'audio'));
+		await createRealChildDirectory(join(this.#root, category));
 		await createRealChildDirectory(directory);
 	}
 
-	async #assertScope(directory: string): Promise<void> {
-		for (const candidate of [this.#root, join(this.#root, 'audio'), directory]) {
+	async #assertScope(directory: string, category: 'audio' | 'video'): Promise<void> {
+		for (const candidate of [this.#root, join(this.#root, category), directory]) {
 			await assertRealDirectory(candidate);
 		}
 	}
@@ -401,7 +383,7 @@ async function readExactly(
 }
 
 function mediaDescriptor(
-	binding: DesktopLibraryAudioMediaBinding,
+	binding: DesktopLibraryMediaBinding,
 	byteLengthValue: unknown,
 	sha256Value: unknown,
 	maximumBodyBytes: number,
@@ -425,26 +407,6 @@ function assertSameDescriptor(actual: DesktopLibraryMedia, expected: DesktopLibr
 		|| actual.byteLength !== expected.byteLength || actual.sha256 !== expected.sha256) {
 		throw new Error('Desktop library immutable managed-media binding conflict');
 	}
-}
-
-function relativeFileForBinding(idValue: unknown): string {
-	const id = validatedBindingId(idValue);
-	return `audio/${id.slice(1, 3)}/${id}.f32c`;
-}
-
-function validatedBindingId(value: unknown): string {
-	if (typeof value !== 'string' || !BINDING_ID.test(value)) {
-		throw new TypeError('Desktop library managed-media binding id is invalid');
-	}
-	return value;
-}
-
-function boundedIdentity(value: unknown, label: string, maximumBytes: number): string {
-	if (typeof value !== 'string' || value.length === 0 || !value.trim()) {
-		throw new TypeError(`${label} must be a non-empty string`);
-	}
-	if (Buffer.byteLength(value, 'utf8') > maximumBytes) throw new RangeError(`${label} exceeds its byte limit`);
-	return value;
 }
 
 function absoluteRoot(value: unknown): string {
