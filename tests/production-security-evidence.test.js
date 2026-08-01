@@ -496,33 +496,33 @@ test('project publication evidence keeps canonical admission distinct from backe
 	assert.ok(admission);
 	assert.match(
 		admission.summary,
-		/maintained caller save.*`AudioEditorProjectStore\.saveProject`.*canonical.*UTF-8.*non-raiseable 256 MiB.*lower-only.*before repository save.*queued controller.*twice.*gross proxy.*current.*revision.*ceil\(10%\).*known insufficient IndexedDB.*before repository.*success side effects.*unknown.*non-IndexedDB.*proceeds.*successor/isu,
+		/maintained caller save.*`AudioEditorProjectStore\.saveProject`.*once for admission.*canonical.*UTF-8.*non-raiseable 256 MiB.*lower-only.*before repository save.*queued controller.*direct maintained.*actual backend.*twice.*gross proxy.*current.*revision.*ceil\(10%\).*Direct IndexedDB.*one normalized estimate.*queued autosave.*callback.*without a second canonical serialization.*known insufficient.*direct and queued.*before repository.*success side effects.*unknown or malformed.*memory backend.*proceed.*successor/isu,
 	);
 	for (const path of [
-		'src/common/editor/project-publication-admission.ts', 'src/common/editor/storage.js',
+		'src/common/editor/project-publication-admission.ts', 'src/common/editor/storage.js', 'src/common/editor/types.ts',
 		'src/common/editor/controller/project-save-service.ts',
 		'src/common/editor/controller/storage-capacity-runtime.ts',
 		'src/common/editor/controller/storage-capacity-service.ts', 'src/common/editor/app.js',
 		'tests/audio-editor-project-publication-admission.test.ts',
 		'tests/audio-editor-project-store-publication-admission.test.ts',
 		'tests/audio-editor-project-save-publication-admission.test.ts',
-		'tests/audio-editor-controller-disposal.test.js',
+		'tests/audio-editor-controller-disposal.test.js', 'tests/audio-editor-controller.test.js',
 		'tests/audio-editor-storage-capacity-runtime.test.ts',
 		'tests/audio-editor-storage-capacity-service.test.ts',
 	]) assert.ok(admission.evidence.some((item) => item.path === path), path);
 	assert.ok(accounting);
 	assert.match(
 		accounting.exposure,
-		/twice-canonical.*not.*structured-clone.*repository compaction.*revision-wrapper.*record.*key.*property.*transaction.*journal.*replacement.*pruning.*allocation-unit.*estimates may lag.*concurrent writers.*write-time quota.*after canonical serialization.*snapshot.*serializ.*heap.*RSS.*garbage collection.*queued controller saves.*direct store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*no durable-capacity claim.*desktop.*local IndexedDB shadow.*not.*IPC.*appData.*directly constructed repository.*pre-existing over-limit/isu,
+		/twice-canonical.*not.*structured-clone.*repository compaction.*revision-wrapper.*record.*key.*property.*transaction.*journal.*replacement.*pruning.*allocation-unit.*after canonical serialization.*snapshot clone.*serializer string.*heap.*RSS.*garbage collection.*capacity check.*maintained facade saves.*point-in-time.*unreserved.*estimates may lag.*concurrent writers.*oversubscribe.*write-time quota.*memory fallback.*unknown estimates.*no durable-capacity claim.*desktop.*local IndexedDB shadow.*not.*IPC.*appData.*shared-project load.*local shadow.*outside the save facade.*Scape rollback restoration.*aggregated rollback failure.*directly constructed repository.*pre-existing over-limit.*route-specific controls/isu,
 	);
 	assert.match(accounting.requiredControl, /actual backend publication geometry.*resident working set.*reserve.*concurrent writes.*desktop appData/isu);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	assert.match(documentation, /maintained-project-publication-admission.*`AudioEditorProjectStore\.saveProject`.*canonical.*256 MiB.*queued autosave.*explicit flush.*terminal flush.*twice.*gross proxy.*ceil\(10%\).*known insufficient IndexedDB.*unknown.*non-IndexedDB.*successor/isu);
-	assert.match(documentation, /project-publication-capacity-accounting.*not an exact IndexedDB byte count.*structured-clone.*point-in-time.*no reservation.*direct store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*desktop.*local IndexedDB shadow.*appData.*heap.*RSS/isu);
+	assert.match(documentation, /maintained-project-publication-admission.*`AudioEditorProjectStore\.saveProject`.*once for admission.*canonical.*256 MiB.*maintained direct.*actual backend.*twice.*gross proxy.*ceil\(10%\).*Direct IndexedDB.*queued autosave.*explicit flush.*terminal flush.*callback.*without a second canonical serialization.*known insufficient.*unknown or malformed.*memory backend.*successor/isu);
+	assert.match(documentation, /project-publication-capacity-accounting.*not an exact IndexedDB byte count.*structured-clone.*snapshot clone.*serializer string.*heap.*RSS.*maintained facade saves.*point-in-time.*unreserved.*memory fallback.*unknown estimates.*desktop.*local IndexedDB shadow.*appData.*shared-project load.*outside the save facade.*Scape rollback restoration.*aggregated rollback failure.*directly constructed repository/isu);
 	const roadmap = await readFile(roadmapUrl, 'utf8');
-	assert.match(roadmap, /canonical project-publication admission.*`AudioEditorProjectStore\.saveProject`.*non-raiseable 256 MiB.*queued autosave.*explicit flush.*terminal flush.*twice.*gross proxy.*ceil\(10%\).*known insufficient IndexedDB.*non-IndexedDB.*proceeds.*successor/isu);
-	assert.match(roadmap, /not an exact IndexedDB byte count.*structured-clone.*heap.*RSS.*point-in-time.*no reservation.*direct\s+store-facade saves.*project-row capacity check.*route-specific controls.*memory fallback.*desktop.*local\s+IndexedDB shadow.*appData/isu);
+	assert.match(roadmap, /canonical project-publication admission.*`AudioEditorProjectStore\.saveProject`.*non-raiseable 256 MiB.*actual backend.*twice.*gross proxy.*ceil\(10%\).*direct IndexedDB.*queued autosave.*explicit flush.*terminal flush.*capacity callback.*without a second\s+canonical serialization.*known insufficient.*direct and\s+queued.*unknown or malformed.*memory backend.*successor/isu);
+	assert.match(roadmap, /not an exact IndexedDB byte count.*structured-clone.*snapshot clone.*serializer string.*heap.*RSS.*maintained facade saves.*point-in-time.*unreserved.*memory fallback.*unknown estimates.*desktop.*local\s+IndexedDB shadow.*appData.*shared-project load.*outside the save facade.*Scape rollback.*aggregated rollback failure.*directly constructed repository/isu);
 });
 
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {

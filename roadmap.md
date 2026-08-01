@@ -1288,39 +1288,46 @@ models or native implementations.
   transaction save or rollback. Its focused
   [store regressions](tests/audio-editor-project-store-publication-admission.test.ts)
   prove refusal before current or revision mutation and pin the lower-only
-  seam. Controller-owned queued autosave, explicit flush, and terminal flush
-  additionally request capacity immediately before each serialized write. The
-  request is exactly twice the submitted canonical UTF-8 length—a deterministic
-  gross proxy for one current-project payload plus one revision-project
-  payload—and the shared capacity service adds exact `ceil(10%)` policy
-  headroom. A known insufficient IndexedDB estimate rejects even during terminal
-  teardown and before repository or controller success side effects. An unknown
-  normalized estimate, including every non-IndexedDB backend, proceeds. The
-  focused
+  seam. After the actual backend resolves, including an IndexedDB-to-memory
+  fallback, every maintained facade save admits exactly twice the submitted
+  canonical UTF-8 length—a deterministic gross proxy for one current-project
+  payload plus one revision-project payload—with exact `ceil(10%)` policy
+  headroom immediately before repository save. A direct IndexedDB save obtains
+  one normalized estimate and uses the strict admission owner; queued autosave,
+  explicit flush, and terminal flush instead pass the controller's localized
+  capacity callback into the store and reuse its sizing result without a second
+  canonical serialization. A known insufficient estimate rejects direct and
+  queued writes, including terminal teardown, before repository or controller
+  success side effects. An unknown or malformed estimate and every resolved
+  memory backend proceed. The focused
   [estimator](tests/audio-editor-project-publication-admission.test.ts),
   [queue](tests/audio-editor-project-save-publication-admission.test.ts),
   [capacity](tests/audio-editor-storage-capacity-service.test.ts), and
   [runtime](tests/audio-editor-storage-capacity-runtime.test.ts) regressions
-  prove exact UTF-8 and checked twice-payload arithmetic, immediate serialized
-  admission, dirty/no-save refusal, unknown memory fallback, and successor
-  progress after a refused predecessor.
+  prove exact UTF-8 and checked twice-payload arithmetic, exact-boundary and
+  one-byte-short capacity decisions, single-estimate caller admission,
+  pre-mutation refusal, unknown and memory-fallback behavior, dirty/no-save
+  refusal, and successor progress after a refused predecessor.
 
   The twice-canonical gross proxy is not an exact IndexedDB byte count. Local
   persistence clones and compacts unreachable source metadata before publishing
   structured-clone current and revision records with revision-wrapper fields;
   browser record, key, property, transaction, journal, replacement, pruning,
   allocation-unit, and quota-accounting overhead remain unmeasured. The 256 MiB
-  ceiling is evaluated after canonical serialization and does not bound
-  controller snapshot cloning, repeated queued and pre-store serializer
-  allocation, heap, RSS, garbage collection, elapsed time, or backend write
-  work. Quota preflight is point-in-time with no reservation, estimates may lag,
-  concurrent writers and write-time quota failure remain possible, and direct
-  store-facade saves do not receive this project-row capacity check; other
-  route-specific controls remain separate. Memory fallback has no durable
-  capacity claim. For desktop shared projects the estimate covers only
+  ceiling is evaluated after canonical serialization and does not bound the
+  controller snapshot clone, already-materialized serializer string, heap, RSS,
+  garbage collection, elapsed time, or backend write work. The capacity check
+  now covers maintained facade saves but remains point-in-time and unreserved;
+  estimates may lag, concurrent writers can oversubscribe, and write-time quota
+  failure remains possible. Memory fallback and unknown estimates have no
+  durable-capacity claim. For desktop shared projects the estimate covers only
   the local IndexedDB shadow, not renderer/main IPC or the main-process appData
-  project file and catalog. Directly constructed repository instances and
-  pre-existing over-limit stored documents remain outside this qualification.
+  project file and catalog. An authoritative shared-project load can publish its
+  local shadow outside the save facade. Capacity refusal during Scape rollback
+  restoration can also surface an aggregated rollback failure after the prior
+  row was removed. Directly constructed repository instances, pre-existing
+  over-limit stored documents, and other route-specific controls remain outside
+  this qualification.
 - **Web Enhanced — Planned:** move hot OPFS access into dedicated workers and use
   synchronous access handles only after capability detection. IndexedDB remains
   the correctness fallback.
