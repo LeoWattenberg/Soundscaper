@@ -40,13 +40,12 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		control.dispatchEvent(new scope.Event('change', { bubbles: true }));
 	};
 	const commitValue = async (control, value, label) => {
-		if (typeof control?.focus !== 'function' || typeof control?.blur !== 'function') {
+		if (typeof control?.dispatchEvent !== 'function') {
 			throw new Error(`Packaged direct WAV ${label} cannot be committed`);
 		}
-		control.focus();
 		setValue(control, value);
 		await delay(25);
-		control.blur();
+		control.dispatchEvent(new scope.Event('focusout', { bubbles: true }));
 		await delay(25);
 	};
 	const activateMetadataTab = async (metadata, name, id) => {

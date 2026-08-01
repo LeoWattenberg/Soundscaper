@@ -396,6 +396,17 @@ test('renderer smoke remounts and retries a BEXT field that did not persist', as
 	assert.equal(scope.document.fixture.bextCommitAttempts.codingHistory, 3);
 });
 
+test('renderer smoke commits BEXT fields when the hidden packaged window cannot acquire native focus', async () => {
+	const scope = createRendererScope({ ignoreBextNativeBlur: true });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	const result = await serializedRoutine(scope, PLAN);
+
+	assert.equal(result.bwfCompleted, true);
+	assert.equal(result.bw64Completed, true);
+	assert.equal(scope.document.fixture.bextCommitAttempts.description, 2);
+	assert.equal(scope.document.fixture.bextCommitAttempts.codingHistory, 2);
+});
+
 test('renderer smoke refuses a BEXT field that remains unpersisted after its retry', async () => {
 	const scope = createRendererScope({ dropEveryBextCommit: 'codingHistory' });
 	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();

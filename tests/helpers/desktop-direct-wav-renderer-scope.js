@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, ignoreBextNativeBlur = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -155,16 +155,20 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	};
 	const bextDrafts = { ...bextDefaults };
 	const bextControls = Object.fromEntries(Object.entries(bextDefaults).map(([name, initialValue]) => {
+		const commit = () => {
+			fixture.bextCommitAttempts[name] = (fixture.bextCommitAttempts[name] || 0) + 1;
+			if (dropEveryBextCommit === name) return;
+			if (dropFirstBextCommit === name && fixture.bextCommitAttempts[name] === 1) return;
+			fixture.bext[name] = bextDrafts[name];
+		};
 		return [name, element({
 			value: initialValue,
 			dispatch(event) {
 				if (['input', 'change'].includes(event.type)) bextDrafts[name] = this.value;
+				if (event.type === 'focusout') commit();
 			},
 			blur() {
-				fixture.bextCommitAttempts[name] = (fixture.bextCommitAttempts[name] || 0) + 1;
-				if (dropEveryBextCommit === name) return;
-				if (dropFirstBextCommit === name && fixture.bextCommitAttempts[name] === 1) return;
-				fixture.bext[name] = bextDrafts[name];
+				if (!ignoreBextNativeBlur) commit();
 			},
 		})];
 	}));
@@ -188,6 +192,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			value: initialValue,
 			dispatch(event) {
 				if (['input', 'change'].includes(event.type)) draft = this.value;
+				if (event.type === 'focusout') fixture.adm[name] = draft;
 			},
 			blur() { fixture.adm[name] = draft; },
 		})];
