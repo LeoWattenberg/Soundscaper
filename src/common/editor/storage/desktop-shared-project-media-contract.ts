@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { StorageRecord } from './media-records.ts';
+import type { BlobLike, StorageRecord } from './media-records.ts';
 import type { AudioSourceWriter } from './source-write-repository.ts';
 
 export const DESKTOP_SHARED_AUDIO_ENCODING = 'audio-f32le-chunks-v1' as const;
@@ -64,6 +64,11 @@ export interface DesktopSharedSourceTransferBridge {
 
 export interface DesktopSharedSourceTransferStore {
 	getSourceMetadata(sourceId: string): PromiseLike<unknown> | unknown;
+	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown> | unknown;
+	loadMediaAsset(
+		sourceId: string,
+		options?: Readonly<{ signal?: AbortSignal; backfillDigest?: boolean }>,
+	): PromiseLike<BlobLike | null> | BlobLike | null;
 	readSourceChunks(
 		sourceId: string,
 		options?: Readonly<{ signal?: AbortSignal; migrateLegacyPcmOnAccess?: boolean }>,

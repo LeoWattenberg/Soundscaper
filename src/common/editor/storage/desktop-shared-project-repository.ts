@@ -18,7 +18,7 @@ import {
 } from './desktop-shared-project-source-availability.ts';
 import {
 	acquireDesktopSharedProjectAudio,
-	prepareDesktopSharedProjectAudioHandoff,
+	prepareDesktopSharedProjectMediaHandoff,
 	type DesktopSharedAudioAcquisition,
 	type DesktopSharedManagedSourceDescriptor,
 	type DesktopSharedSourceTransferBridge,
@@ -74,8 +74,8 @@ export interface DesktopSharedProjectRepositoryOptions {
 
 /**
  * The shared catalog owns latest project metadata and documents. IndexedDB is
- * retained as the local revision/source/media shadow; source bytes themselves
- * are not made cross-product by this adapter.
+ * retained as the local revision/source/media shadow. Source bytes cross the
+ * product boundary only through the explicit managed-media handoff.
  */
 export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #bridge: DesktopSharedProjectBridge;
@@ -176,7 +176,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 				}
 				return Object.freeze([]);
 			}
-			return prepareDesktopSharedProjectAudioHandoff(
+			return prepareDesktopSharedProjectMediaHandoff(
 				admitted,
 				managedTransferBridge(this.#bridge),
 				this.#sourceTransfer,

@@ -194,6 +194,12 @@ function transferStore(): Readonly<{
 		getSourceMetadata(sourceId) {
 			return committedStorageKeys.has(sourceId) ? { id: sourceId } : null;
 		},
+		getMediaAssetMetadata() {
+			throw new Error('audio-only acquisition must not read retained-media metadata');
+		},
+		loadMediaAsset() {
+			throw new Error('audio-only acquisition must not read retained-media bytes');
+		},
 		readSourceChunks() {
 			throw new Error('recipient acquisition must not read its transfer store');
 		},

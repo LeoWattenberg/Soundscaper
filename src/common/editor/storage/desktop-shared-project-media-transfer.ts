@@ -28,7 +28,10 @@ import {
 } from './desktop-shared-project-media-sources.ts';
 
 export * from './desktop-shared-project-media-contract.ts';
-export { prepareDesktopSharedProjectAudioHandoff } from './desktop-shared-project-media-sender.ts';
+export {
+	prepareDesktopSharedProjectAudioHandoff,
+	prepareDesktopSharedProjectMediaHandoff,
+} from './desktop-shared-project-media-sender.ts';
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const BINDING_ID = /^m[a-f0-9]{64}$/u;

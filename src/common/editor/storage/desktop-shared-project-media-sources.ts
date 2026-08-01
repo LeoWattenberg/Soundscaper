@@ -32,7 +32,7 @@ export interface ManagedVideoSource extends Readonly<Record<string, unknown>> {
 	readonly height: number;
 	readonly frameRate: number;
 	readonly videoCodec: string;
-	readonly audioCodec?: string;
+	readonly audioCodec: string | null;
 	readonly hasAudio: boolean;
 }
 
