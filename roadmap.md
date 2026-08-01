@@ -268,8 +268,13 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Electron Enhanced — In progress:** complete linked and unmanaged originals,
   proxy/rendered-fallback relationships, cleanup and capacity behavior, durable
   playback identity, and packaged qualification.
-- **Shared — In progress:** define stable original/proxy/rendered-fallback
-  relationships without placing reproducible derivatives in project history.
+- **Shared — Implemented for disposable previews:** poster and thumbnail cache
+  records bind a trusted retained-original digest and versioned recipe while
+  staying outside project history, portable archive media, and managed media
+  transfer. They are not editorial proxies.
+- **Shared — In progress:** complete editorial original/proxy/rendered-fallback
+  relationships for linked and unmanaged originals, authored proxies, and
+  fresh-recipient fallback acquisition and activation.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories. Packaged UI and browser-codec

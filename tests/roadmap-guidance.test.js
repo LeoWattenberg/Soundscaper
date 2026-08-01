@@ -24,6 +24,10 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.match(roadmap, /2\. Shared platform\/storage\/media.*current priority/iu);
 	assert.match(roadmap, /### Remaining work, in priority order/iu);
 	assert.match(roadmap, /## 2\. Shared platform, storage, and media foundation.*### Exit gate/isu);
+	assert.match(
+		roadmap,
+		/Shared.*Implemented for disposable previews.*trusted retained-original digest.*versioned recipe.*outside project history.*not editorial proxies/isu,
+	);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);
 	assert.doesNotMatch(roadmap, /\b\d+ test files\b/iu);
