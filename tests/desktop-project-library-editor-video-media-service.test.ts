@@ -88,6 +88,47 @@ test('video source writes use the existing bounded upload session and exact proj
 	assert.equal(host.publications[0]?.encoding, DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING);
 });
 
+test('present video admission revalidates the exact body and project fence without accepting upload bytes', async () => {
+	const fixture = videoFixture();
+	const media = mediaForVideo(fixture.project, fixture.source, 5, 'a'.repeat(64));
+	const host = new FakeManagedMediaHost(bundle(fixture.project, [media]));
+	const service = new DesktopSharedProjectMediaService(host);
+
+	const admission = await service.beginSourceWrite(videoDeclaration(
+		fixture,
+		media.byteLength,
+		media.sha256,
+	));
+	assert.deepEqual(admission, {
+		status: 'present',
+		source: {
+			bindingId: media.id,
+			byteLength: media.byteLength,
+			encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+			kind: 'video',
+			sha256: media.sha256,
+			sourceId: fixture.source.id,
+			storageKey: fixture.source.storageKey,
+		},
+	});
+	assert.equal(host.publications.length, 1);
+	assert.equal(host.publications[0]?.expectedProjectRevision, fixture.project.revision);
+	assert.equal(host.publications[0]?.expectedProjectSha256, PROJECT_DIGEST);
+	assert.equal(host.publications[0]?.encoding, DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING);
+	await assert.rejects(async () => {
+		for await (const _chunk of host.publications[0]?.chunks ?? []) { /* forbidden */ }
+	}, /must not consume a new body/iu);
+	await assert.rejects(
+		service.beginSourceWrite(videoDeclaration(fixture, media.byteLength, 'b'.repeat(64))),
+		/original video.*source-write declaration/iu,
+	);
+	await assert.rejects(
+		service.beginSourceWrite(videoDeclaration(fixture, media.byteLength + 1, media.sha256)),
+		/original video.*byte geometry/iu,
+	);
+	assert.equal(host.publications.length, 1);
+});
+
 test('video admission rejects empty bodies and encoding-kind mismatches before publication', async () => {
 	const fixture = videoFixture();
 	const host = new FakeManagedMediaHost(bundle(fixture.project));
