@@ -10,6 +10,7 @@ import {
 	MAX_SHARED_PROJECT_DOCUMENT_BYTES,
 	MAX_SHARED_PROJECT_ID_BYTES,
 	MAX_SHARED_SOURCE_READS,
+	MAX_SHARED_SOURCES,
 } from '../desktop/constants.js';
 import { registerDesktopProjectLibraryIpc } from '../desktop/project-library-ipc.js';
 
@@ -160,6 +161,29 @@ test('main exposes bounded owner-scoped managed-source transfer without paths', 
 		'bundle', 'begin', 'write', 'finish', 'read-source', 'begin', 'abort', 'dispose',
 	]);
 	assert.equal(calls.some((call) => call.flat().some((value) => typeof value === 'string' && value.includes('/'))), false);
+});
+
+test('main and preload reject project bundles above the managed-source descriptor ceiling', async () => {
+	const oversizedBundle = {
+		document: DOCUMENT,
+		sources: Array.from({ length: MAX_SHARED_SOURCES + 1 }, () => SOURCE_DESCRIPTOR),
+	};
+	const { handlers } = harness({
+		listSharedProjects: async () => [],
+		readSharedProject: async () => null,
+		readSharedProjectBundle: async () => oversizedBundle,
+		commitSharedProject: async (document) => document,
+		deleteSharedProject: async () => false,
+	});
+	await assert.rejects(
+		handlers.get(IPC.readSharedProjectBundle)({ owner: {} }, PROJECT_ID),
+		/source count/u,
+	);
+
+	const { api } = await preloadHarness((channel) => Promise.resolve(
+		channel === IPC.readSharedProjectBundle ? oversizedBundle : null,
+	));
+	await assert.rejects(api.readSharedProjectBundle(PROJECT_ID), /bundle is invalid/u);
 });
 
 test('main caps concurrent managed-source reads and releases capacity after settlement', async () => {
