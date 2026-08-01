@@ -343,6 +343,7 @@ test('delete cannot cross-delete a derivative OPFS path through corrupted media 
 		opfsRoot: opfs.directory,
 	});
 	const bytes = Uint8Array.of(8, 6, 4);
+	await store.writeMediaAsset('derivative-owner', new Blob(['trusted original']));
 	await store.saveVideoDerivative('derivative-owner', {
 		timestamp: 0,
 		type: 'poster',

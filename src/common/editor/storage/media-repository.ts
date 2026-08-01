@@ -185,12 +185,18 @@ export class MediaRepository {
 		return this.#derivatives.trimDerivatives(limits);
 	}
 
-	async loadDerivative(sourceId: string, { timestamp = 0, type }: VideoDerivativeSelector = {}): Promise<BlobLike | null> {
-		return this.#derivatives.loadDerivative(sourceId, { timestamp, type });
+	async loadDerivative(
+		sourceId: string,
+		{ timestamp = 0, type, recipe }: VideoDerivativeSelector = {},
+	): Promise<BlobLike | null> {
+		return this.#derivatives.loadDerivative(sourceId, { timestamp, type, recipe });
 	}
 
-	async listDerivatives(sourceId: string, { type }: Pick<VideoDerivativeSelector, 'type'> = {}): Promise<Record<string, unknown>[]> {
-		return this.#derivatives.listDerivatives(sourceId, { type });
+	async listDerivatives(
+		sourceId: string,
+		{ type, recipe }: Pick<VideoDerivativeSelector, 'type' | 'recipe'> = {},
+	): Promise<Record<string, unknown>[]> {
+		return this.#derivatives.listDerivatives(sourceId, { type, recipe });
 	}
 
 	async deleteDerivative(sourceId: string, selector: VideoDerivativeSelector = {}): Promise<void> {

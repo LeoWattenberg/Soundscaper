@@ -78,6 +78,12 @@ export function binaryMetadata(metadata: unknown): Record<string, unknown> {
 		'pendingProjectUntil',
 		'cacheToken',
 		'sha256',
+		'derivativeBindingVersion',
+		'originalSha256',
+		'originalMediaContentToken',
+		'recipeId',
+		'recipeVersion',
+		'outputSha256',
 		'sourceToken',
 		'mediaChunkToken',
 		'mediaChunkBytes',
@@ -99,28 +105,12 @@ export function mediaAssetMetadata(record: StorageRecord): Record<string, unknow
 	delete value.mediaChunkCount;
 	delete value.mediaContentDigestVersion;
 	delete value.mediaContentToken;
+	delete value.originalMediaContentToken;
 	if (!trustedSha256) delete value.sha256;
 	return value;
 }
 
 export const videoDerivativeMetadata = mediaAssetMetadata;
-
-export function videoDerivativeIdentity(sourceId: unknown, timestamp: unknown, type: unknown): Readonly<{
-	key: string;
-	sourceId: string;
-	timestamp: number;
-	type: string;
-}> {
-	const id = nonEmptyString(sourceId, 'A media source id is required.');
-	const derivativeType = nonEmptyString(type, 'A video derivative type is required.');
-	const sourceTimestamp = nonNegativeFiniteNumber(timestamp, 'A non-negative derivative timestamp is required.');
-	return {
-		key: JSON.stringify([id, derivativeType, sourceTimestamp]),
-		sourceId: id,
-		timestamp: sourceTimestamp,
-		type: derivativeType,
-	};
-}
 
 export function sourceStorageCandidates(
 	sources: readonly StorageRecord[] = [],
@@ -289,16 +279,4 @@ export function sameStoredSourceIdentity(
 function cloneValue<Value>(value: Value): Value {
 	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
 	return JSON.parse(JSON.stringify(value)) as Value;
-}
-
-function nonNegativeFiniteNumber(value: unknown, message: string): number {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < 0) throw new RangeError(message);
-	return number;
-}
-
-function nonEmptyString(value: unknown, message: string): string {
-	const text = typeof value === 'string' ? value.trim() : '';
-	if (!text) throw new TypeError(message);
-	return text;
 }

@@ -257,29 +257,31 @@ export class AudioEditorProjectStore {
 	}
 
 	/**
-	 * Save or replace one derived video artifact (for example, a poster,
-	 * thumbnail, or preview proxy) at an exact source timestamp.
+	 * Save or replace one reproducible poster or thumbnail at an exact source
+	 * timestamp. Editorial proxies remain a separate later relationship.
 	 */
 	async saveVideoDerivative(sourceId, {
 		timestamp = 0,
 		type,
+		recipe,
 		blob: input,
 		metadata = {},
 	} = {}) {
 		return this.mediaRepository.saveDerivative(sourceId, {
 			timestamp,
 			type,
+			recipe,
 			blob: input,
 			metadata,
 		});
 	}
 
-	async loadVideoDerivative(sourceId, { timestamp = 0, type } = {}) {
-		return this.mediaRepository.loadDerivative(sourceId, { timestamp, type });
+	async loadVideoDerivative(sourceId, { timestamp = 0, type, recipe } = {}) {
+		return this.mediaRepository.loadDerivative(sourceId, { timestamp, type, recipe });
 	}
 
-	async listVideoDerivatives(sourceId, { type } = {}) {
-		return this.mediaRepository.listDerivatives(sourceId, { type });
+	async listVideoDerivatives(sourceId, { type, recipe } = {}) {
+		return this.mediaRepository.listDerivatives(sourceId, { type, recipe });
 	}
 
 	async deleteVideoDerivative(sourceId, selector = {}) {

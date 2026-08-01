@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -9,6 +10,7 @@ import {
 	projectDerivativeCacheInventoryRecord,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from '../src/common/editor/storage/derivative-cache-entry.ts';
+import { videoDerivativeIdentity } from '../src/common/editor/storage/video-derivative-relationship.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 interface ReadStats {
@@ -73,6 +75,8 @@ test('IndexedDB derivative replacement publishes matching payload and scalar rec
 		databaseName,
 	}));
 	await store.ready();
+	const original = await persistOriginal(store, 'source');
+	const originalPath = String(original.path);
 	await store.saveVideoDerivative('source', {
 		timestamp: 3,
 		type: 'thumbnail',
@@ -95,7 +99,8 @@ test('IndexedDB derivative replacement publishes matching payload and scalar rec
 	const replacement = onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME);
 	assert.notEqual(replacement.path, oldPath);
 	assert.equal(files.has(oldPath), false, 'the superseded path is removed only after replacement commits');
-	assert.equal(files.size, 1);
+	assert.equal(files.has(originalPath), true, 'the trusted original remains retained');
+	assert.equal(files.size, 2);
 	assert.deepEqual(
 		onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME),
 		projectDerivativeCacheInventoryRecord(replacement, String(replacement.key)),
@@ -113,7 +118,8 @@ test('IndexedDB derivative replacement publishes matching payload and scalar rec
 		}),
 		/planned companion failure|IndexedDB transaction failed/u,
 	);
-	assert.equal(files.size, 1, 'the staged replacement file is removed when publication rolls back');
+	assert.equal(files.size, 2, 'the staged replacement file is removed when publication rolls back');
+	assert.equal(files.has(originalPath), true, 'rollback cannot remove the trusted original');
 	assert.deepEqual(onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME), replacement);
 	assert.deepEqual(
 		onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME),
@@ -131,6 +137,7 @@ test('stale derivative trim plans cannot delete an atomically installed replacem
 		indexedDB, memoryFallback: false, preferOpfs: false, databaseName,
 	}));
 	await store.ready();
+	await persistOriginal(store, 'source');
 	await store.saveVideoDerivative('source', {
 		timestamp: 0,
 		type: 'poster',
@@ -177,6 +184,10 @@ test('exact and partial derivative deletes remove payload and companion pairs to
 		indexedDB, memoryFallback: false, preferOpfs: false, databaseName,
 	}));
 	await store.ready();
+	await Promise.all([
+		persistOriginal(store, 'source'),
+		persistOriginal(store, 'other'),
+	]);
 	for (const [sourceId, timestamp, type] of [
 		['source', 0, 'poster'],
 		['source', 0, 'thumbnail'],
@@ -207,7 +218,10 @@ test('media asset cascade inventories scalar entries and never bulk-loads deriva
 		indexedDB, memoryFallback: false, preferOpfs: false, databaseName,
 	}));
 	await store.ready();
-	await store.writeMediaAsset('source', new Blob(['media']));
+	await Promise.all([
+		persistOriginal(store, 'source'),
+		persistOriginal(store, 'other'),
+	]);
 	await store.saveVideoDerivative('source', { timestamp: 0, type: 'poster', blob: new Blob(['poster']) });
 	await store.saveVideoDerivative('source', { timestamp: 1, type: 'thumbnail', blob: new Blob(['thumb']) });
 	await store.saveVideoDerivative('other', { timestamp: 0, type: 'poster', blob: new Blob(['other']) });
@@ -217,7 +231,11 @@ test('media asset cascade inventories scalar entries and never bulk-loads deriva
 
 	await store.deleteMediaAsset('source');
 
-	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 0);
+	assert.deepEqual(
+		indexedDB.records(databaseName, 'mediaAssets').map(({ sourceId }) => sourceId),
+		['other'],
+		'the cascade removes only the selected original and its derivatives',
+	);
 	assertPairedKeys(indexedDB, databaseName, [derivativeKey('other', 'poster', 0)]);
 	const cascadeReads = indexedDB.stats.getAllRequests.slice(readsBefore);
 	const cascadeValueCursors = indexedDB.stats.cursorRequests.slice(cursorsBefore);
@@ -235,6 +253,7 @@ test('public derivative listings retain metadata omitted from the disposal compa
 		indexedDB, memoryFallback: false, preferOpfs: false, databaseName,
 	}));
 	await store.ready();
+	await persistOriginal(store, 'source');
 	await store.saveVideoDerivative('source', {
 		timestamp: 2,
 		type: 'thumbnail',
@@ -283,7 +302,22 @@ function assertPairedKeys(
 }
 
 function derivativeKey(sourceId: string, type: string, timestamp: number): string {
-	return JSON.stringify([sourceId, type, timestamp]);
+	return videoDerivativeIdentity(sourceId, originalSha256(sourceId), timestamp, type).key;
+}
+
+function persistOriginal(
+	store: DerivativeProjectStore,
+	sourceId: string,
+): Promise<Record<string, unknown>> {
+	return store.writeMediaAsset(sourceId, new Blob([originalBody(sourceId)]));
+}
+
+function originalSha256(sourceId: string): string {
+	return createHash('sha256').update(originalBody(sourceId)).digest('hex');
+}
+
+function originalBody(sourceId: string): string {
+	return `retained-original:${sourceId}`;
 }
 
 function createOpfsDirectory(files: Map<string, Blob>): FileSystemDirectoryHandle {

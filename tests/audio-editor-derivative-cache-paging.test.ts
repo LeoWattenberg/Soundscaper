@@ -70,6 +70,16 @@ test('derivative cache inventory keeps only scalar compare-and-disposal metadata
 		committedAt: '2026-07-28T00:00:00.000Z',
 		cacheToken: 'token',
 	});
+	for (const field of [
+		'derivativeBindingVersion',
+		'originalSha256',
+		'originalMediaContentToken',
+		'recipeId',
+		'recipeVersion',
+		'outputSha256',
+	]) {
+		assert.equal(Object.hasOwn(record, field), false, `legacy projection must omit ${field}`);
+	}
 	assert.equal((Object.values(record) as unknown[]).some((value) => value instanceof Blob), false);
 	const malformed = projectDerivativeCacheInventoryRecord({
 		key: 'malformed',

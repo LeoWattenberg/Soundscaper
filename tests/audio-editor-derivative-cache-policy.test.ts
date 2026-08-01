@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -10,7 +11,9 @@ import {
 } from '../src/common/editor/storage/derivative-cache-policy.ts';
 import { MediaRepository } from '../src/common/editor/storage/media-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
+import { freshVerifiedMediaContentDigest } from '../src/common/editor/storage/media-content-provenance.ts';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
+import { videoDerivativeIdentity } from '../src/common/editor/storage/video-derivative-relationship.ts';
 
 test('the automatic derivative cache budget has frozen versioned thresholds', () => {
 	assert.deepEqual(DEFAULT_DERIVATIVE_CACHE_LIMITS, {
@@ -94,9 +97,17 @@ test('derivative cache policy rejects corrupt accounting and unsafe totals witho
 
 test('derivative cleanup compare-and-delete preserves a replacement published after its snapshot', async () => {
 	const memory = getMemoryDatabase(`derivative-cache-race-${Date.now()}-${Math.random()}`);
-	const key = JSON.stringify(['source', 'poster', 0]);
+	const originalSha256 = digest('original');
+	const originalBinding = freshVerifiedMediaContentDigest(originalSha256);
+	memory.mediaAssets.set('source', {
+		sourceId: 'source', ...originalBinding, storage: 'indexeddb-blob',
+		blob: new Blob(['original']), size: 8,
+	});
+	const identity = videoDerivativeIdentity('source', originalSha256, 0, 'poster');
+	const key = identity.key;
 	memory.videoDerivatives.set(key, {
-		key, sourceId: 'source', timestamp: 0, type: 'poster', size: 4,
+		...identity, originalMediaContentToken: originalBinding.mediaContentToken,
+		outputSha256: digest('old!'), size: 4,
 		storage: 'indexeddb-blob', blob: new Blob(['old!']), cacheToken: 'old-token',
 		committedAt: '2026-07-28T00:00:00.000Z',
 	});
@@ -107,7 +118,8 @@ test('derivative cleanup compare-and-delete preserves a replacement published af
 			databaseCalls += 1;
 			if (databaseCalls === 2) {
 				memory.videoDerivatives.set(key, {
-					key, sourceId: 'source', timestamp: 0, type: 'poster', size: 4,
+					...identity, originalMediaContentToken: originalBinding.mediaContentToken,
+					outputSha256: digest('new!'), size: 4,
 					storage: 'indexeddb-blob', blob: new Blob(['new!']), cacheToken: 'new-token',
 					committedAt: '2026-07-28T00:00:00.000Z',
 				});
@@ -128,4 +140,8 @@ test('derivative cleanup compare-and-delete preserves a replacement published af
 
 function record(key: string, size: number, committedAt: string) {
 	return Object.freeze({ key, size, committedAt });
+}
+
+function digest(value: string): string {
+	return createHash('sha256').update(value).digest('hex');
 }

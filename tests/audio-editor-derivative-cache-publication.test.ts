@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -10,6 +11,11 @@ import {
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from '../src/common/editor/storage/derivative-cache-entry.ts';
 import { DEFAULT_DERIVATIVE_CACHE_LIMITS } from '../src/common/editor/storage/derivative-cache-policy.ts';
+import {
+	VIDEO_DERIVATIVE_RECIPES,
+	videoDerivativeIdentity,
+	type VideoDerivativeType,
+} from '../src/common/editor/storage/video-derivative-relationship.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 interface ReadStats {
@@ -29,6 +35,7 @@ interface InstrumentedIndexedDB {
 
 interface DerivativeProjectStore {
 	ready(): Promise<unknown>;
+	writeMediaAsset(sourceId: string, input: Blob): Promise<Record<string, unknown>>;
 	saveVideoDerivative(sourceId: string, input: Readonly<{
 		timestamp?: number;
 		type?: string;
@@ -60,6 +67,7 @@ for (const backend of ['memory', 'indexeddb', 'opfs'] as const) {
 			derivativeCacheNow: sequenceClock([0, 100, 200, 300, 1_500]),
 		}));
 		await store.ready();
+		await publishTrustedOriginals(store, ['a', 'b', 'c', 'd']);
 		await store.saveVideoDerivative('a', { type: 'poster', blob: new Blob(['aa']) });
 		await store.saveVideoDerivative('b', { type: 'poster', blob: new Blob(['bb']) });
 		await store.saveVideoDerivative('c', { type: 'poster', blob: new Blob(['cc']) });
@@ -91,7 +99,9 @@ for (const backend of ['memory', 'indexeddb', 'opfs'] as const) {
 				true,
 			);
 		}
-		if (backend === 'opfs') assert.equal(files.size, 1, 'evicted and replaced OPFS files are disposed');
+		if (backend === 'opfs') {
+			assert.equal(derivativeFileCount(files), 1, 'evicted and replaced OPFS files are disposed');
+		}
 	});
 }
 
@@ -106,12 +116,14 @@ test('the default 30-day age limit is active at its exact boundary', async () =>
 		databaseName: uniqueDatabaseName('derivative-publication-default-age'),
 		derivativeCacheNow: sequenceClock([0, maximumAgeMs]),
 	}));
+	await store.ready();
+	await publishTrustedOriginals(store, ['old', 'fresh']);
 	await store.saveVideoDerivative('old', { type: 'poster', blob: new Blob(['old']) });
 	await store.saveVideoDerivative('fresh', { type: 'poster', blob: new Blob(['fresh']) });
 
 	assert.equal(await store.loadVideoDerivative('old', { type: 'poster' }), null);
 	assert.equal(await derivativeText(store, 'fresh'), 'fresh');
-	assert.equal(files.size, 1);
+	assert.equal(derivativeFileCount(files), 1);
 });
 
 test('an oversized derivative replacement preserves the committed IndexedDB and OPFS pair', async () => {
@@ -123,6 +135,7 @@ test('an oversized derivative replacement preserves the committed IndexedDB and 
 		maximumEntries: 2,
 	}, [0]);
 	await store.ready();
+	await publishTrustedOriginals(store, ['source']);
 	await store.saveVideoDerivative('source', { type: 'poster', blob: new Blob(['old']) });
 	const priorPayload = onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME);
 	const priorEntry = onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
@@ -135,7 +148,7 @@ test('an oversized derivative replacement preserves the committed IndexedDB and 
 	assert.equal(await derivativeText(store, 'source'), 'old');
 	assert.deepEqual(onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME), priorPayload);
 	assert.deepEqual(onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), priorEntry);
-	assert.equal(files.size, 1);
+	assert.equal(derivativeFileCount(files), 1);
 });
 
 test('a failed paired put rolls back its planned eviction and staged OPFS file', async () => {
@@ -147,6 +160,7 @@ test('a failed paired put rolls back its planned eviction and staged OPFS file',
 		maximumEntries: 1,
 	}, [0, 1]);
 	await store.ready();
+	await publishTrustedOriginals(store, ['a', 'b']);
 	await store.saveVideoDerivative('a', { type: 'poster', blob: new Blob(['old']) });
 	const priorPayload = onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME);
 	const priorEntry = onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
@@ -160,7 +174,7 @@ test('a failed paired put rolls back its planned eviction and staged OPFS file',
 	assert.deepEqual(onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME), priorPayload);
 	assert.deepEqual(onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), priorEntry);
 	assert.equal(await derivativeText(store, 'a'), 'old');
-	assert.equal(files.size, 1);
+	assert.equal(derivativeFileCount(files), 1);
 });
 
 test('unsafe aggregate byte accounting aborts before publication or eviction', async () => {
@@ -172,6 +186,7 @@ test('unsafe aggregate byte accounting aborts before publication or eviction', a
 		maximumEntries: 2,
 	}, [1]);
 	await store.ready();
+	await publishTrustedOriginals(store, ['huge', 'new']);
 	const record = {
 		key: derivativeKey('huge', 'poster', 0),
 		sourceId: 'huge',
@@ -198,7 +213,7 @@ test('unsafe aggregate byte accounting aborts before publication or eviction', a
 
 	assertPairedKeys(indexedDB, databaseName, [record.key]);
 	assert.equal(files.has(record.path), true);
-	assert.equal(files.size, 1);
+	assert.equal(derivativeFileCount(files), 1);
 });
 
 test('automatic eviction and replacement fail closed when payload and companion tokens drift', async () => {
@@ -210,6 +225,7 @@ test('automatic eviction and replacement fail closed when payload and companion 
 		maximumEntries: 1,
 	}, [0, 1, 2]);
 	await store.ready();
+	await publishTrustedOriginals(store, ['a', 'b']);
 	await store.saveVideoDerivative('a', { type: 'poster', blob: new Blob(['old']) });
 	const payload = onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME);
 	indexedDB.seedRecord(databaseName, VIDEO_DERIVATIVE_STORE_NAME, {
@@ -228,7 +244,7 @@ test('automatic eviction and replacement fail closed when payload and companion 
 
 	assertPairedKeys(indexedDB, databaseName, [derivativeKey('a', 'poster', 0)]);
 	assert.equal(onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME).cacheToken, 'drifted-payload-token');
-	assert.equal(files.size, 1, 'only staged unpublished files are removed');
+	assert.equal(derivativeFileCount(files), 1, 'only staged unpublished files are removed');
 });
 
 test('same-token companion path spoofing cannot delete an unrelated OPFS file', async () => {
@@ -240,6 +256,7 @@ test('same-token companion path spoofing cannot delete an unrelated OPFS file', 
 		maximumEntries: 1,
 	}, [0, 1]);
 	await store.ready();
+	await publishTrustedOriginals(store, ['a', 'b']);
 	await store.saveVideoDerivative('a', { type: 'poster', blob: new Blob(['old']) });
 	const entry = onlyRecord(indexedDB, databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
 	files.set('retained-original', new Blob(['original']));
@@ -255,7 +272,7 @@ test('same-token companion path spoofing cannot delete an unrelated OPFS file', 
 
 	assert.equal(files.has('retained-original'), true);
 	assert.equal(files.has(String(onlyRecord(indexedDB, databaseName, VIDEO_DERIVATIVE_STORE_NAME).path)), true);
-	assert.equal(files.size, 2, 'the staged unpublished file alone is removed');
+	assert.equal(derivativeFileCount(files), 1, 'the staged unpublished file alone is removed');
 });
 
 test('concurrent memory OPFS replacements dispose every superseded staged path', async () => {
@@ -268,6 +285,8 @@ test('concurrent memory OPFS replacements dispose every superseded staged path',
 		derivativeCacheLimits: { maximumBytes: 10, maximumEntries: 1 },
 		derivativeCacheNow: sequenceClock([0, 1, 2]),
 	}));
+	await store.ready();
+	await publishTrustedOriginals(store, ['source']);
 	await store.saveVideoDerivative('source', { type: 'poster', blob: new Blob(['old']) });
 
 	await Promise.all([
@@ -275,7 +294,7 @@ test('concurrent memory OPFS replacements dispose every superseded staged path',
 		store.saveVideoDerivative('source', { type: 'poster', blob: new Blob(['two']) }),
 	]);
 
-	assert.equal(files.size, 1);
+	assert.equal(derivativeFileCount(files), 1);
 	assert.equal(await derivativeText(store, 'source'), 'two');
 });
 
@@ -331,8 +350,39 @@ function assertPairedKeys(
 	assert.deepEqual(keys(DERIVATIVE_CACHE_ENTRY_STORE_NAME), [...expected].sort());
 }
 
-function derivativeKey(sourceId: string, type: string, timestamp: number): string {
-	return JSON.stringify([sourceId, type, timestamp]);
+function derivativeKey(sourceId: string, type: VideoDerivativeType, timestamp: number): string {
+	return videoDerivativeIdentity(
+		sourceId,
+		trustedOriginalSha256(sourceId),
+		timestamp,
+		type,
+		VIDEO_DERIVATIVE_RECIPES[type],
+	).key;
+}
+
+async function publishTrustedOriginals(
+	store: DerivativeProjectStore,
+	sourceIds: readonly string[],
+): Promise<void> {
+	for (const sourceId of sourceIds) {
+		const metadata = await store.writeMediaAsset(
+			sourceId,
+			new Blob([trustedOriginalContent(sourceId)], { type: 'video/webm' }),
+		);
+		assert.equal(metadata.sha256, trustedOriginalSha256(sourceId));
+	}
+}
+
+function trustedOriginalContent(sourceId: string): string {
+	return `trusted-original:${sourceId}`;
+}
+
+function trustedOriginalSha256(sourceId: string): string {
+	return createHash('sha256').update(trustedOriginalContent(sourceId)).digest('hex');
+}
+
+function derivativeFileCount(files: ReadonlyMap<string, Blob>): number {
+	return [...files.keys()].filter((path) => path.startsWith('video-')).length;
 }
 
 async function derivativeText(store: DerivativeProjectStore, sourceId: string): Promise<string> {

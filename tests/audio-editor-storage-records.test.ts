@@ -8,18 +8,34 @@ import {
 	protectSourceDependencies,
 	sourceNeedsLegacyPcmMigration,
 	sourceStorageCandidates,
-	videoDerivativeIdentity,
 } from '../src/common/editor/storage/media-records.ts';
+import {
+	VIDEO_DERIVATIVE_RECIPES,
+	videoDerivativeIdentity,
+} from '../src/common/editor/storage/video-derivative-relationship.ts';
 
 test('media record identity and metadata normalization preserve wire-safe fields', () => {
-	assert.deepEqual(videoDerivativeIdentity(' source ', 1.5, ' poster '), {
-		key: '["source","poster",1.5]',
+	const identity = videoDerivativeIdentity(
+		' source ', 'a'.repeat(64), 1.5, 'poster', VIDEO_DERIVATIVE_RECIPES.poster,
+	);
+	assert.match(identity.key, /^video-derivative-sha256:[a-f0-9]{64}$/u);
+	assert.deepEqual({ ...identity, key: null }, {
+		key: null,
 		sourceId: 'source',
 		timestamp: 1.5,
 		type: 'poster',
+		derivativeBindingVersion: 1,
+		originalSha256: 'a'.repeat(64),
+		recipeId: VIDEO_DERIVATIVE_RECIPES.poster.id,
+		recipeVersion: VIDEO_DERIVATIVE_RECIPES.poster.version,
 	});
-	assert.deepEqual(binaryMetadata({ sourceId: 'source', blob: 'bytes', sha256: 'spoof', custom: 1 }), { custom: 1 });
-	assert.throws(() => videoDerivativeIdentity('', 0, 'poster'), /source id/u);
+	assert.deepEqual(binaryMetadata({
+		sourceId: 'source', blob: 'bytes', sha256: 'spoof', originalSha256: 'spoof', custom: 1,
+	}), { custom: 1 });
+	assert.throws(
+		() => videoDerivativeIdentity('', 'a'.repeat(64), 0, 'poster'),
+		/original media storage key/u,
+	);
 });
 
 test('storage collection candidates retain dependencies and the latest eligibility time', () => {

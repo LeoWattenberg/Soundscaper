@@ -29,6 +29,7 @@ export function projectDerivativeCacheInventoryRecord(
 	if (record.key !== primaryKey) {
 		throw new Error(`Derivative cache record ${primaryKey} does not match its cursor primary key.`);
 	}
+	const derivativeBindingVersion = optionalFiniteNumber(record.derivativeBindingVersion);
 	return Object.freeze({
 		key: primaryKey,
 		sourceId: optionalString(record.sourceId),
@@ -39,6 +40,14 @@ export function projectDerivativeCacheInventoryRecord(
 		size: optionalFiniteNumber(record.size),
 		committedAt: optionalString(record.committedAt),
 		cacheToken: optionalString(record.cacheToken),
+		...(derivativeBindingVersion === undefined ? {} : {
+			derivativeBindingVersion,
+			originalSha256: optionalString(record.originalSha256),
+			originalMediaContentToken: optionalString(record.originalMediaContentToken),
+			recipeId: optionalString(record.recipeId),
+			recipeVersion: optionalFiniteNumber(record.recipeVersion),
+			outputSha256: optionalString(record.outputSha256),
+		}),
 	});
 }
 
