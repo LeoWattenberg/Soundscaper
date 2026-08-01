@@ -200,6 +200,9 @@ function transferStore(): Readonly<{
 		loadMediaAsset() {
 			throw new Error('audio-only acquisition must not read retained-media bytes');
 		},
+		beginMediaAssetWrite() {
+			throw new Error('audio-only acquisition must not write retained media');
+		},
 		readSourceChunks() {
 			throw new Error('recipient acquisition must not read its transfer store');
 		},

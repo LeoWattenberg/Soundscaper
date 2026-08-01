@@ -199,7 +199,7 @@ test('a corrupt later download rolls back every acquired source', async (context
 	assert.deepEqual(await store.listSources(), []);
 });
 
-test('conflicting logical aliases refuse the second body and roll back the first', async (context) => {
+test('conflicting logical aliases fail preflight before either body is read', async (context) => {
 	const first = audioFixture({
 		id: 'alias-source-a',
 		storageKey: 'shared-alias-storage',
@@ -228,9 +228,9 @@ test('conflicting logical aliases refuse the second body and roll back the first
 			} },
 			store,
 		),
-		/conflicts with a managed shared source/iu,
+		/conflicting geometry/iu,
 	);
-	assert.deepEqual(requestedBindings, [firstDescriptor.bindingId]);
+	assert.deepEqual(requestedBindings, []);
 	assert.equal(await store.getSourceMetadata(first.source.storageKey), null);
 });
 

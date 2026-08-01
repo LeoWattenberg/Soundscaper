@@ -17,9 +17,9 @@ import {
 	type DesktopSharedProjectSourceAvailability,
 } from './desktop-shared-project-source-availability.ts';
 import {
-	acquireDesktopSharedProjectAudio,
+	acquireDesktopSharedProjectMedia,
 	prepareDesktopSharedProjectMediaHandoff,
-	type DesktopSharedAudioAcquisition,
+	type DesktopSharedMediaAcquisition,
 	type DesktopSharedManagedSourceDescriptor,
 	type DesktopSharedSourceTransferBridge,
 	type DesktopSharedSourceTransferStore,
@@ -132,12 +132,12 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			if (project.id !== projectId) {
 				throw new Error('Desktop shared project document identity does not match the requested project.');
 			}
-			let acquisition: DesktopSharedAudioAcquisition | null = null;
+			let acquisition: DesktopSharedMediaAcquisition | null = null;
 			if (desktopSharedProjectHasSourceReferences(project)) {
 				const priorLocalProject = await this.#shadow.load(projectId, { signal: options.signal });
 				throwIfAborted(options.signal);
 				if (bundle.managed && this.#sourceTransfer) {
-					acquisition = await acquireDesktopSharedProjectAudio(
+					acquisition = await acquireDesktopSharedProjectMedia(
 						project,
 						priorLocalProject,
 						bundle.sources,
@@ -160,7 +160,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			}
 			const snapshot = await this.#saveExactLoadedProject(project, document)
 				.catch((error: unknown) => rollbackAcquisition(acquisition, error));
-			// Once the exact snapshot is durable, cancellation must not remove PCM it references.
+			// Once the exact snapshot is durable, cancellation must not remove managed media it references.
 			acquisition?.commit();
 			throwIfAborted(options.signal);
 			return snapshot;
@@ -274,7 +274,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 }
 
 async function rollbackAcquisition(
-	acquisition: DesktopSharedAudioAcquisition | null,
+	acquisition: DesktopSharedMediaAcquisition | null,
 	primary: unknown,
 ): Promise<never> {
 	try {

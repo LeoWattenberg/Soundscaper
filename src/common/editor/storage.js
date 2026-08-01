@@ -91,6 +91,9 @@ export class AudioEditorProjectStore {
 					getSourceMetadata: (sourceId) => repositories.sources.getMetadata(sourceId),
 					getMediaAssetMetadata: (sourceId) => repositories.media.getAssetMetadata(sourceId),
 					loadMediaAsset: (sourceId, loadOptions) => repositories.media.loadAsset(sourceId, loadOptions),
+					beginMediaAssetWrite: (sourceId, metadata, writeOptions) => (
+						repositories.media.beginAssetWrite(sourceId, metadata, writeOptions)
+					),
 					readSourceChunks: (sourceId, readOptions) => repositories.sources.chunks(sourceId, readOptions),
 					beginSourceWrite: (sourceId, metadata) => repositories.sources.beginWrite(sourceId, metadata),
 					discardSourceIfCurrent: (source) => repositories.sources.discardIfCurrent(source),

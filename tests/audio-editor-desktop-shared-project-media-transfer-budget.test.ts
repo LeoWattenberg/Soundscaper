@@ -73,12 +73,18 @@ test('recipient budget preflight counts aliased audio storage geometry only once
 		{ id: 'alias-b', storageKey: 'recipient-aliased-storage', frameCount, channelCount: 64 },
 	]);
 	const guarded = guardedAcquisitionPorts(failure);
+	const [firstDescriptor, secondDescriptor] = managedDescriptors(project);
+	assert.ok(firstDescriptor && secondDescriptor);
+	const compatibleAliasDescriptor = Object.freeze({
+		...firstDescriptor,
+		sourceId: secondDescriptor.sourceId,
+	});
 
 	await assert.rejects(
 		acquireDesktopSharedProjectAudio(
 			project,
 			null,
-			managedDescriptors(project),
+			[firstDescriptor, compatibleAliasDescriptor],
 			guarded.bridge,
 			guarded.store,
 		),
