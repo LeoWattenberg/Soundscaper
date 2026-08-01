@@ -61,6 +61,8 @@ test('owned media rollback deletes only its exact OPFS path', async () => {
 	const [acquired] = indexedDB.records(databaseName, 'mediaAssets') as Record<string, unknown>[];
 	assert.equal(typeof acquired?.path, 'string');
 	const acquiredPath = acquired?.path as string;
+	assert.equal('path' in publication.metadata, false);
+	assert.notEqual(publication.metadata.path, acquiredPath);
 	const replacementPath = 'replacement-video.blob';
 	opfs.files.set(replacementPath, new Blob(['replacement']));
 	const replacement = { ...acquired, path: replacementPath };
