@@ -264,7 +264,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected source or media metadata before and after.*fully consumes.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*SHA-256.*genuine Blob.*4 MiB.*legacy PCM-on-read migration and media-digest backfill disabled.*pre-existing retained-video digest.*match.*audio and digestless retained video.*not.*authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*no source or media I\/O/iu,
+		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected source or media metadata before and after.*fully consumes.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*trusted recipient-local SHA-256.*required before.*body read.*SHA-256.*genuine Blob.*4 MiB.*must match.*legacy PCM-on-read migration and media-digest backfill.*disabled.*digestless legacy video.*fails closed.*ordinary local load.*trusted digest backfill.*before retry.*audio.*not authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*no source or media I\/O/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -280,15 +280,15 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/latest exact-schema-9 source-bearing\s+shared load.*4,094.*pre-existing latest recipient-local\s+exact-schema-9 snapshot.*same project.*65,536.*cumulative 64 GiB budget.*recipient-local video metadata sizes.*metadata before and\s+after.*ordered\s+`?Float32Array`? channel\/frame geometry.*chunk index or\s+frame count.*SHA-256.*genuine exact-size\s+video `?Blob`?.*legacy PCM-on-read\s+migration.*media-digest backfill.*disabled.*pre-existing retained-video-digest failure raised by this repository.*local shadow.*revision history.*activation.*later.*rendered-fallback-declaration digest check.*repository shadowing/isu,
+		/latest exact-schema-9 source-bearing\s+shared load.*4,094.*pre-existing latest recipient-local\s+exact-schema-9 snapshot.*same project.*65,536.*cumulative 64 GiB budget.*recipient-local video metadata sizes.*metadata before and\s+after.*ordered\s+`?Float32Array`? channel\/frame geometry.*chunk index or\s+frame count.*trusted recipient-local\s+SHA-256.*before.*body.*genuine exact-size\s+video `?Blob`?.*SHA-256.*4 MiB.*must match.*legacy PCM-on-read\s+migration.*media-digest backfill.*disabled.*digestless legacy video.*ordinary local.*trusted digest backfill.*before retry.*failure raised by\s+this repository.*local shadow.*revision history.*activation.*later.*rendered-fallback-declaration digest check.*repository shadowing/isu,
 	);
 	assert.match(
 		documentation,
-		/source-free latest\s+loads.*zero source or media I\/O.*bootstrap.*lifetime\s+signal.*latest load, save, and delete serialized.*per project.*storage\s+keys.*audio and video bytes already present.*pre-existing latest local\s+snapshot.*missing-recipient-PCM.*pre-existing revision/isu,
+		/source-free latest\s+loads.*zero source or media I\/O.*bootstrap.*lifetime\s+signal.*latest load, save, and\s+delete serialized.*per project.*storage\s+keys.*audio and video bytes already present.*pre-existing latest local\s+snapshot.*missing-recipient-PCM.*pre-existing revision/isu,
 	);
 	assert.match(
 		documentation,
-		/bounded sequential admission-time readability check.*not an\s+atomic snapshot.*media transfer.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
+		/bounded sequential admission-time readability check.*not an\s+atomic snapshot.*media transfer.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or\s+deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
 	);
 	assert.match(
 		documentation,

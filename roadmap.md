@@ -1741,13 +1741,16 @@ models or native implementations.
   video metadata sizes together. For a successfully qualified body, admission
   snapshots metadata before and after it, consumes the exact sequential
   PCM chunk count and `Float32Array` channel/frame geometry, requires any supplied
-  index/frame fields to match, fully SHA-256-hashes a genuine exact-size video
-  `Blob` through bounded 4 MiB windows, and compares a trusted local video digest
-  when one exists. Legacy PCM-on-read migration and media-digest backfill are
-  disabled. Every failure raised by this recipient-local repository admission,
-  including mismatch of a pre-existing retained-video digest, precedes local
-  shadow save and controller activation; source-free latest loads perform zero
-  source/media I/O.
+  index/frame fields to match, and requires a syntactically valid trusted
+  recipient-local SHA-256 before any video body read. It then fully hashes the
+  genuine exact-size video `Blob` through bounded 4 MiB windows and requires the
+  body digest to match. Legacy PCM-on-read migration and media-digest backfill
+  remain disabled during shared admission. Digestless legacy video therefore
+  fails closed before body read, local shadow save, or activation; it must first
+  use ordinary local loading to complete trusted digest backfill before the
+  shared load is retried. Every failure raised by this recipient-local
+  repository admission precedes local shadow save and controller activation;
+  source-free latest loads perform zero source/media I/O.
   Bootstrap passes its lifetime signal through this work and preserves exact
   cancellation while admission reads are active. One repository instance
   serializes latest load, save, and delete per project, and publication plus
@@ -1770,9 +1773,9 @@ models or native implementations.
   transfer in that fixture.
   This is a bounded sequential admission-time readability check over already-
   present recipient-local bytes, not an atomic snapshot, media transfer,
-  publisher authentication, or a durable byte lease. Audio and digestless video
-  are availability/geometry-or-size qualified but are not authenticated against
-  a prior content digest. Selected metadata is reread around each body, but the
+  publisher authentication, or a durable byte lease. Audio is
+  availability/geometry qualified but is not authenticated against a prior
+  content digest. Selected metadata is reread around each body, but the
   check does not bind body reads to metadata, cannot detect every same-metadata
   replacement during its sequential observations, and does not fence replacement
   or deletion afterward. A cancellation racing non-abortable shadow save is not

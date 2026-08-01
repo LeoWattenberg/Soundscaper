@@ -176,18 +176,21 @@ chunk—and recipient-local video metadata sizes together.
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
 `Float32Array` channel/frame geometry, requires any supplied chunk index or
-frame count to match, and fully reads and SHA-256-hashes each genuine exact-size
-video `Blob` through 4 MiB windows. A trusted local video digest is compared when
-present. Legacy PCM-on-read migration and media-digest backfill are disabled.
-Every binding, budget, metadata, geometry, body,
-or pre-existing retained-video-digest failure raised by this repository
-admission leaves the recipient's latest local shadow and revision history
-unchanged and prevents bootstrap activation. This does not describe the later
-controller-owned rendered-fallback-declaration digest check. Source-free latest
-loads perform zero source or media I/O. Bootstrap propagates its lifetime
-signal; one repository instance keeps latest load, save, and delete serialized
-per project; and publication and retention resolve logical references to
-physical storage keys.
+frame count to match, and requires a syntactically valid trusted recipient-local
+SHA-256 before any video body read. It then fully reads each genuine exact-size
+video `Blob`, hashes it with SHA-256 through 4 MiB windows, and its body digest
+must match. Legacy PCM-on-read migration and media-digest backfill are
+disabled during shared admission. Digestless legacy video therefore fails
+closed before body read, local shadow save, or activation; it must first use
+ordinary local loading to complete trusted digest backfill before retry.
+Every binding, budget, metadata, geometry, body, or digest failure raised by
+this repository admission leaves the recipient's latest local shadow and
+revision history unchanged and prevents bootstrap activation. This does not
+describe the later controller-owned rendered-fallback-declaration digest check.
+Source-free latest loads perform zero source or media I/O. Bootstrap propagates
+its lifetime signal; one repository instance keeps latest load, save, and
+delete serialized per project; and publication and retention resolve logical
+references to physical storage keys.
 
 A real-store fixture qualifies recipient audio and video bytes already present
 under nontrivial storage keys and bound by the pre-existing latest local
@@ -199,11 +202,11 @@ transfer.
 
 This control is a bounded sequential admission-time readability check, not an
 atomic snapshot, media transfer, publisher authentication, or a durable byte
-lease. Audio and digestless retained video are availability and geometry-or-size
-qualified, not authenticated against a prior content digest. Selected metadata
-is reread around each body, but body reads are not transactionally bound to that
-metadata; same-metadata replacement during the sequential observations can go
-undetected, and replacement or deletion afterward is not fenced. Injected
+lease. Audio is availability and geometry qualified, not authenticated against
+a prior content digest. Selected metadata is reread around each body, but body
+reads are not transactionally bound to that metadata; same-metadata replacement
+during the sequential observations can go undetected, and replacement or
+deletion afterward is not fenced. Injected
 non-cooperative providers may continue work after cancellation rejects; shadow
 save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision

@@ -262,7 +262,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		mediaAdmissionControl.summary,
-		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected metadata before and after.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*genuine Blob.*SHA-256.*4 MiB.*legacy PCM-on-read migration.*media-digest backfill.*disabled.*pre-existing retained-video digest.*match.*audio and digestless retained video.*not.*authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*zero source or media I\/O/iu,
+		/65,536 PCM chunks.*cumulative 64 GiB budget.*canonical audio archive bytes.*four framing bytes per chunk.*recipient-local video metadata sizes.*selected metadata before and after.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*matching supplied index or frame fields.*trusted recipient-local SHA-256.*required before.*body read.*genuine Blob.*SHA-256.*4 MiB.*must match.*legacy PCM-on-read migration.*media-digest backfill.*disabled.*digestless legacy video.*fails closed.*ordinary local load.*trusted digest backfill.*before retry.*audio.*not authenticated against a prior content digest.*failure raised by this repository admission.*before local shadow save or activation.*rendered-fallback-declaration digest check.*follows repository shadowing.*source-free.*zero source or media I\/O/iu,
 	);
 	assert.match(
 		mediaAdmissionControl.summary,
@@ -307,7 +307,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/bounded sequential recipient-local admission.*already-present bytes bound by the latest local snapshot.*latest exact schema 9.*refuses bytes observed missing during admission.*source and media bytes.*product-local shadows.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative provider work.*continue after rejection.*audio and digestless retained video.*not authenticated against prior content digests.*prerequisite local descriptor binding.*not publisher authentication.*fresh recipient.*neither.*descriptor snapshot nor a byte-acquisition outcome.*compatibility beyond retained V1-V8 raw-document migrations.*prior shared v1 scope or product-private Soundscaper libraries.*deferred and unsupported.*not a current required control/isu,
+		/bounded sequential recipient-local admission.*already-present bytes bound by the latest local snapshot.*latest exact schema 9.*refuses bytes observed missing during admission.*source and media bytes.*product-local shadows.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative provider work.*continue after rejection.*audio.*not authenticated against a prior content digest.*prerequisite local descriptor binding.*not publisher authentication.*fresh recipient.*neither.*descriptor snapshot nor a byte-acquisition outcome.*compatibility beyond retained V1-V8 raw-document migrations.*prior shared v1 scope or product-private Soundscaper libraries.*deferred and unsupported.*not a current required control/isu,
+	);
+	assert.doesNotMatch(
+		managedMedia?.exposure ?? '',
+		/digestless retained video.*not authenticated/iu,
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
