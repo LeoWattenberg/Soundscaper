@@ -22,6 +22,7 @@ import {
 } from './buffer-math.ts';
 import {
 	scheduleProjectClips,
+	type ScheduledChunkStreamUnderrun,
 } from './clip-scheduler.ts';
 import {
 	ensureProjectWorklets,
@@ -77,6 +78,15 @@ function resolveTailSeconds(
 		includeMaster,
 		maximumSeconds: MAX_EFFECT_TAIL_SECONDS,
 	}) / sampleRate;
+}
+
+function realtimeRenderUnderrunError(details: ScheduledChunkStreamUnderrun): Error {
+	const error = Object.assign(new Error('A streamed source underrun made the realtime render incomplete.'), {
+		code: 'REALTIME_RENDER_UNDERRUN',
+		details: Object.freeze({ ...details }),
+	});
+	error.name = 'RealtimeRenderUnderrunError';
+	return error;
 }
 
 export const engineRenderingMethods = {
@@ -222,6 +232,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		}
 		let parametricEqFailure = null;
 		let failParametricEqRender: ((error: unknown) => void) | null = null;
+		let streamUnderrunFailure: Error | null = null;
+		let failStreamedRender: ((error: unknown) => void) | null = null;
+		let waitForStreamedClips = async (): Promise<void> => undefined;
+		let streamedClips = 0;
 		let outputFrames = 0;
 		let startTime = 0;
 		let capture = null;
@@ -278,8 +292,13 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		}
 		const abortGraph = () => graph.abortController.abort();
 		signal?.addEventListener('abort', abortGraph, { once: true });
+		const onStreamUnderrun = (details: ScheduledChunkStreamUnderrun): void => {
+			streamUnderrunFailure ||= realtimeRenderUnderrunError(details);
+			graph.abortController.abort(streamUnderrunFailure);
+			failStreamedRender?.(streamUnderrunFailure);
+		};
 		try {
-			await scheduleProjectClips({
+			const scheduled = await scheduleProjectClips({
 				context,
 				project: this.project,
 				sources: this.sources,
@@ -299,14 +318,17 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				chunkStreamClient: this[ENGINE_GET_CHUNK_STREAM_CLIENT](),
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
+				onStreamUnderrun,
 			});
+			waitForStreamedClips = scheduled.waitForStreamedClips;
+			streamedClips = scheduled.streamedClips;
 		} catch (error) {
 			signal?.removeEventListener('abort', abortGraph);
 			disposeGraph(graph, true);
 			try { capture.disconnect(); } catch { /* Already disconnected. */ }
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
-			throw parametricEqFailure || error;
+			throw streamUnderrunFailure || parametricEqFailure || error;
 		}
 
 		let renderedFrames = 0;
@@ -335,7 +357,9 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			rejectDone(failure);
 		};
 		failParametricEqRender = failRender;
+		failStreamedRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
+		if (streamUnderrunFailure) failRender(streamUnderrunFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, { maximumPendingChunks, onError: failRender }) as SinkQueue;
 		const queue = sinkQueue;
 		// The default leaves half the hard queue bound for packets already posted
@@ -386,8 +410,20 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				requestSinkDrain();
 			});
 		};
+		const finishCapture = async (): Promise<void> => {
+			await queue.finish();
+			await flowControl;
+			if (
+				streamedClips > 0
+				&& context.state === 'suspended'
+				&& !queue.failure
+				&& !graph.abortController.signal.aborted
+			) await context.resume();
+			await waitForStreamedClips();
+		};
 		const abort = () => failRender(createAbortError());
 		signal?.addEventListener('abort', abort, { once: true });
+		if (signal?.aborted) abort();
 		capture.onprocessorerror = () => failRender(new Error('The realtime render worklet failed.'));
 		capture.port.onmessage = ({ data = {} }) => {
 			const message = data && typeof data === 'object'
@@ -420,7 +456,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				}
 			} else if (message.type === 'done') {
 				doneReceived = true;
-				void queue.finish().then(resolveDone, rejectDone);
+				void finishCapture().then(() => resolveDone(), rejectDone);
 			}
 		};
 		capture.port.start?.();
@@ -428,7 +464,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let renderFailed = false;
 		let renderFailure: unknown;
 		try {
-			await context.resume();
+			if (!graph.abortController.signal.aborted) await context.resume();
 			await done;
 			return {
 				sampleRate: context.sampleRate,
@@ -442,6 +478,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			throw error;
 		} finally {
 			terminating = true;
+			failStreamedRender = null;
 			const pendingFlowControl = flowControl;
 			signal?.removeEventListener('abort', abort);
 			signal?.removeEventListener('abort', abortGraph);

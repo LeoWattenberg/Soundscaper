@@ -43,6 +43,17 @@ export interface ChunkStreamHandle {
 	cancel(): void;
 }
 
+export interface ChunkStreamUnderrunDetails {
+	readonly frame: number;
+	readonly frames: number;
+	readonly sourceEnded: boolean;
+}
+
+export interface ScheduledChunkStreamUnderrun extends ChunkStreamUnderrunDetails {
+	readonly clipId: string;
+	readonly sourceId: string;
+}
+
 export interface ChunkStreamClientLike {
 	open(options: Readonly<{
 		source: EngineChunkSource;
@@ -55,6 +66,7 @@ export interface ChunkStreamClientLike {
 		outputFrameCount?: number;
 		resampleInputFrames?: number;
 		resampleInputOffset?: number;
+		onUnderrun?: ((details: ChunkStreamUnderrunDetails) => void) | null;
 	}>): ChunkStreamHandle;
 }
 
@@ -91,6 +103,7 @@ export interface ScheduleProjectClipsOptions {
 	readonly chunkAudioNodeFactory?: ChunkAudioNodeFactory;
 	readonly signal?: AbortSignal | null;
 	readonly onProgress?: ((progress: ScheduleProgress) => void) | null;
+	readonly onStreamUnderrun?: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 	readonly deferStartUntilPrimed?: boolean;
 }
 
@@ -116,10 +129,12 @@ export async function scheduleProjectClips({
 	chunkAudioNodeFactory = createChunkStreamAudioNode,
 	signal = null,
 	onProgress = null,
+	onStreamUnderrun = null,
 	deferStartUntilPrimed = false,
 }: ScheduleProjectClipsOptions): Promise<Readonly<{
 	contextStartTime: number;
 	streamedClips: number;
+	waitForStreamedClips(): Promise<void>;
 }>> {
 	throwIfAborted(signal);
 	const plans = buildClipSchedulePlans({
@@ -175,6 +190,7 @@ export async function scheduleProjectClips({
 				activeSources,
 				allNodes,
 				signal,
+				onStreamUnderrun,
 			});
 		})));
 	}
@@ -212,7 +228,13 @@ export async function scheduleProjectClips({
 	if (totalChunkFrames && mode === 'offline') {
 		onProgress?.({ frames: totalChunkFrames, totalFrames: totalChunkFrames, progress: 1 });
 	}
-	return { contextStartTime: actualContextStartTime, streamedClips: streamed.length };
+	return {
+		contextStartTime: actualContextStartTime,
+		streamedClips: streamed.length,
+		async waitForStreamedClips(): Promise<void> {
+			await Promise.all(streamed.map((prepared) => prepared.done));
+		},
+	};
 }
 
 interface BufferPlanOptions {
@@ -285,9 +307,11 @@ interface LiveChunkPlanOptions {
 	readonly allNodes: AudioNodeArray;
 	readonly signal: AbortSignal | null;
 	readonly transportRate: number;
+	readonly onStreamUnderrun: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 }
 
 interface PreparedLiveChunkPlan {
+	readonly done: Promise<unknown>;
 	start(contextStartTime: number, fromFrame: number, sampleRate: number, transportRate: number): void;
 }
 
@@ -300,6 +324,7 @@ async function prepareLiveChunkPlan({
 	allNodes,
 	signal,
 	transportRate,
+	onStreamUnderrun,
 }: LiveChunkPlanOptions): Promise<PreparedLiveChunkPlan> {
 	if (!plan.chunkSource) throw longSourceError('The long-source clip provider is unavailable.');
 	const transientNodes = getTransientNodes(allNodes);
@@ -352,6 +377,11 @@ async function prepareLiveChunkPlan({
 			...streamRange,
 			outputPort: node.port,
 			signal,
+			onUnderrun: onStreamUnderrun ? (details) => onStreamUnderrun({
+				clipId: String(plan.clip.id),
+				sourceId: String(plan.clip.sourceId),
+				...details,
+			}) : null,
 		});
 		void handle.ready.catch(() => undefined);
 		void handle.primed.catch(() => undefined);
@@ -373,6 +403,7 @@ async function prepareLiveChunkPlan({
 		};
 		handle.done.then(release, release);
 		return {
+			done: activeHandle.done,
 			start(contextStartTime, fromFrame, sampleRate, activeTransportRate): void {
 				const timelineRate = sampleRate * activeTransportRate;
 				const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;

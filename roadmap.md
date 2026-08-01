@@ -794,7 +794,14 @@ models or native implementations.
   through File System Access or Electron exact-size writing. The shared PCM
   route requests 16,384-frame chunks and derives the pending-chunk count from
   the render channel count. This bounds queued planar Float32 PCM to 32 MiB; it
-  is a queue-payload bound, not a browser or process memory bound. Realtime
+  is a queue-payload bound, not a browser or process memory bound. Direct PCM
+  adapters request suspension at one accepted chunk while retaining that hard
+  crossover reserve. Realtime publication waits for every streamed clip to
+  settle and fails closed with the first stable source-underrun identity before
+  commit; interactive playback retains its existing silence-on-underrun policy.
+  Focused [stream-settlement evidence](tests/audio-editor-realtime-stream-underrun.test.ts)
+  covers the late-underrun failure, cancellation, sink-backpressure final resume,
+  and the distinct interactive default. Realtime
   render progress now feeds the owned export task and its progress UI. For the
   qualified selection-only upmix, the streaming transform resamples the smaller
   input channel set before duplicating selected channels; matrix mixes and
