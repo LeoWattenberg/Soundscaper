@@ -31,8 +31,18 @@ export interface PlaybackProjectProjection<Project extends object> {
 	readonly requiredVideoSourceIds: readonly string[];
 }
 
+export interface VideoRenderedFallbackDeliveryProjection<Project extends object> {
+	readonly project: Project;
+	readonly featureRequirementsReport: ProjectFeatureRequirementsReport | null;
+	readonly videoRenderedFallback: ProjectFeatureVideoRenderedFallbackMetadata | null;
+	readonly requiredVideoSourceIds: readonly string[];
+}
+
 export interface PlaybackProjectService {
 	projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project>;
+	projectForVideoRenderedFallbackDelivery<Project extends object>(
+		project: Project,
+	): VideoRenderedFallbackDeliveryProjection<Project>;
 }
 
 export const PLAYBACK_PROJECT_APPLY_TASK = 'playback-project-apply';
@@ -96,7 +106,7 @@ export function createPlaybackProjectService(
 	capabilities: Readonly<Record<string, unknown>>,
 ): PlaybackProjectService {
 	const compatibility = createProjectFeatureCompatibilityService(capabilities);
-	return Object.freeze({ projectForPlayback });
+	return Object.freeze({ projectForPlayback, projectForVideoRenderedFallbackDelivery });
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
@@ -123,6 +133,25 @@ export function createPlaybackProjectService(
 			requiredAudioSourceIds: Object.freeze(
 				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
 			),
+			requiredVideoSourceIds: Object.freeze(
+				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+			),
+		});
+	}
+
+	/** Apply only the maintained video rendered fallback for final delivery. */
+	function projectForVideoRenderedFallbackDelivery<Project extends object>(
+		project: Project,
+	): VideoRenderedFallbackDeliveryProjection<Project> {
+		const featureRequirementsReport = compatibility.evaluate(project);
+		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
+			project,
+			featureRequirementsReport,
+		);
+		return Object.freeze({
+			project: renderedVideo.project,
+			featureRequirementsReport,
+			videoRenderedFallback: renderedVideo.metadata,
 			requiredVideoSourceIds: Object.freeze(
 				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
 			),
