@@ -1412,7 +1412,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy, createAddClipCommand, createAddSourceCommand, createAddTrackCommand,
 		createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg,
 		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, inspectEncodedAudioSampleRate,
-		normalizeImportOptions, peakCacheKey, preflightStorage, getProject: () => project,
+		normalizeImportOptions, peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
 		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
 		store, stripExtension, warnEnvelope, writeBuffer,
 	});

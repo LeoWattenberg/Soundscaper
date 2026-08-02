@@ -47,6 +47,13 @@ function createFixture() {
 	const commits: Array<{ command: { commands: unknown[] }; selection: Record<string, unknown> }> = [];
 	const deletedSources: string[] = [];
 	const deletedMedia: string[] = [];
+	const boundSnapshots: unknown[] = [];
+	const releasedLocators: string[] = [];
+	const unlinkedBindings: Array<Readonly<{
+		projectId: string;
+		sourceId: string;
+		bindingToken: string;
+	}>> = [];
 	const sourceBuffers = new Map<string, unknown>();
 	const sourcePeaks = new Map<string, unknown>();
 	const options = {
@@ -58,6 +65,12 @@ function createFixture() {
 		writeMediaFails: false,
 		writerFails: false,
 		activateFails: false,
+		activationGate: null as Promise<void> | null,
+		bindFails: false,
+		commitFails: false,
+		commitMutatesThenFails: false,
+		extractorFails: false,
+		preflightFails: false,
 		peaksFail: false,
 	};
 	const canonicalAudio = {
@@ -67,8 +80,11 @@ function createFixture() {
 		channels: [Float32Array.of(0, 0.1, 0.2, 0.3, 0.4, 0.3, 0.2, 0.1)],
 	};
 	let project = {
+		id: 'project-import-video',
 		tracks: [] as Array<{ id: string; type: string; laneGroupId?: string }>,
+		sources: [] as Record<string, unknown>[],
 	};
+	let projectGeneration = 0;
 	const ids = new Map<string, number>();
 	const stableId = (prefix: string) => {
 		const next = (ids.get(prefix) || 0) + 1;
@@ -110,6 +126,7 @@ function createFixture() {
 		SOURCE_CHUNK_FRAMES: 65_536,
 		activateVideoSource: async (source: { id: string }) => {
 			calls.push(`activate:${source.id}`);
+			if (options.activationGate) await options.activationGate;
 			if (options.activateFails) throw new Error('activation failed');
 		},
 		audioBufferChannels: (value: typeof canonicalAudio) => value.channels || canonicalAudio.channels,
@@ -117,7 +134,21 @@ function createFixture() {
 		bufferFromChannels: async () => canonicalAudio,
 		cacheSourceBuffer: (sourceId: string, value: unknown) => { sourceBuffers.set(sourceId, value); },
 		canonicalizeBuffer: async () => canonicalAudio,
-		commit: (command: { commands: unknown[] }, selection: Record<string, unknown>) => { commits.push({ command, selection }); },
+		commit: (command: { commands: unknown[] }, selection: Record<string, unknown>) => {
+			calls.push('commit');
+			if (options.commitFails) throw new Error('commit failed');
+			if (options.commitMutatesThenFails) {
+				project = {
+					...project,
+					sources: [
+						...project.sources,
+						...command.commands.filter(isSourceAddCommand).map(({ source }) => source),
+					],
+				};
+				throw new Error('post-commit publication failed');
+			}
+			commits.push({ command, selection });
+		},
 		copy: {},
 		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
 		createAddSourceCommand: (source: unknown) => {
@@ -125,7 +156,10 @@ function createFixture() {
 			return { type: 'source/add', source };
 		},
 		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
-		createAudioEditorVideoFrameExtractor: async () => extractor,
+		createAudioEditorVideoFrameExtractor: async () => {
+			if (options.extractorFails) throw new Error('extractor failed');
+			return extractor;
+		},
 		createStableId: stableId,
 		engine: {
 			getAudioContext: async () => ({}),
@@ -152,7 +186,17 @@ function createFixture() {
 		inspectEncodedAudioSampleRate: () => 44_100,
 		normalizeImportOptions: () => ({ destination: 'timeline', trackId: null, timelineStartFrame: 0 }),
 		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
-		preflightStorage: async (bytes: number) => { calls.push(`preflight:${bytes}`); },
+		preflightStorage: async (bytes: number) => {
+			calls.push(`preflight:${bytes}`);
+			if (options.preflightFails) throw new Error('preflight failed');
+		},
+		captureProject: () => Object.freeze({ generation: projectGeneration, projectId: project.id }),
+		assertProject: (token: Readonly<{ generation: number; projectId: string }>) => {
+			calls.push(`assert-project:${token.generation}`);
+			if (token.generation !== projectGeneration || token.projectId !== project.id) {
+				throw new Error('The project changed during video import.');
+			}
+		},
 		getProject: () => project,
 		projectSampleRate: () => 48_000,
 		revokeVideoVisual: (sourceId: string) => { calls.push(`revoke:${sourceId}`); },
@@ -166,10 +210,49 @@ function createFixture() {
 			async saveVideoDerivative(_sourceId: string, derivative: { timestamp: number; type: string }) {
 				derivatives.push(derivative);
 			},
+			async saveLinkedVideoDerivative(
+				_projectId: string,
+				_source: unknown,
+				_binding: unknown,
+				derivative: { timestamp: number; type: string },
+			) {
+				calls.push('save-linked-derivative');
+				derivatives.push(derivative);
+			},
 			async beginSourceWrite() { return writer; },
 			async saveAnalysis() { calls.push('save-analysis'); },
 			async deleteSource(sourceId: string) { deletedSources.push(sourceId); },
 			async deleteMediaAsset(sourceId: string) { deletedMedia.push(sourceId); },
+			async bindLinkedVideoOriginal(
+				projectId: string,
+				source: { id: string },
+				locatorId: string,
+				bindOptions: { expectedLocatorRevision: string; expectedSnapshot: unknown },
+			) {
+				calls.push(`bind:${projectId}:${source.id}:${locatorId}`);
+				assert.equal(bindOptions.expectedLocatorRevision, 'revision_0000000000000001');
+				boundSnapshots.push(bindOptions.expectedSnapshot);
+				if (options.bindFails) throw new Error('binding failed');
+				return Object.freeze({
+					projectId,
+					sourceId: source.id,
+					storageKey: source.id,
+					locatorId,
+					locatorRevision: 'revision_0000000000000001',
+					byteLength: 32,
+					sha256: '1'.repeat(64),
+					bindingToken: 'binding_token_0000000000001',
+					boundAt: '2026-08-02T00:00:00.000Z',
+				});
+			},
+			async unlinkLinkedVideoOriginal(projectId: string, sourceId: string, bindingToken: string) {
+				unlinkedBindings.push({ projectId, sourceId, bindingToken });
+				return true;
+			},
+			async releaseLinkedVideoOriginalLocator(locatorId: string) {
+				releasedLocators.push(locatorId);
+				return true;
+			},
 		},
 		stripExtension: (name: string) => name.replace(/\.[^.]+$/u, ''),
 		warnEnvelope: () => { calls.push('warn-envelope'); },
@@ -177,16 +260,20 @@ function createFixture() {
 	};
 	return {
 		addedSources,
+		boundSnapshots,
 		calls,
 		commits,
 		deletedMedia,
 		deletedSources,
 		derivatives,
 		options,
+		getProject: () => project,
+		releasedLocators,
 		runtime,
-		setProject: (value: typeof project) => { project = value; },
+		setProject: (value: typeof project) => { projectGeneration += 1; project = value; },
 		sourceBuffers,
 		sourcePeaks,
+		unlinkedBindings,
 	};
 }
 
@@ -227,10 +314,12 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 test('video import reuses both members of an existing lane group', async () => {
 	const fixture = createFixture();
 	fixture.setProject({
+		id: 'project-import-video',
 		tracks: [
 			{ id: 'video-lane', type: 'video', laneGroupId: 'media' },
 			{ id: 'audio-lane', type: 'audio', laneGroupId: 'media' },
 		],
+		sources: [],
 	});
 	fixture.options.decodeMode = 'fallback';
 	const result = await createImportVideoFile(fixture.runtime)(videoFile('fallback.mov'), {
@@ -290,7 +379,9 @@ test('video import skips all disposable captures after source-frame admission re
 
 test('a selected ungrouped video lane causes a companion lane pair to be created', async () => {
 	const fixture = createFixture();
-	fixture.setProject({ tracks: [{ id: 'video-only', type: 'video' }] });
+	fixture.setProject({
+		id: 'project-import-video', tracks: [{ id: 'video-only', type: 'video' }], sources: [],
+	});
 	const result = await createImportVideoFile(fixture.runtime)(videoFile('clip.webm'), {
 		destination: 'timeline', trackId: 'video-only', timelineStartFrame: 4,
 	});
@@ -335,4 +426,174 @@ test('video import does not delete media that failed before persistence', async 
 	assert.deepEqual(fixture.deletedMedia, []);
 	assert.equal(fixture.calls.includes('revoke:video-source-1'), true);
 	assert.equal(fixture.calls.at(-1), 'dispose');
+});
+
+test('linked video import keeps local derivatives and extracted PCM while activating the exact binding', async () => {
+	const fixture = createFixture();
+	const locatorId = 'locator_0000000000000001';
+	const file = videoFile();
+	const result = await createImportVideoFile(fixture.runtime)(file, {
+		destination: 'timeline',
+		trackId: null,
+		timelineStartFrame: 0,
+		linkedVideoLocatorId: locatorId,
+		linkedVideoLocatorRevision: 'revision_0000000000000001',
+	});
+
+	assert.equal(fixture.calls.some((call) => call.startsWith('write-media:')), false);
+	assert.ok(fixture.calls.indexOf(`bind:project-import-video:${result.sourceId}:${locatorId}`)
+		< fixture.calls.indexOf('save-linked-derivative'));
+	assert.ok(fixture.calls.indexOf('save-linked-derivative')
+		< fixture.calls.indexOf(`activate:${result.sourceId}`));
+	assert.ok(fixture.calls.indexOf('assert-project:0')
+		< fixture.calls.indexOf(`bind:project-import-video:${result.sourceId}:${locatorId}`));
+	assert.ok(fixture.calls.lastIndexOf('assert-project:0')
+		> fixture.calls.indexOf(`activate:${result.sourceId}`));
+	assert.ok(fixture.calls.lastIndexOf('assert-project:0') < fixture.calls.indexOf('commit'));
+	assert.equal(fixture.derivatives.length, 3);
+	assert.equal(fixture.calls.includes('writer-commit'), true);
+	assert.equal(fixture.sourceBuffers.size, 1);
+	assert.equal(Object.hasOwn(result, 'linkedVideoOriginal'), false);
+	assert.deepEqual(fixture.boundSnapshots, [file]);
+	assert.deepEqual(fixture.releasedLocators, []);
+	assert.deepEqual(fixture.unlinkedBindings, []);
+	assert.equal(fixture.commits.length, 1);
+});
+
+test('linked video import unlinks and releases its locator when activation fails', async () => {
+	const fixture = createFixture();
+	fixture.options.activateFails = true;
+	const locatorId = 'locator_0000000000000001';
+	await assert.rejects(
+		createImportVideoFile(fixture.runtime)(videoFile(), {
+			destination: 'timeline', trackId: null, timelineStartFrame: 0,
+			linkedVideoLocatorId: locatorId, linkedVideoLocatorRevision: 'revision_0000000000000001',
+		}),
+		/activation failed/u,
+	);
+
+	assert.deepEqual(fixture.unlinkedBindings, [{
+		projectId: 'project-import-video',
+		sourceId: 'video-source-1',
+		bindingToken: 'binding_token_0000000000001',
+	}]);
+	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.equal(fixture.commits.length, 0);
+});
+
+test('linked video import releases an unused locator after an early admission failure', async () => {
+	const fixture = createFixture();
+	fixture.options.preflightFails = true;
+	const locatorId = 'locator_0000000000000001';
+	await assert.rejects(
+		createImportVideoFile(fixture.runtime)(videoFile(), {
+			destination: 'timeline', trackId: null, timelineStartFrame: 0,
+			linkedVideoLocatorId: locatorId, linkedVideoLocatorRevision: 'revision_0000000000000001',
+		}),
+		/preflight failed/u,
+	);
+	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.unlinkedBindings, []);
+	assert.equal(fixture.calls.includes('dispose'), false);
+	assert.equal(fixture.commits.length, 0);
+});
+
+test('linked video import releases an unpublished locator when exact binding fails', async () => {
+	const fixture = createFixture();
+	fixture.options.bindFails = true;
+	const locatorId = 'locator_0000000000000001';
+	await assert.rejects(
+		createImportVideoFile(fixture.runtime)(videoFile(), {
+			destination: 'timeline', trackId: null, timelineStartFrame: 0,
+			linkedVideoLocatorId: locatorId, linkedVideoLocatorRevision: 'revision_0000000000000001',
+		}),
+		/binding failed/u,
+	);
+	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.unlinkedBindings, []);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, []);
+	assert.equal(fixture.commits.length, 0);
+});
+
+test('linked video import rolls back its binding and local media when commit refuses', async () => {
+	const fixture = createFixture();
+	fixture.options.commitFails = true;
+	const locatorId = 'locator_0000000000000001';
+	await assert.rejects(
+		createImportVideoFile(fixture.runtime)(videoFile(), {
+			destination: 'timeline', trackId: null, timelineStartFrame: 0,
+			linkedVideoLocatorId: locatorId, linkedVideoLocatorRevision: 'revision_0000000000000001',
+		}),
+		/commit failed/u,
+	);
+	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.equal(fixture.unlinkedBindings.length, 1);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.equal(fixture.commits.length, 0);
+});
+
+test('linked video import rolls back when the active project changes during activation', async () => {
+	const fixture = createFixture();
+	let continueActivation!: () => void;
+	fixture.options.activationGate = new Promise<void>((resolve) => { continueActivation = resolve; });
+	const operation = createImportVideoFile(fixture.runtime)(videoFile(), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+		linkedVideoLocatorId: 'locator_0000000000000001',
+		linkedVideoLocatorRevision: 'revision_0000000000000001',
+	});
+	while (!fixture.calls.includes('activate:video-source-1')) await Promise.resolve();
+	fixture.setProject({ id: 'replacement-project', tracks: [], sources: [] });
+	continueActivation();
+
+	await assert.rejects(operation, /project changed during video import/iu);
+	assert.equal(fixture.commits.length, 0);
+	assert.equal(fixture.unlinkedBindings.length, 1);
+	assert.deepEqual(fixture.releasedLocators, ['locator_0000000000000001']);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.getProject().sources, []);
+});
+
+test('linked video import rolls back when the active project generation changes under the same id', async () => {
+	const fixture = createFixture();
+	let continueActivation!: () => void;
+	fixture.options.activationGate = new Promise<void>((resolve) => { continueActivation = resolve; });
+	const operation = createImportVideoFile(fixture.runtime)(videoFile(), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+		linkedVideoLocatorId: 'locator_0000000000000001',
+		linkedVideoLocatorRevision: 'revision_0000000000000001',
+	});
+	while (!fixture.calls.includes('activate:video-source-1')) await Promise.resolve();
+	fixture.setProject({ id: 'project-import-video', tracks: [], sources: [] });
+	continueActivation();
+
+	await assert.rejects(operation, /project changed during video import/iu);
+	assert.equal(fixture.commits.length, 0);
+	assert.equal(fixture.unlinkedBindings.length, 1);
+	assert.deepEqual(fixture.releasedLocators, ['locator_0000000000000001']);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.getProject().sources, []);
+});
+
+test('a post-mutation commit failure retains resources for the landed canonical source', async () => {
+	const fixture = createFixture();
+	fixture.options.commitMutatesThenFails = true;
+	await assert.rejects(
+		createImportVideoFile(fixture.runtime)(videoFile(), {
+			destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+			linkedVideoLocatorId: 'locator_0000000000000001',
+			linkedVideoLocatorRevision: 'revision_0000000000000001',
+		}),
+		/post-commit publication failed/u,
+	);
+	assert.equal(fixture.getProject().sources.some(({ id }) => id === 'video-source-1'), true);
+	assert.deepEqual(fixture.unlinkedBindings, []);
+	assert.deepEqual(fixture.releasedLocators, []);
+	assert.deepEqual(fixture.deletedSources, []);
+	assert.deepEqual(fixture.deletedMedia, []);
 });

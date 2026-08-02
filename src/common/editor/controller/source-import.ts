@@ -17,44 +17,102 @@ export type ImportVideoFile = (file: RuntimeValue, options?: RuntimeValue) => Pr
 export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoFile {
 	const {
 		SOURCE_CHUNK_FRAMES, activateVideoSource, audioBufferChannels, audioEditorVideoThumbnailTimes,
-		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
+		assertProject, bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
 		copy, createAddClipCommand, createAddSourceCommand, createAddTrackCommand,
-		createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg,
+		captureProject, createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg,
 		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, inspectEncodedAudioSampleRate,
 		normalizeImportOptions, peakCacheKey, preflightStorage, getProject,
 		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
 		store, stripExtension, warnEnvelope, writeBuffer,
 	} = runtime;
 	async function importVideoFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
-		await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
-		const extractor = await createAudioEditorVideoFrameExtractor(file);
-		const sampleRate = projectSampleRate();
-		const durationFrames = Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate));
-		const videoSourceId = createStableId('video-source');
-		const videoClipId = createStableId('video-clip');
-		const binItemId = createStableId('bin-item');
-		const trackName = stripExtension(file.name) || `Video ${getProject().tracks.filter((track: RuntimeValue) => track.type === 'video').length + 1}`;
-		const sourceName = file.name || `${trackName}.mp4`;
+		const linkedVideoLocatorId = importOptions.linkedVideoLocatorId ?? null;
+		const linkedVideoLocatorRevision = importOptions.linkedVideoLocatorRevision ?? null;
+		const releaseUnusedLinkedVideoLocator = async () => {
+			if (linkedVideoLocatorId) {
+				const released = await store.releaseLinkedVideoOriginalLocator(linkedVideoLocatorId);
+				if (released === false) throw new Error('The unused linked-video locator was not released.');
+			}
+		};
+		let extractor: RuntimeValue = null;
+		let prepared: RuntimeValue;
+		try {
+			const startingProject = getProject();
+			const startingProjectToken = captureProject();
+			const startingProjectId = startingProject.id;
+			const startingVideoTrackCount = startingProject.tracks
+				.filter((track: RuntimeValue) => track.type === 'video').length;
+			await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
+			extractor = await createAudioEditorVideoFrameExtractor(file);
+			const sampleRate = projectSampleRate();
+			const trackName = stripExtension(file.name) || `Video ${startingVideoTrackCount + 1}`;
+			prepared = {
+				startingProjectId, startingProjectToken,
+				sampleRate,
+				durationFrames: Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate)),
+				videoSourceId: createStableId('video-source'),
+				videoClipId: createStableId('video-clip'),
+				binItemId: createStableId('bin-item'),
+				trackName,
+				sourceName: file.name || `${trackName}.mp4`,
+			};
+		} catch (error) {
+			const cleanupErrors: unknown[] = [];
+			try { await releaseUnusedLinkedVideoLocator(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			try { extractor?.dispose(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			if (cleanupErrors.length) {
+				throw new AggregateError([error, ...cleanupErrors], 'Video import preparation and cleanup failed.', {
+					cause: error,
+				});
+			}
+			throw error;
+		}
+		const {
+			startingProjectId, startingProjectToken, sampleRate, durationFrames, videoSourceId, videoClipId,
+			binItemId, trackName, sourceName,
+		} = prepared;
+		const assertImportProjectCurrent = () => {
+			try { assertProject(startingProjectToken); } catch (error) {
+				throw new Error('The project changed during video import.', { cause: error });
+			}
+			if (getProject()?.id !== startingProjectId) {
+				throw new Error('The project changed during video import.');
+			}
+		};
 		let audioSourceId = null;
 		let audioClipId = null;
 		let canonicalAudio = null;
 		let originalAudioSampleRate = sampleRate;
 		let mediaPersisted = false;
+		let derivativeCleanupRequired = false;
 		let audioPersisted = false;
+		let linkedBinding: RuntimeValue = null;
+		let linkedProjectId: RuntimeValue = null;
+		const pendingLinkedDerivatives: RuntimeValue[] = [];
+		const savePreviewDerivative = async (derivative: RuntimeValue) => {
+			if (linkedVideoLocatorId) pendingLinkedDerivatives.push(derivative);
+			else {
+				await store.saveVideoDerivative(videoSourceId, derivative);
+				derivativeCleanupRequired = true;
+			}
+		};
 		try {
-			await store.writeMediaAsset(videoSourceId, file, {
-				name: sourceName,
-				mimeType: file.type || 'video/mp4',
-				width: extractor.metadata.width,
-				height: extractor.metadata.height,
-				durationSeconds: extractor.metadata.durationSeconds,
-			});
-			mediaPersisted = true;
+			assertImportProjectCurrent();
+			if (!linkedVideoLocatorId) {
+				await store.writeMediaAsset(videoSourceId, file, {
+					name: sourceName,
+					mimeType: file.type || 'video/mp4',
+					width: extractor.metadata.width,
+					height: extractor.metadata.height,
+					durationSeconds: extractor.metadata.durationSeconds,
+				});
+				mediaPersisted = true;
+			}
 			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
 			let sourcePreviewUnavailable = false;
 			try {
 				const poster = await extractor.capture(0, { maximumWidth: 640, maximumHeight: 360 });
-				await store.saveVideoDerivative(videoSourceId, {
+				await savePreviewDerivative({
 					timestamp: 0,
 					type: 'poster',
 					blob: poster.blob,
@@ -71,7 +129,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			for (const timestamp of sourcePreviewUnavailable ? [] : thumbnailTimes) {
 				try {
 					const thumbnail = await extractor.capture(timestamp);
-					await store.saveVideoDerivative(videoSourceId, {
+					await savePreviewDerivative({
 						timestamp: thumbnail.timestampSeconds,
 						type: 'thumbnail',
 						blob: thumbnail.blob,
@@ -272,12 +330,31 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				commands.push(createAddClipCommand(videoTrack.id, { ...videoClip, avLinkId }));
 				if (audioClip) commands.push(createAddClipCommand(audioTrack.id, { ...audioClip, avLinkId }));
 			}
+			assertImportProjectCurrent();
+			if (linkedVideoLocatorId) {
+				linkedProjectId = startingProjectId;
+				linkedBinding = await store.bindLinkedVideoOriginal(
+					linkedProjectId,
+					videoSource,
+					linkedVideoLocatorId,
+					{ expectedLocatorRevision: linkedVideoLocatorRevision, expectedSnapshot: file },
+				);
+				for (const derivative of pendingLinkedDerivatives) {
+					try {
+						derivativeCleanupRequired = true;
+						await store.saveLinkedVideoDerivative(
+							linkedProjectId, videoSource, linkedBinding, derivative,
+						);
+					} catch { /* A reproducible preview derivative is disposable. */ }
+				}
+			}
 			await activateVideoSource(videoSource);
+			assertImportProjectCurrent();
 			commit({ type: 'batch', commands }, {
 				selectTrackId: selectedTrackId,
 				selectClipId: videoClipId,
 			});
-			warnEnvelope();
+			try { warnEnvelope(); } catch { /* The canonical import is already committed. */ }
 			return Object.freeze({
 				destination: importOptions.destination,
 				sourceId: videoSourceId,
@@ -287,16 +364,44 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				trackId: selectedTrackId,
 			});
 		} catch (error) {
-			revokeVideoVisual(videoSourceId);
+			const currentProject = getProject();
+			const canonicalSourceLanded = currentProject?.id === startingProjectId
+				&& currentProject.sources?.some((source: RuntimeValue) => source.id === videoSourceId);
+			if (canonicalSourceLanded) throw error;
+			const cleanupErrors: unknown[] = [];
+			try { revokeVideoVisual(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			let releaseLinkedLocator = !linkedBinding;
+			if (linkedBinding) {
+				try {
+					releaseLinkedLocator = await store.unlinkLinkedVideoOriginal(
+						linkedProjectId, videoSourceId, linkedBinding.bindingToken,
+					);
+				} catch (cleanupError) {
+					releaseLinkedLocator = false;
+					cleanupErrors.push(cleanupError);
+				}
+			}
 			if (audioSourceId) {
 				sourceBuffers.delete(audioSourceId);
 				sourcePeaks.delete(audioSourceId);
-				if (audioPersisted) await store.deleteSource(audioSourceId).catch(() => undefined);
+				if (audioPersisted) {
+					try { await store.deleteSource(audioSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+				}
 			}
-			if (mediaPersisted) await store.deleteMediaAsset(videoSourceId).catch(() => undefined);
+			if (mediaPersisted || derivativeCleanupRequired) {
+				try { await store.deleteMediaAsset(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			}
+			if (releaseLinkedLocator) {
+				try { await releaseUnusedLinkedVideoLocator(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			}
+			if (cleanupErrors.length) {
+				throw new AggregateError([error, ...cleanupErrors], 'Video import and rollback both failed.', {
+					cause: error,
+				});
+			}
 			throw error;
 		} finally {
-			extractor.dispose();
+			try { extractor.dispose(); } catch { /* Disposable import helper. */ }
 		}
 	}
 	return importVideoFile;

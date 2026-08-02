@@ -5,6 +5,12 @@ import {
 	createImportedAdmPassthroughMetadata,
 	prepareImportedWavMetadata,
 } from './wav-import-metadata.ts';
+import {
+	freezeProjectImportOptions,
+	normalizeProjectImportOptions,
+	normalizeProjectImportOptionsForUse,
+	normalizeProjectImportTimelineStartFrame,
+} from './project-import-options.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -20,7 +26,6 @@ const BEXT_CODEC_WARNING_CODES = new Set([
 	'payload-too-large', 'truncated-chunk', 'truncated-payload',
 	'unterminated-coding-history', 'unsupported-version',
 ]);
-
 export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
@@ -40,8 +45,19 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	let activeImportProgress: RuntimeValue = null;
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
-		if (!files.length || editingBlocked()) return;
-		const importOptions = normalizeImportOptions(requestedOptions);
+		const importOptions = await normalizedImportOptionsForUse(requestedOptions);
+		if (!files.length || editingBlocked()) {
+			if (importOptions.linkedVideoLocatorId) {
+				await releaseLinkedVideoLocator(importOptions.linkedVideoLocatorId);
+			}
+			return;
+		}
+		if (importOptions.linkedVideoLocatorId
+			&& (files.length !== 1 || !isAudioEditorVideoFile(files[0]))) {
+			try { await rejectLinkedVideoLocator(importOptions.linkedVideoLocatorId); }
+			catch (error) { handleError(error); }
+			return;
+		}
 		const progressTask = taskProgress?.begin?.('import', copy.importing) || null;
 		activeImportProgress = progressTask;
 		state.importing = true;
@@ -114,40 +130,39 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	function normalizeImportOptions(value: RuntimeValue = {}) {
-		const requestedDestination = value?.destination ?? 'auto';
-		if (!['auto', 'timeline', 'project-bin'].includes(requestedDestination)) {
-			throw new RangeError(`Unsupported audio import destination: ${requestedDestination}.`);
+		return normalizeProjectImportOptions(value, copy.timelineFramesFinite);
+	}
+
+	function normalizedImportOptionsForUse(value: RuntimeValue) {
+		return normalizeProjectImportOptionsForUse(
+			value,
+			copy.timelineFramesFinite,
+			releaseLinkedVideoLocator,
+		);
+	}
+	async function releaseLinkedVideoLocator(locatorId: RuntimeValue) {
+		const released = await store.releaseLinkedVideoOriginalLocator(locatorId);
+		if (released === false) throw new Error('The unused linked-video locator was not released.');
+	}
+
+	async function rejectLinkedVideoLocator(locatorId: RuntimeValue): Promise<never> {
+		const refusal = new TypeError('A linked video locator can only be used for a video import.');
+		try {
+			await releaseLinkedVideoLocator(locatorId);
+		} catch (cleanupError) {
+			throw new AggregateError([refusal, cleanupError], 'Linked-video import refusal cleanup failed.', {
+				cause: refusal,
+			});
 		}
-		const destination = requestedDestination === 'auto'
-			? value?.projectBinVisible ? 'project-bin' : 'timeline'
-			: requestedDestination;
-		const timelineStartExplicit = value != null && Object.hasOwn(value, 'timelineStartExplicit')
-			? Boolean(value.timelineStartExplicit)
-			: value != null && Object.hasOwn(value, 'timelineStartFrame');
-		return freezeImportOptions({
-			destination,
-			trackId: value?.trackId == null ? null : String(value.trackId),
-			timelineStartFrame: normalizeImportTimelineStartFrame(value?.timelineStartFrame ?? 0),
-			...(Number.isSafeInteger(value?.trackIndex) ? { trackIndex: value.trackIndex } : {}),
-		}, timelineStartExplicit);
+		throw refusal;
 	}
 
 	function freezeImportOptions(value: RuntimeValue, timelineStartExplicit: boolean) {
-		Object.defineProperty(value, 'timelineStartExplicit', {
-			configurable: false,
-			enumerable: false,
-			value: timelineStartExplicit,
-			writable: false,
-		});
-		return Object.freeze(value);
+		return freezeProjectImportOptions(value, timelineStartExplicit);
 	}
 
 	function normalizeImportTimelineStartFrame(value: RuntimeValue) {
-		const frame = Number(value);
-		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
-		const rounded = Math.max(0, Math.round(frame));
-		if (!Number.isSafeInteger(rounded)) throw new RangeError(copy.timelineFramesFinite);
-		return rounded;
+		return normalizeProjectImportTimelineStartFrame(value, copy.timelineFramesFinite);
 	}
 
 	function importFilePlacement(importOptions: RuntimeValue, fileIndex: RuntimeValue) {
@@ -263,14 +278,20 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
-		const normalizedImportOptions = importOptions != null && Object.hasOwn(importOptions, 'timelineStartExplicit')
-			? importOptions
-			: normalizeImportOptions(importOptions);
-		if (isLegacyAupFile(file)) {
+		const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions);
+		const legacyFile = isLegacyAupFile(file);
+		if (normalizedImportOptions.linkedVideoLocatorId && legacyFile) {
+			return rejectLinkedVideoLocator(normalizedImportOptions.linkedVideoLocatorId);
+		}
+		if (legacyFile) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 			return importLegacyAudacityProject(file);
 		}
-		if (isAudioEditorVideoFile(file)) return importVideoFile(file, normalizedImportOptions);
+		const videoFile = isAudioEditorVideoFile(file);
+		if (normalizedImportOptions.linkedVideoLocatorId && !videoFile) {
+			return rejectLinkedVideoLocator(normalizedImportOptions.linkedVideoLocatorId);
+		}
+		if (videoFile) return importVideoFile(file, normalizedImportOptions);
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
 		const wavDescriptor: RuntimeValue = await inspectWavForImport(
