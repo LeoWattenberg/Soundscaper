@@ -265,6 +265,10 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   retained original video:** ordinary saves remain document-only; explicit
   handoff supports fresh-recipient acquisition and exact same-content rebinding
   on return.
+- **Shared / Electron Enhanced — Implemented for point-in-time linked retained
+  video:** an exact product-local binding supports activation, a fresh
+  descriptor-free shared load without an owned-media copy, and explicit managed
+  handoff.
 - **Electron Enhanced / Shared — Implemented for the maintained first-party
   audio fallback:** an exact-schema audio whole-mix source referenced only by
   its feature requirement crosses explicit managed handoff with the editable
@@ -286,11 +290,12 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   non-regular, and foreign content stays untouched. The compiled desktop
   runtime includes this path; packaged source-bearing UI qualification remains
   open.
-- **Electron Enhanced — In progress:** complete linked and unmanaged originals,
-  authored proxy plus generic/video rendered-fallback relationships,
-  exact or write-time capacity behavior, durable playback identity, cleanup
-  beyond the bounded startup tracked inventory where required, and packaged
-  UI/OS/browser-codec qualification.
+- **Electron Enhanced — In progress:** complete the concrete platform
+  chooser/locator and broader linked and unmanaged-original lifecycles, authored
+  proxy plus generic/video rendered-fallback relationships, exact or write-time
+  capacity behavior, durable playback identity, cleanup beyond the bounded
+  startup tracked inventory where required, and packaged UI/OS/browser-codec
+  qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest and versioned recipe while
   staying outside project history, portable archive media, and managed media
