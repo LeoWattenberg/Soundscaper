@@ -208,6 +208,28 @@ selector. If catalog publication fails after an uploaded immutable body lands, a
 matching retry still consumes and validates its offered stream before reusing
 that body.
 
+Each absent managed audio or video binding synchronously reserves its
+prospective catalog row and metadata bytes together with other in-flight
+reservations. It enforces the 50,000-row catalog ceiling, the 4 MiB metadata
+ceiling, and a lower-only 64 GiB aggregate declared body bytes ceiling before
+the first filesystem query, hard-link attempt, directory or stage creation, or
+body consumption. A BigInt `statfs` query against the managed-media destination
+then compares its available blocks with the aggregate in-flight declared bytes.
+The reservation is held until descriptor publication settles and released
+idempotently on every success, failure, or cancellation path. Publication
+revalidates the prospective row and metadata against the current catalog. An
+exact-present retry bypasses a new reservation and `statfs`, consumes no offered
+body, and still reverifies the existing body.
+
+This is point-in-time in-process admission, not an operating-system reservation
+or an exact allocation or write-time capacity guarantee. It does not account
+for allocation-unit rounding, SQLite or WAL overhead, external writers, or
+other store instances or processes. Every binding is admitted independently;
+the whole handoff is not reserved atomically. Charging declared bytes before
+hard-link reuse is conservative and does not establish a portable capacity
+claim for hard links. Managed-media cleanup, reclamation, and logical row
+retirement remain open.
+
 Before local shadow save or activation, a latest exact-schema-9 source-bearing
 shared load performs bounded sequential recipient-local admission. It collects
 at most 4,094 unique logical sources reachable from timeline clips, Project Bin
@@ -304,10 +326,11 @@ fresh-recipient acquisition for canonical PCM—including the maintained exact
 schema 9 first-party audio whole-mix fallback—and retained original video.
 Linked and unmanaged originals, authored proxies, generic and video rendered
 fallbacks, relink and watch behavior, general copy/consolidate, managed-media
-cleanup and capacity reservation, logical catalog-row growth, a stable byte
-lease through playback, browser codec playback, packaged executable and UI
-two-product source-bearing handoff, portable hard-link qualification, and a
-shared cross-product revision journal and undo/redo history remain unqualified.
+cleanup, reclamation, and logical catalog-row retirement, recipient-local or
+whole-handoff capacity reservation, a stable byte lease through playback,
+browser codec playback, packaged executable and UI two-product source-bearing
+handoff, portable hard-link capacity qualification, and a shared cross-product
+revision journal and undo/redo history remain unqualified.
 Product-local bounded revision history is the only history proven by the
 composed return fixture.
 Rendered-fallback digest verification remains controller-owned after repository
@@ -349,10 +372,11 @@ library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
 document-only. Linked and unmanaged originals, authored proxies, generic and
 video rendered fallbacks, general copy/consolidate, relink and watch behavior,
-managed-media cleanup and capacity reservation, logical catalog-row growth,
-stable playback leasing, executable/UI and browser-codec qualification,
-portable hard-link behavior, and shared cross-product revision or undo history
-remain outside it. The remaining platform and fault matrix includes
+managed-media cleanup, reclamation, and logical catalog-row retirement,
+recipient-local or whole-handoff capacity reservation, stable playback leasing,
+executable/UI and browser-codec qualification, portable hard-link capacity
+behavior, and shared cross-product revision or undo history remain outside it.
+The remaining platform and fault matrix includes
 per-platform parent- and database-path identity, power-loss durability, and
 interrupted foreign collisions at registered random stage paths.
 Unregistered or legacy pre-inventory stage-looking files are deliberately

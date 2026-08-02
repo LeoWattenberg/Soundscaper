@@ -251,6 +251,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.deepEqual(managedHandoff.evidence, [
 		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-media-binding.ts',
+		'desktop/project-library-media-capacity.ts',
 		'desktop/project-library-media-reuse.ts',
 		'desktop/project-library-media.ts',
 		'desktop/project-library-host.ts',
@@ -281,6 +282,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-editor-media-freshness.test.ts',
 		'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
 		'tests/desktop-project-library-editor-video-media-service.test.ts',
+		'tests/desktop-project-library-media-capacity.test.ts',
 		'tests/desktop-project-library-media-reuse.test.ts',
 		'tests/desktop-project-library-media.test.ts',
 		'tests/desktop-project-library-video-media.test.ts',
@@ -299,7 +301,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	]);
 	assert.match(
 		managedHandoff.requiredOutcome,
-		/explicit post-flush handoff.*maintained exact-current-schema desktop project.*bounded canonical PCM and retained original-video bodies.*pathless IPC.*sender and fresh-recipient admission.*logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*bridge body transfer.*recipient write.*main-derived exact catalog project revision.*canonical document SHA-256.*identity, kind, storage key, exact byte length and digest.*canonical audio byte geometry.*atomic if-absent.*records and payload tokens it owns.*same-kind, same-content return handoff.*distinct revision-bound descriptor.*immutable body.*bounded upload fallback/iu,
+		/explicit post-flush handoff.*maintained exact-current-schema desktop project.*bounded canonical PCM and retained original-video bodies.*pathless IPC.*sender and fresh-recipient admission.*logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*bridge body transfer.*recipient write.*absent shared-library binding.*prospective catalog row and metadata.*aggregate in-process.*bytes.*destination filesystem capacity.*before.*hard-link, staging, or body work.*main-derived exact catalog project revision.*canonical document SHA-256.*identity, kind, storage key, exact byte length and digest.*canonical audio byte geometry.*atomic if-absent.*records and payload tokens it owns.*same-kind, same-content return handoff.*distinct revision-bound descriptor.*immutable body.*bounded upload fallback/iu,
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
@@ -315,6 +317,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
+		/each absent audio or video binding.*synchronously reserves.*prospective catalog row.*metadata bytes.*other in-flight reservations.*50,000-row.*4 MiB.*64 GiB.*aggregate declared body-byte.*before.*filesystem query, hard-link attempt, directory or stage creation, or body consumption.*BigInt statfs.*managed-media destination.*available blocks.*aggregate in-flight declared bytes.*held.*descriptor publication settles.*released idempotently.*failure and cancellation.*publication.*revalidates.*current catalog.*exact-present retry.*bypasses.*new reservation and statfs.*reverifies.*existing body/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
 		/fresh-recipient acquisition.*audio.*staged source writer.*video.*owned media-asset writer.*exact bounded reads.*descriptor identity, kind and storage key.*byte length.*SHA-256.*canonical audio byte geometry.*atomic if-absent.*retained original video.*opaque.*not decoded or probed for media geometry.*rolls back.*reverse order.*exact acquisition-owned.*source-token, path, or media-chunk payload.*preserving.*concurrent replacement.*exact authoritative shadow is durable.*retains.*acquired managed media/isu,
 	);
 	assert.match(
@@ -327,7 +333,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*cleanup.*capacity reservation.*logical catalog-row growth.*durable playback identity.*portable hard-link.*shared cross-product revision journal or undo\/redo history/iu,
+		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*managed-media cleanup, reclamation, or logical catalog-row retirement.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -393,7 +399,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup.*capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*shared managed-media cleanup, reclamation, and logical catalog-row retirement.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -421,6 +427,14 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/explicit managed handoff supplies automatic\s+fresh-recipient acquisition for canonical PCM.*maintained exact\s+schema 9 first-party audio whole-mix fallback.*retained original video.*linked and unmanaged originals.*authored proxies.*generic and video rendered\s+fallbacks.*relink and watch behavior.*general copy\/consolidate.*managed-media\s+cleanup and capacity reservation.*logical catalog-row growth.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link qualification.*shared cross-product revision journal and undo\/redo history remain unqualified/isu,
+		/managed-media\s+cleanup, reclamation, and logical catalog-row retirement.*recipient-local or\s+whole-handoff capacity reservation.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
+	);
+	assert.match(
+		documentation,
+		/each absent managed audio or video binding.*synchronously reserves.*prospective catalog row and metadata bytes.*other in-flight.*reservations.*50,000-row.*4 MiB.*64 GiB.*aggregate declared body bytes.*before.*filesystem query, hard-link attempt, directory or stage creation, or.*body consumption.*BigInt `statfs`.*managed-media destination.*available blocks.*aggregate in-flight declared bytes.*held until descriptor publication settles.*released\s+idempotently.*failure.*cancellation.*revalidates.*current catalog.*exact-present retry.*bypasses.*new reservation and `statfs`.*reverifies.*existing body/isu,
+	);
+	assert.match(
+		documentation,
+		/point-in-time in-process admission.*not an operating-system reservation.*exact allocation or write-time capacity guarantee.*allocation-unit rounding.*SQLite or WAL overhead.*external writers.*other store instances or processes.*whole handoff.*not reserved atomically.*hard-link\s+reuse.*does not establish a portable capacity.*claim.*cleanup, reclamation, and logical row.*retirement.*remain open/isu,
 	);
 });
