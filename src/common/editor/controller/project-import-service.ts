@@ -12,6 +12,7 @@ import {
 	normalizeProjectImportOptionsForUse,
 	normalizeProjectImportTimelineStartFrame,
 } from './project-import-options.ts';
+import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -44,6 +45,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		writeBuffer, taskProgress,
 	} = runtime;
 	let activeImportProgress: RuntimeValue = null;
+	const importIncrementalWav = createIncrementalWavImporter({
+		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
+		getProject, importResultWithWarnings, preflightStorage,
+		prepareImportedMediaCommand, projectSampleRate,
+		reportProgress: (value) => { activeImportProgress?.update?.(value); },
+		sourceBuffers, sourceChunkProviders, sourcePcmBytes, sourcePeaks, store,
+		streamWavBlobPcm, stripExtension, warnEnvelope,
+	});
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
 		const importOptions = await normalizedImportOptionsForUse(requestedOptions);
@@ -418,91 +427,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	function isBextMetadataWarning(warning: RuntimeValue) {
 		const code = typeof warning?.code === 'string' ? warning.code : '';
 		return code.startsWith('bext-') || BEXT_CODEC_WARNING_CODES.has(code);
-	}
-
-	async function importIncrementalWav(
-		file: RuntimeValue,
-		descriptor: RuntimeValue,
-		importOptions: RuntimeValue = normalizeImportOptions(),
-		wavMetadata: RuntimeValue = prepareWavImportMetadata(descriptor, importOptions),
-	) {
-		const pcmBytes = sourcePcmBytes(descriptor);
-		await preflightStorage(pcmBytes, 'import');
-		const sourceId = createStableId('source');
-		const clipId = createStableId('clip');
-		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
-		const sourceName = file.name;
-		const mimeType = file.type || 'audio/wav';
-		const writer = await store.beginSourceWrite(sourceId, {
-			name: sourceName,
-			mimeType,
-			sampleRate: descriptor.sampleRate,
-			channelCount: descriptor.channelCount,
-			chunkFrames: SOURCE_CHUNK_FRAMES,
-		});
-		let metadata;
-		let streamedFrames = 0;
-		try {
-			await streamWavBlobPcm(file, {
-				descriptor,
-				chunkFrames: SOURCE_CHUNK_FRAMES,
-				onChunk: (channels: RuntimeValue) => {
-					streamedFrames += channels[0]?.length || 0;
-					activeImportProgress?.update?.(streamedFrames / Math.max(1, descriptor.frameCount));
-					return writer.write(channels);
-				},
-			});
-			metadata = await writer.commit({
-				sampleRate: descriptor.sampleRate,
-				channelCount: descriptor.channelCount,
-				chunkFrames: SOURCE_CHUNK_FRAMES,
-			});
-		} catch (error) {
-			await writer.abort().catch(() => undefined);
-			throw error;
-		}
-
-		const source = {
-			schemaVersion: 2,
-			sampleFormat: 'float32',
-			chunkFrames: SOURCE_CHUNK_FRAMES,
-			id: sourceId,
-			storageKey: sourceId,
-			name: sourceName,
-			mimeType,
-			frameCount: descriptor.frameCount,
-			channelCount: descriptor.channelCount,
-			sampleRate: descriptor.sampleRate,
-			originalSampleRate: descriptor.sampleRate,
-			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
-				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
-				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
-				...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
-				...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
-			} } : {}),
-		};
-		const prepared = prepareImportedMediaCommand(source, {
-			schemaVersion: 2,
-			title: trackName,
-			sourceDurationFrames: descriptor.frameCount,
-			id: clipId,
-			sourceId,
-			timelineStartFrame: 0,
-			sourceStartFrame: 0,
-			durationFrames: Math.max(1, Math.round(descriptor.frameCount * projectSampleRate() / descriptor.sampleRate)),
-		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [], descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, descriptor);
-		try {
-			await activateStoredSource(source, metadata);
-			commit(prepared.command, prepared.selection);
-		} catch (error) {
-			sourceBuffers.delete(sourceId);
-			sourceChunkProviders.delete(sourceId);
-			sourcePeaks.delete(sourceId);
-			await store.deleteSource(sourceId).catch(() => undefined);
-			throw error;
-		}
-		warnEnvelope();
-		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
 	}
 
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
