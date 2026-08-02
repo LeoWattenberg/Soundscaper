@@ -113,7 +113,7 @@ export function captureCanonicalCompressedPlanCore(
 	plan: DirectCompressedPlan,
 ): CanonicalCompressedPlanCore | null {
 	try {
-		const snapshot = capturePlanSnapshot(plan);
+		const snapshot = captureCanonicalCompressedPlanSnapshot(plan);
 		if (!snapshot) return null;
 		return captureCanonicalCore(snapshot);
 	} catch {
@@ -126,7 +126,7 @@ export function captureCanonicalRealtimeCompressedPlan(
 	plan: DirectCompressedPlan,
 ): CanonicalRealtimeCompressedPlanCapture | null {
 	try {
-		const snapshot = capturePlanSnapshot(plan);
+		const snapshot = captureCanonicalCompressedPlanSnapshot(plan);
 		const core = snapshot ? captureCanonicalCore(snapshot) : null;
 		if (!snapshot || !core || !isRecord(snapshot.render)
 			|| !canonicalRender(snapshot.render, 'realtime-stream', snapshot)) return null;
@@ -160,7 +160,7 @@ export function captureDirectCompressedContract(
 	plan: DirectCompressedPlan,
 ): DirectCompressedContract | null {
 	try {
-		const snapshot = capturePlanSnapshot(plan);
+		const snapshot = captureCanonicalCompressedPlanSnapshot(plan);
 		if (!snapshot) return null;
 		const core = captureCanonicalCore(snapshot);
 		if (!core || !exactDirectCompressedPlan(snapshot, core)) return null;
@@ -201,7 +201,7 @@ function canonicalDescriptor(value: unknown): DirectCompressedDescriptor | null 
 	return descriptor as unknown as DirectCompressedDescriptor;
 }
 
-function capturePlanSnapshot(plan: DirectCompressedPlan): DirectCompressedPlan | null {
+export function captureCanonicalCompressedPlanSnapshot(plan: DirectCompressedPlan): DirectCompressedPlan | null {
 	if (!isPlainRecord(plan) || !safeRecordEnvelope(plan)) return null;
 	const snapshot = Object.create(null) as Record<string, unknown>;
 	for (const field of COMPRESSED_PLAN_FIELDS) {
@@ -359,7 +359,7 @@ function canonicalRealtimeOfflineRefusal(
 	}
 }
 
-function compressedStagingByteLength(
+export function compressedStagingByteLength(
 	plan: DirectCompressedPlan,
 	strategy: DirectAudioRenderStrategy,
 ): number {

@@ -108,7 +108,7 @@ interface DirectNativeStemArchiveContract {
 }
 
 interface DirectCompressedStemContract {
-	readonly kind: 'bounded-realtime-compressed';
+	readonly kind: 'bounded-compressed';
 	readonly archiveByteLength: number;
 	readonly archiveFileName: string;
 	readonly entryByteLength: number;
@@ -250,7 +250,7 @@ export function commitPreparedDirectStemArchiveDestination(
 	assertReadyToCommit: () => void,
 ): Promise<Readonly<Record<string, unknown>>> {
 	const contract = assertPreparedPlan(destination, plan);
-	if (contract.kind === 'bounded-realtime-compressed') {
+	if (contract.kind === 'bounded-compressed') {
 		return commitBoundedStemArchiveDestination(
 			destination,
 			plan,
@@ -349,7 +349,7 @@ function captureCompressedContract(plan: DirectStemArchivePlan): DirectCompresse
 	const contract = captureDirectCompressedStemArchiveContract(plan);
 	if (!contract) return null;
 	return Object.freeze({
-		kind: 'bounded-realtime-compressed',
+		kind: 'bounded-compressed',
 		archiveByteLength: contract.maximumZip32.archiveByteLength,
 		archiveFileName: contract.archiveFileName,
 		entryByteLength: contract.entryMaximumByteLength,
@@ -380,8 +380,8 @@ function sameContract(left: DirectStemArchiveContract, right: DirectStemArchiveC
 		&& left.entryByteLength === right.entryByteLength
 		&& left.format === right.format
 		&& left.stagingByteLength === right.stagingByteLength
-		&& (left.kind !== 'bounded-realtime-compressed'
-			|| (right.kind === 'bounded-realtime-compressed' && left.fingerprint === right.fingerprint))
+		&& (left.kind !== 'bounded-compressed'
+			|| (right.kind === 'bounded-compressed' && left.fingerprint === right.fingerprint))
 		&& sameZip32Layout(left.zip32, right.zip32)
 		&& left.outputs.length === right.outputs.length
 		&& left.outputs.every((output, index) => (
@@ -474,7 +474,7 @@ async function commitBoundedStemArchiveDestination(
 	assertPreparedPlan(destination, plan);
 	assertReadyToCommit();
 	const current = assertPreparedPlan(destination, plan);
-	if (current.kind !== 'bounded-realtime-compressed'
+	if (current.kind !== 'bounded-compressed'
 		|| current.fingerprint !== contract.fingerprint) {
 		throw new Error('The direct stem archive plan changed before publication.');
 	}

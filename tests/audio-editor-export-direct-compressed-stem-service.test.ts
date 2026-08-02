@@ -45,6 +45,48 @@ test('all canonical realtime compressed stem formats publish their final ZIP dir
 	}
 });
 
+test('all centrally admitted offline compressed stem formats publish their final ZIP directly', async () => {
+	for (const entry of FORMAT_CASES) {
+		const plan = actualPlan(entry.format, {
+			...entry.options,
+			livePcmBytes: 0,
+			channelMapping: entry.format === 'mp3' ? 'mono' : 'preserve',
+		});
+		const fixture = serviceFixture({
+			plan,
+			requestedSettings: { mode: 'stems', format: entry.format, ...entry.options },
+		});
+		const contract = captureDirectCompressedStemArchiveContract(plan as never);
+		assert.ok(contract, entry.format);
+		assert.equal(contract.renderStrategy, 'offline', entry.format);
+		const result = await fixture.service.handleExportAction('export', fixture.requestedSettings);
+		assert.deepEqual(fixture.errors, [], entry.format);
+		assert.equal(result.mimeType, 'application/zip', entry.format);
+		assert.deepEqual(fixture.preflights, [contract.stagingByteLength], entry.format);
+		assert.equal(
+			plan.requiredTemporaryBytes,
+			plan.outputBytesPerRender * plan.outputs.length,
+			entry.format,
+		);
+		assert.deepEqual(fixture.ffmpegFormats, [entry.format, entry.format], entry.format);
+		assert.equal(fixture.mappingCalls(), 0, entry.format);
+		assert.equal(fixture.stagedChannels.length, plan.outputs.length, entry.format);
+		assert.equal(fixture.stagedChannels.every((channels) => (
+			channels.length === Number(plan.encoding.inputChannelCount)
+		)), true, entry.format);
+		assert.equal(fixture.ffmpegSettings.every((settings) => (
+			settings.channelMapping === plan.encoding.channelMapping
+		)), true, entry.format);
+		assert.ok(fixture.events.indexOf('target:open') < fixture.events.indexOf('render:offline:0'), entry.format);
+		assert.equal(fixture.events.includes('legacy-archive:create'), false, entry.format);
+		assert.equal(fixture.downloads.length, 0, entry.format);
+		assert.equal(fixture.maximumRetained(), 1, entry.format);
+		assert.equal(fixture.retained(), 0, entry.format);
+		assert.equal(fixture.target.commits(), 1, entry.format);
+		assert.equal(fixture.target.aborts(), 0, entry.format);
+	}
+});
+
 test('service retains one encoded stem, streams an actual variable ZIP, then commits its exact size', async () => {
 	const bodies = [Uint8Array.of(1, 2, 3), Uint8Array.of(4, 5, 6, 7, 8)];
 	const fixture = serviceFixture({ encodedBodies: bodies });
@@ -103,11 +145,20 @@ test('prepared cancellation and Blob mode retain the legacy stem route', async (
 	assert.equal(blob.target.opened().length, 0);
 	assert.equal(blob.downloads.length, 1);
 	assert.ok(blob.downloads[0]?.blob instanceof Blob);
+
+	const offlinePlan = actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 });
+	const offlineBlob = serviceFixture({ plan: offlinePlan, prepareMode: 'blob' });
+	const offlineResult = await offlineBlob.service.handleExportAction(
+		'export', offlineBlob.requestedSettings,
+	);
+	assert.equal(offlineResult.mimeType, 'application/zip');
+	assert.deepEqual(offlineBlob.preflights, [offlinePlan.requiredTemporaryBytes]);
+	assert.equal(offlineBlob.events.includes('legacy-archive:create'), true);
+	assert.equal(offlineBlob.target.opened().length, 0);
+	assert.equal(offlineBlob.downloads.length, 1);
 });
 
-test('offline, custom FFmpeg, and 7z compressed stems remain on legacy delivery', async () => {
-	const offline = actualPlan('mp3', { bitRate: 320 }, 0);
-	assert.equal(offline.render.strategy, 'offline');
+test('custom FFmpeg and 7z compressed stems remain on legacy delivery', async () => {
 	const custom = actualPlan('custom-ffmpeg', {
 		extension: 'foo', mimeType: 'audio/x-foo', customArguments: ['-c:a', 'copy'],
 	});
@@ -116,7 +167,7 @@ test('offline, custom FFmpeg, and 7z compressed stems remain on legacy delivery'
 		...sevenZip.archive, format: '7z', fileName: 'session-stems.7z',
 		mimeType: 'application/x-7z-compressed',
 	};
-	for (const [label, plan] of [['offline', offline], ['custom', custom], ['7z', sevenZip]] as const) {
+	for (const [label, plan] of [['custom', custom], ['7z', sevenZip]] as const) {
 		const fixture = serviceFixture({ plan, requestedSettings: { mode: 'stems', format: plan.format } });
 		const result = await fixture.service.handleExportAction('export', fixture.requestedSettings);
 		assert.equal(captureDirectCompressedStemArchiveContract(plan as never), null, label);
@@ -126,6 +177,49 @@ test('offline, custom FFmpeg, and 7z compressed stems remain on legacy delivery'
 		assert.equal(fixture.downloads.length, 1, label);
 		assert.equal(result.mimeType, plan.archive.mimeType, label);
 	}
+});
+
+test('an offline renderer failure retries only the current stem before its ZIP entry starts', async () => {
+	const plan = actualPlan('mp3', { bitRate: 320, channelMapping: 'stereo' }, 0, 1, 300_000);
+	const fixture = serviceFixture({ plan, offlineRenderFailureIndex: 1 });
+	const result = await fixture.service.handleExportAction('export', fixture.requestedSettings);
+	assert.equal(result.mimeType, 'application/zip');
+	assert.deepEqual(fixture.errors, []);
+	const archive = unzipSync(fixture.target.bytes());
+	assert.deepEqual(Object.keys(archive), plan.outputs.map(({ fileName }) => fileName));
+	assert.deepEqual(archive[plan.outputs[0]!.fileName], Uint8Array.of(1, 2, 3));
+	assert.deepEqual(archive[plan.outputs[1]!.fileName], Uint8Array.of(4, 5, 6, 7, 8));
+	assert.ok(fixture.events.indexOf('encoded:cleanup:0') < fixture.events.indexOf('render:offline:1'));
+	assert.ok(fixture.events.indexOf('render:offline:1') < fixture.events.indexOf('render:0'));
+	assert.equal(fixture.events.includes('legacy-archive:create'), false);
+	assert.equal(fixture.target.commits(), 1);
+	assert.equal(fixture.target.aborts(), 0);
+});
+
+test('an offline codec failure retries before exposing the current stem to the ZIP writer', async () => {
+	const plan = actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 });
+	const fixture = serviceFixture({ plan, offlineEncodeFailureIndex: 1 });
+	const result = await fixture.service.handleExportAction('export', fixture.requestedSettings);
+	assert.equal(result.mimeType, 'application/zip');
+	assert.deepEqual(fixture.errors, []);
+	assert.ok(fixture.events.indexOf('encode:1') < fixture.events.indexOf('render:0'));
+	assert.equal(fixture.events.includes('legacy-archive:create'), false);
+	assert.equal(fixture.target.commits(), 1);
+	assert.equal(fixture.target.aborts(), 0);
+});
+
+test('stale ownership after an offline renderer failure prevents an internal realtime retry', async () => {
+	const plan = actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 });
+	const fixture = serviceFixture({
+		plan,
+		offlineRenderFailureIndex: 0,
+		staleOnOfflineRenderFailure: true,
+	});
+	assert.equal(await fixture.service.handleExportAction('export', fixture.requestedSettings), undefined);
+	assert.equal(fixture.events.includes('render:0'), false);
+	assert.equal(fixture.target.commits(), 0);
+	assert.equal(fixture.target.aborts(), 1);
+	assert.equal(fixture.errors.length, 1);
 });
 
 test('render, encode, staging cleanup, write, close, stale, and cancellation failures abort once', async () => {
@@ -180,10 +274,13 @@ interface ServicePlan extends Record<string, unknown> {
 interface FixtureOptions {
 	readonly encodedBodies?: readonly Uint8Array[];
 	readonly failure?: Failure;
+	readonly offlineEncodeFailureIndex?: number;
+	readonly offlineRenderFailureIndex?: number;
 	readonly onCommit?: () => PromiseLike<void> | void;
 	readonly plan?: ServicePlan;
 	readonly prepareMode?: PrepareMode;
 	readonly requestedSettings?: Readonly<Record<string, unknown>>;
+	readonly staleOnOfflineRenderFailure?: boolean;
 }
 
 function serviceFixture(options: FixtureOptions = {}) {
@@ -195,8 +292,10 @@ function serviceFixture(options: FixtureOptions = {}) {
 	const preflights: number[] = [];
 	const downloads: Array<Readonly<Record<string, unknown>>> = [];
 	const ffmpegFormats: string[] = [];
+	const ffmpegSettings: Array<Readonly<Record<string, unknown>>> = [];
+	const stagedChannels: Array<readonly Float32Array[]> = [];
 	const bodies = options.encodedBodies ?? [Uint8Array.of(1, 2, 3), Uint8Array.of(4, 5, 6, 7, 8)];
-	const project = projectFixture();
+	const project = projectFixture(Number(plan.encoding.inputChannelCount), Number(plan.outputFrames));
 	const target = preparedTarget(plan.archive.fileName, events, options);
 	const state = {
 		exportGeneration: 0, exportAbort: null, mobile: false, outputUrl: null,
@@ -205,9 +304,11 @@ function serviceFixture(options: FixtureOptions = {}) {
 	let taskController: AbortController | null = null;
 	let sinkIndex = 0;
 	let renderIndex = 0;
+	let offlineRenderIndex = 0;
 	let encodeIndex = 0;
 	let retained = 0;
 	let maximumRetained = 0;
+	let mappingCalls = 0;
 	let stale = false;
 	const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
 	const throwIfAborted = (signal?: AbortSignal | null) => {
@@ -215,7 +316,10 @@ function serviceFixture(options: FixtureOptions = {}) {
 	};
 	const runtime: ExportServiceRuntime = {
 		abortError,
-		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
+		applyMediaChannelMapping: (channels: readonly Float32Array[]) => {
+			mappingCalls += 1;
+			return channels;
+		},
 		audioBufferChannels: (audio: Readonly<{ channels: readonly Float32Array[] }>) => audio.channels,
 		cloneProject: (value: typeof project) => structuredClone(value),
 		copy: {
@@ -286,13 +390,29 @@ function serviceFixture(options: FixtureOptions = {}) {
 			settled: async () => undefined,
 		}),
 		encodeAiff: () => { throw new Error('unexpected AIFF encoding'); },
-		encodeWav: () => Uint8Array.of(82, 73, 70, 70),
+		encodeWav: (channels: readonly Float32Array[]) => {
+			stagedChannels.push(channels);
+			return Uint8Array.of(82, 73, 70, 70);
+		},
 		ffmpeg: {
 			dispose: () => { events.push('ffmpeg:dispose'); },
-			encode: async (_bytes: Uint8Array, format: string) => ({
-				bytes: Uint8Array.of(9, 8, 7), mimeType: plan.mimeType,
-				cleanup: async () => undefined, format,
-			}),
+			encode: async (_bytes: Uint8Array, format: string, settings: Readonly<Record<string, unknown>>) => {
+				const index = encodeIndex++;
+				events.push(`encode:${String(index)}`);
+				ffmpegFormats.push(format);
+				ffmpegSettings.push(settings);
+				if (options.offlineEncodeFailureIndex === index) throw new Error('offline codec failed');
+				retained += 1;
+				maximumRetained = Math.max(maximumRetained, retained);
+				const bytes = bodies[index] ?? Uint8Array.of(index + 1);
+				return {
+					bytes, byteLength: bytes.byteLength, mimeType: plan.mimeType,
+					cleanup: async () => {
+						retained -= 1;
+						events.push(`encoded:cleanup:${String(index)}`);
+					},
+				};
+			},
 			async encodeFile(file: Blob, format: string) {
 				const index = encodeIndex++;
 				events.push(`encode:${String(index)}`);
@@ -342,10 +462,19 @@ function serviceFixture(options: FixtureOptions = {}) {
 		normalizeExportSettings: (settings: unknown) => settings,
 		normalizeProjectSampleRate: (sampleRate: number) => sampleRate,
 		options: {
-			renderSnapshot: async () => ({
-				sampleRate: 48_000, length: 1, numberOfChannels: 2,
-				channels: [Float32Array.of(0), Float32Array.of(0)],
-			}),
+			async renderSnapshot() {
+				const index = offlineRenderIndex++;
+				events.push(`render:offline:${String(index)}`);
+				if (options.offlineRenderFailureIndex === index) {
+					if (options.staleOnOfflineRenderFailure) stale = true;
+					throw new Error('offline renderer failed');
+				}
+				const channelCount = Number(plan.encoding.inputChannelCount);
+				return {
+					sampleRate: 48_000, length: 1, numberOfChannels: channelCount,
+					channels: Array.from({ length: channelCount }, () => Float32Array.of(0)),
+				};
+			},
 		},
 		playbackProjects: null,
 		preflightStorage: async (bytes: number) => { preflights.push(bytes); },
@@ -374,8 +503,9 @@ function serviceFixture(options: FixtureOptions = {}) {
 	};
 	const service = createEditorExportService(runtime);
 	return {
-		downloads, errors, events, ffmpegFormats, maximumRetained: () => maximumRetained,
-		plan, preflights, requestedSettings, retained: () => retained, runtime, service, state, statuses, target,
+		downloads, errors, events, ffmpegFormats, ffmpegSettings, mappingCalls: () => mappingCalls,
+		maximumRetained: () => maximumRetained, plan, preflights, requestedSettings,
+		retained: () => retained, runtime, service, stagedChannels, state, statuses, target,
 	};
 }
 
@@ -421,27 +551,29 @@ function actualPlan(
 	format: string,
 	formatOptions: Readonly<Record<string, unknown>> = {},
 	livePcmBytes = 2 * 1024 ** 3,
+	masterChannels = 2,
+	durationFrames = 1,
 ): ServicePlan {
-	return createExportPlan(projectFixture(), {
+	return createExportPlan(projectFixture(masterChannels, durationFrames), {
 		mode: 'stems', format, includeTail: false, livePcmBytes,
 		date: '2026-08-02', ...formatOptions,
 	}) as unknown as ServicePlan;
 }
 
-function projectFixture() {
+function projectFixture(masterChannels = 2, durationFrames = 1) {
 	return {
 		schemaVersion: 9, id: 'compressed-stem-service', title: 'Session', revision: 1,
 		createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
-		sampleRate: 48_000, masterChannels: 2, metadata: {},
-		selection: { startFrame: 0, endFrame: 1 },
-		loop: { enabled: false, startFrame: 0, endFrame: 1 },
+		sampleRate: 48_000, masterChannels, metadata: {},
+		selection: { startFrame: 0, endFrame: durationFrames },
+		loop: { enabled: false, startFrame: 0, endFrame: durationFrames },
 		sources: [{
 			id: 'source', name: 'Source', storageKey: 'pcm/source', mimeType: 'audio/wav',
-			frameCount: 1, channelCount: 2, sampleRate: 48_000, sampleFormat: 'float32',
+			frameCount: durationFrames, channelCount: masterChannels, sampleRate: 48_000, sampleFormat: 'float32',
 		}],
 		clips: [{
 			id: 'clip', kind: 'audio', sourceId: 'source', timelineStartFrame: 0,
-			sourceStartFrame: 0, durationFrames: 1,
+			sourceStartFrame: 0, durationFrames,
 		}],
 		tracks: [
 			{ id: 'voice', type: 'audio', name: 'Voice', clipIds: ['clip'], effectsActive: true, effects: [] },

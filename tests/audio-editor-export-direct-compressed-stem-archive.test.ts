@@ -55,6 +55,45 @@ test('all canonical realtime compressed stem plans open one maximum ZIP target',
 	}
 });
 
+test('all centrally admitted offline compressed stem plans open one bounded-staging ZIP target', async () => {
+	for (const entry of FORMAT_CASES) {
+		const plan = actualPlan(entry.format, {
+			...entry.options,
+			livePcmBytes: 0,
+			channelMapping: entry.format === 'mp3' ? 'mono' : 'preserve',
+		});
+		assert.equal(record(plan.render).strategy, 'offline', entry.format);
+		const contract = captureDirectCompressedStemArchiveContract(plan);
+		assert.ok(contract, entry.format);
+		assert.equal(contract.renderStrategy, 'offline', entry.format);
+		const encoding = record(plan.encoding);
+		const bytesPerSample = entry.format === 'flac' ? Number(encoding.bitDepth) / 8 : 4;
+		const offlineStagingBytes = Number(plan.outputFrames)
+			* Number(encoding.inputChannelCount) * bytesPerSample;
+		const boundedStagingBytes = Math.max(offlineStagingBytes, plan.outputBytesPerRender);
+		assert.equal(contract.stagingByteLength, boundedStagingBytes, entry.format);
+		assert.equal(
+			contract.entryMaximumByteLength,
+			Math.max(boundedStagingBytes, DIRECT_COMPRESSED_STEM_MINIMUM_ENTRY_BYTES),
+			entry.format,
+		);
+		assert.equal(
+			plan.requiredTemporaryBytes,
+			plan.outputBytesPerRender * records(plan.outputs).length,
+			entry.format,
+		);
+
+		const opened: Array<readonly [number, string]> = [];
+		const result = await prepareDirectStemArchiveDestination({
+			prepareSave: () => preparedStream(opened),
+		}, plan, null, new AbortController().signal);
+		assert.ok(result.destination, entry.format);
+		assert.deepEqual(opened, [[contract.maximumZip32.archiveByteLength, 'maximum']], entry.format);
+		assert.equal(directStemArchiveTemporaryBytes(plan), boundedStagingBytes, entry.format);
+		await result.destination.abort();
+	}
+});
+
 test('compressed stem entry acceptance grows with raw render payload above its fixed minimum', () => {
 	const plan = actualPlan('mp3', { bitRate: 320 }, 300_000);
 	const contract = captureDirectCompressedStemArchiveContract(plan);
@@ -64,12 +103,39 @@ test('compressed stem entry acceptance grows with raw render payload above its f
 	assert.equal(contract.maximumZip32.localByteLength > plan.outputBytesPerRender * 2, true);
 });
 
-test('offline, noncanonical, and forged compressed stem routes remain direct-ineligible', async () => {
+test('offline compressed entry acceptance follows its input-width staging payload', () => {
+	const plan = actualPlan('mp3', {
+		bitRate: 320, livePcmBytes: 0, channelMapping: 'mono',
+	}, 300_000);
+	const contract = captureDirectCompressedStemArchiveContract(plan);
+	assert.ok(contract);
+	assert.equal(record(plan.render).strategy, 'offline');
+	assert.ok(contract.stagingByteLength > plan.outputBytesPerRender);
+	assert.equal(contract.entryMaximumByteLength, contract.stagingByteLength);
+});
+
+test('offline compressed stereo upmix admission bounds its wider realtime retry staging', () => {
+	const plan = actualPlan('mp3', {
+		bitRate: 320, livePcmBytes: 0, channelMapping: 'stereo',
+	}, 300_000, 2, 1);
+	const contract = captureDirectCompressedStemArchiveContract(plan);
+	assert.ok(contract);
+	assert.equal(record(plan.encoding).inputChannelCount, 1);
+	assert.equal(plan.channelCount, 2);
+	assert.equal(contract.stagingByteLength, 300_000 * 2 * Float32Array.BYTES_PER_ELEMENT);
+	assert.equal(contract.entryMaximumByteLength, contract.stagingByteLength);
+	assert.equal(directStemArchiveTemporaryBytes(plan), contract.stagingByteLength);
+});
+
+test('noncanonical and forged compressed stem routes remain direct-ineligible', async () => {
 	const realtime = actualPlan('mp3', { bitRate: 320 });
 	const offline = actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 });
 	assert.equal(record(offline.render).strategy, 'offline');
 	const cases: Array<Readonly<{ label: string; plan: unknown }>> = [
-		{ label: 'offline', plan: offline },
+		changedPlan(offline, 'forged offline admission', (plan) => {
+			const admission = record(record(plan.render).offlineRenderAdmission);
+			admission.peakUsefulBinaryBytes = Number(admission.peakUsefulBinaryBytes) + 1;
+		}),
 		{
 			label: 'custom',
 			plan: actualPlan('custom-ffmpeg', {
@@ -238,6 +304,32 @@ test('compressed stem routing rejects accessors without invoking caller code', a
 	}
 });
 
+test('offline compressed stem admission snapshots central evidence without invoking accessors', () => {
+	const plan = structuredClone(actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 }));
+	let calls = 0;
+	Object.defineProperty(record(record(plan.render).offlineRenderAdmission), 'peakUsefulBinaryBytes', {
+		enumerable: true,
+		get() { calls += 1; throw new Error('offline admission getter ran'); },
+	});
+	assert.equal(captureDirectCompressedStemArchiveContract(plan as never), null);
+	assert.equal(directStemArchiveTemporaryBytes(plan), null);
+	assert.equal(calls, 0);
+});
+
+test('offline compressed stem admission captures caller descriptors exactly once', () => {
+	const source = structuredClone(actualPlan('mp3', { bitRate: 320, livePcmBytes: 0 }));
+	const descriptorReads = new Map<PropertyKey, number>();
+	const plan = new Proxy(source, {
+		getOwnPropertyDescriptor(target, property) {
+			descriptorReads.set(property, (descriptorReads.get(property) ?? 0) + 1);
+			return Reflect.getOwnPropertyDescriptor(target, property);
+		},
+	});
+	assert.ok(captureDirectCompressedStemArchiveContract(plan as never));
+	assert.equal(descriptorReads.get('format'), 2, 'one envelope read and one owned field read');
+	assert.equal(descriptorReads.get('aggregateStereoMinutes'), 1, 'one caller envelope read');
+});
+
 test('compressed stem picker cancellation and prepared Blob mode retain legacy routing', async () => {
 	const plan = actualPlan('opus', { bitRate: 160 });
 	const cancellation = Object.freeze({ mode: 'cancelled' as const, cancelled: true });
@@ -259,8 +351,9 @@ function actualPlan(
 	options: Readonly<Record<string, unknown>> = {},
 	durationFrames = 1,
 	trackCount = 2,
+	masterChannels = 2,
 ) {
-	return createExportPlan(projectFixture(durationFrames, trackCount), {
+	return createExportPlan(projectFixture(durationFrames, trackCount, masterChannels), {
 		mode: 'stems', format, includeTail: false, livePcmBytes: 2 * 1024 ** 3,
 		date: '2026-08-02', ...options,
 	}) as unknown as Record<string, unknown> & {
@@ -303,16 +396,16 @@ function records(value: unknown): Record<string, unknown>[] {
 	return value as Record<string, unknown>[];
 }
 
-function projectFixture(durationFrames: number, trackCount: number) {
+function projectFixture(durationFrames: number, trackCount: number, masterChannels: number) {
 	return {
 		schemaVersion: 9, id: 'compressed-stems', title: 'Session', revision: 1,
 		createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
-		sampleRate: 48_000, masterChannels: 2, metadata: {},
+		sampleRate: 48_000, masterChannels, metadata: {},
 		selection: { startFrame: 0, endFrame: durationFrames },
 		loop: { enabled: false, startFrame: 0, endFrame: durationFrames },
 		sources: [{
 			id: 'source', name: 'Source', storageKey: 'pcm/source', mimeType: 'audio/wav',
-			frameCount: durationFrames, channelCount: 2, sampleRate: 48_000, sampleFormat: 'float32',
+			frameCount: durationFrames, channelCount: masterChannels, sampleRate: 48_000, sampleFormat: 'float32',
 		}],
 		clips: [{
 			id: 'clip', kind: 'audio', sourceId: 'source', timelineStartFrame: 0,

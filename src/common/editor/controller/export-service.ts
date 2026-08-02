@@ -189,7 +189,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 						return renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, {
 							start: index / plan.outputs.length,
 							end: (index + 1) / plan.outputs.length,
-						});
+						}, null, null, assertExportCurrent);
 					},
 					onStemComplete(progress) { updateExportProgress(progress); },
 				});

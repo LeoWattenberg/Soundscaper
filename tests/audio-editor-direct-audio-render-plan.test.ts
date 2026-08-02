@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	directAudioRenderStrategy,
+	isDirectOfflineAudioRenderPlan,
 	isDirectOfflineAudioMixPlan,
 } from '../src/common/editor/controller/direct-audio-render-plan.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
@@ -22,6 +23,25 @@ test('direct audio render admission accepts planner-owned offline single mixes',
 	assert.equal(converted.channelCount, 1);
 	assert.equal(converted.render.offlineRenderAdmission?.geometry.sampleRate, 96_000);
 	assert.equal(directAudioRenderStrategy(converted), 'offline');
+});
+
+test('route-neutral offline admission accepts planner-owned stems without broadening mix routes', () => {
+	const plan = createExportPlan(projectFixture(), {
+		mode: 'stems', format: 'mp3', includeTail: false, livePcmBytes: 0,
+		date: '2026-08-02', channelMapping: 'mono',
+	});
+	assert.equal(plan.render.strategy, 'offline');
+	assert.equal(isDirectOfflineAudioRenderPlan(plan), true);
+	assert.equal(isDirectOfflineAudioMixPlan(plan), false);
+	assert.equal(directAudioRenderStrategy(plan), null);
+
+	const drifted = structuredClone(plan) as unknown as Record<string, unknown>;
+	const render = drifted.render as Record<string, unknown>;
+	const admission = render.offlineRenderAdmission as Record<string, unknown>;
+	admission.peakUsefulBinaryBytes = Number(admission.peakUsefulBinaryBytes) + 1;
+	assert.equal(isDirectOfflineAudioRenderPlan(drifted), false);
+	assert.equal(isDirectOfflineAudioMixPlan(drifted), false);
+	assert.equal(directAudioRenderStrategy(drifted), null);
 });
 
 test('direct audio render admission rejects bare and non-single-mix offline plans', () => {

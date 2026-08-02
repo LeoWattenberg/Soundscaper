@@ -51,10 +51,20 @@ export function isDirectOfflineAudioMixPlan(value: unknown): boolean {
 	try { return isDirectOfflineAudioMixPlanInternal(recordValue(value)); } catch { return false; }
 }
 
+/** Validate exact central offline-render evidence without selecting an output route. */
+export function isDirectOfflineAudioRenderPlan(value: unknown): boolean {
+	try { return isDirectOfflineAudioRenderPlanInternal(recordValue(value)); } catch { return false; }
+}
+
 function isDirectOfflineAudioMixPlanInternal(plan: RecordValue | null): boolean {
 	if (!plan || plan.mode !== 'mix' || plan.archive !== null) return false;
 	const outputs = plan.outputs;
 	if (!Array.isArray(outputs) || outputs.length !== 1 || !canonicalMixOutput(outputs[0])) return false;
+	return isDirectOfflineAudioRenderPlanInternal(plan);
+}
+
+function isDirectOfflineAudioRenderPlanInternal(plan: RecordValue | null): boolean {
+	if (!plan) return false;
 	const range = recordValue(plan.range);
 	if (!range || !sameKeys(range, RANGE_FIELDS)
 		|| !safeInteger(range.startFrame, 0)

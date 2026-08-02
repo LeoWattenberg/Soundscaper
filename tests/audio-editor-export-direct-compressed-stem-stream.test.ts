@@ -78,6 +78,66 @@ test('streams variable compressed entries through one retained stem and commits 
 	assert.ok(events.indexOf('close') < events.indexOf('commit'));
 });
 
+test('streams centrally admitted offline compressed entries under the same bounded contract', async () => {
+	const plan = actualPlan(0);
+	const contract = captureDirectCompressedStemArchiveContract(plan as never);
+	assert.ok(contract);
+	assert.equal(contract.renderStrategy, 'offline');
+	const target = preparedStream();
+	const preparation = await prepareDirectStemArchiveDestination(
+		{ prepareSave: () => target }, plan, null, new AbortController().signal,
+	);
+	assert.ok(preparation.destination);
+	let retained = 0;
+	const result = await streamDirectStemArchive({
+		destination: preparation.destination,
+		plan,
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+		async renderStem(_output, index) {
+			assert.equal(retained, 0);
+			retained += 1;
+			const bytes = Uint8Array.of(index + 1, index + 2);
+			return {
+				bytes,
+				byteLength: bytes.byteLength,
+				cleanup: async () => { retained -= 1; },
+			};
+		},
+	});
+	assert.equal(retained, 0);
+	assert.ok(result.byteLength < contract.maximumZip32.archiveByteLength);
+	const archive = unzipSync(target.bytes());
+	assert.deepEqual(Object.keys(archive), contract.outputs.map(({ fileName }) => fileName));
+	await commitPreparedDirectStemArchiveDestination(
+		preparation.destination, plan, result.byteLength, () => undefined,
+	);
+	assert.equal(target.commits(), 1);
+	assert.equal(target.aborts(), 0);
+});
+
+test('offline admission fingerprint drift aborts before rendering an entry', async () => {
+	const plan = structuredClone(actualPlan(0));
+	const target = preparedStream();
+	const preparation = await prepareDirectStemArchiveDestination(
+		{ prepareSave: () => target }, plan, null, new AbortController().signal,
+	);
+	assert.ok(preparation.destination);
+	const admission = record(record(plan.render).offlineRenderAdmission);
+	admission.peakUsefulBinaryBytes = Number(admission.peakUsefulBinaryBytes) + 1;
+	let renders = 0;
+	await assert.rejects(streamDirectStemArchive({
+		destination: preparation.destination,
+		plan,
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+		renderStem: async () => { renders += 1; return { bytes: Uint8Array.of(1) }; },
+	}), /plan changed/iu);
+	assert.equal(renders, 0);
+	assert.equal(target.aborts(), 1);
+	assert.equal(target.commits(), 0);
+});
+
 test('compressed entry admission accepts its exact ceiling and refuses zero, ceiling plus one, and false reports', async () => {
 	const plan = actualPlan();
 	const contract = captureDirectCompressedStemArchiveContract(plan as never);
@@ -242,10 +302,10 @@ test('write, close, commit, byte-accounting, and cleanup failures preserve desti
 	}
 });
 
-function actualPlan() {
+function actualPlan(livePcmBytes = 2 * 1024 ** 3) {
 	return createExportPlan(projectFixture(), {
 		mode: 'stems', format: 'mp3', bitRate: 320, includeTail: false,
-		livePcmBytes: 2 * 1024 ** 3, date: '2026-08-02',
+		livePcmBytes, date: '2026-08-02',
 	}) as unknown as Record<string, unknown>;
 }
 

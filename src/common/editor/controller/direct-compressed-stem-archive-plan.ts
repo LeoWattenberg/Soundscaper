@@ -1,11 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	captureCanonicalCompressedPlanCore,
+	captureCanonicalCompressedPlanSnapshot,
 	captureCanonicalRealtimeCompressedPlan,
+	compressedStagingByteLength,
 	fingerprintCanonicalCompressedSnapshot,
 	type DirectCompressedFormat,
 	type DirectCompressedPlan,
 } from './direct-compressed-plan.ts';
+import {
+	isDirectOfflineAudioRenderPlan,
+	type DirectAudioRenderStrategy,
+} from './direct-audio-render-plan.ts';
 import { inspectZip32Layout, type Zip32Layout } from './zip32.ts';
 
 export const DIRECT_COMPRESSED_STEM_MINIMUM_ENTRY_BYTES = 1024 * 1024;
@@ -22,6 +29,7 @@ export interface DirectCompressedStemArchiveContract {
 	readonly format: DirectCompressedFormat;
 	readonly maximumZip32: Zip32Layout;
 	readonly outputs: readonly CompressedStemOutput[];
+	readonly renderStrategy: DirectAudioRenderStrategy;
 	readonly stagingByteLength: number;
 }
 
@@ -30,10 +38,13 @@ export function captureDirectCompressedStemArchiveContract(
 	plan: DirectCompressedPlan,
 ): DirectCompressedStemArchiveContract | null {
 	try {
-		const captured = captureCanonicalRealtimeCompressedPlan(plan);
-		if (!captured) return null;
-		const ownedPlan = captured.plan;
-		const { core } = captured;
+		const ownedPlan = captureCanonicalCompressedPlanSnapshot(plan);
+		const realtime = ownedPlan ? captureCanonicalRealtimeCompressedPlan(ownedPlan) : null;
+		const core = realtime?.core ?? (ownedPlan ? captureCanonicalCompressedPlanCore(ownedPlan) : null);
+		const renderStrategy: DirectAudioRenderStrategy | null = realtime
+			? 'realtime-stream'
+			: ownedPlan && isDirectOfflineAudioRenderPlan(ownedPlan) ? 'offline' : null;
+		if (!ownedPlan || !core || !renderStrategy) return null;
 		const render = record(ownedPlan.render);
 		const archive = record(ownedPlan.archive);
 		if (!render || !archive
@@ -83,13 +94,17 @@ export function captureDirectCompressedStemArchiveContract(
 			}));
 		}
 
-		const aggregateStagingBytes = multiplySafe(core.outputBytesPerRender, outputs.length);
-		if (ownedPlan.requiredTemporaryBytes !== aggregateStagingBytes
-			|| archive.requiredTemporaryBytes !== aggregateStagingBytes
-			|| archive.fallbackRequiredTemporaryBytes !== aggregateStagingBytes) return null;
+		const aggregateLegacyStagingBytes = multiplySafe(core.outputBytesPerRender, outputs.length);
+		if (ownedPlan.requiredTemporaryBytes !== aggregateLegacyStagingBytes
+			|| archive.requiredTemporaryBytes !== aggregateLegacyStagingBytes
+			|| archive.fallbackRequiredTemporaryBytes !== aggregateLegacyStagingBytes) return null;
 
+		const stagingByteLength = Math.max(
+			compressedStagingByteLength(ownedPlan, renderStrategy),
+			renderStrategy === 'offline' ? core.outputBytesPerRender : 0,
+		);
 		const entryMaximumByteLength = Math.max(
-			core.outputBytesPerRender,
+			stagingByteLength,
 			DIRECT_COMPRESSED_STEM_MINIMUM_ENTRY_BYTES,
 		);
 		const maximumZip32 = inspectZip32Layout(outputs.map(({ fileName }) => ({
@@ -100,7 +115,9 @@ export function captureDirectCompressedStemArchiveContract(
 		const fingerprint = fingerprintCanonicalCompressedSnapshot({
 			core: core.fingerprint,
 			render,
-			requiredTemporaryBytes: aggregateStagingBytes,
+			renderStrategy,
+			stagingByteLength,
+			requiredTemporaryBytes: aggregateLegacyStagingBytes,
 			outputs: outputs.map((output) => ({
 				kind: 'stem',
 				fileName: output.fileName,
@@ -113,8 +130,8 @@ export function captureDirectCompressedStemArchiveContract(
 				fileName: archive.fileName,
 				mimeType: 'application/zip',
 				expectedByteLength: null,
-				requiredTemporaryBytes: aggregateStagingBytes,
-				fallbackRequiredTemporaryBytes: aggregateStagingBytes,
+				requiredTemporaryBytes: aggregateLegacyStagingBytes,
+				fallbackRequiredTemporaryBytes: aggregateLegacyStagingBytes,
 				entries: outputs.map(({ fileName }) => ({
 					fileName,
 					expectedByteLength: null,
@@ -133,7 +150,8 @@ export function captureDirectCompressedStemArchiveContract(
 			format: core.id,
 			maximumZip32,
 			outputs: Object.freeze(outputs),
-			stagingByteLength: core.outputBytesPerRender,
+			renderStrategy,
+			stagingByteLength,
 		});
 	} catch {
 		return null;

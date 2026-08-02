@@ -165,7 +165,7 @@ export async function renderAndEncodeAudioExport(
 			value: 0,
 		});
 		return await encodeRenderedAudio(encodingRuntime, {
-			assertCurrent: directDestination || directCompressedDestination ? assertDirectCurrent : undefined,
+			assertCurrent: assertDirectCurrent,
 			directCompressedDestination,
 			directDestination,
 			plan,
@@ -180,6 +180,7 @@ export async function renderAndEncodeAudioExport(
 			|| directDestination
 			|| directCompressedDestination
 			|| !allowsRealtimeFallback(plan, settings)) throw error;
+		assertDirectCurrent();
 		setStatus(copy.realtimeExportFallback);
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
