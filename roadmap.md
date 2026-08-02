@@ -371,9 +371,10 @@ release-blocking defect in its owning policy.
 #### 2.2 Remaining bounded pipelines
 
 - **Web Enhanced / Electron Enhanced — In progress:** direct native-PCM ZIP
-  stems, canonical realtime compressed mixes, and MP4/WebM output avoid final
-  output `Blob`s; scale qualification, compressed stems, 7z, non-realtime, and
-  other final-delivery paths remain.
+  stems, canonical realtime compressed mixes, centrally admitted offline
+  native-PCM and compressed mixes, and MP4/WebM output avoid final output
+  `Blob`s; scale qualification, compressed stems, 7z, and other final-delivery
+  paths remain.
 - **Web Enhanced — Planned:** move hot OPFS access to dedicated workers and use
   synchronous access handles only after capability detection; retain IndexedDB
   as the correctness fallback.
