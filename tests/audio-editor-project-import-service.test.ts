@@ -138,6 +138,25 @@ test('normalization cleanup requires an exact valid locator reference', async ()
 	}]);
 });
 
+test('normalization cleanup routes linked audio through the kind-aware locator port', async () => {
+	const released: unknown[] = [];
+	const runtime = createRuntime() as Record<string, unknown>;
+	runtime.store = {
+		async releaseLinkedOriginalLocator(reference: unknown) { released.push(reference); return true; },
+	};
+	const service = createProjectImportService(runtime as ProjectImportRuntime);
+	await assert.rejects(service.importFile({ name: 'recording.wav' }, {
+		destination: 'invalid',
+		linkedAudioLocatorId: 'locator_0000000000000001',
+		linkedAudioLocatorRevision: 'revision_0000000000000001',
+	}), /Unsupported audio import destination/u);
+	assert.deepEqual(released, [{
+		kind: 'audio',
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000001',
+	}]);
+});
+
 test('empty, blocked, and multi-file linked imports release their unused locator', async () => {
 	for (const [files, blocked] of [
 		[[], false],

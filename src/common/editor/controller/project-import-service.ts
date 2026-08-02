@@ -11,6 +11,7 @@ import {
 	normalizeProjectImportOptions,
 	normalizeProjectImportOptionsForUse,
 	normalizeProjectImportTimelineStartFrame,
+	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
 import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
 
@@ -147,8 +148,17 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		return normalizeProjectImportOptionsForUse(
 			value,
 			copy.timelineFramesFinite,
-			releaseLinkedVideoLocator,
+			releaseLinkedOriginalLocator,
 		);
+	}
+	async function releaseLinkedOriginalLocator(reference: LinkedOriginalImportLocatorReference) {
+		const { kind, locatorId, locatorRevision } = reference;
+		const locator = Object.freeze({ locatorId, locatorRevision });
+		if (kind === 'video') return releaseLinkedVideoLocator(locator);
+		const released = typeof store.releaseLinkedOriginalLocator === 'function'
+			? await store.releaseLinkedOriginalLocator(reference)
+			: await store.releaseLinkedAudioOriginalLocator(locator);
+		if (released === false) throw new Error('The unused linked-audio locator was not released.');
 	}
 	async function releaseLinkedVideoLocator(reference: RuntimeValue) {
 		const released = await store.releaseLinkedVideoOriginalLocator(reference);
