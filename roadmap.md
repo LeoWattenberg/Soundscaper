@@ -320,14 +320,16 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   invalid scans reject before IPC. Main performs at most one successful
   serialized pass per store/process, retiring only absent startup-loaded
   metadata while retaining referenced and current-process records; external
-  media is never inspected or deleted. Source-level binding reachability inside
-  catalog-live projects, cleanup beyond the one-live-store project-delete and
-  whole-clear lifecycle, cross-store/process coordination, hostile-renderer
+  media is never inspected or deleted. Source-level binding reachability during
+  startup reconciliation, cleanup beyond the one-live-store maintained save,
+  project-delete, and whole-clear lifecycle, cross-store/process coordination,
+  hostile-renderer
   inventory authority, abrupt-crash/power-loss durability, and packaged/OS
   qualification remain open.
-- **Electron Enhanced / Shared — Implemented:** exact-revision linked-locator
-  retirement after same-store project deletion and clear preserves live aliases
-  and external files.
+- **Electron Enhanced / Shared — Implemented:** revision- and live-history-aware
+  same-store saves retire source-unreachable linked-video bindings; exact
+  locator retirement after saves, project deletion, and clear preserves live
+  aliases and external files.
 - **Shared / Electron Enhanced — Implemented:** same-store project duplication
   preserves reachable linked-video bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
@@ -337,9 +339,10 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   rendered-fallback relationships beyond maintained first-party playback and
   managed handoff, fallback authoring and delivery use, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
-  lifecycle, linked-locator cleanup beyond the one-live-store project-delete and
-  whole-clear lifecycle, source-level binding reachability inside catalog-live
-  projects, cross-store/process coordination where required, and packaged
+  lifecycle, linked-locator cleanup beyond the one-live-store maintained save,
+  project-delete, and whole-clear lifecycle, source-level binding reachability
+  outside maintained saves, cross-store/process coordination where required,
+  and packaged
   UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest or exact linked binding and a
