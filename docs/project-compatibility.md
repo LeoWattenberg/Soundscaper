@@ -859,6 +859,12 @@ read-only activation. The engine alone receives the synthetic whole-mix
 projection and exact fallback samples, while the document snapshot remains the
 publisher's canonical project.
 
+The same composed handoff fixture corrupts that recipient-local fallback with
+same-shaped PCM after activation. Fresh operation-time verification rejects the
+delivery before rendering or output. Restoring the exact PCM then produces a
+final-mix float WAV containing the expected fallback samples, while the
+canonical controller project and stored project shadow remain unchanged.
+
 For editor playback, that source becomes one neutral whole-mix clip using its
 full frame range from frame zero. The transient projection removes every
 canonical audio clip and track and neutralizes mixer and master processing to
@@ -893,15 +899,43 @@ the switch does so before teardown. Late settlement is fenced from
 buffer, provider, engine-source, missing-source, and status publication. In the
 tested stalled-preparation race, only the newest source-ready projection enters
 the engine.
-The canonical project, history, persistence, save, export, and offline-render
-paths never receive this projection.
+A separate audio-delivery projection invokes only the audio rendered fallback.
+It does not compose the video rendered fallback or either bypass projection,
+and a simultaneous rendered fallback rejects instead of delivering a partial
+projection. Delivery accepts normalized final-mix audio only. Stems, BW64, and
+any ADM setting reject before fallback verification, export planning,
+destination selection, storage preflight, or rendering.
+
+Under the owned export signal and task, project-generation, and operation
+currentness fences, fresh operation-time verification binds an exact selector
+to the active requirement ID, feature ID, audio kind, source ID, and SHA-256 in
+the canonical project. Selector mode performs a full canonical chunk scan of
+only that selected source's `audio-f32le-chunks-v1` sequence, checks its source
+geometry and aggregate digest, and builds an admission-time per-chunk digest
+table. It returns a private chunk provider with the exact admitted source
+geometry before planning or any other export work.
+
+The delivery clone receives an empty private audio-buffer map and that provider
+as its sole chunk render source. Global source buffers, providers, and cache
+state remain unchanged, and fallback delivery does not prepare committed
+time/pitch caches. Every provider read rereads one exact stored chunk, copies
+its `Float32Array` channels, and checks canonical geometry and the admission-time
+chunk digest under currentness and cancellation fences. A changed storage body,
+geometry, or digest becomes the stable audio-fallback integrity error; an
+offline integrity failure does not retry through realtime rendering. Ordinary
+audio export keeps its existing source and renderer contracts.
+
+The canonical project, history, persistence, and save paths never receive the
+playback or delivery projection and remain unchanged by final-mix output.
 
 Deeply frozen per-tab and document-snapshot metadata drives one localized
 active-during-editor-playback indicator bound to the exact report requirement;
 the UI does not read or expose the source ID or digest. This audio slice is not
-generic fallback selection and does not itself activate video, unknown, or
-third-party requirements. The separate maintained video slice below does not
-broaden that boundary.
+generic fallback selection and does not activate or deliver video, unknown, or
+third-party requirements. It does not qualify stems, BW64 or ADM delivery,
+simultaneous fallback delivery, authored fallback relationships, future
+schemas, or earlier Soundscaper schemas. The separate maintained video slice
+below does not broaden that boundary.
 
 The maintained exact schema 9 first-party video-effects rendered fallback is a
 separate narrow editor-playback and video-delivery projection. It activates only
@@ -1032,8 +1066,9 @@ report produces no notice, tab switching follows the per-tab report, and the
 workspace never traverses future-schema `featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
-step for exact schema 9. The maintained first-party video-effects delivery slice
-independently invokes the same body verifier at export-operation time. Activation
+step for exact schema 9. The maintained first-party audio whole-mix and
+video-effects delivery slices independently invoke the same body verifier at
+export-operation time. Activation
 verifies the authoritative project that would be activated, including existing
 same-ID tab history, before project-generation invalidation, recording or engine
 shutdown, lock changes, session publication, ordinary engine-source loading, or
@@ -1066,6 +1101,15 @@ cancellation settlement and iterator cleanup. Empty manifests and future
 schemas perform no asset reads, and future `featureRequirements` state is not
 traversed.
 
+Audio delivery selects the exact active requirement ID, feature ID, audio kind,
+source ID, and SHA-256 under the owned export signal. Selector mode scans only
+that source's complete canonical chunk sequence and returns a private provider
+bound to the exact source geometry and admission-time per-chunk digests. Each
+render read checks a fresh owned copy of the stored chunk against those bounds;
+the provider never becomes a global engine source. Verification and operation
+currentness complete before planning or rendering, and a mismatch or
+cancellation reaches no output work.
+
 Video delivery passes the owned export-task signal to a fresh verification of
 the canonical project with the exact requirement ID, feature ID, video kind,
 source ID, and SHA-256 selected by the maintained delivery projection. Selector
@@ -1080,16 +1124,15 @@ publication. Verification completes before video planning, storage preflight,
 canonical-audio rendering, FFmpeg, or output publication. A mismatch or
 cancellation reaches none of that later delivery work.
 
-This is exact point-in-time immutable-`Blob` identity reuse at the maintained
-controller admission boundary, not a durable lease over the underlying managed
+These are exact point-in-time provider and immutable-`Blob` admissions at the
+maintained controller boundary, not durable leases over the underlying managed
 storage binding. Calling `store.loadProject()` directly does not verify fallback
 bytes, and admission does not prevent later low-level or cross-process
 replacement of that storage binding, verify a nonselected fallback body, or
 establish publisher authenticity. Admission itself does not
 substitute fallback media at runtime; the separate exact-schema-9 first-party
 audio whole-mix and video-effects full-render projections described above
-perform their narrow editor-playback substitutions, and only the video slice has
-the separately maintained delivery use.
+perform their narrow editor-playback and delivery uses.
 Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
 A signal-ignoring metadata, context, or decoded-body operation may continue
@@ -1190,11 +1233,10 @@ separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate first-party
-audio whole-mix and video-effects full-render editor-playback slices plus the
-video slice's bounded operation-verified delivery path. Generic, unknown, and
-third-party fallback selection and authored fallback relationships remain
-planned. The remaining outcomes stay governed by the planned compatibility rows
-and roadmap exit gate.
+audio whole-mix and video-effects full-render editor-playback and bounded
+operation-verified delivery paths. Generic, unknown, and third-party fallback
+selection and authored fallback relationships remain planned. The remaining
+outcomes stay governed by the planned compatibility rows and roadmap exit gate.
 
 ## Opaque state
 
