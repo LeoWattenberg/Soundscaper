@@ -7,7 +7,7 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('first-party video-effects fallback preview stays exact, transient, and narrowly qualified', async () => {
+test('first-party video-effects fallback playback and handoff stay exact and narrowly qualified', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const projectDocuments = matrix.risks.find(
 		({ id }) => id === 'external-project-document-validation',
@@ -42,6 +42,7 @@ test('first-party video-effects fallback preview stays exact, transient, and nar
 		'tests/audio-editor-document-snapshot.test.ts',
 		'tests/audio-editor-session.test.js',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/production-security-video-rendered-fallback.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 
@@ -68,7 +69,11 @@ test('first-party video-effects fallback preview stays exact, transient, and nar
 	assert.match(control.summary, /deeply frozen.*metadata.*localized notice.*active during editor playback/iu);
 	assert.match(
 		control.summary,
-		/no generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*video.export.*packaged.*browser.codec.*durable byte lease.*range.*reference-scale.*embedded video audio/iu,
+		/explicit managed handoff.*manifest-only fallback.*editable retained original.*headless Framescaper-to-fresh-Soundscaper.*both exact video bodies.*canonical shadow.*controller independently verifies the manifest digest.*exact Blob URL.*transfer verifies its descriptor and body digest.*not the fallback declaration/iu,
+	);
+	assert.match(
+		control.summary,
+		/no generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*video.export.*packaged.*browser codec.*durable byte lease.*range.*reference-scale.*whole-handoff atomicity.*embedded video audio/iu,
 	);
 
 	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
@@ -83,6 +88,10 @@ test('first-party video-effects fallback preview stays exact, transient, and nar
 	assert.match(
 		documentation,
 		/required manifest-only video source.*before.*transient engine.*preview.*canonical source lookup.*synthetic clip ID/iu,
+	);
+	assert.match(
+		documentation,
+		/same maintained first-party relationship.*explicit managed handoff.*headless Framescaper-to-fresh-Soundscaper.*manifest is its only project reference.*editable retained-video original.*two exact managed video bodies.*empty recipient.*both bodies.*exact canonical shadow.*controller independently authenticates.*fallback declaration.*exact fallback Blob URL.*transfer authenticates each descriptor and body digest.*not the manifest declaration/iu,
 	);
 	assert.match(
 		documentation,
