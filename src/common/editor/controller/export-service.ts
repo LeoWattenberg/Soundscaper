@@ -410,51 +410,53 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const sink = directDestination
 			? null
 			: await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
-		if (sink && !sink.persistent
-			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
-			await sink.abort();
-			throw new Error(copy.realtimeStorageRequired);
-		}
-		const bitDepth = plan.encoding.bitDepth || (plan.format === 'flac' || plan.format === 'wavpack' ? settings.bitDepth : 24);
-		const stagingFloat = !nativePcm && plan.format !== 'flac';
-		const encoderOptions = {
-			container: nativeWav ? plan.container : undefined,
-			sampleRate: plan.sampleRate,
-			channelCount: plan.channelCount,
-			totalFrames: plan.outputFrames,
-			bitDepth,
-			float: nativePcm ? plan.encoding.floatingPoint : stagingFloat,
-			sampleFormat: nativePcm ? plan.encoding.sampleFormat : undefined,
-			dither: stagingFloat ? 'none' : plan.ditherMode,
-			metadata: nativePcm ? plan.metadata : undefined,
-			markers: nativePcm ? plan.markers : undefined,
-			ixml: nativePcm ? plan.ixml : undefined,
-			cart: broadcast ? plan.cart : undefined,
-			bext: broadcast ? plan.bext : undefined,
-			preDataChunks: nativeWav ? plan.preDataChunks : undefined,
-			trailingChunks: nativeWav ? plan.trailingChunks : undefined,
-		};
-		const directEncoder = directDestination
-			? await createDirectPcmEncoder(directDestination, nativeAiff ? createAiffStreamEncoder : createWavStreamEncoder, encoderOptions, containerLabel)
-			: null;
-		throwIfAborted(signal);
-		assertDirectCurrent();
-		const encoder = directEncoder ? null : (nativeAiff
-			? createAiffStreamEncoder({
-				...encoderOptions,
-				collect: false,
-				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
-			})
-			: createWavStreamEncoder({
-				...encoderOptions,
-				collect: false,
-				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
-			}));
-		const renderEngine = createCacheAwareRenderEngine();
 		const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
 		let renderedSampleRate = renderSampleRate;
 		let directCompressedHandoff = false;
+		let renderEngine: RuntimeValue = null;
+		let ownedOutput: RuntimeValue = null;
+		const failures: unknown[] = [];
 		try {
+			if (sink && !sink.persistent
+				&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
+				throw new Error(copy.realtimeStorageRequired);
+			}
+			const bitDepth = plan.encoding.bitDepth || (plan.format === 'flac' || plan.format === 'wavpack' ? settings.bitDepth : 24);
+			const stagingFloat = !nativePcm && plan.format !== 'flac';
+			const encoderOptions = {
+				container: nativeWav ? plan.container : undefined,
+				sampleRate: plan.sampleRate,
+				channelCount: plan.channelCount,
+				totalFrames: plan.outputFrames,
+				bitDepth,
+				float: nativePcm ? plan.encoding.floatingPoint : stagingFloat,
+				sampleFormat: nativePcm ? plan.encoding.sampleFormat : undefined,
+				dither: stagingFloat ? 'none' : plan.ditherMode,
+				metadata: nativePcm ? plan.metadata : undefined,
+				markers: nativePcm ? plan.markers : undefined,
+				ixml: nativePcm ? plan.ixml : undefined,
+				cart: broadcast ? plan.cart : undefined,
+				bext: broadcast ? plan.bext : undefined,
+				preDataChunks: nativeWav ? plan.preDataChunks : undefined,
+				trailingChunks: nativeWav ? plan.trailingChunks : undefined,
+			};
+			const directEncoder = directDestination
+				? await createDirectPcmEncoder(directDestination, nativeAiff ? createAiffStreamEncoder : createWavStreamEncoder, encoderOptions, containerLabel)
+				: null;
+			throwIfAborted(signal);
+			assertDirectCurrent();
+			const encoder = directEncoder ? null : (nativeAiff
+				? createAiffStreamEncoder({
+					...encoderOptions,
+					collect: false,
+					onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+				})
+				: createWavStreamEncoder({
+					...encoderOptions,
+					collect: false,
+					onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+				}));
+			renderEngine = createCacheAwareRenderEngine();
 			if (renderSources.chunkSources === null) renderEngine.loadProject(snapshot, renderSources.sourceMap);
 			else renderEngine.loadProject(snapshot, renderSources.sourceMap, {
 				chunkSources: renderSources.chunkSources,
@@ -489,43 +491,60 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			else if (finalChannels[0]?.length) encoder.write(finalChannels);
 			if (directEncoder) {
 				const byteLength = await directEncoder.finalize();
-				return { blob: null, bytes: null, byteLength, mimeType: plan.mimeType, directDestination };
+				ownedOutput = { blob: null, bytes: null, byteLength, mimeType: plan.mimeType, directDestination };
+			} else {
+				encoder.finalize();
+				await encoder.settled();
+				const stagingFile = await sink.close(nativeAiff ? 'audio/aiff' : 'audio/wav');
+				if (nativePcm) {
+					ownedOutput = { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
+				} else {
+					setStatus(copy.encoding);
+					const transcodeSettings = {
+						...plan.encoding,
+						// The realtime PCM transform has already mapped into final staging geometry.
+						inputChannelCount: plan.channelCount,
+						channelCount: plan.channelCount,
+						channelMapping: 'preserve',
+						bitDepth,
+						sampleRate: plan.sampleRate,
+						applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
+						signal,
+					};
+					if (directCompressedDestination) {
+						directCompressedHandoff = true;
+						ownedOutput = await encodeDirectCompressedStagedFile({
+							destination: directCompressedDestination, plan, stagedFile: stagingFile, ffmpeg, signal,
+							encodingSettings: transcodeSettings, assertCurrent: assertDirectCurrent,
+							cleanupStagedFile: () => sink.remove(), abortStagedFile: () => sink.abort(),
+						});
+					} else {
+						ownedOutput = await ffmpeg.encodeFile(stagingFile, plan.format, transcodeSettings);
+						await sink.remove();
+					}
+				}
 			}
-			encoder.finalize();
-			await encoder.settled();
-			const stagingFile = await sink.close(nativeAiff ? 'audio/aiff' : 'audio/wav');
-			if (nativePcm) {
-				return { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
-			}
-			setStatus(copy.encoding);
-			const transcodeSettings = {
-				...plan.encoding,
-				// The realtime PCM transform has already mapped into final staging geometry.
-				inputChannelCount: plan.channelCount,
-				channelCount: plan.channelCount,
-				channelMapping: 'preserve',
-				bitDepth,
-				sampleRate: plan.sampleRate,
-				applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
-				signal,
-			};
-			if (directCompressedDestination) {
-				directCompressedHandoff = true;
-				return encodeDirectCompressedStagedFile({
-					destination: directCompressedDestination, plan, stagedFile: stagingFile, ffmpeg, signal,
-					encodingSettings: transcodeSettings, assertCurrent: assertDirectCurrent,
-					cleanupStagedFile: () => sink.remove(), abortStagedFile: () => sink.abort(),
-				});
-			}
-			const encoded = await ffmpeg.encodeFile(stagingFile, plan.format, transcodeSettings);
-			await sink.remove();
-			return encoded;
 		} catch (error) {
-			if (sink && !directCompressedHandoff) await sink.abort();
-			throw error;
+			failures.push(error);
+			if (sink && !directCompressedHandoff) {
+				try { await sink.abort(); } catch (cleanupError) { failures.push(cleanupError); }
+			}
 		} finally {
-			await renderEngine.dispose();
+			if (renderEngine) {
+				try { await renderEngine.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
+			}
 		}
+		if (failures.length) {
+			if (typeof ownedOutput?.cleanup === 'function') {
+				try { await ownedOutput.cleanup(); } catch (cleanupError) { failures.push(cleanupError); }
+			}
+			if (failures.length === 1) throw failures[0];
+			throw new AggregateError(failures, 'Realtime audio export and resource cleanup failed.');
+		}
+		if (!ownedOutput || typeof ownedOutput !== 'object') {
+			throw new Error('Realtime audio export produced no encoded output.');
+		}
+		return ownedOutput;
 	}
 	return Object.freeze({ exportVideo, handleExportAction, renderSnapshot });
 }
