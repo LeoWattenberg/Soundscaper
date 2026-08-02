@@ -339,7 +339,7 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   finish broader
   linked and unmanaged-original lifecycles, authored proxies plus generic
   rendered-fallback relationships beyond maintained first-party playback and
-  managed handoff and video export, fallback authoring and broader delivery
+  managed handoff and audio/video export, fallback authoring and broader delivery
   use, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
   lifecycle, linked-locator cleanup beyond the one-live-store maintained save,
@@ -354,7 +354,7 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
   generic fallback authoring, acquisition, activation, and delivery beyond
-  maintained first-party playback, managed handoff, and video export.
+  maintained first-party playback, managed handoff, and audio/video export.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
@@ -385,8 +385,8 @@ release-blocking defect in its owning policy.
 
 - **Shared — In progress:** provide generic affected-object visibility and
   bypass behavior beyond the maintained first-party audio/video slices.
-- Add runtime use for required rendered fallbacks beyond the maintained
-  first-party audio whole-mix and video-effects preview paths.
+- Extend required rendered-fallback runtime use beyond maintained first-party
+  audio whole-mix and video-effects playback and delivery.
 - Preserve and re-export arbitrary future-schema `.scape` archives without
   interpreting unknown state.
 - Verify that a project opened on a less-capable platform subsequently
