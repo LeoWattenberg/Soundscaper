@@ -30,7 +30,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for the maintained first-party\s+audio fallback.*exact-schema audio whole-mix source.*only by\s+its feature requirement.*explicit managed handoff.*editable\s+original.*fresh recipient.*controller-owned manifest digest check.*recipient document.*read-only.*canonical state.*unprojected/isu,
+		/Implemented for registered first-party audio\s+fallbacks.*exact-schema audio whole-mix source.*one\s+unavailable registered audio feature.*explicit managed handoff.*editable\s+original.*fresh recipient.*controller-owned manifest digest check.*recipient document.*read-only.*canonical state.*unprojected/isu,
 	);
 	assert.match(
 		roadmap,
