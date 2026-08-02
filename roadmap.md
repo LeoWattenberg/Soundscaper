@@ -271,9 +271,15 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   original, is acquired into a fresh recipient, and activates there after the
   separate controller-owned manifest digest check. The recipient document
   remains read-only and canonical state stays unprojected.
+- **Electron Enhanced — Implemented for point-in-time managed-media publication
+  admission:** absent bindings reserve prospective catalog rows, serialized
+  metadata, and aggregate pending body bytes, then reject failed, malformed, or
+  known-insufficient destination capacity before body or hard-link work.
+  Exact-present retries remain available at capacity after body reverification.
 - **Electron Enhanced — In progress:** complete linked and unmanaged originals,
-  authored proxy plus generic/video rendered-fallback relationships, cleanup
-  and capacity behavior, durable playback identity, and packaged qualification.
+  authored proxy plus generic/video rendered-fallback relationships,
+  managed-media reclamation and logical row retirement, exact or write-time
+  capacity behavior, durable playback identity, and packaged qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest and versioned recipe while
   staying outside project history, portable archive media, and managed media
