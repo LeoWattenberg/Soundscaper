@@ -66,10 +66,11 @@ export function createDesktopLinkedVideoOriginalAccess(
 		if (!available) return null;
 		throwIfAborted(request.signal);
 		const rawChoice = await bridge.chooseLinkedVideoOriginal?.();
-		throwIfAborted(request.signal);
 		if (rawChoice === null) return null;
-		const choice = locatorValue(rawChoice);
+		const cleanupLocatorId = possibleLocatorId(rawChoice);
 		try {
+			throwIfAborted(request.signal);
+			const choice = locatorValue(rawChoice);
 			const loaded = await loadFile(choice.locatorId, choice.locatorRevision, request.signal);
 			if (!loaded) throw new Error('The selected linked-video original is unavailable or changed.');
 			if (loaded.locatorRevision !== choice.locatorRevision) {
@@ -78,7 +79,7 @@ export function createDesktopLinkedVideoOriginalAccess(
 			return Object.freeze({ ...choice, file: loaded.file });
 		} catch (error) {
 			try {
-				await release(choice.locatorId);
+				if (cleanupLocatorId) await release(cleanupLocatorId);
 			} catch (cleanupError) {
 				throw new AggregateError(
 					[error, cleanupError],
@@ -129,6 +130,12 @@ export function createDesktopLinkedVideoOriginalAccess(
 		const locatorId = locatorToken(locatorIdValue, 'locator identifier');
 		return (await bridge.releaseLinkedVideoOriginal?.(locatorId)) === true;
 	}
+}
+
+function possibleLocatorId(value: unknown): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const candidate = (value as Readonly<Record<string, unknown>>).locatorId;
+	return typeof candidate === 'string' && /^[a-f0-9]{64}$/u.test(candidate) ? candidate : null;
 }
 
 function locatorValue(value: unknown): Omit<DesktopLinkedVideoOriginalChoice, 'file'> {

@@ -112,6 +112,31 @@ test('linked-video chooser releases a new locator when materialization fails', a
 	assert.deepEqual(releases, [LOCATOR_ID]);
 });
 
+test('linked-video chooser releases a locator when cancellation wins after selection', async () => {
+	const controller = new AbortController();
+	const reason = new Error('cancel linked selection');
+	const releases: string[] = [];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseLinkedVideoOriginal() {
+				controller.abort(reason);
+				return locatorChoice();
+			},
+			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
+			async releaseLinkedVideoOriginal(locatorId: string) {
+				releases.push(locatorId);
+				return true;
+			},
+		},
+	});
+
+	await assert.rejects(
+		service.chooseLinkedVideoOriginal({ signal: controller.signal }),
+		(error: unknown) => error === reason,
+	);
+	assert.deepEqual(releases, [LOCATOR_ID]);
+});
+
 test('linked-video chooser preserves primary and locator cleanup failures', async () => {
 	const service = createAudioEditorFileService({
 		bridge: {
@@ -131,13 +156,17 @@ test('linked-video chooser preserves primary and locator cleanup failures', asyn
 
 test('linked-video port rejects malformed bridge DTOs before body fetch', async () => {
 	let fetchCalls = 0;
+	const releases: string[] = [];
 	const service = createAudioEditorFileService({
 		bridge: {
 			async chooseLinkedVideoOriginal() {
 				return { ...locatorChoice(), path: '/private/selected.mp4' };
 			},
 			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
-			async releaseLinkedVideoOriginal() { return true; },
+			async releaseLinkedVideoOriginal(locatorId: string) {
+				releases.push(locatorId);
+				return true;
+			},
 		},
 		fetch: async () => {
 			fetchCalls += 1;
@@ -146,6 +175,7 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 	});
 	await assert.rejects(service.chooseLinkedVideoOriginal(), /closed|unsupported field/iu);
 	assert.equal(fetchCalls, 0);
+	assert.deepEqual(releases, [LOCATOR_ID]);
 
 	const loadService = createAudioEditorFileService({
 		bridge: {
