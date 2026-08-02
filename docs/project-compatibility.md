@@ -663,11 +663,20 @@ first-party video-effects fallback referenced solely by its feature requirement.
 Explicit managed whole-`Blob` transfer moves the two exact video bodies into the
 empty recipient. It publishes the exact canonical shadow, leaves the recipient
 intrinsically read-only, and separately verifies the manifest fallback digest in
-the controller after shadow publication and before transient activation. This
-headless, whole-`Blob` evidence does not qualify packaged or browser-codec
-behavior, embedded fallback audio, range or reference-scale transfer, export or
-offline render, fallback authoring, generic or third-party fallbacks, a durable
-byte lease, or whole-handoff atomicity.
+the controller after shadow publication and before transient activation. After
+activation, replacing the local fallback with corrupt same-shaped bytes proves
+that stale activation-time admission cannot authorize delivery: maintained video
+export rejects before FFmpeg or output publication. Restoring the exact body
+allows fresh selector-bound operation-time verification to return the exact
+size- and digest-verified native `Blob`. Delivery reuses that same immutable
+`Blob` directly as its only video input without a second fallback storage read,
+while the exact canonical shadow remains unprojected. The fixture has no
+canonical audio, and embedded fallback-video audio is not used. This headless,
+whole-`Blob` evidence does not qualify codec or browser behavior, a packaged
+runtime, range or reference-scale transfer, fallback authoring, generic,
+third-party, or simultaneous fallbacks, linked-only or unmanaged delivery, a
+durable byte lease, broad export or offline-render parity, or whole-handoff
+atomicity.
 
 Recipient-local admission for unmanaged sources remains a bounded sequential
 readability check, not an atomic snapshot, publisher authentication, or a
@@ -689,10 +698,11 @@ above.
 Only the maintained pathless desktop linked retained-video slice described above
 is also qualified. Linked audio and every other linked or unmanaged original,
 authored proxies, generic rendered-fallback authoring and transfer semantics
-beyond the separately maintained controller playback slices, relink/watch
-behavior, general copy/consolidate beyond the bounded same-store project-alias
-duplication above, linked-locator cleanup beyond the bounded startup and
-same-store save/delete/clear inventories,
+beyond the separately maintained controller playback slices and exact
+first-party video-delivery slice, relink/watch behavior, general
+copy/consolidate beyond the bounded same-store project-alias duplication above,
+linked-locator cleanup beyond the bounded startup and same-store
+save/delete/clear inventories,
 packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, content-frozen playback identity against
@@ -703,7 +713,8 @@ revision journal and undo/redo history remain unqualified.
 Product-local bounded revision history is the only history proven by the
 composed return fixture.
 Rendered-fallback digest verification remains controller-owned after repository
-shadowing and before activation side effects.
+shadowing and before activation side effects. The video-delivery slice repeats
+that verification independently at operation time as described below.
 
 A composed source-free editor fixture creates and autosaves in Soundscaper,
 closes its fenced host, discovers and bootstrap-reopens the same identity and
@@ -893,13 +904,21 @@ third-party requirements. The separate maintained video slice below does not
 broaden that boundary.
 
 The maintained exact schema 9 first-party video-effects rendered fallback is a
-separate narrow editor-playback projection. It activates only when exactly one
-registered `videoEffects` report item is unavailable with declared and effective
-`rendered-fallback` dispositions and its video descriptor exactly matches the
-canonical manifest requirement by requirement ID, feature ID, disposition,
-video kind, source ID, and SHA-256. The separate controller fallback-integrity
-admission verifies the actual local body against that digest before activation
-side effects; the projection does not replace that admission.
+separate narrow editor-playback and video-delivery projection. It activates only
+when exactly one registered `videoEffects` report item is unavailable with
+declared and effective `rendered-fallback` dispositions and its video descriptor
+exactly matches the canonical manifest requirement by requirement ID, feature
+ID, disposition, video kind, source ID, and SHA-256. The separate controller
+fallback-integrity admission verifies the actual local body against that digest
+before activation side effects. For maintained video delivery, a separate
+selector binds the exact requirement ID, feature ID, video kind, source ID, and
+SHA-256. Operation-time
+admission loads only that selected local body under the export-task signal,
+size-checks and hashes its canonical native `Blob`, and retains that exact
+immutable `Blob` for delivery. It does not read or admit nonselected fallback
+bodies. This verification completes before the video plan, storage preflight,
+canonical-audio render, FFmpeg call, or output publication; the projection does
+not replace either admission.
 
 The referenced source must have the exact video kind, match the project sample
 rate, carry positive safe-integer frame count, width, and height, and carry a
@@ -919,6 +938,29 @@ document snapshot gives the WebGL preview that transient project, while visual
 resolution falls through exact clip lookups to the source-level exact visual for
 the synthetic clip.
 
+The maintained video-delivery projection invokes only the video rendered
+fallback. It does not compose the audio rendered fallback or the audio/video
+bypass projections, and a simultaneous rendered fallback rejects rather than
+silently delivering a partial projection. Export derives and clones that
+projection from the canonical project. After operation-time admission, export
+reuses the exact size- and digest-verified native `Blob` retained by that
+admission as the plan's only video input, with no second fallback storage read.
+Canonical audio clips and effects remain in the delivery snapshot and, when
+present, render into the separate staged mix. Embedded fallback-video audio is
+not extracted or mapped.
+
+The canonical project, history, persistence, and save state remain read-only and
+unmodified. Export checks project, task, generation, and operation currentness
+before verification and after verification, binds the returned integrity
+admission to the canonical project, and checks currentness again after FFmpeg
+before output handling. It passes the owned signal into publication, rechecks
+currentness after publication, and cleans up a recoverable stale publication.
+A verification refusal or cancellation starts no video plan, storage preflight,
+canonical-audio render, FFmpeg call, or output publication. This is exact
+point-in-time immutable-`Blob` reuse within one operation, not a durable lease
+over the managed storage binding or a claim about cross-process replacement
+after admission. It qualifies no nonselected fallback body.
+
 A composed headless Framescaper-to-fresh-Soundscaper fixture separately
 qualifies this exact schema 9 slice at the managed desktop handoff boundary. The
 editable retained original and the manifest-only fallback, reachable only from
@@ -926,17 +968,24 @@ its feature requirement, cross by explicit whole-`Blob` transfer as two exact
 video bodies. The fresh recipient persists the exact canonical shadow, remains
 intrinsically read-only, and the controller separately verifies the manifest
 fallback digest after shadow publication and before transient activation.
+Corrupting that recipient-local fallback after activation makes operation-time
+delivery verification reject before FFmpeg and output. Restoring the exact body
+lets selector-bound verification return the exact immutable `Blob`, which
+delivery reuses directly as the fallback's only video input without another
+storage lookup, and leaves the canonical document unchanged.
 
 Deeply frozen per-tab and document-snapshot metadata binds this projection to
 the exact requirement and drives one localized active-during-editor-playback
 indicator without exposing its source ID or digest. This slice is not generic,
 unknown, or third-party fallback selection. It authors no freeze, unfreeze, or
-proxy relationship, does not traverse future-schema project state, and makes no
-browser-codec or packaged-runtime qualification, whole-video fallback audio
-handling claim, or export or offline-render substitution claim. Its managed
-handoff evidence is headless and whole-`Blob` only: it does not qualify embedded
-fallback audio, range or reference-scale transfer, fallback authoring, a durable
-byte lease, or whole-handoff atomicity.
+proxy relationship and does not traverse future-schema project state. It does
+not qualify linked-only or unmanaged delivery, simultaneous rendered fallbacks,
+embedded fallback-video audio, range or reference-scale transport,
+codec or browser behavior, a packaged runtime, a durable byte lease, broad export
+or offline-render parity, whole-handoff atomicity, or earlier Soundscaper
+schemas. The operation provides no durable storage-record lease, guarantee
+against cross-process replacement of the backing storage binding after
+admission, or nonselected fallback-body guarantee.
 
 For the maintained first-party video-effect slice, the controller likewise
 derives a transient activation projection only for exact schema 9 when the
@@ -983,14 +1032,15 @@ report produces no notice, tab switching follows the per-tab report, and the
 workspace never traverses future-schema `featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
-step for exact schema 9. It verifies the authoritative project that would be
-activated, including existing same-ID tab history, before project-generation
-invalidation, recording or engine shutdown, lock changes, session publication,
-ordinary engine-source loading, or normal activation persistence. Admission
-reads explicitly disable on-access PCM migration scheduling and retained-media
-digest claim/backfill, so verification itself does not publish storage
-maintenance. Audio fallbacks are read from their local `storageKey` and hashed
-as the canonical
+step for exact schema 9. The maintained first-party video-effects delivery slice
+independently invokes the same body verifier at export-operation time. Activation
+verifies the authoritative project that would be activated, including existing
+same-ID tab history, before project-generation invalidation, recording or engine
+shutdown, lock changes, session publication, ordinary engine-source loading, or
+normal activation persistence. Admission reads explicitly disable on-access PCM
+migration scheduling and retained-media digest claim/backfill, so verification
+itself does not publish storage maintenance. Audio fallbacks are read from their
+local `storageKey` and hashed as the canonical
 `audio-f32le-chunks-v1` sequence: a four-byte little-endian frame count followed
 by planar little-endian Float32 channel bytes for each checked project chunk.
 That path shares `.scape` export's PCM geometry validation and cumulative
@@ -1016,13 +1066,30 @@ cancellation settlement and iterator cleanup. Empty manifests and future
 schemas perform no asset reads, and future `featureRequirements` state is not
 traversed.
 
-This is a point-in-time guarantee at the maintained controller admission
-boundary, not a durable byte lease. Calling `store.loadProject()` directly does
-not verify fallback bytes, and admission does not continuously bind them against
-a later low-level source replacement or establish publisher authenticity.
-Admission itself does not substitute fallback media at runtime; the separate
-exact-schema-9 first-party audio whole-mix and video-effects full-render
-projections described above perform their narrow editor-playback substitutions.
+Video delivery passes the owned export-task signal to a fresh verification of
+the canonical project with the exact requirement ID, feature ID, video kind,
+source ID, and SHA-256 selected by the maintained delivery projection. Selector
+mode loads only that body, returns the canonical native `Blob` whose exact size
+and digest it verified, and does not read or admit nonselected fallback bodies.
+Export checks task, project-generation, and operation currentness before that
+verification, asserts the returned admission against the same canonical project
+and selector, and repeats those fences after verification. It reuses that same
+immutable `Blob` directly as the only video input without a second fallback
+storage read, then checks currentness again after FFmpeg and across output
+publication. Verification completes before video planning, storage preflight,
+canonical-audio rendering, FFmpeg, or output publication. A mismatch or
+cancellation reaches none of that later delivery work.
+
+This is exact point-in-time immutable-`Blob` identity reuse at the maintained
+controller admission boundary, not a durable lease over the underlying managed
+storage binding. Calling `store.loadProject()` directly does not verify fallback
+bytes, and admission does not prevent later low-level or cross-process
+replacement of that storage binding, verify a nonselected fallback body, or
+establish publisher authenticity. Admission itself does not
+substitute fallback media at runtime; the separate exact-schema-9 first-party
+audio whole-mix and video-effects full-render projections described above
+perform their narrow editor-playback substitutions, and only the video slice has
+the separately maintained delivery use.
 Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
 A signal-ignoring metadata, context, or decoded-body operation may continue
@@ -1036,11 +1103,12 @@ this required-source staging transaction, and short-buffer retention after
 engine application remains subject to cache-fit policy. Readiness does not
 prefetch or revalidate streamed chunks. The maintained projections do not
 provide generic per-feature bypass controls, generic, unknown, or third-party
-rendered-fallback substitution, authored freeze or proxy relationships, whole-video
-fallback audio handling, ADM or surround fallback playback, export or
-offline-render substitution,
-future-schema preservation, earlier Soundscaper-schema compatibility, or a
-complete third-party activation gate.
+rendered-fallback substitution, authored freeze or proxy relationships,
+simultaneous fallback delivery, linked-only or unmanaged fallback delivery,
+whole-video fallback audio handling, ADM or surround fallback playback, broad
+export or offline-render parity, future-schema preservation, earlier
+Soundscaper-schema compatibility, reference-scale or browser/packaged codec
+qualification, or a complete third-party activation gate.
 
 The same selected product service now powers a programmatic current-format `.scape`
 inspection report. The composition root snapshots the selected product
@@ -1122,10 +1190,11 @@ separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate first-party
-audio whole-mix and video-effects full-render editor-playback slices. Generic,
-unknown, and third-party fallback selection and authored fallback relationships
-remain planned. The remaining outcomes stay governed by the planned
-compatibility rows and roadmap exit gate.
+audio whole-mix and video-effects full-render editor-playback slices plus the
+video slice's bounded operation-verified delivery path. Generic, unknown, and
+third-party fallback selection and authored fallback relationships remain
+planned. The remaining outcomes stay governed by the planned compatibility rows
+and roadmap exit gate.
 
 ## Opaque state
 
@@ -1192,8 +1261,9 @@ durable project, retention, and portable-archive state under the fallback rules
 below. The maintained exact-schema first-party audio whole-mix fallback is
 separately qualified for fresh-recipient managed acquisition and activation.
 The maintained first-party video-effects full render is separately qualified
-for controller activation after route-specific source and digest admission;
-generic video fallback and proxy relationships remain unqualified.
+for controller activation and bounded video delivery after their independent
+route-specific source and digest admissions; generic video fallback and proxy
+relationships remain unqualified.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
@@ -1214,17 +1284,19 @@ The maintained first-party audio- and video-effect bypass slices now implement
 the first two steps for active known effects during editor playback only. The
 exact-schema-9 mono/stereo first-party audio whole-mix and first-party
 video-effects full-render slices implement narrow forms of step 3 during editor
-playback. They do not create, freeze, unfreeze, relink, export, or offline-render
-either fallback, and neither behavior generalizes to unknown or third-party
-effects. Generic fallback selection and authored video fallback or proxy
-relationships remain planned; video export and offline render remain outside
-the video preview projection.
+playback, and the video-only slice now also supplies the maintained video-export
+input after fresh operation-time integrity admission. Neither slice creates,
+freezes, unfreezes, or relinks either fallback, and neither behavior generalizes
+to unknown or third-party effects. Audio fallback delivery, generic fallback
+selection, simultaneous fallback delivery, and authored video fallback or proxy
+relationships remain planned; broad video-export and offline-render parity
+remain outside the bounded video-delivery projection.
 
 Video proxy relationships are owned by milestone 3. Canonical audio freeze,
 unfreeze, commit, relink, and authored rendered-fallback document state are
-owned by milestone 4. The narrow playback-only projection above does not supply
-those document models, and their absence must not be hidden behind a broader
-compatibility claim.
+owned by milestone 4. The narrow playback and video-delivery projections above
+do not supply those document models, and their absence must not be hidden behind
+a broader compatibility claim.
 
 ## Schema retirement
 

@@ -354,7 +354,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/parallel composed fixture.*Framescaper.*fresh Soundscaper.*exact-schema-9 first-party video-effects fallback.*feature requirement.*editable retained original.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/isu,
+		/parallel composed fixture.*Framescaper.*fresh Soundscaper.*exact-schema-9 first-party video-effects fallback.*feature requirement.*editable retained original.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation.*corrupt same-shaped bytes.*stale activation-time admission.*video export rejects.*before FFmpeg.*output.*restoring.*exact body.*fresh selector-bound operation-time verification.*exact size- and digest-verified native Blob.*directly reuses.*same immutable Blob.*only video input.*without a second fallback storage read.*canonical project.*unprojected.*embedded fallback-video audio.*not used.*headless.*whole-Blob.*codec.*browser.*packaged.*range.*reference-scale.*fallback authoring.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*durable storage-record or byte lease.*broad.*parity.*whole-handoff atomicity/isu,
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
@@ -519,7 +519,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/first-party video-effects fallback.*manifest-only.*editable retained original.*Framescaper.*fresh Soundscaper.*two exact whole-Blob video bodies.*exact canonical shadow.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/iu,
+		/first-party video-effects fallback.*manifest-only.*editable retained original.*Framescaper.*fresh Soundscaper.*two exact whole-Blob video bodies.*exact canonical shadow.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation.*corrupt same-shaped bytes.*stale activation-time admission.*video export rejects.*before FFmpeg.*output.*restoring.*exact body.*fresh selector-bound operation-time verification.*exact size- and digest-verified native Blob.*directly reuses.*same immutable Blob.*only video input.*without a second fallback storage read.*canonical shadow.*unprojected.*embedded fallback-video audio.*not used.*headless.*whole-Blob.*codec.*browser.*packaged.*range.*reference-scale.*fallback authoring.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*durable storage-record or byte lease.*broad.*parity.*whole-handoff atomicity/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,

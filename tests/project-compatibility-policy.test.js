@@ -323,6 +323,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
 	assert.deepEqual(controllerFallbackIntegrity.evidence, [
 		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -331,19 +332,25 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'src/common/editor/storage/media-asset-digest-backfill.ts',
 		'src/common/editor/storage/media-repository.ts',
 		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/video-rendered-fallback-export.ts',
+		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/session-activation.js',
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-media-asset-load.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
+		'tests/audio-editor-video-rendered-fallback-export.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/audio-editor-session-project-activation.test.js',
 	]);
 	assert.match(
 		controllerFallbackIntegrity.requiredOutcome,
 		/exact-current-schema.*raw or stored project.*maintained controller.*canonical local stored bytes.*before activation side effects/iu,
 	);
+	assert.match(controllerFallbackIntegrity.requiredOutcome, /first-party videoEffects fallback delivery.*exact active claim.*export signal.*canonical native video Blob.*directly reuse.*immutable bytes.*before.*plan.*media.*FFmpeg.*output/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
 		/authoritative exact-schema-9.*same-ID tab history.*session-owned history token.*exclusive session activation reservation.*before project-generation invalidation.*engine shutdown.*lock changes.*source loading.*persistence.*history replacement.*close.reopen.*competing active-project publication.*session publication.*released in finally/iu,
@@ -355,9 +362,10 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(controllerFallbackIntegrity.currentBehavior, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /deduplicates.*conflicting digests.*before storage reads/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /selector.*active requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*only that active video body.*unrelated inactive audio.*nonselected fallback body.*size-checks and hashes.*canonical native Blob.*retains.*exact immutable Blob.*exact selector.*directly reuses.*sole video input.*without a second fallback storage read.*publication.*cleanup/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
-		/empty manifests.*future schemas.*no asset reads.*not traversed.*admission-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*third-party/iu,
+		/empty manifests.*future schemas.*no asset reads.*not traversed.*point-in-time immutable-Blob identity reuse.*not a durable lease.*storage record.*cross-process replacement.*nonselected fallback body.*direct store\.loadProject.*publisher authenticity.*generic.*third-party/iu,
 	);
 
 	const currentScapePreOpenFeatureReport = rules.get('current-scape-pre-open-feature-report');
@@ -452,12 +460,12 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/narrow exact-schema-9 audio and video playback fallbacks exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
+		/narrow exact-schema-9 audio and video playback fallbacks.*bounded operation-verified video fallback delivery exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
 	);
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/first-party video-effects fallback.*transiently replace.*editor playback.*without changing canonical state.*no original-to-render or original-to-proxy relationship.*proxy.*freeze.*unfreeze.*offline-render.*relink.*not implemented/iu,
+		/first-party video-effects fallback.*transiently replace.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*no original-to-render or original-to-proxy relationship.*no broad original-delivery parity.*proxy.*freeze.*unfreeze.*offline-render.*relink.*not implemented/iu,
 	);
 });
 
@@ -576,11 +584,11 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video-effects full-render slices.*narrow forms of step 3.*editor\s+playback/isu,
+		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video-effects full-render slices.*narrow forms of step 3.*editor\s+playback.*video-only slice.*maintained video-export.*operation-time integrity admission/isu,
 	);
 	assert.match(
 		documentation,
-		/do not create, freeze, unfreeze, relink, export, or offline-render.*unknown or third-party.*Generic fallback selection.*authored video fallback or proxy\s+relationships remain planned.*video export and offline render remain outside/isu,
+		/neither slice creates.*freezes.*unfreezes.*relinks.*unknown or third-party.*Audio fallback delivery.*generic fallback\s+selection.*simultaneous fallback delivery.*authored video fallback or proxy\s+relationships remain planned.*broad video-export and offline-render parity.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });
