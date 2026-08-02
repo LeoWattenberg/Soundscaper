@@ -52,7 +52,7 @@ export class SourceRepository {
 	}
 
 	getMetadata(sourceId: string): Promise<StorageRecord | null> {
-		return this.#options.records.getMetadata(sourceId);
+		return this.#options.reader.getMetadata(sourceId);
 	}
 
 	list(): Promise<StorageRecord[]> {
@@ -73,7 +73,7 @@ export class SourceRepository {
 
 	async delete(sourceId: string): Promise<void> {
 		await this.#options.migrations.cancel(sourceId);
-		const source = await this.getMetadata(sourceId);
+		const source = await this.#options.records.getMetadata(sourceId);
 		if (source) {
 			const dependent = (await this.list()).find((candidate) => candidate.baseSourceId === sourceId);
 			if (dependent) throw new Error(`Source ${sourceId} is retained by derived source ${String(dependent.id)}.`);

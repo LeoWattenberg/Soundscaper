@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PCM_CONTAINER_STORAGE_TYPE } from '../wavpack/index.js';
+import type { StorageRecord } from './media-records.ts';
 import type { PcmMigrationRepository } from './pcm-migration-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
@@ -26,11 +27,23 @@ export interface SourceReadRepositoryOptions {
 	readonly pcm: PcmRepository;
 	readonly opfs: OpfsRepository;
 	readonly migrations: PcmMigrationRepository;
+	readonly fallback?: SourceReadFallback | null;
 }
 
 export interface SourceReadOptions {
 	readonly signal?: AbortSignal;
 	readonly migrateLegacyPcmOnAccess?: boolean;
+}
+
+/** Read-only canonical PCM supplied outside the owned source-record store. */
+export interface SourceReadFallback {
+	getMetadata(sourceId: string): PromiseLike<StorageRecord | null> | StorageRecord | null;
+	chunks(sourceId: string, options?: SourceReadOptions): AsyncIterable<SourcePcmChunk>;
+	chunk(
+		sourceId: string,
+		chunkIndex: number,
+		options?: SourceReadOptions,
+	): PromiseLike<SourcePcmChunk> | SourcePcmChunk;
 }
 
 /** Ordered and random-access PCM reads across all source storage formats. */
@@ -39,6 +52,11 @@ export class SourceReadRepository {
 
 	constructor(options: SourceReadRepositoryOptions) {
 		this.#options = options;
+	}
+
+	async getMetadata(sourceId: string): Promise<StorageRecord | null> {
+		const owned = await this.#options.records.getMetadata(sourceId);
+		return owned ?? await this.#options.fallback?.getMetadata(sourceId) ?? null;
 	}
 
 	async *chunks(
@@ -61,7 +79,7 @@ export class SourceReadRepository {
 
 	async loadAudioBuffer(sourceId: string, audioContext: AudioContextLike): Promise<DestinationAudioBuffer> {
 		if (!audioContext?.createBuffer) throw new TypeError('An AudioContext is required to load a source.');
-		const source = await this.#options.records.getMetadata(sourceId);
+		const source = await this.getMetadata(sourceId);
 		if (!source) throw new Error('The requested audio source could not be found.');
 		const frameCount = nonNegativeInteger(source.frameCount ?? source.frameLength, 0);
 		const channelCount = nonNegativeInteger(source.channelCount, 0);
@@ -89,7 +107,13 @@ export class SourceReadRepository {
 		migrateLegacyPcmOnAccess = true,
 	): Promise<SourcePcmChunk> {
 		const source = await this.#options.records.getMetadata(sourceId);
-		if (!source) throw new Error('The requested audio source could not be found.');
+		if (!source) {
+			if (!this.#options.fallback) throw new Error('The requested audio source could not be found.');
+			return await this.#options.fallback.chunk(sourceId, chunkIndex, {
+				...(signal ? { signal } : {}),
+				migrateLegacyPcmOnAccess,
+			});
+		}
 		if (ancestors.has(sourceId)) throw new Error('The immutable source dependency graph contains a cycle.');
 		if (chunkIndex >= nonNegativeInteger(source.chunkCount, 0)) {
 			throw new RangeError(`Source storage chunk ${chunkIndex} does not exist.`);
@@ -133,7 +157,14 @@ export class SourceReadRepository {
 		throwIfAborted(signal);
 		const source = await this.#options.records.getMetadata(sourceId);
 		throwIfAborted(signal);
-		if (!source) throw new Error('The requested audio source could not be found.');
+		if (!source) {
+			if (!this.#options.fallback) throw new Error('The requested audio source could not be found.');
+			yield* this.#options.fallback.chunks(sourceId, {
+				...(signal ? { signal } : {}),
+				migrateLegacyPcmOnAccess,
+			});
+			return;
+		}
 		if (ancestors.has(sourceId)) throw new Error('The immutable source dependency graph contains a cycle.');
 		const nextAncestors = new Set(ancestors).add(sourceId);
 		if (source.storage === 'copy-on-write') {
