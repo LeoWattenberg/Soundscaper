@@ -6,6 +6,8 @@ import {
 	type LinkedVideoOriginalBinding,
 	type LinkedVideoOriginalSourceShape,
 } from './linked-video-original-binding.ts';
+import { legacyLinkedVideoOriginalBindingFromLinkedOriginal } from './linked-original-binding.ts';
+import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
 import {
 	MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS,
 	MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES,
@@ -41,10 +43,9 @@ interface ProjectVideoSource {
 interface BindingInventory {
 	readonly bindings: readonly LinkedVideoOriginalBinding[];
 	readonly bindingTokens: ReadonlySet<string>;
+	readonly recordCount: number;
 }
 
-const RECORD_FIELDS = Object.freeze(['key', 'projectId', 'binding'] as const);
-const RECORD_FIELD_SET: ReadonlySet<string> = new Set(RECORD_FIELDS);
 const SOURCE_FIELDS = Object.freeze([
 	'id',
 	'kind',
@@ -185,7 +186,7 @@ export class LinkedVideoOriginalProjectAliasRepository {
 		const sourceBindings = inventory.bindings
 			.filter((binding) => binding.projectId === sourceProjectId && sources.has(binding.sourceId))
 			.sort((left, right) => left.sourceId.localeCompare(right.sourceId));
-		if (inventory.bindings.length + sourceBindings.length > this.#maximumInventoryRecords) {
+		if (inventory.recordCount + sourceBindings.length > this.#maximumInventoryRecords) {
 			throw new RangeError('Linked video original alias prospective rows exceed the record limit.');
 		}
 		for (const binding of sourceBindings) assertSourceMatches(binding, sources.get(binding.sourceId));
@@ -313,8 +314,9 @@ function indexedDbInventory(
 function inventoryAccumulator(): {
 	bindings: LinkedVideoOriginalBinding[];
 	references: Map<string, string>;
+	recordCount: number;
 } {
-	return { bindings: [], references: new Map() };
+	return { bindings: [], references: new Map(), recordCount: 0 };
 }
 
 function addInventoryBinding(
@@ -324,10 +326,12 @@ function addInventoryBinding(
 	maximumRecords: number,
 	maximumReferences: number,
 ): void {
-	if (accumulator.bindings.length >= maximumRecords) {
+	accumulator.recordCount += 1;
+	if (accumulator.recordCount > maximumRecords) {
 		throw new RangeError('Linked video original project-alias inventory exceeds its record limit.');
 	}
 	const binding = inventoryBinding(value, primaryKey);
+	if (!binding) return;
 	const revision = accumulator.references.get(binding.locatorId);
 	if (revision !== undefined && revision !== binding.locatorRevision) {
 		throw new Error('Linked video original project-alias inventory contains conflicting locator revisions.');
@@ -345,17 +349,18 @@ function finishInventory(
 	return Object.freeze({
 		bindings: Object.freeze(accumulator.bindings),
 		bindingTokens: new Set(accumulator.bindings.map(({ bindingToken }) => bindingToken)),
+		recordCount: accumulator.recordCount,
 	});
 }
 
-function inventoryBinding(value: unknown, primaryKey: IDBValidKey): LinkedVideoOriginalBinding {
-	const record = closedRecord(value, RECORD_FIELDS, RECORD_FIELD_SET, 'stored binding record');
-	const binding = normalizeLinkedVideoOriginalBinding(record.binding);
-	const expectedKey = linkedVideoOriginalBindingKey(binding.projectId, binding.sourceId);
-	if (record.key !== expectedKey || primaryKey !== expectedKey || record.projectId !== binding.projectId) {
-		throw new Error('Stored linked video original project-alias record does not match its authoritative key.');
-	}
-	return binding;
+function inventoryBinding(
+	value: unknown,
+	primaryKey: IDBValidKey,
+): LinkedVideoOriginalBinding | null {
+	const binding = validateLinkedOriginalInventoryBinding(value, primaryKey);
+	return binding.kind === 'video'
+		? legacyLinkedVideoOriginalBindingFromLinkedOriginal(binding)
+		: null;
 }
 
 function rollbackBindings(
@@ -446,23 +451,6 @@ function dataField(record: Record<string, unknown>, field: string): unknown {
 		throw new TypeError(`Linked video original project source ${field} must be an enumerable data field.`);
 	}
 	return descriptor.value;
-}
-
-function closedRecord(
-	value: unknown,
-	fields: readonly string[],
-	fieldSet: ReadonlySet<string>,
-	label: string,
-): Record<string, unknown> {
-	const record = plainRecord(value, label);
-	const keys = Reflect.ownKeys(record);
-	if (keys.length !== fields.length
-		|| keys.some((key) => typeof key !== 'string' || !fieldSet.has(key))) {
-		throw new TypeError(`A linked video original ${label} contains an unsupported field.`);
-	}
-	const output: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-	for (const field of fields) output[field] = dataField(record, field);
-	return output;
 }
 
 function inventoryLimit(value: unknown, maximum: number, label: string): number {

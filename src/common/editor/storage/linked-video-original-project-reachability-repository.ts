@@ -4,11 +4,12 @@ import { validateAudioEditorProjectV9, type AudioEditorProjectV9 } from '../proj
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { LinkedVideoOriginalBinding } from './linked-video-original-binding.ts';
+import type { LinkedOriginalBinding } from './linked-original-binding.ts';
+import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
 import {
 	MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS,
 	MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES,
 	type LinkedVideoOriginalLocatorReference,
-	validateLinkedVideoOriginalInventoryBinding,
 } from './linked-video-original-repository.ts';
 import {
 	LINKED_VIDEO_ORIGINAL_STORE_NAME,
@@ -337,7 +338,8 @@ function bindingPrunePlan(
 		if (count > maximumRecords) {
 			throw new RangeError('Linked video project binding inventory exceeds its record limit.');
 		}
-		const binding = validateLinkedVideoOriginalInventoryBinding(value, primaryKey);
+		const binding = validateLinkedOriginalInventoryBinding(value, primaryKey);
+		if (binding.kind !== 'video') continue;
 		addInventoryReference(inventoryReferences, binding, maximumReferences);
 		if (binding.projectId !== projectId || retainedSourceIds.has(binding.sourceId)) continue;
 		deletionKeys.push(primaryKey);
@@ -371,7 +373,8 @@ function indexedDbBindingPrunePlan(
 				if (count > maximumRecords) {
 					throw new RangeError('Linked video project binding inventory exceeds its record limit.');
 				}
-				const binding = validateLinkedVideoOriginalInventoryBinding(cursor.value, cursor.primaryKey);
+				const binding = validateLinkedOriginalInventoryBinding(cursor.value, cursor.primaryKey);
+				if (binding.kind !== 'video') { cursor.continue(); return; }
 				addInventoryReference(inventoryReferences, binding, maximumReferences);
 				if (binding.projectId === projectId && !retainedSourceIds.has(binding.sourceId)) {
 					deletionKeys.push(linkedVideoOriginalBindingKey(binding.projectId, binding.sourceId));
@@ -385,7 +388,7 @@ function indexedDbBindingPrunePlan(
 
 function addInventoryReference(
 	references: Map<string, string>,
-	binding: LinkedVideoOriginalBinding,
+	binding: LinkedVideoOriginalBinding | LinkedOriginalBinding,
 	maximumReferences: number,
 ): void {
 	const current = references.get(binding.locatorId);

@@ -10,6 +10,8 @@ import {
 	createVideoTrackV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import { LINKED_ORIGINAL_BINDING_SCHEMA_VERSION } from '../src/common/editor/storage/linked-original-binding.ts';
+import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
 import type { LinkedVideoOriginalBindingInput } from '../src/common/editor/storage/linked-video-original-binding.ts';
 import {
 	LinkedVideoOriginalProjectReachabilityRepository,
@@ -69,6 +71,44 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		for (const source of [timeline, bin, fallback]) {
 			assert.equal(await fixture.bindings.get(PROJECT_ID, source.id), null);
 		}
+	});
+
+	test(`${backend} video reachability scans preserve generic audio bindings`, async (context) => {
+		const fixture = await reachabilityFixture(context, backend);
+		await fixture.projects.save(rootedProject(1, {}));
+		const generic = new LinkedOriginalRepository(fixture.port, {
+			now: () => new Date(NOW),
+			createBindingToken: () => 'audio_binding_00000001',
+		});
+		assert.ok(await generic.putIfCurrent({
+			schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
+			kind: 'audio',
+			projectId: PROJECT_ID,
+			sourceId: 'audio-source',
+			storageKey: 'audio-storage',
+			locatorId: 'audio_locator_0000000001',
+			locatorRevision: 'audio_snapshot_000000001',
+			mimeType: 'audio/wav',
+			byteLength: 1_024,
+			sha256: 'ab'.repeat(32),
+			sourceShape: {
+				frameCount: 120,
+				channelCount: 2,
+				sampleRate: 48_000,
+				originalSampleRate: 48_000,
+				sampleFormat: 'float32',
+				chunkFrames: 65_536,
+			},
+		}, null));
+		const stale = videoSource('stale-video');
+		await seedBinding(fixture, PROJECT_ID, stale, 'video_locator_0000000001');
+
+		assert.deepEqual(
+			(await fixture.reachability.pruneProjectBindings(PROJECT_ID, []))?.removedLocatorReferences,
+			[{ locatorId: 'video_locator_0000000001', locatorRevision: LOCATOR_REVISION }],
+		);
+		assert.ok(await generic.get(PROJECT_ID, 'audio-source'));
+		assert.equal(await fixture.bindings.get(PROJECT_ID, stale.id), null);
 	});
 }
 
@@ -267,6 +307,7 @@ test('storage composition exposes project binding reachability with production l
 		repositories.linkedVideoOriginalProjectReachability
 			instanceof LinkedVideoOriginalProjectReachabilityRepository,
 	);
+	assert.ok(repositories.linkedOriginalBindings instanceof LinkedOriginalRepository);
 });
 
 interface ReachabilityOptions {

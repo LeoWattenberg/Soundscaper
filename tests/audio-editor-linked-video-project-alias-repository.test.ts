@@ -7,6 +7,8 @@ import type {
 	LinkedVideoOriginalBinding,
 	LinkedVideoOriginalBindingInput,
 } from '../src/common/editor/storage/linked-video-original-binding.ts';
+import { LINKED_ORIGINAL_BINDING_SCHEMA_VERSION } from '../src/common/editor/storage/linked-original-binding.ts';
+import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
 import { LinkedVideoOriginalProjectAliasRepository } from '../src/common/editor/storage/linked-video-original-project-alias-repository.ts';
 import { LinkedVideoOriginalRepository } from '../src/common/editor/storage/linked-video-original-repository.ts';
 import type { LinkedVideoOriginalSource } from '../src/common/editor/storage/linked-video-original-resolver.ts';
@@ -100,6 +102,44 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			'a matching alias must survive when any peer fails preflight',
 		);
 		assert.deepEqual(await fixture.bindings.get(DESTINATION_PROJECT_ID, second.id), replacement);
+	});
+
+	test(`${backend} video alias scans preserve unrelated generic audio rows`, async (context) => {
+		const fixture = await aliasFixture(context, backend);
+		const generic = new LinkedOriginalRepository(fixture.port, {
+			now: () => new Date(SEED_NOW),
+			createBindingToken: () => 'audio_binding_00000001',
+		});
+		assert.ok(await generic.putIfCurrent({
+			schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
+			kind: 'audio',
+			projectId: DESTINATION_PROJECT_ID,
+			sourceId: 'audio-source',
+			storageKey: 'audio-storage',
+			locatorId: 'audio_locator_0000000001',
+			locatorRevision: 'audio_snapshot_000000001',
+			mimeType: 'audio/wav',
+			byteLength: 1_024,
+			sha256: 'ab'.repeat(32),
+			sourceShape: {
+				frameCount: 120,
+				channelCount: 2,
+				sampleRate: 48_000,
+				originalSampleRate: 48_000,
+				sampleFormat: 'float32',
+				chunkFrames: 65_536,
+			},
+		}, null));
+		const video = videoSource('source-video', 'storage-video');
+		await seedBinding(fixture, SOURCE_PROJECT_ID, video, LOCATOR_A, REVISION_A);
+
+		assert.equal((await fixture.aliases.copyReachableAliases(
+			SOURCE_PROJECT_ID,
+			DESTINATION_PROJECT_ID,
+			[video],
+		)).length, 1);
+		assert.ok(await generic.get(DESTINATION_PROJECT_ID, 'audio-source'));
+		assert.equal(recordCount(fixture), 3);
 	});
 }
 
@@ -282,6 +322,7 @@ interface AliasRepositoryOptions {
 }
 
 interface AliasFixture {
+	readonly port: StorageRepositoryPort;
 	readonly aliases: LinkedVideoOriginalProjectAliasRepository;
 	readonly bindings: LinkedVideoOriginalRepository;
 	readonly memory: EditorMemoryDatabase;
@@ -305,6 +346,7 @@ async function aliasFixture(
 	let seedToken = 0;
 	let aliasToken = 0;
 	return {
+		port,
 		aliases: new LinkedVideoOriginalProjectAliasRepository(port, {
 			...options,
 			now: () => new Date(ALIAS_NOW),

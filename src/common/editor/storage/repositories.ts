@@ -2,6 +2,7 @@
 
 import { KeyValueRepository } from './key-value-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
+import { LinkedOriginalRepository } from './linked-original-repository.ts';
 import { LinkedVideoOriginalProjectAliasRepository } from './linked-video-original-project-alias-repository.ts';
 import { LinkedVideoOriginalProjectReachabilityRepository } from './linked-video-original-project-reachability-repository.ts';
 import { LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
@@ -28,6 +29,7 @@ export interface StorageRepositories {
 	readonly analysis: KeyValueRepository;
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
+	readonly linkedOriginalBindings: LinkedOriginalRepository;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
 	readonly linkedVideoOriginalProjectReachability: LinkedVideoOriginalProjectReachabilityRepository;
@@ -89,6 +91,7 @@ export function createStorageRepositories(
 		cacheLimits: options.derivativeCacheLimits,
 		now: options.derivativeCacheNow,
 	});
+	const linkedOriginalBindings = new LinkedOriginalRepository(port);
 	const linkedVideoOriginalBindings = new LinkedVideoOriginalRepository(port);
 	const linkedVideoOriginalProjectAliases = new LinkedVideoOriginalProjectAliasRepository(port);
 	const linkedVideoOriginalProjectReachability = new LinkedVideoOriginalProjectReachabilityRepository(port);
@@ -123,6 +126,7 @@ export function createStorageRepositories(
 		analysis,
 		sources,
 		media,
+		linkedOriginalBindings,
 		linkedVideoOriginalBindings,
 		linkedVideoOriginalProjectAliases,
 		linkedVideoOriginalProjectReachability,
