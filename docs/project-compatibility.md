@@ -539,7 +539,8 @@ Every successful binding publication is also remembered transiently by the
 coordinator. This gives the bind-before-canonical-import window transient
 protection until a later opted-in save or writable activation acknowledges the
 source in either the durable graph or the authoritative caller live roots.
-Suppressed and failed maintenance retain one-save transient protection. The
+Suppressed and failed maintenance retain one-successful-maintenance-pass
+transient protection. The
 coordinator-wide transient set has its own 100,000-source ceiling, and overflow
 blocks destructive cleanup for the affected project until project deletion or
 whole-store clear rather than guessing that the missing root is dead.
@@ -551,10 +552,11 @@ A project-binding prune failure is reported as committed cleanup while the
 project save or activation remains successful, safely leaves the binding and
 locator live, and lets a later opted-in save or writable activation retry the
 prune. Locator-release failure retains the exact ID/revision pair for the
-existing serialized retry path. A stuck pending exact release is attempted once
-before an activation prune and excluded from that activation's later release
-batch, so it does not starve unrelated activation pruning or retry twice during
-one activation. Reachability inventory and release perform no external-file
+existing serialized retry path. A previously failed pending exact release that
+rejects again is attempted once before an activation prune and excluded from
+that activation's later release batch, so it does not starve unrelated
+activation pruning or retry twice during one activation. Reachability inventory
+and release perform no external-file
 stat, write, deletion, or body load; a successful exact release changes only
 main-private locator registry metadata and never the user-selected media. The
 memory and IndexedDB acceptance witness proves that a no-owned-PCM linked WAV

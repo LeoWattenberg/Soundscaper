@@ -129,7 +129,7 @@ test('failed exact releases retry per kind after rechecking live aliases', async
 	}]);
 });
 
-test('a stuck pending release does not starve unrelated open maintenance or retry twice', async () => {
+test('a repeatedly rejected pending release does not starve unrelated open maintenance or retry twice', async () => {
 	const stuckLocatorId = 'stuck_locator_0000000001';
 	const freshLocatorId = 'fresh_locator_0000000001';
 	const attempts: string[] = [];

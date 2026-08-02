@@ -552,11 +552,13 @@ Desktop waits for the remote acknowledgement; a successful activation performs
 no new remote publication. Both keep the latest-mutation lock through the
 atomic local binding transaction. Bounded transient bind-before-project
 protection remains until the durable or authoritative live graph acknowledges
-the source. Suppressed or failed maintenance retains transient protection. A
-post-commit prune failure is report-only, so the save or activation succeeds and
-a later maintained save or writable activation retries. A stuck pending release
-does not starve unrelated activation cleanup. Release then re-inventories every
-same-store alias before exact locator retirement.
+the source. Suppressed or failed maintenance retains
+one-successful-maintenance-pass transient protection. A post-commit prune
+failure is report-only, so the save or activation succeeds and a later
+maintained save or writable activation retries. A previously failed pending
+release that rejects again does not starve unrelated activation cleanup.
+Release then re-inventories every same-store alias before exact locator
+retirement.
 
 A memory and IndexedDB witness proves a no-owned-PCM linked WAV whose last
 durable revision has aged out stays canonically readable while a live audio root

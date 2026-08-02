@@ -29,7 +29,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.requiredOutcome,
-		/project cleanup failure.*save or activation successful.*report.*later opted-in save or writable activation.*retry.*stuck prior locator release.*not starve unrelated activation pruning.*re-inventory.*same-store aliases.*before exact release.*no external-file stat, write, deletion, or body load/iu,
+		/project cleanup failure.*save or activation successful.*report.*later opted-in save or writable activation.*retry.*previously failed locator release.*rejects again.*not starve unrelated activation pruning.*re-inventory.*same-store aliases.*before exact release.*no external-file stat, write, deletion, or body load/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -62,7 +62,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.currentBehavior,
-		/suppressed or failed maintenance.*transient protection.*prune failure.*committed cleanup error.*resolved save or activation.*later opted-in save or writable activation.*retries.*stuck pending release.*unrelated activation cleanup.*complete current binding inventory.*surviving alias.*suppresses.*exact locator-ID and revision release/iu,
+		/suppressed or failed maintenance.*one-successful-maintenance-pass transient protection.*prune failure.*committed cleanup error.*resolved save or activation.*later opted-in save or writable activation.*retries.*previously failed pending release.*rejects again.*unrelated activation cleanup.*complete current binding inventory.*surviving alias.*suppresses.*exact locator-ID and revision release/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -82,6 +82,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 		'src/common/editor/storage/linked-original-project-open-maintenance.ts',
 		'src/common/editor/storage/linked-original-project-reachability-repository.ts',
 		'src/common/editor/storage/linked-original-project-save.ts',
+		'src/common/editor/storage/linked-original-store-service.ts',
 		'src/common/editor/storage/linked-video-original-project-reachability-repository.ts',
 		'src/common/editor/storage/linked-video-original-project-save.ts',
 		'tests/audio-editor-linked-audio-project-save-reconciliation.test.ts',
@@ -89,6 +90,8 @@ test('linked-original compatibility policy qualifies bounded save and activation
 		'tests/audio-editor-linked-original-project-save.test.ts',
 		'tests/audio-editor-linked-original-project-open-maintenance.test.ts',
 		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
+		'tests/audio-editor-project-switch-playback-apply.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-project-retention-service.test.ts',
 		'tests/audio-editor-linked-video-project-reachability-repository.test.ts',
 		'tests/audio-editor-linked-video-project-save-lifecycle.test.ts',
@@ -116,7 +119,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		documentation,
-		/suppressed (?:or|and) failed.*one-save transient protection.*before exact release.*re-inventories.*same-store bindings.*surviving.*alias suppresses/iu,
+		/suppressed (?:or|and) failed.*one-successful-maintenance-pass transient protection.*before exact release.*re-inventories.*same-store bindings.*surviving.*alias suppresses.*previously failed pending exact release.*rejects again.*not starve unrelated activation pruning/iu,
 	);
 	assert.match(
 		documentation,
