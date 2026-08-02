@@ -154,37 +154,51 @@ measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
 may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
 coverage discovery fast-skips it with that command.
 
-A third provisional milestone 2 fixture records the direct native-PCM ZIP32
-stem publication contract as small focused Node correctness evidence. Its
-direct service case preflights only the four-byte largest sequential
-intermediate, then selects and opens an exact 268-byte destination before
-rendering two ordered WAV-plan entries, `01-dialogue.wav` and `02-music.wav`,
-with four bytes apiece; it reconstructs their marker payloads, closes before
-commit, cleans each sequential staged result, and leaves failures and
-cancellation unpublished. The direct service constructs no `Blob`, invokes no
-legacy archive path, and calls no download publisher. Those marker bytes isolate
-archive publication and are not native-container conformance vectors; the
-existing format-specific WAV, AIFF, and BWF evidence continues to own encoder
-correctness. Closed positive admission covers canonical WAV and BWF
-(`audio/wav`, `.wav`) and AIFF (`audio/aiff`, `.aiff`). A separate admission case
-has two 60-byte entries and an exact 380-byte archive and records 60 bytes as its
-largest sequential intermediate instead of charging both stems or the streamed
-archive. The shared ZIP32 engine's exact-order case emits a 468-byte archive for
-3-, 1-, 2-, and 2-byte entries. Its backpressure case feeds 256 KiB through
-64 KiB source slices and proves only one slice is taken while the first sink
-write is blocked, with at most one sink write active.
-Prepared Blob mode instead retains the legacy 272-byte temporary-storage
-preflight, ordered archive additions, and browser download publication.
+A third provisional milestone 2 fixture records the direct ZIP32 stem
+publication contracts for native-PCM and canonical realtime compressed audio
+as small focused Node correctness evidence. The native service case preflights
+only the four-byte largest sequential intermediate, then selects and opens an
+exact 268-byte destination before rendering `01-dialogue.wav` and
+`02-music.wav` with four marker bytes apiece. It reconstructs the archive,
+closes before commit, cleans each staged result, and leaves failures and
+cancellation unpublished. Those markers isolate archive publication rather
+than native-container conformance; format-specific WAV, AIFF, and BWF evidence
+still owns encoder correctness. The native admission and shared ZIP32 fixtures
+retain the two 60-byte/exact-380-byte largest-intermediate case, the 468-byte
+3/1/2/2-byte archive, and the 256 KiB source sliced at 64 KiB under serial
+backpressure. Prepared Blob mode retains the legacy 272-byte preflight, ordered
+archive additions, and browser download publication.
 
-This direct native-PCM ZIP32 stem witness uses a provider-injected prepared
-streaming destination. It does not exercise File System Access, an Electron
-filesystem, a native picker, packaged UI, or real browser or operating-system
-behavior. Its small correctness fixtures are not reference-scale, renderer-heap,
-process-RSS, quota, crash, power-loss, or filesystem-durability evidence. It
-therefore remains outside the inputs to the milestone 2 bounded-memory workload,
-which stays planned. Compressed stems, BW64, video, 7z, and final-Blob direct
-publication are outside this fixture; the existing browser Blob/download
-fallback remains unchanged.
+The compressed service case admits MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2,
+and AAC/M4A only for an owned canonical `realtime-stream` plan snapshot and
+fingerprint. Its per-entry cap is
+`max(outputBytesPerRender, 1 MiB)`, with `outputBytesPerRender` defined here as
+one raw Float32 render payload. The case preflights only that raw payload, not
+WAV framing, codec output, or aggregate legacy staging, and opens the synthetic
+maximum ZIP32 destination before render. The cap is a refusal boundary, not a
+qualified codec expansion or conformance bound.
+
+The exact compressed witness names `01-Voice.mp3` and `02-Music.mp3`, has an
+eight-byte raw preflight and a 16-byte aggregate legacy claim, gives each entry
+a 1,048,576-byte maximum, and opens a 2,097,406-byte maximum ZIP32 destination.
+Injected three- and five-byte encoded bodies yield a dynamically recomputed
+262-byte actual ZIP32 archive. Actual entry, emitted, destination-written, and
+committed counts agree. The route constructs no final ZIP `Blob`, calls neither
+the legacy archive nor download publisher, and owns at most one encoded stem at
+a time. It does retain one complete staged WAV `Blob`, the complete worker
+MEMFS output, and one complete encoded result; the witness therefore makes no
+bounded-codec-memory claim.
+
+This direct ZIP32 stem witness uses a provider-injected prepared streaming
+destination. It does not exercise File System Access, an Electron filesystem,
+a native picker, packaged UI, or real browser or operating-system behavior.
+The compressed bytes are injected, so it does not qualify actual FFmpeg codec
+execution, codec conformance or expansion, worker MEMFS allocation, heap or RSS
+amplification, garbage collection, CPU, or elapsed time. Offline compressed
+stems, custom FFmpeg stems, 7z, BW64 stems, video, and reference scale remain
+excluded. These small fixtures are not renderer-heap, process-RSS, quota, crash,
+power-loss, or filesystem-durability evidence. They remain outside the inputs
+to the milestone 2 bounded-memory workload, which stays planned.
 
 A fourth provisional milestone 2 fixture records direct compressed whole-mix
 output across both maintained render strategies as small focused Node evidence.
@@ -302,7 +316,8 @@ The fixture specifications are deliberately concrete:
 
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
-  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem,
+  direct-WAV counting-SHA witness and the small direct ZIP32 native-PCM and
+  canonical realtime compressed stem,
   direct compressed-audio, and direct MP4/WebM correctness fixtures
   described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
