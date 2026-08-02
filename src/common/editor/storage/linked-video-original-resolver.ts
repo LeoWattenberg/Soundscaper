@@ -296,6 +296,14 @@ export class LinkedVideoOriginalResolver {
 		return this.#bindings.deleteIfCurrent(projectId, sourceId, expectedBindingToken);
 	}
 
+	canReleaseLocators(): boolean {
+		return typeof this.#port.release === 'function';
+	}
+
+	validateLocatorReference(value: unknown): Readonly<LinkedVideoOriginalLocatorReference> {
+		return locatorReference(value);
+	}
+
 	async release(referenceValue: LinkedVideoOriginalLocatorReference): Promise<boolean> {
 		const reference = locatorReference(referenceValue);
 		if (typeof this.#port.release !== 'function') return false;

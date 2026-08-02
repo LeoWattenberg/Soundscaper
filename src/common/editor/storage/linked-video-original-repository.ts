@@ -104,6 +104,25 @@ export class LinkedVideoOriginalRepository {
 		return storedBinding(value, key, projectId, sourceId);
 	}
 
+	/** Return one complete bounded exact-reference inventory without mutating bindings. */
+	async listLocatorReferences(): Promise<readonly LinkedVideoOriginalLocatorReference[]> {
+		const database = await this.#port.database();
+		if (!database) {
+			return memoryLocatorReferences(
+				this.#port.memory.linkedVideoOriginalBindings,
+				this.#maximumInventoryRecords,
+				this.#maximumInventoryReferences,
+			);
+		}
+		return transact(database, LINKED_VIDEO_ORIGINAL_STORE_NAME, 'readonly', (stores) => (
+			storedLocatorReferences(
+				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
+				this.#maximumInventoryRecords,
+				this.#maximumInventoryReferences,
+			)
+		));
+	}
+
 	/** Retire bindings outside one authoritative project catalog and inventory the survivors. */
 	async reconcileDurableLocatorReferences(
 		canonicalProjectIdsValue: readonly string[],
@@ -326,6 +345,82 @@ function reconcileDurableLocatorReferences(
 			} catch (error) { reject(error); }
 		};
 	});
+}
+
+function memoryLocatorReferences(
+	records: ReadonlyMap<string, unknown>,
+	maximumRecords: number,
+	maximumReferences: number,
+): readonly LinkedVideoOriginalLocatorReference[] {
+	const references = new Map<string, string>();
+	let recordCount = 0;
+	for (const [key, value] of records) {
+		recordCount += 1;
+		if (recordCount > maximumRecords) {
+			throw new RangeError('Linked video original binding inventory exceeds its record limit.');
+		}
+		addLocatorReference(
+			references,
+			inventoryBinding(value, key),
+			maximumReferences,
+		);
+	}
+	return frozenLocatorReferences(references);
+}
+
+function storedLocatorReferences(
+	store: IDBObjectStore,
+	maximumRecords: number,
+	maximumReferences: number,
+): Promise<readonly LinkedVideoOriginalLocatorReference[]> {
+	return new Promise((resolve, reject) => {
+		const references = new Map<string, string>();
+		let recordCount = 0;
+		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
+		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
+		cursorRequest.onerror = () => reject(
+			cursorRequest.error || new Error('Could not enumerate linked video original bindings.'),
+		);
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) { resolve(frozenLocatorReferences(references)); return; }
+			try {
+				recordCount += 1;
+				if (recordCount > maximumRecords) {
+					throw new RangeError('Linked video original binding inventory exceeds its record limit.');
+				}
+				addLocatorReference(
+					references,
+					inventoryBinding(cursor.value, cursor.primaryKey),
+					maximumReferences,
+				);
+				cursor.continue();
+			} catch (error) { reject(error); }
+		};
+	});
+}
+
+function addLocatorReference(
+	references: Map<string, string>,
+	binding: LinkedVideoOriginalBinding,
+	maximumReferences: number,
+): void {
+	const revision = references.get(binding.locatorId);
+	if (revision !== undefined && revision !== binding.locatorRevision) {
+		throw new Error('Linked video original binding inventory contains conflicting locator revisions.');
+	}
+	references.set(binding.locatorId, binding.locatorRevision);
+	if (references.size > maximumReferences) {
+		throw new RangeError('Linked video original binding inventory exceeds its reference limit.');
+	}
+}
+
+function frozenLocatorReferences(
+	references: ReadonlyMap<string, string>,
+): readonly LinkedVideoOriginalLocatorReference[] {
+	return Object.freeze([...references]
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([locatorId, locatorRevision]) => Object.freeze({ locatorId, locatorRevision })));
 }
 
 function canonicalProjectIdSet(value: unknown): ReadonlySet<string> {

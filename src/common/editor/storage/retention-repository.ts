@@ -14,6 +14,10 @@ import {
 } from './media-asset-chunk-schema.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import { LINKED_VIDEO_ORIGINAL_STORE_NAME } from './linked-video-original-schema.ts';
+import type {
+	LocalStoreClearAdmission,
+	LocalStoreClearOperation,
+} from './linked-video-original-lifecycle-coordinator.ts';
 import {
 	candidateEligibleAt,
 	isOpfsPcmStorage,
@@ -90,10 +94,58 @@ export class RetentionRepository {
 		await this.#options.opfs.cleanupOrphans(paths, cutoff);
 	}
 
-	async clear(): Promise<void> {
+	clear(): Promise<void> {
+		return this.beginClear().completion;
+	}
+
+	beginClear(): LocalStoreClearOperation {
+		return this.admitClear().begin();
+	}
+
+	admitClear(): LocalStoreClearAdmission {
 		const maintenance = this.#options.media.beginAssetMaintenance();
-		const databasePromise = this.#options.port.database();
+		let databasePromise: Promise<IDBDatabase | null>;
+		try { databasePromise = this.#options.port.database(); }
+		catch (error) { databasePromise = Promise.reject(error); }
 		void databasePromise.catch(() => undefined);
+		let pending = true;
+		return Object.freeze({
+			begin: () => {
+				if (!pending) throw new Error('The retention clear admission is no longer current.');
+				pending = false;
+				return this.#beginClear(maintenance, databasePromise);
+			},
+			cancel: () => {
+				if (!pending) return;
+				pending = false;
+				maintenance.release();
+			},
+		});
+	}
+
+	#beginClear(
+		maintenance: ReturnType<MediaRepository['beginAssetMaintenance']>,
+		databasePromise: Promise<IDBDatabase | null>,
+	): LocalStoreClearOperation {
+		let committed = false;
+		let resolveLocalCommit!: (value: boolean) => void;
+		const localCommit = new Promise<boolean>((resolve) => { resolveLocalCommit = resolve; });
+		const completion = this.#clear(maintenance, databasePromise, () => {
+			committed = true;
+			resolveLocalCommit(true);
+		});
+		void completion.then(
+			() => { if (!committed) resolveLocalCommit(false); },
+			() => { if (!committed) resolveLocalCommit(false); },
+		);
+		return Object.freeze({ localCommit, completion });
+	}
+
+	async #clear(
+		maintenance: ReturnType<MediaRepository['beginAssetMaintenance']>,
+		databasePromise: Promise<IDBDatabase | null>,
+		onLocalCommit: () => void,
+	): Promise<void> {
 		try {
 			await maintenance.abortActive();
 			await this.#options.sources.stopBackgroundWork();
@@ -143,6 +195,7 @@ export class RetentionRepository {
 					}
 				});
 			}
+			onLocalCommit();
 			for (const record of opfsRecords) {
 				if (record.sourceToken) await this.#options.sources.deleteStored(record);
 				else await this.#options.opfs.deleteBinaryRecords([record]);

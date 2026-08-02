@@ -141,6 +141,84 @@ test('linked video bindings persist through the IndexedDB repository', async (co
 	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 0);
 });
 
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`bounded ${backend} locator snapshots validate and deduplicate aliases`, async (context) => {
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const databaseName = `linked-video-snapshot-${backend}-${Date.now()}-${Math.random()}`;
+		const database = indexedDB
+			? await openDatabase(indexedDB as unknown as IDBFactory, databaseName)
+			: null;
+		context.after(() => { database?.close(); });
+		const repository = new LinkedVideoOriginalRepository({
+			memory: getMemoryDatabase(databaseName),
+			database: async () => database,
+		}, deterministicOptions());
+		for (const input of [
+			bindingInput({
+				projectId: 'project-second',
+				sourceId: 'source-second',
+				locatorId: 'locator_0000000000000002',
+				locatorRevision: 'snapshot_0000000000000002',
+			}),
+			bindingInput({ projectId: 'project-alias', sourceId: 'source-alias' }),
+			bindingInput(),
+		]) assert.ok(await repository.putIfCurrent(input, null));
+
+		const references = await repository.listLocatorReferences();
+		assert.deepEqual(references, [{
+			locatorId: 'locator_0000000000000001',
+			locatorRevision: 'snapshot_0000000000000001',
+		}, {
+			locatorId: 'locator_0000000000000002',
+			locatorRevision: 'snapshot_0000000000000002',
+		}]);
+		assert.equal(Object.isFrozen(references), true);
+		assert.equal(references.every(Object.isFrozen), true);
+		if (indexedDB) {
+			const stored = indexedDB.records(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME)[0];
+			indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, {
+				...stored,
+				key: 'spoofed-snapshot-key',
+			}, stored.key);
+			await assert.rejects(repository.listLocatorReferences(), /binding|record|key/iu);
+		}
+	});
+}
+
+test('memory locator snapshots enforce the complete inventory bounds and revision fence', async () => {
+	const { memory, repository } = memoryRepository('snapshot-bounds', {
+		maximumInventoryRecords: 2,
+		maximumInventoryReferences: 1,
+	});
+	assert.ok(await repository.putIfCurrent(bindingInput(), null));
+	assert.ok(await repository.putIfCurrent(bindingInput({
+		projectId: 'project-alias',
+		sourceId: 'source-alias',
+		locatorRevision: 'snapshot_0000000000000002',
+	}), null));
+	await assert.rejects(repository.listLocatorReferences(), /conflicting.*revision/iu);
+	const secondKey = linkedVideoOriginalBindingKey('project-alias', 'source-alias');
+	memory.linkedVideoOriginalBindings.delete(secondKey);
+	assert.ok(await repository.putIfCurrent(bindingInput({
+		projectId: 'project-second',
+		sourceId: 'source-second',
+		locatorId: 'locator_0000000000000002',
+		locatorRevision: 'snapshot_0000000000000002',
+	}), null));
+	await assert.rejects(repository.listLocatorReferences(), /reference.*limit|limit.*reference/iu);
+
+	const recordLimited = memoryRepository('snapshot-record-bound', {
+		maximumInventoryRecords: 1,
+		maximumInventoryReferences: 2,
+	}).repository;
+	assert.ok(await recordLimited.putIfCurrent(bindingInput(), null));
+	assert.ok(await recordLimited.putIfCurrent(bindingInput({
+		projectId: 'project-second-record',
+		sourceId: 'source-second-record',
+	}), null));
+	await assert.rejects(recordLimited.listLocatorReferences(), /record.*limit|limit.*record/iu);
+});
+
 test('durable reconciliation removes unreachable bindings while preserving live aliases', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const databaseName = `linked-video-inventory-${Date.now()}-${Math.random()}`;
@@ -358,14 +436,17 @@ function bindingInput(overrides: Partial<LinkedVideoOriginalBindingInput> = {}):
 	};
 }
 
-function memoryRepository(label: string) {
+function memoryRepository(label: string, limits: Readonly<{
+	maximumInventoryRecords?: number;
+	maximumInventoryReferences?: number;
+}> = {}) {
 	const memory = getMemoryDatabase(`linked-video-${label}-${Date.now()}-${Math.random()}`);
 	return {
 		memory,
 		repository: new LinkedVideoOriginalRepository({
 			memory,
 			database: async () => null,
-		}, deterministicOptions()),
+		}, { ...deterministicOptions(), ...limits }),
 	};
 }
 

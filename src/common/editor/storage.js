@@ -9,6 +9,8 @@ import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
 import { linkedVideoDerivativeOriginal } from './storage/video-derivative-relationship.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
+import { admitLocalStoreClear, LinkedVideoOriginalLifecycleCoordinator } from './storage/linked-video-original-lifecycle-coordinator.ts';
+import { projectPublicationAdmission } from './storage/project-publication-options.ts';
 import {
 	assertProjectRevisionPublicationCapacity,
 	estimateProjectRevisionPublication,
@@ -43,6 +45,7 @@ export class AudioEditorProjectStore {
 		linkedVideoOriginalPort = null,
 		desktopProjectBridge = null,
 		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
+		onLinkedVideoOriginalLocatorCleanupError = undefined,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
 	} = {}) {
 		this.databaseName = databaseName;
@@ -112,6 +115,11 @@ export class AudioEditorProjectStore {
 		this.linkedVideoOriginalBindingRepository = repositories.linkedVideoOriginalBindings || null;
 		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
+		this.linkedVideoOriginalLifecycle = new LinkedVideoOriginalLifecycleCoordinator(
+			this.linkedVideoOriginalBindingRepository,
+			this.linkedVideoOriginalResolver,
+			{ onCleanupError: onLinkedVideoOriginalLocatorCleanupError },
+		);
 	}
 
 	async ready() {
@@ -159,7 +167,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async deleteProject(projectId) {
-		return this.projectRepository.delete(projectId);
+		return this.linkedVideoOriginalLifecycle.deleteProject(() => this.projectRepository.delete(projectId));
 	}
 
 	async prepareProjectHandoff(project, { signal } = {}) {
@@ -259,7 +267,9 @@ export class AudioEditorProjectStore {
 		if (!this.linkedVideoOriginalResolver) {
 			throw new Error('Linked video original resolution is unavailable.');
 		}
-		return this.linkedVideoOriginalResolver.bind(projectId, source, locatorId, options);
+		return this.linkedVideoOriginalLifecycle.run(() => this.linkedVideoOriginalResolver.bind(
+			projectId, source, locatorId, options,
+		));
 	}
 
 	/** Resolve one exact project/video binding without consulting retained-media storage. */
@@ -296,11 +306,11 @@ export class AudioEditorProjectStore {
 		if (!this.linkedVideoOriginalBindingRepository) {
 			throw new Error('Linked video original bindings are unavailable.');
 		}
-		return this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
+		return this.linkedVideoOriginalLifecycle.run(() => this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
 			projectId,
 			sourceId,
 			expectedBindingToken,
-		);
+		));
 	}
 
 	/** Release a platform locator that was not retained by a committed import. */
@@ -309,14 +319,16 @@ export class AudioEditorProjectStore {
 		if (!this.linkedVideoOriginalResolver) {
 			throw new Error('Linked video original resolution is unavailable.');
 		}
-		return this.linkedVideoOriginalResolver.release(reference);
+		return this.linkedVideoOriginalLifecycle.releaseUnused(reference);
 	}
 
 	/** Reconcile main-private startup locators only from a complete durable binding inventory. */
 	async reconcileLinkedVideoOriginalLocators() {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver || await this.#database() === null) return false;
-		return (await this.linkedVideoOriginalResolver.reconcileLocators((await this.projectRepository.list()).map(({ id }) => id))) !== null;
+		return this.linkedVideoOriginalLifecycle.run(async () => {
+			if (!this.linkedVideoOriginalResolver || await this.#database() === null) return false;
+			return (await this.linkedVideoOriginalResolver.reconcileLocators((await this.projectRepository.list()).map(({ id }) => id))) !== null;
+		});
 	}
 
 	/**
@@ -469,10 +481,13 @@ export class AudioEditorProjectStore {
 		}
 	}
 
-	async clear() {
+	clear() {
 		this.#assertOpen();
 		if (!this.clearPromise) {
-			const operation = this.retentionRepository.clear();
+			const admission = admitLocalStoreClear(this.retentionRepository);
+			const operation = this.linkedVideoOriginalLifecycle.clear(
+				admission,
+			);
 			this.clearPromise = operation;
 			void operation.then(
 				() => { if (this.clearPromise === operation) this.clearPromise = null; },
@@ -572,26 +587,6 @@ export class AudioEditorProjectStore {
 function createId(prefix) {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function projectPublicationAdmission(options) {
-	if (!options
-		|| typeof options !== 'object'
-		|| Array.isArray(options)
-		|| Object.getPrototypeOf(options) !== Object.prototype) {
-		throw new TypeError('Project save options must be a plain object.');
-	}
-	for (const name of Object.keys(options)) {
-		if (name !== 'admitProjectPublication') {
-			throw new TypeError(`Unsupported project save option: ${name}.`);
-		}
-	}
-	const admission = options.admitProjectPublication;
-	if (admission === undefined) return null;
-	if (typeof admission !== 'function') {
-		throw new TypeError('Project publication admission must be a function.');
-	}
-	return admission;
 }
 
 function reportDesktopSharedProjectLocalCleanupError() {
