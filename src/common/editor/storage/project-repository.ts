@@ -34,6 +34,7 @@ interface ProjectRevisionRecord {
 	readonly projectId: string;
 	readonly revision: number;
 	readonly project: ProjectDocument;
+	readonly creationFence?: string;
 }
 
 export interface ProjectLoadOptions {
@@ -43,21 +44,62 @@ export interface ProjectLoadOptions {
 
 /** Structural project seam implemented by local and desktop-shared repositories. */
 export interface ProjectRepositoryPort {
+	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	save(project: ProjectDocument): Promise<ProjectDocument>;
 	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
 	list(): Promise<ProjectDocument[]>;
 	listRevisions(projectId: string): Promise<ProjectRevision[]>;
+	deleteIfCurrent?(project: ProjectDocument): Promise<boolean>;
 	delete(projectId: string): Promise<void>;
 }
 
 /** Durable project snapshots and their bounded revision history. */
 export class ProjectRepository implements ProjectRepositoryPort {
+	readonly #creationFences = new WeakMap<object, string>();
 	readonly #port: StorageRepositoryPort;
 	readonly #revisionLimit: number;
 
 	constructor(port: StorageRepositoryPort, revisionLimit: number) {
 		this.#port = port;
 		this.#revisionLimit = Math.max(2, Math.floor(revisionLimit));
+	}
+
+	async createIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
+		const creationFence = createProjectCreationFence();
+		const { snapshot, revisionRecord } = projectPublication(project, creationFence);
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			if (memory.projects.has(snapshot.id)
+				|| memory.revisions.has(revisionRecord.key)
+				|| memoryHasProjectRevision(memory.revisions, snapshot.id)) {
+				return null;
+			}
+			const mutations: MemoryMutation[] = [
+				setMemoryMutation(memory.projects, snapshot.id, snapshot),
+				setMemoryMutation(memory.revisions, revisionRecord.key, revisionRecord),
+			];
+			applyMemoryMutations(mutations);
+			return this.#rememberCreation(snapshot, creationFence);
+		}
+
+		const created = await transact(database, ['projects', 'revisions'], 'readwrite', async ({
+			projects,
+			revisions,
+		}) => {
+			const [current, currentRevision, revisionCount] = await Promise.all([
+				request(projects.get(snapshot.id)),
+				request(revisions.get(revisionRecord.key)),
+				request(revisions.index('projectId').count(snapshot.id)),
+			]);
+			if (current !== undefined || currentRevision !== undefined || revisionCount > 0) return false;
+			await Promise.all([
+				request(projects.put(snapshot)),
+				request(revisions.put(revisionRecord)),
+			]);
+			return true;
+		});
+		return created ? this.#rememberCreation(snapshot, creationFence) : null;
 	}
 
 	async save(project: ProjectDocument): Promise<ProjectDocument> {
@@ -153,6 +195,51 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		}));
 	}
 
+	async deleteIfCurrent(project: ProjectDocument): Promise<boolean> {
+		const { snapshot, revisionRecord } = projectPublication(project);
+		const creationFence = this.#creationFences.get(project as object);
+		if (!creationFence) return false;
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			if (!sameProjectSnapshot(memory.projects.get(snapshot.id), snapshot)
+				|| storedCreationFence(memory.revisions.get(revisionRecord.key)) !== creationFence) return false;
+			const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, snapshot.id)];
+			for (const [key, value] of memory.revisions) {
+				if (storedProjectId(value) === snapshot.id) {
+					mutations.push(deleteMemoryMutation(memory.revisions, key));
+				}
+			}
+			applyMemoryMutations(mutations);
+			this.#creationFences.delete(project as object);
+			return true;
+		}
+		const deleted = await transact(database, ['projects', 'revisions'], 'readwrite', async ({
+			projects,
+			revisions,
+		}) => {
+			const [current, currentRevision] = await Promise.all([
+				request(projects.get(snapshot.id)),
+				request(revisions.get(revisionRecord.key)),
+			]);
+			if (!sameProjectSnapshot(current, snapshot)
+				|| storedCreationFence(currentRevision) !== creationFence) return false;
+			await Promise.all([
+				request(projects.delete(snapshot.id)),
+				deleteByIndex(revisions.index('projectId'), snapshot.id),
+			]);
+			return true;
+		});
+		if (deleted) this.#creationFences.delete(project as object);
+		return deleted;
+	}
+
+	#rememberCreation(snapshot: ProjectDocument, creationFence: string): ProjectDocument {
+		const created = clone(snapshot);
+		this.#creationFences.set(created, creationFence);
+		return created;
+	}
+
 	async delete(projectId: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
@@ -199,6 +286,144 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			for (const record of records.slice(this.#revisionLimit)) revisions.delete(record.key);
 		});
 	}
+}
+
+interface ProjectPublication {
+	readonly snapshot: ProjectDocument;
+	readonly revisionRecord: ProjectRevisionRecord;
+}
+
+interface MemoryMutation {
+	readonly map: Map<string, unknown>;
+	readonly key: string;
+	readonly operation: 'set' | 'delete';
+	readonly value?: unknown;
+	readonly prior: unknown;
+	readonly hadPrior: boolean;
+}
+
+function projectPublication(
+	project: ProjectDocument,
+	creationFence?: string,
+): ProjectPublication {
+	if (!project || typeof project.id !== 'string' || !project.id) {
+		throw new Error('A project with a stable string id is required.');
+	}
+	const snapshot = compactProjectSourceMetadata(clone(project)) as ProjectDocument;
+	const revision = nonNegativeInteger(snapshot.revision, 0);
+	return {
+		snapshot,
+		revisionRecord: {
+			key: revisionKey(snapshot.id, revision),
+			projectId: snapshot.id,
+			revision,
+			project: snapshot,
+			...(creationFence ? { creationFence } : {}),
+		},
+	};
+}
+
+function memoryHasProjectRevision(revisions: ReadonlyMap<string, unknown>, projectId: string): boolean {
+	for (const value of revisions.values()) {
+		if (storedProjectId(value) === projectId) return true;
+	}
+	return false;
+}
+
+function setMemoryMutation(
+	map: Map<string, unknown>,
+	key: string,
+	value: unknown,
+): MemoryMutation {
+	return { map, key, operation: 'set', value, prior: map.get(key), hadPrior: map.has(key) };
+}
+
+function deleteMemoryMutation(map: Map<string, unknown>, key: string): MemoryMutation {
+	return { map, key, operation: 'delete', prior: map.get(key), hadPrior: map.has(key) };
+}
+
+function applyMemoryMutations(mutations: readonly MemoryMutation[]): void {
+	const attempted: MemoryMutation[] = [];
+	try {
+		for (const mutation of mutations) {
+			attempted.push(mutation);
+			if (mutation.operation === 'set') mutation.map.set(mutation.key, mutation.value);
+			else mutation.map.delete(mutation.key);
+		}
+	} catch (primary) {
+		const rollbackErrors: unknown[] = [];
+		for (const mutation of attempted.reverse()) {
+			try {
+				if (mutation.hadPrior) mutation.map.set(mutation.key, mutation.prior);
+				else mutation.map.delete(mutation.key);
+			} catch (error) { rollbackErrors.push(error); }
+		}
+		if (rollbackErrors.length) {
+			throw new AggregateError(
+				[primary, ...rollbackErrors],
+				'Memory project mutation and rollback both failed.',
+			);
+		}
+		throw primary;
+	}
+}
+
+function sameProjectSnapshot(left: unknown, right: unknown): boolean {
+	return sameSnapshotValue(left, right, new Map<object, object>());
+}
+
+function sameSnapshotValue(
+	left: unknown,
+	right: unknown,
+	seen: Map<object, object>,
+): boolean {
+	if (Object.is(left, right)) return true;
+	if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+	if (left instanceof Date || right instanceof Date) {
+		return left instanceof Date && right instanceof Date && left.getTime() === right.getTime();
+	}
+	if (left instanceof ArrayBuffer || right instanceof ArrayBuffer) {
+		return left instanceof ArrayBuffer && right instanceof ArrayBuffer
+			&& sameBytes(new Uint8Array(left), new Uint8Array(right));
+	}
+	if (ArrayBuffer.isView(left) || ArrayBuffer.isView(right)) {
+		return ArrayBuffer.isView(left) && ArrayBuffer.isView(right)
+			&& left.constructor === right.constructor
+			&& sameBytes(
+				new Uint8Array(left.buffer, left.byteOffset, left.byteLength),
+				new Uint8Array(right.buffer, right.byteOffset, right.byteLength),
+			);
+	}
+	if (Array.isArray(left) !== Array.isArray(right)) return false;
+	if (!Array.isArray(left)) {
+		const leftPrototype = Object.getPrototypeOf(left) as unknown;
+		const rightPrototype = Object.getPrototypeOf(right) as unknown;
+		if (leftPrototype !== rightPrototype
+			|| leftPrototype !== Object.prototype && leftPrototype !== null) return false;
+	}
+	const prior = seen.get(left);
+	if (prior) return prior === right;
+	seen.set(left, right);
+	const leftKeys = Reflect.ownKeys(left);
+	const rightKeys = Reflect.ownKeys(right);
+	if (leftKeys.length !== rightKeys.length || leftKeys.some((key) => !rightKeys.includes(key))) return false;
+	for (const key of leftKeys) {
+		const leftDescriptor = Object.getOwnPropertyDescriptor(left, key);
+		const rightDescriptor = Object.getOwnPropertyDescriptor(right, key);
+		if (!leftDescriptor || !rightDescriptor
+			|| !Object.hasOwn(leftDescriptor, 'value') || !Object.hasOwn(rightDescriptor, 'value')
+			|| leftDescriptor.enumerable !== rightDescriptor.enumerable
+			|| !sameSnapshotValue(leftDescriptor.value, rightDescriptor.value, seen)) return false;
+	}
+	return true;
+}
+
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+	if (left.byteLength !== right.byteLength) return false;
+	for (let index = 0; index < left.byteLength; index += 1) {
+		if (left[index] !== right[index]) return false;
+	}
+	return true;
 }
 
 async function readProjectRecord(
@@ -286,6 +511,14 @@ function storedProjectId(value: unknown): unknown {
 	return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : null;
 }
 
+function storedCreationFence(value: unknown): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'creationFence');
+	return descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string'
+		? descriptor.value
+		: null;
+}
+
 function asRevision(value: unknown): ProjectRevisionRecord | null {
 	const record = asRecord(value);
 	if (!record || typeof record.key !== 'string' || typeof record.projectId !== 'string') return null;
@@ -300,6 +533,12 @@ function isRevisionFor(projectId: string): (record: ProjectRevisionRecord | null
 function clone<Value>(value: Value): Value {
 	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
 	return JSON.parse(JSON.stringify(value)) as Value;
+}
+
+function createProjectCreationFence(): string {
+	const uuid = globalThis.crypto?.randomUUID?.();
+	if (!uuid) throw new Error('Secure random generation is required for create-only project storage.');
+	return `project_creation_${uuid.replaceAll('-', '')}`;
 }
 
 function revisionKey(projectId: string, revision: number): string {
