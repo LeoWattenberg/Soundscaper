@@ -8,7 +8,10 @@ import type {
 	ProjectFeatureAudioEffectPlaceholder,
 } from '../../project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../project-feature-capabilities.ts';
+import {
+	isProjectFeatureAudioCapabilityId,
+	PROJECT_FEATURE_CAPABILITY_IDS,
+} from '../../project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
 import type {
 	ProjectFeatureVideoEffectBypassMetadata,
@@ -205,7 +208,7 @@ function audioRenderedFallbackApplies(
 	metadata: ProjectFeatureAudioRenderedFallbackMetadata | null | undefined,
 ): boolean {
 	return metadata?.schemaVersion === 1
-		&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		&& isProjectFeatureAudioCapabilityId(metadata.featureId)
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
 		&& item.availability === 'unavailable'

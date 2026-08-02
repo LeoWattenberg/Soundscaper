@@ -13,7 +13,10 @@ import {
 	type AudioRenderedFallbackDeliveryProjection,
 } from '../src/common/editor/controller/playback-project-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import {
+	PROJECT_FEATURE_CAPABILITY_IDS,
+	type ProjectFeatureAudioCapabilityId,
+} from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectAudioFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	createAudioClipV9,
@@ -44,10 +47,11 @@ test('audio fallback export selection is inert without a delivery service', asyn
 });
 
 test('audio fallback export admits and returns only the selected private chunk provider', async () => {
-	const canonical = canonicalProject();
+	const featureId = PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing;
+	const canonical = canonicalProject(featureId);
 	const projection = projectForAudioRenderedFallbackExport(
 		canonical,
-		createPlaybackProjectService({ audioEffects: false }),
+		createPlaybackProjectService({ audioSpectralEditing: false }),
 	);
 	const events: string[] = [];
 	const store = Object.freeze({ id: 'project-store' });
@@ -74,7 +78,7 @@ test('audio fallback export admits and returns only the selected private chunk p
 			assert.strictEqual(candidateStore, store);
 			assert.strictEqual(options.signal, controller.signal);
 			assert.strictEqual(options.assertCurrent, assertCurrent);
-			assert.deepEqual(options.audioFallback, expectedSelector());
+			assert.deepEqual(options.audioFallback, expectedSelector(featureId));
 			return Object.freeze({
 				assertCurrent(candidate: unknown) {
 					events.push('admission-current');
@@ -82,7 +86,7 @@ test('audio fallback export admits and returns only the selected private chunk p
 				},
 				getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector) {
 					events.push('provider');
-					assert.deepEqual(selector, expectedSelector());
+					assert.deepEqual(selector, expectedSelector(featureId));
 					return provider;
 				},
 			});
@@ -119,6 +123,9 @@ test('audio fallback export selection rejects malformed or ambiguous delivery pr
 		{ ...valid, audioRenderedFallback: { ...metadata, schemaVersion: 2 } },
 		{ ...valid, audioRenderedFallback: {
 			...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		} },
+		{ ...valid, audioRenderedFallback: {
+			...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
 		} },
 		{ ...valid, requiredAudioSourceIds: ['some-other-source'] },
 		{ ...valid, featureRequirementsReport: null },
@@ -255,7 +262,9 @@ test('audio fallback integrity admission fails closed before exposing invalid me
 	assert.equal(verificationCalls, 0);
 });
 
-function canonicalProject() {
+function canonicalProject(
+	featureId: ProjectFeatureAudioCapabilityId = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+) {
 	const original = createAudioSourceV9({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
@@ -273,7 +282,7 @@ function canonicalProject() {
 		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-audio-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			featureId,
 			displayName: 'Publisher audio render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: FALLBACK_SOURCE_ID, sha256: DIGEST },
@@ -281,10 +290,12 @@ function canonicalProject() {
 	});
 }
 
-function expectedSelector(): ProjectAudioFallbackIntegritySelector {
+function expectedSelector(
+	featureId: ProjectFeatureAudioCapabilityId = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+): ProjectAudioFallbackIntegritySelector {
 	return Object.freeze({
 		requirementId: 'publisher-audio-render',
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		featureId,
 		kind: 'audio',
 		sourceId: FALLBACK_SOURCE_ID,
 		sha256: DIGEST,

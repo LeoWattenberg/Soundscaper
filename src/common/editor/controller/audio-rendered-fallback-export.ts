@@ -4,7 +4,7 @@ import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import type { EngineChunkSource } from '../engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../project-feature-audio-rendered-fallback.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../project-feature-audio-rendered-fallback.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../project-feature-capabilities.ts';
+import { isProjectFeatureAudioCapabilityId } from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -166,7 +166,7 @@ function assertActiveMetadata(
 	requiredSourceIds: readonly string[],
 ): void {
 	if (metadata.schemaVersion !== 1
-		|| metadata.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		|| !isProjectFeatureAudioCapabilityId(metadata.featureId)
 		|| typeof metadata.requirementId !== 'string' || !metadata.requirementId
 		|| typeof metadata.sourceId !== 'string' || !metadata.sourceId
 		|| metadata.trackId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track

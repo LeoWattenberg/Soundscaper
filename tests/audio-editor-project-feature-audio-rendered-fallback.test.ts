@@ -8,7 +8,11 @@ import {
 	PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS,
 	projectFeatureAudioRenderedFallbackPlayback,
 } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import {
+	PROJECT_FEATURE_AUDIO_CAPABILITY_IDS,
+	PROJECT_FEATURE_CAPABILITY_IDS,
+	type ProjectFeatureAudioCapabilityId,
+} from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	createAudioClipV9,
@@ -47,7 +51,7 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 	};
 }
 
-function project() {
+function project(featureId: ProjectFeatureAudioCapabilityId = AUDIO_EFFECTS) {
 	const source = createAudioSourceV9({
 		id: 'source-a',
 		storageKey: 'source-a',
@@ -92,7 +96,7 @@ function project() {
 			schemaVersion: 1,
 			requirements: [{
 				id: 'publisher-audio-render',
-				featureId: AUDIO_EFFECTS,
+				featureId,
 				displayName: 'Publisher audio render',
 				disposition: 'rendered-fallback',
 				fallback: { kind: 'audio', sourceId: fallback.id, sha256: DIGEST },
@@ -100,6 +104,30 @@ function project() {
 		},
 	});
 }
+
+test('every registered first-party audio capability can bind one whole-mix fallback', () => {
+	assert.deepEqual(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS, [
+		PROJECT_FEATURE_CAPABILITY_IDS.audioImport,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioPlayback,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioTimelineEditing,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioMixing,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioRecording,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioGenerators,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
+	]);
+	for (const featureId of PROJECT_FEATURE_AUDIO_CAPABILITY_IDS) {
+		const input = project(featureId);
+		const projected = projectFeatureAudioRenderedFallbackPlayback(input, report({ featureId }));
+		assert.equal(projected.metadata?.featureId, featureId);
+		assert.equal(projected.metadata?.requirementId, 'publisher-audio-render');
+		assert.equal(projected.metadata?.sourceId, 'fallback-source');
+		assert.equal((projected.project as typeof input).clips[0]?.sourceId, 'fallback-source');
+	}
+});
 
 test('an admitted first-party audio-effects render becomes one neutral whole-mix playback clip', () => {
 	const input = project();
@@ -215,6 +243,7 @@ test('nonqualifying, unknown, third-party, video, and future requirements never 
 		report({ availability: 'available', disposition: 'native' }),
 		report({ availability: 'unknown' }),
 		report({ featureId: 'org.example.third-party' }),
+		report({ featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects }),
 		report({ declaredDisposition: 'bypass', disposition: 'bypassed', fallback: null }),
 		report({ fallback: { kind: 'video', sourceId: 'fallback-source', sha256: DIGEST } }),
 	]) {
@@ -242,6 +271,14 @@ test('ambiguous fallback declarations and unsafe source geometry reject instead 
 		...report(),
 		items: [...report().items, {
 			...report().items[0]!, requirementId: 'publisher-audio-render-copy',
+		}],
+	}), /multiple|duplicate|ambiguous.*audio.*fallback/iu);
+	assert.throws(() => projectFeatureAudioRenderedFallbackPlayback(input, {
+		...report(),
+		items: [...report().items, {
+			...report().items[0]!,
+			requirementId: 'publisher-spectral-render',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
 		}],
 	}), /multiple|duplicate|ambiguous.*audio.*fallback/iu);
 
@@ -297,5 +334,21 @@ test('reserved IDs and source descriptor drift reject without reading audio-effe
 			fallback: { kind: 'audio', sourceId: 'source-a', sha256: DIGEST },
 		})),
 		/fallback descriptor.*project manifest|source.*drift|does not match/iu,
+	);
+	assert.throws(
+		() => projectFeatureAudioRenderedFallbackPlayback(project(), report({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+		})),
+		/fallback descriptor.*project manifest|does not match/iu,
+	);
+	assert.throws(
+		() => projectFeatureAudioRenderedFallbackPlayback(
+			project(PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing),
+			report({
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+				fallback: { kind: 'audio', sourceId: 'fallback-source', sha256: 'cd'.repeat(32) },
+			}),
+		),
+		/fallback descriptor.*project manifest|digest.*drift|does not match/iu,
 	);
 });

@@ -260,14 +260,20 @@ test('audio rendered fallback activation is localized and bound to its exact req
 	let internalReads = 0;
 	const metadata = {
 		schemaVersion: 1,
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-		requirementId: 'audio-effects',
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+		requirementId: 'audio-spectral-editing',
 		get sourceId() { internalReads += 1; return 'rendered-source'; },
 		get trackId() { internalReads += 1; return 'soundscaper:rendered-audio-fallback:track' as const; },
 		get clipId() { internalReads += 1; return 'soundscaper:rendered-audio-fallback:clip' as const; },
 	} satisfies ProjectFeatureAudioRenderedFallbackMetadata;
 	const incompatible = report(false, [
-		item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'rendered-fallback'),
+		item(
+			'audio-spectral-editing',
+			PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+			'Audio spectral editing',
+			'unavailable',
+			'rendered-fallback',
+		),
 		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
 	]);
 	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
@@ -289,12 +295,13 @@ test('audio rendered fallback activation is localized and bound to its exact req
 	const malformed = [
 		{ report: incompatible, metadata: { ...metadata, schemaVersion: 2 } },
 		{ report: incompatible, metadata: { ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects } },
+		{ report: incompatible, metadata: { ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis } },
 		{ report: report(false, [{
-			...item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'rendered-fallback'),
+			...item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unavailable', 'rendered-fallback'),
 			declaredDisposition: 'bypass',
 		}]), metadata },
-		{ report: report(false, [item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unknown', 'rendered-fallback')]), metadata },
-		{ report: report(false, [item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'bypassed')]), metadata },
+		{ report: report(false, [item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unknown', 'rendered-fallback')]), metadata },
+		{ report: report(false, [item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unavailable', 'bypassed')]), metadata },
 	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
 		report: candidate.report,
 		copy: ENGLISH_COPY,

@@ -75,6 +75,11 @@ test('audio delivery leaves available, bypass-only, and third-party requirements
 			fallback: null,
 		}),
 		audioRequirementProject({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
+		}),
+		audioRequirementProject({
 			featureId: 'org.example.audio-effects',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
@@ -86,6 +91,21 @@ test('audio delivery leaves available, bypass-only, and third-party requirements
 		assert.equal(delivery.audioRenderedFallback, null);
 		assert.deepEqual(delivery.requiredAudioSourceIds, []);
 	}
+});
+
+test('audio delivery identifies the actual registered unavailable feature', () => {
+	const canonical = audioRequirementProject({
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
+	});
+	const delivery = createPlaybackProjectService({ audioSpectralEditing: false, videoEffects: true })
+		.projectForAudioRenderedFallbackDelivery(canonical);
+
+	assert.equal(delivery.audioRenderedFallback?.featureId, PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing);
+	assert.equal(delivery.audioRenderedFallback?.requirementId, 'publisher-audio-requirement');
+	assert.deepEqual(delivery.requiredAudioSourceIds, ['fallback-audio']);
+	assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-audio');
 });
 
 test('audio delivery does not traverse future project feature or media state', () => {

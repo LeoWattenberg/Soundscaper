@@ -24,6 +24,31 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 
 export type ProjectFeatureCapabilityKey = keyof typeof PROJECT_FEATURE_CAPABILITY_IDS;
 
+/** Registered first-party audio capabilities eligible for one whole-mix PCM fallback. */
+export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([
+	PROJECT_FEATURE_CAPABILITY_IDS.audioImport,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioPlayback,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioTimelineEditing,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioMixing,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioRecording,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioGenerators,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
+] as const);
+
+export type ProjectFeatureAudioCapabilityId = typeof PROJECT_FEATURE_AUDIO_CAPABILITY_IDS[number];
+
+const PROJECT_FEATURE_AUDIO_CAPABILITY_ID_SET = new Set<string>(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS);
+
+export function isProjectFeatureAudioCapabilityId(
+	value: unknown,
+): value is ProjectFeatureAudioCapabilityId {
+	return typeof value === 'string' && PROJECT_FEATURE_AUDIO_CAPABILITY_ID_SET.has(value);
+}
+
 /** Maintained rack processors owned by the first-party audio-effects capability. */
 export const PROJECT_FEATURE_AUDIO_EFFECT_TYPES = Object.freeze([
 	'highpass',

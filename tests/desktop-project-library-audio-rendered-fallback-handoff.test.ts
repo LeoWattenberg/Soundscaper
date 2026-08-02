@@ -74,7 +74,7 @@ interface ExportActions {
 	}> | undefined>;
 }
 
-test('fresh Framescaper acquires and plays a managed first-party audio rendered fallback', async (context) => {
+test('fresh Framescaper acquires, plays, and delivers a spectral-editing audio fallback', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-audio-fallback-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const fixture = fallbackProjectFixture();
@@ -180,9 +180,18 @@ test('fresh Framescaper acquires and plays a managed first-party audio rendered 
 	}]);
 	assert.deepEqual(engine.samplesFor(fixture.fallback.id), FALLBACK_CHANNELS);
 	const snapshot = framescaper.getSnapshot() as typeof ready & Readonly<{
-		audioRenderedFallback?: Readonly<{ sourceId?: string }> | null;
+		audioRenderedFallback?: Readonly<{
+			featureId?: string;
+			requirementId?: string;
+			sourceId?: string;
+		}> | null;
 	}>;
 	assert.equal(snapshot.audioRenderedFallback?.sourceId, fixture.fallback.id);
+	assert.equal(
+		snapshot.audioRenderedFallback?.featureId,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+	);
+	assert.equal(snapshot.audioRenderedFallback?.requirementId, 'publisher-audio-render');
 	await frameStore.deleteSource(fixture.fallback.storageKey);
 	await writePcm(frameStore, fixture.fallback, CORRUPT_FALLBACK_CHANNELS);
 	assert.equal(await exportActions(framescaper).start(AUDIO_EXPORT_SETTINGS), undefined);
@@ -242,7 +251,7 @@ function fallbackProjectFixture() {
 		})],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-audio-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
 			displayName: 'Publisher audio render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: fallback.id, sha256: fallbackSha256 },

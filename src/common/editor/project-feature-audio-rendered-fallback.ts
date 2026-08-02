@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
+import {
+	isProjectFeatureAudioCapabilityId,
+	type ProjectFeatureAudioCapabilityId,
+} from './project-feature-capabilities.ts';
 import type {
 	ProjectFeatureFallback,
 	ProjectFeatureRequirementsReport,
@@ -14,7 +17,7 @@ export const PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS = Object.freeze({
 
 export interface ProjectFeatureAudioRenderedFallbackMetadata {
 	readonly schemaVersion: 1;
-	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	readonly featureId: ProjectFeatureAudioCapabilityId;
 	readonly requirementId: string;
 	readonly sourceId: string;
 	readonly trackId: typeof PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track;
@@ -29,6 +32,7 @@ export interface ProjectFeatureAudioRenderedFallbackProjection<Project> {
 type RecordValue = Readonly<Record<string, unknown>>;
 
 interface QualifiedFallback {
+	readonly featureId: ProjectFeatureAudioCapabilityId;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureFallback;
 }
@@ -90,7 +94,7 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	}) as unknown as Project;
 	const metadata = Object.freeze({
 		schemaVersion: 1 as const,
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		featureId: qualified.featureId,
 		requirementId: qualified.requirementId,
 		sourceId: qualified.fallback.sourceId,
 		trackId: PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
@@ -112,17 +116,21 @@ function qualifyingFallback(
 	const candidates = report.items.filter(isQualifyingItem);
 	if (candidates.length === 0) return null;
 	if (candidates.length !== 1) {
-		throw new RangeError('Multiple audio-effects rendered fallbacks are ambiguous for editor playback.');
+		throw new RangeError('Multiple registered audio rendered fallbacks are ambiguous for editor playback.');
 	}
 	const item = candidates[0]!;
+	if (!isProjectFeatureAudioCapabilityId(item.featureId)) {
+		throw new TypeError('The rendered audio fallback feature is not registered.');
+	}
 	return Object.freeze({
+		featureId: item.featureId,
 		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
 		fallback: item.fallback!,
 	});
 }
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): boolean {
-	return item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+	return isProjectFeatureAudioCapabilityId(item.featureId)
 		&& item.availability === 'unavailable'
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
@@ -148,7 +156,7 @@ function assertManifestBinding(project: RecordValue, qualified: QualifiedFallbac
 	);
 	if (
 		dataProperty(requirement, 'featureId', 'project feature requirement')
-			!== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+			!== qualified.featureId
 		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
 		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== qualified.fallback.kind
 		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== qualified.fallback.sourceId
