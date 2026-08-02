@@ -71,7 +71,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	}
 	assert.match(
 		preloadControl.summary,
-		/shared-project methods.*bounded, pathless list, read, bundle, commit, delete, and managed-media transfer.*closed canonical-PCM and retained-original-video encodings.*independently sanitized in main.*linked-video lifecycle methods.*closed pathless DTOs.*at most 128 unique exact locator\/revision pairs.*cooperative startup reconciliation.*main independently validates shape and known exact revisions.*does not authenticate inventory completeness.*only startup-loaded private locator metadata.*never receives paths or deletes external files.*four active managed-source uploads.*four active reads.*across the bridge service.*64 GiB.*4 MiB.*descriptors rather than filesystem paths.*owner-bound.*authorization and revocation/iu,
+		/shared-project methods.*bounded, pathless list, read, bundle, commit, delete, and managed-media transfer.*closed canonical-PCM and retained-original-video encodings.*independently sanitized in main.*linked-video lifecycle methods.*closed pathless DTOs.*mandatory Boolean mode.*whole-Blob materialization requires false.*ranged playback requires true.*non-null exact locator revision.*validate the mode, returned revision, profile-bound descriptor.*retire a descriptor.*cooperative startup reconciliation.*at most 128 unique exact locator\/revision pairs.*does not authenticate inventory completeness.*only startup-loaded private locator metadata.*never receives paths or deletes external files.*four active managed-source uploads.*four active reads.*64 GiB.*4 MiB.*descriptors rather than filesystem paths.*linked-video reads remain owner-bound.*authorization and revocation/iu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-store.ts', 'desktop/linked-video-locator-runtime.js',
@@ -79,7 +79,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	]) assert.ok(revocationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		revocationControl.summary,
-		/owner revocation.*fences new operations.*aborts.*managed-source uploads.*drains admitted uploads and reads.*navigation.*renderer loss.*window close.*linked-video handlers.*active document owner.*revocation during reconciliation.*restores removed startup metadata.*second persisted write.*failed restore.*surfaced/iu,
+		/owner revocation.*fences new operations.*aborts.*managed-source uploads.*drains admitted uploads and reads.*navigation.*renderer loss.*window close.*linked-video handlers.*active document owner.*drains its materialized and ranged playback read capabilities.*without deleting persistent locator metadata.*revocation during reconciliation.*restores removed startup metadata.*second persisted write.*failed restore.*surfaced/iu,
 	);
 	assert.ok(revocationControl.evidence.some(
 		({ path }) => path === 'tests/desktop-project-library-packaging.test.js',
@@ -476,35 +476,22 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		mediaAdmissionControl.summary,
 		/separate fresh-recipient fixtures.*manifest-only first-party audio fallback PCM.*manifest-only first-party video-effects fallback.*editable retained-video original.*controller-owned manifest-digest verification.*transient playback activation.*managed acquisition itself verifies each transfer descriptor and body digest/isu,
 	);
-	assert.deepEqual(linkedVideoControl?.evidence, [
-		{ kind: 'implementation', path: 'src/common/editor/controller/project-visual-service.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/desktop-shared-project-linked-video-originals.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/desktop-shared-project-media-acquisition.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/desktop-shared-project-media-sender.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/desktop-shared-project-repository.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/desktop-shared-project-source-availability.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/indexeddb-backend.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/linked-video-original-binding.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/linked-video-original-repository.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/linked-video-original-resolver.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/linked-video-original-schema.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/media-content-digest.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/project-repository.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage/retention-repository.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/storage.js' },
-		{ kind: 'test', path: 'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-desktop-shared-project-linked-video-original-session.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-desktop-shared-project-linked-video-original.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-linked-video-original-binding.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-linked-video-original-cleanup.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-linked-video-original-repository.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-linked-video-original-resolver.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-linked-video-original-storage-composition.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-media-content-digest.test.ts' },
-		{ kind: 'test', path: 'tests/audio-editor-project-visual-service.test.ts' },
-		{ kind: 'test', path: 'tests/production-security-shared-project-library.test.js' },
-	]);
+	for (const path of [
+		'desktop/linked-video-locator-ipc.js',
+		'desktop/read-capability-admission.js',
+		'desktop/read-capability-range-stream.js',
+		'src/common/editor/controller/project-visual-service.ts',
+		'src/common/editor/storage/desktop-linked-video-range-reader.ts',
+		'src/common/editor/storage/desktop-shared-project-linked-video-originals.ts',
+		'src/common/editor/storage/linked-video-original-resolver.ts',
+		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
+		'tests/desktop-linked-video-playback-capability.test.js',
+		'tests/desktop-linked-video-playback-locator.test.ts',
+		'tests/audio-editor-desktop-linked-video-playback-port.test.ts',
+		'tests/audio-editor-linked-video-playback-resolver.test.ts',
+		'tests/audio-editor-project-visual-service.test.ts',
+		'tests/production-security-shared-project-library.test.js',
+	]) assert.ok(linkedVideoControl.evidence.some((item) => item.path === path), path);
 	assert.match(
 		linkedVideoControl?.summary ?? '',
 		/schema-1 closed product-local bindings.*exact project and source.*pathless opaque locator ID.*opaque locator-revision fence.*independent repository-owned CAS binding token.*storage key.*video MIME.*exact source geometry.*byte length.*lowercase SHA-256.*no filesystem path, URL, handle, or linked body.*project ID, source ID, storage key, MIME type, and every source-geometry field.*before privileged platform I\/O.*expected locator revision.*exact byte length.*complete SHA-256.*4 MiB windows.*rereads the binding.*CAS fence/isu,
@@ -515,18 +502,33 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		linkedVideoControl?.summary ?? '',
-		/binding, descriptor-free shared admission, and visual activation.*no durable product-owned media row or body copy.*explicit managed handoff.*maintained managed sender.*project deletion and whole-store clear.*only local binding records.*external target.*untouched.*platform port.*injected and optional.*maintained source- and component-tested Electron main\/preload filesystem capability exists.*packaged executable\/UI and operating-system behavior.*not qualified.*external replacement or deletion after the verified Blob snapshot.*not fenced.*no durable byte lease.*range-read protocol.*reference-scale.*4 MiB bound.*digest slices.*not.*whole-Blob provider allocation.*relink or watch UI.*packaged UI or browser-codec evidence.*linked audio.*absent/isu,
+		/binding and descriptor-free shared admission.*no durable product-owned media row or body copy.*explicit managed handoff.*whole Blob.*maintained managed sender.*visual activation.*owner-scoped `linked-video-range-v1` playback lease.*exact locator revision.*exact byte length, MIME, and complete SHA-256.*at-most-4-MiB ranges.*pinned handle.*binding and CAS fence.*only a media URL and one-shot release.*does not construct another original-video Blob.*visual service owns.*lease.*Object URLs.*candidate and stored leases once.*bulk cleanup.*exact media URL.*ranged admission failure.*does not silently retry.*platform port without the optional playback lease/isu,
+	);
+	assert.match(
+		linkedVideoControl?.summary ?? '',
+		/project deletion and whole-store clear.*local binding records.*external target untouched.*packaged executable\/UI and operating-system behavior.*not qualified.*pathname movement, deletion, or replacement after playback admission cannot retarget.*same-inode external mutation.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*binding, whole-Blob resolution, availability, and handoff.*complete body.*512 MiB.*digest slices and playback responses.*not whole-Blob provider allocation.*decoder or codec amplification.*RSS.*reference-scale evidence.*relink or watch UI.*linked audio.*absent/isu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-store.ts', 'desktop/linked-video-locator-ipc.js', 'desktop/preload.mjs',
+		'desktop/read-capability-range-stream.js',
 		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/controller/project-visual-service.ts',
+		'src/common/editor/storage/desktop-linked-video-range-reader.ts',
 		'src/common/editor/storage/linked-video-original-repository.ts',
 		'src/common/editor/storage/linked-video-original-resolver.ts',
 		'tests/desktop-linked-video-locator-store.test.ts', 'tests/desktop-linked-video-locator-ipc.test.js',
 		'tests/desktop-preload-linked-video-original.test.js', 'tests/desktop-linked-video-locator-reconciliation.test.ts',
+		'tests/desktop-linked-video-playback-capability.test.js',
+		'tests/desktop-linked-video-playback-locator.test.ts',
+		'tests/audio-editor-desktop-linked-video-playback-port.test.ts',
+		'tests/audio-editor-linked-video-playback-resolver.test.ts',
 		'tests/audio-editor-project-bootstrap-service.test.ts', 'tests/audio-editor-linked-video-original-repository.test.ts',
 		'tests/audio-editor-linked-video-original-resolver.test.ts',
 	]) assert.ok(linkedVideoChooserControl.evidence.some((item) => item.path === path), path);
+	assert.match(
+		linkedVideoChooserControl.summary,
+		/ordinary locator load.*`materialized-v1`.*playback load.*exact locator revision.*current pathname identity.*`linked-video-range-v1`.*opened handle.*replacement after playback admission cannot retarget.*selection and import adapter.*whole-Blob tier.*ID-scoped locator release.*visual activation.*exact-revision ranged playback lease.*full SHA-256 sequentially.*at-most-4-MiB responses.*binding and its CAS fence.*only the returned media URL and one-shot release.*does not construct another original-video Blob.*candidate and stored leases once.*failed ranged admission.*does not silently fall back.*same-inode external mutation.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*selection, binding, whole-Blob resolution, availability, and handoff.*complete body.*reference-scale evidence/isu,
+	);
 	assert.match(
 		linkedVideoChooserControl.summary,
 		/maintained renderer.*at most 100,000 closed binding rows.*one readonly cursor transaction.*at most 128 exact locator\/revision pairs.*point-in-time inventory.*only after a complete scan.*memory fallback sends nothing.*corruption.*conflicting revisions.*exceeded bounds.*reject bootstrap before IPC.*serialized pass.*only startup-loaded metadata.*runtime-created records.*failed attempts.*retryable.*at most one successful pass.*per store\/process.*unknown or stale references.*before mutation.*failed first registry write.*restores the in-memory inventory.*owner revocation after a deletion write.*second persisted restore.*indeterminate on-disk outcome.*never stats or deletes external files.*next successful full bootstrap.*startup-loaded chooser metadata.*no durable binding.*binding rows.*durably removed.*canonical-project-unreachable.*remain retained.*current-process abandoned records.*later main-process restart.*cannot authenticate inventory completeness.*compromised renderer.*omit live references.*retire startup locator metadata.*cooperative first-party lifecycle housekeeping.*not a renderer-compromise integrity control.*orderly close, dispose, and reopen.*abrupt process death.*power loss.*unqualified.*continuous runtime cleanup.*hostile IndexedDB row.*absent/isu,
@@ -570,7 +572,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*exact-schema first-party video-effects fallback.*manifest-only.*editable retained-video original.*Framescaper.*fresh Soundscaper recipient.*exact shadow.*manifest-digest verified.*exact Blob URL.*headless point-in-time whole-Blob workflow.*not a durable playback lease or packaged codec claim/isu,
+		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*exact-schema first-party video-effects fallback.*manifest-only.*editable retained-video original.*Framescaper.*fresh Soundscaper recipient.*exact shadow.*manifest-digest verified.*exact Blob URL.*managed handoff fixtures.*headless point-in-time whole-Blob workflows.*packaged codec or durable playback qualification/isu,
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
@@ -578,7 +580,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked retained video.*maintained product-local chooser.*validated main\/preload boundary.*whole-Blob renderer adapter.*exact-binding import.*binding-scoped disposable previews.*source and component tests.*raw paths.*private main-owned registry.*renderer and project state.*pathless.*point-in-time stat identity.*not an operating-system bookmark.*external replacement or deletion after a verified Blob snapshot.*not fenced.*no durable byte lease or range protocol.*512 MiB.*4 MiB digest-slice.*not constrain provider allocation.*successful maintained bootstrap.*point-in-time inventory.*complete bounded durable-binding scan.*memory fallback sends nothing.*corrupt, conflicting, or over-limit scans.*abort bootstrap before IPC.*at most one successful serialized pass.*only startup-loaded locator metadata.*unknown or stale submitted references.*before mutation.*failed first registry write.*restores in-memory state.*owner revocation after deletion.*second persisted restore.*indeterminate on-disk outcome.*canonical-project-unreachable records.*retained.*current-process abandoned locators.*later restart.*cannot authenticate inventory completeness.*compromised renderer.*omit live references.*retire startup metadata.*cooperative lifecycle housekeeping.*rather than a renderer-compromise integrity control.*orderly close, dispose, and reopen.*not abrupt process death.*power-loss qualification.*continuous runtime cleanup.*open.*linked audio.*authored proxies.*generic or third-party rendered-fallback authoring, acquisition, and handoff.*packaged first-party video-effects fallback workflows.*relink.*watch behavior.*general consolidation.*not qualified in a packaged executable.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
+		/unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked retained video.*product-local chooser.*validated main\/preload boundary.*whole-Blob selection and import adapter.*exact-binding import.*owner-scoped exact-revision ranged visual playback.*binding-scoped disposable previews.*raw paths.*private main-owned registry.*renderer and project state.*pathless.*point-in-time check.*not an operating-system bookmark.*pathname replacement after playback admission cannot retarget.*same-inode external mutation.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*selection, binding, whole-Blob resolution, availability, and handoff.*complete body.*512 MiB.*visual activation.*at-most-4-MiB ranges.*only a media URL and one-shot release.*without constructing another original-video Blob.*failed ranged admission.*does not silently fall back.*decoder or codec amplification.*RSS.*reference-scale evidence.*successful maintained bootstrap.*point-in-time inventory.*complete bounded durable-binding scan.*memory fallback sends nothing.*corrupt, conflicting, or over-limit scans.*abort bootstrap before IPC.*at most one successful serialized pass.*only startup-loaded locator metadata.*unknown or stale submitted references.*before mutation.*failed first registry write.*restores in-memory state.*owner revocation after deletion.*second persisted restore.*indeterminate on-disk outcome.*canonical-project-unreachable records.*retained.*current-process abandoned locators.*later restart.*cannot authenticate inventory completeness.*compromised renderer.*omit live references.*retire startup metadata.*cooperative lifecycle housekeeping.*rather than a renderer-compromise integrity control.*orderly close, dispose, and reopen.*not abrupt process death.*power-loss qualification.*continuous runtime cleanup.*open.*linked audio.*authored proxies.*generic or third-party rendered-fallback authoring, acquisition, and handoff.*packaged first-party video-effects fallback workflows.*relink.*watch behavior.*general consolidation.*not qualified in a packaged executable.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
 	);
 	assert.doesNotMatch(
 		managedMedia?.exposure ?? '',
@@ -586,7 +588,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser\/import.*packaged executables.*supported platforms.*durable operating-system locator.*range-read.*byte-lease semantics.*reference-scale or stable playback.*reconcile binding-present but canonical-project-unreachable locator metadata.*cleanup beyond the bounded startup inventory.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*portable stable original and authored-proxy relationships.*generic and third-party rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*first-party video-effects fallback.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser, import, and ranged playback.*packaged executables.*supported platforms.*durable operating-system locator.*immutable or cross-process byte-identity semantics.*reference-scale or stable playback.*reconcile binding-present but canonical-project-unreachable locator metadata.*cleanup beyond the bounded startup inventory.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*portable stable original and authored-proxy relationships.*generic and third-party rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate immutable byte identity through playback.*durable lease or equivalent same-inode mutation fence.*packaged Electron UI two-product source-bearing save and return lifecycle.*first-party video-effects fallback.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',
