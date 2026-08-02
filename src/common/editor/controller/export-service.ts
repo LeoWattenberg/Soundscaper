@@ -258,7 +258,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
 		try {
-			await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
+			const admittedVideoFallback = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
 			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
@@ -281,7 +281,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
-				const blob = await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
+				const blob = admittedVideoFallback && input.sourceId === delivery.videoRenderedFallback?.sourceId
+					? admittedVideoFallback
+					: await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
 				if (!blob) throw new Error(copy.localSourcesMissing);
 				videoBlobs.set(input.sourceId, blob);
 			}

@@ -6,6 +6,7 @@ import type {
 	ProjectFeatureRequirementsReportItem,
 } from '../project-feature-requirements.ts';
 import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../project-feature-video-rendered-fallback.ts';
+import type { ProjectVideoFallbackIntegritySelector } from '../project-fallback-integrity.ts';
 import type { VideoRenderedFallbackDeliveryProjection } from './playback-project-service.ts';
 
 interface VideoRenderedFallbackDeliveryService {
@@ -16,6 +17,7 @@ interface VideoRenderedFallbackDeliveryService {
 
 interface FallbackIntegrityAdmission {
 	assertCurrent(project: unknown): void;
+	getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
 }
 
 interface VideoRenderedFallbackIntegrityRuntime {
@@ -23,7 +25,10 @@ interface VideoRenderedFallbackIntegrityRuntime {
 	readonly verifyProjectFallbackIntegrity?: (
 		project: unknown,
 		store: unknown,
-		options: Readonly<{ signal?: AbortSignal }>,
+		options: Readonly<{
+			signal?: AbortSignal;
+			videoFallback?: ProjectVideoFallbackIntegritySelector;
+		}>,
 	) => PromiseLike<FallbackIntegrityAdmission> | FallbackIntegrityAdmission;
 }
 
@@ -62,22 +67,29 @@ export async function admitVideoRenderedFallbackExport(
 	projection: VideoRenderedFallbackDeliveryProjection<object>,
 	runtime: VideoRenderedFallbackIntegrityRuntime,
 	options: VideoRenderedFallbackExportAdmissionOptions,
-): Promise<void> {
-	if (!projection.videoRenderedFallback) return;
+): Promise<Blob | null> {
+	if (!projection.videoRenderedFallback) return null;
 	if (typeof runtime.verifyProjectFallbackIntegrity !== 'function') {
 		throw new TypeError('Video rendered-fallback export integrity verification is unavailable.');
 	}
+	const selector = videoFallbackIntegritySelector(projection);
 	options.assertCurrent();
 	const admission = await runtime.verifyProjectFallbackIntegrity(
 		canonicalProject,
 		runtime.store,
-		{ signal: options.signal },
+		{ signal: options.signal, videoFallback: selector },
 	);
-	if (!admission || typeof admission.assertCurrent !== 'function') {
+	if (!admission || typeof admission.assertCurrent !== 'function'
+		|| typeof admission.getVerifiedVideoBlob !== 'function') {
 		throw new TypeError('Video rendered-fallback export integrity admission is invalid.');
 	}
 	admission.assertCurrent(canonicalProject);
+	const blob = admission.getVerifiedVideoBlob(selector);
+	if (!(blob instanceof Blob)) {
+		throw new TypeError('Video rendered-fallback export integrity returned invalid media.');
+	}
 	options.assertCurrent();
+	return blob;
 }
 
 export function sanitizeVideoExportFileName(value: unknown): string {
@@ -137,7 +149,7 @@ function assertActiveMetadata(
 function assertFallbackReport(
 	report: ProjectFeatureRequirementsReport | null,
 	metadata: ProjectFeatureVideoRenderedFallbackMetadata,
-): void {
+): ProjectFeatureRequirementsReportItem {
 	if (report?.format !== 'soundscaper-project' || report.compatible !== false || !Array.isArray(report.items)) {
 		throw new TypeError('Video rendered-fallback delivery requires an incompatible project report.');
 	}
@@ -145,6 +157,21 @@ function assertFallbackReport(
 	if (renderedFallbacks.length !== 1 || !matchesFallback(renderedFallbacks[0], metadata)) {
 		throw new RangeError('Video export does not support simultaneous rendered fallbacks.');
 	}
+	return renderedFallbacks[0]!;
+}
+
+function videoFallbackIntegritySelector(
+	projection: VideoRenderedFallbackDeliveryProjection<object>,
+): ProjectVideoFallbackIntegritySelector {
+	const metadata = projection.videoRenderedFallback!;
+	const item = assertFallbackReport(projection.featureRequirementsReport, metadata);
+	return Object.freeze({
+		requirementId: metadata.requirementId,
+		featureId: metadata.featureId,
+		kind: 'video',
+		sourceId: metadata.sourceId,
+		sha256: item.fallback!.sha256,
+	});
 }
 
 function matchesFallback(

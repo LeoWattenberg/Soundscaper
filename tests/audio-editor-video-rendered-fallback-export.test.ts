@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/controller/export-service.ts';
 import { projectForVideoRenderedFallbackExport } from '../src/common/editor/controller/video-rendered-fallback-export.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import type { ProjectVideoFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 
 interface ExportProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -45,9 +46,17 @@ interface ExportFixtureOptions {
 	readonly verify?: (
 		project: ExportProject,
 		store: unknown,
-		options: Readonly<{ signal?: AbortSignal }>,
-	) => PromiseLike<Readonly<{ assertCurrent(project: unknown): void }>>
-		| Readonly<{ assertCurrent(project: unknown): void }>;
+		options: Readonly<{
+			signal?: AbortSignal;
+			videoFallback?: ProjectVideoFallbackIntegritySelector;
+		}>,
+	) => PromiseLike<Readonly<{
+		assertCurrent(project: unknown): void;
+		getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
+	}>> | Readonly<{
+		assertCurrent(project: unknown): void;
+		getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
+	}>;
 }
 
 const ORIGINAL_VIDEO_SOURCE_ID = 'original-video';
@@ -132,6 +141,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 	const encodedPlans: unknown[] = [];
 	const downloads: unknown[] = [];
 	let activeController: AbortController | null = null;
+	const verifiedFallbackBlob = new Blob([Uint8Array.of(7, 8, 9)]);
 	const state = {
 		exportGeneration: 0,
 		exportAbort: null as null | Readonly<{ signal: AbortSignal; abort(): void }>,
@@ -142,13 +152,27 @@ function createFixture(options: ExportFixtureOptions = {}) {
 		disposed: false,
 	};
 	const fallback = options.fallback !== false;
-	const verify = options.verify ?? ((project: ExportProject) => {
+	const verify = options.verify ?? ((project: ExportProject, _store: unknown, verifyOptions: Readonly<{
+		videoFallback?: ProjectVideoFallbackIntegritySelector;
+	}>) => {
 		events.push('integrity');
 		assert.strictEqual(project, canonical);
+		assert.deepEqual(verifyOptions.videoFallback, {
+			requirementId: 'publisher-video-render',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			kind: 'video',
+			sourceId: FALLBACK_VIDEO_SOURCE_ID,
+			sha256: 'ab'.repeat(32),
+		});
 		return Object.freeze({
 			assertCurrent(candidate: unknown) {
 				events.push('integrity-current');
 				assert.strictEqual(candidate, canonical);
+			},
+			getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector) {
+				events.push('integrity-blob');
+				assert.deepEqual(selector, verifyOptions.videoFallback);
+				return verifiedFallbackBlob;
 			},
 		});
 	});
@@ -184,6 +208,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 				assert.deepEqual([...videoBlobs.keys()], [
 					fallback ? FALLBACK_VIDEO_SOURCE_ID : ORIGINAL_VIDEO_SOURCE_ID,
 				]);
+				if (fallback) assert.strictEqual(videoBlobs.get(FALLBACK_VIDEO_SOURCE_ID), verifiedFallbackBlob);
 				assert.ok(audioMix);
 				encodedPlans.push(plan);
 				return Object.freeze({ bytes: Uint8Array.of(9), mimeType: 'video/mp4' });
@@ -281,6 +306,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 		loadedStorageKeys,
 		plannedProjects,
 		runtime,
+		verifiedFallbackBlob,
 	});
 }
 
@@ -291,12 +317,12 @@ test('video export verifies and uses only the rendered fallback while retaining 
 
 	assert.equal(result?.mimeType, 'video/mp4');
 	assert.deepEqual(fixture.canonical, before);
-	assert.deepEqual(fixture.loadedStorageKeys, ['fallback-video-storage']);
+	assert.deepEqual(fixture.loadedStorageKeys, []);
 	assert.equal(fixture.plannedProjects.length, 1);
 	assert.equal(fixture.encodedPlans.length, 1);
 	assert.equal(fixture.downloads.length, 1);
 	assert.ok(fixture.events.indexOf('integrity-current') < fixture.events.indexOf('plan'));
-	assert.ok(fixture.events.indexOf('plan') < fixture.events.indexOf('load:fallback-video-storage'));
+	assert.ok(fixture.events.indexOf('integrity-blob') < fixture.events.indexOf('plan'));
 	assert.ok(fixture.events.indexOf('render-audio') < fixture.events.indexOf('encode-video'));
 });
 
