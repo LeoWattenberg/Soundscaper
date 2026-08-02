@@ -493,6 +493,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			setStatus(copy.encoding);
 			const transcodeSettings = {
 				...plan.encoding,
+				// The realtime PCM transform has already mapped into final staging geometry.
+				inputChannelCount: plan.channelCount,
+				channelCount: plan.channelCount,
+				channelMapping: 'preserve',
 				bitDepth,
 				sampleRate: plan.sampleRate,
 				applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',

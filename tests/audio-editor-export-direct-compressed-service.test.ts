@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
+import { applyMediaChannelMapping, buildMediaFfmpegEncoderArgs } from '../src/common/editor/media-export.js';
 
 interface ServiceCase {
 	readonly applyDither: boolean;
@@ -21,7 +22,10 @@ interface ServiceCase {
 
 interface ServicePlan {
 	channelCount: number;
-	encoding: Record<string, unknown> & { extension: string };
+	encoding: Record<string, unknown> & {
+		channelMapping: { mode: string };
+		extension: string;
+	};
 	format: string;
 	mimeType: string;
 	outputBytesPerRender: number;
@@ -63,9 +67,14 @@ test('export service routes every canonical realtime compressed format with exac
 		assert.equal(fixture.ffmpegSettings[0]!.applyDither, entry.applyDither, label);
 		assert.equal(fixture.ffmpegSettings[0]!.bitDepth, entry.bitDepth, label);
 		for (const [key, value] of Object.entries(fixture.plan.encoding)) {
-			if (key === 'bitDepth') continue;
+			if (['bitDepth', 'channelCount', 'channelMapping', 'inputChannelCount'].includes(key)) continue;
 			assert.deepEqual(fixture.ffmpegSettings[0]![key], value, `${label}:${key}`);
 		}
+		assert.equal(fixture.stagedPcm[0]!.length, fixture.plan.channelCount, `${label}:staged channels`);
+		assert.equal(fixture.ffmpegSettings[0]!.inputChannelCount, fixture.plan.channelCount, `${label}:input channels`);
+		assert.equal(fixture.ffmpegSettings[0]!.channelCount, fixture.plan.channelCount, `${label}:output channels`);
+		assert.equal(fixture.ffmpegSettings[0]!.channelMapping, 'preserve', `${label}:mapping`);
+		assert.equal(fixture.ffmpegArgs[0]!.some((argument) => argument.includes('pan=')), false, `${label}:FFmpeg pan`);
 		assertOrdered(fixture.events, 'picker', 'render:realtime', label);
 		assertOrdered(fixture.events, 'staging:close', 'ffmpeg:stat', label);
 		assertOrdered(fixture.events, 'ffmpeg:stat', 'target:open', label);
@@ -76,6 +85,47 @@ test('export service routes every canonical realtime compressed format with exac
 		assert.equal(fixture.target.opens(), 1, label);
 		assert.equal(fixture.target.commits(), 1, label);
 		assert.equal(fixture.target.aborts(), 0, label);
+	}
+});
+
+test('realtime compressed exports map staged mono and custom PCM exactly once', async () => {
+	const input = [Float32Array.of(0.1), Float32Array.of(0.2)];
+	const cases = [
+		{
+			format: 'mp3', mode: 'stream' as const,
+			options: { bitRate: 320, channelMapping: 'mono' },
+			expected: [[0.15]], expectedMode: 'mono',
+		},
+		{
+			format: 'ogg-vorbis', mode: 'blob' as const,
+			options: {
+				quality: 7,
+				channelMapping: { channels: [
+					{ inputs: [{ channel: 1, gain: 0.25 }, { channel: 0, gain: 0.5 }] },
+					{ inputs: [] },
+					{ inputs: [{ channel: 0, gain: -1 }] },
+				] },
+			},
+			expected: [[0.1], [0], [-0.1]], expectedMode: 'custom',
+		},
+	] as const;
+	for (const entry of cases) {
+		const plan = actualPlan(entry.format, entry.options);
+		const fixture = serviceFixture(caseFor(entry.format), entry.mode, {
+			chunkChannels: input,
+			plan,
+		});
+		await createEditorExportService(fixture.runtime).handleExportAction(
+			'export', { mode: 'mix', format: entry.format, ...entry.options },
+		);
+		assert.deepEqual(fixture.errors, [], entry.format);
+		assert.equal(fixture.stagedPcm.length, 1, entry.format);
+		assertPcmClose(fixture.stagedPcm[0]!, entry.expected, entry.format);
+		assert.equal(plan.encoding.channelMapping.mode, entry.expectedMode, entry.format);
+		assert.equal(fixture.ffmpegSettings[0]!.inputChannelCount, plan.channelCount, entry.format);
+		assert.equal(fixture.ffmpegSettings[0]!.channelCount, plan.channelCount, entry.format);
+		assert.equal(fixture.ffmpegSettings[0]!.channelMapping, 'preserve', entry.format);
+		assert.equal(fixture.ffmpegArgs[0]!.some((argument) => argument.includes('pan=')), false, entry.format);
 	}
 });
 
@@ -173,6 +223,7 @@ test('late cancellation during new compressed commit returns the file without st
 type PrepareMode = 'stream' | 'blob' | 'cancelled';
 
 function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly<{
+	chunkChannels?: readonly Float32Array[];
 	failure?: 'result' | 'drift';
 	onCommit?: () => PromiseLike<void> | void;
 	persistent?: boolean;
@@ -185,7 +236,9 @@ function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly
 	const preflightBytes: number[] = [];
 	const downloads: Array<Readonly<Record<string, unknown>>> = [];
 	const encoderOptions: Array<Readonly<Record<string, unknown>>> = [];
+	const ffmpegArgs: string[][] = [];
 	const ffmpegSettings: Array<Readonly<Record<string, unknown>>> = [];
+	const stagedPcm: Array<readonly Float32Array[]> = [];
 	const state = { exportGeneration: 0, exportAbort: null, mobile: false, outputUrl: null, outputCleanup: null, exportOutput: null, disposed: false };
 	const target = preparedTarget(() => plan.outputs[0].fileName, events, options.onCommit);
 	const project = realtimeProject();
@@ -194,7 +247,7 @@ function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly
 	const throwIfAborted = (signal?: AbortSignal | null) => { if (signal?.aborted) throw abortError(); };
 	const runtime: ExportServiceRuntime = {
 		abortError,
-		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
+		applyMediaChannelMapping,
 		audioBufferChannels: (audio: Readonly<{ channels: readonly Float32Array[] }>) => audio.channels,
 		cloneProject: (value: typeof project) => structuredClone(value),
 		copy: { localSourcesMissing: 'missing', rendering: 'rendering', encoding: 'encoding', done: 'done', largeProjectRealtimeExport: 'realtime', realtimeExportFallback: 'fallback', realtimeStorageRequired: 'storage required' },
@@ -203,15 +256,18 @@ function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly
 			loadProject: () => undefined,
 			async renderMixRealtime(renderOptions: Readonly<Record<string, unknown>>) {
 				events.push('render:realtime');
-				const onChunk = renderOptions.onChunk as (channels: Float32Array[], metadata: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
-				await onChunk([Float32Array.of(0.1), Float32Array.of(0.2)], { sampleRate: 48_000 });
+				const onChunk = renderOptions.onChunk as (channels: readonly Float32Array[], metadata: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
+				await onChunk(options.chunkChannels || [Float32Array.of(0.1), Float32Array.of(0.2)], { sampleRate: 48_000 });
 			},
 			dispose: async () => { events.push('render:dispose'); },
 		}),
 		createExportPlan: () => plan,
 		createStableId: () => 'stable',
 		createStreamingStemArchive: async () => { throw new Error('unexpected stem archive'); },
-		createStreamingWindowedSincResampler: () => ({ push: (channels: readonly Float32Array[]) => channels, finish: () => [new Float32Array(0), new Float32Array(0)] }),
+		createStreamingWindowedSincResampler: (_inputRate: number, _outputRate: number, channelCount: number) => ({
+			push: (channels: readonly Float32Array[]) => channels,
+			finish: () => Array.from({ length: channelCount }, () => new Float32Array(0)),
+		}),
 		createTemporaryFileSink: async () => ({
 			persistent: options.persistent !== false,
 			write: async () => { events.push('staging:write'); },
@@ -223,17 +279,30 @@ function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly
 			encoderOptions.push(settings);
 			const pending: Promise<unknown>[] = [];
 			const onChunk = settings.onChunk as (chunk: Uint8Array) => PromiseLike<unknown> | unknown;
-			return { write: () => { pending.push(Promise.resolve(onChunk(Uint8Array.of(0)))); }, finalize: () => undefined, settled: async () => { await Promise.all(pending); } };
+			return {
+				write: (channels: readonly Float32Array[]) => {
+					stagedPcm.push(channels.map((channel) => channel.slice()));
+					pending.push(Promise.resolve(onChunk(Uint8Array.of(0))));
+				},
+				finalize: () => undefined,
+				settled: async () => { await Promise.all(pending); },
+			};
 		},
 		encodeAiff: () => { throw new Error('unexpected offline AIFF'); },
 		encodeWav: () => { throw new Error('unexpected offline WAV'); },
 		ffmpeg: {
 			dispose: () => { events.push('ffmpeg:dispose'); },
 			encode: async () => ({ bytes: Uint8Array.of(1), mimeType: plan.mimeType }),
-			encodeFile: async () => { events.push('ffmpeg:encode-file'); return { bytes: Uint8Array.of(1, 2, 3), mimeType: plan.mimeType }; },
+			encodeFile: async (_file: Blob, format: string, settings: Readonly<Record<string, unknown>>) => {
+				ffmpegSettings.push(settings);
+				ffmpegArgs.push(buildMediaFfmpegEncoderArgs('staged.wav', `output.${plan.encoding.extension}`, format, settings));
+				events.push('ffmpeg:encode-file');
+				return { bytes: Uint8Array.of(1, 2, 3), mimeType: plan.mimeType };
+			},
 			async encodeFileToSink(_file: Blob, format: string, sink: FfmpegOutputSink<unknown>, settings: Readonly<Record<string, unknown>>) {
 				assert.equal(format, plan.format);
 				ffmpegSettings.push(settings);
+				ffmpegArgs.push(buildMediaFfmpegEncoderArgs('staged.wav', `output.${plan.encoding.extension}`, format, settings));
 				events.push('ffmpeg:stat');
 				(settings.assertCurrent as () => void)();
 				await sink.open(5);
@@ -268,7 +337,7 @@ function serviceFixture(entry: ServiceCase, mode: PrepareMode, options: Readonly
 		throwIfAborted, toggleExport: () => undefined, updateExportProgress: () => undefined,
 		verifyProjectFallbackIntegrity: async () => { throw new Error('unexpected fallback'); },
 	};
-	return { downloads, encoderOptions, errors, events, ffmpegSettings, plan, preflightBytes, runtime, state, statuses, target };
+	return { downloads, encoderOptions, errors, events, ffmpegArgs, ffmpegSettings, plan, preflightBytes, runtime, stagedPcm, state, statuses, target };
 }
 
 function actualPlan(format: string, options: Readonly<Record<string, unknown>> = {}) {
@@ -299,6 +368,23 @@ function caseFor(format: string): ServiceCase {
 
 function assertOrdered(events: readonly string[], before: string, after: string, message: string): void {
 	assert.ok(events.indexOf(before) < events.indexOf(after), `${message}: ${before} before ${after}`);
+}
+
+function assertPcmClose(
+	actual: readonly Float32Array[],
+	expected: readonly (readonly number[])[],
+	message: string,
+): void {
+	assert.equal(actual.length, expected.length, message);
+	for (let channel = 0; channel < expected.length; channel += 1) {
+		assert.equal(actual[channel]!.length, expected[channel]!.length, `${message}: channel ${channel}`);
+		for (let frame = 0; frame < expected[channel]!.length; frame += 1) {
+			assert.ok(
+				Math.abs(actual[channel]![frame]! - expected[channel]![frame]!) < 1e-6,
+				`${message}: channel ${channel}, frame ${frame}`,
+			);
+		}
+	}
 }
 
 function deferred<Value>(): { readonly promise: Promise<Value>; readonly resolve: (value?: Value | PromiseLike<Value>) => void } {
