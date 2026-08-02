@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AIFF_MAXIMUM_FILE_BYTES, inspectAiffLayout } from '../aiff.js';
+import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import {
 	commitDirectPcmDestination,
 	createDirectPcmEncoder,
@@ -124,7 +125,7 @@ function directAiffPlan(plan: DirectAiffPlan): plan is DirectAiffPlan & {
 	if (plan?.format !== 'aiff'
 		|| plan.mimeType !== 'audio/aiff'
 		|| plan.mode !== 'mix'
-		|| plan.render?.strategy !== 'realtime-stream'
+		|| directAudioRenderStrategy(plan) === null
 		|| !Number.isSafeInteger(plan.sampleRate)
 		|| Number(plan.sampleRate) <= 0
 		|| !Number.isSafeInteger(plan.channelCount)

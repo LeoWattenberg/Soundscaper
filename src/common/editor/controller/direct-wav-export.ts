@@ -3,6 +3,7 @@
 import type { IxmlMetadataInput } from '../ixml.ts';
 import type { RiffMarkerInput } from '../riff-markers.ts';
 import { inspectWavLayout } from '../wav.js';
+import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import {
 	commitDirectPcmDestination,
 	createDirectPcmEncoder,
@@ -135,7 +136,7 @@ function directWavPlan(plan: DirectWavPlan): plan is DirectWavPlan & {
 	if (plan?.format !== 'wav'
 		|| plan.mimeType !== 'audio/wav'
 		|| plan.mode !== 'mix'
-		|| plan.render?.strategy !== 'realtime-stream'
+		|| directAudioRenderStrategy(plan) === null
 		|| plan.container !== undefined
 		|| plan.bext !== undefined
 		|| plan.adm !== undefined

@@ -19,6 +19,7 @@ import type { CartMetadataInput } from '../cart-metadata.ts';
 import type { IxmlMetadataInput } from '../ixml.ts';
 import type { RiffMarkerInput } from '../riff-markers.ts';
 import { inspectWavLayout } from '../wav.js';
+import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import { isCanonicalBextV2, sameCanonicalBext } from './direct-broadcast-wave-export.ts';
 import {
 	DIRECT_PCM_MAXIMUM_FILE_BYTES,
@@ -119,7 +120,13 @@ export async function prepareDirectBw64Destination(
 ): Promise<DirectPcmPreparation> {
 	if (!directBw64Plan(plan)) return emptyPreparation();
 	if (requestedSettings?.measureLoudness === true) {
-		throw new Error('Realtime BW64 loudness measurement is not supported.');
+		const passthrough = canonicalPassthroughAdmPlan(plan.adm);
+		if (plan.render?.strategy === 'realtime-stream') {
+			throw new Error('Realtime BW64 loudness measurement is not supported.');
+		}
+		if (passthrough?.preserved.bext === true) {
+			throw new Error('Preserved-BEXT BW64 loudness measurement is not supported.');
+		}
 	}
 	if (typeof fileService.prepareSave !== 'function') return emptyPreparation();
 	const fileName = String(plan.outputs[0].fileName || 'mix.wav');
@@ -150,7 +157,7 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 	if (plan?.format !== 'bw64'
 		|| plan.mimeType !== 'audio/wav'
 		|| plan.mode !== 'mix'
-		|| plan.render?.strategy !== 'realtime-stream'
+		|| directAudioRenderStrategy(plan) === null
 		|| plan.container !== 'bw64'
 		|| !Number.isSafeInteger(plan.sampleRate)
 		|| Number(plan.sampleRate) <= 0

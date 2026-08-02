@@ -338,8 +338,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			setStatus(copy.largeProjectRealtimeExport);
 			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directCompressedDestination, assertDirectCurrent);
 		}
+		let rendered: RuntimeValue;
 		try {
-			const rendered = await renderSnapshot(snapshot, {
+			rendered = await renderSnapshot(snapshot, {
 				startFrame: plan.range.startFrame,
 				endFrame: plan.range.endFrame,
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
@@ -347,20 +348,68 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
 			}, renderSources.sourceMap, signal, renderSources.chunkSources, renderSources.prepareTimePitchCaches);
 			throwIfAborted(signal);
+		} catch (error) {
+			if (signal?.aborted
+				|| (error as Readonly<{ name?: string }>)?.name === 'AbortError'
+				|| isProjectAudioFallbackIntegrityError(error)) throw error;
+			assertDirectCurrent();
+			if (!allowsRealtimeFallback(plan, settings)
+				|| !directRenderFallbackAvailable(directDestination, directCompressedDestination)) {
+				throw error;
+			}
+			setStatus(copy.realtimeExportFallback);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directCompressedDestination, assertDirectCurrent);
+		}
+		try {
+			return await encodeOfflineRendered(rendered);
+		} catch (error) {
+			if (signal?.aborted
+				|| (error as Readonly<{ name?: string }>)?.name === 'AbortError'
+				|| isProjectAudioFallbackIntegrityError(error)
+				|| directDestination
+				|| directCompressedDestination
+				|| !allowsRealtimeFallback(plan, settings)) throw error;
+			setStatus(copy.realtimeExportFallback);
+			return renderRealtimeEncoded(
+				snapshot, plan, settings, signal, renderSources,
+				directDestination, directCompressedDestination, assertDirectCurrent,
+			);
+		}
+
+		async function encodeOfflineRendered(rendered: RuntimeValue) {
 			taskProgress?.setActivePhase?.(copy.encoding, {
 				start: progressRange.start + progressSpan * 0.7,
 				end: progressRange.end,
 				value: 0,
 			});
-			return await encodeRenderedAudio({
-				applyMediaChannelMapping, audioBufferChannels, copy, encodeAiff, encodeWav,
+			return encodeRenderedAudio({
+				applyMediaChannelMapping, audioBufferChannels, copy,
+				createAiffStreamEncoder, createWavStreamEncoder, encodeAiff, encodeWav,
 				ffmpeg, resampleBuffer, setStatus, throwIfAborted,
-			}, { rendered, plan, settings, signal });
-		} catch (error) {
-			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError'
-				|| isProjectAudioFallbackIntegrityError(error)) throw error;
-			setStatus(copy.realtimeExportFallback);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directCompressedDestination, assertDirectCurrent);
+			}, {
+				assertCurrent: directDestination ? assertDirectCurrent : undefined,
+				directDestination,
+				plan,
+				rendered,
+				settings,
+				signal,
+			});
+		}
+	}
+
+	function allowsRealtimeFallback(plan: RuntimeValue, settings: RuntimeValue): boolean {
+		return settings?.measureLoudness !== true || (plan.format !== 'bwf' && plan.format !== 'bw64');
+	}
+
+	function directRenderFallbackAvailable(
+		directDestination: DirectPcmDestination | null,
+		directCompressedDestination: DirectCompressedDestination | null,
+	): boolean {
+		try {
+			return (!directDestination || directDestination.bytesWritten() === 0)
+				&& (!directCompressedDestination || directCompressedDestination.bytesWritten() === 0);
+		} catch {
+			return false;
 		}
 	}
 
@@ -411,7 +460,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		directCompressedDestination: DirectCompressedDestination | null = null,
 		assertDirectCurrent: () => void = () => undefined,
 	) {
+		throwIfAborted(signal);
+		assertDirectCurrent();
 		if (renderSources.prepareTimePitchCaches) await prepareCommittedTimePitchCaches(snapshot, signal);
+		throwIfAborted(signal);
+		assertDirectCurrent();
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		const nativeAiff = plan.format === 'aiff';
 		const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
@@ -448,6 +501,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const directEncoder = directDestination
 			? await createDirectPcmEncoder(directDestination, nativeAiff ? createAiffStreamEncoder : createWavStreamEncoder, encoderOptions, containerLabel)
 			: null;
+		throwIfAborted(signal);
+		assertDirectCurrent();
 		const encoder = directEncoder ? null : (nativeAiff
 			? createAiffStreamEncoder({
 				...encoderOptions,

@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/controller/export-service.ts';
 import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
+import { createExportPlan } from '../src/common/editor/export.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE } from '../src/common/editor/project-fallback-integrity.ts';
@@ -92,6 +93,25 @@ test('active audio fallback realtime mix routes the private provider into the re
 	assertGlobalCachesUnchanged(fixture);
 });
 
+test('active audio fallback offline mix opens and streams only after private-provider admission', async () => {
+	const fixture = createFixture({ strategy: 'offline', directDestination: true });
+	const before = structuredClone(fixture.canonical);
+
+	const result = await createEditorExportService(fixture.runtime).handleExportAction('export');
+
+	assert.equal(result.fileName, 'fallback-mix.wav');
+	assert.equal(result.url, null);
+	assertOrder(fixture.events, [
+		'projection', 'verify', 'admission-current', 'provider', 'plan', 'picker', 'destination-open',
+		'render-offline', 'destination-close', 'destination-commit',
+	]);
+	assert.equal(fixture.events.includes('preflight'), false);
+	assert.equal(fixture.events.includes('temporary-sink'), false);
+	assert.equal(fixture.events.includes('download'), false);
+	assert.deepEqual(fixture.canonical, before);
+	assertGlobalCachesUnchanged(fixture);
+});
+
 test('active audio fallback refuses stems and BW64 or ADM before export side effects', async () => {
 	for (const [label, settings] of [
 		['stems', { mode: 'stems', format: 'wav' }],
@@ -163,11 +183,21 @@ function createFixture(options: FixtureOptions = {}) {
 	const playback = createPlaybackProjectService({
 		audioEffects: !activeFallback,
 	});
+	const exactOfflineDirect = directDestination && strategy === 'offline';
+	const plan = exactOfflineDirect
+		? createExportPlan(
+			playback.projectForAudioRenderedFallbackDelivery(canonical).project,
+			{ format: 'wav', includeTail: false, livePcmBytes: 0, date: '2026-08-02' },
+		) as unknown as ExportPlan
+		: exportPlan(strategy);
 	const audio = Object.freeze({
 		sampleRate: 48_000,
-		length: 2,
+		length: plan.outputFrames,
 		numberOfChannels: 2,
-		channels: Object.freeze([Float32Array.of(0.25, -0.25), Float32Array.of(-0.25, 0.25)]),
+		channels: Object.freeze([
+			new Float32Array(plan.outputFrames).fill(0.25),
+			new Float32Array(plan.outputFrames).fill(-0.25),
+		]),
 	});
 	const state = {
 		exportGeneration: 0,
@@ -180,7 +210,6 @@ function createFixture(options: FixtureOptions = {}) {
 	};
 	let ordinaryRenderObserved = false;
 	let currentController: AbortController | null = null;
-	const plan = exportPlan(strategy);
 	let destinationBytes = 0;
 	let destinationClosed = false;
 	const preparedDirectDestination = Object.freeze({

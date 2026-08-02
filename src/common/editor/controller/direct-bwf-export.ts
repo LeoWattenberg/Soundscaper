@@ -5,6 +5,7 @@ import type { CartMetadataInput } from '../cart-metadata.ts';
 import type { IxmlMetadataInput } from '../ixml.ts';
 import type { RiffMarkerInput } from '../riff-markers.ts';
 import { inspectWavLayout } from '../wav.js';
+import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import { isCanonicalBextV2, sameCanonicalBext } from './direct-broadcast-wave-export.ts';
 import {
 	DIRECT_PCM_MAXIMUM_FILE_BYTES,
@@ -61,7 +62,8 @@ export async function prepareDirectBwfDestination(
 	signal: AbortSignal,
 ): Promise<DirectPcmPreparation> {
 	const directPlan = directBwfPlan(plan);
-	if (directPlan && requestedSettings?.measureLoudness === true) {
+	if (directPlan && plan.render?.strategy === 'realtime-stream'
+		&& requestedSettings?.measureLoudness === true) {
 		throw new Error('Realtime Broadcast WAV loudness measurement is not supported.');
 	}
 	if (!directPlan || typeof fileService.prepareSave !== 'function') {
@@ -94,7 +96,7 @@ function directBwfPlan(plan: DirectBwfPlan): plan is DirectBwfPlan & {
 	if (plan?.format !== 'bwf'
 		|| plan.mimeType !== 'audio/wav'
 		|| plan.mode !== 'mix'
-		|| plan.render?.strategy !== 'realtime-stream'
+		|| directAudioRenderStrategy(plan) === null
 		|| plan.container !== undefined
 		|| plan.adm !== undefined
 		|| plan.preDataChunks !== undefined

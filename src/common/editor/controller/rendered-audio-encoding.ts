@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import { encodeDirectOfflinePcm } from './direct-offline-pcm-export.ts';
+import type {
+	DirectPcmContainerEncoder,
+	DirectPcmDestination,
+} from './direct-pcm-export.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -22,6 +27,7 @@ interface RenderedAudioFormatSettings extends Readonly<Record<string, unknown>> 
 export interface RenderedAudioEncodingPlan {
 	readonly bext?: Readonly<Record<string, unknown>>;
 	readonly cart?: unknown;
+	readonly channelCount?: number;
 	readonly channelMapping: unknown;
 	readonly container?: unknown;
 	readonly ditherMode: unknown;
@@ -39,8 +45,10 @@ export interface RenderedAudioEncodingPlan {
 
 export interface RenderedAudioEncodedOutput extends Readonly<Record<string, unknown>> {
 	readonly blob?: Blob | null;
+	readonly byteLength?: number;
 	readonly bytes?: Uint8Array | null;
 	readonly cleanup?: () => Awaitable<void>;
+	readonly directDestination?: DirectPcmDestination;
 	readonly mimeType: string;
 }
 
@@ -51,6 +59,12 @@ export interface RenderedAudioEncodingRuntime {
 	): readonly Float32Array[];
 	audioBufferChannels(buffer: RenderedAudioBuffer): readonly Float32Array[];
 	readonly copy: Readonly<{ readonly encoding: unknown; readonly [key: string]: unknown }>;
+	createAiffStreamEncoder?(
+		options: Readonly<Record<string, unknown>>,
+	): DirectPcmContainerEncoder;
+	createWavStreamEncoder?(
+		options: Readonly<Record<string, unknown>>,
+	): DirectPcmContainerEncoder;
 	encodeAiff(
 		channels: readonly Float32Array[],
 		options: Readonly<Record<string, unknown>>,
@@ -78,6 +92,8 @@ export interface RenderedAudioEncodingRuntime {
 }
 
 export interface EncodeRenderedAudioOptions {
+	readonly assertCurrent?: () => void;
+	readonly directDestination?: DirectPcmDestination | null;
 	readonly plan: RenderedAudioEncodingPlan;
 	readonly rendered: RenderedAudioBuffer;
 	readonly settings: RenderedAudioEncodingSettings;
@@ -90,11 +106,16 @@ export async function encodeRenderedAudio(
 	options: EncodeRenderedAudioOptions,
 ): Promise<RenderedAudioEncodedOutput> {
 	const {
-		applyMediaChannelMapping, audioBufferChannels, copy, encodeAiff, encodeWav,
+		applyMediaChannelMapping, audioBufferChannels, copy,
+		createAiffStreamEncoder, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, resampleBuffer, setStatus, throwIfAborted,
 	} = runtime;
 	const { plan, rendered, settings, signal } = options;
-	throwIfAborted(signal);
+	const assertActive = (): void => {
+		throwIfAborted(signal);
+		options.assertCurrent?.();
+	};
+	assertActive();
 	let output = rendered;
 	if (plan.sampleRate !== rendered.sampleRate) {
 		output = await resampleBuffer(
@@ -105,7 +126,7 @@ export async function encodeRenderedAudio(
 			plan.outputFrames,
 		);
 	}
-	throwIfAborted(signal);
+	assertActive();
 	const bitDepth = plan.encoding.bitDepth
 		|| (settings.bitDepth === 32 ? 32 : settings.bitDepth)
 		|| 24;
@@ -131,6 +152,28 @@ export async function encodeRenderedAudio(
 			preDataChunks: plan.preDataChunks,
 			trailingChunks: plan.trailingChunks,
 		};
+		if (options.directDestination) {
+			assertActive();
+			const createStreamEncoder = plan.format === 'aiff'
+				? createAiffStreamEncoder
+				: createWavStreamEncoder;
+			if (typeof createStreamEncoder !== 'function') {
+				throw new TypeError(`The direct ${plan.format.toUpperCase()} stream encoder is unavailable.`);
+			}
+			return encodeDirectOfflinePcm({
+				assertCurrent: options.assertCurrent ?? (() => undefined),
+				channels: mapped,
+				createEncoder: createStreamEncoder,
+				destination: options.directDestination,
+				encoderOptions: {
+					...nativeOptions,
+					channelCount: plan.channelCount,
+					totalFrames: plan.outputFrames,
+				},
+				plan,
+				signal,
+			});
+		}
 		const bytes = plan.format === 'aiff'
 			? encodeAiff(mapped, nativeOptions)
 			: encodeWav(mapped, nativeOptions);
@@ -148,7 +191,7 @@ export async function encodeRenderedAudio(
 		float: stagingFloat,
 		dither: stagingFloat ? 'none' : plan.ditherMode,
 	});
-	throwIfAborted(signal);
+	assertActive();
 	setStatus(copy.encoding);
 	return ffmpeg.encode(wav, plan.format, {
 		...plan.encoding,
