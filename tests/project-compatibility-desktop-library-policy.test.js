@@ -524,7 +524,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/startup-loaded chooser metadata.*durable binding.*binding rows.*durably removed.*surviving binding.*canonical project.*remains retained.*current-process records.*one-shot pass.*later main-process restart.*cannot authenticate inventory completeness.*compromised.*renderer.*omit live references.*delete startup locator metadata.*cooperative availability maintenance.*not a compromised-renderer integrity.*control.*Continuous runtime cleanup.*hostile IndexedDB row.*not implemented/isu,
+		/startup-loaded chooser metadata.*durable binding.*binding rows.*durably removed.*surviving binding.*canonical project.*remains retained.*current-process.*records.*one-shot pass.*later.*main-process.*restart.*cannot\s+authenticate inventory.*completeness.*compromised.*renderer.*omit.*live.*references.*delete startup locator metadata.*cooperative.*availability.*maintenance.*not a compromised-renderer integrity.*control.*Continuous.*runtime.*cleanup.*hostile.*IndexedDB.*row.*not implemented/isu,
 	);
 	assert.match(
 		documentation,

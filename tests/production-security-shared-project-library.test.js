@@ -65,10 +65,8 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.ok(revocationControl);
 	for (const ipcControl of [preloadControl, revocationControl]) {
 		for (const path of [
-			'desktop/linked-video-locator-ipc.js',
-			'desktop/project-library-ipc.js',
-			'tests/desktop-linked-video-locator-ipc.test.js',
-			'tests/desktop-project-library-ipc.test.js',
+			'desktop/linked-video-locator-ipc.js', 'desktop/project-library-ipc.js',
+			'tests/desktop-linked-video-locator-ipc.test.js', 'tests/desktop-project-library-ipc.test.js',
 		]) assert.ok(ipcControl.evidence.some((item) => item.path === path));
 	}
 	assert.match(
@@ -76,10 +74,8 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		/shared-project methods.*bounded, pathless list, read, bundle, commit, delete, and managed-media transfer.*closed canonical-PCM and retained-original-video encodings.*independently sanitized in main.*linked-video lifecycle methods.*closed pathless DTOs.*at most 128 unique exact locator\/revision pairs.*cooperative startup reconciliation.*main independently validates shape and known exact revisions.*does not authenticate inventory completeness.*only startup-loaded private locator metadata.*never receives paths or deletes external files.*four active managed-source uploads.*four active reads.*across the bridge service.*64 GiB.*4 MiB.*descriptors rather than filesystem paths.*owner-bound.*authorization and revocation/iu,
 	);
 	for (const path of [
-		'desktop/linked-video-locator-store.ts',
-		'desktop/linked-video-locator-runtime.js',
-		'tests/desktop-linked-video-locator-store.test.ts',
-		'tests/desktop-linked-video-locator-reconciliation.test.ts',
+		'desktop/linked-video-locator-store.ts', 'desktop/linked-video-locator-runtime.js',
+		'tests/desktop-linked-video-locator-store.test.ts', 'tests/desktop-linked-video-locator-reconciliation.test.ts',
 	]) assert.ok(revocationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		revocationControl.summary,
@@ -522,18 +518,13 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		/binding, descriptor-free shared admission, and visual activation.*no durable product-owned media row or body copy.*explicit managed handoff.*maintained managed sender.*project deletion and whole-store clear.*only local binding records.*external target.*untouched.*platform port.*injected and optional.*maintained source- and component-tested Electron main\/preload filesystem capability exists.*packaged executable\/UI and operating-system behavior.*not qualified.*external replacement or deletion after the verified Blob snapshot.*not fenced.*no durable byte lease.*range-read protocol.*reference-scale.*4 MiB bound.*digest slices.*not.*whole-Blob provider allocation.*relink or watch UI.*packaged UI or browser-codec evidence.*linked audio.*absent/isu,
 	);
 	for (const path of [
-		'desktop/linked-video-locator-store.ts',
-		'desktop/linked-video-locator-ipc.js',
-		'desktop/preload.mjs',
+		'desktop/linked-video-locator-store.ts', 'desktop/linked-video-locator-ipc.js', 'desktop/preload.mjs',
 		'src/common/editor/controller/project-bootstrap-service.ts',
 		'src/common/editor/storage/linked-video-original-repository.ts',
 		'src/common/editor/storage/linked-video-original-resolver.ts',
-		'tests/desktop-linked-video-locator-store.test.ts',
-		'tests/desktop-linked-video-locator-ipc.test.js',
-		'tests/desktop-preload-linked-video-original.test.js',
-		'tests/desktop-linked-video-locator-reconciliation.test.ts',
-		'tests/audio-editor-project-bootstrap-service.test.ts',
-		'tests/audio-editor-linked-video-original-repository.test.ts',
+		'tests/desktop-linked-video-locator-store.test.ts', 'tests/desktop-linked-video-locator-ipc.test.js',
+		'tests/desktop-preload-linked-video-original.test.js', 'tests/desktop-linked-video-locator-reconciliation.test.ts',
+		'tests/audio-editor-project-bootstrap-service.test.ts', 'tests/audio-editor-linked-video-original-repository.test.ts',
 		'tests/audio-editor-linked-video-original-resolver.test.ts',
 	]) assert.ok(linkedVideoChooserControl.evidence.some((item) => item.path === path), path);
 	assert.match(
