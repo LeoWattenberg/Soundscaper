@@ -59,6 +59,11 @@ export interface ResolvedLinkedVideoOriginal {
 	}>;
 }
 
+export interface InspectedLinkedVideoOriginal {
+	readonly binding: LinkedVideoOriginalBinding;
+	readonly metadata: ResolvedLinkedVideoOriginal['metadata'];
+}
+
 export interface BindLinkedVideoOriginalOptions {
 	readonly expectedBindingToken?: string | null;
 	readonly signal?: AbortSignal;
@@ -122,11 +127,9 @@ export class LinkedVideoOriginalResolver {
 		source: LinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<ResolvedLinkedVideoOriginal | null> {
-		throwIfAborted(options.signal);
-		const binding = await this.#bindings.get(projectId, source.id);
-		throwIfAborted(options.signal);
-		if (!binding) return null;
-		assertSourceBinding(binding, projectId, source);
+		const inspected = await this.inspect(projectId, source, options);
+		if (!inspected) return null;
+		const { binding } = inspected;
 		const snapshot = await this.#port.load(binding.locatorId, {
 			expectedRevision: binding.locatorRevision,
 			signal: options.signal,
@@ -144,26 +147,47 @@ export class LinkedVideoOriginalResolver {
 		const sha256 = await digestMediaContent(blob, { signal: options.signal });
 		throwIfAborted(options.signal);
 		if (sha256 !== binding.sha256) throw new Error('The linked video original failed SHA-256 verification.');
+		await this.assertBindingCurrent(projectId, source, binding, options);
+		return Object.freeze({
+			binding,
+			blob,
+			metadata: inspected.metadata,
+		});
+	}
+
+	async inspect(
+		projectId: string,
+		source: LinkedVideoOriginalSource,
+		options: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<InspectedLinkedVideoOriginal | null> {
+		throwIfAborted(options.signal);
+		const binding = await this.#bindings.get(projectId, source.id);
+		throwIfAborted(options.signal);
+		if (!binding) return null;
+		assertSourceBinding(binding, projectId, source);
+		return Object.freeze({ binding, metadata: linkedMetadata(binding) });
+	}
+
+	async assertBindingCurrent(
+		projectId: string,
+		source: LinkedVideoOriginalSource,
+		binding: LinkedVideoOriginalBinding,
+		options: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<void> {
+		assertSourceBinding(binding, projectId, source);
+		throwIfAborted(options.signal);
 		const current = await this.#bindings.get(projectId, source.id);
 		throwIfAborted(options.signal);
 		if (!current || !sameBinding(current, binding)) {
 			throw new Error('The linked video original binding changed during resolution.');
 		}
-		return Object.freeze({
-			binding,
-			blob,
-			metadata: linkedMetadata(binding),
-		});
 	}
 
 	async metadata(
 		projectId: string,
 		source: LinkedVideoOriginalSource,
 	): Promise<ResolvedLinkedVideoOriginal['metadata'] | null> {
-		const binding = await this.#bindings.get(projectId, source.id);
-		if (!binding) return null;
-		assertSourceBinding(binding, projectId, source);
-		return linkedMetadata(binding);
+		return (await this.inspect(projectId, source))?.metadata ?? null;
 	}
 
 	unlink(

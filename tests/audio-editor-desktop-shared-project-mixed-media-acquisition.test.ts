@@ -17,12 +17,21 @@ import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelop
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
+	overlayDesktopSharedLinkedVideoOriginals,
+	resolveDesktopSharedProjectLinkedVideoOriginals,
+	type DesktopSharedLinkedVideoOriginalSession,
+} from '../src/common/editor/storage/desktop-shared-project-linked-video-originals.ts';
+import {
 	acquireDesktopSharedProjectMedia,
 	DESKTOP_SHARED_AUDIO_ENCODING,
 	DESKTOP_SHARED_VIDEO_ENCODING,
 	type DesktopSharedManagedSourceDescriptor,
+	type DesktopSharedSourceTransferStore,
 } from '../src/common/editor/storage/desktop-shared-project-media-transfer.ts';
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
+import { LinkedVideoOriginalRepository } from '../src/common/editor/storage/linked-video-original-repository.ts';
+import { LinkedVideoOriginalResolver } from '../src/common/editor/storage/linked-video-original-resolver.ts';
+import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 
 const SAMPLE_RATE = 48_000;
 
@@ -194,6 +203,83 @@ test('recipient-local media collision is found before any managed body is read o
 	assert.deepEqual(await readMediaBytes(store, fixture.video.storageKey), Uint8Array.of(9, 9, 9));
 });
 
+test('an exact linked-video session admits a fresh descriptor-free group without a managed writer', async () => {
+	const fixture = await linkedAcquisitionFixture();
+	const acquisition = await acquireDesktopSharedProjectMedia(
+		fixture.project,
+		null,
+		[],
+		fixture.bridge,
+		fixture.store,
+		{ linkedVideoOriginals: fixture.session },
+	);
+
+	assert.deepEqual([...acquisition.trustedSourceIds], [fixture.video.id]);
+	assert.deepEqual(fixture.calls, {
+		fallbackMetadataReads: 0,
+		managedBodyReads: 0,
+		managedMediaWrites: 0,
+	});
+	acquisition.commit();
+	await acquisition.rollback();
+});
+
+test('bare and stale linked-video source identities cannot bypass fresh-recipient admission', async () => {
+	const fixture = await linkedAcquisitionFixture();
+	await assert.rejects(acquireDesktopSharedProjectMedia(
+		fixture.project,
+		null,
+		[],
+		fixture.bridge,
+		fixture.store,
+	), /recipient-local video source.*conflicts/iu);
+
+	const forgedSession = Object.freeze(Object.create(null)) as DesktopSharedLinkedVideoOriginalSession;
+	await assert.rejects(acquireDesktopSharedProjectMedia(
+		fixture.project,
+		null,
+		[],
+		fixture.bridge,
+		fixture.store,
+		{ linkedVideoOriginals: forgedSession },
+	), /session is not authentic/iu);
+
+	const staleVideo = createVideoSourceV9({ ...fixture.video, width: 1_280 });
+	await assert.rejects(acquireDesktopSharedProjectMedia(
+		linkedVideoProject(staleVideo),
+		null,
+		[],
+		fixture.bridge,
+		fixture.store,
+		{ linkedVideoOriginals: fixture.session },
+	), /recipient-local video source.*conflicts/iu);
+
+	assert.deepEqual(fixture.calls, {
+		fallbackMetadataReads: 0,
+		managedBodyReads: 0,
+		managedMediaWrites: 0,
+	});
+});
+
+test('an authorized linked-video group still must match any managed descriptor digest', async () => {
+	const fixture = await linkedAcquisitionFixture();
+	const descriptor = Object.freeze({
+		...fixture.descriptor,
+		sha256: fixture.descriptor.sha256 === '0'.repeat(64) ? '1'.repeat(64) : '0'.repeat(64),
+	});
+
+	await assert.rejects(acquireDesktopSharedProjectMedia(
+		fixture.project,
+		null,
+		[descriptor],
+		fixture.bridge,
+		fixture.store,
+		{ linkedVideoOriginals: fixture.session },
+	), /does not match its managed descriptor/iu);
+	assert.equal(fixture.calls.managedBodyReads, 0);
+	assert.equal(fixture.calls.managedMediaWrites, 0);
+});
+
 test('prior-local video bytes join the aggregate budget before a missing body is acquired', async () => {
 	const first = createVideoSourceV9({
 		id: 'prior-budget-video', storageKey: 'prior-budget-video-storage', name: 'prior.mp4',
@@ -264,6 +350,22 @@ interface MixedFixture {
 	readonly videoSha256: string;
 }
 
+interface LinkedAcquisitionFixture {
+	readonly bridge: Readonly<{
+		readSharedSourceChunk(): Promise<Uint8Array>;
+	}>;
+	readonly calls: {
+		fallbackMetadataReads: number;
+		managedBodyReads: number;
+		managedMediaWrites: number;
+	};
+	readonly descriptor: DesktopSharedManagedSourceDescriptor;
+	readonly project: AudioEditorProjectV9;
+	readonly session: DesktopSharedLinkedVideoOriginalSession;
+	readonly store: DesktopSharedSourceTransferStore;
+	readonly video: ReturnType<typeof createVideoSourceV9>;
+}
+
 function mixedFixture(): MixedFixture {
 	const audio = createAudioSourceV9({
 		id: 'recipient-audio', storageKey: 'recipient-audio-storage', name: 'recipient.wav',
@@ -313,6 +415,92 @@ function mixedFixture(): MixedFixture {
 		videoBytes,
 		videoDescriptor,
 		videoSha256: videoDescriptor.sha256,
+	});
+}
+
+async function linkedAcquisitionFixture(): Promise<LinkedAcquisitionFixture> {
+	const video = createVideoSourceV9({
+		id: 'linked-acquisition-video', storageKey: 'linked-acquisition-video-storage',
+		name: 'linked-acquisition.mp4', mimeType: 'video/mp4', frameCount: 30,
+		sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080, frameRate: 30,
+		videoCodec: 'h264', audioCodec: null, hasAudio: false,
+	});
+	const project = linkedVideoProject(video);
+	const body = mediaBlob(Uint8Array.of(2, 3, 5, 7, 11, 13), video.mimeType);
+	const locatorId = 'locator_acquisition_000001';
+	const locatorRevision = 'revision_acquisition_0001';
+	const storagePort = {
+		memory: getMemoryDatabase(`linked-acquisition-${Date.now()}-${Math.random()}`),
+		database: async () => null,
+	};
+	const bindings = new LinkedVideoOriginalRepository(storagePort, {
+		now: () => new Date('2026-08-01T12:00:00.000Z'),
+		createBindingToken: () => 'binding_acquisition_000001',
+	});
+	const resolver = new LinkedVideoOriginalResolver(bindings, {
+		load(requestedLocatorId, { expectedRevision }) {
+			assert.equal(requestedLocatorId, locatorId);
+			if (expectedRevision !== null && expectedRevision !== locatorRevision) {
+				return Promise.resolve(null);
+			}
+			return Promise.resolve({ blob: body, locatorRevision });
+		},
+	});
+	const binding = await resolver.bind(project.id, video, locatorId);
+	const session = await resolveDesktopSharedProjectLinkedVideoOriginals(project, resolver);
+	const calls = {
+		fallbackMetadataReads: 0,
+		managedBodyReads: 0,
+		managedMediaWrites: 0,
+	};
+	const fallback: DesktopSharedSourceTransferStore = {
+		getSourceMetadata() { throw new Error('Unexpected linked-video audio metadata read'); },
+		getMediaAssetMetadata() {
+			calls.fallbackMetadataReads += 1;
+			return null;
+		},
+		loadMediaAsset() { throw new Error('Unexpected linked-video fallback body read'); },
+		async beginMediaAssetWrite() {
+			calls.managedMediaWrites += 1;
+			throw new Error('Unexpected linked-video managed media write');
+		},
+		readSourceChunks() { throw new Error('Unexpected linked-video PCM read'); },
+		async beginSourceWrite() { throw new Error('Unexpected linked-video PCM write'); },
+		discardSourceIfCurrent() { throw new Error('Unexpected linked-video PCM rollback'); },
+	};
+	return {
+		bridge: {
+			async readSharedSourceChunk() {
+				calls.managedBodyReads += 1;
+				throw new Error('Unexpected linked-video managed body read');
+			},
+		},
+		calls,
+		descriptor: Object.freeze({
+			bindingId: `v${'e'.repeat(64)}`,
+			byteLength: binding.byteLength,
+			encoding: DESKTOP_SHARED_VIDEO_ENCODING,
+			kind: 'video',
+			sha256: binding.sha256,
+			sourceId: video.id,
+			storageKey: video.storageKey,
+		}),
+		project,
+		session,
+		store: overlayDesktopSharedLinkedVideoOriginals(session, fallback),
+		video,
+	};
+}
+
+function linkedVideoProject(video: ReturnType<typeof createVideoSourceV9>): AudioEditorProjectV9 {
+	const clip = createVideoClipV9({
+		id: 'linked-acquisition-video-clip', sourceId: video.id,
+		durationFrames: video.frameCount, binItemId: 'linked-acquisition-video-bin-item',
+	});
+	return createAudioEditorProjectV9({
+		id: 'linked-acquisition-project', title: 'Linked acquisition project', revision: 1,
+		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
+		sources: [video], projectBin: { clips: [clip] },
 	});
 }
 

@@ -12,6 +12,12 @@ import type {
 	ProjectRevision,
 } from './project-repository.ts';
 import {
+	desktopSharedLinkedVideoTrustedSourceIds,
+	overlayDesktopSharedLinkedVideoOriginals,
+	resolveDesktopSharedProjectLinkedVideoOriginals,
+	type DesktopSharedLinkedVideoOriginalSession,
+} from './desktop-shared-project-linked-video-originals.ts';
+import {
 	desktopSharedProjectHasSourceReferences,
 	verifyDesktopSharedProjectSourceAvailability,
 	type DesktopSharedProjectSourceAvailability,
@@ -24,6 +30,7 @@ import {
 	type DesktopSharedSourceTransferBridge,
 	type DesktopSharedSourceTransferStore,
 } from './desktop-shared-project-media-transfer.ts';
+import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
 
 type CurrentProjectDocument = AudioEditorProjectV9 & ProjectDocument & Readonly<{
 	id: string;
@@ -68,6 +75,7 @@ export interface DesktopSharedProjectRepositoryOptions {
 	readonly shadow: ProjectRepositoryPort;
 	readonly sourceAvailability: DesktopSharedProjectSourceAvailability;
 	readonly sourceTransfer?: DesktopSharedSourceTransferStore | null;
+	readonly linkedVideoOriginals?: LinkedVideoOriginalResolver | null;
 	readonly onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
 	readonly maximumDocumentBytes?: number;
 }
@@ -85,12 +93,14 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #shadow: ProjectRepositoryPort;
 	readonly #sourceAvailability: DesktopSharedProjectSourceAvailability;
 	readonly #sourceTransfer: DesktopSharedSourceTransferStore | null;
+	readonly #linkedVideoOriginals: LinkedVideoOriginalResolver | null;
 
 	constructor(options: DesktopSharedProjectRepositoryOptions) {
 		this.#bridge = validateBridge(options.bridge);
 		this.#shadow = validateShadow(options.shadow);
 		this.#sourceAvailability = validateSourceAvailability(options.sourceAvailability);
 		this.#sourceTransfer = options.sourceTransfer ?? null;
+		this.#linkedVideoOriginals = validateLinkedVideoOriginalResolver(options.linkedVideoOriginals);
 		if (typeof options.onLocalCleanupError !== 'function') {
 			throw new TypeError('Desktop shared project cleanup reporting is required.');
 		}
@@ -136,22 +146,38 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			if (desktopSharedProjectHasSourceReferences(project)) {
 				const priorLocalProject = await this.#shadow.load(projectId, { signal: options.signal });
 				throwIfAborted(options.signal);
-				if (bundle.managed && this.#sourceTransfer) {
+				const linkedVideoOriginals = await this.#resolveLinkedVideoOriginals(project, options.signal);
+				const linkedSourceIds = linkedVideoOriginals
+					? desktopSharedLinkedVideoTrustedSourceIds(linkedVideoOriginals)
+					: new Set<string>();
+				const sourceAvailability = linkedVideoOriginals && linkedSourceIds.size
+					? overlayDesktopSharedLinkedVideoOriginals(linkedVideoOriginals, this.#sourceAvailability)
+					: this.#sourceAvailability;
+				const sourceTransfer = linkedVideoOriginals && linkedSourceIds.size && this.#sourceTransfer
+					? overlayDesktopSharedLinkedVideoOriginals(linkedVideoOriginals, this.#sourceTransfer)
+					: this.#sourceTransfer;
+				if (bundle.managed && sourceTransfer) {
 					acquisition = await acquireDesktopSharedProjectMedia(
 						project,
 						priorLocalProject,
 						bundle.sources,
 						managedTransferBridge(this.#bridge),
-						this.#sourceTransfer,
-						{ signal: options.signal },
+						sourceTransfer,
+						{ signal: options.signal, linkedVideoOriginals },
 					);
 				}
 				try {
 					await verifyDesktopSharedProjectSourceAvailability(
 						project,
 						priorLocalProject,
-						this.#sourceAvailability,
-						{ signal: options.signal, trustedSourceIds: acquisition?.trustedSourceIds },
+						sourceAvailability,
+						{
+							signal: options.signal,
+							trustedSourceIds: mergeTrustedSourceIds(
+								acquisition?.trustedSourceIds,
+								linkedSourceIds,
+							),
+						},
 					);
 					throwIfAborted(options.signal);
 				} catch (error) {
@@ -176,13 +202,33 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 				}
 				return Object.freeze([]);
 			}
+			const linkedVideoOriginals = await this.#resolveLinkedVideoOriginals(admitted, signal);
+			const linkedSourceIds = linkedVideoOriginals
+				? desktopSharedLinkedVideoTrustedSourceIds(linkedVideoOriginals)
+				: new Set<string>();
+			const sourceTransfer = linkedVideoOriginals && linkedSourceIds.size
+				? overlayDesktopSharedLinkedVideoOriginals(linkedVideoOriginals, this.#sourceTransfer)
+				: this.#sourceTransfer;
 			return prepareDesktopSharedProjectMediaHandoff(
 				admitted,
 				managedTransferBridge(this.#bridge),
-				this.#sourceTransfer,
+				sourceTransfer,
 				{ signal },
 			);
 		});
+	}
+
+	#resolveLinkedVideoOriginals(
+		project: CurrentProjectDocument,
+		signal?: AbortSignal,
+	): Promise<DesktopSharedLinkedVideoOriginalSession | null> {
+		return this.#linkedVideoOriginals
+			? resolveDesktopSharedProjectLinkedVideoOriginals(
+				project,
+				this.#linkedVideoOriginals,
+				{ signal },
+			)
+			: Promise.resolve(null);
 	}
 
 	async #readBundle(projectId: string): Promise<Readonly<{
@@ -446,6 +492,28 @@ function validateSourceAvailability(
 		}
 	}
 	return value;
+}
+
+function validateLinkedVideoOriginalResolver(
+	value: LinkedVideoOriginalResolver | null | undefined,
+): LinkedVideoOriginalResolver | null {
+	if (value == null) return null;
+	if (!value || typeof value !== 'object') {
+		throw new TypeError('Desktop shared linked-video resolution is invalid.');
+	}
+	for (const method of ['inspect', 'resolve', 'assertBindingCurrent'] as const) {
+		if (typeof value[method] !== 'function') {
+			throw new TypeError(`Desktop shared linked-video resolver.${method} is required.`);
+		}
+	}
+	return value;
+}
+
+function mergeTrustedSourceIds(
+	left: ReadonlySet<string> | undefined,
+	right: ReadonlySet<string>,
+): ReadonlySet<string> {
+	return new Set([...(left ?? []), ...right]);
 }
 
 function managedTransferBridge(value: DesktopSharedProjectBridge): DesktopSharedSourceTransferBridge {

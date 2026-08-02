@@ -58,7 +58,7 @@ export type DesktopSharedProjectSourceAvailability = DesktopSharedProjectSourceA
 
 export interface DesktopSharedProjectSourceAvailabilityOptions {
 	readonly signal?: AbortSignal;
-	/** Source identities populated from a digest-verified managed transfer in this load. */
+	/** Source identities authorized by this load's exact managed transfer or local link session. */
 	readonly trustedSourceIds?: ReadonlySet<string>;
 }
 

@@ -100,6 +100,7 @@ export class AudioEditorProjectStore {
 					beginSourceWrite: (sourceId, metadata) => repositories.sources.beginWrite(sourceId, metadata),
 					discardSourceIfCurrent: (source) => repositories.sources.discardIfCurrent(source),
 				},
+				linkedVideoOriginals: repositories.linkedVideoOriginals,
 				onLocalCleanupError: onDesktopSharedProjectLocalCleanupError,
 			})
 			: repositories.projects;

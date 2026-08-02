@@ -27,6 +27,10 @@ import {
 	type DesktopSharedSourceTransferStore,
 } from './desktop-shared-project-media-contract.ts';
 import {
+	desktopSharedLinkedVideoGroupMatches,
+	type DesktopSharedLinkedVideoOriginalSession,
+} from './desktop-shared-project-linked-video-originals.ts';
+import {
 	managedSourceBinding,
 	reachableProjectSources,
 	type ManagedAudioSource,
@@ -48,6 +52,11 @@ interface SourceGroup {
 	readonly sources: ManagedSource[];
 }
 
+interface MissingGroupPlan {
+	readonly groups: readonly SourceGroup[];
+	readonly linkedSourceIds: readonly string[];
+}
+
 type AcquiredOwnership = Readonly<{
 	readonly kind: 'audio';
 	readonly record: StorageRecord;
@@ -62,15 +71,25 @@ export async function acquireDesktopSharedProjectMedia(
 	descriptorValues: readonly unknown[],
 	bridgeValue: Pick<DesktopSharedSourceTransferBridge, 'readSharedSourceChunk'>,
 	store: DesktopSharedSourceTransferStore,
-	options: Readonly<{ signal?: AbortSignal }> = {},
+	options: Readonly<{
+		linkedVideoOriginals?: DesktopSharedLinkedVideoOriginalSession | null;
+		signal?: AbortSignal;
+	}> = {},
 ): Promise<DesktopSharedMediaAcquisition> {
 	validateAudioEditorProjectV9(projectValue);
 	const project = projectValue as AudioEditorProjectV9;
 	const groups = preflightGroups(project, descriptorValues);
 	const expandedByteBudget = preflightAudioBudgets(groups);
 	const prior = validPriorProject(priorProjectValue, project.id);
-	const plans = await planMissingGroups(groups, prior, store, expandedByteBudget, options.signal);
-	const trustedSourceIds = new Set<string>();
+	const plan = await planMissingGroups(
+		groups,
+		prior,
+		store,
+		expandedByteBudget,
+		options.linkedVideoOriginals,
+		options.signal,
+	);
+	const trustedSourceIds = new Set(plan.linkedSourceIds);
 	const acquired: AcquiredOwnership[] = [];
 	let committed = false;
 	const rollback = async (): Promise<void> => {
@@ -90,7 +109,7 @@ export async function acquireDesktopSharedProjectMedia(
 		if (failures.length > 1) throw new AggregateError(failures, 'Managed shared-source rollback failed.');
 	};
 	try {
-		for (const group of plans) {
+		for (const group of plan.groups) {
 			throwIfScapeAborted(options.signal);
 			const source = group.sources[0] as ManagedSource;
 			const descriptor = requiredGroupDescriptor(group);
@@ -141,7 +160,10 @@ export function acquireDesktopSharedProjectAudio(
 	bridgeValue: Pick<DesktopSharedSourceTransferBridge, 'readSharedSourceChunk'>,
 	store: Pick<DesktopSharedSourceTransferStore,
 		'beginSourceWrite' | 'discardSourceIfCurrent' | 'getSourceMetadata'>,
-	options: Readonly<{ signal?: AbortSignal }> = {},
+	options: Readonly<{
+		linkedVideoOriginals?: DesktopSharedLinkedVideoOriginalSession | null;
+		signal?: AbortSignal;
+	}> = {},
 ): Promise<DesktopSharedMediaAcquisition> {
 	return acquireDesktopSharedProjectMedia(
 		projectValue,
@@ -237,9 +259,11 @@ async function planMissingGroups(
 	prior: AudioEditorProjectV9 | null,
 	store: Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'getSourceMetadata'>,
 	expandedByteBudget: ScapeExpandedByteBudget,
+	linkedVideoOriginals?: DesktopSharedLinkedVideoOriginalSession | null,
 	signal?: AbortSignal,
-): Promise<readonly SourceGroup[]> {
+): Promise<MissingGroupPlan> {
 	const plans: SourceGroup[] = [];
+	const linkedSourceIds: string[] = [];
 	for (const group of groups) {
 		throwIfScapeAborted(signal);
 		const source = group.sources[0] as ManagedSource;
@@ -248,16 +272,28 @@ async function planMissingGroups(
 			: await store.getMediaAssetMetadata(source.storageKey);
 		throwIfScapeAborted(signal);
 		if (metadata != null) {
-			if (!priorGroupMatches(prior, group)) {
-				throw new Error(`Recipient-local ${group.kind} source ${source.id} conflicts with a managed shared source.`);
-			}
+			const priorMatches = priorGroupMatches(prior, group);
 			if (group.kind === 'video') {
 				const local = recipientVideoMetadata(source as ManagedVideoSource, metadata);
+				const linkedMatches = !priorMatches && linkedVideoOriginals != null
+					&& desktopSharedLinkedVideoGroupMatches(
+						linkedVideoOriginals,
+						group.sources as ManagedVideoSource[],
+						metadata,
+					);
+				if (!priorMatches && !linkedMatches) {
+					throw new Error(`Recipient-local video source ${source.id} conflicts with a managed shared source.`);
+				}
 				if (group.descriptor && (local.size !== group.descriptor.byteLength
 					|| local.sha256 !== group.descriptor.sha256)) {
 					throw new Error(`Recipient-local video source ${source.id} does not match its managed descriptor.`);
 				}
 				expandedByteBudget.consume(local.size, source.id);
+				if (linkedMatches) {
+					for (const candidate of group.sources) linkedSourceIds.push(candidate.id);
+				}
+			} else if (!priorMatches) {
+				throw new Error(`Recipient-local audio source ${source.id} conflicts with a managed shared source.`);
 			}
 			continue;
 		}
@@ -265,7 +301,10 @@ async function planMissingGroups(
 		if (group.kind === 'video') expandedByteBudget.consume(descriptor.byteLength, source.id);
 		plans.push(group);
 	}
-	return Object.freeze(plans);
+	return Object.freeze({
+		groups: Object.freeze(plans),
+		linkedSourceIds: Object.freeze(linkedSourceIds),
+	});
 }
 
 function recipientVideoMetadata(
