@@ -304,6 +304,29 @@ Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
 64 GiB budget charges canonical audio archive bytes—including four framing
 bytes per chunk—and recipient-local video metadata sizes together.
 
+One narrow linked-WAV managed-handoff exception is qualified here. Through an
+explicitly injected Electron port, a point-in-time RIFF or RF64 WAV containing
+maintained PCM or IEEE-float samples and no larger than 512 MiB may remain in a
+main-private registry. Only that registry contains the absolute path and its
+device, inode, size, modification time, and change time; the project and
+renderer-side binding retain pathless locator and revision tokens plus scalar
+canonical source geometry. Each source read materializes and hashes the whole
+WAV snapshot, admits only the maintained RIFF/RF64 sample encodings, and
+rechecks the exact binding. The sender's owned PCM inventory remains empty.
+Only explicit `prepareHandoff` performs the normal two canonical Float32 PCM
+reads and publishes their chunks through the maintained managed
+`audio-f32le-chunks-v1` path. A fresh recipient acquires those chunks through
+its ordinary owned source writer and can close and reopen the canonical PCM
+without the linked-original port or locator. External WAV container bytes and
+locator identity do not cross the managed-media bridge or enter the shared
+catalog or recipient.
+
+This exception does not qualify packaged executable or UI behavior,
+operating-system file-dialog or path durability, relink or watch behavior,
+broader audio formats, audio range playback, or generic linked-audio support.
+The external path and stat tuple are a point-in-time main-private identity, not
+an operating-system bookmark, content-frozen lease, or cross-process snapshot.
+
 A deliberately narrow linked retained-video path is qualified at this same
 boundary. A local binding joins the exact project ID, logical video source ID,
 physical storage key, MIME type, byte length, SHA-256, and maintained
@@ -596,9 +619,10 @@ copies media nor changes this whole-`Blob` handoff. This handoff path adds no
 product chooser, relink or watch flow, durable operating-system handle,
 background copy/consolidation beyond the bounded same-store scalar-alias
 duplication above, or an alternate publishing protocol.
-Linked audio, every other linked or unmanaged original, authored proxies,
-generic video rendered-fallback relationships, packaged executable/UI behavior,
-and browser codec playback remain unqualified. The maintained first-party
+Generic linked audio beyond the narrow linked-WAV managed-handoff exception,
+every other linked or unmanaged original, authored proxies, generic video
+rendered-fallback relationships, packaged executable/UI behavior, and browser
+codec playback remain unqualified. The maintained first-party
 video-effects fallback activation rule below is separate from this
 linked-original contract. The separate source- and component-tested chooser and
 import described above still lacks packaged and operating-system qualification,
@@ -695,9 +719,10 @@ qualified video slice also covers the maintained exact schema 9 manifest-only
 first-party video-effects fallback when handed off alongside its editable
 retained original from Framescaper to a fresh Soundscaper store as described
 above.
-Only the maintained pathless desktop linked retained-video slice described above
-is also qualified. Linked audio and every other linked or unmanaged original,
-authored proxies, generic rendered-fallback authoring and transfer semantics
+The maintained pathless desktop linked retained-video slice and narrow
+linked-WAV managed-handoff exception described above are also qualified. Other
+linked audio and every other linked or unmanaged original, authored proxies,
+generic rendered-fallback authoring and transfer semantics
 beyond the separately maintained controller playback slices and exact
 first-party video-delivery slice, relink/watch behavior, general
 copy/consolidate beyond the bounded same-store project-alias duplication above,
@@ -750,9 +775,10 @@ evaluation remains editor-owned. Explicit managed canonical PCM and retained
 original video are the fresh-recipient source-byte transfers provided by this
 library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
-document-only. Only the maintained pathless desktop linked retained-video slice
-described above is additionally qualified. Linked audio and every other linked
-or unmanaged original, authored proxies, generic rendered-fallback authoring
+document-only. The maintained pathless desktop linked retained-video slice and
+narrow linked-WAV managed-handoff exception described above are additionally
+qualified. Other linked audio and every other linked or unmanaged original,
+authored proxies, generic rendered-fallback authoring
 and transfer semantics beyond the separately maintained controller playback
 slices, general copy/consolidate beyond the bounded same-store project-alias
 duplication above, relink/watch behavior, linked-locator cleanup beyond the
