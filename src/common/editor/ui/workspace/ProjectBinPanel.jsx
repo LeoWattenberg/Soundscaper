@@ -59,6 +59,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		await controller.actions.project.importFiles([choice.file], {
 			destination: 'project-bin',
 			linkedVideoLocatorId: choice.locatorId,
+			linkedVideoLocatorRevision: choice.locatorRevision,
 		});
 	});
 	const isFileDrag = (dataTransfer) => {

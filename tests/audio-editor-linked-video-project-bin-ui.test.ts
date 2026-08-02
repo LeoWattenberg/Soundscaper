@@ -24,13 +24,13 @@ test('the Project Bin exposes the localized linked-video chooser only when its p
 	assert.match(readOnly, /button--disabled[^>]* disabled=""[^>]*>[\s\S]*?>Link video</u);
 });
 
-test('the linked-video Project Bin action forwards only the chosen File and opaque locator', async () => {
+test('the linked-video Project Bin action forwards only the chosen File and opaque locator snapshot', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
 
 	assert.match(source, /const chooseLinkedVideo = \(\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
-	assert.match(source, /if \(!choice\) return;[\s\S]*controller\.actions\.project\.importFiles\(\[choice\.file\], \{[\s\S]*destination: 'project-bin',[\s\S]*linkedVideoLocatorId: choice\.locatorId,[\s\S]*\}\)/u);
+	assert.match(source, /if \(!choice\) return;[\s\S]*controller\.actions\.project\.importFiles\(\[choice\.file\], \{[\s\S]*destination: 'project-bin',[\s\S]*linkedVideoLocatorId: choice\.locatorId,[\s\S]*linkedVideoLocatorRevision: choice\.locatorRevision,[\s\S]*\}\)/u);
 	assert.doesNotMatch(source, /releaseLinkedVideoOriginal/u);
-	assert.doesNotMatch(source, /choice\.(?:name|path|locatorRevision|mimeType|size)/u);
+	assert.doesNotMatch(source, /choice\.(?:name|path|mimeType|size)/u);
 });
 
 function renderProjectBin(
