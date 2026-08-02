@@ -18,6 +18,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	assert.ok(fallbackAdmission);
 	for (const path of [
 		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity-audio.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -26,10 +27,16 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 		'src/common/editor/storage/media-asset-digest-backfill.ts',
 		'src/common/editor/storage/media-repository.ts',
 		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/audio-rendered-fallback-export.ts',
+		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/session-activation.js',
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-project-fallback-integrity-audio-selection.test.ts',
+		'tests/audio-editor-project-fallback-integrity-audio-provider.test.ts',
+		'tests/audio-editor-audio-rendered-fallback-export.test.ts',
+		'tests/audio-editor-audio-rendered-fallback-export-service.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-media-asset-load.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
@@ -44,6 +51,10 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	assert.match(fallbackAdmission.summary, /conflicting digests.*before storage reads/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/point-in-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*future schemas.*placeholder.*bypass.*third-party/iu,
+		/selected first-party audio delivery.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*each requested stored chunk.*activation admission remains point-in-time.*operation-scoped per-read validation.*neither.*durable storage-record lease.*cross-process immutability/iu,
+	);
+	assert.match(
+		fallbackAdmission.summary,
+		/direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 });

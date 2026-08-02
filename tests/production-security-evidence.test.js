@@ -375,7 +375,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*before storage reads/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/no asset read.*future schemas.*point-in-time.*direct store\.loadProject.*continuously bind.*publisher authenticity.*runtime.*future schemas.*placeholder.*bypass.*third-party/iu,
+		/no asset read.*future schemas.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 	for (const path of [
 		'src/common/editor/project-feature-audio-rendered-fallback.ts',
@@ -455,7 +455,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /inspection.*does not hash.*asset bodies.*maintained exact-schema-9 controller activation.*referenced local audio and video fallback bytes/iu);
 	assert.match(documentation, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
-	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*continuous integrity.*runtime fallback use.*future-schema.*outside/iu);
+	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*durable integrity after admission.*runtime fallback use by activation admission itself.*future-schema.*outside.*runtime selection.*playback controls.*operation-time-verified final-delivery controls/iu);
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
 	assert.match(documentation, /first-party audio rendered-fallback playback.*exact schema 9.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
 	assert.match(documentation, /stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/isu);
