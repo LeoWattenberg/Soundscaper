@@ -33,10 +33,12 @@ import {
 	assertVideoDerivativeRecordBinding,
 	matchesVideoDerivativeRecordBinding,
 	normalizeVideoDerivativeRecipe,
+	normalizeVerifiedVideoDerivativeOriginal,
 	optionalVerifiedVideoDerivativeOriginal,
 	videoDerivativeIdentity,
 	verifiedVideoDerivativeOriginal,
 	type VideoDerivativeRecipe,
+	type VerifiedVideoDerivativeOriginal,
 } from './video-derivative-relationship.ts';
 
 export interface VideoDerivativeInput {
@@ -45,12 +47,14 @@ export interface VideoDerivativeInput {
 	readonly recipe?: VideoDerivativeRecipe;
 	readonly blob?: unknown;
 	readonly metadata?: Record<string, unknown>;
+	readonly original?: VerifiedVideoDerivativeOriginal;
 }
 
 export interface VideoDerivativeSelector {
 	readonly timestamp?: number;
 	readonly type?: string;
 	readonly recipe?: VideoDerivativeRecipe;
+	readonly original?: VerifiedVideoDerivativeOriginal;
 }
 
 interface VideoDerivativeRepositoryOptions {
@@ -87,13 +91,13 @@ export class VideoDerivativeRepository {
 		recipe,
 		blob: input,
 		metadata = {},
+		original: requestedOriginal,
 	}: VideoDerivativeInput = {}): Promise<Record<string, unknown>> {
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const database = await this.#port.database();
-		const original = verifiedVideoDerivativeOriginal(
-			await this.#originalRecord(database, id),
-			id,
-		);
+		const original = requestedOriginal
+			? normalizeVerifiedVideoDerivativeOriginal(requestedOriginal)
+			: verifiedVideoDerivativeOriginal(await this.#originalRecord(database, id), id);
 		const identity = videoDerivativeIdentity(id, original.sha256, timestamp, type, recipe);
 		const blob = canonicalMediaContentBlob(input);
 		const publication = estimateEncodedDerivativePublication(blob.size);
@@ -120,10 +124,9 @@ export class VideoDerivativeRepository {
 			};
 			const incoming = projectDerivativeCacheInventoryRecord(record, identity.key);
 			if (!database) {
-				assertVideoDerivativeOriginalUnchanged(
+				if (!requestedOriginal) assertVideoDerivativeOriginalUnchanged(
 					asStorageRecord(this.#port.memory.mediaAssets.get(identity.sourceId)),
-					identity.sourceId,
-					original,
+					identity.sourceId, original,
 				);
 				previous = clone(asStorageRecord(this.#port.memory.videoDerivatives.get(identity.key)));
 				const plan = planDerivativeCachePublication(
@@ -153,10 +156,8 @@ export class VideoDerivativeRepository {
 						const currentOriginal = asStorageRecord(await request(
 							stores.mediaAssets.get(identity.sourceId),
 						));
-						assertVideoDerivativeOriginalUnchanged(
-							currentOriginal,
-							identity.sourceId,
-							original,
+						if (!requestedOriginal) assertVideoDerivativeOriginalUnchanged(
+							currentOriginal, identity.sourceId, original,
 						);
 						const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
 						const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
@@ -264,11 +265,13 @@ export class VideoDerivativeRepository {
 
 	async loadDerivative(
 		sourceId: string,
-		{ timestamp = 0, type, recipe }: VideoDerivativeSelector = {},
+		{ timestamp = 0, type, recipe, original: requestedOriginal }: VideoDerivativeSelector = {},
 	): Promise<BlobLike | null> {
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const database = await this.#port.database();
-		const original = optionalVerifiedVideoDerivativeOriginal(await this.#originalRecord(database, id), id);
+		const original = requestedOriginal
+			? normalizeVerifiedVideoDerivativeOriginal(requestedOriginal)
+			: optionalVerifiedVideoDerivativeOriginal(await this.#originalRecord(database, id), id);
 		if (!original) return null;
 		const identity = videoDerivativeIdentity(id, original.sha256, timestamp, type, recipe);
 		const record = await this.derivativeRecord(identity.key);
@@ -292,11 +295,15 @@ export class VideoDerivativeRepository {
 
 	async listDerivatives(
 		sourceId: string,
-		{ type, recipe }: Pick<VideoDerivativeSelector, 'type' | 'recipe'> = {},
+		{ type, recipe, original: requestedOriginal }: Pick<
+			VideoDerivativeSelector, 'type' | 'recipe' | 'original'
+		> = {},
 	): Promise<Record<string, unknown>[]> {
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const database = await this.#port.database();
-		const original = optionalVerifiedVideoDerivativeOriginal(await this.#originalRecord(database, id), id);
+		const original = requestedOriginal
+			? normalizeVerifiedVideoDerivativeOriginal(requestedOriginal)
+			: optionalVerifiedVideoDerivativeOriginal(await this.#originalRecord(database, id), id);
 		if (!original) return [];
 		const requestedType = type === undefined ? null : nonEmptyString(type, 'A video derivative type is required.');
 		if (recipe && requestedType === null) {

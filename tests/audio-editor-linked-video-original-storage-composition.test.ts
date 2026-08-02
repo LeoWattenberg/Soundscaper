@@ -16,10 +16,15 @@ const LOCATOR_REVISION = 'revision_composition_0001';
 test('project storage composes pathless linked-video binding and resolution separately from media assets', async (context) => {
 	const body = new Blob(['linked video composition'], { type: 'video/mp4' });
 	const reads: Array<Readonly<{ locatorId: string; expectedRevision: string | null }>> = [];
+	const releases: string[] = [];
 	const port: LinkedVideoOriginalPort = {
 		load(locatorId, { expectedRevision }) {
 			reads.push({ locatorId, expectedRevision });
 			return Promise.resolve({ blob: body, locatorRevision: LOCATOR_REVISION });
+		},
+		release(locatorId) {
+			releases.push(locatorId);
+			return true;
 		},
 	};
 	const store = createProjectStore({
@@ -54,6 +59,38 @@ test('project storage composes pathless linked-video binding and resolution sepa
 		sha256: binding.sha256,
 	});
 	assert.equal(await store.getMediaAssetMetadata(source.storageKey), null);
+	const poster = new Blob(['linked poster'], { type: 'image/webp' });
+	await assert.rejects(
+		store.saveVideoDerivative(source.storageKey, ({
+			type: 'poster',
+			blob: poster,
+			original: {
+				sha256: binding.sha256,
+				mediaContentToken: `media-content-${'a'.repeat(64)}`,
+			},
+		}) as never),
+		/verified original media/iu,
+		'the renderer-facing retained API must not accept caller-supplied provenance',
+	);
+	const derivative = await store.saveLinkedVideoDerivative(PROJECT_ID, source, binding, {
+		type: 'poster',
+		timestamp: 0,
+		blob: poster,
+		metadata: { width: 320, height: 180, mimeType: poster.type },
+	});
+	assert.equal(derivative.originalSha256, binding.sha256);
+	assert.deepEqual(await store.listVideoDerivatives(source.storageKey), []);
+	assert.deepEqual(
+		(await store.listLinkedVideoDerivatives(PROJECT_ID, source, binding))
+			.map(({ type, timestamp }) => ({ type, timestamp })),
+		[{ type: 'poster', timestamp: 0 }],
+	);
+	const loadedPoster = await store.loadLinkedVideoDerivative(PROJECT_ID, source, binding, {
+		type: 'poster', timestamp: 0,
+	});
+	assert.ok(loadedPoster);
+	assert.equal(new TextDecoder().decode(await loadedPoster.arrayBuffer()), 'linked poster');
+	assert.equal(await store.getMediaAssetMetadata(source.storageKey), null);
 
 	const resolved = await store.resolveLinkedVideoOriginal(PROJECT_ID, source);
 	assert.ok(resolved);
@@ -75,6 +112,12 @@ test('project storage composes pathless linked-video binding and resolution sepa
 		binding.bindingToken,
 	), true);
 	assert.equal(await store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
+	await assert.rejects(
+		store.listLinkedVideoDerivatives(PROJECT_ID, source, binding),
+		/binding.*changed|changed.*binding/iu,
+	);
+	assert.equal(await store.releaseLinkedVideoOriginalLocator(LOCATOR_ID), true);
+	assert.deepEqual(releases, [LOCATOR_ID]);
 });
 
 test('linked-video resolver injection is optional and facade operations fail before platform access when absent', async (context) => {
@@ -99,6 +142,61 @@ test('linked-video resolver injection is optional and facade operations fail bef
 		store.getLinkedVideoOriginalMetadata(PROJECT_ID, source),
 		/resolution is unavailable/iu,
 	);
+	await assert.rejects(
+		store.releaseLinkedVideoOriginalLocator(LOCATOR_ID),
+		/resolution is unavailable/iu,
+	);
+});
+
+test('linked original bindings and disposable posters reopen through a fresh store composition', async (context) => {
+	const body = new Blob(['persistent linked video'], { type: 'video/mp4' });
+	const poster = new Blob(['persistent linked poster'], { type: 'image/webp' });
+	const databaseName = `linked-video-composition-reopen-${Date.now()}-${Math.random()}`;
+	const port: LinkedVideoOriginalPort = {
+		load: async (_locatorId, { expectedRevision }) => ({
+			blob: body,
+			locatorRevision: expectedRevision ?? LOCATOR_REVISION,
+		}),
+	};
+	const options = {
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName,
+		linkedVideoOriginalPort: port,
+	};
+	const initialStore = createProjectStore(options);
+	let reopenedStore: ReturnType<typeof createProjectStore> | null = null;
+	context.after(async () => {
+		await reopenedStore?.close();
+		await initialStore.close();
+	});
+	const source = videoSource();
+	const binding = await initialStore.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: body,
+	});
+	await initialStore.saveLinkedVideoDerivative(PROJECT_ID, source, binding, {
+		type: 'poster', timestamp: 0, blob: poster,
+		metadata: { width: 320, height: 180, mimeType: poster.type },
+	});
+	await initialStore.close();
+
+	reopenedStore = createProjectStore(options);
+	const resolved = await reopenedStore.resolveLinkedVideoOriginal(PROJECT_ID, source);
+	assert.ok(resolved);
+	assert.equal(await resolved.blob.text(), 'persistent linked video');
+	const derivatives = await reopenedStore.listLinkedVideoDerivatives(
+		PROJECT_ID, source, resolved.binding,
+	);
+	assert.deepEqual(derivatives.map(({ type, timestamp }) => ({ type, timestamp })), [
+		{ type: 'poster', timestamp: 0 },
+	]);
+	const loaded = await reopenedStore.loadLinkedVideoDerivative(
+		PROJECT_ID, source, resolved.binding, { type: 'poster', timestamp: 0 },
+	);
+	assert.ok(loaded);
+	assert.equal(new TextDecoder().decode(await loaded.arrayBuffer()), 'persistent linked poster');
+	assert.equal(await reopenedStore.getMediaAssetMetadata(source.storageKey), null);
 });
 
 function videoSource(): LinkedVideoOriginalSource {

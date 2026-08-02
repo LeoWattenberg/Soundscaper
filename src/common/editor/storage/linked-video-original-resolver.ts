@@ -43,6 +43,7 @@ export interface LinkedVideoOriginalPort {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<LinkedVideoOriginalSnapshot | null> | LinkedVideoOriginalSnapshot | null;
+	release?(locatorId: string): PromiseLike<boolean> | boolean;
 }
 
 export interface ResolvedLinkedVideoOriginal {
@@ -66,6 +67,8 @@ export interface InspectedLinkedVideoOriginal {
 
 export interface BindLinkedVideoOriginalOptions {
 	readonly expectedBindingToken?: string | null;
+	readonly expectedLocatorRevision?: string | null;
+	readonly expectedSnapshot?: unknown;
 	readonly signal?: AbortSignal;
 }
 
@@ -91,23 +94,42 @@ export class LinkedVideoOriginalResolver {
 		locatorId: string,
 		options: BindLinkedVideoOriginalOptions = {},
 	): Promise<LinkedVideoOriginalBinding> {
+		const expectedLocatorRevision = options.expectedLocatorRevision ?? null;
 		const base = bindingInput(projectId, source, {
 			locatorId,
-			locatorRevision: VALIDATION_LOCATOR_REVISION,
+			locatorRevision: expectedLocatorRevision ?? VALIDATION_LOCATOR_REVISION,
 			byteLength: 1,
 			sha256: VALIDATION_DIGEST,
 		});
+		let expectedContent: Readonly<{ byteLength: number; sha256: string }> | null = null;
+		if (Object.hasOwn(options, 'expectedSnapshot')) {
+			const expectedBlob = canonicalMediaContentBlob(options.expectedSnapshot);
+			if (expectedBlob.size < 1) throw new Error('The expected linked video original is empty.');
+			expectedContent = Object.freeze({
+				byteLength: expectedBlob.size,
+				sha256: await digestMediaContent(expectedBlob, { signal: options.signal }),
+			});
+		}
 		throwIfAborted(options.signal);
 		const snapshot = await this.#port.load(base.locatorId, {
-			expectedRevision: null,
+			expectedRevision: expectedLocatorRevision,
 			signal: options.signal,
 		});
 		throwIfAborted(options.signal);
 		const loaded = snapshotValue(snapshot);
+		if (expectedLocatorRevision !== null && loaded.locatorRevision !== expectedLocatorRevision) {
+			throw new Error('The linked video original locator changed before binding.');
+		}
 		const blob = canonicalMediaContentBlob(loaded.blob);
 		if (blob.size < 1) throw new Error('The linked video original is empty.');
+		if (expectedContent && blob.size !== expectedContent.byteLength) {
+			throw new Error('The linked video original changed byte length after selection.');
+		}
 		const sha256 = await digestMediaContent(blob, { signal: options.signal });
 		throwIfAborted(options.signal);
+		if (expectedContent && sha256 !== expectedContent.sha256) {
+			throw new Error('The linked video original changed content after selection.');
+		}
 		const input = bindingInput(projectId, source, {
 			locatorId: base.locatorId,
 			locatorRevision: loaded.locatorRevision,
@@ -196,6 +218,11 @@ export class LinkedVideoOriginalResolver {
 		expectedBindingToken: string,
 	): Promise<boolean> {
 		return this.#bindings.deleteIfCurrent(projectId, sourceId, expectedBindingToken);
+	}
+
+	async release(locatorId: string): Promise<boolean> {
+		if (typeof this.#port.release !== 'function') return false;
+		return Boolean(await this.#port.release(locatorId));
 	}
 }
 

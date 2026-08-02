@@ -5,8 +5,13 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import {
 	isMediaContentSha256,
+	isMediaContentToken,
 	trustedMediaContentSha256,
 } from './media-content-provenance.ts';
+import {
+	normalizeLinkedVideoOriginalBinding,
+	type LinkedVideoOriginalBinding,
+} from './linked-video-original-binding.ts';
 import type { StorageRecord } from './media-records.ts';
 
 export const VIDEO_DERIVATIVE_BINDING_VERSION = 1;
@@ -46,6 +51,31 @@ export interface VideoDerivativeIdentity {
 export interface VerifiedVideoDerivativeOriginal {
 	readonly sha256: string;
 	readonly mediaContentToken: string;
+}
+
+/** Exact disposable-preview provenance derived from one current linked binding. */
+export function linkedVideoDerivativeOriginal(
+	value: LinkedVideoOriginalBinding,
+): Readonly<VerifiedVideoDerivativeOriginal> {
+	const binding = normalizeLinkedVideoOriginalBinding(value);
+	const tokenDigest = bytesToHex(sha256(TEXT_ENCODER.encode(JSON.stringify([
+		'linked-video-derivative-original',
+		1,
+		binding,
+	]))));
+	return Object.freeze({
+		sha256: binding.sha256,
+		mediaContentToken: `media-content-${tokenDigest}`,
+	});
+}
+
+export function normalizeVerifiedVideoDerivativeOriginal(
+	value: VerifiedVideoDerivativeOriginal,
+): Readonly<VerifiedVideoDerivativeOriginal> {
+	if (!value || !isMediaContentSha256(value.sha256) || !isMediaContentToken(value.mediaContentToken)) {
+		throw new TypeError('Verified video derivative original provenance is required.');
+	}
+	return Object.freeze({ sha256: value.sha256, mediaContentToken: value.mediaContentToken });
 }
 
 const KEY_PREFIX = 'video-derivative-sha256:';

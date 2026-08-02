@@ -151,6 +151,63 @@ test('linked video resolver preserves cancellation and never publishes a cancell
 	assert.equal(await repository.get('project-linked-video', 'source-linked-video'), null);
 });
 
+test('linked video binding fences the exact chooser revision before publication', async () => {
+	const reads: Array<string | null> = [];
+	const { resolver, repository } = fixtureResolverParts({
+		load(_locatorId, { expectedRevision }) {
+			reads.push(expectedRevision);
+			return {
+				blob: new Blob(['changed chooser body'], { type: 'video/mp4' }),
+				locatorRevision: 'snapshot_0000000000000002',
+			};
+		},
+	});
+	await assert.rejects(
+		resolver.bind('project-linked-video', videoSource(), 'locator_0000000000000001', {
+			expectedLocatorRevision: 'snapshot_0000000000000001',
+		}),
+		/unavailable|changed/iu,
+	);
+	assert.deepEqual(reads, ['snapshot_0000000000000001']);
+	assert.equal(await repository.get('project-linked-video', 'source-linked-video'), null);
+});
+
+test('linked video binding rejects same-revision chooser body replacement', async () => {
+	const expected = new Blob(['chooser-body-a'], { type: 'video/mp4' });
+	const { resolver, repository } = fixtureResolverParts({
+		load() {
+			return {
+				blob: new Blob(['chooser-body-b'], { type: 'video/mp4' }),
+				locatorRevision: 'snapshot_0000000000000001',
+			};
+		},
+	});
+	await assert.rejects(
+		resolver.bind('project-linked-video', videoSource(), 'locator_0000000000000001', {
+			expectedLocatorRevision: 'snapshot_0000000000000001',
+			expectedSnapshot: expected,
+		}),
+		/changed content/iu,
+	);
+	assert.equal(await repository.get('project-linked-video', 'source-linked-video'), null);
+});
+
+test('linked video resolver releases unused opaque locators when the platform supports it', async () => {
+	const released: string[] = [];
+	const resolver = fixtureResolver({
+		load() { return null; },
+		release(locatorId) {
+			released.push(locatorId);
+			return true;
+		},
+	});
+	assert.equal(await resolver.release('locator_0000000000000001'), true);
+	assert.deepEqual(released, ['locator_0000000000000001']);
+
+	const unsupported = fixtureResolver({ load() { return null; } });
+	assert.equal(await unsupported.release('locator_0000000000000002'), false);
+});
+
 function fixtureResolver(port: LinkedVideoOriginalPort): LinkedVideoOriginalResolver {
 	return fixtureResolverParts(port).resolver;
 }

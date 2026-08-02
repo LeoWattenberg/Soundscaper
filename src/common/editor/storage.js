@@ -7,6 +7,7 @@ import {
 import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
+import { linkedVideoDerivativeOriginal } from './storage/video-derivative-relationship.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 import {
 	assertProjectRevisionPublicationCapacity,
@@ -298,6 +299,15 @@ export class AudioEditorProjectStore {
 		);
 	}
 
+	/** Release a platform locator that was not retained by a committed import. */
+	async releaseLinkedVideoOriginalLocator(locatorId) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) {
+			throw new Error('Linked video original resolution is unavailable.');
+		}
+		return this.linkedVideoOriginalResolver.release(locatorId);
+	}
+
 	/**
 	 * Remove a raw media asset and all of its cached derivatives. Timeline
 	 * source metadata is deliberately left alone; `deleteSource()` owns that
@@ -327,12 +337,45 @@ export class AudioEditorProjectStore {
 		});
 	}
 
+	async saveLinkedVideoDerivative(projectId, source, binding, input = {}) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		const result = await this.mediaRepository.saveDerivative(source.storageKey || source.id, {
+			...input, original: linkedVideoDerivativeOriginal(binding),
+		});
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		return result;
+	}
+
 	async loadVideoDerivative(sourceId, { timestamp = 0, type, recipe } = {}) {
 		return this.mediaRepository.loadDerivative(sourceId, { timestamp, type, recipe });
 	}
 
+	async loadLinkedVideoDerivative(projectId, source, binding, selector = {}) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		const result = await this.mediaRepository.loadDerivative(source.storageKey || source.id, {
+			...selector, original: linkedVideoDerivativeOriginal(binding),
+		});
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		return result;
+	}
+
 	async listVideoDerivatives(sourceId, { type, recipe } = {}) {
 		return this.mediaRepository.listDerivatives(sourceId, { type, recipe });
+	}
+
+	async listLinkedVideoDerivatives(projectId, source, binding, selector = {}) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		const result = await this.mediaRepository.listDerivatives(source.storageKey || source.id, {
+			...selector, original: linkedVideoDerivativeOriginal(binding),
+		});
+		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
+		return result;
 	}
 
 	async deleteVideoDerivative(sourceId, selector = {}) {
