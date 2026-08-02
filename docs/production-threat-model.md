@@ -253,26 +253,37 @@ covers canonical WAV and BWF with `audio/wav` and `.wav`, and AIFF with
 `audio/aiff` and `.aiff`.
 
 The compressed branch admits the seven canonical built-in formats—MP3, FLAC,
-Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A—only for canonical
-`realtime-stream` stems. Admission takes one owned plan snapshot and binds its
-fingerprint through publication. Each entry receives a per-entry maximum of
-`max(outputBytesPerRender, 1 MiB)`, where `outputBytesPerRender` is one raw
-Float32 render payload. A synthetic maximum ZIP32 layout is checked before
-target selection. That cap is a refusal boundary only: it does not qualify a
-codec expansion bound, codec conformance, or scale.
+Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A—for either a canonical
+`realtime-stream` stem plan or a centrally admitted `offline` stem plan.
+Admission takes one owned plan snapshot and binds its fingerprint through
+publication. The realtime strategy-aware staging bound is its output-width
+`outputBytesPerRender`. The offline staging bound is
+`max(outputFrames × inputChannels × offlineBytesPerSample,
+outputBytesPerRender)`. The first term is the offline input-width staging
+payload; `offlineBytesPerSample` is the requested FLAC integer bytes per sample
+or four bytes for the other six formats. The second term is the possible
+realtime-retry output-width staging payload: `outputFrames × outputChannels ×
+Float32(4)`, including for FLAC. Each entry receives a per-entry maximum of
+`max(strategy-aware staging bound, 1 MiB)`. A synthetic maximum ZIP32 layout is
+checked before target selection. That cap is a refusal boundary only: it does
+not qualify a codec expansion bound, codec conformance, or scale.
 
 A native prepared exact-size or compressed prepared maximum-size Web/Electron
-streaming destination is selected and opened before render. Native
+streaming destination is selected and opened before any render. Native
 temporary-storage preflight remains the largest sequential intermediate. The
-compressed preflight is only one raw Float32 render payload; it excludes WAV
-framing, encoded bytes, and the aggregate legacy staging claim. Compressed
-publication then retains a complete staged WAV `Blob`, the complete worker
-MEMFS output, and one complete encoded result at a time. It derives the actual
-entry sizes, recomputes the actual ZIP32 layout, preserves entry order, and
-requires actual, emitted, destination-written, and committed byte counts to
-agree. The shared writer still reads a non-Blob source in at-most-64-KiB slices,
-awaits sink backpressure, and closes before the explicit commit. There is no
-final ZIP `Blob`, and neither direct branch invokes the download publisher.
+compressed preflight charges the same strategy-aware staging bound: realtime
+uses `outputBytesPerRender`, while offline uses the exact two-term maximum above.
+It excludes WAV framing, codec output, and the aggregate legacy staging claim.
+Offline encoding stages the
+unmapped input width and leaves canonical channel mapping to FFmpeg, so only one
+mapping owner applies. Compressed publication then retains a complete staged WAV
+`Blob`, the complete worker MEMFS output, and one complete encoded result at a
+time. It derives the actual entry sizes, recomputes the actual ZIP32 layout,
+preserves entry order, and requires actual, emitted, destination-written, and
+committed byte counts to agree. The shared writer still reads a non-Blob source
+in at-most-64-KiB slices, awaits sink backpressure, and closes before the
+explicit commit. There is no final ZIP `Blob`, and neither direct branch invokes
+the download publisher.
 
 The compressed service witness names `01-Voice.mp3` and `02-Music.mp3`,
 preflights eight raw bytes instead of the 16-byte aggregate legacy claim,
@@ -284,12 +295,17 @@ four-byte preflight, two ordered four-byte WAV markers, exact 268-byte archive,
 64 KiB source slicing, and 272-byte Blob-fallback preflight. Those marker bytes
 remain archive-protocol evidence rather than WAV conformance vectors.
 
-Plan or fingerprint drift, empty output, an over-cap result, reported/actual
-size disagreement, layout drift, failure, or cancellation cleans the current
+For a centrally admitted offline plan, an ordinary offline renderer or encoder
+failure cleans its partial intermediate and may retry only the current stem
+through realtime rendering before any bytes for that ZIP entry are exposed.
+Currentness is asserted before that retry. Cancellation, fallback-integrity
+failure, or currentness loss does not retry. Plan or fingerprint drift, empty
+output, an over-cap result, reported/actual size disagreement, actual ZIP32
+layout drift, failure after entry admission, or cancellation cleans the current
 owned intermediate, aborts an unpublished destination exactly once, and does
 not commit or publish. Prepared Blob mode still declines the direct route and
-keeps the legacy Blob/download fallback. Offline compressed stems, custom
-FFmpeg stems, 7z, BW64 stems, video, and inexact or reordered archives remain
+keeps the legacy Blob/download fallback. Custom FFmpeg stems, 7z, BW64 stems,
+video, inexact or reordered archives, and final-Blob direct publication remain
 outside direct admission. The Node fixture does not qualify File System Access,
 Electron filesystem or native-picker behavior, actual FFmpeg codec execution,
 codec conformance or expansion, worker MEMFS allocation, renderer heap, process

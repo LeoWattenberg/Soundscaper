@@ -155,9 +155,10 @@ may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
 coverage discovery fast-skips it with that command.
 
 A third provisional milestone 2 fixture records the direct ZIP32 stem
-publication contracts for native-PCM and canonical realtime compressed audio
-as small focused Node correctness evidence. The native service case preflights
-only the four-byte largest sequential intermediate, then selects and opens an
+publication contracts for native-PCM and canonical realtime and centrally
+admitted offline compressed audio as small focused Node correctness evidence.
+The native service case preflights only the four-byte largest sequential
+intermediate, then selects and opens an
 exact 268-byte destination before rendering `01-dialogue.wav` and
 `02-music.wav` with four marker bytes apiece. It reconstructs the archive,
 closes before commit, cleans each staged result, and leaves failures and
@@ -169,14 +170,20 @@ retain the two 60-byte/exact-380-byte largest-intermediate case, the 468-byte
 backpressure. Prepared Blob mode retains the legacy 272-byte preflight, ordered
 archive additions, and browser download publication.
 
-The compressed service case admits MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2,
-and AAC/M4A only for an owned canonical `realtime-stream` plan snapshot and
-fingerprint. Its per-entry cap is
-`max(outputBytesPerRender, 1 MiB)`, with `outputBytesPerRender` defined here as
-one raw Float32 render payload. The case preflights only that raw payload, not
-WAV framing, codec output, or aggregate legacy staging, and opens the synthetic
-maximum ZIP32 destination before render. The cap is a refusal boundary, not a
-qualified codec expansion or conformance bound.
+The compressed service cases admit MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2,
+and AAC/M4A for owned canonical `realtime-stream` plans and exact centrally
+admitted `offline` plans. Each snapshot fingerprint remains bound through
+publication. Realtime staging is the output-width `outputBytesPerRender`.
+Offline staging is bounded by
+`max(outputFrames × inputChannels × offlineBytesPerSample,
+outputBytesPerRender)`. The first term uses requested FLAC integer bytes per
+sample or four bytes for the other six formats. The possible realtime-retry
+term is output-width `outputFrames × outputChannels × Float32(4)`, including for
+FLAC. The per-entry cap is
+`max(strategy-aware staging bound, 1 MiB)`. Preflight charges that same bound,
+not WAV framing, codec output, or aggregate legacy staging, and the synthetic
+maximum ZIP32 destination is selected and opened before render. The cap is a
+refusal boundary, not a qualified codec expansion or conformance bound.
 
 The exact compressed witness names `01-Voice.mp3` and `02-Music.mp3`, has an
 eight-byte raw preflight and a 16-byte aggregate legacy claim, gives each entry
@@ -187,18 +194,23 @@ committed counts agree. The route constructs no final ZIP `Blob`, calls neither
 the legacy archive nor download publisher, and owns at most one encoded stem at
 a time. It does retain one complete staged WAV `Blob`, the complete worker
 MEMFS output, and one complete encoded result; the witness therefore makes no
-bounded-codec-memory claim.
+bounded-codec-memory claim. All seven formats also pass the direct service in
+both render strategies. Offline cases stage the unmapped input width and give
+FFmpeg canonical channel mapping. An ordinary offline renderer or encoder
+failure may retry only the current stem in realtime before its ZIP entry begins;
+currentness loss refuses that retry, and post-entry failure never retries.
 
 This direct ZIP32 stem witness uses a provider-injected prepared streaming
 destination. It does not exercise File System Access, an Electron filesystem,
 a native picker, packaged UI, or real browser or operating-system behavior.
 The compressed bytes are injected, so it does not qualify actual FFmpeg codec
 execution, codec conformance or expansion, worker MEMFS allocation, heap or RSS
-amplification, garbage collection, CPU, or elapsed time. Offline compressed
-stems, custom FFmpeg stems, 7z, BW64 stems, video, and reference scale remain
-excluded. These small fixtures are not renderer-heap, process-RSS, quota, crash,
-power-loss, or filesystem-durability evidence. They remain outside the inputs
-to the milestone 2 bounded-memory workload, which stays planned.
+amplification, garbage collection, CPU, or elapsed time. Custom FFmpeg stems,
+7z, BW64 stems, video, and final-Blob direct publication remain excluded, and
+reference scale remains excluded. These small fixtures are not renderer-heap,
+process-RSS, browser, operating-system, quota, crash, power-loss, or
+filesystem-durability evidence. They remain outside the inputs to the milestone
+2 bounded-memory workload, which stays planned.
 
 A fourth provisional milestone 2 fixture records direct compressed whole-mix
 output across both maintained render strategies as small focused Node evidence.
@@ -317,7 +329,7 @@ The fixture specifications are deliberately concrete:
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
   direct-WAV counting-SHA witness and the small direct ZIP32 native-PCM and
-  canonical realtime compressed stem,
+  canonical realtime and centrally admitted offline compressed stem,
   direct compressed-audio, and direct MP4/WebM correctness fixtures
   described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
