@@ -32,6 +32,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-file-inventory.js',
 		'desktop/project-library-host.js',
 		'desktop/project-library-media-binding.js',
+		'desktop/project-library-media-capacity.js',
 		'desktop/project-library-media-reuse.js',
 		'desktop/project-library-media.js',
 		'desktop/project-library-persistence.js',
@@ -155,6 +156,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-media-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-binding.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-capacity.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-reuse.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-reclamation.js'));

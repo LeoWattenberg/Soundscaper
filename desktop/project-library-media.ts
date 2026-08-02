@@ -6,11 +6,14 @@ import { lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/pro
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 import {
-	MAX_LIBRARY_MEDIA,
 	type DesktopLibraryMedia,
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
 } from './project-library-contract.ts';
+import {
+	DesktopLibraryMediaCapacity,
+	type DesktopLibraryMediaStatfs,
+} from './project-library-media-capacity.ts';
 import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
@@ -58,8 +61,12 @@ export interface DesktopLibraryManagedMediaStoreOptions {
 	readonly maximumBodyBytes?: number;
 	readonly maximumChunkBytes?: number;
 	readonly maximumReadBytes?: number;
+	readonly maximumAdmittedBytes?: number;
+	readonly maximumMediaRows?: number;
+	readonly maximumMetadataBytes?: number;
 	readonly hardLink?: (existingPath: string, newPath: string) => Promise<void>;
 	readonly randomId?: () => string;
+	readonly statfsImpl?: DesktopLibraryMediaStatfs;
 }
 
 export interface DesktopLibraryPublishMediaOptions {
@@ -87,6 +94,7 @@ export interface DesktopLibraryManagedMediaReadOptions {
 export class DesktopLibraryManagedMediaStore {
 	readonly #root: string;
 	readonly #catalog: DesktopLibraryMediaCatalogPort;
+	readonly #capacity: DesktopLibraryMediaCapacity;
 	readonly #maximumBodyBytes: number;
 	readonly #maximumChunkBytes: number;
 	readonly #maximumReadBytes: number;
@@ -97,6 +105,13 @@ export class DesktopLibraryManagedMediaStore {
 
 	constructor(options: DesktopLibraryManagedMediaStoreOptions) {
 		this.#root = absoluteRoot(options.managedMediaRoot);
+		this.#capacity = new DesktopLibraryMediaCapacity({
+			managedMediaRoot: this.#root,
+			maximumAdmittedBytes: options.maximumAdmittedBytes,
+			maximumMediaRows: options.maximumMediaRows,
+			maximumMetadataBytes: options.maximumMetadataBytes,
+			statfsImpl: options.statfsImpl,
+		});
 		if (!options.catalog || typeof options.catalog.readMetadata !== 'function'
 			|| typeof options.catalog.publishMetadata !== 'function') {
 			throw new TypeError('Desktop library managed-media store requires a catalog port');
@@ -143,13 +158,16 @@ export class DesktopLibraryManagedMediaStore {
 				await this.#verifyBody(existing, options.signal);
 				return existing;
 			}
-			if (options.reuseExistingBody) {
-				const reused = await this.#reuseBody(reusableMedia(initial, descriptor), descriptor, options.signal);
-				if (!reused) throw new DesktopLibraryMediaReuseUnavailableError();
-				return this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
+			const reservation = await this.#capacity.reserve(initial, descriptor, options.signal);
+			try {
+				if (options.reuseExistingBody) {
+					const reused = await this.#reuseBody(reusableMedia(initial, descriptor), descriptor, options.signal);
+					if (!reused) throw new DesktopLibraryMediaReuseUnavailableError();
+				} else await this.#materializeBody(descriptor, options.chunks, options.signal);
+				return await this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
+			} finally {
+				reservation.release();
 			}
-			await this.#materializeBody(descriptor, options.chunks, options.signal);
-			return this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
 		});
 	}
 
@@ -326,15 +344,7 @@ export class DesktopLibraryManagedMediaStore {
 			assertSameDescriptor(existing, descriptor);
 			return existing;
 		}
-		if (current.media.length >= MAX_LIBRARY_MEDIA) {
-			throw new RangeError('Desktop library metadata has reached its managed-media limit');
-		}
-		const candidate = validateDesktopLibraryMetadata({
-			schemaVersion: current.schemaVersion,
-			revision: current.revision + 1,
-			projects: current.projects,
-			media: [...current.media, descriptor],
-		});
+		const candidate = this.#capacity.candidateForPublication(current, descriptor);
 		const admitted = validateDesktopLibraryMetadata(await this.#catalog.publishMetadata(candidate, signal));
 		const published = mediaById(admitted, descriptor.id);
 		if (!published) throw new Error('Desktop library catalog did not admit the managed-media binding');
