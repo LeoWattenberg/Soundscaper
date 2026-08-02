@@ -2,9 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -15,7 +16,15 @@ import {
 	type DesktopLibraryLoadedProject,
 } from '../desktop/project-library-projects.ts';
 import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
-import { DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING } from '../desktop/project-library-media.ts';
+import {
+	createDesktopLibraryAudioMediaBinding,
+	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+} from '../desktop/project-library-media.ts';
+import {
+	createDesktopLibraryManagedMediaStageFile,
+	reserveDesktopLibraryManagedMediaFile,
+} from '../desktop/project-library-media-inventory.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 
 const SOUNDSCAPER_OWNER = Object.freeze({
@@ -52,6 +61,17 @@ test('desktop host opens the product-neutral appData library and releases it on 
 		},
 		reclamation: {
 			canonicalFiles: 0,
+			complete: true,
+			liveStageFiles: 0,
+			protectedFiles: 0,
+			reclaimedFiles: 0,
+			reclaimedStageFiles: 0,
+			scannedEntries: 0,
+			stageFiles: 0,
+		},
+		managedMediaReclamation: {
+			canonicalFiles: 0,
+			catalogRowsRetired: 0,
 			complete: true,
 			liveStageFiles: 0,
 			protectedFiles: 0,
@@ -241,6 +261,190 @@ test('managed original-video publication uses the same revision and document-dig
 		chunks: (async function* () { chunksRead += 1; yield Uint8Array.of(1, 2, 3, 4); })(),
 	}), /changed during managed-media preparation/iu);
 	assert.equal(chunksRead, 0);
+});
+
+test('managed-media publication persists ownership before consuming its body', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-host-media-inventory-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const paths = createDesktopProjectLibraryPaths(appDataPath);
+	const host = await DesktopProjectLibraryHost.start({
+		appDataPath,
+		owner: SOUNDSCAPER_OWNER,
+		leaseTtlMs: 5_000,
+		renewIntervalMs: 1_000,
+	});
+	context.after(() => host.close());
+	const prototype = DesktopLibraryProjectStore.prototype;
+	const originalRead = prototype.readProjectById;
+	const projectId = 'inventoried-project';
+	const projectRevision = 6;
+	const projectSha256 = 'e'.repeat(64);
+	prototype.readProjectById = async () => ({
+		catalog: { projectRevision, sha256: projectSha256 },
+		project: {},
+	}) as DesktopLibraryLoadedProject;
+	context.after(() => { prototype.readProjectById = originalRead; });
+	const bytes = Uint8Array.of(9, 8, 7, 6);
+	const binding = createDesktopLibraryAudioMediaBinding(
+		projectId,
+		'inventory-source',
+		projectRevision,
+		projectSha256,
+	);
+	let ownershipObserved = false;
+
+	const descriptor = await host.publishManagedAudio({
+		projectId,
+		storageKey: 'inventory-source',
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+		expectedProjectRevision: projectRevision,
+		expectedProjectSha256: projectSha256,
+		chunks: (async function* () {
+			const database = new DatabaseSync(paths.databasePath, { readOnly: true });
+			try {
+				const inventory = database.prepare(`
+					SELECT binding_id AS bindingId, project_id AS projectId,
+						project_revision AS projectRevision, project_sha256 AS projectSha256,
+						storage_key AS storageKey, state
+					FROM managed_media_inventory
+				`).get();
+				assert.deepEqual({ ...inventory }, {
+					bindingId: binding.id,
+					projectId,
+					projectRevision,
+					projectSha256,
+					storageKey: 'inventory-source',
+					state: 'planned',
+				});
+				assert.equal(database.prepare(`
+					SELECT count(*) AS count FROM managed_media_stage_inventory WHERE kind = 'upload'
+				`).get()?.count, 1);
+				ownershipObserved = true;
+			} finally {
+				database.close();
+			}
+			yield bytes;
+		})(),
+	});
+	assert.equal(ownershipObserved, true);
+	const database = new DatabaseSync(paths.databasePath, { readOnly: true });
+	try {
+		assert.deepEqual({ ...database.prepare(`
+			SELECT binding_id AS bindingId, state FROM managed_media_inventory
+		`).get() }, { bindingId: descriptor.id, state: 'published' });
+		assert.equal(database.prepare(`
+			SELECT count(*) AS count FROM managed_media_stage_inventory
+		`).get()?.count, 0);
+	} finally {
+		database.close();
+	}
+});
+
+test('host startup reclaims stale planned media before admitting an exact retry', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-host-stale-media-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const paths = createDesktopProjectLibraryPaths(appDataPath);
+	const initial = await SharedDesktopProjectLibrary.open(paths);
+	const staleLease = await initial.acquireLease({ owner: SOUNDSCAPER_OWNER, ttlMs: 5_000 });
+	const projectId = 'stale-media-project';
+	const projectRevision = 2;
+	const projectSha256 = 'a'.repeat(64);
+	const planned = [
+		{ body: Uint8Array.of(1, 2, 3), stageKind: 'upload' as const, stageSeed: 'a', storageKey: 'upload' },
+		{ body: Uint8Array.of(4, 5, 6), stageKind: 'reuse' as const, stageSeed: 'b', storageKey: 'reuse' },
+	].map(({ body, stageKind, stageSeed, storageKey }) => {
+		const binding = createDesktopLibraryAudioMediaBinding(
+			projectId,
+			storageKey,
+			projectRevision,
+			projectSha256,
+		);
+		return Object.freeze({
+			body,
+			descriptor: Object.freeze({
+				...binding,
+				byteLength: body.byteLength,
+				sha256: createHash('sha256').update(body).digest('hex'),
+			}),
+			stageFile: createDesktopLibraryManagedMediaStageFile(
+				binding.id,
+				stageSeed.repeat(32),
+				stageKind,
+			),
+			stageKind,
+			storageKey,
+		});
+	});
+	const database = new DatabaseSync(paths.databasePath);
+	try {
+		for (const item of planned) {
+			reserveDesktopLibraryManagedMediaFile(database, {
+				lease: staleLease,
+				descriptor: item.descriptor,
+				encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
+				projectId,
+				projectRevision,
+				projectSha256,
+				storageKey: item.storageKey,
+				registeredAtMs: staleLease.acquiredAtMs,
+				stageFile: item.stageFile,
+				stageKind: item.stageKind,
+			});
+		}
+	} finally {
+		database.close();
+	}
+	for (const item of planned) {
+		const segments = item.stageFile.split('/');
+		await mkdir(join(paths.managedMediaRoot, ...segments.slice(0, -1)), { recursive: true });
+		await writeFile(join(paths.managedMediaRoot, ...segments), item.body, { flag: 'wx' });
+	}
+	await initial.releaseLease(staleLease);
+	initial.close();
+
+	const host = await DesktopProjectLibraryHost.start({
+		appDataPath,
+		owner: FRAMESCAPER_OWNER,
+		leaseTtlMs: 5_000,
+		renewIntervalMs: 1_000,
+	});
+	context.after(() => host.close());
+	assert.deepEqual(host.snapshot().managedMediaReclamation, {
+		canonicalFiles: 2,
+		catalogRowsRetired: 0,
+		complete: true,
+		liveStageFiles: 0,
+		protectedFiles: 0,
+		reclaimedFiles: 0,
+		reclaimedStageFiles: 2,
+		scannedEntries: 4,
+		stageFiles: 2,
+	});
+	const reclaimed = new DatabaseSync(paths.databasePath, { readOnly: true });
+	try {
+		assert.equal(reclaimed.prepare('SELECT count(*) AS count FROM managed_media_inventory').get()?.count, 0);
+		assert.equal(reclaimed.prepare('SELECT count(*) AS count FROM managed_media_stage_inventory').get()?.count, 0);
+	} finally {
+		reclaimed.close();
+	}
+	const prototype = DesktopLibraryProjectStore.prototype;
+	const originalRead = prototype.readProjectById;
+	prototype.readProjectById = async () => ({
+		catalog: { projectRevision, sha256: projectSha256 },
+		project: {},
+	}) as DesktopLibraryLoadedProject;
+	context.after(() => { prototype.readProjectById = originalRead; });
+	const retried = await host.publishManagedAudio({
+		projectId,
+		storageKey: planned[0]!.storageKey,
+		byteLength: planned[0]!.body.byteLength,
+		sha256: planned[0]!.descriptor.sha256,
+		expectedProjectRevision: projectRevision,
+		expectedProjectSha256: projectSha256,
+		chunks: (async function* () { yield planned[0]!.body; })(),
+	});
+	assert.deepEqual(retried, planned[0]!.descriptor);
 });
 
 function metadata(revision: number) {

@@ -21,6 +21,7 @@ import {
 import {
 	emptyDesktopLibraryMetadata,
 	type DesktopLibraryLease,
+	type DesktopLibraryMedia,
 	type DesktopLibraryMetadata,
 	type DesktopLibraryOwner,
 	type DesktopProjectLibraryPaths,
@@ -34,6 +35,12 @@ import {
 	reserveDesktopLibraryProjectFile,
 	validateDesktopLibraryProjectFileInventory,
 } from './project-library-file-inventory.ts';
+import {
+	assertDesktopLibraryManagedMediaMaterialized,
+	markDesktopLibraryManagedMediaPublished,
+	validateDesktopLibraryManagedMediaInventory,
+} from './project-library-media-inventory.ts';
+import { isDesktopLibraryManagedMediaBindingId } from './project-library-media-binding.ts';
 import {
 	encodeMetadataRow,
 	freezeLease,
@@ -226,6 +233,7 @@ export class SharedDesktopProjectLibrary {
 				lease,
 				next,
 				metadata.projects.map(({ metadataFile }) => metadataFile),
+				metadata.media,
 			));
 			await this.#checkpoint('prepared');
 			throwIfAborted(options.signal);
@@ -264,10 +272,16 @@ export class SharedDesktopProjectLibrary {
 			.map((row) => validateJournalRow(row));
 		const pendingJournals = journals.filter(({ state }) => state === 'prepared' || state === 'committed');
 		if (pendingJournals.length > 1) throw new Error('Desktop project library has conflicting recovery journals');
-		if (pendingJournals.length === 0) this.#validatedMetadataRow();
+		const settledMetadata = pendingJournals.length === 0 ? this.#validatedMetadataRow().metadata : null;
 		this.#leaseRow();
 		validateDesktopLibraryProjectFileInventory(this.#database);
 		validateDesktopLibraryProjectStageInventory(this.#database);
+		validateDesktopLibraryManagedMediaInventory(this.#database);
+		for (const descriptor of settledMetadata?.media ?? []) {
+			if (isDesktopLibraryManagedMediaBindingId(descriptor.id)) {
+				assertDesktopLibraryManagedMediaMaterialized(this.#database, descriptor);
+			}
+		}
 	}
 
 	#tryAcquireLease(owner: DesktopLibraryOwner, ttlMs: number): { lease: DesktopLibraryLease } | { holder: DesktopLibraryLease } {
@@ -312,6 +326,7 @@ export class SharedDesktopProjectLibrary {
 		lease: DesktopLibraryLease,
 		next: MetadataRow,
 		projectFiles: readonly string[],
+		media: readonly DesktopLibraryMedia[],
 	): void {
 		this.#assertLeaseOwned(lease);
 		const pending = this.#database.prepare(`
@@ -324,6 +339,11 @@ export class SharedDesktopProjectLibrary {
 			throw new RangeError('Desktop library metadata revision must advance by exactly one');
 		}
 		assertDesktopLibraryProjectFilesMaterialized(this.#database, projectFiles);
+		for (const descriptor of media) {
+			if (isDesktopLibraryManagedMediaBindingId(descriptor.id)) {
+				assertDesktopLibraryManagedMediaMaterialized(this.#database, descriptor);
+			}
+		}
 		this.#database.prepare(`
 			INSERT INTO metadata_journal (
 				transaction_id, state,
@@ -356,6 +376,12 @@ export class SharedDesktopProjectLibrary {
 			throw new Error('Desktop library metadata changed after journal preparation');
 		}
 		this.#replaceMetadata(journal.next);
+		const nextMetadata = validateMetadataIntegrity(journal.next, 'Desktop library publication metadata');
+		for (const descriptor of nextMetadata.media) {
+			if (isDesktopLibraryManagedMediaBindingId(descriptor.id)) {
+				markDesktopLibraryManagedMediaPublished(this.#database, { lease, descriptor });
+			}
+		}
 		const result = this.#database.prepare(`
 			UPDATE metadata_journal SET state = 'committed'
 			WHERE transaction_id = ? AND state = 'prepared'

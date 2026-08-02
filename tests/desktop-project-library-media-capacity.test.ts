@@ -25,6 +25,9 @@ import {
 	type DesktopLibraryMediaCatalogPort,
 	type DesktopLibraryPublishMediaOptions,
 } from '../desktop/project-library-media.ts';
+import {
+	TestDesktopLibraryManagedMediaInventoryPort,
+} from './helpers/desktop-project-library-media-inventory-port.ts';
 
 const PROJECT_ID = 'capacity-project';
 const PROJECT_SHA256 = 'a'.repeat(64);
@@ -88,7 +91,12 @@ test('managed-media capacity limits are lower-only', async (context) => {
 	const parent = await mkdtemp(join(tmpdir(), 'scape-library-media-capacity-limits-'));
 	context.after(() => rm(parent, { recursive: true, force: true }));
 	const catalog = catalogPort(emptyDesktopLibraryMetadata());
-	const base = { catalog: catalog.port, managedMediaRoot: join(parent, 'media') };
+	const managedMediaRoot = join(parent, 'media');
+	const base = {
+		catalog: catalog.port,
+		inventory: new TestDesktopLibraryManagedMediaInventoryPort(managedMediaRoot),
+		managedMediaRoot,
+	};
 
 	assert.throws(
 		() => new DesktopLibraryManagedMediaStore({ ...base, maximumMediaRows: MAX_LIBRARY_MEDIA + 1 }),
@@ -482,6 +490,7 @@ async function createFixture(
 	const catalog = catalogPort(options.metadata ?? emptyDesktopLibraryMetadata());
 	const storeOptions: DesktopLibraryManagedMediaStoreOptions = {
 		catalog: catalog.port,
+		inventory: new TestDesktopLibraryManagedMediaInventoryPort(root),
 		managedMediaRoot: root,
 		randomId: () => 'f'.repeat(32),
 		...(options.maximumMediaRows === undefined ? {} : { maximumMediaRows: options.maximumMediaRows }),

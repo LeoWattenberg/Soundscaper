@@ -73,6 +73,17 @@ test('desktop hosts hand a current project across products through orderly lease
 			scannedEntries: 1,
 			stageFiles: 0,
 		},
+		managedMediaReclamation: {
+			canonicalFiles: 0,
+			catalogRowsRetired: 0,
+			complete: true,
+			liveStageFiles: 0,
+			protectedFiles: 0,
+			reclaimedFiles: 0,
+			reclaimedStageFiles: 0,
+			scannedEntries: 0,
+			stageFiles: 0,
+		},
 	});
 	assert.deepEqual(await framescaper.readProject(ENTRY_ID), first);
 	const second = await framescaper.commitProject(commitOptions(2, 'framescaper', 10_002));

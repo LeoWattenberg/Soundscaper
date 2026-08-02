@@ -12,9 +12,12 @@ export interface DesktopLibraryMediaBodyReuseOptions {
 	readonly directory: string;
 	readonly finalPath: string;
 	readonly hardLink?: HardLink;
+	readonly onStageCreated?: () => void;
+	readonly promoteStage?: (stagePath: string) => Promise<void>;
 	readonly randomId: () => string;
 	readonly signal?: AbortSignal;
 	readonly sourcePaths: readonly string[];
+	readonly stagePath?: string;
 	readonly syncDirectory: () => Promise<void>;
 	readonly verifySourcePath: (path: string) => Promise<boolean>;
 	readonly verifyTargetPath: (path: string) => Promise<void>;
@@ -39,9 +42,7 @@ export async function reuseDesktopLibraryMediaBody(
 	for (const sourcePath of options.sourcePaths) {
 		options.signal?.throwIfAborted();
 		if (!await options.verifySourcePath(sourcePath)) continue;
-		const stageId = options.randomId();
-		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
-		const stagePath = join(options.directory, `.${basename(options.finalPath)}.${stageId}.reuse`);
+		const stagePath = options.stagePath ?? createStagePath(options);
 		const linked = await createVerifiedStage(sourcePath, stagePath, options);
 		if (linked === 'unsupported') return false;
 		if (linked === 'unusable') continue;
@@ -60,6 +61,7 @@ async function createVerifiedStage(
 ): Promise<'linked' | 'unusable' | 'unsupported'> {
 	try {
 		await (options.hardLink ?? link)(sourcePath, stagePath);
+		options.onStageCreated?.();
 	} catch (error) {
 		options.signal?.throwIfAborted();
 		if (errorCode(error) === 'ENOENT' || errorCode(error) === 'EMLINK') return 'unusable';
@@ -81,6 +83,11 @@ async function promoteVerifiedStage(
 	stagePath: string,
 	options: DesktopLibraryMediaBodyReuseOptions,
 ): Promise<'linked' | 'unusable' | 'unsupported'> {
+	if (options.promoteStage) {
+		options.signal?.throwIfAborted();
+		await options.promoteStage(stagePath);
+		return 'linked';
+	}
 	try {
 		options.signal?.throwIfAborted();
 		await (options.hardLink ?? link)(stagePath, options.finalPath);
@@ -97,6 +104,12 @@ async function promoteVerifiedStage(
 	}
 	await cleanupStage(stagePath, options.syncDirectory, new Error('Managed-media reuse promotion cleanup failed'));
 	return 'linked';
+}
+
+function createStagePath(options: DesktopLibraryMediaBodyReuseOptions): string {
+	const stageId = options.randomId();
+	if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
+	return join(options.directory, `.${basename(options.finalPath)}.${stageId}.reuse`);
 }
 
 async function cleanupStage(

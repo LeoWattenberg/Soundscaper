@@ -17,6 +17,9 @@ import {
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
 } from '../desktop/project-library-contract.ts';
+import {
+	TestDesktopLibraryManagedMediaInventoryPort,
+} from './helpers/desktop-project-library-media-inventory-port.ts';
 
 const PROJECT_ID = 'managed-audio-project';
 const PROJECT_REVISION = 3;
@@ -421,7 +424,7 @@ test('the same managed-audio storage key is bound to its exact project revision 
 	assert.deepEqual(await fixture.store.read(third.id, { offset: 0, length: 4 }), recreated);
 });
 
-test('a complete body survives catalog failure and is reused after validating the retry stream', async (context) => {
+test('an inventoried body survives catalog failure and retries without consuming another stream', async (context) => {
 	const fixture = await createFixture(context);
 	const bytes = Uint8Array.of(11, 22, 33, 44);
 	const declaration = {
@@ -449,7 +452,7 @@ test('a complete body survives catalog failure and is reused after validating th
 			yield bytes;
 		})(),
 	});
-	assert.equal(retryReads, 1);
+	assert.equal(retryReads, 0);
 	assert.deepEqual(fixture.metadata.media, [descriptor]);
 	assert.equal(fixture.publications.length, 1);
 });
@@ -540,6 +543,7 @@ async function createFixture(
 		value: new DesktopLibraryManagedMediaStore({
 			managedMediaRoot: root,
 			catalog,
+			inventory: new TestDesktopLibraryManagedMediaInventoryPort(root),
 			randomId: () => 'a'.repeat(32),
 			...limits,
 		}),

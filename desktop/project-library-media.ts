@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { randomBytes } from 'node:crypto';
-import { mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
+import { mkdir, open, type FileHandle } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 import {
@@ -27,6 +27,13 @@ import {
 	verifyDesktopLibraryMediaBodyPath,
 	writeDeclaredMediaBody,
 } from './project-library-media-body.ts';
+import {
+	createDesktopLibraryManagedMediaStageFile,
+	type DesktopLibraryManagedMediaInventoryRow,
+	type DesktopLibraryManagedMediaReservationOptions,
+	type DesktopLibraryManagedMediaStageDiscardOptions,
+	type DesktopLibraryManagedMediaStageOperationOptions,
+} from './project-library-media-inventory.ts';
 import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
@@ -54,7 +61,6 @@ export type {
 } from './project-library-media-binding.ts';
 
 const DIGEST = /^[a-f0-9]{64}$/u;
-const STAGE_ID = /^[a-f0-9]{32}$/u;
 const MAXIMUM_BODY_BYTES = 64 * 1024 * 1024 * 1024;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 
@@ -66,9 +72,22 @@ export interface DesktopLibraryMediaCatalogPort {
 	): Promise<DesktopLibraryMetadata>;
 }
 
+export interface DesktopLibraryManagedMediaInventoryPort {
+	reserve(
+		options: Omit<DesktopLibraryManagedMediaReservationOptions, 'lease' | 'registeredAtMs'>,
+	): DesktopLibraryManagedMediaInventoryRow | Promise<DesktopLibraryManagedMediaInventoryRow>;
+	materialize(
+		options: Omit<DesktopLibraryManagedMediaStageOperationOptions, 'lease'>,
+	): void | Promise<void>;
+	discard(
+		options: Omit<DesktopLibraryManagedMediaStageDiscardOptions, 'lease'>,
+	): boolean | Promise<boolean>;
+}
+
 export interface DesktopLibraryManagedMediaStoreOptions {
 	readonly managedMediaRoot: string;
 	readonly catalog: DesktopLibraryMediaCatalogPort;
+	readonly inventory: DesktopLibraryManagedMediaInventoryPort;
 	readonly maximumBodyBytes?: number;
 	readonly maximumChunkBytes?: number;
 	readonly maximumReadBytes?: number;
@@ -110,6 +129,7 @@ export class DesktopLibraryManagedMediaStore {
 	readonly #maximumChunkBytes: number;
 	readonly #maximumReadBytes: number;
 	readonly #hardLink: ((existingPath: string, newPath: string) => Promise<void>) | undefined;
+	readonly #inventory: DesktopLibraryManagedMediaInventoryPort;
 	readonly #randomId: () => string;
 	readonly #bindingTails = new Map<string, Promise<void>>();
 	#catalogTail: Promise<void> = Promise.resolve();
@@ -128,6 +148,12 @@ export class DesktopLibraryManagedMediaStore {
 			throw new TypeError('Desktop library managed-media store requires a catalog port');
 		}
 		this.#catalog = options.catalog;
+		if (!options.inventory || typeof options.inventory.reserve !== 'function'
+			|| typeof options.inventory.materialize !== 'function'
+			|| typeof options.inventory.discard !== 'function') {
+			throw new TypeError('Desktop library managed-media store requires an inventory port');
+		}
+		this.#inventory = options.inventory;
 		this.#maximumBodyBytes = boundedLimit(
 			options.maximumBodyBytes,
 			MAXIMUM_BODY_BYTES,
@@ -171,10 +197,29 @@ export class DesktopLibraryManagedMediaStore {
 			}
 			const reservation = await this.#capacity.reserve(initial, descriptor, options.signal);
 			try {
-				if (options.reuseExistingBody) {
-					const reused = await this.#reuseBody(reusableMedia(initial, descriptor), descriptor, options.signal);
-					if (!reused) throw new DesktopLibraryMediaReuseUnavailableError();
-				} else await this.#materializeBody(descriptor, options.chunks, options.signal);
+				const stageKind = options.reuseExistingBody ? 'reuse' : 'upload';
+				const stageFile = createDesktopLibraryManagedMediaStageFile(
+					descriptor.id,
+					this.#randomId(),
+					stageKind,
+				);
+				const inventory = await this.#inventory.reserve({
+					descriptor,
+					encoding: options.encoding,
+					projectId: options.projectId,
+					projectRevision: options.projectRevision,
+					projectSha256: options.projectSha256,
+					storageKey: options.storageKey,
+					stageFile,
+					stageKind,
+				});
+				if (inventory.state === 'materialized' || inventory.state === 'published') {
+					await this.#verifyBody(descriptor, options.signal);
+				} else if (inventory.state === 'planned') {
+					if (options.reuseExistingBody) {
+						await this.#reuseBody(reusableMedia(initial, descriptor), descriptor, stageFile, options.signal);
+					} else await this.#materializeBody(descriptor, stageFile, options.chunks, options.signal);
+				} else throw new TypeError('Desktop library managed-media inventory returned an invalid state');
 				return await this.#serializeCatalog(() => this.#publishDescriptor(descriptor, options.signal));
 			} finally {
 				reservation.release();
@@ -217,51 +262,45 @@ export class DesktopLibraryManagedMediaStore {
 
 	async #materializeBody(
 		descriptor: DesktopLibraryMedia,
+		stageFile: string,
 		chunks: AsyncIterable<Uint8Array>,
 		signal: AbortSignal | undefined,
 	): Promise<void> {
-		if (!chunks || typeof chunks[Symbol.asyncIterator] !== 'function') {
-			throw new TypeError('Desktop library managed-media body must be an async iterable');
-		}
 		const finalPath = this.#pathFor(descriptor.relativeFile);
 		const directory = dirname(finalPath);
-		await this.#prepareDirectory(directory, managedMediaCategoryForBinding(descriptor.id));
-		if (await mediaPathExists(finalPath)) await this.#verifyBody(descriptor, signal);
-		const stageId = this.#randomId();
-		if (!STAGE_ID.test(stageId)) throw new TypeError('Desktop library managed-media stage id is invalid');
-		const stagePath = join(directory, `.${descriptor.id}.${stageId}.stage`);
+		const stagePath = this.#pathFor(stageFile);
 		let handle: FileHandle | null = null;
-		let stageExists = false;
+		let stageOwned = false;
+		let promotionAttempted = false;
 		try {
+			if (!chunks || typeof chunks[Symbol.asyncIterator] !== 'function') {
+				throw new TypeError('Desktop library managed-media body must be an async iterable');
+			}
+			await this.#prepareDirectory(directory, managedMediaCategoryForBinding(descriptor.id));
+			if (await mediaPathExists(finalPath)) {
+				await this.#verifyBody(descriptor, signal);
+				throw new Error('Desktop library managed-media inventory final path already exists');
+			}
 			handle = await open(stagePath, 'wx', 0o600);
-			stageExists = true;
+			stageOwned = true;
 			await writeDeclaredMediaBody(handle, chunks, descriptor, this.#maximumChunkBytes, signal);
 			await handle.sync();
 			await handle.close();
 			handle = null;
 			throwIfAborted(signal);
-			if (await mediaPathExists(finalPath)) {
-				await this.#verifyBody(descriptor, signal);
-				await unlink(stagePath);
-				stageExists = false;
-				await syncMediaDirectory(directory);
-				return;
-			}
-			await rename(stagePath, finalPath);
-			stageExists = false;
-			await syncMediaDirectory(directory);
+			promotionAttempted = true;
+			await this.#inventory.materialize({ descriptor, stageFile, stageKind: 'upload' });
 		} catch (error) {
 			const cleanupFailures: unknown[] = [];
 			if (handle) {
 				try { await handle.close(); } catch (closeError) { cleanupFailures.push(closeError); }
 			}
-			if (stageExists) {
+			if (!promotionAttempted) {
 				try {
-					await unlink(stagePath);
-					await syncMediaDirectory(directory);
-				} catch (cleanupError) {
-					if (!isMissingFileError(cleanupError)) cleanupFailures.push(cleanupError);
-				}
+					await this.#inventory.discard({
+						descriptor, stageFile, stageKind: 'upload', removeFile: stageOwned,
+					});
+				} catch (cleanupError) { cleanupFailures.push(cleanupError); }
 			}
 			if (cleanupFailures.length > 0) {
 				throw new AggregateError([error, ...cleanupFailures], 'Managed-media body publication and cleanup failed');
@@ -287,23 +326,48 @@ export class DesktopLibraryManagedMediaStore {
 	async #reuseBody(
 		sources: readonly DesktopLibraryMedia[],
 		descriptor: DesktopLibraryMedia,
+		stageFile: string,
 		signal: AbortSignal | undefined,
-	): Promise<boolean> {
-		if (sources.length === 0) return false;
+	): Promise<void> {
 		const category = managedMediaCategoryForBinding(descriptor.id);
 		const finalPath = this.#pathFor(descriptor.relativeFile);
 		const directory = dirname(finalPath);
+		const stagePath = this.#pathFor(stageFile);
 		const sourcePaths = sources.map(({ relativeFile }) => this.#pathFor(relativeFile));
-		await this.#prepareDirectory(directory, category);
-		return reuseDesktopLibraryMediaBody({
-			directory, finalPath, hardLink: this.#hardLink, randomId: this.#randomId, signal, sourcePaths,
-			syncDirectory: () => syncMediaDirectory(directory),
-			verifySourcePath: (path) => this.#verifyReusableSource(path, descriptor, category, signal),
-			verifyTargetPath: async (path) => {
-				await this.#assertScope(dirname(path), category);
-				await this.#verifyBodyPath(path, descriptor, signal);
-			},
-		});
+		let stageOwned = false;
+		let promotionAttempted = false;
+		try {
+			if (sources.length === 0) throw new DesktopLibraryMediaReuseUnavailableError();
+			await this.#prepareDirectory(directory, category);
+			const reused = await reuseDesktopLibraryMediaBody({
+				directory, finalPath, hardLink: this.#hardLink, randomId: this.#randomId,
+				onStageCreated: () => { stageOwned = true; },
+				promoteStage: async () => {
+					promotionAttempted = true;
+					await this.#inventory.materialize({ descriptor, stageFile, stageKind: 'reuse' });
+				},
+				signal, sourcePaths, stagePath,
+				syncDirectory: () => syncMediaDirectory(directory),
+				verifySourcePath: (path) => this.#verifyReusableSource(path, descriptor, category, signal),
+				verifyTargetPath: async (path) => {
+					await this.#assertScope(dirname(path), category);
+					await this.#verifyBodyPath(path, descriptor, signal);
+					throw new Error('Desktop library managed-media inventory final path already exists');
+				},
+			});
+			if (!reused) throw new DesktopLibraryMediaReuseUnavailableError();
+		} catch (error) {
+			if (!promotionAttempted) {
+				try {
+					await this.#inventory.discard({
+						descriptor, stageFile, stageKind: 'reuse', removeFile: stageOwned,
+					});
+				} catch (cleanupError) {
+					throw new AggregateError([error, cleanupError], 'Managed-media reuse and cleanup failed');
+				}
+			}
+			throw error;
+		}
 	}
 
 	async #verifyReusableSource(

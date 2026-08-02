@@ -192,6 +192,8 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 	});
 	const returnSoundHost = await resources.startHost(RETURN_SOUND_OWNER);
 	assert.ok(returnSoundHost.snapshot().fencingToken > frameToken);
+	assert.equal(returnSoundHost.snapshot().managedMediaReclamation.catalogRowsRetired, 2);
+	assert.equal(returnSoundHost.snapshot().managedMediaReclamation.reclaimedFiles, 2);
 	const returnSoundService = resources.trackService(new DesktopSharedProjectLibraryService(returnSoundHost, {
 		now: () => 50_000,
 		createEntryId: () => { throw new Error('return must preserve the shared entry'); },
@@ -222,7 +224,7 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 	assert.deepEqual(returnProbe.bodyReads, [], 'matching original-profile media must not be copied from shared storage');
 	assert.deepEqual(returnProbe.uploadCalls, [], 'return activation must not upload original-profile media');
 	assert.deepEqual(persistentInventory(soundIndexedDB, soundDatabaseName), beforeReturnInventory);
-	assertManagedRevision(returnSoundHost, fixture, 2, 'return activation must not publish or duplicate media');
+	assertManagedRevision(returnSoundHost, fixture, 1, 'return activation must not publish or duplicate media');
 });
 
 function mixedProjectFixture() {

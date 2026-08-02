@@ -35,7 +35,7 @@ const OWNER_B = Object.freeze({
 const ENTRY_ID = 'inventory-entry-a';
 const DIGEST = 'a'.repeat(64);
 
-test('schema 2 reserves and lease-fences immutable project materialization', async (context) => {
+test('schema 3 reserves and lease-fences immutable project materialization', async (context) => {
 	const fixture = await createFixture(context);
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
@@ -59,7 +59,7 @@ test('schema 2 reserves and lease-fences immutable project materialization', asy
 	assert.equal((await stat(finalPath)).isFile(), true);
 	await assert.rejects(() => stat(stagePath), /ENOENT/u);
 	assert.equal(readInventoryRow(fixture.paths.databasePath, metadataFile)?.state, 'materialized');
-	assert.equal(readUserVersion(fixture.paths.databasePath), 2);
+	assert.equal(readUserVersion(fixture.paths.databasePath), 3);
 });
 
 test('a stale reservation cannot rename its stage after lease takeover', async (context) => {
@@ -177,18 +177,20 @@ test('catalog publication requires a materialized project inventory row', async 
 	assert.deepEqual(await library.publishMetadata({ lease, metadata }), metadata);
 });
 
-test('database schema 1 is rejected without an implicit inventory migration', async (context) => {
-	const fixture = await createFixture(context);
-	await mkdir(fixture.paths.projectsRoot, { recursive: true });
-	await mkdir(fixture.paths.managedMediaRoot, { recursive: true });
-	const database = new DatabaseSync(fixture.paths.databasePath);
-	database.exec(`PRAGMA application_id = ${String(APPLICATION_ID)}; PRAGMA user_version = 1;`);
-	database.close();
-	await assert.rejects(
-		() => SharedDesktopProjectLibrary.open(fixture.paths),
-		/unsupported desktop project library database version/iu,
-	);
-	assert.equal(readUserVersion(fixture.paths.databasePath), 1);
+test('database schemas 1 and 2 are rejected without an implicit inventory migration', async (context) => {
+	for (const version of [1, 2]) {
+		const fixture = await createFixture(context);
+		await mkdir(fixture.paths.projectsRoot, { recursive: true });
+		await mkdir(fixture.paths.managedMediaRoot, { recursive: true });
+		const database = new DatabaseSync(fixture.paths.databasePath);
+		database.exec(`PRAGMA application_id = ${String(APPLICATION_ID)}; PRAGMA user_version = ${String(version)};`);
+		database.close();
+		await assert.rejects(
+			() => SharedDesktopProjectLibrary.open(fixture.paths),
+			/unsupported desktop project library database version/iu,
+		);
+		assert.equal(readUserVersion(fixture.paths.databasePath), version);
+	}
 });
 
 async function createFixture(context: TestContext) {

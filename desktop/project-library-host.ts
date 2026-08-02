@@ -22,6 +22,9 @@ import {
 	DesktopLibraryManagedMediaStore,
 } from './project-library-media.ts';
 import {
+	DesktopLibraryManagedMediaInventoryStore,
+} from './project-library-media-inventory-store.ts';
+import {
 	SharedDesktopProjectLibrary,
 } from './project-library.ts';
 import type { DesktopLibraryRecoveryResult } from './project-library-api.ts';
@@ -29,6 +32,10 @@ import {
 	type DesktopLibraryProjectReclamationResult,
 	DesktopLibraryProjectReclaimer,
 } from './project-library-reclamation.ts';
+import {
+	type DesktopLibraryManagedMediaReclamationResult,
+	DesktopLibraryManagedMediaReclaimer,
+} from './project-library-media-reclamation.ts';
 
 const DEFAULT_LEASE_TTL_MS = 30_000;
 const DEFAULT_RENEW_INTERVAL_MS = 10_000;
@@ -49,6 +56,7 @@ export interface DesktopProjectLibraryHostSnapshot {
 	readonly tookOverStaleLease: boolean;
 	readonly recovery: DesktopLibraryRecoveryResult;
 	readonly reclamation: DesktopLibraryProjectReclamationResult;
+	readonly managedMediaReclamation: DesktopLibraryManagedMediaReclamationResult;
 }
 
 export type DesktopProjectLibraryHostCommitOptions = Omit<DesktopLibraryCommitProjectOptions, 'lease'>;
@@ -76,6 +84,8 @@ export class DesktopProjectLibraryHost {
 	#operations = new Set<Promise<unknown>>();
 	#projectMutationTail: Promise<void> = Promise.resolve();
 	#media: DesktopLibraryManagedMediaStore;
+	#mediaInventory: DesktopLibraryManagedMediaInventoryStore;
+	#managedMediaReclamation: DesktopLibraryManagedMediaReclamationResult | null = null;
 	#projects: DesktopLibraryProjectStore;
 	#reclamation: DesktopLibraryProjectReclamationResult | null = null;
 	#recovery: DesktopLibraryRecoveryResult;
@@ -92,6 +102,7 @@ export class DesktopProjectLibraryHost {
 		this.#library = library;
 		this.#lease = lease;
 		this.#projects = new DesktopLibraryProjectStore(library);
+		this.#mediaInventory = new DesktopLibraryManagedMediaInventoryStore(library.paths);
 		this.#media = new DesktopLibraryManagedMediaStore({
 			managedMediaRoot: library.paths.managedMediaRoot,
 			catalog: {
@@ -101,6 +112,11 @@ export class DesktopProjectLibraryHost {
 					metadata,
 					signal,
 				}),
+			},
+			inventory: {
+				reserve: (reservation) => this.#mediaInventory.reserve({ ...reservation, lease: this.#lease }),
+				materialize: (stage) => this.#mediaInventory.materialize({ ...stage, lease: this.#lease }),
+				discard: (stage) => this.#mediaInventory.discard({ ...stage, lease: this.#lease }),
 			},
 		});
 		this.#recovery = recovery;
@@ -126,12 +142,23 @@ export class DesktopProjectLibraryHost {
 				signal: options.signal,
 			});
 			const recovery = await library.recoverMetadata({ lease, signal: options.signal });
-			host = new DesktopProjectLibraryHost(library, lease, recovery, options);
-			host.#reclamation = await new DesktopLibraryProjectReclaimer(paths).reclaim({
+			const activeHost = new DesktopProjectLibraryHost(library, lease, recovery, options);
+			host = activeHost;
+			activeHost.#reclamation = await new DesktopLibraryProjectReclaimer(paths).reclaim({
 				lease,
 				signal: options.signal,
 			});
-			return host;
+			activeHost.#managedMediaReclamation = await new DesktopLibraryManagedMediaReclaimer(paths, {
+				catalog: {
+					readMetadata: () => library.readMetadata(),
+					publishMetadata: (metadata, signal) => library.publishMetadata({
+						lease: activeHost.#lease,
+						metadata,
+						signal,
+					}),
+				},
+			}).reclaim({ lease, signal: options.signal });
+			return activeHost;
 		} catch (error) {
 			if (host) {
 				try {
@@ -148,7 +175,9 @@ export class DesktopProjectLibraryHost {
 	}
 
 	snapshot(): DesktopProjectLibraryHostSnapshot {
-		if (!this.#reclamation) throw new Error('Desktop project library host startup is incomplete');
+		if (!this.#reclamation || !this.#managedMediaReclamation) {
+			throw new Error('Desktop project library host startup is incomplete');
+		}
 		return Object.freeze({
 			closed: this.#closed,
 			owner: Object.freeze({ ...this.#lease.owner }),
@@ -156,6 +185,7 @@ export class DesktopProjectLibraryHost {
 			tookOverStaleLease: this.#lease.tookOverStaleLease,
 			recovery: Object.freeze({ ...this.#recovery }),
 			reclamation: Object.freeze({ ...this.#reclamation }),
+			managedMediaReclamation: Object.freeze({ ...this.#managedMediaReclamation }),
 		});
 	}
 
@@ -243,13 +273,9 @@ export class DesktopProjectLibraryHost {
 			}
 		} catch (error) {
 			failures.push(error);
-		} finally {
-			try {
-				this.#library.close();
-			} catch (error) {
-				failures.push(error);
-			}
 		}
+		try { this.#mediaInventory.close(); } catch (error) { failures.push(error); }
+		try { this.#library.close(); } catch (error) { failures.push(error); }
 		throwHostFailures(failures);
 	}
 

@@ -18,6 +18,9 @@ import {
 	type DesktopLibraryMetadata,
 	validateDesktopLibraryMetadata,
 } from '../desktop/project-library-contract.ts';
+import {
+	TestDesktopLibraryManagedMediaInventoryPort,
+} from './helpers/desktop-project-library-media-inventory-port.ts';
 
 const PROJECT_ID = 'managed-video-project';
 const PROJECT_REVISION = 7;
@@ -142,6 +145,7 @@ async function createFixture(context: TestContext): Promise<Fixture> {
 		value: new DesktopLibraryManagedMediaStore({
 			managedMediaRoot: root,
 			catalog,
+			inventory: new TestDesktopLibraryManagedMediaInventoryPort(root),
 			maximumChunkBytes: 4,
 			maximumReadBytes: 4,
 			randomId: () => 'a'.repeat(32),

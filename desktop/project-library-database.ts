@@ -2,12 +2,13 @@
 
 import { DatabaseSync } from 'node:sqlite';
 
+import { initializeDesktopLibraryManagedMediaInventory } from './project-library-media-inventory.ts';
 import { initializeDesktopLibraryProjectFileInventory } from './project-library-file-inventory.ts';
 import { initializeDesktopLibraryProjectStageInventory } from './project-library-stage-inventory.ts';
 import type { MetadataRow } from './project-library-persistence.ts';
 
 export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID = 0x53434150;
-export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 2;
+export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 3;
 
 export function initializeDesktopProjectLibraryDatabase(
 	database: DatabaseSync,
@@ -22,7 +23,9 @@ export function initializeDesktopProjectLibraryDatabase(
 		throw new Error('Unsupported desktop project library database version');
 	}
 	database.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA trusted_schema = OFF;');
-	database.exec(`
+	database.exec('BEGIN IMMEDIATE');
+	try {
+		database.exec(`
 		CREATE TABLE IF NOT EXISTS library_metadata (
 			singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
 			revision INTEGER NOT NULL CHECK (revision >= 0),
@@ -58,21 +61,27 @@ export function initializeDesktopProjectLibraryDatabase(
 			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
 			completed_at_ms INTEGER
 		) STRICT;
-	`);
-	initializeDesktopLibraryProjectFileInventory(database);
-	initializeDesktopLibraryProjectStageInventory(database);
-	database.prepare(`
+		`);
+		initializeDesktopLibraryProjectFileInventory(database);
+		initializeDesktopLibraryProjectStageInventory(database);
+		initializeDesktopLibraryManagedMediaInventory(database);
+		database.prepare(`
 		INSERT OR IGNORE INTO library_metadata
 		(singleton, revision, json, digest, published_at_ms) VALUES (1, ?, ?, ?, ?)
-	`).run(empty.revision, empty.json, empty.digest, empty.publishedAtMs);
-	database.prepare(`
+		`).run(empty.revision, empty.json, empty.digest, empty.publishedAtMs);
+		database.prepare(`
 		INSERT OR IGNORE INTO library_lease
 		(singleton, active, fencing_token, took_over) VALUES (1, 0, 0, 0)
-	`).run();
-	database.exec(`
+		`).run();
+		database.exec(`
 		PRAGMA application_id = ${String(DESKTOP_PROJECT_LIBRARY_APPLICATION_ID)};
 		PRAGMA user_version = ${String(DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION)};
-	`);
+		`);
+		database.exec('COMMIT');
+	} catch (error) {
+		if (database.isTransaction) database.exec('ROLLBACK');
+		throw error;
+	}
 }
 
 export function assertDesktopProjectLibraryDatabaseIdentity(database: DatabaseSync): void {
