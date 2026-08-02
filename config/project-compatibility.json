@@ -54,6 +54,26 @@
 			]
 		},
 		{
+			"id": "current-linked-wav-portable-archive",
+			"status": "implemented",
+			"requiredOutcome": "A current-format exact-schema-9 `.scape` export may read a maintained linked RIFF or RF64 WAV with PCM or IEEE-float samples under the 512 MiB linked-original ceiling while the sender has no owned PCM. The archive must contain only canonical `audio-f32le-chunks-v1` audio, with no locator identity or external WAV container bytes. A fresh portless recipient must import ordinary owned canonical PCM and pass a durable reopen.",
+			"currentBehavior": "The verified linked source reader supplies canonical Float32 PCM chunks through the ordinary source API while the sender retains zero owned source and chunk records. The composed current-format exact-schema-9 archive fixture exports one `audio-f32le-chunks-v1` asset whose canonical framed PCM bytes are different from the external WAV container; the locator ID and revision, and complete WAV body, are absent from project JSON, manifest JSON, and archive bytes. A fresh recipient with no linked-original port imports through the ordinary owned source writer, retains one IndexedDB source and chunk with zero linked bindings, then can close and reopen, recovering exact samples and project state. That fixture directly exercises RIFF IEEE-float; focused reader and import coverage pins the wider maintained RIFF/RF64 PCM and IEEE-float input boundary. This does not qualify future-schema archive preservation, byte-exact WAV-container preservation, packaged executable or UI and operating-system behavior, relink or watch, other audio formats, or audio range playback.",
+			"evidence": [
+				"src/common/editor/scape-project.js",
+				"src/common/editor/scape-export-plan.ts",
+				"src/common/editor/scape-archive-media.ts",
+				"src/common/editor/scape-import-transaction.ts",
+				"src/common/editor/storage/linked-audio-original-source-reader.ts",
+				"src/common/editor/storage/source-write-repository.ts",
+				"src/common/editor/storage/repositories.ts",
+				"src/common/editor/storage.js",
+				"tests/audio-editor-linked-wav-import.test.ts",
+				"tests/audio-editor-linked-audio-source-reader.test.ts",
+				"tests/audio-editor-linked-audio-scape-roundtrip.test.ts",
+				"tests/linked-wav-managed-handoff-policy.test.js"
+			]
+		},
+		{
 			"id": "current-desktop-project-catalog-commit",
 			"status": "implemented",
 			"requiredOutcome": "A bounded pathless main-owned service validates the maintained exact-current-schema project domain before host staging and catalog publication and before returning a shared read document; the renderer repeats validation as defense in depth, without receiving filesystem paths, catalog entry IDs, or lease capabilities. Main-owned startup reclamation preserves every current or recoverable catalog reference, retires abandoned registered stage attempts without removing live writer state, and makes fair progress across a shared bounded budget.",

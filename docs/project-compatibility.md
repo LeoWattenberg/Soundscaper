@@ -32,6 +32,25 @@ must remain disabled. A future document may be inspected or exported unchanged
 only through a path proven not to normalize it. “Save a copy” may not silently
 turn an unknown schema into the current schema.
 
+One narrow linked-WAV portable-archive exception applies only to the
+current-format exact schema 9 path. A sender backed by a maintained RIFF or RF64
+PCM or IEEE-float WAV under the 512 MiB linked-original ceiling retains
+no owned PCM. Export reads its verified canonical chunks and writes only a
+canonical `audio-f32le-chunks-v1` asset. The external WAV container bytes and
+pathless locator identity are absent from the archive.
+A fresh recipient without a linked-original port imports that asset through the
+ordinary owned PCM writer,
+then can close and reopen, recovering exact samples and project state with zero
+linked bindings. The direct fixture uses RIFF IEEE-float; focused reader and
+import coverage owns the wider maintained RIFF/RF64 PCM and IEEE-float input
+boundary.
+
+This portable exception does not qualify future-schema archive preservation,
+byte-exact WAV-container preservation, packaged executable or UI and
+operating-system behavior, relink or watch, other audio formats, or audio range
+playback. Canonical PCM portability is the contract; the selected external
+container is neither transferred nor reconstructed.
+
 ## Retained migrations
 
 Schema 9 is the current writable schema. Inputs from schemas 1 through 8 are

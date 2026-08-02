@@ -121,3 +121,78 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*audio ranges.*generic linked-audio/isu,
 	);
 });
+
+test('linked WAV portable archive stores canonical PCM without locator state', async () => {
+	const policy = JSON.parse(await readFile(compatibilityUrl, 'utf8'));
+	const rule = policy.rules.find(
+		({ id }) => id === 'current-linked-wav-portable-archive',
+	);
+	assert.ok(rule);
+	assert.equal(rule.status, 'implemented');
+	assert.match(
+		rule.requiredOutcome,
+		/current-format exact-schema-9 `.scape` export.*linked RIFF or RF64 WAV.*PCM or IEEE-float.*sender.*no owned PCM.*only canonical `audio-f32le-chunks-v1`.*no locator.*WAV container.*fresh portless recipient.*ordinary owned canonical PCM.*durable reopen/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/verified linked source reader.*canonical Float32 PCM chunks.*sender.*zero owned source and chunk records.*archive.*one `audio-f32le-chunks-v1` asset.*canonical framed PCM.*different from.*external WAV container.*locator ID and revision.*absent.*fresh recipient.*no linked-original port.*owned source writer.*IndexedDB source and chunk.*zero linked bindings.*close and reopen.*exact samples/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/directly exercises RIFF IEEE-float.*focused reader and import.*RIFF\/RF64 PCM and IEEE-float.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/iu,
+	);
+	for (const path of [
+		'src/common/editor/scape-project.js',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/storage/linked-audio-original-source-reader.ts',
+		'src/common/editor/storage/source-write-repository.ts',
+		'tests/audio-editor-linked-audio-scape-roundtrip.test.ts',
+	]) assert.ok(rule.evidence.includes(path), path);
+
+	const documentation = await readFile(compatibilityDocumentUrl, 'utf8');
+	assert.match(
+		documentation,
+		/narrow linked-WAV portable-archive exception.*current-format exact schema 9.*sender.*no owned PCM.*export.*canonical `audio-f32le-chunks-v1`.*external WAV container.*locator.*absent.*fresh recipient without.*linked-original port.*ordinary owned PCM.*close and reopen.*exact samples/isu,
+	);
+	assert.match(
+		documentation,
+		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/isu,
+	);
+});
+
+test('portable linked WAV canonicalization has a dedicated archive security control', async () => {
+	const matrix = JSON.parse(await readFile(securityUrl, 'utf8'));
+	const risk = matrix.risks.find(({ id }) => id === 'scape-archive-structure-integrity');
+	const control = risk?.currentControls.find(
+		({ id }) => id === 'linked-wav-canonical-pcm-portability',
+	);
+	assert.equal(risk?.status, 'enforced');
+	assert.ok(control);
+	assert.match(
+		control.summary,
+		/current-format exact-schema-9 `.scape`.*linked RIFF or RF64 WAV.*PCM or IEEE-float.*no owned sender PCM.*verified canonical Float32 chunks.*one `audio-f32le-chunks-v1` asset.*external container bytes.*locator identity.*excluded.*fresh portless import.*ordinary owned PCM.*durable reopen/iu,
+	);
+	assert.match(
+		control.summary,
+		/RIFF IEEE-float.*direct witness.*wider RIFF\/RF64 PCM and IEEE-float.*focused.*not.*future-schema archive preservation.*byte-exact WAV-container.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/iu,
+	);
+	for (const path of [
+		'src/common/editor/scape-project.js',
+		'src/common/editor/scape-export-plan.ts',
+		'src/common/editor/scape-archive-media.ts',
+		'src/common/editor/storage/linked-audio-original-source-reader.ts',
+		'src/common/editor/storage/source-write-repository.ts',
+		'tests/audio-editor-linked-audio-scape-roundtrip.test.ts',
+	]) assert.ok(control.evidence.some((item) => item.path === path), path);
+
+	const threatModel = await readFile(threatModelUrl, 'utf8');
+	assert.match(
+		threatModel,
+		/narrow linked-WAV portable-archive control.*current-format exact schema 9.*sender has no owned PCM.*canonical `audio-f32le-chunks-v1`.*external WAV container bytes.*locator identity.*absent.*fresh portless recipient.*ordinary owned PCM.*reopens.*exact samples/isu,
+	);
+	assert.match(
+		threatModel,
+		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/isu,
+	);
+});
