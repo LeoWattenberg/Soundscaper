@@ -31,6 +31,13 @@ export interface PlaybackProjectProjection<Project extends object> {
 	readonly requiredVideoSourceIds: readonly string[];
 }
 
+export interface AudioRenderedFallbackDeliveryProjection<Project extends object> {
+	readonly project: Project;
+	readonly featureRequirementsReport: ProjectFeatureRequirementsReport | null;
+	readonly audioRenderedFallback: ProjectFeatureAudioRenderedFallbackMetadata | null;
+	readonly requiredAudioSourceIds: readonly string[];
+}
+
 export interface VideoRenderedFallbackDeliveryProjection<Project extends object> {
 	readonly project: Project;
 	readonly featureRequirementsReport: ProjectFeatureRequirementsReport | null;
@@ -40,6 +47,9 @@ export interface VideoRenderedFallbackDeliveryProjection<Project extends object>
 
 export interface PlaybackProjectService {
 	projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project>;
+	projectForAudioRenderedFallbackDelivery<Project extends object>(
+		project: Project,
+	): AudioRenderedFallbackDeliveryProjection<Project>;
 	projectForVideoRenderedFallbackDelivery<Project extends object>(
 		project: Project,
 	): VideoRenderedFallbackDeliveryProjection<Project>;
@@ -106,7 +116,11 @@ export function createPlaybackProjectService(
 	capabilities: Readonly<Record<string, unknown>>,
 ): PlaybackProjectService {
 	const compatibility = createProjectFeatureCompatibilityService(capabilities);
-	return Object.freeze({ projectForPlayback, projectForVideoRenderedFallbackDelivery });
+	return Object.freeze({
+		projectForPlayback,
+		projectForAudioRenderedFallbackDelivery,
+		projectForVideoRenderedFallbackDelivery,
+	});
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
@@ -135,6 +149,25 @@ export function createPlaybackProjectService(
 			),
 			requiredVideoSourceIds: Object.freeze(
 				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+			),
+		});
+	}
+
+	/** Apply only the maintained audio whole-mix rendered fallback for final delivery. */
+	function projectForAudioRenderedFallbackDelivery<Project extends object>(
+		project: Project,
+	): AudioRenderedFallbackDeliveryProjection<Project> {
+		const featureRequirementsReport = compatibility.evaluate(project);
+		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
+			project,
+			featureRequirementsReport,
+		);
+		return Object.freeze({
+			project: renderedAudio.project,
+			featureRequirementsReport,
+			audioRenderedFallback: renderedAudio.metadata,
+			requiredAudioSourceIds: Object.freeze(
+				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
 			),
 		});
 	}
