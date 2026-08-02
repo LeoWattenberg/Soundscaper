@@ -363,6 +363,12 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.ok(linkedVideoOriginal);
 	assert.equal(linkedVideoOriginal.status, 'implemented');
 	assert.deepEqual(linkedVideoOriginal.evidence, [
+		'desktop/linked-video-locator-store.ts',
+		'desktop/linked-video-locator-ipc.js',
+		'desktop/preload.mjs',
+		'desktop/main.mjs',
+		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/storage/desktop-linked-video-original-port.ts',
 		'src/common/editor/storage/linked-video-original-binding.ts',
 		'src/common/editor/storage/linked-video-original-schema.ts',
 		'src/common/editor/storage/linked-video-original-repository.ts',
@@ -376,6 +382,12 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/repositories.ts',
 		'src/common/editor/storage.js',
+		'tests/desktop-linked-video-locator-store.test.ts',
+		'tests/desktop-linked-video-locator-ipc.test.js',
+		'tests/desktop-preload-linked-video-original.test.js',
+		'tests/desktop-linked-video-locator-reconciliation.test.ts',
+		'tests/audio-editor-desktop-linked-video-original-port.test.ts',
+		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/audio-editor-linked-video-original-binding.test.ts',
 		'tests/audio-editor-linked-video-original-repository.test.ts',
 		'tests/audio-editor-linked-video-original-resolver.test.ts',
@@ -389,7 +401,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	]);
 	assert.match(
 		linkedVideoOriginal.requiredOutcome,
-		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender/iu,
+		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender.*concrete maintained desktop chooser.*raw paths main-private and bounded.*exact binding before canonical import commit.*complete bounded durable binding inventory/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
@@ -402,6 +414,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
 		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*no product chooser.*relink or watch.*durable operating-system handle.*playback lease.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic video rendered-fallback relationships.*first-party video-effects fallback activation.*qualified separately/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/durable IndexedDB opens.*before project loading.*at most 100,000 closed binding rows.*one readonly cursor transaction.*validates authoritative keys and binding identities.*at most 128 exact locator\/revision pairs.*maintained bootstrap.*point-in-time inventory.*closed preload\/IPC boundary.*only after a complete scan.*memory fallback sends nothing.*corrupt or conflicting records.*reject bootstrap before IPC.*preserve locator metadata.*serialized pass.*only startup-loaded metadata.*absent from.*submitted positive inventory.*runtime-created records.*retry after failure.*at most once per store\/process.*failed first registry write.*restores the in-memory inventory.*owner revocation after publication.*second persisted restore.*surfaces either failure.*never stats or deletes external files.*next successful full bootstrap.*startup-loaded chooser metadata.*no durable binding.*binding rows.*durably removed.*surviving binding.*no longer reachable from a canonical project.*remains retained.*bindings disappear after the pass.*later main-process restart.*cannot authenticate inventory completeness.*compromised renderer.*omit live references.*delete startup locator metadata.*cooperative availability maintenance.*not a compromised-renderer integrity control.*continuous runtime cleanup.*hostile IndexedDB row.*unqualified/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -497,6 +513,18 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		documentation,
 		/only an explicit `prepareHandoff`.*verified linked body.*owned\s+media.*exact linked-session overlay.*existing\s+managed original-video sender.*normal aggregate preflight,\s+digest, bounded-transfer, and publication contract.*no product\s+chooser, relink or watch flow.*durable operating-system handle.*playback\s+lease.*background\s+copy\/consolidation.*alternate publishing protocol.*linked\s+audio, every other\s+linked or unmanaged original.*authored proxies.*generic\s+video rendered-fallback relationships.*packaged executable\/UI behavior.*browser codec\s+playback remain\s+unqualified.*first-party\s+video-effects fallback activation.*separate/isu,
+	);
+	assert.match(
+		documentation,
+		/durable IndexedDB opens.*project loading.*100,000 closed binding rows.*readonly cursor transaction.*authoritative key.*binding identity.*128.*locator\/revision pairs.*maintained bootstrap.*point-in-time inventory.*preload\/IPC boundary.*complete scan.*Memory fallback sends nothing.*corrupt or conflicting records.*reject bootstrap before IPC.*preserve.*locator metadata/isu,
+	);
+	assert.match(
+		documentation,
+		/serialized pass.*startup-loaded metadata.*submitted positive inventory.*runtime-created records.*retry after failure.*at most once.*store\/process.*registry write.*in-memory inventory.*owner.*revocation.*persisted restore.*surfaces.*failure.*never.*stats.*deletes.*external files.*next successful full bootstrap/isu,
+	);
+	assert.match(
+		documentation,
+		/startup-loaded chooser metadata.*durable binding.*binding rows.*durably removed.*surviving binding.*canonical project.*remains retained.*current-process records.*one-shot pass.*later main-process restart.*cannot authenticate inventory completeness.*compromised.*renderer.*omit live references.*delete startup locator metadata.*cooperative availability maintenance.*not a compromised-renderer integrity.*control.*Continuous runtime cleanup.*hostile IndexedDB row.*not implemented/isu,
 	);
 	assert.match(
 		documentation,
