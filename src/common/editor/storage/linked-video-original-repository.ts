@@ -55,6 +55,7 @@ const VALIDATION_INSTANT = '1970-01-01T00:00:00.000Z';
 const OPAQUE_TOKEN_PATTERN = /^[a-z0-9][a-z0-9_-]{15,127}$/iu;
 export const MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS = 100_000;
 export const MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES = 128;
+export const MAX_LINKED_VIDEO_ORIGINAL_CANONICAL_PROJECTS = 10_000;
 
 /** Product-local, pathless linked-original declarations with exact CAS fencing. */
 export class LinkedVideoOriginalRepository {
@@ -103,16 +104,20 @@ export class LinkedVideoOriginalRepository {
 		return storedBinding(value, key, projectId, sourceId);
 	}
 
-	/** Enumerate one bounded, transactionally complete durable locator inventory. */
-	async listDurableLocatorReferences(): Promise<readonly LinkedVideoOriginalLocatorReference[] | null> {
+	/** Retire bindings outside one authoritative project catalog and inventory the survivors. */
+	async reconcileDurableLocatorReferences(
+		canonicalProjectIdsValue: readonly string[],
+	): Promise<readonly LinkedVideoOriginalLocatorReference[] | null> {
 		const database = await this.#port.database();
 		if (!database) return null;
+		const canonicalProjectIds = canonicalProjectIdSet(canonicalProjectIdsValue);
 		return transact(
 			database,
 			LINKED_VIDEO_ORIGINAL_STORE_NAME,
-			'readonly',
-			(stores) => scanDurableLocatorReferences(
+			'readwrite',
+			(stores) => reconcileDurableLocatorReferences(
 				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
+				canonicalProjectIds,
 				this.#maximumInventoryRecords,
 				this.#maximumInventoryReferences,
 			),
@@ -264,15 +269,17 @@ function inventoryBinding(value: unknown, primaryKey: IDBValidKey): LinkedVideoO
 	return binding;
 }
 
-function scanDurableLocatorReferences(
+function reconcileDurableLocatorReferences(
 	store: IDBObjectStore,
+	canonicalProjectIds: ReadonlySet<string>,
 	maximumRecords: number,
 	maximumReferences: number,
 ): Promise<readonly LinkedVideoOriginalLocatorReference[]> {
 	return new Promise((resolve, reject) => {
 		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
 		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
-		const references = new Map<string, string>();
+		const references = new Map<string, { locatorRevision: string; reachable: boolean }>();
+		const unreachableKeys: string[] = [];
 		let recordCount = 0;
 		cursorRequest.onerror = () => reject(
 			cursorRequest.error || new Error('Could not enumerate linked video original bindings.'),
@@ -280,9 +287,17 @@ function scanDurableLocatorReferences(
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;
 			if (!cursor) {
-				resolve(Object.freeze([...references]
+				const liveReferences = Object.freeze([...references]
+					.filter(([, reference]) => reference.reachable)
 					.sort(([left], [right]) => left.localeCompare(right))
-					.map(([locatorId, locatorRevision]) => Object.freeze({ locatorId, locatorRevision }))));
+					.map(([locatorId, reference]) => Object.freeze({
+						locatorId,
+						locatorRevision: reference.locatorRevision,
+					})));
+				let deletions: Promise<unknown>[];
+				try { deletions = unreachableKeys.map((key) => request(store.delete(key))); }
+				catch (error) { reject(error); return; }
+				void Promise.all(deletions).then(() => resolve(liveReferences), reject);
 				return;
 			}
 			try {
@@ -291,11 +306,19 @@ function scanDurableLocatorReferences(
 					throw new RangeError('Linked video original binding inventory exceeds its record limit.');
 				}
 				const binding = inventoryBinding(cursor.value, cursor.primaryKey);
-				const currentRevision = references.get(binding.locatorId);
-				if (currentRevision !== undefined && currentRevision !== binding.locatorRevision) {
+				const current = references.get(binding.locatorId);
+				if (current && current.locatorRevision !== binding.locatorRevision) {
 					throw new Error('Linked video original binding inventory contains conflicting locator revisions.');
 				}
-				references.set(binding.locatorId, binding.locatorRevision);
+				const reachable = canonicalProjectIds.has(binding.projectId);
+				references.set(binding.locatorId, {
+					locatorRevision: binding.locatorRevision,
+					reachable: reachable || current?.reachable === true,
+				});
+				if (!reachable) unreachableKeys.push(linkedVideoOriginalBindingKey(
+					binding.projectId,
+					binding.sourceId,
+				));
 				if (references.size > maximumReferences) {
 					throw new RangeError('Linked video original binding inventory exceeds its reference limit.');
 				}
@@ -303,6 +326,21 @@ function scanDurableLocatorReferences(
 			} catch (error) { reject(error); }
 		};
 	});
+}
+
+function canonicalProjectIdSet(value: unknown): ReadonlySet<string> {
+	if (!Array.isArray(value) || value.length > MAX_LINKED_VIDEO_ORIGINAL_CANONICAL_PROJECTS) {
+		throw new RangeError('Canonical linked-video project inventory exceeds its project limit.');
+	}
+	const projectIds = new Set<string>();
+	for (const projectId of value) {
+		linkedVideoOriginalBindingKey(projectId, 'canonical-project-validation');
+		if (projectIds.has(projectId)) {
+			throw new Error('Canonical linked-video project inventory contains duplicate project identities.');
+		}
+		projectIds.add(projectId);
+	}
+	return projectIds;
 }
 
 function storedRecord(

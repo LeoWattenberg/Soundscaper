@@ -18,7 +18,7 @@ import type {
 } from '../src/common/editor/storage/linked-video-original-resolver.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-test('durable binding inventory retains a live locator and prunes a crash-left chooser locator', async (context) => {
+test('canonical project reachability retains a live locator and prunes a crash-left binding', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-reconciliation-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
 	const registryPath = join(root, 'profile', 'linked-video-locators-v1.json');
@@ -54,6 +54,7 @@ test('durable binding inventory retains a live locator and prunes a crash-left c
 	});
 	await initialRenderer.ready();
 	const source = videoSource();
+	await initialRenderer.saveProject({ id: 'linked-reconciliation-project' });
 	const binding = await initialRenderer.bindLinkedVideoOriginal(
 		'linked-reconciliation-project',
 		source,
@@ -61,6 +62,16 @@ test('durable binding inventory retains a live locator and prunes a crash-left c
 		{ expectedLocatorRevision: live.locatorRevision },
 	);
 	assert.equal(binding.locatorId, live.locatorId);
+	const orphanSource = videoSource({
+		id: 'linked-reconciliation-orphan-source',
+		storageKey: 'linked-reconciliation-orphan-storage',
+	});
+	assert.ok(await initialRenderer.bindLinkedVideoOriginal(
+		'linked-reconciliation-unpublished-project',
+		orphanSource,
+		orphan.locatorId,
+		{ expectedLocatorRevision: orphan.locatorRevision },
+	));
 	await initialRenderer.close();
 	firstMain.revokeOwner(firstOwner);
 	await firstMain.dispose();
@@ -96,6 +107,10 @@ test('durable binding inventory retains a live locator and prunes a crash-left c
 		owner: nextOwner,
 		expectedRevision: orphan.locatorRevision,
 	}), null);
+	assert.equal(await nextRenderer.getLinkedVideoOriginalBinding(
+		'linked-reconciliation-unpublished-project',
+		orphanSource.id,
+	), null);
 	const resolved = await nextRenderer.resolveLinkedVideoOriginal(
 		'linked-reconciliation-project',
 		source,
@@ -176,7 +191,9 @@ function deterministicTokens(): (size: number) => Uint8Array {
 	return (size) => new Uint8Array(size).fill(++value);
 }
 
-function videoSource(): LinkedVideoOriginalSource {
+function videoSource(
+	overrides: Partial<LinkedVideoOriginalSource> = {},
+): LinkedVideoOriginalSource {
 	return Object.freeze({
 		kind: 'video',
 		id: 'linked-reconciliation-source',
@@ -190,5 +207,6 @@ function videoSource(): LinkedVideoOriginalSource {
 		videoCodec: 'h264',
 		audioCodec: null,
 		hasAudio: false,
+		...overrides,
 	});
 }

@@ -141,7 +141,7 @@ test('linked video bindings persist through the IndexedDB repository', async (co
 	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 0);
 });
 
-test('durable linked-video inventory is complete, bounded, and deduplicated by exact locator revision', async (context) => {
+test('durable reconciliation removes unreachable bindings while preserving live aliases', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const databaseName = `linked-video-inventory-${Date.now()}-${Math.random()}`;
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
@@ -161,18 +161,58 @@ test('durable linked-video inventory is complete, bounded, and deduplicated by e
 		}),
 	]) assert.ok(await repository.putIfCurrent(input, null));
 
-	assert.deepEqual(await repository.listDurableLocatorReferences(), [{
+	const references = await repository.reconcileDurableLocatorReferences([
+		'project-linked-video',
+		'project-linked-video-second',
+	]);
+	assert.deepEqual(references, [{
 		locatorId: 'locator_0000000000000001',
 		locatorRevision: 'snapshot_0000000000000001',
 	}, {
 		locatorId: 'locator_0000000000000002',
 		locatorRevision: 'snapshot_0000000000000002',
 	}]);
-	assert.equal(Object.isFrozen(await repository.listDurableLocatorReferences()), true);
-	assert.equal((await memoryRepository('inventory-memory').repository.listDurableLocatorReferences()), null);
+	assert.equal(Object.isFrozen(references), true);
+	assert.equal(await repository.get('project-linked-video-copy', 'source-linked-video-copy'), null);
+	assert.ok(await repository.get('project-linked-video', 'source-linked-video'));
+	assert.ok(await repository.get('project-linked-video-second', 'source-linked-video-second'));
+
+	const ephemeral = memoryRepository('inventory-memory');
+	assert.ok(await ephemeral.repository.putIfCurrent(bindingInput(), null));
+	assert.equal(await ephemeral.repository.reconcileDurableLocatorReferences([]), null);
+	assert.ok(await ephemeral.repository.get('project-linked-video', 'source-linked-video'));
 });
 
-test('durable linked-video inventory fails closed for conflicting, corrupt, or over-limit records', async (context) => {
+test('canonical project identities use the exact linked-binding identity contract', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-project-identities-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedVideoOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
+		database: async () => database,
+	}, deterministicOptions());
+	assert.ok(await repository.putIfCurrent(bindingInput(), null));
+
+	for (const projectId of [`project\u0000id`, 'p'.repeat(257)]) {
+		await assert.rejects(
+			repository.reconcileDurableLocatorReferences([projectId]),
+			/projectId|identity|character limit|control/iu,
+		);
+	}
+	const exactProjectLimit = [
+		'project-linked-video',
+		...Array.from({ length: 9_999 }, (_, index) => `project-${String(index)}`),
+	];
+	assert.equal((await repository.reconcileDurableLocatorReferences(exactProjectLimit))?.length, 1);
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences([...exactProjectLimit, 'project-over-limit']),
+		/project.*limit|limit.*project/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 1);
+});
+
+test('durable reconciliation rejects conflicts and reference limits even across unreachable bindings', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const databaseName = `linked-video-inventory-invalid-${Date.now()}-${Math.random()}`;
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
@@ -180,14 +220,19 @@ test('durable linked-video inventory fails closed for conflicting, corrupt, or o
 	const repository = new LinkedVideoOriginalRepository({
 		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
 		database: async () => database,
-	}, { ...deterministicOptions(), maximumInventoryRecords: 2 });
+	}, {
+		...deterministicOptions(),
+		maximumInventoryRecords: 3,
+		maximumInventoryReferences: 2,
+	});
 	assert.ok(await repository.putIfCurrent(bindingInput(), null));
 	assert.ok(await repository.putIfCurrent(bindingInput({
 		projectId: 'project-linked-video-conflict',
 		sourceId: 'source-linked-video-conflict',
 		locatorRevision: 'snapshot_0000000000000002',
 	}), null));
-	await assert.rejects(repository.listDurableLocatorReferences(), /conflicting.*revision/iu);
+	await assert.rejects(repository.reconcileDurableLocatorReferences([]), /conflicting.*revision/iu);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 2);
 
 	const conflict = indexedDB.records(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME)[1];
 	const independent = {
@@ -202,7 +247,8 @@ test('durable linked-video inventory fails closed for conflicting, corrupt, or o
 		...independent,
 		key: 'spoofed-key',
 	}, independent.key);
-	await assert.rejects(repository.listDurableLocatorReferences(), /binding|record|key/iu);
+	await assert.rejects(repository.reconcileDurableLocatorReferences([]), /binding|record|key/iu);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 2);
 	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, independent, independent.key);
 
 	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, {
@@ -217,7 +263,74 @@ test('durable linked-video inventory fails closed for conflicting, corrupt, or o
 			locatorRevision: 'snapshot_0000000000000003',
 		},
 	}, linkedVideoOriginalBindingKey('project-linked-video-third', 'source-linked-video-third'));
-	await assert.rejects(repository.listDurableLocatorReferences(), /inventory.*limit|limit.*inventory/iu);
+	await assert.rejects(repository.reconcileDurableLocatorReferences([]), /inventory.*limit|limit.*inventory/iu);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 3);
+});
+
+test('durable reconciliation rolls back when the complete binding scan exceeds its record limit', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-record-limit-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedVideoOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
+		database: async () => database,
+	}, { ...deterministicOptions(), maximumInventoryRecords: 2 });
+	const exactLimitInputs = [
+		bindingInput(),
+		bindingInput({ projectId: 'project-alias-b', sourceId: 'source-alias-b' }),
+	];
+	for (const input of exactLimitInputs) assert.ok(await repository.putIfCurrent(input, null));
+	assert.equal((await repository.reconcileDurableLocatorReferences(
+		exactLimitInputs.map(({ projectId }) => projectId),
+	))?.length, 1);
+	assert.ok(await repository.putIfCurrent(bindingInput({
+		projectId: 'project-alias-c',
+		sourceId: 'source-alias-c',
+	}), null));
+
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences([
+			...exactLimitInputs.map(({ projectId }) => projectId),
+			'project-alias-c',
+		]),
+		/record.*limit|limit.*record/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 3);
+});
+
+test('durable linked-video reconciliation rolls back a failed unreachable-binding deletion', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-reconcile-rollback-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedVideoOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
+		database: async () => database,
+	}, deterministicOptions());
+	assert.ok(await repository.putIfCurrent(bindingInput(), null));
+	assert.ok(await repository.putIfCurrent(bindingInput({
+		projectId: 'project-linked-video-orphan',
+		sourceId: 'source-linked-video-orphan',
+		locatorId: 'locator_0000000000000002',
+		locatorRevision: 'snapshot_0000000000000002',
+	}), null));
+	const failure = new Error('planned unreachable binding delete failure');
+	indexedDB.failNextDeleteForStore(LINKED_VIDEO_ORIGINAL_STORE_NAME, failure);
+
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences(['project-linked-video']),
+		(error) => error === failure,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 2);
+	assert.deepEqual(
+		await repository.reconcileDurableLocatorReferences(['project-linked-video']),
+		[{
+			locatorId: 'locator_0000000000000001',
+			locatorRevision: 'snapshot_0000000000000001',
+		}],
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 1);
 });
 
 function bindingInput(overrides: Partial<LinkedVideoOriginalBindingInput> = {}): LinkedVideoOriginalBindingInput {

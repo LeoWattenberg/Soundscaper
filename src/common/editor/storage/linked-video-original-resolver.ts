@@ -301,9 +301,10 @@ export class LinkedVideoOriginalResolver {
 		return Boolean(await this.#port.release(locatorId));
 	}
 
-	async reconcileLocators(): Promise<number | null> {
-		const references = await this.#bindings.listDurableLocatorReferences();
-		if (references === null || typeof this.#port.reconcile !== 'function') return null;
+	async reconcileLocators(canonicalProjectIds: readonly string[]): Promise<number | null> {
+		if (typeof this.#port.reconcile !== 'function') return null;
+		const references = await this.#bindings.reconcileDurableLocatorReferences(canonicalProjectIds);
+		if (references === null) return null;
 		const removed = await this.#port.reconcile(references);
 		if (!Number.isSafeInteger(removed) || Number(removed) < 0) {
 			throw new RangeError('Linked video locator reconciliation returned an invalid removal count.');

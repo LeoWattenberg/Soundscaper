@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import type {
 	LinkedVideoOriginalPort,
 	LinkedVideoOriginalSource,
@@ -48,8 +49,11 @@ test('project storage composes pathless linked-video binding and resolution sepa
 	});
 	context.after(async () => { await store.close(); });
 	const source = videoSource();
+	let projectLists = 0;
+	store.projectRepository.list = async () => { projectLists += 1; return []; };
 	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
 	assert.equal(reconciliations, 0, 'ephemeral memory bindings never authorize main-process pruning');
+	assert.equal(projectLists, 0, 'ephemeral memory never requests an authoritative project catalog');
 
 	const binding = await store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID);
 	assert.equal(binding.projectId, PROJECT_ID);
@@ -168,6 +172,74 @@ test('linked-video resolver injection is optional and facade operations fail bef
 		/resolution is unavailable/iu,
 	);
 	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
+});
+
+test('desktop reconciliation trusts the shared catalog instead of a stale local shadow', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-shared-catalog-${Date.now()}-${Math.random()}`;
+	const body = new Blob(['stale shadow linked video'], { type: 'video/mp4' });
+	const submitted: unknown[] = [];
+	let sharedCatalogReads = 0;
+	const store = createProjectStore({
+		indexedDB,
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName,
+		desktopProjectBridge: {
+			async listSharedProjects() { sharedCatalogReads += 1; return []; },
+			async readSharedProject() { return null; },
+			async commitSharedProject(document: string) { return document; },
+			async deleteSharedProject() { return true; },
+		},
+		linkedVideoOriginalPort: {
+			load: () => ({ blob: body, locatorRevision: LOCATOR_REVISION }),
+			reconcile(references: readonly unknown[]) { submitted.push(references); return 1; },
+		},
+	});
+	context.after(async () => { await store.close(); });
+	await store.ready();
+	indexedDB.seedRecord(databaseName, 'projects', { id: PROJECT_ID });
+	const source = videoSource();
+	assert.ok(await store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID));
+
+	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), true);
+	assert.equal(sharedCatalogReads, 1);
+	assert.deepEqual(submitted, [[]]);
+	assert.equal(await store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
+});
+
+test('committed orphan cleanup retries locator reconciliation after a main rejection', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-reconcile-retry-${Date.now()}-${Math.random()}`;
+	const body = new Blob(['retry linked video'], { type: 'video/mp4' });
+	const failure = new Error('main locator reconciliation failed');
+	const submitted: unknown[] = [];
+	const store = createProjectStore({
+		indexedDB,
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName,
+		linkedVideoOriginalPort: {
+			load: () => ({ blob: body, locatorRevision: LOCATOR_REVISION }),
+			reconcile(references: readonly unknown[]) {
+				submitted.push(references);
+				if (submitted.length === 1) throw failure;
+				return 1;
+			},
+		},
+	});
+	context.after(async () => { await store.close(); });
+	await store.ready();
+	const source = videoSource();
+	assert.ok(await store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID));
+
+	await assert.rejects(
+		store.reconcileLinkedVideoOriginalLocators(),
+		(error) => error === failure,
+	);
+	assert.equal(await store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
+	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), true);
+	assert.deepEqual(submitted, [[], []]);
 });
 
 test('linked original bindings and disposable posters reopen through a fresh store composition', async (context) => {

@@ -315,8 +315,8 @@ export class AudioEditorProjectStore {
 	/** Reconcile main-private startup locators only from a complete durable binding inventory. */
 	async reconcileLinkedVideoOriginalLocators() {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) return false;
-		return (await this.linkedVideoOriginalResolver.reconcileLocators()) !== null;
+		if (!this.linkedVideoOriginalResolver || await this.#database() === null) return false;
+		return (await this.linkedVideoOriginalResolver.reconcileLocators((await this.projectRepository.list()).map(({ id }) => id))) !== null;
 	}
 
 	/**

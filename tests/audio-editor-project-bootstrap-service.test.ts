@@ -35,6 +35,7 @@ function createFixture() {
 	const lifetime = new EditorControllerLifetime();
 	const settings = new Map<string, unknown>();
 	let ready: () => PromiseLike<unknown> | unknown = () => Promise.resolve();
+	let reconcileLinkedVideoOriginalLocators: () => PromiseLike<unknown> | unknown = () => undefined;
 	let lastProjectId: string | null = null;
 	let savedProject: TestProject | null = null;
 	let loadProject: (
@@ -74,7 +75,10 @@ function createFixture() {
 		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => ready(),
-			reconcileLinkedVideoOriginalLocators: () => { events.push('reconcile-linked-video'); },
+			reconcileLinkedVideoOriginalLocators: () => {
+				events.push('reconcile-linked-video');
+				return reconcileLinkedVideoOriginalLocators();
+			},
 			cleanupTemporaryAssets: () => { events.push('cleanup-assets'); },
 			requestPersistentStorage: () => { events.push('request-persistence'); },
 			async loadSetting(key, fallback) {
@@ -158,6 +162,9 @@ function createFixture() {
 		setLoadProject(value: typeof loadProject) { loadProject = value; },
 		setOpenProject(value: typeof openProject) { openProject = value; },
 		setReady(value: typeof ready) { ready = value; },
+		setReconciliation(value: typeof reconcileLinkedVideoOriginalLocators) {
+			reconcileLinkedVideoOriginalLocators = value;
+		},
 	};
 }
 
@@ -216,6 +223,24 @@ test('terminal disposal during store readiness prevents later resource acquisiti
 	assert.equal(fixture.events.includes('listen-devices'), false);
 	assert.equal(fixture.events.includes('new-project'), false);
 	assert.equal(fixture.events.includes('publish'), false);
+});
+
+test('startup reconciliation failure prevents temporary cleanup and project loading', async () => {
+	const fixture = createFixture();
+	const saved = { id: 'saved-project', tracks: [] };
+	const failure = new Error('linked-video binding inventory is corrupt');
+	fixture.setLastProject(saved.id, saved);
+	fixture.setReconciliation(async () => { throw failure; });
+
+	await assert.rejects(
+		fixture.service.bootstrap(fixture.lifetime.capture()),
+		(error) => error === failure,
+	);
+	assert.equal(fixture.events.includes('reconcile-linked-video'), true);
+	assert.equal(fixture.events.includes('cleanup-assets'), false);
+	assert.equal(fixture.events.some((event) => event.startsWith('load:')), false);
+	assert.equal(fixture.events.includes('load-project:saved-project'), false);
+	assert.equal(fixture.events.includes('new-project'), false);
 });
 
 test('terminal disposal aborts the saved-project load before project activation', async () => {

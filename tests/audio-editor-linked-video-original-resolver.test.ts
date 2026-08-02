@@ -213,30 +213,64 @@ test('linked video resolver reconciles only a complete durable binding inventory
 		locatorId: '1'.repeat(64),
 		locatorRevision: '2'.repeat(64),
 	})]);
+	const canonicalProjectIds = Object.freeze(['project-linked-video']);
 	const calls: unknown[] = [];
 	const repository = {
-		listDurableLocatorReferences: async () => references,
+		reconcileDurableLocatorReferences: async (value: unknown) => {
+			calls.push({ projectIds: value });
+			return references;
+		},
 	} as unknown as LinkedVideoOriginalRepository;
 	const resolver = new LinkedVideoOriginalResolver(repository, {
 		load: () => null,
-		reconcile(value) { calls.push(value); return 3; },
+		reconcile(value) { calls.push({ references: value }); return 3; },
 	});
-	assert.equal(await resolver.reconcileLocators(), 3);
-	assert.deepEqual(calls, [references]);
+	assert.equal(await resolver.reconcileLocators(canonicalProjectIds), 3);
+	assert.deepEqual(calls, [
+		{ projectIds: canonicalProjectIds },
+		{ references },
+	]);
 
 	const ephemeral = new LinkedVideoOriginalResolver({
-		listDurableLocatorReferences: async () => null,
+		reconcileDurableLocatorReferences: async () => null,
 	} as unknown as LinkedVideoOriginalRepository, {
 		load: () => null,
 		reconcile() { throw new Error('must not reconcile ephemeral bindings'); },
 	});
-	assert.equal(await ephemeral.reconcileLocators(), null);
+	assert.equal(await ephemeral.reconcileLocators(canonicalProjectIds), null);
+
+	let unsupportedInventoryReads = 0;
+	const unsupported = new LinkedVideoOriginalResolver({
+		reconcileDurableLocatorReferences: async () => {
+			unsupportedInventoryReads += 1;
+			return references;
+		},
+	} as unknown as LinkedVideoOriginalRepository, { load: () => null });
+	assert.equal(await unsupported.reconcileLocators(canonicalProjectIds), null);
+	assert.equal(unsupportedInventoryReads, 0);
+
+	const inventoryFailure = new Error('binding inventory is corrupt');
+	let failedInventoryIpcCalls = 0;
+	const corrupt = new LinkedVideoOriginalResolver({
+		reconcileDurableLocatorReferences: async () => { throw inventoryFailure; },
+	} as unknown as LinkedVideoOriginalRepository, {
+		load: () => null,
+		reconcile() { failedInventoryIpcCalls += 1; return 0; },
+	});
+	await assert.rejects(
+		corrupt.reconcileLocators(canonicalProjectIds),
+		(error) => error === inventoryFailure,
+	);
+	assert.equal(failedInventoryIpcCalls, 0);
 
 	const malformed = new LinkedVideoOriginalResolver(repository, {
 		load: () => null,
 		reconcile: () => -1,
 	});
-	await assert.rejects(malformed.reconcileLocators(), /removal count|non-negative/iu);
+	await assert.rejects(
+		malformed.reconcileLocators(canonicalProjectIds),
+		/removal count|non-negative/iu,
+	);
 });
 
 function fixtureResolver(port: LinkedVideoOriginalPort): LinkedVideoOriginalResolver {
