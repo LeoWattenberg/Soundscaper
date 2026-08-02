@@ -4,7 +4,7 @@ import { measureBextLoudness } from '../broadcast-loudness.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
-import { admitVideoRenderedFallbackExport, projectForVideoRenderedFallbackExport, sanitizeVideoExportFileName } from './video-rendered-fallback-export.ts';
+import { admitVideoRenderedFallbackExport, assertVideoExportPublicationCurrent, projectForVideoRenderedFallbackExport, sanitizeVideoExportFileName } from './video-rendered-fallback-export.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -313,6 +313,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
 			await state.outputCleanup?.();
+			assertVideoExportCurrent();
 			state.outputUrl = null;
 			state.outputCleanup = null;
 			state.exportOutput = null;
@@ -321,12 +322,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				suggestedName: fileName,
 				mimeType: encoded.mimeType,
 				blob,
+				signal: abort.signal,
 			});
-			if (abort.signal.aborted || generation !== state.exportGeneration || state.disposed) {
-				await published.cleanup?.();
-				pendingCleanup = null;
-				throw abortError();
-			}
+			await assertVideoExportPublicationCurrent(published, assertVideoExportCurrent);
 			if (published.cancelled) return published;
 			state.outputCleanup = published.cleanup || null;
 			pendingCleanup = state.outputCleanup;

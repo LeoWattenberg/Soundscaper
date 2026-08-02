@@ -32,6 +32,10 @@ interface VideoRenderedFallbackExportAdmissionOptions {
 	readonly assertCurrent: () => void;
 }
 
+interface VideoExportPublication {
+	readonly cleanup?: () => PromiseLike<void> | void;
+}
+
 const EMPTY_VIDEO_DELIVERY = Object.freeze({
 	featureRequirementsReport: null,
 	videoRenderedFallback: null,
@@ -84,6 +88,17 @@ export function sanitizeVideoExportFileName(value: unknown): string {
 		.replace(/-{2,}/gu, '-')
 		.replace(/^[-_.]+|[-_.]+$/gu, '')
 		.slice(0, 96) || 'video-project';
+}
+
+/** Refuse a stale publication result and release any recoverable output handle. */
+export async function assertVideoExportPublicationCurrent(
+	published: VideoExportPublication,
+	assertCurrent: () => void,
+): Promise<void> {
+	try { assertCurrent(); } catch (error) {
+		await published.cleanup?.();
+		throw error;
+	}
 }
 
 function assertDeliveryProjection(

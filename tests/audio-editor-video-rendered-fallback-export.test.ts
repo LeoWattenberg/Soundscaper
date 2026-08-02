@@ -41,6 +41,7 @@ interface ExportSource {
 
 interface ExportFixtureOptions {
 	readonly fallback?: boolean;
+	readonly outputCleanup?: () => Promise<void> | void;
 	readonly verify?: (
 		project: ExportProject,
 		store: unknown,
@@ -136,7 +137,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 		exportAbort: null as null | Readonly<{ signal: AbortSignal; abort(): void }>,
 		mobile: false,
 		outputUrl: null,
-		outputCleanup: null,
+		outputCleanup: options.outputCleanup ?? null,
 		exportOutput: null,
 		disposed: false,
 	};
@@ -335,6 +336,38 @@ test('video fallback verification cancellation cannot start late delivery work',
 	assert.deepEqual(fixture.plannedProjects, []);
 	assert.deepEqual(fixture.encodedPlans, []);
 	assert.deepEqual(fixture.downloads, []);
+});
+
+test('video fallback cancellation during prior-output cleanup cannot begin download publication', async () => {
+	let cleanupStarted: (() => void) | null = null;
+	let releaseCleanup!: () => void;
+	const started = new Promise<void>((resolve) => { cleanupStarted = resolve; });
+	const release = new Promise<void>((resolve) => { releaseCleanup = resolve; });
+	const fixture = createFixture({
+		outputCleanup: async () => {
+			cleanupStarted?.();
+			await release;
+		},
+	});
+	const service = createEditorExportService(fixture.runtime);
+	const pending = service.exportVideo();
+	await started;
+	await service.handleExportAction('cancel');
+	releaseCleanup();
+	assert.equal(await pending, null);
+
+	assert.deepEqual(fixture.errors, []);
+	assert.deepEqual(fixture.downloads, []);
+});
+
+test('video fallback download publication receives the owned export signal', async () => {
+	const fixture = createFixture();
+	const result = await createEditorExportService(fixture.runtime).exportVideo();
+
+	assert.equal(result?.mimeType, 'video/mp4');
+	const request = fixture.downloads[0] as Readonly<{ signal?: AbortSignal }>;
+	assert.ok(request.signal instanceof AbortSignal);
+	assert.equal(request.signal.aborted, false);
 });
 
 test('ordinary video export does not invoke rendered-fallback integrity admission', async () => {
