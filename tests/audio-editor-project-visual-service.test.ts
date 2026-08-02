@@ -5,6 +5,7 @@ import {
 	createProjectVisualService,
 	type ProjectVisualServiceDependencies,
 } from '../src/common/editor/controller/project-visual-service.ts';
+import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 
 type VideoDerivatives = Awaited<ReturnType<
 	ProjectVisualServiceDependencies['store']['listVideoDerivatives']
@@ -14,6 +15,7 @@ test('visual service assembles timeline and compound project-bin media from one 
 	const project = projectFixture();
 	const service = createProjectVisualService({
 		getProject: () => project,
+		...projectFence(),
 		missingSourceIds: new Set(['missing']),
 		sourceBuffers: new Map([['audio', { buffer: true }]]),
 		sourcePeaks: new Map([['audio', { levels: [] }]]),
@@ -45,6 +47,7 @@ test('late video derivatives are revoked and cannot resurrect a superseded visua
 	const project = projectFixture();
 	const service = createProjectVisualService({
 		getProject: () => project,
+		...projectFence(),
 		missingSourceIds: new Set(),
 		sourceBuffers: new Map(),
 		sourcePeaks: new Map(),
@@ -60,7 +63,7 @@ test('late video derivatives are revoked and cannot resurrect a superseded visua
 
 	const activation = service.activateVideoSource(project.sources[1]);
 	await Promise.resolve();
-	service.revokeVideoVisual('video');
+	await service.revokeVideoVisual('video');
 	derivatives.resolve([{ type: 'poster', timestamp: 0, width: 320, height: 180 }]);
 
 	assert.equal(await activation, null);
@@ -76,12 +79,14 @@ test('video activation resolves an exact project-scoped linked original after re
 	const binding = Object.freeze({ bindingToken: 'binding-linked-video' });
 	const service = createProjectVisualService({
 		getProject: () => project,
+		...projectFence(),
 		missingSourceIds: new Set(),
 		sourceBuffers: new Map(),
 		sourcePeaks: new Map(),
 		waveformPcmWindows: new Map(),
 		store: {
 			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async () => null,
 			resolveLinkedVideoOriginal: async (projectId, source) => {
 				resolutions.push({ projectId, sourceId: source.id });
 				return { blob: linkedBody, binding };
@@ -121,11 +126,300 @@ test('video activation resolves an exact project-scoped linked original after re
 	assert.deepEqual(derivativeReads, ['list', 'load']);
 });
 
+test('video activation owns ranged linked playback without materializing another original Blob', async () => {
+	const project = projectFixture();
+	const binding = Object.freeze({ bindingToken: 'binding-ranged-video' });
+	const releases: string[] = [];
+	const urls = fakeUrlPort();
+	let wholeBlobResolutions = 0;
+	const service = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async (projectId, source) => {
+				assert.equal(projectId, project.id);
+				assert.equal(source.id, 'video');
+				return {
+					binding,
+					mediaUrl: 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/read/video.mp4',
+					release: async () => { releases.push('lease'); },
+				};
+			},
+			resolveLinkedVideoOriginal: async () => {
+				wholeBlobResolutions += 1;
+				throw new Error('must not materialize the linked original');
+			},
+			listVideoDerivatives: async () => { throw new Error('retained derivative lookup'); },
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async (_projectId, _source, currentBinding) => {
+				assert.equal(currentBinding, binding);
+				return [{ type: 'poster', timestamp: 0, width: 320, height: 180 }];
+			},
+			loadLinkedVideoDerivative: async () => new Blob(['linked-poster']),
+		},
+		projectDurationFrames: () => 1_000,
+		url: urls,
+	});
+
+	const visual = await service.activateVideoSource(project.sources[1]);
+	assert.equal(visual?.mediaUrl, 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/read/video.mp4');
+	assert.equal(visual?.posterUrl, 'blob:1');
+	assert.equal(wholeBlobResolutions, 0);
+	assert.equal(await service.revokeVideoVisual('video', 'blob:stale'), false);
+	assert.deepEqual(releases, []);
+	assert.equal(service.getVideoSourceVisualData('video')?.mediaUrl, visual?.mediaUrl);
+	assert.equal(await service.revokeVideoVisual('video', visual?.mediaUrl), true);
+	assert.deepEqual(releases, ['lease']);
+	assert.deepEqual(urls.revoked, ['blob:1']);
+	assert.equal(await service.revokeVideoVisual('video', visual?.mediaUrl), false);
+	assert.deepEqual(releases, ['lease']);
+});
+
+test('linked playback admission failures do not retry through whole-Blob resolution', async () => {
+	const project = projectFixture();
+	const admissionError = new Error('linked playback admission failed');
+	let wholeBlobResolutions = 0;
+	const service = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async () => { throw admissionError; },
+			resolveLinkedVideoOriginal: async () => {
+				wholeBlobResolutions += 1;
+				return null;
+			},
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+
+	await assert.rejects(service.activateVideoSource(project.sources[1]), (error: unknown) => (
+		error === admissionError
+	));
+	assert.equal(wholeBlobResolutions, 0);
+});
+
+test('superseded and cancelled linked playback activations release their exact lease', async () => {
+	const initialProject = projectFixture();
+	let currentProject = initialProject;
+	const admitted = deferred<Readonly<{
+		binding: Readonly<{ bindingToken: string }>;
+		mediaUrl: string;
+		release(): Promise<void>;
+	}>>();
+	let staleReleases = 0;
+	const projectGeneration = new EditorProjectGeneration();
+	projectGeneration.activate(initialProject.id);
+	const staleService = createProjectVisualService({
+		getProject: () => currentProject,
+		captureProject: (projectId) => projectGeneration.capture(projectId),
+		assertProject: (token) => projectGeneration.assertCurrent(
+			token as ReturnType<EditorProjectGeneration['capture']>,
+		),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async () => admitted.promise,
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+	const staleActivation = staleService.activateVideoSource(initialProject.sources[1]);
+	await Promise.resolve();
+	currentProject = { ...initialProject };
+	projectGeneration.invalidate();
+	projectGeneration.activate(initialProject.id);
+	admitted.resolve({
+		binding: { bindingToken: 'stale-binding' },
+		mediaUrl: 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/stale/video.mp4',
+		release: async () => { staleReleases += 1; },
+	});
+	await assert.rejects(staleActivation, (error: unknown) => (
+		error instanceof Error && error.name === 'AbortError'
+	));
+	assert.equal(staleReleases, 1);
+
+	const controller = new AbortController();
+	const reason = new Error('cancel visual activation');
+	const derivatives = deferred<VideoDerivatives>();
+	let cancelledReleases = 0;
+	const cancelledService = createProjectVisualService({
+		getProject: () => initialProject,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async (_projectId, _source, options) => {
+				assert.equal(options?.signal, controller.signal);
+				return {
+					binding: { bindingToken: 'cancelled-binding' },
+					mediaUrl: 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/cancelled/video.mp4',
+					release: async () => { cancelledReleases += 1; },
+				};
+			},
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async () => derivatives.promise,
+			loadLinkedVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+	const cancelledActivation = cancelledService.activateVideoSource(initialProject.sources[1], {
+		signal: controller.signal,
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	controller.abort(reason);
+	derivatives.resolve([]);
+	await assert.rejects(cancelledActivation, (error: unknown) => error === reason);
+	assert.equal(cancelledReleases, 1);
+});
+
+test('video replacement rechecks ownership after awaiting the previous lease release', async () => {
+	const project = projectFixture();
+	const firstRelease = deferred<void>();
+	const releaseStarted = deferred<void>();
+	const releases: string[] = [];
+	let admissions = 0;
+	const service = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async () => {
+				admissions += 1;
+				const admission = admissions;
+				return {
+					binding: { bindingToken: `binding-${admission}` },
+					mediaUrl: `soundscaper-app://bundle/_desktop/read/linked-video-range-v1/${admission}/video.mp4`,
+					async release() {
+						releases.push(`${admission}:start`);
+						if (admission === 1) {
+							releaseStarted.resolve();
+							await firstRelease.promise;
+						}
+						releases.push(`${admission}:done`);
+					},
+				};
+			},
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async () => [],
+			loadLinkedVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+	await service.activateVideoSource(project.sources[1]);
+	const replacement = service.activateVideoSource(project.sources[1]);
+	await releaseStarted.promise;
+	assert.equal(service.getVideoSourceVisualData('video')?.mediaUrl, null);
+	assert.equal(await service.revokeVideoVisual('video'), false);
+	firstRelease.resolve();
+	assert.equal(await replacement, null);
+	assert.deepEqual(releases, ['1:start', '1:done', '2:start', '2:done']);
+});
+
+test('video cleanup preserves activation failures and drains every disposal lease', async () => {
+	const project = projectFixture();
+	const activationError = new Error('derivative admission failed');
+	const cleanupError = new Error('candidate lease cleanup failed');
+	const failed = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async () => ({
+				binding: { bindingToken: 'failed-binding' },
+				mediaUrl: 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/failed/video.mp4',
+				release: async () => { throw cleanupError; },
+			}),
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async () => { throw activationError; },
+			loadLinkedVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+	await assert.rejects(failed.activateVideoSource(project.sources[1]), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.equal(error.errors[0], activationError);
+		assert.equal(error.errors[1], cleanupError);
+		return true;
+	});
+
+	const releaseCalls: string[] = [];
+	const sourceTwo = { ...project.sources[1], id: 'video-two', storageKey: 'video-two' };
+	const disposing = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			leaseLinkedVideoOriginalPlayback: async (_projectId, source) => ({
+				binding: { bindingToken: source.id },
+				mediaUrl: `soundscaper-app://bundle/_desktop/read/linked-video-range-v1/${source.id}/video.mp4`,
+				async release() {
+					releaseCalls.push(source.id);
+					if (source.id === 'video') throw new Error('first disposal failed');
+				},
+			}),
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async () => [],
+			loadLinkedVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+	await disposing.activateVideoSource(project.sources[1]);
+	await disposing.activateVideoSource(sourceTwo);
+	const firstDisposal = disposing.dispose();
+	assert.equal(disposing.dispose(), firstDisposal);
+	await assert.rejects(firstDisposal, /first disposal failed/u);
+	assert.deepEqual(releaseCalls, ['video', 'video-two']);
+	assert.equal(await disposing.activateVideoSource(project.sources[1]), null);
+});
+
 test('linked derivative refusal revokes the already-created media URL', async () => {
 	const project = projectFixture();
 	const urls = fakeUrlPort();
 	const service = createProjectVisualService({
 		getProject: () => project,
+		...projectFence(),
 		missingSourceIds: new Set(),
 		sourceBuffers: new Map(),
 		sourcePeaks: new Map(),
@@ -154,6 +448,7 @@ test('replacing and disposing video visuals revokes every owned URL exactly once
 	const project = projectFixture();
 	const service = createProjectVisualService({
 		getProject: () => project,
+		...projectFence(),
 		missingSourceIds: new Set(),
 		sourceBuffers: new Map(),
 		sourcePeaks: new Map(),
@@ -172,8 +467,8 @@ test('replacing and disposing video visuals revokes every owned URL exactly once
 
 	await service.activateVideoSource(project.sources[1]);
 	assert.equal(service.getClipVisualData('video-clip')?.mediaUrl, 'blob:1');
-	service.dispose();
-	service.dispose();
+	await service.dispose();
+	await service.dispose();
 
 	assert.deepEqual(urls.revoked, ['blob:1', 'blob:2', 'blob:3']);
 	assert.equal(service.getClipVisualData('video-clip')?.mediaUrl, null);
@@ -221,6 +516,13 @@ function fakeUrlPort() {
 		revoked,
 		createObjectURL: (_blob: Blob) => `blob:${++next}`,
 		revokeObjectURL: (url: string) => { revoked.push(url); },
+	};
+}
+
+function projectFence() {
+	return {
+		captureProject: (projectId: string) => projectId,
+		assertProject: (_token: unknown) => undefined,
 	};
 }
 

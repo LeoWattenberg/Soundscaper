@@ -40,7 +40,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 	previewRackEffect, previewVideoEffectGesture, product, getProject,
 	projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs,
-	removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
+	releaseVideoSourceVisual, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
 	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, revertFactorySettings,
@@ -140,6 +140,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		video: Object.freeze({
 			getClipVisualData,
 			getSourceVisualData: getVideoSourceVisualData,
+			releaseSourceVisual: releaseVideoSourceVisual,
 			export: exportVideo,
 			effects: Object.freeze({
 				add: restricted('videoEffects', addVideoClipEffect),

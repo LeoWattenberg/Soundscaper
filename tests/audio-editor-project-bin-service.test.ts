@@ -18,6 +18,12 @@ import type {
 	ProjectBinProject,
 } from '../src/common/editor/controller/project-bin-types.ts';
 
+function deferred() {
+	let resolve: () => void = () => undefined;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
 test('project-bin operations preserve grouped moves and prepare atomic A/V placement IDs', () => {
 	const timelineProject = projectFixture({
 		clips: [
@@ -228,18 +234,28 @@ test('replacement cancellation removes staged audio/video assets and rejects sta
 		})],
 		sources: [{ id: 'video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
 	});
+	const revokeStarted = deferred();
+	const revokeGate = deferred();
 	const videoRef: { current?: ReturnType<typeof createHarness> } = {};
 	const videoHarness = createHarness(base, {
 		importProjectBinFile: async () => {
 			videoRef.current?.replaceImportedDocument(importedVideo);
 			return { clipId: 'video-bin' };
 		},
+		async revokeVideoVisual() {
+			revokeStarted.resolve();
+			await revokeGate.promise;
+		},
 	});
 	videoRef.current = videoHarness;
-	await assert.rejects(
+	const rejected = assert.rejects(
 		videoHarness.service.prepareProjectBinReplacement('bin', { name: 'video.mp4' }),
 		/Replacement incompatible/,
 	);
+	await revokeStarted.promise;
+	assert.deepEqual(videoHarness.deletedMedia, []);
+	revokeGate.resolve();
+	await rejected;
 	assert.deepEqual(videoHarness.deletedMedia, ['video']);
 });
 
@@ -327,6 +343,7 @@ test('audio-buffer fitting preserves an exact buffer and truncates or zero-pads 
 
 interface HarnessOptions {
 	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];
+	readonly revokeVideoVisual?: ProjectBinServiceDependencies['revokeVideoVisual'];
 	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
 	readonly editingBlocked?: () => boolean;
 	readonly playbackState?: string;
@@ -407,7 +424,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		importProjectBinFile: options.importProjectBinFile ?? (async () => null),
 		projectChanged: () => undefined,
 		publish: () => { publishCount += 1; },
-		revokeVideoVisual: () => undefined,
+		revokeVideoVisual: options.revokeVideoVisual ?? (() => undefined),
 	};
 	const service = createProjectBinService(dependencies);
 	return {

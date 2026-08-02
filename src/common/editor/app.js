@@ -525,7 +525,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let removeDeviceChangeListener = () => {};
 	let project = null;
 	const projectVisualService = createProjectVisualService({
-		getProject: () => project,
+		getProject: () => project, captureProject: (projectId) => projectGeneration.capture(projectId), assertProject: (token) => projectGeneration.assertCurrent(token),
 		missingSourceIds: state.missingSourceIds,
 		sourceBuffers,
 		sourcePeaks,
@@ -1720,7 +1720,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
@@ -1793,7 +1793,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		};
 		try {
 			projectGeneration.invalidate();
-			const scapeInspectionDrain = scapeInspectionQuiescence.drain();
+			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();
 			removeDeviceChangeListener = () => {};
 			unsubscribeParametricEqErrors();
@@ -1837,7 +1837,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourcePeaks.clear();
 			clipWaveformPcmWindows.clear();
 			clipWaveformPcmRequests.clear();
-			revokeVideoVisuals();
+			await cleanup(() => visualDisposal);
 			await cleanup(() => Promise.resolve(store.close?.()));
 		} finally {
 			lifetime.finishDisposal();

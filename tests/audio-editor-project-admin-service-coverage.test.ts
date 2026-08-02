@@ -14,6 +14,12 @@ interface Project {
 	readonly revision: number;
 }
 
+function deferred() {
+	let resolve: () => void = () => undefined;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
 function createFixture() {
 	let project: Project | null = { id: 'project-a', title: 'Project A', revision: 3 };
 	let closeResult: { closed: boolean; activeProjectId?: string } = { closed: true };
@@ -237,6 +243,32 @@ test('project deletion validates ownership and then clears project-specific stat
 	const replaced = createFixture();
 	replaced.setStopRecording(async () => { replaced.setProject({ id: 'replacement', title: 'Other', revision: 1 }); });
 	assert.equal(await createProjectAdminService(replaced.runtime).deleteProject(), null);
+});
+
+test('project deletion and local reset drain video visuals before storage mutation', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const started = deferred();
+		const gate = deferred();
+		const runtime = {
+			...fixture.runtime,
+			async revokeVideoVisuals() {
+				fixture.calls.push('revoke-video:start');
+				started.resolve();
+				await gate.promise;
+				fixture.calls.push('revoke-video:done');
+			},
+		} satisfies ProjectAdminServiceRuntime;
+		const service = createProjectAdminService(runtime);
+		const pending = operation === 'delete' ? service.deleteProject() : service.clearLocalData();
+		await started.promise;
+		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+		gate.resolve();
+		await pending;
+		assert.ok(fixture.calls.indexOf('revoke-video:done') < fixture.calls.indexOf(
+			operation === 'delete' ? 'delete:project-a' : 'clear-store',
+		));
+	}
 });
 
 test('source garbage collection protects live state and schedules the next pass', async () => {

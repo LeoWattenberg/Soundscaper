@@ -47,7 +47,7 @@ export default function WorkspacePanelContent({
 		);
 	}
 	if (panelId === 'video-preview') {
-		return <VideoPreviewPanel controller={controller} snapshot={snapshot} copy={copy} />;
+		return <VideoPreviewPanel controller={controller} snapshot={snapshot} copy={copy} run={run} />;
 	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
 		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];

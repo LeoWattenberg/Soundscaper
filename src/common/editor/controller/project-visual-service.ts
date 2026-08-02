@@ -37,10 +37,19 @@ interface VideoDerivative extends Readonly<Record<string, unknown>> {
 }
 
 interface ProjectVisualStore {
-	loadMediaAsset(sourceId: string): Promise<Blob | null>;
+	loadMediaAsset(
+		sourceId: string,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): Promise<Blob | null>;
+	leaseLinkedVideoOriginalPlayback?(
+		projectId: string,
+		source: ProjectVisualSource,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): Promise<LinkedVideoPlaybackLease | null>;
 	resolveLinkedVideoOriginal?(
 		projectId: string,
 		source: ProjectVisualSource,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	): Promise<Readonly<{ readonly blob: Blob; readonly binding: unknown }> | null>;
 	listVideoDerivatives(sourceId: string): Promise<readonly VideoDerivative[]>;
 	loadVideoDerivative(sourceId: string, derivative: VideoDerivative): Promise<Blob | null>;
@@ -57,6 +66,12 @@ interface ObjectUrlPort {
 	revokeObjectURL(url: string): void;
 }
 
+interface LinkedVideoPlaybackLease {
+	readonly binding: unknown;
+	readonly mediaUrl: string;
+	release(): PromiseLike<void> | void;
+}
+
 export interface VideoThumbnail {
 	readonly sourceTimeSeconds: number;
 	readonly timestampSeconds: number;
@@ -69,6 +84,12 @@ interface VideoVisual {
 	readonly mediaUrl: string | null;
 	readonly posterUrl: string | null;
 	readonly thumbnails: readonly VideoThumbnail[];
+}
+
+interface VideoVisualRecord {
+	readonly visual: Readonly<VideoVisual>;
+	readonly objectUrls: readonly string[];
+	readonly linkedPlaybackLease: LinkedVideoPlaybackLease | null;
 }
 
 export interface ClipVisualData {
@@ -96,6 +117,8 @@ export interface VideoSourceVisualData {
 
 export interface ProjectVisualServiceDependencies {
 	getProject(): ProjectVisualProject | null;
+	captureProject(projectId: string): unknown;
+	assertProject(token: unknown): void;
 	readonly missingSourceIds: ReadonlySet<string>;
 	readonly sourceBuffers: ReadonlyMap<string, unknown>;
 	readonly sourcePeaks: ReadonlyMap<string, unknown>;
@@ -109,9 +132,12 @@ export interface ProjectVisualService {
 	getClipVisualData(clipId: string): Readonly<ClipVisualData> | null;
 	getProjectBinClipVisualData(clipId: string): Readonly<ClipVisualData> | null;
 	getVideoSourceVisualData(sourceId: string): Readonly<VideoSourceVisualData> | null;
-	activateVideoSource(source: ProjectVisualSource): Promise<Readonly<VideoVisual> | null>;
-	revokeVideoVisual(sourceId: string): boolean;
-	revokeVideoVisuals(): void;
+	activateVideoSource(
+		source: ProjectVisualSource,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): Promise<Readonly<VideoVisual> | null>;
+	revokeVideoVisual(sourceId: string, expectedMediaUrl?: string | null): Promise<boolean>;
+	revokeVideoVisuals(): Promise<void>;
 	projectBinClips(project?: ProjectVisualProject | null): readonly ProjectVisualClip[];
 	allProjectClips(project?: ProjectVisualProject | null): readonly ProjectVisualClip[];
 	hasMissingTimelineSources(
@@ -123,15 +149,16 @@ export interface ProjectVisualService {
 		endFrame?: number;
 		overscanFrames?: number;
 	}>): readonly (Readonly<ClipVisualData> | null)[];
-	dispose(): void;
+	dispose(): Promise<void>;
 }
 
 export function createProjectVisualService(
 	dependencies: ProjectVisualServiceDependencies,
 ): Readonly<ProjectVisualService> {
-	const videoVisuals = new Map<string, Readonly<VideoVisual>>();
+	const videoVisuals = new Map<string, Readonly<VideoVisualRecord>>();
 	const generations = new Map<string, number>();
 	let disposed = false;
+	let disposePromise: Promise<void> | null = null;
 
 	return Object.freeze({
 		getClipVisualData,
@@ -152,7 +179,7 @@ export function createProjectVisualService(
 		const clip = project?.clips.find((candidate) => candidate.id === clipId) ?? null;
 		if (!project || !clip) return null;
 		const source = findSource(project, clip.sourceId);
-		const video = clip.kind === 'video' ? videoVisuals.get(clip.sourceId) : null;
+		const video = clip.kind === 'video' ? videoVisuals.get(clip.sourceId)?.visual : null;
 		const pcmWindow = dependencies.waveformPcmWindows.get(String(clip.id));
 		return Object.freeze({
 			clip,
@@ -177,7 +204,7 @@ export function createProjectVisualService(
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
 		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') ?? null;
-		const video = videoClip ? videoVisuals.get(videoClip.sourceId) : null;
+		const video = videoClip ? videoVisuals.get(videoClip.sourceId)?.visual : null;
 		return Object.freeze({
 			clip,
 			track: null,
@@ -199,7 +226,7 @@ export function createProjectVisualService(
 		const project = dependencies.getProject();
 		const source = project ? findSource(project, sourceId) : null;
 		if (!source || source.kind !== 'video') return null;
-		const visual = videoVisuals.get(source.id);
+		const visual = videoVisuals.get(source.id)?.visual;
 		return Object.freeze({
 			source,
 			available: !dependencies.missingSourceIds.has(source.id),
@@ -211,35 +238,59 @@ export function createProjectVisualService(
 
 	async function activateVideoSource(
 		source: ProjectVisualSource,
+		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<Readonly<VideoVisual> | null> {
 		if (disposed) return null;
 		const operation = nextGeneration(source.id);
+		const project = dependencies.getProject();
+		const projectId = project?.id ?? null;
+		const projectToken = projectId ? dependencies.captureProject(projectId) : null;
 		const sourceId = source.storageKey || source.id;
 		const ownedUrls: string[] = [];
-		let mediaBlob = await dependencies.store.loadMediaAsset(sourceId);
-		let linkedOriginal: Readonly<{ readonly blob: Blob; readonly binding: unknown }> | null = null;
-		let linkedProject: ProjectVisualProject | null = null;
-		if (!isCurrent(source.id, operation)) return null;
-		if (!mediaBlob && dependencies.store.resolveLinkedVideoOriginal) {
-			const project = dependencies.getProject();
-			if (project) {
-				linkedOriginal = await dependencies.store.resolveLinkedVideoOriginal(project.id, source);
-				if (!isCurrent(source.id, operation) || dependencies.getProject()?.id !== project.id) return null;
-				linkedProject = project;
+		let linkedPlaybackLease: LinkedVideoPlaybackLease | null = null;
+		try {
+			throwIfAborted(options.signal);
+			let mediaBlob = await dependencies.store.loadMediaAsset(sourceId, options);
+			throwIfAborted(options.signal);
+			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+				return cleanupLate(ownedUrls, linkedPlaybackLease);
+			}
+			let linkedBinding: unknown = null;
+			if (!mediaBlob && projectId && dependencies.store.leaseLinkedVideoOriginalPlayback) {
+				linkedPlaybackLease = await dependencies.store.leaseLinkedVideoOriginalPlayback.call(
+					dependencies.store, projectId, source, options,
+				);
+				throwIfAborted(options.signal);
+				if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+					return cleanupLate(ownedUrls, linkedPlaybackLease);
+				}
+				linkedBinding = linkedPlaybackLease?.binding ?? null;
+			}
+			if (!mediaBlob && !linkedPlaybackLease && projectId
+				&& dependencies.store.resolveLinkedVideoOriginal) {
+				const linkedOriginal = await dependencies.store.resolveLinkedVideoOriginal.call(
+					dependencies.store, projectId, source, options,
+				);
+				throwIfAborted(options.signal);
+				if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+					return cleanupLate(ownedUrls, linkedPlaybackLease);
+				}
+				linkedBinding = linkedOriginal?.binding ?? null;
 				mediaBlob = linkedOriginal?.blob ?? null;
 			}
-		}
-		if (!mediaBlob) throw new Error('The original video file is missing.');
-		const mediaUrl = dependencies.url.createObjectURL(mediaBlob);
-		if (mediaUrl) ownedUrls.push(mediaUrl);
-		try {
+			if (!mediaBlob && !linkedPlaybackLease) {
+				throw new Error('The original video file is missing.');
+			}
+			const mediaUrl = linkedPlaybackLease?.mediaUrl
+				?? (mediaBlob ? dependencies.url.createObjectURL(mediaBlob) : null);
+			if (mediaBlob && mediaUrl) ownedUrls.push(mediaUrl);
 			let posterUrl: string | null = null;
 			const thumbnails: VideoThumbnail[] = [];
 			const listLinkedDerivatives = dependencies.store.listLinkedVideoDerivatives;
 			const loadLinkedDerivative = dependencies.store.loadLinkedVideoDerivative;
-			const linkedDerivativeAccess = linkedOriginal && linkedProject
+			const linkedDerivativeAccess = linkedBinding !== null && projectId
 				&& listLinkedDerivatives && loadLinkedDerivative
-				? { binding: linkedOriginal.binding, projectId: linkedProject.id,
+				? { binding: linkedBinding, projectId,
 					list: listLinkedDerivatives, load: loadLinkedDerivative }
 				: null;
 			const derivatives = linkedDerivativeAccess
@@ -247,7 +298,10 @@ export function createProjectVisualService(
 					dependencies.store, linkedDerivativeAccess.projectId, source, linkedDerivativeAccess.binding,
 				)
 				: await dependencies.store.listVideoDerivatives(sourceId);
-			if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
+			throwIfAborted(options.signal);
+			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+				return cleanupLate(ownedUrls, linkedPlaybackLease);
+			}
 			for (const derivative of derivatives) {
 				const blob = linkedDerivativeAccess
 					? await linkedDerivativeAccess.load.call(
@@ -255,13 +309,19 @@ export function createProjectVisualService(
 						source, linkedDerivativeAccess.binding, derivative,
 					)
 					: await dependencies.store.loadVideoDerivative(sourceId, derivative);
-				if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
+				throwIfAborted(options.signal);
+				if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+					return cleanupLate(ownedUrls, linkedPlaybackLease);
+				}
 				if (!blob) continue;
 				const url = dependencies.url.createObjectURL(blob);
 				if (!url) continue;
-				ownedUrls.push(url);
-				if (derivative.type === 'poster') posterUrl = url;
+				if (derivative.type === 'poster') {
+					ownedUrls.push(url);
+					posterUrl = url;
+				}
 				else if (derivative.type === 'thumbnail') {
+					ownedUrls.push(url);
 					const timestamp = Number(derivative.timestamp) || 0;
 					thumbnails.push(Object.freeze({
 						sourceTimeSeconds: timestamp,
@@ -272,30 +332,49 @@ export function createProjectVisualService(
 					}));
 				} else revokeUrls([url]);
 			}
-			if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
-			dropVisual(source.id);
+			throwIfAborted(options.signal);
+			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+				return cleanupLate(ownedUrls, linkedPlaybackLease);
+			}
+			await dropVisual(source.id);
+			throwIfAborted(options.signal);
+			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+				return cleanupLate(ownedUrls, linkedPlaybackLease);
+			}
 			const visual = Object.freeze({
 				mediaUrl,
 				posterUrl: posterUrl || thumbnails[0]?.url || null,
 				thumbnails: Object.freeze(thumbnails),
 			});
-			videoVisuals.set(source.id, visual);
+			videoVisuals.set(source.id, Object.freeze({
+				visual,
+				objectUrls: Object.freeze([...ownedUrls]),
+				linkedPlaybackLease,
+			}));
 			return visual;
 		} catch (error) {
-			cleanupLate(ownedUrls);
-			throw error;
+			let primary = error;
+			try { throwIfAborted(options.signal); } catch (abortError) { primary = abortError; }
+			return failActivation(primary, ownedUrls, linkedPlaybackLease);
 		}
 	}
 
-	function revokeVideoVisual(sourceId: string): boolean {
+	async function revokeVideoVisual(
+		sourceId: string,
+		expectedMediaUrl?: string | null,
+	): Promise<boolean> {
+		const current = videoVisuals.get(sourceId);
+		if (expectedMediaUrl !== undefined && current?.visual.mediaUrl !== expectedMediaUrl) return false;
 		nextGeneration(sourceId);
 		return dropVisual(sourceId);
 	}
 
-	function revokeVideoVisuals(): void {
-		for (const sourceId of new Set([...generations.keys(), ...videoVisuals.keys()])) {
-			revokeVideoVisual(sourceId);
-		}
+	async function revokeVideoVisuals(): Promise<void> {
+		const sourceIds = new Set([...generations.keys(), ...videoVisuals.keys()]);
+		for (const sourceId of sourceIds) nextGeneration(sourceId);
+		const records = [...videoVisuals.values()];
+		videoVisuals.clear();
+		await cleanupRecords(records);
 	}
 
 	function projectBinClips(
@@ -351,10 +430,12 @@ export function createProjectVisualService(
 			.map((clip) => getClipVisualData(clip.id)));
 	}
 
-	function dispose(): void {
-		if (disposed) return;
+	function dispose(): Promise<void> {
+		if (disposePromise) return disposePromise;
 		disposed = true;
-		revokeVideoVisuals();
+		disposePromise = revokeVideoVisuals();
+		void disposePromise.catch(() => undefined);
+		return disposePromise;
 	}
 
 	function nextGeneration(sourceId: string): number {
@@ -367,21 +448,72 @@ export function createProjectVisualService(
 		return !disposed && generations.get(sourceId) === generation;
 	}
 
-	function dropVisual(sourceId: string): boolean {
-		const visual = videoVisuals.get(sourceId);
-		if (!visual) return false;
-		revokeUrls([
-			visual.mediaUrl,
-			visual.posterUrl,
-			...visual.thumbnails.map((thumbnail) => thumbnail.url),
-		]);
+	function isActivationCurrent(
+		sourceId: string,
+		generation: number,
+		project: ProjectVisualProject | null,
+		projectToken: unknown,
+	): boolean {
+		if (!isCurrent(sourceId, generation)) return false;
+		if (projectToken !== null) dependencies.assertProject(projectToken);
+		return dependencies.getProject() === project;
+	}
+
+	async function dropVisual(sourceId: string): Promise<boolean> {
+		const record = videoVisuals.get(sourceId);
+		if (!record) return false;
 		videoVisuals.delete(sourceId);
+		await cleanupRecord(record);
 		return true;
 	}
 
-	function cleanupLate(urls: readonly string[]): null {
-		revokeUrls(urls);
+	async function cleanupLate(
+		urls: readonly string[],
+		lease: LinkedVideoPlaybackLease | null,
+	): Promise<null> {
+		await cleanupOwnedResources(urls, lease);
 		return null;
+	}
+
+	async function failActivation(
+		error: unknown,
+		urls: readonly string[],
+		lease: LinkedVideoPlaybackLease | null,
+	): Promise<never> {
+		try {
+			await cleanupOwnedResources(urls, lease);
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[error, cleanupError],
+				'Video visual activation and cleanup both failed.',
+				{ cause: cleanupError },
+			);
+		}
+		throw error;
+	}
+
+	async function cleanupRecords(records: readonly Readonly<VideoVisualRecord>[]): Promise<void> {
+		const errors: unknown[] = [];
+		for (const record of records) {
+			try { await cleanupRecord(record); } catch (error) { errors.push(error); }
+		}
+		if (errors.length === 1) throw errors[0];
+		if (errors.length > 1) throw new AggregateError(errors, 'Multiple video visual cleanups failed.');
+	}
+
+	function cleanupRecord(record: Readonly<VideoVisualRecord>): Promise<void> {
+		return cleanupOwnedResources(record.objectUrls, record.linkedPlaybackLease);
+	}
+
+	async function cleanupOwnedResources(
+		urls: readonly string[],
+		lease: LinkedVideoPlaybackLease | null,
+	): Promise<void> {
+		const errors: unknown[] = [];
+		try { revokeUrls(urls); } catch (error) { errors.push(error); }
+		try { await lease?.release(); } catch (error) { errors.push(error); }
+		if (errors.length === 1) throw errors[0];
+		if (errors.length > 1) throw new AggregateError(errors, 'Video visual resource cleanup failed.');
 	}
 
 	function revokeUrls(urls: readonly (string | null | undefined)[]): void {
@@ -389,6 +521,15 @@ export function createProjectVisualService(
 			dependencies.url.revokeObjectURL(url);
 		}
 	}
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	if (typeof DOMException === 'function') throw new DOMException('Video visual activation cancelled.', 'AbortError');
+	const error = new Error('Video visual activation cancelled.');
+	error.name = 'AbortError';
+	throw error;
 }
 
 function findSource(project: ProjectVisualProject, sourceId: string): ProjectVisualSource | null {

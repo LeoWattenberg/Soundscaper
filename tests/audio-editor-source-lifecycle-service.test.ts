@@ -21,6 +21,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	const sourcePeaks = new Map<string, unknown>();
 	const cachedBuffers = new Map<string, unknown>();
 	const activatedVideoSources: Array<Readonly<Record<string, unknown>>> = [];
+	const activatedVideoSignals: Array<AbortSignal | undefined> = [];
 	const sourceBuffers = {
 		has: (id: string) => cachedBuffers.has(id),
 		get: (id: string) => cachedBuffers.get(id),
@@ -34,9 +35,10 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 1_024,
-		activateVideoSource: async (candidate) => {
+		activateVideoSource: async (candidate, activationOptions) => {
 			if (options.videoFailure) throw options.videoFailure;
 			activatedVideoSources.push(candidate);
+			activatedVideoSignals.push(activationOptions?.signal);
 		},
 		allProjectClips: (value) => value.clips,
 		audioBufferChannels: () => [],
@@ -72,6 +74,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 		service: createSourceLifecycleService(runtime),
 		cachedBuffers,
 		activatedVideoSources,
+		activatedVideoSignals,
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
 		publishes: () => publishes,
@@ -93,12 +96,20 @@ test('a required rendered-video source activates even when only its manifest ref
 	const project = Object.freeze({
 		id: 'video-fallback-project', clips: Object.freeze([]), sources: Object.freeze([source]),
 	});
+	const controller = new AbortController();
 
-	await fixture.service.loadProjectSources(project, { requiredVideoSourceIds: [source.id] });
+	await fixture.service.loadProjectSources(project, {
+		requiredVideoSourceIds: [source.id],
+		signal: controller.signal,
+	});
 	assert.deepEqual(fixture.activatedVideoSources, [source]);
 
-	await fixture.service.ensureProjectSourcesAvailable(project, { requiredVideoSourceIds: [source.id] });
+	await fixture.service.ensureProjectSourcesAvailable(project, {
+		requiredVideoSourceIds: [source.id],
+		signal: controller.signal,
+	});
 	assert.deepEqual(fixture.activatedVideoSources, [source, source]);
+	assert.deepEqual(fixture.activatedVideoSignals, [controller.signal, controller.signal]);
 });
 
 test('required rendered-video activation rejects missing, wrong-kind, and unreadable sources', async () => {

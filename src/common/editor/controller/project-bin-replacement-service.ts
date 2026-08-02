@@ -66,7 +66,7 @@ export interface ProjectBinReplacementDependencies {
 	): Promise<ProjectBinImportResult | null>;
 	projectChanged(): void;
 	publish(): void;
-	revokeVideoVisual(sourceId: string): void;
+	revokeVideoVisual(sourceId: string): PromiseLike<unknown> | unknown;
 }
 
 export interface ProjectBinReplacementService {
@@ -240,7 +240,7 @@ export function createProjectBinReplacementService(
 			dependencies.sourcePeaks.delete(source.id);
 			dependencies.missingSourceIds.delete(source.id);
 			if (source.kind === 'video') {
-				dependencies.revokeVideoVisual(source.id);
+				await dependencies.revokeVideoVisual(source.id);
 				try {
 					await dependencies.store.deleteMediaAsset?.(source.id);
 				} catch {

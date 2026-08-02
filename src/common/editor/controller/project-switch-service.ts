@@ -166,7 +166,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly findTrack: (project: Project, trackId: string | null | undefined) => Readonly<{ id: string }> | null;
 	readonly findClip: (project: Project, clipId: string | null | undefined) => Readonly<{ id: string }> | null;
 	readonly revokeOutputUrl: (url: string) => void;
-	readonly revokeVideoVisuals: () => void;
+	readonly revokeVideoVisuals: () => PromiseLike<void> | void;
 	readonly clearWaveformPcmWindows: () => void;
 	readonly loadProjectSources: (project: Project, options?: Readonly<{
 		readonly excludedAudioSourceIds?: readonly string[];
@@ -434,7 +434,7 @@ export function createProjectSwitchService<
 			runtime.state.outputCleanup = null;
 			runtime.state.exportOutput = null;
 			runtime.state.missingSourceIds.clear();
-			runtime.revokeVideoVisuals();
+			await guard(runtime.revokeVideoVisuals());
 			runtime.clearWaveformPcmWindows();
 			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
 				excludedAudioSourceIds: playbackProjection.requiredAudioSourceIds,
@@ -475,7 +475,15 @@ export function createProjectSwitchService<
 				await runtime.releaseProjectLock().catch(() => undefined);
 				runtime.clearSourceCaches();
 				runtime.clearWaveformPcmWindows();
-				runtime.revokeVideoVisuals();
+				try {
+					await runtime.revokeVideoVisuals();
+				} catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError],
+						'Project switching and video visual cleanup both failed.',
+						{ cause: cleanupError },
+					);
+				}
 			}
 			throw error;
 		} finally {

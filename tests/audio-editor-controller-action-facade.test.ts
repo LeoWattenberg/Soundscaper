@@ -151,14 +151,19 @@ test('controller action facade routes Scape file opens through continuation owne
 	assert.deepEqual(calls, [[file, choose]]);
 });
 
-test('controller action facade exposes source-level video visuals for transient preview clips', () => {
+test('controller action facade exposes source-level video visual ownership', async () => {
 	const expected = Object.freeze({ mediaUrl: 'blob:fallback-video' });
+	const releases: unknown[][] = [];
 	const base = createRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'getVideoSourceVisualData') return (sourceId: unknown) => {
 				assert.equal(sourceId, 'fallback-video');
 				return expected;
+			};
+			if (name === 'releaseVideoSourceVisual') return (...args: unknown[]) => {
+				releases.push(args);
+				return true;
 			};
 			return Reflect.get(target, name, receiver);
 		},
@@ -167,4 +172,8 @@ test('controller action facade exposes source-level video visuals for transient 
 	const getSourceVisualData = actions.video.getSourceVisualData;
 	if (typeof getSourceVisualData !== 'function') throw new TypeError('Video source lookup must be callable.');
 	assert.strictEqual(getSourceVisualData('fallback-video'), expected);
+	const releaseSourceVisual = actions.video.releaseSourceVisual;
+	if (typeof releaseSourceVisual !== 'function') throw new TypeError('Video source release must be callable.');
+	assert.equal(await releaseSourceVisual('fallback-video', 'blob:fallback-video'), true);
+	assert.deepEqual(releases, [['fallback-video', 'blob:fallback-video']]);
 });

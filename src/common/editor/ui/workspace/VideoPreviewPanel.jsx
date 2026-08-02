@@ -163,7 +163,7 @@ function releaseRetiredVideoPreviewElements(compositor, retiredVideos) {
 	}
 }
 
-export default function VideoPreviewPanel({ controller, snapshot, copy }) {
+export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const canvasRef = useRef(null);
 	const compositorRef = useRef(null);
 	const videoElementsRef = useRef(new Map());
@@ -356,7 +356,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 		} else videoElementsRef.current.delete(clipId);
 		requestPreviewFrame();
 	}, [requestPreviewFrame]);
-	const handleVideoMediaError = useCallback((clipId, sourceUrl, element) => {
+	const handleVideoMediaError = useCallback((clipId, sourceId, sourceUrl, element) => {
 		if (!clipId) return;
 		failedVideoSourcesRef.current.set(clipId, sourceUrl);
 		const clipState = compositorTimelineRef.current.clipStateById.get(clipId);
@@ -371,9 +371,13 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 			}
 			if (!alreadyRetired) retiredVideoElementsRef.current.push(element);
 		}
+		const releaseSourceVisual = controller.actions.video?.releaseSourceVisual;
+		if (typeof releaseSourceVisual === 'function' && typeof run === 'function') {
+			run(() => releaseSourceVisual(sourceId, sourceUrl));
+		}
 		setMediaErrorRevision((revision) => revision + 1);
 		requestPreviewFrame();
-	}, [requestPreviewFrame]);
+	}, [controller, requestPreviewFrame, run]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -546,8 +550,8 @@ function VideoPreviewClip({
 	const handleMediaError = useCallback(() => {
 		const video = videoRef.current;
 		video?.pause?.();
-		onMediaError?.(entry.clipId, entry.sourceUrl, video);
-	}, [entry.clipId, entry.sourceUrl, onMediaError]);
+		onMediaError?.(entry.clipId, entry.sourceId, entry.sourceUrl, video);
+	}, [entry.clipId, entry.sourceId, entry.sourceUrl, onMediaError]);
 
 	useEffect(() => {
 		syncVideo();

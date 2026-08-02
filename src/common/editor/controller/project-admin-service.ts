@@ -146,6 +146,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (getProject() !== project) return null;
 		const id = project.id;
 		await releaseProjectLock();
+		await revokeVideoVisuals();
 		await store.deleteProject(id);
 		await persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' });
 		sessionController.closeProject(id, { force: true });
@@ -202,7 +203,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		sourceChunkProviders.clear();
 		sourcePeaks.clear();
 		clearWaveformPcmWindows();
-		revokeVideoVisuals();
+		await revokeVideoVisuals();
 		await store.clear();
 		sessionController.clearClipboard();
 		for (const tab of [...sessionController.getSnapshot().tabs]) {

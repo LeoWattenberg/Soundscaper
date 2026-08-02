@@ -213,7 +213,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			const required = requiredSourceIds.has(source.id) || requiredVideoSourceIds.has(source.id);
 			try {
 				if (source.kind === 'video') {
-					await awaitSourceLoadOperation(() => activateVideoSource(source), options.signal);
+					await awaitSourceLoadOperation(() => activateVideoSource(source, { signal: options.signal }), options.signal);
 					throwIfSourceLoadAborted(options.signal);
 					continue;
 				}
@@ -451,7 +451,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
 			requiredVideoSourceIds.has(candidate.id)
 		))) {
-			await awaitSourceLoadOperation(() => activateVideoSource(source), options.signal);
+			await awaitSourceLoadOperation(() => activateVideoSource(source, { signal: options.signal }), options.signal);
 			throwIfSourceLoadAborted(options.signal);
 		}
 		let context: any = null;

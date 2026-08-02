@@ -369,7 +369,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				&& currentProject.sources?.some((source: RuntimeValue) => source.id === videoSourceId);
 			if (canonicalSourceLanded) throw error;
 			const cleanupErrors: unknown[] = [];
-			try { revokeVideoVisual(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			try { await revokeVideoVisual(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			let releaseLinkedLocator = !linkedBinding;
 			if (linkedBinding) {
 				try {
