@@ -26,6 +26,7 @@ export interface ProjectBootstrapState<Preferences, EffectPresets> {
 
 export interface ProjectBootstrapStore<Project extends ProjectLifecycleProject> {
 	ready(): PromiseLike<unknown> | unknown;
+	reconcileLinkedOriginalLocators?(): PromiseLike<unknown> | unknown;
 	reconcileLinkedVideoOriginalLocators?(): PromiseLike<unknown> | unknown;
 	cleanupTemporaryAssets?(): PromiseLike<unknown> | unknown;
 	requestPersistentStorage(): PromiseLike<unknown> | unknown;
@@ -112,7 +113,9 @@ export function createProjectBootstrapService<
 			throw new Error(runtime.copy.webAudioUnsupported);
 		}
 		await guard(runtime.store.ready());
-		await guard(runtime.store.reconcileLinkedVideoOriginalLocators?.());
+		const reconcileLinkedOriginalLocators = runtime.store.reconcileLinkedOriginalLocators
+			?? runtime.store.reconcileLinkedVideoOriginalLocators;
+		await guard(reconcileLinkedOriginalLocators?.call(runtime.store));
 		await guard(runtime.store.cleanupTemporaryAssets?.());
 		void Promise.resolve()
 			.then(() => runtime.store.requestPersistentStorage())

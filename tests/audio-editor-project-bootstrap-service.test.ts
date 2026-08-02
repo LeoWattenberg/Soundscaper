@@ -31,7 +31,7 @@ interface TestPresets {
 	readonly source: unknown;
 }
 
-function createFixture() {
+function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const settings = new Map<string, unknown>();
 	let ready: () => PromiseLike<unknown> | unknown = () => Promise.resolve();
@@ -75,6 +75,12 @@ function createFixture() {
 		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => ready(),
+			...(options.genericReconciliation === false ? {} : {
+				reconcileLinkedOriginalLocators: () => {
+					events.push('reconcile-linked-originals');
+					return reconcileLinkedVideoOriginalLocators();
+				},
+			}),
 			reconcileLinkedVideoOriginalLocators: () => {
 				events.push('reconcile-linked-video');
 				return reconcileLinkedVideoOriginalLocators();
@@ -193,8 +199,9 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	assert.equal(fixture.state.latencyOffsetMs, 42);
 	assert.equal(fixture.state.showVerticalRulers, false);
 	assert.equal(fixture.state.preferredInputChannelCount, 2);
-	assert.ok(fixture.events.includes('reconcile-linked-video'));
-	assert.ok(fixture.events.indexOf('reconcile-linked-video') < fixture.events.indexOf('cleanup-assets'));
+	assert.ok(fixture.events.includes('reconcile-linked-originals'));
+	assert.equal(fixture.events.includes('reconcile-linked-video'), false);
+	assert.ok(fixture.events.indexOf('reconcile-linked-originals') < fixture.events.indexOf('cleanup-assets'));
 	assert.ok(fixture.events.indexOf('output:output-a') < fixture.events.indexOf('open-project:saved-project'));
 	assert.ok(fixture.events.includes('listen-devices'));
 	assert.ok(fixture.events.includes('save-now'));
@@ -219,7 +226,7 @@ test('terminal disposal during store readiness prevents later resource acquisiti
 
 	await assert.rejects(() => bootstrap, { code: 'DISPOSED' });
 	assert.equal(fixture.events.includes('cleanup-assets'), false);
-	assert.equal(fixture.events.includes('reconcile-linked-video'), false);
+	assert.equal(fixture.events.includes('reconcile-linked-originals'), false);
 	assert.equal(fixture.events.includes('listen-devices'), false);
 	assert.equal(fixture.events.includes('new-project'), false);
 	assert.equal(fixture.events.includes('publish'), false);
@@ -236,11 +243,20 @@ test('startup reconciliation failure prevents temporary cleanup and project load
 		fixture.service.bootstrap(fixture.lifetime.capture()),
 		(error) => error === failure,
 	);
-	assert.equal(fixture.events.includes('reconcile-linked-video'), true);
+	assert.equal(fixture.events.includes('reconcile-linked-originals'), true);
 	assert.equal(fixture.events.includes('cleanup-assets'), false);
 	assert.equal(fixture.events.some((event) => event.startsWith('load:')), false);
 	assert.equal(fixture.events.includes('load-project:saved-project'), false);
 	assert.equal(fixture.events.includes('new-project'), false);
+});
+
+test('bootstrap falls back to legacy video-only locator reconciliation', async () => {
+	const fixture = createFixture({ genericReconciliation: false });
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+
+	assert.ok(fixture.events.includes('reconcile-linked-video'));
+	assert.ok(fixture.events.indexOf('reconcile-linked-video') < fixture.events.indexOf('cleanup-assets'));
 });
 
 test('terminal disposal aborts the saved-project load before project activation', async () => {
