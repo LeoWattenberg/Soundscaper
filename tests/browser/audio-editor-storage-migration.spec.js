@@ -9,7 +9,7 @@ const DATABASE_NAME = 'kw-media-audio-editor';
 test.describe('editor storage schema migration', () => {
 	registerAudioEditorHooks();
 
-	test('atomically backfills v2 derivatives, creates staged stores, and sanitizes v6 provenance', async ({ page }) => {
+	test('atomically backfills v2 derivatives, creates v7 stores, and sanitizes v6 provenance', async ({ page }) => {
 		await page.goto('/logo/logo-schwarz.svg');
 		await page.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
@@ -69,6 +69,7 @@ test.describe('editor storage schema migration', () => {
 					[
 						'sources', 'videoDerivatives', 'videoDerivativeCacheEntries',
 						'mediaAssets', 'mediaAssetChunks', 'mediaAssetStaging',
+						'linkedVideoOriginalBindings',
 					],
 					'readonly',
 				);
@@ -77,15 +78,20 @@ test.describe('editor storage schema migration', () => {
 				const mediaChunkStore = transaction.objectStore('mediaAssetChunks');
 				const mediaAssetStore = transaction.objectStore('mediaAssets');
 				const mediaStagingStore = transaction.objectStore('mediaAssetStaging');
+				const linkedVideoOriginalStore = transaction.objectStore('linkedVideoOriginalBindings');
 				const sourceStore = transaction.objectStore('sources');
 				const derivativeStore = transaction.objectStore('videoDerivatives');
 				const derivativeEntryStore = transaction.objectStore('videoDerivativeCacheEntries');
 				const mediaChunkCountRequest = mediaChunkStore.count();
 				const mediaAssetRequest = mediaAssetStore.get('legacy-source');
 				const mediaStagingStateRequest = mediaStagingStore.get('state');
+				const linkedVideoOriginalCountRequest = linkedVideoOriginalStore.count();
 				const mediaStagingKeyPath = mediaStagingStore.keyPath;
 				const mediaStagingIndexes = [...mediaStagingStore.indexNames]
 					.map((name) => ({ name, unique: mediaStagingStore.index(name).unique }))
+					.sort((left, right) => left.name.localeCompare(right.name));
+				const linkedVideoOriginalIndexes = [...linkedVideoOriginalStore.indexNames]
+					.map((name) => ({ name, unique: linkedVideoOriginalStore.index(name).unique }))
 					.sort((left, right) => left.name.localeCompare(right.name));
 				transaction.oncomplete = () => {
 					const [entry] = entryRequest.result;
@@ -99,6 +105,9 @@ test.describe('editor storage schema migration', () => {
 						mediaStagingKeyPath,
 						mediaStagingIndexes,
 						mediaStagingState: mediaStagingStateRequest.result,
+						linkedVideoOriginalCount: linkedVideoOriginalCountRequest.result,
+						linkedVideoOriginalKeyPath: linkedVideoOriginalStore.keyPath,
+						linkedVideoOriginalIndexes,
 						pathIndexes: [sourceStore, derivativeStore, derivativeEntryStore]
 							.map((store) => store.indexNames.contains('path')),
 						entry: entry ? {
@@ -122,7 +131,7 @@ test.describe('editor storage schema migration', () => {
 		}), DATABASE_NAME);
 
 		expect(migration).toEqual({
-			version: 6,
+			version: 7,
 			payloadCount: 1,
 			mediaChunkCount: 0,
 			mediaChunkIndexes: ['mediaChunkToken'],
@@ -140,6 +149,11 @@ test.describe('editor storage schema migration', () => {
 				kind: 'state',
 				generation: 'initial',
 			},
+			linkedVideoOriginalCount: 0,
+			linkedVideoOriginalKeyPath: 'key',
+			linkedVideoOriginalIndexes: [
+				{ name: 'projectId', unique: false },
+			],
 			pathIndexes: [true, true, true],
 			entry: {
 				key: 'legacy-cache',

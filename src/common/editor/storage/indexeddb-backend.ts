@@ -20,11 +20,16 @@ import {
 	MEDIA_ASSET_STAGING_STORE_NAME,
 	MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME,
 } from './media-asset-staging-schema.ts';
+import {
+	LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+	LINKED_VIDEO_ORIGINAL_STORE_NAME,
+} from './linked-video-original-schema.ts';
 import { MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION } from './media-content-provenance.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
 const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
-const DATABASE_VERSION = MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION;
+export const EDITOR_STORAGE_DATABASE_VERSION = 7;
+const DATABASE_VERSION = EDITOR_STORAGE_DATABASE_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -135,6 +140,23 @@ export function openDatabase(
 					});
 					stateRequest.onerror = () => abortUpgrade(
 						stateRequest.error || new Error('Could not initialize media staging maintenance state.'),
+					);
+				}
+				let linkedVideoOriginals: IDBObjectStore;
+				if (!database.objectStoreNames.contains(LINKED_VIDEO_ORIGINAL_STORE_NAME)) {
+					linkedVideoOriginals = database.createObjectStore(
+						LINKED_VIDEO_ORIGINAL_STORE_NAME,
+						{ keyPath: 'key' },
+					);
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					linkedVideoOriginals = transaction.objectStore(LINKED_VIDEO_ORIGINAL_STORE_NAME);
+				}
+				if (!linkedVideoOriginals.indexNames.contains(LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME)) {
+					linkedVideoOriginals.createIndex(
+						LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+						LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+						{ unique: false },
 					);
 				}
 				if (!database.objectStoreNames.contains(VIDEO_DERIVATIVE_STORE_NAME)) {

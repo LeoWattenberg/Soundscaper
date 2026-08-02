@@ -141,6 +141,7 @@ function memoryPort(
 			mediaAssetChunks: new Map(),
 			mediaAssetStaging: new Map(),
 			videoDerivatives: new Map(),
+			linkedVideoOriginalBindings: new Map(),
 		},
 		database,
 	});

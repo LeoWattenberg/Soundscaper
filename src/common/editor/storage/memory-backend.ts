@@ -11,6 +11,7 @@ export interface EditorMemoryDatabase {
 	readonly mediaAssetChunks: Map<string, unknown>;
 	readonly mediaAssetStaging: Map<string, unknown>;
 	readonly videoDerivatives: Map<string, unknown>;
+	readonly linkedVideoOriginalBindings: Map<string, unknown>;
 }
 
 const memoryDatabases = new Map<string, EditorMemoryDatabase>();
@@ -33,6 +34,7 @@ export function getMemoryDatabase(name: string): EditorMemoryDatabase {
 			mediaAssetChunks: new Map(),
 			mediaAssetStaging: new Map(),
 			videoDerivatives: new Map(),
+			linkedVideoOriginalBindings: new Map(),
 		};
 		memoryDatabases.set(name, database);
 	}

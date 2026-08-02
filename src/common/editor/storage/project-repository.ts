@@ -10,6 +10,10 @@ import {
 	transact,
 	transactionCompletion,
 } from './indexeddb-backend.ts';
+import {
+	LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+	LINKED_VIDEO_ORIGINAL_STORE_NAME,
+} from './linked-video-original-schema.ts';
 import { publishSource } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -156,11 +160,25 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			for (const [key, value] of this.#port.memory.revisions) {
 				if (asRevision(value)?.projectId === projectId) this.#port.memory.revisions.delete(key);
 			}
+			for (const [key, value] of this.#port.memory.linkedVideoOriginalBindings) {
+				if (storedProjectId(value) === projectId) {
+					this.#port.memory.linkedVideoOriginalBindings.delete(key);
+				}
+			}
 			return;
 		}
-		await transact(database, ['projects', 'revisions'], 'readwrite', async ({ projects, revisions }) => {
+		await transact(database, [
+			'projects',
+			'revisions',
+			LINKED_VIDEO_ORIGINAL_STORE_NAME,
+		], 'readwrite', async (stores) => {
+			const { projects, revisions } = stores;
 			projects.delete(projectId);
 			await deleteByIndex(revisions.index('projectId'), projectId);
+			await deleteByIndex(
+				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME].index(LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME),
+				projectId,
+			);
 		});
 	}
 
@@ -260,6 +278,12 @@ function throwIfProjectLoadAborted(signal?: AbortSignal): void {
 
 function asRecord(value: unknown): Record<string, unknown> | null {
 	return value && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
+function storedProjectId(value: unknown): unknown {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'projectId');
+	return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : null;
 }
 
 function asRevision(value: unknown): ProjectRevisionRecord | null {
