@@ -10,6 +10,7 @@ import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectBinPanel from '../src/common/editor/ui/workspace/ProjectBinPanel.jsx';
 
 const PANEL_URL = new URL('../src/common/editor/ui/workspace/ProjectBinPanel.jsx', import.meta.url);
+const APP_URL = new URL('../src/common/editor/app.js', import.meta.url);
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 test('the Project Bin exposes the localized linked-WAV chooser only when its platform capability exists', () => {
@@ -33,6 +34,15 @@ test('the linked-WAV Project Bin action forwards only the chosen File and opaque
 	assert.match(source, /if \(!choice\) return;[\s\S]*controller\.actions\.project\.importFiles\(\[choice\.file\], \{[\s\S]*destination: 'project-bin',[\s\S]*linkedAudioLocatorId: choice\.locatorId,[\s\S]*linkedAudioLocatorRevision: choice\.locatorRevision,[\s\S]*\}\)/u);
 	assert.doesNotMatch(source, /releaseLinkedAudioOriginal/u);
 	assert.doesNotMatch(source, /choice\.(?:name|path|mimeType|size)/u);
+});
+
+test('the default editor store receives the pathless generic linked-original port', async () => {
+	const source = await readFile(APP_URL, 'utf8');
+
+	assert.match(
+		source,
+		/createProjectStore\(\{[^}]*linkedOriginalPort: fileService\.linkedOriginalPort,/u,
+	);
 });
 
 function renderProjectBin(
