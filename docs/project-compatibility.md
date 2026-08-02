@@ -427,6 +427,62 @@ Either fulfilled `true` or `false` settles the pending exact reference because
 release failure never rolls back the local commit, and locator cleanup still
 never stats, writes, or deletes the external video file.
 
+That same lifecycle coordinator now serializes project duplication with binding
+publication, exact unlink, startup reconciliation, project deletion, and
+whole-store clear for one live `AudioEditorProjectStore` in one renderer
+process. Duplication reads the source project first; the desktop repository uses
+an exact canonical shared-document read that performs no managed-media
+resolution. A subsequent point-in-time catalog check must still contain the
+source ID and must not contain the destination ID. The duplicate receives a new
+project ID, revision 0, a requested non-empty title or the source title plus
+` copy`, and fresh creation and update timestamps. Reachable source collection
+is capped at 4,094 references. No linked body, source body, media body, locator,
+or playback capability is loaded, released, staged, or copied by this operation.
+
+Before project publication, the alias repository scans and validates the
+complete binding inventory, capped at 100,000 closed rows and 128 unique exact
+locator/revision references. It rejects malformed or conflicting inventory, an
+already-bound destination project, an over-capacity prospective row set, and a
+reachable source binding whose storage key, MIME type, or maintained source
+geometry does not exactly match the project source. For each reachable video
+source that has a source-project binding, it publishes a destination-project
+alias to the same pathless locator ID and revision, byte length, and digest, but
+with a fresh binding token and timestamp. An unbound reachable video receives no
+alias. IndexedDB publishes the complete alias set in one readwrite transaction;
+the memory backend compensates a partial synchronous publication. This alias
+publication is separate from, and not atomic with, project publication.
+
+The normal project-publication admission runs after alias publication. The
+create-only project repository then checks the current-project row, the exact
+revision key, and every revision for the destination before atomically writing
+only the project and its revision-0 record. It does not publish or adopt staged
+source or media records. On a determinate later failure, alias compensation
+first validates the complete current inventory and removes only the exact fresh
+binding tokens; a missing alias is already settled, while any replacement makes
+cleanup fail without partially deleting the requested set. Desktop local-shadow
+compensation likewise requires the exact returned snapshot plus its persisted
+creation fence, removes only project and revision rows, and preserves an
+identical later publication, a changed project, and every binding.
+
+Desktop duplication checks remote destination absence, creates that fenced
+local shadow, verifies its exact canonical document, and then requests the
+shared commit. An exact acknowledgement succeeds. If commit or acknowledgement
+handling fails, one remote reread treats the exact expected document as success,
+proven absence as a determinate failure eligible for exact local and alias
+compensation, and a divergent or unreadable result as
+`ProjectDuplicationIndeterminateError`; the last case retains the local shadow
+and aliases because the remote outcome cannot be proved safe to undo.
+
+There is no durable duplication receipt or restart reconciliation for these
+multi-store steps. The exact local-delete capability is process-local even
+though its revision fence is persisted, so abrupt interruption after local
+shadow creation can leave a hidden shadow and aliases that block retry; startup
+linked-locator reconciliation does not retire that shadow. Cross-store,
+cross-profile, cross-process, and project-catalog races are not serialized by
+this guarantee. The concurrency evidence covers two calls through one memory
+store facade, not overlapping browser IndexedDB connections, and there is no
+crash, restart, power-loss, or packaged interactive duplication qualification.
+
 The project-catalog snapshot, local binding transaction, and main reconciliation
 are separate, not atomic. A catalog mutation after its snapshot may be observed
 only later. If binding deletion commits before IPC or main rejects, the binding
@@ -464,7 +520,8 @@ managed original-video sender, which retains its normal aggregate preflight,
 digest, bounded-transfer, and publication contract. The playback lease neither
 copies media nor changes this whole-`Blob` handoff. This handoff path adds no
 product chooser, relink or watch flow, durable operating-system handle,
-background copy/consolidation, or alternate publishing protocol.
+background copy/consolidation beyond the bounded same-store scalar-alias
+duplication above, or an alternate publishing protocol.
 Linked audio, every other linked or unmanaged original, authored proxies,
 generic video rendered-fallback relationships, packaged executable/UI behavior,
 and browser codec playback remain unqualified. The maintained first-party
@@ -559,8 +616,9 @@ Only the maintained pathless desktop linked retained-video slice described above
 is also qualified. Linked audio and every other linked or unmanaged original,
 authored proxies, generic rendered-fallback authoring and transfer semantics
 beyond the separately maintained controller playback slices, relink/watch
-behavior, general copy/consolidate, linked-locator cleanup beyond the bounded
-startup binding inventory,
+behavior, general copy/consolidate beyond the bounded same-store project-alias
+duplication above, linked-locator cleanup beyond the bounded startup binding
+inventory,
 packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, content-frozen playback identity against
@@ -611,8 +669,9 @@ document-only. Only the maintained pathless desktop linked retained-video slice
 described above is additionally qualified. Linked audio and every other linked
 or unmanaged original, authored proxies, generic rendered-fallback authoring
 and transfer semantics beyond the separately maintained controller playback
-slices, general copy/consolidate, relink/watch behavior, linked-locator cleanup
-beyond the bounded startup binding inventory, packaged chooser/import
+slices, general copy/consolidate beyond the bounded same-store project-alias
+duplication above, relink/watch behavior, linked-locator cleanup beyond the
+bounded startup binding inventory, packaged chooser/import
 qualification,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, content-frozen or
