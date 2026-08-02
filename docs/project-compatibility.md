@@ -312,7 +312,7 @@ revision. Neither locator value appears in the project document. IndexedDB
 database version 7 and the memory backend retain a closed scalar-only binding
 record, including scalar source-shape fields, a compare-and-swap token, and a
 canonical timestamp; they retain no linked body, `Blob`, filesystem path, URL,
-platform handle, or playback lease.
+platform handle, or persisted playback lease.
 
 The maintained Electron source now supplies that platform port. Its native
 chooser accepts exactly one non-empty regular video no larger than 512 MiB and
@@ -321,14 +321,40 @@ private atomically replaced registry admits at most 128 locator records and
 64 GiB of declared files. Only it contains the raw absolute path plus the
 selected file's device, inode, size, modification time, and change time. The
 sandboxed renderer receives only random pathless 64-hex locator and revision
-tokens with bounded display metadata. Each load rechecks the persisted stat
-identity before and after minting a fresh owner-scoped `materialized-v1` read
-descriptor. Moving, deleting, replacing, or changing the file therefore fails
-closed. The locator persists across application restarts, but this point-in-time
-stat identity is not an operating-system bookmark, watch/relink handle, or
-durable playback byte lease. The body is materialized as a complete `Blob`
-through the existing 512 MiB tier; the later 4 MiB digest window is not a bound
-on provider allocation, decoder memory, or process RSS.
+tokens with bounded display metadata. An ordinary body load rechecks the
+persisted stat identity around a fresh owner-scoped `materialized-v1` descriptor,
+so a moved, deleted, replaced, or changed pathname fails closed at that
+point-in-time boundary. Binding and import, document-only shared-load
+resolution, and explicit handoff still materialize a complete `Blob` through
+the 512 MiB tier. Their later 4 MiB digest windows do not bound provider
+allocation, decoder memory, or process RSS.
+
+Maintained Electron visual activation takes a separate route when there is no
+owned video asset. It requests the exact locator revision and main grants an
+owner-scoped `linked-video-range-v1` pathless capability backed by an opened
+handle matching the persisted device, inode, size, modification time, and
+change time. Admission permits at most 128 such
+capabilities and 64 GiB of aggregate declared bytes, with a 512 MiB per-file
+ceiling, at most 16 active range requests, and at most 4 MiB in one response.
+The renderer verifies exact response status, range, length, and MIME while
+performing a full sequential SHA-256 in at-most-4-MiB ranges, then rechecks the
+binding before exposing the pathless media URL. The visual service owns that
+playback lease together with any poster and thumbnail object URLs and awaits
+release on replacement, cancellation, supersession, project switch, project
+deletion, project clear, source replacement, import rollback, media-element
+failure, and controller disposal. Release is owner-scoped and fences later
+range requests; admitted cancellation drains the current file read before its
+request slot is reused.
+
+A pathname move or replacement after admission does not retarget the open
+handle, so the live lease continues to read the admitted inode. Same-inode
+in-place mutation during or after verification is not fenced, however, and the
+lease is not content-frozen. The persisted locator therefore remains a
+point-in-time identity rather than an operating-system bookmark, watch/relink
+handle, or cross-restart playback identity. This is bounded range transport for
+the maintained live visual only, not reference-scale qualification. The
+whole-`Blob` import, shared-load, and handoff routes remain unchanged; packaged
+executable/UI, operating-system, and browser codec behavior remain unqualified.
 
 The capability-gated Project Bin action passes that one pathless choice into the
 maintained video importer. The importer may derive canonical audio and
@@ -381,19 +407,21 @@ conflicting, replaced, stale-revision, wrong-size, or wrong-digest bindings fail
 closed before shadow publication.
 
 Only an explicit `prepareHandoff` turns that verified linked body into owned
-media: an exact linked-session overlay supplies the body to the existing
+media: an exact linked-session overlay supplies the whole `Blob` to the existing
 managed original-video sender, which retains its normal aggregate preflight,
-digest, bounded-transfer, and publication contract. This handoff path
-adds no product chooser, relink or watch flow, durable operating-system handle or
-playback lease, background copy/consolidation, or alternate publishing protocol.
+digest, bounded-transfer, and publication contract. The playback lease neither
+copies media nor changes this whole-`Blob` handoff. This handoff path adds no
+product chooser, relink or watch flow, durable operating-system handle,
+background copy/consolidation, or alternate publishing protocol.
 Linked audio, every other linked or unmanaged original, authored proxies,
 generic video rendered-fallback relationships, packaged executable/UI behavior,
 and browser codec playback remain unqualified. The maintained first-party
 video-effects fallback activation rule below is separate from this
 linked-original contract. The separate source- and component-tested chooser and
 import described above still lacks packaged and operating-system qualification,
-range-scale transport, cleanup beyond the bounded startup binding inventory,
-and generic fallback acquisition or handoff.
+cleanup beyond the bounded startup binding inventory, and generic fallback
+acquisition or handoff. The range route has no packaged executable/UI,
+operating-system, or browser codec playback qualification.
 
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
@@ -483,7 +511,8 @@ behavior, general copy/consolidate, linked-locator cleanup beyond the bounded
 startup binding inventory,
 packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
-whole-handoff capacity reservation, a stable byte lease through playback,
+whole-handoff capacity reservation, content-frozen playback identity against
+same-inode mutation,
 browser codec playback, packaged executable and UI two-product source-bearing
 handoff, portable hard-link capacity qualification, and a shared cross-product
 revision journal and undo/redo history remain unqualified.
@@ -534,8 +563,9 @@ slices, general copy/consolidate, relink/watch behavior, linked-locator cleanup
 beyond the bounded startup binding inventory, packaged chooser/import
 qualification,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
-recipient-local or whole-handoff capacity reservation, stable playback leasing,
-executable/UI and browser-codec qualification, portable hard-link capacity
+recipient-local or whole-handoff capacity reservation, content-frozen or
+cross-restart playback identity, executable/UI and
+browser-codec qualification, portable hard-link capacity
 behavior, and shared cross-product revision or undo history remain outside it.
 The remaining platform and fault matrix includes
 per-platform parent- and database-path identity, power-loss durability, and

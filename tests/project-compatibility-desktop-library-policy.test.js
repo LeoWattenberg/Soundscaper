@@ -363,12 +363,28 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.ok(linkedVideoOriginal);
 	assert.equal(linkedVideoOriginal.status, 'implemented');
 	assert.deepEqual(linkedVideoOriginal.evidence, [
+		'desktop/file-capabilities.js',
 		'desktop/linked-video-locator-store.ts',
 		'desktop/linked-video-locator-ipc.js',
+		'desktop/linked-video-locator-runtime.js',
 		'desktop/preload.mjs',
+		'desktop/protocol.js',
+		'desktop/read-capability-admission.js',
+		'desktop/read-capability-range-stream.js',
+		'desktop/read-capability-support.js',
 		'desktop/main.mjs',
+		'src/common/editor/app.js',
+		'src/common/editor/desktop-read-profile.ts',
+		'src/common/editor/file-service.js',
+		'src/common/editor/controller/project-admin-service.ts',
 		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/controller/project-bin-replacement-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/project-visual-service.ts',
+		'src/common/editor/controller/source-import.ts',
+		'src/common/editor/controller/source-lifecycle-service.ts',
 		'src/common/editor/storage/desktop-linked-video-original-port.ts',
+		'src/common/editor/storage/desktop-linked-video-range-reader.ts',
 		'src/common/editor/storage/linked-video-original-binding.ts',
 		'src/common/editor/storage/linked-video-original-schema.ts',
 		'src/common/editor/storage/linked-video-original-repository.ts',
@@ -382,15 +398,20 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/repositories.ts',
 		'src/common/editor/storage.js',
+		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
+		'tests/desktop-linked-video-playback-capability.test.js',
+		'tests/desktop-linked-video-playback-locator.test.ts',
 		'tests/desktop-linked-video-locator-store.test.ts',
 		'tests/desktop-linked-video-locator-ipc.test.js',
 		'tests/desktop-preload-linked-video-original.test.js',
 		'tests/desktop-linked-video-locator-reconciliation.test.ts',
 		'tests/audio-editor-desktop-linked-video-original-port.test.ts',
+		'tests/audio-editor-desktop-linked-video-playback-port.test.ts',
 		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/audio-editor-linked-video-original-binding.test.ts',
 		'tests/audio-editor-linked-video-original-repository.test.ts',
 		'tests/audio-editor-linked-video-original-resolver.test.ts',
+		'tests/audio-editor-linked-video-playback-resolver.test.ts',
 		'tests/audio-editor-linked-video-original-cleanup.test.ts',
 		'tests/audio-editor-linked-video-original-storage-composition.test.ts',
 		'tests/audio-editor-derivative-cache-schema.test.ts',
@@ -398,14 +419,23 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-desktop-shared-project-linked-video-original-session.test.ts',
 		'tests/audio-editor-desktop-shared-project-linked-video-original.test.ts',
 		'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
+		'tests/audio-editor-project-visual-service.test.ts',
 	]);
 	assert.match(
 		linkedVideoOriginal.requiredOutcome,
-		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender.*concrete maintained desktop chooser.*raw paths main-private and bounded.*exact binding before canonical import commit.*complete bounded durable binding inventory/iu,
+		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender.*concrete maintained desktop chooser.*raw paths main-private and bounded.*exact binding before canonical import commit.*complete bounded durable binding inventory.*maintained Electron visual activation.*exact-revision.*owner-scoped ranged playback lease.*full bounded SHA-256 verification.*before URL exposure.*visual lifecycle/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/closed linked-video binding schema 1.*exact project, source, storage-key, MIME, byte-length, SHA-256, frame\/sample\/video geometry.*opaque locator ID.*opaque locator revision.*compare-and-swap token.*canonical timestamp.*IndexedDB database version 7.*memory backend.*only those scalar values.*source-shape scalars.*no project document or stored binding.*linked body, Blob, filesystem path, URL, platform handle, or playback lease.*only when.*injects.*LinkedVideoOriginalPort/iu,
+		/closed linked-video binding schema 1.*exact project, source, storage-key, MIME, byte-length, SHA-256, frame\/sample\/video geometry.*opaque locator ID.*opaque locator revision.*compare-and-swap token.*canonical timestamp.*IndexedDB database version 7.*memory backend.*only those scalar values.*source-shape scalars.*no project document or stored binding.*linked body, Blob, filesystem path, URL, platform handle, or persisted playback lease.*only when.*injects.*LinkedVideoOriginalPort/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/visual activation.*no owned video asset.*exact locator revision.*owner-scoped `linked-video-range-v1`.*opened handle.*device, inode, size, modification-time, and change-time.*128.*64 GiB.*512 MiB.*16 active range requests.*4 MiB.*full sequential SHA-256.*rechecks the binding.*before exposing.*pathless media URL/isu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/visual service owns.*playback lease.*awaits release.*replacement, cancellation, supersession.*project switch, project deletion, project clear, source replacement, import rollback, media-element failure, and controller disposal.*pathname replacement.*open handle.*same-inode.*not fenced.*content-frozen.*packaged executable\/UI.*operating-system.*browser codec playback.*unqualified/isu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
@@ -413,7 +443,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*no product chooser.*relink or watch.*durable operating-system handle.*playback lease.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic video rendered-fallback relationships.*first-party video-effects fallback activation.*qualified separately/iu,
+		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*import, shared-load, and handoff paths.*whole-Blob.*do not use the ranged playback lease.*no product chooser.*relink or watch.*durable operating-system handle.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic video rendered-fallback relationships.*first-party video-effects fallback activation.*qualified separately/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
@@ -504,7 +534,15 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/deliberately narrow linked retained-video path.*local binding.*exact project ID, logical video source ID.*physical storage key, MIME type, byte length, SHA-256.*frame\/sample\/video geometry.*opaque locator ID.*opaque locator\s+revision.*neither locator value appears in the project document.*IndexedDB\s+database version 7.*memory backend.*closed scalar-only binding\s+record.*scalar source-shape fields.*compare-and-swap token.*canonical\s+timestamp.*no linked body.*`Blob`.*filesystem path.*URL.*platform\s+handle.*playback lease/isu,
+		/deliberately narrow linked retained-video path.*local binding.*exact project ID, logical video source ID.*physical storage key, MIME type, byte length, SHA-256.*frame\/sample\/video geometry.*opaque locator ID.*opaque locator\s+revision.*neither locator value appears in the project document.*IndexedDB\s+database version 7.*memory backend.*closed scalar-only binding\s+record.*scalar source-shape fields.*compare-and-swap token.*canonical\s+timestamp.*no linked body.*`Blob`.*filesystem path.*URL.*platform\s+handle.*persisted playback lease/isu,
+	);
+	assert.match(
+		documentation,
+		/maintained Electron visual activation.*no\s+owned video asset.*exact locator revision.*owner-scoped `linked-video-range-v1`.*opened\s+handle.*device, inode, size, modification time, and\s+change time.*128.*64 GiB.*512 MiB.*16 active range requests.*4 MiB.*full sequential SHA-256.*rechecks\s+the\s+binding.*pathless media URL.*visual service owns.*awaits\s+release/isu,
+	);
+	assert.match(
+		documentation,
+		/pathname move or replacement.*open\s+handle.*same-inode\s+in-place mutation.*during or after verification.*not fenced.*content-frozen.*whole-`Blob`.*import.*shared-load.*handoff.*packaged.*operating-system.*browser codec.*unqualified/isu,
 	);
 	assert.match(
 		documentation,
@@ -512,7 +550,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/only an explicit `prepareHandoff`.*verified linked body.*owned\s+media.*exact linked-session overlay.*existing\s+managed original-video sender.*normal aggregate preflight,\s+digest, bounded-transfer, and publication contract.*no product\s+chooser, relink or watch flow.*durable operating-system handle.*playback\s+lease.*background\s+copy\/consolidation.*alternate publishing protocol.*linked\s+audio, every other\s+linked or unmanaged original.*authored proxies.*generic\s+video rendered-fallback relationships.*packaged executable\/UI behavior.*browser codec\s+playback remain\s+unqualified.*first-party\s+video-effects fallback activation.*separate/isu,
+		/only an explicit `prepareHandoff`.*whole `Blob`.*managed original-video sender.*playback lease.*whole-`Blob` handoff/isu,
 	);
 	assert.match(
 		documentation,
@@ -540,7 +578,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
+		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*content-frozen playback identity.*same-inode mutation.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
 	);
 	assert.match(
 		documentation,
