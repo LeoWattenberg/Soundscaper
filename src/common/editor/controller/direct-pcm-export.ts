@@ -43,7 +43,10 @@ export function directPcmRenderQueueOptions(
 
 interface PreparedPcmStream {
 	readonly mode: 'stream';
-	createWritable(byteLength: number, sizeMode: 'exact'): Promise<WritableStream<Uint8Array>>;
+	createWritable(
+		byteLength: number,
+		sizeMode: DirectPcmDestinationSizeMode,
+	): Promise<WritableStream<Uint8Array>>;
 	bytesWritten(): number;
 	commit(): Awaitable<Readonly<Record<string, unknown>>>;
 	abort(reason?: unknown): Awaitable<unknown>;
@@ -67,6 +70,8 @@ export interface DirectPcmEncoder {
 	finalize(): Promise<number>;
 }
 
+export type DirectPcmDestinationSizeMode = 'exact' | 'maximum';
+
 export type DirectPcmPreparation = Readonly<{
 	cancelled: Readonly<Record<string, unknown>> | null;
 	destination: DirectPcmDestination | null;
@@ -76,6 +81,7 @@ export async function openDirectPcmDestination(
 	prepared: unknown,
 	plannedByteLength: number,
 	containerLabel = 'PCM',
+	sizeMode: DirectPcmDestinationSizeMode = 'exact',
 ): Promise<DirectPcmPreparation> {
 	if (!prepared || typeof prepared !== 'object') {
 		throw new TypeError(`The prepared ${containerLabel} destination is invalid.`);
@@ -94,7 +100,7 @@ export async function openDirectPcmDestination(
 	const stream = prepared as PreparedPcmStream;
 	assertPreparedStream(stream, containerLabel);
 	try {
-		const writable = await stream.createWritable(plannedByteLength, 'exact');
+		const writable = await stream.createWritable(plannedByteLength, sizeMode);
 		if (!writable || typeof writable.getWriter !== 'function') {
 			throw new TypeError(`The prepared ${containerLabel} destination is not writable.`);
 		}
