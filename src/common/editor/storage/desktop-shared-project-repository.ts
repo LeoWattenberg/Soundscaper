@@ -9,6 +9,7 @@ import {
 import type {
 	ProjectDocument,
 	ProjectLoadOptions,
+	ProjectPostCommitMaintenance,
 	ProjectRepositoryPort,
 	ProjectRevision,
 } from './project-repository.ts';
@@ -120,7 +121,10 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		});
 	}
 
-	async save(project: ProjectDocument): Promise<ProjectDocument> {
+	async save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument> {
+		if (postCommit !== undefined && typeof postCommit !== 'function') {
+			throw new TypeError('Project post-commit maintenance must be a function.');
+		}
 		const admitted = admitCurrentProject(project, this.#maximumDocumentBytes);
 		return this.#serializeLatestMutation(admitted.id, undefined, async () => {
 			const snapshot = await this.#shadow.save(admitted);
@@ -131,10 +135,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			const document = serializeBoundedProject(snapshot, this.#maximumDocumentBytes);
 			const acknowledgement = await this.#bridge.commitSharedProject(document);
 			parseCanonicalProject(acknowledgement, this.#maximumDocumentBytes, 'commit acknowledgement');
-			if (acknowledgement !== document) {
-				throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
-			}
-			return snapshot;
+				if (acknowledgement !== document) {
+					throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
+				}
+				await postCommit?.();
+				return snapshot;
 		});
 	}
 

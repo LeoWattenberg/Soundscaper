@@ -42,10 +42,12 @@ export interface ProjectLoadOptions {
 	readonly signal?: AbortSignal;
 }
 
+export type ProjectPostCommitMaintenance = () => PromiseLike<void> | void;
+
 /** Structural project seam implemented by local and desktop-shared repositories. */
 export interface ProjectRepositoryPort {
 	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
-	save(project: ProjectDocument): Promise<ProjectDocument>;
+	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument>;
 	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
 	list(): Promise<ProjectDocument[]>;
 	listRevisions(projectId: string): Promise<ProjectRevision[]>;
@@ -102,9 +104,15 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		return created ? this.#rememberCreation(snapshot, creationFence) : null;
 	}
 
-	async save(project: ProjectDocument): Promise<ProjectDocument> {
+	async save(
+		project: ProjectDocument,
+		postCommit?: ProjectPostCommitMaintenance,
+	): Promise<ProjectDocument> {
 		if (!project || typeof project.id !== 'string' || !project.id) {
 			throw new Error('A project with a stable string id is required.');
+		}
+		if (postCommit !== undefined && typeof postCommit !== 'function') {
+			throw new TypeError('Project post-commit maintenance must be a function.');
 		}
 		const snapshot = compactProjectSourceMetadata(clone(project)) as ProjectDocument;
 		const revision = nonNegativeInteger(snapshot.revision, 0);
@@ -125,6 +133,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				if (mediaAsset?.pendingProjectUntil) this.#port.memory.mediaAssets.set(sourceId, publishSource(mediaAsset));
 			}
 			await this.#pruneRevisions(snapshot.id);
+			await postCommit?.();
 			return clone(snapshot);
 		}
 
@@ -144,6 +153,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			}
 		});
 		await this.#pruneRevisions(snapshot.id);
+		await postCommit?.();
 		return clone(snapshot);
 	}
 

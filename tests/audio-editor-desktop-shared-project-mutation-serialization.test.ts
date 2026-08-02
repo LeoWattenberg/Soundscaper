@@ -93,6 +93,78 @@ test('a slow latest load cannot resurrect a concurrently deleted shared project'
 	assert.equal(await local.load(prior.id), null);
 });
 
+test('shared save maintenance runs after acknowledgement and before the next latest load', async () => {
+	const local = memoryRepository('save-maintenance');
+	const saved = project('serialized-maintenance', 2);
+	const document = serializeScapeProjectDocument(saved);
+	const maintenanceStarted = deferred<void>();
+	const releaseMaintenance = deferred<void>();
+	const events: string[] = [];
+	const repository = new DesktopSharedProjectRepository({
+		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
+		onLocalCleanupError: () => {},
+		bridge: {
+			listSharedProjects: async () => [],
+			readSharedProject: async () => { events.push('read'); return document; },
+			commitSharedProject: async (value) => { events.push('commit'); return value; },
+			deleteSharedProject: async () => true,
+		},
+	});
+
+	const saving = repository.save(saved, async () => {
+		events.push('maintenance');
+		maintenanceStarted.resolve();
+		await releaseMaintenance.promise;
+	});
+	await maintenanceStarted.promise;
+	const loading = repository.load(saved.id);
+	await eventLoopTurn();
+	assert.deepEqual(events, ['commit', 'maintenance']);
+	releaseMaintenance.resolve();
+	await Promise.all([saving, loading]);
+	assert.deepEqual(events, ['commit', 'maintenance', 'read']);
+});
+
+test('failed shared publication never invokes post-commit maintenance', async () => {
+	const local = memoryRepository('save-maintenance-failure');
+	const saved = project('rejected-maintenance', 1);
+	const failure = new Error('planned remote publication failure');
+	let maintenanceCalls = 0;
+	const repository = new DesktopSharedProjectRepository({
+		shadow: local,
+		sourceAvailability: throwingSourceAvailability(),
+		onLocalCleanupError: () => {},
+		bridge: {
+			listSharedProjects: async () => [],
+			readSharedProject: async () => null,
+			commitSharedProject: async () => { throw failure; },
+			deleteSharedProject: async () => true,
+		},
+	});
+
+	await assert.rejects(repository.save(saved, async () => {
+		maintenanceCalls += 1;
+	}), (error) => error === failure);
+	assert.equal(maintenanceCalls, 0);
+});
+
+test('local save maintenance observes the compacted retained revision set', async () => {
+	const local = new ProjectRepository({
+		memory: getMemoryDatabase(`local-maintenance-${Date.now()}-${Math.random()}`),
+		database: async () => null,
+	}, 2);
+	const id = 'local-maintenance';
+	await local.save(project(id, 0));
+	await local.save(project(id, 1));
+	let retained: number[] = [];
+
+	await local.save(project(id, 2), async () => {
+		retained = (await local.listRevisions(id)).map(({ revision }) => revision);
+	});
+	assert.deepEqual(retained, [2, 1]);
+});
+
 function project(id: string, revision: number): ProjectDocument {
 	return createAudioEditorProjectV9({ id, title: `Revision ${revision}`, revision, now: NOW });
 }
