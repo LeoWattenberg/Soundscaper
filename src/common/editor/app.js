@@ -350,7 +350,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const lastProjectSettingKey = `${productId}:last-project-id`;
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const fileService = options.fileService || createAudioEditorFileService();
-	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop, desktopProjectBridge: fileService.isDesktop ? (fileService.bridge ?? {}) : null });
+	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop, linkedVideoOriginalPort: fileService.linkedVideoOriginalPort, desktopProjectBridge: fileService.isDesktop ? (fileService.bridge ?? {}) : null });
 	const sourceBuffers = createSourceBufferCache({
 		maxBytes: options.sourceBufferCacheMaxBytes,
 	});

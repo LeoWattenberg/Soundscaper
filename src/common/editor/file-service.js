@@ -13,6 +13,7 @@ import {
 	isDesktopReadProfile,
 } from './desktop-read-profile.ts';
 import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
+import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
@@ -34,11 +35,16 @@ export function createAudioEditorFileService(options = {}) {
 	const isDesktop = Boolean(bridge);
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
 	const scapeReadMaximumBytes = desktopScapeReadMaximum(options.scapeReadMaximumBytes);
+	const linkedVideoOriginals = createDesktopLinkedVideoOriginalAccess({ bridge, openReadDescriptor });
 
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
 		isDesktop,
 		bridge,
+		linkedVideoOriginalsAvailable: linkedVideoOriginals.available,
+		linkedVideoOriginalPort: linkedVideoOriginals.port,
+		chooseLinkedVideoOriginal: linkedVideoOriginals.choose,
+		releaseLinkedVideoOriginal: linkedVideoOriginals.release,
 		getEnvironment: () => bridge?.getEnvironment?.() ?? null,
 		chooseFiles,
 		openReadDescriptor,
