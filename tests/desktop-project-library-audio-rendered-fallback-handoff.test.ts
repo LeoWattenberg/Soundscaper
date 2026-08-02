@@ -12,6 +12,7 @@ import { DesktopSharedProjectLibraryService } from '../desktop/project-library-e
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import { createEffect } from '../src/common/editor/effects.js';
+import type { EngineChunkSource, EngineChunkReadValue } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
@@ -25,6 +26,7 @@ import { serializeScapeProjectDocument } from '../src/common/editor/scape-projec
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
+import { streamWavBlobPcm } from '../src/common/editor/wav-import.js';
 
 const ORIGINAL_CHANNELS = Object.freeze([
 	Object.freeze([0.125, -0.25, 0.5, -1]),
@@ -34,6 +36,14 @@ const FALLBACK_CHANNELS = Object.freeze([
 	Object.freeze([0.75, 0.5, 0.25, 0, -0.25, -0.5]),
 	Object.freeze([-0.75, -0.5, -0.25, 0, 0.25, 0.5]),
 ]);
+const CORRUPT_FALLBACK_CHANNELS = Object.freeze([
+	Object.freeze([0.75, 0.5, 0.25, 0, -0.25, -0.25]),
+	Object.freeze([-0.75, -0.5, -0.25, 0, 0.25, 0.25]),
+]);
+const AUDIO_EXPORT_SETTINGS = Object.freeze({
+	bitDepth: 32, dither: 'none', format: 'wav', includeTail: false,
+	mode: 'mix', sampleFormat: 'float32',
+});
 const SOUND_OWNER = owner('soundscaper', 601, 'fallback-handoff-sound');
 const FRAME_OWNER = owner('framescaper', 602, 'fallback-handoff-frame');
 
@@ -55,6 +65,13 @@ interface ProjectActions {
 
 interface TransportActions {
 	readonly playPause: () => PromiseLike<unknown> | unknown;
+}
+
+interface ExportActions {
+	readonly start: (settings?: Readonly<Record<string, unknown>>) => Promise<Readonly<{
+		fileName?: string;
+		mimeType?: string;
+	}> | undefined>;
 }
 
 test('fresh Framescaper acquires and plays a managed first-party audio rendered fallback', async (context) => {
@@ -115,10 +132,13 @@ test('fresh Framescaper acquires and plays a managed first-party audio rendered 
 	assert.deepEqual(await frameStore.listProjectRevisions(fixture.project.id), []);
 	await frameStore.saveSetting('framescaper:last-project-id', fixture.project.id);
 	const engine = createHeadlessEngine();
+	const exportProbe = createAudioExportProbe(fixture.fallback.id);
 	const framescaper = resources.trackController(createEditorController(null, {
 		engine: engine.engine,
+		fileService: exportProbe.fileService,
 		headless: true,
 		productId: 'framescaper',
+		renderSnapshot: exportProbe.renderSnapshot,
 		store: frameStore,
 	}));
 
@@ -163,6 +183,30 @@ test('fresh Framescaper acquires and plays a managed first-party audio rendered 
 		audioRenderedFallback?: Readonly<{ sourceId?: string }> | null;
 	}>;
 	assert.equal(snapshot.audioRenderedFallback?.sourceId, fixture.fallback.id);
+	await frameStore.deleteSource(fixture.fallback.storageKey);
+	await writePcm(frameStore, fixture.fallback, CORRUPT_FALLBACK_CHANNELS);
+	assert.equal(await exportActions(framescaper).start(AUDIO_EXPORT_SETTINGS), undefined);
+	assert.equal(exportProbe.renders.length, 0, 'activation-time admission cannot authorize changed PCM');
+	assert.equal(exportProbe.downloads.length, 0);
+	assert.equal(framescaper.getSnapshot().status.state, 'error');
+	assert.match(framescaper.getSnapshot().status.message, /failed SHA-256 verification/u);
+	await frameStore.deleteSource(fixture.fallback.storageKey);
+	await writePcm(frameStore, fixture.fallback, FALLBACK_CHANNELS);
+	assert.deepEqual(await readPcm(frameStore, fixture.fallback.storageKey), FALLBACK_CHANNELS);
+	const exported = await exportActions(framescaper).start(AUDIO_EXPORT_SETTINGS);
+	assert.ok(exported, JSON.stringify(framescaper.getSnapshot().status));
+	assert.match(String(exported.fileName), /^Audio-rendered-fallback-handoff-mix-\d{4}-\d{2}-\d{2}\.wav$/u);
+	assert.equal(exported.mimeType, 'audio/wav');
+	assert.deepEqual(exportProbe.renders, [FALLBACK_CHANNELS]);
+	assert.deepEqual(exportProbe.downloads.map(({ purpose }) => purpose), ['audio']);
+	assert.deepEqual(await readWavPcm(exportProbe.downloads[0]!.blob), FALLBACK_CHANNELS);
+	assert.equal(
+		serializeScapeProjectDocument(framescaper.getSnapshot().project),
+		serializeScapeProjectDocument(fixture.project),
+		'fallback delivery must not project canonical state',
+	);
+	const exportedShadow = await frameStore.loadProject(fixture.project.id, { revision: fixture.project.revision });
+	assert.equal(serializeScapeProjectDocument(exportedShadow), serializeScapeProjectDocument(fixture.project));
 
 	const transport = framescaper.actions.transport as unknown as TransportActions;
 	await transport.playPause();
@@ -327,6 +371,70 @@ function createHeadlessEngine(): HeadlessEngineProbe {
 	});
 }
 
+function createAudioExportProbe(fallbackSourceId: string) {
+	const downloads: Array<Readonly<{ blob: Blob; purpose?: unknown; suggestedName?: unknown }>> = [];
+	const renders: Array<readonly (readonly number[])[]> = [];
+	return Object.freeze({
+		downloads,
+		renders,
+		async renderSnapshot(
+			project: AudioEditorProjectV9,
+			_range: unknown,
+			buffers: ReadonlyMap<string, unknown>,
+			signal: AbortSignal,
+			chunkSources: ReadonlyMap<string, EngineChunkSource>,
+		) {
+			assert.deepEqual(project.tracks.map(({ id }) => id), [PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track]);
+			assert.equal(buffers.size, 0);
+			assert.deepEqual([...chunkSources.keys()], [fallbackSourceId]);
+			const provider = chunkSources.get(fallbackSourceId);
+			assert.ok(provider);
+			const value = await provider.readStorageChunk(0, { signal });
+			const channels = audioChunkChannels(value).map((channel) => channel.slice());
+			renders.push(Object.freeze(channels.map((channel) => Object.freeze([...channel]))));
+			const buffer = new HeadlessAudioBuffer(channels.length, provider.frameCount, provider.sampleRate);
+			for (const [channel, samples] of channels.entries()) {
+				buffer.copyToChannel(samples, channel);
+			}
+			return buffer;
+		},
+		fileService: Object.freeze({
+			isDesktop: false,
+			async createDownload(request: Readonly<{
+				blob: Blob;
+				purpose?: unknown;
+				suggestedName?: unknown;
+			}>) {
+				downloads.push(request);
+				return Object.freeze({
+					url: null,
+					fileName: request.suggestedName,
+					method: 'test',
+					async cleanup() {},
+				});
+			},
+		}),
+	});
+}
+
+function audioChunkChannels(value: EngineChunkReadValue): readonly Float32Array[] {
+	if (Array.isArray(value)) return value as readonly Float32Array[];
+	return (value as Readonly<{ channels: readonly Float32Array[] }>).channels;
+}
+
+async function readWavPcm(blob: Blob): Promise<number[][]> {
+	const channels: number[][] = [];
+	await streamWavBlobPcm(blob, {
+		onChunk(chunk: readonly Float32Array[]) {
+			for (const [index, channel] of chunk.entries()) {
+				channels[index] ??= [];
+				channels[index]?.push(...channel);
+			}
+		},
+	});
+	return channels;
+}
+
 class HeadlessAudioBuffer {
 	readonly #channels: readonly Float32Array[];
 	readonly length: number;
@@ -376,6 +484,10 @@ function owner(product: 'framescaper' | 'soundscaper', processId: number, instan
 
 function projectActions(controller: EditorController): ProjectActions {
 	return controller.actions.project as unknown as ProjectActions;
+}
+
+function exportActions(controller: EditorController): ExportActions {
+	return controller.actions.export as unknown as ExportActions;
 }
 
 function trackResources(context: TestContext, appDataPath: string) {
