@@ -7,7 +7,7 @@ import test from 'node:test';
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
-test('compatibility policy qualifies only maintained first-party video-effects fallback playback', async () => {
+test('compatibility policy qualifies only maintained first-party video-effects fallback playback and handoff', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-first-party-video-rendered-fallback-playback');
 	assert.ok(rule);
@@ -15,6 +15,10 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	assert.match(
 		rule.requiredOutcome,
 		/exact-current-schema.*registered first-party videoEffects.*rendered fallback.*editor playback.*canonical.*read-only.*unmodified/iu,
+	);
+	assert.match(
+		rule.requiredOutcome,
+		/explicit managed desktop handoff.*Framescaper.*fresh Soundscaper.*manifest-only fallback.*editable original.*exact canonical shadow.*controller.*digest.*before activation/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -44,6 +48,14 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 		rule.currentBehavior,
 		/not generic.*unknown.*third-party.*authors no freeze.*unfreeze.*proxy relationship.*future schemas.*browser codec.*packaged.*whole-video fallback audio.*export.*offline render/iu,
 	);
+	assert.match(
+		rule.currentBehavior,
+		/composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*explicit managed whole-Blob.*editable retained original.*manifest-only.*video-effects fallback.*feature requirement.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/headless and whole-Blob only.*does not qualify.*packaged.*browser codec.*embedded fallback audio.*range.*reference-scale.*export.*offline render.*fallback authoring.*generic.*third-party.*durable lease.*whole-handoff atomicity/iu,
+	);
 
 	for (const reference of rule.evidence) {
 		await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
@@ -64,6 +76,7 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
 		'tests/audio-editor-video-preview-visual.test.ts',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
@@ -94,5 +107,13 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	assert.match(
 		documentation,
 		/not.*generic.*unknown.*third-party.*authors no freeze.*unfreeze.*proxy relationship.*future-schema.*browser-codec.*packaged.*whole-video fallback audio.*export.*offline-render/isu,
+	);
+	assert.match(
+		documentation,
+		/composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*editable retained original.*manifest-only\s+first-party video-effects fallback.*feature requirement.*explicit managed whole-`Blob` transfer.*two exact video bodies.*exact canonical shadow.*intrinsically read-only.*separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/isu,
+	);
+	assert.match(
+		documentation,
+		/headless, whole-`Blob` evidence.*does not qualify packaged or browser-codec\s+behavior.*embedded fallback audio.*range.*reference-scale.*export.*offline render.*fallback authoring.*generic or third-party fallbacks.*durable\s+byte lease.*whole-handoff atomicity/isu,
 	);
 });

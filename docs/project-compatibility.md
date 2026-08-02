@@ -424,6 +424,18 @@ acquisition verifies its descriptor and body SHA-256. The separate fallback
 digest declared by the project manifest remains controller-owned after shadow
 publication and before activation.
 
+A parallel composed headless Framescaper-to-fresh-Soundscaper fixture carries
+an exact schema 9 editable retained original alongside a manifest-only
+first-party video-effects fallback referenced solely by its feature requirement.
+Explicit managed whole-`Blob` transfer moves the two exact video bodies into the
+empty recipient. It publishes the exact canonical shadow, leaves the recipient
+intrinsically read-only, and separately verifies the manifest fallback digest in
+the controller after shadow publication and before transient activation. This
+headless, whole-`Blob` evidence does not qualify packaged or browser-codec
+behavior, embedded fallback audio, range or reference-scale transfer, export or
+offline render, fallback authoring, generic or third-party fallbacks, a durable
+byte lease, or whole-handoff atomicity.
+
 Recipient-local admission for unmanaged sources remains a bounded sequential
 readability check, not an atomic snapshot, publisher authentication, or a
 durable byte lease. Unmanaged audio is availability and geometry qualified, not
@@ -436,7 +448,11 @@ save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
 fresh-recipient acquisition for canonical PCM—including the maintained exact
-schema 9 first-party audio whole-mix fallback—and retained original video.
+schema 9 first-party audio whole-mix fallback—and retained original video. The
+qualified video slice also covers the maintained exact schema 9 manifest-only
+first-party video-effects fallback when handed off alongside its editable
+retained original from Framescaper to a fresh Soundscaper store as described
+above.
 Only the maintained pathless desktop linked retained-video slice described above
 is also qualified. Linked audio and every other linked or unmanaged original,
 authored proxies, generic rendered-fallback authoring and transfer semantics
@@ -664,13 +680,24 @@ document snapshot gives the WebGL preview that transient project, while visual
 resolution falls through exact clip lookups to the source-level exact visual for
 the synthetic clip.
 
+A composed headless Framescaper-to-fresh-Soundscaper fixture separately
+qualifies this exact schema 9 slice at the managed desktop handoff boundary. The
+editable retained original and the manifest-only fallback, reachable only from
+its feature requirement, cross by explicit whole-`Blob` transfer as two exact
+video bodies. The fresh recipient persists the exact canonical shadow, remains
+intrinsically read-only, and the controller separately verifies the manifest
+fallback digest after shadow publication and before transient activation.
+
 Deeply frozen per-tab and document-snapshot metadata binds this projection to
 the exact requirement and drives one localized active-during-editor-playback
 indicator without exposing its source ID or digest. This slice is not generic,
 unknown, or third-party fallback selection. It authors no freeze, unfreeze, or
 proxy relationship, does not traverse future-schema project state, and makes no
 browser-codec or packaged-runtime qualification, whole-video fallback audio
-handling claim, or export or offline-render substitution claim.
+handling claim, or export or offline-render substitution claim. Its managed
+handoff evidence is headless and whole-`Blob` only: it does not qualify embedded
+fallback audio, range or reference-scale transfer, fallback authoring, a durable
+byte lease, or whole-handoff atomicity.
 
 For the maintained first-party video-effect slice, the controller likewise
 derives a transient activation projection only for exact schema 9 when the
