@@ -88,6 +88,35 @@ test('one linked-video playback capability cannot exceed the locator file ceilin
 	await store.dispose();
 });
 
+test('seek cancellation drains an admitted file read before releasing its request slot', async (context) => {
+	const readStarted = deferred();
+	const finishRead = deferred();
+	const handle = fakeHandle(5, {
+		async read(buffer) {
+			readStarted.resolve();
+			await finishRead.promise;
+			buffer[0] = 0x61;
+			return { bytesRead: 1, buffer };
+		},
+	});
+	const store = new ReadCapabilityStore({ openImpl: async () => handle });
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+	const descriptor = await store.registerLinkedVideoPlaybackPath('/tmp/deferred.mp4', playbackOptions(5));
+	const request = store.acquireRequest(descriptor.id, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
+	assert.ok(request);
+	const stream = request.createReadStream({ start: 0, end: 0, autoClose: false });
+	stream.resume();
+	await readStarted.promise;
+	const cancelling = request.cancel();
+	assert.equal(store.acquireRequest(descriptor.id, READ_PROFILE_LINKED_VIDEO_RANGE_V1), null);
+	assert.equal(await remainsPending(cancelling), true);
+	finishRead.resolve();
+	await cancelling;
+	const next = store.acquireRequest(descriptor.id, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
+	assert.ok(next);
+	await next.close();
+});
+
 test('the playback protocol serves bounded sequential ranges from the admitted open handle', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-playback-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
@@ -161,7 +190,7 @@ function playbackOptionsFromStat(details) {
 	};
 }
 
-function fakeHandle(size) {
+function fakeHandle(size, options = {}) {
 	let closeCalls = 0;
 	return {
 		get closeCalls() { return closeCalls; },
@@ -169,6 +198,21 @@ function fakeHandle(size) {
 			return { dev: 1, ino: 2, size, mtimeMs: 1, ctimeMs: 2, isFile: () => true };
 		},
 		async close() { closeCalls += 1; },
+		read: options.read,
 		createReadStream() { throw new Error('not used'); },
 	};
+}
+
+function deferred() {
+	let resolve;
+	const promise = new Promise((fulfill) => { resolve = fulfill; });
+	return { promise, resolve };
+}
+
+async function remainsPending(promise) {
+	const pending = Symbol('pending');
+	return Promise.race([
+		Promise.resolve(promise).then(() => false, () => false),
+		new Promise((resolve) => setImmediate(resolve, pending)),
+	]).then((value) => value === pending);
 }

@@ -74,7 +74,7 @@ export class RangeReadAdmission {
 		}
 		this.#count += 1;
 		state.count += 1;
-		return { bytes: 0, charged: false, released: false, retained: false, state };
+		return { bytes: 0, charged: false, label: this.#label, released: false, retained: false, state };
 	}
 
 	charge(ticket, size) {
@@ -157,7 +157,7 @@ export class LinkedVideoPlaybackAdmission extends RangeReadAdmission {
 
 function assertLiveTicket(ticket) {
 	if (!ticket || ticket.released || ticket.retained) {
-		throw new Error('Scape range capability admission is not active');
+		throw new Error(`${ticket?.label || 'Range read'} capability admission is not active`);
 	}
 }
 

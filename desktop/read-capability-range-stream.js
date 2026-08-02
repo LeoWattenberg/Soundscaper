@@ -14,6 +14,7 @@ export function createReadCapabilityRangeStream(handle, { start, end }) {
 	let position = start;
 	let reading = false;
 	let ended = false;
+	let pendingRead = null;
 	return new Readable({
 		read(requestedBytes) {
 			if (reading || ended || this.destroyed) return;
@@ -28,7 +29,10 @@ export function createReadCapabilityRangeStream(handle, { start, end }) {
 				end - position + 1,
 			);
 			const buffer = Buffer.allocUnsafe(length);
-			void Promise.resolve(handle.read(buffer, 0, length, position)).then((result) => {
+			const operation = Promise.resolve(handle.read(buffer, 0, length, position));
+			pendingRead = operation;
+			void operation.then((result) => {
+				if (pendingRead === operation) pendingRead = null;
 				reading = false;
 				if (this.destroyed) return;
 				if (!Number.isSafeInteger(result?.bytesRead) || result.bytesRead < 1
@@ -39,13 +43,22 @@ export function createReadCapabilityRangeStream(handle, { start, end }) {
 				position += result.bytesRead;
 				this.push(buffer.subarray(0, result.bytesRead));
 			}, (error) => {
+				if (pendingRead === operation) pendingRead = null;
 				reading = false;
-				this.destroy(error);
+				if (!this.destroyed) this.destroy(error);
 			});
 		},
 		destroy(error, callback) {
 			ended = true;
-			callback(error instanceof Error ? error : null);
+			const terminalError = error instanceof Error ? error : null;
+			if (!pendingRead) {
+				callback(terminalError);
+				return;
+			}
+			void pendingRead.then(
+				() => callback(terminalError),
+				(readError) => callback(terminalError ?? (readError instanceof Error ? readError : null)),
+			);
 		},
 	});
 }
