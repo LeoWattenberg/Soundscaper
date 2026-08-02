@@ -87,7 +87,9 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			if (active) {
 				if (!state.readOnly) await saveNow();
 			} else if (!tab.readOnly) {
-				await store.saveProject(tab.history.present);
+				await store.saveProject(tab.history.present, {
+					protectedLinkedVideoSourceIds: Object.freeze([...liveSessionSourceIds()]),
+				});
 				sessionController.markProjectSaved(projectId);
 			}
 		}

@@ -27,6 +27,7 @@ function createFixture() {
 	const calls: string[] = [];
 	let stopRecording = async () => { calls.push('stop-recording'); };
 	const savedProjects: Project[] = [];
+	const savedProjectOptions: Array<Readonly<{ protectedLinkedVideoSourceIds?: readonly string[] }>> = [];
 	const scheduled: Array<{ callback: () => void; delay: number }> = [];
 	const tabs = new Map<string, { projectId: string; dirty: boolean; readOnly: boolean; history: { present: Project } }>();
 	tabs.set('project-a', {
@@ -69,8 +70,11 @@ function createFixture() {
 			calls.push('list');
 			return [{ id: 'listed', title: 'Listed', revision: 1 }];
 		},
-		async saveProject(value: Project) {
+		async saveProject(value: Project, options: Readonly<{
+			protectedLinkedVideoSourceIds?: readonly string[];
+		}> = {}) {
 			savedProjects.push(value);
+			savedProjectOptions.push(options);
 		},
 		async deleteProject(projectId: string) { calls.push(`delete:${projectId}`); },
 		async pruneUnreferencedSources(options: unknown) {
@@ -142,6 +146,7 @@ function createFixture() {
 		closeResult: (value: typeof closeResult) => { closeResult = value; },
 		pruneResult: (value: typeof pruneResult) => { pruneResult = value; },
 		runtime,
+		savedProjectOptions,
 		savedProjects,
 		scheduled,
 		sourceBuffers,
@@ -185,6 +190,8 @@ test('closing inactive tabs persists dirty history and prunes session-only sourc
 	const result = await service.closeProjectTab('project-b');
 	assert.equal(result.closed, true);
 	assert.deepEqual(fixture.savedProjects, [other]);
+	assert.deepEqual(fixture.savedProjectOptions[0]?.protectedLinkedVideoSourceIds, ['live']);
+	assert.equal(Object.isFrozen(fixture.savedProjectOptions[0]?.protectedLinkedVideoSourceIds), true);
 	assert.equal(fixture.calls.includes('marked:project-b'), true);
 	assert.equal(fixture.calls.includes('release'), false);
 	assert.equal(fixture.sourceBuffers.has('deleted'), false);

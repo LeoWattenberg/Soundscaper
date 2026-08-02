@@ -262,6 +262,7 @@ export interface EditorProjectStore {
 	): Promise<EditorProject | null>;
 	saveProject(project: EditorProject, options?: Readonly<{
 		admitProjectPublication?: (bytes: number) => Promise<unknown>;
+		protectedLinkedVideoSourceIds?: readonly string[];
 	}>): Promise<unknown>;
 	prepareProjectHandoff?(project: EditorProject, options?: Readonly<{
 		signal?: AbortSignal;

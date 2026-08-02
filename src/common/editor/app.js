@@ -616,7 +616,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
 		isReadOnly: () => state.readOnly,
-		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'),
+		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedVideoSourceIds: liveSessionSourceIds,
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);
@@ -815,7 +815,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
 				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),
-		saveProject: (activeProject) => store.saveProject(activeProject),
+		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedVideoSourceIds: Object.freeze([...projectRetentionService.liveSessionSourceIds()]) }),
 		listProjects: () => store.listProjects(),
 		synchronizeMicrophoneMeterTarget,
 		publishProjectState,

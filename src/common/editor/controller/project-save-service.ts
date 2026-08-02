@@ -17,8 +17,10 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly isReadOnly: () => boolean;
 	readonly cloneProject: (project: Project) => Project;
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
+	readonly collectProtectedLinkedVideoSourceIds?: () => Iterable<string>;
 	readonly saveProject: (snapshot: Project, options: {
 		readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
+		readonly protectedLinkedVideoSourceIds?: readonly string[];
 	}) => Promise<unknown>;
 	readonly persistActiveProjectId: (projectId: string) => Promise<unknown>;
 	readonly isCurrentProject: (projectId: string) => boolean;
@@ -118,8 +120,14 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	async function saveSnapshot(snapshot: Project, generation: number): Promise<void> {
 		state.pendingSaveSnapshots.add(snapshot);
 		try {
+			const protectedLinkedVideoSourceIds = dependencies.collectProtectedLinkedVideoSourceIds
+				? Object.freeze([...new Set(dependencies.collectProtectedLinkedVideoSourceIds())])
+				: undefined;
 			await dependencies.saveProject(snapshot, {
 				admitProjectPublication: dependencies.admitProjectPublication,
+				...(protectedLinkedVideoSourceIds
+					? { protectedLinkedVideoSourceIds }
+					: {}),
 			});
 			state.pendingSaveSnapshots.delete(snapshot);
 			if (dependencies.isCurrentProject(snapshot.id)) {
