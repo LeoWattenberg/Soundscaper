@@ -361,17 +361,25 @@ maintained video importer. The importer may derive canonical audio and
 disposable poster/thumbnail cache entries, but it skips the owned retained-video
 asset write. It constructs the exact video source, hashes and publishes its
 linked binding before visual activation and canonical project publication.
-Failures before the canonical source lands retire the unused locator,
-conditionally unlink only the import's exact binding, and roll back import-owned
-audio and previews. Once the canonical source has landed, a later publication or
-reporting failure retains its binding, locator, audio, and previews rather than
-attempting destructive rollback. Explicit locator release removes only the
-main-private registry metadata; it never deletes the user-selected external
-file. After durable IndexedDB opens and before project loading, the maintained
-store obtains one point-in-time authoritative project-ID snapshot from its
-active project repository. In Electron that authority is the shared catalog
-rather than a stale product-local shadow. For a reconciliation-capable port,
-the repository validates every catalog project ID and enforces the 10,000-ID
+Failures before the canonical source lands retire the unused locator by its
+exact ID and revision, conditionally unlink only the import's exact binding, and
+roll back import-owned audio and previews. Once the canonical source has landed,
+a later publication or reporting failure retains its binding, locator, audio,
+and previews rather than attempting destructive rollback. Persistent-locator
+release is a closed own-data `{ locatorId, locatorRevision }` request at both
+preload and main; identifier-only, missing, malformed, accessor-backed, and
+extra-field inputs reject. Main applies owner-scoped exact-revision
+compare-and-swap retirement. A stale or missing pair and an already-revoked
+owner return `false` without a registry write. A failed persistence write
+restores the in-memory entry, while revocation observed after the deletion write
+attempts a second persisted restore. A successful release removes only the
+main-private registry metadata; no release path deletes the user-selected
+external file. After durable IndexedDB opens and before project loading, the
+maintained store obtains one point-in-time authoritative project-ID snapshot
+from its active project repository. In Electron that authority is the
+shared catalog rather than a stale product-local shadow. For a
+reconciliation-capable port, the repository validates every catalog project ID
+and enforces the 10,000-ID
 maximum before opening a binding transaction. Memory fallback returns
 before requesting the catalog, mutating a binding, or invoking main-process
 reconciliation. A durable load-only injected port may request the catalog
@@ -398,20 +406,44 @@ stats or deletes the external files. On the next successful full bootstrap it
 retires startup-loaded chooser metadata with no durable binding and metadata
 whose binding rows were durably removed or retired as project-absent.
 
+Within one live `AudioEditorProjectStore` instance in one renderer process, a
+separate coordinator serializes binding publication, exact unlink, unused
+locator release, startup reconciliation, project deletion, and whole-store
+clear. Each complete before/after binding inventory admits at most 100,000
+closed rows and 128 unique exact locator/revision pairs; its pending cleanup set
+is also capped at 128. After a project deletion or clear has committed its local
+project and binding removal, the coordinator rescans the same store and releases
+only a candidate with no surviving same-store alias. Clear's local-commit signal
+is published after the memory or IndexedDB binding store is cleared and before
+fallible OPFS cleanup. A failure before that signal preserves the bindings and
+does not admit their locators for retirement; a later physical-cleanup failure
+does not undo the committed local deletion.
+
+Thrown platform-release failures are reported as committed cleanup errors and
+retain the exact reference for a later serialized retry. Every retry first
+rescans current same-store aliases, so a rebound alias suppresses retirement.
+Either fulfilled `true` or `false` settles the pending exact reference because
+`false` cannot retire a stale, missing, or revoked replacement. Reporting or
+release failure never rolls back the local commit, and locator cleanup still
+never stats, writes, or deletes the external video file.
+
 The project-catalog snapshot, local binding transaction, and main reconciliation
 are separate, not atomic. A catalog mutation after its snapshot may be observed
 only later. If binding deletion commits before IPC or main rejects, the binding
 deletion remains committed; a later startup retry can prune the now-unreferenced
 locator. Project presence alone is the qualified reachability root: a source or
 storage key no longer reachable inside a still-present project remains bound.
-Current-process records whose bindings disappear after the one-shot pass remain
-until a later main-process restart. Main validates the DTO and exact revisions
-but cannot authenticate inventory completeness, so a compromised renderer can
-omit live references and delete startup locator metadata. This is cooperative
-availability maintenance, not a compromised-renderer integrity control.
-Continuous runtime cleanup, cross-store or cross-process mutation serialization,
-source-level reachability, and a total cloned-byte or process-RSS bound for one
-hostile IndexedDB row are not implemented.
+Current-process records abandoned outside the maintained binding, delete, and
+clear lifecycle may still wait for a later main-process restart. Main validates
+the DTO and exact revisions but cannot authenticate inventory completeness, so a
+compromised renderer can omit live references and delete startup locator
+metadata. This is cooperative availability maintenance, not a
+compromised-renderer integrity control. Source-level reachability, cleanup beyond
+one store's maintained delete/clear lifecycle, cross-store, cross-profile, or
+cross-process mutation serialization, abrupt-crash or power-loss durability, and
+a total cloned-byte or process-RSS bound for one hostile IndexedDB row are not
+implemented. Packaged executable/UI and operating-system behavior remain
+unqualified as described above.
 
 With this explicitly injected platform port, a fresh document-only latest shared
 load can admit a complete exact linked-video alias group without a prior local
