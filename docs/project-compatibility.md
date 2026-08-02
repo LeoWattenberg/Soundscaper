@@ -367,31 +367,51 @@ audio and previews. Once the canonical source has landed, a later publication or
 reporting failure retains its binding, locator, audio, and previews rather than
 attempting destructive rollback. Explicit locator release removes only the
 main-private registry metadata; it never deletes the user-selected external
-file. After durable IndexedDB opens and before project loading, the renderer
-walks at most 100,000 closed binding rows in one readonly cursor transaction,
-validates each authoritative key and binding identity, and deduplicates at most
-128 exact locator/revision pairs. The maintained bootstrap sends that
-point-in-time inventory over the closed preload/IPC boundary only after a
-complete scan. Memory fallback sends nothing; corrupt or conflicting records or
-either bound being exceeded reject bootstrap before IPC and preserve locator
-metadata. Main's serialized pass removes only startup-loaded metadata absent
-from the submitted positive inventory and retains runtime-created records. It
-can retry after failure and completes at most once per store/process. A failed
-first registry write restores the in-memory inventory; owner
-revocation after publication attempts a second persisted restore and surfaces
-either failure. The pass rewrites locator metadata only and never stats or
-deletes the external files. On the next successful full bootstrap it retires
-startup-loaded chooser metadata with no durable binding and metadata whose
-binding rows were durably removed. A surviving binding that is no longer
-reachable from a canonical project—including a crash after binding persistence
-but before canonical project publication—remains retained, as do current-process
-records whose bindings disappear after the one-shot pass until a later
-main-process restart. Main validates the DTO and exact revisions but cannot
-authenticate inventory completeness, so a compromised renderer can omit live
-references and delete startup locator metadata. This is cooperative availability
-maintenance, not a compromised-renderer integrity control. Continuous runtime
-cleanup and a total cloned-byte or process-RSS bound for one hostile IndexedDB
-row are not implemented.
+file. After durable IndexedDB opens and before project loading, the maintained
+store obtains one point-in-time authoritative project-ID snapshot from its
+active project repository. In Electron that authority is the shared catalog
+rather than a stale product-local shadow. For a reconciliation-capable port,
+the repository validates every catalog project ID and enforces the 10,000-ID
+maximum before opening a binding transaction. Memory fallback returns
+before requesting the catalog, mutating a binding, or invoking main-process
+reconciliation. A durable load-only injected port may request the catalog
+snapshot but performs no binding mutation or reconciliation IPC.
+
+One readwrite transaction then walks at most 100,000 closed binding rows,
+validates every authoritative binding key and identity, and admits at most 128
+unique exact locator/revision pairs across the full inventory. A conflicting
+revision or exceeded bound rejects reconciliation and rolls back the transaction
+even when every offending row belongs to a project absent from the catalog.
+Only after the complete scan does the same transaction delete
+bindings whose project ID is absent. It retains every binding for a present
+project, and any present-project alias keeps its shared locator live. A failed
+binding deletion rolls every removal back before IPC.
+
+The maintained bootstrap submits the surviving exact references over the
+closed preload/IPC boundary. Main's serialized pass removes only startup-loaded
+metadata absent from that positive inventory and retains runtime-created
+records. It can retry after failure and completes at most once per
+store/process. A failed first registry write restores the in-memory inventory;
+owner revocation after publication attempts a second persisted restore and
+surfaces either failure. The pass rewrites locator metadata only and never
+stats or deletes the external files. On the next successful full bootstrap it
+retires startup-loaded chooser metadata with no durable binding and metadata
+whose binding rows were durably removed or retired as project-absent.
+
+The project-catalog snapshot, local binding transaction, and main reconciliation
+are separate, not atomic. A catalog mutation after its snapshot may be observed
+only later. If binding deletion commits before IPC or main rejects, the binding
+deletion remains committed; a later startup retry can prune the now-unreferenced
+locator. Project presence alone is the qualified reachability root: a source or
+storage key no longer reachable inside a still-present project remains bound.
+Current-process records whose bindings disappear after the one-shot pass remain
+until a later main-process restart. Main validates the DTO and exact revisions
+but cannot authenticate inventory completeness, so a compromised renderer can
+omit live references and delete startup locator metadata. This is cooperative
+availability maintenance, not a compromised-renderer integrity control.
+Continuous runtime cleanup, cross-store or cross-process mutation serialization,
+source-level reachability, and a total cloned-byte or process-RSS bound for one
+hostile IndexedDB row are not implemented.
 
 With this explicitly injected platform port, a fresh document-only latest shared
 load can admit a complete exact linked-video alias group without a prior local
