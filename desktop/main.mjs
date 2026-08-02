@@ -41,6 +41,7 @@ import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-c
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
+import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
@@ -71,6 +72,7 @@ let pendingClose = null;
 let projectLibraryHost = null;
 let projectLibraryStartup = null;
 let projectLibraryIpc = null;
+let linkedVideoLocators = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
@@ -90,6 +92,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
 		{ name: 'project library', run: closeProjectLibraryHost },
+		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
@@ -145,6 +148,9 @@ if (!app.requestSingleInstanceLock()) {
 
 async function startApplication() {
 	await app.whenReady();
+	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-v1.json') });
+	await linkedVideoLocators.ready();
+	if (applicationShutdown.requested) return;
 	const libraryStartup = DesktopProjectLibraryHost.start({
 		appDataPath: resolveDesktopProjectLibraryAppData({
 			applicationDataPath: app.getPath('appData'),
@@ -263,6 +269,7 @@ function revokeRendererSaveOwner(webContents) {
 }
 
 function startRendererSaveRevocation(owner) {
+	linkedVideoLocators?.revokeOwner(owner);
 	void projectLibraryIpc?.revokeOwner(owner).catch((error) => console.error('Desktop renderer project-library cleanup failed:', cleanError(error)));
 	void readCapabilities.revokeOwner(owner).catch((error) => {
 		console.error('Desktop renderer read cleanup failed:', cleanError(error));
@@ -289,6 +296,7 @@ function isRendererSaveOwnerCurrent(owner) {
 
 function registerIpcHandlers(projectLibraryService) {
 	projectLibraryIpc = registerDesktopProjectLibraryIpc({ handle, ownerFor: rendererSaveOwnerFor, service: projectLibraryService });
+	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,

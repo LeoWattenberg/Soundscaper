@@ -9,6 +9,9 @@ const CHANNELS = Object.freeze({
 	environment: 'soundscaper:v1:environment',
 	chooseFiles: 'soundscaper:v1:files:choose',
 	releaseRead: 'soundscaper:v1:files:release',
+	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',
+	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',
+	releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release',
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
 	writeChunk: 'soundscaper:v1:save:chunk',
@@ -63,6 +66,11 @@ const api = Object.freeze({
 		multiple: options?.multiple === true,
 	}).then(sanitizeReadDescriptors),
 	releaseRead: (id) => ipcRenderer.invoke(CHANNELS.releaseRead, opaqueId(id, 64)),
+	chooseLinkedVideoOriginal: () => ipcRenderer.invoke(CHANNELS.chooseLinkedVideoOriginal).then(nullableLinkedVideoLocator),
+	loadLinkedVideoOriginal: (value) => ipcRenderer.invoke(
+		CHANNELS.loadLinkedVideoOriginal, linkedVideoLoadRequest(value),
+	).then(nullableLoadedLinkedVideoLocator),
+	releaseLinkedVideoOriginal: (locatorId) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, opaqueId(locatorId, 64)).then(strictBoolean),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
 		purpose: text(options?.purpose, 24),
 		suggestedName: text(options?.suggestedName, 220),
@@ -168,6 +176,54 @@ function sanitizeReadDescriptor(value) {
 function sanitizeReadDescriptors(values) {
 	if (!Array.isArray(values)) throw new TypeError('Expected read descriptors');
 	return Object.freeze(values.map(sanitizeReadDescriptor));
+}
+
+function nullableLinkedVideoLocator(value) {
+	if (value === null) return null;
+	const mimeType = linkedVideoMimeType(value?.mimeType);
+	const size = readDescriptorSize(value?.size, READ_PROFILE_MATERIALIZED_V1);
+	if (size === 0) throw new RangeError('Linked-video size must be positive');
+	return Object.freeze({
+		locatorId: opaqueId(value?.locatorId, 64), locatorRevision: linkedVideoRevision(value?.locatorRevision),
+		name: readDescriptorName(value?.name), size, mimeType,
+		lastModified: safeInteger(value?.lastModified),
+	});
+}
+
+function linkedVideoLoadRequest(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked-video load request is required');
+	}
+	return Object.freeze({
+		locatorId: opaqueId(value.locatorId, 64),
+		expectedRevision: value.expectedRevision === null
+			? null
+			: linkedVideoRevision(value.expectedRevision),
+	});
+}
+
+function nullableLoadedLinkedVideoLocator(value) {
+	if (value === null) return null;
+	const descriptor = sanitizeReadDescriptor(value?.descriptor);
+	if (descriptor.readProfile !== READ_PROFILE_MATERIALIZED_V1 || descriptor.size === 0) {
+		throw new TypeError('Linked-video reads require a positive materialized-v1 descriptor');
+	}
+	linkedVideoMimeType(descriptor.mimeType);
+	return Object.freeze({
+		locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor,
+	});
+}
+
+function linkedVideoRevision(value) {
+	try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-video locator revision'); }
+}
+
+function linkedVideoMimeType(value) {
+	const mimeType = readDescriptorMimeType(value);
+	if (!/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
+		throw new TypeError('Invalid linked-video MIME type');
+	}
+	return mimeType;
 }
 
 function trustedCapabilityUrl(value, { id, readProfile, name }) {

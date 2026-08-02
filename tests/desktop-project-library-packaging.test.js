@@ -23,6 +23,8 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
 	assert.deepEqual(result.files, [
 		'desktop/application-lifecycle.js',
+		'desktop/linked-video-locator-registry.js',
+		'desktop/linked-video-locator-store.js',
 		'desktop/project-library-abort.js',
 		'desktop/project-library-api.js',
 		'desktop/project-library-contract.js',
@@ -74,10 +76,14 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
 	}
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
+	const linkedVideoRegistry = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-registry.js')).href}?test=${Date.now()}`);
+	const linkedVideoStore = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-store.js')).href}?test=${Date.now()}`);
 	const editorService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-service.js')).href}?test=${Date.now()}`);
 	const editorMediaService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-media-service.js')).href}?test=${Date.now()}`);
 	const managedMedia = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-media.js')).href}?test=${Date.now()}`);
 	assert.equal(typeof runtime.DesktopProjectLibraryHost?.start, 'function');
+	assert.equal(typeof linkedVideoRegistry.FileDesktopLinkedVideoLocatorRegistry, 'function');
+	assert.equal(typeof linkedVideoStore.DesktopLinkedVideoLocatorStore, 'function');
 	assert.equal(typeof editorService.DesktopSharedProjectLibraryService, 'function');
 	assert.equal(typeof editorMediaService.DesktopSharedProjectMediaService, 'function');
 	assert.equal(typeof managedMedia.DesktopLibraryManagedMediaStore, 'function');
@@ -155,10 +161,14 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
+	await access(join(applicationDesktopRoot, 'linked-video-locator-ipc.js'));
+	await access(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-registry.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-store.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-media-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-binding.js'));
@@ -184,6 +194,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	for (const [, relativePath] of runtimeImports) {
 		await access(join(applicationDesktopRoot, 'project-library-runtime', relativePath));
 	}
+	const locatorRuntime = await readFile(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'), 'utf8');
+	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-registry\.js/u);
+	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-store\.js/u);
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
 
