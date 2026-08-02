@@ -284,9 +284,11 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   explicit managed handoff roots the manifest-only fallback with the editable
   retained original, and a fresh recipient acquires both exact bodies and the
   canonical shadow before the separate controller digest check and activation.
-  Canonical project, history, audio, Project Bin, and effect state stay
-  unchanged. Authored proxies, generic fallback handling, export parity, and
-  browser or packaged qualification remain open.
+  A fresh export-time digest check lets that fallback alone drive maintained
+  video export while canonical audio is staged separately and embedded fallback
+  audio is ignored. Canonical project, history, Project Bin, and effect state
+  stay unchanged. Authored proxies, generic fallback handling, broader export
+  parity, and browser or packaged qualification remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
@@ -337,7 +339,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   finish broader
   linked and unmanaged-original lifecycles, authored proxies plus generic
   rendered-fallback relationships beyond maintained first-party playback and
-  managed handoff, fallback authoring and delivery use, exact or write-time
+  managed handoff and video export, fallback authoring and broader delivery
+  use, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
   lifecycle, linked-locator cleanup beyond the one-live-store maintained save,
   project-delete, and whole-clear lifecycle, source-level binding reachability
@@ -350,8 +353,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   media, and managed media transfer. They are not editorial proxies.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
-  generic fallback authoring, acquisition, and activation beyond maintained
-  first-party playback and managed handoff.
+  generic fallback authoring, acquisition, activation, and delivery beyond
+  maintained first-party playback, managed handoff, and video export.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
