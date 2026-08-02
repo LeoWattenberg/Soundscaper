@@ -154,6 +154,38 @@ measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
 may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
 coverage discovery fast-skips it with that command.
 
+A third provisional milestone 2 fixture records the direct native-PCM ZIP32
+stem publication contract as small focused Node correctness evidence. Its
+direct service case preflights only the four-byte largest sequential
+intermediate, then selects and opens an exact 268-byte destination before
+rendering two ordered WAV-plan entries, `01-dialogue.wav` and `02-music.wav`,
+with four bytes apiece; it reconstructs their marker payloads, closes before
+commit, cleans each sequential staged result, and leaves failures and
+cancellation unpublished. The direct service constructs no `Blob`, invokes no
+legacy archive path, and calls no download publisher. Those marker bytes isolate
+archive publication and are not native-container conformance vectors; the
+existing format-specific WAV, AIFF, and BWF evidence continues to own encoder
+correctness. Closed positive admission covers canonical WAV and BWF
+(`audio/wav`, `.wav`) and AIFF (`audio/aiff`, `.aiff`). A separate admission case
+has two 60-byte entries and an exact 380-byte archive and records 60 bytes as its
+largest sequential intermediate instead of charging both stems or the streamed
+archive. The shared ZIP32 engine's exact-order case emits a 468-byte archive for
+3-, 1-, 2-, and 2-byte entries. Its backpressure case feeds 256 KiB through
+64 KiB source slices and proves only one slice is taken while the first sink
+write is blocked, with at most one sink write active.
+Prepared Blob mode instead retains the legacy 272-byte temporary-storage
+preflight, ordered archive additions, and browser download publication.
+
+This direct native-PCM ZIP32 stem witness uses a provider-injected prepared
+streaming destination. It does not exercise File System Access, an Electron
+filesystem, a native picker, packaged UI, or real browser or operating-system
+behavior. Its small correctness fixtures are not reference-scale, renderer-heap,
+process-RSS, quota, crash, power-loss, or filesystem-durability evidence. It
+therefore remains outside the inputs to the milestone 2 bounded-memory workload,
+which stays planned. Compressed stems, BW64, video, 7z, and final-Blob direct
+publication are outside this fixture; the existing browser Blob/download
+fallback remains unchanged.
+
 The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
 remains payload-lazy. It follows the real capability store, protocol, desktop
 range adapter, file service, project router, and inspector through single exact
@@ -210,7 +242,8 @@ The fixture specifications are deliberately concrete:
 
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
-  direct-WAV counting-SHA witness described above;
+  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem
+  correctness fixture described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
