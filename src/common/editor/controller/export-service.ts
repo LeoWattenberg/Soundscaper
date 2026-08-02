@@ -1,17 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isProjectAudioFallbackIntegrityError } from '../project-fallback-integrity-audio.ts';
 import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
 	projectForAudioRenderedFallbackExport,
 } from './audio-rendered-fallback-export.ts';
+import { renderAndEncodeAudioExport, type ExportRenderSources } from './audio-export-render-orchestration.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectCompressedDestination, encodeDirectCompressedStagedFile, prepareDirectCompressedDestination, type DirectCompressedDestination } from './direct-compressed-export.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
-import { encodeRenderedAudio } from './rendered-audio-encoding.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -19,12 +18,6 @@ export interface ExportServiceRuntime {
 	readonly [name: string]: any;
 }
 type RuntimeValue = ExportServiceRuntime[string];
-
-interface ExportRenderSources {
-	readonly sourceMap: RuntimeValue;
-	readonly chunkSources: RuntimeValue | null;
-	readonly prepareTimePitchCaches: boolean;
-}
 
 const NO_TASK_PROGRESS = Object.freeze({
 	setPhase: () => false,
@@ -325,92 +318,28 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		directDestination: DirectPcmDestination | null = null,
 		directCompressedDestination: DirectCompressedDestination | null = null,
 		assertDirectCurrent: () => void = () => undefined,
-	) {
-		throwIfAborted(signal);
-		const progressSpan = progressRange.end - progressRange.start;
-		taskProgress?.setActivePhase?.(copy.rendering, {
-			start: progressRange.start,
-			end: progressRange.start + progressSpan * 0.7,
-			value: 0,
-		});
-		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
-		if (plan.render.strategy === 'realtime-stream') {
-			setStatus(copy.largeProjectRealtimeExport);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directCompressedDestination, assertDirectCurrent);
-		}
-		let rendered: RuntimeValue;
-		try {
-			rendered = await renderSnapshot(snapshot, {
-				startFrame: plan.range.startFrame,
-				endFrame: plan.range.endFrame,
-				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
-				outputFrames: plan.range.durationFrames + plan.tailFrames,
-				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-			}, renderSources.sourceMap, signal, renderSources.chunkSources, renderSources.prepareTimePitchCaches);
-			throwIfAborted(signal);
-		} catch (error) {
-			if (signal?.aborted
-				|| (error as Readonly<{ name?: string }>)?.name === 'AbortError'
-				|| isProjectAudioFallbackIntegrityError(error)) throw error;
-			assertDirectCurrent();
-			if (!allowsRealtimeFallback(plan, settings)
-				|| !directRenderFallbackAvailable(directDestination, directCompressedDestination)) {
-				throw error;
-			}
-			setStatus(copy.realtimeExportFallback);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directCompressedDestination, assertDirectCurrent);
-		}
-		try {
-			return await encodeOfflineRendered(rendered);
-		} catch (error) {
-			if (signal?.aborted
-				|| (error as Readonly<{ name?: string }>)?.name === 'AbortError'
-				|| isProjectAudioFallbackIntegrityError(error)
-				|| directDestination
-				|| directCompressedDestination
-				|| !allowsRealtimeFallback(plan, settings)) throw error;
-			setStatus(copy.realtimeExportFallback);
-			return renderRealtimeEncoded(
-				snapshot, plan, settings, signal, renderSources,
-				directDestination, directCompressedDestination, assertDirectCurrent,
-			);
-		}
-
-		async function encodeOfflineRendered(rendered: RuntimeValue) {
-			taskProgress?.setActivePhase?.(copy.encoding, {
-				start: progressRange.start + progressSpan * 0.7,
-				end: progressRange.end,
-				value: 0,
-			});
-			return encodeRenderedAudio({
+	): Promise<RuntimeValue> {
+		return renderAndEncodeAudioExport({
+			encodingRuntime: {
 				applyMediaChannelMapping, audioBufferChannels, copy,
 				createAiffStreamEncoder, createWavStreamEncoder, encodeAiff, encodeWav,
 				ffmpeg, resampleBuffer, setStatus, throwIfAborted,
-			}, {
-				assertCurrent: directDestination ? assertDirectCurrent : undefined,
-				directDestination,
-				plan,
-				rendered,
-				settings,
-				signal,
-			});
-		}
-	}
-
-	function allowsRealtimeFallback(plan: RuntimeValue, settings: RuntimeValue): boolean {
-		return settings?.measureLoudness !== true || (plan.format !== 'bwf' && plan.format !== 'bw64');
-	}
-
-	function directRenderFallbackAvailable(
-		directDestination: DirectPcmDestination | null,
-		directCompressedDestination: DirectCompressedDestination | null,
-	): boolean {
-		try {
-			return (!directDestination || directDestination.bytesWritten() === 0)
-				&& (!directCompressedDestination || directCompressedDestination.bytesWritten() === 0);
-		} catch {
-			return false;
-		}
+			},
+			normalizeProjectSampleRate,
+			renderRealtimeEncoded,
+			renderSnapshot,
+			taskProgress,
+		}, {
+			assertDirectCurrent,
+			directCompressedDestination,
+			directDestination,
+			plan,
+			progressRange,
+			renderSources,
+			settings,
+			signal,
+			snapshot,
+		});
 	}
 
 	async function renderSnapshot(
