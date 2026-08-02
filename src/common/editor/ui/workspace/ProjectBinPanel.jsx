@@ -52,6 +52,15 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			if (files.length) await importFiles(files);
 		});
 	});
+	const chooseLinkedVideo = () => run(async () => {
+		if (mutationBlocked) return;
+		const choice = await fileService.chooseLinkedVideoOriginal();
+		if (!choice) return;
+		await controller.actions.project.importFiles([choice.file], {
+			destination: 'project-bin',
+			linkedVideoLocatorId: choice.locatorId,
+		});
+	});
 	const isFileDrag = (dataTransfer) => {
 		const types = [...(dataTransfer?.types || [])];
 		return types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
@@ -164,6 +173,11 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				<Button variant="secondary" disabled={mutationBlocked} onClick={chooseFiles}>
 					{copy.projectBinImport}
 				</Button>
+				{fileService.linkedVideoOriginalsAvailable && (
+					<Button variant="secondary" disabled={mutationBlocked} onClick={chooseLinkedVideo}>
+						{copy.projectBinLinkVideo}
+					</Button>
+				)}
 			</div>
 			{snapshot.readOnly && (
 				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinReadOnly}</p>
